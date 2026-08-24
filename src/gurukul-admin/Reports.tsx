@@ -121,7 +121,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
               AcademicProfileService.listForClass(ctx, c.classId, { limit: 200 }),
               AttendanceService.listClassStudents(ctx, c.classId).catch(() => []),
             ]);
-            // Report exists so admin/principal can act on "who is at risk" â€”
+            // Report exists so admin/principal can act on "who is at risk" —
             // a truncated UUID can't be followed up on, and this class's
             // seed IDs happen to share an 8-char prefix, making every row
             // in "Below 75%" indistinguishable from every other. Resolve
@@ -149,7 +149,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
           ]);
           setRows(allRows.slice(0, 200));
         } else if (reportKey === "teacher-attendance") {
-          // Teacher HR attendance is not an Academic Engine entity yet â€” honest empty.
+          // Teacher HR attendance is not an Academic Engine entity yet — honest empty.
           setSummary([{ label: "Teachers (directory)", value: 0, color: "#4aa87a" }]);
           setRows([]);
         }
@@ -167,7 +167,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading Academic Engine reportâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading Academic Engine report…
       </div>
     );
   }

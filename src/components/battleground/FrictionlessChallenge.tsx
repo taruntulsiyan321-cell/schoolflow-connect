@@ -21,6 +21,7 @@ import { isEmptyQuestionBankError, NO_BANK_MSG, canUseMath12TemplateSolo } from 
 import { Globe, Loader2, Search, User, Users, UsersRound, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
+import { toErrorMessage } from "@/lib/presentation";
 
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 const ANY = "__any__";
@@ -232,7 +233,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       toast({ title: labels[mode] });
       nav(`/student/battleground/battle/${battleId}`);
     } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not start battle";
+      const msg = toErrorMessage(e, "Could not start battle");
       if (isEmptyQuestionBankError(msg)) setBankEmptyHint(true);
       toast({ title: msg, variant: "destructive" });
     } finally {

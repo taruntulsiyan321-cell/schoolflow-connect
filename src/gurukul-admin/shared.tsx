@@ -95,7 +95,7 @@ export function ConfirmModal({
   );
 }
 
-// â”€â”€ Undo-delete toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Undo-delete toast ────────────────────────────────────────────────────────
 
 interface UndoToastState {
   message: string;
@@ -137,7 +137,7 @@ export function UndoToast({ state, onClose }: { state: UndoToastState; onClose: 
           Undo{remaining !== null && remaining > 0 ? ` (${remaining}s)` : ""}
         </button>
       )}
-      <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-1 text-lg leading-none">Ã—</button>
+      <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-1 text-lg leading-none">×</button>
     </div>
   );
 }
@@ -155,7 +155,7 @@ export function Toast({
   return <UndoToast state={{ message, type }} onClose={onClose} />;
 }
 
-// Hook for undo-delete pattern â€” 5s window before permanent
+// Hook for undo-delete pattern — 5s window before permanent
 export function useUndoDelete<T extends { id: string }>(
   setItems: React.Dispatch<React.SetStateAction<T[]>>
 ) {
@@ -205,7 +205,7 @@ export function useUndoDelete<T extends { id: string }>(
 // Export helpers
 export function exportCSV(filename: string, rows: Record<string, unknown>[]) {
   if (!rows.length) {
-    toast.error("Nothing to export â€” this report has no rows.");
+    toast.error("Nothing to export — this report has no rows.");
     return;
   }
   const headers = Object.keys(rows[0]);

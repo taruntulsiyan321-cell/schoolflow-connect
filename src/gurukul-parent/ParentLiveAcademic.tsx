@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import {
   AcademicProfileService,
@@ -16,6 +16,7 @@ import {
   type ParentNarrative,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { localDateKey } from "@/lib/localDate";
 import { cn } from "./shared";
 import { toDisplayText, toErrorMessage } from "@/lib/presentation";
@@ -32,42 +33,24 @@ function Loading({ label }: { label: string }) {
 export function ParentLiveHomework({ studentId }: { studentId: string }) {
   const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["homework", "profile"]);
-  const [rows, setRows] = useState<Awaited<ReturnType<typeof HomeworkService.listForStudent>>>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Keyed on the child so one child's homework can never render under
+  // another's name — see src/hooks/useKeyedResource.ts.
+  const homework = useKeyedResource(
+    [studentId, liveVersion],
+    () => HomeworkService.listForStudent(ctx!, studentId),
+    { enabled: settled && ready && !!ctx, errorFallback: "Failed to load homework" },
+  );
 
-  useEffect(() => {
-    if (!settled) return;
-    if (!ready || !ctx || !studentId) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const list = await HomeworkService.listForStudent(ctx, studentId);
-        if (!cancelled) {
-          setRows(list);
-          setError(null);
-        }
-      } catch (e) {
-        if (!cancelled) setError(toErrorMessage(e, "Failed to load homework"));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [settled, ready, ctx, studentId, liveVersion]);
+  const rows = useMemo(() => homework.data ?? [], [homework.data]);
+  const error = homework.error;
+  const loading = homework.isLoading && !(settled && (!ready || !ctx));
 
-  if (loading) return <Loading label="Loading homeworkâ€¦" />;
+  if (loading) return <Loading label="Loading homework…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
 
   return (
     <div className="space-y-3">
-      <div className="text-[9px] text-muted-foreground">HomeworkService Â· {rows.length} items</div>
+      <div className="text-[9px] text-muted-foreground">HomeworkService · {rows.length} items</div>
       {rows.map(({ homework: h, submission: s, displayStatus }) => (
         <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-2xl">
           <div className="flex justify-between gap-3">
@@ -79,8 +62,8 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
                 </span>
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                {h.subject} Â· Due {h.dueDate ?? "â€”"}
-                {s?.submittedAt ? ` Â· Submitted ${new Date(s.submittedAt).toLocaleString()}` : ""}
+                {h.subject} · Due {h.dueDate ?? "—"}
+                {s?.submittedAt ? ` · Submitted ${new Date(s.submittedAt).toLocaleString()}` : ""}
               </div>
             </div>
             <div
@@ -117,60 +100,44 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
 export function ParentLiveExams({ studentId, classId }: { studentId: string; classId: string | null }) {
   const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["marks", "examination", "test", "profile"]);
-  const [marks, setMarks] = useState<Awaited<ReturnType<typeof MarksService.listForStudent>>>([]);
-  const [exams, setExams] = useState<Awaited<ReturnType<typeof MarksService.listExamsForClass>>>([]);
-  const [tests, setTests] = useState<any[]>([]);
-  const [attemptsByDpp, setAttemptsByDpp] = useState<Record<string, Record<string, unknown>>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!settled) return;
-    if (!ready || !ctx || !studentId) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const markRows = await MarksService.listForStudent(ctx, studentId, { limit: 100 });
-        let examRows: Awaited<ReturnType<typeof MarksService.listExamsForClass>> = [];
-        let testRows: any[] = [];
-        let attemptMap: Record<string, Record<string, unknown>> = {};
-        if (classId) {
-          const results = await Promise.allSettled([
-            MarksService.listExamsForClass(ctx, classId, { limit: 50 }),
-            TestService.listForClass(ctx, classId),
-          ]);
-          examRows = results[0].status === "fulfilled" ? results[0].value : [];
-          testRows = results[1].status === "fulfilled" ? results[1].value : [];
-          const ids = testRows.map((t) => String(t.id)).filter(Boolean);
-          if (ids.length) {
-            try {
-              attemptMap = await TestService.listLatestAttemptsForStudent(ctx, studentId, ids);
-            } catch {
-              attemptMap = {};
-            }
+  // Keyed on child AND class: switching either must not show the previous
+  // subject's marks. `classId` is part of the key, not just a dependency.
+  const examData = useKeyedResource(
+    [studentId, classId ?? "no-class", liveVersion],
+    async () => {
+      const markRows = await MarksService.listForStudent(ctx!, studentId, { limit: 100 });
+      let examRows: Awaited<ReturnType<typeof MarksService.listExamsForClass>> = [];
+      let testRows: Awaited<ReturnType<typeof TestService.listForClass>> = [];
+      let attemptMap: Record<string, Record<string, unknown>> = {};
+      if (classId) {
+        const results = await Promise.allSettled([
+          MarksService.listExamsForClass(ctx!, classId, { limit: 50 }),
+          TestService.listForClass(ctx!, classId),
+        ]);
+        examRows = results[0].status === "fulfilled" ? results[0].value : [];
+        testRows = results[1].status === "fulfilled" ? results[1].value : [];
+        const ids = testRows.map((t) => String(t.id)).filter(Boolean);
+        if (ids.length) {
+          try {
+            attemptMap = await TestService.listLatestAttemptsForStudent(ctx!, studentId, ids);
+          } catch {
+            attemptMap = {};
           }
         }
-        if (cancelled) return;
-        setMarks(markRows);
-        setExams(examRows);
-        setTests(testRows);
-        setAttemptsByDpp(attemptMap);
-      } catch (e) {
-        if (!cancelled) setError(toErrorMessage(e, "Failed to load exams"));
-      } finally {
-        if (!cancelled) setLoading(false);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [settled, ready, ctx, studentId, classId, liveVersion]);
+      return { marks: markRows, exams: examRows, tests: testRows, attemptsByDpp: attemptMap };
+    },
+    { enabled: settled && ready && !!ctx, errorFallback: "Failed to load exams" },
+  );
 
-  if (loading) return <Loading label="Loading exams & testsâ€¦" />;
+  const marks = useMemo(() => examData.data?.marks ?? [], [examData.data]);
+  const exams = useMemo(() => examData.data?.exams ?? [], [examData.data]);
+  const tests = useMemo(() => examData.data?.tests ?? [], [examData.data]);
+  const attemptsByDpp = useMemo(() => examData.data?.attemptsByDpp ?? {}, [examData.data]);
+  const error = examData.error;
+  const loading = examData.isLoading && !(settled && (!ready || !ctx));
+
+  if (loading) return <Loading label="Loading exams & tests…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
 
   const examById = new Map(exams.map((e) => [e.id, e]));
@@ -189,14 +156,14 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
             return (
               <div key={m.id} className="p-3 bg-surface border border-border/70 rounded-xl flex justify-between">
                 <div>
-                  <div className="text-xs font-bold text-foreground">{exam?.name ?? m.examId.slice(0, 8)}</div>
+                  <div className="text-xs font-bold text-foreground">{toDisplayText(exam?.name, { kind: "label", fallback: "Exam" })}</div>
                   <div className="text-[10px] text-muted-foreground">{exam?.subject ?? "—"}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-xs font-black text-foreground">
                     {max ? `${m.marksObtained}/${max}` : m.marksObtained}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">{pct !== null ? `${pct}%` : "â€”"}</div>
+                  <div className="text-[10px] text-muted-foreground">{pct !== null ? `${pct}%` : "—"}</div>
                 </div>
               </div>
             );
@@ -230,7 +197,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
               <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl flex justify-between gap-3">
                 <div>
                   <div className="text-xs font-bold text-foreground">{t.title}</div>
-                  <div className="text-[10px] text-muted-foreground">{t.subject || "â€”"}</div>
+                  <div className="text-[10px] text-muted-foreground">{t.subject || "—"}</div>
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-xs font-black text-foreground">{scoreLabel}</div>
@@ -258,86 +225,62 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
     "test",
     "profile",
   ]);
-  const [profile, setProfile] = useState<StudentAcademicProfile | null>(null);
-  const [analytics, setAnalytics] = useState<Awaited<
-    ReturnType<typeof AnalyticsService.forStudent>
-  > | null>(null);
-  const [progression, setProgression] = useState<{
-    xp: number;
-    level: number;
-    league: string;
-    studyStreak: number;
-    badges: number;
-  } | null>(null);
-  const [narrative, setNarrative] = useState<ParentNarrative | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!settled) return;
-    if (!ready || !ctx || !studentId) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const results = await Promise.allSettled([
-          AcademicProfileService.get(ctx, studentId),
-          AnalyticsService.forStudent(ctx, studentId),
-          AiSummaryService.student(ctx, studentId),
-          ProgressionService.getForStudent(ctx, studentId),
-        ]);
-        if (cancelled) return;
-        if (results.slice(0, 3).every((s) => s.status === "rejected")) {
-          const first = results[0] as PromiseRejectedResult;
-          setError(toErrorMessage(first.reason, "Failed to load performance"));
-          return;
-        }
-        const p = results[0].status === "fulfilled" ? results[0].value : null;
-        const a = results[1].status === "fulfilled" ? results[1].value : null;
-        const summary = results[2].status === "fulfilled" ? results[2].value : null;
-        const prog = results[3].status === "fulfilled" ? results[3].value : null;
-        setProfile(p);
-        setAnalytics(a);
-        setProgression(
-          prog
-            ? {
-                xp: prog.xp ?? 0,
-                level: prog.level ?? 0,
-                league: prog.league?.label ?? prog.league?.code ?? "â€”",
-                studyStreak: prog.study_streak ?? 0,
-                badges: prog.badges?.length ?? 0,
-              }
-            : { xp: 0, level: 0, league: "â€”", studyStreak: 0, badges: 0 },
-        );
-        setNarrative(
-          summary
-            ? buildParentScheduledNarrative({
-                attendance_pct: summary.attendancePct,
-                homework_completion_pct: summary.homeworkCompletionPct,
-                tests_avg_pct: summary.testsAvgPct,
-                exams_avg_pct: summary.examsAvgPct,
-                weak_topics: summary.weakTopics,
-                strong_topics: summary.strongTopics,
-                source_as_of: localDateKey(),
-                data_version: `parent_performance:${studentId}`,
-              })
-            : null,
-        );
-      } catch (e) {
-        if (!cancelled) setError(toErrorMessage(e, "Failed to load performance"));
-      } finally {
-        if (!cancelled) setLoading(false);
+  // Keyed on the child. Partial-failure semantics are unchanged: any single
+  // source may fail, but if all three primary sources fail the whole panel
+  // reports an error rather than showing a hollow shell.
+  const perf = useKeyedResource(
+    [studentId, liveVersion],
+    async () => {
+      const results = await Promise.allSettled([
+        AcademicProfileService.get(ctx!, studentId),
+        AnalyticsService.forStudent(ctx!, studentId),
+        AiSummaryService.student(ctx!, studentId),
+        ProgressionService.getForStudent(ctx!, studentId),
+      ]);
+      if (results.slice(0, 3).every((s) => s.status === "rejected")) {
+        throw (results[0] as PromiseRejectedResult).reason;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [settled, ready, ctx, studentId, liveVersion]);
+      const p = results[0].status === "fulfilled" ? results[0].value : null;
+      const a = results[1].status === "fulfilled" ? results[1].value : null;
+      const summary = results[2].status === "fulfilled" ? results[2].value : null;
+      const prog = results[3].status === "fulfilled" ? results[3].value : null;
+      return {
+        profile: p,
+        analytics: a,
+        progression: prog
+          ? {
+              xp: prog.xp ?? 0,
+              level: prog.level ?? 0,
+              league: prog.league?.label ?? prog.league?.code ?? "—",
+              studyStreak: prog.study_streak ?? 0,
+              badges: prog.badges?.length ?? 0,
+            }
+          : { xp: 0, level: 0, league: "—", studyStreak: 0, badges: 0 },
+        narrative: summary
+          ? buildParentScheduledNarrative({
+              attendance_pct: summary.attendancePct,
+              homework_completion_pct: summary.homeworkCompletionPct,
+              tests_avg_pct: summary.testsAvgPct,
+              exams_avg_pct: summary.examsAvgPct,
+              weak_topics: summary.weakTopics,
+              strong_topics: summary.strongTopics,
+              source_as_of: localDateKey(),
+              data_version: `parent_performance:${studentId}`,
+            })
+          : null,
+      };
+    },
+    { enabled: settled && ready && !!ctx, errorFallback: "Failed to load performance" },
+  );
 
-  if (loading) return <Loading label="Loading performanceâ€¦" />;
+  const profile: StudentAcademicProfile | null = perf.data?.profile ?? null;
+  const analytics = perf.data?.analytics ?? null;
+  const progression = perf.data?.progression ?? null;
+  const narrative: ParentNarrative | null = perf.data?.narrative ?? null;
+  const error = perf.error;
+  const loading = perf.isLoading && !(settled && (!ready || !ctx));
+
+  if (loading) return <Loading label="Loading performance…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
 
   const att = analytics?.attendance.pct ?? profile?.attendancePct ?? 0;
@@ -387,7 +330,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
         </div>
       )}
       <p className="text-[9px] text-muted-foreground">
-        AcademicProfileService Â· AnalyticsService Â· AiSummaryService Â· ProgressionService Â· buildParentScheduledNarrative
+        AcademicProfileService · AnalyticsService · AiSummaryService · ProgressionService · buildParentScheduledNarrative
       </p>
     </div>
   );

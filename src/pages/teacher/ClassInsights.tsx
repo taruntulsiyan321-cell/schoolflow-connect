@@ -106,7 +106,7 @@ export default function ClassInsights() {
       </Card>
 
       {loading ? (
-        <p className="text-muted-foreground text-center py-8">Loading class insightsâ€¦</p>
+        <p className="text-muted-foreground text-center py-8">Loading class insights…</p>
       ) : (
       <>
       <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
@@ -134,7 +134,7 @@ export default function ClassInsights() {
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
                     <p className="font-bold text-sm">{displayConcept(concept.concept) || "Concept gap"}</p>
-                    <p className="text-xs text-muted-foreground">{displaySubject(concept.subject) || "Subject"} Â· {concept.students ?? 0} students struggled</p>
+                    <p className="text-xs text-muted-foreground">{displaySubject(concept.subject) || "Subject"} · {concept.students ?? 0} students struggled</p>
                   </div>
                   <span className="rounded-full bg-warning/15 px-2 py-1 text-xs font-bold text-warning">{struggle}% confused</span>
                 </div>
@@ -153,7 +153,7 @@ export default function ClassInsights() {
           {atRisk.map((s: any) => (
             <div key={s.student_id} className="tp-row text-sm mb-2">
               <div className="font-medium">{s.name}</div>
-              <div className="text-xs text-muted-foreground">Att {s.attendance_pct}% Â· Acc {s.avg_accuracy}%</div>
+              <div className="text-xs text-muted-foreground">Att {s.attendance_pct}% · Acc {s.avg_accuracy}%</div>
             </div>
           ))}
           {atRisk.length === 0 && <p className="text-sm text-muted-foreground">No at-risk flags right now.</p>}
@@ -178,7 +178,7 @@ export default function ClassInsights() {
         {weakTopics.map((t: any, i: number) => (
           <div key={i} className="mb-3">
             <div className="flex justify-between text-sm mb-1">
-              <span>{displaySubject(t.subject)} Â· {displayChapter(t.chapter)}</span><span>{t.accuracy}%</span>
+              <span>{displaySubject(t.subject)} · {displayChapter(t.chapter)}</span><span>{t.accuracy}%</span>
             </div>
             <div className="tp-progress"><span style={{ width: `${Math.max(0, Math.min(100, Number(t.accuracy) || 0))}%` }} /></div>
           </div>
@@ -193,8 +193,8 @@ export default function ClassInsights() {
           )}
           {weakConcepts.map((t: any, i: number) => (
             <div key={i} className="tp-row flex justify-between text-sm mb-2">
-              <span>{displaySubject(t.subject)} Â· {displayConcept(t.concept)}</span>
-              <span>{t.avg_mastery}% Â· {t.students} students</span>
+              <span>{displaySubject(t.subject)} · {displayConcept(t.concept)}</span>
+              <span>{t.avg_mastery}% · {t.students} students</span>
             </div>
           ))}
         </Card>
@@ -220,7 +220,7 @@ export default function ClassInsights() {
           <Lightbulb className="w-4 h-4 text-primary" /> Suggested interventions
         </h3>
         {(data?.interventions ?? []).length === 0 && (
-          <p className="text-sm text-muted-foreground">No interventions suggested yet â€” more class DPP data will unlock these.</p>
+          <p className="text-sm text-muted-foreground">No interventions suggested yet — more class DPP data will unlock these.</p>
         )}
         {(data?.interventions ?? []).map((item: any, i: number) => (
           <div key={i} className="tp-row mb-2">

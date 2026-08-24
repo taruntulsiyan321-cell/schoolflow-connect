@@ -119,7 +119,7 @@ function todayIsoDate(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Teacher command center â€” what needs attention + quick actions that land on the right tab. */
+/** Teacher command center — what needs attention + quick actions that land on the right tab. */
 export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) => void }) {
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["attendance", "homework", "test", "marks", "profile"]);
@@ -169,7 +169,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         const partialErrors: string[] = [];
 
         // Every class's 5 lookups, and all classes, run concurrently instead
-        // of one long sequential chain â€” this was the dominant cause of the
+        // of one long sequential chain — this was the dominant cause of the
         // multi-second dashboard load (each cross-region RPC is ~400ms; a
         // sequential chain of 5 x N classes compounds linearly).
         const [classResults, doubtsResult] = await Promise.all([
@@ -305,7 +305,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading your dayâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading your day…
       </div>
     );
   }
@@ -313,12 +313,12 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-[#3b5bdb]/10 to-[#f59e0b]/5 border border-[#3b5bdb]/20 rounded-2xl p-5">
-        <div className="text-sm font-black text-foreground">Good to go â€” here is your day</div>
+        <div className="text-sm font-black text-foreground">Good to go — here is your day</div>
         <div className="text-xs text-muted-foreground mt-0.5">
           {classCount} class{classCount === 1 ? "" : "es"}
-          {ctClasses > 0 ? ` Â· class teacher of ${ctClasses}` : ""}
+          {ctClasses > 0 ? ` · class teacher of ${ctClasses}` : ""}
           {classNames.length > 0
-            ? ` Â· ${classNames.slice(0, 4).join(", ")}${classNames.length > 4 ? "â€¦" : ""}`
+            ? ` · ${classNames.slice(0, 4).join(", ")}${classNames.length > 4 ? "…" : ""}`
             : ""}
         </div>
         {error && <div className="text-xs text-destructive mt-2">{error}</div>}
@@ -460,7 +460,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           <Calendar className="w-4 h-4 text-[#3b5bdb]" /> Open My Classes
         </div>
         <div className="text-[10px] text-muted-foreground mt-1">
-          Students Â· Attendance Â· Homework Â· Tests Â· Exams & Marks Â· Insights
+          Students · Attendance · Homework · Tests · Exams & Marks · Insights
         </div>
       </button>
     </div>

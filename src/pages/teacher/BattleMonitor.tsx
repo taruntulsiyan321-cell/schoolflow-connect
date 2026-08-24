@@ -121,7 +121,7 @@ export default function BattleMonitor() {
   if (loading) {
     return (
       <div className="p-10 text-center text-muted-foreground flex flex-col items-center gap-2">
-        <Loader2 className="w-6 h-6 animate-spin" /> Loading live monitorâ€¦
+        <Loader2 className="w-6 h-6 animate-spin" /> Loading live monitor…
       </div>
     );
   }
@@ -171,7 +171,7 @@ export default function BattleMonitor() {
               {isFinished ? "Battle ended" : "Live monitoring"}
             </div>
             <h1 className="text-xl font-semibold mt-1 text-foreground">{b.title}</h1>
-            <p className="text-sm text-foreground/75">{b.subject}{b.topic ? ` Â· ${b.topic}` : ""} Â· {b.question_count} questions</p>
+            <p className="text-sm text-foreground/75">{b.subject}{b.topic ? ` · ${b.topic}` : ""} · {b.question_count} questions</p>
           </div>
           {!isFinished && (
             <div className="text-center">
@@ -181,7 +181,7 @@ export default function BattleMonitor() {
           )}
           {!isFinished && (
             <Button onClick={endBattle} disabled={ending} className="bg-destructive hover:bg-destructive/90 text-white font-bold">
-              <Flag className="w-4 h-4 mr-1" /> {ending ? "Endingâ€¦" : "End battle"}
+              <Flag className="w-4 h-4 mr-1" /> {ending ? "Ending…" : "End battle"}
             </Button>
           )}
         </div>
@@ -205,7 +205,7 @@ export default function BattleMonitor() {
           <div className="flex flex-wrap gap-2">
             {struggling.map((p) => (
               <span key={p.user_id} className="text-xs px-2.5 py-1 rounded-full bg-destructive/10 text-destructive font-medium">
-                {p.display_name} Â· {p.accuracy ?? 0}% ({p.correct_count}/{p.answered_count})
+                {p.display_name} · {p.accuracy ?? 0}% ({p.correct_count}/{p.answered_count})
               </span>
             ))}
           </div>
@@ -224,7 +224,7 @@ export default function BattleMonitor() {
         {parts.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
             <Activity className="w-9 h-9 mx-auto text-muted-foreground/40 mb-2" />
-            Waiting for students to joinâ€¦
+            Waiting for students to join…
           </div>
         ) : (
           <div className="divide-y divide-border/60">
@@ -246,8 +246,8 @@ export default function BattleMonitor() {
                     <div className="h-full rounded-full bg-gradient-primary transition-all duration-500" style={{ width: `${p.progress_pct}%` }} />
                   </div>
                   <div className="text-[10px] text-muted-foreground mt-1">
-                    {p.answered_count}/{b.question_count} answered Â· {p.accuracy ?? 0}% accuracy
-                    {p.avg_ms != null ? ` Â· ${(p.avg_ms / 1000).toFixed(1)}s/q` : ""}
+                    {p.answered_count}/{b.question_count} answered · {p.accuracy ?? 0}% accuracy
+                    {p.avg_ms != null ? ` · ${(p.avg_ms / 1000).toFixed(1)}s/q` : ""}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -277,7 +277,7 @@ export default function BattleMonitor() {
               <div className="flex justify-between text-xs mb-1">
                 <span className="font-medium truncate pr-2">Q{q.order_index + 1}. {q.question}</span>
                 <span className="text-muted-foreground whitespace-nowrap">
-                  {q.attempts === 0 ? "â€”" : `${q.accuracy}% (${q.correct}/${q.attempts})`}
+                  {q.attempts === 0 ? "—" : `${q.accuracy}% (${q.correct}/${q.attempts})`}
                 </span>
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -311,15 +311,15 @@ export default function BattleMonitor() {
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm">{r.display_name}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    {r.summary?.score ?? 0} pts Â· #{r.summary?.rank ?? "â€”"} Â· {r.summary?.accuracy_pct ?? 0}% accuracy
-                    {r.expired ? " Â· expired" : ""}
+                    {r.summary?.score ?? 0} pts · #{r.summary?.rank ?? "—"} · {r.summary?.accuracy_pct ?? 0}% accuracy
+                    {r.expired ? " · expired" : ""}
                   </div>
                 </div>
                 <span className={cn(
                   "text-xs font-semibold shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-md border",
                   r.expired ? "text-muted-foreground border-border" : "text-primary border-primary/30",
                 )}>
-                  <Sparkles className="w-3.5 h-3.5" /> {r.expired ? "Expired" : "Deep report â†’"}
+                  <Sparkles className="w-3.5 h-3.5" /> {r.expired ? "Expired" : "Deep report →"}
                 </span>
               </Link>
             ))}

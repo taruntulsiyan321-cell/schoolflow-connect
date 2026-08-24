@@ -19,6 +19,7 @@ import {
   motivationCard,
 } from "@/lib/battlegroundHelpers";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
+import { toErrorMessage } from "@/lib/presentation";
 
 export type DesignBattleType = "1v1" | "team" | "class";
 
@@ -476,7 +477,7 @@ export function useBattlegroundData(enabled = true) {
             .order("joined_at", { ascending: false })
             .limit(40);
           if (flatErr) {
-            toast({ title: "Battleground load failed", description: flatErr.message, variant: "destructive" });
+            toast({ title: "Battleground load failed", description: toErrorMessage(flatErr, "Please try again."), variant: "destructive" });
             if (isStale()) return;
             setError(flatErr.message);
             return;
@@ -486,7 +487,7 @@ export function useBattlegroundData(enabled = true) {
           if (ids.length) {
             const { data: bRows, error: bErr } = await supabase.from("battles").select("*").in("id", ids);
             if (bErr) {
-              toast({ title: "Could not load battles", description: bErr.message, variant: "destructive" });
+              toast({ title: "Could not load battles", description: toErrorMessage(bErr, "Please try again."), variant: "destructive" });
             }
             for (const b of (bRows || []) as BattleRow[]) battleMap[b.id] = b;
           }
@@ -527,7 +528,7 @@ export function useBattlegroundData(enabled = true) {
           if (invBattleErr) {
             toast({
               title: "Could not load invite battles",
-              description: invBattleErr.message,
+              description: toErrorMessage(invBattleErr, "Please try again."),
               variant: "destructive",
             });
           } else {
@@ -553,7 +554,7 @@ export function useBattlegroundData(enabled = true) {
           .select("battle_id")
           .in("battle_id", partCountIds);
         if (countErr) {
-          toast({ title: "Could not load participant counts", description: countErr.message, variant: "destructive" });
+          toast({ title: "Could not load participant counts", description: toErrorMessage(countErr, "Please try again."), variant: "destructive" });
         }
         for (const row of allParts || []) {
           partCountMap[row.battle_id] = (partCountMap[row.battle_id] || 0) + 1;
@@ -575,7 +576,7 @@ export function useBattlegroundData(enabled = true) {
       }
       const { data: openBattles, error: openErr } = await openQ;
       if (openErr) {
-        toast({ title: "Could not load open battles", description: openErr.message, variant: "destructive" });
+        toast({ title: "Could not load open battles", description: toErrorMessage(openErr, "Please try again."), variant: "destructive" });
       }
 
       // Featured sources (current period only) + teacher manual public
@@ -591,7 +592,7 @@ export function useBattlegroundData(enabled = true) {
       }
       const { data: featuredRaw, error: featuredErr } = await featuredQ;
       if (featuredErr) {
-        toast({ title: "Could not load featured battles", description: featuredErr.message, variant: "destructive" });
+        toast({ title: "Could not load featured battles", description: toErrorMessage(featuredErr, "Please try again."), variant: "destructive" });
       }
 
       const featuredRows = ((featuredRaw || []) as BattleRow[]).filter((b) =>
@@ -611,7 +612,7 @@ export function useBattlegroundData(enabled = true) {
           .order("starts_at", { ascending: false })
           .limit(12);
         if (teacherErr) {
-          toast({ title: "Could not load teacher challenges", description: teacherErr.message, variant: "destructive" });
+          toast({ title: "Could not load teacher challenges", description: toErrorMessage(teacherErr, "Please try again."), variant: "destructive" });
         } else if (teacherBattles?.length) {
           const creatorIds = [...new Set(teacherBattles.map((b) => b.creator_user_id).filter(Boolean))];
           const teacherIdSet = new Set<string>();
@@ -908,7 +909,7 @@ export function useBattlegroundData(enabled = true) {
       setHistory(hist);
     } catch (e: unknown) {
       if (isStale()) return;
-      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Failed to load battleground";
+      const msg = toErrorMessage(e, "Failed to load battleground");
       setError(msg);
       toast({ title: "Battleground load failed", description: msg, variant: "destructive" });
     } finally {

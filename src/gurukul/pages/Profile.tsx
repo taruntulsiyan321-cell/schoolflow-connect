@@ -21,7 +21,7 @@ function formatEarnedDate(iso: string) {
 }
 
 /**
- * Student Profile â€” academic metrics from Academic Engine.
+ * Student Profile — academic metrics from Academic Engine.
  * Level/XP/league/streak/reputation from ProgressionService (rpc_get_student_progression).
  * Milestones from live student_badges + featured badges from progression snapshot.
  */
@@ -61,7 +61,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
   );
 
   const liveVersion = useAcademicLive(["xp", "achievements", "profile"]);
-  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId, user?.id]);
 
   const loadProfile = useCallback(async () => {
     if (!ready || !ctx || !studentId) {
@@ -95,7 +95,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
       setName(s?.full_name ?? "Student");
       const cls = s?.classes as { name?: string; section?: string } | null;
       setClassLabel(
-        cls ? `${cls.name ?? ""} ${cls.section ?? ""} Â· Roll ${s?.roll_number ?? "â€”"}` : "",
+        cls ? `${cls.name ?? ""} ${cls.section ?? ""} · Roll ${s?.roll_number ?? "—"}` : "",
       );
       setAttPct(Math.round(profile?.attendancePct ?? analytics?.attendance.pct ?? 0));
       setExamAvg(Math.round(analytics?.exams.averagePct ?? 0));
@@ -139,7 +139,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
   if (showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading profileâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading profile…
       </div>
     );
   }
@@ -168,9 +168,9 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             <div className="text-sm text-muted-foreground">{classLabel}</div>
             <div className="text-xs text-primary mt-0.5">
               Level {level}
-              {league ? ` Â· ${league}` : ""}
-              {` Â· ${xp} XP Â· Streak ${streak}d Â· Rep ${reputation}`}
-              {classRank != null ? ` Â· Rank #${classRank}` : ""}
+              {league ? ` · ${league}` : ""}
+              {` · ${xp} XP · Streak ${streak}d · Rep ${reputation}`}
+              {classRank != null ? ` · Rank #${classRank}` : ""}
             </div>
             <div className="mt-3">
               <XPBar
@@ -237,7 +237,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         <SectionLabel>Recent milestones</SectionLabel>
         {badgesLoading ? (
           <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
-            <Loader2 className="w-3 h-3 animate-spin" /> Loading badgesâ€¦
+            <Loader2 className="w-3 h-3 animate-spin" /> Loading badges…
           </div>
         ) : recentMilestones.length === 0 ? (
           <div className="text-xs text-muted-foreground">No badges earned yet.</div>

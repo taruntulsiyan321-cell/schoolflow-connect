@@ -19,7 +19,7 @@ const typeConfig: Record<string, { icon: React.ReactNode; color: string; label: 
 };
 
 /**
- * Parent notifications â€” live `notifications` rows via useNotifications.
+ * Parent notifications — live `notifications` rows via useNotifications.
  */
 export default function ParentNotifications() {
   const { items, unread, loading, error, markRead, markAllRead, remove } = useNotifications();
@@ -31,7 +31,7 @@ export default function ParentNotifications() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading notificationsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading notifications…
       </div>
     );
   }
@@ -96,7 +96,7 @@ export default function ParentNotifications() {
                 hour: "2-digit",
                 minute: "2-digit",
               })
-            : "â€”";
+            : "—";
           return (
             <div
               key={n.id}

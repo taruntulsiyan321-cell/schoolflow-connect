@@ -52,7 +52,7 @@ function groupExams(exams: ExamRecord[]): ExamGroupRow[] {
 }
 
 /**
- * Admin examinations monitor â€” MarksService.listForSchool only.
+ * Admin examinations monitor — MarksService.listForSchool only.
  * No local compose / fake exams.
  */
 export default function ExaminationManagement() {
@@ -119,7 +119,7 @@ export default function ExaminationManagement() {
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground text-xs">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading examinationsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading examinations…
       </div>
     );
   }
@@ -130,13 +130,13 @@ export default function ExaminationManagement() {
         <div>
           <h1 className="text-lg font-bold text-[#1a1a2e]">Examinations</h1>
           <p className="text-xs text-muted-foreground">
-            MarksService.listForSchool â€” school monitor across classes
+            MarksService.listForSchool — school monitor across classes
           </p>
         </div>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search examâ€¦"
+          placeholder="Search exam…"
           className="border border-[#e5e7eb] rounded-xl px-3 py-2 text-sm"
         />
       </div>
@@ -214,10 +214,10 @@ export default function ExaminationManagement() {
                   <tr key={g.examGroupId} className="border-b border-[#f0f1f3]">
                     <td className="p-3 font-medium">{g.name}</td>
                     <td className="p-3 text-muted-foreground">{typeLabel}</td>
-                    <td className="p-3 text-muted-foreground">{classNameById.get(g.classId) ?? `${g.classId.slice(0, 8)}â€¦`}</td>
+                    <td className="p-3 text-muted-foreground">{classNameById.get(g.classId) ?? `${g.classId.slice(0, 8)}…`}</td>
                     <td className="p-3 tabular-nums text-muted-foreground">
-                      {g.startDate ?? "â€”"}
-                      {g.endDate && g.endDate !== g.startDate ? ` â†’ ${g.endDate}` : ""}
+                      {g.startDate ?? "—"}
+                      {g.endDate && g.endDate !== g.startDate ? ` → ${g.endDate}` : ""}
                     </td>
                     <td className="p-3 tabular-nums">{g.subjectCount}</td>
                     <td className="p-3 text-xs">{status}</td>

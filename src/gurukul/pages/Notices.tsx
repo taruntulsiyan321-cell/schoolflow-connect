@@ -34,7 +34,7 @@ function PriorityChip({ priority }: { priority: AnnouncementPriority }) {
 }
 
 /**
- * Student Notices â€” AnnouncementService.listPublishedForStudent only.
+ * Student Notices — AnnouncementService.listPublishedForStudent only.
  * Honest empty when none; never fake notices.
  */
 export default function Notices() {
@@ -94,7 +94,7 @@ export default function Notices() {
   if (showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading noticesâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading notices…
       </div>
     );
   }
@@ -109,7 +109,7 @@ export default function Notices() {
           Notices
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          AnnouncementService Â· {rows.length} published
+          AnnouncementService · {rows.length} published
         </p>
         {error && <p className="text-[10px] text-[#cc5069] mt-1">{error}</p>}
       </div>
@@ -166,7 +166,7 @@ export default function Notices() {
                           {notice.body}
                         </div>
                         <div className="text-[10px] text-muted-foreground mt-1.5">
-                          {notice.publishedAt ?? "â€”"}
+                          {notice.publishedAt ?? "—"}
                         </div>
                       </div>
                     </div>
@@ -185,7 +185,7 @@ export default function Notices() {
                   onClick={() => setSelected(null)}
                   className="text-muted-foreground hover:text-foreground text-xs"
                 >
-                  âœ•
+                  ✕
                 </button>
               </div>
               <div>
@@ -193,8 +193,8 @@ export default function Notices() {
                 <div className="text-[11px] text-muted-foreground mt-1">
                   {[detail.targetClass, detail.targetSection].filter(Boolean).join(" ") ||
                     (detail.audience === "all" ? "School-wide" : "Class notice")}
-                  {" Â· "}
-                  {detail.publishedAt ?? "â€”"}
+                  {" · "}
+                  {detail.publishedAt ?? "—"}
                 </div>
               </div>
               <div className="text-sm text-[#b0b0c0] leading-relaxed whitespace-pre-wrap">

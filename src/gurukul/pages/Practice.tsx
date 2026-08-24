@@ -34,7 +34,7 @@ const CLASS_UNRESOLVED_MSG =
   "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
 
 /* Premium empty state - reusable */
-const PremiumEmpty = ({ icon: Icon, title, description }: { icon: React.ReactNode; title: string; description: string }) => (
+const PremiumEmpty = ({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) => (
   <div className="premium-empty py-10">
     <div className="premium-empty-icon">{icon}</div>
     <p className="text-sm font-medium text-foreground">{title}</p>
@@ -44,7 +44,7 @@ const PremiumEmpty = ({ icon: Icon, title, description }: { icon: React.ReactNod
 const CLASS_LEVEL_UNRESOLVED_MSG =
   "Your class is assigned, but its name or category does not identify a class level. Ask your school admin to use a label such as Class 10, Std 9, XI, or 12-A.";
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Types ────────────────────────────────────────────────────────────────────
 type Phase   = "hub" | "config" | "session" | "feedback" | "summary";
 type Cat     = "all" | "content" | "source" | "type" | "targeted";
 type ModeKey =
@@ -113,7 +113,7 @@ type HistoryRow = {
   pct: number;
   time: string;
   xp: number;
-  /** Display string â€” em dash when XP not yet credited by Progression Engine. */
+  /** Display string — em dash when XP not yet credited by Progression Engine. */
   xpLabel: string;
   status: string;
   finishedAt: string | null;
@@ -132,7 +132,7 @@ function formatDurationMs(ms: number | null | undefined, startIso?: string, endI
     return `${mins}m`;
   }
   if (startIso && endIso) return formatDuration(startIso, endIso);
-  return "â€”";
+  return "—";
 }
 
 function formatSessionDate(iso: string) {
@@ -158,10 +158,10 @@ function formatDuration(startIso: string, endIso: string) {
   return `${mins}m`;
 }
 
-// â”€â”€ Static data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Static data ──────────────────────────────────────────────────────────────
 // Exactly nine modes. Daily, Teacher Assigned, Timed, Untimed and Mock Tests
 // were removed: a time limit is now a Custom Practice goal rather than its own
-// mode. Only the Mock Tests entry point is gone â€” the teacher test system it
+// mode. Only the Mock Tests entry point is gone — the teacher test system it
 // used is untouched and still serves teacher-assigned tests elsewhere.
 const MODES: Mode[] = [
   { key:"subject",    label:"Subject Practice",       desc:"Practice questions from a subject of your choice",
@@ -180,7 +180,7 @@ const MODES: Mode[] = [
     icon:<XCircle className="w-5 h-5"/>,    color:"hsl(var(--destructive))", cat:"targeted", badge:"Retry wrong", instant:true },
   { key:"skipped",    label:"Skipped Questions",      desc:"Solve questions you chose to skip earlier",
     icon:<SkipForward className="w-5 h-5"/>, color:"hsl(var(--warning))", cat:"targeted", badge:"Skipped", instant:true },
-  { key:"bookmarked", label:"Bookmarked Questions",   desc:"Questions you bookmarked â€” they stay until you remove them",
+  { key:"bookmarked", label:"Bookmarked Questions",   desc:"Questions you bookmarked — they stay until you remove them",
     icon:<BookMarked className="w-5 h-5"/>, color:"hsl(var(--info))", cat:"targeted", badge:"Bookmarked", instant:true },
 ];
 
@@ -219,7 +219,7 @@ function mapSessionToHistoryRow(row: PracticeSessionRow): HistoryRow {
     mode: row.chapter ? displayChapter(String(row.chapter)) : practiceTypeLabel(row.practice_mode),
     practiceType: snap?.practiceTypeLabel || practiceTypeLabel(row.practice_mode),
     subject: displaySubject(row.subject || "Mixed"),
-    chapter: row.chapter ? displayChapter(String(row.chapter)) : "â€”",
+    chapter: row.chapter ? displayChapter(String(row.chapter)) : "—",
     difficulty: presentAcademicLabel(String(difficultyRaw)) || String(difficultyRaw),
     qs: stats.questionCount,
     attempted: stats.questionCount,
@@ -236,13 +236,13 @@ function mapSessionToHistoryRow(row: PracticeSessionRow): HistoryRow {
 }
 
 const DIFFICULTIES = [
-  { key:"easy",   label:"Easy",   color:"hsl(var(--success))", desc:"Foundation level â€” build confidence" },
-  { key:"medium", label:"Medium", color:"hsl(var(--warning))", desc:"Board exam level â€” solid preparation" },
-  { key:"hard",   label:"Hard",   color:"hsl(var(--destructive))", desc:"Competitive level â€” push your limits" },
-  { key:"mixed",  label:"Mixed",  color:"hsl(var(--info))", desc:"Varied â€” best for overall practice" },
+  { key:"easy",   label:"Easy",   color:"hsl(var(--success))", desc:"Foundation level — build confidence" },
+  { key:"medium", label:"Medium", color:"hsl(var(--warning))", desc:"Board exam level — solid preparation" },
+  { key:"hard",   label:"Hard",   color:"hsl(var(--destructive))", desc:"Competitive level — push your limits" },
+  { key:"mixed",  label:"Mixed",  color:"hsl(var(--info))", desc:"Varied — best for overall practice" },
 ];
 
-// â”€â”€ Shared components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shared components ────────────────────────────────────────────────────────
 function Tag({ children, color }: { children: React.ReactNode; color: string }) {
   return (
     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -263,7 +263,7 @@ function StatusTag({ status }: { status: string }) {
   return <Tag color={s.color}>{s.label}</Tag>;
 }
 
-// â”€â”€ Hub view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Hub view ─────────────────────────────────────────────────────────────────
 function Hub({
   onMode,
   history,
@@ -326,7 +326,7 @@ function Hub({
             Practice
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {MODES.length} practice modes Â· Pick how you want to learn today
+            {MODES.length} practice modes · Pick how you want to learn today
           </p>
         </div>
         {streak > 0 && (
@@ -357,7 +357,7 @@ function Hub({
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-bold text-foreground truncate">{s.subject} · {s.chapter !== "—" ? s.chapter : s.practiceType}</div>
                   <div className="text-[10px] text-muted-foreground mt-0.5">
-                    {s.practiceType} Â· {s.attempted}/{s.qs || "?"} answered Â· {s.date}
+                    {s.practiceType} · {s.attempted}/{s.qs || "?"} answered · {s.date}
                   </div>
                 </div>
                 <span className="text-[11px] font-semibold text-warning flex items-center gap-1 shrink-0">
@@ -408,7 +408,7 @@ function Hub({
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search modesâ€¦"
+              placeholder="Search modes…"
               className="pl-9 pr-3 py-2 rounded-xl bg-muted border border-border/70 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border w-full sm:w-48"
             />
           </div>
@@ -466,13 +466,13 @@ function Hub({
               onClick={onSaveLatest}
               className="flex items-center gap-1 text-[10px] text-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Save className="w-3 h-3"/> {savingLatest ? "Savingâ€¦" : "Save latest result"}
+              <Save className="w-3 h-3"/> {savingLatest ? "Saving…" : "Save latest result"}
             </button>
           </div>
           <div className="space-y-2.5">
             {saved.length === 0 ? (
               <div className="py-8 text-center text-xs text-muted-foreground">
-                No saved sessions yet. Finish practice, open analysis, then Save Session â€” or bookmark your latest finished result here.
+                No saved sessions yet. Finish practice, open analysis, then Save Session — or bookmark your latest finished result here.
               </div>
             ) : saved.map(s => (
               <button
@@ -485,8 +485,8 @@ function Hub({
                   <Save className="w-3.5 h-3.5"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-foreground truncate">{s.subject} Â· {s.chapter}</div>
-                  <div className="text-[10px] text-muted-foreground truncate mt-0.5">{s.practiceType} Â· {s.pct}% Â· {s.attempted} Qs Â· {s.xpLabel} XP</div>
+                  <div className="text-xs font-bold text-foreground truncate">{s.subject} · {s.chapter}</div>
+                  <div className="text-[10px] text-muted-foreground truncate mt-0.5">{s.practiceType} · {s.pct}% · {s.attempted} Qs · {s.xpLabel} XP</div>
                   <div className="text-[10px] text-muted-foreground/60 mt-0.5">{s.date}</div>
                 </div>
                 <Play className="w-3.5 h-3.5 text-muted-foreground group-hover:text-info transition-colors shrink-0 mt-1"/>
@@ -520,7 +520,7 @@ function Hub({
                 <input
                   value={historyFilters.search}
                   onChange={(e) => onHistoryFilters({ search: e.target.value })}
-                  placeholder="Search subject, chapter, typeâ€¦"
+                  placeholder="Search subject, chapter, type…"
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-muted border border-border/70 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border"
                 />
                 <div className="mt-1.5 text-[10px] text-muted-foreground/70">
@@ -574,21 +574,21 @@ function Hub({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-foreground truncate">{h.chapter !== "â€”" ? h.chapter : h.practiceType}</span>
+                    <span className="text-xs font-semibold text-foreground truncate">{h.chapter !== "—" ? h.chapter : h.practiceType}</span>
                     <StatusTag status={h.status}/>
                     {h.saved && <Tag color="hsl(var(--info))">Saved</Tag>}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-[10px] text-muted-foreground">{h.subject}</span>
-                    <span className="text-[10px] text-muted-foreground/40">Â·</span>
+                    <span className="text-[10px] text-muted-foreground/40">·</span>
                     <span className="text-[10px] text-muted-foreground">{h.practiceType}</span>
-                    <span className="text-[10px] text-muted-foreground/40">Â·</span>
+                    <span className="text-[10px] text-muted-foreground/40">·</span>
                     <span className="text-[10px] text-muted-foreground">{h.difficulty}</span>
-                    <span className="text-[10px] text-muted-foreground/40">Â·</span>
+                    <span className="text-[10px] text-muted-foreground/40">·</span>
                     <span className="text-[10px] text-muted-foreground">{h.attempted} Qs</span>
-                    <span className="text-[10px] text-muted-foreground/40">Â·</span>
+                    <span className="text-[10px] text-muted-foreground/40">·</span>
                     <span className="text-[10px] text-muted-foreground">{h.time}</span>
-                    <span className="text-[10px] text-muted-foreground/40">Â·</span>
+                    <span className="text-[10px] text-muted-foreground/40">·</span>
                     <span className="text-[10px] text-warning">{h.xpLabel} XP</span>
                   </div>
                 </div>
@@ -603,7 +603,7 @@ function Hub({
   );
 }
 
-// â”€â”€ Config views â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Config views ─────────────────────────────────────────────────────────────
 function ConfigView({
   modeKey, onStart, onBack, subjects, onNavigate, classUnresolved, classUnresolvedMessage,
 }: {
@@ -628,7 +628,7 @@ function ConfigView({
   const [qCount,        setQCount]        = useState(20);
   const [timeLimitMin,  setTimeLimitMin]  = useState(20);
   // Custom Practice targets EITHER a question count OR a time limit, never
-  // both â€” picking one hides the other.
+  // both — picking one hides the other.
   const [goalType,      setGoalType]      = useState<"count" | "time">("count");
   const [pyqYear,       setPyqYear]       = useState<number | null>(null);
   const [chapters,      setChapters]      = useState<AcademicTermRef[]>([]);
@@ -702,7 +702,7 @@ function ConfigView({
     : "No subjects in the question bank yet for your class and board.";
 
   if (modeKey === "custom") {
-    // Subject / chapter / topic are all optional here â€” only difficulty and a
+    // Subject / chapter / topic are all optional here — only difficulty and a
     // goal are required.
     const goalReady = goalType === "count" ? qCount > 0 : timeLimitMin > 0;
     return (
@@ -718,7 +718,7 @@ function ConfigView({
           />
           {selSubject && (
             <OptionChips
-              label={metaLoading ? "Loading chaptersâ€¦" : "2. Chapter (optional)"}
+              label={metaLoading ? "Loading chapters…" : "2. Chapter (optional)"}
               options={chapters}
               selected={selChapter}
               onSelect={setSelChapter}
@@ -879,7 +879,7 @@ function ConfigView({
           <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
           {selSubject && (
             <OptionChips
-              label={metaLoading ? "Loading chaptersâ€¦" : "2. Chapter"}
+              label={metaLoading ? "Loading chapters…" : "2. Chapter"}
               options={chapters}
               selected={selChapter}
               onSelect={setSelChapter}
@@ -922,7 +922,7 @@ function ConfigView({
               selected={selChapter}
               onSelect={setSelChapter}
               allowClear
-              empty="No chapters yet â€” pick a topic below if available."
+              empty="No chapters yet — pick a topic below if available."
             />
           )}
           {selSubject && (
@@ -1116,18 +1116,18 @@ function StartButton({ color, disabled=false, onStart, label="Start Practice" }:
   );
 }
 
-// â”€â”€ Session types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Session types ─────────────────────────────────────────────────────────────
 interface SessionConfig {
   mode: ModeKey; label: string; subject: string;
   chapter?: string | null; topic?: string | null;
   difficulty: string; qCount: number; timeLimitSec: number | null;
-  /** Previous Year Questions only â€” restricts to one exam year. */
+  /** Previous Year Questions only — restricts to one exam year. */
   pyqYear?: number | null;
   /** When set, continue an unfinished practice_sessions row instead of starting new. */
   resumeSessionId?: string | null;
 }
 
-// â”€â”€ Session (question-solving) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Session (question-solving) ───────────────────────────────────────────────
 function Session({
   config, onFinish, onBack, onNavigate, subjects, classUnresolved, classUnresolvedMessage,
 }: {
@@ -1153,7 +1153,7 @@ function Session({
   const [timeLeft,  setTimeLeft]  = useState(config.timeLimitSec ?? 0);
   const [finishing, setFinishing] = useState(false);
   const [hintRevealed, setHintRevealed] = useState(false);
-  /** Prior attempts already on the session (resume) â€” progress UI must include these. */
+  /** Prior attempts already on the session (resume) — progress UI must include these. */
   const [priorCount, setPriorCount] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -1179,7 +1179,7 @@ function Session({
 
   useEffect(() => {
     if (!ctx || !academicReady) {
-      // Academic context is still initializing â€” this is a normal ~1s state
+      // Academic context is still initializing — this is a normal ~1s state
       // on every fresh mount, not a failure, so it must not flash an error.
       // Leave loadingQs at its initial `true` (spinner keeps showing) and
       // let this effect's own dependency array re-run it the instant
@@ -1209,7 +1209,7 @@ function Session({
 
         let excludeIds: string[] = [];
         let remainingCount = config.qCount;
-        /** Effective bank difficulty â€” prefer config, then session row, then prior attempts. */
+        /** Effective bank difficulty — prefer config, then session row, then prior attempts. */
         let effectiveDifficulty = config.difficulty || "mixed";
 
         if (config.resumeSessionId) {
@@ -1300,7 +1300,7 @@ function Session({
           setSkipped(priorSkipped);
           setPriorCount(priorLog.length);
           attemptNumberRef.current = priorLog.length;
-          // Honest timed resume: remaining = persisted limit âˆ’ elapsed attempt time (never invent 15m).
+          // Honest timed resume: remaining = persisted limit − elapsed attempt time (never invent 15m).
           const limitSec =
             typeof existing.time_limit_sec === "number" && existing.time_limit_sec > 0
               ? existing.time_limit_sec
@@ -1314,7 +1314,7 @@ function Session({
           const target = existing.question_count || config.qCount;
           remainingCount = Math.max(0, target - priorLog.length);
           if (remainingCount === 0) {
-            // Nothing left â€” finish the incomplete session with prior attempts.
+            // Nothing left — finish the incomplete session with prior attempts.
             setQs([]);
             return;
           }
@@ -1413,7 +1413,7 @@ function Session({
             };
           })
           .filter((x): x is BankQuestion => x !== null);
-        // Empty new session â†’ finish immediately so Resume is not polluted with 0-question shells.
+        // Empty new session → finish immediately so Resume is not polluted with 0-question shells.
         if (
           mapped.length === 0 &&
           !config.resumeSessionId &&
@@ -1432,7 +1432,7 @@ function Session({
         }
         setQs(mapped);
         // Bookmarked Questions loads only questions that are already
-        // bookmarked in question_records â€” the toggle button's local state
+        // bookmarked in question_records — the toggle button's local state
         // must start reflecting that, or the first click on it (a same-value
         // "set bookmarked=true") is a no-op and the question can never be
         // un-bookmarked from within this mode.
@@ -1451,7 +1451,7 @@ function Session({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx, academicReady, config, classUnresolved, classUnresolvedMessage]);
 
-  // Resume with prior attempts but no remaining bank questions â†’ finish via SSOT RPC.
+  // Resume with prior attempts but no remaining bank questions → finish via SSOT RPC.
   useEffect(() => {
     if (loadingQs || loadError || finishedRef.current) return;
     if (!config.resumeSessionId) return;
@@ -1480,7 +1480,7 @@ function Session({
     setFinishing(true);
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // Unanswered remaining questions â†’ skipped / timed_out so Skipped mode can load them
+    // Unanswered remaining questions → skipped / timed_out so Skipped mode can load them
     if (opts?.timedOut) {
       const loggedBankIds = new Set(
         attemptLog.current.map((a) => a.bankQuestionId).filter(Boolean),
@@ -1616,7 +1616,7 @@ function Session({
     if (trimmed.length <= 120) return trimmed;
     const cut = trimmed.slice(0, 117);
     const lastSpace = cut.lastIndexOf(" ");
-    return `${(lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trim()}â€¦`;
+    return `${(lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trim()}…`;
   }
 
   function next() {
@@ -1724,7 +1724,7 @@ function Session({
       : bookmarkedRef.current.filter(x => x !== idx);
     setBookmarked([...bookmarkedRef.current]);
 
-    // Persist. Bookmarks are permanent â€” answering correctly never clears one.
+    // Persist. Bookmarks are permanent — answering correctly never clears one.
     const bankId = qs[idx]?.id;
     if (!bankId || !ctx) {
       toast.message(nextOn ? "Bookmarked for this session." : "Bookmark removed.");
@@ -1756,7 +1756,7 @@ function Session({
   if (loadingQs) {
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-3">
-        <div className="text-sm text-muted-foreground">Loading practice questionsâ€¦</div>
+        <div className="text-sm text-muted-foreground">Loading practice questions…</div>
       </div>
     );
   }
@@ -1777,8 +1777,8 @@ function Session({
 
   if (qs.length === 0) {
     const emptyByMode: Partial<Record<ModeKey, string>> = {
-      weak: `No weak concepts tracked yet (confidence below ${WEAK_CONCEPT_THRESHOLD}%). Finish a practice session, then return here â€” or open Recovery.`,
-      incorrect: "Nothing to retry â€” you have no questions currently marked wrong.",
+      weak: `No weak concepts tracked yet (confidence below ${WEAK_CONCEPT_THRESHOLD}%). Finish a practice session, then return here — or open Recovery.`,
+      incorrect: "Nothing to retry — you have no questions currently marked wrong.",
       skipped: "You have not skipped any bank questions yet.",
       pyq: "No previous-year / exam-tagged questions in the bank for this filter yet.",
       bookmarked: "You have not bookmarked any questions yet. Bookmark one during practice and it stays until you remove it.",
@@ -1823,7 +1823,7 @@ function Session({
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-muted-foreground">{config.label} Â· Q{displayIndex} of {displayTotal}</span>
+            <span className="text-xs text-muted-foreground">{config.label} · Q{displayIndex} of {displayTotal}</span>
             <div className="flex items-center gap-3">
               {timed && (
                 <div className={cn(
@@ -1887,7 +1887,7 @@ function Session({
         })}
       </div>
 
-      {/* Hint (question phase â€” recorded as hint_used on attempt) */}
+      {/* Hint (question phase — recorded as hint_used on attempt) */}
       {phase === "q" && q.explanation && hintRevealed && (
         <GlassCard className="p-4 border-warning/25">
           <div className="flex items-start gap-2">
@@ -1935,14 +1935,14 @@ function Session({
         )}
         <button onClick={() => void finish()} disabled={finishing}
           className="px-4 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-destructive hover:border-destructive/20 transition-all">
-          {finishing ? "Savingâ€¦" : "End Session"}
+          {finishing ? "Saving…" : "End Session"}
         </button>
       </div>
     </div>
   );
 }
 
-// â”€â”€ Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Results ───────────────────────────────────────────────────────────────────
 interface SessionResults {
   correct: number;
   total: number;
@@ -1968,7 +1968,7 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   results: SessionResults; onRetry: ()=>void; onHub: ()=>void; onRetryIncorrect: ()=>void;
 }) {
   const { correct, total, skipped, bookmarked, config, serverStats, finishFailed } = results;
-  // Session SSOT: prefer finish-RPC columns via resolvePracticeSessionStats â€” never invent XP.
+  // Session SSOT: prefer finish-RPC columns via resolvePracticeSessionStats — never invent XP.
   const stats = resolvePracticeSessionStats(null, {
     questionCount: serverStats?.questionCount ?? total,
     correctCount: serverStats?.correctCount ?? correct,
@@ -1981,14 +1981,14 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   const wrong = stats.wrongCount;
   const pct = stats.accuracy;
   const color = pct >= 80 ? "hsl(var(--success))" : pct >= 60 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
-  const emoji = pct >= 90 ? "ðŸ†" : pct >= 75 ? "ðŸŽ¯" : pct >= 60 ? "ðŸ“ˆ" : "ðŸ’ª";
+  const emoji = pct >= 90 ? "🏆" : pct >= 75 ? "🎯" : pct >= 60 ? "📈" : "💪";
   const xpFormatted = formatSessionXp(stats.xpEarned, stats.xpFromDb);
-  const xpLabel = xpFormatted === "â€”" ? null : `+${xpFormatted} XP`;
+  const xpLabel = xpFormatted === "—" ? null : `+${xpFormatted} XP`;
 return (
     <div className="max-w-lg mx-auto space-y-5">
       <GlassCard className="p-8 text-center" glow={pct>=75?"green":pct>=55?"amber":"rose"}>
         <div className="text-5xl mb-3">{emoji}</div>
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{config.label} Â· Complete</div>
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{config.label} · Complete</div>
         <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>
         <div className="text-muted-foreground text-sm mb-6">{stats.correctCount} correct out of {stats.questionCount}</div>
         {xpLabel && (
@@ -2033,7 +2033,7 @@ return (
   );
 }
 
-// â”€â”€ Root component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Root component ────────────────────────────────────────────────────────────
 export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const academicIdentity = useGurukulAcademicIdentity();
@@ -2189,7 +2189,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   useEffect(() => {
     if (deepLinkHandled.current || phase !== "hub") return;
 
-    // ?mode=<instant mode> â€” used by Mistake Book's "Practice again".
+    // ?mode=<instant mode> — used by Mistake Book's "Practice again".
     const modeRaw = searchParams.get("mode");
     if (modeRaw && (INSTANT as string[]).includes(modeRaw)) {
       deepLinkHandled.current = true;
@@ -2214,7 +2214,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     setSearchParams({}, { replace: true });
 
     if (!chapter && !subject && !topic) {
-      toast.message("Practice link had no real subject or chapter â€” pick a mode below.");
+      toast.message("Practice link had no real subject or chapter — pick a mode below.");
       return;
     }
 
@@ -2267,7 +2267,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     try {
       const row = await PracticeService.getSession(ctx, sessionId);
       if (!row || row.finished_at) {
-        toast.message("Session already finished â€” opening analysis");
+        toast.message("Session already finished — opening analysis");
         openSessionAnalysis(sessionId);
         return;
       }
@@ -2282,7 +2282,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           : typeof snap?.time_limit_sec === "number" && snap.time_limit_sec > 0
             ? snap.time_limit_sec
             : null;
-      // Never invent a 15-minute clock â€” timed resume without a stored limit stays untimed.
+      // Never invent a 15-minute clock — timed resume without a stored limit stays untimed.
       setModeKey(modeKeyResume);
       setConfig({
         mode: modeKeyResume,
@@ -2309,7 +2309,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     }
     setSavingLatest(true);
     try {
-      // Absolute latest finished session â€” ignore history filters.
+      // Absolute latest finished session — ignore history filters.
       const recent = await PracticeService.listRecentFinished(ctx, 1);
       const latestRow = recent[0];
       if (!latestRow) {

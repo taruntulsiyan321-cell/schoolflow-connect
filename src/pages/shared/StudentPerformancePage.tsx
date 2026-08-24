@@ -65,7 +65,7 @@ export default function StudentPerformancePage() {
         if (r.classes && !classList.find((x) => x.id === r.classes.id)) {
           classList.push({
             ...r.classes,
-            label: `${r.classes.name}-${r.classes.section}${r.subject ? ` Â· ${r.subject}` : ""}`,
+            label: `${r.classes.name}-${r.classes.section}${r.subject ? ` · ${r.subject}` : ""}`,
           });
         }
       });
@@ -227,7 +227,7 @@ export default function StudentPerformancePage() {
 
       {students.length > 0 && (
         <Input
-          placeholder="Search studentâ€¦"
+          placeholder="Search student…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-md"
@@ -240,7 +240,7 @@ export default function StudentPerformancePage() {
             <div>
               <p className="tp-label">One-minute academic profile</p>
               <h2 className="tp-display text-2xl mt-1">{selected.full_name}</h2>
-              <p className="text-sm text-muted-foreground">Roll {selected.roll_number || "â€”"} Â· {selected.totalExams} exam{selected.totalExams === 1 ? "" : "s"} tracked</p>
+              <p className="text-sm text-muted-foreground">Roll {selected.roll_number || "—"} · {selected.totalExams} exam{selected.totalExams === 1 ? "" : "s"} tracked</p>
             </div>
             <Badge variant={selectedRisk ? "destructive" : "outline"} className="rounded-full">
               {selectedRisk ? "Needs intervention" : "On track"}
@@ -278,7 +278,7 @@ export default function StudentPerformancePage() {
       )}
 
       {loading ? (
-        <p className="text-muted-foreground text-center py-8">Calculating performanceâ€¦</p>
+        <p className="text-muted-foreground text-center py-8">Calculating performance…</p>
       ) : (
         <div className="grid lg:grid-cols-2 gap-3">
           {filtered.map((s) => (
@@ -287,7 +287,7 @@ export default function StudentPerformancePage() {
                 <div className="min-w-0">
                   <div className="font-semibold">{s.full_name}</div>
                   <div className="text-xs text-muted-foreground">
-                    Roll {s.roll_number || "â€”"} Â· {s.totalExams} exam{s.totalExams === 1 ? "" : "s"}
+                    Roll {s.roll_number || "—"} · {s.totalExams} exam{s.totalExams === 1 ? "" : "s"}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

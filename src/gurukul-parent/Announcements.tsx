@@ -11,7 +11,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toErrorMessage } from "@/lib/presentation";
 
 /**
- * Parent announcements â€” AnnouncementService.listPublishedForParent only.
+ * Parent announcements — AnnouncementService.listPublishedForParent only.
  * School-wide + linked children's classes; empty when none; never fake notices.
  */
 export default function ParentAnnouncements() {
@@ -68,7 +68,7 @@ export default function ParentAnnouncements() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading announcementsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading announcements…
       </div>
     );
   }
@@ -82,7 +82,7 @@ export default function ParentAnnouncements() {
       <div>
         <div className="text-sm font-bold text-foreground">Announcements</div>
         <div className="text-[10px] text-muted-foreground mt-0.5">
-          AnnouncementService Â· {announcements.length} published
+          AnnouncementService · {announcements.length} published
         </div>
       </div>
 
@@ -92,7 +92,7 @@ export default function ParentAnnouncements() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search announcementsâ€¦"
+            placeholder="Search announcements…"
             className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
@@ -141,7 +141,7 @@ export default function ParentAnnouncements() {
                     <div className="text-xs font-semibold text-foreground">{a.title}</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{a.body}</div>
                     <div className="text-[9px] text-muted-foreground mt-1.5">
-                      {a.publishedAt ?? "â€”"}
+                      {a.publishedAt ?? "—"}
                     </div>
                   </div>
                 </div>
@@ -159,15 +159,15 @@ export default function ParentAnnouncements() {
                 onClick={() => setSelected(null)}
                 className="text-muted-foreground hover:text-foreground text-xs"
               >
-                âœ•
+                ✕
               </button>
             </div>
             <div>
               <div className="text-base font-bold text-foreground">{detail.title}</div>
               <div className="text-[10px] text-muted-foreground mt-1">
                 {[detail.targetClass, detail.targetSection].filter(Boolean).join(" ") || "School"}
-                {" Â· "}
-                {detail.publishedAt ?? "â€”"}
+                {" · "}
+                {detail.publishedAt ?? "—"}
               </div>
             </div>
             <div className="text-sm text-[#b0b0c0] leading-relaxed whitespace-pre-wrap">{detail.body}</div>

@@ -2,6 +2,7 @@
 import { cn } from "./shared";
 import { ParentLiveAttendance, useParentLiveChildren } from "./ParentLiveAttendance";
 import { ParentLiveHomework, ParentLiveExams, ParentLivePerformance } from "./ParentLiveAcademic";
+import { toDisplayText } from "@/lib/presentation";
 
 type ChildTab = "profile" | "attendance" | "homework" | "exams" | "performance";
 
@@ -109,7 +110,9 @@ export default function MyChildren({ activeChildId, setActiveChildId }: { active
                 { label: "Full Name", value: displayName },
                 { label: "Class", value: displayClass },
                 { label: "Roll Number", value: displayRoll },
-                { label: "Student ID", value: attendanceStudentId ?? "—" },
+                // Never the row's UUID — parents identify a child by the
+                // school's admission number.
+                { label: "Admission Number", value: toDisplayText(liveChild?.admissionNumber, { kind: "label" }) },
               ].map((row) => <InfoRow key={row.label} label={row.label} value={row.value} />)}
             </div>
           )}

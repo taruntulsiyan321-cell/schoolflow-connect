@@ -79,7 +79,7 @@ export function SoftWeekActivityBars({ days }: { days: WeeklyActivityPoint[] }) 
             </div>
             <div className="text-center w-full">
               <div className="text-[10px] font-medium text-[#8A8578] truncate">{dayLabel}</div>
-              <div className="text-xs font-semibold tabular-nums text-[#2C3E2D]">{total || "â€”"}</div>
+              <div className="text-xs font-semibold tabular-nums text-[#2C3E2D]">{total || "—"}</div>
             </div>
           </div>
         );
@@ -226,7 +226,7 @@ export function WeekActivityBars({ days }: { days: WeeklyActivityPoint[] }) {
             </div>
             <div className="text-center w-full">
               <div className="text-[10px] font-medium text-muted-foreground truncate">{dayLabel}</div>
-              <div className="text-xs font-semibold tabular-nums">{total || "â€”"}</div>
+              <div className="text-xs font-semibold tabular-nums">{total || "—"}</div>
             </div>
           </div>
         );

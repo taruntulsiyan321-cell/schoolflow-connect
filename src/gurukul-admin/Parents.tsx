@@ -109,7 +109,7 @@ function ParentForm({
         const { error: linkErr } = await supabase.from("parent_students").insert(links);
         if (linkErr) {
           throw new Error(
-            `Parent details saved, but re-linking students failed (${linkErr.message}). This parent currently has 0 linked students â€” please re-link them.`,
+            `Parent details saved, but re-linking students failed (${linkErr.message}). This parent currently has 0 linked students — please re-link them.`,
           );
         }
       }
@@ -213,7 +213,7 @@ function ParentForm({
             onClick={() => void handleSave()}
             className="px-4 py-2 rounded-xl text-sm font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all disabled:opacity-50"
           >
-            {saving ? "Savingâ€¦" : parent ? "Save Changes" : "Add Parent"}
+            {saving ? "Saving…" : parent ? "Save Changes" : "Add Parent"}
           </button>
         </div>
       </div>
@@ -248,13 +248,13 @@ function ParentDetail({
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {[
-            { label: "Email", value: parent.email || "â€”", icon: <Mail className="w-3.5 h-3.5" /> },
-            { label: "Phone", value: parent.phone || "â€”", icon: <Phone className="w-3.5 h-3.5" /> },
+            { label: "Email", value: parent.email || "—", icon: <Mail className="w-3.5 h-3.5" /> },
+            { label: "Phone", value: parent.phone || "—", icon: <Phone className="w-3.5 h-3.5" /> },
             {
               label: "Joined",
               value: parent.createdAt
                 ? new Date(parent.createdAt).toLocaleDateString("en-IN")
-                : "â€”",
+                : "—",
               icon: <Users className="w-3.5 h-3.5" />,
             },
           ].map((row) => (
@@ -284,7 +284,7 @@ function ParentDetail({
             )}
           </div>
           <div className="p-3 rounded-xl bg-muted text-[10px] text-muted-foreground leading-relaxed">
-            Login linking uses the parents.user_id column. Auth invitation / password-reset admin APIs are not wired on this panel â€” no fake success actions.
+            Login linking uses the parents.user_id column. Auth invitation / password-reset admin APIs are not wired on this panel — no fake success actions.
           </div>
         </div>
         <div className="p-4 border-t border-border/70">
@@ -302,7 +302,7 @@ function ParentDetail({
 }
 
 /**
- * Admin Parents â€” live `parents` + `parent_students` for this school.
+ * Admin Parents — live `parents` + `parent_students` for this school.
  * No local-only CRUD / fake directories.
  */
 export default function ParentManagement() {
@@ -450,7 +450,7 @@ export default function ParentManagement() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading parentsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading parents…
       </div>
     );
   }
@@ -470,7 +470,7 @@ export default function ParentManagement() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Search parentsâ€¦"
+            placeholder="Search parents…"
             className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
@@ -512,8 +512,8 @@ export default function ParentManagement() {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-xs text-muted-foreground">{p.email || "â€”"}</div>
-                  <div className="text-[10px] text-muted-foreground">{p.phone || "â€”"}</div>
+                  <div className="text-xs text-muted-foreground">{p.email || "—"}</div>
+                  <div className="text-[10px] text-muted-foreground">{p.phone || "—"}</div>
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -645,7 +645,7 @@ export default function ParentManagement() {
                 onClick={() => void handleDelete(confirmDelete)}
                 className="px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-[#cc5069] disabled:opacity-50"
               >
-                {deleting ? "Deletingâ€¦" : "Delete"}
+                {deleting ? "Deleting…" : "Delete"}
               </button>
             </div>
           </div>

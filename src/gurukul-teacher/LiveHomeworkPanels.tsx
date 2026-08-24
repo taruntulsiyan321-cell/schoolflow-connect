@@ -14,6 +14,7 @@ import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepos
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
 import { toEnumLabel, toErrorMessage, toPersonName } from "@/lib/presentation";
+import { useResetOnIdentityChange } from "@/hooks/useInitialLoadGate";
 
 type StatsRow = Awaited<ReturnType<typeof HomeworkService.listForClassWithStats>>[number];
 type SubRow = Awaited<ReturnType<typeof HomeworkService.listSubmissions>>[number];
@@ -29,7 +30,7 @@ function Loading({ label }: { label: string }) {
 }
 
 /**
- * Homework workspace â€” create / schedule / draft / publish / review with real file uploads.
+ * Homework workspace — create / schedule / draft / publish / review with real file uploads.
  */
 export function LiveAcademicWorkTab({
   classId,
@@ -83,8 +84,8 @@ export function LiveAcademicWorkTab({
     }
   };
 
+  useResetOnIdentityChange(loadedRef, classId);
   useEffect(() => {
-    loadedRef.current = false;
     if (!ready || !ctx) return;
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,7 +230,7 @@ export function LiveAcademicWorkTab({
     }
   };
 
-  if (loading) return <Loading label="Loading homeworkâ€¦" />;
+  if (loading) return <Loading label="Loading homework…" />;
 
   if (reviewHw) {
     const nameById = new Map(roster.map((r) => [r.id, r.fullName]));
@@ -256,7 +257,7 @@ export function LiveAcademicWorkTab({
           </div>
         )}
         <div className="text-[10px] text-muted-foreground">
-          {subs.length} submissions Â· {reviewHw.awaitingReview ?? 0} awaiting review
+          {subs.length} submissions · {reviewHw.awaitingReview ?? 0} awaiting review
         </div>
         <div className="space-y-2">
           {subs.map((s) => (
@@ -311,7 +312,7 @@ export function LiveAcademicWorkTab({
                   className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#4aa87a]/20 text-[#4aa87a] flex items-center gap-1 disabled:opacity-50"
                 >
                   <CheckCircle2 className="w-3 h-3" />
-                  {reviewingId === s.id ? "â€¦" : "Grade"}
+                  {reviewingId === s.id ? "…" : "Grade"}
                 </button>
                 <button
                   type="button"
@@ -356,7 +357,7 @@ export function LiveAcademicWorkTab({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Searchâ€¦"
+            placeholder="Search…"
             className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground w-36"
           />
           <button
@@ -501,14 +502,14 @@ export function LiveAcademicWorkTab({
                 <div className="text-[10px] text-muted-foreground mt-0.5">
                   {h.subject} · Due {h.dueDate ?? "—"} · {toEnumLabel(h.status ?? "draft", "homework_status")} · {toEnumLabel(h.priority, "homework_priority")}
                   {h.scheduledPublishAt
-                    ? ` Â· sched ${new Date(h.scheduledPublishAt).toLocaleString()}`
+                    ? ` · sched ${new Date(h.scheduledPublishAt).toLocaleString()}`
                     : ""}
                 </div>
               </div>
               <div className="text-right text-[10px] text-muted-foreground">
-                {h.submitted}/{h.totalStudents} Â· {h.completionPct}%
+                {h.submitted}/{h.totalStudents} · {h.completionPct}%
                 <div>
-                  {h.graded} graded Â· {h.awaitingReview} to review Â· {h.returned} returned Â·{" "}
+                  {h.graded} graded · {h.awaitingReview} to review · {h.returned} returned ·{" "}
                   {h.pending} missing
                 </div>
               </div>

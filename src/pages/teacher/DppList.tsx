@@ -111,14 +111,14 @@ export default function DppList() {
             <button key={mode} type="button" onClick={create} className="tp-action text-left">
               <Sparkles className="w-4 h-4 text-primary mb-3" />
               <p className="font-semibold text-sm">{mode}</p>
-              <p className="text-xs text-muted-foreground mt-1">Subject Â· chapter Â· concept Â· difficulty Â· deadline</p>
+              <p className="text-xs text-muted-foreground mt-1">Subject · chapter · concept · difficulty · deadline</p>
             </button>
           ))}
         </div>
       </Card>
 
       {loading ? (
-        <p className="text-muted-foreground">Loadingâ€¦</p>
+        <p className="text-muted-foreground">Loading…</p>
       ) : rows.length === 0 ? (
         <Card className="tp-card p-10 text-center">
           <FileText className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
@@ -142,7 +142,7 @@ export default function DppList() {
                   </div>
                   <div className="font-semibold truncate">{d.title}</div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {d.question_count} questions Â· {Math.round(d.duration_sec / 60)} min Â· {d.total_marks} marks
+                    {d.question_count} questions · {Math.round(d.duration_sec / 60)} min · {d.total_marks} marks
                   </div>
                 </div>
                 <div className="flex gap-2">

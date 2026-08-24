@@ -424,11 +424,11 @@ export function ReportsPage() {
       <div className="grid md:grid-cols-3 gap-4">
         <Card className="p-5">
           <div className="text-xs uppercase text-muted-foreground">Fees collected</div>
-          <div className="text-2xl font-bold text-accent">â‚¹{stats.feeCollected}</div>
+          <div className="text-2xl font-bold text-accent">₹{stats.feeCollected}</div>
         </Card>
         <Card className="p-5">
           <div className="text-xs uppercase text-muted-foreground">Outstanding</div>
-          <div className="text-2xl font-bold text-destructive">â‚¹{stats.feeOutstanding}</div>
+          <div className="text-2xl font-bold text-destructive">₹{stats.feeOutstanding}</div>
         </Card>
         <Card className="p-5">
           <div className="text-xs uppercase text-muted-foreground">Pending leaves</div>
@@ -948,8 +948,8 @@ export function FeesOverview() {
     <>
       <PageHeader title="Fees Overview" subtitle="School-wide fee collection summary" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <StatCard icon={<Wallet className="w-5 h-5" />} label="Collected" value={`â‚¹${stats.totalPaid}`} tone="accent" />
-        <StatCard icon={<Wallet className="w-5 h-5" />} label="Outstanding" value={`â‚¹${stats.outstanding}`} tone="warning" />
+        <StatCard icon={<Wallet className="w-5 h-5" />} label="Collected" value={`₹${stats.totalPaid}`} tone="accent" />
+        <StatCard icon={<Wallet className="w-5 h-5" />} label="Outstanding" value={`₹${stats.outstanding}`} tone="warning" />
         <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Collection rate" value={`${rate}%`} />
         <StatCard icon={<FileText className="w-5 h-5" />} label="Records" value={stats.records} tone="secondary" />
       </div>

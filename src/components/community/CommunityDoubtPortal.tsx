@@ -193,7 +193,7 @@ function DoubtCard({
         <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{doubt.body}</p>
 
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">{doubt.subject || "â€”"}</span>
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">{doubt.subject || "—"}</span>
           <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">{doubt.chapter || "Chapter"}</span>
           {doubt.concept && <span className="rounded-full bg-accent/10 px-2.5 py-1 font-semibold text-accent">{doubt.concept}</span>}
         </div>
@@ -202,7 +202,7 @@ function DoubtCard({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
         <div className="min-w-0 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">{doubt.student_name}</span>
-          <span> Â· {doubt.class_label}</span>
+          <span> · {doubt.class_label}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" />{doubt.answer_count}</span>
@@ -467,12 +467,12 @@ function DoubtDetail({
         <div className="bg-gradient-to-br from-primary/15 via-accent/10 to-background p-5">
           <div className="flex flex-wrap items-center gap-2">
             {statusBadge(selected.status)}
-            <Badge variant="outline" className="rounded-full bg-background/70">{selected.subject || "â€”"}</Badge>
+            <Badge variant="outline" className="rounded-full bg-background/70">{selected.subject || "—"}</Badge>
             {selected.chapter && <Badge variant="outline" className="rounded-full bg-background/70">{selected.chapter}</Badge>}
           </div>
           <h2 className="mt-4 text-xl font-black leading-tight">{selected.title}</h2>
           <p className="mt-2 text-xs text-muted-foreground">
-            Asked by <span className="font-semibold text-foreground">{selected.student_name}</span> Â· {selected.class_label} Â· {formatDate(selected.created_at)}
+            Asked by <span className="font-semibold text-foreground">{selected.student_name}</span> · {selected.class_label} · {formatDate(selected.created_at)}
           </p>
         </div>
         <div className="space-y-4 p-5">
@@ -554,7 +554,7 @@ function DoubtDetail({
                 className="block w-full rounded-xl border bg-background p-3 text-left transition hover:border-primary/40 hover:bg-primary/5"
               >
                 <p className="line-clamp-1 text-sm font-bold">{doubt.title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{doubt.answer_count} answers Â· {doubt.concept || doubt.chapter || doubt.subject}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{doubt.answer_count} answers · {doubt.concept || doubt.chapter || doubt.subject}</p>
               </button>
             ))}
           </div>
@@ -839,7 +839,7 @@ export function CommunityDoubtPortal({ mode = "student" }: { mode?: "student" | 
                     className="rounded-xl border bg-background p-3 text-left transition hover:border-emerald-500/50"
                   >
                     <p className="line-clamp-2 text-sm font-bold">{doubt.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{doubt.answer_count} answers Â· {statusCopy[doubt.status]?.label}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{doubt.answer_count} answers · {statusCopy[doubt.status]?.label}</p>
                   </button>
                 ))}
               </div>

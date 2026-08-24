@@ -1,5 +1,5 @@
 ﻿/**
- * DESIGN-ONLY â€” not mounted under StudentDashboard `/student/*`.
+ * DESIGN-ONLY — not mounted under StudentDashboard `/student/*`.
  * Uses fixture data from `@/gurukul/data/mock` for layout review only.
  * Live mastery: `src/components/student/ConceptMastery.tsx` + `useConceptMastery`.
  */
@@ -45,7 +45,7 @@ export default function ConceptMastery() {
 
       {/* Concepts list */}
       <GlassCard className="p-5">
-        <SectionLabel>Topics â€” how well you know them</SectionLabel>
+        <SectionLabel>Topics — how well you know them</SectionLabel>
         <div className="space-y-3">
           {filtered.map((c) => {
             const col = c.mastery >= 80 ? "#34d399" : c.mastery >= 60 ? "#3b82f6" : "#f59e0b";
@@ -61,7 +61,7 @@ export default function ConceptMastery() {
                     <span className="text-sm font-semibold text-foreground">{c.concept}</span>
                     <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full font-semibold" style={{ color: col, background: `${col}12` }}>{statusLabel}</span>
                   </div>
-                  <div className="text-[11px] text-muted-foreground mb-1.5" style={{ color: subCol }}>{c.subject} Â· {c.practiced} questions done Â· Last: {c.lastPracticed}</div>
+                  <div className="text-[11px] text-muted-foreground mb-1.5" style={{ color: subCol }}>{c.subject} · {c.practiced} questions done · Last: {c.lastPracticed}</div>
                   <ProgressBar value={c.mastery} color={col} height="h-1.5" />
                 </div>
                 <div className="text-right shrink-0">

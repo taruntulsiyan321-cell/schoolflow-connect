@@ -117,7 +117,7 @@ export function NewChatSheet({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name or roleâ€¦"
+              placeholder="Search name or role…"
               className="flex-1 bg-transparent text-xs outline-none text-white placeholder:text-muted-foreground"
             />
           </div>

@@ -232,7 +232,9 @@ function Sidebar({
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-bold text-foreground truncate">{displayName}</div>
-              <div className="text-[9px] text-muted-foreground">{children.length} linked children</div>
+              <div className="text-[9px] text-muted-foreground">
+                {children.length} linked {children.length === 1 ? "child" : "children"}
+              </div>
             </div>
           </div>
           {onSignOut && (

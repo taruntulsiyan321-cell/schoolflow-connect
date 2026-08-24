@@ -151,7 +151,7 @@ export default function TeacherBattleground() {
           correctIndex: q.correct_index,
         })),
       });
-      toast({ title: "Battle published â€” monitoring live" });
+      toast({ title: "Battle published — monitoring live" });
       nav(`/teacher/battleground/monitor/${created.id}`);
     } catch (e) {
       toast({
@@ -166,7 +166,7 @@ export default function TeacherBattleground() {
   if (loading) {
     return (
       <div className="teacher-premium tp-shell flex items-center justify-center py-20 text-muted-foreground gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading battlegroundâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading battleground…
       </div>
     );
   }
@@ -231,7 +231,7 @@ export default function TeacherBattleground() {
               <Zap className="w-5 h-5 text-warning" />
               <div>
                 <div className="font-bold">Instant class battle</div>
-                <p className="text-xs text-muted-foreground">Auto-pick questions from the bank â€” no manual entry.</p>
+                <p className="text-xs text-muted-foreground">Auto-pick questions from the bank — no manual entry.</p>
               </div>
             </div>
             <div className="grid md:grid-cols-3 gap-3">
@@ -358,7 +358,7 @@ export default function TeacherBattleground() {
 
           {battles.length > 0 && (
             <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-1.5"><Radio className="w-4 h-4 text-primary" /> Your battles â€” tap to monitor live</h3>
+              <h3 className="font-semibold mb-3 flex items-center gap-1.5"><Radio className="w-4 h-4 text-primary" /> Your battles — tap to monitor live</h3>
               <div className="grid md:grid-cols-2 gap-3">
                 {battles.map((b) => (
                   <BattleCard

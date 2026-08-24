@@ -17,6 +17,9 @@ import { supabase } from "@/integrations/supabase/client";
 import "@/pages/teacher/teacher-premium.css";
 import { toErrorMessage } from "@/lib/presentation";
 
+/** Radix forbids an empty SelectItem value; this stands in for "no class filter". */
+const ANY_CLASS = "any";
+
 const SUBJECTS = [
   "Mathematics",
   "Science",
@@ -49,6 +52,13 @@ export default function QuestionBankPage() {
 
   // shared meta
   const [subject, setSubject] = useState("Mathematics");
+  /**
+   * "" means "any class". Radix reserves the empty string for "clear the
+   * selection", and rendering `<SelectItem value="">` throws — which used to
+   * white-screen this whole page. The sentinel below keeps "any" expressible
+   * in the dropdown while the state stays "" for every downstream consumer
+   * (`classLevel ? Number(classLevel) : null`).
+   */
   const [classLevel, setClassLevel] = useState<string>("10");
   const [chapter, setChapter] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
@@ -103,7 +113,7 @@ export default function QuestionBankPage() {
           difficulty, count, source_text: sourceText.trim(), source_url: url.trim(),
         },
       });
-      if (error) return toast.error(error.message ?? "Question generation failed");
+      if (error) return toast.error(toErrorMessage(error, "Question generation failed"));
       const arr = (data?.questions ?? []) as Array<{ question: string; options: string[]; correct_index: number; explanation?: string }>;
       if (arr.length === 0) return toast.error(data?.error ?? "No questions returned");
       setDrafts(arr.map((a) => ({
@@ -113,7 +123,7 @@ export default function QuestionBankPage() {
         explanation: a.explanation ?? "",
         include: true,
       })));
-      toast.success(`Generated ${arr.length} questions â€” review & save`);
+      toast.success(`Generated ${arr.length} questions — review & save`);
     } catch (e) {
       toast.error(toErrorMessage(e, "Question generation failed"));
     } finally {
@@ -157,7 +167,7 @@ export default function QuestionBankPage() {
     if (rows.length === 0) {
       return toast.error(
         skipped.length > 0
-          ? `No valid rows found â€” ${skipSummary}`
+          ? `No valid rows found — ${skipSummary}`
           : "No valid rows found. Check the format below.",
       );
     }
@@ -166,7 +176,7 @@ export default function QuestionBankPage() {
     try {
       const { count } = await QuestionBankService.insert(ctx, rows);
       if (skipped.length > 0) {
-        toast.warning(`Imported ${count} questions, but skipped ${skipped.length} row(s) â€” ${skipSummary}`);
+        toast.warning(`Imported ${count} questions, but skipped ${skipped.length} row(s) — ${skipSummary}`);
       } else {
         toast.success(`Imported ${count} questions`);
       }
@@ -190,10 +200,13 @@ export default function QuestionBankPage() {
       </div>
       <div>
         <Label className="text-xs">Class</Label>
-        <Select value={classLevel} onValueChange={setClassLevel}>
+        <Select
+          value={classLevel || ANY_CLASS}
+          onValueChange={(v) => setClassLevel(v === ANY_CLASS ? "" : v)}
+        >
           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Any</SelectItem>
+            <SelectItem value={ANY_CLASS}>Any</SelectItem>
             {[6, 7, 8, 9, 10, 11, 12].map((c) => <SelectItem key={c} value={String(c)}>Class {c}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -254,7 +267,7 @@ export default function QuestionBankPage() {
           <Badge variant="secondary">{total} questions</Badge>
         </div>
         {summary.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Empty â€” generate or import to get started.</p>
+          <p className="text-sm text-muted-foreground">Empty — generate or import to get started.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {summary.map((s) => (
@@ -293,16 +306,16 @@ export default function QuestionBankPage() {
             <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
               <div>
                 <Label className="text-xs">Topic</Label>
-                <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={`e.g. ${subject} â€” ${chapter || "chapter"}`} />
+                <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={`e.g. ${subject} — ${chapter || "chapter"}`} />
               </div>
               <div>
                 <Label className="text-xs">Count</Label>
                 <Input type="number" min={1} max={20} value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-20 h-9" />
               </div>
-              <Button size="sm" onClick={generate} disabled={busy}>{busy ? "Generatingâ€¦" : "Generate"}</Button>
+              <Button size="sm" onClick={generate} disabled={busy}>{busy ? "Generating…" : "Generate"}</Button>
             </div>
             <div>
-              <Label className="text-xs">Source URL (Wikipedia, NCERT page, articleâ€¦)</Label>
+              <Label className="text-xs">Source URL (Wikipedia, NCERT page, article…)</Label>
               <Input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://en.wikipedia.org/wiki/..." />
             </div>
             <div>
@@ -316,7 +329,7 @@ export default function QuestionBankPage() {
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-sm">{drafts.filter((d) => d.include).length} of {drafts.length} selected</span>
                 <Button size="sm" onClick={saveDrafts} disabled={saving}>
-                  <Check className="w-4 h-4 mr-1.5" /> {saving ? "Savingâ€¦" : "Save to bank"}
+                  <Check className="w-4 h-4 mr-1.5" /> {saving ? "Saving…" : "Save to bank"}
                 </Button>
               </div>
               <div className="space-y-3">
@@ -374,7 +387,7 @@ export default function QuestionBankPage() {
               placeholder={`What is 2+2?,2,3,4,5,2,Basic addition\nCapital of India?,Mumbai,New Delhi,Chennai,Kolkata,1,New Delhi is the capital`}
             />
             <Button size="sm" onClick={importCsv} disabled={csvBusy || !csv.trim()}>
-              <Upload className="w-4 h-4 mr-1.5" /> {csvBusy ? "Importingâ€¦" : "Import to bank"}
+              <Upload className="w-4 h-4 mr-1.5" /> {csvBusy ? "Importing…" : "Import to bank"}
             </Button>
           </Card>
         </TabsContent>
@@ -430,7 +443,7 @@ function parseCsv(
       continue;
     }
     const [q, a, b, c, d, idxRaw, explanation] = cells;
-    // Repair UTF-8-as-CP1252 paste corruption at ingest (never store Ã Â¤â€¦ for Hindi).
+    // Repair UTF-8-as-CP1252 paste corruption at ingest (never store à¤… for Hindi).
     const options = [a, b, c, d].map((x) => fixUtf8Content(x ?? ""));
     const correct_index = Math.max(0, Math.min(3, parseInt(idxRaw, 10) || 0));
     if (!q?.trim()) {

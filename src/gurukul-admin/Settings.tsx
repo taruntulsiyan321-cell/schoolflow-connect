@@ -43,7 +43,7 @@ function Field({ label, children, hint }: { label: string; children: React.React
 }
 
 /**
- * Admin settings â€” loads/saves the real `schools` row for this tenant.
+ * Admin settings — loads/saves the real `schools` row for this tenant.
  * No fields beyond what the schools table actually stores; no fake "saved" toast
  * unless the Supabase update actually succeeds.
  */
@@ -140,7 +140,7 @@ export default function Settings() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading school settingsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading school settings…
       </div>
     );
   }
@@ -183,7 +183,7 @@ export default function Settings() {
             className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
               isDirty && !saving ? "text-foreground bg-[#3b5bdb] hover:bg-[#2f4fc4]" : "text-muted-foreground bg-muted cursor-not-allowed")}>
             <Save className="w-3.5 h-3.5" />
-            {saving ? "Savingâ€¦" : isDirty ? "Save Changes" : "All Saved"}
+            {saving ? "Saving…" : isDirty ? "Save Changes" : "All Saved"}
           </button>
         </div>
       </div>
@@ -214,7 +214,7 @@ export default function Settings() {
                     </div>
                   )}
                 </div>
-                <input value={form.logoUrl} onChange={(e) => set("logoUrl", e.target.value)} className={inputCls} placeholder="https://â€¦" />
+                <input value={form.logoUrl} onChange={(e) => set("logoUrl", e.target.value)} className={inputCls} placeholder="https://…" />
               </div>
             </Field>
           </div>
@@ -244,7 +244,7 @@ export default function Settings() {
               Discard
             </button>
             <button onClick={() => void handleSave()} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all disabled:opacity-50">
-              <Save className="w-3.5 h-3.5" /> {saving ? "Savingâ€¦" : "Save Changes"}
+              <Save className="w-3.5 h-3.5" /> {saving ? "Saving…" : "Save Changes"}
             </button>
           </div>
         </div>

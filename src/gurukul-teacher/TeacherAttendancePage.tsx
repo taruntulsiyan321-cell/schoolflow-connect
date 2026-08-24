@@ -37,7 +37,7 @@ const STATUS_OPTIONS: {
 type SortKey = "roll" | "name" | "status";
 
 function todayIso() {
-  // Local calendar date, not UTC â€” the app is IST throughout, and
+  // Local calendar date, not UTC — the app is IST throughout, and
   // Dashboard's "attendance pending today" check uses the same local
   // definition of "today" (see TeacherHome's todayIsoDate in Dashboard.tsx).
   // Using toISOString() here would roll over to the next day before local
@@ -53,7 +53,7 @@ export interface TeacherAttendanceWorkspaceProps {
 }
 
 /**
- * Teacher Attendance â€” present by default, one-click absence, clear save states.
+ * Teacher Attendance — present by default, one-click absence, clear save states.
  */
 export function TeacherAttendanceWorkspace({
   fixedClassId,
@@ -279,7 +279,7 @@ export function TeacherAttendanceWorkspace({
   if (!ready) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading sessionâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading session…
       </div>
     );
   }
@@ -307,7 +307,7 @@ export function TeacherAttendanceWorkspace({
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">
             {canMark
-              ? "Everyone starts Present. Tap Absent for absentees â€” then Save."
+              ? "Everyone starts Present. Tap Absent for absentees — then Save."
               : "View only. Only the class teacher can mark attendance."}
           </p>
         </div>
@@ -346,7 +346,7 @@ export function TeacherAttendanceWorkspace({
             >
               <Users className="w-3.5 h-3.5" />
               {c.name} {c.section}
-              {c.subject ? ` Â· ${c.subject}` : ""}
+              {c.subject ? ` · ${c.subject}` : ""}
               {c.isClassTeacher && (
                 <span className="text-[8px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-1 py-0.5 rounded-full">
                   CT
@@ -356,7 +356,7 @@ export function TeacherAttendanceWorkspace({
           ))}
           {classes.length === 0 && !loading && (
             <div className="text-xs text-muted-foreground">
-              No classes assigned. Ask admin to map Teacherâ€“Classâ€“Subject.
+              No classes assigned. Ask admin to map Teacher–Class–Subject.
             </div>
           )}
         </div>
@@ -413,12 +413,12 @@ export function TeacherAttendanceWorkspace({
               )}
               title={
                 !canMark
-                  ? "Read only â€” class teacher marks attendance"
+                  ? "Read only — class teacher marks attendance"
                   : students.length === 0
                     ? "No students enrolled in this class"
                     : dirty
                       ? "Save unsaved changes"
-                      : "Already saved â€” click to re-save"
+                      : "Already saved — click to re-save"
               }
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -434,7 +434,7 @@ export function TeacherAttendanceWorkspace({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name or rollâ€¦"
+            placeholder="Search name or roll…"
             className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
@@ -452,7 +452,7 @@ export function TeacherAttendanceWorkspace({
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading rosterâ€¦
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading roster…
         </div>
       ) : (
         <div className="space-y-2">
@@ -480,8 +480,8 @@ export function TeacherAttendanceWorkspace({
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-bold text-foreground truncate">{s.fullName}</div>
                   <div className="text-[10px] text-muted-foreground">
-                    Roll {s.rollNumber ?? "â€”"}
-                    {s.admissionNumber ? ` Â· ${s.admissionNumber}` : ""}
+                    Roll {s.rollNumber ?? "—"}
+                    {s.admissionNumber ? ` · ${s.admissionNumber}` : ""}
                   </div>
                 </div>
 

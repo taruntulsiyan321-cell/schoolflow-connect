@@ -1,5 +1,5 @@
 ﻿/**
- * Account linking panel â€” honest empty / not-wired state only.
+ * Account linking panel — honest empty / not-wired state only.
  * Never pretends Google/mobile link, activation, or status changes succeeded.
  */
 
@@ -16,7 +16,7 @@ export function AccountLinkingPanel({ entityName, entityType, status }: AccountL
     <div className="space-y-3">
       <p className="text-[10px] text-muted-foreground leading-relaxed">
         Account linking for {entityName} ({entityType}) is not wired on this panel.
-        Use Students / Teachers admin pages for live portal linking RPCs. Status shown: {status || "â€”"}.
+        Use Students / Teachers admin pages for live portal linking RPCs. Status shown: {status || "—"}.
       </p>
 
       <div className="p-3 rounded-xl bg-muted space-y-2 opacity-60">

@@ -13,7 +13,7 @@ import { toAssistantMarkdown } from "@/lib/presentation";
  * leaking raw "**bold**", "\n", "\[ \]", "$$ $$" syntax to the student.
  *
  * remark-math only recognizes $...$ / $$...$$ delimiters, but models (and the
- * user's own pasted examples) also emit \( \) / \[ \] â€” so those are normalized
+ * user's own pasted examples) also emit \( \) / \[ \] — so those are normalized
  * to dollar-delimited form first, matching what MathText.tsx already tokenizes.
  */
 type Props = {

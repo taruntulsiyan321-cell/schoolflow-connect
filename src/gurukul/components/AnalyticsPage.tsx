@@ -1,5 +1,5 @@
 ﻿/**
- * DESIGN-ONLY â€” not mounted under StudentDashboard `/student/*`.
+ * DESIGN-ONLY — not mounted under StudentDashboard `/student/*`.
  * Contains fixture Arjun/XP demo stats for layout review only.
  * Live analysis route: `src/gurukul/pages/Analysis.tsx`.
  */
@@ -39,11 +39,11 @@ import {
   Activity,
 } from "lucide-react";
 
-// â”€â”€ Design fixture data (unmounted â€” do not use as product fallbacks) â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Design fixture data (unmounted — do not use as product fallbacks) ────────
 
 const student = {
   name: "Arjun Sharma",
-  class: "XII â€” Science",
+  class: "XII — Science",
   avatar: "AS",
   xp: 8420,
   level: 14,
@@ -114,9 +114,9 @@ const recentSessions = [
 ];
 
 const aiInsights = [
-  "Your Maths accuracy jumped +7% this week â€” keep the Integration practice going.",
+  "Your Maths accuracy jumped +7% this week — keep the Integration practice going.",
   "Organic Chemistry has 14 recurring mistakes. A focused 30-min recovery session today will break the pattern.",
-  "You're on a 12-day streak ðŸ”¥ â€” don't let Sunday break it. Even 5 questions counts.",
+  "You're on a 12-day streak 🔥 — don't let Sunday break it. Even 5 questions counts.",
   "Speed is your edge: you solve questions 18% faster than the class average.",
 ];
 
@@ -132,7 +132,7 @@ const heatmapData = (() => {
   }));
 })();
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function cn(...classes: (string | false | undefined | null)[]) {
   return classes.filter(Boolean).join(" ");
@@ -144,7 +144,7 @@ function accuracyColor(v: number) {
   return "#cc5069";
 }
 
-// â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function GlassCard({
   children,
@@ -291,7 +291,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   );
 };
 
-// â”€â”€ Main export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main export ───────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
@@ -304,7 +304,7 @@ export default function AnalyticsPage() {
         fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
-      {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Header ────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -334,7 +334,7 @@ export default function AnalyticsPage() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 
-        {/* â”€â”€ Hero Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Hero Banner ───────────────────── */}
         <GlassCard glow="blue" className="p-6 sm:p-8">
           <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-start md:items-center">
             {/* Left: student info */}
@@ -347,9 +347,9 @@ export default function AnalyticsPage() {
                 </div>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-foreground leading-tight tracking-tight">
-                Hi, {student.name.split(" ")[0]} ðŸ‘‹
+                Hi, {student.name.split(" ")[0]} 👋
               </h1>
-              <p className="text-muted-foreground mt-1 text-sm">{student.class} Â· Last updated just now</p>
+              <p className="text-muted-foreground mt-1 text-sm">{student.class} · Last updated just now</p>
 
               <div className="grid grid-cols-3 gap-3 mt-5">
                 {[
@@ -391,7 +391,7 @@ export default function AnalyticsPage() {
           </div>
         </GlassCard>
 
-        {/* â”€â”€ Tab Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Tab Bar ───────────────────────── */}
         <div className="flex gap-1 bg-muted border border-border/70 rounded-xl p-1 w-fit">
           {tabs.map((t) => (
             <button
@@ -409,13 +409,13 @@ export default function AnalyticsPage() {
           ))}
         </div>
 
-        {/* â”€â”€ Tab: Overview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Tab: Overview ─────────────────── */}
         {activeTab === "overview" && (
           <div className="space-y-6">
 
             {/* Accuracy trend */}
             <GlassCard glow="cyan" className="p-6">
-              <SectionLabel>Accuracy Trend â€” 7 Weeks</SectionLabel>
+              <SectionLabel>Accuracy Trend — 7 Weeks</SectionLabel>
               <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={accuracyTrend}>
@@ -459,8 +459,8 @@ export default function AnalyticsPage() {
                   <Brain className="w-4 h-4 text-foreground" />
                 </div>
                 <div>
-                  <div className="text-foreground font-semibold text-sm">Nova Â· Your Academic AI</div>
-                  <div className="text-muted-foreground text-xs mt-0.5">Analysing your last 7 sessionsâ€¦</div>
+                  <div className="text-foreground font-semibold text-sm">Nova · Your Academic AI</div>
+                  <div className="text-muted-foreground text-xs mt-0.5">Analysing your last 7 sessions…</div>
                 </div>
                 <div className="ml-auto flex items-center gap-1 text-purple-400">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -505,7 +505,7 @@ export default function AnalyticsPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-sm font-bold" style={{ color: accuracyColor(acc) }}>{acc}%</div>
-                        <div className="text-[11px] text-muted-foreground">{s.correct}/{s.questions} Â· {s.duration}</div>
+                        <div className="text-[11px] text-muted-foreground">{s.correct}/{s.questions} · {s.duration}</div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                     </div>
@@ -516,7 +516,7 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* â”€â”€ Tab: Subjects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Tab: Subjects ─────────────────── */}
         {activeTab === "subjects" && (
           <div className="space-y-6">
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -574,7 +574,7 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* â”€â”€ Tab: Concepts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Tab: Concepts ─────────────────── */}
         {activeTab === "concepts" && (
           <div className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
@@ -604,11 +604,11 @@ export default function AnalyticsPage() {
                       <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-foreground truncate">{c.concept}</div>
-                        <div className="text-[11px] text-muted-foreground">{c.subject} Â· {c.mistakes} mistakes</div>
+                        <div className="text-[11px] text-muted-foreground">{c.subject} · {c.mistakes} mistakes</div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className="text-sm font-bold text-amber-400">{c.score}%</span>
-                        <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">Recover â†’</span>
+                        <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">Recover →</span>
                       </div>
                     </div>
                   ))}
@@ -633,13 +633,13 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* â”€â”€ Tab: Activity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Tab: Activity ─────────────────── */}
         {activeTab === "activity" && (
           <div className="space-y-6">
 
             {/* Weekly stacked bar */}
             <GlassCard glow="cyan" className="p-6">
-              <SectionLabel>This Week â€” Questions Attempted</SectionLabel>
+              <SectionLabel>This Week — Questions Attempted</SectionLabel>
               <div className="flex gap-4 mb-4">
                 {[
                   { label: "DPP", color: "#3b5bdb" },
@@ -728,7 +728,7 @@ export default function AnalyticsPage() {
 
             {/* Leaderboard preview */}
             <GlassCard glow="amber" className="p-6">
-              <SectionLabel>Class Leaderboard â€” Top 5</SectionLabel>
+              <SectionLabel>Class Leaderboard — Top 5</SectionLabel>
               <div className="space-y-2">
                 {[
                   { rank: 1, name: "Priya Nair", xp: 9810, accuracy: 88 },
@@ -771,7 +771,7 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* â”€â”€ Footer quick actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Footer quick actions ───────────── */}
         <div className="flex flex-wrap gap-3 justify-center pb-4">
           {[
             { label: "Start Practice", icon: <BookOpen className="w-4 h-4" />, color: "#3b5bdb" },

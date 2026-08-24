@@ -25,7 +25,7 @@ type NavEntry =
   | { type: "link";  key: PageKey; label: string; icon: ReactNode }
   | { type: "group"; hubKey: PageKey; label: string; icon: ReactNode; color: string; items: NavItem[] };
 
-// â”€â”€ Sidebar nav â€” no Profile, no Resources as standalone â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sidebar nav — no Profile, no Resources as standalone ─────────────────────
 const sidebarNav: NavEntry[] = [
   { type:"link", key:"dashboard",    label:"Home",         icon:<Home className="w-4 h-4"/> },
   { type:"link", key:"practice",     label:"Practice",     icon:<BookOpen className="w-4 h-4"/> },
@@ -61,7 +61,7 @@ const sidebarNav: NavEntry[] = [
   },
 ];
 
-// â”€â”€ Mobile bottom nav â€” 4 tabs, no Profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Mobile bottom nav — 4 tabs, no Profile ────────────────────────────────────
 const bottomNav: NavItem[] = [
   { key:"dashboard",   label:"Home",     icon:<Home className="w-5 h-5"/> },
   { key:"practice",    label:"Practice", icon:<BookOpen className="w-5 h-5"/> },
@@ -84,7 +84,7 @@ const pageTitle: Record<PageKey, string> = {
   tests:"Tests",            learninghub:"Learning",    classhub:"Class",
 };
 
-// â”€â”€ Profile dropdown menu items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Profile dropdown menu items ───────────────────────────────────────────────
 const profileMenuItems = [
   { label:"My Profile",    icon:<User className="w-3.5 h-3.5"/>,     key:"profile"      as PageKey },
   { label:"Achievements",  icon:<Medal className="w-3.5 h-3.5"/>,    key:"achievements" as PageKey },
@@ -206,7 +206,7 @@ export default function Layout({
     return page === key;
   }
 
-  // â”€â”€ Sub-item â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Sub-item ────────────────────────────────────────────────────────────────
   const SubLink = ({ item, color }: { item: NavItem; color: string }) => {
     const active = page === item.key;
     return (
@@ -233,7 +233,7 @@ export default function Layout({
     );
   };
 
-  // â”€â”€ Top-level link â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Top-level link ──────────────────────────────────────────────────────────
   const TopLink = ({ entry }: { entry: Extract<NavEntry, {type:"link"}> }) => {
     const active = page === entry.key;
     const showChatBadge = entry.key === "chat" && unreadMsg > 0;
@@ -272,7 +272,7 @@ export default function Layout({
     );
   };
 
-  // â”€â”€ Group entry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Group entry ─────────────────────────────────────────────────────────────
   const GroupEntry = ({ entry }: { entry: Extract<NavEntry, {type:"group"}> }) => {
     const isOpen      = !!openGroups[entry.hubKey];
     const isActive    = entry.items.some(i => i.key === page) || page === entry.hubKey;
@@ -342,7 +342,7 @@ export default function Layout({
     );
   };
 
-  // â”€â”€ Sidebar shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Sidebar shell ───────────────────────────────────────────────────────────
   const SidebarContent = () => (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo */}
@@ -454,7 +454,7 @@ export default function Layout({
       {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Top header â€” z-40 so backdrop-blur stacking context sits above <main> */}
+        {/* Top header — z-40 so backdrop-blur stacking context sits above <main> */}
         <header className="relative z-40 shrink-0 border-b border-border bg-card/95 backdrop-blur-xl">
           <div className="h-14 px-4 sm:px-6 flex items-center gap-3">
             {/* Mobile hamburger */}
@@ -484,14 +484,14 @@ export default function Layout({
               <div className="hidden sm:flex items-center gap-1.5 bg-warning/10 border border-warning/20 rounded-full px-2.5 py-1">
                 <Flame className="w-3 h-3 text-warning"/>
                 <span className="text-xs font-bold text-warning">
-                  {showXpChrome ? `${student.streak}d` : "â€”"}
+                  {showXpChrome ? `${student.streak}d` : "—"}
                 </span>
               </div>
               {/* XP */}
               <div className="hidden sm:flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-2.5 py-1">
                 <Zap className="w-3 h-3 text-info"/>
                 <span className="text-xs font-bold text-info">
-                  {showXpChrome ? student.xp.toLocaleString() : "â€”"}
+                  {showXpChrome ? student.xp.toLocaleString() : "—"}
                 </span>
               </div>
               {/* Bell -> Notifications (live inbox) */}
@@ -531,7 +531,7 @@ export default function Layout({
                 </motion.button>
               )}
 
-              {/* Profile avatar â€” opens dropdown (portaled to body) */}
+              {/* Profile avatar — opens dropdown (portaled to body) */}
               <div className="relative" ref={profileRef}>
                 <motion.button
                   whileHover={reduceMotion ? undefined : { scale: 1.06 }}
@@ -571,7 +571,7 @@ export default function Layout({
                         <div className="min-w-0">
                           <div className="text-sm font-bold text-foreground truncate">{student.name}</div>
                           <div className="text-[11px] text-muted-foreground">
-                            {[student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" Â· ") || "Your class"}
+                            {[student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" · ") || "Your class"}
                           </div>
                         </div>
                       </div>
@@ -652,7 +652,7 @@ export default function Layout({
           </AnimatePresence>
         </main>
 
-        {/* Mobile bottom nav â€” 4 tabs */}
+        {/* Mobile bottom nav — 4 tabs */}
         <nav className="md:hidden shrink-0 fixed bottom-0 inset-x-0 border-t border-border/70 bg-card/95 backdrop-blur-xl z-40">
           <div className="flex">
             {bottomNav.map(item => {

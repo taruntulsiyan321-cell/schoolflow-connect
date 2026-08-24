@@ -89,7 +89,7 @@ function AttendancePanel({
       }));
     const unmarkedCount = students.length - toSave.length;
     if (toSave.length === 0) {
-      setError("No students are marked yet â€” nothing to save.");
+      setError("No students are marked yet — nothing to save.");
       return;
     }
     setSaving(true);
@@ -99,7 +99,7 @@ function AttendancePanel({
       if (unmountedRef.current) return;
       setFlash(
         unmarkedCount > 0
-          ? `Saved ${toSave.length} of ${students.length} â€” ${unmarkedCount} still unmarked`
+          ? `Saved ${toSave.length} of ${students.length} — ${unmarkedCount} still unmarked`
           : "Saved via AttendanceService",
       );
       setTimeout(() => {
@@ -128,10 +128,10 @@ function AttendancePanel({
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold text-foreground">
-              Attendance â€” {liveClass.className} {liveClass.section}
+              Attendance — {liveClass.className} {liveClass.section}
             </div>
             <div className="text-[10px] text-muted-foreground">
-              Class ID Â· {liveClass.classId.slice(0, 8)}â€¦ Â· AttendanceService
+              Class ID · {liveClass.classId.slice(0, 8)}… · AttendanceService
             </div>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
@@ -157,7 +157,7 @@ function AttendancePanel({
 
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground text-xs">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading rosterâ€¦
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading roster…
             </div>
           ) : (
             <>
@@ -192,7 +192,7 @@ function AttendancePanel({
                         <InitialsAvatar name={s.fullName} size="sm" />
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-semibold text-foreground">{s.fullName}</div>
-                          <div className="text-[9px] text-muted-foreground">{s.rollNumber ?? "â€”"}</div>
+                          <div className="text-[9px] text-muted-foreground">{s.rollNumber ?? "—"}</div>
                         </div>
                         <select
                           value={status ?? ""}
@@ -229,7 +229,7 @@ function AttendancePanel({
             onClick={() => void save()}
             className="w-full py-2.5 rounded-xl text-sm font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40"
           >
-            {saving ? "Savingâ€¦" : "Save via AttendanceService"}
+            {saving ? "Saving…" : "Save via AttendanceService"}
           </button>
         </div>
       </div>
@@ -285,10 +285,10 @@ function ClassRosterDrawer({
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold text-foreground">
-              {liveClass.className} â€” {liveClass.section}
+              {liveClass.className} — {liveClass.section}
             </div>
             <div className="text-[10px] text-muted-foreground">
-              {liveClass.studentCount} students Â· engine roster
+              {liveClass.studentCount} students · engine roster
             </div>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
@@ -299,7 +299,7 @@ function ClassRosterDrawer({
         <div className="grid grid-cols-2 gap-2 p-4 border-b border-border/70">
           {[
             { label: "Profile att.", value: `${Math.round(liveClass.avgAttendancePct)}%` },
-            { label: "Today day-rate", value: liveClass.dayRatePct != null ? `${liveClass.dayRatePct}%` : "â€”" },
+            { label: "Today day-rate", value: liveClass.dayRatePct != null ? `${liveClass.dayRatePct}%` : "—" },
             { label: "Homework", value: `${Math.round(liveClass.avgHomeworkCompletionPct)}%` },
             { label: "Exams", value: `${Math.round(liveClass.avgExamsPct)}%` },
           ].map((item) => (
@@ -313,7 +313,7 @@ function ClassRosterDrawer({
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground text-xs">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loadingâ€¦
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading…
             </div>
           ) : error ? (
             <div className="text-xs text-center pt-8 space-y-2">
@@ -334,7 +334,7 @@ function ClassRosterDrawer({
                 <InitialsAvatar name={s.fullName} size="sm" />
                 <div>
                   <div className="text-xs font-semibold text-foreground">{s.fullName}</div>
-                  <div className="text-[9px] text-muted-foreground">{s.rollNumber ?? s.admissionNumber ?? "â€”"}</div>
+                  <div className="text-[9px] text-muted-foreground">{s.rollNumber ?? s.admissionNumber ?? "—"}</div>
                 </div>
               </div>
             ))
@@ -355,7 +355,7 @@ function ClassRosterDrawer({
 }
 
 /**
- * Admin Classes â€” live Academic Engine only (class IDs, roster, attendance).
+ * Admin Classes — live Academic Engine only (class IDs, roster, attendance).
  * No mock name matching.
  */
 export default function Classes() {
@@ -412,14 +412,14 @@ export default function Classes() {
   return (
     <div className="space-y-4">
       <div className="text-xs text-muted-foreground">
-        {rows.length} live classes Â· AnalyticsService.classRollups Â· AttendanceService
+        {rows.length} live classes · AnalyticsService.classRollups · AttendanceService
       </div>
 
       {error && <div className="text-xs text-[#cc5069]">{error}</div>}
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground text-xs">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading classesâ€¦
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading classes…
         </div>
       ) : rows.length === 0 ? (
         <div className="text-xs text-muted-foreground py-16 text-center">No classes in this school yet.</div>
@@ -436,12 +436,12 @@ export default function Classes() {
                     {c.className}-{c.section}
                   </div>
                   <div className="text-[10px] text-muted-foreground mt-0.5 font-mono">
-                    {c.classId.slice(0, 8)}â€¦
+                    {c.classId.slice(0, 8)}…
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-black text-[#4aa87a]">
-                    {c.dayRatePct != null ? `${c.dayRatePct}%` : "â€”"}
+                    {c.dayRatePct != null ? `${c.dayRatePct}%` : "—"}
                   </div>
                   <div className="text-[9px] text-muted-foreground">Today</div>
                 </div>

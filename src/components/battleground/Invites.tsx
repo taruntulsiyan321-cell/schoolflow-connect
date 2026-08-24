@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { acceptBattleInvite } from "@/gurukul/hooks/useBattlegroundData";
 import { displayChapter, displayTopic, displaySubject } from "@/lib/academicDisplay";
 import { BattleExperienceService, resolveStudentServiceContext } from "@/academic";
 import { toErrorMessage } from "@/lib/presentation";
+import { useKeyedResource } from "@/hooks/useKeyedResource";
 
 type InviteBattle = {
   id: string;
@@ -36,30 +37,39 @@ type InviteRow = {
 /** Multi-select classmates and send invites for a battle the current user created. */
 export function InviteFriends({ battleId, classId }: { battleId: string; classId: string }) {
   const { user } = useAuth();
-  const [classmates, setClassmates] = useState<
-    { id: string; full_name: string; user_id: string; roll_number: string | null }[]
-  >([]);
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState("");
   const [sending, setSending] = useState(false);
 
+  // Keyed on the class so the previous class's classmates are never left
+  // selectable after a switch. The Supabase error is routed through the
+  // presentation boundary — `error.message` here is raw PostgREST text.
+  const classmateQuery = useKeyedResource(
+    [classId, user?.id],
+    async () => {
+      const { data, error } = await supabase.rpc("rpc_classmates");
+      if (error) throw error;
+      return (data ?? []).map((m) => ({
+        id: m.student_id,
+        full_name: m.full_name,
+        user_id: m.user_id,
+        roll_number: m.roll_number,
+      }));
+    },
+    { errorFallback: "Could not load classmates." },
+  );
+
+  const classmates = useMemo(() => classmateQuery.data ?? [], [classmateQuery.data]);
+
   useEffect(() => {
-    if (!classId) return;
-    supabase.rpc("rpc_classmates").then(({ data, error }) => {
-      if (error) {
-        toast({ title: "Could not load classmates", description: error.message, variant: "destructive" });
-        return;
-      }
-      setClassmates(
-        (data ?? []).map((m) => ({
-          id: m.student_id,
-          full_name: m.full_name,
-          user_id: m.user_id,
-          roll_number: m.roll_number,
-        })),
-      );
-    });
-  }, [classId, user]);
+    if (classmateQuery.error) {
+      toast({
+        title: "Could not load classmates",
+        description: classmateQuery.error,
+        variant: "destructive",
+      });
+    }
+  }, [classmateQuery.error]);
 
   const send = async () => {
     if (!user) return;
@@ -148,7 +158,7 @@ export function MyInvites() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      toast({ title: "Could not load invites", description: error.message, variant: "destructive" });
+      toast({ title: "Could not load invites", description: toErrorMessage(error, "Please try again."), variant: "destructive" });
       setInvites([]);
       return;
     }
@@ -170,7 +180,7 @@ export function MyInvites() {
     if (battleErr) {
       toast({
         title: "Could not load invite battles",
-        description: battleErr.message,
+        description: toErrorMessage(battleErr, "Please try again."),
         variant: "destructive",
       });
     }
@@ -199,10 +209,7 @@ export function MyInvites() {
       toast({ title: "Challenge accepted!", description: "Entering the arena…" });
       nav(`/student/battleground/battle/${battleId}`);
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "message" in e
-          ? String((e as { message: string }).message)
-          : "Could not accept challenge";
+      const msg = toErrorMessage(e, "Could not accept challenge");
       toast({ title: "Could not accept challenge", description: msg, variant: "destructive" });
     } finally {
       setAccepting(null);

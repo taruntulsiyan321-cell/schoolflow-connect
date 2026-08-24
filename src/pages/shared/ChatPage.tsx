@@ -32,7 +32,7 @@ import { CHAT_FILE_ACCEPT } from "@/academic/storage/chatFileUpload";
 import "@/components/chat/chat-panel.css";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
-/** Role chip colors â€” Gurukul dark surfaces (same palette as teacher Communication). */
+/** Role chip colors — Gurukul dark surfaces (same palette as teacher Communication). */
 const roleColors: Record<string, string> = {
   admin: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
   principal: "bg-rose-500/15 text-rose-400 border-rose-500/25",
@@ -44,8 +44,8 @@ const roleColors: Record<string, string> = {
 };
 
 const EMOJI_QUICK = [
-  "ðŸ˜€", "ðŸ˜", "ðŸ˜‚", "ðŸ™‚", "ðŸ˜‰", "ðŸ˜", "ðŸ¤”", "ðŸ‘", "ðŸ‘", "ðŸ™",
-  "ðŸ”¥", "â­", "âœ…", "âŒ", "ðŸŽ‰", "ðŸ“š", "âœï¸", "ðŸ’¯", "â¤ï¸", "ðŸ™Œ",
+  "😀", "😁", "😂", "🙂", "😉", "😍", "🤔", "👍", "👏", "🙏",
+  "🔥", "⭐", "✅", "❌", "🎉", "📚", "✏️", "💯", "❤️", "🙌",
 ];
 
 function formatTime(iso?: string) {
@@ -90,8 +90,8 @@ function RoleChip({ role }: { role: string }) {
 function previewOf(m: ChatMessage): string {
   if (m.deletedAt) return "This message was deleted";
   const att = m.attachments?.[0];
-  if (att && !m.content) return `ðŸ“Ž ${att.name}`;
-  return m.content || (att ? `ðŸ“Ž ${att.name}` : "");
+  if (att && !m.content) return `📎 ${att.name}`;
+  return m.content || (att ? `📎 ${att.name}` : "");
 }
 
 function mapRealtimeMessage(raw: Record<string, unknown>): ChatMessage {
@@ -141,7 +141,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   const [startingChat, setStartingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  /** True after the first contacts fetch settles â€” live/realtime refreshes must not flip loading. */
+  /** True after the first contacts fetch settles — live/realtime refreshes must not flip loading. */
   const contactsLoadedRef = useRef(false);
 
   const reloadContacts = async () => {
@@ -157,7 +157,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
 
   useEffect(() => {
     if (!user || !settled) return;
-    // Settled without school ctx â€” leave empty state, never spin forever.
+    // Settled without school ctx — leave empty state, never spin forever.
     if (!ctx) {
       contactsLoadedRef.current = true;
       setLoading(false);
@@ -167,7 +167,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     }
     let cancelled = false;
     // liveVersion (AcademicLive message bumps / focus / poll) re-runs this effect.
-    // Only show the full-page spinner on the genuine first load â€” never wipe an already-rendered list.
+    // Only show the full-page spinner on the genuine first load — never wipe an already-rendered list.
     const isFirstLoad = !contactsLoadedRef.current;
     (async () => {
       if (isFirstLoad) setLoading(true);
@@ -250,7 +250,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
             }
             return [...prev, newMsg];
           });
-          // Realtime payload has no attachment rows â€” hydrate so peers/groups see files.
+          // Realtime payload has no attachment rows — hydrate so peers/groups see files.
           if (ctx && realtimeHasAttachment(raw) && !newMsg.deletedAt) {
             const msgId = newMsg.id;
             void MessageService.listAttachments(ctx, [msgId]).then((map) => {
@@ -437,7 +437,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   if (!contactsLoadedRef.current && (!settled || loading)) {
     return (
       <div className="chat-panel flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading conversationsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading conversations…
       </div>
     );
   }
@@ -466,7 +466,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
             >
               <Users className="w-3.5 h-3.5 text-teal-400" />
-              {creatingGroup ? "Creatingâ€¦" : "Class Group"}
+              {creatingGroup ? "Creating…" : "Class Group"}
             </button>
             {(userRole === "teacher" || userRole === "principal" || userRole === "admin") && (
               <button
@@ -508,7 +508,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
             <div className="chat-search flex items-center gap-2 rounded-xl px-3 py-2">
               <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <input
-                placeholder="Search chatsâ€¦"
+                placeholder="Search chats…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
@@ -738,7 +738,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               {replyTo && (
                 <div className="px-4 pt-3 flex items-center gap-2 border-t border-border/70 bg-surface/90">
                   <div className="flex-1 rounded-xl bg-white/5 border border-border px-3 py-2 text-[10px] text-muted-foreground truncate">
-                    <span className="font-bold text-foreground">Replying Â· </span>
+                    <span className="font-bold text-foreground">Replying · </span>
                     {previewOf(replyTo).slice(0, 100) || "Message"}
                   </div>
                   <button
@@ -805,7 +805,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                         void sendText();
                       }
                     }}
-                    placeholder="Type a messageâ€¦"
+                    placeholder="Type a message…"
                     className="flex-1 bg-transparent text-sm text-white placeholder:text-muted-foreground outline-none min-h-[24px] py-1"
                   />
                   <button
