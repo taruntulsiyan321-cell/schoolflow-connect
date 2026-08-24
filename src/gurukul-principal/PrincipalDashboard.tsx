@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { useAcademicLive, AnalyticsService, AttendanceService } from '@/academic'
 import { localDateKey } from '@/lib/localDate'
+import { useDashboardDrillDown } from './DashboardDrillDown'
+import { PrincipalClassRollups } from './PrincipalLiveAcademic'
 import {
-  LayoutDashboard, Users, GraduationCap, UserCheck, Calendar,
-  TrendingUp, AlertCircle, CheckCircle, Clock, ArrowRight
+  GraduationCap, UserCheck, BookOpen, FileText, ArrowRight, Users, School
 } from 'lucide-react'
 
 /**
- * Principal Dashboard - REDESIGNED
+ * Principal Dashboard - Horizontal Stat Cards with Drill-Down
  *
- * Clean, professional overview without technical service names.
- * Shows today's important information with drill-down capabilities.
+ * Data from prompt ONLY:
+ * - Attendance (marked per class, section, subject, day)
+ * - Homework (completion per student, rolls up to class rate)
+ * - Tests (marks per student, per subject)
+ * - Exams (marks per student, per subject)
+ *
+ * Drill-down: School → Class → Student (expands in place, no navigation)
  */
 
 interface DashboardStat {
@@ -21,22 +26,14 @@ interface DashboardStat {
   trend?: string
   color: string
   icon: React.ElementType
-  clickable?: boolean
-  onClick?: () => void
+  metric?: 'attendance' | 'homework' | 'tests' | 'exams'
 }
 
-interface ActionItem {
-  type: 'attendance' | 'leave' | 'case' | 'announcement'
-  title: string
-  priority: 'high' | 'medium' | 'low'
-  onClick?: () => void
-}
-
-function StatCard({ stat }: { stat: DashboardStat }) {
-  const Container = stat.clickable ? 'button' : 'div'
+function StatCard({ stat, onClick }: { stat: DashboardStat; onClick?: () => void }) {
   return (
-    <Container
-      onClick={stat.onClick}
+    <button
+      onClick={onClick}
+      disabled={!onClick}
       style={{
         padding: '20px',
         background: 'white',
@@ -46,16 +43,20 @@ function StatCard({ stat }: { stat: DashboardStat }) {
         display: 'flex',
         alignItems: 'center',
         gap: '14px',
-        cursor: stat.clickable ? 'pointer' : 'default',
+        cursor: onClick ? 'pointer' : 'default',
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-        ...(stat.clickable && {
-          ':hover': {
-            transform: 'translateY(-2px)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-          }
-        })
+        flex: 1,
+        minWidth: '200px',
       }}
+      onMouseEnter={onClick ? (e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)'
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)'
+      } : undefined}
+      onMouseLeave={onClick ? (e) => {
+        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.04)'
+      } : undefined}
     >
       <div
         style={{
@@ -83,7 +84,7 @@ function StatCard({ stat }: { stat: DashboardStat }) {
         >
           {stat.value}
         </div>
-        <div style={{ fontSize: '13px', color: 'hsl(199 30% 30%)', fontWeight: 600 }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'hsl(199 30% 30%)' }}>
           {stat.label}
         </div>
         {stat.trend && (
@@ -92,79 +93,24 @@ function StatCard({ stat }: { stat: DashboardStat }) {
           </div>
         )}
       </div>
-      {stat.clickable && <ArrowRight size={18} color={stat.color} />}
-    </Container>
-  )
-}
-
-function ActionItemCard({ item }: { item: ActionItem }) {
-  const priorityColors = {
-    high: '#ef4444',
-    medium: '#f59e0b',
-    low: '#3b82f6',
-  }
-  const color = priorityColors[item.priority]
-
-  return (
-    <button
-      onClick={item.onClick}
-      style={{
-        width: '100%',
-        padding: '14px 16px',
-        background: 'white',
-        borderRadius: '8px',
-        border: `1px solid ${color}20`,
-        borderLeft: `3px solid ${color}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateX(4px)'
-        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateX(0)'
-        e.currentTarget.style.boxShadow = 'none'
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div
-          style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: color,
-          }}
-        />
-        <span style={{ fontSize: '14px', fontWeight: 600, color: 'hsl(199 45% 10%)' }}>
-          {item.title}
-        </span>
-      </div>
-      <ArrowRight size={16} color={color} />
+      {onClick && <ArrowRight size={18} color={stat.color} />}
     </button>
   )
 }
 
 export default function PrincipalDashboard() {
-  const navigate = useNavigate()
   const { ctx, settled } = useAcademicContext()
-  const liveVersion = useAcademicLive(['profile', 'attendance'])
+  const liveVersion = useAcademicLive(['profile', 'attendance', 'homework'])
+  const { drillState, drillToClass, drillToStudent, BreadcrumbComponent } = useDashboardDrillDown()
 
   const [stats, setStats] = useState<DashboardStat[]>([
-    { label: 'Total Students', value: '...', color: '#3b82f6', icon: GraduationCap },
-    { label: 'Total Teachers', value: '...', color: '#8b5cf6', icon: Users },
-    { label: 'Total Classes', value: '...', color: '#06b6d4', icon: LayoutDashboard },
-    { label: 'Present Today', value: '...', color: '#10b981', icon: CheckCircle },
+    { label: 'Attendance Today', value: '...', color: '#10b981', icon: UserCheck, metric: 'attendance' },
+    { label: 'Homework Rate', value: '...', color: '#f59e0b', icon: BookOpen, metric: 'homework' },
+    { label: 'Avg Tests', value: '...', color: '#3b82f6', icon: FileText, metric: 'tests' },
+    { label: 'Avg Exams', value: '...', color: '#ef4444', icon: GraduationCap, metric: 'exams' },
   ])
 
-  const [actionItems] = useState<ActionItem[]>([
-    { type: 'leave', title: '3 pending leave requests', priority: 'high', onClick: () => navigate('/principal/leaves') },
-    { type: 'case', title: '2 new parent inquiries', priority: 'medium', onClick: () => navigate('/principal/communication') },
-    { type: 'attendance', title: 'Attendance below 75% in Class 10-A', priority: 'high', onClick: () => navigate('/principal/attendance') },
-  ])
+  const [schoolInfo, setSchoolInfo] = useState({ students: 0, teachers: 0, classes: 0 })
 
   useEffect(() => {
     if (!settled || !ctx) return
@@ -180,39 +126,44 @@ export default function PrincipalDashboard() {
 
         if (cancelled) return
 
+        setSchoolInfo({
+          students: school.studentCount,
+          teachers: school.teacherCount,
+          classes: school.classCount,
+        })
+
         setStats([
           {
-            label: 'Total Students',
-            value: school.studentCount,
-            color: '#3b82f6',
-            icon: GraduationCap,
-            clickable: true,
-            onClick: () => navigate('/principal/students')
-          },
-          {
-            label: 'Total Teachers',
-            value: school.teacherCount,
-            color: '#8b5cf6',
-            icon: Users,
-            clickable: true,
-            onClick: () => navigate('/principal/teachers')
-          },
-          {
-            label: 'Total Classes',
-            value: school.classCount,
-            color: '#06b6d4',
-            icon: LayoutDashboard,
-            clickable: true,
-            onClick: () => navigate('/principal/classes')
-          },
-          {
-            label: 'Present Today',
+            label: 'Attendance Today',
             value: `${today?.overallDayRatePct ?? 0}%`,
-            trend: `${Math.round(school.avgAttendancePct)}% avg`,
+            trend: `${school.studentCount} students`,
             color: '#10b981',
-            icon: CheckCircle,
-            clickable: true,
-            onClick: () => navigate('/principal/attendance')
+            icon: UserCheck,
+            metric: 'attendance',
+          },
+          {
+            label: 'Homework Rate',
+            value: `${Math.round(school.avgHomeworkCompletionPct)}%`,
+            trend: 'School average',
+            color: '#f59e0b',
+            icon: BookOpen,
+            metric: 'homework',
+          },
+          {
+            label: 'Avg Tests',
+            value: `${Math.round(school.avgTestsPct)}%`,
+            trend: 'All classes',
+            color: '#3b82f6',
+            icon: FileText,
+            metric: 'tests',
+          },
+          {
+            label: 'Avg Exams',
+            value: `${Math.round(school.avgExamsPct)}%`,
+            trend: 'All classes',
+            color: '#ef4444',
+            icon: GraduationCap,
+            metric: 'exams',
           },
         ])
       } catch (error) {
@@ -223,183 +174,97 @@ export default function PrincipalDashboard() {
     return () => {
       cancelled = true
     }
-  }, [settled, ctx, liveVersion, navigate])
-
-  const greeting = () => {
-    const h = new Date().getHours()
-    if (h < 12) return 'Good morning'
-    if (h < 17) return 'Good afternoon'
-    return 'Good evening'
-  }
-
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+  }, [settled, ctx, liveVersion])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      {/* Header */}
-      <div>
-        <h1
-          className="font-display"
-          style={{
-            fontSize: '32px',
-            fontWeight: 800,
-            color: 'hsl(199 50% 5%)',
-            margin: 0,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          {greeting()}, Principal
-        </h1>
-        <p style={{ fontSize: '14px', color: 'hsl(199 20% 40%)', marginTop: '6px' }}>
-          {today}
-        </p>
-      </div>
+    <div style={{ padding: '32px 24px', background: '#F8F9FA', minHeight: '100vh' }}>
+      <BreadcrumbComponent />
 
-      {/* Key Stats */}
-      <div>
-        <h2
-          className="font-display"
-          style={{
-            fontSize: '18px',
-            fontWeight: 700,
-            color: 'hsl(199 40% 15%)',
-            marginBottom: '16px',
-          }}
-        >
-          School Overview
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-          {stats.map((stat) => (
-            <StatCard key={stat.label} stat={stat} />
-          ))}
-        </div>
-      </div>
+      {/* School-level view */}
+      {drillState.level === 'school' && (
+        <>
+          {/* School Info Header */}
+          <div style={{ marginBottom: '24px' }}>
+            <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'hsl(199 50% 5%)', margin: 0 }}>
+              School Overview
+            </h1>
+            <p style={{ fontSize: '14px', color: 'hsl(199 20% 40%)', marginTop: '6px' }}>
+              {schoolInfo.students} students • {schoolInfo.teachers} teachers • {schoolInfo.classes} classes
+            </p>
+          </div>
 
-      {/* Action Items */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <h2
-            className="font-display"
-            style={{
-              fontSize: '18px',
-              fontWeight: 700,
-              color: 'hsl(199 40% 15%)',
-            }}
-          >
-            Needs Your Attention
-          </h2>
-          <button
-            onClick={() => navigate('/principal/reports')}
-            style={{
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#3b82f6',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            View all <ArrowRight size={14} />
-          </button>
-        </div>
-        <div
-          style={{
+          {/* Horizontal Stat Cards */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '16px',
+            marginBottom: '32px',
+          }}>
+            {stats.map((stat) => (
+              <StatCard
+                key={stat.label}
+                stat={stat}
+                onClick={stat.metric ? () => drillToClass(stat.metric!) : undefined}
+              />
+            ))}
+          </div>
+
+          {/* Class Performance Table */}
+          <div style={{
             background: 'white',
             borderRadius: '12px',
-            padding: '20px',
+            padding: '24px',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}
-        >
-          {actionItems.length > 0 ? (
-            actionItems.map((item, i) => <ActionItemCard key={i} item={item} />)
-          ) : (
-            <div style={{ textAlign: 'center', padding: '20px', color: 'hsl(199 20% 50%)' }}>
-              <CheckCircle size={32} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
-              <p style={{ fontSize: '14px', fontWeight: 600 }}>All caught up!</p>
-            </div>
-          )}
-        </div>
-      </div>
+          }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'hsl(199 40% 15%)', marginBottom: '16px' }}>
+              Class Performance
+            </h2>
+            <PrincipalClassRollups onClassClick={drillToStudent} />
+          </div>
+        </>
+      )}
 
-      {/* Quick Access */}
-      <div>
-        <h2
-          className="font-display"
-          style={{
-            fontSize: '18px',
-            fontWeight: 700,
-            color: 'hsl(199 40% 15%)',
-            marginBottom: '16px',
-          }}
-        >
-          Quick Access
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
-          {[
-            { label: 'Students', icon: GraduationCap, path: '/principal/students', color: '#3b82f6' },
-            { label: 'Teachers', icon: Users, path: '/principal/teachers', color: '#8b5cf6' },
-            { label: 'Classes', icon: LayoutDashboard, path: '/principal/classes', color: '#06b6d4' },
-            { label: 'Attendance', icon: UserCheck, path: '/principal/attendance', color: '#10b981' },
-            { label: 'Communication', icon: AlertCircle, path: '/principal/communication', color: '#f59e0b' },
-            { label: 'Reports', icon: TrendingUp, path: '/principal/reports', color: '#ef4444' },
-          ].map((item) => (
-            <button
-              key={item.label}
-              onClick={() => navigate(item.path)}
-              style={{
-                padding: '16px',
-                background: 'white',
-                borderRadius: '10px',
-                border: `1px solid ${item.color}15`,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.borderColor = item.color + '40'
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.06)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.borderColor = item.color + '15'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-            >
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '8px',
-                  background: `${item.color}12`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <item.icon size={20} color={item.color} strokeWidth={2.5} />
-              </div>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'hsl(199 45% 10%)' }}>
-                {item.label}
-              </span>
-            </button>
-          ))}
+      {/* Class-level drill-down */}
+      {drillState.level === 'class' && drillState.metric && (
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'hsl(199 40% 15%)', marginBottom: '6px' }}>
+            {drillState.metric.charAt(0).toUpperCase()}{drillState.metric.slice(1)} by Class
+          </h2>
+          <p style={{ fontSize: '14px', color: 'hsl(199 20% 40%)', marginBottom: '24px' }}>
+            Click a class to see student-level details
+          </p>
+          <PrincipalClassRollups
+            focusMetric={drillState.metric}
+            onClassClick={drillToStudent}
+          />
         </div>
-      </div>
+      )}
+
+      {/* Student-level drill-down */}
+      {drillState.level === 'student' && drillState.classId && (
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'hsl(199 40% 15%)', marginBottom: '6px' }}>
+            {drillState.className} - {drillState.metric?.charAt(0).toUpperCase()}{drillState.metric?.slice(1)}
+          </h2>
+          <p style={{ fontSize: '14px', color: 'hsl(199 20% 40%)', marginBottom: '24px' }}>
+            Individual student performance
+          </p>
+          <div style={{ padding: '20px', textAlign: 'center', color: 'hsl(199 20% 50%)' }}>
+            Student-level details will load here
+            {/* TODO: Add student list component */}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

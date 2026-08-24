@@ -739,7 +739,7 @@ export default function PrincipalApp() {
 
         <div style={{ padding: page === 'messages' ? '28px 32px 0' : '28px 32px' }}>
           <Routes>
-            <Route index element={<DashboardPage />} />
+            <Route index element={<PrincipalDashboard />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="teachers" element={<TeachersPage />} />
             <Route path="students" element={<StudentsPage />} />
