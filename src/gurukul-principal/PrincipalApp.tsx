@@ -340,7 +340,7 @@ function CasesPage() {
             type="button"
             onClick={() => setTab(t)}
             style={{
-              padding: '7px 16px', borderRadius: 999, border: '1px solid var(--border)',
+              padding: '7px 16px', borderRadius: 999, border: '1px solid hsl(var(--border))',
               background: tab === t ? 'rgba(59,91,219,0.15)' : 'transparent',
               color: tab === t ? 'var(--indigo)' : 'var(--text-muted)',
               fontSize: 13, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize',
@@ -408,7 +408,7 @@ function SettingsPage() {
           ].map((f) => (
             <div key={f.label}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{f.label}</div>
-              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '9px 12px', fontSize: 13, color: 'var(--text-primary)' }}>{f.value}</div>
+              <div style={{ background: 'var(--bg)', border: '1px solid hsl(var(--border))', borderRadius: 8, padding: '9px 12px', fontSize: 13, color: 'var(--text-primary)' }}>{f.value}</div>
             </div>
           ))}
         </div>
@@ -421,7 +421,7 @@ function SettingsPage() {
             <div style={{ fontSize: 13, fontWeight: 600 }}>Two-Factor Authentication</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Not connected — MFA is not wired yet</div>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 999, padding: '4px 10px' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid hsl(var(--border))', borderRadius: 999, padding: '4px 10px' }}>
             Not connected
           </span>
         </div>
@@ -436,10 +436,10 @@ function SettingsPage() {
             </button>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 320 }}>
-              <input type="password" placeholder="New password" value={pwd.next} onChange={(e) => setPwd((p) => ({ ...p, next: e.target.value }))} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '9px 12px', fontSize: 13 }} />
-              <input type="password" placeholder="Confirm password" value={pwd.confirm} onChange={(e) => setPwd((p) => ({ ...p, confirm: e.target.value }))} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '9px 12px', fontSize: 13 }} />
+              <input type="password" placeholder="New password" value={pwd.next} onChange={(e) => setPwd((p) => ({ ...p, next: e.target.value }))} style={{ border: '1px solid hsl(var(--border))', borderRadius: 8, padding: '9px 12px', fontSize: 13 }} />
+              <input type="password" placeholder="Confirm password" value={pwd.confirm} onChange={(e) => setPwd((p) => ({ ...p, confirm: e.target.value }))} style={{ border: '1px solid hsl(var(--border))', borderRadius: 8, padding: '9px 12px', fontSize: 13 }} />
               <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" onClick={() => setPwdOpen(false)} style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer' }}>Cancel</button>
+                <button type="button" onClick={() => setPwdOpen(false)} style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'var(--surface)', cursor: 'pointer' }}>Cancel</button>
                 <button type="button" disabled={pwdBusy || !pwd.next || pwd.next !== pwd.confirm} onClick={() => void savePassword()} style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'var(--indigo)', color: '#fff', cursor: 'pointer', opacity: pwdBusy || !pwd.next || pwd.next !== pwd.confirm ? 0.5 : 1 }}>
                   {pwdBusy ? 'Saving…' : 'Update password'}
                 </button>
@@ -587,7 +587,7 @@ export default function PrincipalApp() {
       </aside>
 
       <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <header style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(244,245,247,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '14px 32px', display: 'flex', alignItems: 'center', gap: 16 }}>
+        <header style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(244,245,247,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid hsl(var(--border))', padding: '14px 32px', display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ flex: 1 }}>
             <div className="font-display" style={{ fontSize: 20, fontWeight: 400, color: 'var(--text-primary)', lineHeight: 1 }}>
               {greetingForNow()}, {firstName}
@@ -596,7 +596,7 @@ export default function PrincipalApp() {
               {today}{schoolName ? ` · ${schoolName}` : ''}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 14px', width: 280, position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid hsl(var(--border))', borderRadius: 10, padding: '8px 14px', width: 280, position: 'relative' }}>
             <Search size={14} color="var(--text-muted)" />
             <input
               value={headerSearch}
@@ -614,7 +614,7 @@ export default function PrincipalApp() {
               aria-label="School search (not connected)"
             />
             {searchHint && (
-              <div className="z-overlay" style={{ position: 'absolute', left: 0, right: 0, top: 44, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: 'var(--text-muted)', boxShadow: 'var(--shadow-sm)' }}>
+              <div className="z-overlay" style={{ position: 'absolute', left: 0, right: 0, top: 44, background: 'var(--surface)', border: '1px solid hsl(var(--border))', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: 'var(--text-muted)', boxShadow: 'var(--shadow-sm)' }}>
                 {searchHint}
               </div>
             )}
@@ -630,7 +630,7 @@ export default function PrincipalApp() {
                   return next
                 })
               }}
-              style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}
+              style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface)', border: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}
             >
               <Bell size={16} color="var(--text-secondary)" />
               {unreadNotif > 0 && (
@@ -641,7 +641,7 @@ export default function PrincipalApp() {
               <div
                 id="principal-notif-panel"
                 className="z-overlay"
-                style={{ position: 'fixed', right: 32, top: 62, width: 300, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)', padding: 16 }}
+                style={{ position: 'fixed', right: 32, top: 62, width: 300, background: 'var(--surface)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)', padding: 16 }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

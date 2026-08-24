@@ -21,7 +21,7 @@
   --bg: hsl(var(--background));
   --surface: hsl(var(--card));
   --surface-2: hsl(var(--muted));
-  --border: hsl(var(--border));
+  --border: 189 18% 86%;
   --border-subtle: hsl(var(--border));
   --navy: hsl(var(--card));
   --navy-mid: hsl(var(--muted));
@@ -83,7 +83,7 @@
   background: transparent;
 }
 .gurukul-principal ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: hsl(var(--border));
   border-radius: 2px;
 }
 .gurukul-principal ::-webkit-scrollbar-thumb:hover {
@@ -226,7 +226,7 @@
 }
 
 /* Small text/labels are dark gray, not light */
-.gurukul-principal [class*="text-xs"], .gurukul-principal [class*="text-sm"],
+.gurukul-principal [class*="text-xs"]:not([class*="-foreground"]):not([class*="text-white"]), .gurukul-principal [class*="text-sm"]:not([class*="-foreground"]):not([class*="text-white"]),
 .gurukul-principal label {
   color: hsl(199 30% 20%) !important;
   font-weight: 600 !important;
@@ -244,7 +244,6 @@
 
 /* Buttons have strong text */
 .gurukul-principal button { font-weight: 700 !important; }
-.gurukul-principal button:not([class*="bg-[#"]]) { color: hsl(199 50% 5%) !important; }
 
 /* Inputs are very readable */
 .gurukul-principal input, .gurukul-principal textarea, .gurukul-principal select {

@@ -1,4 +1,4 @@
-/* Gurukul Admin â€” Chalkboard Signal light executive theme */
+/* Gurukul Admin — Chalkboard Signal light executive theme */
 .gurukul-admin {
   --font-display: "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -21,7 +21,7 @@
   --bg: #f3f6f6;
   --surface: #ffffff;
   --surface-2: #e8eff0;
-  --border: #d5e0e2;
+  --border: 189 18% 86%;
   --border-subtle: #e7edef;
   --navy: hsl(var(--card));
   --navy-mid: hsl(var(--muted));
@@ -83,7 +83,7 @@
   background: transparent;
 }
 .gurukul-admin ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: hsl(var(--border));
   border-radius: 2px;
 }
 .gurukul-admin ::-webkit-scrollbar-thumb:hover {
@@ -231,7 +231,7 @@
 }
 
 /* Small text/labels are dark gray, not light */
-.gurukul-admin [class*="text-xs"], .gurukul-admin [class*="text-sm"],
+.gurukul-admin [class*="text-xs"]:not([class*="-foreground"]):not([class*="text-white"]), .gurukul-admin [class*="text-sm"]:not([class*="-foreground"]):not([class*="text-white"]),
 .gurukul-admin label {
   color: hsl(199 30% 20%) !important;
   font-weight: 600 !important;
@@ -249,7 +249,6 @@
 
 /* Buttons have strong text */
 .gurukul-admin button { font-weight: 700 !important; }
-.gurukul-admin button:not([class*="bg-[#"]]) { color: hsl(199 50% 5%) !important; }
 
 /* Inputs are very readable */
 .gurukul-admin input, .gurukul-admin textarea, .gurukul-admin select {

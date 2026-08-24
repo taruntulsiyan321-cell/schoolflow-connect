@@ -706,7 +706,9 @@ export default function Layout({
                 animate={{ scale: page === "profile" ? 1.1 : 1 }}
                 transition={reduceMotion ? { duration: 0 } : springSnappy}
                 className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-foreground",
+                  // Sits on a solid hsl(var(--primary)) circle, so it needs the
+                  // on-primary colour; text-foreground gave near-black on teal (2.8:1).
+                  "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-primary-foreground",
                   page === "profile" ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""
                 )}
                 style={{background:"hsl(var(--primary))"}}>

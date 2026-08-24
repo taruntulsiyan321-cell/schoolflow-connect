@@ -537,7 +537,7 @@ export default function Analysis() {
         label: "Most active day recently",
         value: bestDay,
         sub: `${studyActivity.totalHrs}h total study time logged`,
-        color: "hsl(var(--primary-glow))",
+        color: "hsl(var(--info))",
         icon: <Calendar className="w-4 h-4" />,
       });
     }
@@ -703,7 +703,7 @@ export default function Analysis() {
               { label: overview.avgScoreIsExam ? "Average score" : "Accuracy", value: `${overview.avgScore}%`, color: "hsl(var(--warning))" },
               { label: "Practice sessions",  value: overview.practiceCompleted,               color: "hsl(var(--foreground))" },
               { label: "Marks recorded",     value: overview.testsCompleted,                  color: "hsl(var(--foreground))" },
-              { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "hsl(var(--primary-glow))" },
+              { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "hsl(var(--info))" },
               { label: "Exam readiness",     value: `${overview.examReadiness}%`,             color: "hsl(var(--primary))" },
             ].map((s) => (
               <Metric key={s.label} label={s.label} value={s.value} color={s.color} />
@@ -1200,7 +1200,7 @@ export default function Analysis() {
       {tab === "activity" && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Metric label="Total study time"    value={`${studyActivity.totalHrs}h`}       color="hsl(var(--primary-glow))" />
+            <Metric label="Total study time"    value={`${studyActivity.totalHrs}h`}       color="hsl(var(--info))" />
             <Metric label="Average per day"     value={`${studyActivity.avgDailyMin} min`} color="hsl(var(--foreground))" />
             <Metric label="Most active day"     value={studyActivity.bestDay}              color="hsl(var(--warning))" />
             <Metric label="Most productive hour" value={studyActivity.bestHour}            color="hsl(var(--info))" />

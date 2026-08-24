@@ -400,9 +400,9 @@ export default function PrincipalMessages() {
     : "var(--indigo)";
 
   return (
-    <div style={{ height: "calc(100vh - 140px)", minHeight: 560, display: "flex", borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border)", background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}>
-      <div style={{ width: 300, flexShrink: 0, borderRight: "1px solid var(--border)", background: "var(--surface-2)", display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
+    <div style={{ height: "calc(100vh - 140px)", minHeight: 560, display: "flex", borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid hsl(var(--border))", background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}>
+      <div style={{ width: 300, flexShrink: 0, borderRight: "1px solid hsl(var(--border))", background: "var(--surface-2)", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid hsl(var(--border))" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <MessageSquare size={16} color="var(--indigo)" />
             <div style={{ fontSize: 14, fontWeight: 700 }}>Messages</div>
@@ -412,7 +412,7 @@ export default function PrincipalMessages() {
               type="button"
               title="Create group"
               onClick={() => setShowCreate(true)}
-              style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "var(--surface)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
               <Users size={14} color="var(--teal)" />
             </button>
@@ -427,8 +427,8 @@ export default function PrincipalMessages() {
           </div>
         </div>
 
-        <div style={{ padding: 12, borderBottom: "1px solid var(--border)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 10px" }}>
+        <div style={{ padding: 12, borderBottom: "1px solid hsl(var(--border))" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface)", border: "1px solid hsl(var(--border))", borderRadius: 10, padding: "8px 10px" }}>
             <Search size={13} color="var(--text-muted)" />
             <input
               value={search}
@@ -496,7 +496,7 @@ export default function PrincipalMessages() {
           </div>
         ) : (
           <>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid hsl(var(--border))" }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: selColor + "18", color: selColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>
                 {isGroup(selected) ? <Users size={15} /> : initials(selected.name)}
               </div>
@@ -522,7 +522,7 @@ export default function PrincipalMessages() {
                     </div>
                     <div style={{ maxWidth: "70%", textAlign: isMe ? "right" : "left" }}>
                       {m.replyPreview && (
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", borderLeft: "2px solid var(--border)", paddingLeft: 8, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <div style={{ fontSize: 10, color: "var(--text-muted)", borderLeft: "2px solid hsl(var(--border))", paddingLeft: 8, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {m.replyPreview}
                         </div>
                       )}
@@ -570,20 +570,20 @@ export default function PrincipalMessages() {
             </div>
 
             {replyTo && (
-              <div style={{ padding: "8px 16px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, alignItems: "center", fontSize: 11, color: "var(--text-muted)" }}>
+              <div style={{ padding: "8px 16px", borderTop: "1px solid hsl(var(--border))", display: "flex", gap: 8, alignItems: "center", fontSize: 11, color: "var(--text-muted)" }}>
                 <Reply size={12} />
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Replying to: {replyTo.content.slice(0, 80)}</span>
                 <button type="button" onClick={() => setReplyTo(null)} style={{ border: "none", background: "none", cursor: "pointer", color: "var(--text-primary)" }}>×</button>
               </div>
             )}
 
-            <div style={{ padding: 14, borderTop: "1px solid var(--border)", display: "flex", gap: 8, alignItems: "flex-end" }}>
+            <div style={{ padding: 14, borderTop: "1px solid hsl(var(--border))", display: "flex", gap: 8, alignItems: "flex-end" }}>
               <input ref={fileRef} type="file" accept={CHAT_FILE_ACCEPT} style={{ display: "none" }} onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)} />
               <button
                 type="button"
                 disabled={sending || uploading}
                 onClick={() => fileRef.current?.click()}
-                style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface-2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: sending || uploading ? 0.5 : 1 }}
+                style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid hsl(var(--border))", background: "var(--surface-2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: sending || uploading ? 0.5 : 1 }}
               >
                 {uploading ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} color="var(--text-muted)" />}
               </button>
@@ -598,7 +598,7 @@ export default function PrincipalMessages() {
                 }}
                 rows={2}
                 placeholder="Type a message… (Enter to send)"
-                style={{ flex: 1, resize: "none", borderRadius: 12, border: "1px solid var(--border)", padding: "10px 12px", fontSize: 13, outline: "none", background: "var(--bg)", color: "var(--text-primary)" }}
+                style={{ flex: 1, resize: "none", borderRadius: 12, border: "1px solid hsl(var(--border))", padding: "10px 12px", fontSize: 13, outline: "none", background: "var(--bg)", color: "var(--text-primary)" }}
               />
               <button
                 type="button"
@@ -616,7 +616,7 @@ export default function PrincipalMessages() {
       {showCreate && (
         <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.45)" }} onClick={() => setShowCreate(false)} />
-          <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 380, background: "var(--surface)", borderRadius: 16, border: "1px solid var(--border)", boxShadow: "var(--shadow-lg)", padding: 20 }}>
+          <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 380, background: "var(--surface)", borderRadius: 16, border: "1px solid hsl(var(--border))", boxShadow: "var(--shadow-lg)", padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
               <div style={{ fontSize: 15, fontWeight: 700 }}>Create Group</div>
               <button type="button" onClick={() => setShowCreate(false)} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 18, color: "var(--text-muted)" }}>×</button>
@@ -626,7 +626,7 @@ export default function PrincipalMessages() {
               type="button"
               disabled={createBusy}
               onClick={() => void createTeacherGroup()}
-              style={{ width: "100%", display: "flex", gap: 10, alignItems: "center", padding: 12, borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface-2)", cursor: "pointer", marginBottom: 12, textAlign: "left" }}
+              style={{ width: "100%", display: "flex", gap: 10, alignItems: "center", padding: 12, borderRadius: 12, border: "1px solid hsl(var(--border))", background: "var(--surface-2)", cursor: "pointer", marginBottom: 12, textAlign: "left" }}
             >
               <Users size={16} color="#f59e0b" />
               <div>

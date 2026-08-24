@@ -2576,7 +2576,10 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          background: "rgba(11,15,26,0.85)",
+          // Was a hardcoded dark-navy bar left over from the pre-light-theme design.
+          // The portal light-theme rules colour this header text dark, so the
+          // navy left "Battleground" and its icons at ~1.2:1 against their own bar.
+          background: "hsl(var(--card) / 0.85)",
           backdropFilter: "blur(12px)",
         }}
       >

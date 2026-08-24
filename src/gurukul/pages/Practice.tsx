@@ -169,9 +169,9 @@ const MODES: Mode[] = [
   { key:"chapter",    label:"Chapter Practice",       desc:"Focus on a specific chapter to reinforce concepts",
     icon:<Layers className="w-5 h-5"/>,     color:"hsl(var(--info))", cat:"content",  badge:"Chapter" },
   { key:"topic",      label:"Topic Practice",         desc:"Drill down to a precise concept or sub-topic",
-    icon:<Target className="w-5 h-5"/>,     color:"hsl(var(--primary-glow))", cat:"content",  badge:"By topic" },
+    icon:<Target className="w-5 h-5"/>,     color:"hsl(var(--success))", cat:"content",  badge:"By topic" },
   { key:"custom",     label:"Custom Practice",        desc:"Choose difficulty and either a question count or a time limit",
-    icon:<BarChart2 className="w-5 h-5"/>,  color:"hsl(var(--primary-glow))", cat:"type",    badge:"Your rules" },
+    icon:<BarChart2 className="w-5 h-5"/>,  color:"hsl(var(--info))", cat:"type",    badge:"Your rules" },
   { key:"pyq",        label:"Previous Year Questions",desc:"Board and competitive exam questions from past years",
     icon:<FileText className="w-5 h-5"/>,   color:"hsl(var(--destructive))", cat:"source",  badge:"Past papers" },
   { key:"weak",       label:"Weak Areas Practice",    desc:"Auto-generated from concepts where your confidence is below 60%",
@@ -239,7 +239,7 @@ const DIFFICULTIES = [
   { key:"easy",   label:"Easy",   color:"hsl(var(--success))", desc:"Foundation level â€” build confidence" },
   { key:"medium", label:"Medium", color:"hsl(var(--warning))", desc:"Board exam level â€” solid preparation" },
   { key:"hard",   label:"Hard",   color:"hsl(var(--destructive))", desc:"Competitive level â€” push your limits" },
-  { key:"mixed",  label:"Mixed",  color:"hsl(var(--primary-glow))", desc:"Varied â€” best for overall practice" },
+  { key:"mixed",  label:"Mixed",  color:"hsl(var(--info))", desc:"Varied â€” best for overall practice" },
 ];
 
 // â”€â”€ Shared components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

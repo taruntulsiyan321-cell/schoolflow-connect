@@ -54,7 +54,7 @@ function StatBlock({ label, value, color }: { label: string; value: string | num
 const thStyle: React.CSSProperties = {
   fontSize: 11, color: "var(--text-muted)", textAlign: "left", padding: "8px 14px",
   fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em",
-  borderBottom: "1px solid var(--border)", whiteSpace: "nowrap",
+  borderBottom: "1px solid hsl(var(--border))", whiteSpace: "nowrap",
 };
 
 /**
@@ -135,7 +135,10 @@ export function PrincipalSchoolOverview() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
         <StatBlock label="Students" value={school.studentCount} color="var(--indigo)" />
         <StatBlock label="Teachers" value={school.teacherCount} color="var(--teal)" />
-        <StatBlock label="Classes" value={school.classCount} color="var(--indigo-mid)" />
+        {/* --indigo-mid is a light "glow" token meant for dark surfaces; on the light
+            theme it renders ~1.7:1 against --bg and the number is effectively invisible.
+            Every sibling stat uses a saturated token, so this one was the odd one out. */}
+        <StatBlock label="Classes" value={school.classCount} color="var(--coral)" />
         <StatBlock label="Attendance Today" value={`${today?.overallDayRatePct ?? 0}%`} color="var(--emerald)" />
         <StatBlock label="Profile Avg Attendance" value={`${Math.round(school.avgAttendancePct)}%`} color="var(--emerald)" />
         <StatBlock label="Avg Exams" value={`${Math.round(school.avgExamsPct)}%`} color="var(--rose)" />
@@ -479,7 +482,7 @@ export function PrincipalAttendanceLive() {
           value={date}
           onChange={(e) => setDate(e.target.value)}
           style={{
-            border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", fontSize: 12,
+            border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "6px 10px", fontSize: 12,
             background: "var(--surface)", color: "var(--text-primary)",
           }}
         />
@@ -638,7 +641,7 @@ export function PrincipalTeachersLive() {
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search teachers..."
           style={{
-            flex: 1, maxWidth: 280, border: "1px solid var(--border)", borderRadius: 9,
+            flex: 1, maxWidth: 280, border: "1px solid hsl(var(--border))", borderRadius: 9,
             padding: "8px 14px", fontSize: 13, background: "var(--surface)", color: "var(--text-primary)",
           }}
         />
@@ -648,7 +651,7 @@ export function PrincipalTeachersLive() {
       {filtered.length === 0 ? (
         <Empty message="No teachers found. Academic KPIs appear once teacher_classes and profiles sync." />
       ) : (
-        <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 12 }}>
+        <div style={{ overflowX: "auto", border: "1px solid hsl(var(--border))", borderRadius: 12 }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
@@ -658,7 +661,7 @@ export function PrincipalTeachersLive() {
                     style={{
                       fontSize: 11, color: "var(--text-muted)", textAlign: "left", padding: "10px 16px",
                       fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em",
-                      borderBottom: "1px solid var(--border)",
+                      borderBottom: "1px solid hsl(var(--border))",
                     }}
                   >
                     {h}
@@ -750,18 +753,18 @@ export function PrincipalHomeworkLive() {
           { label: "Submissions", value: String(summary.submissionCount) },
           { label: "Graded", value: String(summary.gradedCount) },
         ].map((k) => (
-          <div key={k.label} style={{ padding: 14, borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface)" }}>
+          <div key={k.label} style={{ padding: 14, borderRadius: 12, border: "1px solid hsl(var(--border))", background: "var(--surface)" }}>
             <div className="font-mono-data" style={{ fontSize: 20, fontWeight: 700 }}>{k.value}</div>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{k.label}</div>
           </div>
         ))}
       </div>
-      <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 12 }}>
+      <div style={{ overflowX: "auto", border: "1px solid hsl(var(--border))", borderRadius: 12 }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
               {["Class", "Homework", "Completion %", "Late %"].map((h) => (
-                <th key={h} style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "left", padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>{h}</th>
+                <th key={h} style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "left", padding: "10px 14px", borderBottom: "1px solid hsl(var(--border))" }}>{h}</th>
               ))}
             </tr>
           </thead>
