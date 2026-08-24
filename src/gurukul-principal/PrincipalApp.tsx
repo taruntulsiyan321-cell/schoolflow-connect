@@ -35,6 +35,7 @@ import {
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import PrincipalClasses from '@/pages/principal/PrincipalClasses'
 import PrincipalClassDetail from '@/pages/principal/PrincipalClassDetail'
+import PrincipalClassAnalysis from '@/pages/principal/PrincipalClassAnalysis'
 import {
   Search, Bell, Users, GraduationCap, UserCheck, CalendarDays,
   LayoutDashboard, BarChart2, Settings, LogOut, CheckCircle, Clock,
@@ -744,7 +745,7 @@ export default function PrincipalApp() {
             <Route path="teachers" element={<TeachersPage />} />
             <Route path="students" element={<StudentsPage />} />
             <Route path="classes" element={<PrincipalClasses />} />
-            <Route path="classes/:classId" element={<PrincipalClassDetail />} />
+            <Route path="classes/:classId" element={<PrincipalClassAnalysis />} />
             <Route path="exams" element={<ExaminationsPage />} />
             <Route path="attendance" element={<AttendancePage />} />
             <Route path="leaves" element={<LeavesPage />} />
