@@ -36,6 +36,7 @@ import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import PrincipalClasses from '@/pages/principal/PrincipalClasses'
 import PrincipalClassDetail from '@/pages/principal/PrincipalClassDetail'
 import PrincipalClassAnalysis from '@/pages/principal/PrincipalClassAnalysis'
+import PrincipalClassComparison from '@/pages/principal/PrincipalClassComparison'
 import PrincipalTeachers from '@/pages/principal/PrincipalTeachers'
 import PrincipalTeacherDetail from '@/pages/principal/PrincipalTeacherDetail'
 import PrincipalStudents from '@/pages/principal/PrincipalStudents'
@@ -747,7 +748,8 @@ export default function PrincipalApp() {
             <Route path="students" element={<PrincipalStudents />} />
             <Route path="students/:studentId" element={<PrincipalStudentDetail />} />
             <Route path="classes" element={<PrincipalClasses />} />
-            <Route path="classes/:classId" element={<PrincipalClassAnalysis />} />
+            <Route path="classes/:className" element={<PrincipalClassComparison />} />
+            <Route path="classes/:className/:sectionName" element={<PrincipalClassAnalysis />} />
             <Route path="exams" element={<ExaminationsPage />} />
             <Route path="attendance" element={<AttendancePage />} />
             <Route path="leaves" element={<LeavesPage />} />
