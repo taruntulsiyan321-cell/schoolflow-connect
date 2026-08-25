@@ -1,6 +1,5 @@
 export type PrincipalPageKey =
   | "dashboard"
-  | "analytics"
   | "teachers"
   | "students"
   | "classes"
@@ -14,7 +13,6 @@ export type PrincipalPageKey =
 
 export const PRINCIPAL_PAGE_PATH: Record<PrincipalPageKey, string> = {
   dashboard: "/principal",
-  analytics: "/principal/analytics",
   teachers: "/principal/teachers",
   students: "/principal/students",
   classes: "/principal/classes",
@@ -29,7 +27,6 @@ export const PRINCIPAL_PAGE_PATH: Record<PrincipalPageKey, string> = {
 
 export const PRINCIPAL_PAGE_TITLES: Record<PrincipalPageKey, string> = {
   dashboard: "Dashboard",
-  analytics: "Analytics",
   teachers: "Teachers",
   students: "Students",
   classes: "Classes",
@@ -44,7 +41,6 @@ export const PRINCIPAL_PAGE_TITLES: Record<PrincipalPageKey, string> = {
 
 export const PRINCIPAL_NAV_LABEL: Record<PrincipalPageKey, string> = {
   dashboard: "Dashboard",
-  analytics: "Analytics",
   teachers: "Teachers",
   students: "Students",
   classes: "Classes",
@@ -60,8 +56,6 @@ export const PRINCIPAL_NAV_LABEL: Record<PrincipalPageKey, string> = {
 export function principalPathToPage(pathname: string): PrincipalPageKey {
   const p = pathname.replace(/\/+$/, "") || "/principal";
 
-  if (p.startsWith("/principal/analytics") || p.startsWith("/principal/reports") || p.startsWith("/principal/performance") || p.startsWith("/principal/leaderboard"))
-    return "analytics";
   if (p.startsWith("/principal/teachers")) return "teachers";
   if (p.startsWith("/principal/classes")) return "classes";
   if (p.startsWith("/principal/students")) return "students";

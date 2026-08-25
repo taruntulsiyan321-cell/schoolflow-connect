@@ -105,7 +105,6 @@ function greetingForNow(): string {
 
 const navItems: { icon: React.ElementType; key: PrincipalPageKey }[] = [
   { icon: LayoutDashboard, key: 'dashboard' },
-  { icon: BarChart2, key: 'analytics' },
   { icon: Users, key: 'teachers' },
   { icon: GraduationCap, key: 'students' },
   { icon: Layers, key: 'classes' },
