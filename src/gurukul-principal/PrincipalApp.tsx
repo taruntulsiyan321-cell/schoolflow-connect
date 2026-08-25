@@ -199,23 +199,7 @@ function AnalyticsPage() {
   )
 }
 
-function TeachersPage() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="Teacher directory and performance metrics">Teachers</SectionTitle>
-      <Card><PrincipalTeachersLive /></Card>
-    </div>
-  )
-}
-
-function StudentsPage() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="Top and bottom performers by exams and attendance">Students</SectionTitle>
-      <Card><PrincipalStudentRankings /></Card>
-    </div>
-  )
-}
+// TeachersPage and StudentsPage now use dedicated imports from @/pages/principal
 
 function ExaminationsPage() {
   return (
