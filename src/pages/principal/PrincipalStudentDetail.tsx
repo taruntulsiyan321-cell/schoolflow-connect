@@ -10,7 +10,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { PALETTE, TYPE, formatValue, shouldFlag } from '@/gurukul-principal/shared/palette'
-import { THRESHOLDS } from '@/gurukul-principal/class-analysis/thresholds'
+import { THRESHOLDS } from '@/gurukul-principal/analysis/thresholds'
 import { ChevronLeft } from 'lucide-react'
 
 type Tab = 'OVERVIEW' | 'ACADEMICS' | 'ACTIVITY'

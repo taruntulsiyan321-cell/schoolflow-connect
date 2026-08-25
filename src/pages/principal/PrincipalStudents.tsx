@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { PALETTE, TYPE, formatValue, shouldFlag } from '@/gurukul-principal/shared/palette'
 import { Search } from 'lucide-react'
-import { THRESHOLDS } from '@/gurukul-principal/class-analysis/thresholds'
+import { THRESHOLDS } from '@/gurukul-principal/analysis/thresholds'
 
 interface StudentRow {
   id: string

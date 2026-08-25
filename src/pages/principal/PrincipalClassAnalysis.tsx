@@ -22,8 +22,8 @@ import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { localDateKey } from '@/lib/localDate'
 import { ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react'
 
-import { THRESHOLDS } from '@/gurukul-principal/class-analysis/thresholds'
-import { PALETTE, DISTRIBUTION_BANDS } from '@/gurukul-principal/class-analysis/palette'
+import { THRESHOLDS } from '@/gurukul-principal/analysis/thresholds'
+import { PALETTE } from '@/gurukul-principal/shared/palette'
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PART 1: Three-state helpers
