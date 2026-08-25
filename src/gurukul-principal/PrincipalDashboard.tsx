@@ -5,7 +5,8 @@ import { HomeworkCompletionBlock } from './dashboard-blocks/HomeworkCompletionBl
 import { UpcomingBlock } from './dashboard-blocks/UpcomingBlock'
 import { NeedsAttentionBlock } from './dashboard-blocks/NeedsAttentionBlock'
 import { ChronicAbsenteesBlock } from './dashboard-blocks/ChronicAbsenteesBlock'
-import { PrincipalClassRollups } from './PrincipalLiveAcademic'
+import { AttendanceDrillDown } from './dashboard-drilldowns/AttendanceDrillDown'
+import { HomeworkDrillDown } from './dashboard-drilldowns/HomeworkDrillDown'
 
 /**
  * Principal Dashboard - Following Design Prompt Exactly
@@ -81,44 +82,44 @@ export default function PrincipalDashboard() {
         </div>
       )}
 
-      {/* Class-level drill-down */}
-      {drillState.level === 'class' && drillState.metric && (
+      {/* Drill-down views (Fix 4: Different for attendance vs homework) */}
+      {(drillState.level === 'class' || drillState.level === 'student') && drillState.metric && (
         <div style={{
           background: 'white',
           borderRadius: '12px',
           padding: '24px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
         }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1F2937', marginBottom: '6px' }}>
-            {drillState.metric.charAt(0).toUpperCase()}{drillState.metric.slice(1)} by Class
-          </h2>
-          <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '24px' }}>
-            Click a class to see student-level details
-          </p>
-          <PrincipalClassRollups
-            focusMetric={drillState.metric}
-            onClassClick={drillToStudent}
-          />
-        </div>
-      )}
+          {drillState.metric === 'attendance' && (
+            <AttendanceDrillDown
+              selectedClassId={drillState.classId || undefined}
+              selectedClassName={drillState.className || undefined}
+              onClassClick={drillToStudent}
+            />
+          )}
 
-      {/* Student-level drill-down */}
-      {drillState.level === 'student' && drillState.classId && (
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-        }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1F2937', marginBottom: '6px' }}>
-            {drillState.className} - {drillState.metric?.charAt(0).toUpperCase()}{drillState.metric?.slice(1)}
-          </h2>
-          <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '24px' }}>
-            Individual student performance
-          </p>
-          <div style={{ padding: '20px', textAlign: 'center', color: '#9CA3AF' }}>
-            Student list with {drillState.metric} details will load here
-          </div>
+          {drillState.metric === 'homework' && (
+            <HomeworkDrillDown
+              selectedClassId={drillState.classId || undefined}
+              selectedClassName={drillState.className || undefined}
+              onClassClick={drillToStudent}
+            />
+          )}
+
+          {/* Fallback for other metrics */}
+          {drillState.metric !== 'attendance' && drillState.metric !== 'homework' && (
+            <div>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1F2937', marginBottom: '6px' }}>
+                {drillState.metric.charAt(0).toUpperCase()}{drillState.metric.slice(1)} by Class
+              </h2>
+              <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '24px' }}>
+                Drill-down view for {drillState.metric}
+              </p>
+              <div style={{ padding: '40px', textAlign: 'center', color: '#9CA3AF' }}>
+                {drillState.level === 'class' ? 'Class breakdown coming soon' : 'Student details coming soon'}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
