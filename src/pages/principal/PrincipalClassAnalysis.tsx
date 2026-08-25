@@ -266,7 +266,7 @@ function ActivityTab() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function PrincipalClassAnalysis() {
-  const { classId } = useParams<{ classId: string }>()
+  const { className, sectionName } = useParams<{ className: string; sectionName: string }>()
   const navigate = useNavigate()
   const { ctx, ready, settled } = useAcademicContext()
   const liveVersion = useAcademicLive(['attendance', 'marks', 'profile'])
@@ -292,7 +292,7 @@ export default function PrincipalClassAnalysis() {
   const [students, setStudents] = useState<StudentRow[]>([])
 
   useEffect(() => {
-    if (!settled || !ready || !ctx || !classId) {
+    if (!settled || !ready || !ctx || !className || !sectionName) {
       setLoading(false)
       return
     }
@@ -306,20 +306,23 @@ export default function PrincipalClassAnalysis() {
       try {
         const today = localDateKey()
 
-        // Load class
+        // Load section by className and sectionName
         const { data: classData } = await supabase
           .from('classes')
           .select('*')
-          .eq('id', classId)
+          .eq('name', className)
+          .eq('section', sectionName)
           .eq('school_id', ctx.schoolId)
           .single()
 
         if (cancelled) return
         if (!classData) {
-          setError('Class not found')
+          setError('Section not found')
           setLoading(false)
           return
         }
+
+        const classId = classData.id
 
         setKlass(classData)
         setSelectedSection(classData.section)
@@ -329,7 +332,7 @@ export default function PrincipalClassAnalysis() {
           .from('classes')
           .select('*')
           .eq('school_id', ctx.schoolId)
-          .eq('class_name', classData.class_name)
+          .eq('name', className)
           .order('section')
 
         if (!cancelled) {
@@ -405,7 +408,7 @@ export default function PrincipalClassAnalysis() {
     return () => {
       cancelled = true
     }
-  }, [settled, ready, ctx, classId, liveVersion])
+  }, [settled, ready, ctx, className, sectionName, liveVersion])
 
   // Section switcher handler
   const handleSectionChange = (sectionId: string) => {
@@ -441,7 +444,7 @@ export default function PrincipalClassAnalysis() {
     <div style={{ background: PALETTE.ground, minHeight: '100vh', padding: '16px' }}>
       {/* Back link */}
       <Link
-        to="/principal/classes"
+        to={`/principal/classes/${className}`}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -452,7 +455,7 @@ export default function PrincipalClassAnalysis() {
           marginBottom: '16px',
         }}
       >
-        <ChevronLeft size={16} /> Back to classes
+        <ChevronLeft size={16} /> Back to {className}
       </Link>
 
       {/* Part 2: Header Strip */}
@@ -473,7 +476,7 @@ export default function PrincipalClassAnalysis() {
         }}>
           <div>
             <h1 style={{ fontSize: '24px', fontWeight: 700, color: PALETTE.ink, margin: 0 }}>
-              Class {klass.class_name} · Section {klass.section}
+              Class {klass.name} · Section {klass.section}
             </h1>
             <div style={{
               fontSize: '14px',
