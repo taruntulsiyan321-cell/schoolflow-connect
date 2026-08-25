@@ -172,6 +172,14 @@ school.
 `id · super_admin_id · institution_id · accessed_at · what_was_accessed ·
 reason · school_notified_at`
 
+**`super_admins` is a dedicated global table, not the existing `app_role`
+enum value.** Super admin sits above every institution; it is not a role scoped
+to one school the way student/teacher/parent/admin are, so it does not belong in
+a per-membership role enum. Migrate any account currently marked
+`app_role = 'super_admin'` into a `super_admins` row as part of this chunk, and
+stop granting the old enum value going forward. Report how many accounts are
+migrated.
+
 ### RLS
 
 - Enable RLS on **every** table created in this chunk and all later chunks.
@@ -202,6 +210,75 @@ Then prove, with queries:
 5. The same human as teacher and parent at one school has two memberships and two
    distinct `local_person_id` values, and switching changes what is visible.
 6. Super admin access writes a log row and a school notification.
+
+**STOP. Wait for approval.**
+
+---
+
+# CHUNK 1.5 — CONVERGE `user_roles` (do this before Chunk 2)
+
+**A live permission bypass, not cleanup.**
+
+RLS now resolves roles through `memberships`. **31 functions still read
+`user_roles` directly with global-role semantics** — including
+`admin_assign_role`, `chat_can_dm`, `get_auth_context`.
+
+Until these converge, a role revoked in `memberships` **stays granted** in those
+functions. Two sources of truth, one of which nobody is maintaining.
+
+### Do
+
+1. List all 31 functions, with what each grants and which role values it reads.
+2. Rewrite each to resolve through the active membership, not `user_roles`.
+3. `user_roles` becomes read-only — no new writes from any path.
+4. Report every client call site still reading `user_roles`.
+
+### Verify
+
+1. Revoke a membership. Prove **every one of the 31 functions** now denies —
+   test each, do not sample.
+2. A user with a stale `user_roles` row and no active membership gets nothing.
+3. A user active at School A but not School B is denied by every function while
+   switched to B.
+4. `super_admin` is resolved from the `super_admins` table, never from
+   `app_role`.
+
+**STOP. Wait for approval.**
+
+---
+
+# CHUNK 1.6 — CLOSE THE PRACTICE PRIVACY BREACH (before Chunk 2)
+
+**Live in production now.** Locked decision 10.8 states practice is private to
+the student — no teacher, parent, principal, admin, or aggregate. Production
+violates this today.
+
+Known violations:
+- `student_mistakes` — `SELECT` policies granting teacher, principal, admin
+  **and** parent
+- `concept_mastery` — same
+- `rpc_teacher_concept_analytics()` — serves class-level practice aggregates to
+  teachers
+
+### Do
+
+1. **Report every screen and call site that depends on these first.** Do not
+   remove anything before that list is produced and reviewed.
+2. Remove the offending policies. Practice tables become student-only.
+3. Remove or gut `rpc_teacher_concept_analytics()`.
+4. Leave the broken screens broken and list them. **Do not silently substitute
+   another data source to keep them working** — that would reintroduce the leak
+   through a different door.
+
+### Verify
+
+1. Teacher, parent, principal and admin sessions each return **zero rows** from
+   `student_mistakes` and `concept_mastery`.
+2. The student returns their own rows only.
+3. No RPC, view, or function anywhere exposes practice data to another role —
+   search exhaustively, not just these three.
+4. XP remains readable for the section leaderboard. **That is the one deliberate
+   exception:** effort is public, the content of mistakes is not.
 
 **STOP. Wait for approval.**
 

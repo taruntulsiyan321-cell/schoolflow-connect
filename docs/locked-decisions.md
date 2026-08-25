@@ -15,7 +15,9 @@ unless explicitly changed later. Where something is still open it is marked
   customer demands physical separation.
 - **Super admin** exists, above all schools. See 10.20 — has unrestricted
   academic access for support, logged and notified to the school.
-- School stops using the app: super admin decides the outcome. Needs a control.
+- School stops using the app: **same mechanism as suspension — see §10.20.**
+  All users locked out immediately; data kept intact and reactivatable for 30
+  days, then deleted.
 
 ## 2. Identity and login
 
@@ -68,8 +70,9 @@ unless explicitly changed later. Where something is still open it is marked
 - **Present / absent only.** No late, no half-day.
 - Marked **once per day per section** by the class teacher.
 - **Admin can mark and edit across all classes.**
-- Edit window: 24 hours after submission. `OPEN` — confirm whether this still
-  holds now that admin can also mark.
+- **Edit window: 24 hours after submission.** Confirmed — this still holds now
+  that admin can also mark. Admin may mark on any day, but once a submission
+  exists, edits to it are limited to 24 hours from `submitted_at`.
 - **A submission record is written separately** from the per-student rows:
   section, date, submitted-by, submitted-at. Unique on (section, date).
   Absence of this row is what "not marked" means.
@@ -245,6 +248,15 @@ teacher*. No screen offers the principal an action they lack permission for.
 - **Self-directed only. Completely private to the student.** No teacher, no
   parent, no principal, no aggregate, no school-side AI use.
 - "Teacher-assigned practice" does not exist — that is homework.
+
+**Privacy overrides existing screens — confirmed decision.**
+Production currently violates this: `student_mistakes` and `concept_mastery`
+carry live `SELECT` policies granting teacher, principal, admin **and** parent
+access, and `rpc_teacher_concept_analytics()` serves class-level practice
+aggregates to teachers. **Privacy wins.** Remove those policies and that RPC.
+Teacher and parent screens built on them will break, and that is accepted —
+it is a product decision, not a migration detail. Report every screen affected
+before removing.
 
 **What is stored — the governing rule:**
 - **Only what went wrong.** Per-question records exist for **wrong**, **skipped**
@@ -482,6 +494,12 @@ Admin can also create further admins.
 **Access to school data:**
 - **Unrestricted access to academic data, for support.**
 - **Every access is logged, and the school is notified.**
+- **Access expires automatically: 60 minutes per grant, 8 hours per day maximum.**
+  Re-requesting is allowed and is itself logged. Rationale: without expiry, a
+  session opened to fix one support ticket stays open indefinitely, and a
+  compromised super admin account reaches every school's data.
+- **The access-log row is the grant.** Unlogged super admin access is not
+  expressible in the schema — there is no path to data without a log entry.
 - This overrides the earlier "accounts and billing only" position.
 - Note: this is the single largest concentration of risk in the system — one
   credential can reach every child's record in every school. Logging and
@@ -525,8 +543,7 @@ Admin can also create further admins.
 ## Still open
 
 - `OPEN` Mid-term joiner denominator — attendance from enrolment date, or from
-  session start
-- `OPEN` What the AI layer is actually for
+  session start. Surfaces in Chunk 3 (`enrolment_date`) before Chunk 4 needs it.
 - `OPEN` Student panel tab list and existing screens — pending audit
 - `OPEN` Whether a central curriculum tree exists — pending audit
 - `OPEN` Existing question bank tag set — pending audit
