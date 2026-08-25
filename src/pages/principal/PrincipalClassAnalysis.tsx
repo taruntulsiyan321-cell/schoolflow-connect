@@ -23,7 +23,10 @@ import { ChevronLeft } from 'lucide-react';
 import { THRESHOLDS } from '@/gurukul-principal/analysis/thresholds';
 import { PALETTE, SPACING } from '@/gurukul-principal/analysis/tokens';
 import { StudentsMatrix } from '@/gurukul-principal/analysis/StudentsMatrix';
-import { CollapsibleBlock, MetricSummary } from '@/gurukul-principal/analysis/CollapsibleBlock';
+import { SubjectsBlock } from '@/gurukul-principal/analysis/SubjectsBlock';
+import { AttendanceBlock } from '@/gurukul-principal/analysis/AttendanceBlock';
+import { HomeworkBlock } from '@/gurukul-principal/analysis/HomeworkBlock';
+import { LatestExamBlock } from '@/gurukul-principal/analysis/LatestExamBlock';
 
 interface Class {
   id: string;
@@ -39,12 +42,19 @@ interface Student {
 }
 
 interface SubjectData {
-  subject: string;
+  id: string;
+  name: string;
   teacher: string;
   testAvg: number | null;
   examAvg: number | null;
-  belowPass: number;
-  marksStatus: { uploaded: number; pending: number };
+  studentsCount: number;
+  belowPassCount: number;
+  marksUploaded: number;
+  marksPending: number;
+  otherSection?: {
+    testAvg: number | null;
+    examAvg: number | null;
+  };
 }
 
 export default function PrincipalClassAnalysis() {
@@ -179,33 +189,153 @@ export default function PrincipalClassAnalysis() {
         }
 
         // Load subjects data
-        // TODO: Implement actual subject-wise aggregation
-        setSubjects([]);
+        // TODO: Implement actual subject-wise aggregation from marks data
+        setSubjects([
+          {
+            id: 'math',
+            name: 'Mathematics',
+            teacher: 'Mr. Sharma',
+            testAvg: 68,
+            examAvg: 54,
+            studentsCount: enrichedStudents.length,
+            belowPassCount: 8,
+            marksUploaded: 3,
+            marksPending: 1,
+            otherSection: { testAvg: 72, examAvg: 61 },
+          },
+          {
+            id: 'science',
+            name: 'Science',
+            teacher: 'Ms. Gupta',
+            testAvg: 75,
+            examAvg: 67,
+            studentsCount: enrichedStudents.length,
+            belowPassCount: 3,
+            marksUploaded: 4,
+            marksPending: 0,
+            otherSection: { testAvg: 71, examAvg: 64 },
+          },
+          {
+            id: 'english',
+            name: 'English',
+            teacher: 'Mrs. Patel',
+            testAvg: 78,
+            examAvg: 72,
+            studentsCount: enrichedStudents.length,
+            belowPassCount: 2,
+            marksUploaded: 4,
+            marksPending: 0,
+            otherSection: { testAvg: 76, examAvg: 69 },
+          },
+          {
+            id: 'hindi',
+            name: 'Hindi',
+            teacher: 'Mr. Verma',
+            testAvg: 65,
+            examAvg: null,
+            studentsCount: enrichedStudents.length,
+            belowPassCount: 5,
+            marksUploaded: 2,
+            marksPending: 2,
+            otherSection: { testAvg: 68, examAvg: null },
+          },
+          {
+            id: 'social',
+            name: 'Social Studies',
+            teacher: 'Ms. Reddy',
+            testAvg: 71,
+            examAvg: null,
+            studentsCount: enrichedStudents.length,
+            belowPassCount: 4,
+            marksUploaded: 2,
+            marksPending: 2,
+            otherSection: { testAvg: 69, examAvg: null },
+          },
+        ]);
         setSubjectsNoMarks(2);
 
         // Load attendance trend
-        // TODO: Implement trend data
+        // TODO: Implement actual trend computation
         setAttendanceTrend({
           current: Math.round(analytics.avgAttendancePct),
           previous: 91,
           chronic: 3,
           consecutive: 2,
+          chronicStudents: [
+            { id: '1', name: 'Aarav Kumar', pct: 68 },
+            { id: '2', name: 'Priya Sharma', pct: 72 },
+            { id: '3', name: 'Rohit Singh', pct: 75 },
+          ],
+          consecutiveStudents: [
+            { id: '4', name: 'Ananya Patel', days: 4 },
+            { id: '5', name: 'Vikram Mehta', days: 3 },
+          ],
+          dayOfWeekPattern: [
+            { day: 'Mon', rate: 76 },
+            { day: 'Tue', rate: 88 },
+            { day: 'Wed', rate: 91 },
+            { day: 'Thu', rate: 89 },
+            { day: 'Fri', rate: 87 },
+            { day: 'Sat', rate: 78 },
+          ],
+          otherSection: 91,
         });
 
         // Load homework data
+        // TODO: Implement actual homework aggregation
         setHomeworkData({
           completion: 71,
           previous: 84,
           flagged: 3,
+          bySubject: [
+            { subject: 'Math', completion: 85 },
+            { subject: 'Science', completion: 72 },
+            { subject: 'English', completion: 68 },
+            { subject: 'Hindi', completion: 55 },
+            { subject: 'Social Studies', completion: 78 },
+          ],
+          consistentNonCompleters: [
+            { id: '6', name: 'Kavya Reddy', rate: 42 },
+            { id: '7', name: 'Arjun Rao', rate: 51 },
+            { id: '8', name: 'Meera Joshi', rate: 48 },
+          ],
+          otherSection: 76,
         });
 
         // Load latest exam
+        // TODO: Implement actual exam data loading
         setLatestExam({
+          examName: 'Unit Test 2',
+          date: '2026-08-15',
           subjects: [
-            { name: 'Math', avg: 54 },
-            { name: 'Science', avg: 67 },
-            { name: 'English', avg: 72 },
-          ]
+            {
+              name: 'Math',
+              avg: 54,
+              distribution: { '0-40': 8, '40-60': 12, '60-75': 15, '75-90': 7, '90-100': 3 },
+              otherSection: 61,
+            },
+            {
+              name: 'Science',
+              avg: 67,
+              distribution: { '0-40': 3, '40-60': 9, '60-75': 18, '75-90': 11, '90-100': 4 },
+              otherSection: 64,
+            },
+            {
+              name: 'English',
+              avg: 72,
+              distribution: { '0-40': 2, '40-60': 7, '60-75': 16, '75-90': 14, '90-100': 6 },
+              otherSection: 69,
+            },
+          ],
+          improved: [
+            { id: '9', name: 'Sanjay Gupta', current: 78, previous: 62, change: 16 },
+            { id: '10', name: 'Diya Verma', current: 85, previous: 72, change: 13 },
+            { id: '11', name: 'Karan Kapoor', current: 68, previous: 58, change: 10 },
+          ],
+          declined: [
+            { id: '12', name: 'Neha Agarwal', current: 45, previous: 62, change: -17 },
+            { id: '13', name: 'Rahul Malhotra', current: 52, previous: 64, change: -12 },
+          ],
         });
 
         // Load activity
@@ -360,78 +490,44 @@ export default function PrincipalClassAnalysis() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Subjects Block */}
-          <CollapsibleBlock
-            title="Subjects"
-            summary={
-              <MetricSummary
-                value={subjects.length}
-                label=" subjects"
-                flaggedCount={subjects.filter(s => s.belowPass > 0).length}
-              />
-            }
-          >
-            <div style={{ color: PALETTE.inkMuted }}>
-              Subject-wise breakdown coming soon...
-            </div>
-          </CollapsibleBlock>
+          <SubjectsBlock
+            subjects={subjects}
+            otherSectionName={otherSection?.section}
+          />
 
           {/* Attendance Block */}
-          <CollapsibleBlock
-            title="Attendance"
-            summary={
-              <MetricSummary
-                value={attendanceTrend?.current || 0}
-                label="%"
-                trend={attendanceTrend ? {
-                  direction: 'down',
-                  from: attendanceTrend.previous
-                } : undefined}
-                flaggedCount={attendanceTrend?.chronic || 0}
-                comparison={otherSection ? {
-                  section: otherSection.section,
-                  value: 91
-                } : undefined}
-              />
-            }
-          >
-            <div style={{ color: PALETTE.inkMuted }}>
-              Attendance trend, day-of-week pattern, chronic/consecutive lists coming soon...
-            </div>
-          </CollapsibleBlock>
+          <AttendanceBlock
+            data={{
+              current: attendanceTrend?.current || 0,
+              previous: attendanceTrend?.previous,
+              chronicCount: attendanceTrend?.chronic || 0,
+              consecutiveCount: attendanceTrend?.consecutive || 0,
+              chronicStudents: attendanceTrend?.chronicStudents || [],
+              consecutiveStudents: attendanceTrend?.consecutiveStudents || [],
+              dayOfWeekPattern: attendanceTrend?.dayOfWeekPattern,
+              otherSection: attendanceTrend?.otherSection,
+            }}
+            otherSectionName={otherSection?.section}
+          />
 
           {/* Homework Block */}
-          <CollapsibleBlock
-            title="Homework"
-            summary={
-              <MetricSummary
-                value={homeworkData?.completion || 0}
-                label="%"
-                trend={{
-                  direction: 'down',
-                  from: homeworkData?.previous || 0
-                }}
-                flaggedCount={homeworkData?.flagged || 0}
-              />
-            }
-          >
-            <div style={{ color: PALETTE.inkMuted }}>
-              Homework trend and completion by subject coming soon...
-            </div>
-          </CollapsibleBlock>
+          <HomeworkBlock
+            data={{
+              completion: homeworkData?.completion || 0,
+              previous: homeworkData?.previous,
+              flaggedCount: homeworkData?.flagged || 0,
+              bySubject: homeworkData?.bySubject || [],
+              consistentNonCompleters: homeworkData?.consistentNonCompleters || [],
+              otherSection: homeworkData?.otherSection,
+            }}
+            otherSectionName={otherSection?.section}
+          />
 
           {/* Latest Exam Block */}
-          <CollapsibleBlock
-            title="Latest Exam"
-            summary={
-              <div style={{ fontSize: '14px', color: PALETTE.ink }}>
-                {latestExam?.subjects.map((s: any) => s.name).join(' · ') || 'No exams yet'}
-              </div>
-            }
-          >
-            <div style={{ color: PALETTE.inkMuted }}>
-              Exam details, distributions, and student movement coming soon...
-            </div>
-          </CollapsibleBlock>
+          <LatestExamBlock
+            data={latestExam}
+            otherSectionName={otherSection?.section}
+          />
         </div>
       </div>
 
