@@ -77,15 +77,20 @@ export function HomeworkCompletionBlock({ onDrillToClasses }: HomeworkBlockProps
       <div style={{
         background: 'white',
         borderRadius: '8px',
-        padding: '12px 16px',
+        padding: '16px',
         boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       }}>
-        <div className="animate-pulse" style={{ fontSize: '13px', color: '#9CA3AF' }}>Loading...</div>
+        <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          HOMEWORK COMPLETION
+        </div>
+        {/* Skeleton */}
+        <div className="animate-pulse" style={{ height: '60px', background: '#F3F4F6', borderRadius: '6px' }} />
       </div>
     )
   }
 
-  const color = schoolRate >= 75 ? '#10b981' : schoolRate >= 60 ? '#f59e0b' : '#ef4444'
+  // Fix 2: Only red for real problems, neutral when below threshold but not critical
+  const color = schoolRate >= 75 ? '#10b981' : schoolRate >= 60 ? '#1F2937' : '#ef4444'
 
   // Compact collapsed state
   if (!expanded) {

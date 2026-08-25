@@ -122,16 +122,19 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
     return (
       <div style={{
         background: 'white',
-        borderRadius: '12px',
+        borderRadius: '8px',
         border: '2px solid #10b98115',
-        borderLeft: '6px solid #10b981',
-        padding: '32px 24px',
+        borderLeft: '4px solid #10b981',
+        padding: '16px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       }}>
-        <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '16px' }}>
+        <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           TODAY'S ATTENDANCE
         </div>
-        <div style={{ height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="animate-pulse" style={{ color: '#9CA3AF' }}>Loading attendance...</div>
+        {/* Skeleton matching real content shape */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="animate-pulse" style={{ height: '60px', background: '#F3F4F6', borderRadius: '8px' }} />
+          <div className="animate-pulse" style={{ height: '80px', background: '#F9FAFB', borderRadius: '6px' }} />
         </div>
       </div>
     )
@@ -172,14 +175,16 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
     )
   }
 
-  const color = percentage >= 90 ? '#10b981' : percentage >= 75 ? '#f59e0b' : '#ef4444'
+  // Three states: not-yet-marked, no-data, and genuine-zero
+  const hasData = markedClasses > 0 && totalCount > 0
+  const color = !hasData ? '#6B7280' : (percentage >= 90 ? '#10b981' : percentage >= 75 ? '#f59e0b' : '#ef4444')
 
   return (
     <div style={{
       background: 'white',
       borderRadius: '8px',
-      border: `2px solid ${color}15`,
-      borderLeft: `4px solid ${color}`,
+      border: `2px solid ${!hasData ? '#E5E7EB' : color + '15'}`,
+      borderLeft: `4px solid ${!hasData ? '#9CA3AF' : color}`,
       padding: '16px',
       boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
     }}>
@@ -188,7 +193,7 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
         <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           TODAY'S ATTENDANCE
         </div>
-        {isProvisional && (
+        {isProvisional && hasData && (
           <div style={{
             fontSize: '9px',
             fontWeight: 600,
@@ -202,61 +207,80 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
         )}
       </div>
 
-      {/* Hero Percentage - Clickable */}
-      <button
-        onClick={onDrillToClasses}
-        style={{
-          background: 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 100%)',
-          border: 'none',
-          cursor: 'pointer',
+      {/* Not yet marked state */}
+      {!hasData && (
+        <div style={{
           padding: '12px',
-          marginBottom: '0',
-          width: '100%',
-          textAlign: 'left',
+          background: '#F9FAFB',
           borderRadius: '8px',
-          transition: 'all 0.2s ease',
-          position: 'relative',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = `linear-gradient(135deg, ${color}08 0%, ${color}15 100%)`
-          e.currentTarget.style.transform = 'scale(1.02)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 100%)'
-          e.currentTarget.style.transform = 'scale(1)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '8px' }}>
-          <div
-            className="font-mono-data"
-            style={{
-              fontSize: '48px',
-              fontWeight: 800,
-              color,
-              lineHeight: 1,
-            }}
-          >
-            {percentage.toFixed(1)}%
+          marginBottom: '12px',
+        }}>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
+            Attendance not yet marked
           </div>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
-            {presentCount} present
-          </div>
-          <div style={{
-            fontSize: '10px',
-            color: '#9CA3AF',
-            fontWeight: 500,
-            marginLeft: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}>
-            Click to drill down →
+          <div style={{ fontSize: '12px', color: '#6B7280' }}>
+            {unmarked.length} {unmarked.length === 1 ? 'class' : 'classes'} pending
           </div>
         </div>
-        <div style={{ fontSize: '12px', color: '#6B7280' }}>
-          {markedClasses} of {totalClasses} classes marked • {absentCount} absent
-        </div>
-      </button>
+      )}
+
+      {/* Hero Percentage - Only when we have data */}
+      {hasData && (
+        <button
+          onClick={onDrillToClasses}
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 100%)',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '12px',
+            marginBottom: '0',
+            width: '100%',
+            textAlign: 'left',
+            borderRadius: '8px',
+            transition: 'all 0.2s ease',
+            position: 'relative',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = `linear-gradient(135deg, ${color}08 0%, ${color}15 100%)`
+            e.currentTarget.style.transform = 'scale(1.02)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 100%)'
+            e.currentTarget.style.transform = 'scale(1)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
+            <div
+              className="font-mono-data"
+              style={{
+                fontSize: '48px',
+                fontWeight: 800,
+                color,
+                lineHeight: 1,
+              }}
+            >
+              {percentage.toFixed(1)}%
+            </div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
+              {presentCount} present • {absentCount} absent
+            </div>
+            <div style={{
+              fontSize: '10px',
+              color: '#9CA3AF',
+              fontWeight: 500,
+              marginLeft: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              Click to drill down →
+            </div>
+          </div>
+          <div style={{ fontSize: '12px', color: '#6B7280' }}>
+            across {markedClasses} of {totalClasses} classes marked
+          </div>
+        </button>
+      )}
 
       {/* 7-day Trend */}
       {trend.length > 0 && (
@@ -285,7 +309,7 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
         </div>
       )}
 
-      {/* Unmarked Classes - INSIDE THE HERO */}
+      {/* Unmarked Classes - INSIDE THE HERO (Fix 6: specific action labels) */}
       {unmarked.length > 0 && (
         <div style={{
           marginTop: '12px',
@@ -294,7 +318,7 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
           border: '1px solid #fecaca',
           borderRadius: '6px',
         }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#dc2626', marginBottom: '8px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#1F2937', marginBottom: '8px' }}>
             {unmarked.length} class{unmarked.length !== 1 ? 'es' : ''} not yet marked
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -322,7 +346,7 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
                   onClick={() => messageTeacher(cls.teacherId, `${cls.className}${cls.section ? `-${cls.section}` : ''}`)}
                   style={{
                     padding: '4px 8px',
-                    background: '#3b82f6',
+                    background: '#1F2937',
                     color: 'white',
                     border: 'none',
                     borderRadius: '4px',
@@ -335,7 +359,7 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
                   }}
                 >
                   <MessageSquare size={12} />
-                  Message
+                  Message teacher
                 </button>
               </div>
             ))}
@@ -343,8 +367,8 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
         </div>
       )}
 
-      {/* All marked - calm state */}
-      {unmarked.length === 0 && markedClasses === totalClasses && (
+      {/* All marked - good news (Fix 9: empty states as good news) */}
+      {unmarked.length === 0 && markedClasses === totalClasses && hasData && (
         <div style={{
           marginTop: '12px',
           padding: '8px',
@@ -353,8 +377,8 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
           borderRadius: '6px',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: '#16a34a' }}>
-            ✓ All {totalClasses} classes marked
+          <div style={{ fontSize: '11px', fontWeight: 600, color: '#10b981' }}>
+            ✓ All {totalClasses} classes marked attendance
           </div>
         </div>
       )}

@@ -160,10 +160,14 @@ export function PendingDecisionsBlock() {
       <div style={{
         background: 'white',
         borderRadius: '8px',
-        padding: '12px 16px',
+        padding: '16px',
         boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       }}>
-        <div className="animate-pulse" style={{ fontSize: '13px', color: '#9CA3AF' }}>Loading...</div>
+        <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          PENDING DECISIONS
+        </div>
+        {/* Skeleton */}
+        <div className="animate-pulse" style={{ height: '60px', background: '#F3F4F6', borderRadius: '6px' }} />
       </div>
     )
   }
@@ -417,18 +421,26 @@ export function PendingDecisionsBlock() {
               </>
             )}
 
+            {/* Fix 2 & 5: Remove blue buttons, use neutral "View" for non-leaves */}
             {item.type !== 'leave' && (
               <button
                 style={{
                   padding: '6px 12px',
-                  background: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
+                  background: 'white',
+                  color: '#1F2937',
+                  border: '1px solid #D1D5DB',
                   borderRadius: '4px',
                   fontSize: '11px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   width: '100%',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#F3F4F6'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white'
                 }}
               >
                 View
