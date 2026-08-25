@@ -5,23 +5,36 @@
  * Never hardcode these in components.
  */
 
+// Primitives. Every threshold value is declared exactly once, here, so the
+// nested groups below and the flat aliases the redesign screens use can never
+// drift apart.
+const ATTENDANCE_LOW = 80;   // Below 80% flags a student
+const HOMEWORK_LOW = 60;     // Below 60% flags completion rate
+const SUBJECT_MARKS_LOW = 40; // Below 40% in a subject
+
 export const THRESHOLDS = {
   attendance: {
-    low: 80,           // Below 80% flags a student
+    low: ATTENDANCE_LOW,
     consecutive: 3,    // 3 days running absence
-    chronic: 80,       // Below 80% across the term
+    chronic: 80,       // Below 80% across the term (separate concept from `low`)
   },
   homework: {
-    completion: 60,    // Below 60% flags completion rate
+    completion: HOMEWORK_LOW,
     window: 7,         // Rolling 7 days of due dates
   },
   marks: {
-    pass: 40,          // Below 40% in a subject
+    pass: SUBJECT_MARKS_LOW,
     classFlag: 25,     // 25% or more students below pass → class flagged
   },
   upload: {
     overdue: 7,        // Marks overdue 7 days after exam
   },
+
+  // Flat aliases read by the principal redesign screens, which were written
+  // against a `class-analysis/thresholds` module that was never committed.
+  ATTENDANCE_LOW,
+  HOMEWORK_LOW,
+  SUBJECT_MARKS_LOW,
 } as const;
 
 export type AttendanceThresholds = typeof THRESHOLDS.attendance;

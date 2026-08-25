@@ -36,14 +36,10 @@ export default function PrincipalDashboard() {
           <AttendanceHeroBlock onDrillToClasses={() => drillToClass('attendance')} />
 
           {/* Two-column grid with stable layout */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '16px',
-            '@media (max-width: 768px)': {
-              gridTemplateColumns: '1fr',
-            }
-          }}>
+          {/* Tailwind, not an inline style: React inline styles cannot hold a
+              media query -- the '@media' key was silently dropped at runtime,
+              so this grid never actually collapsed to one column on mobile. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* B. Pending Decisions */}
             <div style={{ minHeight: '120px' }}>
               <PendingDecisionsBlock />
@@ -61,14 +57,10 @@ export default function PrincipalDashboard() {
           </div>
 
           {/* E, F - Bottom row */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '16px',
-            '@media (max-width: 768px)': {
-              gridTemplateColumns: '1fr',
-            }
-          }}>
+          {/* Tailwind, not an inline style: React inline styles cannot hold a
+              media query -- the '@media' key was silently dropped at runtime,
+              so this grid never actually collapsed to one column on mobile. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* E. Needs Attention */}
             <div style={{ minHeight: '120px' }}>
               <NeedsAttentionBlock />

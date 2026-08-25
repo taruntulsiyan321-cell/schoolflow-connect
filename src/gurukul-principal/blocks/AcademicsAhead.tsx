@@ -39,18 +39,28 @@ export function AcademicsAhead() {
       try {
         const today = new Date().toISOString().split('T')[0]
 
+        // Real table is `school_calendar_events`; there is no `school_events`.
+        // Its date column is `starts_at` (timestamptz), not `event_date`.
         const { data, error: eventsErr } = await supabase
-          .from('school_events')
-          .select('*')
+          .from('school_calendar_events')
+          .select('id, title, starts_at, event_type, class_id')
           .eq('school_id', school.id)
-          .gte('event_date', today)
-          .order('event_date', { ascending: true })
+          .gte('starts_at', today)
+          .order('starts_at', { ascending: true })
           .limit(5)
 
         if (eventsErr) throw eventsErr
         if (cancelled) return
 
-        setEvents((data as AcademicEvent[]) ?? [])
+        setEvents(
+          (data ?? []).map((e) => ({
+            id: e.id,
+            title: e.title,
+            event_date: e.starts_at,
+            event_type: String(e.event_type),
+            class_id: e.class_id,
+          })),
+        )
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load calendar')

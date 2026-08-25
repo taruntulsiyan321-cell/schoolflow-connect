@@ -42,13 +42,15 @@ export function RecentUploads() {
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
+        // Real chain is marks -> exams -> classes. There is no `test_marks` or
+        // `tests` table; `subject` and `class_id` live on `exams`, and the
+        // uploading teacher is the exam's `created_by`.
         const { data, error: marksErr } = await supabase
-          .from('test_marks')
+          .from('marks')
           .select(`
             id,
             created_at,
-            teacher:teachers(full_name),
-            test:tests(class_id, subject, classes(name, section))
+            exams(subject, created_by, classes(name))
           `)
           .eq('school_id', school.id)
           .gte('created_at', sevenDaysAgo.toISOString())
@@ -58,13 +60,14 @@ export function RecentUploads() {
         if (marksErr) throw marksErr
         if (cancelled) return
 
-        // Transform data (simplified - adjust based on actual joins)
         const transformed: Upload[] = (data || []).map((row: any) => ({
           id: row.id,
-          teacherName: row.teacher?.full_name || 'Unknown Teacher',
-          className: row.test?.classes?.name || 'Unknown Class',
-          section: row.test?.classes?.section,
-          subject: row.test?.subject || 'Unknown Subject',
+          // `classes` has no `section` column in this schema, so the section
+          // line is simply omitted rather than shown as a fabricated value.
+          teacherName: row.exams?.created_by ? 'Teacher' : 'Unknown Teacher',
+          className: row.exams?.classes?.name || 'Unknown Class',
+          section: undefined,
+          subject: row.exams?.subject || 'Unknown Subject',
           uploadedAt: row.created_at,
         }))
 

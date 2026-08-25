@@ -41,7 +41,7 @@ export function PendingDecisionsBlock() {
     try {
       const { data: leaves } = await supabase
         .from('leave_requests')
-        .select('id, created_at, student_id, start_date, end_date, reason, students(full_name)')
+        .select('id, created_at, student_id, from_date, to_date, reason, students(full_name)')
         .eq('school_id', school.id)
         .eq('status', 'pending')
 
@@ -55,8 +55,8 @@ export function PendingDecisionsBlock() {
           waitingDays: daysWaiting,
           createdAt: l.created_at,
           studentName: l.students?.full_name,
-          startDate: l.start_date,
-          endDate: l.end_date,
+          startDate: l.from_date,
+          endDate: l.to_date,
           reason: l.reason,
         })
       })
@@ -113,10 +113,12 @@ export function PendingDecisionsBlock() {
     try {
       await supabase
         .from('leave_requests')
+        // Review columns are reviewed_by / reviewed_at / review_note.
+        // There are no decided_by / decided_at / rejection_reason columns.
         .update({
           status: 'approved',
-          decided_by: profile?.id,
-          decided_at: new Date().toISOString(),
+          reviewed_by: profile?.id,
+          reviewed_at: new Date().toISOString(),
         })
         .eq('id', id)
       setItems(items.filter(i => i.id !== id))
@@ -140,9 +142,9 @@ export function PendingDecisionsBlock() {
         .from('leave_requests')
         .update({
           status: 'rejected',
-          rejection_reason: reason,
-          decided_by: profile?.id,
-          decided_at: new Date().toISOString(),
+          review_note: reason,
+          reviewed_by: profile?.id,
+          reviewed_at: new Date().toISOString(),
         })
         .eq('id', id)
       setItems(items.filter(i => i.id !== id))

@@ -59,7 +59,8 @@ export default function PrincipalStudentDetail() {
 
       try {
         const { data: studentData } = await supabase
-          .from('users')
+          // `students`, not `users`: no public.users table exists in this schema.
+          .from('students')
           .select('id, full_name')
           .eq('id', studentId)
           .single()

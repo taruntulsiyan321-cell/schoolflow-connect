@@ -53,10 +53,12 @@ export function AttendanceDrillDown({ selectedClassId, selectedClassName, onClas
 
         // Load all classes with their teachers
         const { data: classesData } = await supabase
+          // `classes` exposes `name` (no class_name/section), and
+          // class_teacher_id points at `teachers`, not a public.users table.
           .from('classes')
-          .select('id, class_name, section, class_teacher_id, users!classes_class_teacher_id_fkey(full_name)')
+          .select('id, name, class_teacher_id, teachers(full_name)')
           .eq('school_id', ctx.schoolId)
-          .order('class_name')
+          .order('name')
 
         if (cancelled) return
 
@@ -67,16 +69,21 @@ export function AttendanceDrillDown({ selectedClassId, selectedClassName, onClas
 
         const classAttendance: ClassAttendance[] = (classesData || []).map((cls: any) => {
           // Find attendance data for this class from summary
-          const classData = summary?.byClass?.find((c: any) => c.classId === cls.id)
+          // The summary exposes `classes`, not `byClass`, and each entry uses
+          // present / totalStudents rather than presentCount / totalCount.
+          const classData = summary?.classes?.find((c) => c.classId === cls.id)
 
           return {
             classId: cls.id,
-            className: cls.class_name,
-            section: cls.section || '',
-            teacherName: cls.users?.full_name || 'No teacher assigned',
-            presentCount: classData?.presentCount || 0,
-            totalCount: classData?.totalCount || 0,
-            percentage: classData?.totalCount > 0 ? Math.round((classData.presentCount / classData.totalCount) * 100) : 0,
+            className: classData?.className ?? cls.name ?? 'Unknown',
+            section: classData?.section ?? '',
+            teacherName: cls.teachers?.full_name || 'No teacher assigned',
+            presentCount: classData?.present || 0,
+            totalCount: classData?.totalStudents || 0,
+            percentage:
+              classData && classData.totalStudents > 0
+                ? Math.round((classData.present / classData.totalStudents) * 100)
+                : 0,
             marked: !!classData,
           }
         })

@@ -50,13 +50,28 @@ export function HomeworkDrillDown({ selectedClassId, selectedClassName, onClassC
       setLoading(true)
       try {
         // Load all classes
+        // `classes` exposes `name`; it has no class_name/section columns.
         const { data: classesData } = await supabase
           .from('classes')
-          .select('id, class_name, section')
+          .select('id, name')
           .eq('school_id', ctx.schoolId)
-          .order('class_name')
+          .order('name')
 
         if (cancelled) return
+
+        // StudentAcademicProfile carries studentId but no classId, so the
+        // student -> class mapping has to come from `students` itself.
+        const { data: studentRows } = await supabase
+          .from('students')
+          .select('id, class_id')
+          .eq('school_id', ctx.schoolId)
+
+        if (cancelled) return
+
+        const classOfStudent = new Map<string, string>()
+        for (const s of studentRows ?? []) {
+          if (s.class_id) classOfStudent.set(s.id, s.class_id)
+        }
 
         // Load profiles for all students to get homework completion
         const profiles = await AcademicProfileService.listForSchool(ctx, { limit: 1000 })
@@ -67,10 +82,14 @@ export function HomeworkDrillDown({ selectedClassId, selectedClassName, onClassC
         const classMap = new Map<string, { total: number; sum: number; count: number }>()
 
         profiles.forEach(profile => {
-          if (!classMap.has(profile.classId)) {
-            classMap.set(profile.classId, { total: 0, sum: 0, count: 0 })
+          const classId = classOfStudent.get(profile.studentId)
+          // A student with no class yet contributes to no class average, rather
+          // than being bucketed under a fabricated key.
+          if (!classId) return
+          if (!classMap.has(classId)) {
+            classMap.set(classId, { total: 0, sum: 0, count: 0 })
           }
-          const data = classMap.get(profile.classId)!
+          const data = classMap.get(classId)!
           data.count++
           data.sum += profile.homeworkCompletionPct
         })
@@ -81,8 +100,8 @@ export function HomeworkDrillDown({ selectedClassId, selectedClassName, onClassC
 
           return {
             classId: cls.id,
-            className: cls.class_name,
-            section: cls.section || '',
+            className: cls.name ?? 'Unknown',
+            section: '',
             completion,
             studentCount: data?.count || 0,
           }

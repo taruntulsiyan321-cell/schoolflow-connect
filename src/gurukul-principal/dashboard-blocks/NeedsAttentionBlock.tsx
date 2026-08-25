@@ -40,11 +40,13 @@ export function NeedsAttentionBlock() {
       // Load class teachers for messaging
       const { data: classes } = await supabase
         .from('classes')
-        .select('id, class_teacher_id, users!classes_class_teacher_id_fkey(full_name)')
+        // class_teacher_id points at `teachers`, not a public.users table
+        // (which does not exist in this schema).
+        .select('id, class_teacher_id, teachers(full_name)')
         .eq('school_id', ctx.schoolId)
 
       const teacherMap = new Map(
-        classes?.map(c => [c.id, { id: c.class_teacher_id, name: c.users?.full_name || 'Unknown' }]) || []
+        classes?.map(c => [c.id, { id: c.class_teacher_id, name: c.teachers?.full_name || 'Unknown' }]) || []
       )
 
       classRollups.forEach((cls) => {

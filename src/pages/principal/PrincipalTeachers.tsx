@@ -41,11 +41,13 @@ export default function PrincipalTeachers() {
 
       try {
         // Load all teachers
+        // `teachers`, not `users`: there is no public.users table in this
+        // schema, and teacher identity/role is carried by the teachers row
+        // itself, so no separate role filter is needed.
         const { data: teachersData } = await supabase
-          .from('users')
+          .from('teachers')
           .select('id, full_name')
           .eq('school_id', school.id)
-          .eq('role', 'teacher')
           .order('full_name')
 
         if (!teachersData) {

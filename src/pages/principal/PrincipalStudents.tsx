@@ -43,10 +43,11 @@ export default function PrincipalStudents() {
 
       try {
         const { data: studentsData } = await supabase
-          .from('users')
+          // `students`, not `users`: there is no public.users table in this
+          // schema, and a students row already means role=student.
+          .from('students')
           .select('id, full_name')
           .eq('school_id', school.id)
-          .eq('role', 'student')
           .order('full_name')
 
         if (!studentsData) {
