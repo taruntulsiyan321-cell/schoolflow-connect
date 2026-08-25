@@ -22,6 +22,7 @@ import {
 import PrincipalMessages from './Messages'
 import PrincipalDashboard from './PrincipalDashboard'
 import PrincipalDashboardRedesigned from './PrincipalDashboardRedesigned'
+import PrincipalDashboardImproved from './PrincipalDashboardImproved'
 import { useDashboardDrillDown } from './DashboardDrillDown'
 import LeaveRequests from '../gurukul-admin/LeaveRequests'
 import { InquiriesReport, ComplaintsReport } from '@/pages/shared/OperationalCases'
@@ -725,7 +726,7 @@ export default function PrincipalApp() {
 
         <div style={{ padding: page === 'messages' ? '28px 32px 0' : '28px 32px' }}>
           <Routes>
-            <Route index element={<PrincipalDashboard />} />
+            <Route index element={<PrincipalDashboardImproved />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="teachers" element={<PrincipalTeachers />} />
             <Route path="teachers/:teacherId" element={<PrincipalTeacherDetail />} />
