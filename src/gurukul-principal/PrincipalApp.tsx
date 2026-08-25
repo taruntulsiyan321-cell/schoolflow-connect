@@ -36,6 +36,10 @@ import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import PrincipalClasses from '@/pages/principal/PrincipalClasses'
 import PrincipalClassDetail from '@/pages/principal/PrincipalClassDetail'
 import PrincipalClassAnalysis from '@/pages/principal/PrincipalClassAnalysis'
+import PrincipalTeachers from '@/pages/principal/PrincipalTeachers'
+import PrincipalTeacherDetail from '@/pages/principal/PrincipalTeacherDetail'
+import PrincipalStudents from '@/pages/principal/PrincipalStudents'
+import PrincipalStudentDetail from '@/pages/principal/PrincipalStudentDetail'
 import {
   Search, Bell, Users, GraduationCap, UserCheck, CalendarDays,
   LayoutDashboard, BarChart2, Settings, LogOut, CheckCircle, Clock,
@@ -641,10 +645,7 @@ export default function PrincipalApp() {
       <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         <header style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(244,245,247,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid hsl(var(--border))', padding: '14px 32px', display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ flex: 1 }}>
-            <div className="font-display" style={{ fontSize: 20, fontWeight: 400, color: 'var(--text-primary)', lineHeight: 1 }}>
-              {greetingForNow()}, {firstName}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
               {today}{schoolName ? ` · ${schoolName}` : ''}
             </div>
           </div>
@@ -741,8 +742,10 @@ export default function PrincipalApp() {
           <Routes>
             <Route index element={<PrincipalDashboard />} />
             <Route path="analytics" element={<AnalyticsPage />} />
-            <Route path="teachers" element={<TeachersPage />} />
-            <Route path="students" element={<StudentsPage />} />
+            <Route path="teachers" element={<PrincipalTeachers />} />
+            <Route path="teachers/:teacherId" element={<PrincipalTeacherDetail />} />
+            <Route path="students" element={<PrincipalStudents />} />
+            <Route path="students/:studentId" element={<PrincipalStudentDetail />} />
             <Route path="classes" element={<PrincipalClasses />} />
             <Route path="classes/:classId" element={<PrincipalClassAnalysis />} />
             <Route path="exams" element={<ExaminationsPage />} />
