@@ -293,24 +293,25 @@ export function PendingDecisionsBlock() {
         <ChevronUp size={18} color="#9CA3AF" />
       </button>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Fix 5: Tighter, denser rows */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         {items.map((item) => (
           <div
             key={item.id}
             style={{
-              padding: '10px',
+              padding: '8px',
               background: '#F9FAFB',
-              borderRadius: '6px',
+              borderRadius: '4px',
               borderLeft: `3px solid ${item.waitingDays > 2 ? '#ef4444' : '#f59e0b'}`,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1F2937' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: item.type === 'leave' ? '6px' : '0' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F2937' }}>
                   {item.title} • {item.who}
                 </div>
                 {item.type === 'leave' && (
-                  <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '2px' }}>
+                  <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px' }}>
                     {item.startDate} to {item.endDate}
                   </div>
                 )}
