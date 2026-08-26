@@ -26,7 +26,7 @@ export default function ClassDetail() {
       const [c, t, s, a, e] = await Promise.all([
         supabase.from("classes").select("*").eq("id", id).maybeSingle(),
         supabase.from("teachers").select("id, full_name, subject, mobile, email").eq("class_teacher_of", id).maybeSingle(),
-        supabase.from("students").select("id, full_name, admission_number, roll_number, parent_mobile, user_id").eq("class_id", id).order("roll_number", { nullsFirst: false }),
+        supabase.from("students_current").select("id, full_name, admission_number, roll_number, parent_mobile, user_id").eq("class_id", id).order("roll_number", { nullsFirst: false }),
         supabase.from("attendance").select("status").eq("class_id", id).eq("date", todayStr()),
         supabase.from("exams").select("id, name, subject, exam_date, max_marks").eq("class_id", id).order("exam_date", { ascending: false }).limit(6),
       ]);

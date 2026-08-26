@@ -53,10 +53,10 @@ export function AttendanceDrillDown({ selectedClassId, selectedClassName, onClas
 
         // Load all classes with their teachers
         const { data: classesData } = await supabase
-          // `classes` exposes `name` (no class_name/section), and
-          // class_teacher_id points at `teachers`, not a public.users table.
+          // Column is `name`, not `class_name`. class_teacher_id points at
+          // `teachers`; there is no public.users table.
           .from('classes')
-          .select('id, name, class_teacher_id, teachers(full_name)')
+          .select('id, name, section, class_teacher_id, teachers(full_name)')
           .eq('school_id', ctx.schoolId)
           .order('name')
 
@@ -75,8 +75,8 @@ export function AttendanceDrillDown({ selectedClassId, selectedClassName, onClas
 
           return {
             classId: cls.id,
-            className: classData?.className ?? cls.name ?? 'Unknown',
-            section: classData?.section ?? '',
+            className: cls.name ?? classData?.className ?? 'Unknown',
+            section: cls.section ?? classData?.section ?? '',
             teacherName: cls.teachers?.full_name || 'No teacher assigned',
             presentCount: classData?.present || 0,
             totalCount: classData?.totalStudents || 0,
@@ -123,7 +123,7 @@ export function AttendanceDrillDown({ selectedClassId, selectedClassName, onClas
 
         if (absentIds.length > 0) {
           const { data: students } = await supabase
-            .from('students')
+            .from('students_current')
             .select('id, full_name, roll_number')
             .in('id', absentIds)
             .order('roll_number', { nullsFirst: false })

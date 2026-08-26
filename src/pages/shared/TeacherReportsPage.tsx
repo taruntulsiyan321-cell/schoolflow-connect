@@ -59,7 +59,7 @@ export default function TeacherReportsPage() {
     (async () => {
       // Students
       const { data: students } = await supabase
-        .from("students")
+        .from("students_current")
         .select("id,full_name,roll_number")
         .eq("class_id", classId)
         .order("roll_number");

@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
         .eq("id", target_id)
         .eq("school_id", callerSchoolId);
       if (error) return json({ error: error.message }, 400);
-      await admin.from("user_roles").upsert({ user_id: userId, role: "teacher" }, { onConflict: "user_id,role" });
+      await grantMembership(admin, userId, callerSchoolId, "teacher", target_id);
     } else {
       const patch: Record<string, string> = as === "parent" ? { parent_user_id: userId } : { user_id: userId };
       const { error } = await admin
@@ -132,7 +132,15 @@ Deno.serve(async (req) => {
         .eq("school_id", callerSchoolId);
       if (error) return json({ error: error.message }, 400);
       const role = as === "parent" ? "parent" : "student";
-      await admin.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
+      // A parent's local record is a parents row, not the student row, so
+      // local_person_id is only carried for the student case.
+      await grantMembership(
+        admin,
+        userId,
+        callerSchoolId,
+        role,
+        as === "parent" ? null : target_id,
+      );
     }
 
     // Bind linked auth user to this tenant when profile school is empty
@@ -147,6 +155,39 @@ Deno.serve(async (req) => {
     return json({ error: (e as Error).message }, 500);
   }
 });
+
+/**
+ * Grant an active membership at an institution.
+ *
+ * Replaces the old `user_roles` upsert. Since Chunk 1.5 `public.user_roles` is
+ * read-only at the table level, so writing it here would now raise — roles live
+ * on `public.memberships` and are resolved from the session's active membership.
+ *
+ * `accounts` is upserted first because `memberships.account_id` references it.
+ */
+async function grantMembership(
+  admin: ReturnType<typeof createClient>,
+  accountId: string,
+  schoolId: string,
+  role: string,
+  localPersonId: string | null,
+): Promise<void> {
+  await admin.from("accounts").upsert({ id: accountId }, { onConflict: "id", ignoreDuplicates: true });
+
+  const row: Record<string, unknown> = {
+    account_id: accountId,
+    school_id: schoolId,
+    role,
+    status: "active",
+    responded_at: new Date().toISOString(),
+  };
+  if (localPersonId) row.local_person_id = localPersonId;
+
+  const { error } = await admin
+    .from("memberships")
+    .upsert(row, { onConflict: "account_id,school_id,role" });
+  if (error) throw new Error(`membership grant failed: ${error.message}`);
+}
 
 async function findByEmail(admin: ReturnType<typeof createClient>, email: string): Promise<string | null> {
   // Paginate through users; school accounts will be small enough for this approach.

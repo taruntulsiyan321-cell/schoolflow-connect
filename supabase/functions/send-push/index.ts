@@ -113,7 +113,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true, sent }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { data: roleRow } = await supabase.from("user_roles").select("role").eq("user_id", userData.user.id).eq("role", "admin").maybeSingle();
+    // Roles come from memberships at THIS institution, not from the global
+    // user_roles table (Chunk 1.5). An admin elsewhere is not an admin here.
+    const { data: roleRow } = await supabase
+      .from("memberships")
+      .select("role")
+      .eq("account_id", userData.user.id)
+      .eq("school_id", schoolId)
+      .eq("role", "admin")
+      .eq("status", "active")
+      .maybeSingle();
     if (!roleRow) return new Response(JSON.stringify({ error: "Admin only" }), { status: 403, headers: corsHeaders });
 
     // Resolve target user_ids by audience — always scoped to caller's school
@@ -122,13 +131,19 @@ Deno.serve(async (req) => {
       const { data } = await supabase.from("profiles").select("id").eq("school_id", schoolId).eq("is_active", true);
       userIds = (data ?? []).map((r) => r.id);
     } else if (["teacher", "student", "parent", "admin"].includes(audience)) {
-      const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", audience);
-      const roleIds = (roleRows ?? []).map((r) => r.user_id).filter(Boolean);
+      // Membership already carries the institution, so the audience is scoped
+      // by construction — no second lookup through profiles.school_id.
+      const { data: roleRows } = await supabase
+        .from("memberships")
+        .select("account_id")
+        .eq("school_id", schoolId)
+        .eq("role", audience)
+        .eq("status", "active");
+      const roleIds = (roleRows ?? []).map((r) => r.account_id).filter(Boolean);
       if (roleIds.length > 0) {
         const { data: schoolUsers } = await supabase
           .from("profiles")
           .select("id")
-          .eq("school_id", schoolId)
           .eq("is_active", true)
           .in("id", roleIds);
         userIds = (schoolUsers ?? []).map((r) => r.id);

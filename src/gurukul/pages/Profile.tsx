@@ -72,7 +72,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
     try {
       const settled = await Promise.allSettled([
         supabase
-          .from("students")
+          .from("students_current")
           .select("full_name, roll_number, classes(name, section)")
           .eq("id", studentId)
           .maybeSingle(),
@@ -117,8 +117,10 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         const i = lb.rows.findIndex((r) => r.user_id === user.id);
         setClassRank(i >= 0 ? i + 1 : null);
       }
-    } catch {
-      /* empty */
+    } catch (e) {
+      // G10: was `/* empty */`. Non-fatal — the profile renders without a rank —
+      // but the failure is now identifiable.
+      console.warn("[profile] class rank lookup failed:", e instanceof Error ? e.message : e);
     } finally {
       endLoading(setLoading);
     }

@@ -203,10 +203,7 @@ export function AttendanceOverview() {
       date,
       status: (editMarks[s.id] ?? "present") as
         | "present"
-        | "absent"
-        | "leave"
-        | "late"
-        | "half_day",
+        | "absent",
     }));
     try {
       await AttendanceService.markBulk(ctx, rows);
@@ -290,7 +287,7 @@ export function AttendanceOverview() {
                 </div>
               </div>
               <div className="text-xs text-muted-foreground mb-3">
-                Present {c.present} · Absent {c.absent} · Late {c.late} · Half {c.halfDay} · of{" "}
+                Present {c.present} · Absent {c.absent} · of{" "}
                 {c.totalStudents} · marked {c.marked}
               </div>
               <div className="flex gap-2">
@@ -400,7 +397,7 @@ export function ReportsPage() {
   }, []);
 
   const exportCSV = async () => {
-    const { data, error } = await supabase.from("students").select("admission_number,full_name,roll_number,parent_mobile,classes(name,section)");
+    const { data, error } = await supabase.from("students_current").select("admission_number,full_name,roll_number,parent_mobile,classes(name,section)");
     if (error) return toast.error("Failed to export students: " + error.message);
     const rows = (data ?? []).map((s: any) =>
       [s.admission_number, s.full_name, s.roll_number, s.parent_mobile, s.classes ? `${s.classes.name}-${s.classes.section}` : ""].join(","));

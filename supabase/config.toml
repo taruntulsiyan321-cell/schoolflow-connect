@@ -12,17 +12,21 @@ verify_jwt = true
 [functions.ai-explain]
 verify_jwt = true
 
-[functions.ai-improvement-plan]
-verify_jwt = true
-
 [functions.ai-concept-report]
 verify_jwt = true
 
 [functions.dpp-generate-questions]
 verify_jwt = true
 
-[functions.ai-analytics-insights]
-verify_jwt = true
-
 [functions.ai-gateway]
 verify_jwt = true
+
+# Functions with no entry here inherit Supabase's default verify_jwt = true,
+# which is the correct (JWT-required) setting for all of them:
+#   admin-link-account, ai-academic-coach-agent, ai-learning-pattern-agent,
+#   ai-recovery-agent, ai-revision-agent, send-push, verify-msg91-widget.
+# Only send-otp / verify-otp above are deliberately public, since they run
+# before the user has a session.
+#
+# Removed 2026-08-23: [functions.ai-improvement-plan] and
+# [functions.ai-analytics-insights] -- neither function exists on disk.

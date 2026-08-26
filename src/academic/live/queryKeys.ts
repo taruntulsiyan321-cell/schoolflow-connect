@@ -17,6 +17,7 @@ export const academicQueryKeys = {
   doubt: (schoolId?: string | null) => ["academic", "doubt", schoolId ?? ""] as const,
   message: (schoolId?: string | null) => ["academic", "message", schoolId ?? ""] as const,
   calendar: (schoolId?: string | null) => ["academic", "calendar", schoolId ?? ""] as const,
+  timetable: (schoolId?: string | null) => ["academic", "timetable", schoolId ?? ""] as const,
 };
 
 const DOMAIN_PREFIX: Record<Exclude<AcademicDomain, "all">, string> = {
@@ -32,6 +33,7 @@ const DOMAIN_PREFIX: Record<Exclude<AcademicDomain, "all">, string> = {
   doubt: "doubt",
   message: "message",
   calendar: "calendar",
+  timetable: "timetable",
 };
 
 export async function invalidateAcademicQueries(

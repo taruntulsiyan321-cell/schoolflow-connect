@@ -288,7 +288,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
   const attendanceConcern = useMemo(() => {
     const recent = attendanceHistory.slice(0, 10);
     if (!recent.length) return false;
-    const bad = recent.filter((a) => a.status === "absent" || a.status === "leave").length;
+    const bad = recent.filter((a) => a.status === "absent").length;
     return bad >= 3 || (selected?.attendancePct ?? 100) < 75;
   }, [attendanceHistory, selected]);
 
@@ -553,7 +553,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                       <span
                         className={cn(
                           "capitalize font-semibold",
-                          a.status === "absent" || a.status === "leave"
+                          a.status === "absent"
                             ? "text-[#cc5069]"
                             : "text-foreground",
                         )}
@@ -2853,21 +2853,15 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
               <span className="text-muted-foreground">Upcoming exams </span>
               <span className="font-bold text-foreground tabular-nums">{upcomingExams.length}</span>
             </div>
+            {/* Practice rate removed: locked decision 10.8 makes practice private
+                to the student, so no class-level practice aggregate exists. */}
             {progression?.class_engagement && (
-              <>
-                <div>
-                  <span className="text-muted-foreground">Avg XP </span>
-                  <span className="font-bold text-foreground tabular-nums">
-                    {progression.class_engagement.avg_xp}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Practice rate </span>
-                  <span className="font-bold text-foreground tabular-nums">
-                    {progression.class_engagement.practice_rate}%
-                  </span>
-                </div>
-              </>
+              <div>
+                <span className="text-muted-foreground">Avg XP </span>
+                <span className="font-bold text-foreground tabular-nums">
+                  {progression.class_engagement.avg_xp}
+                </span>
+              </div>
             )}
           </div>
         </div>
@@ -2910,17 +2904,11 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
             }))}
             empty="No inactive students"
           />
-          <DecisionSection
-            title="Consistent practicers"
-            question="Who is building study habits?"
-            rows={(progression.consistent_practicers ?? []).slice(0, 8).map((r) => ({
-              id: r.student_id,
-              name: r.full_name,
-              metric: `${r.study_streak}d streak`,
-              why: `${r.practice_sessions} practice sessions`,
-            }))}
-            empty="No consistent practicers yet"
-          />
+          {/* "Consistent practicers" removed: it read practice session counts,
+              which locked decision 10.16 lists as private to the student. It is
+              deleted rather than left rendering an empty list, because "No
+              consistent practicers yet" told the teacher the class had done no
+              practice, when the data is simply not theirs to see. */}
         </>
       )}
 

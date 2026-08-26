@@ -36,7 +36,7 @@ export function ChronicAbsenteesBlock() {
             id,
             full_name,
             class_id,
-            classes(name)
+            classes(name, section)
           `)
           .eq('school_id', school.id)
           .eq('status', 'active')
@@ -63,9 +63,9 @@ export function ChronicAbsenteesBlock() {
               chronicList.push({
                 studentId: student.id,
                 studentName: student.full_name,
-                // `classes` exposes `name`; it has no class_name/section columns.
+                // Column is `name`, not `class_name`; `section` is real.
                 className: student.classes?.name || 'Unknown',
-                section: '',
+                section: student.classes?.section || '',
                 attendancePct,
               })
             }

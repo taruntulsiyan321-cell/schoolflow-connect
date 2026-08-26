@@ -50,10 +50,10 @@ export function HomeworkDrillDown({ selectedClassId, selectedClassName, onClassC
       setLoading(true)
       try {
         // Load all classes
-        // `classes` exposes `name`; it has no class_name/section columns.
+        // Column is `name`, not `class_name`; `section` is real.
         const { data: classesData } = await supabase
           .from('classes')
-          .select('id, name')
+          .select('id, name, section')
           .eq('school_id', ctx.schoolId)
           .order('name')
 
@@ -101,7 +101,7 @@ export function HomeworkDrillDown({ selectedClassId, selectedClassName, onClassC
           return {
             classId: cls.id,
             className: cls.name ?? 'Unknown',
-            section: '',
+            section: cls.section ?? '',
             completion,
             studentCount: data?.count || 0,
           }
@@ -134,7 +134,7 @@ export function HomeworkDrillDown({ selectedClassId, selectedClassName, onClassC
       try {
         // Load students
         const { data: studentsData } = await supabase
-          .from('students')
+          .from('students_current')
           .select('id, full_name, roll_number')
           .eq('class_id', selectedClassId)
           .eq('status', 'active')

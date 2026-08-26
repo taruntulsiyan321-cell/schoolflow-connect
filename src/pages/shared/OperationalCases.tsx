@@ -15,7 +15,7 @@ import { toEnumLabel } from "@/lib/presentation";
 type CaseStatus = "open" | "in_progress" | "resolved" | "closed";
 const STATUS_OPTIONS: CaseStatus[] = ["open", "in_progress", "resolved", "closed"];
 
-const db = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> };
+
 
 function statusTone(s: string) {
   if (s === "open") return "bg-destructive/10 text-destructive border-destructive/30";
@@ -52,7 +52,7 @@ export function InquiriesReport() {
 
   const reload = async () => {
     setLoading(true);
-    const { data, error } = await db.from("school_inquiries").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("school_inquiries").select("*").order("created_at", { ascending: false });
     if (error) toast.error(error.message);
     else setRows((data as InquiryRow[]) ?? []);
     setLoading(false);
@@ -63,7 +63,7 @@ export function InquiriesReport() {
   }, []);
 
   const updateStatus = async (id: string, status: CaseStatus) => {
-    const { error } = await db.from("school_inquiries").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await supabase.from("school_inquiries").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) toast.error(error.message);
     else {
       toast.success("Updated");
@@ -121,7 +121,7 @@ export function ComplaintsReport({ allowSubmit = false }: { allowSubmit?: boolea
 
   const reload = async () => {
     setLoading(true);
-    const { data, error } = await db.from("school_complaints").select("*, students(full_name)").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("school_complaints").select("*, students(full_name)").order("created_at", { ascending: false });
     if (error) toast.error(error.message);
     else setRows((data as ComplaintRow[]) ?? []);
     setLoading(false);
@@ -132,7 +132,7 @@ export function ComplaintsReport({ allowSubmit = false }: { allowSubmit?: boolea
   }, []);
 
   const updateStatus = async (id: string, status: CaseStatus) => {
-    const { error } = await db.from("school_complaints").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await supabase.from("school_complaints").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) toast.error(error.message);
     else {
       toast.success("Updated");
@@ -146,7 +146,7 @@ export function ComplaintsReport({ allowSubmit = false }: { allowSubmit?: boolea
       toast.error("Missing school context. Sign in again.");
       return;
     }
-    const { error } = await db.from("school_complaints").insert({
+    const { error } = await supabase.from("school_complaints").insert({
       subject: form.subject.trim(),
       body: form.body.trim(),
       category: form.category,

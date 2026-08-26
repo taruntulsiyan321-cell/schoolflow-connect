@@ -43,13 +43,13 @@ const SCHOOL_SCOPED_TABLES = [
   "community_doubt_attachments", "community_doubt_views", "community_doubt_votes",
   "community_doubts", "community_reputation", "concept_mastery", "device_tokens", "dpp_answers",
   "dpp_attempts", "dpp_questions", "dpps", "exams", "fees", "homework", "homework_submissions",
-  "learning_resources", "leave_requests", "library_books", "library_checkouts", "marks",
+  "learning_resources", "leave_requests", "marks",
   "message_read_receipts", "messages", "notices", "notifications", "parent_academic_alerts",
   "parent_students", "parents", "practice_sessions", "profiles", "progression_history",
   "progression_league_history", "question_attempts", "question_bank", "question_records",
   "question_templates", "recovery_assignment_questions", "recovery_assignments",
   "revision_queue", "school_activity_feed", "school_calendar_events", "school_complaints",
-  "school_inquiries", "staff_attendance", "student_academic_brain", "student_academic_profiles",
+  "school_inquiries", "student_academic_brain", "student_academic_profiles",
   "student_badges", "student_improvement_plans", "student_mistakes", "student_question_history",
   "student_xp", "students", "subjects", "teacher_classes", "teacher_remarks", "teachers",
   "timetable_slots",
@@ -69,6 +69,7 @@ const ALLOWLIST = {
   // of the single NEW/OLD row that triggered them; they never look up other
   // tenants' rows, so a school_id check inside them is a category error, not
   // a missing check. Individually read every body before allowlisting.
+  tg_student_section_must_match: "Trigger (BEFORE INSERT/UPDATE on attendance, homework_submissions, marks): reads students.class_id for NEW.student_id purely to compare it with the section the record itself names, and either returns NEW unchanged or RAISEs. It only ever RESTRICTS a write an already-authorized caller is making; it returns no data and can grant nothing, so a school_id predicate would be a category error. Read body 2026-08-26 (Chunk 2, 20260826140000).",
   tg_homework_compute_is_late: "Trigger (BEFORE INSERT OR UPDATE on homework_submissions): operates only on NEW, the single row already being written by an already-authorized caller. Confirmed by reading the body (this audit's own fix, 20260822160000).",
   tg_homework_submission_student_guard: "Trigger (BEFORE UPDATE on homework_submissions): compares NEW/OLD on the single row being updated only. Read body 2026-08-22.",
   tg_marks_within_max: "Trigger (BEFORE INSERT/UPDATE on marks): validates NEW.marks_obtained against NEW's own exam_id's max_marks, single row only. Read body 2026-08-22.",

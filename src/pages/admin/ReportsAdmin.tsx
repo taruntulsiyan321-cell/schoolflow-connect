@@ -249,7 +249,7 @@ function StudentsReport() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase
-        .from("students")
+        .from("students_current")
         .select("admission_number, full_name, roll_number, parent_mobile, user_id, classes(name,section,kind,display_name)")
         .order("created_at", { ascending: false });
       setRows((data ?? []).map((r: any) => ({
@@ -287,7 +287,6 @@ function AttendanceReport({ from, to }: { from: string; to: string }) {
   const [profileAvg, setProfileAvg] = useState(0);
   const [present, setPresent] = useState(0);
   const [absent, setAbsent] = useState(0);
-  const [leave, setLeave] = useState(0);
 
   useEffect(() => {
     if (!ready || !ctx) return;
@@ -301,7 +300,6 @@ function AttendanceReport({ from, to }: { from: string; to: string }) {
       setProfileAvg(Math.round(school.avgAttendancePct));
       setPresent(day.present);
       setAbsent(day.absent);
-      setLeave(day.classes.reduce((a, c) => a + c.leave, 0));
       setRows(
         profiles
           .filter((p) => Math.round(p.attendancePct) < 75)
@@ -330,7 +328,7 @@ function AttendanceReport({ from, to }: { from: string; to: string }) {
       <Section title="Students below 75% (AcademicProfileService)" action={<ExportBtn rows={rows} name="attendance.csv" />}>
         {rows.length === 0 ? <Empty /> : <SimpleTable rows={rows} />}
       </Section>
-      <p className="text-xs text-muted-foreground">Rates from AttendanceService / AnalyticsService — not recalculated in UI. Leave count: {leave}</p>
+      <p className="text-xs text-muted-foreground">Rates from AttendanceService / AnalyticsService — not recalculated in UI.</p>
     </div>
   );
 }

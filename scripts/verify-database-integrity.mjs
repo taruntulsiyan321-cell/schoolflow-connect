@@ -279,8 +279,10 @@ async function main() {
     (r) => r.length === 0,
   );
   await check(
-    "rpc_parent_child_snapshot/rpc_parent_concept_analytics/rpc_parent_weekly_digest also check the parent_students join table, not just the legacy parent_user_id column",
-    `SELECT proname FROM pg_proc WHERE proname IN ('rpc_parent_child_snapshot','rpc_parent_concept_analytics','rpc_parent_weekly_digest')
+    // rpc_parent_concept_analytics dropped from this list by Chunk 1.6: it is
+    // now gutted and raises, so it has no parent_students join to check.
+    "rpc_parent_child_snapshot/rpc_parent_weekly_digest also check the parent_students join table, not just the legacy parent_user_id column",
+    `SELECT proname FROM pg_proc WHERE proname IN ('rpc_parent_child_snapshot','rpc_parent_weekly_digest')
        AND prosrc NOT ILIKE '%parent_students%'`,
     (r) => r.length === 0,
   );
@@ -324,17 +326,236 @@ async function main() {
     "admin/principal-branch RPCs all require same_school() (not just has_role) before cross-school-capable reads/writes",
     `SELECT proname FROM pg_proc WHERE proname IN (
        'admin_link_user_to_student','admin_link_user_to_teacher','ai_session_memory_close',
-       'rpc_battle_monitor','rpc_mark_best_community_answer','rpc_principal_concept_analytics',
+       'rpc_battle_monitor','rpc_mark_best_community_answer',
        'rpc_save_battle_ai_insights','rpc_teacher_class_insights',
-       'rpc_teacher_class_progression_insights','rpc_teacher_concept_analytics',
+       'rpc_teacher_class_progression_insights',
        'rpc_teacher_doubt_dashboard','rpc_parent_child_snapshot'
      ) AND prosrc NOT ILIKE '%same_school%' AND prosrc NOT ILIKE '%get_my_school_id%'`,
     (r) => r.length === 0,
   );
+
+  // --- Chunk 1.6, 2026-08-26: practice privacy (locked decision 10.8).
+  // The two concept-analytics RPCs above were dropped from that list because
+  // they no longer read anything — they are gutted and raise. The check that
+  // asserted their internal query shape is replaced by one asserting they
+  // stay gutted, so the guarantee is still under test rather than deleted.
   await check(
-    "rpc_principal_concept_analytics/rpc_teacher_concept_analytics use the fixed row_to_json(...)/plain-column ORDER BY pattern, not the old nested-aggregate one (42803 -- was completely non-functional)",
-    `SELECT proname, prosrc FROM pg_proc WHERE proname IN ('rpc_principal_concept_analytics','rpc_teacher_concept_analytics')`,
-    (r) => r.every((row) => /ORDER BY t\.avg_mastery/i.test(row.prosrc)),
+    "the three concept-analytics RPCs are gutted and expose no practice data",
+    `SELECT proname, prosrc FROM pg_proc WHERE proname IN
+       ('rpc_principal_concept_analytics','rpc_teacher_concept_analytics','rpc_parent_concept_analytics')`,
+    (r) =>
+      r.length === 3 &&
+      r.every(
+        (row) =>
+          /RAISE EXCEPTION/i.test(row.prosrc) &&
+          !/concept_mastery|student_mistakes/i.test(row.prosrc),
+      ),
+  );
+  await check(
+    "no policy grants practice data (student_mistakes/concept_mastery/question_records/revision_queue/student_academic_brain) to another role",
+    `SELECT tablename, policyname FROM pg_policies
+      WHERE schemaname = 'public'
+        AND tablename IN ('student_mistakes','concept_mastery','question_records',
+                          'revision_queue','student_academic_brain')
+        AND permissive = 'PERMISSIVE'
+        AND (coalesce(qual,'') || ' ' || coalesce(with_check,''))
+            ~ '(has_role|teacher_teaches_class|parent_user_id|parent_students)'`,
+    (r) => r.length === 0,
+  );
+  await check(
+    "public.user_roles is read-only — roles live on memberships (Chunk 1.5)",
+    `SELECT tgname FROM pg_trigger
+      WHERE tgrelid = 'public.user_roles'::regclass
+        AND tgname = 'trg_user_roles_read_only' AND NOT tgisinternal`,
+    (r) => r.length === 1,
+  );
+
+  // ---- Chunk 2.5: the two live practice leaks Chunk 1.6 missed --------
+  // Both were reachable despite 1.6 reporting ALL CHECKS PASSED, because its
+  // verification never enumerated a function and RLS is row-level, not column.
+  await check(
+    "rpc_get_student_progression returns practice counts to the student ONLY (10.16)",
+    `SELECT prosrc FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname = 'rpc_get_student_progression'`,
+    (r) => r.length === 1 && /WHEN _is_self THEN/.test(r[0].prosrc),
+  );
+  await check(
+    "student_xp is self-only — no policy hands the whole row (incl. practice_sessions_count) to staff",
+    `SELECT policyname FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = 'student_xp'
+        AND permissive = 'PERMISSIVE' AND coalesce(qual,'') ~ 'has_role'`,
+    (r) => r.length === 0,
+  );
+  await check(
+    "Nova gates every practice-derived fact on the student themselves (service role bypasses RLS)",
+    `SELECT 1`,
+    () => {
+      const src = readFileSync('supabase/functions/_shared/aiRouter.ts', 'utf8');
+      // Each of the three wholly-private projections, plus the progression split.
+      const gates = (src.match(/actorRole !== "student"/g) || []).length;
+      return gates >= 3 && /actorRole === "student"/.test(src);
+    },
+  );
+  await check(
+    "homework.school_id is NOT NULL — otherwise the composite FK is MATCH SIMPLE bypassable",
+    `SELECT is_nullable FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'homework' AND column_name = 'school_id'`,
+    (r) => r.length === 1 && r[0].is_nullable === 'NO',
+  );
+  await check(
+    "teacher_assignments binds the teacher to the assignment's own institution",
+    `SELECT conname FROM pg_constraint
+      WHERE conrelid = 'public.teacher_assignments'::regclass
+        AND conname = 'teacher_assignments_teacher_school_fk'`,
+    (r) => r.length === 1,
+  );
+
+  // ---- Chunk 3: people ------------------------------------------------
+  await check(
+    "every student has an enrolment_date (10.27: attendance counts from it, never session start)",
+    `SELECT count(*)::int AS n FROM public.students WHERE enrolment_date IS NULL`,
+    (r) => r[0].n === 0,
+  );
+  await check(
+    "every student has exactly one open enrolment row (section history is kept, not overwritten)",
+    `SELECT count(*)::int AS n FROM public.students s
+      WHERE NOT EXISTS (SELECT 1 FROM public.student_enrolments e
+                         WHERE e.student_id = s.id AND e.to_date IS NULL)`,
+    (r) => r[0].n === 0,
+  );
+  await check(
+    "roll numbers are unique per (section, year) and reusable elsewhere",
+    `SELECT conname FROM pg_constraint
+      WHERE conrelid = 'public.student_enrolments'::regclass
+        AND conname = 'student_enrolments_roll_unique'`,
+    (r) => r.length === 1,
+  );
+  await check(
+    "soft delete is enforced by RLS on students/teachers/teacher_remarks, not by app filtering (G6)",
+    `SELECT tablename FROM pg_policies
+      WHERE schemaname = 'public' AND permissive = 'RESTRICTIVE'
+        AND policyname IN ('students_hide_soft_deleted','teachers_hide_soft_deleted',
+                           'teacher_remarks_hide_soft_deleted')`,
+    (r) => r.length === 3,
+  );
+  await check(
+    "an exited student is immediately invisible to guardians, and the record is retained",
+    `SELECT policyname FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = 'students'
+        AND policyname = 'students_exit_hides_from_guardian' AND permissive = 'RESTRICTIVE'`,
+    (r) => r.length === 1,
+  );
+  await check(
+    "a remark may only be written by a teacher who teaches that student (10.14)",
+    `SELECT with_check FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = 'teacher_remarks'
+        AND policyname = 'teacher_remarks_teacher_write'`,
+    (r) => r.length === 1 && /teacher_teaches_class/.test(r[0].with_check || ''),
+  );
+  await check(
+    "editing a remark stamps edited_at — the parent may already have read the original",
+    `SELECT tgname FROM pg_trigger
+      WHERE tgrelid = 'public.teacher_remarks'::regclass
+        AND tgname = 'trg_teacher_remarks_mark_edited' AND NOT tgisinternal`,
+    (r) => r.length === 1,
+  );
+
+  // ---- Chunk 4: attendance ---------------------------------------------
+
+  // ---- Chunk 4.5: roll_number convergence -------------------------------
+  await check(
+    "students.roll_number is DROPPED — student_enrolments is the only roll number (G9)",
+    `SELECT count(*)::int AS n FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'students' AND column_name = 'roll_number'`,
+    (r) => r[0].n === 0,
+  );
+  await check(
+    "no SQL function still reads roll_number off public.students",
+    `SELECT count(*)::int AS n FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.prosrc ~ 'public.studentsM[^;]*roll_number'`,
+    (r) => r[0].n === 0,
+  );
+  await check(
+    "students_current inherits RLS (security_invoker) rather than bypassing it as its owner",
+    `SELECT c.reloptions::text AS opts FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname = 'students_current'`,
+    (r) => r.length === 1 && /security_invoker=true/.test(r[0].opts || ""),
+  );
+  await check(
+    "the current academic year's roll number resolves through students_current",
+    `SELECT count(*)::int AS n FROM public.students_current WHERE roll_number IS NOT NULL`,
+    (r) => r[0].n > 0,
+  );
+  await check(
+    "attendance_submissions exists and is unique per (section, date) — the absence of a row is what 'not marked' means",
+    `SELECT conname FROM pg_constraint
+      WHERE conrelid = 'public.attendance_submissions'::regclass
+        AND conname = 'attendance_submissions_section_date_key'`,
+    (r) => r.length === 1,
+  );
+  await check(
+    "every attendance record is anchored on a submission (never infer marking from per-student rows)",
+    `SELECT count(*)::int AS n FROM public.attendance WHERE submission_id IS NULL`,
+    (r) => r[0].n === 0,
+  );
+  await check(
+    "attendance is present/absent only — no late, no half-day, no leave (locked decision 5)",
+    `SELECT count(*)::int AS n FROM public.attendance
+      WHERE status::text NOT IN ('present','absent')`,
+    (r) => r[0].n === 0,
+  );
+  await check(
+    "the present/absent CHECK is enforced in the database, not just the UI",
+    `SELECT conname FROM pg_constraint
+      WHERE conrelid = 'public.attendance'::regclass
+        AND conname = 'attendance_status_present_absent_only'`,
+    (r) => r.length === 1,
+  );
+  await check(
+    "an attendance row cannot disagree with its submission about section/date (G9 divergence guard)",
+    `SELECT tgname FROM pg_trigger
+      WHERE tgrelid = 'public.attendance'::regclass
+        AND tgname = 'trg_attendance_matches_submission' AND NOT tgisinternal`,
+    (r) => r.length === 1,
+  );
+  await check(
+    "the principal is fenced out of marking and editing attendance by RESTRICTIVE policy, not by the UI",
+    `SELECT tablename FROM pg_policies
+      WHERE schemaname = 'public' AND permissive = 'RESTRICTIVE'
+        AND policyname IN ('attendance_principal_never_writes',
+                           'attendance_submissions_principal_never_writes')`,
+    (r) => r.length === 2,
+  );
+  await check(
+    "the bulk attendance write path creates the submission before the records",
+    `SELECT prosrc FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname = 'rpc_bulk_upsert_attendance'`,
+    (r) => r.length === 1 && /rpc_ensure_attendance_submission/.test(r[0].prosrc),
+  );
+
+  // ---- progression_history whitelist -----------------------------------
+  // Was too narrow from 2026-08-22 to 2026-08-26: nine of the eleven
+  // source types the app emits raised 23514, and awardSafe's bare catch{}
+  // hid every one. Guard the widened list so it cannot silently shrink again.
+  await check(
+    "progression_history.source_type accepts every source type the application emits",
+    `SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint
+      WHERE conname = 'progression_history_source_type_check'`,
+    (r) =>
+      r.length === 1 &&
+      ['attendance','battle','deep_link','dpp_attempt','homework_submission',
+       'practice_session','recovery_followup','revision','student_mistake',
+       'student_test_attempt','weak_concept']
+        .every((t) => r[0].def.includes(`'${t}'`)),
+  );
+  await check(
+    "every legacy students.parent_user_id link is represented in parent_students",
+    `SELECT count(*)::int AS n FROM public.students s
+      WHERE s.parent_user_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM public.parent_students ps
+                          JOIN public.parents p ON p.id = ps.parent_id
+                         WHERE ps.student_id = s.id AND p.user_id = s.parent_user_id)`,
+    (r) => r[0].n === 0,
   );
 
   console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) failed.`}`);

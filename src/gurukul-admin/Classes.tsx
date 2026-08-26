@@ -113,7 +113,7 @@ function AttendancePanel({
   }
 
   const presentCount = Object.values(statusByStudent).filter(
-    (s) => s === "present" || s === "late" || s === "half_day",
+    (s) => s === "present",
   ).length;
   const absentCount = Object.values(statusByStudent).filter((s) => s === "absent").length;
   const unmarkedCount = Object.values(statusByStudent).filter((s) => s == null).length;
@@ -186,7 +186,7 @@ function AttendancePanel({
                 <div className="space-y-2">
                   {students.map((s) => {
                     const status = statusByStudent[s.id];
-                    const present = status === "present" || status === "late" || status === "half_day";
+                    const present = status === "present";
                     return (
                       <div key={s.id} className="bg-muted rounded-xl p-3 flex items-center gap-3">
                         <InitialsAvatar name={s.fullName} size="sm" />
@@ -210,10 +210,7 @@ function AttendancePanel({
                           <option value="">Unmarked</option>
                           <option value="present">Present</option>
                           <option value="absent">Absent</option>
-                          <option value="late">Late</option>
-                          <option value="half_day">Half day</option>
-                          <option value="leave">Leave</option>
-                        </select>
+                                                                                                      </select>
                       </div>
                     );
                   })}

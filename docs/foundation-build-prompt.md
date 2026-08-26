@@ -97,6 +97,87 @@ query by default via the RLS policy or a view — not by application filtering.
 Every write by an admin is logged in `audit_log`. Every super admin access to
 institution data is logged in `super_admin_access_log` and notifies the school.
 
+### G8. Standing gates — run after EVERY chunk
+
+Not per-chunk verification, which tests what that chunk built. These run every
+time, and they catch what a chunk broke somewhere else.
+
+| Gate | Command | Must be |
+|---|---|---|
+| Types | `tsc` | 0 errors |
+| Build | `npm run build` | clean |
+| Tests | full suite | all passing |
+| DB integrity | repo integrity checker | 0 failures |
+| Tenant-scope lint | lint-tenant-scope | pass |
+| Leak survey | cross-institution survey | 0 leaking pairs |
+| **Seed** | `npm run db:seed` **in a rolled-back transaction** | executes end to end |
+| Live smoke | log in as each role, open its main screens | loads, no console errors, no `undefined%` |
+
+**The seed gate exists because it was broken four independent ways and nobody
+noticed.** Three of those breaks predated the foundation work, which means no
+fresh environment had been created in months. A broken seed is invisible until
+the day it matters most — a new developer, a staging rebuild, a recovery.
+
+**Report the output of every gate, every chunk.** A gate that regressed is a
+finding even when the chunk's own verification passed.
+
+**If a gate fails for a reason that predates your work, say so and prove it** —
+timestamps, ledger position, or the commit that introduced it. Do not silently
+inherit someone else's failure, and do not claim one is pre-existing without
+evidence.
+
+### G10. No swallowed failures
+
+**A bare `catch {}` is a bug that hides bugs.**
+
+Found live: `awardSafe` swallowed every XP award failure. A CHECK constraint
+whitelisted 4 source types while the app emitted 11, so **nine of eleven paths
+failed on every call** — for four days — while the UI displayed
+"Attendance submitted". The only evidence was that `progression_history`
+contained one kind of row, and nobody was looking.
+
+**This is worse than a visible bug.** A visible bug is fixed the same day. A
+swallowed one runs until someone happens to query the table.
+
+**Rules:**
+
+- **No empty catch blocks anywhere.** A caught error is logged with enough
+  context to identify it, or re-thrown.
+- **"Safe" wrappers must still report.** A function whose job is to not crash the
+  caller still surfaces the failure — a log line, a counter, a monitored event.
+  Silence is not safety.
+- **A success message must mean success.** Never render "saved" or "submitted"
+  on a path where the write may have failed.
+- **Constraint whitelists must match what the code emits.** Where a CHECK
+  constrains a set of values, enumerate every value the application actually
+  produces and prove the two agree. Keep the whitelist; widen it to the truth.
+
+**Per chunk:** grep for empty catch blocks and unlogged catches in the code paths
+that chunk touches, and report the count. Zero is the target; anything else is
+named and justified.
+
+**In Chunk 11:** sweep the whole repo. Also enumerate every CHECK constraint over
+a value set and prove it matches the emitted values.
+
+### G9. Watch for two sources of truth
+
+**This has been the root cause three times.** Every time, the same shape: two
+places hold the same fact, one is authoritative, nobody maintains the other, and
+no error is ever raised.
+
+| Found | Authority | Stale copy |
+|---|---|---|
+| Chunk 1.5 | `memberships` | `user_roles` |
+| Chunk 3 | `student_enrolments.roll_number` | `students.roll_number` |
+| Chunk 3 | RLS policies | the service-role path around them |
+
+**In every chunk, ask explicitly: does anything here duplicate a fact that lives
+somewhere else?** If yes, name the authority, converge the other, and **drop the
+stale one.** Leaving a deprecated column commented is what lets a new call site
+be written against it next month.
+
+Report this as its own line in every chunk report, even when the answer is none.
+
 ---
 
 # CHUNK 0 — PREFLIGHT (no code)
@@ -292,24 +373,55 @@ Known violations:
 **`curriculum_classes`** — `id · board_id · label` (Class 1..12)
 **`curriculum_subjects`** — `id · curriculum_class_id · name`
 **`chapters`** — `id · curriculum_subject_id · name · sequence`
-**`topics`** — `id · chapter_id · name · sequence`
 
-**Topics must have stable IDs.** Everything downstream — questions, the mistake
-book, analysis — keys on `topic_id`, never on a topic name string. Free-text
-topics would fragment every trend.
+**No `topics` table in this chunk.** The audit found no curriculum tree:
+21,696 questions keyed on free text, 523 chapters, **11,917 distinct topic
+strings**. That is a per-question descriptor, not a taxonomy.
+
+**Chapter is the stable unit.** Everything downstream — questions, the mistake
+book, custom sessions, analysis — keys on **`chapter_id`**, never on a name
+string. This is sufficient because custom practice sessions are already
+configured per chapter.
+
+The free-text topic string stays on the question as an **unmapped label**. It is
+never used for tracking, grouping or trends. A `topics` table can be added later
+without breaking anything.
+
+**Before seeding: check the 523 chapter names for near-duplicates and report the
+count.** The same fragmentation risk exists at chapter level.
 
 Maintained by super admin.
 
 ### Institution structure
 
-**`classes`** — `id · institution_id · academic_year_id · curriculum_class_id ·
-label`
+**The existing `classes` table is already section-grain** — live rows are
+`name="12", section="A"`, one row per class-section — and **18 tables carry a
+foreign key to it**, every one of them semantically pointing at a section.
 
-**`sections`** — `id · institution_id · class_id · label (A/B/C) ·
-class_teacher_id`
+**Do not re-point those 18 FKs. Add a parent above instead.**
+
+**`class_groups`** — NEW, the class level
+`id · institution_id · academic_year_id · curriculum_class_id · label`
+
+**`classes`** — EXISTING, stays section-grain, gains one column
+`+ class_group_id`
+
+Every existing FK keeps working untouched. The hierarchy now exists:
+`class_groups (Class 12) → classes (12-A, 12-B, 12-C)`.
+
+**Naming debt, accepted deliberately:** a table called `classes` holds sections.
+Renaming it to `sections` is worth doing, but as its own isolated migration with
+a compatibility view — **not in this chunk**, where it would tangle with new
+tables. Note it and move on.
+
+Wherever this document says "section", it means a row in `classes`.
 
 **`section_subjects`** — **the canonical identity for all teaching**
-`id · institution_id · section_id · curriculum_subject_id`
+`id · institution_id · section_id (→ classes.id) · curriculum_subject_id`
+
+Note for Chunk 6: **`marks` has no subject column** — only `exam_id`,
+`student_id`, `marks_obtained`. Per-subject marks must anchor on
+`section_subjects`.
 
 **Subjects attach to the section, not the class.** Sections of the same class may
 study different subjects.
@@ -340,7 +452,10 @@ start_date · end_date`
 3. End one teacher's assignment mid-year, start another. Show history preserved.
 4. Attempt to attach homework to a section-subject in another institution — show
    it is rejected.
-5. Show that `topics` have stable IDs and nothing downstream stores a topic name.
+5. Show that chapters have stable IDs and **nothing downstream stores a topic
+   name string** for tracking purposes.
+6. Report the near-duplicate count among the 523 chapter names.
+7. Show all 18 existing FKs still resolve, untouched.
 
 **STOP. Wait for approval.**
 
@@ -404,6 +519,41 @@ edited_at · deleted_at`
 
 ---
 
+# CHUNK 3.5 — REMOVE LIBRARY AND STAFF ATTENDANCE
+
+These features are on the forbidden list (§1) and were never part of this
+product. `library_books`, `library_checkouts` and `staff_attendance` are live
+with data, and the unapplied `20260823100000_drop_school_ops_unused` migration is
+the last integrity-gate failure.
+
+**Remove them completely. No trace should remain that these features existed.**
+
+### Do
+
+1. **Report first:** row counts in each table, and every file, type, route,
+   component, RPC and policy that references them. Do not delete before that
+   list is produced.
+2. Export the three tables to a file and hand it over — cheap insurance, and the
+   data is gone after this.
+3. Apply the drop migration.
+4. Remove **every** reference: code, generated types, routes, components, nav
+   items, RPCs, policies, seed data, tests, and any leftover migration
+   referencing them.
+5. Search for the strings `library`, `checkout`, `staff_attendance` across the
+   whole repo and report anything remaining.
+
+### Verify
+
+- [ ] The three tables no longer exist
+- [ ] Zero references anywhere in the repo, including generated types
+- [ ] No dead route or nav item
+- [ ] Integrity gate back to zero failures from this cause
+- [ ] Build clean, all tests pass
+
+**STOP. Wait for approval.**
+
+---
+
 # CHUNK 4 — ATTENDANCE
 
 **This chunk contains the single most important table in the system.**
@@ -453,9 +603,52 @@ edited_at`
 6. Principal attempts to edit — rejected by policy.
 7. Admin edits; `attendance_edits` records old value, new value, who, when.
 8. A past date with no submission is excluded from the denominator as a holiday.
-9. A mid-term joiner has no attendance expected before `enrolment_date`.
-   **Do not invent a denominator rule for them — surface the fact and report it
-   as an open decision.**
+9. **Mid-term joiner — RESOLVED, see §10.27.** Attendance counts from
+   `enrolment_date`, never from session start. Prove it: seed a joiner at day 20
+   whose section submitted 42 days (22 after enrolment), present on 20. Must
+   read **91%**, not 48%.
+10. **No attendance flag fires before `MIN_ENROLLED_DAYS_FOR_FLAGS` (10) enrolled
+    school days.** Seed a student enrolled 3 days with 1 absence — 67%, below
+    threshold, and **must not be flagged.**
+11. A leaver counts to `exit_date`, is **invisible on every live screen**, and
+    **their record is retained** — deleted only through the ordinary year-end
+    admin decision. Prove the record survives an exit and that no live query
+    returns them.
+
+**STOP. Wait for approval.**
+
+---
+
+# CHUNK 4.5 — CONVERGE `roll_number`
+
+**A split-brain, the same shape as `user_roles`.**
+
+`students.roll_number` is deprecated but still read by **26 files and 4 SQL
+functions**. The authority is `student_enrolments.roll_number`, which is per
+student **per academic year** — correct, because roll numbers change annually and
+are reused.
+
+While both exist, a roll number that changes at year rollover updates in one
+place and goes stale in the other. **No error is raised.** Those 26 call sites
+simply display last year's number, and nobody notices.
+
+### Do
+
+1. List all 26 files and 4 functions, with what each does with the value.
+2. Point every one at `student_enrolments`, scoped to the current academic year.
+3. **Drop `students.roll_number`.** Leaving it commented-deprecated is what
+   allows a new call site to be written against it next month.
+4. Report any call site that cannot be converged, and why.
+
+### Verify
+
+1. Grep for `students.roll_number` — **zero results**, including in generated
+   types.
+2. Change a student's roll number for a new academic year. Prove **every** screen
+   shows the new one and none shows the old.
+3. Prove the same student's *previous* year's roll number is still retrievable
+   from history.
+4. Roll number uniqueness still enforced per section per year.
 
 **STOP. Wait for approval.**
 
@@ -475,6 +668,13 @@ submission_mode (none/digital/upload) · closes_at · deleted_at · deleted_by`
 - Digital mode is only permitted where the questions are structured. A photo
   worksheet cannot be answered in-app.
 - **Submission locks at `due_date`.** No late submission.
+- **The teacher may also close it early.** Closing — by due date or by the
+  teacher — is what generates the report.
+- Students who have not submitted at closure are **marked not completed.**
+- **Closed is final. No reopening.**
+- **Chapter is picked from a list filtered to the teacher's own subject and
+  class**, never typed. Topic is picked per question from that chapter's existing
+  topics, or added when nothing fits. See §10.22.
 - Soft delete, 7 days.
 
 **`homework_questions`** — for digital mode
@@ -483,6 +683,13 @@ submission_mode (none/digital/upload) · closes_at · deleted_at · deleted_by`
 **`homework_submissions`**
 `id · institution_id · homework_id · student_id · submitted_at · file_url ·
 text_body`
+
+**`homework_answers`** — for digital MCQ homework only
+`id · institution_id · homework_id · student_id · question_id · chapter_id ·
+topic_id · answer · is_correct · time_taken_seconds`
+
+**School data, not practice.** Visible to teacher, principal, the student, and
+the parent for their own child. Never stored in a practice table.
 
 **`homework_completions`**
 `id · institution_id · homework_id · student_id ·
@@ -606,9 +813,20 @@ summary.
 ### Question bank — global, shared across all schools
 
 **`questions`**
-`id · topic_id · board_id · curriculum_class_id · difficulty · type ·
-body · options · correct_answer (NULLABLE) · status (active/retired) ·
-replaced_by_question_id · created_at`
+`id · chapter_id · topic_label (free text, unmapped) · board_id ·
+curriculum_class_id · difficulty · type · body · options ·
+correct_answer (NULLABLE) · status (active/retired) ·
+replaced_by_question_id · source_question_id (NULLABLE) ·
+variant_tier (NULLABLE, 1 or 2) · created_at`
+
+**`source_question_id` and `variant_tier`** exist because recovery generates
+variants of a student's own wrong questions (see
+`recovery-revision-analysis-spec.md` §4.2a). A variant is an ordinary bank
+question that records what it was derived from.
+
+**No `topic_id`.** Chapter is the stable unit (§10.10). `topic_label` is the
+legacy free-text string, kept for display, **never used for grouping,
+triggering or trends.**
 
 - **Shared across every school.** No `institution_id`.
 - Tagged by **board · class · subject · chapter · topic · difficulty · type**.
@@ -630,6 +848,17 @@ replaced_by_question_id · created_at`
   never got wrong.
 
 ### Practice — institution-scoped, student-private
+
+**CRITICAL SEPARATION — read §10.23 of the decisions doc.**
+
+Test and homework answers are **school data**. Practice answers are **private**.
+They must be **separate tables**, with the source structural rather than a flag
+checked in code. Storing both together makes the privacy rule unenforceable —
+that is exactly how `question_records` ended up readable by parents and class
+teachers.
+
+`homework_answers` and `test_answers` belong in Chunks 5 and 6 respectively, not
+here. Nothing in this chunk may hold a mark from a teacher-set assessment.
 
 **`practice_sessions`**
 `id · institution_id · student_id · mode · started_at · ended_at ·
@@ -664,13 +893,56 @@ not principal, not admin, not in any aggregate.
 **Exception, deliberate:** XP feeds the section leaderboard. Effort is public;
 the content of mistakes is not.
 
-### Not in this chunk
+### Recovery, revision and analysis — now specified
 
-**Recovery, revision and analysis logic is NOT DECIDED. Do not implement it. Do
-not invent triggers, intervals, session sizes, or clearing rules.** Create the
-tables above and stop. A `PARKED` marker in `locked-decisions.md` covers this.
+**Read `recovery-revision-analysis-spec.md` in full.** It is the source of truth
+for this part and it is detailed. Do not infer any rule that is not in it, and do
+not invent a threshold, interval or session size — every constant lives in §10 of
+that document.
 
-Likewise the **topic tally** is parked. Do not create it.
+**`chapter_tally`** — un-parked, and **required**
+`id · institution_id · student_id · chapter_id · session_id · attempted ·
+correct · created_at`
+
+**One row per chapter per session**, never per question. Without this denominator
+the mistake book cannot be read: 8 open mistakes means nothing until you know
+whether it is out of 20 questions or 200. Every accuracy figure and every trend
+comes from here.
+
+**`chapter_state`** — one row per student per chapter
+`student_id · chapter_id · state · recovered_at · next_revision_at ·
+revision_stage · consecutive_revision_passes · last_recovery_readiness`
+
+States: `untouched · has_mistakes · in_recovery · recovered · revision_due ·
+revision_failed`
+
+**`recovery_sessions`**
+`id · student_id · chapter_id · started_at · completed_at ·
+tier0_correct · tier0_total · tier1_correct · tier1_total ·
+tier2_correct · tier2_total · tier3_correct · tier3_total ·
+procedural_rate · conceptual_rate · readiness · outcome`
+
+**Per-tier counts, not one total.** The whole diagnostic value is in the split —
+procedural passing while conceptual fails is the most common real result and the
+most useful thing the feature detects.
+
+**`revision_sessions`**
+`id · student_id · chapter_id · stage · correct · total · passed ·
+started_at · completed_at · triggered_by (recovery/engagement)`
+
+### Verification for these
+
+1. `chapter_tally` writes one row per chapter per session — run a session
+   spanning three chapters, show exactly three rows.
+2. Recovery session stores four separate tier results, not a single score.
+3. A generated variant is saved to the bank with `source_question_id` and
+   `variant_tier` set, and **is servable to other students.**
+4. **Bank is checked before generating** — run recovery twice on the same wrong
+   question and show the second used cache.
+5. Revision clock starts on **engagement**, not only after recovery: seed a
+   session of 10+ questions with no mistakes and show `next_revision_at` set.
+6. Re-engaging with a chapter resets the clock.
+7. No constant from spec §10 appears as a literal in any component.
 
 ### Verification
 
@@ -892,7 +1164,12 @@ metric. Any drift fails.
 **Sweep 2 — Null sweep.** Crawl every screen and API response. **Fail on `0`,
 `0%`, `NaN`, `null`, `undefined`, `N/A` anywhere a record is absent.**
 
-**Sweep 3 — Isolation sweep.** For every table and every role:
+**Sweep 3 — Fresh environment.** Drop everything, replay every migration from
+zero, run the seed, and bring the app up. **This is the only proof that the
+schema is reproducible.** A migration that only works against the current
+database is not a migration; it is a one-off edit that happens to be in a file.
+
+**Sweep 4 — Isolation sweep.** For every table and every role:
 - Attempt cross-institution read → must fail
 - Attempt cross-role read → must fail
 - Attempt to read another student's practice → must fail
@@ -900,6 +1177,33 @@ metric. Any drift fails.
 - Attempt every write each role is forbidden → must fail
 
 **Sweep 3 is the one that protects children's data. It must be exhaustive.**
+
+### CRITICAL — RLS is not the whole fence
+
+**Row Level Security applies to `authenticated` and `anon`. It does not apply to
+`service_role`, to `SECURITY DEFINER` functions, or to anything running with
+`rolbypassrls`.**
+
+A real breach found exactly this way: the AI chat edge function assembled its
+facts bundle using the service role, so RLS never ran, and a child's practice
+mistake book was served to their parent and teacher — through a door that
+policy-level auditing cannot see. Policies were correct. The data still leaked.
+
+**Every isolation and privacy check must therefore cover all four paths:**
+
+| Path | Fenced by | Must be checked |
+|---|---|---|
+| Client via `authenticated` | RLS | Policy tests |
+| `SECURITY DEFINER` function | **Itself only** | Read the body; confirm it fences |
+| **Edge function / service role** | **Nothing** | **Read every one. RLS will not save you.** |
+| Any `rolbypassrls` role | Nothing | Enumerate and justify each |
+
+**Enumerate every edge function and every service-role call site, and for each
+state what data it can reach and who can invoke it.** An edge function that
+assembles data for an AI prompt is the highest-risk shape there is: it reads
+broadly by design, and its output goes to whoever asked.
+
+**A privacy rule verified only at the policy layer is not verified.**
 
 ### Final report
 

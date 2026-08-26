@@ -138,7 +138,7 @@ export async function listAssignedClassesForTeacher(
   const withCounts: AssignedClass[] = [];
   for (const cls of classes) {
     const { count, error } = await getClient(ctx)
-      .from("students")
+      .from("students_current")
       .select("id", { count: "exact", head: true })
       .eq("school_id", schoolId)
       .eq("class_id", cls.id);
@@ -261,7 +261,7 @@ export async function listStudentsForClass(
 ): Promise<ClassStudentRow[]> {
   const schoolId = schoolIdOf(ctx);
   const { data, error } = await getClient(ctx)
-    .from("students")
+    .from("students_current")
     .select(
       "id, full_name, roll_number, admission_number, photo_url, class_id, parent_name, parent_mobile",
     )

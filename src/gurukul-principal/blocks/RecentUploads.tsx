@@ -50,7 +50,7 @@ export function RecentUploads() {
           .select(`
             id,
             created_at,
-            exams(subject, created_by, classes(name))
+            exams(subject, created_by, classes(name, section))
           `)
           .eq('school_id', school.id)
           .gte('created_at', sevenDaysAgo.toISOString())
@@ -62,11 +62,9 @@ export function RecentUploads() {
 
         const transformed: Upload[] = (data || []).map((row: any) => ({
           id: row.id,
-          // `classes` has no `section` column in this schema, so the section
-          // line is simply omitted rather than shown as a fabricated value.
           teacherName: row.exams?.created_by ? 'Teacher' : 'Unknown Teacher',
           className: row.exams?.classes?.name || 'Unknown Class',
-          section: undefined,
+          section: row.exams?.classes?.section ?? undefined,
           subject: row.exams?.subject || 'Unknown Subject',
           uploadedAt: row.created_at,
         }))

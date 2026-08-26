@@ -96,11 +96,17 @@ export async function processEmbeddingJobsBatch(
 
     if (schoolFilter && job.school_id !== schoolFilter) {
       // Release claim so another tenant/cron can pick it up.
+      // school_id is matched too (S-04): this worker is releasing a row it
+      // decided belongs to a DIFFERENT tenant, so the release must be a no-op
+      // if the row is no longer the one we inspected. Without it, id+status
+      // alone would let this worker clear a claim another tenant's worker took
+      // in between.
       await admin
         .from("ai_embedding_jobs")
         .update({ status: "pending_embed", updated_at: new Date().toISOString() })
         .eq("id", job.job_id)
-        .eq("status", "processing");
+        .eq("status", "processing")
+        .eq("school_id", job.school_id);
       skipped_other_tenant += 1;
       continue;
     }

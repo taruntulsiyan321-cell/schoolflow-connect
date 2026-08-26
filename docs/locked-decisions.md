@@ -122,6 +122,7 @@ HOMEWORK_LOW            = 60    // percent
 MARKS_LOW               = exam.pass_mark   // never a literal
 MARKS_OVERDUE           = 7     // days after the exam
 CLASS_FLAGGED_ON_MARKS  = 25    // percent of students below pass
+MIN_ENROLLED_DAYS_FOR_FLAGS = 10   // before any attendance flag fires
 REPORTING_WINDOW        = session start → today
 HOMEWORK_WINDOW         = 7     // rolling days of due dates
 ```
@@ -276,6 +277,21 @@ before removing.
 - By difficulty
 - AI-suggested, from the student's own weak areas
 
+**Recovery, revision and analysis:** fully specified in
+**`recovery-revision-analysis-spec.md`**. That document is the source of truth
+for triggers, session composition, thresholds, scheduling and what analysis
+shows. Headlines:
+- **Recovery** builds from the student's **own wrong questions**, laddered across
+  four transfer tiers — original, different values, different framing, different
+  application. AI generates tiers 1 and 2; every variant is saved to the shared
+  bank so the cache warms and cost falls.
+- **Readiness is two numbers, never blended** — procedural and conceptual.
+  Procedural passing while conceptual fails is the most common real result.
+- **Revision starts on any substantial engagement with a chapter**, not only
+  after recovery, at 7 / 21 / 60 days. Re-engaging resets the clock.
+- **The chapter tally is required** — one row per chapter per session. Analysis
+  cannot be built without a denominator.
+
 **Custom session:**
 - Configured **per chapter**, as a list of rows, not one global setting:
   chapter · number of questions · difficulty.
@@ -296,10 +312,30 @@ before removing.
 
 ## 10.10 Curriculum
 
-- Structure: **board → class → subject → chapter → topic.** Questions hang off
-  topics; the custom session picks from the same tree.
+- Intended structure: **board → class → subject → chapter → topic.**
 - **One board per school.**
-- Whether a central curriculum tree already exists: `OPEN`, pending audit.
+
+**RESOLVED by audit: no curriculum tree exists.** `question_bank` holds 21,696
+rows keyed on free text — 15 subjects, 523 chapters, and **11,917 distinct topic
+strings** (~23 per chapter). The topic column is a per-question descriptor, not
+a taxonomy.
+
+**Decision: chapter is the stable unit for now.**
+- Seed the tree from the **523 chapters**. Everything downstream — mistake book,
+  custom sessions, analysis — keys on `chapter_id`.
+- This is sufficient because **custom practice sessions are already configured
+  per chapter** (10.8), so chapter is the operative grain for the main feature.
+- The free-text topic string stays on the question as an **unmapped label**.
+  It is never used for tracking, grouping or trends.
+- A real `topics` table can be added later without breaking anything, because
+  `chapter_id` remains stable.
+- **Before seeding, check the 523 chapter names for near-duplicates and report
+  the count.** The same fragmentation problem ("Cash Flow" vs "Cash flow
+  statement") could exist at chapter level.
+
+**Rationale:** curating 11,917 strings is a data project in its own right and
+would block everything else. Inventing a tree from them would fragment every
+trend — the exact failure the stable-ID rule exists to prevent.
 
 ## 10.11 Resources
 
@@ -420,6 +456,12 @@ Five separate leaderboards, all **scoped to the student's own section**:
 - Practice XP is treated as effort rather than private content: the mistake book
   and wrong answers stay private, but activity volume is public.
 
+**The effort exception — exactly what is public:**
+- **Public:** XP, level, league, **streak**, homework completion.
+- **Private:** practice session counts, practice rate, mistakes, skipped,
+  bookmarks, concept mastery, revision queue, and every per-question record.
+- Streak is public by decision even though no leaderboard requires it.
+
 **Known risk, accepted:** full ranking names the bottom of the section publicly,
 including on attendance. A child with a chronic illness or a difficult home
 situation is visible to every classmate as last. Worth raising with a school
@@ -522,6 +564,139 @@ Admin can also create further admins.
 - Retired questions stop being served but remain intact for existing references.
 - **Rewrites go live without human approval.**
 
+## 10.22 Chapter and topic on teacher-created content
+
+**Chapter is picked, never typed.**
+- When a teacher creates homework or a test, they pick the chapter from a list.
+- The list is **filtered to their own subject and that class** — a teacher of
+  Class 12 Accountancy sees only Class 12 Accountancy chapters. This falls out
+  of the curriculum tree; nothing extra is needed.
+- Homework may also carry a free-text label where no chapter fits, since
+  homework analysis rolls up to chapter anyway.
+
+**Topic is picked from the chapter's existing topics, or added.**
+- Per question, not per test.
+- The teacher sees topics already used in that chapter and picks one, or adds a
+  new one only when nothing fits.
+- **AI-generated questions follow the same rule** — pick an existing topic where
+  one fits, create a new one only when none does.
+- Rationale: typing freehand splits a single test's own analysis
+  ("Cash Flow" on six questions, "Cash flow" on four). Picking makes the list
+  cleaner with every use instead of dirtier, and builds a real taxonomy from the
+  people who teach the subject — with no curation project.
+
+**Known rough edge:** questions pulled from the legacy bank carry the old
+free-text labels, so a test mixing bank questions with self-written ones has
+inconsistent topic names across those two groups. Chapter rollup is unaffected.
+
+**Scope:** topic analysis applies to **homework and tests only.**
+**Exams get subject-level analysis only** — which subject is weak, never which
+topic. This also avoids a schema constraint: `marks` has no subject column today.
+
+## 10.23 Test and homework mistakes are NOT practice
+
+**This distinction must be structural, not a code check.**
+
+| Source | Rule |
+|---|---|
+| Mistake on a teacher's test or homework | **School data.** Teacher, principal and parent may see it. |
+| Mistake in self-directed practice | **Private to the student.** Nobody else, ever. |
+
+Same kind of information, opposite rules. **Test and homework answers must be
+stored separately from practice records**, with the source built into the
+structure. Storing both in one table makes the privacy rule unenforceable — which
+is how `question_records` ended up readable by parents and class teachers.
+
+## 10.24 Homework — the three kinds
+
+What the teacher gives determines what can be analysed. **The app can only
+analyse what it holds as structured questions with answers.**
+
+| Teacher gives | App holds | Student does | Report |
+|---|---|---|---|
+| **MCQs in the app**, with answer key | Questions and answers | Answers in app, auto-graded | **Full analysis** — topics, mistakes, timing |
+| **An image** of a worksheet | A picture only | Uploads photo or PDF back | **Completion only** |
+| **Typed instructions** | Text only | Teacher decides: upload, or nothing to submit | **Completion only** |
+
+In the third case the teacher chooses whether anything is submitted at all —
+sometimes it is "do this, I'll check in class."
+
+**Closing:**
+- Closes **automatically at the due date**, or **the teacher closes it early.**
+- **Whichever happens, closing generates the report.**
+- Students who have not submitted when it closes are **marked not completed.**
+- **Closed is final. No reopening.**
+
+## 10.25 Reports
+
+Two shapes, because two kinds of data.
+
+**Test report** — performance
+- Class average · weakest topics ranked · average time per question
+- Full student list with marks
+- Tap a student → their actual wrong answers, with the topic on each
+- **Generated automatically as soon as grading completes**
+
+**Homework report** — completion
+- Who completed, who did not, who was absent
+- Teacher's marking and comments
+- **Digital MCQ homework additionally gets the full test-report analysis** — it
+  produces identical data, so it reuses the same report. Nothing built twice.
+- **Generated on closure**, whether that is the due date or the teacher closing
+  early
+
+**Visible to:** teacher · principal · the student themselves ·
+**parent, for their own child's part only.**
+
+**Timing sections only exist for digitally submitted work.** A photo upload has
+no per-question timing — that section renders as absent, never as zero.
+
+## 10.26 Student cumulative record
+
+Every student's profile shows their whole picture across **all subjects and all
+teachers**: homework completed, homework missed, tests taken, marks, attendance.
+
+**These counts are computed at read time, never stored.** A stored counter drifts
+the moment a homework is deleted or a submission corrected, and nothing catches
+it. See G5.
+
+## 10.27 Enrolment, joiners and leavers
+
+**Mid-term joiner — RESOLVED. Attendance counts from `enrolment_date`.**
+
+A student joining on day 20 of a 45-day term, whose section submitted on 42 days
+overall (22 of them after they joined), present on 20:
+- **From enrolment: 20 ÷ 22 = 91%** ✓
+- From session start: 20 ÷ 42 = 48% ✗ — they would be flagged as a chronic
+  absentee on their second day
+
+This needs no special-casing: attendance is **counted from records, never
+averaged from percentages**, so a joiner is simply not in the denominator on days
+before they enrolled. The existing formula already handles it.
+
+**Minimum enrolment before flags apply: 10 school days.**
+
+```
+MIN_ENROLLED_DAYS_FOR_FLAGS = 10
+```
+
+A student enrolled three days with one absence reads 67% — below threshold, but
+meaningless. **No attendance threshold fires until the student has 10 enrolled
+school days.** Same principle as G4: too little data is not a bad result.
+
+**Leavers — no separate rule.**
+- The moment a student exits they become **invisible on every live screen**: not
+  in today's attendance, class lists, averages, watchlists, or any current
+  figure.
+- **Their record stays in the database.** Transfer certificates still work, past
+  reports still reconcile, and a parent asking a year later still gets an answer.
+- **Their data is deleted only through the ordinary year-end decision** (10.7),
+  along with everything else. It is included in the admin's export.
+- There is **no leaver retention timer** and no separate deletion path. One
+  deletion policy, one moment, one decision-maker.
+
+Leavers count to `exit_date` in the same way joiners count from `enrolment_date`.
+
 ## 11. Universal rules
 
 - **No school-wide averages across classes.** Class 5 and Class 12 are not
@@ -542,15 +717,19 @@ Admin can also create further admins.
 
 ## Still open
 
-- `OPEN` Mid-term joiner denominator — attendance from enrolment date, or from
-  session start. Surfaces in Chunk 3 (`enrolment_date`) before Chunk 4 needs it.
+- **RESOLVED** Mid-term joiner denominator — see §10.27. Counts from
+  `enrolment_date`; flags wait for 10 enrolled school days.
 - `OPEN` Student panel tab list and existing screens — pending audit
-- `OPEN` Whether a central curriculum tree exists — pending audit
 - `OPEN` Existing question bank tag set — pending audit
 - `OPEN` What the AI layer is for, beyond question generation and the weekly
   parent summary
 - `OPEN` XP formula — how many points per correct answer, and whether difficulty
   weights it
-- `PARKED` Recovery, revision and analysis logic — the three core practice
-  logics. To be worked out separately; do not implement until decided.
-- `PARKED` Topic tally (per topic per session totals) — deferred with the above.
+- **RESOLVED** Recovery, revision and analysis — full specification in
+  `recovery-revision-analysis-spec.md`.
+- **RESOLVED, and UN-PARKED** Chapter tally — required by analysis, at **chapter**
+  grain not topic. One row per chapter per session. Without a denominator the
+  mistake book cannot be read: 8 open mistakes means nothing until you know
+  whether that is out of 20 questions or 200.
+- `OPEN` XP for clearing a chapter or passing revision — recommendation is
+  **no**, XP for correct answers only, so self-certification cannot be farmed.

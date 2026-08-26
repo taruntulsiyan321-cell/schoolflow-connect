@@ -53,9 +53,14 @@ function mapRow(row: AuthContextRow): AuthContextData {
 }
 
 /**
- * Role resolution: link portal → read user_roles → optional ensure_default_role
- * (portal link only; never invents student) → pick by priority.
+ * Role resolution: bind the session → read the ACTIVE membership → pick by priority.
  * Missing role fails closed to null → AuthStatus missing_role /unauthorized.
+ *
+ * Since Chunk 1.5 `memberships` is the only authority for a role; `user_roles`
+ * is frozen (read-only at the table level) and no longer written by any path,
+ * so a new account never gets a row there. It is still consulted as a last
+ * resort so accounts predating the migration cannot be locked out, but a value
+ * from it means the account has no membership and should be re-invited.
  */
 async function resolveRole(userId: string): Promise<AppRole | null> {
   try {
@@ -64,20 +69,26 @@ async function resolveRole(userId: string): Promise<AppRole | null> {
     /* optional - portal linking may not exist in all envs */
   }
 
-  let { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-
-  if (!data || data.length === 0) {
-    try {
-      // After migration: links portal only — does NOT INSERT synthetic student.
-      await supabase.rpc("ensure_default_role");
-    } catch {
-      /* optional */
-    }
-    const again = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    data = again.data ?? [];
+  // Binds this GoTrue session to a sessions row and, when the account holds
+  // exactly one active membership, activates it. With two or more the picker
+  // must choose, and the role stays null until it does.
+  try {
+    await (supabase.rpc as any)("rpc_start_session");
+  } catch {
+    /* optional - pre-Chunk-1 environments have no session table */
   }
 
-  return pickRole(data);
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("account_id", userId)
+    .eq("status", "active");
+
+  if (memberships && memberships.length > 0) return pickRole(memberships);
+
+  // Transitional fallback only. Never reached by an account that has a membership.
+  const { data: legacy } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  return pickRole(legacy);
 }
 
 /**

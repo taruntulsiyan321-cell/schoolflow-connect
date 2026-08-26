@@ -77,7 +77,7 @@ export default function PrincipalClassDetail() {
         const [k, s, ct, analytics, profiles, todayAtt] = await Promise.all([
           supabase.from("classes").select("*").eq("id", classId).eq("school_id", ctx.schoolId).maybeSingle(),
           supabase
-            .from("students")
+            .from("students_current")
             .select("id, full_name, roll_number, admission_number")
             .eq("class_id", classId)
             .eq("school_id", ctx.schoolId)
@@ -108,7 +108,7 @@ export default function PrincipalClassDetail() {
         );
 
         setTodayMarked(todayAtt.length);
-        setTodayPresent(todayAtt.filter((r) => r.status === "present" || r.status === "late").length);
+        setTodayPresent(todayAtt.filter((r) => r.status === "present").length);
         setTodayAbsent(todayAtt.filter((r) => r.status === "absent").length);
 
         const { data: feedRows } = await supabase

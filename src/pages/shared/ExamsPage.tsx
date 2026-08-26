@@ -103,7 +103,7 @@ export default function ExamsPage({ isAdmin = false }: Props) {
 
   const openMarks = async (exam: any) => {
     setActiveExam(exam);
-    const { data: s, error: sErr } = await supabase.from("students").select("*").eq("class_id", exam.class_id).order("roll_number");
+    const { data: s, error: sErr } = await supabase.from("students_current").select("*").eq("class_id", exam.class_id).order("roll_number");
     if (sErr) return toast.error("Failed to load students: " + sErr.message);
     setStudents(s ?? []);
     const { data: m, error: mErr } = await supabase.from("marks").select("student_id, marks_obtained").eq("exam_id", exam.id);

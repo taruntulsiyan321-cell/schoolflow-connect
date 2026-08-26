@@ -40,3 +40,8 @@ scripts/rbse-commerce-full/.gen-cache/
 .claude-flow/data/
 .claude-flow/logs/
 .claude-flow/sessions/
+
+# Data exports taken before a destructive migration (Chunk 3.5 dropped
+# library_books, library_checkouts, staff_attendance). These hold real staff
+# attendance dates and are kept OUTSIDE the repo — git history is forever.
+docs/data-exports/

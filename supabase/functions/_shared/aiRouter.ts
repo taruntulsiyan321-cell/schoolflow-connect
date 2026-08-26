@@ -620,7 +620,7 @@ async function fetchMarksSummary(admin: SupabaseClient, schoolId: string, studen
  * Progression Engine facts for Nova context (never invent XP/streak/league).
  * SSOT: study_streak + practice_sessions_count + league_code (ProgressionService parity).
  */
-async function fetchProgression(admin: SupabaseClient, schoolId: string, studentId: string) {
+async function fetchProgression(admin: SupabaseClient, schoolId: string, studentId: string, actorRole: string) {
   const empty = {
     projection: "StudentProgression",
     version: 1,
@@ -711,13 +711,21 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
     leagueLabel = !leagueErr && leagueRow?.label ? String(leagueRow.label) : leagueCode;
   }
 
+  // 10.16 splits this row in half. Public: xp, level, league, streak, battles.
+  // Private: practice session counts and practice-derived weak concepts. The
+  // private half is omitted entirely rather than zeroed — a 0 would tell the
+  // model the student had done no practice, which is a different and false
+  // statement than "not yours to see" (G4).
+  const selfOnly = actorRole === "student"
+    ? { practice_sessions: practice, weak_concepts }
+    : {};
   return {
     projection: "StudentProgression", version: 1, studentId, schoolId,
     xp: xpVal, level, study_streak: streak, battleground_wins: wins,
-    practice_sessions: practice, total_battles: battles, league: leagueCode, league_label: leagueLabel,
-    weak_concepts, source_as_of: asOf,
-    data_version: `prog:${studentId}:${xpVal}:${level}:${streak}:${leagueCode ?? "none"}:${weak_concepts.length}`,
-    completeness: hasData ? 1 : hasRow || weak_concepts.length > 0 ? 0.4 : 0,
+    total_battles: battles, league: leagueCode, league_label: leagueLabel,
+    ...selfOnly, source_as_of: asOf,
+    data_version: `prog:${studentId}:${xpVal}:${level}:${streak}:${leagueCode ?? "none"}:${actorRole === "student" ? weak_concepts.length : "p"}`,
+    completeness: hasData ? 1 : hasRow ? 0.4 : 0,
   };
 }
 async function fetchEie(admin: SupabaseClient, schoolId: string, studentId: string) {
@@ -903,7 +911,7 @@ async function fetchStudentProfileContext(admin: SupabaseClient, schoolId: strin
   };
 
   const { data: student } = await admin
-    .from("students")
+    .from("students_current")
     .select("full_name, roll_number, class_id, classes(name, section)")
     .eq("id", studentId)
     .eq("school_id", schoolId)
@@ -954,7 +962,7 @@ async function fetchStudentProfileContext(admin: SupabaseClient, schoolId: strin
 }
 
 /** Recent practice history for Nova. */
-async function fetchPracticeHistory(admin: SupabaseClient, schoolId: string, studentId: string) {
+async function fetchPracticeHistory(admin: SupabaseClient, schoolId: string, studentId: string, actorRole: string) {
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -962,7 +970,9 @@ async function fetchPracticeHistory(admin: SupabaseClient, schoolId: string, stu
     .eq("school_id", schoolId)
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
-  if (!userId) {
+  // Practice is private to the student (locked decision 10.8/10.16). Nova runs
+  // on the service role, so RLS never applies here — the gate has to be explicit.
+  if (!userId || actorRole !== "student") {
     return {
       projection: "StudentPracticeHistory",
       version: 1,
@@ -1018,7 +1028,7 @@ async function fetchPracticeHistory(admin: SupabaseClient, schoolId: string, stu
 }
 
 /** Mistake Book summary for Nova. */
-async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studentId: string) {
+async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studentId: string, actorRole: string) {
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -1026,7 +1036,9 @@ async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studen
     .eq("school_id", schoolId)
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
-  if (!userId) {
+  // The mistake book is the single most private object in the product.
+  // 10.23: a practice mistake is never school data. Service role bypasses RLS.
+  if (!userId || actorRole !== "student") {
     return {
       projection: "StudentMistakesBook",
       version: 1,
@@ -1074,7 +1086,7 @@ async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studen
 }
 
 /** Recovery queue summary for Nova. */
-async function fetchRecoveryQueue(admin: SupabaseClient, schoolId: string, studentId: string) {
+async function fetchRecoveryQueue(admin: SupabaseClient, schoolId: string, studentId: string, actorRole: string) {
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -1082,7 +1094,8 @@ async function fetchRecoveryQueue(admin: SupabaseClient, schoolId: string, stude
     .eq("school_id", schoolId)
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
-  if (!userId) {
+  // Recovery derives entirely from practice mistakes — private (10.8).
+  if (!userId || actorRole !== "student") {
     return {
       projection: "StudentRecoveryQueue",
       version: 1,
@@ -1331,7 +1344,7 @@ async function probeParentSummary(admin: SupabaseClient, schoolId: string, stude
 
 async function probeStudentProfile(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
   const { data: student } = await admin
-    .from("students")
+    .from("students_current")
     .select("full_name, roll_number, class_id, classes(name, section)")
     .eq("id", studentId)
     .eq("school_id", schoolId)
@@ -3400,7 +3413,10 @@ export async function routeAiRequest(
           probeRecoveryQueue(admin, req.actor.schoolId, studentId),
           probeUpcomingEvents(admin, req.actor.schoolId, studentId),
         ]);
-        const factsBundle = (await withCache(`${factsVersionSeed}:${examsVisibilityTier}`, async () => {
+        // The actor role is part of the key: the bundle now differs by role (practice
+        // facts are student-only), so a student-built bundle must never be replayed
+        // to a parent or teacher out of the cache.
+        const factsBundle = (await withCache(`${factsVersionSeed}:${examsVisibilityTier}:${req.actor.role}`, async () => {
           const [
             attendance,
             homework,
@@ -3419,11 +3435,11 @@ export async function routeAiRequest(
             fetchMarksSummary(admin, req.actor.schoolId, studentId),
             fetchEie(admin, req.actor.schoolId, studentId),
             fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role),
-            fetchProgression(admin, req.actor.schoolId, studentId),
+            fetchProgression(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchStudentProfileContext(admin, req.actor.schoolId, studentId),
-            fetchPracticeHistory(admin, req.actor.schoolId, studentId),
-            fetchMistakesBook(admin, req.actor.schoolId, studentId),
-            fetchRecoveryQueue(admin, req.actor.schoolId, studentId),
+            fetchPracticeHistory(admin, req.actor.schoolId, studentId, req.actor.role),
+            fetchMistakesBook(admin, req.actor.schoolId, studentId, req.actor.role),
+            fetchRecoveryQueue(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchUpcomingEvents(admin, req.actor.schoolId, studentId),
           ]);
           // Merge enrolled subjects with practice/marks subjects (deduped).
@@ -3527,7 +3543,10 @@ export async function routeAiRequest(
           factsBundle.completeness < 0.25 &&
           !(eie.weak_concepts?.length || eie.strong_concepts?.length) &&
           !(profile.weak_topics?.length || profile.strong_topics?.length) &&
-          !(progression.xp > 0 || progression.practice_sessions > 0) &&
+          // practice_sessions is present only for the student themselves; for a
+          // parent or teacher its absence is not evidence of emptiness, so it only
+          // counts toward "no facts" when it was actually supplied.
+          !(progression.xp > 0 || (progression.practice_sessions ?? 0) > 0) &&
           !(practice.sessions_completed > 0 || mistakes.open_count > 0 || recovery.pending_count > 0);
 
         // Question matching — two-stage, across BOTH question_bank (authoritative) and
@@ -3696,8 +3715,14 @@ export async function routeAiRequest(
                   }
                 }
               }
-            } catch {
-              // Embedding/match failure never blocks the chat — fall through to generation.
+            } catch (e) {
+              // Embedding/match failure never blocks the chat — fall through to
+              // generation. G10: falling through is fine; doing it silently is not,
+              // because a permanently-failing embed looks identical to a cache miss.
+              console.warn(
+                "[nova] question match/embed failed, falling through to generation:",
+                e instanceof Error ? e.message : e,
+              );
             }
           }
         }

@@ -457,40 +457,31 @@ export async function projectStudentProgression(
   badges_earned: number;
   achievements_earned: number;
   battleground_wins: number;
-  practice_sessions: number;
-  weak_concepts: string[];
+  // practice_sessions and practice-derived weak concepts are deliberately
+  // absent. This pack is built for a parent or teacher about a named student,
+  // and locked decision 10.8 forbids school-side AI use of practice data;
+  // 10.15 adds that weak-concept alerts derive from tests and exams only.
   source_as_of: string | null;
   data_version: string;
   completeness: number;
 }> {
   await assertMayAccessStudent(ctx, studentId);
   const { ProgressionService } = await import("../services/progressionService");
-  const { PracticeService } = await import("../services/practiceService");
 
   let snap = null as Awaited<ReturnType<typeof ProgressionService.getForStudent>> | null;
-  let weak: Array<{ concept_label: string; subject: string }> = [];
   try {
     snap = await ProgressionService.getForStudent(ctx, studentId);
   } catch {
     snap = null;
   }
-  try {
-    // Need student user context for practice weak concepts — resolve via profile ctx
-    const client = getClient(toRepoContext(ctx));
-    const { data: stu } = await client
-      .from("students")
-      .select("user_id")
-      .eq("id", studentId)
-      .maybeSingle();
-    if (stu?.user_id) {
-      const practiceCtx = { ...ctx, userId: stu.user_id, studentId };
-      weak = await PracticeService.listWeakConcepts(practiceCtx, { limit: 8 });
-    }
-  } catch {
-    weak = [];
-  }
+  // The practice weak-concept lookup that used to sit here has been removed.
+  // It read concept_mastery, which locked decision 10.16 lists as private to
+  // the student. Since Chunk 1.6 the RLS policy already returned zero rows to
+  // a parent or teacher, so this silently produced an empty list and told the
+  // reader the student had no weak concepts — a false statement rather than an
+  // honest absence. 10.15: weak-concept alerts derive from tests and exams only.
 
-  const hasData = !!snap && (snap.xp > 0 || snap.counts.practice_sessions > 0 || snap.badges.length > 0);
+  const hasData = !!snap && (snap.xp > 0 || snap.badges.length > 0);
   return {
     projection: "StudentProgression",
     version: 1,
@@ -505,8 +496,6 @@ export async function projectStudentProgression(
     badges_earned: snap?.badges?.length ?? 0,
     achievements_earned: snap?.achievements?.length ?? 0,
     battleground_wins: snap?.battleground?.wins ?? 0,
-    practice_sessions: snap?.counts?.practice_sessions ?? 0,
-    weak_concepts: weak.map((w) => `${w.subject}: ${w.concept_label}`).slice(0, 8),
     ...meta(
       null,
       `prog:${studentId}:${snap?.xp ?? 0}:${snap?.level ?? 1}`,

@@ -9,15 +9,18 @@ import {
   normalizePage,
 } from "./base";
 
-export type AttendanceStatus = "present" | "absent" | "leave" | "late" | "half_day";
+/**
+ * Present/absent only — locked decision 5, enforced since Chunk 4 by a CHECK
+ * constraint on public.attendance. The enum type still carries leave/late/
+ * half_day labels (Postgres cannot drop enum values in place), but the
+ * database refuses to store them, so offering them anywhere would produce a
+ * raw constraint error in front of a teacher.
+ *
+ * An approved absence is owned by leave_requests, not by the register.
+ */
+export type AttendanceStatus = "present" | "absent";
 
-export const ATTENDANCE_STATUSES: AttendanceStatus[] = [
-  "present",
-  "absent",
-  "leave",
-  "late",
-  "half_day",
-];
+export const ATTENDANCE_STATUSES: AttendanceStatus[] = ["present", "absent"];
 
 export interface AttendanceRecord {
   id: string;
@@ -147,7 +150,7 @@ export async function upsertAttendance(
       {
         field: "status",
         code: "invalid",
-        message: "Attendance status must be present, absent, leave, late, or half_day",
+        message: "Attendance status must be present or absent",
       },
     ]);
   }
@@ -174,6 +177,18 @@ export async function upsertAttendance(
 
   await assertClassDateNotLocked(ctx, input.classId, input.date);
 
+  // Chunk 4: attendance_submissions is the authority for whether a section was
+  // marked, and its ABSENCE is what "not marked" means. So the register is
+  // marked explicitly first, and the per-student row is written under it.
+  // Deliberately not a DB trigger: auto-creating the submission from a record
+  // insert would restore the very inference ("a student row implies the
+  // section was marked") that produced 0.0% on unmarked classes.
+  const { data: submissionId, error: subErr } = await getClient(ctx).rpc(
+    "rpc_ensure_attendance_submission",
+    { _section_id: input.classId, _date: input.date } as never,
+  );
+  throwIfError(subErr, "Failed to mark the register for this section and date");
+
   const { data, error } = await getClient(ctx)
     .from("attendance")
     .upsert(
@@ -184,6 +199,7 @@ export async function upsertAttendance(
         status: input.status,
         school_id: schoolId,
         marked_by: ctx.userId ?? null,
+        submission_id: submissionId as unknown as string,
       },
       { onConflict: "student_id,date" },
     )
@@ -217,7 +233,7 @@ export async function bulkUpsertAttendance(
     if (!dateCheck.ok) throw new ValidationFailedError((dateCheck as { ok: false; issues: unknown[] }).issues as never);
     if (!ATTENDANCE_STATUSES.includes(row.status)) {
       throw new ValidationFailedError([
-        { field: "status", code: "invalid", message: "Attendance status must be present, absent, leave, late, or half_day" },
+        { field: "status", code: "invalid", message: "Attendance status must be present or absent" },
       ]);
     }
   }

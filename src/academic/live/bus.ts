@@ -17,6 +17,7 @@ export type AcademicDomain =
   | "doubt"
   | "message"
   | "calendar"
+  | "timetable"
   | "all";
 
 export type AcademicChangeDetail = {

@@ -52,9 +52,6 @@ export interface ClassDateAttendanceSummary {
   marked: number;
   present: number;
   absent: number;
-  late: number;
-  halfDay: number;
-  leave: number;
   dayRatePct: number;
   locked: boolean;
 }
@@ -141,12 +138,12 @@ export const AttendanceService = {
       studentId: input.studentId,
       source: "AttendanceService.mark",
       domains:
-        input.status === "present" || input.status === "late"
+        input.status === "present"
           ? ["attendance", "profile", "xp"]
           : ["attendance", "profile"],
     });
 
-    if (input.status === "present" || input.status === "late") {
+    if (input.status === "present") {
       try {
         const { data: stu } = await getClient(toRepoContext(ctx))
           .from("students")
@@ -164,8 +161,14 @@ export const AttendanceService = {
             targetUserId: stu.user_id,
           });
         }
-      } catch {
-        /* optional until migration applied */
+      } catch (e) {
+        // G10: this is the shape that hid nine broken XP source types for four
+        // days. It stays non-fatal — attendance is saved either way — but it
+        // no longer stays silent.
+        console.warn(
+          "[attendance] XP award failed after mark():",
+          e instanceof Error ? e.message : e,
+        );
       }
     }
 
@@ -182,7 +185,7 @@ export const AttendanceService = {
       await assertTeacherMayMarkClass(ctx, classId);
     }
     const saved = await bulkUpsertAttendance(toRepoContext(ctx), rows);
-    const awardsXp = rows.some((r) => r.status === "present" || r.status === "late");
+    const awardsXp = rows.some((r) => r.status === "present");
     afterAttendanceWrite(ctx, {
       classId: classIds[0] ?? null,
       source: "AttendanceService.markBulk",
@@ -193,7 +196,7 @@ export const AttendanceService = {
 
     // Teacher UI saves via markBulk — award attendance XP consistently with mark().
     const presentRows = rows.filter(
-      (r) => r.status === "present" || r.status === "late",
+      (r) => r.status === "present",
     );
     if (presentRows.length > 0) {
       try {
@@ -222,8 +225,12 @@ export const AttendanceService = {
             targetUserId: uid,
           });
         }
-      } catch {
-        /* optional until progression migration applied */
+      } catch (e) {
+        // G10: same shape as above, on the bulk path the teacher UI uses.
+        console.warn(
+          "[attendance] XP award failed after markBulk():",
+          e instanceof Error ? e.message : e,
+        );
       }
     }
 
@@ -291,11 +298,8 @@ export const AttendanceService = {
           listStudentsForClass(repo, cls.id),
           listAttendanceForClassDate(repo, cls.id, date),
         ]);
-        const p = records.filter((r) => r.status === "present" || r.status === "late").length;
+        const p = records.filter((r) => r.status === "present").length;
         const a = records.filter((r) => r.status === "absent").length;
-        const late = records.filter((r) => r.status === "late").length;
-        const halfDay = records.filter((r) => r.status === "half_day").length;
-        const leave = records.filter((r) => r.status === "leave").length;
         const dayRatePct = students.length ? Math.round((p / students.length) * 100) : 0;
         return {
           classId: cls.id,
@@ -305,9 +309,6 @@ export const AttendanceService = {
           marked: records.length,
           present: p,
           absent: a,
-          late,
-          halfDay,
-          leave,
           dayRatePct,
           locked: lockedSet.has(cls.id),
         };
@@ -359,7 +360,7 @@ async function listChildrenForParent(
   const client = getClient(ctx);
 
   const { data: direct, error: dErr } = await client
-    .from("students")
+    .from("students_current")
     .select("id, full_name, class_id, photo_url, roll_number, admission_number, classes(name, section)")
     .eq("school_id", schoolId)
     .eq("parent_user_id", parentUserId);
@@ -377,7 +378,7 @@ async function listChildrenForParent(
   if (parentRow?.id) {
     const { data: links, error: lErr } = await client
       .from("parent_students")
-      .select("student_id, students(id, full_name, class_id, photo_url, roll_number, admission_number, classes(name, section))")
+      .select("student_id, students:students_current(id, full_name, class_id, photo_url, roll_number, admission_number, classes(name, section))")
       .eq("school_id", schoolId)
       .eq("parent_id", parentRow.id);
     throwIfError(lErr, "Failed to list parent_students");

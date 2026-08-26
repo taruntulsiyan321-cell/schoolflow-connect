@@ -66,11 +66,22 @@ interface Conversation {
 // ── Honest empty conversation list (never seed demo chats) ────────────────────
 const EMPTY_CONVOS: Conversation[] = [];
 
+/** Monotonic within the page session; only used by the genId fallback below. */
+let idSequence = 0;
+
 function genId(prefix: string): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return `${prefix}${crypto.randomUUID()}`;
   }
-  return `${prefix}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  // Fallback for the rare non-secure context where crypto.randomUUID is absent.
+  // A monotonic counter rather than Math.random: these ids are React keys and
+  // localStorage keys, so all that is required is uniqueness within the
+  // session, and a counter guarantees that outright where six random base36
+  // characters only made a collision unlikely. It also keeps this off the
+  // quality:scan "Math.random on product path" ban honestly, instead of
+  // needing an exemption for what that rule exists to catch (fabricated data).
+  idSequence += 1;
+  return `${prefix}${Date.now()}_${idSequence}`;
 }
 
 const SUGGESTIONS = [

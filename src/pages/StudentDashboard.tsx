@@ -105,7 +105,7 @@ export default function StudentDashboard() {
     // Do NOT flip progressionLoaded false on live refresh — that collapses shellReady
     // and remounts the whole student panel after it already rendered.
     const { data: s, error: studentErr } = await supabase
-      .from("students")
+      .from("students_current")
       .select("full_name, roll_number")
       .eq("user_id", user.id)
       .maybeSingle();
@@ -148,8 +148,10 @@ export default function StudentDashboard() {
         totalStudents = lb.rows.length;
         const i = lb.rows.findIndex((r) => r.user_id === user.id);
         if (i >= 0) rank = i + 1;
-      } catch {
-        /* rank stays 0 / unavailable */
+      } catch (e) {
+        // G10: rank stays unavailable rather than wrong. Logged, because a
+        // silently-0 rank is indistinguishable from a genuine last place.
+        console.warn("[dashboard] leaderboard rank lookup failed:", e instanceof Error ? e.message : e);
       }
     } catch (e) {
       console.warn("progression snapshot:", e instanceof Error ? e.message : e);

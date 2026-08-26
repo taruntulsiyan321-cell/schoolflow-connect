@@ -341,7 +341,7 @@ export default function PrincipalClassAnalysis() {
 
         // Load students
         const { data: studentsData } = await supabase
-          .from('students')
+          .from('students_current')
           .select('id, full_name, roll_number')
           .eq('class_id', classId)
           .eq('school_id', ctx.schoolId)
@@ -381,7 +381,7 @@ export default function PrincipalClassAnalysis() {
           const hasToday = todayAtt.length > 0
           setAttendanceMarkedToday(hasToday)
           if (hasToday) {
-            setPresentToday(todayAtt.filter(r => r.status === 'present' || r.status === 'late').length)
+            setPresentToday(todayAtt.filter(r => r.status === 'present').length)
             setAbsentToday(todayAtt.filter(r => r.status === 'absent').length)
           }
         }

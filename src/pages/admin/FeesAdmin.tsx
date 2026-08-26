@@ -31,7 +31,7 @@ export default function FeesAdmin() {
 
   const load = async () => {
     if (!classId) return;
-    const { data: s, error: studentsError } = await supabase.from("students").select("*").eq("class_id", classId).order("roll_number");
+    const { data: s, error: studentsError } = await supabase.from("students_current").select("*").eq("class_id", classId).order("roll_number");
     if (studentsError) return toast.error("Failed to load students: " + studentsError.message);
     setStudents(s ?? []);
     const ids = (s ?? []).map(x => x.id);

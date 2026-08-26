@@ -29,9 +29,6 @@ const STATUS_OPTIONS: {
 }[] = [
   { value: "present", label: "Present", short: "P", color: "#10b981" },
   { value: "absent", label: "Absent", short: "A", color: "#cc5069" },
-  { value: "late", label: "Late", short: "L", color: "#f59e0b" },
-  { value: "half_day", label: "Half Day", short: "H", color: "#6366f1" },
-  { value: "leave", label: "Leave", short: "Lv", color: "#c08a3a" },
 ];
 
 type SortKey = "roll" | "name" | "status";

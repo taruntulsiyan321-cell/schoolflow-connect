@@ -81,9 +81,15 @@ export type ProgressionSnapshot = {
     total_answered: number;
   };
   counts: {
-    practice_sessions: number;
+    /**
+     * Private to the student (locked decision 10.16). rpc_get_student_progression
+     * omits these keys entirely for a parent, teacher, principal or admin caller,
+     * so they are optional — and MUST NOT be defaulted to 0, because 0 reads as
+     * "did no practice" rather than "not yours to see" (G4).
+     */
+    practice_sessions?: number;
     homework_submitted: number;
-    ai_sessions: number;
+    ai_sessions?: number;
   };
 };
 
@@ -105,19 +111,18 @@ export type TeacherProgressionInsights = {
     full_name: string;
     last_activity_at: string | null;
   }>;
-  consistent_practicers: Array<{
-    student_id: string;
-    full_name: string;
-    study_streak: number;
-    practice_sessions: number;
-  }>;
+  // consistent_practicers and class_engagement.practice_rate were removed by
+  // Chunk 1.6: both were school-side aggregates of practice activity, which
+  // locked decision 10.8 forbids and 10.16 lists as private. The RPC stopped
+  // returning them; keeping them here would have left the type promising data
+  // that is never sent, which is how the teacher panel ended up rendering
+  // "undefined%".
   class_engagement: {
     students: number;
     with_xp: number;
     avg_xp: number;
     avg_streak: number;
     avg_reputation: number;
-    practice_rate: number;
     homework_rate: number;
   } | null;
 };
@@ -180,9 +185,7 @@ const EMPTY_SNAPSHOT = (userId: string): ProgressionSnapshot => ({
     total_answered: 0,
   },
   counts: {
-    practice_sessions: 0,
     homework_submitted: 0,
-    ai_sessions: 0,
   },
 });
 
@@ -335,9 +338,6 @@ export const ProgressionService = {
       top_xp: Array.isArray(raw.top_xp) ? raw.top_xp : [],
       improvers: Array.isArray(raw.improvers) ? raw.improvers : [],
       inactive: Array.isArray(raw.inactive) ? raw.inactive : [],
-      consistent_practicers: Array.isArray(raw.consistent_practicers)
-        ? raw.consistent_practicers
-        : [],
       class_engagement: raw.class_engagement ?? null,
     };
   },

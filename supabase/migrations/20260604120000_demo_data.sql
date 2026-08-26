@@ -8,9 +8,6 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- Library schema: books may lack shelf_location; checkouts use library_books_id
-ALTER TABLE public.library_books ADD COLUMN IF NOT EXISTS shelf_location TEXT DEFAULT '';
-
 -- ---------------------------------------------------------------------------
 -- Helper: upsert demo auth user (email/password). Runs as migration owner.
 -- ---------------------------------------------------------------------------
@@ -74,6 +71,11 @@ DO $demo$
 DECLARE
   _pw text := 'DemoPass123!';
   -- Auth user UUIDs
+  _demo_school uuid := '00000000-0000-4000-8000-000000000001';
+  _ay         uuid;
+  _session_start date;
+  sub_today   uuid;
+  sub_yday    uuid;
   u_admin     uuid := 'd1000001-0001-4000-8000-000000000001';
   u_principal uuid := 'd1000001-0002-4000-8000-000000000002';
   u_t_math    uuid := 'd1000002-0001-4000-8000-000000000001';
@@ -109,8 +111,6 @@ DECLARE
   dpp_att     uuid := 'd5000003-0001-4000-8000-000000000001';
   hw1         uuid := 'd6000001-0001-4000-8000-000000000001';
   hw_sub1     uuid := 'd6000002-0001-4000-8000-000000000001';
-  lib_book1   uuid := 'd7000001-0001-4000-8000-000000000001';
-  lib_co1     uuid := 'd7000002-0001-4000-8000-000000000001';
   exam1       uuid := 'd8000001-0001-4000-8000-000000000001';
   exam2       uuid := 'd8000001-0002-4000-8000-000000000002';
   _qb_id      uuid;
@@ -146,19 +146,22 @@ BEGIN
   ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, email = EXCLUDED.email;
 
   -- Roles
-  INSERT INTO public.user_roles (user_id, role) VALUES
-    (u_admin,     'admin'),
-    (u_principal, 'principal'),
-    (u_t_math,    'teacher'),
-    (u_t_phys,    'teacher'),
-    (u_s1,        'student'),
-    (u_s2,        'student'),
-    (u_s3,        'student'),
-    (u_s4,        'student'),
-    (u_s5,        'student'),
-    (u_p1,        'parent'),
-    (u_p2,        'parent')
-  ON CONFLICT (user_id, role) DO NOTHING;
+  -- Roles live on public.memberships since Chunk 1.5; public.user_roles is
+  -- read-only and a direct INSERT now raises. _grant_membership() is the
+  -- supported path (it also creates the accounts row and is idempotent).
+  -- local_person_id is passed where the demo has a local record, so the same
+  -- human can hold several memberships without the records being merged.
+  PERFORM public._grant_membership(u_admin,     _demo_school, 'admin');
+  PERFORM public._grant_membership(u_principal, _demo_school, 'principal');
+  PERFORM public._grant_membership(u_t_math,    _demo_school, 'teacher', t_math);
+  PERFORM public._grant_membership(u_t_phys,    _demo_school, 'teacher', t_phys);
+  PERFORM public._grant_membership(u_s1,        _demo_school, 'student', st1);
+  PERFORM public._grant_membership(u_s2,        _demo_school, 'student', st2);
+  PERFORM public._grant_membership(u_s3,        _demo_school, 'student', st3);
+  PERFORM public._grant_membership(u_s4,        _demo_school, 'student', st4);
+  PERFORM public._grant_membership(u_s5,        _demo_school, 'student', st5);
+  PERFORM public._grant_membership(u_p1,        _demo_school, 'parent');
+  PERFORM public._grant_membership(u_p2,        _demo_school, 'parent');
 
   -- ===================== CLASSES =====================
   INSERT INTO public.classes (id, name, section, academic_year, kind, display_name, category) VALUES
@@ -169,13 +172,15 @@ BEGIN
     display_name = EXCLUDED.display_name, category = EXCLUDED.category;
 
   -- ===================== TEACHERS =====================
+  -- school_id is explicit: Chunk 2.5 made teachers.school_id NOT NULL so the
+  -- composite FK binding an assignment to its own institution is enforceable.
   INSERT INTO public.teachers (
-    id, user_id, full_name, subject, mobile, email,
+    id, school_id, user_id, full_name, subject, mobile, email,
     is_class_teacher, class_teacher_of, employee_id, department, qualification, joining_date, status
   ) VALUES
-    (t_math, u_t_math, 'Priya Sharma', 'Mathematics', '9876501001', 'priya.sharma@wisdomcampus.com',
+    (t_math, _demo_school, u_t_math, 'Priya Sharma', 'Mathematics', '9876501001', 'priya.sharma@wisdomcampus.com',
      true, c10a, 'EMP-T-001', 'Mathematics', 'M.Sc Mathematics', '2018-06-01', 'active'),
-    (t_phys, u_t_phys, 'Rajesh Verma', 'Physics', '9876501002', 'rajesh.verma@wisdomcampus.com',
+    (t_phys, _demo_school, u_t_phys, 'Rajesh Verma', 'Physics', '9876501002', 'rajesh.verma@wisdomcampus.com',
      false, NULL, 'EMP-T-002', 'Science', 'M.Sc Physics', '2019-07-15', 'active')
   ON CONFLICT (id) DO UPDATE SET
     user_id = EXCLUDED.user_id, full_name = EXCLUDED.full_name, email = EXCLUDED.email,
@@ -187,36 +192,80 @@ BEGIN
     (t_phys, c10a, 'Physics')
   ON CONFLICT (teacher_id, class_id, subject) DO NOTHING;
 
+  -- The academic year and its start date are resolved here, before the first
+  -- row that references them. Chunk 3 made students.academic_year_id and
+  -- enrolment_date real columns, and Chunk 4.5 moved roll_number onto
+  -- student_enrolments, which is NOT NULL on academic_year_id.
+  SELECT ay.id, ay.starts_on INTO _ay, _session_start
+    FROM public.academic_years ay
+   WHERE ay.school_id = _demo_school AND ay.is_current
+   LIMIT 1;
+  IF _ay IS NULL THEN
+    RAISE EXCEPTION 'Demo seed: no current academic_year for the demo school';
+  END IF;
+
   -- ===================== STUDENTS =====================
+  -- school_id is explicit: Chunk 3 made students.school_id NOT NULL (G1).
+  -- Chunk 4.5: roll_number lives on student_enrolments (per academic year),
+  -- not on students. The enrolment rows below carry it.
   INSERT INTO public.students (
-    id, user_id, full_name, admission_number, roll_number, class_id,
-    parent_user_id, parent_name, parent_mobile, address, date_of_birth
+    id, school_id, user_id, full_name, admission_number, class_id,
+    parent_user_id, parent_name, parent_mobile, address, date_of_birth,
+    enrolment_date, academic_year_id
   ) VALUES
-    (st1, u_s1, 'Arjun Mehta',   'WC10A001', '1', c10a, u_p1, 'Suresh Mehta',  '9876502001', '12, MG Road, Pune', '2010-03-15'),
-    (st2, u_s2, 'Priya Patel',   'WC10A002', '2', c10a, u_p2, 'Kavita Patel',  '9876502002', '45, FC Road, Pune', '2010-07-22'),
-    (st3, u_s3, 'Rohan Singh',   'WC10A003', '3', c10a, NULL, 'Harpreet Singh','9876502003', '8, Koregaon Park', '2010-01-08'),
-    (st4, u_s4, 'Ananya Iyer',   'WC10A004', '4', c10a, NULL, 'Lakshmi Iyer',  '9876502004', '22, Baner Road',   '2010-11-30'),
-    (st5, u_s5, 'Vikram Joshi',  'WC10A005', '5', c10a, NULL, 'Amit Joshi',    '9876502005', '3, Aundh',         '2010-05-18')
+    (st1, _demo_school, u_s1, 'Arjun Mehta',   'WC10A001', c10a, u_p1, 'Suresh Mehta',  '9876502001', '12, MG Road, Pune', '2010-03-15', _session_start, _ay),
+    (st2, _demo_school, u_s2, 'Priya Patel',   'WC10A002', c10a, u_p2, 'Kavita Patel',  '9876502002', '45, FC Road, Pune', '2010-07-22', _session_start, _ay),
+    (st3, _demo_school, u_s3, 'Rohan Singh',   'WC10A003', c10a, NULL, 'Harpreet Singh','9876502003', '8, Koregaon Park', '2010-01-08', _session_start, _ay),
+    (st4, _demo_school, u_s4, 'Ananya Iyer',   'WC10A004', c10a, NULL, 'Lakshmi Iyer',  '9876502004', '22, Baner Road',   '2010-11-30', _session_start, _ay),
+    (st5, _demo_school, u_s5, 'Vikram Joshi',  'WC10A005', c10a, NULL, 'Amit Joshi',    '9876502005', '3, Aundh',         '2010-05-18', _session_start, _ay)
   ON CONFLICT (id) DO UPDATE SET
     user_id = EXCLUDED.user_id, class_id = EXCLUDED.class_id,
-    parent_user_id = EXCLUDED.parent_user_id, roll_number = EXCLUDED.roll_number;
+    parent_user_id = EXCLUDED.parent_user_id;
+
+  INSERT INTO public.student_enrolments
+    (school_id, student_id, academic_year_id, section_id, roll_number, from_date)
+  VALUES
+    (_demo_school, st1, _ay, c10a, '1', _session_start),
+    (_demo_school, st2, _ay, c10a, '2', _session_start),
+    (_demo_school, st3, _ay, c10a, '3', _session_start),
+    (_demo_school, st4, _ay, c10a, '4', _session_start),
+    (_demo_school, st5, _ay, c10a, '5', _session_start)
+  ON CONFLICT (section_id, academic_year_id, roll_number) DO NOTHING;
 
   -- ===================== ATTENDANCE =====================
-  INSERT INTO public.attendance (student_id, class_id, date, status, marked_by) VALUES
-    (st1, c10a, _today,     'present', u_t_math),
-    (st2, c10a, _today,     'present', u_t_math),
-    (st3, c10a, _today,     'absent',  u_t_math),
-    (st4, c10a, _today,     'present', u_t_math),
-    (st5, c10a, _today,     'leave',   u_t_math),
-    (st1, c10a, _today - 1, 'present', u_t_math),
-    (st2, c10a, _today - 1, 'present', u_t_math),
-    (st3, c10a, _today - 1, 'present', u_t_math),
-    (st4, c10a, _today - 1, 'absent',  u_t_math),
-    (st5, c10a, _today - 1, 'present', u_t_math)
-  ON CONFLICT (student_id, date) DO UPDATE SET status = EXCLUDED.status, marked_by = EXCLUDED.marked_by;
+  -- Chunk 4: the register is marked FIRST. attendance_submissions is the
+  -- authority for whether a section was marked at all, and per-student rows
+  -- hang off it. 'leave' is gone — present/absent only (locked decision 5);
+  -- an approved absence is owned by leave_requests, not by the register.
+  INSERT INTO public.attendance_submissions
+    (school_id, academic_year_id, section_id, date, submitted_by)
+  VALUES
+    (_demo_school, _ay, c10a, _today,     u_t_math),
+    (_demo_school, _ay, c10a, _today - 1, u_t_math)
+  ON CONFLICT (section_id, date) DO NOTHING;
 
-  INSERT INTO public.attendance_locks (class_id, date, locked_by) VALUES
-    (c10a, _today - 2, u_t_math)
+  SELECT id INTO sub_today FROM public.attendance_submissions
+   WHERE section_id = c10a AND date = _today;
+  SELECT id INTO sub_yday  FROM public.attendance_submissions
+   WHERE section_id = c10a AND date = _today - 1;
+
+  INSERT INTO public.attendance (school_id, submission_id, student_id, class_id, date, status, marked_by) VALUES
+    (_demo_school, sub_today, st1, c10a, _today,     'present', u_t_math),
+    (_demo_school, sub_today, st2, c10a, _today,     'present', u_t_math),
+    (_demo_school, sub_today, st3, c10a, _today,     'absent',  u_t_math),
+    (_demo_school, sub_today, st4, c10a, _today,     'present', u_t_math),
+    (_demo_school, sub_today, st5, c10a, _today,     'absent',  u_t_math),
+    (_demo_school, sub_yday,  st1, c10a, _today - 1, 'present', u_t_math),
+    (_demo_school, sub_yday,  st2, c10a, _today - 1, 'present', u_t_math),
+    (_demo_school, sub_yday,  st3, c10a, _today - 1, 'present', u_t_math),
+    (_demo_school, sub_yday,  st4, c10a, _today - 1, 'absent',  u_t_math),
+    (_demo_school, sub_yday,  st5, c10a, _today - 1, 'present', u_t_math)
+  ON CONFLICT (student_id, date) DO UPDATE SET
+    status = EXCLUDED.status, marked_by = EXCLUDED.marked_by,
+    submission_id = EXCLUDED.submission_id;
+
+  INSERT INTO public.attendance_locks (school_id, class_id, date, locked_by) VALUES
+    (_demo_school, c10a, _today - 2, u_t_math)
   ON CONFLICT (class_id, date) DO NOTHING;
 
   INSERT INTO public.attendance_audit (class_id, date, student_id, prev_status, new_status, edited_by) VALUES
@@ -266,8 +315,10 @@ BEGIN
   ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body;
 
   -- ===================== HOMEWORK =====================
-  INSERT INTO public.homework (id, class_id, subject, title, description, due_date, created_by) VALUES
-    (hw1, c10a, 'Mathematics', 'NCERT Ch 1 — Euclid''s Division Lemma',
+  -- school_id is explicit: Chunk 2.5 made homework.school_id NOT NULL, which is
+  -- what closes the MATCH SIMPLE null-skip on the section_subject composite FK.
+  INSERT INTO public.homework (id, school_id, class_id, subject, title, description, due_date, created_by) VALUES
+    (hw1, _demo_school, c10a, 'Mathematics', 'NCERT Ch 1 — Euclid''s Division Lemma',
      'Solve Ex 1.1 Q 1–5 and upload working.', _today + 3, u_t_math)
   ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title;
 
@@ -278,17 +329,6 @@ BEGIN
   INSERT INTO public.homework_submissions (homework_id, student_id, content, status, submitted_at) VALUES
     (hw1, st2, 'Submitted — pending review', 'submitted', now() - interval '2 hours')
   ON CONFLICT (homework_id, student_id) DO NOTHING;
-
-  -- ===================== LIBRARY (optional shelf_location; library_books_id) =====================
-  INSERT INTO public.library_books (id, title, author, isbn, category, total_copies, available_copies) VALUES
-    (lib_book1, 'Mathematics — Class X (NCERT)', 'NCERT', '978-81-7450-634-4', 'Textbook', 5, 4),
-    ('d7000001-0002-4000-8000-000000000002', 'Science — Class X (NCERT)', 'NCERT', '978-81-7450-636-8', 'Textbook', 5, 5),
-    ('d7000001-0003-4000-8000-000000000003', 'Physics Refresher', 'H.C. Verma', '978-8177091878', 'Reference', 2, 2)
-  ON CONFLICT (id) DO UPDATE SET available_copies = EXCLUDED.available_copies;
-
-  INSERT INTO public.library_checkouts (id, library_books_id, student_id, due_date, status) VALUES
-    (lib_co1, lib_book1, st1, _today + 10, 'borrowed')
-  ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status;
 
   -- ===================== MESSAGES (chat) =====================
   INSERT INTO public.messages (sender_id, receiver_id, content, is_read) VALUES
@@ -309,13 +349,6 @@ BEGIN
     ('d9000002-0003-4000-8000-000000000003', u_t_phys, 'teacher', NULL, NULL,
      'personal', _today + 5, _today + 5, 'Personal work', 'rejected', u_principal, now() - interval '1 day')
   ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status;
-
-  -- ===================== STAFF ATTENDANCE =====================
-  INSERT INTO public.staff_attendance (teacher_id, date, status, marked_by) VALUES
-    (t_math, _today,     'present', u_principal),
-    (t_phys, _today,     'present', u_principal),
-    (t_math, _today - 1, 'present', u_principal)
-  ON CONFLICT (teacher_id, date) DO NOTHING;
 
   -- ===================== INQUIRIES & COMPLAINTS =====================
   INSERT INTO public.school_inquiries (id, contact_name, contact_phone, contact_email, grade_interest, message, status, created_by) VALUES
@@ -476,9 +509,11 @@ BEGIN
   ON CONFLICT (class_id) DO UPDATE SET grid = EXCLUDED.grid, updated_by = EXCLUDED.updated_by;
 
   -- ===================== APP SETTINGS =====================
-  INSERT INTO public.app_settings (id, school_name, locale, currency, enable_notices, enable_fees, enable_leaves, updated_by) VALUES
-    (true, 'Wisdom Campus Demo School', 'en-IN', 'INR', true, true, true, u_admin)
-  ON CONFLICT (id) DO UPDATE SET
+  -- app_settings became per-school (PK is school_id); the old singleton `id`
+  -- boolean column no longer exists.
+  INSERT INTO public.app_settings (school_id, school_name, locale, currency, enable_notices, enable_fees, enable_leaves, updated_by) VALUES
+    (_demo_school, 'Wisdom Campus Demo School', 'en-IN', 'INR', true, true, true, u_admin)
+  ON CONFLICT (school_id) DO UPDATE SET
     school_name = EXCLUDED.school_name,
     enable_notices = EXCLUDED.enable_notices,
     enable_fees = EXCLUDED.enable_fees,

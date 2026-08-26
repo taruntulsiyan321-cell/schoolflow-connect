@@ -81,7 +81,7 @@ export default function StudentPerformancePage() {
     setLoading(true);
     (async () => {
       const { data: studs } = await supabase
-        .from("students")
+        .from("students_current")
         .select("id,full_name,roll_number")
         .eq("class_id", classId)
         .order("roll_number");

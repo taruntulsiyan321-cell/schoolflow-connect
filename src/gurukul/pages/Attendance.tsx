@@ -12,6 +12,13 @@ import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/s
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 /**
+ * How many calendar months the "Recent attendance" card shows, newest first.
+ * Bounded so the label stays honest — this card previously rendered every
+ * record the student had ever accumulated.
+ */
+const RECENT_MONTHS = 3;
+
+/**
  * Student Attendance — AcademicProfileService + AttendanceService only.
  * No mock calendar / by-subject percentages in the UI.
  */
@@ -151,35 +158,44 @@ export default function Attendance() {
 
       <GlassCard className="p-5">
         <SectionLabel>Recent attendance</SectionLabel>
-        <div className="grid grid-cols-7 gap-1">
-          {calendarDays.length === 0 && (
-            <div className="col-span-7 text-center text-xs text-muted-foreground py-8">
-              No attendance recorded yet.
-            </div>
-          )}
-          {calendarDays.map((day) => {
-            const d = parseInt(day.date.split("-")[2] ?? "0", 10);
-            const bg =
-              day.status === "present"
-                ? "bg-emerald-400/20 text-emerald-400"
-                : day.status === "absent"
-                  ? "bg-rose-400/20 text-rose-400"
-                  : day.status === "late" || day.status === "half_day"
-                    ? "bg-amber-400/20 text-amber-400"
-                    : "bg-black/5 text-muted-foreground";
-            return (
-              <div
-                key={`${day.date}-${day.id}`}
-                title={`${day.date}: ${toEnumLabel(day.status, "attendance_status")}`}
-                className={cn(
-                  "h-8 rounded-lg flex items-center justify-center text-xs font-semibold",
-                  bg,
-                )}
-              >
-                {d}
+        {monthGroups.length === 0 && (
+          <div className="text-center text-xs text-muted-foreground py-8">
+            No attendance recorded yet.
+          </div>
+        )}
+        <div className="space-y-4">
+          {monthGroups.map((group) => (
+            <div key={group.month}>
+              <div className="text-xs font-semibold text-muted-foreground mb-1.5">
+                {group.label}
               </div>
-            );
-          })}
+              <div className="grid grid-cols-7 gap-1">
+                {group.days.map((day) => {
+                  const d = parseInt(day.date.split("-")[2] ?? "0", 10);
+                  const bg =
+                    day.status === "present"
+                      ? "bg-emerald-400/20 text-emerald-400"
+                      : day.status === "absent"
+                        ? "bg-rose-400/20 text-rose-400"
+                        : day.status === "late" || day.status === "half_day"
+                          ? "bg-amber-400/20 text-amber-400"
+                          : "bg-black/5 text-muted-foreground";
+                  return (
+                    <div
+                      key={`${day.date}-${day.id}`}
+                      title={`${day.date}: ${toEnumLabel(day.status, "attendance_status")}`}
+                      className={cn(
+                        "h-8 rounded-lg flex items-center justify-center text-xs font-semibold",
+                        bg,
+                      )}
+                    >
+                      {d}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </GlassCard>
 
