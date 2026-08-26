@@ -211,15 +211,21 @@ BEGIN
      AND (class_level IS NULL OR btrim(coalesce(subject, '')) = '');
   _out := _out || format('  unmappable (no class or subject) ... %s   (pre-existing data gap)%s', _n, E'\n');
 
-  -- No topics table exists, so nothing downstream can key on a topic id or name.
-  SELECT count(*) INTO _n FROM information_schema.tables
-   WHERE table_schema = 'public' AND table_name = 'topics';
-  _out := _out || format('  topics table ....................... %s   (expected 0 — chapter is the unit)%s', _n, E'\n');
+  -- Chunk 2's rule was never "no topics table ever". It was: do not DERIVE a
+  -- taxonomy from question_bank's 11,917 free-text strings. Chunk 5 then added
+  -- a topics table grown by teachers (§10.22), which is a different thing and
+  -- was approved. What must still hold is that the BANK keys on chapter alone
+  -- and its legacy topic string stays unmapped (§10.10, Chunk 7).
+  SELECT count(*) INTO _n FROM information_schema.columns
+   WHERE table_schema = 'public' AND table_name = 'question_bank' AND column_name = 'topic_id';
+  _out := _out || format('  question_bank.topic_id ............. %s   (expected 0 — chapter is the bank''s unit)%s',
+                         _n, E'\n');
   IF _n <> 0 THEN _ok := false; END IF;
 
-  SELECT count(*) INTO _n FROM information_schema.columns
-   WHERE table_schema = 'public' AND column_name = 'topic_id';
-  _out := _out || format('  topic_id columns anywhere .......... %s   (expected 0)%s', _n, E'\n');
+  SELECT count(*) INTO _n FROM public.topics
+   WHERE created_by IS NULL AND created_at < now() - interval '1 minute';
+  _out := _out || format('  topics seeded from the bank ........ %s   (expected 0 — teacher-grown only)%s',
+                         _n, E'\n');
   IF _n <> 0 THEN _ok := false; END IF;
 
   -- =================================================================
@@ -259,10 +265,18 @@ BEGIN
   -- =================================================================
   _out := _out || format('%s7. THE 18 FOREIGN KEYS TO public.classes%s', E'\n', E'\n');
 
-  -- Counting is weaker than naming: check each of the original 18 referencing
-  -- tables is still there, pointing at public.classes, and validated.
+  -- Chunk 2's guarantee was "do not RE-POINT the 18 FKs" -- not "these 18 rows
+  -- exist forever". Two have since left, both deliberately and both approved:
+  --
+  --   attendance_locks  the table was deleted outright by Chunk 4.7.
+  --   attendance        Chunk 4.6 removed attendance.class_id; attendance now
+  --                     reaches its section through attendance_submissions.
+  --
+  -- Neither was re-pointed at class_groups, so the guarantee holds. Asserting a
+  -- frozen count instead of the guarantee is what made this check fail for a
+  -- reason it did not mean (G11).
   SELECT count(*), string_agg(t.tbl, ', ') INTO _n, _txt
-    FROM (VALUES ('academic_events'),('attendance'),('attendance_audit'),('attendance_locks'),
+    FROM (VALUES ('academic_events'),('attendance_audit'),
                  ('battles'),('chat_conversations'),('class_timetables'),('exams'),
                  ('homework'),('learning_resources'),('leave_requests'),('notices'),
                  ('school_calendar_events'),('students'),('teacher_classes'),
@@ -272,14 +286,31 @@ BEGIN
       JOIN pg_class c ON c.oid = k.conrelid
      WHERE k.contype = 'f' AND k.confrelid = 'public.classes'::regclass
        AND k.convalidated AND c.relname = t.tbl);
-  _out := _out || format('  of the original 18, missing ........ %s   (expected 0)%s', _n, E'\n');
+  _out := _out || format('  of the 16 still-applicable, missing . %s   (expected 0)%s', _n, E'\n');
   IF _n <> 0 THEN _ok := false; _out := _out || format('    missing: %s%s', _txt, E'\n'); END IF;
 
-  SELECT count(*) INTO _n FROM pg_constraint
-   WHERE contype = 'f' AND confrelid = 'public.classes'::regclass AND convalidated;
-  _out := _out || format('  total FKs to classes now ........... %s   (18 original + section_subjects.section_id)%s',
+  -- The two departures are accounted for, not merely tolerated.
+  SELECT count(*) INTO _n FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace
+   WHERE ns.nspname='public' AND c.relname='attendance_locks';
+  _out := _out || format('  attendance_locks .................. %s   (0 = deleted by Chunk 4.7, not re-pointed)%s',
                          _n, E'\n');
-  IF _n <> 19 THEN _ok := false; END IF;
+  IF _n <> 0 THEN _ok := false; END IF;
+
+  SELECT count(*) INTO _n FROM information_schema.columns
+   WHERE table_schema='public' AND table_name='attendance' AND column_name='class_id';
+  _out := _out || format('  attendance.class_id ............... %s   (0 = removed by Chunk 4.6, section via submission)%s',
+                         _n, E'\n');
+  IF _n <> 0 THEN _ok := false; END IF;
+
+  -- The guarantee itself: nothing that pointed at classes was redirected at
+  -- the new parent table.
+  SELECT count(*) INTO _n
+    FROM pg_constraint k JOIN pg_class c ON c.oid = k.conrelid
+   WHERE k.contype='f' AND k.confrelid = 'public.class_groups'::regclass
+     AND c.relname <> 'classes';
+  _out := _out || format('  FKs re-pointed at class_groups ..... %s   (expected 0 — only classes.class_group_id)%s',
+                         _n, E'\n');
+  IF _n <> 0 THEN _ok := false; END IF;
 
   SELECT count(*) INTO _n FROM pg_constraint
    WHERE contype = 'f' AND confrelid = 'public.class_groups'::regclass;

@@ -84,7 +84,7 @@ in August can differ in March.
 - **The dashboard's provisional/final distinction is removed.** The trend line
   shows all days, not only "final" ones.
 - **Any edited day carries a visible marker.** Tapping it shows what changed, who
-  changed it and when — `attendance_edits` already records this.
+  changed it and when — `attendance_audit` already records this.
 - Without that marker a number would move with no explanation, which is what
   destroys trust in the figure.
 - **A submission record is written separately** from the per-student rows:
@@ -102,8 +102,10 @@ in August can differ in March.
 - Always assigned to the **whole section**. Never to selected students.
 - Both **assigned date** and **due date** stored.
 - **Only past-due homework counts** toward any completion rate.
-- Status distinguishes four cases: `completed` · `not completed` ·
-  `not yet due` · `absent`.
+- **Three stored statuses: `completed` · `not_completed` · `absent`.**
+  **`not_yet_due` is NOT stored** — it is the state when no completions row
+  exists, derived from `due_date` vs now. Storing it would violate G5, and it is
+  the same pattern as "no attendance submission means not marked, not 0%".
 - Missed-while-absent always shown separately from not-completed.
 - Completion rate = completions ÷ students assigned, rolling 7 days of due dates.
 
@@ -183,6 +185,10 @@ teacher*. No screen offers the principal an action they lack permission for.
   fill-in-blank). A photo worksheet cannot be answered in-app.
 - **Auto-grade rule: if a stored correct answer exists, grade automatically;
   otherwise the teacher grades manually.** Teacher can override any auto-grade.
+- **Correction from the build:** every one of the 21,696 bank questions has an
+  answer key (`correct_index` is NOT NULL), so the manual branch is unreachable
+  for bank-sourced questions. **The real ungraded case is a free-response
+  answer**, which stays NULL until a teacher acts.
 - Student submits → teacher inspects → teacher ticks. Photo, PDF and typed text
   all accepted.
 - Deletable, to trash for 7 days.

@@ -28,8 +28,13 @@ BEGIN
   INSERT INTO public.student_enrolments (school_id, student_id, academic_year_id, section_id, roll_number, from_date)
   VALUES (_sch, _joiner, _ay, _secA, 'VR-901', CURRENT_DATE - 20);
 
-  SELECT count(*) INTO _n FROM public.attendance
-   WHERE student_id = _joiner AND date < (SELECT enrolment_date FROM public.students WHERE id = _joiner);
+  -- Chunk 4.6 moved the date off attendance and onto its submission, so the
+  -- date is reached through the join rather than read from the row.
+  SELECT count(*) INTO _n
+    FROM public.attendance a
+    JOIN public.attendance_submissions s ON s.id = a.submission_id
+   WHERE a.student_id = _joiner
+     AND s.date < (SELECT enrolment_date FROM public.students WHERE id = _joiner);
   _r1 := 'enrolment_date=' || (SELECT enrolment_date::text FROM public.students WHERE id = _joiner)
        || ', attendance rows before it=' || _n
        || CASE WHEN _n = 0 THEN ' PASS' ELSE ' FAIL' END;

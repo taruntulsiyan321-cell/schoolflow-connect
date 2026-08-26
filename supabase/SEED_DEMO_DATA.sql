@@ -255,27 +255,38 @@ BEGIN
   SELECT id INTO sub_yday  FROM public.attendance_submissions
    WHERE section_id = c10a AND date = _today - 1;
 
-  INSERT INTO public.attendance (school_id, submission_id, student_id, class_id, date, status, marked_by) VALUES
-    (_demo_school, sub_today, st1, c10a, _today,     'present', u_t_math),
-    (_demo_school, sub_today, st2, c10a, _today,     'present', u_t_math),
-    (_demo_school, sub_today, st3, c10a, _today,     'absent',  u_t_math),
-    (_demo_school, sub_today, st4, c10a, _today,     'present', u_t_math),
-    (_demo_school, sub_today, st5, c10a, _today,     'absent',  u_t_math),
-    (_demo_school, sub_yday,  st1, c10a, _today - 1, 'present', u_t_math),
-    (_demo_school, sub_yday,  st2, c10a, _today - 1, 'present', u_t_math),
-    (_demo_school, sub_yday,  st3, c10a, _today - 1, 'present', u_t_math),
-    (_demo_school, sub_yday,  st4, c10a, _today - 1, 'absent',  u_t_math),
-    (_demo_school, sub_yday,  st5, c10a, _today - 1, 'present', u_t_math)
-  ON CONFLICT (student_id, date) DO UPDATE SET
-    status = EXCLUDED.status, marked_by = EXCLUDED.marked_by,
-    submission_id = EXCLUDED.submission_id;
+  -- Chunk 4.6: the record carries no section or date of its own — the
+  -- submission it hangs off holds both, and is the authority.
+  INSERT INTO public.attendance (school_id, submission_id, student_id, status, marked_by) VALUES
+    (_demo_school, sub_today, st1, 'present', u_t_math),
+    (_demo_school, sub_today, st2, 'present', u_t_math),
+    (_demo_school, sub_today, st3, 'absent',  u_t_math),
+    (_demo_school, sub_today, st4, 'present', u_t_math),
+    (_demo_school, sub_today, st5, 'absent',  u_t_math),
+    (_demo_school, sub_yday,  st1, 'present', u_t_math),
+    (_demo_school, sub_yday,  st2, 'present', u_t_math),
+    (_demo_school, sub_yday,  st3, 'present', u_t_math),
+    (_demo_school, sub_yday,  st4, 'absent',  u_t_math),
+    (_demo_school, sub_yday,  st5, 'present', u_t_math)
+  ON CONFLICT (student_id, submission_id) DO UPDATE SET
+    status = EXCLUDED.status, marked_by = EXCLUDED.marked_by;
 
-  INSERT INTO public.attendance_locks (school_id, class_id, date, locked_by) VALUES
-    (_demo_school, c10a, _today - 2, u_t_math)
-  ON CONFLICT (class_id, date) DO NOTHING;
+  -- Chunk 4.7: there is no lock. This day exists to demonstrate the EDITED
+  -- MARKER instead -- a day whose figure changed after it was submitted, which
+  -- is what replaced provisional/final.
+  INSERT INTO public.attendance_submissions
+    (school_id, academic_year_id, section_id, date, submitted_by)
+  VALUES (_demo_school, _ay, c10a, _today - 2, u_t_math)
+  ON CONFLICT (section_id, date) DO NOTHING;
 
-  INSERT INTO public.attendance_audit (class_id, date, student_id, prev_status, new_status, edited_by) VALUES
-    (c10a, _today - 2, st3, 'absent', 'present', u_principal);
+  -- submission_id matters: attendance_day_edits resolves the marker by joining
+  -- on it, so an audit row without one would record an edit that no screen can
+  -- show. The edit is attributed to the admin, the only role that may edit.
+  INSERT INTO public.attendance_audit
+    (school_id, submission_id, class_id, date, student_id, prev_status, new_status, edited_by)
+  SELECT _demo_school, s.id, c10a, _today - 2, st3, 'absent', 'present', u_admin
+    FROM public.attendance_submissions s
+   WHERE s.section_id = c10a AND s.date = _today - 2;
 
   -- ===================== FEES =====================
   INSERT INTO public.fees (student_id, month, amount, paid_amount, due_date, status, notes) VALUES
@@ -326,7 +337,16 @@ BEGIN
   INSERT INTO public.homework (id, school_id, class_id, subject, title, description, due_date, created_by) VALUES
     (hw1, _demo_school, c10a, 'Mathematics', 'NCERT Ch 1 — Euclid''s Division Lemma',
      'Solve Ex 1.1 Q 1–5 and upload working.', _today + 3, u_t_math)
-  ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title;
+  -- due_date must be refreshed on a re-run, not just the title. It was not,
+  -- so a second seed left the homework sitting at its ORIGINAL due date while
+  -- the submissions below went in at now() -- i.e. after it had closed. That
+  -- was invisible until Chunk 5 started enforcing the lock, at which point the
+  -- whole seed failed. Keep every date relative to _today on every run.
+  ON CONFLICT (id) DO UPDATE SET
+    title       = EXCLUDED.title,
+    description = EXCLUDED.description,
+    due_date    = EXCLUDED.due_date,
+    closes_at   = (EXCLUDED.due_date + 1)::timestamptz;
 
   INSERT INTO public.homework_submissions (id, homework_id, student_id, content, status, grade, teacher_remarks, submitted_at, graded_at) VALUES
     (hw_sub1, hw1, st1, 'Completed all five questions with steps.', 'graded', 'A', 'Neat presentation', now() - interval '1 day', now())

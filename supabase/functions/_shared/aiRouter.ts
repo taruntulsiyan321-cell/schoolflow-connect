@@ -424,7 +424,7 @@ function numbersMatch(a: string, b: string): boolean {
 
 async function fetchAttendance(admin: SupabaseClient, schoolId: string, studentId: string) {
   const { data: rows } = await admin
-    .from("attendance")
+    .from("attendance_current")
     .select("date, status")
     .eq("school_id", schoolId)
     .eq("student_id", studentId)
@@ -1222,7 +1222,7 @@ async function hashRows(rows: unknown[] | null | undefined): Promise<string> {
 
 async function probeAttendance(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
   const { data } = await admin
-    .from("attendance")
+    .from("attendance_current")
     .select("date, status")
     .eq("school_id", schoolId)
     .eq("student_id", studentId)

@@ -126,6 +126,32 @@ timestamps, ledger position, or the commit that introduced it. Do not silently
 inherit someone else's failure, and do not claim one is pre-existing without
 evidence.
 
+### G11. A test must pass for the reason it claims
+
+**Found live:** `CHUNK4_VERIFY` item 7 ran `RESET ROLE` without clearing the JWT
+claims, so the "admin edits attendance" check executed as **table owner with RLS
+bypassed** — while `auth.uid()` still returned the principal. It proved neither
+that admin edits work nor that policy permits them, and recorded the principal as
+the editor **one line after item 6 proved the principal cannot edit.**
+
+**A test that reports success for the wrong reason is worse than a failing one.**
+A failure gets investigated. A false pass closes the question.
+
+**Rules:**
+
+- **State what each check proves**, and confirm the mechanism actually exercises
+  it. "Rows were updated" is not proof that policy allowed it.
+- **A negative result must be distinguishable from an inability to act.**
+  "0 rows updated" looks identical to "cannot read the table at all" — assert
+  both halves, as the Chunk 4.6 read/write check does.
+- **Never verify under a role that bypasses RLS**, unless the point is to prove
+  the bypass. Confirm the effective role and `auth.uid()` inside the test.
+- **When two checks in one file contradict each other, one of them is broken.**
+  Investigate rather than reporting both as passing.
+- **Verification files rot.** A schema change can make one unrunnable or silently
+  vacuous. Re-run prior chunks' verification files as part of G8, and report any
+  that no longer execute.
+
 ### G10. No swallowed failures
 
 **A bare `catch {}` is a bug that hides bugs.**
@@ -574,7 +600,7 @@ and of thresholds firing on classes with no data.
 
 Present/absent only. No late, no half-day.
 
-**`attendance_edits`**
+**`attendance_audit`** — EXISTING TABLE, do not create a second one
 `id · submission_id · student_id · old_status · new_status · edited_by ·
 edited_at`
 
@@ -590,7 +616,7 @@ edited_at`
 - **Principal may never mark or edit.** Enforce in policy, not the UI.
 - **Nothing is ever final**, so there is **no provisional/final distinction.**
   Any edited day carries a visible marker; tapping it shows what changed, who
-  changed it and when, from `attendance_edits`.
+  changed it and when, from `attendance_audit`.
 - **Unmarked today** → not marked; appears on the dashboard as needing attention.
   **Unmarked after the day has closed** → treated as a holiday and **excluded
   from the denominator.** Derived from the absence of a submission plus the date
@@ -612,7 +638,7 @@ edited_at`
 7. Admin edits a day from **three months ago** — allowed, no window. Records old
    value, new value, who, when.
 8. That day now carries an **edited marker**, and the detail resolves from
-   `attendance_edits`.
+   `attendance_audit`.
 9. A teacher attempts to edit their own submission — **rejected by policy.**
 10. `attendance_locks` does not exist anywhere: no table, no view, no policy, no
     code reference.
@@ -672,7 +698,8 @@ simply display last year's number, and nobody notices.
 
 **`homework`**
 `id · institution_id · academic_year_id · section_subject_id · created_by ·
-topic (free text) · description · assigned_date · **due_date** ·
+chapter_id (nullable) · topic_id (nullable) · description · assigned_date ·
+**due_date** ·
 submission_mode (none/digital/upload) · closes_at · deleted_at · deleted_by`
 
 - **`due_date` is mandatory.** Without it the completion rate cannot be computed.
@@ -692,7 +719,7 @@ submission_mode (none/digital/upload) · closes_at · deleted_at · deleted_by`
 - Soft delete, 7 days.
 
 **`homework_questions`** — for digital mode
-`id · homework_id · question_id · sequence`
+`id · institution_id · homework_id · question_id · sequence`
 
 **`homework_submissions`**
 `id · institution_id · homework_id · student_id · submitted_at · file_url ·
@@ -707,11 +734,14 @@ the parent for their own child. Never stored in a practice table.
 
 **`homework_completions`**
 `id · institution_id · homework_id · student_id ·
-status (completed / not_completed / not_yet_due / absent) ·
+status (completed / not_completed / absent) ·
 marked_by · marked_at · comment`
 
-- **Four statuses, not a boolean.** `absent` is derived by joining attendance on
-  the due date, and must be reportable separately from `not_completed`.
+- **Three stored statuses, not four and not a boolean.**
+- **`not_yet_due` is NOT a stored value.** It is the absence of a row, derived
+  from `due_date` vs now. Storing it would violate G5 — same pattern as "no
+  attendance submission means not marked, not 0%".
+- `absent` must be reportable separately from `not_completed`.
 - Teacher may leave a **comment**; the parent sees it.
 
 ### Auto-grading

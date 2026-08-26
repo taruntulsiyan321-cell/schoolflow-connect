@@ -15,11 +15,12 @@ BEGIN
   ------------------------------------------------------------------
   -- 1. All three stale copies are gone from the schema.
   ------------------------------------------------------------------
+  -- attendance_locks was deleted outright by Chunk 4.7, so only attendance is
+  -- checked for stale copies here; the lock's total absence is item 5.
   SELECT count(*) INTO _n FROM information_schema.columns
    WHERE table_schema = 'public'
-     AND ((table_name = 'attendance'       AND column_name IN ('class_id','date'))
-       OR (table_name = 'attendance_locks' AND column_name IN ('class_id','date')));
-  _r1 := 'stale columns remaining across attendance + attendance_locks = ' || _n
+     AND table_name = 'attendance' AND column_name IN ('class_id','date');
+  _r1 := 'stale columns remaining on attendance = ' || _n
       || CASE WHEN _n = 0 THEN '  PASS' ELSE '  FAIL' END;
 
   ------------------------------------------------------------------
@@ -28,10 +29,10 @@ BEGIN
   SELECT count(*) INTO _n
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
    WHERE n.nspname = 'public'
-     AND c.relname IN ('attendance_current','attendance_locks_current')
-     AND c.reloptions::text LIKE '%security_invoker=true%';
-  _r2 := 'views with security_invoker = ' || _n || ' of 2'
-      || CASE WHEN _n = 2 THEN '  PASS' ELSE '  FAIL (a view without it is a hole around the table''s RLS)' END;
+     AND c.relkind = 'v'
+     AND coalesce(c.reloptions::text, '') NOT LIKE '%security_invoker=true%';
+  _r2 := 'views MISSING security_invoker = ' || _n
+      || CASE WHEN _n = 0 THEN '  PASS' ELSE '  FAIL (a view without it is a hole around the table''s RLS)' END;
 
   ------------------------------------------------------------------
   -- 3. The view reproduces section and date faithfully for every row.
@@ -81,21 +82,20 @@ BEGIN
   ------------------------------------------------------------------
   -- 5. The lock hangs off the submission and still blocks a write.
   ------------------------------------------------------------------
-  INSERT INTO public.attendance_locks (school_id, submission_id, locked_by)
-  VALUES (_sch, _subA, _admin);
+  -- Chunk 4.7 deleted the lock entirely: no table, no view, nothing to lock.
+  -- What this item proves now is that the lock is genuinely gone rather than
+  -- merely unused, and that its replacement -- the edited-day marker -- exists.
+  SELECT count(*) INTO _n
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE n.nspname = 'public' AND c.relname LIKE '%attendance_lock%';
+  _r5 := 'attendance_lock* relations remaining = ' || _n
+      || CASE WHEN _n = 0 THEN '  PASS' ELSE '  FAIL' END;
 
-  BEGIN
-    UPDATE public.attendance SET status = 'absent'
-     WHERE submission_id = _subA AND student_id = _stu;
-    _r5 := 'write to a locked submission = ACCEPTED (FAIL)';
-  EXCEPTION WHEN others THEN
-    _r5 := 'write to a locked submission = REJECTED (PASS)';
-  END;
-
-  _r5 := _r5 || ' | lock resolves section/date through the view: '
-      || COALESCE((SELECT class_id::text || ' / ' || date::text
-                     FROM public.attendance_locks_current
-                    WHERE submission_id = _subA), 'NOT FOUND');
+  _r5 := _r5 || ' | edited-day marker present: '
+      || CASE WHEN EXISTS (SELECT 1 FROM pg_class c
+                             JOIN pg_namespace n ON n.oid = c.relnamespace
+                            WHERE n.nspname = 'public' AND c.relname = 'attendance_day_edits')
+              THEN 'yes (attendance_day_edits)' ELSE 'NO (FAIL)' END;
 
   ------------------------------------------------------------------
   -- 6. A teacher still reads their own class's attendance after the
