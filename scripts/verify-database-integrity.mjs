@@ -141,9 +141,35 @@ async function main() {
 
   // --- Server-side is_late enforcement ---
   await check(
-    "homework_submissions.is_late computed server-side by trigger",
-    "SELECT count(*) FROM pg_trigger WHERE tgname='trg_homework_is_late'",
+    // Chunk 5 / docs/decisions.md D1: submission locks at the due date, so
+    // is_late can never again become true and the trigger that computed it is
+    // gone. What replaces this check is that the lock itself is enforced
+    // server-side, and that the 9 historical late rows were not rewritten.
+    "homework submission locks at the due date, server-side (there is no late submission)",
+    "SELECT count(*) FROM pg_trigger WHERE tgname='trg_homework_submission_lock' AND NOT tgisinternal",
     (r) => count(r) === 1,
+  );
+  await check(
+    "the is_late trigger no longer fires (it could only ever write false now)",
+    "SELECT count(*) FROM pg_trigger WHERE tgname='trg_homework_is_late' AND NOT tgisinternal",
+    (r) => count(r) === 0,
+  );
+  await check(
+    "the 9 historical late submissions are preserved, not rewritten (D1)",
+    "SELECT count(*) FROM public.homework_submissions WHERE is_late",
+    (r) => count(r) === 9,
+  );
+  await check(
+    "homework_answers.is_correct stays NULL when nothing is gradeable (G4: never false-by-default)",
+    `SELECT column_default, is_nullable FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='homework_answers' AND column_name='is_correct'`,
+    (r) => r[0]?.is_nullable === "YES" && !r[0]?.column_default,
+  );
+  await check(
+    "not_yet_due is not a stored homework completion status (it is derived from due_date)",
+    `SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+      WHERE t.typname = 'homework_completion_status' AND e.enumlabel = 'not_yet_due'`,
+    (r) => r.length === 0,
   );
 
   // --- 2026-08-22 code-trace fixes ---
