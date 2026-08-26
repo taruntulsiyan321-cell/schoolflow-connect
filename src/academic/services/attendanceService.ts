@@ -53,7 +53,13 @@ export interface ClassDateAttendanceSummary {
   present: number;
   absent: number;
   dayRatePct: number;
-  locked: boolean;
+  /**
+   * Chunk 4.7: replaces `locked`. Nothing is ever locked or final; what a
+   * reader needs to know is whether this day's figure was changed after it was
+   * first submitted. True when at least one student's status actually changed
+   * -- resolved from attendance_day_edits, which reads attendance_audit.
+   */
+  edited: boolean;
 }
 
 export interface SchoolDateAttendanceSummary {
@@ -281,13 +287,17 @@ export const AttendanceService = {
       .order("name");
     throwIfError(cErr, "Failed to list classes");
 
-    const { data: locks } = await client
-      .from("attendance_locks")
-      .select("class_id")
+    // The edited marker. One definition for every screen that shows this day's
+    // figure, so a number can never move without an explanation next to it.
+    const { data: edits } = await client
+      .from("attendance_day_edits")
+      .select("section_id")
       .eq("date", date)
       .eq("school_id", schoolId);
 
-    const lockedSet = new Set((locks ?? []).map((l: { class_id: string }) => l.class_id));
+    const editedSet = new Set(
+      (edits ?? []).map((e) => e.section_id).filter((id): id is string => id !== null),
+    );
 
     // Both queries per class, and all classes, run concurrently — a sequential
     // await here meant a 40-class school made 80 round trips one at a time
@@ -310,7 +320,7 @@ export const AttendanceService = {
           present: p,
           absent: a,
           dayRatePct,
-          locked: lockedSet.has(cls.id),
+          edited: editedSet.has(cls.id),
         };
       }),
     );

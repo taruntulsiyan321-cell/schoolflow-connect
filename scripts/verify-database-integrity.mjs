@@ -147,10 +147,39 @@ async function main() {
   );
 
   // --- 2026-08-22 code-trace fixes ---
+  // Chunk 4.7 deleted the lock outright, so the two checks that guarded its
+  // shape are replaced by one that guards its absence. Nobody locks anything:
+  // a teacher submits, only an admin edits, forever.
   await check(
-    "attendance_locks.school_id is NOT NULL (a nullable lock-scope column would silently bypass the lock-check trigger)",
-    "SELECT is_nullable FROM information_schema.columns WHERE table_name='attendance_locks' AND column_name='school_id'",
-    (r) => r[0]?.is_nullable === "NO",
+    "the attendance lock is gone — no table, no view, no policy, no function",
+    `SELECT 'relation ' || c.relname AS ref
+       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind IN ('r','v','m')
+        AND c.relname LIKE '%attendance_lock%'
+     UNION ALL
+     SELECT 'policy ' || tablename || '.' || policyname FROM pg_policies
+      WHERE schemaname = 'public'
+        AND (tablename LIKE '%attendance_lock%'
+          OR (coalesce(qual,'') || ' ' || coalesce(with_check,'')) ILIKE '%attendance_lock%')
+     UNION ALL
+     SELECT 'function ' || p.proname
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.prosrc ILIKE '%attendance_lock%'`,
+    (r) => r.length === 0,
+  );
+  await check(
+    "no attendance edit window survives (teacher submits, only admin edits, no time limit)",
+    `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname LIKE '%attendance%'
+        AND p.prosrc ~* '(24 hour|24h|edit_window)'`,
+    (r) => r.length === 0,
+  );
+  await check(
+    "the attendance teacher write policy is INSERT-only — a teacher can never edit a submission",
+    `SELECT cmd FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = 'attendance'
+        AND policyname = 'att teacher write class'`,
+    (r) => r.length === 1 && r[0].cmd === "INSERT",
   );
   await check(
     "no template-path (bank_question_id null) duplicate question_attempts rows",
@@ -511,11 +540,38 @@ async function main() {
         AND conname = 'attendance_status_present_absent_only'`,
     (r) => r.length === 1,
   );
+  // Chunk 4.6 superseded the divergence trigger by removing what could
+  // diverge. The guarantee is now structural rather than enforced: the
+  // columns are gone, so no attendance row can contradict its submission.
   await check(
-    "an attendance row cannot disagree with its submission about section/date (G9 divergence guard)",
+    "attendance carries no copy of section/date — nothing left to diverge from the submission (G9)",
+    `SELECT count(*)::int AS n FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'attendance'
+        AND column_name IN ('class_id','date')`,
+    (r) => r[0].n === 0,
+  );
+  // Named views go stale as views come and go — this asserts the property for
+  // EVERY view instead, so a new one that forgets security_invoker is caught
+  // the first time this runs. A view without it inherits its owner's rights
+  // and becomes a hole around every policy on its base tables.
+  await check(
+    "every view in public is security_invoker (inherits the caller's RLS, not the owner's)",
+    `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'v'
+        AND coalesce(c.reloptions::text, '') NOT LIKE '%security_invoker=true%'`,
+    (r) => r.length === 0,
+  );
+  await check(
+    "the edited-day marker exists and resolves from the attendance edit record",
+    `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'v' AND c.relname = 'attendance_day_edits'`,
+    (r) => r.length === 1,
+  );
+  await check(
+    "one attendance row per student per day survives the constraint swap",
     `SELECT tgname FROM pg_trigger
       WHERE tgrelid = 'public.attendance'::regclass
-        AND tgname = 'trg_attendance_matches_submission' AND NOT tgisinternal`,
+        AND tgname = 'trg_attendance_one_per_day' AND NOT tgisinternal`,
     (r) => r.length === 1,
   );
   await check(

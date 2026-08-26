@@ -580,9 +580,17 @@ edited_at`
 
 ### Rules
 
-- **Class teacher marks**, once per day per section.
-- **Admin may mark on any day, and is the only role that may edit.**
+- **Class teacher marks**, once per day per section. **Teachers can never edit
+  after submitting.**
+- **Admin may mark on any day, and is the only role that may edit — with no time
+  limit.** Admin picks a class and a date, any date, and edits.
+- **There is no edit window and no lock table.** `attendance_locks` is deleted.
+  Nobody closes a day early; nothing expires. This supersedes the earlier
+  24-hour rule.
 - **Principal may never mark or edit.** Enforce in policy, not the UI.
+- **Nothing is ever final**, so there is **no provisional/final distinction.**
+  Any edited day carries a visible marker; tapping it shows what changed, who
+  changed it and when, from `attendance_edits`.
 - **Unmarked today** → not marked; appears on the dashboard as needing attention.
   **Unmarked after the day has closed** → treated as a holiday and **excluded
   from the denominator.** Derived from the absence of a submission plus the date
@@ -601,16 +609,22 @@ edited_at`
    section of 12 and one of 58 and show the weighting is by student.
 5. Principal attempts to mark — rejected by policy.
 6. Principal attempts to edit — rejected by policy.
-7. Admin edits; `attendance_edits` records old value, new value, who, when.
-8. A past date with no submission is excluded from the denominator as a holiday.
-9. **Mid-term joiner — RESOLVED, see §10.27.** Attendance counts from
+7. Admin edits a day from **three months ago** — allowed, no window. Records old
+   value, new value, who, when.
+8. That day now carries an **edited marker**, and the detail resolves from
+   `attendance_edits`.
+9. A teacher attempts to edit their own submission — **rejected by policy.**
+10. `attendance_locks` does not exist anywhere: no table, no view, no policy, no
+    code reference.
+11. A past date with no submission is excluded from the denominator as a holiday.
+12. **Mid-term joiner — RESOLVED, see §10.27.** Attendance counts from
    `enrolment_date`, never from session start. Prove it: seed a joiner at day 20
    whose section submitted 42 days (22 after enrolment), present on 20. Must
    read **91%**, not 48%.
-10. **No attendance flag fires before `MIN_ENROLLED_DAYS_FOR_FLAGS` (10) enrolled
+13. **No attendance flag fires before `MIN_ENROLLED_DAYS_FOR_FLAGS` (10) enrolled
     school days.** Seed a student enrolled 3 days with 1 absence — 67%, below
     threshold, and **must not be flagged.**
-11. A leaver counts to `exit_date`, is **invisible on every live screen**, and
+14. A leaver counts to `exit_date`, is **invisible on every live screen**, and
     **their record is retained** — deleted only through the ordinary year-end
     admin decision. Prove the record survives an exit and that no live query
     returns them.
@@ -1169,7 +1183,31 @@ zero, run the seed, and bring the app up. **This is the only proof that the
 schema is reproducible.** A migration that only works against the current
 database is not a migration; it is a one-off edit that happens to be in a file.
 
-**Sweep 4 — Isolation sweep.** For every table and every role:
+**Sweep 5 — Escape hatches and stale claims.**
+
+**Type escapes.** Found live: `supabase as unknown as { from: ... }` in
+`OperationalCases.tsx`. `ReturnType` on the overloaded `.from` collapses to a
+union of every table, so every query through it typed as "all rows at once" — the
+type system was silently switched off for that path and a schema change was the
+only thing that surfaced it.
+
+- Enumerate every `as unknown as`, `as any`, `@ts-ignore` and
+  `@ts-expect-error` in the repo.
+- For each: what is it hiding, and can it be removed rather than widened.
+- **Removing beats widening.** A widened cast still defeats the checker.
+
+**Views and definers.** Every view and every `SECURITY DEFINER` function:
+confirm `security_invoker = true` on views, and that definers fence themselves.
+A view without it inherits its owner's rights and becomes a hole around every
+policy on its base tables.
+
+**Stale claims in user-facing copy.** Found live: the landing page shows a
+"1 Leave" counter for a status the product no longer has. Sweep marketing copy,
+empty states, placeholder data, help text and the roadmap for anything naming a
+feature that does not exist. A school evaluating the product reads these as
+promises.
+
+**Sweep 6 — Isolation sweep.** For every table and every role:
 - Attempt cross-institution read → must fail
 - Attempt cross-role read → must fail
 - Attempt to read another student's practice → must fail

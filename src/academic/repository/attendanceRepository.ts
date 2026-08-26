@@ -64,7 +64,7 @@ export async function listAttendanceForClassDate(
   if (!dateCheck.ok) throw new ValidationFailedError((dateCheck as { ok: false; issues: unknown[] }).issues as never);
 
   const { data, error } = await getClient(ctx)
-    .from("attendance")
+    .from("attendance_current")
     .select("*")
     .eq("school_id", schoolId)
     .eq("class_id", classId)
@@ -83,7 +83,7 @@ export async function listStudentAttendance(
   const { limit, offset } = normalizePage(page);
 
   const { data, error } = await getClient(ctx)
-    .from("attendance")
+    .from("attendance_current")
     .select("*")
     .eq("school_id", schoolId)
     .eq("student_id", studentId)
@@ -99,38 +99,6 @@ export interface UpsertAttendanceInput {
   classId: string;
   date: string;
   status: AttendanceStatus;
-}
-
-/**
- * Locks apply uniformly, including to admins -- the only way to write a
- * locked day is to explicitly delete the lock first (already a real,
- * separate admin-only action via RLS), never silently through a write path.
- * Enforced here (single-row path) and again inside rpc_bulk_upsert_attendance
- * (bulk path) so neither can be used to bypass the other.
- */
-async function assertClassDateNotLocked(
-  ctx: RepoContext,
-  classId: string,
-  date: string,
-): Promise<void> {
-  const schoolId = schoolIdOf(ctx);
-  const { data: lock, error } = await getClient(ctx)
-    .from("attendance_locks")
-    .select("class_id")
-    .eq("class_id", classId)
-    .eq("date", date)
-    .eq("school_id", schoolId)
-    .maybeSingle();
-  throwIfError(error, "Failed to check attendance lock");
-  if (lock) {
-    throw new ValidationFailedError([
-      {
-        field: "date",
-        code: "locked",
-        message: "Attendance for this class and date is locked and cannot be edited",
-      },
-    ]);
-  }
 }
 
 /**
@@ -175,7 +143,11 @@ export async function upsertAttendance(
     ]);
   }
 
-  await assertClassDateNotLocked(ctx, input.classId, input.date);
+  // Chunk 4.7: there is no lock and no edit window. Whether this write is an
+  // edit, and whether the caller may make it, is decided in exactly one place
+  // -- rpc_ensure_attendance_submission, called just below. A teacher whose
+  // section already has a submission for this date is rejected there; an admin
+  // is not, on any date, forever.
 
   // Chunk 4: attendance_submissions is the authority for whether a section was
   // marked, and its ABSENCE is what "not marked" means. So the register is
@@ -193,21 +165,28 @@ export async function upsertAttendance(
     .from("attendance")
     .upsert(
       {
+        // Chunk 4.6: the record no longer carries its own section or date —
+        // the submission holds them, and it is the authority.
         student_id: input.studentId,
-        class_id: input.classId,
-        date: input.date,
         status: input.status,
         school_id: schoolId,
         marked_by: ctx.userId ?? null,
         submission_id: submissionId as unknown as string,
       },
-      { onConflict: "student_id,date" },
+      { onConflict: "student_id,submission_id" },
     )
     .select("*")
     .single();
 
   throwIfError(error, "Failed to save attendance");
-  return mapRow(data as AttendanceRow);
+  // The upsert returns table columns, and since Chunk 4.6 the table no longer
+  // carries section or date — the submission does. Both are supplied from the
+  // submission this call just ensured, so they are the authority, not a guess.
+  return mapRow({
+    ...(data as Omit<AttendanceRow, "class_id" | "date">),
+    class_id: input.classId,
+    date: input.date,
+  });
 }
 
 /**

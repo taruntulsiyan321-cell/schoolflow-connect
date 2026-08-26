@@ -116,7 +116,7 @@ export default function StudentClassesPage() {
       setSubjects(subs);
 
       const { data: attendance, error: attErr } = await supabase
-        .from("attendance")
+        .from("attendance_current")
         .select("*")
         .eq("student_id", s.id)
         .order("date", { ascending: false })

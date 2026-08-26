@@ -48,8 +48,8 @@ BEGIN
   END LOOP;
   INSERT INTO public.attendance_submissions (school_id, academic_year_id, section_id, date, submitted_by)
   VALUES (_sch, _ay, _secAllAbsent, CURRENT_DATE - 1, _admin) RETURNING id INTO _sub;
-  INSERT INTO public.attendance (school_id, submission_id, student_id, class_id, date, status, marked_by)
-  SELECT _sch, _sub, s.id, _secAllAbsent, CURRENT_DATE - 1, 'absent', _admin
+  INSERT INTO public.attendance (school_id, submission_id, student_id, status, marked_by)
+  SELECT _sch, _sub, s.id, 'absent', _admin
     FROM public.students s WHERE s.class_id = _secAllAbsent;
 
   -- The model's own distinction: a submission exists, or it does not.
@@ -83,15 +83,15 @@ BEGIN
   -- SMALL: 12 of 12 present (100%).
   INSERT INTO public.attendance_submissions (school_id, academic_year_id, section_id, date, submitted_by)
   VALUES (_sch, _ay, _secSmall, CURRENT_DATE - 1, _admin) RETURNING id INTO _sub;
-  INSERT INTO public.attendance (school_id, submission_id, student_id, class_id, date, status, marked_by)
-  SELECT _sch, _sub, s.id, _secSmall, CURRENT_DATE - 1, 'present', _admin
+  INSERT INTO public.attendance (school_id, submission_id, student_id, status, marked_by)
+  SELECT _sch, _sub, s.id, 'present', _admin
     FROM public.students s WHERE s.class_id = _secSmall;
 
   -- BIG: 29 of 58 present (50%).
   INSERT INTO public.attendance_submissions (school_id, academic_year_id, section_id, date, submitted_by)
   VALUES (_sch, _ay, _secBig, CURRENT_DATE - 1, _admin) RETURNING id INTO _sub;
-  INSERT INTO public.attendance (school_id, submission_id, student_id, class_id, date, status, marked_by)
-  SELECT _sch, _sub, s.id, _secBig, CURRENT_DATE - 1,
+  INSERT INTO public.attendance (school_id, submission_id, student_id, status, marked_by)
+  SELECT _sch, _sub, s.id,
          (CASE WHEN row_number() OVER (ORDER BY s.admission_number) <= 29 THEN 'present' ELSE 'absent' END)::public.attendance_status,
          _admin
     FROM public.students s WHERE s.class_id = _secBig;
@@ -149,7 +149,19 @@ BEGIN
   ------------------------------------------------------------------
   SELECT a.id INTO _stu FROM public.attendance a WHERE a.submission_id = _sub LIMIT 1;
   SELECT count(*) INTO _n FROM public.attendance_audit;
+
+  -- The previous block left the principal's JWT claims set after RESET ROLE.
+  -- This UPDATE therefore ran as the table owner with RLS bypassed, while
+  -- auth.uid() still returned the principal — so it recorded the PRINCIPAL as
+  -- the editor one line after item 6 proved the principal cannot edit, and
+  -- proved nothing about admin rights. Run it as the admin, under RLS.
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', _admin, 'role', 'authenticated',
+                      'session_id', gen_random_uuid())::text, true);
+  SET LOCAL ROLE authenticated;
   UPDATE public.attendance SET status = 'absent' WHERE id = _stu AND status::text = 'present';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', NULL, true);
   _r7 := 'attendance_audit rows before=' || _n || ' after=' ||
          (SELECT count(*) FROM public.attendance_audit)::text ||
          ', latest=' ||
@@ -187,8 +199,8 @@ BEGIN
       SELECT id INTO _sub FROM public.attendance_submissions WHERE section_id=_secUnmarked AND date=_d;
     END IF;
     IF _d >= CURRENT_DATE - 22 THEN
-      INSERT INTO public.attendance (school_id, submission_id, student_id, class_id, date, status, marked_by)
-      VALUES (_sch, _sub, _joiner, _secUnmarked, _d,
+      INSERT INTO public.attendance (school_id, submission_id, student_id, status, marked_by)
+      VALUES (_sch, _sub, _joiner,
               (CASE WHEN _i >= 22 AND _i < 24 THEN 'absent' ELSE 'present' END)::public.attendance_status,
               _admin);
     END IF;
@@ -213,8 +225,8 @@ BEGIN
     _d := CURRENT_DATE - 3 + _i;
     SELECT id INTO _sub FROM public.attendance_submissions WHERE section_id=_secUnmarked AND date=_d;
     IF _sub IS NOT NULL THEN
-      INSERT INTO public.attendance (school_id, submission_id, student_id, class_id, date, status, marked_by)
-      VALUES (_sch, _sub, _newbie, _secUnmarked, _d,
+      INSERT INTO public.attendance (school_id, submission_id, student_id, status, marked_by)
+      VALUES (_sch, _sub, _newbie,
               (CASE WHEN _i = 0 THEN 'absent' ELSE 'present' END)::public.attendance_status, _admin);
     END IF;
   END LOOP;

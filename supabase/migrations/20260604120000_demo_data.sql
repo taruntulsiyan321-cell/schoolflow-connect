@@ -249,24 +249,34 @@ BEGIN
   SELECT id INTO sub_yday  FROM public.attendance_submissions
    WHERE section_id = c10a AND date = _today - 1;
 
-  INSERT INTO public.attendance (school_id, submission_id, student_id, class_id, date, status, marked_by) VALUES
-    (_demo_school, sub_today, st1, c10a, _today,     'present', u_t_math),
-    (_demo_school, sub_today, st2, c10a, _today,     'present', u_t_math),
-    (_demo_school, sub_today, st3, c10a, _today,     'absent',  u_t_math),
-    (_demo_school, sub_today, st4, c10a, _today,     'present', u_t_math),
-    (_demo_school, sub_today, st5, c10a, _today,     'absent',  u_t_math),
-    (_demo_school, sub_yday,  st1, c10a, _today - 1, 'present', u_t_math),
-    (_demo_school, sub_yday,  st2, c10a, _today - 1, 'present', u_t_math),
-    (_demo_school, sub_yday,  st3, c10a, _today - 1, 'present', u_t_math),
-    (_demo_school, sub_yday,  st4, c10a, _today - 1, 'absent',  u_t_math),
-    (_demo_school, sub_yday,  st5, c10a, _today - 1, 'present', u_t_math)
-  ON CONFLICT (student_id, date) DO UPDATE SET
-    status = EXCLUDED.status, marked_by = EXCLUDED.marked_by,
-    submission_id = EXCLUDED.submission_id;
+  -- Chunk 4.6: the record carries no section or date of its own — the
+  -- submission it hangs off holds both, and is the authority.
+  INSERT INTO public.attendance (school_id, submission_id, student_id, status, marked_by) VALUES
+    (_demo_school, sub_today, st1, 'present', u_t_math),
+    (_demo_school, sub_today, st2, 'present', u_t_math),
+    (_demo_school, sub_today, st3, 'absent',  u_t_math),
+    (_demo_school, sub_today, st4, 'present', u_t_math),
+    (_demo_school, sub_today, st5, 'absent',  u_t_math),
+    (_demo_school, sub_yday,  st1, 'present', u_t_math),
+    (_demo_school, sub_yday,  st2, 'present', u_t_math),
+    (_demo_school, sub_yday,  st3, 'present', u_t_math),
+    (_demo_school, sub_yday,  st4, 'absent',  u_t_math),
+    (_demo_school, sub_yday,  st5, 'present', u_t_math)
+  ON CONFLICT (student_id, submission_id) DO UPDATE SET
+    status = EXCLUDED.status, marked_by = EXCLUDED.marked_by;
 
-  INSERT INTO public.attendance_locks (school_id, class_id, date, locked_by) VALUES
-    (_demo_school, c10a, _today - 2, u_t_math)
-  ON CONFLICT (class_id, date) DO NOTHING;
+  -- Chunk 4.6: a lock is a property of a submission, so the register for that
+  -- day is marked first and the lock hangs off it.
+  INSERT INTO public.attendance_submissions
+    (school_id, academic_year_id, section_id, date, submitted_by)
+  VALUES (_demo_school, _ay, c10a, _today - 2, u_t_math)
+  ON CONFLICT (section_id, date) DO NOTHING;
+
+  INSERT INTO public.attendance_locks (school_id, submission_id, locked_by)
+  SELECT _demo_school, s.id, u_t_math
+    FROM public.attendance_submissions s
+   WHERE s.section_id = c10a AND s.date = _today - 2
+  ON CONFLICT (submission_id) DO NOTHING;
 
   INSERT INTO public.attendance_audit (class_id, date, student_id, prev_status, new_status, edited_by) VALUES
     (c10a, _today - 2, st3, 'absent', 'present', u_principal);

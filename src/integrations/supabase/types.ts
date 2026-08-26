@@ -1579,9 +1579,7 @@ export type Database = {
       }
       attendance: {
         Row: {
-          class_id: string
           created_at: string
-          date: string
           id: string
           marked_by: string | null
           school_id: string
@@ -1590,9 +1588,7 @@ export type Database = {
           submission_id: string
         }
         Insert: {
-          class_id: string
           created_at?: string
-          date?: string
           id?: string
           marked_by?: string | null
           school_id: string
@@ -1601,9 +1597,7 @@ export type Database = {
           submission_id: string
         }
         Update: {
-          class_id?: string
           created_at?: string
-          date?: string
           id?: string
           marked_by?: string | null
           school_id?: string
@@ -1612,13 +1606,6 @@ export type Database = {
           submission_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "attendance_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "attendance_school_id_fkey"
             columns: ["school_id"]
@@ -1698,6 +1685,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "attendance_audit_attendance_id_fkey"
+            columns: ["attendance_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_current"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "attendance_audit_class_id_fkey"
             columns: ["class_id"]
             isOneToOne: false
@@ -1730,45 +1724,6 @@ export type Database = {
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "attendance_submissions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      attendance_locks: {
-        Row: {
-          class_id: string
-          date: string
-          locked_at: string
-          locked_by: string | null
-          school_id: string
-        }
-        Insert: {
-          class_id: string
-          date: string
-          locked_at?: string
-          locked_by?: string | null
-          school_id: string
-        }
-        Update: {
-          class_id?: string
-          date?: string
-          locked_at?: string
-          locked_by?: string | null
-          school_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "attendance_locks_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_locks_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -7571,6 +7526,77 @@ export type Database = {
       }
     }
     Views: {
+      attendance_current: {
+        Row: {
+          class_id: string | null
+          created_at: string | null
+          date: string | null
+          id: string | null
+          marked_by: string | null
+          school_id: string | null
+          status: Database["public"]["Enums"]["attendance_status"] | null
+          student_id: string | null
+          submission_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_submission_fk"
+            columns: ["submission_id", "school_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_submissions"
+            referencedColumns: ["id", "school_id"]
+          },
+          {
+            foreignKeyName: "attendance_submissions_section_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_day_edits: {
+        Row: {
+          date: string | null
+          edit_count: number | null
+          last_edited_at: string | null
+          last_edited_by: string | null
+          school_id: string | null
+          section_id: string | null
+          students_changed: number | null
+          submission_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_audit_submission_fk"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students_current: {
         Row: {
           academic_year_id: string | null

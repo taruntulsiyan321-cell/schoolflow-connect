@@ -70,9 +70,23 @@ unless explicitly changed later. Where something is still open it is marked
 - **Present / absent only.** No late, no half-day.
 - Marked **once per day per section** by the class teacher.
 - **Admin can mark and edit across all classes.**
-- **Edit window: 24 hours after submission.** Confirmed — this still holds now
-  that admin can also mark. Admin may mark on any day, but once a submission
-  exists, edits to it are limited to 24 hours from `submitted_at`.
+- **No edit window. CHANGED — this supersedes the earlier 24-hour rule.**
+  Once the class teacher submits, **teachers can never edit.** The **admin can
+  edit any date at any time**: pick the class, pick the date, edit.
+- **`attendance_locks` is deleted.** There is no lock table and no lock action.
+  Nobody closes a day early; nothing expires. One rule: teacher submits, only
+  admin edits, forever.
+  Rationale: an explicit lock row and a computed window were two things both
+  answering "is this editable" — G9's shape. The simpler rule needs neither.
+
+**Consequence, accepted:** nothing is ever final, so a figure the principal saw
+in August can differ in March.
+- **The dashboard's provisional/final distinction is removed.** The trend line
+  shows all days, not only "final" ones.
+- **Any edited day carries a visible marker.** Tapping it shows what changed, who
+  changed it and when — `attendance_edits` already records this.
+- Without that marker a number would move with no explanation, which is what
+  destroys trust in the figure.
 - **A submission record is written separately** from the per-student rows:
   section, date, submitted-by, submitted-at. Unique on (section, date).
   Absence of this row is what "not marked" means.

@@ -14,7 +14,7 @@ import { PageHeader, StatCard } from "@/components/ui-bits";
 import {
   Users, GraduationCap, BookOpen, ClipboardCheck, CalendarDays, FileText,
   Activity, Settings, KeyRound, UserCheck, TrendingUp, Database, Wallet, User as UserIcon,
-  Lock, Unlock, History, Check, X, Coffee,
+  History, Check, X, Coffee,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -215,16 +215,9 @@ export function AttendanceOverview() {
     }
   };
 
-  const unlock = async (classId: string) => {
-    const { error } = await supabase
-      .from("attendance_locks")
-      .delete()
-      .eq("class_id", classId)
-      .eq("date", date);
-    if (error) return toast.error(error.message);
-    toast.success("Attendance unlocked for this class");
-    await reload();
-  };
+  // Chunk 4.7: the unlock action is gone because the lock is gone. Nobody
+  // closes a day; an admin edits any date at any time, and the edit shows up
+  // as a marker on that day rather than as a state the day is left in.
 
   if (!ready) {
     return <p className="text-muted-foreground text-center py-12">Loading session…</p>;
@@ -273,16 +266,9 @@ export function AttendanceOverview() {
                   {c.className}-{c.section}
                 </div>
                 <div className="flex items-center gap-2">
-                  {c.locked ? (
-                    <Badge variant="outline" className="gap-1">
-                      <Lock className="w-3 h-3" />
-                      Locked
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      Open
-                    </Badge>
-                  )}
+                  {/* Chunk 4.7: no Locked/Open state — a day is never closed.
+                      What matters is whether the figure changed since it was
+                      submitted, which the Edited marker below carries. */}
                   <Badge variant="outline">{c.dayRatePct}%</Badge>
                 </div>
               </div>
@@ -290,13 +276,11 @@ export function AttendanceOverview() {
                 Present {c.present} · Absent {c.absent} · of{" "}
                 {c.totalStudents} · marked {c.marked}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <Button
                   size="sm"
                   variant="outline"
                   className="flex-1 text-xs"
-                  disabled={c.locked}
-                  title={c.locked ? "Unlock this class/date first to edit attendance" : undefined}
                   onClick={() =>
                     void openEdit({
                       classId: c.classId,
@@ -307,16 +291,14 @@ export function AttendanceOverview() {
                 >
                   Edit Attendance
                 </Button>
-                {c.locked && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs"
-                    onClick={() => void unlock(c.classId)}
+                {c.edited && (
+                  <span
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+                    title="This day was changed after it was first submitted"
                   >
-                    <Unlock className="w-3 h-3 mr-1" />
-                    Unlock
-                  </Button>
+                    <History className="w-3 h-3" />
+                    Edited
+                  </span>
                 )}
               </div>
             </Card>

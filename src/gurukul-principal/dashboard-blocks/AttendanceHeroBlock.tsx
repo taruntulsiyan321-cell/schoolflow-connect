@@ -12,7 +12,9 @@ import { UserCheck, MessageSquare, AlertCircle, TrendingUp } from 'lucide-react'
  * Excludes unmarked classes from denominator (not treated as absent)
  *
  * Always shows coverage line: "across X of Y classes marked"
- * Shows: %, coverage, raw absent count, 7-day trend, provisional marker
+ * Shows: %, coverage, raw absent count, 7-day trend (every day — nothing is
+ * ever final), and an edited marker on any day whose figure changed after
+ * submission.
  * Unmarked classes list INSIDE hero with class teacher names
  */
 
@@ -27,7 +29,12 @@ interface UnmarkedClass {
 interface AttendanceTrend {
   date: string
   percentage: number
-  isFinal: boolean
+  /**
+   * Chunk 4.7: replaces isFinal. No day is ever final, so the trend shows every
+   * day. What a reader needs instead is whether this day's figure changed after
+   * it was submitted — resolved from attendance_day_edits.
+   */
+  edited: boolean
 }
 
 interface AttendanceHeroProps {
@@ -50,7 +57,6 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
   const [totalClasses, setTotalClasses] = useState(0)
   const [unmarked, setUnmarked] = useState<UnmarkedClass[]>([])
   const [trend, setTrend] = useState<AttendanceTrend[]>([])
-  const [isProvisional, setIsProvisional] = useState(true)
 
   useEffect(() => {
     if (!settled || !ctx) return
@@ -86,13 +92,12 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
         setTotalClasses(22) // TODO: Get from school data
         setUnmarked(unmarkedList)
 
-        // Check if edit window has closed (24h)
-        const now = new Date()
-        const todayDate = new Date(today)
-        const hoursSince = (now.getTime() - todayDate.getTime()) / (1000 * 60 * 60)
-        setIsProvisional(hoursSince < 24)
+        // Chunk 4.7: there is no edit window, so there is nothing to be
+        // provisional about. A figure can change on any day, forever; the
+        // honest signal is the edited marker, not a countdown.
 
-        // TODO: Load 7-day trend of FINAL days only
+        // TODO: Load the 7-day trend — every day, not only "final" ones,
+        // flagging each with `edited` from attendance_day_edits.
         setTrend([])
 
       } catch (err) {
@@ -193,18 +198,6 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
         <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           TODAY'S ATTENDANCE
         </div>
-        {isProvisional && hasData && (
-          <div style={{
-            fontSize: '9px',
-            fontWeight: 600,
-            color: '#f59e0b',
-            background: '#fef3c7',
-            padding: '2px 6px',
-            borderRadius: '3px',
-          }}>
-            PROVISIONAL
-          </div>
-        )}
       </div>
 
       {/* Not yet marked state */}
@@ -292,7 +285,7 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
             <TrendingUp size={14} color="#6B7280" />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280' }}>7-DAY TREND (FINAL)</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280' }}>7-DAY TREND</span>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             {trend.map((day) => (
@@ -302,6 +295,10 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
                 </div>
                 <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '2px' }}>
                   {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })}
+                  {/* A figure that moved says so, right where it is read. */}
+                  {day.edited && (
+                    <span title="Changed after it was first submitted" style={{ marginLeft: '3px', color: '#6B7280' }}>*</span>
+                  )}
                 </div>
               </div>
             ))}
