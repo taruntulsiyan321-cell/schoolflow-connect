@@ -471,7 +471,10 @@ export async function projectStudentProgression(
   let snap = null as Awaited<ReturnType<typeof ProgressionService.getForStudent>> | null;
   try {
     snap = await ProgressionService.getForStudent(ctx, studentId);
-  } catch {
+  } catch (e) {
+    // completeness drops to 0.2 below, so the projection already degrades
+    // honestly rather than asserting zeros. G10: log the cause, don't drop it.
+    console.error("projectStudentProgression: snapshot unavailable", e);
     snap = null;
   }
   // The practice weak-concept lookup that used to sit here has been removed.

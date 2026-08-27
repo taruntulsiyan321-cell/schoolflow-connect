@@ -106,8 +106,15 @@ export const MarksService = {
         try {
           await assertMayAccessStudent(ctx, row.studentId);
           allowed.push(row);
-        } catch {
-          // Not this caller's own/linked student -- excluded, not an error.
+        } catch (e) {
+          // G10: this catch swallowed BOTH classes of throw.
+          // assertMayAccessStudent throws ForbiddenError for "not your
+          // student" -- the filter this loop wants -- but it ALSO throws when
+          // the identity lookup itself fails ("Failed to resolve student
+          // identity"). Treating those alike meant a transient DB error
+          // silently DROPPED a mark row, and the student saw a shorter list
+          // that looked complete. Exclude the forbidden; surface the rest.
+          if (!(e instanceof ForbiddenError)) throw e;
         }
       }
       return allowed;

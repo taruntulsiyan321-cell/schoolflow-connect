@@ -717,6 +717,7 @@ function Achievements() {
   const { user } = useAuth();
   const [badges, setBadges] = useState<any[]>([]);
   const [xp, setXp] = useState<any>({ xp: 0, level: 1, study_streak: 0, win_streak: 0, total_battles: 0, wins: 0 });
+  const [xpError, setXpError] = useState(false);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     if (!user) return;
@@ -741,9 +742,13 @@ function Achievements() {
           level_progress_pct: snap.level_progress_pct,
         });
         setBadges(badgeList);
-      } catch {
-        setXp({ xp: 0, level: 1, study_streak: 0, win_streak: 0, total_battles: 0, wins: 0 });
-        setBadges([]);
+      } catch (e) {
+        // G10 + G4: this wrote literal zeros, which render identically to a
+        // genuine new player -- the student sees their real XP, level and
+        // badges wiped, with nothing saying anything failed. A failed load is
+        // now its own state, distinct from "nothing earned yet".
+        console.error("Battleground: progression/badges load failed", e);
+        setXpError(true);
       } finally {
         setLoading(false);
       }
@@ -760,6 +765,15 @@ function Achievements() {
 
   return (
     <div className="space-y-5 animate-rise">
+      {xpError ? (
+        <Card className="p-5 hero-panel">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-foreground/70">Achievements</div>
+          <h1 className="text-2xl font-semibold mt-1 text-foreground">Couldn't load your progress</h1>
+          <div className="text-sm text-foreground/75 mt-1">
+            Your XP and badges are safe — we couldn't reach them just now. Refresh to try again.
+          </div>
+        </Card>
+      ) : (
       <Card className="p-5 hero-panel flex items-center gap-5 flex-wrap">
         <XPRing
           xp={xp.xp}
@@ -781,6 +795,7 @@ function Achievements() {
           </div>
         </div>
       </Card>
+      )}
 
       {user && <BadgeEquipPanel userId={user.id} compact />}
 
@@ -811,6 +826,7 @@ function Achievements() {
 // =================== MY STATS ===================
 function MyStats() {
   const { user } = useAuth();
+  const [xpError, setXpError] = useState(false);
   const [xp, setXp] = useState<any>({
     xp: 0,
     level: 1,
@@ -844,16 +860,11 @@ function MyStats() {
           xp_to_next_level: snap.xp_to_next_level,
           level_progress_pct: snap.level_progress_pct,
         });
-      } catch {
-        setXp({
-          xp: 0,
-          level: 1,
-          study_streak: 0,
-          win_streak: 0,
-          best_win_streak: 0,
-          total_battles: 0,
-          wins: 0,
-        });
+      } catch (e) {
+        // G10 + G4: same fabrication as the Achievements tab -- zeros here are
+        // indistinguishable from a student who has never battled.
+        console.error("MyStats: progression load failed", e);
+        setXpError(true);
       }
       const { data: parts, error: histErr } = await supabase
         .from("battle_participants")
@@ -949,6 +960,15 @@ function MyStats() {
 
   return (
     <div className="space-y-5 animate-rise">
+      {xpError ? (
+        <Card className="p-5 hero-panel">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-foreground/70">Performance</div>
+          <h1 className="text-2xl font-semibold mt-1 text-foreground">Couldn't load your battle profile</h1>
+          <div className="text-sm text-foreground/75 mt-1">
+            Your record is intact — we couldn't reach it just now. Refresh to try again.
+          </div>
+        </Card>
+      ) : (
       <Card className="p-5 hero-panel flex flex-wrap items-center gap-5">
         <XPRing
           xp={xp.xp}
@@ -967,12 +987,13 @@ function MyStats() {
           </div>
         </div>
       </Card>
+      )}
 
       {/* Analytics tiles + accuracy trend */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="p-4"><div className="text-2xl font-semibold text-accent">{analytics.accuracy}%</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Battle accuracy</div></Card>
         <Card className="p-4"><div className="text-2xl font-semibold text-primary">{analytics.avgScore}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Avg score</div></Card>
-        <Card className="p-4"><div className="text-2xl font-semibold text-warning">{xp.best_win_streak ?? 0}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Best win streak</div></Card>
+        <Card className="p-4"><div className="text-2xl font-semibold text-warning">{xpError ? "—" : (xp.best_win_streak ?? 0)}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Best win streak</div></Card>
         <Card className="p-4"><div className="text-2xl font-semibold">{analytics.activeDays}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Active days</div></Card>
       </div>
 

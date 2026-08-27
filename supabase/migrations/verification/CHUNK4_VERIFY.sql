@@ -147,7 +147,23 @@ BEGIN
   ------------------------------------------------------------------
   -- 7. Admin edits; the edit is recorded with old, new, who, when
   ------------------------------------------------------------------
-  SELECT a.id INTO _stu FROM public.attendance a WHERE a.submission_id = _sub LIMIT 1;
+  -- G11, a test must pass for the reason it claims. This used to be an
+  -- unordered LIMIT 1 over the whole submission, while the UPDATE below only
+  -- fires on a row whose status is 'present'. When the arbitrary pick landed
+  -- on an already-absent row the UPDATE matched nothing, no audit row was
+  -- written, and item 7 failed -- reporting "the edit was not recorded" when
+  -- nothing had been edited. The fixture is roughly 59% present, so it failed
+  -- about two runs in five: the intermittent CHUNK4 failure seen since 4.6.
+  -- Pick a row the edit can actually change, deterministically, and refuse to
+  -- report on a fixture that cannot exercise the assertion at all.
+  SELECT a.id INTO _stu
+    FROM public.attendance a
+   WHERE a.submission_id = _sub AND a.status::text = 'present'
+   ORDER BY a.id
+   LIMIT 1;
+  IF _stu IS NULL THEN
+    RAISE EXCEPTION 'item 7 cannot run: submission % has no present row to edit', _sub;
+  END IF;
   SELECT count(*) INTO _n FROM public.attendance_audit;
 
   -- The previous block left the principal's JWT claims set after RESET ROLE.

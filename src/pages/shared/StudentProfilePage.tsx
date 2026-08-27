@@ -39,6 +39,7 @@ export default function StudentProfilePage() {
   // Progression Engine snapshot (never invent XP on the client)
   const [progression, setProgression] = useState<ProgressionSnapshot | null>(null);
   const [classRank, setClassRank] = useState<number | null>(null);
+  const [progressionError, setProgressionError] = useState(false);
   const [strengths, setStrengths] = useState<SubjectStrength[]>([]);
 
   useEffect(() => {
@@ -63,7 +64,13 @@ export default function StudentProfilePage() {
 
       try {
         setProgression(await ProgressionService.getSnapshot(ctx, user.id));
-      } catch {
+      } catch (e) {
+        // G10 + G4: setProgression(null) LOOKS honest, but every reader below
+        // coerces it (`?? 0`, `|| 0`, `?? "Bronze"`), so a failed fetch
+        // rendered as a real profile showing 0 XP, Level 1, Bronze League.
+        // The null was never the problem; the coercion was.
+        console.error("StudentProfilePage: progression snapshot failed", e);
+        setProgressionError(true);
         setProgression(null);
       }
 
@@ -76,8 +83,10 @@ export default function StudentProfilePage() {
         });
         const i = lb.rows.findIndex((r) => r.user_id === user.id);
         setClassRank(i >= 0 ? i + 1 : null);
-      } catch {
+      } catch (e) {
         // No legacy rpc_leaderboard fallback — that path can diverge from Progression SSOT.
+        // Rank genuinely renders as "—" here (G4-honest), but G10: don't discard the cause.
+        console.error("StudentProfilePage: class rank lookup failed", e);
         setClassRank(null);
       }
 
@@ -182,7 +191,17 @@ export default function StudentProfilePage() {
       </Card>
 
       {/* Academic progression identity */}
-      {student && (
+      {student && progressionError && (
+        <Card className="p-5 mb-4 hero-panel">
+          <div className="text-xs uppercase tracking-widest opacity-80 font-semibold mb-2">
+            Academic Progression
+          </div>
+          <div className="text-sm opacity-90">
+            Couldn't load progression right now — nothing has been lost. Refresh to try again.
+          </div>
+        </Card>
+      )}
+      {student && !progressionError && (
         <Card className="p-5 mb-4 hero-panel">
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <XPRing

@@ -640,6 +640,79 @@ async function main() {
     (r) => r[0].n === 0,
   );
 
+  // ---- Chunk 6: tests, exams, report cards -------------------------------
+  // G4. marks_obtained was NOT NULL until Chunk 6, which made "not marked"
+  // inexpressible except as a false 0 — a zero that then entered every
+  // average. Guard the nullability itself, not a sample of rows.
+  await check(
+    "marks.marks_obtained is NULLABLE — 'not marked' is expressible, and is not 0 (G4)",
+    `SELECT is_nullable FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='marks' AND column_name='marks_obtained'`,
+    (r) => r.length === 1 && r[0].is_nullable === "YES",
+  );
+  // G5. Rank is computed on read within the student's own section. Scope this
+  // to the exam/marks/report-card tables: battle_participants.rank is a
+  // finishing position, a recorded outcome, not a derived academic aggregate.
+  await check(
+    "no stored rank/position column on the exam, marks or report-card tables (G5)",
+    `SELECT count(*)::int AS n FROM information_schema.columns
+      WHERE table_schema='public'
+        AND table_name IN ('exams','exam_subjects','marks','report_cards','tests','test_marks')
+        AND (column_name ~ 'rank' OR column_name IN ('position','percentile'))`,
+    (r) => r[0].n === 0,
+  );
+  // A report card must attest to every subject of its exam or not exist. The
+  // guarantee has to live in the database: the service layer is not the only
+  // writer, and service_role bypasses RLS entirely.
+  await check(
+    "the never-partial report card rule is enforced by a trigger, not by the service layer",
+    `SELECT count(*)::int AS n FROM pg_trigger
+      WHERE tgrelid = 'public.report_cards'::regclass
+        AND tgname = 'trg_report_card_requires_every_subject'
+        AND NOT tgisinternal`,
+    (r) => r[0].n === 1,
+  );
+  // Both FKs must be composite. A single-column student_id let a report card
+  // in school A name a student in school B, stopped only by RLS — which does
+  // not apply to SECURITY DEFINER bodies or service_role.
+  await check(
+    "report_cards pins BOTH its exam and its student to its own school by composite FK",
+    `SELECT count(*)::int AS n FROM pg_constraint
+      WHERE conrelid = 'public.report_cards'::regclass AND contype = 'f'
+        AND array_length(conkey, 1) = 2`,
+    (r) => r[0].n === 2,
+  );
+  // MATCH SIMPLE skips a composite FK entirely if ANY referencing column is
+  // NULL, so the pinning above is only real while all four columns are NOT
+  // NULL. Assert that, or the constraint is decorative.
+  await check(
+    "report_cards' composite FK columns are all NOT NULL, so MATCH SIMPLE cannot null-skip them",
+    `SELECT count(*)::int AS n FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='report_cards'
+        AND column_name IN ('exam_id','student_id','school_id')
+        AND is_nullable = 'YES'`,
+    (r) => r[0].n === 0,
+  );
+  // The grain of a mark is (exam_subject, student). Keyed on (exam, student)
+  // a multi-subject exam could hold only one mark per student.
+  await check(
+    "marks are unique per (exam_subject, student) — a multi-subject exam is representable",
+    `SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint
+      WHERE conrelid='public.marks'::regclass AND contype='u'`,
+    (r) => r.some((x) => /\(exam_subject_id,\s*student_id\)/.test(x.def)) &&
+           !r.some((x) => /\(exam_id,\s*student_id\)/.test(x.def)),
+  );
+  // Chunk 6 Section 3 dropped exam_group_id with no written decision; Section
+  // 17 restored it. It is still written by createClassExamGroup and read by
+  // the admin Examinations screen, the teacher live panel and three
+  // marksService paths that lock and publish a group together.
+  await check(
+    "exams.exam_group_id still exists — the code that locks and publishes a group depends on it",
+    `SELECT count(*)::int AS n FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='exams' AND column_name='exam_group_id'`,
+    (r) => r[0].n === 1,
+  );
+
   console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) failed.`}`);
   process.exit(failures === 0 ? 0 : 1);
 }

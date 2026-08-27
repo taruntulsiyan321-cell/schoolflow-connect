@@ -306,18 +306,49 @@ BEGIN
     (exam2, 'Half Yearly — Electricity',  'half_yearly', c10a, 'Physics', 50, _today - 7, u_t_phys)
   ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, exam_date = EXCLUDED.exam_date;
 
-  INSERT INTO public.marks (exam_id, student_id, marks_obtained, remarks) VALUES
-    (exam1, st1, 18, 'Excellent'),
-    (exam1, st2, 16, 'Good'),
-    (exam1, st3, 12, 'Needs practice'),
-    (exam1, st4, 19, 'Top scorer'),
-    (exam1, st5, 14, NULL),
-    (exam2, st1, 42, NULL),
-    (exam2, st2, 38, NULL),
-    (exam2, st3, 45, 'Outstanding'),
-    (exam2, st4, 40, NULL),
-    (exam2, st5, 35, NULL)
-  ON CONFLICT (exam_id, student_id) DO UPDATE SET marks_obtained = EXCLUDED.marks_obtained, remarks = EXCLUDED.remarks;
+  -- Chunk 6 moved a mark's grain from (exam, student) to
+  -- (exam_subject, student), so an exam can hold several subjects. Every exam
+  -- needs its exam_subjects row before its marks can be written. Resolved the
+  -- same way Chunk 6's own backfill resolves it: from the subject text the
+  -- exam already carries, through the section's curriculum.
+  INSERT INTO public.exam_subjects (school_id, exam_id, section_subject_id, scheduled_at)
+  SELECT e.school_id, e.id, ss.id, e.exam_date::timestamptz
+    FROM public.exams e
+    JOIN public.classes c            ON c.id = e.class_id
+    JOIN public.class_groups g       ON g.id = c.class_group_id
+    JOIN public.curriculum_subjects cs
+      ON cs.curriculum_class_id = g.curriculum_class_id AND cs.name = btrim(e.subject)
+    JOIN public.section_subjects ss
+      ON ss.section_id = c.id AND ss.curriculum_subject_id = cs.id
+   WHERE e.id IN (exam1, exam2)
+  ON CONFLICT (exam_id, section_subject_id) DO NOTHING;
+
+  INSERT INTO public.marks (exam_id, exam_subject_id, student_id, marks_obtained, remarks)
+  SELECT v.exam_id, es.id, v.student_id, v.marks, v.remarks
+    FROM (VALUES
+      (exam1, st1, 18, 'Excellent'),
+      (exam1, st2, 16, 'Good'),
+      (exam1, st3, 12, 'Needs practice'),
+      (exam1, st4, 19, 'Top scorer'),
+      (exam1, st5, 14, NULL),
+      (exam2, st1, 42, NULL),
+      (exam2, st2, 38, NULL),
+      (exam2, st3, 45, 'Outstanding'),
+      (exam2, st4, 40, NULL),
+      (exam2, st5, 35, NULL)
+    ) AS v(exam_id, student_id, marks, remarks)
+    JOIN public.exam_subjects es ON es.exam_id = v.exam_id
+  ON CONFLICT (exam_subject_id, student_id) DO UPDATE SET
+    marks_obtained = EXCLUDED.marks_obtained, remarks = EXCLUDED.remarks;
+
+  -- If a subject failed to resolve, the join above would drop those marks
+  -- silently and the seed would report success having written nothing (G10).
+  -- Say so instead.
+  IF (SELECT count(*) FROM public.marks WHERE exam_id IN (exam1, exam2)) < 10 THEN
+    RAISE EXCEPTION
+      'seed: expected 10 marks across exam1/exam2 but found %. An exam_subjects row failed to resolve, so marks were dropped by the join rather than written.',
+      (SELECT count(*) FROM public.marks WHERE exam_id IN (exam1, exam2));
+  END IF;
 
   -- ===================== NOTICES =====================
   INSERT INTO public.notices (id, title, body, audience, class_id, posted_by, expires_at) VALUES

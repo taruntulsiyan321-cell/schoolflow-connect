@@ -332,7 +332,9 @@ export async function publishMarks(ctx: RepoContext, input: PublishMarksInput): 
         remarks: input.remarks ?? null,
         school_id: schoolId,
       },
-      { onConflict: "exam_id,student_id" },
+      // Chunk 6: one mark per student per SUBJECT, not per exam. The old
+      // (exam_id, student_id) target made a multi-subject exam impossible.
+      { onConflict: "exam_subject_id,student_id" },
     )
     .select("*")
     .single();

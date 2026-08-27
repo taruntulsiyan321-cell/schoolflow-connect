@@ -558,8 +558,14 @@ export function PrincipalAttendanceLive() {
                     >
                       {c.dayRatePct}%
                     </td>
-                    <td style={{ padding: "10px 14px", fontSize: 11, color: c.locked ? "var(--emerald)" : "var(--text-muted)" }}>
-                      {c.locked ? "Locked" : "Open"}
+                    {/* Chunk 4.7 replaced `locked` with `edited`: nothing is ever
+                        locked or final, so this column asserted a state the system
+                        no longer has. c.locked was always undefined, which meant it
+                        rendered "Open" for every class on every date regardless of
+                        the truth. What a reader actually needs is whether the day's
+                        figure changed after it was first submitted. */}
+                    <td style={{ padding: "10px 14px", fontSize: 11, color: c.edited ? "var(--amber)" : "var(--text-muted)" }}>
+                      {c.edited ? "Edited" : "As submitted"}
                     </td>
                   </tr>
                 ))}

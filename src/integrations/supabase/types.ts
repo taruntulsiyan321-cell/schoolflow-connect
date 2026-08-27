@@ -3520,8 +3520,64 @@ export type Database = {
           },
         ]
       }
+      exam_subjects: {
+        Row: {
+          created_at: string
+          exam_id: string
+          id: string
+          scheduled_at: string | null
+          school_id: string
+          section_subject_id: string
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          exam_id: string
+          id?: string
+          scheduled_at?: string | null
+          school_id: string
+          section_subject_id: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          exam_id?: string
+          id?: string
+          scheduled_at?: string | null
+          school_id?: string
+          section_subject_id?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_subjects_exam_fk"
+            columns: ["exam_id", "school_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id", "school_id"]
+          },
+          {
+            foreignKeyName: "exam_subjects_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_subjects_section_subject_fk"
+            columns: ["section_subject_id", "school_id"]
+            isOneToOne: false
+            referencedRelation: "section_subjects"
+            referencedColumns: ["id", "school_id"]
+          },
+        ]
+      }
       exams: {
         Row: {
+          academic_year_id: string | null
           chapters: string[] | null
           class_id: string
           created_at: string
@@ -3538,6 +3594,7 @@ export type Database = {
           meta: Json
           name: string
           passing_marks: number | null
+          previous_exam_id: string | null
           results_published_at: string | null
           scheduled_publish_at: string | null
           school_id: string | null
@@ -3548,6 +3605,7 @@ export type Database = {
           topics: string[] | null
         }
         Insert: {
+          academic_year_id?: string | null
           chapters?: string[] | null
           class_id: string
           created_at?: string
@@ -3564,6 +3622,7 @@ export type Database = {
           meta?: Json
           name: string
           passing_marks?: number | null
+          previous_exam_id?: string | null
           results_published_at?: string | null
           scheduled_publish_at?: string | null
           school_id?: string | null
@@ -3574,6 +3633,7 @@ export type Database = {
           topics?: string[] | null
         }
         Update: {
+          academic_year_id?: string | null
           chapters?: string[] | null
           class_id?: string
           created_at?: string
@@ -3590,6 +3650,7 @@ export type Database = {
           meta?: Json
           name?: string
           passing_marks?: number | null
+          previous_exam_id?: string | null
           results_published_at?: string | null
           scheduled_publish_at?: string | null
           school_id?: string | null
@@ -3601,10 +3662,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "exams_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "exams_class_id_fkey"
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exams_previous_exam_id_fkey"
+            columns: ["previous_exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
             referencedColumns: ["id"]
           },
           {
@@ -3698,15 +3773,21 @@ export type Database = {
       }
       homework: {
         Row: {
+          academic_year_id: string | null
           archived_at: string | null
+          assigned_date: string | null
           attachment_url: string | null
           attachments: Json | null
+          chapter_id: string | null
           class_id: string
+          closes_at: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           description: string | null
           difficulty: string | null
-          due_date: string | null
+          due_date: string
           due_time: string | null
           estimated_minutes: number | null
           external_links: Json | null
@@ -3721,21 +3802,30 @@ export type Database = {
           status: string
           subject: string
           subject_id: string | null
+          submission_mode: Database["public"]["Enums"]["homework_submission_mode"]
           tags: string[] | null
           title: string
+          topic: string | null
+          topic_id: string | null
           updated_at: string
           work_kind: string
         }
         Insert: {
+          academic_year_id?: string | null
           archived_at?: string | null
+          assigned_date?: string | null
           attachment_url?: string | null
           attachments?: Json | null
+          chapter_id?: string | null
           class_id: string
+          closes_at?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
           difficulty?: string | null
-          due_date?: string | null
+          due_date: string
           due_time?: string | null
           estimated_minutes?: number | null
           external_links?: Json | null
@@ -3750,21 +3840,30 @@ export type Database = {
           status?: string
           subject?: string
           subject_id?: string | null
+          submission_mode?: Database["public"]["Enums"]["homework_submission_mode"]
           tags?: string[] | null
           title: string
+          topic?: string | null
+          topic_id?: string | null
           updated_at?: string
           work_kind?: string
         }
         Update: {
+          academic_year_id?: string | null
           archived_at?: string | null
+          assigned_date?: string | null
           attachment_url?: string | null
           attachments?: Json | null
+          chapter_id?: string | null
           class_id?: string
+          closes_at?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
           difficulty?: string | null
-          due_date?: string | null
+          due_date?: string
           due_time?: string | null
           estimated_minutes?: number | null
           external_links?: Json | null
@@ -3779,12 +3878,29 @@ export type Database = {
           status?: string
           subject?: string
           subject_id?: string | null
+          submission_mode?: Database["public"]["Enums"]["homework_submission_mode"]
           tags?: string[] | null
           title?: string
+          topic?: string | null
+          topic_id?: string | null
           updated_at?: string
           work_kind?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "homework_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "homework_class_id_fkey"
             columns: ["class_id"]
@@ -3811,6 +3927,222 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework_answers: {
+        Row: {
+          answer: string | null
+          answered_at: string
+          chapter_id: string | null
+          graded_at: string | null
+          graded_by: string | null
+          homework_id: string
+          id: string
+          is_correct: boolean | null
+          question_id: string
+          school_id: string
+          student_id: string
+          time_taken_seconds: number | null
+          topic_id: string | null
+        }
+        Insert: {
+          answer?: string | null
+          answered_at?: string
+          chapter_id?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
+          homework_id: string
+          id?: string
+          is_correct?: boolean | null
+          question_id: string
+          school_id: string
+          student_id: string
+          time_taken_seconds?: number | null
+          topic_id?: string | null
+        }
+        Update: {
+          answer?: string | null
+          answered_at?: string
+          chapter_id?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
+          homework_id?: string
+          id?: string
+          is_correct?: boolean | null
+          question_id?: string
+          school_id?: string
+          student_id?: string
+          time_taken_seconds?: number | null
+          topic_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_answers_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_answers_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homework"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_answers_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_answers_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_answers_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_answers_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework_completions: {
+        Row: {
+          comment: string | null
+          homework_id: string
+          id: string
+          marked_at: string
+          marked_by: string | null
+          school_id: string
+          status: Database["public"]["Enums"]["homework_completion_status"]
+          student_id: string
+        }
+        Insert: {
+          comment?: string | null
+          homework_id: string
+          id?: string
+          marked_at?: string
+          marked_by?: string | null
+          school_id: string
+          status: Database["public"]["Enums"]["homework_completion_status"]
+          student_id: string
+        }
+        Update: {
+          comment?: string | null
+          homework_id?: string
+          id?: string
+          marked_at?: string
+          marked_by?: string | null
+          school_id?: string
+          status?: Database["public"]["Enums"]["homework_completion_status"]
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_completions_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homework"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_completions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_completions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_completions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework_questions: {
+        Row: {
+          created_at: string
+          homework_id: string
+          id: string
+          question_id: string
+          school_id: string
+          sequence: number
+        }
+        Insert: {
+          created_at?: string
+          homework_id: string
+          id?: string
+          question_id: string
+          school_id: string
+          sequence: number
+        }
+        Update: {
+          created_at?: string
+          homework_id?: string
+          id?: string
+          question_id?: string
+          school_id?: string
+          sequence?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_questions_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homework"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_questions_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_questions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -4140,8 +4472,9 @@ export type Database = {
         Row: {
           created_at: string
           exam_id: string
+          exam_subject_id: string | null
           id: string
-          marks_obtained: number
+          marks_obtained: number | null
           remarks: string | null
           school_id: string | null
           student_id: string
@@ -4149,8 +4482,9 @@ export type Database = {
         Insert: {
           created_at?: string
           exam_id: string
+          exam_subject_id?: string | null
           id?: string
-          marks_obtained?: number
+          marks_obtained?: number | null
           remarks?: string | null
           school_id?: string | null
           student_id: string
@@ -4158,8 +4492,9 @@ export type Database = {
         Update: {
           created_at?: string
           exam_id?: string
+          exam_subject_id?: string | null
           id?: string
-          marks_obtained?: number
+          marks_obtained?: number | null
           remarks?: string | null
           school_id?: string | null
           student_id?: string
@@ -5729,6 +6064,62 @@ export type Database = {
           },
           {
             foreignKeyName: "recovery_assignments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      report_cards: {
+        Row: {
+          exam_id: string
+          generated_at: string
+          id: string
+          pdf_url: string | null
+          school_id: string
+          student_id: string
+        }
+        Insert: {
+          exam_id: string
+          generated_at?: string
+          id?: string
+          pdf_url?: string | null
+          school_id: string
+          student_id: string
+        }
+        Update: {
+          exam_id?: string
+          generated_at?: string
+          id?: string
+          pdf_url?: string | null
+          school_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_cards_exam_fk"
+            columns: ["exam_id", "school_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id", "school_id"]
+          },
+          {
+            foreignKeyName: "report_cards_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_cards_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_cards_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students_current"
@@ -7435,6 +7826,135 @@ export type Database = {
           },
         ]
       }
+      test_marks: {
+        Row: {
+          created_at: string
+          id: string
+          mark: number | null
+          school_id: string
+          student_id: string
+          test_id: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mark?: number | null
+          school_id: string
+          student_id: string
+          test_id: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mark?: number | null
+          school_id?: string
+          student_id?: string
+          test_id?: string
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_marks_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_marks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_marks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_marks_test_fk"
+            columns: ["test_id", "school_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id", "school_id"]
+          },
+        ]
+      }
+      tests: {
+        Row: {
+          academic_year_id: string | null
+          created_at: string
+          created_by: string | null
+          date: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          max_mark: number
+          school_id: string
+          section_subject_id: string
+          status: string
+          submitted_at: string | null
+          topic: string | null
+        }
+        Insert: {
+          academic_year_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          max_mark: number
+          school_id: string
+          section_subject_id: string
+          status?: string
+          submitted_at?: string | null
+          topic?: string | null
+        }
+        Update: {
+          academic_year_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          max_mark?: number
+          school_id?: string
+          section_subject_id?: string
+          status?: string
+          submitted_at?: string | null
+          topic?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tests_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tests_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tests_section_subject_fk"
+            columns: ["section_subject_id", "school_id"]
+            isOneToOne: false
+            referencedRelation: "section_subjects"
+            referencedColumns: ["id", "school_id"]
+          },
+        ]
+      }
       timetable_slots: {
         Row: {
           class_id: string
@@ -7502,6 +8022,38 @@ export type Database = {
             columns: ["teacher_id"]
             isOneToOne: false
             referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topics: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topics_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
             referencedColumns: ["id"]
           },
         ]
@@ -7589,10 +8141,24 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "attendance_audit_submission_fk"
+            foreignKeyName: "attendance_audit_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "attendance_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_submissions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_submissions_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
             referencedColumns: ["id"]
           },
         ]
@@ -8305,6 +8871,18 @@ export type Database = {
       }
       ai_session_memory_read: { Args: { p_session_id: string }; Returns: Json }
       bump_ai_answer_cache_hit: { Args: { p_id: string }; Returns: undefined }
+      can_manage_exam: { Args: { _exam_id: string }; Returns: boolean }
+      can_manage_homework: { Args: { _homework_id: string }; Returns: boolean }
+      can_manage_test: { Args: { _test_id: string }; Returns: boolean }
+      can_read_mark: {
+        Args: { _exam_id: string; _student_id: string }
+        Returns: boolean
+      }
+      can_read_test: { Args: { _test_id: string }; Returns: boolean }
+      can_upload_exam_marks: {
+        Args: { _exam_subject_id: string }
+        Returns: boolean
+      }
       chat_attachment_url_allowed: {
         Args: { _uid?: string; _url: string }
         Returns: boolean
@@ -8432,6 +9010,7 @@ export type Database = {
         Args: { _conversation_id: string; _user_id?: string }
         Returns: boolean
       }
+      is_class_of_my_child: { Args: { _class_id: string }; Returns: boolean }
       is_class_teacher_of_class: {
         Args: { _class_id: string; _uid: string }
         Returns: boolean
@@ -8440,6 +9019,8 @@ export type Database = {
         Args: { _student_id: string; _uid: string }
         Returns: boolean
       }
+      is_my_child: { Args: { _student_id: string }; Returns: boolean }
+      is_my_student_record: { Args: { _student_id: string }; Returns: boolean }
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       link_portal_on_auth: { Args: { _uid?: string }; Returns: undefined }
@@ -8489,6 +9070,8 @@ export type Database = {
         Args: { _school_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      my_children_class_ids: { Args: never; Returns: string[] }
+      my_children_student_ids: { Args: never; Returns: string[] }
       normalize_phone: { Args: { _raw: string }; Returns: string }
       process_academic_event: { Args: { _event_id: string }; Returns: boolean }
       process_pending_academic_events: {
@@ -8605,6 +9188,10 @@ export type Database = {
           wins: number
           xp: number
         }[]
+      }
+      rpc_close_homework: {
+        Args: { _early?: boolean; _homework_id: string }
+        Returns: Json
       }
       rpc_complete_recovery_assignment: {
         Args: {
@@ -9092,6 +9679,7 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_purge_deleted_homework: { Args: never; Returns: number }
       rpc_record_community_doubt_view: {
         Args: { _doubt_id: string }
         Returns: number
@@ -9508,6 +10096,8 @@ export type Database = {
         | "surprise_test"
       fee_status: "paid" | "unpaid" | "partial"
       gender_type: "male" | "female" | "other" | "unspecified"
+      homework_completion_status: "completed" | "not_completed" | "absent"
+      homework_submission_mode: "none" | "digital" | "upload"
       identifier_type: "phone" | "email"
       institution_status: "active" | "suspended" | "deleted"
       invitation_status:
@@ -9715,6 +10305,8 @@ export const Constants = {
       ],
       fee_status: ["paid", "unpaid", "partial"],
       gender_type: ["male", "female", "other", "unspecified"],
+      homework_completion_status: ["completed", "not_completed", "absent"],
+      homework_submission_mode: ["none", "digital", "upload"],
       identifier_type: ["phone", "email"],
       institution_status: ["active", "suspended", "deleted"],
       invitation_status: [

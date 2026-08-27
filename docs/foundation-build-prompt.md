@@ -111,7 +111,8 @@ time, and they catch what a chunk broke somewhere else.
 | Tenant-scope lint | lint-tenant-scope | pass |
 | Leak survey | cross-institution survey | 0 leaking pairs |
 | **Seed** | `npm run db:seed` **in a rolled-back transaction** | executes end to end |
-| Live smoke | open each role's main screens | loads, no console errors, no `undefined%` |
+| Live smoke | open each role's main screens | loads, no console errors, no `undefined%`, **no 5xx** |
+| Query timing | heaviest query per touched table, per role | reported; nothing within 2× the statement timeout |
 
 **On the smoke gate and passwords:** do not type passwords into login forms, even
 for seeded demo accounts. Authenticate **programmatically** instead — mint a
@@ -133,6 +134,42 @@ finding even when the chunk's own verification passed.
 timestamps, ledger position, or the commit that introduced it. Do not silently
 inherit someone else's failure, and do not claim one is pre-existing without
 evidence.
+
+### G12. A policy that times out is a broken feature
+
+**Found live:** the parent panel returned **HTTP 500 in production** — 33 seconds
+against an 8-second statement timeout, on ten visible rows. Not slow. Broken.
+
+**Root cause, one pattern repeated 31 times across 17 tables:** a policy that
+reaches another RLS-protected table pays that table's **entire policy stack, per
+candidate row.** `EXISTS (SELECT 1 FROM students …)` re-evaluates `students`'
+policies for every row considered. A single count over `students` as a parent
+cost 375 ms; multiplied per row, it timed out.
+
+**This gets worse with every chunk.** Each new table adds policies; each policy
+that reaches a protected table multiplies. Chunk 1's role binding is what turned
+cheap column comparisons into expensive lookups — the cost was created by
+correct work, and only surfaced when something finally measured it.
+
+**Rules:**
+
+- **A policy must not nest RLS.** Where a policy needs a fact from another
+  protected table, resolve it through a `SECURITY DEFINER` helper so the inner
+  table's stack runs once, not per row.
+- **A helper that bypasses RLS must re-state every guarantee it bypassed** —
+  active role, active local person, institution — and assert them. Otherwise the
+  optimisation becomes a privacy hole. `can_manage_homework` shipped with no
+  institution check on its `created_by` arm; a teacher who changed schools could
+  still manage homework from the old one.
+- **Duplicate permissive policies are pure cost.** `homework_submissions` carried
+  ten, five of them duplicates. G9's two-sources-of-truth, showing up as latency.
+- **Measure, then measure again.** The first fix took 33s → 14.5s — still a 500.
+  The remaining cost had moved into a policy written during the fix. Never assume
+  a fix landed; re-run the timing.
+
+**Per chunk:** for every table the chunk touches, time the heaviest realistic
+query **as each role that can read it**, and report the numbers. Anything within
+2× of the statement timeout is a finding, not a footnote.
 
 ### G11. A test must pass for the reason it claims
 
