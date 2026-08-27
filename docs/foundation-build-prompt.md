@@ -111,7 +111,15 @@ time, and they catch what a chunk broke somewhere else.
 | Tenant-scope lint | lint-tenant-scope | pass |
 | Leak survey | cross-institution survey | 0 leaking pairs |
 | **Seed** | `npm run db:seed` **in a rolled-back transaction** | executes end to end |
-| Live smoke | log in as each role, open its main screens | loads, no console errors, no `undefined%` |
+| Live smoke | open each role's main screens | loads, no console errors, no `undefined%` |
+
+**On the smoke gate and passwords:** do not type passwords into login forms, even
+for seeded demo accounts. Authenticate **programmatically** instead — mint a
+session for each role via the auth admin API or a signed test JWT, set it, and
+drive the screens from there. This is more reliable than form entry, works
+unattended, and keeps credentials out of the loop entirely. If a role's session
+cannot be created programmatically, report the gate as **incomplete** rather than
+passed.
 
 **The seed gate exists because it was broken four independent ways and nobody
 noticed.** Three of those breaks predated the foundation work, which means no
@@ -151,6 +159,17 @@ A failure gets investigated. A false pass closes the question.
 - **Verification files rot.** A schema change can make one unrunnable or silently
   vacuous. Re-run prior chunks' verification files as part of G8, and report any
   that no longer execute.
+- **Assert the guarantee, not a snapshot.** Found live: `CHUNK2_VERIFY` asserted
+  "18 foreign keys exist" when the actual guarantee was *"do not re-point the
+  existing FKs."* Two later left deliberately, so a correct build failed a
+  correct test. Its topics assertion had the same shape — it encoded "no topics
+  table ever" when the rule was "don't derive one from the legacy bank."
+  A snapshot test fails on legitimate change, and the pressure is then to weaken
+  or delete it. **Write what must remain true, not what happens to be true
+  today.**
+- **This rule applies to your own tooling.** A verification runner that
+  misreports is the same defect class. Classify on structural signals — SQLSTATE,
+  exit codes — never on matching report wording.
 
 ### G10. No swallowed failures
 

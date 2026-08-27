@@ -595,7 +595,18 @@ Admin can also create further admins.
   homework analysis rolls up to chapter anyway.
 
 **Topic is picked from the chapter's existing topics, or added.**
-- Per question, not per test.
+
+**Where the topic lives depends on the kind of homework** (see 10.24):
+
+| Kind | Topic sits on |
+|---|---|
+| MCQs in the app | **Each question.** Per question, not per test. |
+| Image worksheet | **The homework itself** — there are no questions to hang it on |
+| Typed instructions | **The homework itself** — same reason |
+
+Tests always carry topic **per question**, since a test always has questions.
+A chapter is required wherever a topic is set; a topic only means something
+inside its chapter, and that pairing is enforced.
 - The teacher sees topics already used in that chapter and picks one, or adds a
   new one only when nothing fits.
 - **AI-generated questions follow the same rule** — pick an existing topic where
