@@ -2447,7 +2447,12 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   const [homework, setHomework] = useState<InsightHwRow[]>([]);
   const [tests, setTests] = useState<InsightTestRow[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
-  const [pendingExams, setPendingExams] = useState<ExamRecord[]>([]);
+  // A pending row is { exam, subject } — one per SUBJECT still awaiting
+  // marks — not an ExamRecord. Typed as ExamRecord it compiled against the
+  // wrong shape and the merge below read e.id off an object that has none.
+  // Same derived-alias idiom this file already uses at listExamSittingsForClass.
+  type PendingSubjectRow = Awaited<ReturnType<typeof MarksService.listMyPendingSubjectExams>>[number];
+  const [pendingExams, setPendingExams] = useState<PendingSubjectRow[]>([]);
   const [progression, setProgression] = useState<TeacherProgressionInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -2567,7 +2572,12 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     for (const e of exams) {
       if (!e.marksLocked && !e.resultsPublishedAt) byId.set(e.id, e);
     }
-    for (const e of pendingExams) byId.set(e.id, e);
+    // Was: byId.set(e.id, e) — e.id is undefined on a { exam, subject } row,
+    // so every pending subject overwrote a single entry keyed undefined and the
+    // panel rendered one malformed row instead of the exams awaiting marks.
+    // Several subjects of one exam collapse to that exam, which is what a list
+    // of "exams awaiting marks" should show.
+    for (const { exam } of pendingExams) byId.set(exam.id, exam);
     return [...byId.values()];
   }, [exams, pendingExams]);
 

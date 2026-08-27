@@ -130,6 +130,20 @@ the day it matters most — a new developer, a staging rebuild, a recovery.
 **Report the output of every gate, every chunk.** A gate that regressed is a
 finding even when the chunk's own verification passed.
 
+**A skipped check is not a passing check.** Found live: the smoke gate reported
+"5 skipped / PASS" without `SMOKE_SESSIONS` and exited 0 — asserting nothing
+while reporting success. Same shape as a swallowed catch, one level up.
+A gate that cannot run must **fail**, not skip.
+
+**Every gate needs a negative control.** Prove it can fail: break the thing it
+guards, confirm it reports failure, restore. A gate never seen to fail is a gate
+never seen to work.
+
+**The seed must cover every table the gates measure.** `tests`, `test_marks` and
+`report_cards` hold zero rows, so the timing gate measures nothing for them —
+blind precisely where the newest tables are. Seed realistic volume into every
+table a gate inspects, or the gate is decorative there.
+
 **Capture artifacts on every gate failure, including intermittent ones.** A
 failure seen once and lost cannot be diagnosed, and reporting it as unexplained —
 while correct — leaves it open. Configure retries to preserve traces, screenshots
@@ -956,6 +970,52 @@ teacher live panel, and three `marksService` paths.
    silently last time.
 3. A multi-subject sitting holds one mark per student **per subject**.
 4. Existing exams keep their groupings; no marks moved.
+
+**STOP. Wait for approval.**
+
+---
+
+# CHUNK 6.6 — RESTRUCTURE `can_read_mark`
+
+**Not deferrable. The demo data is what makes it look deferrable.**
+
+`marks` as a parent costs **24.61 ms per candidate row**. Candidates scale with
+**total marks in the school**, not with the rows the parent can see.
+
+| Marks in school | Cost | Result |
+|---|---|---|
+| 26 (demo today) | 0.6 s | fine |
+| 200 | 4.9 s | under the 8 s timeout |
+| **2,500** (210 students × 6 subjects × 2 exams) | **~60 s** | **HTTP 500** |
+
+A real school is past the timeout on a parent's first login. This is the identical
+failure the parent panel already had — found in production then, found before it
+now.
+
+**Root cause:** `can_read_mark` takes two per-row arguments, so Postgres
+re-invokes the entire function per row. Contrast `active_membership_role()` at
+0.06 ms, which takes no argument and is cached per statement.
+
+### Do
+
+1. Restructure so the expensive resolution happens **once per statement**, not
+   once per row — argument-free cached helpers, or a set-based pre-resolution the
+   policy joins against.
+2. Keep role dispatch first (G12).
+3. **Re-state every guarantee any `SECURITY DEFINER` helper bypasses** — active
+   role, active local person, institution — and assert them.
+4. Preserve the super-admin arm explicitly. A super admin acting in a granted
+   institution has no membership row, so dispatching on
+   `active_membership_role()` alone silently revokes them.
+
+### Verify
+
+1. Seed **2,500+ marks** and measure as parent, student, teacher, principal,
+   admin. **No path may exceed 2 s.**
+2. Per-candidate cost reported for each role, and what it becomes at 10,000 rows.
+3. Every isolation guarantee still holds — re-run the leak survey and the
+   cross-role checks. **A performance fix that opens a hole is a worse bug.**
+4. Super admin can still read and upload in a granted institution.
 
 **STOP. Wait for approval.**
 

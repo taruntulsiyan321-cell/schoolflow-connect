@@ -18,11 +18,22 @@ export default defineConfig({
   // reading history at the same moment corrupt each other's "before/after"
   // counts. Correctness requires full serialization here, not just speed.
   workers: 1,
+  // Deliberately 0. retries:1 would make an intermittent failure report as
+  // "flaky" and still exit 0 — the same shape as the skipped-check-reported-
+  // as-pass this suite already had to fix. A gate that goes green while
+  // something failed is worse than a noisy one.
   retries: 0,
   // Default 30s is too tight for this live, network-dependent app --
   // session-restore/cold-load has been observed taking up to ~28s on its own.
   timeout: 60000,
   reporter: [["list"]],
+  // Playwright wipes its output directory at the start of every run, so the
+  // artifacts of a failure are destroyed by the next run. That is how a smoke
+  // failure seen once in Chunk 6 became permanently undiagnosable: five
+  // passing runs later there was nothing left to read. Stamping the directory
+  // per run keeps each failure's trace, screenshot and console output where
+  // they can still be opened after the fact.
+  outputDir: `test-results/run-${process.env.PW_RUN_ID ?? new Date().toISOString().replace(/[:.]/g, "-")}`,
   use: {
     baseURL,
     trace: "retain-on-failure",
