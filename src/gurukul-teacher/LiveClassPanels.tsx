@@ -1822,10 +1822,13 @@ export function LiveExamsMarksTab({
 }) {
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["marks", "examination", "profile"]);
-  type ExamGroup = Awaited<ReturnType<typeof MarksService.listExamGroupsForClass>>[number];
+  // A sitting (§10.22): one exam covering one or more subjects. What used to
+  // be a client-side grouping of sibling exam rows is now the exam row itself.
+  type ExamSitting = Awaited<ReturnType<typeof MarksService.listExamSittingsForClass>>[number];
+  type PendingSubject = Awaited<ReturnType<typeof MarksService.listMyPendingSubjectExams>>[number];
 
-  const [groups, setGroups] = useState<ExamGroup[]>([]);
-  const [pending, setPending] = useState<ExamRecord[]>([]);
+  const [groups, setGroups] = useState<ExamSitting[]>([]);
+  const [pending, setPending] = useState<PendingSubject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
@@ -1840,8 +1843,11 @@ export function LiveExamsMarksTab({
     examType: "unit_test",
     defaultMaxMarks: "100",
   });
-  const [activeExam, setActiveExam] = useState<ExamRecord | null>(null);
-  const [activeGroup, setActiveGroup] = useState<ExamGroup | null>(null);
+  // Marks are entered for one SUBJECT of one sitting, so the open marks sheet
+  // has to carry both — the sitting for max marks and lock state, the subject
+  // for the anchor every mark is written against.
+  const [activeSubject, setActiveSubject] = useState<PendingSubject | null>(null);
+  const [activeSitting, setActiveSitting] = useState<ExamSitting | null>(null);
   const [roster, setRoster] = useState<ClassStudentRow[]>([]);
   const [marksDraft, setMarksDraft] = useState<Record<string, string>>({});
   const [marksLoading, setMarksLoading] = useState(false);
@@ -1853,7 +1859,7 @@ export function LiveExamsMarksTab({
     if (!quiet) setLoading(true);
     try {
       const [g, p] = await Promise.all([
-        MarksService.listExamGroupsForClass(ctx, classId),
+        MarksService.listExamSittingsForClass(ctx, classId),
         MarksService.listMyPendingSubjectExams(ctx, classId),
       ]);
       setGroups(g);
@@ -1920,10 +1926,11 @@ export function LiveExamsMarksTab({
     }
   };
 
-  const openMarks = async (exam: ExamRecord, editable: boolean) => {
+  const openMarks = async (item: PendingSubject, editable: boolean) => {
     if (!ctx) return;
-    setActiveExam(exam);
-    setActiveGroup(null);
+    const { exam } = item;
+    setActiveSubject(item);
+    setActiveSitting(null);
     setCanEditActive(editable && !exam.marksLocked && !exam.resultsPublishedAt);
     setMarksLoading(true);
     setError(null);
@@ -1945,13 +1952,14 @@ export function LiveExamsMarksTab({
     }
   };
 
-  const openGroupReview = (g: ExamGroup) => {
-    setActiveGroup(g);
-    setActiveExam(null);
+  const openSittingReview = (g: ExamSitting) => {
+    setActiveSitting(g);
+    setActiveSubject(null);
   };
 
   const saveMarks = async () => {
-    if (!ctx || !activeExam || !canEditActive) return;
+    if (!ctx || !activeSubject || !canEditActive) return;
+    const { exam, subject } = activeSubject;
     const rows = Object.entries(marksDraft)
       .filter(([, v]) => v !== "" && !Number.isNaN(Number(v)))
       .map(([studentId, v]) => ({ studentId, marksObtained: Number(v) }));
@@ -1959,19 +1967,22 @@ export function LiveExamsMarksTab({
       setError("Enter at least one mark");
       return;
     }
-    const outOfRange = rows.some((r) => r.marksObtained < 0 || r.marksObtained > activeExam.maxMarks);
+    const outOfRange = rows.some((r) => r.marksObtained < 0 || r.marksObtained > exam.maxMarks);
     if (outOfRange) {
-      setError(`Marks must be between 0 and ${activeExam.maxMarks} (this exam's max marks)`);
+      setError(`Marks must be between 0 and ${exam.maxMarks} (this exam's max marks)`);
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await MarksService.publishBatch(ctx, activeExam.id, rows);
+      // Named subject, not inferred: a sitting covering several subjects has
+      // no single answer, and writing the mark against the wrong one would
+      // look identical to writing it against the right one.
+      await MarksService.publishBatch(ctx, exam.id, rows, subject.examSubjectId);
       showFlash("Marks saved");
       await reload();
-      const refreshed = await MarksService.getExam(ctx, activeExam.id);
-      setActiveExam(refreshed);
+      const refreshed = await MarksService.getExam(ctx, exam.id);
+      setActiveSubject({ exam: refreshed, subject });
     } catch (e) {
       setError(toErrorMessage(e, "Failed to save marks"));
     } finally {
@@ -1979,14 +1990,14 @@ export function LiveExamsMarksTab({
     }
   };
 
-  const finalizeGroup = async (examId: string) => {
+  const finalizeSitting = async (examId: string) => {
     if (!ctx) return;
     setSaving(true);
     setError(null);
     try {
       await MarksService.finalizeMarks(ctx, examId);
       showFlash("Exam finalized — marks locked");
-      setActiveGroup(null);
+      setActiveSitting(null);
       await reload();
     } catch (e) {
       setError(toErrorMessage(e, "Finalize failed"));
@@ -1995,14 +2006,14 @@ export function LiveExamsMarksTab({
     }
   };
 
-  const publishGroup = async (examId: string) => {
+  const publishSitting = async (examId: string) => {
     if (!ctx) return;
     setSaving(true);
     setError(null);
     try {
       await MarksService.publishResults(ctx, examId);
       showFlash("Results published to students & parents");
-      setActiveGroup(null);
+      setActiveSitting(null);
       await reload();
     } catch (e) {
       setError(toErrorMessage(e, "Publish results failed"));
@@ -2013,12 +2024,13 @@ export function LiveExamsMarksTab({
 
   if (loading) return <Loading label="Loading exams…" />;
 
-  if (activeExam) {
+  if (activeSubject) {
+    const activeExam = activeSubject.exam;
     return (
       <div className="space-y-4">
         <button
           type="button"
-          onClick={() => setActiveExam(null)}
+          onClick={() => setActiveSubject(null)}
           className="text-[10px] font-bold text-[#3b5bdb]"
         >
           â† Back to exams
@@ -2035,7 +2047,7 @@ export function LiveExamsMarksTab({
         )}
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-sm font-bold text-foreground">
-            {activeExam.name} · {activeExam.subject}
+            {activeExam.name} · {activeSubject.subject.subject}
           </div>
           {!canEditActive && (
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-muted/80 text-[#a0a0b0]">
@@ -2103,13 +2115,12 @@ export function LiveExamsMarksTab({
     );
   }
 
-  if (activeGroup) {
-    const anchor = activeGroup.subjects[0];
+  if (activeSitting) {
     return (
       <div className="space-y-4">
         <button
           type="button"
-          onClick={() => setActiveGroup(null)}
+          onClick={() => setActiveSitting(null)}
           className="text-[10px] font-bold text-[#3b5bdb]"
         >
           â† Back to exams
@@ -2124,46 +2135,53 @@ export function LiveExamsMarksTab({
             {flash}
           </div>
         )}
-        <div className="text-sm font-bold text-foreground">{activeGroup.name}</div>
+        <div className="text-sm font-bold text-foreground">{activeSitting.name}</div>
         <div className="text-[10px] text-muted-foreground">
-          {activeGroup.startDate ?? "—"}
-          {activeGroup.endDate && activeGroup.endDate !== activeGroup.startDate
-            ? ` → ${activeGroup.endDate}`
+          {activeSitting.startDate ?? "—"}
+          {activeSitting.endDate && activeSitting.endDate !== activeSitting.startDate
+            ? ` → ${activeSitting.endDate}`
             : ""}{" "}
-          · {activeGroup.subjects.length} subjects
+          · {activeSitting.subjects.length} subjects
         </div>
         <div className="space-y-2">
-          {activeGroup.subjects.map((s) => (
+          {activeSitting.subjects.map((s) => (
             <div
-              key={s.id}
+              key={s.examSubjectId}
               className="flex items-center justify-between gap-2 p-3 bg-surface border border-border/70 rounded-xl"
             >
               <div className="text-xs text-foreground font-semibold">{s.subject}</div>
-              <div className="text-[10px] text-muted-foreground">max {s.maxMarks}</div>
+              <div className="text-[10px] text-muted-foreground">
+                {s.scheduledAt ? String(s.scheduledAt).slice(0, 10) : "—"}
+              </div>
             </div>
           ))}
         </div>
-        {isClassTeacher && anchor && !activeGroup.resultsPublishedAt && (
+        {isClassTeacher && !activeSitting.resultsPublishedAt && (
           <div className="flex flex-wrap gap-2">
+            {/*
+              Finalising acts on the SITTING, not on whichever subject happened
+              to sort first. That is what makes "finalise one subject finalises
+              its sitting" true by construction.
+            */}
             <button
               type="button"
-              disabled={saving || activeGroup.marksLocked}
-              onClick={() => void finalizeGroup(anchor.id)}
+              disabled={saving || activeSitting.marksLocked}
+              onClick={() => void finalizeSitting(activeSitting.examId)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#c08a3a]/20 text-[#c08a3a] disabled:opacity-50"
             >
               <Lock className="w-3 h-3" /> Finalize all subjects
             </button>
             <button
               type="button"
-              disabled={saving || !activeGroup.marksLocked}
-              onClick={() => void publishGroup(anchor.id)}
+              disabled={saving || !activeSitting.marksLocked}
+              onClick={() => void publishSitting(activeSitting.examId)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#4aa87a]/20 text-[#4aa87a] disabled:opacity-50"
             >
               <Unlock className="w-3 h-3" /> Publish Results
             </button>
           </div>
         )}
-        {activeGroup.resultsPublishedAt && (
+        {activeSitting.resultsPublishedAt && (
           <div className="text-[10px] text-[#4aa87a] font-bold">Results published</div>
         )}
       </div>
@@ -2260,18 +2278,20 @@ export function LiveExamsMarksTab({
       {pending.length > 0 && (
         <div className="space-y-2">
           <div className="text-xs font-bold text-foreground">Pending marks</div>
-          {pending.map((e) => (
+          {pending.map((p) => (
             <div
-              key={e.id}
+              key={p.subject.examSubjectId}
               className="flex items-center justify-between gap-2 p-3 bg-[#3b5bdb]/10 border border-[#3b5bdb]/25 rounded-xl"
             >
               <div>
-                <div className="text-xs font-bold text-foreground">{e.name}</div>
-                <div className="text-[10px] text-muted-foreground">{e.subject} · max {e.maxMarks}</div>
+                <div className="text-xs font-bold text-foreground">{p.exam.name}</div>
+                <div className="text-[10px] text-muted-foreground">
+                  {p.subject.subject} · max {p.exam.maxMarks}
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => void openMarks(e, true)}
+                onClick={() => void openMarks(p, true)}
                 className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-[#3b5bdb] text-foreground"
               >
                 Enter marks
@@ -2284,12 +2304,13 @@ export function LiveExamsMarksTab({
       <div className="text-[10px] text-muted-foreground">{groups.length} class exams</div>
       <div className="space-y-2">
         {groups.map((g) => {
-          const mySubjects = g.subjects.filter((s) =>
-            pending.some((p) => p.id === s.id) ||
-            (subject && s.subject.toLowerCase() === subject.toLowerCase()),
+          const mySubjects = g.subjects.filter(
+            (s) =>
+              pending.some((p) => p.subject.examSubjectId === s.examSubjectId) ||
+              (subject && s.subject.toLowerCase() === subject.toLowerCase()),
           );
           return (
-            <div key={g.examGroupId} className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
+            <div key={g.examId} className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
               <div className="flex justify-between gap-2">
                 <div>
                   <div className="text-xs font-bold text-foreground">{g.name}</div>
@@ -2313,22 +2334,28 @@ export function LiveExamsMarksTab({
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {mySubjects.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() =>
-                      void openMarks(s, !s.marksLocked && !s.resultsPublishedAt)
-                    }
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
-                  >
-                    {s.subject} marks
-                  </button>
-                ))}
+                {mySubjects.map((s) => {
+                  const known = pending.find(
+                    (p) => p.subject.examSubjectId === s.examSubjectId,
+                  );
+                  return (
+                    <button
+                      key={s.examSubjectId}
+                      type="button"
+                      disabled={!known}
+                      onClick={() =>
+                        known && void openMarks(known, !g.marksLocked && !g.resultsPublishedAt)
+                      }
+                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb] disabled:opacity-50"
+                    >
+                      {s.subject} marks
+                    </button>
+                  );
+                })}
                 {isClassTeacher && (
                   <button
                     type="button"
-                    onClick={() => openGroupReview(g)}
+                    onClick={() => openSittingReview(g)}
                     className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-[#a0a0b0]"
                   >
                     Review / publish

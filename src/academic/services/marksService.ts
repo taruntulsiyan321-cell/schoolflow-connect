@@ -16,6 +16,10 @@ import {
   type MarksRecord,
   type PublishMarksInput,
 } from "../repository/marksRepository";
+import type {
+  ExamSittingRecord,
+  ExamSubjectRecord,
+} from "../repository/examRepository";
 import { teacherAssignedToClassSubject } from "../repository/teacherAssignmentRepository";
 import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
@@ -25,6 +29,50 @@ import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
 import { assertTeacherMayManageAcademicWork } from "./workLifecycle";
 import { ValidationFailedError } from "../repository/errors";
 import { broadcastAcademicWrite } from "../live";
+
+/**
+ * Which subject of a sitting an operation is about. Named explicitly, or the
+ * only one when the sitting covers exactly one subject. A sitting covering
+ * several refuses rather than picking the first — which is how the fan-out
+ * used to behave, and why finalising "the group" once meant finalising
+ * whatever row happened to sort first.
+ */
+async function resolveSittingSubject(
+  repo: ReturnType<typeof toRepoContext>,
+  examId: string,
+  examSubjectId?: string | null,
+): Promise<ExamSubjectRecord> {
+  const { listExamSubjects } = await import("../repository/examRepository");
+  const subjects = await listExamSubjects(repo, examId);
+  if (examSubjectId) {
+    const found = subjects.find((s) => s.examSubjectId === examSubjectId);
+    if (found) return found;
+    throw new ValidationFailedError([
+      {
+        field: "examSubjectId",
+        code: "not_in_exam",
+        message: "That subject does not belong to this exam",
+      },
+    ]);
+  }
+  if (subjects.length === 1) return subjects[0];
+  throw new ValidationFailedError([
+    {
+      field: "examSubjectId",
+      code: subjects.length === 0 ? "exam_has_no_subjects" : "ambiguous",
+      message:
+        subjects.length === 0
+          ? "This exam has no subjects scheduled, so marks cannot be recorded against it"
+          : "This exam covers several subjects — say which subject the marks are for",
+    },
+  ]);
+}
+
+/** One subject of one sitting, awaiting marks. Marks are written at this grain. */
+export interface PendingSubjectExam {
+  exam: ExamRecord;
+  subject: ExamSubjectRecord;
+}
 
 function afterMarksWrite(
   ctx: ServiceContext,
@@ -69,6 +117,29 @@ export const MarksService = {
       throw new ForbiddenError("Only school operators may list school-wide exams");
     }
     return listExamsForSchool(toRepoContext(ctx), page);
+  },
+  /**
+   * School-wide sittings for the admin monitor. One row per sitting, with the
+   * subjects it covers read from exam_subjects — the admin screen used to
+   * derive its rows by grouping exams client-side, which is the grouping this
+   * chunk moved into the schema.
+   */
+  async listExamSittingsForSchool(
+    ctx: ServiceContext,
+    page?: PageParams,
+  ): Promise<{ exam: ExamRecord; subjects: ExamSubjectRecord[] }[]> {
+    assertCanConsume(ctx, "examination");
+    if (!isSchoolOperator(ctx.role)) {
+      throw new ForbiddenError("Only school operators may list school-wide exams");
+    }
+    const repo = toRepoContext(ctx);
+    const exams = await listExamsForSchool(repo, page);
+    const { listExamSubjectsForExams } = await import("../repository/examRepository");
+    const byExam = await listExamSubjectsForExams(
+      repo,
+      exams.map((e) => e.id),
+    );
+    return exams.map((exam) => ({ exam, subjects: byExam.get(exam.id) ?? [] }));
   },
 
   /** Exams with results_published_at set — for result consumers. */
@@ -167,13 +238,18 @@ export const MarksService = {
     assertCanOwn(ctx, "marks");
 
     const exam = await getExam(toRepoContext(ctx), input.examId);
+    const subject = await resolveSittingSubject(
+      toRepoContext(ctx),
+      input.examId,
+      input.examSubjectId,
+    );
     let assigned = isSchoolOperator(ctx.role);
     if (!assigned) {
       assigned = await teacherAssignedToClassSubject(toRepoContext(ctx), {
         teacherUserId: ctx.userId,
         classId: exam.classId,
-        subject: exam.subject,
-        subjectId: exam.subjectId,
+        subject: subject.subject,
+        subjectId: null,
       });
     }
     if (!assigned) {
@@ -182,6 +258,7 @@ export const MarksService = {
 
     return publishMarks(toRepoContext(ctx), {
       ...input,
+      examSubjectId: subject.examSubjectId,
       teacherAssignedToSubject: true,
     }).then((row) => {
       afterMarksWrite(ctx, {
@@ -252,29 +329,37 @@ export const MarksService = {
     ctx: ServiceContext,
     examId: string,
     rows: { studentId: string; marksObtained: number; remarks?: string | null }[],
+    examSubjectId?: string | null,
   ): Promise<number> {
     assertCanOwn(ctx, "marks");
-    const exam = await getExam(toRepoContext(ctx), examId);
+    const repo = toRepoContext(ctx);
+    const exam = await getExam(repo, examId);
+    // Which subject of the sitting these marks are for. The subject is read
+    // from exam_subjects, not from the sitting's legacy display label, which
+    // a multi-subject sitting does not have.
+    const subject = await resolveSittingSubject(repo, examId, examSubjectId);
+
     let assigned = isSchoolOperator(ctx.role);
     if (!assigned) {
-      assigned = await teacherAssignedToClassSubject(toRepoContext(ctx), {
+      assigned = await teacherAssignedToClassSubject(repo, {
         teacherUserId: ctx.userId,
         classId: exam.classId,
-        subject: exam.subject,
-        subjectId: exam.subjectId,
+        subject: subject.subject,
+        subjectId: null,
       });
     }
     if (!assigned) {
       throw new ForbiddenError("You can only enter marks for your assigned subject");
     }
     const { publishMarksBatch } = await import("../repository/examRepository");
-    const count = await publishMarksBatch(toRepoContext(ctx), examId, rows, true);
+    const count = await publishMarksBatch(repo, examId, rows, true, subject.examSubjectId);
     afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.publishBatch" });
     return count;
   },
-
   /**
-   * Class teacher creates one exam for the class — auto subjects from teacher_classes.
+   * The class teacher creates one SITTING for the class (§10.22): one exam
+   * covering the subjects its own section teaches, with one max mark across
+   * them and a subject-wise timetable held in exam_subjects.
    */
   async createClassExam(
     ctx: ServiceContext,
@@ -286,104 +371,112 @@ export const MarksService = {
       instructions?: string | null;
       examType?: string;
       defaultMaxMarks?: number;
+      passingMarks?: number | null;
     },
-  ): Promise<ExamRecord[]> {
+  ): Promise<ExamSittingRecord> {
     assertCanOwn(ctx, "examination");
     const repo = toRepoContext(ctx);
-    const { isClassTeacherOfClass, listSubjectsForClass } = await import(
-      "../repository/teacherClassesRepository"
-    );
+    const { isClassTeacherOfClass } = await import("../repository/teacherClassesRepository");
     if (!isSchoolOperator(ctx.role)) {
       const ok = await isClassTeacherOfClass(repo, ctx.userId, input.classId);
       if (!ok) {
         throw new ForbiddenError("Only the class teacher can create exams for this class");
       }
     }
-    const subjects = await listSubjectsForClass(repo, input.classId);
-    const { createClassExamGroup } = await import("../repository/examRepository");
-    const rows = await createClassExamGroup(repo, {
-      ...input,
-      subjects,
-    });
-    const groupId = rows[0]?.examGroupId ?? rows[0]?.id;
+    const { createClassExam, listSectionSubjects } = await import("../repository/examRepository");
+    // The section's own subjects, from section_subjects — not teacher_classes.
+    // This is what makes a sitting structurally unable to name a subject the
+    // section does not teach.
+    const subjects = await listSectionSubjects(repo, input.classId);
+    const sitting = await createClassExam(repo, { ...input, subjects });
+
     await emitEvent(repo, {
       eventType: "examination.scheduled",
       entityType: "examination",
-      entityId: groupId ?? rows[0]?.id ?? "",
+      entityId: sitting.exam.id,
       classId: input.classId,
       payload: {
         name: input.name,
         title: input.name,
-        examGroupId: groupId,
-        subjectCount: rows.length,
+        examId: sitting.exam.id,
+        subjectCount: sitting.subjects.length,
       },
     }).catch(() => undefined);
     afterMarksWrite(ctx, { classId: input.classId, source: "MarksService.createClassExam" });
-    return rows;
+    return sitting;
   },
 
-  /** Group subject exams for a class (one card per exam name/group). */
-  async listExamGroupsForClass(ctx: ServiceContext, classId: string) {
+  /** One card per sitting for a class, with the subjects that sitting covers. */
+  async listExamSittingsForClass(ctx: ServiceContext, classId: string) {
     assertCanConsume(ctx, "examination");
-    const exams = await listExamsForClass(toRepoContext(ctx), classId, { limit: 200 });
-    const groups = new Map<
-      string,
-      {
-        examGroupId: string;
-        name: string;
-        startDate: string | null;
-        endDate: string | null;
-        instructions: string | null;
-        marksLocked: boolean;
-        resultsPublishedAt: string | null;
-        subjects: ExamRecord[];
-      }
-    >();
-    for (const e of exams) {
-      const gid = e.examGroupId ?? e.id;
-      const g = groups.get(gid) ?? {
-        examGroupId: gid,
+    const repo = toRepoContext(ctx);
+    const exams = await listExamsForClass(repo, classId, { limit: 200 });
+    const { listExamSubjectsForExams } = await import("../repository/examRepository");
+    const subjectsByExam = await listExamSubjectsForExams(
+      repo,
+      exams.map((e) => e.id),
+    );
+    return exams
+      .map((e) => ({
+        examId: e.id,
         name: e.name,
         startDate: e.startDate ?? e.examDate,
         endDate: e.endDate ?? e.examDate,
         instructions: e.instructions,
         marksLocked: e.marksLocked,
         resultsPublishedAt: e.resultsPublishedAt,
-        subjects: [] as ExamRecord[],
-      };
-      g.subjects.push(e);
-      g.marksLocked = g.marksLocked && e.marksLocked;
-      if (!e.resultsPublishedAt) g.resultsPublishedAt = null;
-      groups.set(gid, g);
-    }
-    return [...groups.values()].sort((a, b) =>
-      String(b.startDate ?? "").localeCompare(String(a.startDate ?? "")),
-    );
+        subjects: subjectsByExam.get(e.id) ?? [],
+      }))
+      .sort((a, b) => String(b.startDate ?? "").localeCompare(String(a.startDate ?? "")));
   },
 
-  /** Subject exams this teacher should enter marks for (pending unlock). */
-  async listMyPendingSubjectExams(ctx: ServiceContext, classId: string): Promise<ExamRecord[]> {
+  /**
+   * The subjects of still-open sittings this teacher should enter marks for.
+   * One entry per SUBJECT, since that is the grain marks are written at.
+   */
+  async listMyPendingSubjectExams(
+    ctx: ServiceContext,
+    classId: string,
+  ): Promise<PendingSubjectExam[]> {
     assertCanConsume(ctx, "examination");
     const repo = toRepoContext(ctx);
     const exams = await listExamsForClass(repo, classId, { limit: 200 });
-    if (isSchoolOperator(ctx.role)) {
-      return exams.filter((e) => !e.marksLocked && !e.resultsPublishedAt);
-    }
-    const out: ExamRecord[] = [];
-    for (const e of exams) {
-      if (e.marksLocked || e.resultsPublishedAt) continue;
-      const ok = await teacherAssignedToClassSubject(repo, {
-        teacherUserId: ctx.userId,
-        classId: e.classId,
-        subject: e.subject,
-        subjectId: e.subjectId,
-      });
-      if (ok) out.push(e);
+    const open = exams.filter((e) => !e.marksLocked && !e.resultsPublishedAt);
+    if (!open.length) return [];
+
+    const { listExamSubjectsForExams } = await import("../repository/examRepository");
+    const subjectsByExam = await listExamSubjectsForExams(
+      repo,
+      open.map((e) => e.id),
+    );
+
+    const out: PendingSubjectExam[] = [];
+    for (const exam of open) {
+      for (const subject of subjectsByExam.get(exam.id) ?? []) {
+        if (!isSchoolOperator(ctx.role)) {
+          const ok = await teacherAssignedToClassSubject(repo, {
+            teacherUserId: ctx.userId,
+            classId: exam.classId,
+            subject: subject.subject,
+            subjectId: null,
+          });
+          if (!ok) continue;
+        }
+        out.push({ exam, subject });
+      }
     }
     return out;
   },
 
-  /** Lock marks — class teacher; locks whole exam group when grouped. */
+  /**
+   * Finalise the sitting — class teacher.
+   *
+   * marks_locked lives on the sitting itself, so locking it closes every
+   * subject that sitting covers at once: can_upload_exam_marks reaches
+   * exams.marks_locked through exam_subjects. That is the behaviour
+   * verification item 2 asserts, and it is now structural rather than a
+   * fan-out UPDATE across sibling rows that could match nothing in silence.
+   */
   async finalizeMarks(ctx: ServiceContext, examId: string): Promise<ExamRecord> {
     assertCanOwn(ctx, "examination");
     const repo = toRepoContext(ctx);
@@ -394,36 +487,21 @@ export const MarksService = {
       if (!ok) throw new ForbiddenError("Only the class teacher can finalize this exam");
     }
 
-    if (exam.examGroupId) {
-      const { setExamGroupLocked } = await import("../repository/examRepository");
-      await setExamGroupLocked(repo, exam.examGroupId, true);
-    } else {
-      const { error } = await getClient(repo)
-        .from("exams")
-        .update({
-          marks_locked: true,
-          updated_at: new Date().toISOString(),
-        } as never)
-        .eq("id", examId)
-        .eq("school_id", schoolIdOf(repo));
-      throwIfError(error, "Failed to finalize marks");
-    }
+    const { setExamLocked } = await import("../repository/examRepository");
+    await setExamLocked(repo, examId, true);
 
     await emitEvent(repo, {
       eventType: "examination.finalized",
       entityType: "examination",
-      entityId: exam.examGroupId ?? examId,
+      entityId: examId,
       classId: exam.classId,
-      payload: {
-        name: exam.name,
-        examGroupId: exam.examGroupId,
-        examType: exam.examType,
-      },
+      payload: { name: exam.name, examId, examType: exam.examType },
     }).catch(() => undefined);
 
     afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.finalizeMarks" });
     return getExam(repo, examId);
   },
+
   async publishResults(ctx: ServiceContext, examId: string): Promise<ExamRecord> {
     assertCanOwn(ctx, "examination");
     const repo = toRepoContext(ctx);
@@ -434,14 +512,10 @@ export const MarksService = {
       if (!ok) throw new ForbiddenError("Only the class teacher can publish results");
     }
 
-    // Reload group lock status
-    let locked = exam.marksLocked;
-    if (exam.examGroupId) {
-      const { listExamsByGroup } = await import("../repository/examRepository");
-      const siblings = await listExamsByGroup(repo, exam.examGroupId);
-      locked = siblings.every((s) => s.marksLocked);
-    }
-    if (!locked) {
+    // One sitting, one lock. There are no sibling rows left to reconcile, so
+    // the "are all subjects finalised?" sweep this used to run is answered by
+    // the sitting's own flag.
+    if (!exam.marksLocked) {
       throw new ValidationFailedError([
         {
           field: "examId",
@@ -452,27 +526,15 @@ export const MarksService = {
     }
 
     const now = new Date().toISOString();
-    if (exam.examGroupId) {
-      const { setExamGroupResultsPublished } = await import("../repository/examRepository");
-      await setExamGroupResultsPublished(repo, exam.examGroupId, now);
-    } else {
-      const { error } = await getClient(repo)
-        .from("exams")
-        .update({
-          results_published_at: now,
-          updated_at: now,
-        } as never)
-        .eq("id", examId)
-        .eq("school_id", schoolIdOf(repo));
-      throwIfError(error, "Failed to publish exam results");
-    }
+    const { setExamResultsPublished } = await import("../repository/examRepository");
+    await setExamResultsPublished(repo, examId, now);
 
     await emitEvent(repo, {
       eventType: "marks.results_published",
       entityType: "examination",
-      entityId: exam.examGroupId ?? examId,
+      entityId: examId,
       classId: exam.classId,
-      payload: { classId: exam.classId, name: exam.name, examGroupId: exam.examGroupId },
+      payload: { classId: exam.classId, name: exam.name, examId },
     }).catch(() => undefined);
 
     afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.publishResults" });

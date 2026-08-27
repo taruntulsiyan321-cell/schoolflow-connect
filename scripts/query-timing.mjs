@@ -39,7 +39,6 @@ const run = async (sql) => {
   });
   return r.json();
 };
-
 const ROLES = [
   ["admin", "admin@wisdomcampus.com"],
   ["principal", "principal@wisdomcampus.com"],
@@ -52,39 +51,99 @@ const tables = process.argv.slice(2).length
   ? process.argv.slice(2)
   : ["tests", "test_marks", "exams", "exam_subjects", "marks", "report_cards"];
 
+/**
+ * Scales the per-row cost is projected to. The demo school is tiny, so a total
+ * that looks fine here says almost nothing about a real institution: what
+ * matters is the MARGINAL cost of one more row, which a 5-row table hides
+ * inside its fixed setup cost.
+ */
+const PROJECT_TO = [200, 2000];
+
+/**
+ * Time the policy stack over exactly `limit` rows of `table`, as `email`.
+ * LIMIT is applied INSIDE the scan, so the policy is evaluated for that many
+ * candidate rows and no more. Runs twice and keeps the second, so plan and
+ * catalogue warm-up is not counted as query cost.
+ */
+const timeAt = async (table, email) => {
+  const sql = `
+    DO $$
+    DECLARE _uid uuid; _t0 timestamptz; _ms numeric; _n bigint; _cand bigint;
+    BEGIN
+      -- Candidate rows: what the policy is actually EVALUATED against.
+      -- Counted before the role switch, so RLS does not hide any of them.
+      SELECT count(*) INTO _cand FROM public.${table};
+
+      SELECT id INTO _uid FROM auth.users WHERE email = '${email}';
+      PERFORM set_config('request.jwt.claims',
+        json_build_object('sub', _uid, 'role', 'authenticated')::text, true);
+      SET LOCAL ROLE authenticated;
+      SELECT count(*) INTO _n FROM public.${table};       -- warm
+      _t0 := clock_timestamp();
+      SELECT count(*) INTO _n FROM public.${table};
+      _ms := EXTRACT(EPOCH FROM (clock_timestamp() - _t0)) * 1000;
+      RESET ROLE;
+      PERFORM set_config('request.jwt.claims', '', true);
+      RAISE EXCEPTION 'TIMING % visible=% candidates=%', round(_ms, 1), _n, _cand;
+    END $$;`;
+  const out = await run(sql);
+  const m = (out?.message ?? "").match(/TIMING ([\d.]+) visible=(\d+) candidates=(\d+)/);
+  return m
+    ? { ms: parseFloat(m[1]), visible: parseInt(m[2], 10), candidates: parseInt(m[3], 10) }
+    : null;
+};
+
 let findings = 0;
-console.log(`statement_timeout ${TIMEOUT_MS}ms — finding at >= ${FINDING_AT}ms\n`);
+let projected = 0;
+
+console.log(`statement_timeout ${TIMEOUT_MS}ms — finding at >= ${FINDING_AT}ms`);
+console.log(
+  "cost is per CANDIDATE row — the rows the policy is evaluated against, not the rows it lets through.",
+);
+console.log(
+  "Dividing by visible rows instead overstates it by the selectivity of the policy (marks/parent: 26 candidates, 5 visible = 5x).",
+);
+console.log(
+  "Fixed setup is included, so this is an upper bound at these sizes; the projection carries it forward unchanged.\n",
+);
 
 for (const table of tables) {
-  const cells = [];
   for (const [label, email] of ROLES) {
-    // A full scan is the heaviest realistic read: it forces the policy stack
-    // over every candidate row, which is precisely what nested RLS multiplies.
-    const sql = `
-      DO $$
-      DECLARE _uid uuid; _t0 timestamptz; _ms numeric; _n bigint;
-      BEGIN
-        SELECT id INTO _uid FROM auth.users WHERE email = '${email}';
-        PERFORM set_config('request.jwt.claims',
-          json_build_object('sub', _uid, 'role', 'authenticated')::text, true);
-        SET LOCAL ROLE authenticated;
-        _t0 := clock_timestamp();
-        SELECT count(*) INTO _n FROM public.${table};
-        _ms := EXTRACT(EPOCH FROM (clock_timestamp() - _t0)) * 1000;
-        RESET ROLE;
-        PERFORM set_config('request.jwt.claims', '', true);
-        RAISE EXCEPTION 'TIMING % rows=%', round(_ms, 1), _n;
-      END $$;`;
-    const out = await run(sql);
-    const m = (out?.message ?? "").match(/TIMING ([\d.]+) rows=(\d+)/);
-    if (!m) { cells.push(`${label}=ERR`); continue; }
-    const ms = parseFloat(m[1]);
-    const flag = ms >= FINDING_AT ? " **FINDING**" : "";
-    if (ms >= FINDING_AT) findings++;
-    cells.push(`${label}=${ms}ms/${m[2]}r${flag}`);
+    const r = await timeAt(table, email);
+    if (!r) {
+      console.log(`${table.padEnd(14)} ${label.padEnd(10)} ERR`);
+      continue;
+    }
+    const flag = r.ms >= FINDING_AT ? "  **FINDING**" : "";
+    if (r.ms >= FINDING_AT) findings++;
+
+    const perCandidate = r.candidates > 0 ? r.ms / r.candidates : null;
+    const proj =
+      perCandidate == null
+        ? ""
+        : PROJECT_TO.map((n) => {
+            const est = perCandidate * n;
+            const over = est >= FINDING_AT;
+            if (over) projected++;
+            return `${n}r~${(est / 1000).toFixed(1)}s${over ? "!" : ""}`;
+          }).join(" ");
+
+    console.log(
+      `${table.padEnd(14)} ${label.padEnd(10)} ${String(r.ms).padStart(7)}ms  ` +
+        `${String(r.visible).padStart(3)} of ${String(r.candidates).padStart(3)} rows   ` +
+        `per-candidate: ${perCandidate == null ? "?" : perCandidate.toFixed(2) + "ms"}   proj ${proj}${flag}`,
+    );
   }
-  console.log(`${table.padEnd(15)} ${cells.join("  ")}`);
+  console.log("");
 }
 
-console.log(`\n${findings} finding(s) within 2x of the statement timeout.`);
+console.log(`${findings} finding(s) at the measured size.`);
+console.log(
+  `${projected} projection(s) reaching the finding threshold at ${PROJECT_TO.join("/")} rows — marked with !`,
+);
+console.log(
+  projected > 0
+    ? "A projection over the line is a finding about the shape, not the data: the demo school is simply too small to show it yet."
+    : "No shape reaches the threshold at projected scale.",
+);
 process.exit(findings === 0 ? 0 : 1);

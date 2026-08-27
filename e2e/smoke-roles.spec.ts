@@ -63,13 +63,24 @@ test.describe("G8 live smoke — every role, programmatic session", () => {
   // no password is typed anywhere and each role is genuinely its own session.
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test.skip(
-    !minted,
-    "No minted sessions. Run scripts/mint-role-sessions.mjs and set SMOKE_SESSIONS. " +
-      "The gate is INCOMPLETE, not passed.",
-  );
+  // FAIL rather than skip. A skipped Playwright test still exits 0, so
+  // running this gate without SMOKE_SESSIONS reported "5 skipped / PASS" —
+  // a green gate that had asserted nothing at all. G8 says an unusable
+  // session means the gate is INCOMPLETE, and G10 says a failure must not be
+  // swallowed; a skip satisfies neither.
+  if (!minted) {
+    test("G8 live smoke gate is INCOMPLETE — no minted sessions", () => {
+      throw new Error(
+        "No minted sessions, so no role was actually exercised.\n" +
+          "  node scripts/mint-role-sessions.mjs e2e/.auth/role-sessions.json\n" +
+          "  SMOKE_SESSIONS=e2e/.auth/role-sessions.json PLAYWRIGHT_BASE_URL=http://localhost:PORT \\\n" +
+          "    npx playwright test e2e/smoke-roles.spec.ts --project=chromium\n" +
+          "Failing rather than skipping so this cannot read as a pass.",
+      );
+    });
+  }
 
-  for (const [role, screens] of Object.entries(ROLE_SCREENS)) {
+  for (const [role, screens] of Object.entries(minted ? ROLE_SCREENS : {})) {
     test(`${role} loads its screens with no console errors and no undefined%`, async ({
       page,
     }) => {

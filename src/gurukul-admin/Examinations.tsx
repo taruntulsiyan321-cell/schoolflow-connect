@@ -1,14 +1,13 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { EXAM_TYPE_LABELS, MarksService, useAcademicLive } from "@/academic";
-import type { ExamRecord } from "@/academic/repository/marksRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "./shared";
 import { toErrorMessage } from "@/lib/presentation";
 
-type ExamGroupRow = {
-  examGroupId: string;
+type ExamSittingRow = {
+  examId: string;
   name: string;
   classId: string;
   startDate: string | null;
@@ -19,46 +18,38 @@ type ExamGroupRow = {
   resultsPublishedAt: string | null;
 };
 
-function groupExams(exams: ExamRecord[]): ExamGroupRow[] {
-  const groups = new Map<string, ExamGroupRow>();
-  for (const e of exams) {
-    const gid = e.examGroupId ?? e.id;
-    const recordStart = e.startDate ?? e.examDate;
-    const recordEnd = e.endDate ?? e.examDate;
-    const existing = groups.get(gid);
-    const g = existing ?? {
-      examGroupId: gid,
-      name: e.name,
-      classId: e.classId,
-      startDate: recordStart,
-      endDate: recordEnd,
-      examType: e.examType,
-      subjectCount: 0,
-      marksLocked: true,
-      resultsPublishedAt: e.resultsPublishedAt,
-    };
-    if (existing) {
-      if (recordStart && (!g.startDate || recordStart < g.startDate)) g.startDate = recordStart;
-      if (recordEnd && (!g.endDate || recordEnd > g.endDate)) g.endDate = recordEnd;
-    }
-    g.subjectCount += 1;
-    g.marksLocked = g.marksLocked && e.marksLocked;
-    if (!e.resultsPublishedAt) g.resultsPublishedAt = null;
-    groups.set(gid, g);
-  }
-  return [...groups.values()].sort((a, b) =>
-    String(b.startDate ?? "").localeCompare(String(a.startDate ?? "")),
-  );
+type Sitting = Awaited<ReturnType<typeof MarksService.listExamSittingsForSchool>>[number];
+
+/**
+ * One row per sitting. This screen used to build its rows by grouping exams
+ * client-side on a shared group id; the sitting is now the exams row itself
+ * and the subjects it covers come from exam_subjects, so there is nothing
+ * left to group.
+ */
+function toSittingRows(sittings: Sitting[]): ExamSittingRow[] {
+  return sittings
+    .map(({ exam, subjects }) => ({
+      examId: exam.id,
+      name: exam.name,
+      classId: exam.classId,
+      startDate: exam.startDate ?? exam.examDate,
+      endDate: exam.endDate ?? exam.examDate,
+      examType: exam.examType,
+      subjectCount: subjects.length,
+      marksLocked: exam.marksLocked,
+      resultsPublishedAt: exam.resultsPublishedAt,
+    }))
+    .sort((a, b) => String(b.startDate ?? "").localeCompare(String(a.startDate ?? "")));
 }
 
 /**
- * Admin examinations monitor — MarksService.listForSchool only.
+ * Admin examinations monitor — MarksService.listExamSittingsForSchool only.
  * No local compose / fake exams.
  */
 export default function ExaminationManagement() {
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["marks", "examination"]);
-  const [exams, setExams] = useState<ExamRecord[]>([]);
+  const [sittings, setSittings] = useState<Sitting[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -72,11 +63,11 @@ export default function ExaminationManagement() {
       setLoading(true);
       try {
         const [list, classesRes] = await Promise.all([
-          MarksService.listForSchool(ctx, { limit: 200 }),
+          MarksService.listExamSittingsForSchool(ctx, { limit: 200 }),
           supabase.from("classes").select("id, name, section").eq("school_id", ctx.schoolId),
         ]);
         if (!cancelled) {
-          setExams(list);
+          setSittings(list);
           // Table displays the class per exam group; classId alone is not
           // human-distinguishable (this school's class ids all share the
           // same 8-char prefix, same issue found+fixed in Reports.tsx's
@@ -88,7 +79,7 @@ export default function ExaminationManagement() {
         }
       } catch (e) {
         if (!cancelled) {
-          setExams([]);
+          setSittings([]);
           setError(toErrorMessage(e, "Failed to load examinations"));
         }
       } finally {
@@ -100,7 +91,7 @@ export default function ExaminationManagement() {
     };
   }, [ready, ctx, liveVersion]);
 
-  const groups = useMemo(() => groupExams(exams), [exams]);
+  const groups = useMemo(() => toSittingRows(sittings), [sittings]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -130,7 +121,7 @@ export default function ExaminationManagement() {
         <div>
           <h1 className="text-lg font-bold text-[#1a1a2e]">Examinations</h1>
           <p className="text-xs text-muted-foreground">
-            MarksService.listForSchool — school monitor across classes
+            MarksService.listExamSittingsForSchool — school monitor across classes
           </p>
         </div>
         <input
@@ -145,8 +136,11 @@ export default function ExaminationManagement() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
-          { label: "Exam groups", value: groups.length },
-          { label: "Subject papers", value: exams.length },
+          { label: "Sittings", value: groups.length },
+          {
+            label: "Subject papers",
+            value: groups.reduce((n, g) => n + g.subjectCount, 0),
+          },
           {
             label: "Results published",
             value: groups.filter((g) => g.resultsPublishedAt).length,
@@ -211,7 +205,7 @@ export default function ExaminationManagement() {
                     ? "Marks locked"
                     : "In progress";
                 return (
-                  <tr key={g.examGroupId} className="border-b border-[#f0f1f3]">
+                  <tr key={g.examId} className="border-b border-[#f0f1f3]">
                     <td className="p-3 font-medium">{g.name}</td>
                     <td className="p-3 text-muted-foreground">{typeLabel}</td>
                     <td className="p-3 text-muted-foreground">{classNameById.get(g.classId) ?? `${g.classId.slice(0, 8)}…`}</td>

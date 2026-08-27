@@ -14,7 +14,7 @@ export interface ExamRecord {
   schoolId: string;
   classId: string;
   name: string;
-  subject: string;
+  subject: string | null;
   subjectId: string | null;
   maxMarks: number;
   examDate: string | null;
@@ -27,7 +27,6 @@ export interface ExamRecord {
   chapters: string[];
   topics: string[];
   instructions: string | null;
-  examGroupId: string | null;
   startDate: string | null;
   endDate: string | null;
 }
@@ -46,7 +45,7 @@ type ExamRow = {
   school_id?: string | null;
   class_id: string;
   name: string;
-  subject: string;
+  subject: string | null;
   subject_id?: string | null;
   max_marks: number;
   exam_date: string | null;
@@ -59,7 +58,6 @@ type ExamRow = {
   chapters?: unknown;
   topics?: unknown;
   instructions?: string | null;
-  exam_group_id?: string | null;
   start_date?: string | null;
   end_date?: string | null;
 };
@@ -99,7 +97,6 @@ function mapExam(row: ExamRow): ExamRecord {
     chapters: asStringArray(row.chapters),
     topics: asStringArray(row.topics),
     instructions: row.instructions != null ? String(row.instructions) : null,
-    examGroupId: row.exam_group_id ? String(row.exam_group_id) : null,
     startDate: row.start_date ? String(row.start_date) : null,
     endDate: row.end_date ? String(row.end_date) : null,
   };
@@ -277,6 +274,58 @@ export interface PublishMarksInput {
   remarks?: string | null;
   /** Caller must verify teaching assignment; repository enforces when false */
   teacherAssignedToSubject: boolean;
+  /**
+   * Which subject OF THIS SITTING the mark is for. Optional only because a
+   * single-subject sitting has exactly one answer, which is resolved below.
+   * A sitting covering several subjects must say which one — guessing would
+   * write the mark against an arbitrary subject.
+   */
+  examSubjectId?: string | null;
+}
+
+/**
+ * Which subject of the sitting a mark belongs to. Given explicitly, it is
+ * checked against the sitting; omitted, it resolves only when the sitting
+ * covers exactly one subject. A multi-subject sitting refuses rather than
+ * picking one, and an unresolvable sitting refuses rather than writing NULL.
+ */
+async function resolveExamSubjectId(
+  ctx: RepoContext,
+  input: PublishMarksInput,
+): Promise<string> {
+  const schoolId = schoolIdOf(ctx);
+  const { data, error } = await getClient(ctx)
+    .from("exam_subjects")
+    .select("id")
+    .eq("school_id", schoolId)
+    .eq("exam_id", input.examId);
+  throwIfError(error, "Failed to resolve exam subject");
+  const ids = (data ?? []).map((r) => String((r as { id: string }).id));
+
+  if (input.examSubjectId) {
+    if (!ids.includes(input.examSubjectId)) {
+      throw new ValidationFailedError([
+        {
+          field: "examSubjectId",
+          code: "not_in_exam",
+          message: "That subject does not belong to this exam",
+        },
+      ]);
+    }
+    return input.examSubjectId;
+  }
+
+  if (ids.length === 1) return ids[0];
+  throw new ValidationFailedError([
+    {
+      field: "examSubjectId",
+      code: ids.length === 0 ? "exam_has_no_subjects" : "ambiguous",
+      message:
+        ids.length === 0
+          ? "This exam has no subjects scheduled, so a mark cannot be recorded against it"
+          : "This exam covers several subjects — say which subject the mark is for",
+    },
+  ]);
 }
 
 /**
@@ -322,11 +371,20 @@ export async function publishMarks(ctx: RepoContext, input: PublishMarksInput): 
     ]);
   }
 
+  // Resolve which subject of the sitting this mark belongs to. Chunk 6 moved
+  // the conflict target to (exam_subject_id, student_id) but never populated
+  // exam_subject_id, so every save inserted a fresh NULL-anchored row instead
+  // of updating the existing one — NULLs never collide in a unique index, so
+  // the upsert silently became an insert. Chunk 6.5 makes the column NOT NULL
+  // and fills it here.
+  const examSubjectId = await resolveExamSubjectId(ctx, input);
+
   const { data, error } = await getClient(ctx)
     .from("marks")
     .upsert(
       {
         exam_id: input.examId,
+        exam_subject_id: examSubjectId,
         student_id: input.studentId,
         marks_obtained: input.marksObtained,
         remarks: input.remarks ?? null,

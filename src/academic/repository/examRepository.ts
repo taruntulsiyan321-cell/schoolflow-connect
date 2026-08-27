@@ -12,7 +12,7 @@ type ExamRow = {
   school_id?: string | null;
   class_id: string;
   name: string;
-  subject: string;
+  subject: string | null;
   subject_id?: string | null;
   max_marks: number;
   exam_date: string | null;
@@ -26,7 +26,6 @@ type ExamRow = {
   chapters?: unknown;
   topics?: unknown;
   instructions?: string | null;
-  exam_group_id?: string | null;
   start_date?: string | null;
   end_date?: string | null;
 };
@@ -57,7 +56,6 @@ function mapExam(row: ExamRow): ExamRecord {
     chapters: asStringArray(row.chapters),
     topics: asStringArray(row.topics),
     instructions: row.instructions != null ? String(row.instructions) : null,
-    examGroupId: row.exam_group_id ? String(row.exam_group_id) : null,
     startDate: row.start_date ? String(row.start_date) : null,
     endDate: row.end_date ? String(row.end_date) : null,
   };
@@ -166,6 +164,7 @@ export async function publishMarksBatch(
   examId: string,
   rows: { studentId: string; marksObtained: number; remarks?: string | null }[],
   teacherAssignedToSubject: boolean,
+  examSubjectId?: string | null,
 ): Promise<number> {
   const { getExam, publishMarks } = await import("./marksRepository");
   const exam = await getExam(ctx, examId);
@@ -182,6 +181,7 @@ export async function publishMarksBatch(
   for (const row of rows) {
     await publishMarks(ctx, {
       examId,
+      examSubjectId,
       studentId: row.studentId,
       marksObtained: row.marksObtained,
       remarks: row.remarks,
@@ -192,6 +192,130 @@ export async function publishMarksBatch(
   return n;
 }
 
+// ---------------------------------------------------------------------
+// The sitting (§10.22). One `exams` row IS the sitting; `exam_subjects`
+// carries the subjects it covers and their subject-wise timetable.
+//
+// This replaced the exam-group column in Chunk 6.5. The fan-out it superseded
+// wrote one exams row per subject, tied them together with a shared group id,
+// and then locked and published them with a group-wide UPDATE keyed on that
+// column — a statement that silently affects zero rows once the column is gone.
+// Every write below is keyed by the sitting's own primary key instead, so the
+// same failure cannot be silent again.
+// ---------------------------------------------------------------------
+
+export interface SectionSubjectRecord {
+  sectionSubjectId: string;
+  subject: string;
+}
+
+/**
+ * The subjects this section actually teaches. An exam may cover these and
+ * nothing else — which is why a sitting can no longer name a subject its own
+ * section does not teach, the defect Chunk 6.5 had to repair by hand.
+ */
+export async function listSectionSubjects(
+  ctx: RepoContext,
+  sectionId: string,
+): Promise<SectionSubjectRecord[]> {
+  const schoolId = schoolIdOf(ctx);
+  const { data, error } = await getClient(ctx)
+    .from("section_subjects")
+    .select("id, curriculum_subjects(name)")
+    .eq("school_id", schoolId)
+    .eq("section_id", sectionId);
+  throwIfError(error, "Failed to list section subjects");
+
+  const out: SectionSubjectRecord[] = [];
+  for (const row of data ?? []) {
+    const joined = (row as { curriculum_subjects?: { name?: string } | { name?: string }[] })
+      .curriculum_subjects;
+    const name = Array.isArray(joined)
+      ? String(joined[0]?.name ?? "").trim()
+      : String(joined?.name ?? "").trim();
+    if (!name) continue;
+    out.push({ sectionSubjectId: String((row as { id: string }).id), subject: name });
+  }
+  return out.sort((a, b) => a.subject.localeCompare(b.subject));
+}
+
+export interface ExamSubjectRecord {
+  examSubjectId: string;
+  examId: string;
+  sectionSubjectId: string;
+  subject: string;
+  scheduledAt: string | null;
+}
+
+type ExamSubjectRow = {
+  id: string;
+  exam_id: string;
+  section_subject_id: string;
+  scheduled_at: string | null;
+  section_subjects?:
+    | { curriculum_subjects?: { name?: string } | { name?: string }[] }
+    | { curriculum_subjects?: { name?: string } | { name?: string }[] }[]
+    | null;
+};
+
+function mapExamSubject(row: ExamSubjectRow): ExamSubjectRecord {
+  const ss = Array.isArray(row.section_subjects) ? row.section_subjects[0] : row.section_subjects;
+  const cs = Array.isArray(ss?.curriculum_subjects)
+    ? ss?.curriculum_subjects[0]
+    : ss?.curriculum_subjects;
+  return {
+    examSubjectId: String(row.id),
+    examId: String(row.exam_id),
+    sectionSubjectId: String(row.section_subject_id),
+    subject: String(cs?.name ?? "").trim(),
+    scheduledAt: row.scheduled_at ? String(row.scheduled_at) : null,
+  };
+}
+
+const EXAM_SUBJECT_SELECT =
+  "id, exam_id, section_subject_id, scheduled_at, section_subjects(curriculum_subjects(name))";
+
+/** The subjects one sitting covers. Replaces listExamsByGroup. */
+export async function listExamSubjects(
+  ctx: RepoContext,
+  examId: string,
+): Promise<ExamSubjectRecord[]> {
+  const schoolId = schoolIdOf(ctx);
+  const { data, error } = await getClient(ctx)
+    .from("exam_subjects")
+    .select(EXAM_SUBJECT_SELECT)
+    .eq("school_id", schoolId)
+    .eq("exam_id", examId);
+  throwIfError(error, "Failed to list exam subjects");
+  return (data ?? [])
+    .map((r) => mapExamSubject(r as unknown as ExamSubjectRow))
+    .sort((a, b) => a.subject.localeCompare(b.subject));
+}
+
+/** The subjects of several sittings at once, keyed by exam id. */
+export async function listExamSubjectsForExams(
+  ctx: RepoContext,
+  examIds: string[],
+): Promise<Map<string, ExamSubjectRecord[]>> {
+  const out = new Map<string, ExamSubjectRecord[]>();
+  if (!examIds.length) return out;
+  const schoolId = schoolIdOf(ctx);
+  const { data, error } = await getClient(ctx)
+    .from("exam_subjects")
+    .select(EXAM_SUBJECT_SELECT)
+    .eq("school_id", schoolId)
+    .in("exam_id", examIds);
+  throwIfError(error, "Failed to list exam subjects");
+  for (const row of data ?? []) {
+    const rec = mapExamSubject(row as unknown as ExamSubjectRow);
+    const list = out.get(rec.examId) ?? [];
+    list.push(rec);
+    out.set(rec.examId, list);
+  }
+  for (const list of out.values()) list.sort((a, b) => a.subject.localeCompare(b.subject));
+  return out;
+}
+
 export interface CreateClassExamInput {
   classId: string;
   name: string;
@@ -199,15 +323,22 @@ export interface CreateClassExamInput {
   endDate?: string | null;
   instructions?: string | null;
   examType?: string;
+  /** One max mark across the sitting's subjects (§10.22), not per subject. */
   defaultMaxMarks?: number;
-  subjects: { subject: string; subjectId: string | null; maxMarks?: number }[];
+  passingMarks?: number | null;
+  subjects: SectionSubjectRecord[];
 }
 
-/** Fan-out: one exams row per subject under a shared exam_group_id. */
-export async function createClassExamGroup(
+export interface ExamSittingRecord {
+  exam: ExamRecord;
+  subjects: ExamSubjectRecord[];
+}
+
+/** One sitting: one `exams` row, plus one `exam_subjects` row per subject. */
+export async function createClassExam(
   ctx: RepoContext,
   input: CreateClassExamInput,
-): Promise<ExamRecord[]> {
+): Promise<ExamSittingRecord> {
   const schoolId = schoolIdOf(ctx);
   if (!input.name.trim()) {
     throw new ValidationFailedError([
@@ -224,84 +355,92 @@ export async function createClassExamGroup(
       {
         field: "subjects",
         code: "required",
-        message: "No subjects mapped to this class. Ask admin to set Teacher–Class–Subject.",
+        message: "No subjects mapped to this class. Ask admin to set the section's subjects.",
       },
     ]);
   }
 
-  const groupId = crypto.randomUUID();
   const examType = (input.examType ?? "unit_test") as any;
-  const rows = input.subjects.map((s) => ({
-    school_id: schoolId,
-    class_id: input.classId,
-    name: input.name.trim(),
-    subject: s.subject,
-    subject_id: s.subjectId,
-    max_marks: s.maxMarks ?? input.defaultMaxMarks ?? 100,
-    exam_date: input.startDate,
-    start_date: input.startDate,
-    end_date: input.endDate ?? input.startDate,
-    exam_type: examType,
-    status: "scheduled",
-    instructions: input.instructions ?? null,
-    exam_group_id: groupId,
-    created_by: ctx.userId ?? null,
-    marks_locked: false,
-  }));
-
-  const { data, error } = await getClient(ctx)
+  const { data: examData, error: examErr } = await getClient(ctx)
     .from("exams")
-    .insert(rows as never)
-    .select("*");
-  throwIfError(error, "Failed to create class exam");
-  return (data ?? []).map((r) => mapExam(r as ExamRow));
-}
-
-export async function listExamsByGroup(
-  ctx: RepoContext,
-  examGroupId: string,
-): Promise<ExamRecord[]> {
-  const schoolId = schoolIdOf(ctx);
-  const { data, error } = await getClient(ctx)
-    .from("exams")
+    .insert({
+      school_id: schoolId,
+      class_id: input.classId,
+      name: input.name.trim(),
+      // Legacy display label only. exam_subjects is the authority, so a
+      // multi-subject sitting deliberately carries no single subject.
+      subject: input.subjects.length === 1 ? input.subjects[0].subject : null,
+      subject_id: null,
+      max_marks: input.defaultMaxMarks ?? 100,
+      passing_marks: input.passingMarks ?? null,
+      exam_date: input.startDate,
+      start_date: input.startDate,
+      end_date: input.endDate ?? input.startDate,
+      exam_type: examType,
+      status: "scheduled",
+      instructions: input.instructions ?? null,
+      created_by: ctx.userId ?? null,
+      marks_locked: false,
+    } as never)
     .select("*")
-    .eq("school_id", schoolId)
-    .eq("exam_group_id", examGroupId)
-    .order("subject", { ascending: true });
-  throwIfError(error, "Failed to list exam group");
-  return (data ?? []).map((r) => mapExam(r as ExamRow));
+    .single();
+  throwIfError(examErr, "Failed to create class exam");
+  const exam = mapExam(examData as ExamRow);
+
+  const { error: subErr } = await getClient(ctx)
+    .from("exam_subjects")
+    .insert(
+      input.subjects.map((s) => ({
+        school_id: schoolId,
+        exam_id: exam.id,
+        section_subject_id: s.sectionSubjectId,
+        scheduled_at: input.startDate,
+      })) as never,
+    );
+  if (subErr) {
+    // A sitting with no subjects is unusable and would strand its exams row.
+    await getClient(ctx).from("exams").delete().eq("id", exam.id).eq("school_id", schoolId);
+    throwIfError(subErr, "Failed to schedule exam subjects");
+  }
+
+  return { exam, subjects: await listExamSubjects(ctx, exam.id) };
 }
 
-export async function setExamGroupLocked(
+/**
+ * Finalise the sitting. marks_locked lives on the sitting itself, so this
+ * closes every subject it covers at once — can_upload_exam_marks reads
+ * exams.marks_locked through exam_subjects. Keyed by primary key, so a miss
+ * raises NotFound rather than passing silently, which is how the old
+ * group-wide UPDATE failed without a sound.
+ */
+export async function setExamLocked(
   ctx: RepoContext,
-  examGroupId: string,
+  examId: string,
   locked: boolean,
 ): Promise<void> {
   const schoolId = schoolIdOf(ctx);
-  const { error } = await getClient(ctx)
+  const { data, error } = await getClient(ctx)
     .from("exams")
-    .update({
-      marks_locked: locked,
-      updated_at: new Date().toISOString(),
-    } as never)
+    .update({ marks_locked: locked, updated_at: new Date().toISOString() } as never)
+    .eq("id", examId)
     .eq("school_id", schoolId)
-    .eq("exam_group_id", examGroupId);
-  throwIfError(error, "Failed to update exam group lock");
+    .select("id");
+  throwIfError(error, "Failed to update exam lock");
+  if (!data?.length) throw new NotFoundError("examination", examId);
 }
 
-export async function setExamGroupResultsPublished(
+export async function setExamResultsPublished(
   ctx: RepoContext,
-  examGroupId: string,
+  examId: string,
   at: string,
 ): Promise<void> {
   const schoolId = schoolIdOf(ctx);
-  const { error } = await getClient(ctx)
+  const { data, error } = await getClient(ctx)
     .from("exams")
-    .update({
-      results_published_at: at,
-      updated_at: at,
-    } as never)
+    .update({ results_published_at: at, updated_at: at } as never)
+    .eq("id", examId)
     .eq("school_id", schoolId)
-    .eq("exam_group_id", examGroupId);
-  throwIfError(error, "Failed to publish exam group results");
+    .select("id");
+  throwIfError(error, "Failed to publish exam results");
+  if (!data?.length) throw new NotFoundError("examination", examId);
 }

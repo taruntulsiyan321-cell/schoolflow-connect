@@ -130,6 +130,12 @@ the day it matters most — a new developer, a staging rebuild, a recovery.
 **Report the output of every gate, every chunk.** A gate that regressed is a
 finding even when the chunk's own verification passed.
 
+**Capture artifacts on every gate failure, including intermittent ones.** A
+failure seen once and lost cannot be diagnosed, and reporting it as unexplained —
+while correct — leaves it open. Configure retries to preserve traces, screenshots
+and console output on first failure, so the next occurrence is diagnosable rather
+than merely noted.
+
 **If a gate fails for a reason that predates your work, say so and prove it** —
 timestamps, ledger position, or the commit that introduced it. Do not silently
 inherit someone else's failure, and do not claim one is pre-existing without
@@ -165,7 +171,17 @@ correct work, and only surfaced when something finally measured it.
   ten, five of them duplicates. G9's two-sources-of-truth, showing up as latency.
 - **Measure, then measure again.** The first fix took 33s → 14.5s — still a 500.
   The remaining cost had moved into a policy written during the fix. Never assume
-  a fix landed; re-run the timing.
+  a fix landed; re-run the timing. In Chunk 6 the first two fixes moved nothing at
+  all — 855ms → 855ms, 1128ms → 1138ms — and only measurement revealed it.
+- **Dispatch on role before evaluating arms.** An `OR` chain evaluates every arm
+  until one returns true, so a parent pays `teacher_teaches_class` (18.5ms) and
+  `is_my_student_record` (19.2ms) on every row before reaching their own. Check
+  the active role first — `active_membership_role()` costs 0.06ms because it
+  takes no argument and is cached per statement. This was the entire fix:
+  1138ms → 496ms.
+- **Demo data hides this.** 14ms/row is invisible at 26 rows and ~2.8s at 200.
+  **Report per-row cost, not just total**, and state what it becomes at realistic
+  volume. A figure comfortably under the gate today is a 500 next term.
 
 **Per chunk:** for every table the chunk touches, time the heaviest realistic
 query **as each role that can read it**, and report the numbers. Anything within
@@ -903,6 +919,43 @@ summary.
 6. Report card with one subject missing — **not** generated.
 7. All subjects uploaded — generated and sent.
 8. Rank computed within section only; prove no cross-section rank exists.
+
+**STOP. Wait for approval.**
+
+---
+
+# CHUNK 6.5 — CONVERGE `exam_group_id`
+
+**G9 again. Two things express "one event, several subjects" at different
+grains.**
+
+**Authority: `exams` + `exam_subjects`.** §10.22 defines an exam as one sitting
+created by the class teacher, with one max mark and pass mark across its
+subjects and a subject-wise timetable. That is exactly this shape.
+
+`exams.exam_group_id` is the earlier half-built version of the same idea.
+
+**Handle it carefully.** It was dropped once inside another chunk with no written
+rationale, and the failure was silent: every `if (exam.examGroupId)` became
+false, so finalising one subject stopped finalising its group and **nothing
+threw.** It is read by `createClassExamGroup`, the admin Examinations screen, the
+teacher live panel, and three `marksService` paths.
+
+### Do
+
+1. List every read and write of `exam_group_id`, with what each does.
+2. Repoint each to resolve the sitting through `exam_subjects`.
+3. **Drop the column.** Not deprecated, not commented.
+4. Report any path that cannot converge, and why.
+
+### Verify
+
+1. `exam_group_id` appears nowhere — schema, functions, client, generated types.
+2. **Finalising one subject finalises its sitting**, through `exam_subjects`.
+   Assert the behaviour, not the absence of an error — that is how it broke
+   silently last time.
+3. A multi-subject sitting holds one mark per student **per subject**.
+4. Existing exams keep their groupings; no marks moved.
 
 **STOP. Wait for approval.**
 

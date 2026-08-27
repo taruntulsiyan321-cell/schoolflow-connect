@@ -702,15 +702,28 @@ async function main() {
     (r) => r.some((x) => /\(exam_subject_id,\s*student_id\)/.test(x.def)) &&
            !r.some((x) => /\(exam_id,\s*student_id\)/.test(x.def)),
   );
-  // Chunk 6 Section 3 dropped exam_group_id with no written decision; Section
-  // 17 restored it. It is still written by createClassExamGroup and read by
-  // the admin Examinations screen, the teacher live panel and three
-  // marksService paths that lock and publish a group together.
+  // Chunk 6 Section 3 dropped exam_group_id with no written decision and this
+  // check was added to catch that. Chunk 6.5 dropped it deliberately, having
+  // first moved every read and write onto exams + exam_subjects, so the check
+  // is inverted rather than deleted: what needed protecting was never the
+  // column, it was the guarantee that a sitting can still be resolved.
   await check(
-    "exams.exam_group_id still exists — the code that locks and publishes a group depends on it",
+    "exams.exam_group_id is gone — the sitting is the exams row itself",
     `SELECT count(*)::int AS n FROM information_schema.columns
-      WHERE table_schema='public' AND table_name='exams' AND column_name='exam_group_id'`,
-    (r) => r[0].n === 1,
+      WHERE table_schema='public' AND column_name='exam_group_id'`,
+    (r) => r[0].n === 0,
+  );
+  await check(
+    "every exam resolves to at least one subject through exam_subjects",
+    `SELECT count(*)::int AS n FROM public.exams e
+      WHERE NOT EXISTS (SELECT 1 FROM public.exam_subjects es WHERE es.exam_id = e.id)`,
+    (r) => r[0].n === 0,
+  );
+  await check(
+    "marks.exam_subject_id is NOT NULL — a mark cannot float free of a subject",
+    `SELECT is_nullable FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='marks' AND column_name='exam_subject_id'`,
+    (r) => r[0]?.is_nullable === "NO",
   );
 
   console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) failed.`}`);

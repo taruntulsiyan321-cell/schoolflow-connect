@@ -3585,7 +3585,6 @@ export type Database = {
           duration_minutes: number | null
           end_date: string | null
           exam_date: string | null
-          exam_group_id: string | null
           exam_type: Database["public"]["Enums"]["exam_type"]
           id: string
           instructions: string | null
@@ -3600,7 +3599,7 @@ export type Database = {
           school_id: string | null
           start_date: string | null
           status: string
-          subject: string
+          subject: string | null
           subject_id: string | null
           topics: string[] | null
         }
@@ -3613,7 +3612,6 @@ export type Database = {
           duration_minutes?: number | null
           end_date?: string | null
           exam_date?: string | null
-          exam_group_id?: string | null
           exam_type?: Database["public"]["Enums"]["exam_type"]
           id?: string
           instructions?: string | null
@@ -3628,7 +3626,7 @@ export type Database = {
           school_id?: string | null
           start_date?: string | null
           status?: string
-          subject: string
+          subject?: string | null
           subject_id?: string | null
           topics?: string[] | null
         }
@@ -3641,7 +3639,6 @@ export type Database = {
           duration_minutes?: number | null
           end_date?: string | null
           exam_date?: string | null
-          exam_group_id?: string | null
           exam_type?: Database["public"]["Enums"]["exam_type"]
           id?: string
           instructions?: string | null
@@ -3656,7 +3653,7 @@ export type Database = {
           school_id?: string | null
           start_date?: string | null
           status?: string
-          subject?: string
+          subject?: string | null
           subject_id?: string | null
           topics?: string[] | null
         }
@@ -4472,7 +4469,7 @@ export type Database = {
         Row: {
           created_at: string
           exam_id: string
-          exam_subject_id: string | null
+          exam_subject_id: string
           id: string
           marks_obtained: number | null
           remarks: string | null
@@ -4482,7 +4479,7 @@ export type Database = {
         Insert: {
           created_at?: string
           exam_id: string
-          exam_subject_id?: string | null
+          exam_subject_id: string
           id?: string
           marks_obtained?: number | null
           remarks?: string | null
@@ -4492,7 +4489,7 @@ export type Database = {
         Update: {
           created_at?: string
           exam_id?: string
-          exam_subject_id?: string | null
+          exam_subject_id?: string
           id?: string
           marks_obtained?: number | null
           remarks?: string | null
@@ -4506,6 +4503,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "exams"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marks_exam_subject_fk"
+            columns: ["exam_subject_id", "school_id"]
+            isOneToOne: false
+            referencedRelation: "exam_subjects"
+            referencedColumns: ["id", "school_id"]
           },
           {
             foreignKeyName: "marks_school_id_fkey"
@@ -6112,18 +6116,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "report_cards_student_id_fkey"
-            columns: ["student_id"]
+            foreignKeyName: "report_cards_student_fk"
+            columns: ["student_id", "school_id"]
             isOneToOne: false
             referencedRelation: "students"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "school_id"]
           },
           {
-            foreignKeyName: "report_cards_student_id_fkey"
-            columns: ["student_id"]
+            foreignKeyName: "report_cards_student_fk"
+            columns: ["student_id", "school_id"]
             isOneToOne: false
             referencedRelation: "students_current"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "school_id"]
           },
         ]
       }
