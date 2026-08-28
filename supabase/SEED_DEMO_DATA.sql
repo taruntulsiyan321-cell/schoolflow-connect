@@ -567,12 +567,12 @@ BEGIN
 
   -- ===================== STUDENT MISTAKES (coach / recovery / arena focus demo) =====================
   INSERT INTO public.student_mistakes (
-    id, user_id, student_id, source, source_id, question_id,
+    id, school_id, user_id, student_id, source, source_id, question_id,
     class_level, subject, chapter, topic, concept, subconcept, assessment_type,
     question_text, options, student_answer, correct_answer, explanation,
     times_wrong, mastered, last_wrong_at
   ) VALUES
-    ('d9000003-0001-4000-8000-000000000001', u_s1, st1, 'practice', NULL,
+    ('d9000003-0001-4000-8000-000000000001', _demo_school, u_s1, st1, 'practice', NULL,
      'd9000003-0001-4000-8000-000000000001', 10, 'Mathematics', 'Integrals', 'Power rule integration',
      'Integrals', 'Power rule', 'practice',
      'What is ∫ x² dx?',
@@ -581,7 +581,7 @@ BEGIN
      '{"indexes":[1]}'::jsonb,
      '∫ xⁿ dx = xⁿ⁺¹/(n+1) + C',
      2, false, now() - interval '2 days'),
-    ('d9000003-0002-4000-8000-000000000002', u_s1, st1, 'practice', NULL,
+    ('d9000003-0002-4000-8000-000000000002', _demo_school, u_s1, st1, 'practice', NULL,
      'd9000003-0002-4000-8000-000000000002', 10, 'Physics', 'Electricity', 'Coulomb''s law',
      'Electrostatics', 'Coulomb force', 'practice',
      'Two equal charges at distance d exert 1.2 N. At distance 2d the force is:',
@@ -590,7 +590,7 @@ BEGIN
      '{"indexes":[1]}'::jsonb,
      'Coulomb''s law: F ∝ 1/r² — doubling distance halves the force when comparing proportional setups.',
      1, false, now() - interval '1 day'),
-    ('d9000003-0003-4000-8000-000000000003', u_s1, st1, 'battleground', b_done,
+    ('d9000003-0003-4000-8000-000000000003', _demo_school, u_s1, st1, 'battleground', b_done,
      bq_done2, 10, 'Mathematics', 'Real Numbers', 'Euclid division',
      'Real Numbers', 'Division lemma', 'battle',
      'The HCF of 867 and 255 is:',
