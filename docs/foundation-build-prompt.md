@@ -240,6 +240,12 @@ A failure gets investigated. A false pass closes the question.
   A snapshot test fails on legitimate change, and the pressure is then to weaken
   or delete it. **Write what must remain true, not what happens to be true
   today.**
+- **When rewriting, verify against the OLD behaviour, not the new code.**
+  A rewrite check that compares the new implementation to its own logic proves
+  only that it is self-consistent. Reproduce the predicate being replaced as
+  ground truth and compare sets against it. Found live: `CHUNK67_BATCH2_VERIFY`
+  item 3 reconstructed the old nested `EXISTS` and proved teacher 158 = 158 —
+  the set survived, rather than the new code agreeing with itself.
 - **Capture each item's baseline; never reuse a shared variable.** Found live:
   `CHUNK66_VERIFY` item 8 — the negative control — compared against `_expected`,
   which item 5 had overwritten with the teacher's set. It passed only because
