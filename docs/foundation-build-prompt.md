@@ -113,6 +113,12 @@ time, and they catch what a chunk broke somewhere else.
 | **Seed** | `npm run db:seed` **in a rolled-back transaction** | executes end to end |
 | Live smoke | open each role's main screens | loads, no console errors, no `undefined%`, **no 5xx** |
 | Query timing | heaviest query per touched table, per role | reported; nothing within 2× the statement timeout |
+| Definer inventory | every SECDEF and edge function vs its declared reader set | no unlisted function, no undeclared grant (G13) |
+
+**An empty result from a check that did not run is not a pass.** Found live: an
+audit sweep whose agents died on a usage limit returned `survivors: []`. That is
+"the verifiers never ran", not "nothing was found." Any gate that cannot complete
+**fails**, and reports why.
 
 **On the smoke gate and passwords:** do not type passwords into login forms, even
 for seeded demo accounts. Authenticate **programmatically** instead — mint a
@@ -160,6 +166,44 @@ than merely noted.
 timestamps, ledger position, or the commit that introduced it. Do not silently
 inherit someone else's failure, and do not claim one is pre-existing without
 evidence.
+
+### G13. Every `SECURITY DEFINER` function is a door — inventory them
+
+**Five instances of the same pattern, in five different chunks:**
+
+| Found in | Function | What it served |
+|---|---|---|
+| 1.6 | Nova edge function | A child's mistake book, to parent and teacher |
+| 1.6 | `rpc_teacher_concept_analytics` | Class practice aggregates, to teachers |
+| 7A | `rpc_dpp_pick_from_bank`, `rpc_generate_battle` | Class 12 questions, to a Class 5 student |
+| 7B | `rpc_teacher_class_insights` | Named students' accuracy, to any teacher |
+| 7B | `rpc_get_battle_report` | The whole report blob, to five roles |
+
+Every one had **correct policies.** RLS does not run inside a definer body, so
+policy-level auditing cannot see any of them.
+
+**Two lessons the last one adds:**
+
+- **Locking a wrapper does not lock what it wraps.**
+  `rpc_ensure_battle_report` was narrowed while its last line still called
+  `rpc_get_battle_report`, which was untouched and separately callable.
+- **Deleting a page removes a link, not reachability.** Every RPC is callable
+  directly through PostgREST by anyone holding the grant.
+
+### Standing inventory — a gate, not a habit
+
+Maintain a checked-in inventory of **every `SECURITY DEFINER` function and every
+edge function**, recording for each: what it returns, who holds EXECUTE, what it
+calls, and the rule that justifies its reader set.
+
+**The gate fails when:**
+- A definer or edge function exists that is not in the inventory
+- One grants EXECUTE to `anon` or `authenticated` without a declared justification
+- One calls another definer whose reader set is wider than its own
+- Its declared reader set disagrees with what its body actually permits
+
+**Per chunk:** re-run it. **Verify by calling each function as each role**, never
+by reading the body — that is how four of the five above survived a body review.
 
 ### G12. A policy that times out is a broken feature
 

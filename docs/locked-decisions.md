@@ -279,6 +279,45 @@ Teacher and parent screens built on them will break, and that is accepted —
 it is a product decision, not a migration detail. Report every screen affected
 before removing.
 
+**Transient vs durable — the rule that resolves battles, DPPs and recovery.**
+
+A session cannot be scored without knowing which answers were right. So:
+
+- **While a session is in flight**, per-question correctness may exist. It is
+  working state.
+- **When the session closes, it must not persist.** What survives is:
+  session or tier **totals**, plus rows for **wrong, skipped and bookmarked**.
+
+This applies identically to every practice-shaped surface — ordinary practice,
+**battles**, **DPPs**, and **recovery sessions**. A battle is student-initiated
+and not teacher-assigned, so it is practice, not assessment. Its durable record
+is the score, the XP and the mistakes — never a per-question list of what the
+student got right.
+
+**The exception remains school data.** Homework and test answers may record
+per-question correctness permanently, because a teacher set them and a mark is
+the point. That distinction is structural (§10.23), not a flag.
+
+**Battles — including teacher-created ones.**
+Teachers can set up battles for their class. **Teacher creation does not make a
+battle school data**: the test is that a teacher set it *and a mark is the
+point*. A battle produces XP and a winner, not marks.
+
+- The creator sees the **same public half as everyone**: participation, score,
+  winner, XP. **Never** per-student accuracy, skipped counts, or a derived
+  "struggling" judgement about a named child.
+- **Item difficulty is allowed at a participant floor.** Per-question
+  attempts-and-correct **across participants** may be shown only when the battle
+  had **5 or more participants**. Below that it identifies individuals — in a
+  two-person battle it is simply two students' answers with a chart around them.
+- A class battle clears the floor, so a teacher sees *"the class struggled on
+  question 7"*. A duel does not, so nothing is shown. One rule, right answer in
+  both cases.
+- **Compute the aggregate at battle finish, store the aggregate, then purge the
+  per-question rows.** Item difficulty survives; per-student correctness does
+  not. This is the transient rule applied, and it also fixes the stats reading 0%
+  after a battle ends.
+
 **What is stored — the governing rule:**
 - **Only what went wrong.** Per-question records exist for **wrong**, **skipped**
   and **bookmarked** answers only.
