@@ -691,7 +691,8 @@ export const PracticeService = {
       .select("subject, stream")
       .eq("is_approved", true)
       .eq("class_level", classLevel)
-      .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
+      // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
+      // so there is no per-school arm left to filter on.
       .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
       .limit(800);
 
@@ -732,7 +733,8 @@ export const PracticeService = {
       .eq("is_approved", true)
       .eq("class_level", classLevel)
       .ilike("subject", opts.subject)
-      .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
+      // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
+      // so there is no per-school arm left to filter on.
       .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
       .limit(800);
 
@@ -788,7 +790,8 @@ export const PracticeService = {
       .eq("is_approved", true)
       .eq("class_level", classLevel)
       .ilike("subject", opts.subject)
-      .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
+      // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
+      // so there is no per-school arm left to filter on.
       .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
       .limit(800);
 
@@ -1182,7 +1185,8 @@ export const PracticeService = {
         .from("question_bank")
         .select("id, subject, chapter, topic, concept, difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
         .eq("is_approved", true)
-        .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
+        // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
+        // so there is no per-school arm left to filter on.
         .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
         .limit(Math.min(400, Math.max(80, limit * 8)));
 
@@ -1513,8 +1517,17 @@ export const PracticeService = {
         sourceId: revisionId,
         idempotencyKey: `revision.complete:${revisionId}`,
       });
-    } catch {
-      /* optional */
+    } catch (e) {
+      // G10, and this is the exact shape the rule was written from: awardSafe
+      // already exists so an XP failure cannot crash the caller, and it was
+      // then wrapped in an empty catch as well — swallowed twice. The original
+      // finding was nine of eleven award paths failing for four days while the
+      // UI said "submitted", visible only to someone who happened to query
+      // progression_history. Not crashing is still not the same as silence.
+      console.error("PracticeService.completeRevision: XP award failed", {
+        revisionId,
+        error: e,
+      });
     }
   },
 };

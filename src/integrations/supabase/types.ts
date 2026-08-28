@@ -5668,8 +5668,9 @@ export type Database = {
           options: Json
           question: string
           question_format: string | null
-          school_id: string | null
+          replaced_by_question_id: string | null
           source: string | null
+          source_question_id: string | null
           source_type: string | null
           stream: string | null
           subconcept: string | null
@@ -5677,6 +5678,7 @@ export type Database = {
           subtopic: string | null
           topic: string | null
           updated_at: string | null
+          variant_tier: number | null
         }
         Insert: {
           board?: string | null
@@ -5698,8 +5700,9 @@ export type Database = {
           options: Json
           question: string
           question_format?: string | null
-          school_id?: string | null
+          replaced_by_question_id?: string | null
           source?: string | null
+          source_question_id?: string | null
           source_type?: string | null
           stream?: string | null
           subconcept?: string | null
@@ -5707,6 +5710,7 @@ export type Database = {
           subtopic?: string | null
           topic?: string | null
           updated_at?: string | null
+          variant_tier?: number | null
         }
         Update: {
           board?: string | null
@@ -5728,8 +5732,9 @@ export type Database = {
           options?: Json
           question?: string
           question_format?: string | null
-          school_id?: string | null
+          replaced_by_question_id?: string | null
           source?: string | null
+          source_question_id?: string | null
           source_type?: string | null
           stream?: string | null
           subconcept?: string | null
@@ -5737,6 +5742,7 @@ export type Database = {
           subtopic?: string | null
           topic?: string | null
           updated_at?: string | null
+          variant_tier?: number | null
         }
         Relationships: [
           {
@@ -5747,10 +5753,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "question_bank_school_id_fkey"
-            columns: ["school_id"]
+            foreignKeyName: "question_bank_replaced_by_question_id_fkey"
+            columns: ["replaced_by_question_id"]
             isOneToOne: false
-            referencedRelation: "schools"
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_bank_source_question_id_fkey"
+            columns: ["source_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
             referencedColumns: ["id"]
           },
         ]
@@ -5853,6 +5866,41 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      question_reports: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          question_id: string
+          reason: string
+          reported_by_account_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          question_id: string
+          reason: string
+          reported_by_account_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          question_id?: string
+          reason?: string
+          reported_by_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_reports_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
             referencedColumns: ["id"]
           },
         ]
@@ -9074,8 +9122,21 @@ export type Database = {
         Args: { _school_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      my_accessible_school_ids: { Args: never; Returns: string[] }
       my_children_class_ids: { Args: never; Returns: string[] }
       my_children_student_ids: { Args: never; Returns: string[] }
+      my_class_teacher_class_ids: { Args: never; Returns: string[] }
+      my_class_teacher_student_ids: { Args: never; Returns: string[] }
+      my_exam_ids_for_marks: { Args: never; Returns: string[] }
+      my_manageable_exam_ids: { Args: never; Returns: string[] }
+      my_manageable_test_ids: { Args: never; Returns: string[] }
+      my_own_or_children_student_ids: { Args: never; Returns: string[] }
+      my_readable_mark_student_ids: { Args: never; Returns: string[] }
+      my_readable_test_ids: { Args: never; Returns: string[] }
+      my_teacher_class_ids: { Args: never; Returns: string[] }
+      my_teacher_submission_ids: { Args: never; Returns: string[] }
+      my_visible_exam_ids: { Args: never; Returns: string[] }
+      my_visible_student_ids: { Args: never; Returns: string[] }
       normalize_phone: { Args: { _raw: string }; Returns: string }
       process_academic_event: { Args: { _event_id: string }; Returns: boolean }
       process_pending_academic_events: {

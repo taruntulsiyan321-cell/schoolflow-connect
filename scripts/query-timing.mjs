@@ -91,7 +91,7 @@ const explainSql = (email, table) => `
   END $$;`;
 
 /** Sum every SubPlan/InitPlan node: the work done once per statement. */
-function splitPlan(plan) {
+function splitPlan(plan, table) {
   let fixed = 0;
   let inSub = false;
   for (const line of plan.split("\n")) {
@@ -103,11 +103,18 @@ function splitPlan(plan) {
   }
   const totalM = plan.match(/Execution Time: ([\d.]+) ms/);
   const removedM = plan.match(/Rows Removed by Filter: (\d+)/);
+  // Two fixes, both from figures this gate printed confidently and wrongly.
+  //
   // "Index Only Scan" was missing, so attendance_audit reported 0 rows scanned
-  // for three roles and a per-row cost of 0.0000ms — a figure that reads like a
-  // pass but is simply absent. A gate that cannot see the scan must not print a
-  // number as though it could.
-  const scanM = plan.match(/(?:Seq Scan|Index Only Scan|Index Scan|Bitmap Heap Scan)[^\n]*rows=(\d+) loops=\d+/);
+  // and 0.0000ms per row — a number that reads like a pass but is absent.
+  //
+  // And the scan node must be the one ON THE TABLE BEING MEASURED. Unanchored,
+  // this matched whichever scan came first in the plan: on question_bank as a
+  // parent it picked up the `schools` lookup, reported "2 rows scanned", and
+  // turned a 33ms query into a projected 65s. There are exactly two schools.
+  const scanM = plan.match(
+    new RegExp(`(?:Seq Scan|Index Only Scan|Index Scan|Bitmap Heap Scan) on ${table}\\b[^\\n]*rows=(\\d+) loops=\\d+`),
+  );
   const total = totalM ? parseFloat(totalM[1]) : null;
   const scanned = (removedM ? Number(removedM[1]) : 0) + (scanM ? Number(scanM[1]) : 0);
   return { total, fixed, scanned };
@@ -131,7 +138,7 @@ for (const table of tables) {
     const out = await run(explainSql(email, table));
     const raw = (out?.message ?? "");
     const plan = raw.replace(/^.*?P0001:\s*/s, "").replace(/\nCONTEXT:[\s\S]*$/, "");
-    const { total, fixed, scanned } = splitPlan(plan);
+    const { total, fixed, scanned } = splitPlan(plan, table);
 
     if (total === null) {
       // A gate that cannot run must FAIL, not skip.

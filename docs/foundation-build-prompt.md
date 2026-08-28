@@ -1095,7 +1095,31 @@ opens a hole is worse than the latency it removed.**
 
 ---
 
-# CHUNK 7 — QUESTION BANK AND PRACTICE
+# CHUNK 7 — SPLIT INTO 7A, 7B, 7C
+
+**As originally written this chunk is three things: a question bank, a privacy
+surface, and an entire learning engine. Build them separately.**
+
+Read `docs/rls-policy-pattern.md` before writing any policy in any of them.
+
+| | Scope | Why separate |
+|---|---|---|
+| **7A** | Question bank, `topics`, chapter keying, tags and the board/class filter | Content only. No student data, no privacy surface. |
+| **7B** | Practice tables, privacy enforcement, XP, leaderboards | **The highest-risk privacy work in the project.** |
+| **7C** | Recovery, revision, analysis — `recovery-revision-analysis-spec.md` | A product, not a chunk. Depends on AI generation. |
+
+**7B deserves the most caution of any chunk so far.** Chunk 1.6 removed practice
+leaks from tables that already existed; 7B *creates* the tables those leaks were
+in. Every privacy rule in §10.8 lands here, and the Nova finding proved that
+policy-level auditing alone does not see edge functions or service-role paths.
+
+**7C should not start until 7B's privacy verification passes**, and its AI
+generation needs its own decisions — cost per session, cache hit rate, what
+happens when generation fails mid-session. Those are not schema questions.
+
+---
+
+# CHUNK 7A — QUESTION BANK AND CURRICULUM
 
 ### Question bank — global, shared across all schools
 
