@@ -726,6 +726,54 @@ async function main() {
     (r) => r[0]?.is_nullable === "NO",
   );
 
+  // --- Chunk 7B: practice privacy invariants ------------------------------
+  // These three are standing assertions rather than one-off verification
+  // items, because each guards a rule that a future migration could undo
+  // without anybody noticing.
+
+  // Chunk 7B batch 2c appended a purge of correct battle_answers rows to
+  // rpc_finish_battle, wrapped in EXCEPTION WHEN OTHERS THEN RAISE WARNING so
+  // that a purge failure can never break finishing a battle. That is the right
+  // trade for availability, but it makes the failure mode SILENT: if the
+  // DELETE ever fails, per-question correctness persists indefinitely and the
+  // only trace is a warning in the Postgres log that nothing reads.
+  //
+  // This check is what turns that warning into a failing gate. It asserts the
+  // OUTCOME the purge is supposed to produce, not that the code is present —
+  // so it also catches a rewrite that drops the purge, a row inserted around
+  // it, or a participant finished by some other path.
+  await check(
+    "no finished battle participant retains a correct answer (7B: the purge is best-effort, so assert the outcome)",
+    `SELECT count(*)::int AS n
+       FROM public.battle_answers ba
+       JOIN public.battle_participants bp ON bp.id = ba.participant_id
+      WHERE bp.finished_at IS NOT NULL AND ba.is_correct IS TRUE`,
+    (r) => r[0].n === 0,
+  );
+
+  // Batch 1 retired question_records: 7 of its 10 rows recorded only that an
+  // answer was correct. Asserted by absence so that replaying an old migration
+  // or restoring an old backup re-introduces a FAIL rather than a quiet table.
+  await check(
+    "question_records does not exist — per-question correctness is not stored (7B batch 1)",
+    `SELECT count(*)::int AS n FROM information_schema.tables
+      WHERE table_schema='public' AND table_name='question_records'`,
+    (r) => r[0].n === 0,
+  );
+
+  // Batch 2b converged the mistake book onto status (open/cleared) and DROPPED
+  // the mastered boolean. G9: the stale one is gone, not deprecated, so a new
+  // call site cannot appear against it.
+  await check(
+    "student_mistakes carries status and not the mastered boolean (7B batch 2b, G9)",
+    `SELECT
+       count(*) FILTER (WHERE column_name='status')::int   AS has_status,
+       count(*) FILTER (WHERE column_name='mastered')::int AS has_mastered
+     FROM information_schema.columns
+     WHERE table_schema='public' AND table_name='student_mistakes'`,
+    (r) => r[0].has_status === 1 && r[0].has_mastered === 0,
+  );
+
   console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) failed.`}`);
   process.exit(failures === 0 ? 0 : 1);
 }

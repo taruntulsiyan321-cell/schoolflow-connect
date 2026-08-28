@@ -846,11 +846,32 @@ function pickConceptFromEie(
   };
 }
 
+/**
+ * Chunk 7B batch 2d. `actorRole` is REQUIRED here for the same reason it is
+ * required in fetchEie.
+ *
+ * student_academic_profiles.metrics.weakTopics / .strongTopics were written
+ * from public.concept_mastery by the old refresh_student_academic_profile
+ * (weak = mastery_score < 50, strong = mastery_score >= 75). That write path
+ * is gone, but the rows it wrote survived, and this function handed them
+ * straight back — with no role gate at all, while every other practice
+ * fetcher in this file (fetchEie, fetchPracticeHistory, fetchMistakesBook,
+ * fetchRecoveryQueue, fetchProgression, probeEie) carries one.
+ *
+ * Reachable as parent, principal or admin via parent.child.summary and
+ * parent.child.narrative, and as teacher, principal or admin via
+ * student.nova.chat, where the result is returned to the client as
+ * data.facts.profile AND fed to the model.
+ *
+ * The residual metrics are purged by migration 20260828220000; this is the
+ * read side, so that a profile written by any future path cannot leak the
+ * same way.
+ */
 async function fetchParentSummary(
   admin: SupabaseClient,
   schoolId: string,
   studentId: string,
-  actorRole?: string,
+  actorRole: string,
 ) {
   const { data: profile } = await admin
     .from("student_academic_profiles")
@@ -866,10 +887,8 @@ async function fetchParentSummary(
     Array.isArray(metrics.weakTopics) ? metrics.weakTopics.map(String) : [],
     8,
   );
-  const strong = dedupeSubjects(
-    Array.isArray(metrics.strongTopics) ? metrics.strongTopics.map(String) : [],
-    8,
-  );
+  // strongTopics is deliberately NOT read into a binding any more. See the
+  // payload block below: it is not withheld conditionally, it is never sent.
 
   const pctOrNull = (v: unknown): number | null => {
     if (v == null) return null;
@@ -900,8 +919,11 @@ async function fetchParentSummary(
     homework_completion_pct: pctOrNull(profile?.homework_completion_pct),
     tests_avg_pct: pctOrNull(profile?.tests_avg_pct),
     exams_avg_pct: examsAvgPct,
-    weak_topics: weak,
-    strong_topics: strong,
+    // 10.8: practice is the student's. Omitted, not emptied — an empty array
+    // would assert "no weak areas", which is a different and false claim (G4).
+    ...(actorRole === "student" ? { weak_topics: weak } : {}),
+    // strong_topics is not gated, it is gone: "strong areas are never
+    // surfaced anywhere in the app", including to the student.
     source_as_of: profile?.refreshed_at ? String(profile.refreshed_at) : null,
     data_version: `parent:${studentId}:${profile?.refreshed_at ?? "none"}`,
     completeness: profile
@@ -1841,8 +1863,6 @@ export async function routeAiRequest(
           homework_completion_pct: parentSummary.homework_completion_pct,
           tests_avg_pct: parentSummary.tests_avg_pct,
           exams_avg_pct: parentSummary.exams_avg_pct,
-          weak_topics: parentSummary.weak_topics,
-          strong_topics: parentSummary.strong_topics,
           avg_mastery: (eie as { avg_mastery?: number }).avg_mastery ?? null,
           revision_topics: ((eie as { revision_priority?: { topic?: string | null }[] })
             .revision_priority ?? [])
@@ -2189,7 +2209,9 @@ export async function routeAiRequest(
         const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
           fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
         )) as Awaited<ReturnType<typeof fetchEie>>;
-        const parentLike = await fetchParentSummary(admin, req.actor.schoolId, studentId);
+        // Was missing req.actor.role, which is why the parameter had been
+        // optional. student.recommendations is reachable by staff.
+        const parentLike = await fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role);
         data = buildRecommendationPackage({
           studentId,
           schoolId: req.actor.schoolId,
@@ -3578,7 +3600,7 @@ export async function routeAiRequest(
         const factsEmpty =
           factsBundle.completeness < 0.25 &&
           !(eie.weak_concepts?.length || eie.strong_concepts?.length) &&
-          !(profile.weak_topics?.length || profile.strong_topics?.length) &&
+          !profile.weak_topics?.length &&
           // practice_sessions is present only for the student themselves; for a
           // parent or teacher its absence is not evidence of emptiness, so it only
           // counts toward "no facts" when it was actually supplied.

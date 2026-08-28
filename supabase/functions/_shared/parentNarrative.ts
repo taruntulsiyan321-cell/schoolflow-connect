@@ -9,8 +9,19 @@ export type ParentNarrativeInput = {
   homework_completion_pct: number;
   tests_avg_pct: number;
   exams_avg_pct: number;
-  weak_topics: string[];
-  strong_topics: string[];
+  // Chunk 7B batch 2d: weak_topics and strong_topics are GONE from the parent
+  // narrative, not made optional.
+  //
+  // This file renders what a parent reads. It was emitting
+  //   "Stronger areas: <topics>."   and   "Focus areas: <topics>."
+  // and putting "Priority practice: <topic>" into the narrative sentence —
+  // concept names derived from the child's practice mastery. §10.8 makes
+  // practice student-only, and "strong areas are never surfaced anywhere in
+  // the app" rules out the first one for every audience including the student.
+  //
+  // avg_mastery and revision_topics stay in the type: both are supplied from
+  // fetchEie, whose concept_mastery and revision_queue reads are already
+  // inside an actorRole === "student" gate, so a parent receives neither.
   avg_mastery?: number | null;
   revision_topics?: string[];
   source_as_of: string | null;
@@ -45,12 +56,6 @@ export function buildParentScheduledNarrative(input: ParentNarrativeInput): Pare
   if (input.tests_avg_pct > 0) bullets.push(`Tests average: ${pct(input.tests_avg_pct)}.`);
   if (input.exams_avg_pct > 0) bullets.push(`Exams average: ${pct(input.exams_avg_pct)}.`);
 
-  if (input.strong_topics.length) {
-    bullets.push(`Stronger areas: ${input.strong_topics.slice(0, 3).join(", ")}.`);
-  }
-  if (input.weak_topics.length) {
-    bullets.push(`Focus areas: ${input.weak_topics.slice(0, 3).join(", ")}.`);
-  }
   if (typeof input.avg_mastery === "number" && input.avg_mastery > 0) {
     bullets.push(`Tracked concept mastery average: ${pct(input.avg_mastery)}.`);
   }
@@ -65,14 +70,15 @@ export function buildParentScheduledNarrative(input: ParentNarrativeInput): Pare
   const narrative =
     `${label}'s recent academic snapshot: attendance ${pct(input.attendance_pct)}, ` +
     `homework completion ${pct(input.homework_completion_pct)}.` +
-    (input.weak_topics[0] ? ` Priority practice: ${input.weak_topics[0]}.` : "") +
     asOf;
 
   let completeness = 0.2;
   if (input.attendance_pct > 0) completeness += 0.25;
   if (input.homework_completion_pct > 0) completeness += 0.2;
   if (input.tests_avg_pct > 0 || input.exams_avg_pct > 0) completeness += 0.15;
-  if (input.weak_topics.length || input.strong_topics.length) completeness += 0.2;
+  // The 0.2 that practice topics used to contribute is not redistributed: the
+  // narrative genuinely carries less than it did, and completeness should say
+  // so rather than round itself back up to look unchanged (G4).
   completeness = Math.min(1, Math.round(completeness * 100) / 100);
 
   return {
