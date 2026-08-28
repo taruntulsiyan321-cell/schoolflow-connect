@@ -3112,7 +3112,7 @@ export type Database = {
           mistake_count: number
           recovery_attempts: number
           recovery_correct: number
-          school_id: string | null
+          school_id: string
           student_id: string | null
           subconcept: string | null
           subject: string
@@ -3136,7 +3136,7 @@ export type Database = {
           mistake_count?: number
           recovery_attempts?: number
           recovery_correct?: number
-          school_id?: string | null
+          school_id: string
           student_id?: string | null
           subconcept?: string | null
           subject: string
@@ -3160,7 +3160,7 @@ export type Database = {
           mistake_count?: number
           recovery_attempts?: number
           recovery_correct?: number
-          school_id?: string | null
+          school_id?: string
           student_id?: string | null
           subconcept?: string | null
           subject?: string
@@ -5233,7 +5233,7 @@ export type Database = {
           practice_mode: string | null
           question_count: number
           saved_at: string | null
-          school_id: string | null
+          school_id: string
           score: number
           skipped_count: number
           stream: string | null
@@ -5261,7 +5261,7 @@ export type Database = {
           practice_mode?: string | null
           question_count?: number
           saved_at?: string | null
-          school_id?: string | null
+          school_id: string
           score?: number
           skipped_count?: number
           stream?: string | null
@@ -5289,7 +5289,7 @@ export type Database = {
           practice_mode?: string | null
           question_count?: number
           saved_at?: string | null
-          school_id?: string | null
+          school_id?: string
           score?: number
           skipped_count?: number
           stream?: string | null
@@ -5698,7 +5698,7 @@ export type Database = {
           id: string
           is_correct: boolean | null
           practice_mode: string | null
-          school_id: string | null
+          school_id: string
           score: number
           selected_answer: Json | null
           session_id: string | null
@@ -5733,7 +5733,7 @@ export type Database = {
           id?: string
           is_correct?: boolean | null
           practice_mode?: string | null
-          school_id?: string | null
+          school_id: string
           score?: number
           selected_answer?: Json | null
           session_id?: string | null
@@ -5768,7 +5768,7 @@ export type Database = {
           id?: string
           is_correct?: boolean | null
           practice_mode?: string | null
-          school_id?: string | null
+          school_id?: string
           score?: number
           selected_answer?: Json | null
           session_id?: string | null
@@ -6271,7 +6271,7 @@ export type Database = {
           id: string
           priority: number
           reason: string
-          school_id: string | null
+          school_id: string
           student_id: string | null
           subject: string
           topic: string | null
@@ -6286,7 +6286,7 @@ export type Database = {
           id?: string
           priority?: number
           reason?: string
-          school_id?: string | null
+          school_id: string
           student_id?: string | null
           subject: string
           topic?: string | null
@@ -6301,7 +6301,7 @@ export type Database = {
           id?: string
           priority?: number
           reason?: string
-          school_id?: string | null
+          school_id?: string
           student_id?: string | null
           subject?: string
           topic?: string | null
@@ -7152,7 +7152,7 @@ export type Database = {
           options: Json | null
           question_id: string | null
           question_text: string
-          school_id: string | null
+          school_id: string
           source: string
           source_id: string | null
           student_answer: Json | null
@@ -7179,7 +7179,7 @@ export type Database = {
           options?: Json | null
           question_id?: string | null
           question_text: string
-          school_id?: string | null
+          school_id: string
           source: string
           source_id?: string | null
           student_answer?: Json | null
@@ -7206,7 +7206,7 @@ export type Database = {
           options?: Json | null
           question_id?: string | null
           question_text?: string
-          school_id?: string | null
+          school_id?: string
           source?: string
           source_id?: string | null
           student_answer?: Json | null
@@ -7245,21 +7245,21 @@ export type Database = {
         Row: {
           last_seen_at: string
           question_id: string
-          school_id: string | null
+          school_id: string
           times_seen: number
           user_id: string
         }
         Insert: {
           last_seen_at?: string
           question_id: string
-          school_id?: string | null
+          school_id: string
           times_seen?: number
           user_id: string
         }
         Update: {
           last_seen_at?: string
           question_id?: string
-          school_id?: string | null
+          school_id?: string
           times_seen?: number
           user_id?: string
         }
@@ -9699,7 +9699,7 @@ export type Database = {
           practice_mode: string | null
           question_count: number
           saved_at: string | null
-          school_id: string | null
+          school_id: string
           score: number
           skipped_count: number
           stream: string | null
@@ -10118,7 +10118,6 @@ export type Database = {
         Args: { _battle_id: string }
         Returns: Json
       }
-      rpc_teacher_class_insights: { Args: { _class_id: string }; Returns: Json }
       rpc_teacher_class_progression_insights: {
         Args: { _class_id: string }
         Returns: Json
