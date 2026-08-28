@@ -285,9 +285,11 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         )}
       </div>
 
-      {/* Strong / weak topics */}
-      <div className="grid md:grid-cols-2 gap-3">
-        <TopicCard title="Strong areas" items={topics.strong} variant="strong" />
+      {/* Weak topics only. §10.8: "Strong areas are never shown anywhere in
+          the app. The product surfaces weaknesses only." _snapshot_battle_report
+          no longer computes topics.strong either, so there is nothing to render
+          even if this card came back. */}
+      <div className="grid gap-3">
         <TopicCard title="Needs work" items={topics.weak} variant="weak" />
       </div>
 
@@ -345,7 +347,6 @@ function buildBattleConceptFallback(data: BattleReportPayload): ConceptRecoveryR
   const battle = report.battle ?? {};
   const topics = report.topics ?? {};
   const weak = Array.isArray(topics.weak) ? topics.weak : [];
-  const strong = Array.isArray(topics.strong) ? topics.strong : [];
 
   return {
     source_type: "battle_participant",
@@ -362,12 +363,10 @@ function buildBattleConceptFallback(data: BattleReportPayload): ConceptRecoveryR
       attempts: Number(item.total ?? 0),
       correct: Number(item.correct ?? 0),
     })),
-    strong_concepts: strong.map((item: any) => ({
-      subject: battle.subject ?? "",
-      chapter: item.chapter ?? battle.chapter,
-      concept: item.label ?? item.topic ?? battle.topic ?? battle.chapter ?? battle.subject ?? "",
-      accuracy: Number(item.accuracy ?? 100),
-    })),
+    // Always empty. §10.8 forbids surfacing strong areas anywhere, and the
+    // snapshot no longer produces them. Kept as a field rather than removed
+    // so the downstream shape is unchanged.
+    strong_concepts: [] as never[],
     recovery_assignments: [],
     improvement_areas: weak.map((item: any) => item.label ?? item.topic ?? "Weak concept"),
   };

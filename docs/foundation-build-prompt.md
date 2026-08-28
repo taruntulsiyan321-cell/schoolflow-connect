@@ -1270,6 +1270,70 @@ same in 7A.
 
 ---
 
+# CHUNK 7.5 — CONVERGE TESTS ONTO `tests` / `test_marks`
+
+**The largest G9 in the project: two implementations of one feature.**
+
+`dpps` + `dpp_questions` + `dpp_attempts` + `dpp_answers` is what the **live
+Tests feature runs on** — `testService.ts` says so in its own header and queries
+`dpps` in eleven places.
+
+`tests` + `test_marks` were built to spec in Chunk 6 and **have zero application
+readers.** They hold only fixture rows.
+
+The doc describes one system; the app runs the other.
+
+**Authority: `tests` + `test_marks`.** They match §10.22 — `section_subject`
+anchored, `max_mark`, nullable marks, chapter and topic. `dpps` is the earlier
+shape.
+
+**This is a convergence, not a deletion.** Removing DPP first takes the Tests
+feature with it.
+
+### What makes this cheap
+
+- **No real student ever used a DPP.** All rows carry the seed timestamp; the two
+  runtime attempts are demo and QA accounts.
+- Both `dpp_answers` rows are `is_correct = true` — **nothing to carry into the
+  mistake book.**
+- `student_mistakes` has **no foreign key** into any DPP table, so dropping them
+  cannot cascade a mistake away.
+
+**Confirm all three still hold before starting.** If any real attempt has
+appeared since, its wrong answers go into `student_mistakes` first.
+
+### Do
+
+1. Repoint `testService.ts` (11 query sites) onto `tests` / `test_marks`.
+2. Repoint the student Tests page and the attempt and result screens.
+3. **Move `ScoreRing.tsx` out of `src/components/dpp/`** — it is imported by
+   `PracticeSessionResult` and `RecoverySessionResult`, so that directory cannot
+   be deleted wholesale.
+4. The 5 DPP-specific DB functions: drop. The 12 general functions with DPP
+   branches: remove the branch only.
+5. Delete the 6 DPP-only files, the 4 nav and route entries, and the DPP branches
+   across the remaining files.
+6. **Only then** drop the four DPP tables.
+
+### Verify
+
+1. **A student creates, takes and sees the result of a test, end to end, on
+   `tests` / `test_marks`.** Assert the behaviour — a passing policy test proves
+   nothing here.
+2. Wrong answers land in `student_mistakes` with `chapter_id` set.
+3. Per-question correctness does not persist after the session closes (§10.8
+   transient rule).
+4. Zero references to `dpp` anywhere — schema, functions, client, generated
+   types, routes, nav.
+5. `ScoreRing` still renders in both surfaces that import it.
+6. Marks anchor on `section_subject`; `max_mark` and pass threshold resolve per
+   test, never a literal.
+7. Timing per role at fixture volume.
+
+**STOP. Wait for approval.**
+
+---
+
 # CHUNK 7C — RECOVERY, REVISION, ANALYSIS
 
 **A product, not a chunk.** Do not start until 7B's privacy verification passes.

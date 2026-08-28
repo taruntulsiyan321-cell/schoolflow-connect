@@ -28,7 +28,6 @@ import QuestionBankPage from "@/pages/shared/QuestionBankPage";
 import TeacherAICoach from "./TeacherAICoach";
 import TeacherBattleground from "@/pages/teacher/TeacherBattleground";
 import BattleMonitor from "@/pages/teacher/BattleMonitor";
-import BattleTeacherReport from "@/pages/teacher/BattleTeacherReport";
 
 /** Set My Classes sub-tab then bounce to /teacher/classes (sessionStorage contract). */
 function RedirectTeacherClassTab({ tab }: { tab: string }) {
@@ -300,7 +299,12 @@ export default function TeacherApp() {
               <Route path="practice" element={<Navigate to="/teacher/question-bank" replace />} />
               <Route path="battleground" element={<TeacherBattleground />} />
               <Route path="battleground/monitor/:id" element={<BattleMonitor />} />
-              <Route path="battleground/monitor/:id/report/:participantId" element={<BattleTeacherReport />} />
+              {/* A student's battle report is practice (§10.8): the student and
+                  nobody else. The route and its page are removed rather than
+                  left unreachable — an unrouted component is one PR away from
+                  being routed again. The RLS policy and rpc_ensure_battle_report
+                  were narrowed to the owner in the same migration, so the data
+                  is closed even if a caller reappears. */}
               <Route path="class" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="my-class" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="my-subjects" element={<Navigate to="/teacher/classes" replace />} />
