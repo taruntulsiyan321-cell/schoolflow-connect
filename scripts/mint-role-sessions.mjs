@@ -50,8 +50,13 @@ const keyRes = await fetch(`https://api.supabase.com/v1/projects/${REF}/api-keys
   headers: { Authorization: `Bearer ${MGMT}` },
 });
 if (!keyRes.ok) { console.error(`Could not read project API keys: HTTP ${keyRes.status}`); process.exit(1); }
-const SERVICE = (await keyRes.json()).find((k) => k.name === "service_role")?.api_key;
+const KEYS = await keyRes.json();
+const SERVICE = KEYS.find((k) => k.name === "service_role")?.api_key;
+// Needed as the apikey header when probing PostgREST as the minted USER:
+// the service key would answer as service_role and prove nothing.
+const ANON = KEYS.find((k) => k.name === "anon")?.api_key;
 if (!SERVICE) { console.error("No service_role key returned"); process.exit(1); }
+if (!ANON) { console.error("No anon key returned"); process.exit(1); }
 
 const authHeaders = {
   apikey: SERVICE,
@@ -95,6 +100,46 @@ async function mint(email) {
   return { session: s };
 }
 
+/**
+ * A minted token was being handed back without ever being used, so the first
+ * thing to try it was the browser — and roughly once in ten runs that first
+ * request came back 401 PGRST303 "JWT issued at future", failing the smoke
+ * gate for a reason that had nothing to do with the app.
+ *
+ * The cause is not this machine's clock. Nothing here signs a token: GoTrue
+ * stamps `iat`, so the local clock never enters it (measured: this machine is
+ * ~1.5s BEHIND Supabase, which would make `iat` look PAST, not future).
+ *
+ * Measured across 16 mints, `iat` minus the validator's own Date header was
+ * exactly 0 ms on nine of them and -1000 ms on the rest — the token is stamped
+ * in the same second the validator is in, with no margin at all. GoTrue mints
+ * and PostgREST validates on different hosts, and PostgREST rejects `iat > now`
+ * with zero leeway, so a few tens of milliseconds of divergence between those
+ * two hosts is enough to tip it.
+ *
+ * So prove the token before returning it. This is not a retry that hides a
+ * failure: it retries the PROOF, inside the mint step, and if a token cannot
+ * be made to work within the budget the role is reported FAILED and the script
+ * exits non-zero. A gate that cannot run must fail, not skip.
+ */
+async function proveUsable(token, budgetMs = 4000) {
+  const started = Date.now();
+  let last = "";
+  for (;;) {
+    const r = await fetch(`${URL_BASE}/rest/v1/schools?select=id&limit=1`, {
+      headers: { apikey: ANON, Authorization: `Bearer ${token}` },
+    });
+    if (r.ok) return { ok: true, waitedMs: Date.now() - started };
+    const body = await r.json().catch(() => ({}));
+    last = `HTTP ${r.status} ${body.code ?? ""} ${body.message ?? ""}`.trim();
+    // Only the not-yet-valid-here case is worth waiting out. Anything else is
+    // a real failure and must surface immediately rather than burn the budget.
+    if (body.code !== "PGRST303") return { ok: false, error: last };
+    if (Date.now() - started > budgetMs) return { ok: false, error: `${last} (still after ${budgetMs}ms)` };
+    await new Promise((res) => setTimeout(res, 400));
+  }
+}
+
 const out = {};
 let failed = 0;
 for (const [role, email] of ROLES) {
@@ -104,6 +149,13 @@ for (const [role, email] of ROLES) {
     failed++;
     continue;
   }
+  const proof = await proveUsable(r.session.access_token);
+  if (!proof.ok) {
+    console.log(`FAIL  ${role.padEnd(10)} ${email.padEnd(32)} minted but unusable: ${proof.error}`);
+    failed++;
+    continue;
+  }
+
   out[role] = {
     email,
     user_id: r.session.user?.id,
@@ -111,7 +163,8 @@ for (const [role, email] of ROLES) {
     refresh_token: r.session.refresh_token,
     expires_at: r.session.expires_at,
   };
-  console.log(`OK    ${role.padEnd(10)} ${email.padEnd(32)} session minted (user ${r.session.user?.id})`);
+  const waited = proof.waitedMs > 500 ? `, usable after ${proof.waitedMs}ms` : "";
+  console.log(`OK    ${role.padEnd(10)} ${email.padEnd(32)} session minted and proven (user ${r.session.user?.id}${waited})`);
 }
 
 writeFileSync(OUT, JSON.stringify({ ref: REF, url: URL_BASE, roles: out }, null, 2));

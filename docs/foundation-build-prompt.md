@@ -139,6 +139,12 @@ A gate that cannot run must **fail**, not skip.
 guards, confirm it reports failure, restore. A gate never seen to fail is a gate
 never seen to work.
 
+**Scale fixtures belong in their own institution.** Do not inflate the demo
+school to give the timing gate volume — that trades a readable demo for a working
+gate. Seed a second institution at realistic scale instead: the gate gets its
+numbers, the demo school stays legible, and cross-institution isolation is
+exercised at volume for free.
+
 **The seed must cover every table the gates measure.** `tests`, `test_marks` and
 `report_cards` hold zero rows, so the timing gate measures nothing for them —
 blind precisely where the newest tables are. Seed realistic volume into every
@@ -1018,6 +1024,61 @@ re-invokes the entire function per row. Contrast `active_membership_role()` at
 4. Super admin can still read and upload in a granted institution.
 
 **STOP. Wait for approval.**
+
+---
+
+# CHUNK 6.7 — REWRITE THE TENANT FENCES
+
+**The systemic finding. One of these is a live 500 today.**
+
+Chunk 6.6 fixed `marks` and found the same per-row shape in **234 policies
+across 104 tables**. Measured, not projected:
+
+| Table | Cost as parent | Status |
+|---|---|---|
+| `academic_events` (4,335 rows) | **75 s** | **Live 500 right now** |
+| `attendance` | 4.7 s | Over half the 8 s budget |
+| `notifications` | 4.1 s | Over half the budget |
+
+**Root cause:** the RESTRICTIVE tenant fence calls `same_school(school_id)` per
+row at 2.73 ms. Multiplied by candidates, it dominates everything.
+
+**Proven not to work — do not retry it.** Rewriting `same_school()` as a
+non-SECDEF wrapper to get it inlined fixes nothing: Postgres will not inline a
+SQL function whose body contains a subquery. Measured at 8.0 s → **16.2 s**,
+worse. Tested inside a rolled-back transaction; production never saw it.
+
+**What did work in 6.6:** set-returning helpers behind `IN (SELECT …)` so the
+policy stops calling a per-row function, plus rewriting the fence itself.
+50.1 s → 26.5 ms.
+
+### This is a change to the isolation boundary. Treat it as one.
+
+Not a performance chunk that happens to touch policies. **A performance fix that
+opens a hole is worse than the latency it removed.**
+
+### Do
+
+1. **Report first.** All 234 policies, all 104 tables, grouped by shape. Which
+   can share one rewritten fence, which are genuinely different.
+2. Rewrite in batches by shape, not all at once.
+3. **After each batch:** full leak survey, cross-role checks, and the
+   normal-access counter-check — tightening can over-fence as easily as
+   under-fence.
+4. Order by measured cost. `academic_events` first: it is broken now.
+
+### Verify
+
+1. **Set equality, not counts**, per role per table. Counts pass if two
+   children's records are swapped.
+2. **Negative control on each batch** — open a policy, confirm the check catches
+   it, close it.
+3. Every path under 2 s at fixture volume, with the projection to 10,000 rows.
+4. Leak survey 0. Normal access byte-identical.
+5. Super-admin arm preserved — an account acting in a granted institution has no
+   membership row, so role dispatch alone silently revokes it.
+
+**STOP after each batch. This is the isolation layer.**
 
 ---
 

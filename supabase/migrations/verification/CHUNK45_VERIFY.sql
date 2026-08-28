@@ -6,7 +6,19 @@ DECLARE
   _r1 text; _r2 text; _r3 text; _r4 text;
   _n int; _now text; _prev text;
 BEGIN
-  SELECT id INTO _sch FROM public.schools LIMIT 1;
+  -- The fixture must live in the school whose accounts this test authenticates
+  -- as. "FROM public.schools LIMIT 1" was UNORDERED: it worked only while there
+  -- was exactly one school, and began picking arbitrarily once Chunk 6.7 added a
+  -- second institution for the scale fixture. The test then reported "the
+  -- principal cannot read attendance" when the truth was that the rows belonged
+  -- to another school. Derive it from the account the test actually uses, so no
+  -- number of additional institutions can break it (G11: assert the guarantee).
+  SELECT m.school_id INTO _sch
+    FROM public.memberships m JOIN auth.users u ON u.id = m.account_id
+   WHERE u.email = 'admin@wisdomcampus.com' AND m.status = 'active' LIMIT 1;
+  IF _sch IS NULL THEN
+    RAISE EXCEPTION 'verification fixture: admin@wisdomcampus.com has no active membership, so there is no school to build the fixture in';
+  END IF;
   SELECT id INTO _ay_cur FROM public.academic_years WHERE school_id = _sch AND is_current;
   SELECT id INTO _sec FROM public.classes WHERE school_id = _sch LIMIT 1;
   SELECT id INTO _sec2 FROM public.classes WHERE school_id = _sch AND id <> _sec LIMIT 1;

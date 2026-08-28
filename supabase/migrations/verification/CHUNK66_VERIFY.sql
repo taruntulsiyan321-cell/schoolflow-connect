@@ -19,6 +19,7 @@ DECLARE
   _school       uuid := '00000000-0000-4000-8000-000000000001';
   _r1 text; _r2 text; _r3 text; _r4 text; _r5 text; _r6 text; _r7 text; _r8 text;
   _r9 text; _r10 text;
+  _parent_baseline int;
   _uid_parent   uuid; _uid_student uuid; _uid_teacher uuid;
   _uid_admin    uuid; _uid_principal uuid;
   _actual       uuid[]; _expected uuid[];
@@ -55,6 +56,7 @@ BEGIN
   SELECT array_agg(id ORDER BY id) INTO _actual FROM public.marks;
   RESET ROLE;
 
+  _parent_baseline := COALESCE(array_length(_actual,1),0);
   _r1 := 'parent sees ' || COALESCE(array_length(_actual,1),0) || ' mark(s), ground truth '
       || COALESCE(array_length(_expected,1),0)
       || CASE WHEN COALESCE(_actual, ARRAY[]::uuid[]) = COALESCE(_expected, ARRAY[]::uuid[])
@@ -217,6 +219,14 @@ BEGIN
   -- thing item 1 guards, confirm the same comparison now reports a leak,
   -- and put it back. Without this, items 1-6 passing proves only that the
   -- comparison ran, not that it discriminates.
+  --
+  -- Compared against _parent_baseline, captured at item 1. It used to compare
+  -- against _expected, which by this point holds the TEACHER's set from item
+  -- 5 — the control only passed because the scale fixture happened to sit in
+  -- this school and made 2546 > 26 true. Moving the fixture to its own
+  -- institution left 26 > 26, and the control correctly failed. It was
+  -- passing for the wrong reason before, which is the defect it exists to
+  -- catch, in itself.
   DROP POLICY IF EXISTS marks_read ON public.marks;
   CREATE POLICY marks_read ON public.marks FOR SELECT USING (true);
 
@@ -227,7 +237,8 @@ BEGIN
   RESET ROLE;
 
   _r8 := 'negative control — with marks_read deliberately opened, parent sees ' || _n
-      || CASE WHEN _n > COALESCE(array_length(_expected,1),0)
+      || ' against its legitimate ' || _parent_baseline
+      || CASE WHEN _n > _parent_baseline
               THEN ' (PASS — the check discriminates)'
               ELSE ' (FAIL — opening the policy changed nothing, so items 1-6 prove nothing)' END;
   -- The RAISE below rolls this back with everything else; the real policy
