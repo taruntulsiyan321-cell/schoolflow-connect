@@ -7140,6 +7140,7 @@ export type Database = {
           assessment_type: string | null
           chapter: string | null
           class_level: number | null
+          cleared_at: string | null
           concept: string | null
           correct_answer: Json | null
           created_at: string
@@ -7148,13 +7149,13 @@ export type Database = {
           explanation: string | null
           id: string
           last_wrong_at: string
-          mastered: boolean
           options: Json | null
           question_id: string | null
           question_text: string
           school_id: string
           source: string
           source_id: string | null
+          status: string
           student_answer: Json | null
           student_id: string | null
           subconcept: string | null
@@ -7167,6 +7168,7 @@ export type Database = {
           assessment_type?: string | null
           chapter?: string | null
           class_level?: number | null
+          cleared_at?: string | null
           concept?: string | null
           correct_answer?: Json | null
           created_at?: string
@@ -7175,13 +7177,13 @@ export type Database = {
           explanation?: string | null
           id?: string
           last_wrong_at?: string
-          mastered?: boolean
           options?: Json | null
           question_id?: string | null
           question_text: string
           school_id: string
           source: string
           source_id?: string | null
+          status?: string
           student_answer?: Json | null
           student_id?: string | null
           subconcept?: string | null
@@ -7194,6 +7196,7 @@ export type Database = {
           assessment_type?: string | null
           chapter?: string | null
           class_level?: number | null
+          cleared_at?: string | null
           concept?: string | null
           correct_answer?: Json | null
           created_at?: string
@@ -7202,13 +7205,13 @@ export type Database = {
           explanation?: string | null
           id?: string
           last_wrong_at?: string
-          mastered?: boolean
           options?: Json | null
           question_id?: string | null
           question_text?: string
           school_id?: string
           source?: string
           source_id?: string | null
+          status?: string
           student_answer?: Json | null
           student_id?: string | null
           subconcept?: string | null

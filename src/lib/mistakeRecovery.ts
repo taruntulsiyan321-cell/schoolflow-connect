@@ -91,7 +91,7 @@ function mapRow(m: {
 const MISTAKE_SELECT =
   "id, question_text, options, student_answer, correct_answer, explanation, subject, chapter, concept, topic, times_wrong, last_wrong_at";
 
-/** Unmastered practice mistakes for a recovery assignment's subject/chapter/concept. */
+/** Open practice mistakes for a recovery assignment's subject/chapter/concept. */
 export async function fetchMistakesForRecovery(opts: {
   subject: string;
   chapter?: string | null;
@@ -107,7 +107,7 @@ export async function fetchMistakesForRecovery(opts: {
     .from("student_mistakes")
     .select(MISTAKE_SELECT)
     .eq("user_id", user.id)
-    .eq("mastered", false)
+    .eq("status", "open")
     .eq("subject", opts.subject)
     .or("source.eq.practice,assessment_type.eq.practice")
     .order("last_wrong_at", { ascending: false })
@@ -128,7 +128,7 @@ export async function fetchMistakesForRecovery(opts: {
   return filtered.map(mapRow);
 }
 
-/** Unmastered mistakes for analytics (practice, DPP, battles, exams). */
+/** Open mistakes for analytics (practice, DPP, battles, exams). */
 export async function fetchMistakesForAnalytics(limit = 50): Promise<MistakeRecord[]> {
   const { data: auth, error: authErr } = await supabase.auth.getUser();
   if (authErr) console.warn("[mistakeRecovery] getUser failed:", authErr.message);
@@ -139,7 +139,7 @@ export async function fetchMistakesForAnalytics(limit = 50): Promise<MistakeReco
     .from("student_mistakes")
     .select(MISTAKE_SELECT)
     .eq("user_id", user.id)
-    .eq("mastered", false)
+    .eq("status", "open")
     .order("last_wrong_at", { ascending: false })
     .limit(limit);
   if (error) console.warn("[mistakeRecovery] fetchMistakesForAnalytics failed:", error.message);
@@ -150,7 +150,7 @@ export async function fetchMistakesForAnalytics(limit = 50): Promise<MistakeReco
 /** @deprecated Use fetchMistakesForAnalytics */
 export const fetchPracticeMistakesForAnalytics = fetchMistakesForAnalytics;
 
-/** Most recent unmastered practice mistake (any subject). */
+/** Most recent open practice mistake (any subject). */
 export async function fetchMostRecentPracticeMistake(): Promise<MistakeRecord | null> {
   const { data: auth, error: authErr } = await supabase.auth.getUser();
   if (authErr) console.warn("[mistakeRecovery] getUser failed:", authErr.message);
@@ -161,7 +161,7 @@ export async function fetchMostRecentPracticeMistake(): Promise<MistakeRecord | 
     .from("student_mistakes")
     .select(MISTAKE_SELECT)
     .eq("user_id", user.id)
-    .eq("mastered", false)
+    .eq("status", "open")
     .or("source.eq.practice,assessment_type.eq.practice")
     .order("last_wrong_at", { ascending: false })
     .limit(1)

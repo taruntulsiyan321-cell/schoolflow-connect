@@ -941,7 +941,7 @@ export const PracticeService = {
    *
    * Wrong lives in student_mistakes (the nominated mistake book), skipped in
    * practice_skipped. The Mistake Book is still self-clearing — a question
-   * leaves it when `mastered` is set, which is the same behaviour
+   * leaves it when the mistake is cleared, which is the same behaviour
    * current_status gave, without recording correctness to get it.
    */
   async listQuestionIdsByStatus(
@@ -958,7 +958,7 @@ export const PracticeService = {
             .from("student_mistakes")
             .select("question_id, last_wrong_at")
             .eq("user_id", ctx.userId)
-            .eq("mastered", false)
+            .eq("status", "open")
             .not("question_id", "is", null)
             .order("last_wrong_at", { ascending: false })
             .limit(limit)
@@ -1009,7 +1009,7 @@ export const PracticeService = {
       .from("student_mistakes")
       .select("question_id, times_wrong, student_answer, last_wrong_at")
       .eq("user_id", ctx.userId)
-      .eq("mastered", false)
+      .eq("status", "open")
       .not("question_id", "is", null)
       .order("last_wrong_at", { ascending: false })
       .limit(limit);
@@ -1393,7 +1393,7 @@ export const PracticeService = {
     });
   },
 
-  /** Mark student mistakes mastered after successful retry practice. */
+  /** Clear student mistakes after a successful retry practice. */
 
   async completeMistakeRetry(
     ctx: ServiceContext,
@@ -1410,9 +1410,9 @@ export const PracticeService = {
       explanation?: string | null;
       difficulty?: string | null;
     }>,
-  ): Promise<{ score: number; masteredIds: string[]; sessionId: string | null; persisted: boolean }> {
+  ): Promise<{ score: number; clearedIds: string[]; sessionId: string | null; persisted: boolean }> {
     assertCanOwn(ctx, "practice");
-    if (!attempts.length) return { score: 0, masteredIds: [], sessionId: null, persisted: false };
+    if (!attempts.length) return { score: 0, clearedIds: [], sessionId: null, persisted: false };
     const correctN = attempts.filter((a) => a.selectedIndex === a.correctIndex).length;
     const score = Math.round((100 * correctN) / attempts.length);
     const subjectRaw = attempts[0]?.subject?.trim() || "";
@@ -1426,7 +1426,7 @@ export const PracticeService = {
       chapterRaw && !isPlaceholderAcademicLabel(chapterRaw) ? chapterRaw : null;
     if (!subject) {
       console.warn("mistake retry start: missing real subject");
-      return { score, masteredIds: [], sessionId: null, persisted: false };
+      return { score, clearedIds: [], sessionId: null, persisted: false };
     }
     let sessionId: string | null = null;
     try {
@@ -1435,7 +1435,7 @@ export const PracticeService = {
       })) as string;
     } catch (e) {
       console.warn("mistake retry start:", e instanceof Error ? e.message : e);
-      return { score, masteredIds: [], sessionId: null, persisted: false };
+      return { score, clearedIds: [], sessionId: null, persisted: false };
     }
     const finishPayload: Array<Record<string, unknown>> = [];
     for (const a of attempts) {
@@ -1465,25 +1465,25 @@ export const PracticeService = {
       await this.finish(ctx, { _session_id: sessionId, _attempts: finishPayload });
     } catch (e) {
       console.warn("mistake retry finish:", e instanceof Error ? e.message : e);
-      return { score, masteredIds: [], sessionId, persisted: false };
+      return { score, clearedIds: [], sessionId, persisted: false };
     }
-    const masteredIds = score >= 70
+    const clearedIds = score >= 70
       ? attempts.filter((a) => a.selectedIndex === a.correctIndex).map((a) => a.mistakeId) : [];
-    if (masteredIds.length) await this.markMistakesMastered(ctx, masteredIds);
-    return { score, masteredIds, sessionId, persisted: true };
+    if (clearedIds.length) await this.markMistakesCleared(ctx, clearedIds);
+    return { score, clearedIds, sessionId, persisted: true };
   },
-  async markMistakesMastered(ctx: ServiceContext, mistakeIds: string[]): Promise<void> {
+  async markMistakesCleared(ctx: ServiceContext, mistakeIds: string[]): Promise<void> {
     assertCanOwn(ctx, "practice");
     if (!mistakeIds.length) return;
     const { error } = await getClient(toRepoContext(ctx))
       .from("student_mistakes")
-      .update({ mastered: true })
+      .update({ status: "cleared", cleared_at: new Date().toISOString() })
       .eq("user_id", ctx.userId)
       .in("id", mistakeIds);
-    throwIfError(error, "Failed to mark mistakes mastered");
+    throwIfError(error, "Failed to clear mistakes");
     broadcastAcademicWrite(ctx.schoolId, ["profile"], {
       studentId: ctx.studentId,
-      source: "PracticeService.markMistakesMastered",
+      source: "PracticeService.markMistakesCleared",
     });
   },
 

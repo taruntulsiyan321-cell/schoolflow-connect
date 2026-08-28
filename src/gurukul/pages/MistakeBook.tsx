@@ -46,7 +46,7 @@ type MistakeRow = {
   last_wrong_at: string;
   times_wrong: number;
   explanation: string | null;
-  mastered: boolean;
+  status: "open" | "cleared";
   question_id?: string | null;
   difficulty?: string | null;
 };
@@ -119,7 +119,7 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     correctReason: "",
     studentReason: "",
     bookmarked,
-    resolved: row.mastered,
+    resolved: row.status === "cleared",
     qType: row.assessment_type ?? "MCQ",
     sortDate: row.last_wrong_at,
     questionId: row.question_id ?? null,
@@ -622,10 +622,10 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     try {
       const result = await PracticeService.completeMistakeRetry(ctx, payload.attempts);
       setPracticeScore(result.score);
-      if (result.masteredIds.length) {
-        const mastered = new Set(result.masteredIds);
+      if (result.clearedIds.length) {
+        const cleared = new Set(result.clearedIds);
         setRows((prev) =>
-          prev.map((r) => (mastered.has(r.id) ? { ...r, mastered: true } : r)),
+          prev.map((r) => (cleared.has(r.id) ? { ...r, status: "cleared" as const } : r)),
         );
       }
       if (!result.persisted) {
