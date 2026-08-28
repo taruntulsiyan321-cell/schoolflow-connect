@@ -728,7 +728,28 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
     completeness: hasData ? 1 : hasRow ? 0.4 : 0,
   };
 }
-async function fetchEie(admin: SupabaseClient, schoolId: string, studentId: string) {
+/**
+ * Chunk 7B. `actorRole` is REQUIRED, and the reason it is required is the whole
+ * point of the chunk.
+ *
+ * concept_mastery is practice data — private to the student under 10.8. Chunk
+ * 1.6 removed the parent and teacher SELECT policies from it. But this function
+ * reads it on `admin`, the service-role client, so RLS never runs, and
+ * `case "parent.child.narrative"` called it. A parent asking for their child's
+ * narrative was getting weak AND strong concepts derived from the child's
+ * practice mastery — the same table and the same role 1.6 closed, reopened
+ * through the door policy-level auditing cannot see. 10.8 also says strong
+ * areas are never surfaced anywhere at all.
+ *
+ * fetchPracticeHistory, fetchMistakesBook and fetchRecoveryQueue already carry
+ * this gate. This one was missed.
+ */
+async function fetchEie(
+  admin: SupabaseClient,
+  schoolId: string,
+  studentId: string,
+  actorRole: string,
+) {
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -755,7 +776,10 @@ async function fetchEie(admin: SupabaseClient, schoolId: string, studentId: stri
     completed?: boolean;
   }[] = [];
 
-  if (userId) {
+  // Practice mastery reaches the student and nobody else. A non-student gets
+  // the empty shape, not a reduced one — an absent weak-concept list must not
+  // be distinguishable from a list that happens to be empty.
+  if (userId && actorRole === "student") {
     const { data: masteryRows } = await admin
       .from("concept_mastery")
       .select("subject, chapter, concept, mastery_score, mistake_count, updated_at")
@@ -1275,7 +1299,12 @@ async function probeMarks(admin: SupabaseClient, schoolId: string, studentId: st
   return `marks:${await hashRows(marks)}:${await hashRows(exams)}`;
 }
 
-async function probeEie(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+async function probeEie(
+  admin: SupabaseClient,
+  schoolId: string,
+  studentId: string,
+  actorRole: string,
+): Promise<string> {
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -1284,6 +1313,9 @@ async function probeEie(admin: SupabaseClient, schoolId: string, studentId: stri
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
   if (!userId) return "eie:nouser";
+  // Same gate as fetchEie. The probe builds the cache key, so without it a
+  // student's EIE version string could be computed — and cached — for a parent.
+  if (actorRole !== "student") return `eie:notstudent:${studentId}`;
   const [{ data: mastery }, { data: revision }, { data: profile }] = await Promise.all([
     admin
       .from("concept_mastery")
@@ -1763,8 +1795,8 @@ export async function routeAiRequest(
             message: "Student target required", route_class: cap.route_class,
           });
         }
-        data = await withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
-          fetchEie(admin, req.actor.schoolId, studentId),
+        data = await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
+          fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
         );
         decision = "answered_eie";
         provenance = {
@@ -1800,8 +1832,8 @@ export async function routeAiRequest(
             `${await probeParentSummary(admin, req.actor.schoolId, studentId)}:${examsVisibilityTier}`,
             () => fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role),
           ) as Promise<Awaited<ReturnType<typeof fetchParentSummary>>>,
-          withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
-            fetchEie(admin, req.actor.schoolId, studentId),
+          withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
+            fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
           ),
         ]);
         const narrative = buildParentScheduledNarrative({
@@ -1840,14 +1872,14 @@ export async function routeAiRequest(
           probeAttendance(admin, req.actor.schoolId, studentId),
           probeHomework(admin, req.actor.schoolId, studentId),
           probeMarks(admin, req.actor.schoolId, studentId),
-          probeEie(admin, req.actor.schoolId, studentId),
+          probeEie(admin, req.actor.schoolId, studentId, req.actor.role),
         ]);
         const factsBundle = (await withCache(factsVersionSeed, async () => {
           const [attendance, homework, marks, eie] = await Promise.all([
             fetchAttendance(admin, req.actor.schoolId, studentId),
             fetchHomeworkDue(admin, req.actor.schoolId, studentId),
             fetchMarksSummary(admin, req.actor.schoolId, studentId),
-            fetchEie(admin, req.actor.schoolId, studentId),
+            fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
           ]);
           return {
             attendance,
@@ -2154,8 +2186,8 @@ export async function routeAiRequest(
             route_class: cap.route_class,
           });
         }
-        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
-          fetchEie(admin, req.actor.schoolId, studentId),
+        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
+          fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
         )) as Awaited<ReturnType<typeof fetchEie>>;
         const parentLike = await fetchParentSummary(admin, req.actor.schoolId, studentId);
         data = buildRecommendationPackage({
@@ -2770,25 +2802,29 @@ export async function routeAiRequest(
           .select("id, class_id, user_id")
           .eq("school_id", schoolId)
           .limit(2000);
-        const userIds = (schoolStudents ?? [])
-          .map((s) => (s as { user_id?: string | null }).user_id)
-          .filter((u): u is string => !!u)
-          .map(String);
         const classByStudent = new Map(
           (schoolStudents ?? []).map((s) => [String(s.id), s.class_id ? String(s.class_id) : null]),
         );
-        if (userIds.length) {
-          const { data: masteryAgg } = await admin
-            .from("concept_mastery")
-            .select("mastery_score")
-            .in("user_id", userIds.slice(0, 500))
-            .limit(5000);
-          if (masteryAgg && masteryAgg.length) {
-            const scores = masteryAgg.map((r) => Number(r.mastery_score) || 0);
-            avgMastery = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-            weakConceptCount = scores.filter((s) => s < 60).length;
-          }
-        }
+
+        // Chunk 7B: REMOVED — a school-wide practice aggregate served to a
+        // principal. It read concept_mastery for up to 500 students and
+        // reduced it to avg_mastery and weak_concept_count.
+        //
+        // 10.8 is not only "no individual practice data": it says no teacher,
+        // parent, principal, admin, "or aggregate". Chunk 1.6 deleted
+        // rpc_teacher_concept_analytics() for serving exactly this shape at the
+        // RPC layer; it survived here because this runs on the service role,
+        // where RLS never applies and policy-level auditing does not look.
+        //
+        // avg_mastery and weak_concept_count stay in the response and stay
+        // NULL. They are not zeroed (G4): the brief must say it has no such
+        // figure, not that the figure is nought. The consumer at
+        // `avgMastery != null` already handles the absent case.
+        //
+        // A school-health signal is legitimate — it must be derived from tests
+        // and exams, which are school data, not from practice. Nothing is
+        // substituted here: 1.6's rule is to leave it absent and report it,
+        // because quietly swapping the source is how the leak returns.
         const latestRefresh = rows
           .map((r) => (r as { refreshed_at?: string }).refreshed_at)
           .filter(Boolean)
@@ -2864,8 +2900,8 @@ export async function routeAiRequest(
             route_class: cap.route_class,
           });
         }
-        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
-          fetchEie(admin, req.actor.schoolId, studentId),
+        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
+          fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
         )) as Awaited<ReturnType<typeof fetchEie>>;
         const concept = pickConceptFromEie(eie, req.input_text);
 
@@ -3404,7 +3440,7 @@ export async function routeAiRequest(
           probeAttendance(admin, req.actor.schoolId, studentId),
           probeHomework(admin, req.actor.schoolId, studentId),
           probeMarks(admin, req.actor.schoolId, studentId),
-          probeEie(admin, req.actor.schoolId, studentId),
+          probeEie(admin, req.actor.schoolId, studentId, req.actor.role),
           probeParentSummary(admin, req.actor.schoolId, studentId),
           probeProgression(admin, req.actor.schoolId, studentId),
           probeStudentProfile(admin, req.actor.schoolId, studentId),
@@ -3433,7 +3469,7 @@ export async function routeAiRequest(
             fetchAttendance(admin, req.actor.schoolId, studentId),
             fetchHomeworkDue(admin, req.actor.schoolId, studentId),
             fetchMarksSummary(admin, req.actor.schoolId, studentId),
-            fetchEie(admin, req.actor.schoolId, studentId),
+            fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchProgression(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchStudentProfileContext(admin, req.actor.schoolId, studentId),

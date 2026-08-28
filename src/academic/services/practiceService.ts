@@ -68,7 +68,7 @@ export type PracticeSessionRow = {
 /**
  * Practice Engine V1 schema probes.
  *
- * The migration that adds question_records, question_bank.is_active and
+ * The migration that adds question_bank.is_active and
  * concept_mastery.confidence_score/classification is applied out of band, so
  * this code has to run correctly both before and after it lands. Referencing a
  * missing table or column fails the entire PostgREST request, which would take
@@ -93,7 +93,6 @@ function isMissingSchema(err: unknown): boolean {
 }
 
 let softDeleteAvailable: boolean | null = null;
-let questionRecordsAvailable: boolean | null = null;
 let confidenceAvailable: boolean | null = null;
 
 /**
@@ -930,41 +929,46 @@ export const PracticeService = {
   },
 
   /**
-   * Question ids in a given current state, newest first.
+   * Question ids in a given state, newest first.
    *
-   * Reads question_records (current state), never question_attempts (the
-   * append-only audit log). That is what makes the Mistake Book self-clearing:
-   * answering a question correctly flips current_status, so it drops out here
-   * with no separate "mastered" bookkeeping.
+   * Chunk 7B. This used to read question_records.current_status, which stored
+   * 'correct' as well as 'wrong' — a per-question record of correct answers,
+   * which the storage rule forbids outright. That table is retired.
+   *
+   * The status union no longer admits "correct". No caller ever asked for it,
+   * and now none can: the storage rule is enforced by the type, not by a
+   * convention someone has to remember.
+   *
+   * Wrong lives in student_mistakes (the nominated mistake book), skipped in
+   * practice_skipped. The Mistake Book is still self-clearing — a question
+   * leaves it when `mastered` is set, which is the same behaviour
+   * current_status gave, without recording correctness to get it.
    */
   async listQuestionIdsByStatus(
     ctx: ServiceContext,
-    status: "correct" | "wrong" | "skipped",
+    status: "wrong" | "skipped",
     opts: { limit?: number } = {},
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
-    // question_records only exists once the Practice Engine migration is
-    // applied. Until then, an honest empty list — not an error — is correct:
-    // there is nowhere yet to have recorded a status.
-    if (questionRecordsAvailable === false) return [];
     const limit = Math.min(200, Math.max(1, opts.limit ?? 60));
     const client = getClient(toRepoContext(ctx));
-    const { data, error } = await client
-      .from("question_records")
-      .select("question_id")
-      .eq("user_id", ctx.userId)
-      .eq("current_status", status)
-      .gt("attempt_count", 0)
-      .order("last_practiced_date", { ascending: false })
-      .limit(limit);
-    if (error) {
-      if (isMissingSchema(error)) {
-        questionRecordsAvailable = false;
-        return [];
-      }
-      throwIfError(error, `Failed to load ${status} questions`);
-    }
-    questionRecordsAvailable = true;
+    const { data, error } =
+      status === "wrong"
+        ? await client
+            .from("student_mistakes")
+            .select("question_id, last_wrong_at")
+            .eq("user_id", ctx.userId)
+            .eq("mastered", false)
+            .not("question_id", "is", null)
+            .order("last_wrong_at", { ascending: false })
+            .limit(limit)
+        : await client
+            .from("practice_skipped")
+            .select("question_id, created_at")
+            .eq("user_id", ctx.userId)
+            .order("created_at", { ascending: false })
+            .limit(limit);
+    throwIfError(error, `Failed to load ${status} questions`);
     return (data ?? [])
       .map((r) => (r as { question_id: string }).question_id)
       .filter(Boolean);
@@ -999,33 +1003,29 @@ export const PracticeService = {
     opts: { limit?: number } = {},
   ) {
     assertCanConsume(ctx, "practice");
-    if (questionRecordsAvailable === false) return [];
     const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
     const client = getClient(toRepoContext(ctx));
     const { data, error } = await client
-      .from("question_records")
-      .select("question_id, wrong_count, attempt_count, last_selected_option, last_practiced_date")
+      .from("student_mistakes")
+      .select("question_id, times_wrong, student_answer, last_wrong_at")
       .eq("user_id", ctx.userId)
-      .eq("current_status", "wrong")
-      .gt("attempt_count", 0)
-      .order("last_practiced_date", { ascending: false })
+      .eq("mastered", false)
+      .not("question_id", "is", null)
+      .order("last_wrong_at", { ascending: false })
       .limit(limit);
-    if (error) {
-      if (isMissingSchema(error)) {
-        questionRecordsAvailable = false;
-        return [];
-      }
-      throwIfError(error, "Failed to load mistake book");
-    }
-    questionRecordsAvailable = true;
+    throwIfError(error, "Failed to load mistake book");
 
-    const records = (data ?? []) as Array<{
+    const records = ((data ?? []) as Array<{
       question_id: string;
-      wrong_count: number;
-      attempt_count: number;
-      last_selected_option: { selected_index?: number; index?: number } | null;
-      last_practiced_date: string;
-    }>;
+      times_wrong: number;
+      student_answer: { selected_index?: number; index?: number } | null;
+      last_wrong_at: string;
+    }>).map((r) => ({
+      question_id: r.question_id,
+      wrong_count: r.times_wrong,
+      last_selected_option: r.student_answer,
+      last_practiced_date: r.last_wrong_at,
+    }));
     if (records.length === 0) return [];
 
     type BankRow = {
@@ -1059,7 +1059,6 @@ export const PracticeService = {
         return {
           ...q,
           wrong_count: r.wrong_count,
-          attempt_count: r.attempt_count,
           selected_index: selectedIndex,
           last_practiced_date: r.last_practiced_date,
         };
@@ -1084,24 +1083,15 @@ export const PracticeService = {
     opts: { limit?: number; includeInactive?: boolean } = {},
   ) {
     assertCanConsume(ctx, "practice");
-    if (questionRecordsAvailable === false) return [];
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
     const client = getClient(toRepoContext(ctx));
     const { data, error } = await client
-      .from("question_records")
+      .from("practice_bookmarks")
       .select("question_id")
       .eq("user_id", ctx.userId)
-      .eq("bookmarked", true)
-      .order("last_practiced_date", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(limit * 2);
-    if (error) {
-      if (isMissingSchema(error)) {
-        questionRecordsAvailable = false;
-        return [];
-      }
-      throwIfError(error, "Failed to load bookmarked questions");
-    }
-    questionRecordsAvailable = true;
+    throwIfError(error, "Failed to load bookmarked questions");
     const ids = (data ?? [])
       .map((r) => (r as { question_id: string }).question_id)
       .filter(Boolean);

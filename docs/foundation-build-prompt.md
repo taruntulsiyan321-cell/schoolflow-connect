@@ -1158,27 +1158,53 @@ triggering or trends.**
   student's mistake book; replacing its content would serve them something they
   never got wrong.
 
-### Practice — institution-scoped, student-private
+### Verification — 7A
 
-**CRITICAL SEPARATION — read §10.23 of the decisions doc.**
+1. A Class 5 CBSE student cannot be served a Class 8 or ICSE question **through
+   any path**: client query, RPC, edge function, or service-role call.
+   **Enumerate every reader of the bank and prove each one filters.** Found live
+   in this chunk: `rpc_dpp_pick_from_bank` had no board or class filter at all,
+   and `rpc_generate_battle` passed whenever either side was NULL — a Class 5
+   student could draw Class 12 questions. `SECURITY DEFINER` means the policy
+   never runs.
+2. A retired question is never served, and is still readable where it already
+   sits in a mistake book.
+3. An active question cannot exist without `chapter_id` and `class_level` —
+   structural, so the next import cannot reintroduce the gap.
+4. `INSERT … RETURNING` works from the client. PostgreSQL evaluates SELECT
+   policies on the new row, and supabase-js chains `.select()` onto `.insert()`,
+   so a table with no read arm fails 42501 from the UI while passing every policy
+   test that avoids RETURNING.
+5. `topics` exists and is **empty**. It is grown only by teachers picking or
+   adding (§10.22). Seeding it from the 11,917 legacy strings is what §10.10
+   forbids.
+6. The board filter is built but **cannot be exercised** — the bank holds one
+   board. Report this as unverified rather than passing it silently. Seeding a
+   few dozen questions under a second board would make it testable.
 
-Test and homework answers are **school data**. Practice answers are **private**.
-They must be **separate tables**, with the source structural rather than a flag
-checked in code. Storing both together makes the privacy rule unenforceable —
-that is exactly how `question_records` ended up readable by parents and class
-teachers.
+**STOP. Wait for approval.**
 
-`homework_answers` and `test_answers` belong in Chunks 5 and 6 respectively, not
-here. Nothing in this chunk may hold a mark from a teacher-set assessment.
+---
+
+# CHUNK 7B — PRACTICE TABLES AND PRIVACY
+
+**The highest-risk chunk in the project.**
+
+Chunk 1.6 removed practice leaks from tables that already existed. **7B creates
+the tables those leaks were in.** Every privacy rule in §10.8 lands here.
+
+Read `docs/rls-policy-pattern.md` before writing any policy.
+
+### Tables
 
 **`practice_sessions`**
 `id · institution_id · student_id · mode · started_at · ended_at ·
 attempted_count · correct_count`
 
-**Session totals only. There is no per-question record of correct answers.**
+**Session totals only. No per-question record of correct answers.**
 
 **`practice_mistakes`** — the mistake book
-`id · institution_id · student_id · question_id · topic_id ·
+`id · institution_id · student_id · question_id · chapter_id ·
 first_wrong_at · times_wrong · last_attempted_at ·
 status (open/cleared) · cleared_at`
 
@@ -1190,35 +1216,68 @@ Bookmarks also cover homework and resources.
 **`practice_xp`**
 `id · institution_id · student_id · question_id · points · earned_at`
 
+**`chapter_tally`** — required by 7C, created here
+`id · institution_id · student_id · chapter_id · session_id · attempted ·
+correct · created_at`
+
+One row per chapter per session, never per question.
+
 ### The governing storage rule
 
 **Only what went wrong is stored per question — wrong, skipped, bookmarked.
 Never a per-question record of correct answers. Strong areas are never surfaced
 anywhere in the app.**
 
-### Privacy — enforce in policy, not the UI
+### Separation — structural, not a flag
 
-**Practice is readable by the student and nobody else.** Not teacher, not parent,
-not principal, not admin, not in any aggregate.
+Test and homework answers are **school data**; practice answers are **private**.
+Separate tables, source built into the structure. `homework_answers` and
+`test_answers` live in Chunks 5 and 6. **Nothing in 7B holds a mark from a
+teacher-set assessment.**
+
+### Privacy — the part that must not be got wrong
+
+**Practice is readable by the student and nobody else.** Not teacher, parent,
+principal, admin, or any aggregate.
 
 **Exception, deliberate:** XP feeds the section leaderboard. Effort is public;
-the content of mistakes is not.
+the content of mistakes is not. Public: XP, level, league, streak, homework
+completion. Private: session counts, practice rate, mistakes, skipped,
+bookmarks, everything per question.
 
-### Recovery, revision and analysis — now specified
+### Verification — policies are not enough
 
-**Read `recovery-revision-analysis-spec.md` in full.** It is the source of truth
-for this part and it is detailed. Do not infer any rule that is not in it, and do
-not invent a threshold, interval or session size — every constant lives in §10 of
-that document.
+**Policy-level auditing does not see `SECURITY DEFINER` bodies, edge functions,
+or service-role calls.** Nova served a child's mistake book to their parent
+through exactly that gap, with correct policies. `rpc_dpp_pick_from_bank` did the
+same in 7A.
 
-**`chapter_tally`** — un-parked, and **required**
-`id · institution_id · student_id · chapter_id · session_id · attempted ·
-correct · created_at`
+1. **Enumerate every edge function and every service-role call site**, and for
+   each state what practice data it can reach and who can invoke it.
+   `supabase/functions/_shared/aiRouter.ts` reads the bank today and is the
+   highest-risk shape. **Do this in 7B, not Chunk 11.**
+2. Teacher, parent, principal, admin sessions each return **zero rows** from
+   every practice table.
+3. A student returns their own rows only — **set equality against ground truth,
+   not counts.**
+4. **Negative control:** open one policy, confirm the checks catch it, close it.
+5. No RPC, view, function or edge path exposes practice data to another role.
+6. XP remains readable for the leaderboard while mistakes stay private.
+7. No table stores which questions a student answered correctly.
+8. Timing per role at fixture volume, projected to 10,000 rows.
 
-**One row per chapter per session**, never per question. Without this denominator
-the mistake book cannot be read: 8 open mistakes means nothing until you know
-whether it is out of 20 questions or 200. Every accuracy figure and every trend
-comes from here.
+**STOP. Wait for approval.**
+
+---
+
+# CHUNK 7C — RECOVERY, REVISION, ANALYSIS
+
+**A product, not a chunk.** Do not start until 7B's privacy verification passes.
+
+**`recovery-revision-analysis-spec.md` is the source of truth.** Read it in full.
+Do not infer any rule not in it; every constant lives in its §10.
+
+### Tables
 
 **`chapter_state`** — one row per student per chapter
 `student_id · chapter_id · state · recovered_at · next_revision_at ·
@@ -1233,39 +1292,37 @@ tier0_correct · tier0_total · tier1_correct · tier1_total ·
 tier2_correct · tier2_total · tier3_correct · tier3_total ·
 procedural_rate · conceptual_rate · readiness · outcome`
 
-**Per-tier counts, not one total.** The whole diagnostic value is in the split —
-procedural passing while conceptual fails is the most common real result and the
-most useful thing the feature detects.
+**Per-tier counts, never one total.** The diagnostic value is entirely in the
+split — procedural passing while conceptual fails is the most common real result.
 
 **`revision_sessions`**
 `id · student_id · chapter_id · stage · correct · total · passed ·
 started_at · completed_at · triggered_by (recovery/engagement)`
 
-### Verification for these
+### Decisions still needed before building the AI path
 
-1. `chapter_tally` writes one row per chapter per session — run a session
-   spanning three chapters, show exactly three rows.
-2. Recovery session stores four separate tier results, not a single score.
-3. A generated variant is saved to the bank with `source_question_id` and
-   `variant_tier` set, and **is servable to other students.**
-4. **Bank is checked before generating** — run recovery twice on the same wrong
-   question and show the second used cache.
-5. Revision clock starts on **engagement**, not only after recovery: seed a
-   session of 10+ questions with no mistakes and show `next_revision_at` set.
-6. Re-engaging with a chapter resets the clock.
-7. No constant from spec §10 appears as a literal in any component.
+These are **not schema questions** and must be answered first:
+
+- Cost per generated session, and the acceptable ceiling
+- Expected cache hit rate, and what happens when it is lower
+- **What happens when generation fails mid-session** — the spec says a variant
+  that cannot be generated is skipped, not faked, and the session runs short and
+  says so. Confirm that is still the answer.
 
 ### Verification
 
-1. A teacher attempts to read a student's practice data — rejected by policy.
-2. A parent attempts the same — rejected.
-3. A principal attempts the same — rejected.
-4. Confirm **no** table stores which questions a student answered correctly.
-5. A Class 5 CBSE student cannot be served a Class 8 or ICSE question. Prove the
-   filter is in the query.
-6. Report a question; a new question is created and the old one retired; the
-   mistake-book row still points at the original.
-7. XP is readable for the leaderboard while mistakes remain private.
+1. `chapter_tally` writes one row per chapter per session — a session spanning
+   three chapters writes exactly three rows.
+2. Recovery stores four separate tier results, not a single score.
+3. A generated variant is saved with `source_question_id` and `variant_tier`, and
+   **is servable to other students.**
+4. **Bank checked before generating** — run recovery twice on the same wrong
+   question and show the second used cache.
+5. Revision clock starts on **engagement**, not only after recovery: a session of
+   10+ questions with no mistakes still sets `next_revision_at`.
+6. Re-engaging resets the clock.
+7. No constant from spec §10 appears as a literal in any component.
+8. Every 7B privacy guarantee still holds — re-run its full verification.
 
 **STOP. Wait for approval.**
 

@@ -2324,6 +2324,78 @@ export type Database = {
         }
         Relationships: []
       }
+      chapter_tally: {
+        Row: {
+          attempted: number
+          chapter_id: string | null
+          correct: number
+          created_at: string
+          id: string
+          school_id: string
+          session_id: string | null
+          student_id: string | null
+          user_id: string
+        }
+        Insert: {
+          attempted?: number
+          chapter_id?: string | null
+          correct?: number
+          created_at?: string
+          id?: string
+          school_id: string
+          session_id?: string | null
+          student_id?: string | null
+          user_id: string
+        }
+        Update: {
+          attempted?: number
+          chapter_id?: string | null
+          correct?: number
+          created_at?: string
+          id?: string
+          school_id?: string
+          session_id?: string | null
+          student_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_tally_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_tally_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_tally_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "practice_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_tally_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_tally_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapters: {
         Row: {
           created_at: string
@@ -5088,6 +5160,62 @@ export type Database = {
         }
         Relationships: []
       }
+      practice_bookmarks: {
+        Row: {
+          created_at: string
+          id: string
+          question_id: string
+          school_id: string
+          student_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_id: string
+          school_id: string
+          student_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_id?: string
+          school_id?: string
+          student_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_bookmarks_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_bookmarks_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_bookmarks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_bookmarks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       practice_sessions: {
         Row: {
           accuracy: number | null
@@ -5190,6 +5318,62 @@ export type Database = {
           },
           {
             foreignKeyName: "practice_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_skipped: {
+        Row: {
+          created_at: string
+          id: string
+          question_id: string
+          school_id: string
+          student_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_id: string
+          school_id: string
+          student_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_id?: string
+          school_id?: string
+          student_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_skipped_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_skipped_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_skipped_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_skipped_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students_current"
@@ -5764,108 +5948,6 @@ export type Database = {
             columns: ["source_question_id"]
             isOneToOne: false
             referencedRelation: "question_bank"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      question_records: {
-        Row: {
-          attempt_count: number
-          bookmarked: boolean
-          correct_count: number
-          created_at: string
-          current_status: string
-          id: string
-          last_practice_mode: string | null
-          last_practiced_date: string
-          last_selected_option: Json | null
-          last_session_id: string | null
-          last_time_taken_ms: number | null
-          question_id: string
-          question_source: string
-          school_id: string | null
-          skipped_count: number
-          student_id: string | null
-          updated_at: string
-          user_id: string
-          wrong_count: number
-        }
-        Insert: {
-          attempt_count?: number
-          bookmarked?: boolean
-          correct_count?: number
-          created_at?: string
-          current_status: string
-          id?: string
-          last_practice_mode?: string | null
-          last_practiced_date?: string
-          last_selected_option?: Json | null
-          last_session_id?: string | null
-          last_time_taken_ms?: number | null
-          question_id: string
-          question_source?: string
-          school_id?: string | null
-          skipped_count?: number
-          student_id?: string | null
-          updated_at?: string
-          user_id: string
-          wrong_count?: number
-        }
-        Update: {
-          attempt_count?: number
-          bookmarked?: boolean
-          correct_count?: number
-          created_at?: string
-          current_status?: string
-          id?: string
-          last_practice_mode?: string | null
-          last_practiced_date?: string
-          last_selected_option?: Json | null
-          last_session_id?: string | null
-          last_time_taken_ms?: number | null
-          question_id?: string
-          question_source?: string
-          school_id?: string | null
-          skipped_count?: number
-          student_id?: string | null
-          updated_at?: string
-          user_id?: string
-          wrong_count?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "question_records_last_session_id_fkey"
-            columns: ["last_session_id"]
-            isOneToOne: false
-            referencedRelation: "practice_sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "question_records_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "question_bank"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "question_records_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "question_records_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "question_records_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students_current"
             referencedColumns: ["id"]
           },
         ]
@@ -8702,21 +8784,6 @@ export type Database = {
           _sid: string
           _subconcept: string
           _subject: string
-          _uid: string
-        }
-        Returns: undefined
-      }
-      _upsert_question_record: {
-        Args: {
-          _practice_mode?: string
-          _question_id: string
-          _school: string
-          _selected_option?: Json
-          _session_id?: string
-          _sid: string
-          _source?: string
-          _status: string
-          _time_taken_ms?: number
           _uid: string
         }
         Returns: undefined
