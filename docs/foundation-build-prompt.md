@@ -240,6 +240,13 @@ A failure gets investigated. A false pass closes the question.
   A snapshot test fails on legitimate change, and the pressure is then to weaken
   or delete it. **Write what must remain true, not what happens to be true
   today.**
+- **Capture each item's baseline; never reuse a shared variable.** Found live:
+  `CHUNK66_VERIFY` item 8 — the negative control — compared against `_expected`,
+  which item 5 had overwritten with the teacher's set. It passed only because
+  2546 > 26 happened to be true, and failed correctly the moment the fixture
+  moved and it became 26 > 26. **The check that exists to catch tests passing for
+  the wrong reason was doing exactly that.** Each item captures what it needs at
+  the point it needs it.
 - **This rule applies to your own tooling.** A verification runner that
   misreports is the same defect class. Classify on structural signals — SQLSTATE,
   exit codes — never on matching report wording.

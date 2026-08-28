@@ -40,6 +40,23 @@ async function runSql(sql, label) {
 
 const name = FILE.split(/[/\\]/).pop();
 const version = name.replace(/\.sql$/, "");
+
+// This script records whatever filename it is handed, so pointing it at a
+// FIXTURE wrote 'SCALE_FIXTURE' and 'SEED_SCALE_FIXTURE_REMOVE' into
+// schema_migrations as though they were schema migrations. Harmless until a
+// fresh-environment replay (Chunk 11 Sweep 3), which would find ledger rows
+// with no migration behind them and no way to tell what was missing.
+//
+// A migration is a timestamped file under supabase/migrations. Anything else
+// may be applied — fixtures legitimately go through this script — but must not
+// claim a place in the ledger.
+if (RECORD && !/^\d{14}_/.test(version)) {
+  console.error(
+    `Refusing to record "${version}" in schema_migrations: not a timestamped migration name.\n` +
+    `Apply it with --no-ledger if it is a fixture or a one-off.`,
+  );
+  process.exit(2);
+}
 const sql = readFileSync(FILE, "utf8");
 
 console.log(`Applying ${name} (${sql.length} bytes) to ${PROJECT_REF}…`);

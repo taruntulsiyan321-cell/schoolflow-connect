@@ -103,7 +103,11 @@ function splitPlan(plan) {
   }
   const totalM = plan.match(/Execution Time: ([\d.]+) ms/);
   const removedM = plan.match(/Rows Removed by Filter: (\d+)/);
-  const scanM = plan.match(/(?:Seq Scan|Index Scan|Bitmap Heap Scan)[^\n]*rows=(\d+) loops=\d+/);
+  // "Index Only Scan" was missing, so attendance_audit reported 0 rows scanned
+  // for three roles and a per-row cost of 0.0000ms — a figure that reads like a
+  // pass but is simply absent. A gate that cannot see the scan must not print a
+  // number as though it could.
+  const scanM = plan.match(/(?:Seq Scan|Index Only Scan|Index Scan|Bitmap Heap Scan)[^\n]*rows=(\d+) loops=\d+/);
   const total = totalM ? parseFloat(totalM[1]) : null;
   const scanned = (removedM ? Number(removedM[1]) : 0) + (scanM ? Number(scanM[1]) : 0);
   return { total, fixed, scanned };
