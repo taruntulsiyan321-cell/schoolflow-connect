@@ -241,6 +241,20 @@ const ALLOWLIST = {
   rpc_ensure_featured_battles_all: "Checks auth.uid() and resolves the caller's own class via student_class_id() -- self-scoped despite touching the shared featured-battle system.",
   rpc_parent_concept_analytics: "has_role('admin') is a GATE to enter the function (parent OR admin), not a data-access bypass -- the actual query is `WHERE s.parent_user_id = _parent OR EXISTS(parent_students...)` keyed on _parent := auth.uid() regardless of role, so an admin who isn't also a linked parent just gets zero rows back, not another school's data. Re-read 2026-08-22 specifically to distinguish this from the 12 fixed admin-bypass functions.",
   rpc_parent_weekly_digest: "Same gate-not-bypass pattern as rpc_parent_concept_analytics.",
+
+  // --- Chunk 7C-C part 1, 2026-08-29 ---
+  // All three are SECURITY INVOKER, which is not a footnote here but the whole
+  // design. An invoker function cannot bypass RLS, so every table it touches is
+  // read under the caller's own rights and each table's own fence applies. The
+  // claim is cross-checkable by a DIFFERENT gate rather than by reading this
+  // sentence: lint-definer-doors.mjs inventories every SECURITY DEFINER in the
+  // schema, and none of these three appears in it.
+  _recovery_chapter_is_mine:
+    "SECURITY INVOKER (no DEFINER clause in 20260829310000; absent from lint-definer-doors' definer inventory, which is the cross-check). Touches chapters — a G2 GLOBAL table with no school_id to predicate on — plus section_subjects and students, both of which carry their own RESTRICTIVE tenant fences that apply BECAUSE this runs as the caller. Adding a school_id predicate would restate those fences a second time, which is the G9 shape this lint exists downstream of. What the body does add is strictly TIGHTER than an institution predicate: st.user_id = auth.uid() identifies one person, where same_school() is satisfied by any of thousands of same-school users. Probed live 2026-08-29 as the demo student: students=1 row visible (own only), section_subjects=7 (own school), chapters=665 (global).",
+  _recovery_variant_pool:
+    "SECURITY INVOKER. Reads question_bank and nothing else. question_bank is a G2 GLOBAL table with NO school_id column at all (7A: 'Shared across every school. No institution_id'), so there is no tenant predicate available to add. The filter it must honour is the BOARD filter, and that lives in the RLS policy qb_select_approved_board — it applies precisely because this is not a definer. That is the reason for the invoker choice rather than an accident of it: 7A §8 records rpc_dpp_pick_from_bank as the counter-example, a definer over the same table with 'no board filter, NO class filter at all'.",
+  rpc_recovery_session_plan:
+    "SECURITY INVOKER. Reads student_mistakes (own rows only, via its user_id = auth.uid() policy) and question_bank (G2 global, board-filtered by policy). Every row it can return is either the caller's own mistake or a globally shared bank question, so there is no other tenant's data in reach to predicate against. Entitlement is enforced before any read by _recovery_chapter_is_mine, which requires the chapter's curriculum subject to be taught by the caller's OWN section — the doc's 'a Class 5 student is never served Class 8 content, enforced in the query layer'. CHUNK7C_C1_VERIFY item 6 asserts that behaviourally by planning an unentitled chapter and requiring a RAISE.",
 };
 
 // Lower-priority, NOT fixed by this audit (documented, not silently ignored):
