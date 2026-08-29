@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, Target, Timer, Wrench, X } from "lucide-react";
-import { ScoreRing } from "@/components/dpp/ScoreRing";
+import { ScoreRing } from "@/components/student/ScoreRing";
 import { PageHeader } from "@/components/ui-bits";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";

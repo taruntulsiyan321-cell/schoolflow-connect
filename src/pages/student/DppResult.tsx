@@ -5,7 +5,7 @@ import { useAcademicContext, TestService, resolveStudentServiceContext } from "@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Target, Timer } from "lucide-react";
-import { ScoreRing } from "@/components/dpp/ScoreRing";
+import { ScoreRing } from "@/components/student/ScoreRing";
 import { QuestionRenderer, DppQuestion } from "@/components/dpp/QuestionRenderer";
 import { PageHeader } from "@/components/ui-bits";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";

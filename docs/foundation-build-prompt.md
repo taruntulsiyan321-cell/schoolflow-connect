@@ -115,6 +115,18 @@ time, and they catch what a chunk broke somewhere else.
 | Query timing | heaviest query per touched table, per role | reported; nothing within 2× the statement timeout |
 | Definer inventory | every SECDEF and edge function vs its declared reader set | no unlisted function, no undeclared grant (G13) |
 
+**A gate fails on facts. Judgements are printed as debt, never as failures.**
+A finding derived from unreviewed heuristics is a restatement of the guess, not
+evidence. Found live: the definer-door gate's first version produced **320
+heuristic "widenings"** — enough noise to get the gate switched off within a
+week, taking the 11 real findings with it. It now fails only on facts (unlisted,
+stale, misdeclared, undeclared grant) and prints the judgement calls as visible
+debt.
+
+**Key an inventory on the full signature, never the name.** Four function names
+here carry two signatures each with different reach. A name-keyed inventory lets
+a new overload slip past the unlisted check — the one thing the gate exists for.
+
 **An empty result from a check that did not run is not a pass.** Found live: an
 audit sweep whose agents died on a usage limit returned `survivors: []`. That is
 "the verifiers never ran", not "nothing was found." Any gate that cannot complete
@@ -284,6 +296,13 @@ A failure gets investigated. A false pass closes the question.
   A snapshot test fails on legitimate change, and the pressure is then to weaken
   or delete it. **Write what must remain true, not what happens to be true
   today.**
+- **Reproduce the real sequence, or you are testing a different system.**
+  Found live: seeding a battle by inserting and finishing one participant at a
+  time made `_maybe_finish_battle` close it after participant one — at that
+  instant every existing participant was done. Real battles fill the lobby first,
+  then play. The test reported **nine successful finishes while producing 1/5
+  instead of 5/5**, so a count-only check would have passed it. Seed the way the
+  application actually writes, in the order it actually writes.
 - **When rewriting, verify against the OLD behaviour, not the new code.**
   A rewrite check that compares the new implementation to its own logic proves
   only that it is self-consistent. Reproduce the predicate being replaced as

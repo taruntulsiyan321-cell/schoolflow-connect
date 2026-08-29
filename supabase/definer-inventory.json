@@ -4949,6 +4949,51 @@
       "justification": "",
       "verifiedBy": "",
       "reviewed": false
+    },
+    "rpc_test_questions_for_attempt(_attempt_id uuid)": {
+      "name": "rpc_test_questions_for_attempt",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "TABLE(id uuid, order_index integer, question text, options jsonb, marks numeric, chapter_id uuid, chapter text, concept text)",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "rpc_test_submit"
+      ],
+      "justification": "Serves the question paper for ONE attempt to the student sitting it. Gated on a.user_id = auth.uid(); SECURITY DEFINER, so that line is the only gate (G13). Critically it omits `correct` and `explanation` from its RETURNS list: 7.5a had shipped a test_questions_read policy granting SELECT to anyone in the institution, which included the answer key — the Battleground correct_index shape, the answer on the client before the answer is given. 7.5b narrowed direct SELECT to staff and made this the student path. EXECUTE revoked from PUBLIC and anon.",
+      "verifiedBy": "CHUNK75_VERIFY item 5 (as the authenticated role: student direct SELECT returns 0 rows while the paper RPC still serves 3 questions)",
+      "reviewed": true
+    },
+    "rpc_test_start(_test_id uuid)": {
+      "name": "rpc_test_start",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "uuid",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "my_accessible_school_ids"
+      ],
+      "justification": "Opens the caller's own attempt at a PUBLISHED test. Refuses draft and submitted tests, re-states the institution predicate its own RLS would have enforced (a definer bypasses it), and is idempotent on UNIQUE(test_id, user_id) so re-entering resumes rather than starting a second attempt. EXECUTE revoked from PUBLIC and anon.",
+      "verifiedBy": "CHUNK75_VERIFY item 1 (drives it as a real student, end to end)",
+      "reviewed": true
+    },
+    "rpc_test_submit(_attempt_id uuid, _answers jsonb)": {
+      "name": "rpc_test_submit",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_bump_academic_activity"
+      ],
+      "justification": "Grades the caller's own attempt: writes the durable mark to test_marks (§10.22), sends wrong AND unanswered questions to student_mistakes with chapter_id, then PURGES test_answers per §10.8's transient rule. Gated on _att.user_id = auth.uid(). The purge is ordered after the result payload is assembled — reversing it would hand the student an empty result screen. EXECUTE revoked from PUBLIC and anon.",
+      "verifiedBy": "CHUNK75_VERIFY items 1-4 (score, mark, mistakes with chapter_id, and zero surviving test_answers rows)",
+      "reviewed": true
     }
   },
   "edge": {
