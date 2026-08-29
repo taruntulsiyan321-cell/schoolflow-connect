@@ -4919,6 +4919,32 @@
       "justification": "Writes chapter_tally for one practice session — the denominator §3.1 calls required, and which had no writer at all until 7C. Aggregates question_attempts for the session into one row per DISTINCT chapter, never per question: per-question storage is exactly what this table exists to make unnecessary, and would itself be per-question correctness (§10.8). chapter_id comes from question_bank, never from the free-text chapter label that filled revision_queue with 'Chapter 3'. EXECUTE revoked from PUBLIC, anon and authenticated; called only by rpc_finish_practice_session.",
       "verifiedBy": "CHUNK7C_A grain check — a session spanning 3 chapters writes exactly 3 rows from 6 attempts",
       "reviewed": true
+    },
+    "_apply_chapter_state(_session_id uuid)": {
+      "name": "_apply_chapter_state",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_recovery_const"
+      ],
+      "justification": "Runs the §4.1 recovery trigger and the §5.2 revision clock for ONE practice session, writing only chapter_state rows belonging to that session's own student. EXECUTE revoked from PUBLIC, anon and authenticated; called only from rpc_finish_practice_session, after _write_chapter_tally because the engagement clock reads the tally rows that call just produced. Keys on chapter_id throughout — never on a chapter NAME, which is what filled revision_queue with 200 rows pointing at 'Chapter 3'.",
+      "verifiedBy": "CHUNK7C_VERIFY items 5 and 6",
+      "reviewed": true
+    },
+    "_recovery_const(_key text)": {
+      "name": "_recovery_const",
+      "readerSet": "none",
+      "callability": "granted",
+      "returns": "numeric",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [],
+      "justification": "Reads one tuning constant from recovery_constants, which is G2 shared reference data with no school_id and no per-student content — reach is 'none' because it returns nobody's data. Granted to authenticated because client-side screens need the same thresholds the server uses, and §10 requires exactly one home for each; a second copy in a component is what the rule forbids. Raises rather than defaulting when a key is absent: a trigger count silently defaulting to 0 would fire on every chapter.",
+      "verifiedBy": "CHUNK7C_VERIFY item 7-sql — all 18 §10 constants present",
+      "reviewed": true
     }
   },
   "edge": {

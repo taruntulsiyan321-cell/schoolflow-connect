@@ -57,19 +57,22 @@ if (RECORD && !/^\d{14}_/.test(version)) {
   );
   process.exit(2);
 }
-// Line endings are normalised to LF before the SQL ever reaches Postgres.
+// Line endings are normalised to LF before the SQL reaches Postgres.
 //
-// A .sql file saved with CRLF stores function bodies containing 
-, and a
-// later migration that rewrites one through pg_get_functiondef() and matches on
-// a literal written with 
- matches nothing. That is a substitution failing
-// open (G15), and it cost three separate fixes in Chunk 7.5. .gitattributes
-// keeps the files LF; this keeps the DATABASE LF even if a file arrives with
-// CRLF from somewhere else.
-const sql = readFileSync(FILE, "utf8").replace(/
-/g, "
-");
+// A .sql file saved with CRLF stores function bodies containing carriage
+// returns, and a later migration that rewrites one through
+// pg_get_functiondef() while matching on a literal written without them
+// matches NOTHING. Being a substitution it then fails open unless a guard
+// catches it (G15) — three separate fixes in Chunk 7.5 went that way.
+//
+// .gitattributes keeps the FILES LF; this keeps the DATABASE LF even when a
+// file arrives with CRLF from somewhere else.
+//
+// Written with String.raw rather than a regex literal typed through a shell
+// heredoc. The first two attempts at this line were themselves mangled by
+// escaping — the fix for the escaping trap, broken by the escaping trap.
+const CRLF = new RegExp(String.raw`\r\n`, "g");
+const sql = readFileSync(FILE, "utf8").replace(CRLF, "\n");
 
 console.log(`Applying ${name} (${sql.length} bytes) to ${PROJECT_REF}…`);
 try {
