@@ -20,6 +20,7 @@
     "db:check-migrations": "node scripts/check-pending-migrations.mjs",
     "db:verify-integrity": "node scripts/verify-database-integrity.mjs",
     "lint:tenant-scope": "node scripts/lint-tenant-scope.mjs",
+    "check:recovery-constants": "node scripts/check-recovery-constants.mjs",
     "db:types": "npx --yes supabase@latest gen types typescript --project-id psqxykzqfvxgsvkmgurn > src/integrations/supabase/types.ts",
     "seed:math12": "node scripts/seed-class12-math-templates.mjs",
     "functions:deploy-gateway": "npx --yes supabase@latest functions deploy ai-gateway --project-ref psqxykzqfvxgsvkmgurn --use-api",
