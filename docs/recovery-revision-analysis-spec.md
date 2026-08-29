@@ -93,23 +93,67 @@ old_correct · old_total · new_correct · new_total · readiness · outcome`
 
 ## 4. RECOVERY
 
-### 4.1 When it is suggested
+### 4.1 When it is built, and when it is offered
 
-Recovery is **always available** — a student may start one whenever they like.
-The app *suggests* it when both are true:
+**REVISED — the cooldown gate is removed. Sessions are built immediately and are
+available immediately.**
 
-```
-open_mistakes_in_chapter  >=  RECOVERY_TRIGGER_COUNT   (default 5)
-hours_since_newest_mistake >=  RECOVERY_COOLDOWN_HOURS (default 24)
-```
+**Two paths, one engine:**
 
-**Why a cooldown.** Offering recovery ten minutes after the session that created
-the mistakes tests short-term memory, not learning. A student who just saw the
-correct answer will get it right and learn nothing. Twenty-four hours is long
-enough that recall has decayed, short enough that the material is still live.
+| Path | Trigger | Then |
+|---|---|---|
+| **Automatic** | A practice session ends and a chapter now has `RECOVERY_TRIGGER_COUNT` (5) open mistakes | Session is built in the background, ~1–2 minutes. **No notification on completion** — it is simply there. |
+| **On demand** | The student opens **"Redo my mistakes"** (§10.8 practice mode) | Serve from cache if enough variants exist — instant. Otherwise build in the background and tell them. |
+
+**While it builds, the student sees:** *"Session complete. Your recovery session
+is being prepared."* They have already finished practising; nothing blocks them.
+
+**Build time is deliberately unhurried.** One to two minutes is the target, and
+it may take longer under load. **The system must degrade by taking longer, never
+by failing or by serving something worse.**
+
+**Why there is no cooldown gate.**
+
+The cooldown existed so a student could not answer from short-term memory. **The
+transfer ladder already detects that**, and better: a student who starts recovery
+minutes later aces tier 0 and tier 1 and fails tier 2 and tier 3, and the
+readiness report tells them exactly that — *"you handled every calculation, but
+when the same idea was asked differently, 2 of 5."*
+
+**Diagnosing memorisation is better than preventing the attempt.** The student
+learns something instead of being told to wait, and it matches the standing rule
+that the app suggests and the student decides.
 
 **Why 5.** Fewer than five is not worth a session, and clearing a one-mistake
 chapter creates a false sense of progress.
+
+**Chapter size is irrelevant.** A chapter holding 8 questions where the student
+got 5 wrong still yields a full session, because the session is built from
+generated variants rather than drawn from a finite pool.
+
+### 4.1a Generation — background, never in front of a waiting student
+
+**Nothing is ever generated while a student watches a loading screen.**
+
+- Generation runs **after** a practice session ends, for chapters that have just
+  crossed the trigger. Not for every wrong answer — most never reach a recovery
+  session, and generating for them is paying for questions nobody sees.
+- **Failures retry in the background. The student never sees them.** AI calls
+  fail for ordinary reasons — timeouts, rate limits, an outage, output that will
+  not parse — at roughly one call in a few hundred. At 210 students that is
+  several times a week. Invisible with retry; a broken screen without it.
+- **Bank first, always.** Check for existing variants before generating (§4.2a).
+- A session that genuinely cannot be completed is **not offered**, rather than
+  offered short. There is no student waiting, so there is no reason to degrade.
+
+### 4.1b Notifications — escalating, and only if unsolved
+
+- **No notification when the session is created.** It is simply available.
+- If it goes **unsolved**, send escalating reminders — **at most one a day**,
+  batched across chapters (*"3 chapters are ready to review"*).
+- **Reminders stop the moment the student starts the session.**
+- Not a single ping at a fixed 24 hours. The cadence responds to whether they
+  have acted.
 
 ### 4.2 What the session contains — the transfer ladder
 
@@ -212,6 +256,51 @@ their own book stops using the book.
 - `chapter_state` → `recovered`, `recovered_at` set.
 - `next_revision_at` = now + first revision interval.
 - `revision_stage` = 1.
+
+---
+
+### 4.6 Failing a recovery session — rounds and the accumulating pool
+
+A session is **cleared** when readiness passes (§4.2b). Below that it fails, and
+a new session is generated.
+
+| Round | Contains | Generation |
+|---|---|---|
+| **1** | Originals + fresh variants | Fresh |
+| **2** | Everything from round 1 **+ new questions** | Fresh |
+| **3** | Everything from rounds 1–2 **+ new questions** | Fresh |
+| **4+** | Drawn from the pool built across rounds 1–3 | **None** |
+
+**Why fresh questions in every one of the first three rounds.** A student who saw
+the same set each time would eventually pass by remembering those answers rather
+than understanding the chapter — exactly what the transfer ladder exists to
+detect. New material in each attempt makes that impossible.
+
+**Why generation stops after round three.** By then the pool holds roughly thirty
+questions, large enough that recycling is not trivially memorisable. And a
+chapter that has failed three rounds is not going to be solved by buying more
+questions. **The cap is explicit, and it holds cost on exactly the case where
+spending is least useful.**
+
+Rounds 4+ continue indefinitely from the pool. Nothing is blocked, nothing is
+flagged, and nothing escalates to any other person.
+
+**The mistake book never grows through recovery.**
+- Every question the student got wrong is **already** in the book.
+- Getting one wrong again **does not add a row** — it bumps `times_wrong`.
+- **The count can only fall or stay level.** A student who opens recovery with 6
+  mistakes and has a bad session still has 6. If it doubled, they would stop
+  opening recovery.
+- Entries leave **only when the student clears them** — from the mistake book or
+  from the recovery report. Nothing clears automatically.
+
+**No "stuck" state, and no suggestion to ask a teacher.** Repeated failure shows
+in the student's own analysis as `times_wrong` climbing and the trend not
+improving. That is enough. The app does not tell a child to go and ask for help.
+
+**Test and homework mistakes feed this too.** Per §8, the recovery queue may draw
+on school-data mistakes as well as practice ones — the storage stays separate,
+the queue does not.
 
 ---
 
@@ -457,8 +546,13 @@ paid feature gets muted.
 ## 10. Constants — one module, tunable in one place
 
 ```
-RECOVERY_TRIGGER_COUNT      = 5      // open mistakes before suggesting
-RECOVERY_COOLDOWN_HOURS     = 24     // since newest mistake
+RECOVERY_TRIGGER_COUNT      = 5      // open mistakes before building
+GENERATION_TARGET_SECONDS   = 120    // build time target; degrade by taking
+                                     // longer, never by failing
+GENERATION_MAX_RETRIES      = 5      // background, invisible to the student
+REMINDER_MAX_PER_DAY        = 1      // batched across chapters, stops on start
+RECOVERY_GENERATION_ROUNDS  = 3      // fresh questions added in rounds 1-3;
+                                     // round 4+ draws from the accumulated pool
 
 RECOVERY_TIER0              = 2      // the original wrong questions
 RECOVERY_TIER1              = 3      // AI variants, different values

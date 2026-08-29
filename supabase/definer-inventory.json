@@ -4908,6 +4908,17 @@
       "justification": "Internal counter bump for academic_daily_activity, called only by rpc_complete_revision, rpc_finish_battle, rpc_finish_practice_session and rpc_test_submit — all of which have already authorised the caller. EXECUTE is revoked from PUBLIC, anon and authenticated by 20260829230000; that revoke had to be RE-applied because Chunk 7.5c dropped and recreated both overloads (its `_dpp` parameter could not be renamed in place) and pg_get_functiondef does not carry grants, so the recreate silently reset them to PUBLIC.",
       "verifiedBy": "scripts/verify-database-integrity.mjs — 'internal data-forgery/leak helpers are no longer callable by anon or authenticated'",
       "reviewed": true
+    },
+    "_write_chapter_tally(_session_id uuid)": {
+      "name": "_write_chapter_tally",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "integer",
+      "grants": [],
+      "calls": [],
+      "justification": "Writes chapter_tally for one practice session — the denominator §3.1 calls required, and which had no writer at all until 7C. Aggregates question_attempts for the session into one row per DISTINCT chapter, never per question: per-question storage is exactly what this table exists to make unnecessary, and would itself be per-question correctness (§10.8). chapter_id comes from question_bank, never from the free-text chapter label that filled revision_queue with 'Chapter 3'. EXECUTE revoked from PUBLIC, anon and authenticated; called only by rpc_finish_practice_session.",
+      "verifiedBy": "CHUNK7C_A grain check — a session spanning 3 chapters writes exactly 3 rows from 6 attempts",
+      "reviewed": true
     }
   },
   "edge": {
