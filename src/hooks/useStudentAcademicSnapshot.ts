@@ -16,7 +16,7 @@ export type AcademicSnapshot = {
     total_battles?: number;
   } | null;
   homework?: { pending: number; completed: number };
-  dpp?: { open: number; completed: number };
+  test?: { open: number; completed: number };
   weak_topics?: { subject: string; chapter?: string; topic?: string; accuracy: number }[];
   strong_topics?: { subject: string; chapter?: string; topic?: string; accuracy: number }[];
   revision_queue?: { id: string; subject: string; topic?: string; chapter?: string; priority: number; due_date: string }[];
@@ -24,17 +24,17 @@ export type AcademicSnapshot = {
   recovery_pending?: number;
   weak_concepts?: { subject: string; concept: string; mastery_score: number }[];
   self_practice?: { sessions_completed: number };
-  activity_heatmap?: { date: string; dpp: number; homework: number; battles: number; self_practice?: number; minutes: number }[];
+  activity_heatmap?: { date: string; test: number; homework: number; battles: number; self_practice?: number; minutes: number }[];
   exam_readiness?: {
     score: number;
     label: string;
     tone: string;
     attendance_pct?: number;
-    /** Blended DPP + practice accuracy. NOT practice accuracy on its own. */
+    /** Blended Test + practice accuracy. NOT practice accuracy on its own. */
     accuracy_pct?: number;
     /** Practice-only accuracy, straight from question_attempts. */
     practice_accuracy_pct?: number;
-    dpp_completion_pct?: number;
+    test_completion_pct?: number;
     active_days_14d?: number;
   };
 };

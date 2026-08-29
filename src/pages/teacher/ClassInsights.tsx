@@ -114,7 +114,7 @@ export default function ClassInsights() {
         <InsightMetric icon={<Brain className="w-5 h-5" />} label="Weak Concepts" value={weakConcepts.length} sub="reteach queue" />
         <InsightMetric icon={<CheckCircle2 className="w-5 h-5" />} label="Recovery Success" value={`${recoveryRate}%`} sub="completion rate" />
         <InsightMetric icon={<AlertTriangle className="w-5 h-5" />} label="At Risk" value={atRisk.length} sub="intervention needed" />
-        <InsightMetric icon={<Clock className="w-5 h-5" />} label="Practice Signal" value="Live" sub="DPP + battles" />
+        <InsightMetric icon={<Clock className="w-5 h-5" />} label="Practice Signal" value="Live" sub="Test + battles" />
       </div>
 
       <Card className="tp-card p-5">
@@ -143,7 +143,7 @@ export default function ClassInsights() {
               </div>
             );
           })}
-          {weakConcepts.length === 0 && <p className="text-sm text-muted-foreground">No confused concepts yet. DPP and battle attempts will populate this map.</p>}
+          {weakConcepts.length === 0 && <p className="text-sm text-muted-foreground">No confused concepts yet. Test and battle attempts will populate this map.</p>}
         </div>
       </Card>
 
@@ -174,7 +174,7 @@ export default function ClassInsights() {
         </Card>
       </div>
       <Card className="tp-card p-5 mt-4">
-        <h3 className="font-semibold mb-2">Class weak topics (DPP data)</h3>
+        <h3 className="font-semibold mb-2">Class weak topics (Test data)</h3>
         {weakTopics.map((t: any, i: number) => (
           <div key={i} className="mb-3">
             <div className="flex justify-between text-sm mb-1">
@@ -220,7 +220,7 @@ export default function ClassInsights() {
           <Lightbulb className="w-4 h-4 text-primary" /> Suggested interventions
         </h3>
         {(data?.interventions ?? []).length === 0 && (
-          <p className="text-sm text-muted-foreground">No interventions suggested yet — more class DPP data will unlock these.</p>
+          <p className="text-sm text-muted-foreground">No interventions suggested yet — more class Test data will unlock these.</p>
         )}
         {(data?.interventions ?? []).map((item: any, i: number) => (
           <div key={i} className="tp-row mb-2">
@@ -231,8 +231,8 @@ export default function ClassInsights() {
               <span className="font-medium text-sm">{item.action}</span>
             </div>
             <p className="text-xs text-muted-foreground">{item.rationale}</p>
-            {item.suggested_dpp_title && (
-              <p className="text-xs mt-1 text-primary/90">DPP idea: {item.suggested_dpp_title}</p>
+            {item.suggested_test_title && (
+              <p className="text-xs mt-1 text-primary/90">Test idea: {item.suggested_test_title}</p>
             )}
           </div>
         ))}

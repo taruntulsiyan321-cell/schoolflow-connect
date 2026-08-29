@@ -72,13 +72,13 @@ const radarData = [
 ];
 
 const weeklyActivity = [
-  { day: "Mon", dpp: 12, practice: 8, battles: 3 },
-  { day: "Tue", dpp: 18, practice: 14, battles: 5 },
-  { day: "Wed", dpp: 6, practice: 20, battles: 0 },
-  { day: "Thu", dpp: 22, practice: 10, battles: 8 },
-  { day: "Fri", dpp: 15, practice: 18, battles: 4 },
-  { day: "Sat", dpp: 28, practice: 22, battles: 10 },
-  { day: "Sun", dpp: 8, practice: 6, battles: 2 },
+  { day: "Mon", test: 12, practice: 8, battles: 3 },
+  { day: "Tue", test: 18, practice: 14, battles: 5 },
+  { day: "Wed", test: 6, practice: 20, battles: 0 },
+  { day: "Thu", test: 22, practice: 10, battles: 8 },
+  { day: "Fri", test: 15, practice: 18, battles: 4 },
+  { day: "Sat", test: 28, practice: 22, battles: 10 },
+  { day: "Sun", test: 8, practice: 6, battles: 2 },
 ];
 
 const accuracyTrend = [
@@ -642,7 +642,7 @@ export default function AnalyticsPage() {
               <SectionLabel>This Week — Questions Attempted</SectionLabel>
               <div className="flex gap-4 mb-4">
                 {[
-                  { label: "DPP", color: "#3b5bdb" },
+                  { label: "Test", color: "#3b5bdb" },
                   { label: "Practice", color: "#4b9fd4" },
                   { label: "Battles", color: "#c08a3a" },
                 ].map((l) => (
@@ -659,7 +659,7 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="day" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="dpp" name="DPP" stackId="a" fill="#3b5bdb" />
+                    <Bar dataKey="test" name="Test" stackId="a" fill="#3b5bdb" />
                     <Bar dataKey="practice" name="Practice" stackId="a" fill="#4b9fd4" />
                     <Bar dataKey="battles" name="Battles" stackId="a" fill="#c08a3a" radius={[4, 4, 0, 0]} />
                   </BarChart>

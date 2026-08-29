@@ -11,7 +11,7 @@ export function AnalyticsEmptyState() {
       </div>
       <h3 className="text-lg font-semibold">Your analytics will appear here</h3>
       <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
-        Complete a DPP, battle, or Class 12 practice session to unlock concept mastery, mistake breakdowns, weekly momentum, and a personalised action plan.
+        Complete a Test, battle, or Class 12 practice session to unlock concept mastery, mistake breakdowns, weekly momentum, and a personalised action plan.
       </p>
       <div className="flex gap-2 justify-center mt-6 flex-wrap">
         <Button asChild>

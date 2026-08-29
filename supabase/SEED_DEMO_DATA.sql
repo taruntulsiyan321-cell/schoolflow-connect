@@ -110,11 +110,12 @@ DECLARE
   bp_done2    uuid := 'd4000002-0002-4000-8000-000000000002';
   bq_done1    uuid := 'd4000003-0001-4000-8000-000000000001';
   bq_done2    uuid := 'd4000003-0002-4000-8000-000000000002';
-  dpp_pub     uuid := 'd5000001-0001-4000-8000-000000000001';
-  dpp_draft   uuid := 'd5000001-0002-4000-8000-000000000002';
-  dpp_q1      uuid := 'd5000002-0001-4000-8000-000000000001';
-  dpp_q2      uuid := 'd5000002-0002-4000-8000-000000000002';
-  dpp_att     uuid := 'd5000003-0001-4000-8000-000000000001';
+  test_pub    uuid := 'd5000001-0001-4000-8000-000000000001';
+  test_draft  uuid := 'd5000001-0002-4000-8000-000000000002';
+  test_q1     uuid := 'd5000002-0001-4000-8000-000000000001';
+  test_ss     uuid;
+  test_q2     uuid := 'd5000002-0002-4000-8000-000000000002';
+  test_att    uuid := 'd5000003-0001-4000-8000-000000000001';
   hw1         uuid := 'd6000001-0001-4000-8000-000000000001';
   hw_sub1     uuid := 'd6000002-0001-4000-8000-000000000001';
   exam1       uuid := 'd8000001-0001-4000-8000-000000000001';
@@ -427,10 +428,10 @@ BEGIN
 
   INSERT INTO public.student_badges (user_id, badge_code, tier) VALUES
     (u_s1, 'first_win', 'bronze'),
-    (u_s1, 'first_dpp', 'bronze'),
+    (u_s1, 'first_test', 'bronze'),
     (u_s3, 'first_win', 'bronze'),
     (u_s3, 'sharp_shooter', 'silver'),
-    (u_s3, 'dpp_perfect', 'gold')
+    (u_s3, 'test_perfect', 'gold')
   ON CONFLICT (user_id, badge_code) DO NOTHING;
 
   -- ===================== BATTLES =====================
@@ -499,49 +500,59 @@ BEGIN
   ON CONFLICT (participant_id) DO UPDATE SET report = EXCLUDED.report, expires_at = EXCLUDED.expires_at;
 
   -- ===================== DPPS =====================
-  INSERT INTO public.dpps (
-    id, title, subject, chapter, topic, class_id, created_by,
-    difficulty, instructions, due_at, duration_sec, total_marks, negative_marking,
-    is_published, question_count
-  ) VALUES
-    (dpp_pub, 'DPP — Quadratic Equations', 'Mathematics', 'Quadratic Equations', 'Nature of Roots',
-     c10a, u_t_math, 'medium', 'No calculator. Show rough work in notebook.', now() + interval '5 days',
-     1200, 2, 0.25, true, 2),
-    (dpp_draft, 'Draft DPP — Light (unpublished)', 'Physics', 'Light', 'Reflection',
-     c10a, u_t_phys, 'easy', 'For class test revision.', now() + interval '7 days',
-     900, 0, 0, false, 0)
-  ON CONFLICT (id) DO UPDATE SET is_published = EXCLUDED.is_published, title = EXCLUDED.title;
+  -- Chunk 7.5: the Tests feature runs on tests + test_questions +
+  -- test_attempts. A test anchors on section_subject (§10.22), not on a class,
+  -- so the section_subject is resolved rather than a class_id being stored.
+  SELECT ss.id INTO test_ss
+    FROM public.section_subjects ss
+   WHERE ss.school_id = _demo_school AND ss.section_id = c10a
+   LIMIT 1;
 
-  INSERT INTO public.dpp_questions (id, dpp_id, order_index, kind, question, options, correct, marks, explanation) VALUES
-    (dpp_q1, dpp_pub, 0, 'mcq',
-     'The discriminant of ax² + bx + c = 0 is:',
-     '["b² − 4ac","2a","−b/2a","b² + 4ac"]'::jsonb,
-     '{"indexes":[0]}'::jsonb, 1, 'D = b² − 4ac'),
-    (dpp_q2, dpp_pub, 1, 'mcq',
-     'If roots are equal, discriminant equals:',
-     '["0","1","b²","2ac"]'::jsonb,
-     '{"indexes":[0]}'::jsonb, 1, 'Equal roots ⇒ D = 0')
-  ON CONFLICT (id) DO NOTHING;
+  IF test_ss IS NOT NULL THEN
+    INSERT INTO public.tests (
+      id, school_id, academic_year_id, section_subject_id, created_by,
+      title, topic, chapter, date, max_mark, status, published_at,
+      difficulty, instructions, duration_sec, total_marks, test_kind
+    ) VALUES
+      (test_pub, _demo_school, _ay, test_ss, u_t_math,
+       'Test — Quadratic Equations', 'Nature of Roots', 'Quadratic Equations',
+       CURRENT_DATE, 2, 'published', now(),
+       'medium', 'No calculator. Show rough work in notebook.', 1200, 2, 'class_test'),
+      (test_draft, _demo_school, _ay, test_ss, u_t_phys,
+       'Draft Test — Light (unpublished)', 'Reflection', 'Light',
+       CURRENT_DATE, 1, 'draft', NULL,
+       'easy', 'For class test revision.', 900, 0, 'class_test')
+    ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, title = EXCLUDED.title;
 
-  UPDATE public.dpps SET question_count = 2, total_marks = 2 WHERE id = dpp_pub;
+    INSERT INTO public.test_questions (id, test_id, school_id, order_index, question, options, correct, marks, explanation) VALUES
+      (test_q1, test_pub, _demo_school, 1,
+       'The roots of x^2 - 5x + 6 = 0 are:',
+       '["2 and 3","1 and 6","-2 and -3","5 and 6"]'::jsonb, '"2 and 3"'::jsonb, 1,
+       'Factorise: (x-2)(x-3) = 0.'),
+      (test_q2, test_pub, _demo_school, 2,
+       'The discriminant of x^2 + 4x + 4 = 0 is:',
+       '["0","4","16","-4"]'::jsonb, '"0"'::jsonb, 1,
+       'b^2 - 4ac = 16 - 16 = 0, so the roots are equal.')
+    ON CONFLICT (id) DO NOTHING;
 
-  INSERT INTO public.dpp_attempts (
-    id, dpp_id, user_id, student_id, started_at, submitted_at,
-    score, max_score, correct_count, total_count, time_spent_sec, status
-  ) VALUES
-    (dpp_att, dpp_pub, u_s1, st1, now() - interval '1 day', now() - interval '23 hours',
-     2, 2, 2, 2, 420, 'submitted')
-  ON CONFLICT (dpp_id, user_id) DO UPDATE SET status = EXCLUDED.status, score = EXCLUDED.score;
+    -- One submitted attempt and one still open, so the demo shows both states.
+    INSERT INTO public.test_attempts (
+      id, test_id, user_id, student_id, school_id, started_at, submitted_at,
+      score, max_score, correct_count, total_count, status
+    ) VALUES
+      (test_att, test_pub, u_s1, st1, _demo_school,
+       now() - interval '1 day', now() - interval '23 hours',
+       2, 2, 2, 2, 'submitted')
+    ON CONFLICT (test_id, user_id) DO UPDATE SET status = EXCLUDED.status, score = EXCLUDED.score;
 
-  INSERT INTO public.dpp_answers (attempt_id, question_id, response, is_correct, marks_awarded, time_ms) VALUES
-    (dpp_att, dpp_q1, '{"indexes":[0]}'::jsonb, true, 1, 180000),
-    (dpp_att, dpp_q2, '{"indexes":[0]}'::jsonb, true, 1, 200000)
-  ON CONFLICT (attempt_id, question_id) DO NOTHING;
+    -- No test_answers rows are seeded for the submitted attempt: §10.8 purges
+    -- per-question answers at submit, so a submitted attempt that still had
+    -- them would be seeding a state the application cannot produce.
+    INSERT INTO public.test_attempts (test_id, user_id, student_id, school_id, max_score, total_count, status)
+    VALUES (test_pub, u_s2, st2, _demo_school, 2, 2, 'in_progress')
+    ON CONFLICT (test_id, user_id) DO NOTHING;
+  END IF;
 
-  -- In-progress attempt for student 2
-  INSERT INTO public.dpp_attempts (dpp_id, user_id, student_id, max_score, total_count, status)
-  VALUES (dpp_pub, u_s2, st2, 2, 2, 'in_progress')
-  ON CONFLICT (dpp_id, user_id) DO NOTHING;
 
   -- ===================== NOTIFICATIONS =====================
   INSERT INTO public.notifications (user_id, type, title, body, icon, link, read) VALUES

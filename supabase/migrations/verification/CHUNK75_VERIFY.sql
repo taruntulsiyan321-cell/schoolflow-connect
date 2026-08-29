@@ -23,7 +23,9 @@ DECLARE
   _paper_rows int; _paper_has_correct boolean;
   _res jsonb; _mark numeric; _mistakes int; _with_chapter int; _left int;
   _direct_read int;
-  _r1 text; _r2 text; _r3 text; _r4 text; _r5 text;
+  _r1 text; _r2 text; _r3 text; _r4 text; _r5 text; _r6 text; _r7 text;
+  _dpp_tables int; _dpp_fns int; _dpp_cols int; _dpp_cons int; _dpp_types int; _dpp_badges int;
+  _anchor text; _lit int;
 BEGIN
   SELECT s.user_id, s.id INTO _uid, _sid
     FROM public.students s
@@ -166,6 +168,64 @@ BEGIN
               THEN ' — a student can SELECT test_questions, which includes `correct` (FAIL)'
               ELSE ' — (FAIL)' END;
 
-  RAISE EXCEPTION E'CHUNK75\n 1) %\n 2) %\n 3) %\n 4) %\n 5) %\n [all rolled back]',
-    _r1, _r2, _r3, _r4, _r5;
+  ------------------------------------------------------------------
+  -- 6. Item 4 — zero references to dpp, on every DB surface
+  ------------------------------------------------------------------
+  -- The item that proves the convergence landed. Counted across every place
+  -- the retired feature was found living during this chunk: tables, function
+  -- bodies, columns, CHECK constraints, enum TYPES (which survive a table
+  -- drop, and were the last four references left in the generated
+  -- TypeScript), and badge codes in data.
+  SELECT count(*)::int INTO _dpp_tables FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+   WHERE n.nspname='public' AND c.relname ILIKE '%dpp%';
+  SELECT count(*)::int INTO _dpp_fns FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+   WHERE n.nspname='public' AND p.prokind='f' AND pg_get_functiondef(p.oid) ~* 'dpp';
+  SELECT count(*)::int INTO _dpp_cols FROM information_schema.columns
+   WHERE table_schema='public' AND column_name ILIKE '%dpp%';
+  SELECT count(*)::int INTO _dpp_cons FROM pg_constraint c JOIN pg_class t ON t.oid=c.conrelid
+    JOIN pg_namespace n ON n.oid=t.relnamespace
+   WHERE n.nspname='public' AND pg_get_constraintdef(c.oid) ILIKE '%dpp%';
+  SELECT count(*)::int INTO _dpp_types FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace
+   WHERE n.nspname='public' AND t.typname ILIKE '%dpp%';
+  SELECT count(*)::int INTO _dpp_badges FROM public.student_badges WHERE badge_code ILIKE '%dpp%';
+
+  _r6 := format('dpp references — tables %s, functions %s, columns %s, constraints %s, types %s, badge rows %s',
+                _dpp_tables, _dpp_fns, _dpp_cols, _dpp_cons, _dpp_types, _dpp_badges)
+      || CASE WHEN _dpp_tables + _dpp_fns + _dpp_cols + _dpp_cons + _dpp_types + _dpp_badges = 0
+              THEN ' — the feature is gone from the schema, not just from the tables (PASS)'
+              ELSE ' — dpp survives somewhere (FAIL)' END;
+
+  ------------------------------------------------------------------
+  -- 7. Item 6 — anchored on section_subject, thresholds per test
+  ------------------------------------------------------------------
+  SELECT CASE WHEN EXISTS (
+           SELECT 1 FROM information_schema.columns
+            WHERE table_schema='public' AND table_name='tests' AND column_name='section_subject_id')
+          AND NOT EXISTS (
+           SELECT 1 FROM information_schema.columns
+            WHERE table_schema='public' AND table_name='tests' AND column_name='class_id')
+         THEN 'section_subject only' ELSE 'class_id present' END INTO _anchor;
+
+  -- max_mark and the pass threshold must resolve per test, never from a
+  -- literal. Asserted structurally: neither column carries a DEFAULT that
+  -- would silently supply a threshold nobody chose (G4).
+  SELECT count(*)::int INTO _lit FROM information_schema.columns
+   WHERE table_schema='public' AND table_name='tests'
+     AND column_name IN ('max_mark','passing_marks') AND column_default IS NOT NULL;
+
+  _r7 := format('tests anchor: %s; max_mark/passing_marks carrying a DEFAULT: %s', _anchor, _lit)
+      || CASE WHEN _anchor = 'section_subject only' AND _lit = 0
+              THEN ' — §10.22 anchoring, and both thresholds resolve per test rather than from a literal (PASS)'
+              ELSE ' — (FAIL)' END;
+
+  RAISE EXCEPTION E'CHUNK75
+ 1) %
+ 2) %
+ 3) %
+ 4) %
+ 5) %
+ 6) %
+ 7) %
+ [all rolled back]',
+    _r1, _r2, _r3, _r4, _r5, _r6, _r7;
 END $verify$;

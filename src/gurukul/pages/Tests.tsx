@@ -242,7 +242,7 @@ export default function Tests() {
                   </div>
                   {t.published ? (
                     <Link
-                      to={`/student/dpp/${t.id}/attempt`}
+                      to={`/student/test/${t.id}/attempt`}
                       className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#3b5bdb]/15 text-[#818cf8] border border-[#3b5bdb]/25 hover:bg-[#3b5bdb]/25 transition-colors shrink-0"
                     >
                       <Play className="w-3 h-3" /> Attempt

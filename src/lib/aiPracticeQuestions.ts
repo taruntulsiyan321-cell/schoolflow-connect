@@ -98,7 +98,7 @@ export async function generateAiPracticeQuestions(opts: {
     .join("\n\n");
 
   const { data, error } = await invokeEdgeFunction<{ questions: AiMcq[]; error?: string }>(
-    "dpp-generate-questions",
+    "test-generate-questions",
     {
       subject: opts.subject,
       chapter: opts.chapter ?? "",

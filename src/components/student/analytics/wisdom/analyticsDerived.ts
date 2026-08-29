@@ -193,7 +193,7 @@ function masteryToOvercome(gaps: TopicGapInsight[]): string | null {
 export function consistencyGrid(heatmap: AcademicSnapshot["activity_heatmap"]) {
   const days = heatmap ?? [];
   const cells = days.slice(-84).map((d) => {
-    const total = (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0);
+    const total = (d.test ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0);
     return { date: d.date, total, minutes: d.minutes ?? 0 };
   });
   return cells;

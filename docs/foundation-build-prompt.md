@@ -196,6 +196,24 @@ definer would withhold that column.
 - **Verify by reading as the role that must not see it**, and asserting the
   column is absent — not by reading the policy.
 
+**A control that disappears on error is not a control either.**
+
+Found live: `listForClass` caught any error matching `/school_id/` and re-ran the
+query **without the institution filter**. A cross-tenant leak armed and waiting
+for a schema change to fire it — during a period when the schema was changing
+weekly.
+
+This is distinct from a swallowed failure (G10). The error was not hidden; it was
+**answered by removing the fence.**
+
+- **No fallback, retry or degraded path may drop a security predicate.** If the
+  fenced query fails, the request fails.
+- Sweep for `catch` blocks that re-issue a query with fewer conditions, and for
+  any error handler whose recovery path is a wider query.
+- **A filtering join beats a post-filter.** `section_subjects!inner` excludes a
+  mismatched row structurally; a `.filter()` afterwards relies on every call site
+  remembering. Prefer the construct that cannot be forgotten.
+
 ### G15. Constructs that silently do nothing
 
 Three found in one chunk, all of which look protective and were not:

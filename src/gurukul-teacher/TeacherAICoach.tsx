@@ -148,7 +148,7 @@ export default function TeacherAICoach() {
           </div>
           <div className="flex items-start gap-2 text-xs text-[#c8c8d4] border-t border-border/70 pt-3">
             <Target className="w-3.5 h-3.5 text-[#4aa87a] shrink-0 mt-0.5" />
-            Assign a short identity-drill DPP before the next trigonometry class.
+            Assign a short identity-drill Test before the next trigonometry class.
           </div>
         </div>
       </Card>

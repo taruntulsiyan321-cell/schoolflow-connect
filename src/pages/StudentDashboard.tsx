@@ -187,7 +187,7 @@ export default function StudentDashboard() {
     const heatmapSessions = (snapshot?.activity_heatmap ?? []).filter((row) => {
       const d = new Date(row.date);
       if (d < weekAgo) return false;
-      return row.minutes > 0 || row.dpp > 0 || row.battles > 0 || (row.self_practice ?? 0) > 0;
+      return row.minutes > 0 || row.test > 0 || row.battles > 0 || (row.self_practice ?? 0) > 0;
     }).length;
 
     const weeklySessions = (chartData?.weekly_activity ?? []).slice(-7).filter((row) => row.total > 0).length;
@@ -328,7 +328,7 @@ export default function StudentDashboard() {
           {import.meta.env.DEV && (
             <Route path="_debug/weak-areas-v2" element={<WeakAreasV2Debug />} />
           )}
-          <Route path="dpp" element={<Navigate to="/student/tests" replace />} />
+          <Route path="test" element={<Navigate to="/student/tests" replace />} />
           <Route path="test/:id/attempt" element={<TestAttempt />} />
           <Route path="test/:id/result" element={<TestResult />} />
           <Route path="chat" element={<ChatPage userRole="student" />} />

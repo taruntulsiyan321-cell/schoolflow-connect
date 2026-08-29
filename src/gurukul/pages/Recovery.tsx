@@ -123,7 +123,7 @@ const SOURCE_LABELS: Record<string,string> = {
 function sourceFromType(sourceType: string | null | undefined): string {
   const s = (sourceType ?? "").toLowerCase();
   if (s.includes("battle")) return "battleground";
-  if (s.includes("dpp") || s.includes("test") || s.includes("exam") || s.includes("marks")) return "tests";
+  if (s.includes("test") || s.includes("test") || s.includes("exam") || s.includes("marks")) return "tests";
   if (s.includes("homework") || s.includes("assignment")) return "homework";
   if (s.includes("pyq")) return "pyq";
   if (s.includes("qbank") || s.includes("question_bank")) return "qbank";

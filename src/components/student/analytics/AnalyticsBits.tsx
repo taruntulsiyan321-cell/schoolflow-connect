@@ -52,7 +52,7 @@ export function SoftWeekActivityBars({ days }: { days: WeeklyActivityPoint[] }) 
         const dayLabel = Number.isNaN(parsed.getTime())
           ? String(d.date).slice(5)
           : parsed.toLocaleDateString("en-IN", { weekday: "short" });
-        const dpp = d.dpp ?? 0;
+        const test = d.test ?? 0;
         const battles = d.battles ?? 0;
         const practice = d.self_practice ?? 0;
 
@@ -67,7 +67,7 @@ export function SoftWeekActivityBars({ days }: { days: WeeklyActivityPoint[] }) 
                   className="w-full flex flex-col-reverse rounded-t-xl overflow-hidden"
                   style={{ height: `${h}%` }}
                 >
-                  {dpp > 0 && <div className="w-full bg-[#7A9E7E]" style={{ flex: dpp }} title={`DPP: ${dpp}`} />}
+                  {test > 0 && <div className="w-full bg-[#7A9E7E]" style={{ flex: test }} title={`Test: ${test}`} />}
                   {battles > 0 && <div className="w-full bg-[#E07A5F]" style={{ flex: battles }} title={`Battles: ${battles}`} />}
                   {practice > 0 && (
                     <div className="w-full bg-[#81B29A]" style={{ flex: practice }} title={`Self-practice: ${practice}`} />
@@ -202,7 +202,7 @@ export function WeekActivityBars({ days }: { days: WeeklyActivityPoint[] }) {
         const dayLabel = Number.isNaN(parsed.getTime())
           ? String(d.date).slice(5)
           : parsed.toLocaleDateString("en-IN", { weekday: "short" });
-        const dpp = d.dpp ?? 0;
+        const test = d.test ?? 0;
         const battles = d.battles ?? 0;
         const practice = d.self_practice ?? 0;
 
@@ -214,7 +214,7 @@ export function WeekActivityBars({ days }: { days: WeeklyActivityPoint[] }) {
                   className="w-full flex flex-col-reverse rounded-t-lg overflow-hidden"
                   style={{ height: `${h}%` }}
                 >
-                  {dpp > 0 && <div className="w-full bg-primary" style={{ flex: dpp }} title={`DPP: ${dpp}`} />}
+                  {test > 0 && <div className="w-full bg-primary" style={{ flex: test }} title={`Test: ${test}`} />}
                   {battles > 0 && <div className="w-full bg-warning" style={{ flex: battles }} title={`Battles: ${battles}`} />}
                   {practice > 0 && (
                     <div className="w-full bg-accent" style={{ flex: practice }} title={`Self-practice: ${practice}`} />

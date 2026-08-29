@@ -107,7 +107,7 @@ export default function QuestionBankPage() {
     }
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("dpp-generate-questions", {
+      const { data, error } = await supabase.functions.invoke("test-generate-questions", {
         body: {
           topic: topic.trim(), subject, chapter: chapter.trim(),
           difficulty, count, source_text: sourceText.trim(), source_url: url.trim(),

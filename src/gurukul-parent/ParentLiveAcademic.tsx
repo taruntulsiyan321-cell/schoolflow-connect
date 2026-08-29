@@ -125,7 +125,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
           }
         }
       }
-      return { marks: markRows, exams: examRows, tests: testRows, attemptsByDpp: attemptMap };
+      return { marks: markRows, exams: examRows, tests: testRows, attemptsByTest: attemptMap };
     },
     { enabled: settled && ready && !!ctx, errorFallback: "Failed to load exams" },
   );
@@ -133,7 +133,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
   const marks = useMemo(() => examData.data?.marks ?? [], [examData.data]);
   const exams = useMemo(() => examData.data?.exams ?? [], [examData.data]);
   const tests = useMemo(() => examData.data?.tests ?? [], [examData.data]);
-  const attemptsByDpp = useMemo(() => examData.data?.attemptsByDpp ?? {}, [examData.data]);
+  const attemptsByTest = useMemo(() => examData.data?.attemptsByTest ?? {}, [examData.data]);
   const error = examData.error;
   const loading = examData.isLoading && !(settled && (!ready || !ctx));
 
@@ -179,7 +179,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
         </div>
         <div className="space-y-2">
           {tests.map((t) => {
-            const att = attemptsByDpp[String(t.id)];
+            const att = attemptsByTest[String(t.id)];
             const score = att?.score != null ? Number(att.score) : null;
             const correct = att?.correct_count != null ? Number(att.correct_count) : null;
             const total = att?.total_count != null ? Number(att.total_count) : null;

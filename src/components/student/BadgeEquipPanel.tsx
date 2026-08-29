@@ -113,7 +113,7 @@ export function BadgeEquipPanel({ userId, compact }: Props) {
 
       {earned.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Win battles, complete DPPs, and stay consistent to unlock badges. Equip one badge to show it on your profile and in class.
+          Win battles, complete Tests, and stay consistent to unlock badges. Equip one badge to show it on your profile and in class.
         </p>
       ) : (
         <>

@@ -47,14 +47,14 @@ export function PerformanceSection({
   const displayBests = bests;
   const activityRows = data.activity_heatmap ?? [];
   const recentActivity = activityRows.slice(-14);
-  const activeDays = recentActivity.filter((d) => (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0).length;
+  const activeDays = recentActivity.filter((d) => (d.test ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0).length;
   const totalActivity = recentActivity.reduce(
-    (sum, d) => sum + (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0),
+    (sum, d) => sum + (d.test ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0),
     0,
   );
   const bestDay = recentActivity.reduce(
     (best, d) => {
-      const total = (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0);
+      const total = (d.test ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0);
       return total > best.total ? { date: d.date, total } : best;
     },
     { date: "", total: 0 },
@@ -63,7 +63,7 @@ export function PerformanceSection({
     recentActivity.length > 0
       ? [
           { label: "Active days", value: activeDays, sub: "last 14 days" },
-          { label: "Learning actions", value: totalActivity, sub: "practice, DPP & battles" },
+          { label: "Learning actions", value: totalActivity, sub: "practice, Test & battles" },
           {
             label: "Best day",
             value: bestDay.total,

@@ -65,7 +65,7 @@ export interface EntityMapping {
 
 /**
  * Product entity → physical table.
- * Assignments map to homework. Tests map to dpps. Sections stay on classes.section.
+ * Assignments map to homework. Tests map to tests. Sections stay on classes.section.
  * Never create parallel stores for the same academic fact.
  */
 export const ENTITY_REGISTRY: Record<AcademicEntityKey, EntityMapping> = {
@@ -132,22 +132,22 @@ export const ENTITY_REGISTRY: Record<AcademicEntityKey, EntityMapping> = {
   },
   test: {
     key: "test",
-    table: "dpps",
-    aliases: ["dpp", "class_test"],
-    notes: "Class tests / DPPs share one store",
+    table: "tests",
+    aliases: ["test", "class_test"],
+    notes: "Class tests / Tests share one store",
     tenantScoped: true,
   },
   question: {
     key: "question",
-    table: "dpp_questions",
+    table: "test_questions",
     aliases: ["question_bank", "question_templates"],
-    notes: "Bank/templates are authoring sources; dpp_questions are assigned instances",
+    notes: "Bank/templates are authoring sources; test_questions are assigned instances",
     tenantScoped: true,
   },
   student_test_attempt: {
     key: "student_test_attempt",
-    table: "dpp_attempts",
-    aliases: ["dpp_answers"],
+    table: "test_attempts",
+    aliases: ["test_answers"],
     tenantScoped: true,
   },
   marks: {

@@ -355,7 +355,7 @@ export default function Analysis() {
     const todayDone = weekly.find((d) => new Date(d.date).toDateString() === todayKey)?.total ?? 0;
     const streakDays = student.streak;
     const activeDays = (snapshot?.activity_heatmap ?? []).filter(
-      (d) => (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0,
+      (d) => (d.test ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0,
     ).length;
     const consistency = weekly.length > 0 ? Math.round((activeDays / Math.max(weekly.length, 1)) * 100) : 0;
     return {

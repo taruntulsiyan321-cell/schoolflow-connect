@@ -129,7 +129,7 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "dpps", filter: `school_id=eq.${schoolId}` },
+        { event: "*", schema: "public", table: "tests", filter: `school_id=eq.${schoolId}` },
         onTable(["test", "profile"]),
       )
       .on(

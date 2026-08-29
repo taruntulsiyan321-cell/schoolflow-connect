@@ -21,7 +21,7 @@ import { toDisplayText } from "@/lib/presentation";
 
 const barConfig = { accuracy: { label: "Accuracy %", color: "hsl(var(--primary))" } };
 const lineConfig = { total: { label: "Activity", color: "hsl(var(--accent))" } };
-const areaConfig = { score_pct: { label: "DPP score %", color: "hsl(var(--primary))" } };
+const areaConfig = { score_pct: { label: "Test score %", color: "hsl(var(--primary))" } };
 const practiceAreaConfig = { score_pct: { label: "Practice score %", color: "hsl(var(--accent))" } };
 
 export default function AcademicReport() {
@@ -155,7 +155,7 @@ export default function AcademicReport() {
                       <tr className="border-b text-left text-muted-foreground">
                         <th className="py-2 pr-4 font-medium">Date</th>
                         <th className="py-2 pr-4 font-medium">Total</th>
-                        <th className="py-2 pr-4 font-medium">DPP</th>
+                        <th className="py-2 pr-4 font-medium">Test</th>
                         <th className="py-2 pr-4 font-medium">Battles</th>
                         <th className="py-2 font-medium">Self-practice</th>
                       </tr>
@@ -165,7 +165,7 @@ export default function AcademicReport() {
                         <tr key={row.date} className="border-b border-border/50">
                           <td className="py-2 pr-4">{toDisplayText(row.date, { fallback: "" }).slice(5)}</td>
                           <td className="py-2 pr-4 font-medium">{row.total}</td>
-                          <td className="py-2 pr-4">{row.dpp}</td>
+                          <td className="py-2 pr-4">{row.test}</td>
                           <td className="py-2 pr-4">{row.battles}</td>
                           <td className="py-2">{row.self_practice ?? 0}</td>
                         </tr>
@@ -214,11 +214,11 @@ export default function AcademicReport() {
               </Card>
             )}
 
-            {(charts?.dpp_trend?.length ?? 0) > 0 && (
+            {(charts?.test_trend?.length ?? 0) > 0 && (
               <Card className="p-5 shadow-card break-inside-avoid">
-                <h2 className="font-semibold mb-3">DPP score trend</h2>
+                <h2 className="font-semibold mb-3">Test score trend</h2>
                 <ChartContainer config={areaConfig} className="h-[220px] w-full">
-                  <AreaChart data={charts?.dpp_trend ?? []}>
+                  <AreaChart data={charts?.test_trend ?? []}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                     <XAxis dataKey="date" className="text-xs" tickFormatter={(d) => String(d).slice(5)} />
                     <YAxis domain={[0, 100]} className="text-xs" />

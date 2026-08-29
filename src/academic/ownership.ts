@@ -110,7 +110,7 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
     entity: "test",
     owners: ["teacher"],
     consumers: ["teacher", "student", "parent", "principal", "admin"],
-    description: "Class test / DPP",
+    description: "Class test / Test",
   },
   question: {
     entity: "question",

@@ -10,9 +10,9 @@ export const STUDY_CONSISTENCY_LABEL = "Study consistency";
  * Source: `rpc_student_academic_snapshot` → `exam_readiness.practice_accuracy_pct`,
  * which `_exam_readiness()` computes straight from `question_attempts`.
  *
- * Deliberately NOT `accuracy_pct`: that field is a *blend* of DPP accuracy and
- * practice accuracy (`_acc := (dpp_acc + practice_acc) / 2`), so reading it here
- * reported a number the student never scored in practice — e.g. 100% DPP + 66.7%
+ * Deliberately NOT `accuracy_pct`: that field is a *blend* of Test accuracy and
+ * practice accuracy (`_acc := (test_acc + practice_acc) / 2`), so reading it here
+ * reported a number the student never scored in practice — e.g. 100% Test + 66.7%
  * practice surfaced as an "83% practice accuracy" tile. Use
  * `overallAccuracyFromSnapshot` when the blend is what's actually wanted.
  *
@@ -28,7 +28,7 @@ export function practiceAccuracyFromSnapshot(snap: AcademicSnapshot | null | und
 }
 
 /**
- * Blended DPP + practice accuracy — the "overall accuracy" used by Analysis totals
+ * Blended Test + practice accuracy — the "overall accuracy" used by Analysis totals
  * and Battleground chrome. Distinct metric from practiceAccuracyFromSnapshot; these
  * two were aliased to the same function, which is what mislabelled the practice tiles.
  */

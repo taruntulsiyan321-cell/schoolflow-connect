@@ -87,7 +87,7 @@ BEGIN
 
   _r2 := 'practice-side per-question correctness still stored: ' || COALESCE(_bad_cols,'(none)')
       || CASE WHEN _bad_cols IS NULL THEN ' (PASS)'
-              WHEN _bad_cols = 'battle_answers.is_correct, dpp_answers.is_correct,'
+              WHEN _bad_cols = 'battle_answers.is_correct,'
                             || ' question_attempts.is_correct, question_attempts.score,'
                             || ' recovery_assignment_questions.is_correct'
               THEN ' — KNOWN GAP, declared not fixed, and WIDER than first reported.'

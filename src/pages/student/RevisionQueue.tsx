@@ -155,7 +155,7 @@ export default function RevisionQueue() {
         <section className="rounded-2xl border border-border/60 bg-card p-8 text-center shadow-sm">
           <ListChecks className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground">
-            Nothing queued yet. Complete practice or DPPs — revision builds from your academic profile.
+            Nothing queued yet. Complete practice or Tests — revision builds from your academic profile.
           </p>
           <div className="flex gap-2 justify-center mt-4">
             <Button asChild><Link to="/student/practice/math12">Start practice</Link></Button>

@@ -475,7 +475,7 @@ export const HomeworkService = {
     }
 
     const { data: dueTests, error: testListErr } = await client
-      .from("dpps")
+      .from("tests")
       .select("id")
       .eq("school_id", schoolId)
       .eq("status", "scheduled")
@@ -486,7 +486,7 @@ export const HomeworkService = {
       testIds = (dueTests ?? []).map((r) => String(r.id));
       if (testIds.length > 0) {
         await client
-          .from("dpps")
+          .from("tests")
           .update({
             status: "published",
             is_published: true,

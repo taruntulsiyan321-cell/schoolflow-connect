@@ -438,7 +438,7 @@ export function linkForActionStep(text: string): { to: string; label: string } {
   if (t.includes("revision") || t.includes("revise") || t.includes("ncert")) {
     return { to: "/student/revision", label: "Revision" };
   }
-  if (t.includes("dpp")) {
+  if (t.includes("test")) {
     return { to: "/student/homework", label: "Assigned work" };
   }
   if (t.includes("practice")) {

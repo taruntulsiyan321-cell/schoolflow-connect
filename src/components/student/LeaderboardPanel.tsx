@@ -17,7 +17,7 @@ import { toErrorMessage } from "@/lib/presentation";
 
 type Scope = "class" | "school";
 type Category =
-  | "marks" | "attendance" | "homework" | "dpp"
+  | "marks" | "attendance" | "homework" | "test"
   | "xp" | "wins" | "streak" | "weekly" | "monthly" | "subject";
 
 type RankRow = {
@@ -42,7 +42,7 @@ const CATS: { key: Category; label: string; icon: React.ReactNode; mode: "progre
   { key: "marks", label: "Marks", icon: <Trophy className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
   { key: "attendance", label: "Attendance", icon: <ClipboardCheck className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
   { key: "homework", label: "Homework", icon: <NotebookPen className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
-  { key: "dpp", label: "DPP", icon: <Target className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
+  { key: "test", label: "Test", icon: <Target className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
 ];
 
 type Props = { embedded?: boolean };
@@ -177,7 +177,7 @@ export function LeaderboardPanel({ embedded = false }: Props) {
           label:
             category === "wins" ? `${Number(r.score)} wins`
             : category === "marks" || category === "attendance" || category === "homework" ? `${Number(r.score)}%`
-            : category === "dpp" ? `${Number(r.score)}% avg`
+            : category === "test" ? `${Number(r.score)}% avg`
             : category === "subject" ? `${Number(r.score)} pts`
             : `${Number(r.score)} pts`,
         }));

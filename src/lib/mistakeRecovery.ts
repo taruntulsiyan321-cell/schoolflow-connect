@@ -128,7 +128,7 @@ export async function fetchMistakesForRecovery(opts: {
   return filtered.map(mapRow);
 }
 
-/** Open mistakes for analytics (practice, DPP, battles, exams). */
+/** Open mistakes for analytics (practice, Test, battles, exams). */
 export async function fetchMistakesForAnalytics(limit = 50): Promise<MistakeRecord[]> {
   const { data: auth, error: authErr } = await supabase.auth.getUser();
   if (authErr) console.warn("[mistakeRecovery] getUser failed:", authErr.message);

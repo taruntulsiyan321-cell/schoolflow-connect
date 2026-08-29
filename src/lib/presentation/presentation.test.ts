@@ -123,7 +123,7 @@ describe("toEnumLabel — internal tokens never reach the user", () => {
       "attendance_status",
       "case_status",
       "exam_type",
-      "dpp_attempt_status",
+      "test_attempt_status",
       "battle_status",
     ] as const;
     for (const domain of domains) {

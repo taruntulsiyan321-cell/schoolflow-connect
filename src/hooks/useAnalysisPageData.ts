@@ -180,7 +180,7 @@ export function useAnalysisPageData(enabled = true) {
 
       const wrong = Math.max(0, totalAttempts - correct);
       // Overall accuracy SSOT: academic snapshot exam_readiness.accuracy_pct (the
-      // DPP + practice blend), not the practice-only figure.
+      // Test + practice blend), not the practice-only figure.
       const accuracy_pct = overallAccuracyFromSnapshot(
         (snapRes.error ? null : snapRes.data) as AcademicSnapshot | null,
       );

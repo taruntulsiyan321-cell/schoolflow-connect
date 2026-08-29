@@ -51,6 +51,6 @@ export function buildRuleExplanation(opts: {
     concept: chapter
       ? `Focus on NCERT chapter "${chapter}"${subject ? ` (${subject})` : ""}. Re-read the section summary and redo 2–3 textbook examples.`
       : `Identify the formula or rule this question tests, then practise 5 similar MCQs.`,
-    how_to_improve: `Add this to your revision queue, attempt a solo battle on the same chapter, and use DPP for timed practice.`,
+    how_to_improve: `Add this to your revision queue, attempt a solo battle on the same chapter, and use Test for timed practice.`,
   };
 }

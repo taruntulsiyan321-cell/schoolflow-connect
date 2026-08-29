@@ -14,7 +14,7 @@ export type BadgeGroup =
   | "speed"
   | "accuracy"
   | "academic"
-  | "dpp"
+  | "test"
   | "attendance"
   | "leaderboard"
   | "mastery"
@@ -63,14 +63,14 @@ export const BADGES: Record<string, BadgeMeta> = {
   high_scorer:         { code: "high_scorer",         label: "High Scorer",          desc: "Score 150+ in a single battle",         tier: "gold",      rarity: "rare",   group: "accuracy", icon: TrendingUp },
   unstoppable:         { code: "unstoppable",         label: "Unstoppable",          desc: "Score 300+ in a single battle",         tier: "platinum",  rarity: "epic",   group: "accuracy", icon: Gauge },
 
-  // ── Academic / DPP ────────────────────────────────────────────
-  first_dpp:           { code: "first_dpp",           label: "Practice Begins",      desc: "Complete your first DPP",               tier: "bronze",    rarity: "common", group: "dpp", icon: BookOpen },
-  dpp_perfect:         { code: "dpp_perfect",         label: "Perfect Practice",     desc: "Score 100% on a DPP",                   tier: "gold",      rarity: "epic",   group: "dpp", icon: CheckCircle2 },
-  homework_warrior:    { code: "homework_warrior",    label: "Practice Warrior",     desc: "Complete 10 submitted DPPs",            tier: "silver",    rarity: "rare",   group: "dpp", icon: BookOpen },
+  // ── Academic / Test ────────────────────────────────────────────
+  first_test:           { code: "first_test",           label: "Practice Begins",      desc: "Complete your first Test",               tier: "bronze",    rarity: "common", group: "test", icon: BookOpen },
+  test_perfect:         { code: "test_perfect",         label: "Perfect Practice",     desc: "Score 100% on a Test",                   tier: "gold",      rarity: "epic",   group: "test", icon: CheckCircle2 },
+  homework_warrior:    { code: "homework_warrior",    label: "Practice Warrior",     desc: "Complete 10 submitted Tests",            tier: "silver",    rarity: "rare",   group: "test", icon: BookOpen },
   topper:              { code: "topper",              label: "Subject Topper",       desc: "Top of your class in a subject",        tier: "gold",      rarity: "epic",   group: "academic", icon: Crown },
   academic_beast:      { code: "academic_beast",      label: "Academic Beast",       desc: "90%+ across all subjects",              tier: "platinum",  rarity: "legendary", group: "academic", icon: Brain },
   rising_star:         { code: "rising_star",         label: "Rising Star",          desc: "Most improved this term",               tier: "silver",    rarity: "rare",   group: "academic", icon: Star },
-  scholar:             { code: "scholar",             label: "Scholar",              desc: "Score 90%+ on 5 consecutive DPPs",      tier: "silver",    rarity: "rare",   group: "academic", icon: GraduationCap },
+  scholar:             { code: "scholar",             label: "Scholar",              desc: "Score 90%+ on 5 consecutive Tests",      tier: "silver",    rarity: "rare",   group: "academic", icon: GraduationCap },
   explorer:            { code: "explorer",            label: "Explorer",             desc: "Battle in 5 different subjects",         tier: "bronze",    rarity: "common", group: "academic", icon: Compass },
 
   // ── Subject mastery ───────────────────────────────────────────
@@ -115,7 +115,7 @@ export const GROUP_LABEL: Record<BadgeGroup, string> = {
   speed: "Speed",
   accuracy: "Accuracy",
   academic: "Academic",
-  dpp: "DPP",
+  test: "Test",
   attendance: "Attendance",
   leaderboard: "Leaderboard",
   mastery: "Subject Mastery",
@@ -124,7 +124,7 @@ export const GROUP_LABEL: Record<BadgeGroup, string> = {
 
 export const GROUP_ORDER: BadgeGroup[] = [
   "battleground", "streak", "speed", "accuracy", "mastery",
-  "academic", "dpp", "leaderboard", "attendance", "special",
+  "academic", "test", "leaderboard", "attendance", "special",
 ];
 
 export function getBadge(code: string | null | undefined): BadgeMeta | null {

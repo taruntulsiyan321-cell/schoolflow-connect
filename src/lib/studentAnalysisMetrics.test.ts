@@ -31,10 +31,10 @@ describe("studentAnalysisMetrics", () => {
   it("builds this-week vs last-week comparison from activity dates", () => {
     const now = new Date("2026-08-02T12:00:00Z"); // Sunday
     const rows = [
-      { date: "2026-08-01", total: 5, dpp: 0, battles: 0 }, // Sat this week
-      { date: "2026-07-31", total: 3, dpp: 0, battles: 0 }, // Fri this week
-      { date: "2026-07-25", total: 8, dpp: 0, battles: 0 }, // Sat last week
-      { date: "2026-07-24", total: 2, dpp: 0, battles: 0 }, // Fri last week
+      { date: "2026-08-01", total: 5, test: 0, battles: 0 }, // Sat this week
+      { date: "2026-07-31", total: 3, test: 0, battles: 0 }, // Fri this week
+      { date: "2026-07-25", total: 8, test: 0, battles: 0 }, // Sat last week
+      { date: "2026-07-24", total: 2, test: 0, battles: 0 }, // Fri last week
     ];
     const cmp = buildWeekComparison(rows, now);
     const sat = cmp.find((d) => d.day === "Sat");
@@ -66,16 +66,16 @@ describe("studentAnalysisMetrics", () => {
     const now = new Date("2026-08-15T12:00:00Z");
     const rows = deriveMonthComparison(
       [
-        { date: "2026-08-10", total: 4, dpp: 0, battles: 0 },
-        { date: "2026-07-10", total: 2, dpp: 0, battles: 0 },
+        { date: "2026-08-10", total: 4, test: 0, battles: 0 },
+        { date: "2026-07-10", total: 2, test: 0, battles: 0 },
       ],
       [
         { date: "2026-08-10", score_pct: 80 },
         { date: "2026-07-10", score_pct: 60 },
       ],
       [
-        { date: "2026-08-10", dpp: 0, homework: 0, battles: 0, minutes: 120 },
-        { date: "2026-07-10", dpp: 0, homework: 0, battles: 0, minutes: 60 },
+        { date: "2026-08-10", test: 0, homework: 0, battles: 0, minutes: 120 },
+        { date: "2026-07-10", test: 0, homework: 0, battles: 0, minutes: 60 },
       ],
       now,
     );

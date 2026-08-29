@@ -122,8 +122,11 @@ async function main() {
     (r) => count(r) === 0,
   );
   await check(
-    "dpp_attempts.student_id enforced NOT NULL (expect 0 orphans)",
-    "SELECT count(*) FROM dpp_attempts WHERE student_id IS NULL",
+    // Was dpp_attempts.student_id. Chunk 7.5 converged the Tests feature onto
+    // test_attempts and dropped the DPP tables, so the assertion moves with
+    // the data rather than being deleted with the table it happened to name.
+    "test_attempts.student_id enforced NOT NULL (expect 0 orphans)",
+    "SELECT count(*) FROM test_attempts WHERE student_id IS NULL",
     (r) => count(r) === 0,
   );
 
@@ -625,7 +628,7 @@ async function main() {
       WHERE conname = 'progression_history_source_type_check'`,
     (r) =>
       r.length === 1 &&
-      ['attendance','battle','deep_link','dpp_attempt','homework_submission',
+      ['attendance','battle','deep_link','test_attempt','homework_submission',
        'practice_session','recovery_followup','revision','student_mistake',
        'student_test_attempt','weak_concept']
         .every((t) => r[0].def.includes(`'${t}'`)),

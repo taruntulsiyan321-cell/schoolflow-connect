@@ -7,11 +7,11 @@ import { toDisplayText } from "@/lib/presentation";
 
 /**
  * `options` and `correct` arrive as untyped `jsonb` from the question bank and
- * from generated DPPs, so they are modelled as `unknown` and narrowed below.
+ * from generated Tests, so they are modelled as `unknown` and narrowed below.
  * They were previously `any`, which is what allowed a non-string option to
  * reach the renderer and display as "[object Object]".
  */
-export type DppCorrect = {
+export type TestCorrect = {
   indexes?: unknown;
   value?: unknown;
   tolerance?: unknown;
@@ -24,7 +24,7 @@ export type TestQuestionShape = {
   kind: "mcq" | "multi" | "numerical" | "short";
   question: string;
   options: unknown;
-  correct?: DppCorrect | null;
+  correct?: TestCorrect | null;
   marks: number;
   explanation?: string | null;
 };

@@ -17,7 +17,7 @@ describe("academic engine — entity registry", () => {
   it("maps assignment to homework (single source of truth)", () => {
     expect(tableFor("assignment")).toBe("homework");
     expect(tableFor("assignment_submission")).toBe("homework_submissions");
-    expect(tableFor("test")).toBe("dpps");
+    expect(tableFor("test")).toBe("tests");
     expect(tableFor("examination_marks")).toBe("marks");
     expect(tableFor("section")).toBe("classes");
   });

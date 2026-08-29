@@ -2,9 +2,9 @@
  * TestService — the Tests feature, on `tests` + `test_questions` +
  * `test_attempts` + `test_answers` (Chunk 7.5).
  *
- * It previously ran on `dpps`, which was a second implementation of the same
+ * It previously ran on `tests`, which was a second implementation of the same
  * feature: Chunk 6 built `tests`/`test_marks` for the teacher-uploads-marks
- * flow while DPP carried the student-takes-a-test-in-app flow, and both were
+ * flow while Test carried the student-takes-a-test-in-app flow, and both were
  * called "test".
  *
  * Two things here are NOT simple renames:
@@ -162,7 +162,7 @@ async function assertTeacherCanWriteTest(ctx: ServiceContext, classId: string) {
  * lockstep with status, so trusting status as an alternative here only ever
  * adds risk, never legitimate coverage — a hand-edited or seeded row where
  * status="published" but is_published=false must stay hidden. Confirmed via
- * a live incident: a seeded draft DPP with exactly that mismatch was
+ * a live incident: a seeded draft Test with exactly that mismatch was
  * reachable and attemptable by a real student through this exact OR check.
  */
 export function isPublishedFlag(row: Record<string, unknown>): boolean {
@@ -616,7 +616,7 @@ export const TestService = {
     }[];
   },
 
-  /** Latest attempt for the current user on a DPP/test (submitted preferred). */
+  /** Latest attempt for the current user on a Test/test (submitted preferred). */
   async getMyAttempt(ctx: ServiceContext, testId: string) {
     assertCanConsume(ctx, "student_test_attempt");
     const client = getClient(toRepoContext(ctx));
@@ -638,7 +638,7 @@ export const TestService = {
   },
 
   /**
-   * Latest attempts for a student across DPPs (parent/teacher/operator read path).
+   * Latest attempts for a student across Tests (parent/teacher/operator read path).
    */
   async listLatestAttemptsForStudent(
     ctx: ServiceContext,
@@ -674,15 +674,15 @@ export const TestService = {
     const { data, error } = await q;
     throwIfError(error, "Failed to list student test attempts");
 
-    const byDpp: Record<string, Record<string, unknown>> = {};
+    const byTest: Record<string, Record<string, unknown>> = {};
     for (const row of (data ?? []) as Record<string, unknown>[]) {
       const testId = String(row.test_id ?? "");
-      if (!testId || byDpp[testId]) continue;
+      if (!testId || byTest[testId]) continue;
       const submitted =
         row.submitted_at != null || String(row.status ?? "") === "submitted";
-      byDpp[testId] = { ...row, _submitted: submitted };
+      byTest[testId] = { ...row, _submitted: submitted };
     }
-    return byDpp;
+    return byTest;
   },
 
   async startAttempt(ctx: ServiceContext, testId: string) {
@@ -729,7 +729,7 @@ export const TestService = {
       ]);
     }
     // school_id is NOT NULL on test_answers, and its restrictive tenant fence
-    // checks it on write. dpp_answers allowed it to be absent; this one does
+    // checks it on write. test_answers allowed it to be absent; this one does
     // not, which is the fence doing its job rather than an inconvenience.
     if (!ctx.schoolId) {
       throw new ForbiddenError("No institution in context — cannot save an answer");

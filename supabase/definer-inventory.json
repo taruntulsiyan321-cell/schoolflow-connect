@@ -65,27 +65,6 @@
         "admin": "answered"
       }
     },
-    "_backfill_dpp_question_concepts()": {
-      "name": "_backfill_dpp_question_concepts",
-      "readerSet": "public",
-      "callability": "granted",
-      "returns": "integer",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
-      "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
-      "observed": {
-        "student": "answered",
-        "teacher": "answered",
-        "parent": "answered",
-        "principal": "answered",
-        "admin": "answered"
-      }
-    },
     "_backfill_question_bank_concepts()": {
       "name": "_backfill_question_bank_concepts",
       "readerSet": "none",
@@ -160,28 +139,6 @@
       "readerSet": "public",
       "callability": "internal",
       "returns": "jsonb",
-      "grants": [],
-      "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "_bump_academic_activity(_uid uuid, _dpp integer, _hw integer, _battle integer, _mins integer)": {
-      "name": "_bump_academic_activity",
-      "readerSet": "public",
-      "callability": "internal",
-      "returns": "void",
-      "grants": [],
-      "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "_bump_academic_activity(_uid uuid, _dpp integer, _hw integer, _battle integer, _mins integer, _self_practice integer)": {
-      "name": "_bump_academic_activity",
-      "readerSet": "public",
-      "callability": "internal",
-      "returns": "void",
       "grants": [],
       "calls": [],
       "justification": "",
@@ -4928,6 +4885,28 @@
       ],
       "justification": "Grades the caller's own attempt: writes the durable mark to test_marks (§10.22), sends wrong AND unanswered questions to student_mistakes with chapter_id, then PURGES test_answers per §10.8's transient rule. Gated on _att.user_id = auth.uid(). The purge is ordered after the result payload is assembled — reversing it would hand the student an empty result screen. EXECUTE revoked from PUBLIC and anon.",
       "verifiedBy": "CHUNK75_VERIFY items 1-4 (score, mark, mistakes with chapter_id, and zero surviving test_answers rows)",
+      "reviewed": true
+    },
+    "_bump_academic_activity(_uid uuid, _test integer, _hw integer, _battle integer, _mins integer)": {
+      "name": "_bump_academic_activity",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "void",
+      "grants": [],
+      "calls": [],
+      "justification": "Internal counter bump for academic_daily_activity, called only by rpc_complete_revision, rpc_finish_battle, rpc_finish_practice_session and rpc_test_submit — all of which have already authorised the caller. EXECUTE is revoked from PUBLIC, anon and authenticated by 20260829230000; that revoke had to be RE-applied because Chunk 7.5c dropped and recreated both overloads (its `_dpp` parameter could not be renamed in place) and pg_get_functiondef does not carry grants, so the recreate silently reset them to PUBLIC.",
+      "verifiedBy": "scripts/verify-database-integrity.mjs — 'internal data-forgery/leak helpers are no longer callable by anon or authenticated'",
+      "reviewed": true
+    },
+    "_bump_academic_activity(_uid uuid, _test integer, _hw integer, _battle integer, _mins integer, _self_practice integer)": {
+      "name": "_bump_academic_activity",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "void",
+      "grants": [],
+      "calls": [],
+      "justification": "Internal counter bump for academic_daily_activity, called only by rpc_complete_revision, rpc_finish_battle, rpc_finish_practice_session and rpc_test_submit — all of which have already authorised the caller. EXECUTE is revoked from PUBLIC, anon and authenticated by 20260829230000; that revoke had to be RE-applied because Chunk 7.5c dropped and recreated both overloads (its `_dpp` parameter could not be renamed in place) and pg_get_functiondef does not carry grants, so the recreate silently reset them to PUBLIC.",
+      "verifiedBy": "scripts/verify-database-integrity.mjs — 'internal data-forgery/leak helpers are no longer callable by anon or authenticated'",
       "reviewed": true
     }
   },

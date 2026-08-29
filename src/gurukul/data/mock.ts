@@ -144,13 +144,13 @@ export const attendanceData = {
 };
 
 export const weeklyActivity = [
-  { day:"Mon", dpp:12, practice:8,  battles:3,  total:23 },
-  { day:"Tue", dpp:18, practice:14, battles:5,  total:37 },
-  { day:"Wed", dpp:6,  practice:20, battles:0,  total:26 },
-  { day:"Thu", dpp:22, practice:10, battles:8,  total:40 },
-  { day:"Fri", dpp:15, practice:18, battles:4,  total:37 },
-  { day:"Sat", dpp:28, practice:22, battles:10, total:60 },
-  { day:"Sun", dpp:8,  practice:6,  battles:2,  total:16 },
+  { day:"Mon", test:12, practice:8,  battles:3,  total:23 },
+  { day:"Tue", test:18, practice:14, battles:5,  total:37 },
+  { day:"Wed", test:6,  practice:20, battles:0,  total:26 },
+  { day:"Thu", test:22, practice:10, battles:8,  total:40 },
+  { day:"Fri", test:15, practice:18, battles:4,  total:37 },
+  { day:"Sat", test:28, practice:22, battles:10, total:60 },
+  { day:"Sun", test:8,  practice:6,  battles:2,  total:16 },
 ];
 
 export const accuracyTrend = [

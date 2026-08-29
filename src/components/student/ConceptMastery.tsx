@@ -21,7 +21,7 @@ export function ConceptMastery({ compact = false, limit = 8 }: Props) {
   if (items.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Complete DPPs, battles, or practice to build concept mastery scores.
+        Complete Tests, battles, or practice to build concept mastery scores.
       </p>
     );
   }

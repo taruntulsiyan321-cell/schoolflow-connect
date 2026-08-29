@@ -63,7 +63,7 @@ const PLACEHOLDER = {
     },
     {
       icon: BookOpen,
-      title: "DPP Pending",
+      title: "Test Pending",
       description: "1 assigned practice sheet from your teacher",
       cta: "Start",
       to: "/student/homework",

@@ -62,7 +62,7 @@ export default function MistakeBank() {
         <Card className="p-8 text-center">
           <BookMarked className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground">
-            Nothing to review. Wrong answers from practice, DPPs and battles appear here
+            Nothing to review. Wrong answers from practice, Tests and battles appear here
             automatically, and disappear once you get them right.
           </p>
         </Card>

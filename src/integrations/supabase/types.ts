@@ -137,31 +137,31 @@ export type Database = {
         Row: {
           activity_date: string
           battle_count: number
-          dpp_count: number
           homework_count: number
           practice_minutes: number
           school_id: string | null
           self_practice_count: number
+          test_count: number
           user_id: string
         }
         Insert: {
           activity_date: string
           battle_count?: number
-          dpp_count?: number
           homework_count?: number
           practice_minutes?: number
           school_id?: string | null
           self_practice_count?: number
+          test_count?: number
           user_id: string
         }
         Update: {
           activity_date?: string
           battle_count?: number
-          dpp_count?: number
           homework_count?: number
           practice_minutes?: number
           school_id?: string | null
           self_practice_count?: number
+          test_count?: number
           user_id?: string
         }
         Relationships: [
@@ -3342,307 +3342,6 @@ export type Database = {
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      dpp_answers: {
-        Row: {
-          attempt_id: string
-          created_at: string
-          id: string
-          is_correct: boolean | null
-          marks_awarded: number
-          question_id: string
-          response: Json
-          school_id: string | null
-          time_ms: number
-        }
-        Insert: {
-          attempt_id: string
-          created_at?: string
-          id?: string
-          is_correct?: boolean | null
-          marks_awarded?: number
-          question_id: string
-          response?: Json
-          school_id?: string | null
-          time_ms?: number
-        }
-        Update: {
-          attempt_id?: string
-          created_at?: string
-          id?: string
-          is_correct?: boolean | null
-          marks_awarded?: number
-          question_id?: string
-          response?: Json
-          school_id?: string | null
-          time_ms?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dpp_answers_attempt_id_fkey"
-            columns: ["attempt_id"]
-            isOneToOne: false
-            referencedRelation: "dpp_attempts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dpp_answers_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "dpp_questions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dpp_answers_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      dpp_attempts: {
-        Row: {
-          correct_count: number
-          dpp_id: string
-          id: string
-          max_score: number
-          school_id: string | null
-          score: number
-          started_at: string
-          status: Database["public"]["Enums"]["dpp_attempt_status"]
-          student_id: string
-          submitted_at: string | null
-          time_spent_sec: number
-          total_count: number
-          user_id: string
-        }
-        Insert: {
-          correct_count?: number
-          dpp_id: string
-          id?: string
-          max_score?: number
-          school_id?: string | null
-          score?: number
-          started_at?: string
-          status?: Database["public"]["Enums"]["dpp_attempt_status"]
-          student_id: string
-          submitted_at?: string | null
-          time_spent_sec?: number
-          total_count?: number
-          user_id: string
-        }
-        Update: {
-          correct_count?: number
-          dpp_id?: string
-          id?: string
-          max_score?: number
-          school_id?: string | null
-          score?: number
-          started_at?: string
-          status?: Database["public"]["Enums"]["dpp_attempt_status"]
-          student_id?: string
-          submitted_at?: string | null
-          time_spent_sec?: number
-          total_count?: number
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dpp_attempts_dpp_id_fkey"
-            columns: ["dpp_id"]
-            isOneToOne: false
-            referencedRelation: "dpps"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dpp_attempts_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      dpp_questions: {
-        Row: {
-          chapter: string | null
-          class_level: number | null
-          concept: string | null
-          correct: Json
-          created_at: string
-          dpp_id: string
-          explanation: string | null
-          id: string
-          kind: Database["public"]["Enums"]["dpp_question_kind"]
-          marks: number
-          options: Json
-          order_index: number
-          question: string
-          school_id: string | null
-          subconcept: string | null
-          subject: string | null
-        }
-        Insert: {
-          chapter?: string | null
-          class_level?: number | null
-          concept?: string | null
-          correct?: Json
-          created_at?: string
-          dpp_id: string
-          explanation?: string | null
-          id?: string
-          kind?: Database["public"]["Enums"]["dpp_question_kind"]
-          marks?: number
-          options?: Json
-          order_index?: number
-          question: string
-          school_id?: string | null
-          subconcept?: string | null
-          subject?: string | null
-        }
-        Update: {
-          chapter?: string | null
-          class_level?: number | null
-          concept?: string | null
-          correct?: Json
-          created_at?: string
-          dpp_id?: string
-          explanation?: string | null
-          id?: string
-          kind?: Database["public"]["Enums"]["dpp_question_kind"]
-          marks?: number
-          options?: Json
-          order_index?: number
-          question?: string
-          school_id?: string | null
-          subconcept?: string | null
-          subject?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dpp_questions_dpp_id_fkey"
-            columns: ["dpp_id"]
-            isOneToOne: false
-            referencedRelation: "dpps"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dpp_questions_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      dpps: {
-        Row: {
-          archived_at: string | null
-          chapter: string | null
-          chapters: string[] | null
-          class_id: string
-          created_at: string
-          created_by: string
-          difficulty: string
-          due_at: string | null
-          duration_sec: number
-          id: string
-          instructions: string | null
-          is_published: boolean
-          max_marks: number | null
-          negative_marking: number
-          passing_marks: number | null
-          published_at: string | null
-          question_count: number
-          scheduled_publish_at: string | null
-          school_id: string | null
-          status: string
-          subject: string
-          subject_id: string | null
-          test_kind: string
-          title: string
-          topic: string | null
-          topics: string[] | null
-          total_marks: number
-          updated_at: string
-        }
-        Insert: {
-          archived_at?: string | null
-          chapter?: string | null
-          chapters?: string[] | null
-          class_id: string
-          created_at?: string
-          created_by: string
-          difficulty?: string
-          due_at?: string | null
-          duration_sec?: number
-          id?: string
-          instructions?: string | null
-          is_published?: boolean
-          max_marks?: number | null
-          negative_marking?: number
-          passing_marks?: number | null
-          published_at?: string | null
-          question_count?: number
-          scheduled_publish_at?: string | null
-          school_id?: string | null
-          status?: string
-          subject: string
-          subject_id?: string | null
-          test_kind?: string
-          title: string
-          topic?: string | null
-          topics?: string[] | null
-          total_marks?: number
-          updated_at?: string
-        }
-        Update: {
-          archived_at?: string | null
-          chapter?: string | null
-          chapters?: string[] | null
-          class_id?: string
-          created_at?: string
-          created_by?: string
-          difficulty?: string
-          due_at?: string | null
-          duration_sec?: number
-          id?: string
-          instructions?: string | null
-          is_published?: boolean
-          max_marks?: number | null
-          negative_marking?: number
-          passing_marks?: number | null
-          published_at?: string | null
-          question_count?: number
-          scheduled_publish_at?: string | null
-          school_id?: string | null
-          status?: string
-          subject?: string
-          subject_id?: string | null
-          test_kind?: string
-          title?: string
-          topic?: string | null
-          topics?: string[] | null
-          total_marks?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dpps_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dpps_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]
@@ -8694,7 +8393,6 @@ export type Database = {
       }
       _award_engagement_badges: { Args: { _uid: string }; Returns: undefined }
       _backfill_battle_question_concepts: { Args: never; Returns: number }
-      _backfill_dpp_question_concepts: { Args: never; Returns: number }
       _backfill_question_bank_concepts: { Args: never; Returns: number }
       _backfill_template_concepts: { Args: never; Returns: number }
       _battle_event: {
@@ -8719,9 +8417,9 @@ export type Database = {
         | {
             Args: {
               _battle?: number
-              _dpp?: number
               _hw?: number
               _mins?: number
+              _test?: number
               _uid: string
             }
             Returns: undefined
@@ -8729,20 +8427,16 @@ export type Database = {
         | {
             Args: {
               _battle?: number
-              _dpp?: number
               _hw?: number
               _mins?: number
               _self_practice?: number
+              _test?: number
               _uid: string
             }
             Returns: undefined
           }
       _capture_battle_mistakes: {
         Args: { _participant_id: string }
-        Returns: undefined
-      }
-      _capture_dpp_mistakes: {
-        Args: { _attempt_id: string }
         Returns: undefined
       }
       _class_grade: { Args: { _class_id: string }; Returns: number }
@@ -9822,15 +9516,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      rpc_dpp_pick_from_bank: {
-        Args: { _count?: number; _difficulty?: string; _dpp_id: string }
-        Returns: number
-      }
-      rpc_dpp_start: { Args: { _dpp_id: string }; Returns: string }
-      rpc_dpp_submit: {
-        Args: { _answers?: Json; _attempt_id: string }
-        Returns: Json
-      }
       rpc_ensure_attendance_submission: {
         Args: { _date: string; _section_id: string }
         Returns: string
@@ -10550,8 +10235,6 @@ export type Database = {
         | "deadline"
         | "other"
       case_status: "open" | "in_progress" | "resolved" | "closed"
-      dpp_attempt_status: "in_progress" | "submitted"
-      dpp_question_kind: "mcq" | "multi" | "numerical" | "short"
       exam_type:
         | "class_test"
         | "unit_test"
@@ -10758,8 +10441,6 @@ export const Constants = {
         "other",
       ],
       case_status: ["open", "in_progress", "resolved", "closed"],
-      dpp_attempt_status: ["in_progress", "submitted"],
-      dpp_question_kind: ["mcq", "multi", "numerical", "short"],
       exam_type: [
         "class_test",
         "unit_test",

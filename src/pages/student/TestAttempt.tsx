@@ -177,12 +177,12 @@ export default function TestAttempt() {
     }
   };
 
-  if (loading) return <StudentSessionSkeleton label="Loading DPP…" />;
+  if (loading) return <StudentSessionSkeleton label="Loading Test…" />;
 
   if (loadError) {
     return (
       <div className="max-w-md mx-auto space-y-4">
-        <StudentErrorState title="Could not start DPP" message={loadError} onRetry={load} />
+        <StudentErrorState title="Could not start Test" message={loadError} onRetry={load} />
         <div className="text-center">
           <Button variant="outline" size="sm" asChild><Link to="/student/tests">Back to Tests</Link></Button>
         </div>

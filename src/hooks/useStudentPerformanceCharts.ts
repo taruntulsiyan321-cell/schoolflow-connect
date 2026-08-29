@@ -4,14 +4,14 @@ import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { supabase } from "@/integrations/supabase/client";
 
 export type SubjectChartPoint = { name: string; accuracy: number; attempts: number };
-export type WeeklyActivityPoint = { date: string; total: number; dpp: number; battles: number; self_practice?: number };
-export type DppTrendPoint = { date: string; score_pct: number };
+export type WeeklyActivityPoint = { date: string; total: number; test: number; battles: number; self_practice?: number };
+export type TestTrendPoint = { date: string; score_pct: number };
 export type PracticeTrendPoint = { date: string; score_pct: number; chapter?: string };
 
 export type StudentPerformanceCharts = {
   subjects: SubjectChartPoint[];
   weekly_activity: WeeklyActivityPoint[];
-  dpp_trend: DppTrendPoint[];
+  test_trend: TestTrendPoint[];
   practice_trend?: PracticeTrendPoint[];
 };
 

@@ -76,7 +76,7 @@ export function buildRuleConceptReport(report: ConceptRecoveryReport): ConceptAi
       next_steps.push(`Schedule revision for ${weak[1].concept} within 48 hours.`);
     }
   } else {
-    next_steps.push("Attempt a timed mixed DPP to maintain momentum.");
+    next_steps.push("Attempt a timed mixed Test to maintain momentum.");
     next_steps.push("Teach one solved problem to a classmate — teaching locks in mastery.");
   }
   next_steps.push("Review your Mistake Book for any recurring error patterns.");

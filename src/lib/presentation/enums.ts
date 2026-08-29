@@ -43,8 +43,8 @@ export type EnumDomain =
   | "battle_status"
   | "battle_type"
   | "badge_tier"
-  | "dpp_attempt_status"
-  | "dpp_question_kind"
+  | "test_attempt_status"
+  | "test_question_kind"
   | "app_role"
   | "person_status"
   | "gender_type"
@@ -205,11 +205,11 @@ const LABELS: Record<EnumDomain, LabelMap> = {
     gold: "Gold",
     platinum: "Platinum",
   },
-  dpp_attempt_status: {
+  test_attempt_status: {
     in_progress: "In progress",
     submitted: "Submitted",
   },
-  dpp_question_kind: {
+  test_question_kind: {
     mcq: "Multiple choice",
     multi: "Multiple answers",
     numerical: "Numerical",
@@ -280,7 +280,7 @@ const LABELS: Record<EnumDomain, LabelMap> = {
 };
 
 /** Acronyms that must not be title-cased into `Mcq` / `Pdf`. */
-const ACRONYMS = new Set(["mcq", "pdf", "xp", "ai", "dpp", "sms", "otp", "url", "id"]);
+const ACRONYMS = new Set(["mcq", "pdf", "xp", "ai", "test", "sms", "otp", "url", "id"]);
 
 /**
  * Turn an unregistered token into something readable.

@@ -94,7 +94,7 @@ export default function SchoolEngagement() {
 
         <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance today" value={`${data?.attendance_today_pct ?? 0}%`} />
 
-        <StatCard icon={<Target className="w-5 h-5" />} label="DPP completion" value={`${data?.dpp_completion_pct ?? 0}%`} />
+        <StatCard icon={<Target className="w-5 h-5" />} label="Test completion" value={`${data?.test_completion_pct ?? 0}%`} />
 
         <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Classes" value={(data?.classes ?? []).length} />
 
@@ -136,13 +136,13 @@ export default function SchoolEngagement() {
 
               <div className="rounded-md bg-muted p-2">
 
-                <div className="text-muted-foreground">DPP</div>
+                <div className="text-muted-foreground">Test</div>
 
                 <div className="font-semibold flex items-center gap-0.5">
 
-                  {(c.dpp_delta ?? 0) > 0 ? <TrendingUp className="w-3 h-3 text-accent" /> : (c.dpp_delta ?? 0) < 0 ? <TrendingDown className="w-3 h-3 text-destructive" /> : <Minus className="w-3 h-3" />}
+                  {(c.test_delta ?? 0) > 0 ? <TrendingUp className="w-3 h-3 text-accent" /> : (c.test_delta ?? 0) < 0 ? <TrendingDown className="w-3 h-3 text-destructive" /> : <Minus className="w-3 h-3" />}
 
-                  {c.dpp_delta > 0 ? "+" : ""}{c.dpp_delta ?? 0}
+                  {c.test_delta > 0 ? "+" : ""}{c.test_delta ?? 0}
 
                 </div>
 

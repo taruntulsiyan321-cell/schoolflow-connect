@@ -186,7 +186,7 @@ export default function PracticeHubPage() {
   const todayKey = new Date().toISOString().slice(0, 10);
   const todayRow = heatmap.find((h) => h.date === todayKey);
   const questionsToday =
-    (todayRow?.dpp ?? 0) + (todayRow?.homework ?? 0) + (todayRow?.self_practice ?? 0);
+    (todayRow?.test ?? 0) + (todayRow?.homework ?? 0) + (todayRow?.self_practice ?? 0);
   const topicsPracticed = new Set(
     mastery.map((m) => `${m.subject}:${m.chapter ?? m.concept}`),
   ).size;

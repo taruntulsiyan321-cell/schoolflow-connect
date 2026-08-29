@@ -30,7 +30,7 @@ export function StudentDashboardSkeleton() {
   );
 }
 
-/** List-style pages (revision, mistakes, DPP cards). */
+/** List-style pages (revision, mistakes, Test cards). */
 export function StudentListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <div className="space-y-2 animate-rise" aria-busy="true" aria-label="Loading">
