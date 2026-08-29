@@ -148,6 +148,15 @@ the day it matters most — a new developer, a staging rebuild, a recovery.
 **Report the output of every gate, every chunk.** A gate that regressed is a
 finding even when the chunk's own verification passed.
 
+**A table with no writer is not built.** Found live: `chapter_tally` was created
+in 7B, its verification asserted against it, and **nothing anywhere wrote a
+row** — while the spec says every accuracy figure and every trend comes from it.
+Analysis was unbuildable and the check was passing against an empty table.
+
+**Every new table ships with its write path in the same chunk**, and its
+verification exercises that path end to end. A read verified against zero rows is
+verified against nothing — the same defect as a skipped gate, wearing a table.
+
 **A skipped check is not a passing check.** Found live: the smoke gate reported
 "5 skipped / PASS" without `SMOKE_SESSIONS` and exited 0 — asserting nothing
 while reporting success. Same shape as a swallowed catch, one level up.
@@ -232,8 +241,28 @@ Three found in one chunk, all of which look protective and were not:
   **A table name is not the only place a legacy feature lives; it is also a value
   in a constraint.**
 
+- **`DROP` + `CREATE` loses everything that is not the body.**
+  `pg_get_functiondef` carries the definition and nothing else — **not grants,
+  not comments, not ownership.** Found live: recreating `_bump_academic_activity`
+  to rename a parameter silently reset an internal helper to `EXECUTE` for
+  `PUBLIC`, undoing a revoke from August. Live for one migration, caught only by
+  a standing gate.
+  **Prefer `CREATE OR REPLACE`.** Where a DROP is unavoidable — a parameter
+  rename is — **capture the grants first, restore them after, and assert them.**
+
+- **A body that validates is not a body that works.** `CREATE OR REPLACE`
+  validates a `LANGUAGE sql` body at definition time; a `plpgsql` body is
+  accepted and fails at run time. Two broken rewrites in this chunk failed loudly
+  **only because both happened to be SQL**. Do not treat a successful
+  `CREATE OR REPLACE` as proof for a plpgsql function — call it.
+
 **The shared shape:** a construct whose precondition is absent fails open and
 quietly. **Assert the precondition, then use the construct.**
+
+**Make the checker stricter than the thing it checks.** A case-insensitive
+assertion over a case-sensitive collector found uppercase `"DPP"` in advice
+strings that students and parents read. **Asymmetry in that direction fails
+safe**; the reverse reports clean and is wrong.
 
 ### G13. Every `SECURITY DEFINER` function is a door — inventory them
 

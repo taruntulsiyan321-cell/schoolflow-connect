@@ -57,7 +57,19 @@ if (RECORD && !/^\d{14}_/.test(version)) {
   );
   process.exit(2);
 }
-const sql = readFileSync(FILE, "utf8");
+// Line endings are normalised to LF before the SQL ever reaches Postgres.
+//
+// A .sql file saved with CRLF stores function bodies containing 
+, and a
+// later migration that rewrites one through pg_get_functiondef() and matches on
+// a literal written with 
+ matches nothing. That is a substitution failing
+// open (G15), and it cost three separate fixes in Chunk 7.5. .gitattributes
+// keeps the files LF; this keeps the DATABASE LF even if a file arrives with
+// CRLF from somewhere else.
+const sql = readFileSync(FILE, "utf8").replace(/
+/g, "
+");
 
 console.log(`Applying ${name} (${sql.length} bytes) to ${PROJECT_REF}…`);
 try {

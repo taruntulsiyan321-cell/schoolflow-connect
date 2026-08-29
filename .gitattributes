@@ -1,0 +1,18 @@
+# Normalise line endings in the repo.
+#
+# CRLF cost three substitutions in Chunk 7.5 alone. The mechanism: a .sql file
+# saved with CRLF on Windows is applied verbatim, so the function body stored in
+# Postgres contains \r\n. A later migration that rewrites that body through
+# pg_get_functiondef() and matches on a literal written with \n then matches
+# NOTHING — and, being a substitution, fails open unless a guard catches it (G15).
+#
+# 102 function bodies in the live database already carry CRLF from before this
+# rule. Those are not rewritten here: normalising them means replacing 102
+# SECURITY DEFINER bodies, which is a deliberate sweep rather than a side effect
+# of adding a config file. New ones will be LF.
+*.sql   text eol=lf
+*.mjs   text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf

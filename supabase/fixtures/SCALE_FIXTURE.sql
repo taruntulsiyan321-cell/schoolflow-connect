@@ -248,3 +248,37 @@ BEGIN
   END;
 END
 $fixture$;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Chunk 7.5 tables — test_questions and test_attempts
+--
+-- Added when Chunk 7.5 item 7 (timing per role at fixture volume) was cleared.
+-- The fixture already carried 72 tests and 2,520 test_marks; these two tables
+-- arrived with 7.5a and the fixture predated them, so a timing run measured an
+-- empty table — the same "verified against zero rows is verified against
+-- nothing" defect the chapter_tally finding produced, wearing a timing gate.
+-- ═══════════════════════════════════════════════════════════════════════════
+DO $scale_tests$
+DECLARE _scale uuid := '00000000-0000-4000-8000-000000000002';
+BEGIN
+  INSERT INTO public.test_questions (test_id, school_id, order_index, question, options, correct, marks)
+  SELECT t.id, t.school_id, g, 'Scale Q' || g, '["a","b","c","d"]'::jsonb, '"a"'::jsonb, 1
+    FROM public.tests t CROSS JOIN generate_series(1, 8) g
+   WHERE t.school_id = _scale
+  ON CONFLICT (test_id, order_index) DO NOTHING;
+
+  INSERT INTO public.test_attempts (test_id, student_id, user_id, school_id, score, max_score,
+                                    correct_count, total_count, status, submitted_at)
+  SELECT tm.test_id, tm.student_id, s.user_id, tm.school_id, tm.mark, 8, tm.mark::int, 8, 'submitted', now()
+    FROM public.test_marks tm
+    JOIN public.students s ON s.id = tm.student_id
+   WHERE tm.school_id = _scale
+     AND s.user_id IS NOT NULL
+     -- test_marks.mark is NULLABLE by design (G4: not marked is not zero). An
+     -- unmarked test means there is no attempt to seed, NOT an attempt that
+     -- scored 0 — and the NOT NULL on test_attempts.score caught the shortcut.
+     AND tm.mark IS NOT NULL
+  ON CONFLICT (test_id, user_id) DO NOTHING;
+END
+$scale_tests$;

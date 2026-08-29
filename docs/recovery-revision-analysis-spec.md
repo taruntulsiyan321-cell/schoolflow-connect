@@ -586,14 +586,17 @@ may contain any of these as a literal.**
 
 Ravi, Class 12 Accountancy, chapter *Cash Flow Statement*.
 
-**Day 1** — 20-question session. 6 wrong, 2 skipped.
-`practice_mistakes` gains 6 rows. `chapter_tally` gains one row: attempted 20,
+**Day 1, 4:10pm** — 20-question session. 6 wrong, 2 skipped.
+The mistake book gains 6 rows. `chapter_tally` gains one row: attempted 20,
 correct 14. `chapter_state` → `has_mistakes`.
-6 ≥ 5, but only minutes have passed — **no suggestion yet.**
 
-**Day 2** — cooldown met. App suggests recovery.
+6 ≥ 5, so the trigger fires. Screen reads *"Session complete. Your recovery
+session is being prepared."* Generation runs in the background.
 
-**Day 2, recovery session.** Ten questions on the ladder. The bank already holds
+**Day 1, 4:12pm** — the session is ready. **No notification** — it is simply
+there. Ravi could start it now if he wanted; nothing blocks him.
+
+**Day 1, 4:13pm — recovery, round 1.** Ten questions on the ladder. The bank already holds
 two Tier-1 variants of one of his wrong questions, generated for another student
 last term — those are served free. The rest are generated.
 
@@ -613,25 +616,33 @@ usually means the steps are solid and the concept underneath isn't yet."*
 That is a diagnosis, not a score. A single 70% would have hidden it completely.
 
 Ravi clears anyway. Extra confirm. `last_recovery_readiness = 0.58` stored.
-`chapter_state` → `recovered`, `next_revision_at` = day 9, stage 1.
+`chapter_state` → `recovered`, `next_revision_at` = day 8, stage 1.
 
-**Day 9 — revision.** 8 fresh questions. 4 correct = 0.50, below 0.70.
+**Note what did not happen.** He got 6 questions wrong in that session and
+**the mistake book still holds 6 entries, not 12** — the failures bumped
+`times_wrong` on the mistakes they came from. Had he not cleared it, round 2
+would have been generated automatically: everything from round 1 **plus new
+questions**.
+
+**Day 8 — revision.** 8 fresh questions. 4 correct = 0.50, below 0.70.
 **FAILED.** 4 new mistake rows. Previously cleared rows stay cleared.
 `chapter_state` → `revision_failed`, stage 0. Pinned to the top of analysis.
 
-Analysis now reads: *"Cash Flow Statement — 4 open, cleared 7 days ago at 58%
+Analysis now reads: *"Cash Flow Statement — 6 open, cleared 7 days ago at 58%
 readiness, failed revision."* Every part of that is true and actionable, and it
 was reached without ever blocking him.
 
-**Day 11 — second recovery.** Procedural 5/5, conceptual 4/5 = 0.80 ✓ →
-**READY.** Cleared with the app agreeing.
+**Day 10 — recovery again**, now round 2: everything from round 1 plus new
+questions. Procedural 5/5, conceptual 4/5 = 0.80 ✓ → **READY.** Cleared with the
+app agreeing.
 
-**Day 18 — revision.** 7/8 = 0.875. **PASS.** Stage 2, next check day 39.
-**Day 39** — pass. Stage 3, next check day 99.
-**Day 99** — pass. **Solid.** Leaves the queue.
+**Day 17 — revision.** 7/8 = 0.875. **PASS.** Stage 2, next check day 38.
+**Day 38** — pass. Stage 3, next check day 98.
+**Day 98** — pass. **Solid.** Leaves the queue.
 
-Five months, six sessions, and the difference between "cleared it" and "actually
-knows it" is visible at every step.
+Three months, six sessions, and the difference between "cleared it" and "actually
+knows it" is visible at every step. **He never waited for a loading screen, and
+his mistake count never rose.**
 
 ---
 
