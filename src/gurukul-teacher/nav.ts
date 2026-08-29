@@ -49,7 +49,7 @@ export function teacherPathToPage(pathname: string): TeacherPageKey {
     p.startsWith("/teacher/timetable") ||
     p.startsWith("/teacher/performance") ||
     p.startsWith("/teacher/homework") ||
-    p.startsWith("/teacher/dpp") ||
+    p.startsWith("/teacher/test") ||
     p.startsWith("/teacher/reports") ||
     p.startsWith("/teacher/insights")
   )

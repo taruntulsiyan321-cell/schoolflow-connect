@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { GraduationCap, LogOut, Menu, MoreHorizontal } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 
-interface NavItem { to: string; label: string; icon: ReactNode; /** false = stay active on nested routes (e.g. /student/dpp/:id) */ end?: boolean; }
+interface NavItem { to: string; label: string; icon: ReactNode; /** false = stay active on nested routes (e.g. /student/test/:id) */ end?: boolean; }
 
 const MOBILE_PRIMARY = 4; // items shown in bottom bar; rest collapse into "More"
 

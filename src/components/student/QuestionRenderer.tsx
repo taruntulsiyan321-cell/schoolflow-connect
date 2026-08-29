@@ -18,7 +18,7 @@ export type DppCorrect = {
   text?: unknown;
 };
 
-export type DppQuestion = {
+export type TestQuestionShape = {
   id: string;
   order_index: number;
   kind: "mcq" | "multi" | "numerical" | "short";
@@ -43,7 +43,7 @@ function readCorrectIndexes(raw: unknown): number[] {
 export type Response = { indexes?: number[]; value?: number; text?: string };
 
 type Props = {
-  question: DppQuestion;
+  question: TestQuestionShape;
   mode: "attempt" | "review";
   value: Response;
   onChange?: (r: Response) => void;

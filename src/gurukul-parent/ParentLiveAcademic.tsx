@@ -197,7 +197,10 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
               <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl flex justify-between gap-3">
                 <div>
                   <div className="text-xs font-bold text-foreground">{t.title}</div>
-                  <div className="text-[10px] text-muted-foreground">{t.subject || "—"}</div>
+                  {/* A test carries no subject column of its own: it anchors on
+                      section_subject (§10.22), so the subject is the one that
+                      section teaches. topic is what this particular test covers. */}
+                  <div className="text-[10px] text-muted-foreground">{t.topic || "—"}</div>
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-xs font-black text-foreground">{scoreLabel}</div>

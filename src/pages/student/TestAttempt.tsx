@@ -5,19 +5,30 @@ import { useAcademicContext, TestService, resolveStudentServiceContext } from "@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Send, Timer } from "lucide-react";
-import { QuestionRenderer, DppQuestion, Response } from "@/components/dpp/QuestionRenderer";
+import { QuestionRenderer, TestQuestionShape, Response } from "@/components/student/QuestionRenderer";
 import { toast } from "sonner";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { displaySubject } from "@/lib/academicPresentation";
 import { toErrorMessage } from "@/lib/presentation";
 
-export default function DppAttempt() {
+
+/**
+ * A test carries no subject column: it anchors on section_subject (§10.22), so
+ * its subject is the one that section teaches. testService.get() resolves the
+ * join and the row arrives shaped as section_subjects.curriculum_subjects.name.
+ */
+function testSubject(row: Record<string, unknown> | null): string {
+  const ss = row?.section_subjects as { curriculum_subjects?: { name?: string } } | undefined;
+  return ss?.curriculum_subjects?.name ?? "";
+}
+
+export default function TestAttempt() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const nav = useNavigate();
   const { ctx, ready: academicReady } = useAcademicContext();
-  const [dpp, setDpp] = useState<Record<string, unknown> | null>(null);
-  const [questions, setQuestions] = useState<DppQuestion[]>([]);
+  const [test, setTest] = useState<Record<string, unknown> | null>(null);
+  const [questions, setQuestions] = useState<TestQuestionShape[]>([]);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [responses, setResponses] = useState<Record<string, Response>>({});
   const [idx, setIdx] = useState(0);
@@ -28,7 +39,7 @@ export default function DppAttempt() {
   /** Which test id we've already successfully started an attempt for in this
    *  component's lifetime. This effect's deps include ctx/academicReady so it
    *  can retry once a fallback-context load resolves to the real one — but
-   *  rpc_dpp_start is idempotent (upserts on (dpp_id, user_id)), so a second
+   *  rpc_test_start is idempotent (upserts on (test_id, user_id)), so a second
    *  full re-run after the first already succeeded isn't fixing anything; it
    *  only re-flashes the loading skeleton and re-fetches responses, which can
    *  clobber answers the student has changed locally since the first load
@@ -55,16 +66,16 @@ export default function DppAttempt() {
         setLoading(false);
         return;
       }
-      setDpp(d as Record<string, unknown>);
+      setTest(d as Record<string, unknown>);
       const qs = await TestService.listQuestions(serviceCtx, id);
-      setQuestions((qs ?? []) as DppQuestion[]);
+      setQuestions((qs ?? []) as TestQuestionShape[]);
 
       const existingAttempt = await TestService.getMyAttempt(serviceCtx, id);
       if (
         existingAttempt &&
         (String(existingAttempt.status ?? "") === "submitted" || existingAttempt.submitted_at != null)
       ) {
-        nav(`/student/dpp/${id}/result`, { replace: true });
+        nav(`/student/test/${id}/result`, { replace: true });
         return;
       }
 
@@ -102,23 +113,23 @@ export default function DppAttempt() {
 
   useEffect(() => { void load(); }, [id, user, ctx, academicReady]);
 
-  const timedDpp = ((dpp?.duration_sec as number | undefined) ?? 0) > 0;
+  const timedTest = ((test?.duration_sec as number | undefined) ?? 0) > 0;
   const remaining = useMemo(
-    () => (timedDpp ? Math.max(0, (dpp!.duration_sec as number) - seconds) : null),
-    [dpp, seconds, timedDpp],
+    () => (timedTest ? Math.max(0, (test!.duration_sec as number) - seconds) : null),
+    [test, seconds, timedTest],
   );
 
   useEffect(() => {
-    if (!dpp || !timedDpp) return;
+    if (!test || !timedTest) return;
     const t = setInterval(() => setSeconds(Math.floor((Date.now() - startRef.current) / 1000)), 1000);
     return () => clearInterval(t);
-  }, [dpp, timedDpp]);
+  }, [test, timedTest]);
 
   useEffect(() => {
-    if (!timedDpp || remaining === null || !dpp || !attemptId || submitting) return;
+    if (!timedTest || remaining === null || !test || !attemptId || submitting) return;
     if (remaining === 0) void submit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remaining, dpp, attemptId, timedDpp]);
+  }, [remaining, test, attemptId, timedTest]);
 
   /** Per-question save sequencing: the counter marks which edit is "latest" for
    *  that question, and the chain ensures saves for the same question run one
@@ -158,7 +169,7 @@ export default function DppAttempt() {
     try {
       const serviceCtx = await resolveCtx();
       await TestService.submitAttempt(serviceCtx, attemptId);
-      nav(`/student/dpp/${id}/result`);
+      nav(`/student/test/${id}/result`);
     } catch (e) {
       toast.error(toErrorMessage(e, "Could not submit test"));
     } finally {
@@ -190,14 +201,14 @@ export default function DppAttempt() {
 
   const q = questions[idx];
   const answeredCount = Object.values(responses).filter((r) => r && Object.keys(r).length > 0).length;
-  const mins = timedDpp && remaining !== null ? Math.floor(remaining / 60).toString().padStart(2, "0") : null;
-  const secs = timedDpp && remaining !== null ? (remaining % 60).toString().padStart(2, "0") : null;
+  const mins = timedTest && remaining !== null ? Math.floor(remaining / 60).toString().padStart(2, "0") : null;
+  const secs = timedTest && remaining !== null ? (remaining % 60).toString().padStart(2, "0") : null;
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-3">
         <Button variant="ghost" size="sm" asChild><Link to="/student/tests"><ArrowLeft className="w-4 h-4" /> Tests</Link></Button>
-        {timedDpp && mins !== null && secs !== null && (
+        {timedTest && mins !== null && secs !== null && (
           <div className="flex items-center gap-2 text-sm font-mono px-3 py-1 rounded-lg bg-muted">
             <Timer className="w-4 h-4" /> {mins}:{secs}
           </div>
@@ -206,8 +217,8 @@ export default function DppAttempt() {
 
       <div className="mb-3">
         <div className="text-xs text-muted-foreground mb-1">
-          {String(dpp?.title ?? "Test")}
-          {dpp?.subject ? ` · ${displaySubject(String(dpp.subject))}` : ""}
+          {String(test?.title ?? "Test")}
+          {testSubject(test) ? ` · ${displaySubject(testSubject(test))}` : ""}
         </div>
         <div className="flex gap-1 flex-wrap">
           {questions.map((qq, i) => {
@@ -237,7 +248,7 @@ export default function DppAttempt() {
           <ArrowLeft className="w-4 h-4" /> Prev
         </Button>
         <div className="text-xs text-muted-foreground">{answeredCount}/{questions.length} answered</div>
-        {idx < questions.length - 1 && !(timedDpp && remaining === 0) ? (
+        {idx < questions.length - 1 && !(timedTest && remaining === 0) ? (
           <Button onClick={() => setIdx((i) => i + 1)}>Next <ArrowRight className="w-4 h-4" /></Button>
         ) : (
           <Button onClick={() => void submit()} disabled={submitting}><Send className="w-4 h-4" /> {submitting ? "Submitting…" : "Submit"}</Button>

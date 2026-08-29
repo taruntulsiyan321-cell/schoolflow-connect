@@ -1,6 +1,20 @@
 /**
- * TestService — product "Test" maps to `dpps` + `dpp_questions`.
- * Create/publish must work even before optional workspace columns are applied.
+ * TestService — the Tests feature, on `tests` + `test_questions` +
+ * `test_attempts` + `test_answers` (Chunk 7.5).
+ *
+ * It previously ran on `dpps`, which was a second implementation of the same
+ * feature: Chunk 6 built `tests`/`test_marks` for the teacher-uploads-marks
+ * flow while DPP carried the student-takes-a-test-in-app flow, and both were
+ * called "test".
+ *
+ * Two things here are NOT simple renames:
+ *
+ *   - A test anchors on section_subject (§10.22), not on a class. Listing for
+ *     a class resolves through section_subjects rather than a second class_id
+ *     column naming the same fact (G9).
+ *   - Students never receive `correct`. test_questions is not SELECT-able by
+ *     them at all; the paper comes from rpc_test_questions_for_attempt, which
+ *     omits the answer key (G14).
  */
 import {
   assertCanOwn,
@@ -84,7 +98,7 @@ function toCorrect(
   correct?: ManualQuestionInput["correct"],
   options?: string[],
 ): unknown {
-  // Grader (rpc_dpp_submit) expects: MCQ/TF → {indexes:[i]}, numerical → {value}, short → {text}
+  // Grader (rpc_test_submit) expects: MCQ/TF → {indexes:[i]}, numerical → {value}, short → {text}
   if (kind === "true_false") {
     const opts = toOptions(kind, options) as string[];
     const isTrue = correct === true || correct === "True" || correct === "true" || correct === 0 || correct === "0";
@@ -152,7 +166,10 @@ async function assertTeacherCanWriteTest(ctx: ServiceContext, classId: string) {
  * reachable and attemptable by a real student through this exact OR check.
  */
 export function isPublishedFlag(row: Record<string, unknown>): boolean {
-  return row.is_published === true;
+  // `is_published` was a boolean beside `status`, which is the same fact
+  // twice and drifts the moment one is written without the other (G9). 7.5
+  // kept the enum and dropped the boolean.
+  return row.status === "published";
 }
 
 /**
@@ -166,32 +183,26 @@ export const TestService = {
   ) {
     assertCanConsume(ctx, "test");
     const repo = toRepoContext(ctx);
+    // A test anchors on section_subject (§10.22), so the class is reached
+    // through it rather than through a second class_id column naming the same
+    // fact (G9). !inner makes this a filtering join: a test whose
+    // section_subject belongs to another class is excluded by the join itself,
+    // not by a post-filter that a forgotten call site could skip.
     let q = getClient(repo)
-      .from("dpps")
-      .select("*")
-      .eq("class_id", classId)
+      .from("tests")
+      .select("*, section_subjects!inner(section_id)")
+      .eq("section_subjects.section_id", classId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
-    // Prefer school filter when column exists (ignore error via client filter)
     if (ctx.schoolId) {
       q = q.eq("school_id", ctx.schoolId);
     }
 
     const { data, error } = await q;
-    // If school_id column missing, retry without it
-    if (error && /school_id|column/i.test(error.message)) {
-      const retry = await getClient(repo)
-        .from("dpps")
-        .select("*")
-        .eq("class_id", classId)
-        .order("created_at", { ascending: false });
-      throwIfError(retry.error, "Failed to list tests");
-      let rows = retry.data ?? [];
-      if (ctx.role === "student" || ctx.role === "parent") {
-        rows = rows.filter((r) => isPublishedFlag(r as Record<string, unknown>));
-      }
-      return rows;
-    }
+    // The pre-7.5 version retried without school_id when that column was
+    // "missing". It is NOT missing on tests, and a retry that drops the
+    // institution filter is a fence that disappears on error. Removed.
     throwIfError(error, "Failed to list tests");
     let rows = data ?? [];
     if (ctx.role === "student" || ctx.role === "parent") {
@@ -208,9 +219,12 @@ export const TestService = {
 
   async get(ctx: ServiceContext, testId: string) {
     assertCanConsume(ctx, "test");
+    // A test has no subject column of its own — it anchors on section_subject
+    // (§10.22), so the subject is whatever that section teaches. Resolved here
+    // once and surfaced as `subject`, so no screen has to know the join.
     const { data, error } = await getClient(toRepoContext(ctx))
-      .from("dpps")
-      .select("*")
+      .from("tests")
+      .select("*, section_subjects(curriculum_subjects(name))")
       .eq("id", testId)
       .maybeSingle();
     throwIfError(error, "Failed to load test");
@@ -224,14 +238,35 @@ export const TestService = {
     return data;
   },
 
+  /**
+   * The paper. Staff get the whole row including `correct`; students never do.
+   *
+   * G14: this used to `select("*")` for everyone, which meant the answer key
+   * reached the client of the person about to sit the test. The fence is the
+   * GRANT, so test_questions is no longer SELECT-able by students at all — a
+   * student calling this path would get zero rows, not a filtered row. They
+   * go through rpc_test_questions_for_attempt, whose RETURNS list omits
+   * `correct` and `explanation`.
+   */
   async listQuestions(ctx: ServiceContext, testId: string) {
     assertCanConsume(ctx, "test");
     // Enforce publish gate for students/parents (same as get)
     await this.get(ctx, testId);
-    const { data, error } = await getClient(toRepoContext(ctx))
-      .from("dpp_questions")
+    const client = getClient(toRepoContext(ctx));
+
+    if (ctx.role === "student" || ctx.role === "parent") {
+      const attemptId = await this.startAttempt(ctx, testId);
+      const { data, error } = await client.rpc("rpc_test_questions_for_attempt", {
+        _attempt_id: attemptId,
+      } as never);
+      throwIfError(error, "Failed to list questions");
+      return (data ?? []) as Record<string, unknown>[];
+    }
+
+    const { data, error } = await client
+      .from("test_questions")
       .select("*")
-      .eq("dpp_id", testId)
+      .eq("test_id", testId)
       .order("order_index", { ascending: true });
     throwIfError(error, "Failed to list questions");
     return data ?? [];
@@ -291,14 +326,14 @@ export const TestService = {
     let error: { message: string } | null = null;
 
     ({ data, error } = await getClient(repo)
-      .from("dpps")
+      .from("tests")
       .insert(extended as never)
       .select("*")
       .single());
 
     if (error) {
       ({ data, error } = await getClient(repo)
-        .from("dpps")
+        .from("tests")
         .insert(base as never)
         .select("*")
         .single());
@@ -333,11 +368,11 @@ export const TestService = {
     const test = (await this.get(ctx, testId)) as { class_id: string };
     await assertTeacherCanWriteTest(ctx, String(test.class_id));
 
-    await getClient(repo).from("dpp_questions").delete().eq("dpp_id", testId);
+    await getClient(repo).from("test_questions").delete().eq("test_id", testId);
 
     if (questions.length === 0) {
       await getClient(repo)
-        .from("dpps")
+        .from("tests")
         .update({
           question_count: 0,
           total_marks: 0,
@@ -348,7 +383,7 @@ export const TestService = {
     }
 
     const rows = questions.map((q, i) => ({
-      dpp_id: testId,
+      test_id: testId,
       order_index: i,
       kind: mapKindToDb(q.kind),
       question: q.question.trim(),
@@ -360,14 +395,14 @@ export const TestService = {
     }));
 
     const { data, error } = await getClient(repo)
-      .from("dpp_questions")
+      .from("test_questions")
       .insert(rows as never)
       .select("*");
     throwIfError(error, "Failed to save questions");
 
     const total = rows.reduce((s, r) => s + Number(r.marks), 0);
     await getClient(repo)
-      .from("dpps")
+      .from("tests")
       .update({
         question_count: rows.length,
         total_marks: total,
@@ -413,7 +448,7 @@ export const TestService = {
     }
 
     const { data, error } = await getClient(repo)
-      .from("dpps")
+      .from("tests")
       .update(row as never)
       .eq("id", testId)
       .select("*")
@@ -439,7 +474,7 @@ export const TestService = {
 
     const now = new Date().toISOString();
     const { data, error } = await getClient(repo)
-      .from("dpps")
+      .from("tests")
       .update({
         status: "published",
         is_published: true,
@@ -474,7 +509,7 @@ export const TestService = {
     await assertTeacherCanWriteTest(ctx, String(existing.class_id));
     const now = new Date().toISOString();
     const { data, error } = await getClient(toRepoContext(ctx))
-      .from("dpps")
+      .from("tests")
       .update({
         status: "archived",
         is_published: false,
@@ -502,7 +537,7 @@ export const TestService = {
     };
     await assertTeacherCanWriteTest(ctx, String(existing.class_id));
     const { data, error } = await getClient(toRepoContext(ctx))
-      .from("dpps")
+      .from("tests")
       .update({
         status: "scheduled",
         is_published: false,
@@ -543,8 +578,8 @@ export const TestService = {
     } catch {
       /* still attempt delete */
     }
-    await getClient(repo).from("dpp_questions").delete().eq("dpp_id", testId);
-    const { error } = await getClient(repo).from("dpps").delete().eq("id", testId);
+    await getClient(repo).from("test_questions").delete().eq("test_id", testId);
+    const { error } = await getClient(repo).from("tests").delete().eq("id", testId);
     throwIfError(error, "Failed to delete test");
     afterTestWrite(ctx, {
       classId,
@@ -582,13 +617,13 @@ export const TestService = {
   },
 
   /** Latest attempt for the current user on a DPP/test (submitted preferred). */
-  async getMyAttempt(ctx: ServiceContext, dppId: string) {
+  async getMyAttempt(ctx: ServiceContext, testId: string) {
     assertCanConsume(ctx, "student_test_attempt");
     const client = getClient(toRepoContext(ctx));
     let q = client
-      .from("dpp_attempts")
+      .from("test_attempts")
       .select("*")
-      .eq("dpp_id", dppId)
+      .eq("test_id", testId)
       .order("started_at", { ascending: false })
       .limit(5);
     if (ctx.userId) q = q.eq("user_id", ctx.userId);
@@ -608,12 +643,12 @@ export const TestService = {
   async listLatestAttemptsForStudent(
     ctx: ServiceContext,
     studentId: string,
-    dppIds: string[],
+    testIds: string[],
   ): Promise<Record<string, Record<string, unknown>>> {
     assertCanConsume(ctx, "student_test_attempt");
     const { assertMayAccessStudent } = await import("./parentAccess");
     await assertMayAccessStudent(ctx, studentId);
-    if (!dppIds.length) return {};
+    if (!testIds.length) return {};
 
     const client = getClient(toRepoContext(ctx));
     const { data: student, error: sErr } = await client
@@ -626,9 +661,9 @@ export const TestService = {
     if (!student) return {};
 
     let q = client
-      .from("dpp_attempts")
+      .from("test_attempts")
       .select("*")
-      .in("dpp_id", dppIds)
+      .in("test_id", testIds)
       .order("started_at", { ascending: false })
       .limit(200);
     if (student.user_id) {
@@ -641,30 +676,30 @@ export const TestService = {
 
     const byDpp: Record<string, Record<string, unknown>> = {};
     for (const row of (data ?? []) as Record<string, unknown>[]) {
-      const dppId = String(row.dpp_id ?? "");
-      if (!dppId || byDpp[dppId]) continue;
+      const testId = String(row.test_id ?? "");
+      if (!testId || byDpp[testId]) continue;
       const submitted =
         row.submitted_at != null || String(row.status ?? "") === "submitted";
-      byDpp[dppId] = { ...row, _submitted: submitted };
+      byDpp[testId] = { ...row, _submitted: submitted };
     }
     return byDpp;
   },
 
-  async startAttempt(ctx: ServiceContext, dppId: string) {
+  async startAttempt(ctx: ServiceContext, testId: string) {
     assertCanOwn(ctx, "student_test_attempt");
     // Service-layer publish gate (RPC also enforces after migration applied)
-    const dpp = (await this.get(ctx, dppId)) as Record<string, unknown>;
-    if (ctx.role === "student" && !isPublishedFlag(dpp)) {
+    const test = (await this.get(ctx, testId)) as Record<string, unknown>;
+    if (ctx.role === "student" && !isPublishedFlag(test)) {
       throw new ForbiddenError("This test is not published yet");
     }
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_dpp_start", {
-      _dpp_id: dppId,
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_test_start", {
+      _test_id: testId,
     } as never);
     throwIfError(error, "Failed to start test attempt");
     return data;
   },
 
-  /** Persist one mid-attempt answer — UI must not raw-upsert `dpp_answers`. */
+  /** Persist one mid-attempt answer — UI must not raw-upsert `test_answers`. */
   async saveAnswer(
     ctx: ServiceContext,
     args: {
@@ -676,7 +711,7 @@ export const TestService = {
     assertCanOwn(ctx, "student_test_attempt");
     const client = getClient(toRepoContext(ctx));
     const { data: att, error: attErr } = await client
-      .from("dpp_attempts")
+      .from("test_attempts")
       .select("status, submitted_at")
       .eq("id", args.attemptId)
       .maybeSingle();
@@ -693,10 +728,17 @@ export const TestService = {
         },
       ]);
     }
-    const { error } = await client.from("dpp_answers").upsert(
+    // school_id is NOT NULL on test_answers, and its restrictive tenant fence
+    // checks it on write. dpp_answers allowed it to be absent; this one does
+    // not, which is the fence doing its job rather than an inconvenience.
+    if (!ctx.schoolId) {
+      throw new ForbiddenError("No institution in context — cannot save an answer");
+    }
+    const { error } = await client.from("test_answers").upsert(
       {
         attempt_id: args.attemptId,
         question_id: args.questionId,
+        school_id: ctx.schoolId,
         response: args.response as never,
       },
       { onConflict: "attempt_id,question_id" },
@@ -707,7 +749,7 @@ export const TestService = {
   async listAnswers(ctx: ServiceContext, attemptId: string) {
     assertCanConsume(ctx, "student_test_attempt");
     const { data, error } = await getClient(toRepoContext(ctx))
-      .from("dpp_answers")
+      .from("test_answers")
       .select("*")
       .eq("attempt_id", attemptId);
     throwIfError(error, "Failed to list test answers");
@@ -717,7 +759,7 @@ export const TestService = {
   async submitAttempt(ctx: ServiceContext, attemptId: string, answers?: unknown) {
     assertCanOwn(ctx, "student_test_attempt");
     const client = getClient(toRepoContext(ctx));
-    const { data, error } = await client.rpc("rpc_dpp_submit", {
+    const { data, error } = await client.rpc("rpc_test_submit", {
       _attempt_id: attemptId,
       ...(answers != null ? { _answers: answers } : {}),
     } as never);
@@ -733,7 +775,7 @@ export const TestService = {
     } | null;
     if (result == null || (result.accuracy == null && result.total_count == null && result.total == null)) {
       const { data: att } = await client
-        .from("dpp_attempts")
+        .from("test_attempts")
         .select("score, correct_count, total_count")
         .eq("id", attemptId)
         .maybeSingle();
@@ -753,7 +795,7 @@ export const TestService = {
     let studentId = ctx.studentId ?? null;
     if (!studentId) {
       const { data: attRow } = await client
-        .from("dpp_attempts")
+        .from("test_attempts")
         .select("student_id, user_id")
         .eq("id", attemptId)
         .maybeSingle();

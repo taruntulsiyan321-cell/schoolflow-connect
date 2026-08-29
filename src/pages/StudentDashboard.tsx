@@ -38,8 +38,8 @@ import Class12MathSession from "./student/Class12MathSession";
 import Class12AiSession from "./student/Class12AiSession";
 import PracticeSessionResult from "./student/PracticeSessionResult";
 import WeakAreasV2Debug from "./student/_debug/WeakAreasV2Debug";
-import DppAttempt from "./student/DppAttempt";
-import DppResult from "./student/DppResult";
+import TestAttempt from "./student/TestAttempt";
+import TestResult from "./student/TestResult";
 import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
 import BattleReportPage from "./student/BattleReportPage";
 import ChatPage from "./shared/ChatPage";
@@ -329,8 +329,8 @@ export default function StudentDashboard() {
             <Route path="_debug/weak-areas-v2" element={<WeakAreasV2Debug />} />
           )}
           <Route path="dpp" element={<Navigate to="/student/tests" replace />} />
-          <Route path="dpp/:id/attempt" element={<DppAttempt />} />
-          <Route path="dpp/:id/result" element={<DppResult />} />
+          <Route path="test/:id/attempt" element={<TestAttempt />} />
+          <Route path="test/:id/result" element={<TestResult />} />
           <Route path="chat" element={<ChatPage userRole="student" />} />
           <Route path="notices" element={<Notices />} />
           <Route path="notifications" element={<Notifications />} />

@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   graphql_public: {
     Tables: {
@@ -2091,6 +2091,61 @@ export type Database = {
           },
         ]
       }
+      battle_question_stats: {
+        Row: {
+          attempts: number
+          battle_id: string
+          correct: number
+          created_at: string
+          id: string
+          question_id: string
+          school_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          battle_id: string
+          correct?: number
+          created_at?: string
+          id?: string
+          question_id: string
+          school_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          battle_id?: string
+          correct?: number
+          created_at?: string
+          id?: string
+          question_id?: string
+          school_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_question_stats_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_question_stats_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "battle_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_question_stats_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       battle_questions: {
         Row: {
           bank_question_id: string | null
@@ -2255,7 +2310,7 @@ export type Database = {
           per_question_sec?: number
           question_count?: number
           school_id?: string | null
-          source?: string
+          source: string
           starts_at?: string
           status?: Database["public"]["Enums"]["battle_status"]
           subject: string
@@ -7139,6 +7194,7 @@ export type Database = {
         Row: {
           assessment_type: string | null
           chapter: string | null
+          chapter_id: string | null
           class_level: number | null
           cleared_at: string | null
           concept: string | null
@@ -7167,6 +7223,7 @@ export type Database = {
         Insert: {
           assessment_type?: string | null
           chapter?: string | null
+          chapter_id?: string | null
           class_level?: number | null
           cleared_at?: string | null
           concept?: string | null
@@ -7195,6 +7252,7 @@ export type Database = {
         Update: {
           assessment_type?: string | null
           chapter?: string | null
+          chapter_id?: string | null
           class_level?: number | null
           cleared_at?: string | null
           concept?: string | null
@@ -7221,6 +7279,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "student_mistakes_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_mistakes_school_id_fkey"
             columns: ["school_id"]
@@ -7963,6 +8028,141 @@ export type Database = {
           },
         ]
       }
+      test_answers: {
+        Row: {
+          attempt_id: string
+          created_at: string
+          id: string
+          is_correct: boolean | null
+          marks_awarded: number | null
+          question_id: string
+          response: Json | null
+          school_id: string
+          time_ms: number | null
+        }
+        Insert: {
+          attempt_id: string
+          created_at?: string
+          id?: string
+          is_correct?: boolean | null
+          marks_awarded?: number | null
+          question_id: string
+          response?: Json | null
+          school_id: string
+          time_ms?: number | null
+        }
+        Update: {
+          attempt_id?: string
+          created_at?: string
+          id?: string
+          is_correct?: boolean | null
+          marks_awarded?: number | null
+          question_id?: string
+          response?: Json | null
+          school_id?: string
+          time_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_answers_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "test_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "test_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_answers_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_attempts: {
+        Row: {
+          correct_count: number
+          id: string
+          max_score: number
+          school_id: string
+          score: number
+          started_at: string
+          status: string
+          student_id: string | null
+          submitted_at: string | null
+          test_id: string
+          time_spent_sec: number | null
+          total_count: number
+          user_id: string
+        }
+        Insert: {
+          correct_count?: number
+          id?: string
+          max_score?: number
+          school_id: string
+          score?: number
+          started_at?: string
+          status?: string
+          student_id?: string | null
+          submitted_at?: string | null
+          test_id: string
+          time_spent_sec?: number | null
+          total_count?: number
+          user_id: string
+        }
+        Update: {
+          correct_count?: number
+          id?: string
+          max_score?: number
+          school_id?: string
+          score?: number
+          started_at?: string
+          status?: string
+          student_id?: string | null
+          submitted_at?: string | null
+          test_id?: string
+          time_spent_sec?: number | null
+          total_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_attempts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_attempts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_attempts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_attempts_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_marks: {
         Row: {
           created_at: string
@@ -8022,51 +8222,163 @@ export type Database = {
           },
         ]
       }
+      test_questions: {
+        Row: {
+          chapter: string | null
+          chapter_id: string | null
+          concept: string | null
+          correct: Json | null
+          created_at: string
+          explanation: string | null
+          id: string
+          marks: number
+          options: Json | null
+          order_index: number
+          question: string
+          school_id: string
+          test_id: string
+        }
+        Insert: {
+          chapter?: string | null
+          chapter_id?: string | null
+          concept?: string | null
+          correct?: Json | null
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          marks?: number
+          options?: Json | null
+          order_index: number
+          question: string
+          school_id: string
+          test_id: string
+        }
+        Update: {
+          chapter?: string | null
+          chapter_id?: string | null
+          concept?: string | null
+          correct?: Json | null
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          marks?: number
+          options?: Json | null
+          order_index?: number
+          question?: string
+          school_id?: string
+          test_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_questions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_questions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_questions_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tests: {
         Row: {
           academic_year_id: string | null
+          archived_at: string | null
+          chapter: string | null
+          chapter_id: string | null
+          chapters: Json | null
           created_at: string
           created_by: string | null
           date: string | null
           deleted_at: string | null
           deleted_by: string | null
+          difficulty: string | null
+          duration_sec: number | null
           id: string
+          instructions: string | null
           max_mark: number
+          passing_marks: number | null
+          published_at: string | null
+          scheduled_publish_at: string | null
           school_id: string
           section_subject_id: string
           status: string
           submitted_at: string | null
+          test_kind: string | null
+          title: string | null
           topic: string | null
+          topics: Json | null
+          total_marks: number | null
         }
         Insert: {
           academic_year_id?: string | null
+          archived_at?: string | null
+          chapter?: string | null
+          chapter_id?: string | null
+          chapters?: Json | null
           created_at?: string
           created_by?: string | null
           date?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          difficulty?: string | null
+          duration_sec?: number | null
           id?: string
+          instructions?: string | null
           max_mark: number
+          passing_marks?: number | null
+          published_at?: string | null
+          scheduled_publish_at?: string | null
           school_id: string
           section_subject_id: string
           status?: string
           submitted_at?: string | null
+          test_kind?: string | null
+          title?: string | null
           topic?: string | null
+          topics?: Json | null
+          total_marks?: number | null
         }
         Update: {
           academic_year_id?: string | null
+          archived_at?: string | null
+          chapter?: string | null
+          chapter_id?: string | null
+          chapters?: Json | null
           created_at?: string
           created_by?: string | null
           date?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          difficulty?: string | null
+          duration_sec?: number | null
           id?: string
+          instructions?: string | null
           max_mark?: number
+          passing_marks?: number | null
+          published_at?: string | null
+          scheduled_publish_at?: string | null
           school_id?: string
           section_subject_id?: string
           status?: string
           submitted_at?: string | null
+          test_kind?: string | null
+          title?: string | null
           topic?: string | null
+          topics?: Json | null
+          total_marks?: number | null
         }
         Relationships: [
           {
@@ -8074,6 +8386,13 @@ export type Database = {
             columns: ["academic_year_id"]
             isOneToOne: false
             referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tests_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
             referencedColumns: ["id"]
           },
           {
@@ -10130,6 +10449,24 @@ export type Database = {
         Returns: Json
       }
       rpc_teacher_doubt_dashboard: { Args: never; Returns: Json }
+      rpc_test_questions_for_attempt: {
+        Args: { _attempt_id: string }
+        Returns: {
+          chapter: string
+          chapter_id: string
+          concept: string
+          id: string
+          marks: number
+          options: Json
+          order_index: number
+          question: string
+        }[]
+      }
+      rpc_test_start: { Args: { _test_id: string }; Returns: string }
+      rpc_test_submit: {
+        Args: { _answers: Json; _attempt_id: string }
+        Returns: Json
+      }
       rpc_toggle_question_bookmark: {
         Args: { _bookmarked: boolean; _question_id: string }
         Returns: boolean

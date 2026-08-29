@@ -202,21 +202,6 @@
       "verifiedBy": "",
       "reviewed": false
     },
-    "_capture_dpp_mistakes(_attempt_id uuid)": {
-      "name": "_capture_dpp_mistakes",
-      "readerSet": "public",
-      "callability": "internal",
-      "returns": "void",
-      "grants": [],
-      "calls": [
-        "_revision_topic_priority",
-        "_upsert_concept_mastery",
-        "rpc_refresh_academic_brain"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
     "_class_grade(_class_id uuid)": {
       "name": "_class_grade",
       "readerSet": "public",
@@ -3091,56 +3076,6 @@
       ],
       "calls": [
         "rpc_delete_chat_message"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "rpc_dpp_pick_from_bank(_dpp_id uuid, _count integer, _difficulty text)": {
-      "name": "rpc_dpp_pick_from_bank",
-      "readerSet": "staff",
-      "callability": "granted",
-      "returns": "integer",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
-      "calls": [
-        "has_role",
-        "teacher_teaches_class"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "rpc_dpp_start(_dpp_id uuid)": {
-      "name": "rpc_dpp_start",
-      "readerSet": "staff",
-      "callability": "granted",
-      "returns": "uuid",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
-      "calls": [
-        "has_role"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "rpc_dpp_submit(_attempt_id uuid, _answers jsonb)": {
-      "name": "rpc_dpp_submit",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "jsonb",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
-      "calls": [
-        "_bump_academic_activity",
-        "_capture_dpp_mistakes"
       ],
       "justification": "",
       "verifiedBy": "",

@@ -16,7 +16,7 @@ import "@/components/student/analytics/wisdom/wisdom-analytics.css";
 import { toAiLine } from "@/lib/presentation";
 
 type Props = {
-  sourceType: "dpp_attempt" | "battle_participant" | "practice_session" | "recovery_assignment";
+  sourceType: "test_attempt" | "battle_participant" | "practice_session" | "recovery_assignment";
   sourceId: string;
   title?: string;
   /** Client-side report when DB/RPC has no attempt rows yet */

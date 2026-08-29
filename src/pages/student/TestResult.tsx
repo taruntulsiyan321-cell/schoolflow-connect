@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Target, Timer } from "lucide-react";
 import { ScoreRing } from "@/components/student/ScoreRing";
-import { QuestionRenderer, DppQuestion } from "@/components/dpp/QuestionRenderer";
+import { QuestionRenderer, TestQuestionShape } from "@/components/student/QuestionRenderer";
 import { PageHeader } from "@/components/ui-bits";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
@@ -14,13 +14,24 @@ import { StudentListSkeleton, StudentErrorState } from "@/components/student/Stu
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicPresentation";
 import { toDisplayText, toErrorMessage } from "@/lib/presentation";
 
-export default function DppResult() {
+
+/**
+ * A test carries no subject column: it anchors on section_subject (§10.22), so
+ * its subject is the one that section teaches. testService.get() resolves the
+ * join and the row arrives shaped as section_subjects.curriculum_subjects.name.
+ */
+function testSubject(row: Record<string, unknown> | null): string {
+  const ss = row?.section_subjects as { curriculum_subjects?: { name?: string } } | undefined;
+  return ss?.curriculum_subjects?.name ?? "";
+}
+
+export default function TestResult() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { ctx, ready: academicReady } = useAcademicContext();
-  const [dpp, setDpp] = useState<Record<string, unknown> | null>(null);
+  const [test, setTest] = useState<Record<string, unknown> | null>(null);
   const [attempt, setAttempt] = useState<Record<string, unknown> | null>(null);
-  const [questions, setQuestions] = useState<DppQuestion[]>([]);
+  const [questions, setQuestions] = useState<TestQuestionShape[]>([]);
   const [answers, setAnswers] = useState<Record<string, Record<string, unknown>>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -37,9 +48,9 @@ export default function DppResult() {
     try {
       const serviceCtx = await resolveCtx();
       const d = (await TestService.get(serviceCtx, id)) as Record<string, unknown>;
-      setDpp(d);
+      setTest(d);
       const qs = await TestService.listQuestions(serviceCtx, id);
-      setQuestions((qs ?? []) as DppQuestion[]);
+      setQuestions((qs ?? []) as TestQuestionShape[]);
       const a = await TestService.getMyAttempt(serviceCtx, id);
       setAttempt(a);
       if (a?.id) {
@@ -54,7 +65,7 @@ export default function DppResult() {
       }
     } catch (e) {
       setLoadError(toErrorMessage(e, "Could not load results"));
-      setDpp(null);
+      setTest(null);
       setAttempt(null);
     } finally {
       setLoading(false);
@@ -81,7 +92,7 @@ export default function DppResult() {
     );
   }
 
-  if (!dpp) {
+  if (!test) {
     return (
       <>
         <Button variant="ghost" size="sm" asChild className="mb-2">
@@ -108,7 +119,7 @@ export default function DppResult() {
           <Target className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground">You haven&apos;t submitted this test yet.</p>
           <Button asChild className="mt-4">
-            <Link to={`/student/dpp/${id}/attempt`}>Start attempt</Link>
+            <Link to={`/student/test/${id}/attempt`}>Start attempt</Link>
           </Button>
         </Card>
       </>
@@ -119,9 +130,9 @@ export default function DppResult() {
   const correctCount = Number(attempt.correct_count ?? 0);
   const accuracy = totalCount ? Math.round((correctCount / totalCount) * 100) : 0;
   const mins = Math.round(Number(attempt.time_spent_sec ?? 0) / 60);
-  const subjectLabel = displaySubject(String(dpp.subject ?? "")) || "—";
-  const chapterRaw = dpp.chapter ? String(dpp.chapter) : "";
-  const topicRaw = dpp.topic ? String(dpp.topic) : "";
+  const subjectLabel = displaySubject(testSubject(test)) || "—";
+  const chapterRaw = test.chapter ? String(test.chapter) : "";
+  const topicRaw = test.topic ? String(test.topic) : "";
   const subtitleParts = [
     subjectLabel,
     chapterRaw ? displayChapter(chapterRaw) : null,
@@ -140,11 +151,11 @@ export default function DppResult() {
           <ArrowLeft className="w-4 h-4" /> Tests
         </Link>
       </Button>
-      <PageHeader title={toDisplayText(dpp.title, { kind: "label", fallback: "Test" })} subtitle={subtitleParts.join(" · ")} />
+      <PageHeader title={toDisplayText(test.title, { kind: "label", fallback: "Test" })} subtitle={subtitleParts.join(" · ")} />
 
       {attempt.id && (
         <ConceptRecoveryReport
-          sourceType="dpp_attempt"
+          sourceType="test_attempt"
           sourceId={String(attempt.id)}
           title="Test concept recovery report"
         />
@@ -241,7 +252,7 @@ export default function DppResult() {
                 selectedIndex={selectedIdx}
                 correctText={correctText}
                 selectedText={selectedText}
-                subject={String(dpp?.subject ?? "")}
+                subject={testSubject(test)}
                 topic={qTopic}
                 wasCorrect={(a?.is_correct as boolean | null | undefined) ?? null}
               />

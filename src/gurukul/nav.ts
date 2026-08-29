@@ -74,7 +74,7 @@ export function pathToPage(pathname: string): PageKey {
   if (p.startsWith("/student/recovery")) return "recovery";
   if (p.startsWith("/student/practice")) return "practice";
   if (p.startsWith("/student/battleground")) return "battleground";
-  if (p.startsWith("/student/dpp")) return "tests";
+  if (p.startsWith("/student/test")) return "tests";
   if (p.startsWith("/student/mistakes")) return "mistakebook";
   if (p.startsWith("/student/analytics") || p.startsWith("/student/analysis") || p.startsWith("/student/report"))
     return "analysis";

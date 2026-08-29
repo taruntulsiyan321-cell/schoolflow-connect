@@ -179,6 +179,44 @@ timestamps, ledger position, or the commit that introduced it. Do not silently
 inherit someone else's failure, and do not claim one is pre-existing without
 evidence.
 
+### G14. A control that exists only in a comment is not a control
+
+**Found live, self-inflicted:** `test_questions_read` granted SELECT to every
+user in the institution — including the `correct` column. The answer key, on the
+client, before the answer is given. It shipped with a comment promising that a
+definer would withhold that column.
+
+**A promise in a comment is not a fence.** The grant is the fence.
+
+- Where a column must not be read, **do not grant it.** Withhold it in the grant
+  or serve the row through a definer that omits it.
+- Never rely on "the client won't select that", "the RPC filters it", or "we only
+  call it through X". Every table with a SELECT grant is directly readable
+  through PostgREST by anyone holding it.
+- **Verify by reading as the role that must not see it**, and asserting the
+  column is absent — not by reading the policy.
+
+### G15. Constructs that silently do nothing
+
+Three found in one chunk, all of which look protective and were not:
+
+- **`ON CONFLICT DO NOTHING` with no matching unique constraint.** It cannot
+  fire. `student_mistakes` had only a PK on a generated uuid, so a retake would
+  have silently duplicated every mistake. **Confirm the constraint the clause
+  targets actually exists.**
+- **`DROP CONSTRAINT IF EXISTS` on a guessed name.** The drop matched nothing,
+  the add created a second constraint, and both had to pass — so the value stayed
+  rejected. `IF EXISTS` turned a wrong guess into silence. **Look the name up;
+  never guess it.**
+- **An enum or CHECK that omits the value you are about to write.**
+  `student_mistakes.source` and `.assessment_type` each enumerated `'dpp'` and
+  neither admitted `'test'` — so no mistake could be recorded at all.
+  **A table name is not the only place a legacy feature lives; it is also a value
+  in a constraint.**
+
+**The shared shape:** a construct whose precondition is absent fails open and
+quietly. **Assert the precondition, then use the construct.**
+
 ### G13. Every `SECURITY DEFINER` function is a door — inventory them
 
 **Five instances of the same pattern, in five different chunks:**
@@ -1346,9 +1384,23 @@ readers.** They hold only fixture rows.
 
 The doc describes one system; the app runs the other.
 
-**Authority: `tests` + `test_marks`.** They match §10.22 — `section_subject`
-anchored, `max_mark`, nullable marks, chapter and topic. `dpps` is the earlier
-shape.
+**Authority: `tests` + `test_marks`, EXTENDED.**
+
+**Correction — the original spec was wrong.** Chunk 6 built `tests` and
+`test_marks` for the **teacher-uploads-marks** flow: one mark per student, no
+questions, no attempt, no per-question answers. DPP carried the
+**student-takes-a-test-in-app** flow. These are different things that were both
+called "test", and converging as originally written would have **deleted the
+ability to take a test.**
+
+The authority is therefore `tests` + `test_marks` **plus**:
+
+- `test_questions` — the paper. **`correct` and `explanation` are never granted
+  to students** (G14); they receive the paper through an RPC that omits both.
+- `test_attempts` — resumable, one per student per test
+- `test_answers` — **transient, purged at submit** per §10.8
+
+`testService.ts` has **23** `from("dpp*")` sites, not the 11 first reported.
 
 **This is a convergence, not a deletion.** Removing DPP first takes the Tests
 feature with it.

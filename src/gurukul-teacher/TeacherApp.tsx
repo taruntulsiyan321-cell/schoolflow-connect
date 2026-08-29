@@ -318,7 +318,7 @@ export default function TeacherApp() {
               <Route path="leaves" element={<Navigate to="/teacher/leave" replace />} />
               <Route path="insights" element={<RedirectTeacherClassTab tab="insights" />} />
               <Route path="reports" element={<RedirectTeacherClassTab tab="insights" />} />
-              <Route path="dpp/*" element={<RedirectTeacherClassTab tab="tests" />} />
+              <Route path="test/*" element={<RedirectTeacherClassTab tab="tests" />} />
               <Route path="*" element={<Navigate to="/teacher" replace />} />
             </Routes>
           </div>
