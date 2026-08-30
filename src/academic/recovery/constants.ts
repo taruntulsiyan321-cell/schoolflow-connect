@@ -39,6 +39,37 @@ export const GENERATION_TARGET_SECONDS = 120;
 export const GENERATION_MAX_RETRIES = 5;
 
 /**
+ * §4.1a, as resolved 2026-08-30. The section says a session that cannot be
+ * completed is not offered — nobody is waiting, so there is no reason to
+ * degrade — and it retries. Taken literally that strands a chapter whose
+ * generation never succeeds: it would retry forever and never be offered.
+ *
+ * So the rule has a floor. Once GENERATION_MAX_RETRIES retries are exhausted, offer
+ * what exists IF it still holds at least this many procedural questions
+ * (tiers 0 and 1) and at least RECOVERY_MIN_CONCEPTUAL_TO_OFFER conceptual ones
+ * (tiers 2 and 3). Below either floor, offer nothing and retry after the
+ * student's next session end.
+ *
+ * The floor is per RATE, not per total, and that is the whole point. Readiness
+ * is two rates (§4.2b) and the diagnostic value is entirely in the split. A
+ * session of six procedural questions and no conceptual ones clears any
+ * total-based floor and still cannot answer the only question recovery is
+ * asked — it would report "not ready" with no way to say which half failed,
+ * which is precisely the single-number failure §4.2b exists to prevent.
+ */
+export const RECOVERY_MIN_PROCEDURAL_TO_OFFER = 2;
+
+/**
+ * The conceptual half of the same floor (tiers 2 and 3).
+ *
+ * Two rather than one, here as for the procedural floor: a single question per
+ * rate is a coin flip wearing the costume of a measurement. And this is the
+ * half that matters most — §4.2 calls tier 1 pass with tier 2 fail "the most
+ * common real result and the most useful thing this feature detects".
+ */
+export const RECOVERY_MIN_CONCEPTUAL_TO_OFFER = 2;
+
+/**
  * §4.1b / §9: at most one recovery-or-revision reminder a day, batched across
  * chapters, and they stop the moment the student starts the session.
  * "Nagging is how a paid feature gets muted."
