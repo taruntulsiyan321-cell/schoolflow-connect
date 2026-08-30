@@ -46,66 +46,36 @@
     },
     "_backfill_battle_question_concepts()": {
       "name": "_backfill_battle_question_concepts",
-      "readerSet": "public",
-      "callability": "granted",
+      "readerSet": "none",
+      "callability": "internal",
       "returns": "integer",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
-      "observed": {
-        "student": "answered",
-        "teacher": "answered",
-        "parent": "answered",
-        "principal": "answered",
-        "admin": "answered"
-      }
+      "justification": "Revoked 2026-08-30. Measured: called as a real demo student it wrote 749 tuples across shared battle question data. No arguments, no caller in the client, SECURITY DEFINER, and granted to anon/authenticated/PUBLIC.",
+      "verifiedBy": "Called as the authenticated ROLE (SET LOCAL ROLE, not a JWT claim) after the revoke: permission denied, with get_my_role() as a control proving the denial was specific.",
+      "reviewed": true
     },
     "_backfill_question_bank_concepts()": {
       "name": "_backfill_question_bank_concepts",
       "readerSet": "none",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "integer",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
-      "observed": {
-        "student": "answered",
-        "teacher": "answered",
-        "parent": "answered",
-        "principal": "answered",
-        "admin": "answered"
-      }
+      "justification": "Revoked 2026-08-30. Called as a real demo student it wrote 6 tuples to the shared question bank. Same shape as the other two backfills.",
+      "verifiedBy": "Called as the authenticated ROLE (SET LOCAL ROLE, not a JWT claim) after the revoke: permission denied, with get_my_role() as a control proving the denial was specific.",
+      "reviewed": true
     },
     "_backfill_template_concepts()": {
       "name": "_backfill_template_concepts",
-      "readerSet": "public",
-      "callability": "granted",
+      "readerSet": "none",
+      "callability": "internal",
       "returns": "integer",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
-      "observed": {
-        "student": "answered",
-        "teacher": "answered",
-        "parent": "answered",
-        "principal": "answered",
-        "admin": "answered"
-      }
+      "justification": "Revoked 2026-08-30. Wrote 0 tuples when probed, but only because there was nothing left to backfill at that moment — same function shape, same grants, same absence of a caller.",
+      "verifiedBy": "Called as the authenticated ROLE (SET LOCAL ROLE, not a JWT claim) after the revoke: permission denied, with get_my_role() as a control proving the denial was specific.",
+      "reviewed": true
     },
     "_battle_event(_kind text, _uid uuid, _name text, _detail text, _subject text, _opponent text, _battle uuid, _class uuid, _icon text)": {
       "name": "_battle_event",
@@ -348,24 +318,14 @@
     },
     "_generate_battle_code()": {
       "name": "_generate_battle_code",
-      "readerSet": "public",
-      "callability": "granted",
+      "readerSet": "none",
+      "callability": "internal",
       "returns": "text",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
-      "observed": {
-        "student": "answered",
-        "teacher": "answered",
-        "parent": "answered",
-        "principal": "answered",
-        "admin": "answered"
-      }
+      "justification": "Revoked 2026-08-30 in Chunk 9.5 batch 1. An internal helper for the _battles_set_code trigger; nothing in the client calls it. Trigger firing does not check EXECUTE, verified by inserting a battle as authenticated and asserting battle_code was still set.",
+      "verifiedBy": "Called as the authenticated ROLE (SET LOCAL ROLE, not a JWT claim) after the revoke: permission denied, with get_my_role() as a control proving the denial was specific.",
+      "reviewed": true
     },
     "_grant_membership(_account uuid, _school uuid, _role app_role, _local_person uuid)": {
       "name": "_grant_membership",
