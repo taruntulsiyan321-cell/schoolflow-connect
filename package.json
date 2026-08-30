@@ -20,6 +20,8 @@
     "db:check-migrations": "node scripts/check-pending-migrations.mjs",
     "db:verify-integrity": "node scripts/verify-database-integrity.mjs",
     "lint:tenant-scope": "node scripts/lint-tenant-scope.mjs",
+    "lint:stale-columns": "node scripts/lint-stale-columns.mjs",
+    "lint:stale-columns:self-test": "node scripts/lint-stale-columns.mjs --self-test",
     "check:recovery-constants": "node scripts/check-recovery-constants.mjs",
     "dump:variants": "node scripts/dump-variants.mjs",
     "check:recovery-constants:offline": "node scripts/check-recovery-constants.mjs --offline",
