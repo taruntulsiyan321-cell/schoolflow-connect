@@ -35,16 +35,53 @@ import { readFileSync, existsSync } from "fs";
 const MODULE_PATH = process.env.RECOVERY_CONSTANTS_MODULE || "src/academic/recovery/constants.ts";
 
 /**
+ * --offline runs only the half that needs no database: parse completeness,
+ * declared-key presence, the derivation check, and the array arity. That is
+ * where the hole actually was — RECOVERY_SESSION_SIZE written as a literal is
+ * detectable with no credentials at all — so CI can run this today rather than
+ * waiting on a SUPABASE_ACCESS_TOKEN secret this repo does not have.
+ *
+ * It is an explicit FLAG and never an automatic degradation. A missing token
+ * without the flag is exit 2, not a quiet downgrade to the weak half followed
+ * by exit 0 — that is the "a check that did not run is not a pass" rule, and a
+ * gate is the last place to break it. An --offline run also never prints that
+ * the two homes agree, because it did not look.
+ */
+const OFFLINE = process.argv.includes("--offline");
+
+/**
  * Declared asymmetries. Every entry is a place the two homes are ALLOWED to
  * differ, and each needs a reason that survives being read aloud. Anything not
  * listed here must exist in both. Keep this list short: each line is a place
  * the gate stops looking.
  */
 const TS_ONLY = {
-  RECOVERY_SESSION_SIZE:
-    "derived from the four tier counts, so storing it would be a third home for a fact those four already determine. Checked by re-deriving it below rather than skipped.",
   VARIANT_CACHE_FIRST:
     "boolean. recovery_constants.value is numeric, and encoding true as 1 is the type-lie that produces a `value > 0` bug later. If a database function needs it, give the table a boolean column then.",
+};
+
+/**
+ * Constants with no table row because they are COMPUTED from constants that
+ * have one. A separate category from TS_ONLY because the two make different
+ * promises: TS_ONLY says "this value is not checked against the database",
+ * DERIVED says "this value is checked against its own inputs instead".
+ *
+ * Collapsing them is what let RECOVERY_SESSION_SIZE go unchecked. It was
+ * declared TS-only ON THE GROUNDS that it was derived — but the derivation
+ * check only ran when the expression failed to parse as a number. Written as
+ * `= 10` it parsed fine, so the derivation check was skipped and TS_ONLY
+ * skipped the comparison: a constant with no home in the table and no check
+ * anywhere. `= 99` passed this gate.
+ *
+ * A declaration is a place the gate stops looking. It has to say which check
+ * it is trading for, and that check has to actually run.
+ */
+const DERIVED = {
+  RECOVERY_SESSION_SIZE: {
+    inputs: ["RECOVERY_TIER0", "RECOVERY_TIER1", "RECOVERY_TIER2", "RECOVERY_TIER3"],
+    combine: (xs) => xs.reduce((a, b) => a + b, 0),
+    how: "the sum of the four tier counts",
+  },
 };
 
 /**
@@ -66,6 +103,8 @@ const src = readFileSync(MODULE_PATH, "utf8");
 
 /** `export const NAME = <number | true | false | [1, 2, 3]>;` */
 const tsValues = new Map();
+/** The source text as written, so DERIVED can check the FORM and not just the value. */
+const tsRaw = new Map();
 for (const m of src.matchAll(
   /^export const ([A-Z][A-Z0-9_]*)\s*=\s*([^;]+?)(?:\s+as const)?;/gm,
 )) {
@@ -90,6 +129,7 @@ for (const m of src.matchAll(
     value = { expr: text };
   }
   tsValues.set(name, value);
+  tsRaw.set(name, text);
 }
 
 // A reformat of the module must not make this gate pass by matching nothing.
@@ -106,24 +146,54 @@ if (declaredExports === 0) {
   process.exit(1);
 }
 
-// Resolve the one derived value, and prove it is actually derived.
-const derived = tsValues.get("RECOVERY_SESSION_SIZE");
-if (derived && typeof derived === "object" && "expr" in derived) {
-  const tiers = ["RECOVERY_TIER0", "RECOVERY_TIER1", "RECOVERY_TIER2", "RECOVERY_TIER3"];
-  const sum = tiers.reduce((a, k) => a + Number(tsValues.get(k) ?? NaN), 0);
-  if (Number.isNaN(sum)) {
-    console.error("cannot resolve RECOVERY_SESSION_SIZE: a tier constant is missing.");
-    process.exit(1);
-  }
-  const referencesAllTiers = tiers.every((k) => derived.expr.includes(k));
-  if (!referencesAllTiers) {
+// Every DECLARED key must actually be in the module.
+//
+// A declaration is a place this gate stops looking, so one naming a constant
+// that is no longer there disables a check AND prints a reassuring name in the
+// pass line. Deleting VARIANT_CACHE_FIRST from the module left this gate green
+// and still reporting "2 declared TS-only (…, VARIANT_CACHE_FIRST)".
+for (const [group, keys] of [
+  ["TS_ONLY", Object.keys(TS_ONLY)],
+  ["DERIVED", Object.keys(DERIVED)],
+  ["EXPANSIONS", Object.keys(EXPANSIONS)],
+]) {
+  for (const key of keys) {
+    if (tsValues.has(key)) continue;
     console.error(
-      `RECOVERY_SESSION_SIZE is declared TS-only because it is derived from the four tiers, ` +
-        `but its expression does not reference all four: ${derived.expr}`,
+      `${key} is declared in ${group} but no longer exists in ${MODULE_PATH}. ` +
+        `A declaration for a constant that is gone silently disables a check.`,
     );
     process.exit(1);
   }
-  tsValues.set("RECOVERY_SESSION_SIZE", sum);
+}
+
+// Derived constants are checked against their inputs — UNCONDITIONALLY.
+//
+// The form is checked as well as the value: RECOVERY_SESSION_SIZE has to BE
+// the sum in the source, not merely equal it today. A literal that happens to
+// be right is correct until someone tunes a tier, and §10 says these are
+// expected to be tuned.
+for (const [key, rule] of Object.entries(DERIVED)) {
+  const expr = tsRaw.get(key);
+  const missing = rule.inputs.filter((i) => !expr.includes(i));
+  if (missing.length) {
+    console.error(
+      `${key} must BE ${rule.how} in the source, not merely equal it.
+` +
+        `  found:   ${key} = ${expr}
+` +
+        `  missing: ${missing.join(", ")}
+` +
+        `  Written as a literal it is right until a tier is tuned, and then nothing catches it.`,
+    );
+    process.exit(1);
+  }
+  const inputs = rule.inputs.map((i) => Number(tsValues.get(i)));
+  if (inputs.some(Number.isNaN)) {
+    console.error(`cannot resolve ${key}: an input constant is missing or non-numeric.`);
+    process.exit(1);
+  }
+  tsValues.set(key, rule.combine(inputs));
 }
 
 for (const [k, v] of tsValues) {
@@ -135,6 +205,24 @@ for (const [k, v] of tsValues) {
 
 // ── Read the table ─────────────────────────────────────────────────────────
 
+/**
+ * Everything from the fetch onwards sets process.exitCode and lets the process
+ * end, rather than calling process.exit(). Calling exit() after a fetch tears
+ * down undici's in-flight handles and aborts with a libuv assertion, so the
+ * shell sees 127 instead of 1 — a gate reporting a code it did not choose. 127
+ * is still non-zero and CI would still fail, but a gate that cannot state its
+ * own result accurately is the wrong thing to trust the rest of this with.
+ */
+function fail(lines) {
+  for (const l of [].concat(lines)) console.error(l);
+  process.exitCode = 1;
+}
+
+/** Empty and unread until the fetch succeeds; `dbRead` is what licenses a comparison. */
+const dbValues = new Map();
+let dbRead = false;
+
+if (!OFFLINE) {
 if (existsSync(".env.local")) {
   for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
@@ -149,7 +237,10 @@ if (existsSync(".env.local")) {
 const REF = process.env.VITE_SUPABASE_PROJECT_ID || "psqxykzqfvxgsvkmgurn";
 const MGMT = process.env.SUPABASE_ACCESS_TOKEN;
 if (!MGMT) {
-  console.error("No SUPABASE_ACCESS_TOKEN in .env.local");
+  console.error(
+    "No SUPABASE_ACCESS_TOKEN in .env.local, so the two homes cannot be compared.\n" +
+      "  Run with --offline to check the module half only — that is a narrower claim, and it says so.",
+  );
   process.exit(2);
 }
 
@@ -159,19 +250,6 @@ const res = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/qu
   body: JSON.stringify({ query: "SELECT key, value FROM public.recovery_constants ORDER BY key" }),
 });
 const text = await res.text();
-
-/**
- * Everything from here sets process.exitCode and lets the process end, rather
- * than calling process.exit(). Calling exit() after a fetch tears down undici's
- * in-flight handles and aborts with a libuv assertion, so the shell sees 127
- * instead of 1 — a gate reporting a code it did not choose. 127 is still
- * non-zero and CI would still fail, but a gate that cannot state its own
- * result accurately is the wrong thing to trust the rest of this with.
- */
-function fail(lines) {
-  for (const l of [].concat(lines)) console.error(l);
-  process.exitCode = 1;
-}
 
 let rows;
 try {
@@ -188,9 +266,10 @@ if (process.exitCode !== 1 && (!Array.isArray(rows) || rows.length === 0)) {
   );
 }
 
-const dbValues = new Map(
-  Array.isArray(rows) ? rows.map((r) => [r.key, Number(r.value)]) : [],
-);
+if (Array.isArray(rows)) for (const r of rows) dbValues.set(r.key, Number(r.value));
+// Only a fetch that actually produced rows licenses the comparison below.
+dbRead = process.exitCode !== 1;
+}
 
 // ── Compare ────────────────────────────────────────────────────────────────
 
@@ -218,11 +297,15 @@ for (const [name, value] of tsValues) {
   tsFlat.set(name, value);
 }
 
-for (const [key, tsValue] of tsFlat) {
-  if (TS_ONLY[key]) {
+// Both comparison loops are gated on dbRead. Offline they do not run, and the
+// report below refuses to claim the homes agree rather than reporting the zero
+// problems that not looking produces.
+if (dbRead) for (const [key, tsValue] of tsFlat) {
+  const declaredAbsent = TS_ONLY[key] ? "TS-only" : DERIVED[key] ? "derived" : null;
+  if (declaredAbsent) {
     if (dbValues.has(key)) {
       problems.push(
-        `${key} is declared TS-only but now exists in the table too. ` +
+        `${key} is declared ${declaredAbsent} but now exists in the table too. ` +
           `Either remove the declaration or remove the row — a declared asymmetry that is no longer true is worse than none.`,
       );
     }
@@ -251,7 +334,7 @@ for (const [key, tsValue] of tsFlat) {
   }
 }
 
-for (const key of dbValues.keys()) {
+if (dbRead) for (const key of dbValues.keys()) {
   if (!tsFlat.has(key)) {
     problems.push(
       `${key} = ${dbValues.get(key)} is in recovery_constants but NOT in the module. ` +
@@ -262,17 +345,27 @@ for (const key of dbValues.keys()) {
 
 // ── Report ─────────────────────────────────────────────────────────────────
 
-const compared = [...tsFlat.keys()].filter((k) => !TS_ONLY[k]).length;
+const compared = [...tsFlat.keys()].filter((k) => !TS_ONLY[k] && !DERIVED[k]).length;
 
 if (problems.length) {
   fail([
     `recovery constants DISAGREE (${problems.length} problem(s)):\n`,
     ...problems.map((p) => `  - ${p}`),
   ]);
+} else if (process.exitCode !== 1 && OFFLINE) {
+  console.log(
+    `recovery constants, MODULE HALF ONLY (--offline): ${tsValues.size} constant(s) parsed, ` +
+      `${Object.keys(DERIVED).length} derived and re-derived (${Object.keys(DERIVED).join(", ")}), ` +
+      `${Object.keys(EXPANSIONS).length} array expansion(s) checked, ` +
+      `every declared name confirmed present in the module.\n` +
+      `  The two homes were NOT compared — that needs SUPABASE_ACCESS_TOKEN. This run cannot say they agree.`,
+  );
 } else if (process.exitCode !== 1) {
   console.log(
     `recovery constants agree: ${compared} key(s) matched across both homes, ` +
+      `${Object.keys(DERIVED).length} derived and re-derived (${Object.keys(DERIVED).join(", ")}), ` +
       `${Object.keys(TS_ONLY).length} declared TS-only (${Object.keys(TS_ONLY).join(", ")}), ` +
-      `${Object.keys(EXPANSIONS).length} array expansion(s) checked.`,
+      `${Object.keys(EXPANSIONS).length} array expansion(s) checked. ` +
+      `Every declared name was confirmed present in the module.`,
   );
 }
