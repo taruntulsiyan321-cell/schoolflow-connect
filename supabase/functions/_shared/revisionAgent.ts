@@ -19,7 +19,7 @@ export async function handleRevisionAgentRequest(body: Record<string, unknown>):
       headline: "Revision queue is clear",
       today_plan: [],
       total_minutes: 0,
-      priority_note: "Complete practice or DPPs to populate your revision plan.",
+      priority_note: "Complete practice or tests to populate your revision plan.",
       source: "rule",
     });
   }
