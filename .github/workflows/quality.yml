@@ -29,6 +29,30 @@ jobs:
       - run: npx tsc --noEmit -p tsconfig.app.json
       # Full suite, not the old hand-picked 8/35 files.
       - run: npm run test
+      # Credential-free half of the two-homes check (added 2026-08-30).
+      #
+      # The recovery constants live in a TypeScript module AND in the
+      # recovery_constants table, because a database function cannot import a
+      # module and §10 forbids literals in either. There is no third option, so
+      # what the design needs is a check: if RECOVERY_TRIGGER_COUNT is 5 in the
+      # table and 8 in the module nothing errors, recovery fires at one
+      # threshold, the UI describes another, and the first person to notice is a
+      # confused student.
+      #
+      # Comparing the two homes needs SUPABASE_ACCESS_TOKEN, which this repo's
+      # Actions secrets do not have (same blocker as the two commented-out gates
+      # below). --offline runs the half that does not: parse completeness,
+      # declared-key presence, the derivation check, array arity. That is not a
+      # consolation prize -- the one hole this gate actually shipped with
+      # (RECOVERY_SESSION_SIZE written as a literal instead of the sum of the
+      # four tiers) is in the offline half. It never prints that the two homes
+      # agree, because it did not look.
+      - run: npm run check:recovery-constants:offline
+      # The gate's own negative control. It shipped green and blind to 2 of 8
+      # drift shapes; only running the control found that. Without this line the
+      # gate above can rot back into passing on input it should reject, and
+      # nothing would say so.
+      - run: npm run check:recovery-constants:negative
       # Static, credential-free: flags any function touching a school-scoped
       # table with zero school_id reference -- the exact pattern that caused
       # the match_question_bank / match_ai_answer_cache cross-school leak.
