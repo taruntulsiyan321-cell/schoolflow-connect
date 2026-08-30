@@ -178,12 +178,9 @@ for (const [key, rule] of Object.entries(DERIVED)) {
   const missing = rule.inputs.filter((i) => !expr.includes(i));
   if (missing.length) {
     console.error(
-      `${key} must BE ${rule.how} in the source, not merely equal it.
-` +
-        `  found:   ${key} = ${expr}
-` +
-        `  missing: ${missing.join(", ")}
-` +
+      `${key} must BE ${rule.how} in the source, not merely equal it.\n` +
+        `  found:   ${key} = ${expr}\n` +
+        `  missing: ${missing.join(", ")}\n` +
         `  Written as a literal it is right until a tier is tuned, and then nothing catches it.`,
     );
     process.exit(1);
