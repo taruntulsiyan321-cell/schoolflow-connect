@@ -17,6 +17,7 @@
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { queryRows, describeConnection, closeConnection } from "./lib/readonly-db.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -48,15 +49,15 @@ if (!TOKEN) {
   process.exit(1);
 }
 
+// Reads through scripts/lib/readonly-db.mjs. This script's own header says it
+// needs access that "bypasses RLS ... to check things RLS would otherwise hide,
+// like cross-tenant leaks or orphaned rows with a null owner column" -- which is
+// exactly why gurukul_ci_readonly is created WITH BYPASSRLS. Without it an
+// assertion like "no finished participant retains a correct answer" would return
+// zero rows because the role cannot SEE them, not because none exist, and every
+// one of these checks would pass by being blind.
 async function query(sql) {
-  const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query: sql }),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(text.slice(0, 500));
-  return JSON.parse(text);
+  return queryRows(sql);
 }
 
 let failures = 0;

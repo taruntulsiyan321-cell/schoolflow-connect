@@ -26,6 +26,7 @@
  *     tooling too)
  */
 import { readFileSync, existsSync } from "fs";
+import { queryRows, connectionMode, describeConnection, closeConnection } from "./lib/readonly-db.mjs";
 
 /**
  * Overridable so the negative control can point at a deliberately broken copy
@@ -219,40 +220,24 @@ function fail(lines) {
 const dbValues = new Map();
 let dbRead = false;
 
+let connection = "not attempted";
 if (!OFFLINE) {
-if (existsSync(".env.local")) {
-  for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
-    if (!m || process.env[m[1]] !== undefined) continue;
-    let v = m[2].trim();
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))
-      v = v.slice(1, -1);
-    process.env[m[1]] = v;
-  }
-}
-
-const REF = process.env.VITE_SUPABASE_PROJECT_ID || "psqxykzqfvxgsvkmgurn";
-const MGMT = process.env.SUPABASE_ACCESS_TOKEN;
-if (!MGMT) {
+if (connectionMode() === "none") {
   console.error(
-    "No SUPABASE_ACCESS_TOKEN in .env.local, so the two homes cannot be compared.\n" +
-      "  Run with --offline to check the module half only — that is a narrower claim, and it says so.",
+    "No database credential, so the two homes cannot be compared.\n" +
+      "  CI_READONLY_DATABASE_URL is the read-only role and the one CI should use.\n" +
+      "  SUPABASE_ACCESS_TOKEN is the local convenience path.\n" +
+      "  Or run with --offline to check the module half only — a narrower claim, and it says so.",
   );
   process.exit(2);
 }
-
-const res = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
-  method: "POST",
-  headers: { Authorization: `Bearer ${MGMT}`, "Content-Type": "application/json" },
-  body: JSON.stringify({ query: "SELECT key, value FROM public.recovery_constants ORDER BY key" }),
-});
-const text = await res.text();
+connection = describeConnection();
 
 let rows;
 try {
-  rows = JSON.parse(text);
-} catch {
-  fail(`could not read recovery_constants: HTTP ${res.status} ${text.slice(0, 200)}`);
+  rows = await queryRows("SELECT key, value FROM public.recovery_constants ORDER BY key");
+} catch (e) {
+  fail(`could not read recovery_constants via ${connection}: ${e.message.slice(0, 300)}`);
 }
 
 if (process.exitCode !== 1 && (!Array.isArray(rows) || rows.length === 0)) {
@@ -264,8 +249,9 @@ if (process.exitCode !== 1 && (!Array.isArray(rows) || rows.length === 0)) {
 }
 
 if (Array.isArray(rows)) for (const r of rows) dbValues.set(r.key, Number(r.value));
-// Only a fetch that actually produced rows licenses the comparison below.
+// Only a read that actually produced rows licenses the comparison below.
 dbRead = process.exitCode !== 1;
+await closeConnection();
 }
 
 // ── Compare ────────────────────────────────────────────────────────────────
@@ -363,6 +349,7 @@ if (problems.length) {
       `${Object.keys(DERIVED).length} derived and re-derived (${Object.keys(DERIVED).join(", ")}), ` +
       `${Object.keys(TS_ONLY).length} declared TS-only (${Object.keys(TS_ONLY).join(", ")}), ` +
       `${Object.keys(EXPANSIONS).length} array expansion(s) checked. ` +
-      `Every declared name was confirmed present in the module.`,
+      `Every declared name was confirmed present in the module.\n` +
+      `  read via: ${connection}`,
   );
 }

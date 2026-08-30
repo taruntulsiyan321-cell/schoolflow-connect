@@ -2,6 +2,7 @@
  * Probe live Supabase for migration markers. No secrets printed.
  */
 import { readFileSync, existsSync } from "fs";
+import { queryRows } from "./lib/readonly-db.mjs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -57,15 +58,14 @@ const MARKERS = [
   { id: "20260620000000", label: "Practice session persistence fix", sql: "SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='question_attempts' AND column_name='template_id' AND is_nullable='YES' LIMIT 1" },
 ];
 
-async function queryManagement(token, sql) {
-  const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query: sql }),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`API ${res.status}: ${text.slice(0, 200)}`);
-  return JSON.parse(text);
+// Reads through scripts/lib/readonly-db.mjs, which prefers
+// CI_READONLY_DATABASE_URL (the gurukul_ci_readonly role, read-only enforced by
+// the database) and falls back to the Management API locally. The `token`
+// parameter is kept so every existing call site stays valid; it is unused,
+// because which credential to use is now the shared module's decision rather
+// than each gate's.
+async function queryManagement(_token, sql) {
+  return queryRows(sql);
 }
 
 async function tableExists(url, key, table, select = "id") {
