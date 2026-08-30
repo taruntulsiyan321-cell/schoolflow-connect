@@ -50,7 +50,20 @@ export type GenerateStructuredOptions = {
 };
 
 export type AiResult<T> =
-  | { ok: true; data: T; source: "openrouter_qwen" }
+  | {
+      ok: true;
+      data: T;
+      /** Which model actually answered. This was hardcoded to "openrouter_qwen"
+       *  regardless, which is wrong in the case that matters for money: the
+       *  primary model is a FREE Nemotron tier and Qwen is the paid fallback,
+       *  so a cost figure built on the old value would bill every free call. */
+      source: "openrouter_nemotron" | "openrouter_qwen";
+      model_id?: string;
+      /** Real token counts from OpenRouter. modelRouter has always captured
+       *  these; this type dropped them, which is why every cost number in this
+       *  codebase so far has been an estimate rather than a measurement. */
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+    }
   | { ok: false; error: string; status: number };
 
 const DEFAULT_MAX_TOKENS = 1200;
@@ -88,7 +101,13 @@ async function callStructured<T>(
   }
 
   try {
-    return { ok: true, data: extractJson<T>(result.text), source: "openrouter_qwen" };
+    return {
+      ok: true,
+      data: extractJson<T>(result.text),
+      source: result.source,
+      model_id: result.model_id,
+      usage: result.usage,
+    };
   } catch {
     return { ok: false, error: "Model returned invalid JSON", status: 502 };
   }

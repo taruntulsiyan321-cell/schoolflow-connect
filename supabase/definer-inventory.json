@@ -5002,11 +5002,11 @@
       "verifiedBy": "",
       "reviewed": false
     },
-    "dpp-generate-questions": {
-      "readerSet": "public",
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+    "ai-recovery-variants": {
+      "readerSet": "none",
+      "justification": "Background job endpoint (spec 4.1a: nothing is generated while a student watches). It compares the presented bearer token to SUPABASE_SERVICE_ROLE_KEY and returns 403 to everything else, so no user role reaches it. Was dpp-generate-questions with readerSet public and a teacher/admin/principal role gate, which was right for a teacher pressing generate and wrong for a worker that spends money per call.",
+      "verifiedBy": "code: service-key equality check before any work. NOT yet verified by calling as each role, because the function is written but not deployed.",
+      "reviewed": true
     },
     "send-otp": {
       "readerSet": "public",
