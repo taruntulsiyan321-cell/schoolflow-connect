@@ -773,36 +773,30 @@
     "admin_link_user_to_student(_student_id uuid, _email text, _as text)": {
       "name": "admin_link_user_to_student",
       "readerSet": "staff",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "void",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [
         "has_role",
         "same_school"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "admin_link_user_to_teacher(_teacher_id uuid, _email text)": {
       "name": "admin_link_user_to_teacher",
       "readerSet": "staff",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "void",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [
         "has_role",
         "same_school"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "admin_list_users_with_roles()": {
       "name": "admin_list_users_with_roles",
@@ -1000,18 +994,15 @@
     "ai_kms_assert_staff()": {
       "name": "ai_kms_assert_staff",
       "readerSet": "staff",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "uuid",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [
         "has_role"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "refused",
         "teacher": "answered",
@@ -1296,27 +1287,23 @@
     "can_read_mark(_exam_id uuid, _student_id uuid)": {
       "name": "can_read_mark",
       "readerSet": "none",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "boolean",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "my_exam_ids_for_marks",
         "my_readable_mark_student_ids"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "can_read_test(_test_id uuid)": {
       "name": "can_read_test",
       "readerSet": "teacher",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "boolean",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "is_class_of_my_child",
         "is_my_student_record",
@@ -1324,9 +1311,9 @@
         "same_school",
         "teacher_teaches_class"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "can_upload_exam_marks(_exam_subject_id uuid)": {
       "name": "can_upload_exam_marks",
@@ -1586,17 +1573,15 @@
     "get_chat_groups()": {
       "name": "get_chat_groups",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "TABLE(conversation_id uuid, name text, kind text, unread integer, last_message text, last_time timestamp with time zone)",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "get_my_school_id"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "refused",
         "teacher": "refused",
@@ -1699,16 +1684,13 @@
     "get_teacher_directory()": {
       "name": "get_teacher_directory",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "TABLE(id uuid, full_name text, subject text, department text, qualification text, photo_url text, is_class_teacher boolean, class_teacher_of uuid, status text, school_id uuid)",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "answered",
         "teacher": "answered",
@@ -1938,16 +1920,13 @@
     "membership_role_at(_user_id uuid, _school_id uuid)": {
       "name": "membership_role_at",
       "readerSet": "public",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "app_role",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "messages_guard_chat_update()": {
       "name": "messages_guard_chat_update",
@@ -1989,19 +1968,17 @@
     "my_children_class_ids()": {
       "name": "my_children_class_ids",
       "readerSet": "parent",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "uuid[]",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "active_local_person_id",
         "active_membership_role",
         "active_membership_school_id"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "answered",
         "teacher": "answered",
@@ -2013,19 +1990,17 @@
     "my_children_student_ids()": {
       "name": "my_children_student_ids",
       "readerSet": "parent",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "uuid[]",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "active_local_person_id",
         "active_membership_role",
         "active_membership_school_id"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "answered",
         "teacher": "answered",
@@ -2037,18 +2012,15 @@
     "my_class_teacher_class_ids()": {
       "name": "my_class_teacher_class_ids",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "SETOF uuid",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [
         "my_accessible_school_ids"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "answered",
         "teacher": "answered",
@@ -2235,20 +2207,17 @@
     "my_teacher_class_ids()": {
       "name": "my_teacher_class_ids",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "SETOF uuid",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [
         "active_local_person_id",
         "active_membership_role",
         "active_membership_school_id"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "answered",
         "teacher": "answered",
@@ -2376,16 +2345,13 @@
     "progression_league_for_xp(_xp integer, _current_league text)": {
       "name": "progression_league_for_xp",
       "readerSet": "none",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "text",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "protect_profile_tenant_fields()": {
       "name": "protect_profile_tenant_fields",
@@ -2459,16 +2425,13 @@
     "require_active_profile()": {
       "name": "require_active_profile",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "uuid",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "answered",
         "teacher": "answered",
@@ -2480,16 +2443,13 @@
     "rls_auto_enable()": {
       "name": "rls_auto_enable",
       "readerSet": "none",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "event_trigger",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "refused",
         "teacher": "refused",
@@ -2599,12 +2559,9 @@
     "rpc_backfill_question_concepts()": {
       "name": "rpc_backfill_question_concepts",
       "readerSet": "staff",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "jsonb",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [
         "_backfill_battle_question_concepts",
         "_backfill_dpp_question_concepts",
@@ -2612,9 +2569,9 @@
         "_backfill_template_concepts",
         "has_role"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "refused",
         "teacher": "refused",
@@ -2851,17 +2808,15 @@
     "rpc_create_class_group(_class_id uuid, _title text)": {
       "name": "rpc_create_class_group",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "chat_conversations",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "rpc_ensure_class_group"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "rpc_create_community_doubt(_subject text, _chapter text, _concept text, _title text, _body text, _image_url text, _subject_id uuid)": {
       "name": "rpc_create_community_doubt",
@@ -3435,15 +3390,13 @@
     "rpc_mark_group_messages_read(_conversation_id uuid)": {
       "name": "rpc_mark_group_messages_read",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "integer",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "rpc_mark_messages_read(_peer_user_id uuid)": {
       "name": "rpc_mark_messages_read",
@@ -3480,19 +3433,17 @@
     "rpc_open_conversation(_conversation_id uuid, _before timestamp with time zone, _limit integer)": {
       "name": "rpc_open_conversation",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "TABLE(message_id uuid, conversation_id uuid, sender_id uuid, sender_name text, receiver_id uuid, content text, message_type text, reply_to_id uuid, reply_preview text, deleted_at timestamp with time zone, created_at timestamp with time zone, is_read boolean, attachment_id uuid, attachment_url text, attachment_name text, attachment_mime text, attachment_size bigint)",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "get_my_school_id",
         "is_chat_participant",
         "rpc_mark_conversation_read"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "rpc_parent_child_snapshot(_student_id uuid)": {
       "name": "rpc_parent_child_snapshot",
@@ -3634,19 +3585,16 @@
     "rpc_record_concept_mistake(_assessment_type text, _source_id uuid, _question_id uuid, _subject text, _chapter text, _concept text, _subconcept text, _class_level integer, _question_text text, _options jsonb, _student_answer jsonb, _correct_answer jsonb, _explanation text)": {
       "name": "rpc_record_concept_mistake",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "uuid",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [
         "_upsert_concept_mastery",
         "rpc_assign_concept_recovery"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "rpc_record_question_attempt(_correct_answer jsonb, _generated_question jsonb, _is_correct boolean, _selected_answer jsonb, _session_id uuid, _score numeric, _skipped boolean, _template_id uuid, _time_taken_ms integer, _bank_question_id uuid, _hint_used boolean, _source text, _meta jsonb)": {
       "name": "rpc_record_question_attempt",
@@ -3868,46 +3816,40 @@
     "rpc_send_direct_message(_receiver_id uuid, _content text, _reply_to_id uuid, _attachment_url text, _attachment_name text, _attachment_mime text)": {
       "name": "rpc_send_direct_message",
       "readerSet": "none",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "messages",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "get_chat_contacts",
         "get_my_school_id"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "rpc_send_direct_message(_receiver_id uuid, _content text)": {
       "name": "rpc_send_direct_message",
       "readerSet": "none",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "messages",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "rpc_send_chat_message"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "rpc_send_group_message(_conversation_id uuid, _content text, _reply_to_id uuid, _attachment_url text, _attachment_name text, _attachment_mime text)": {
       "name": "rpc_send_group_message",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "messages",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true
     },
     "rpc_set_featured_badges(_badges text[])": {
       "name": "rpc_set_featured_badges",
@@ -4023,18 +3965,15 @@
     "rpc_student_improvement_plans()": {
       "name": "rpc_student_improvement_plans",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "jsonb",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [
         "_weak_topics_for_user"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "answered",
         "teacher": "answered",
@@ -4090,19 +4029,16 @@
     "rpc_student_revision_queue()": {
       "name": "rpc_student_revision_queue",
       "readerSet": "self",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "jsonb",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [
         "_revision_topic_priority",
         "_weak_topics_for_user"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "reviewed": true,
       "observed": {
         "student": "answered",
         "teacher": "answered",
@@ -4606,14 +4542,11 @@
       "readerSet": "public",
       "callability": "trigger",
       "returns": "trigger",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
+      "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
+      "justification": "Returns trigger, so the catalog classes it as a trigger function regardless of attachment. Chunk 9.5 batch 2 also revoked its EXECUTE from anon/authenticated: EXECUTE is not checked when a trigger fires, and this one has not been attached to any table since Chunk 5 (submission locks at the due date, so is_late can never again become true — docs/decisions.md D1).",
+      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql",
+      "reviewed": true
     },
     "tg_homework_submission_lock_at_due()": {
       "name": "tg_homework_submission_lock_at_due",

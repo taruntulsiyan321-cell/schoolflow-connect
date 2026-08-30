@@ -166,6 +166,29 @@ A gate that cannot run must **fail**, not skip.
 guards, confirm it reports failure, restore. A gate never seen to fail is a gate
 never seen to work.
 
+**A declaration is a place the gate stops looking.** Every exemption is a hole
+unless the exemption itself is checked. Found live: a constants gate marked
+`RECOVERY_SESSION_SIZE` as *derived* and `VARIANT_CACHE_FIRST` as *module-only*.
+Both categories meant "skip the comparison" — and the derivation check ran only
+when the value failed to parse, so `= 99` passed with every other key agreeing.
+**An exemption must assert what it promises instead:** *derived* checks the
+derivation, and checks the **form**, not just today's value. *Module-only*
+asserts the name is present.
+
+**A gate must never name something it did not verify exists.** The same gate
+printed `2 declared TS-only (…, VARIANT_CACHE_FIRST)` **after the constant had
+been deleted.** Reporting the presence of something absent is worse than
+reporting nothing.
+
+**Controls need controls.** Point the negative control at the last known-broken
+version of the gate and confirm it reports NOT DETECTED on exactly the cases that
+version missed. A control that has never failed is not known to detect anything.
+
+**Degradation is a flag, never automatic.** An `--offline` mode must be asked
+for: a missing credential without it is a hard failure, not a quieter run. And a
+degraded run must never print the conclusion it skipped — an offline constants
+check cannot report that the two homes agree, because it did not look.
+
 **Scale fixtures belong in their own institution.** Do not inflate the demo
 school to give the timing gate volume — that trades a readable demo for a working
 gate. Seed a second institution at realistic scale instead: the gate gets its
@@ -302,6 +325,37 @@ calls, and the rule that justifies its reader set.
 **Per chunk:** re-run it. **Verify by calling each function as each role**, never
 by reading the body — that is how four of the five above survived a body review.
 
+**And "returned without error" is not "wrote nothing."** Measure the effect, not
+the outcome. Found live: of 58 PUBLIC-executable definer-writers called as an
+ordinary student, 11 refused, 37 died on something else, and **10 completed
+cleanly. Five of those actually wrote** — including `_backfill_battle_question_concepts()`,
+a no-argument function with no caller anywhere, which a signed-in student could
+use to write **749 rows of shared battle data**, repeatably.
+
+Use transaction-local tuple counters (`pg_stat_xact_user_tables`) rather than
+reasoning from the body.
+
+**Two things that will make the probe lie, both found live:**
+
+- **`set_config('request.jwt.claims')` changes what `auth.uid()` returns, not the
+  database role.** Testing a **grant** needs `SET LOCAL ROLE`; testing an
+  **in-function auth check** needs the JWT claim. Conflating them made
+  just-revoked functions report "STILL RUNS".
+- **A `BEGIN … EXCEPTION` block is a subtransaction with its own xid**, so rows
+  matched against `pg_current_xact_id()` are not found and read as "0 rows
+  written."
+
+**Both probes need a control**, because a column of refusals and a column of
+zeros are exactly what a broken harness produces:
+- Before believing a refusal, assert the session really is that role.
+- Before believing a zero write, perform a known INSERT and assert the counter
+  moved.
+
+**Separate live holes from defence-in-depth gaps.** Six admin functions that
+looked worst on paper — definer, writing, staff-declared, PUBLIC-granted — all
+fenced themselves. Reporting 138 contradictions as 138 holes is true and useless.
+**Five were live. Say which.**
+
 ### G12. A policy that times out is a broken feature
 
 **Found live:** the parent panel returned **HTTP 500 in production** — 33 seconds
@@ -388,6 +442,11 @@ A failure gets investigated. A false pass closes the question.
   then play. The test reported **nine successful finishes while producing 1/5
   instead of 5/5**, so a count-only check would have passed it. Seed the way the
   application actually writes, in the order it actually writes.
+- **Assert against the subject that actually matters.** A check can be
+  well-formed, pass, and prove nothing about the thing you meant. Found live: a
+  verification asked whether `PUBLIC` could execute a function while every signed-
+  in user held an explicit `authenticated` grant. **Green gate, zero change,
+  everyone believing the hole was closed** — worse than never running it.
 - **When rewriting, verify against the OLD behaviour, not the new code.**
   A rewrite check that compares the new implementation to its own logic proves
   only that it is self-consistent. Reproduce the predicate being replaced as
@@ -1678,6 +1737,101 @@ completion. Practice data is the bulk of the volume.
 7. Year-end export produces a complete archive; deletion removes what was chosen.
 
 **STOP. Wait for approval.**
+
+---
+
+# CHUNK 9.5 — REVOKE EXECUTE FROM PUBLIC
+
+**The largest remaining security surface. Close it before any school sees the
+app.**
+
+**305 of 441 functions in `public` are EXECUTE-able by `PUBLIC`. 157 of those are
+`SECURITY DEFINER`.**
+
+`PUBLIC` reaches `anon` and `authenticated`, so **every signed-in user can call
+all 157 today** — and Postgres has no deny-grant, so no `GRANT` written elsewhere
+can take that away. G13 exists precisely because five definer functions turned
+out not to fence themselves; this is the same question asked 157 times.
+
+### Do
+
+1. **Report first.** All 305, grouped: which are definers, which write, which are
+   internal helpers that should never have been exposed, which are genuinely
+   called by the client.
+2. **Cross-reference the G13 inventory.** Any function whose declared reader set
+   is narrower than `PUBLIC` is already contradicting itself.
+3. **Revoke from `PUBLIC`, `anon` AND `authenticated`.**
+
+   **CORRECTION — revoking from PUBLIC alone closes almost nothing.** 290 of the
+   305 hold an **explicit** `authenticated` grant and 276 an explicit `anon`
+   grant. Explicit grants are not inherited through `PUBLIC` and are not removed
+   by revoking from it. Revoking only from PUBLIC leaves every signed-in user
+   calling them exactly as before — **while making
+   `has_function_privilege('public', ...)` false**, so the verification passes and
+   nothing changed. Then grant back explicitly, per function, to the narrowest
+   role that needs it.
+
+4. **Set the default DATABASE-WIDE, not schema-scoped.**
+
+   **CORRECTION — `ALTER DEFAULT PRIVILEGES IN SCHEMA public` silently fails
+   here.** Schema-scoped defaults are *added* to the global ones, and Postgres's
+   built-in EXECUTE-to-PUBLIC grant lives in the **global** default — so
+   revoking it inside a schema removes something that schema never granted.
+   `pg_default_acl` reads correctly afterwards while new functions still come out
+   `=X/postgres`. Use the database-wide form.
+
+5. **"No client caller" is not "no caller." Before revoking EXECUTE, ask what
+   evaluates this function AS THE CALLER.** None of these is a `.rpc()` call and
+   none appears in a client grep:
+
+   | Caller class | Why it breaks | Found |
+   |---|---|---|
+   | **RLS policy expressions** | Evaluated as the querying user | **31 in batch 2** — `same_school` alone is called by policies on **82 of 140 tables** |
+   | **`INVOKER` function bodies** | Inner calls checked against the end user | `_recovery_chapter_is_mine`, `_recovery_variant_pool`, `_recovery_const` |
+   | **Extension functions** | Invoked by operators, not by name | **114 pgvector functions** live in `public` |
+   | **Column `DEFAULT`s** | Evaluated on insert as the inserter | `gen_random_uuid` — **121 columns**; safe only because it lives in `pg_catalog` |
+   | **`CHECK` constraints** | Evaluated on write | — |
+   | **Index expressions** | Evaluated on write and on plan | HNSW / IVFFlat handlers |
+   | **Generated columns** | Evaluated on write | — |
+
+   **This failure is deferred, which makes it the worst kind.** The revoke
+   succeeds. Nothing reports an error. Every read of those 82 tables begins
+   returning permission denied — later, elsewhere, in production.
+
+   A comment already in the codebase from Chunk 6.7 warned about exactly this:
+   *"a routine REVOKE … FROM PUBLIC hardening step would stop every fenced query
+   for every end user."* **It was only useful because someone measured before
+   acting.**
+
+   **Corrected batch 2 is ~98, not 205.** Compute the population from the
+   database, not from a client grep, and write each exclusion in as a named class
+   with its count.
+
+6. Update the G13 inventory so declared reader sets and actual grants agree.
+
+### Verify
+
+1. **Zero functions EXECUTE-able by `authenticated`** — not by `public`.
+   Asserting against `public` passes while every signed-in user retains access.
+   Assert the subject that actually matters.
+2. **Every role can still do everything it could before** — full smoke across all
+   five roles, plus the seed, plus every verification file. **A revoke that
+   breaks a teacher's attendance screen is worse than the exposure it closed.**
+3. Call every previously-public definer as `anon` and as an unrelated
+   `authenticated` user; each must be refused unless explicitly granted.
+3a. **Read a fenced table as a real student and assert rows come back.** Not the
+    catalog — the actual read. A revoke that breaks RLS shows up nowhere else,
+    and every one of the 31 policy-called functions would pass a catalog check
+    while the app was returning permission denied.
+4. The default privilege holds: **create a throwaway function and read the ACL it
+   actually received** — do not read `pg_default_acl` and infer. The catalog read
+   correctly while new functions were still being granted to PUBLIC.
+5. G13 passes with no `UNDECLARED grant` findings.
+
+**This is a permissions change across 305 objects. Batch it, and run the full
+gate set after each batch.**
+
+**STOP after each batch.**
 
 ---
 
