@@ -210,6 +210,19 @@ you did not write feels like evidence.
 Note also: **`strictNullChecks` is off**, so `number | null` is not enforced by
 the compiler. Discriminated unions must carry that weight instead.
 
+**A baseline must be derived by the detector that will check against it.** Found
+live: a threshold-literal baseline transcribed from an earlier survey grep
+disagreed with its own detector on **16 of 36 entries**. A baseline from a
+different tool is not a baseline — it is a second opinion the gate will now
+enforce as truth. Derive it with `--baseline` from the detector itself.
+
+**A semantic gate's vocabulary must name the metric, not the unit.** `pct`,
+`percent` and `rate` describe units and matched every progress bar. `attendance`,
+`homework`, `marks` describe the thing being measured.
+
+**Baseline gates fail on growth, not on the backlog.** A gate red for weeks gets
+ignored, and then its real findings go with it.
+
 **A gate must state its own scope.** Report what it **could not check**, never
 silently skip it. This gate reports 2,280 references as not-checkable, so
 "clean" means something bounded rather than something absolute. A gate that
@@ -2121,6 +2134,22 @@ figure not traceable to a query. `PrincipalTeachers.tsx` and
 **And more than one implementation of a screen is G9 at the UI layer.** Three
 principal dashboards existed, two unrouted. One survives; the rest are deleted,
 not left imported.
+
+**Half-real data is more dangerous than wholly-mock data.** Found live:
+`PrincipalDashboardImproved` claimed 847 students against a real 13 — obviously
+wrong, caught on first sight. `PrincipalTeachers` loaded **real teacher names**
+and gave every one of them the **same invented row** — Mathematics and Physics,
+4 sections, 18 homework, 6 tests. That survives review, because half-true reads
+as data.
+
+**Sweep for uniformity, not just for obviously wrong values.** Identical figures
+across rows that should differ is the signature. And check every screen a role
+can reach, not the ones the code contains — a dashboard nobody routed is a
+dashboard nobody checked.
+
+**A stub that satisfies a condition makes its check unfailable.**
+`setUnmarked([])` behind a TODO meant the unmarked-classes block showed clean
+permanently, with nothing to flag it. Same shape as an empty catch, one layer up.
 
 **Stale claims in user-facing copy.** Found live: the landing page shows a
 "1 Leave" counter for a status the product no longer has. Sweep marketing copy,

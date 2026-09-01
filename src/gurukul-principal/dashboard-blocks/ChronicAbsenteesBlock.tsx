@@ -3,6 +3,9 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { UserX, ChevronDown, ChevronUp } from 'lucide-react'
+import { ATTENDANCE_LOW } from '@/academic/metrics/thresholds'
+import { studentAttendance } from '@/academic/metrics/attendance'
+import { valueOr } from '@/academic/metrics/types'
 
 interface ChronicAbsentee {
   studentId: string
@@ -12,7 +15,17 @@ interface ChronicAbsentee {
   attendancePct: number
 }
 
-const CHRONIC_THRESHOLD = 75
+/**
+ * CHUNK 10. This was `const CHRONIC_THRESHOLD = 75` — the FOURTH site declaring
+ * an attendance threshold, at a fourth number, after NeedsAttentionBlock (75),
+ * ClassWatchlist (75) and design-tokens (75), against a module that says 80.
+ *
+ * And "chronic" is not a second threshold. It was 80 over the year while
+ * ATTENDANCE_LOW is 80 over the reporting window — which, since terms were
+ * dropped, IS the year. One number, one period. "Chronic absentee" is a
+ * PRESENTATION of "below the attendance threshold", so it presents that.
+ */
+const CHRONIC_THRESHOLD = ATTENDANCE_LOW
 
 export function ChronicAbsenteesBlock() {
   const { school } = useAuth()
@@ -57,9 +70,21 @@ export function ChronicAbsenteesBlock() {
 
           if (attendanceRecords && attendanceRecords.length > 0) {
             const presentDays = attendanceRecords.filter(r => r.status === 'present').length
-            const attendancePct = (presentDays / attendanceRecords.length) * 100
+            // studentAttendance, not a local division: one definition of
+            // "present ÷ marked", and it returns not_marked rather than 0% when
+            // the register is empty. The length > 0 guard above stops the NaN;
+            // the STATE is what keeps an unmarked student off a list headed
+            // "chronic absentee".
+            const attendancePct = valueOr(
+              studentAttendance({
+                studentId: student.id,
+                present: presentDays,
+                total: attendanceRecords.length,
+              }),
+              null,
+            )
 
-            if (attendancePct < CHRONIC_THRESHOLD) {
+            if (attendancePct !== null && attendancePct < CHRONIC_THRESHOLD) {
               chronicList.push({
                 studentId: student.id,
                 studentName: student.full_name,
@@ -221,7 +246,12 @@ export function ChronicAbsenteesBlock() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {students.map((student) => {
-          const color = student.attendancePct < 50 ? '#dc2626' : student.attendancePct < 65 ? '#ef4444' : '#f59e0b'
+          // Severity shades WITHIN the threshold, not thresholds: every student
+          // in this list is already below ATTENDANCE_LOW, and these only decide
+          // how red the row is. Named so they are not read as a second rule.
+          const SEVERE = 50
+          const VERY_LOW = 65
+          const color = student.attendancePct < SEVERE ? '#dc2626' : student.attendancePct < VERY_LOW ? '#ef4444' : '#f59e0b'
 
           return (
             <button

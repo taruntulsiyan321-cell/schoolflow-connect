@@ -10,6 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import "@/pages/teacher/teacher-premium.css";
 import { BarChart3, Users, TrendingUp, TrendingDown, ClipboardCheck } from "lucide-react";
+import { ATTENDANCE_LOW, HOMEWORK_LOW } from "@/academic/metrics/thresholds";
+
+/**
+ * A marks band, NOT a threshold. Nothing fires on it and the build document does
+ * not name it — below-pass is exams.passing_marks, per exam. Named here so the
+ * number is not loose in a filter, and deliberately not folded into the
+ * thresholds module, which holds only numbers that trigger something.
+ */
+const MARKS_WEAK = 50;
 
 interface StudentPerf {
   id: string;
@@ -165,11 +174,19 @@ export default function StudentPerformancePage() {
   const classAvgMarks = students.length
     ? Math.round(students.reduce((s, st) => s + st.avgMarks, 0) / students.length)
     : 0;
-  const atRiskCount = students.filter((s) => s.attendancePct < 75 || s.avgMarks < 50).length;
+  // A student with no attendance record and no marks is not "at risk" — nobody
+  // has measured them. Counting them makes the risk figure grow as the register
+  // is left unmarked, which is precisely backwards.
+  const atRiskCount = students.filter(
+    (s) => (s.totalDays > 0 && s.attendancePct < ATTENDANCE_LOW) || (s.avgMarks > 0 && s.avgMarks < MARKS_WEAK),
+  ).length;
   const improvingCount = students.filter((s) => s.trend === "up").length;
   const selected = students.find((student) => student.id === selectedId) ?? filtered[0] ?? students[0];
   const selectedRisk =
-    selected && (selected.attendancePct < 75 || selected.avgMarks < 50 || selected.trend === "down");
+    selected &&
+    ((selected.totalDays > 0 && selected.attendancePct < ATTENDANCE_LOW) ||
+      (selected.avgMarks > 0 && selected.avgMarks < MARKS_WEAK) ||
+      selected.trend === "down");
 
   return (
     <div className="teacher-premium tp-shell space-y-5">
@@ -302,7 +319,7 @@ export default function StudentPerformancePage() {
                 <div>
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="text-muted-foreground">Attendance</span>
-                    <span className={`font-medium ${s.attendancePct >= 75 ? "text-accent" : "text-warning"}`}>
+                    <span className={`font-medium ${s.attendancePct >= ATTENDANCE_LOW ? "text-accent" : "text-warning"}`}>
                       {s.attendancePct}%
                     </span>
                   </div>

@@ -248,6 +248,46 @@ if (SELF_TEST) {
   );
   console.log(`Thresholds may be declared in exactly one place: ${ALLOWED.join(", ")}`);
 
+  // --disagreements: the same metric compared against DIFFERENT numbers.
+  //
+  // 197 findings is a backlog. This is the part of it that is a live defect
+  // rather than a style violation: a screen flagging attendance below 75 while
+  // another flags below 80 is not "a literal to tidy up", it is two screens
+  // disagreeing about whether a class needs attention. Every instance of this
+  // found so far — NeedsAttentionBlock, ClassWatchlist, design-tokens — was
+  // invisible until something compared them, which is exactly what this does.
+  if (argv.includes("--disagreements")) {
+    const byMetric = new Map();
+    for (const f of all) {
+      if (f.kind !== "comparison") continue;
+      // The metric being compared, normalised: the last segment of the chain.
+      const leaf = (f.name.split(/[.?]/).filter(Boolean).pop() ?? f.name).toLowerCase();
+      const e = byMetric.get(leaf) ?? new Map();
+      e.set(f.value, [...(e.get(f.value) ?? []), f.file]);
+      byMetric.set(leaf, e);
+    }
+    const split = [...byMetric.entries()]
+      .filter(([, values]) => values.size > 1)
+      .sort((a, b) => b[1].size - a[1].size);
+
+    if (split.length === 0) {
+      console.log("\nno metric is compared against two different numbers.");
+    } else {
+      console.log(
+        `\n${split.length} METRIC(S) COMPARED AGAINST DIFFERENT NUMBERS — each is two\n` +
+          `screens disagreeing about the same question:\n`,
+      );
+      for (const [metric, values] of split) {
+        console.log(`  ${metric}`);
+        for (const [value, files] of [...values.entries()].sort((a, b) => Number(a[0]) - Number(b[0]))) {
+          console.log(`    ${String(value).padStart(5)}  ${[...new Set(files)].join(", ")}`);
+        }
+      }
+      process.exitCode = 1;
+    }
+    process.exit(process.exitCode ?? 0);
+  }
+
   if (all.length === 0) {
     console.log(
       `\nno threshold literal in component code. Bounded: this covers literals compared\n` +

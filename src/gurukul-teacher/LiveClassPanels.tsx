@@ -47,6 +47,7 @@ import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepos
 import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 import { useResetOnIdentityChange } from "@/hooks/useInitialLoadGate";
+import { ATTENDANCE_LOW, HOMEWORK_LOW } from "@/academic/metrics/thresholds";
 
 export {
   LiveHomeworkTab,
@@ -479,7 +480,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                 {
                   label: "Attendance",
                   value: selected.attendancePct == null ? "—" : `${selected.attendancePct}%`,
-                  warn: selected.attendancePct != null && selected.attendancePct < 75,
+                  warn: selected.attendancePct != null && selected.attendancePct < ATTENDANCE_LOW,
                 },
                 {
                   label: "Homework",
@@ -488,7 +489,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                       ? "—"
                       : `${selected.homeworkCompletionPct}%`,
                   warn:
-                    selected.homeworkCompletionPct != null && selected.homeworkCompletionPct < 50,
+                    selected.homeworkCompletionPct != null && selected.homeworkCompletionPct < HOMEWORK_LOW,
                 },
                 {
                   label: "Pending HW",
@@ -721,8 +722,8 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       <div className="space-y-2">
         {filtered.map((s) => {
           const flag =
-            (s.attendancePct != null && s.attendancePct < 75) ||
-            (s.homeworkCompletionPct != null && s.homeworkCompletionPct < 50) ||
+            (s.attendancePct != null && s.attendancePct < ATTENDANCE_LOW) ||
+            (s.homeworkCompletionPct != null && s.homeworkCompletionPct < HOMEWORK_LOW) ||
             (s.testsAvgPct != null && s.testsAvgPct > 0 && s.testsAvgPct < 40);
           return (
             <button
@@ -2602,7 +2603,12 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   const lowAttendance = useMemo(
     () =>
       profiles
-        .filter((p) => p.attendancePct < 75)
+        // attendanceTotal > 0 is not optional here. A student nobody has marked
+        // carries attendancePct = 0, and without this guard they head a list
+        // titled "low attendance" — the school-average defect at student level.
+        // The "doing well" list below already guarded this way; the list that
+        // names children as a problem did not.
+        .filter((p) => p.attendanceTotal > 0 && p.attendancePct < ATTENDANCE_LOW)
         .sort((a, b) => a.attendancePct - b.attendancePct)
         .slice(0, 8),
     [profiles],
@@ -2613,8 +2619,12 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       profiles
         .filter(
           (p) =>
-            p.homeworkCompletionPct < 70 ||
-            (p.homeworkAssigned > 0 && p.homeworkSubmitted < p.homeworkAssigned),
+            // homeworkAssigned > 0 on BOTH arms. The second arm already had it;
+            // the first did not, so a student with nothing assigned carried
+            // homeworkCompletionPct = 0 and appeared as pending work.
+            p.homeworkAssigned > 0 &&
+            (p.homeworkCompletionPct < HOMEWORK_LOW ||
+              p.homeworkSubmitted < p.homeworkAssigned),
         )
         .sort((a, b) => a.homeworkCompletionPct - b.homeworkCompletionPct)
         .slice(0, 8),
@@ -2744,8 +2754,13 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         why: "Strong homework completion",
       });
     }
+    // Not a threshold: nothing fires on it and the build document does not name
+    // it. It is the cut for a "doing well" list, so it is named and local rather
+    // than folded into the thresholds module, which holds only numbers that
+    // trigger something.
+    const ATTENDANCE_EXCELLENT = 95;
     const perfectAtt = profiles
-      .filter((p) => p.attendancePct >= 95 && p.attendanceTotal > 0)
+      .filter((p) => p.attendancePct >= ATTENDANCE_EXCELLENT && p.attendanceTotal > 0)
       .sort((a, b) => b.attendancePct - a.attendancePct)
       .slice(0, 5);
     for (const p of perfectAtt) {
@@ -2763,8 +2778,14 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   const interventionRows = useMemo((): DecisionRow[] => {
     const scored = profiles.map((p) => {
       const flags: string[] = [];
-      if (p.attendancePct < 75) flags.push("low attendance");
-      if (p.homeworkCompletionPct < 70 || p.homeworkSubmitted < p.homeworkAssigned)
+      // Same guard, same reason: an unmarked register is not poor attendance,
+      // and homework nobody set is not homework nobody did.
+      if (p.attendanceTotal > 0 && p.attendancePct < ATTENDANCE_LOW)
+        flags.push("low attendance");
+      if (
+        p.homeworkAssigned > 0 &&
+        (p.homeworkCompletionPct < HOMEWORK_LOW || p.homeworkSubmitted < p.homeworkAssigned)
+      )
         flags.push("missing homework");
       if (
         (p.testsAvgPct > 0 && p.testsAvgPct < 40) ||

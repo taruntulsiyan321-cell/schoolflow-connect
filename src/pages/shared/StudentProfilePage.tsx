@@ -17,6 +17,7 @@ import { XPRing } from "@/components/battleground/bg-bits";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
 import MyFeesPage from "@/pages/shared/MyFeesPage";
 import { cn } from "@/lib/utils";
+import { ATTENDANCE_LOW, HOMEWORK_LOW } from "@/academic/metrics/thresholds";
 
 type SubjectStrength = { subject: string; pct: number };
 
@@ -290,7 +291,7 @@ export default function StudentProfilePage() {
             icon={<ClipboardCheck className="w-5 h-5" />}
             label="Attendance"
             value={`${attendancePct}%`}
-            tone={attendancePct >= 75 ? "accent" : "warning"}
+            tone={attendancePct >= ATTENDANCE_LOW ? "accent" : "warning"}
           />
           <StatCard
             icon={<Wallet className="w-5 h-5" />}

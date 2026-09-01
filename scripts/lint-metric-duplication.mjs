@@ -68,7 +68,6 @@ const BASELINE = [
   "src/academic/services/practiceService.ts",
   "src/components/student/analytics/AnalyticsStudio.tsx",
   "src/gurukul-parent/ParentLiveAcademic.tsx",
-  "src/gurukul-principal/dashboard-blocks/ChronicAbsenteesBlock.tsx",
   "src/gurukul-principal/dashboard-drilldowns/AttendanceDrillDown.tsx",
   "src/gurukul/pages/Analysis.tsx",
   "src/gurukul/pages/MistakeBook.tsx",
@@ -88,7 +87,7 @@ const BASELINE = [
   "src/pages/student/Battleground.tsx",
   "src/pages/student/RecoverySessionResult.tsx",
   "src/pages/student/TestResult.tsx",
-]; // 25 site(s)
+]; // 24 site(s)
 
 function walk(dir, out = []) {
   if (!existsSync(dir)) return out;
