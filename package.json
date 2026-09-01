@@ -40,7 +40,9 @@
     "lint:stale-columns:dpp": "node scripts/lint-stale-columns.mjs --scope tests,test_questions,test_attempts,test_answers,student_mistakes,question_attempts,recovery_assignments,progression_history,academic_daily_activity,dpps,dpp_answers,dpp_attempts,dpp_questions --dropped dpps,dpp_answers,dpp_attempts,dpp_questions",
     "typecheck": "tsc -b --force",
     "lint:threshold-literals": "node scripts/lint-threshold-literals.mjs",
-    "lint:threshold-literals:self-test": "node scripts/lint-threshold-literals.mjs --self-test"
+    "lint:threshold-literals:self-test": "node scripts/lint-threshold-literals.mjs --self-test",
+    "lint:metric-duplication": "node scripts/lint-metric-duplication.mjs",
+    "lint:metric-duplication:self-test": "node scripts/lint-metric-duplication.mjs --self-test"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

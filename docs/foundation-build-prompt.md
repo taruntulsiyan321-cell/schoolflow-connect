@@ -104,7 +104,7 @@ time, and they catch what a chunk broke somewhere else.
 
 | Gate | Command | Must be |
 |---|---|---|
-| Types | `tsc` | 0 errors |
+| Types | `tsc -b --force` | 0 errors — **NOT `tsc --noEmit`** |
 | Build | `npm run build` | clean |
 | Tests | full suite | all passing |
 | DB integrity | repo integrity checker | 0 failures |
@@ -157,6 +157,17 @@ Analysis was unbuildable and the check was passing against an empty table.
 verification exercises that path end to end. A read verified against zero rows is
 verified against nothing — the same defect as a skipped gate, wearing a table.
 
+**Prove every gate has inputs.** Found live: `npx tsc --noEmit` was reported
+green after **twenty-plus chunks** and had never checked anything — the root
+`tsconfig.json` is solution-style (`"files": []` plus references), so it ran over
+an empty set. A gate with no inputs reports success indefinitely.
+
+**For every gate, once: introduce a deliberate defect and confirm it fails.**
+For a typechecker, add `const x: number = "nope"` and confirm the error. `tsc -b
+--force` is the form that reads the references. This is the same rule as
+"controls need controls", applied to the gates themselves rather than what they
+guard.
+
 **A skipped check is not a passing check.** Found live: the smoke gate reported
 "5 skipped / PASS" without `SMOKE_SESSIONS` and exited 0 — asserting nothing
 while reporting success. Same shape as a swallowed catch, one level up.
@@ -183,6 +194,21 @@ being dead — and when the column reference is repaired, that control executes 
 production for the first time, unexercised.
 **After shipping a security fix, prove the fixed path ran**, by calling it and
 asserting the outcome. Reading the code confirms only that the fix was written.
+
+**Prove the gate has inputs.** Found live, and it had been green for twenty
+chunks: `npx tsc --noEmit` against a solution-style `tsconfig.json`
+(`"files": []` plus `references`) **has no inputs and checks nothing.** Every
+"tsc 0" reported since the beginning was vacuous. Replaced with `tsc -b --force`,
+which caught a real defect in the very commit that fixed it.
+
+**Before trusting any gate, plant a deliberate violation and confirm it fails.**
+A gate with no inputs and a gate with no findings produce identical output. This
+is the negative-control rule applied to the gate's *reach* rather than its logic —
+and it is the check most likely to be skipped, because a green result from a gate
+you did not write feels like evidence.
+
+Note also: **`strictNullChecks` is off**, so `number | null` is not enforced by
+the compiler. Discriminated unions must carry that weight instead.
 
 **A gate must state its own scope.** Report what it **could not check**, never
 silently skip it. This gate reports 2,280 references as not-checkable, so
@@ -2078,6 +2104,23 @@ only thing that surfaced it.
 confirm `security_invoker = true` on views, and that definers fence themselves.
 A view without it inherits its owner's rights and becomes a hole around every
 policy on its base tables.
+
+**Mock data in a routed screen.** Found live: `/principal` renders a dashboard of
+**entirely invented numbers** — "847 students, 792 present, +2.3% from
+yesterday", named teachers, four fabricated class rows — in a school with 13
+students. The two dashboards that actually compute were imported and never
+routed.
+
+**This is worse than a broken screen.** A broken screen gets reported. A screen
+of plausible fabricated numbers is believed, and a principal may act on it.
+
+Sweep every routed component for hardcoded arrays, placeholder names, and any
+figure not traceable to a query. `PrincipalTeachers.tsx` and
+`PrincipalClassComparison.tsx` both say "mock data" in the source.
+
+**And more than one implementation of a screen is G9 at the UI layer.** Three
+principal dashboards existed, two unrouted. One survives; the rest are deleted,
+not left imported.
 
 **Stale claims in user-facing copy.** Found live: the landing page shows a
 "1 Leave" counter for a status the product no longer has. Sweep marketing copy,

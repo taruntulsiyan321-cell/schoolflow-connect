@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AttendanceService, AnalyticsService, useAcademicLive } from '@/academic'
+import { AttendanceService, useAcademicLive } from '@/academic'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { localDateKey } from '@/lib/localDate'
 import { tokens, attendanceColor } from '../design-tokens'
 import { Loader2 } from 'lucide-react'
+import { schoolAttendanceToday } from '@/academic/metrics/attendance'
+import { valueOr } from '@/academic/metrics/types'
 
 interface UnmarkedClass {
   classId: string
@@ -22,7 +24,11 @@ export function AttendanceHero() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [presentPct, setPresentPct] = useState(0)
+  // null = not_marked / no_data. NOT 0: a register nobody filled in is not a
+  // school where nobody attended, and this is the headline figure on the
+  // principal's landing page.
+  const [presentPct, setPresentPct] = useState<number | null>(null)
+  const [basis, setBasis] = useState<string>('')
   const [presentCount, setPresentCount] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
   const [unmarked, setUnmarked] = useState<UnmarkedClass[]>([])
@@ -40,25 +46,54 @@ export function AttendanceHero() {
       setError(null)
 
       try {
-        const [school, today] = await Promise.all([
-          AnalyticsService.forSchool(ctx),
-          AttendanceService.summarizeSchoolDate(ctx, localDateKey()),
-        ])
+        // AnalyticsService.forSchool was fetched only for studentCount, which
+        // was the WRONG denominator — the roster rather than the sections that
+        // submitted. The round trip goes with it.
+        const today = await AttendanceService.summarizeSchoolDate(ctx, localDateKey())
 
         if (cancelled) return
 
-        const totalStudents = school.studentCount
-        const presentPct = today?.overallDayRatePct ?? 0
-        const presentStudents = Math.round((presentPct / 100) * totalStudents)
+        // CHUNK 10. Two defects lived in these ten lines, and on screen they
+        // contradicted each other while nothing noticed.
+        //
+        // 1. `today?.overallDayRatePct ?? 0` rendered 0% on a day nobody had
+        //    marked. And overallDayRatePct itself divides present by the WHOLE
+        //    ROSTER rather than by the sections that submitted, so a day where
+        //    one of three sections had marked read as a third of the truth.
+        //    §10: "present ÷ students in sections that submitted".
+        //
+        // 2. setUnmarked([]) sat behind a TODO, so `allMarked` was ALWAYS true
+        //    and the block always printed "✓ All classes marked attendance
+        //    today" — a reassurance that could not fail, sitting directly under
+        //    a 0%. G14: a control that cannot fail is not a control.
+        const byClass = today?.classes ?? []
+        const m = schoolAttendanceToday(
+          byClass.map((c) => ({
+            sectionId: c.classId,
+            submitted: c.marked > 0,
+            present: c.present,
+            enrolled: c.totalStudents,
+          })),
+        )
 
-        setPresentPct(presentPct)
-        setPresentCount(presentStudents)
-        setTotalCount(totalStudents)
+        const submitted = byClass.filter((c) => c.marked > 0)
+        setPresentPct(valueOr(m, null))
+        setBasis(m.basis)
+        setPresentCount(submitted.reduce((a, c) => a + c.present, 0))
+        setTotalCount(submitted.reduce((a, c) => a + c.totalStudents, 0))
 
-        // Extract unmarked classes
-        // TODO: Parse from today.byClass where attendance not yet marked
-        // For now, mock structure — replace with real parsing
-        setUnmarked([])
+        // The real unmarked list, from the same rows the figure came from.
+        setUnmarked(
+          byClass
+            .filter((c) => c.marked === 0)
+            .map((c) => ({
+              classId: c.classId,
+              className: c.className,
+              section: c.section ?? '',
+              subject: '',
+              period: 0,
+            })),
+        )
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load attendance')
@@ -167,7 +202,7 @@ export function AttendanceHero() {
           lineHeight: 1,
           fontVariantNumeric: 'tabular-nums',
         }}>
-          {presentPct}%
+          {presentPct === null ? '—' : `${presentPct}%`}
         </div>
         <p style={{
           fontSize: tokens.fontSize.metric,
@@ -182,7 +217,7 @@ export function AttendanceHero() {
           color: tokens.color.inkMuted,
           margin: `${tokens.space.xs} 0 0`,
         }}>
-          {presentCount} of {totalCount} students
+          {presentPct === null ? basis : `${presentCount} of ${totalCount} students in sections that submitted`}
         </p>
       </button>
 
@@ -222,12 +257,24 @@ export function AttendanceHero() {
                   gap: tokens.space.xs,
                 }}
               >
-                <span style={{ fontWeight: tokens.fontWeight.medium }}>{u.className}</span>
-                <span style={{ color: tokens.color.inkMuted }}>•</span>
-                <span>{u.subject}</span>
-                <span style={{ color: tokens.color.inkMuted }}>•</span>
+                {/*
+                  Subject and period are not known at this level — the summary is
+                  per SECTION per day, not per period. They used to be rendered
+                  unconditionally and printed "• • Period 0" beside every class.
+                  A separator with nothing on either side of it is a field the
+                  screen is claiming to have and does not.
+                */}
+                <span style={{ fontWeight: tokens.fontWeight.medium }}>
+                  {u.className}{u.section ? `-${u.section}` : ''}
+                </span>
+                {u.subject ? (
+                  <>
+                    <span style={{ color: tokens.color.inkMuted }}>•</span>
+                    <span>{u.subject}</span>
+                  </>
+                ) : null}
                 <span style={{ fontSize: tokens.fontSize.small, color: tokens.color.inkMuted }}>
-                  Period {u.period}
+                  {u.period > 0 ? `Period ${u.period}` : ''}
                 </span>
                 {u.teacherName && (
                   <>

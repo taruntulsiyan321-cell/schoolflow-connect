@@ -1,3 +1,5 @@
+import { ATTENDANCE_LOW, HOMEWORK_LOW } from '@/academic/metrics/thresholds'
+
 /**
  * Principal Portal Design System
  *
@@ -69,22 +71,49 @@ export const tokens = {
   },
 } as const
 
-// Status colors (semantic, not decorative)
-export function statusColor(value: number, thresholds: { low: number; medium: number }): string {
+/**
+ * Status colours (semantic, not decorative).
+ *
+ * CHUNK 10. Two things were wrong here and both were invisible.
+ *
+ * `attendanceColor` banded at 75 while the thresholds module — and every other
+ * screen — flags below 80. Third site found with that same disagreement, after
+ * NeedsAttentionBlock and ClassWatchlist. The alert band now comes from the
+ * module; only the "comfortable" stop above it is a display choice.
+ *
+ * And `value: number` accepted null happily, because strictNullChecks is off.
+ * `null < 75` is TRUE in JavaScript, so a metric nobody had measured rendered in
+ * ALERT RED — an unmarked register shown as an emergency. null is now neutral,
+ * which is what "we do not know" should look like.
+ */
+export function statusColor(
+  value: number | null | undefined,
+  thresholds: { low: number; medium: number },
+): string {
+  if (value === null || value === undefined) return tokens.color.inkMuted
   if (value < thresholds.low) return tokens.color.accent
   if (value < thresholds.medium) return tokens.color.warning
   return tokens.color.positive
 }
 
 // Attendance-specific color
-export function attendanceColor(pct: number): string {
-  return statusColor(pct, { low: 75, medium: 85 })
+export function attendanceColor(pct: number | null | undefined): string {
+  return statusColor(pct, { low: ATTENDANCE_LOW, medium: ATTENDANCE_COMFORTABLE })
 }
 
 // Homework-specific color
-export function homeworkColor(pct: number): string {
-  return statusColor(pct, { low: 60, medium: 75 })
+export function homeworkColor(pct: number | null | undefined): string {
+  return statusColor(pct, { low: HOMEWORK_LOW, medium: HOMEWORK_COMFORTABLE })
 }
+
+/**
+ * The upper colour stops. These are NOT thresholds — nothing fires on them and
+ * the build document does not list them; they are the point at which a figure
+ * stops being amber on a chart. Named and kept here rather than folded into the
+ * thresholds module, so that module holds only numbers that trigger something.
+ */
+const ATTENDANCE_COMFORTABLE = 85
+const HOMEWORK_COMFORTABLE = 75
 
 // Time ago formatting (principal-friendly, not social-media)
 export function timeAgo(timestamp: string): string {

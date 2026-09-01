@@ -12,6 +12,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { PALETTE, TYPE, formatValue, shouldFlag } from '@/gurukul-principal/shared/palette'
 import { THRESHOLDS } from '@/gurukul-principal/analysis/thresholds'
 import { ChevronLeft } from 'lucide-react'
+import { rollupFromProfiles, profileCountsFromRow, type ProfileCounts } from '@/academic/metrics/rollup'
+import { valueOr } from '@/academic/metrics/types'
 
 interface SectionRow {
   sectionId: string
@@ -38,40 +40,67 @@ export default function PrincipalClassComparison() {
       setLoading(true)
 
       try {
-        // TODO: Load actual sections for this class
-        // Mock data for now
-        setSections([
-          {
-            sectionId: '1',
-            sectionName: 'A',
-            studentsCount: 35,
-            classTeacher: 'Mrs. Sharma',
-            attendancePct: 92,
-            homeworkPct: 78,
-            testAvg: 72,
-            examAvg: 75,
-          },
-          {
-            sectionId: '2',
-            sectionName: 'B',
-            studentsCount: 32,
-            classTeacher: 'Mr. Gupta',
-            attendancePct: 88,
-            homeworkPct: 71,
-            testAvg: 68,
-            examAvg: 70,
-          },
-          {
-            sectionId: '3',
-            sectionName: 'C',
-            studentsCount: 38,
-            classTeacher: 'Ms. Patel',
-            attendancePct: 85,
-            homeworkPct: 82,
-            testAvg: 76,
-            examAvg: 78,
-          },
+        // CHUNK 10. This block invented three sections with invented class
+        // teachers — "Mrs. Sharma", "Mr. Gupta", "Ms. Patel" — and invented
+        // figures for every column. The page a principal uses to compare their
+        // own sections was showing a fixture.
+        //
+        // Sections and their rollups are real now. A section with no measured
+        // figure carries null and renders "—"; it is NOT given a 0 and NOT
+        // ranked against the sections that were measured, which is what
+        // compare() in the metric layer exists to prevent.
+        const { data: classRows } = await supabase
+          .from('classes')
+          .select('id, name, section, class_teacher_id')
+          .eq('school_id', school.id)
+          .eq('name', className)
+          .eq('is_active', true)
+          .order('section')
+
+        const sectionIds = (classRows ?? []).map((c) => c.id)
+        if (sectionIds.length === 0) {
+          setSections([])
+          setLoading(false)
+          return
+        }
+
+        const [profiles, teacherRows] = await Promise.all([
+          supabase
+            .from('student_academic_profiles')
+            .select('student_id, attendance_present, attendance_total, homework_assigned, homework_submitted, tests_attempted, tests_avg_pct, exams_recorded, exams_avg_pct, students!inner(class_id)')
+            .eq('school_id', school.id),
+          supabase
+            .from('teachers')
+            .select('user_id, full_name')
+            .eq('school_id', school.id),
         ])
+
+        const teacherName = new Map(
+          (teacherRows.data ?? []).map((t) => [t.user_id, t.full_name] as const),
+        )
+
+        const byClass = new Map<string, ProfileCounts[]>()
+        for (const row of (profiles.data ?? []) as Record<string, unknown>[]) {
+          const cls = (row.students as { class_id?: string } | null)?.class_id
+          if (!cls) continue
+          byClass.set(cls, [...(byClass.get(cls) ?? []), profileCountsFromRow(row)])
+        }
+
+        setSections(
+          (classRows ?? []).map((c) => {
+            const rollup = rollupFromProfiles(byClass.get(c.id) ?? [])
+            return {
+              sectionId: c.id,
+              sectionName: c.section ?? '',
+              studentsCount: rollup.studentCount,
+              classTeacher: c.class_teacher_id ? teacherName.get(c.class_teacher_id) ?? null : null,
+              attendancePct: valueOr(rollup.attendance, null),
+              homeworkPct: valueOr(rollup.homework, null),
+              testAvg: valueOr(rollup.tests, null),
+              examAvg: valueOr(rollup.exams, null),
+            }
+          }),
+        )
       } catch (error) {
         console.error('Failed to load sections:', error)
       } finally {

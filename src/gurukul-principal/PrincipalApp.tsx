@@ -20,9 +20,11 @@ import {
   PrincipalHomeworkLive,
 } from './PrincipalLiveAcademic'
 import PrincipalMessages from './Messages'
-import PrincipalDashboard from './PrincipalDashboard'
+// PrincipalDashboard (the third one) is a REAL dashboard — it computes — but it
+// is no longer rendered anywhere. Left in the tree rather than deleted, because
+// the ruling was about a page that fabricates data, and this one does not. It is
+// reported as a second home for "the principal dashboard" awaiting a decision.
 import PrincipalDashboardRedesigned from './PrincipalDashboardRedesigned'
-import PrincipalDashboardImproved from './PrincipalDashboardImproved'
 import { useDashboardDrillDown } from './DashboardDrillDown'
 import LeaveRequests from '../gurukul-admin/LeaveRequests'
 import { InquiriesReport, ComplaintsReport } from '@/pages/shared/OperationalCases'
@@ -726,7 +728,11 @@ export default function PrincipalApp() {
 
         <div style={{ padding: page === 'messages' ? '28px 32px 0' : '28px 32px' }}>
           <Routes>
-            <Route index element={<PrincipalDashboardImproved />} />
+            {/* Chunk 10: PrincipalDashboardImproved rendered 847 students, 792 present and
+                named teachers against a school of 13. It was deleted, not unrouted —
+                while it existed someone would route it again. Redesigned renders the
+                six blocks and every one of them computes. */}
+            <Route index element={<PrincipalDashboardRedesigned />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="teachers" element={<PrincipalTeachers />} />
             <Route path="teachers/:teacherId" element={<PrincipalTeacherDetail />} />

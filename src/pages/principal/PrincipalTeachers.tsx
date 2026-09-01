@@ -11,6 +11,9 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { PALETTE, TYPE, formatValue } from '@/gurukul-principal/shared/palette'
 import { Search } from 'lucide-react'
+import { localDateKey } from '@/lib/localDate'
+import { daysSinceLastActivity } from '@/academic/metrics/activity'
+import { valueOr } from '@/academic/metrics/types'
 
 interface TeacherRow {
   id: string
@@ -20,7 +23,16 @@ interface TeacherRow {
   classTeacherOf: string | null
   homeworkCount: number
   testsCount: number
-  marksPending: number
+  /**
+   * null = NOT MEASURED, and never 0.
+   *
+   * `strictNullChecks` is off in this project, so the compiler will not stop
+   * anyone assigning null here or comparing it with `>`. The distinction is
+   * therefore held by this comment and by the render, which shows "—" for null:
+   * `0 pending` reads as "nothing to chase", and inventing that for a teacher
+   * who owes marks is the whole reason this file was rewritten.
+   */
+  marksPending: number | null
   lastActivityDays: number | null
 }
 
@@ -46,7 +58,7 @@ export default function PrincipalTeachers() {
         // itself, so no separate role filter is needed.
         const { data: teachersData } = await supabase
           .from('teachers')
-          .select('id, full_name')
+          .select('id, full_name, user_id')
           .eq('school_id', school.id)
           .order('full_name')
 
@@ -56,19 +68,95 @@ export default function PrincipalTeachers() {
           return
         }
 
-        // For now, using mock data structure
-        // TODO: Wire up actual homework, tests, marks data
-        const enriched: TeacherRow[] = teachersData.map((t: any) => ({
-          id: t.id,
-          name: t.full_name,
-          subjects: ['Mathematics', 'Physics'], // TODO: Load from assignments
-          sectionsCount: 4, // TODO: Count from section assignments
-          classTeacherOf: null, // TODO: Load from classes table
-          homeworkCount: 18, // TODO: Count from homework table
-          testsCount: 6, // TODO: Count from tests table
-          marksPending: 0, // TODO: Count pending marks
-          lastActivityDays: 2, // TODO: Compute from last homework/test date
-        }))
+        // CHUNK 10. This block used to decorate every REAL teacher name with the
+        // same invented figures — Mathematics and Physics, 4 sections, 18
+        // homework, 6 tests, 0 marks pending, last active 2 days ago. Real names
+        // carrying fabricated activity is worse than a wholly fake page: a
+        // principal has no way to tell which half is true, and "0 marks pending"
+        // for a teacher who owes marks is an instruction not to chase them.
+        //
+        // Every column is now measured, and a column that cannot be measured
+        // says so instead of guessing. `null` renders as "—".
+        const teacherIds = teachersData.map((t: { id: string }) => t.id)
+        const userIds = teachersData
+          .map((t: { user_id: string | null }) => t.user_id)
+          .filter((v): v is string => !!v)
+
+        const [assignments, classTeacherOf, homework, tests] = await Promise.all([
+          supabase
+            .from('teacher_classes')
+            .select('teacher_id, class_id, subject')
+            .eq('school_id', school.id)
+            .in('teacher_id', teacherIds.length ? teacherIds : ['00000000-0000-0000-0000-000000000000']),
+          supabase
+            .from('classes')
+            .select('id, name, section, class_teacher_id')
+            .eq('school_id', school.id)
+            .not('class_teacher_id', 'is', null),
+          userIds.length
+            ? supabase
+                .from('homework')
+                .select('id, created_by, created_at')
+                .eq('school_id', school.id)
+                .is('deleted_at', null)
+                .in('created_by', userIds)
+            : Promise.resolve({ data: [] as { id: string; created_by: string; created_at: string }[] }),
+          userIds.length
+            ? supabase
+                .from('tests')
+                .select('id, created_by, date')
+                .eq('school_id', school.id)
+                .is('deleted_at', null)
+                .in('created_by', userIds)
+            : Promise.resolve({ data: [] as { id: string; created_by: string; date: string | null }[] }),
+        ])
+
+        const today = localDateKey(new Date())
+        const byTeacher = <T,>(rows: T[] | null, key: (r: T) => string | null) => {
+          const m = new Map<string, T[]>()
+          for (const r of rows ?? []) {
+            const k = key(r)
+            if (!k) continue
+            m.set(k, [...(m.get(k) ?? []), r])
+          }
+          return m
+        }
+
+        const assignedBy = byTeacher(assignments.data, (r) => r.teacher_id)
+        const homeworkBy = byTeacher(homework.data, (r) => r.created_by)
+        const testsBy = byTeacher(tests.data, (r) => r.created_by)
+
+        const enriched: TeacherRow[] = teachersData.map(
+          (t: { id: string; full_name: string; user_id: string | null }) => {
+            const mine = assignedBy.get(t.id) ?? []
+            const hw = (t.user_id ? homeworkBy.get(t.user_id) : undefined) ?? []
+            const ts = (t.user_id ? testsBy.get(t.user_id) : undefined) ?? []
+
+            const cls = (classTeacherOf.data ?? []).find((c) => c.class_teacher_id === t.user_id)
+            const last = daysSinceLastActivity(
+              hw.map((h) => ({ homeworkId: h.id, teacherId: t.id, sectionId: null, createdOn: (h.created_at ?? '').slice(0, 10) })),
+              ts.map((x) => ({ testId: x.id, teacherId: t.id, sectionId: null, conductedOn: x.date })),
+              today,
+            )
+
+            return {
+              id: t.id,
+              name: t.full_name,
+              subjects: [...new Set(mine.map((a) => a.subject).filter(Boolean))] as string[],
+              sectionsCount: new Set(mine.map((a) => a.class_id).filter(Boolean)).size,
+              classTeacherOf: cls ? `${cls.name}${cls.section ? `-${cls.section}` : ''}` : null,
+              homeworkCount: hw.length,
+              testsCount: ts.length,
+              // Not yet measured. Counting outstanding marks needs exams joined
+              // to their expected roll, which is the marks family's `marksPending`
+              // — wired in the next batch. NULL, not 0: "0 pending" is an
+              // instruction not to chase, and it is the one value this column
+              // must never invent.
+              marksPending: null,
+              lastActivityDays: valueOr(last, null),
+            }
+          },
+        )
 
         setTeachers(enriched)
       } catch (error) {
