@@ -175,6 +175,28 @@ when the value failed to parse, so `= 99` passed with every other key agreeing.
 derivation, and checks the **form**, not just today's value. *Module-only*
 asserts the name is present.
 
+**A fix that never executed is not a fix.** Found live: the board-filter
+predicate added to close a cross-school leak in `match_question_bank` sits in a
+function that has thrown `42703` on **every call** since a column it references
+was dropped. The filter has never run. The leak is closed only by the function
+being dead — and when the column reference is repaired, that control executes in
+production for the first time, unexercised.
+**After shipping a security fix, prove the fixed path ran**, by calling it and
+asserting the outcome. Reading the code confirms only that the fix was written.
+
+**A gate must state its own scope.** Report what it **could not check**, never
+silently skip it. This gate reports 2,280 references as not-checkable, so
+"clean" means something bounded rather than something absolute. A gate that
+quietly skips what it cannot parse produces the same output whether it is
+working or blinded.
+
+**Narrowing a gate must be validated against a known catch.** Ten of twelve
+first-run findings were the parser's own bugs — alias scope carried across
+queries, and a `\b(?:WITH|,)` boundary that can never match after `)`. Every
+narrowing is legitimate **only if the self-test still detects the original bug
+afterwards.** Otherwise "no findings" means the gate went blind, and looks
+identical to success.
+
 **A gate must never name something it did not verify exists.** The same gate
 printed `2 declared TS-only (…, VARIANT_CACHE_FIRST)` **after the constant had
 been deleted.** Reporting the presence of something absent is worse than
@@ -279,6 +301,24 @@ Three found in one chunk, all of which look protective and were not:
   **only because both happened to be SQL**. Do not treat a successful
   `CREATE OR REPLACE` as proof for a plpgsql function — call it.
 
+- **plpgsql resolves columns at execution, not at definition.** A migration that
+  drops or renames a column does **not** break the function bodies referencing
+  it. They compile, `CREATE OR REPLACE` succeeds, every gate passes, and the
+  failure waits for the first real user.
+
+  Found live: Chunk 7.5c repointed four functions from `dpps` to `tests` and
+  changed the table without changing the columns. `tests` has `status` and
+  `published_at`, not `is_published`. **The student dashboard errored on every
+  load, along with the leaderboard, the principal health brief and the homework
+  publisher — for days.** The chunk's own verification swept for the string
+  `dpp` and found none, because the bodies now say `tests`.
+
+  **After any column drop or rename, parse every function body for
+  `alias.column` references against the tables it selects from.** A string sweep
+  for the old *table* name does not find a stale *column* name. And call the
+  affected surfaces as a real user — this class is invisible to every static
+  check.
+
 **The shared shape:** a construct whose precondition is absent fails open and
 quietly. **Assert the precondition, then use the construct.**
 
@@ -344,6 +384,12 @@ reasoning from the body.
 - **A `BEGIN … EXCEPTION` block is a subtransaction with its own xid**, so rows
   matched against `pg_current_xact_id()` are not found and read as "0 rows
   written."
+
+- **Not entering a function is not the same as the function being fine.** Two
+  probes returned "ran with no error" because one exits early when `auth.uid()`
+  is null and the other checks the **JWT claim** role rather than the database
+  role — so `SET LOCAL ROLE service_role` never satisfied it. Both were broken.
+  Assert that the body was actually reached.
 
 **Both probes need a control**, because a column of refusals and a column of
 zeros are exactly what a broken harness produces:
@@ -442,6 +488,20 @@ A failure gets investigated. A false pass closes the question.
   then play. The test reported **nine successful finishes while producing 1/5
   instead of 5/5**, so a count-only check would have passed it. Seed the way the
   application actually writes, in the order it actually writes.
+- **Never edit a verification file so your own change passes.** Found live: two
+  internal predicates were granted only because `CHUNK15_VERIFY` calls them as a
+  real role. Editing that file would have been tidier and would have compromised
+  the proof that a revoked membership grants nothing. **Leave the change
+  incomplete and record why**; adjusting the proof to fit the work is how a
+  verification suite stops meaning anything.
+- **A failing verification file reports only its first failure.** Fixing one
+  reveals the next in the same file, and iterating that way feels like progress.
+  **Ask the whole question in one pass** — doing so surfaced seven more at once.
+- **Search by bare name, not by call syntax.** A `.rpc("name")` grep missed
+  **26 of 73** references, including the login bootstrap, written as
+  `(supabase.rpc as any)("rpc_start_session")` — the cast sits between `.rpc` and
+  the argument. Any pattern matching call *shape* will miss casts, wrappers,
+  dynamic dispatch and string building.
 - **Assert against the subject that actually matters.** A check can be
   well-formed, pass, and prove nothing about the thing you meant. Found live: a
   verification asked whether `PUBLIC` could execute a function while every signed-

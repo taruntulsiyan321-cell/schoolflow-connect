@@ -3660,6 +3660,25 @@ export async function routeAiRequest(
                     p_match_count: 2,
                   }),
                 ]);
+                // G10. An error from either RPC is currently indistinguishable
+                // from a genuine "no similar question" — both become []. That is
+                // how match_question_bank went on throwing 42703 for weeks
+                // without anyone noticing semantic lookup had stopped: the
+                // degraded answer looks exactly like the healthy one. The
+                // fallback stays (a doubt should still be answered without a
+                // reference), but it no longer stays silent.
+                if (bankRes.error) {
+                  console.error(
+                    "match_question_bank failed — semantic lookup degraded to no-match:",
+                    JSON.stringify(bankRes.error),
+                  );
+                }
+                if (cacheRes.error) {
+                  console.error(
+                    "match_ai_answer_cache failed — semantic lookup degraded to no-match:",
+                    JSON.stringify(cacheRes.error),
+                  );
+                }
                 const bankRows: Record<string, unknown>[] =
                   !bankRes.error && Array.isArray(bankRes.data)
                     ? (bankRes.data as Record<string, unknown>[])

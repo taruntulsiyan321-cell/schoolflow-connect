@@ -23,6 +23,7 @@ DECLARE
   _n        int;
   _nA       int;
   _ok       boolean := true;
+  _sess_before int;
 BEGIN
   -- ---------- locate the real institution and two test accounts ----------
   SELECT id INTO _schoolA FROM public.schools ORDER BY created_at LIMIT 1;
@@ -89,6 +90,20 @@ BEGIN
   VALUES (_qa, _schoolB, 'student', 'active', now())
   RETURNING id INTO _mB;
 
+  -- The count BEFORE the switch. This check used to read `= 1` outright, which
+  -- is a snapshot of production rather than the guarantee it names: _qa is the
+  -- real qa.automation account, not a fixture, and public.sessions holds one row
+  -- per GoTrue auth session for it — three by 2026-09-01, accumulated over two
+  -- days of ordinary sign-ins. The proof went red on 2026-08-30 12:27 UTC, when
+  -- the second row was committed, and stayed red for a reason that had nothing
+  -- to do with switching.
+  --
+  -- The guarantee is "switching REPLACES, never adds". That is a delta, so it is
+  -- measured as one. Strictly stronger than `= 1`: an added row now fails no
+  -- matter how many rows already existed, and the check no longer depends on how
+  -- often anyone has logged in.
+  SELECT count(*) INTO _sess_before FROM public.sessions WHERE account_id = _qa;
+
   PERFORM set_config('request.jwt.claims',
     json_build_object('sub', _qa, 'role', 'authenticated', 'session_id', _sess)::text, true);
   SET LOCAL ROLE authenticated;
@@ -102,7 +117,17 @@ BEGIN
   IF _n <> 2 THEN _ok := false; END IF;
 
   SELECT count(*) INTO _n FROM public.sessions WHERE account_id = _qa;
-  _out := _out || format('  session rows for this account ....... %s   (expected 1 — switching replaces)%s', _n, E'\n');
+  _out := _out || format('  session rows added by the switch .... %s   (expected 0 — switching replaces; %s existed before)%s',
+                         _n - _sess_before, _sess_before, E'\n');
+  IF _n <> _sess_before THEN _ok := false; END IF;
+
+  -- And the replacement actually happened: the row the caller's auth session
+  -- owns now points at the new membership. Without this, a switch that did
+  -- nothing at all would pass the delta check — zero added is also what "no
+  -- change whatsoever" looks like.
+  SELECT count(*) INTO _n FROM public.sessions
+   WHERE account_id = _qa AND active_membership_id = _mB;
+  _out := _out || format('  session rows now pointing at B ...... %s   (expected 1 — the switch took effect)%s', _n, E'\n');
   IF _n <> 1 THEN _ok := false; END IF;
 
   SELECT count(*) INTO _n FROM public.classes WHERE school_id = _schoolB;

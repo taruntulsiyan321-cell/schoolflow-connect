@@ -278,6 +278,34 @@ if (DO_GENERATE) {
   process.exit(0);
 }
 
+// ── 2b. --reconcile: rewrite the recorded FACTS from the catalog ────────────
+//
+// Only the two fields the catalog owns — callability and grants. readerSet,
+// justification, verifiedBy and reviewed are judgements a person made and this
+// must never touch them: silently "reconciling" a reviewed reader set would turn
+// the inventory into a mirror of the database, which can never disagree with it
+// and therefore can never find anything.
+if (argv.includes("--reconcile")) {
+  const live = Object.fromEntries(dbRows.map((r) => [keyOf(r.name, r.args), r]));
+  let changed = 0;
+  for (const [k, entry] of Object.entries(inventory.definers)) {
+    const r = live[k];
+    if (!r) continue;
+    const grants = [r.g_auth ? "authenticated" : null, r.g_anon ? "anon" : null].filter(Boolean);
+    const before = JSON.stringify([entry.callability, [...(entry.grants ?? [])].sort()]);
+    const after = JSON.stringify([callabilityOf(r), [...grants].sort()]);
+    if (before === after) continue;
+    console.log(`  ${k}\n    ${entry.callability} [${(entry.grants ?? []).join(", ") || "none"}]  ->  ${callabilityOf(r)} [${grants.join(", ") || "none"}]`);
+    entry.callability = callabilityOf(r);
+    entry.grants = grants;
+    changed++;
+  }
+  writeFileSync(INVENTORY, JSON.stringify(inventory, null, 2) + "\n", "utf8");
+  console.log(`\nreconciled ${changed} entr${changed === 1 ? "y" : "ies"} against the catalog.`);
+  console.log("readerSet, justification and reviewed were NOT touched — those are judgements, not facts.");
+  process.exit(0);
+}
+
 // ── 3. The checks ───────────────────────────────────────────────────────────
 const failures = [];
 const debt = [];
@@ -322,6 +350,23 @@ for (const [k, entry] of Object.entries(inventory.definers)) {
     failures.push(
       `MISDECLARED: ${k} is recorded as ${entry.callability} but the catalog says ${actual}` +
         (granted ? ` (EXECUTE-granted to ${who})` : "") + ".",
+    );
+  }
+
+  // `grants` is the same fact written down a second time, and until batch 3
+  // nothing compared it. That is G9's exact shape: the catalog moves, the file
+  // does not, and the gate reads the catalog — so the file drifts in silence
+  // and every reviewer after that is reading a stale list of who can call this.
+  //
+  // Batch 3 took `anon` off 124 signatures and 122 inventory entries went on
+  // saying "anon" without a single check noticing. Compared now, exactly like
+  // callability. --reconcile rewrites the file from the catalog.
+  const liveGrants = [live.g_auth && "authenticated", live.g_anon && "anon"].filter(Boolean).sort();
+  const fileGrants = [...(entry.grants ?? [])].sort();
+  if (JSON.stringify(liveGrants) !== JSON.stringify(fileGrants)) {
+    failures.push(
+      `STALE GRANTS: ${k} records [${fileGrants.join(", ") || "none"}] but the catalog says ` +
+        `[${liveGrants.join(", ") || "none"}]. Run --reconcile after confirming the change was intended.`,
     );
   }
 

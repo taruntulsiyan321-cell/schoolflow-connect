@@ -35,7 +35,8 @@
     "quality:flow": "node scripts/student-flow-validate.mjs",
     "quality:guardrails": "node scripts/quality-guardrails.mjs",
     "quality": "npm run quality:scan && npm run quality:student-context && npm run quality:flow && npm run quality:guardrails && npm run lint:render-safety && npm run test -- src/lib/practiceSessionStats.test.ts src/lib/utf8MojibakeRepair.test.ts src/lib/qualityGuards.test.ts src/academic/services/progressionMath.test.ts src/academic/services/assertStudentContext.test.ts src/academic/services/resolveStudentContext.test.ts src/lib/productFeatureFlags.test.ts src/academic/taxonomy/taxonomy.test.ts",
-    "lint:render-safety": "node scripts/lint-render-safety.mjs"
+    "lint:render-safety": "node scripts/lint-render-safety.mjs",
+    "report:anon-execute": "node scripts/report-anon-execute.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",
