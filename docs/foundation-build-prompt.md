@@ -1933,6 +1933,29 @@ gate set after each batch.**
 **The single highest-value chunk. Almost every bug so far traces to the same
 metric being computed in more than one place.**
 
+### The census this chunk must converge
+
+**53 sites compute a percentage over the same metric families** — 35 client files
+and 18 database functions. Attendance alone spans `attendanceService.ts`,
+`contextApis.ts`, `foundation.ts`, `AttendanceHero.tsx`, `AttendanceHeroBlock.tsx`,
+`AttendanceDrillDown.tsx`, `PrincipalDashboardImproved.tsx`, `ClassDetail.tsx`,
+`PrincipalClassDetail.tsx`, plus `rpc_principal_school_health` and
+`refresh_student_academic_profile`.
+
+**A thresholds module already exists and is already not one module.**
+`src/gurukul-principal/analysis/thresholds.ts` is imported by four pages, while
+`HOMEWORK_THRESHOLD = 60` is redeclared locally in two components and written
+bare as `< 60` in a third. **Four homes for one number.**
+
+**Known live defect, fix first:** `foundation.ts:196` computes school attendance
+as the **unweighted mean of per-student percentages** — **6.5 points wrong**
+today. It contains all three named defects at once: a never-marked student
+carried as `attendance_pct = 0.00` and averaged in as 0% present; a student with
+2 marked days weighted equally with one at 60; and all 13 students counted when
+only 2 of 3 sections have submitted. `avgExamsPct`, `avgHomeworkCompletionPct`
+and `avgTestsPct` share the shape, and `n = rows.length || 1` returns 0 where the
+answer is `no_data`.
+
 ### Rules
 
 - **One function per metric.** In the data layer. Nowhere else.
@@ -1950,7 +1973,21 @@ ATTENDANCE_LOW          = 80        // percent
 CONSECUTIVE_ABSENCE     = 3         // days running
 CHRONIC_ABSENCE         = 80        // percent across the year
 HOMEWORK_LOW            = 60        // percent
-MARKS_LOW               = exam.pass_mark    // never a literal
+MARKS_LOW               = exams.passing_marks   // NOT exam.pass_mark — that
+                                     // column does not exist. And it is NULL on
+                                     // 5 of 18 exams: where NULL, below-pass is
+                                     // no_data and NO FLAG FIRES. A fallback
+                                     // literal reintroduces exactly what this
+                                     // module removes.
+// CHRONIC_ABSENCE removed — it was 80 over the year, identical to
+// ATTENDANCE_LOW over the reporting window, which is the year. One threshold.
+// "Chronic absentee" is a presentation of "below the attendance threshold".
+REPORTING_WINDOW        = academic_years.starts_on → today
+                                     // academic_years IS AUTHORITATIVE, matched
+                                     // on is_current. schools.session_start_date
+                                     // and session_end_date converge away (G9).
+                                     // No current academic year → no_data, never
+                                     // a silent fallback.
 MARKS_OVERDUE           = 7         // days after the exam
 CLASS_FLAGGED_ON_MARKS  = 25        // percent of students below pass
 HOMEWORK_WINDOW         = 7         // rolling days of due dates
@@ -1984,8 +2021,22 @@ Build golden-number tests: fixed seed, known expected values, one test per
 function. Then prove:
 
 1. Every metric is computed in **exactly one** place. Grep and show the count.
-2. No component contains a threshold literal. Grep for `80`, `60`, `40`, `7`,
-   `25` in component code and show zero results.
+2. **No component contains a threshold literal — checked semantically, not by
+   grep.**
+
+   **CORRECTION — a bare grep cannot pass and must not be shipped.** `80`, `60`
+   and `40` occur in `slice(0, 80)`, `if (s < 60)` and `hsl(0, 84%, 60%)`. Those
+   never reach zero, so the gate gets weakened or switched off within a week —
+   the exact failure the narrowing rule names.
+
+   Build it as a **semantic check**: a numeric literal compared against an
+   identifier whose name matches the metric vocabulary — attendance, homework,
+   marks, pct, rate, score. **Carry today's four real violations as self-test
+   fixtures**, so the gate is provably able to fail:
+   `NeedsAttentionBlock.tsx:22`, `HomeworkDrillDown.tsx:36`,
+   `ClassWatchlist.tsx:56`, and `thresholds.ts` hardcoding `marks.pass = 40`.
+
+   Same standard as the stale-column gate.
 3. Every function returns a state, and `no_data` is distinguishable from a zero
    value.
 4. Changing a threshold in one file changes every screen.

@@ -4,6 +4,7 @@ import { AnalyticsService, useAcademicLive } from '@/academic'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { tokens, attendanceColor, homeworkColor } from '../design-tokens'
 import { Loader2 } from 'lucide-react'
+import { ATTENDANCE_LOW, HOMEWORK_LOW } from '@/academic/metrics/thresholds'
 
 interface WatchlistItem {
   classId: string
@@ -41,8 +42,20 @@ export function ClassWatchlist() {
         const flagged: WatchlistItem[] = []
 
         classRollups.forEach((cls) => {
-          // Low attendance (<75%)
-          if (cls.avgAttendancePct < 75) {
+          // Chunk 10. Two changes here, and the second is the load-bearing one.
+          //
+          // The literals are gone: this flagged attendance below 75 while the
+          // thresholds module says 80, so a class at 77% was fine on this screen
+          // and flagged on every other one.
+          //
+          // And the null check is now explicit. These fields became
+          // `number | null`, null meaning no_data or not_marked — and in
+          // JavaScript `null < 75` is TRUE, because null coerces to 0. Without
+          // this guard a class nobody had marked would appear in the watchlist
+          // as the worst attendance in the school. That is the same defect the
+          // school average had, one level down: absence of a record read as a
+          // record of absence.
+          if (cls.avgAttendancePct !== null && cls.avgAttendancePct < ATTENDANCE_LOW) {
             flagged.push({
               classId: cls.classId,
               className: cls.className,
@@ -52,8 +65,7 @@ export function ClassWatchlist() {
             })
           }
 
-          // Low homework (<60%)
-          if (cls.avgHomeworkCompletionPct < 60) {
+          if (cls.avgHomeworkCompletionPct !== null && cls.avgHomeworkCompletionPct < HOMEWORK_LOW) {
             flagged.push({
               classId: cls.classId,
               className: cls.className,

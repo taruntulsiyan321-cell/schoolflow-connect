@@ -3,6 +3,7 @@ import { AcademicProfileService } from '@/academic'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { supabase } from '@/integrations/supabase/client'
 import { CheckCircle, AlertCircle } from 'lucide-react'
+import { HOMEWORK_LOW } from '@/academic/metrics/thresholds'
 
 /**
  * Homework Drill-Down (Fix 4)
@@ -33,7 +34,8 @@ interface HomeworkDrillDownProps {
   onClassClick: (classId: string, className: string) => void
 }
 
-const HOMEWORK_THRESHOLD = 60
+// Chunk 10: imported, not redeclared. This was the third of four homes for 60.
+const HOMEWORK_THRESHOLD = HOMEWORK_LOW
 
 export function HomeworkDrillDown({ selectedClassId, selectedClassName, onClassClick }: HomeworkDrillDownProps) {
   const { ctx, settled } = useAcademicContext()

@@ -133,13 +133,15 @@ in August can differ in March.
 ```
 ATTENDANCE_LOW          = 80    // percent
 CONSECUTIVE_ABSENCE     = 3     // days running
-CHRONIC_ABSENCE         = 80    // percent across the year
 HOMEWORK_LOW            = 60    // percent
-MARKS_LOW               = exam.pass_mark   // never a literal
+MARKS_LOW               = exams.passing_marks  // never a literal.
+                                    // NULL on 5 of 18 exams → no_data, no flag.
+// CHRONIC_ABSENCE removed: it duplicated ATTENDANCE_LOW over the same window.
+REPORTING_WINDOW        = academic_years (is_current) — authoritative.
+                                    // schools.session_start_date converges away.
 MARKS_OVERDUE           = 7     // days after the exam
 CLASS_FLAGGED_ON_MARKS  = 25    // percent of students below pass
 MIN_ENROLLED_DAYS_FOR_FLAGS = 10   // before any attendance flag fires
-REPORTING_WINDOW        = session start → today
 HOMEWORK_WINDOW         = 7     // rolling days of due dates
 ```
 

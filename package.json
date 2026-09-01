@@ -37,7 +37,10 @@
     "quality": "npm run quality:scan && npm run quality:student-context && npm run quality:flow && npm run quality:guardrails && npm run lint:render-safety && npm run test -- src/lib/practiceSessionStats.test.ts src/lib/utf8MojibakeRepair.test.ts src/lib/qualityGuards.test.ts src/academic/services/progressionMath.test.ts src/academic/services/assertStudentContext.test.ts src/academic/services/resolveStudentContext.test.ts src/lib/productFeatureFlags.test.ts src/academic/taxonomy/taxonomy.test.ts",
     "lint:render-safety": "node scripts/lint-render-safety.mjs",
     "report:anon-execute": "node scripts/report-anon-execute.mjs",
-    "lint:stale-columns:dpp": "node scripts/lint-stale-columns.mjs --scope tests,test_questions,test_attempts,test_answers,student_mistakes,question_attempts,recovery_assignments,progression_history,academic_daily_activity,dpps,dpp_answers,dpp_attempts,dpp_questions --dropped dpps,dpp_answers,dpp_attempts,dpp_questions"
+    "lint:stale-columns:dpp": "node scripts/lint-stale-columns.mjs --scope tests,test_questions,test_attempts,test_answers,student_mistakes,question_attempts,recovery_assignments,progression_history,academic_daily_activity,dpps,dpp_answers,dpp_attempts,dpp_questions --dropped dpps,dpp_answers,dpp_attempts,dpp_questions",
+    "typecheck": "tsc -b --force",
+    "lint:threshold-literals": "node scripts/lint-threshold-literals.mjs",
+    "lint:threshold-literals:self-test": "node scripts/lint-threshold-literals.mjs --self-test"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

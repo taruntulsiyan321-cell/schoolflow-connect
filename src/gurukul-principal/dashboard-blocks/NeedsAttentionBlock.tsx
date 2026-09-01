@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { AttendanceService, AnalyticsService } from '@/academic'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { localDateKey } from '@/lib/localDate'
+import { ATTENDANCE_LOW, HOMEWORK_LOW } from '@/academic/metrics/thresholds'
 import { AlertCircle, X, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface AttentionItem {
@@ -18,8 +19,12 @@ interface AttentionItem {
   teacherId?: string
 }
 
-const ATTENDANCE_THRESHOLD = 75
-const HOMEWORK_THRESHOLD = 60
+// Chunk 10: both were declared here. ATTENDANCE_THRESHOLD was 75 while the
+// thresholds module and every other screen flag below 80 — the same concept
+// carrying two different numbers, which is exactly what a second home for a
+// threshold does and why it is not visible until something compares them.
+const ATTENDANCE_THRESHOLD = ATTENDANCE_LOW
+const HOMEWORK_THRESHOLD = HOMEWORK_LOW
 
 export function NeedsAttentionBlock() {
   const { school, profile } = useAuth()
