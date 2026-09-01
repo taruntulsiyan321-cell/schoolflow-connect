@@ -1,4 +1,5 @@
 import { ATTENDANCE_LOW, HOMEWORK_LOW } from '@/academic/metrics/thresholds'
+import { ATTENDANCE_COMFORTABLE, HOMEWORK_COMFORTABLE } from '@/academic/metrics/bands'
 
 /**
  * Principal Portal Design System
@@ -106,14 +107,10 @@ export function homeworkColor(pct: number | null | undefined): string {
   return statusColor(pct, { low: HOMEWORK_LOW, medium: HOMEWORK_COMFORTABLE })
 }
 
-/**
- * The upper colour stops. These are NOT thresholds — nothing fires on them and
- * the build document does not list them; they are the point at which a figure
- * stops being amber on a chart. Named and kept here rather than folded into the
- * thresholds module, so that module holds only numbers that trigger something.
- */
-const ATTENDANCE_COMFORTABLE = 85
-const HOMEWORK_COMFORTABLE = 75
+// Chunk 10 batch 4: these were declared here. They are the upper colour stops of
+// the attendance and homework ladders, and the ladders now live in one module —
+// @/academic/metrics/bands — so a screen cannot band a figure differently from
+// the screen beside it. Imported at the top of this file.
 
 // Time ago formatting (principal-friendly, not social-media)
 export function timeAgo(timestamp: string): string {
