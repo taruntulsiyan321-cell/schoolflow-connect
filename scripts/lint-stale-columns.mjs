@@ -35,6 +35,28 @@ const argv = process.argv.slice(2);
 const SELF_TEST = argv.includes("--self-test");
 const SHOW_SKIPPED = argv.includes("--show-skipped");
 
+// --scope <table,table,…>  restrict to function bodies that mention any of them,
+//                          and attribute the NOT-CHECKED count per function
+//                          instead of as one global number.
+//
+// A global "2,280 not checkable" is an honest scope statement and a useless one
+// for deciding whether a particular area is covered. Scoped, the same number
+// becomes answerable: these are the functions in this area, and this is exactly
+// where the gate stops looking inside them.
+//
+// --dropped <table,…>      additionally flag aliases bound to a table that no
+//                          longer exists. Those resolve to nothing, so they fall
+//                          into NOT CHECKED and are invisible in the default run
+//                          — which is the wrong place for a reference that will
+//                          throw 42P01 on the first call.
+const listArg = (flag) => {
+  const i = argv.indexOf(flag);
+  if (i < 0 || !argv[i + 1]) return null;
+  return argv[i + 1].split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+};
+const SCOPE = listArg("--scope");
+const DROPPED = listArg("--dropped");
+
 // ── Parsing ────────────────────────────────────────────────────────────────
 
 /** Remove comments and string/dollar-quoted literals so `x.y` inside them is not read as a reference. */
@@ -66,21 +88,37 @@ export function cteNames(body) {
   return names;
 }
 
+/**
+ * Two sets, not one, and the split is the point.
+ *
+ *   observed    names this body DECLARES, loops over, or defines as a CTE. Not
+ *               column references, established from the body itself.
+ *   assumed     names taken on convention — `rec`, `r`, `row`. A real table
+ *               alias called `r` disappears into this set, so it is reported as
+ *               a place the gate stopped, not as a construct it understood.
+ *
+ * Collapsing the two would let an assumption count as knowledge. process_academic_event
+ * has 160 unreadable references across `e`, `da` and `r`, and whether that is
+ * three record variables or three unbound table aliases is exactly the question
+ * a single "not checkable" number cannot answer.
+ */
 function unresolvableNames(body) {
-  const names = new Set(["new", "old", "tg_argv", "tg_table_name", "excluded", "row", "rec", "r", "_r"]);
+  const observed = new Set(["new", "old", "tg_argv", "tg_table_name", "excluded"]);
+  const assumed = new Set(["row", "rec", "r", "_r"]);
 
   // DECLARE section variable names — `_rec record;`, `_row students%ROWTYPE;`
   const decl = body.match(/\bDECLARE\b([\s\S]*?)\bBEGIN\b/i);
   if (decl) {
-    for (const m of decl[1].matchAll(/^\s*([A-Za-z_]\w*)\s+[^;]+;/gm)) names.add(m[1].toLowerCase());
+    for (const m of decl[1].matchAll(/^\s*([A-Za-z_]\w*)\s+[^;]+;/gm)) observed.add(m[1].toLowerCase());
   }
   // Loop variables — `FOR x IN ...`, and CTE names — `WITH x AS (`
-  for (const m of body.matchAll(/\bFOR\s+([A-Za-z_]\w*)\s+IN\b/gi)) names.add(m[1].toLowerCase());
+  for (const m of body.matchAll(/\bFOR\s+([A-Za-z_]\w*)\s+IN\b/gi)) observed.add(m[1].toLowerCase());
   for (const m of body.matchAll(/(?:\bWITH\b|,)\s+([A-Za-z_]\w*)\s+AS\s*(?:MATERIALIZED\s*)?\(/gi))
-    names.add(m[1].toLowerCase());
+    observed.add(m[1].toLowerCase());
   // Set-returning function aliases — `FROM fn(...) AS pool(qid)`
-  for (const m of body.matchAll(/\)\s*(?:AS\s+)?([A-Za-z_]\w*)\s*\(/gi)) names.add(m[1].toLowerCase());
-  return names;
+  for (const m of body.matchAll(/\)\s*(?:AS\s+)?([A-Za-z_]\w*)\s*\(/gi)) observed.add(m[1].toLowerCase());
+  for (const n of observed) assumed.delete(n);
+  return { observed, assumed };
 }
 
 /**
@@ -141,17 +179,31 @@ function aliasMap(body, knownTables, ctes) {
  */
 export function findStaleColumns(def, catalog) {
   const body = stripNoise(bodyOf(def));
-  const skip = unresolvableNames(body);
+  const { observed, assumed } = unresolvableNames(body);
   const { map: aliases, ambiguous } = aliasMap(body, catalog.tables, cteNames(body));
 
   const findings = [];
   const skipped = new Map();
+  const notApplicable = new Map();
+  const na = (a) => notApplicable.set(a, (notApplicable.get(a) ?? 0) + 1);
 
-  for (const m of body.matchAll(/\b([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)\b/g)) {
+  // `\s*\(` after the second identifier: a call, not a column.
+  const REF = /\b([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)\b(\s*\()?/g;
+
+  for (const m of body.matchAll(REF)) {
     const alias = m[1].toLowerCase();
     const column = m[2].toLowerCase();
     if (alias === "public" || alias === "pg_catalog" || alias === "information_schema") continue;
-    if (skip.has(alias) || ambiguous.has(alias)) {
+
+    // A qualified FUNCTION CALL is not a column reference at all. auth.uid()
+    // was being counted as an unreadable one in almost every body in the
+    // schema, inflating "not checkable" with the one construct here that could
+    // never be a column — and burying the aliases that genuinely are unread.
+    if (m[3]) { na(alias); continue; }
+
+    if (observed.has(alias)) { na(alias); continue; }
+
+    if (assumed.has(alias) || ambiguous.has(alias)) {
       skipped.set(alias, (skipped.get(alias) ?? 0) + 1);
       continue;
     }
@@ -169,7 +221,7 @@ export function findStaleColumns(def, catalog) {
       findings.push({ alias, table, column });
     }
   }
-  return { findings, skipped };
+  return { findings, skipped, notApplicable };
 }
 
 // ── Self test: the gate must be able to fail ──────────────────────────────
@@ -266,20 +318,83 @@ if (SELF_TEST) {
     process.exit(1);
   }
 
-  const all = [];
-  const skippedTotal = new Map();
-  for (const f of fnRows) {
-    const { findings, skipped } = findStaleColumns(f.def, catalog);
-    for (const [k, v] of skipped) skippedTotal.set(k, (skippedTotal.get(k) ?? 0) + v);
-    for (const fi of findings) all.push({ ...fi, signature: f.signature });
+  // Scope, if asked. Matched on the whole definition, so a body reaching one of
+  // these tables through any syntax is in — a name test, not a `FROM` parse,
+  // because deciding scope with the same parser whose blind spots are the thing
+  // being measured would hide exactly the functions worth looking at.
+  let scoped = fnRows;
+  if (SCOPE) {
+    const missing = SCOPE.filter((t) => !catalog.tables.has(t));
+    scoped = fnRows.filter((f) =>
+      SCOPE.some((t) => new RegExp(`\\b${t}\\b`, "i").test(f.def)));
+    if (scoped.length === 0) {
+      console.error(
+        `--scope matched no function bodies. Either the tables are wrong or nothing references them;\n` +
+        `either way "no findings" would mean nothing. Refusing to report.`);
+      process.exit(1);
+    }
+    console.log(`Read via ${describeConnection()}.`);
+    console.log(
+      `SCOPED to ${SCOPE.length} table(s): ${SCOPE.join(", ")}\n` +
+      (missing.length
+        ? `  ${missing.length} of them no longer exist (${missing.join(", ")}) — dropped tables are still\n` +
+          `  worth scoping on, because a body referencing one is exactly what would not be caught.\n`
+        : "") +
+      `  ${scoped.length} of ${fnRows.length} function bodies reference at least one.`);
   }
 
-  console.log(`Read via ${describeConnection()}.`);
+  const all = [];
+  const skippedTotal = new Map();
+  const naTotal = new Map();
+  const perFn = [];
+  const droppedRefs = [];
+  for (const f of scoped) {
+    const { findings, skipped, notApplicable } = findStaleColumns(f.def, catalog);
+    for (const [k, v] of skipped) skippedTotal.set(k, (skippedTotal.get(k) ?? 0) + v);
+    for (const [k, v] of notApplicable) naTotal.set(k, (naTotal.get(k) ?? 0) + v);
+    const n = [...skipped.values()].reduce((a, b) => a + b, 0);
+    if (n) perFn.push({ signature: f.signature, n, aliases: [...skipped.keys()] });
+    for (const fi of findings) all.push({ ...fi, signature: f.signature });
+
+    // A reference to a table that no longer exists resolves to nothing, so it
+    // lands in NOT CHECKED and never surfaces. It throws 42P01 on first call.
+    if (DROPPED) {
+      for (const t of DROPPED) {
+        if (new RegExp(`\\b(?:public\\s*\\.\\s*)?${t}\\b`, "i").test(stripNoise(f.def))) {
+          droppedRefs.push({ signature: f.signature, table: t });
+        }
+      }
+    }
+  }
+
+  if (!SCOPE) console.log(`Read via ${describeConnection()}.`);
+  const nSkipped = [...skippedTotal.values()].reduce((a, b) => a + b, 0);
+  const nNA = [...naTotal.values()].reduce((a, b) => a + b, 0);
   console.log(
-    `${fnRows.length} function bodies parsed against ${catalog.tables.size} tables; ` +
-      `${[...skippedTotal.values()].reduce((a, b) => a + b, 0)} reference(s) not checkable ` +
-      `(${skippedTotal.size} distinct alias(es)).`,
+    `${scoped.length} function bodies parsed against ${catalog.tables.size} tables.\n` +
+      `  ${String(nNA).padStart(5)}  NOT APPLICABLE  qualified function calls (auth.uid()), NEW/OLD/EXCLUDED,\n` +
+      `         ${" ".repeat(9)} and record variables this body declares. Never column references.\n` +
+      `  ${String(nSkipped).padStart(5)}  UNRESOLVED      a name used as x.y that should bind to a table and does\n` +
+      `         ${" ".repeat(9)} not (${skippedTotal.size} distinct). THIS is where the gate is blind.`,
   );
+
+  if (SCOPE && perFn.length) {
+    console.log(`\nwhere the gate stops looking INSIDE this scope, by function:`);
+    for (const p of perFn.sort((a, b) => b.n - a.n).slice(0, 25)) {
+      console.log(`  ${String(p.n).padStart(4)}  ${p.signature}`);
+      console.log(`        ${p.aliases.slice(0, 12).join(" ")}${p.aliases.length > 12 ? " …" : ""}`);
+    }
+  }
+
+  if (DROPPED) {
+    if (droppedRefs.length === 0) {
+      console.log(`\nno surviving reference to any of the dropped tables (${DROPPED.join(", ")}).`);
+    } else {
+      console.log(`\n${droppedRefs.length} REFERENCE(S) TO A DROPPED TABLE — these throw 42P01 on first call:\n`);
+      for (const d of droppedRefs) console.log(`  ${d.signature}  ->  public.${d.table}`);
+      process.exitCode = 1;
+    }
+  }
 
   if (SHOW_SKIPPED) {
     console.log("\nnot checked, by alias — each is a place this gate stops looking:");

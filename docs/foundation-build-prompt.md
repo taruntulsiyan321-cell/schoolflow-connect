@@ -365,6 +365,24 @@ calls, and the rule that justifies its reader set.
 **Per chunk:** re-run it. **Verify by calling each function as each role**, never
 by reading the body — that is how four of the five above survived a body review.
 
+**`SECURITY INVOKER` does not mean "RLS applies." It means "the caller's RLS
+applies" — and some callers have none.**
+
+Found live: `match_question_bank` is INVOKER, and the reasoning *"removing the
+predicate restores it to behaviour RLS already governs"* was true for
+`authenticated` and false for its **only** caller. `aiRouter.ts` calls it through
+`service_role`, which holds `rolbypassrls` — so no policy is evaluated on that
+path at all. The fence would have run for the first time on the one path
+production never takes.
+
+**Before relying on RLS to govern an INVOKER function, name its actual callers.**
+A service-role or `rolbypassrls` caller is governed by nothing.
+
+**A fence written into the body needs no `IS NULL OR` escape.** An unknown
+parameter must **narrow** — here, to board-agnostic rows — never widen to
+everything. And a caller must not be able to widen it by passing someone else's
+identifier: RLS on the lookup table hides the row and the subselect goes NULL.
+
 **And "returned without error" is not "wrote nothing."** Measure the effect, not
 the outcome. Found live: of 58 PUBLIC-executable definer-writers called as an
 ordinary student, 11 refused, 37 died on something else, and **10 completed
@@ -1866,6 +1884,21 @@ out not to fence themselves; this is the same question asked 157 times.
    **Corrected batch 2 is ~98, not 205.** Compute the population from the
    database, not from a client grep, and write each exclusion in as a named class
    with its count.
+
+   **Recompute the exclusion classes after every batch.** Closing a caller frees
+   its callees, so a class carried forward from the previous batch is already
+   stale.
+
+   **Capture the pre-state per signature and assert in both directions.** The two
+   findings are mirror images and each is invisible to anyone who checked only
+   the other:
+   - **290 of 305** hold an explicit `authenticated` grant → revoking PUBLIC
+     changes nothing while the verification passes
+   - **13** hold `authenticated` *only* through PUBLIC → revoking PUBLIC silently
+     removes a live screen
+
+   Ten of those thirteen are the `my_*` policy helpers, so a future blanket
+   PUBLIC revoke over them breaks the fence for `authenticated` as well.
 
 6. Update the G13 inventory so declared reader sets and actual grants agree.
 
