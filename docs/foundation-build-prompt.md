@@ -2192,6 +2192,14 @@ nothing here has one.
 thresholds and null-guard gaps, all of which the gates now catch. Do not route
 them as a batch and inspect afterwards.
 
+**Reachability is not safety.** *Can a route reach this* is not *is this safe to
+delete*. Found live: `StudentHomeworkPage` was classified abandoned off a mock
+marker and is rendered by `StudentClassesPage` as `<StudentHomeworkPage embedded />`
+— an embedded component is reachable through its parent and invisible to a route
+walk. **Before deleting anything, grep for imports of it**, and disambiguate
+filename collisions: two files named `HomeworkBlock.tsx` nearly saved the wrong
+one.
+
 **Delete, do not comment out or move aside.** Git keeps it.
 
 **STOP after routing each screen.**
@@ -2306,6 +2314,21 @@ claimed strength was removed while the RPC feeding them still emitted it.
 fixture, generated type — and **count rather than assert zero** where a
 representation is out of scope, so a partial closure cannot read as a complete
 one.
+
+**Two more, both found by applying the rule to itself:**
+
+- **A census of readers cannot see writers.** Sweeping for functions that *emit*
+  a key missed the one that *writes* the columns — which would have broken with
+  `42703` on its next call. Ask what reads it **and** what writes it.
+- **An enumerated pattern is itself a census.** A gate matching
+  `strong_topics|strong_concepts|strong_areas` missed `strong_subjects` and
+  `strong_chapters`. **The live count went 9 → 45 on the pattern change alone**,
+  before a single fix. Prefer a prefix or structural match over a list of known
+  names, and treat any hand-written alternation as a blind spot with a shape.
+
+**A syntax error is the lucky failure.** An unescaped `''[]''` was rejected
+outright by Postgres. A *valid-but-wrong* pattern matches something else and
+fails open — silently, and looking green.
 
 **A static gate over identifiers cannot read prose.** Found live:
 `lint-strength-surfaces` matched identifiers and band labels, reported **3 live

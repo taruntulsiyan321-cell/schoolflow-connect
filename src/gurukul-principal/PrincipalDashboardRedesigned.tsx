@@ -2,6 +2,7 @@ import { tokens } from './design-tokens'
 import { AttendanceHero } from './blocks/AttendanceHero'
 import { NeedsDecision } from './blocks/NeedsDecision'
 import { ClassWatchlist } from './blocks/ClassWatchlist'
+import { BelowAttendanceThreshold } from './blocks/BelowAttendanceThreshold'
 import { HomeworkBlock } from './blocks/HomeworkBlock'
 import { AcademicsAhead } from './blocks/AcademicsAhead'
 import { RecentUploads } from './blocks/RecentUploads'
@@ -55,6 +56,9 @@ export default function PrincipalDashboardRedesigned() {
         >
           <NeedsDecision />
           <ClassWatchlist />
+          {/* Ported from ChronicAbsenteesBlock (10.6). ClassWatchlist flags
+              CLASSES; a principal cannot ring a class. */}
+          <BelowAttendanceThreshold />
           <HomeworkBlock />
           <AcademicsAhead />
         </div>
