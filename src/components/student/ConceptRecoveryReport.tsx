@@ -162,7 +162,6 @@ export function ConceptRecoveryReport({
   }
 
   const weak = report.weak_concepts ?? [];
-  const strong = report.strong_concepts ?? [];
 
   return (
     <Card className="wisdom-analytics wa-card wa-concept-report-card p-5 sm:p-6 mb-6">
@@ -205,17 +204,6 @@ export function ConceptRecoveryReport({
               <Badge key={i} variant="outline" className="rounded-full bg-warning/10 border-warning/30">
                 {displayConcept(w.concept)} · {w.accuracy}%
               </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {strong.length > 0 && (
-        <div className="mb-4">
-          <h4 className="text-sm font-medium mb-2 text-accent">Strong concepts</h4>
-          <div className="flex flex-wrap gap-2">
-            {strong.map((s, i) => (
-              <Badge key={i} className="rounded-full bg-accent/15 text-accent border-0">{displayConcept(s.concept)} · {s.accuracy}%</Badge>
             ))}
           </div>
         </div>

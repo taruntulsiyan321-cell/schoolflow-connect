@@ -319,7 +319,6 @@ describe("Parent scheduled narrative pilot", () => {
       tests_avg_pct: 70,
       exams_avg_pct: 0,
       weak_topics: ["Algebra"],
-      strong_topics: ["Geometry"],
       avg_mastery: 66,
       source_as_of: "2026-08-01",
       data_version: "parent:s1:1",

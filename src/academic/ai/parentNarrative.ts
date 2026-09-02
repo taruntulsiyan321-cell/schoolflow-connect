@@ -10,7 +10,9 @@ export type ParentNarrativeInput = {
   tests_avg_pct: number;
   exams_avg_pct: number;
   weak_topics: string[];
-  strong_topics: string[];
+  // strong_topics removed — §10.8. Closed at the source rather than at the consumer:
+  // a value assembled here and silenced downstream is one refactor from being
+  // rendered again, which is the state the rule calls out by name.
   avg_mastery?: number | null;
   revision_topics?: string[];
   source_as_of: string | null;
@@ -81,7 +83,11 @@ export function buildParentScheduledNarrative(input: ParentNarrativeInput): Pare
   if (input.attendance_pct > 0) completeness += 0.25;
   if (input.homework_completion_pct > 0) completeness += 0.2;
   if (input.tests_avg_pct > 0 || input.exams_avg_pct > 0) completeness += 0.15;
-  if (input.weak_topics.length || input.strong_topics.length) completeness += 0.2;
+  // Completeness once counted strength as evidence the profile was populated.
+  // With strong_topics gone the signal is weak_topics alone — which is the
+  // honest version anyway: a student with nothing weak recorded has a thin
+  // profile, not a complete one.
+  if (input.weak_topics.length) completeness += 0.2;
   completeness = Math.min(1, Math.round(completeness * 100) / 100);
 
   return {

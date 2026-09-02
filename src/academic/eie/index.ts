@@ -4,7 +4,6 @@ export {
   WEAK_CONCEPT_THRESHOLD,
   bandFromScore,
   isWeakBand,
-  isStrongBand,
   type MasteryBand,
 } from "./masteryBands";
 

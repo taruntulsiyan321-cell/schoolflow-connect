@@ -87,7 +87,9 @@ export interface ParentChildSummaryProjection extends ProjectionMeta {
   tests_avg_pct: number;
   exams_avg_pct: number;
   weak_topics: string[];
-  strong_topics: string[];
+  // strong_topics removed — §10.8. Closed at the source rather than at the consumer:
+  // a value assembled here and silenced downstream is one refactor from being
+  // rendered again, which is the state the rule calls out by name.
 }
 
 function meta(sourceAsOf: string | null, versionSeed: string, completeness: number): ProjectionMeta {
@@ -410,7 +412,6 @@ export async function projectParentChildSummary(
     tests_avg_pct: summary.testsAvgPct,
     exams_avg_pct: summary.examsAvgPct,
     weak_topics: summary.weakTopics,
-    strong_topics: summary.strongTopics,
     ...meta(
       profile?.refreshedAt ?? null,
       `parent:${studentId}:${profile?.refreshedAt ?? "none"}`,

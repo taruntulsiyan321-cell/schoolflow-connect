@@ -40,7 +40,6 @@ export const DEMO_INSIGHTS: AnalyticsInsights = {
   recurring_errors: [],
   weak_topics: [],
   weak_concepts: [],
-  strong_concepts: [],
   study_priority: [],
   weekly_plan: [],
   momentum: [],

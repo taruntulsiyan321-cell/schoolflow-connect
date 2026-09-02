@@ -199,9 +199,16 @@ export function deriveChapterRows(
     .slice(0, 12);
   if (fromMastery.length > 0) return fromMastery;
 
+  // This is the FALLBACK chapter list, used only when per-chapter mastery is
+  // empty. It used to be [...strong, ...weak]; strong_topics no longer exists
+  // on the snapshot, so it is the weak half alone.
+  //
+  // Not the mastery ruling applied backwards: that ruling keeps the FIGURE for
+  // every subject including the weak ones, and the primary path above still
+  // returns every chapter with its accuracy. What is gone is a list assembled
+  // by selecting the best.
   const weak = snapshot?.weak_topics ?? [];
-  const strong = snapshot?.strong_topics ?? [];
-  return [...strong, ...weak]
+  return [...weak]
     .map((t) => {
       const chapterRaw = preferRealAcademicLabel(t.topic, t.chapter);
       const subjectRaw = preferRealAcademicLabel(t.subject);

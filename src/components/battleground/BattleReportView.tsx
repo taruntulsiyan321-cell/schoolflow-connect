@@ -363,10 +363,6 @@ function buildBattleConceptFallback(data: BattleReportPayload): ConceptRecoveryR
       attempts: Number(item.total ?? 0),
       correct: Number(item.correct ?? 0),
     })),
-    // Always empty. §10.8 forbids surfacing strong areas anywhere, and the
-    // snapshot no longer produces them. Kept as a field rather than removed
-    // so the downstream shape is unchanged.
-    strong_concepts: [] as never[],
     recovery_assignments: [],
     improvement_areas: weak.map((item: any) => item.label ?? item.topic ?? "Weak concept"),
   };

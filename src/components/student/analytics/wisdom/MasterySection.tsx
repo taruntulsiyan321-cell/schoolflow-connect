@@ -51,7 +51,7 @@ export function MasterySection({
             {mastery.map((c) => {
               const levelKey = masteryLevel(c);
               const border =
-                levelKey === "mastered"
+                levelKey === "high"
                   ? "border-[var(--wa-primary)]"
                   : levelKey === "review"
                     ? "border-red-300"
@@ -89,7 +89,7 @@ export function MasterySection({
           </div>
           <div className="flex flex-wrap gap-2 mt-4">
             <span className="wa-label px-2 py-1 rounded-full bg-[var(--wa-primary-fixed)]/30">
-              {mastery.filter((m) => masteryLevel(m) === "mastered").length} strong
+              {mastery.filter((m) => masteryLevel(m) === "high").length} at 78%+
             </span>
             <span className="wa-label px-2 py-1 rounded-full bg-red-50 text-red-700">
               {mastery.filter((m) => masteryLevel(m) === "review").length} needs work

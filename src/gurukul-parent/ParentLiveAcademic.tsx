@@ -266,7 +266,6 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
               tests_avg_pct: summary.testsAvgPct,
               exams_avg_pct: summary.examsAvgPct,
               weak_topics: summary.weakTopics,
-              strong_topics: summary.strongTopics,
               source_as_of: localDateKey(),
               data_version: `parent_performance:${studentId}`,
             })

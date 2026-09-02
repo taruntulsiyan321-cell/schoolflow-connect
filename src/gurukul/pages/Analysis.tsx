@@ -300,14 +300,6 @@ export default function Analysis() {
           }))
         : (snapshot?.weak_topics ?? []);
     return {
-      doing_well: (snapshot?.strong_topics ?? [])
-        .map((t) => {
-          const topic = realTopic(t);
-          const subject = realSubject(t.subject);
-          if (!topic || !subject) return null;
-          return { topic, subject, score: Math.round(t.accuracy) };
-        })
-        .filter((t): t is NonNullable<typeof t> => t != null),
       needs_attention: weakTopicsSource
         .map((t) => {
           const topic = realTopic(t);
@@ -346,7 +338,7 @@ export default function Analysis() {
           subject: preferRealAcademicLabel(m.subject),
         })),
     };
-  }, [snapshot?.strong_topics, snapshot?.weak_topics, v2WeakAreas, mastery, charts?.practice_trend, analysis?.recent_sessions]);
+  }, [snapshot?.weak_topics, v2WeakAreas, mastery, charts?.practice_trend, analysis?.recent_sessions]);
 
   const practiceStats = useMemo(() => {
     const weekly = charts?.weekly_activity ?? [];
@@ -923,26 +915,8 @@ export default function Analysis() {
             ))}
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-6">
-            {/* Doing well */}
-            <div>
-              <SLabel>Topics you're doing well in</SLabel>
-              <div className="space-y-2">
-                {topicGroups.doing_well.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No strong topics yet</p>
-                ) : topicGroups.doing_well.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-success/12 bg-success/5 hover:border-success/25 transition-colors">
-                    <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
-                    </div>
-                    <span className="text-sm font-black text-success shrink-0">{t.score}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+          <div className="grid gap-6">
+            {/* Doing well removed — §10.8 */}
             {/* Needs attention */}
             <div>
               <SLabel>Topics that need your attention</SLabel>

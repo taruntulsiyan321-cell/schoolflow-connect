@@ -28,7 +28,7 @@ const sample: StudentAcademicProfile = {
   doubtsAsked: 4,
   doubtsResolved: 2,
   remarksCount: 1,
-  metrics: { weakTopics: ["Algebra"], strongTopics: ["Geometry"] },
+  metrics: { weakTopics: ["Algebra"] },
   lastEventType: "marks.published",
   lastEventAt: null,
   refreshedAt: new Date().toISOString(),

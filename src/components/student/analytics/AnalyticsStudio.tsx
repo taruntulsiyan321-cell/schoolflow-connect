@@ -197,11 +197,6 @@ export function AnalyticsStudio({ data, charts }: Props) {
   ].slice(0, 3);
   // Measured session improvement only — never invent a projected accuracy gain.
   const measuredGain = improvement != null && improvement > 0 ? Math.round(improvement) : 0;
-  const strength =
-    strongConcepts[0]?.concept ??
-    data.strong_topics?.[0]?.topic ??
-    data.strong_topics?.[0]?.chapter ??
-    "—";
   const weakness = topGap?.topic ?? displayMastery.find((m) => m.mastery_score < 60)?.concept ?? "—";
   const skillGroups = groupMasteryBySubject(displayMastery);
   const trendData = (practiceTrend.length ? practiceTrend : []).slice(-14).map((p) => ({
@@ -435,7 +430,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
                 <p className="wa-label mt-4">Accuracy</p>
                 <p className="text-2xl font-bold tabular-nums">{Math.round(s.accuracy)}%</p>
                 <ProgressBar value={s.accuracy} tone={s.accuracy >= 70 ? "emerald" : "gold"} />
-                <p className="wa-label mt-4">Mastery</p>
+                <p className="wa-label mt-4">Accuracy</p>
                 <p className="text-lg font-bold tabular-nums">{subjectMasteryAvg}%</p>
               </div>
             );
@@ -482,7 +477,6 @@ export function AnalyticsStudio({ data, charts }: Props) {
             <p className="wa-label text-[var(--wa-primary)]">AI academic coach</p>
             <h2 className="wa-display text-2xl mt-1">Concise academic diagnosis</h2>
             <div className="grid md:grid-cols-4 gap-3 mt-5">
-              <div className="wa-coach-cell"><p>Strength</p><strong>{strength}</strong></div>
               <div className="wa-coach-cell"><p>Weakness</p><strong>{weakness}</strong></div>
               <div className="wa-coach-cell"><p>Recommendation</p><strong>{clipInsightText(topGap?.fix_hint ?? displayInsights?.today_focus ?? "Complete practice to unlock topic recommendations", 70)}</strong></div>
               <div className="wa-coach-cell"><p>Measured gain</p><strong>{measuredGain > 0 ? `+${measuredGain}% accuracy` : "—"}</strong></div>

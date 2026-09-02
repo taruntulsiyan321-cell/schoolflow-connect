@@ -6,7 +6,6 @@
 import {
   bandFromScore,
   EIE_ALGORITHM_ID,
-  isStrongBand,
   isWeakBand,
   type MasteryBand,
 } from "./masteryBands";
@@ -65,7 +64,9 @@ export interface StudentEducationalIntelligence {
   avg_mastery: number;
   total_tracked: number;
   weak_concepts: MasteryConceptView[];
-  strong_concepts: MasteryConceptView[];
+  // strong_concepts removed (§10.8). It was assembled here and consumed by the
+  // AI context builders, so silencing any single consumer would have left the
+  // value computed and one refactor from being rendered again.
   by_band: Record<MasteryBand, number>;
   revision_priority: RevisionPriorityItem[];
   /** From AE academic profile when available — never LLM-invented. */
@@ -112,19 +113,14 @@ export function buildStudentEducationalIntelligence(input: {
     critical: 0,
     weak: 0,
     developing: 0,
-    strong: 0,
-    mastered: 0,
+    high: 0,
+    very_high: 0,
   };
   for (const c of concepts) by_band[c.band] += 1;
 
   const weak_concepts = concepts
     .filter((c) => isWeakBand(c.band))
     .sort((a, b) => a.mastery_score - b.mastery_score)
-    .slice(0, 12);
-
-  const strong_concepts = concepts
-    .filter((c) => isStrongBand(c.band))
-    .sort((a, b) => b.mastery_score - a.mastery_score)
     .slice(0, 12);
 
   const avg_mastery = concepts.length
@@ -165,7 +161,6 @@ export function buildStudentEducationalIntelligence(input: {
     avg_mastery,
     total_tracked: concepts.length,
     weak_concepts,
-    strong_concepts,
     by_band,
     revision_priority,
     attendance_risk,

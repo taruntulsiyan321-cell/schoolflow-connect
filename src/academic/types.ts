@@ -83,7 +83,6 @@ export interface StudentAiSummary {
   doubtsAsked: number;
   doubtsResolved: number;
   weakTopics: string[];
-  strongTopics: string[];
   trends: Record<string, unknown>;
 }
 

@@ -673,10 +673,9 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       dedupeSubjects([
         ...(charts?.subjects ?? []).map((s) => s.name),
         ...(snapshot?.weak_topics ?? []).map((t) => t.subject),
-        ...(snapshot?.strong_topics ?? []).map((t) => t.subject),
         ...(masteryItems ?? []).map((m) => m.subject),
       ]),
-    [charts?.subjects, snapshot?.weak_topics, snapshot?.strong_topics, masteryItems],
+    [charts?.subjects, snapshot?.weak_topics, masteryItems],
   );
 
   const weakConceptLabels = useMemo(

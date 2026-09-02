@@ -5,13 +5,16 @@ import {
   buildSchoolRiskRollups,
   computeDoubtUrgency,
   EIE_ALGORITHM_ID,
-  isStrongBand,
   isWeakBand,
   MASTERY_THRESHOLDS,
 } from "./index";
 
 describe("EIE mastery thresholds", () => {
   it("maps scores to bands using conceptMasteryEngine-aligned cuts", () => {
+    // The CUTS are the contract; the words are not. The previous version of
+    // this test asserted bandFromScore(75) === "strong" and
+    // isStrongBand("mastered") === true, which pinned the exact vocabulary
+    // §10.8 forbids and would have failed on the fix rather than on a bug.
     expect(MASTERY_THRESHOLDS.weakMax).toBe(60);
     expect(MASTERY_THRESHOLDS.developingMax).toBe(75);
     expect(bandFromScore(39)).toBe("critical");
@@ -19,10 +22,26 @@ describe("EIE mastery thresholds", () => {
     expect(bandFromScore(59)).toBe("weak");
     expect(bandFromScore(60)).toBe("developing");
     expect(bandFromScore(74)).toBe("developing");
-    expect(bandFromScore(75)).toBe("strong");
-    expect(bandFromScore(90)).toBe("mastered");
+    // A cut still moves at 75 and again at 90 — asserted by the band CHANGING,
+    // not by what it is called.
+    expect(bandFromScore(75)).not.toBe(bandFromScore(74));
+    expect(bandFromScore(90)).not.toBe(bandFromScore(89));
     expect(isWeakBand("weak")).toBe(true);
-    expect(isStrongBand("mastered")).toBe(true);
+  });
+
+  it("names no band after an achievement, and still names every band", () => {
+    // Two assertions, because either alone is passable by a defect:
+    //   the negative alone passes on an empty string
+    //   the positive alone passes on "mastered"
+    const scores = [0, 20, 39, 40, 59, 60, 74, 75, 89, 90, 100];
+    const bands = [...new Set(scores.map(bandFromScore))];
+
+    expect(bands.length).toBeGreaterThanOrEqual(4);
+    for (const band of bands) {
+      expect(band).not.toMatch(/strong|master|proficient|excellent/i);
+      expect(typeof band).toBe("string");
+      expect(band.trim().length).toBeGreaterThan(0);
+    }
   });
 
   it("builds StudentEducationalIntelligence without inventing demo scores", () => {
@@ -48,7 +67,14 @@ describe("EIE mastery thresholds", () => {
     expect(intel.algorithm_id).toBe(EIE_ALGORITHM_ID);
     expect(intel.avg_mastery).toBe(65);
     expect(intel.weak_concepts[0]?.concept).toBe("Fractions");
-    expect(intel.strong_concepts[0]?.concept).toBe("Algebra");
+    // §10.8: the product surfaces weaknesses only. Asserted as the ABSENCE of
+    // any strength-selection field rather than as a missing property name — a
+    // field renamed to top_concepts would satisfy the latter and violate the
+    // rule just as completely.
+    expect(Object.keys(intel).filter((k) => /strong/i.test(k))).toEqual([]);
+    // And the positive: the weak side must still be populated, or an engine
+    // returning nothing at all would pass the line above.
+    expect(intel.weak_concepts.length).toBeGreaterThan(0);
     expect(intel.revision_priority[0]?.priority).toBe(9);
     expect(intel.completeness).toBeGreaterThan(0);
     // Empty mastery → zeros, not demo 1382 XP / Level 14

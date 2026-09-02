@@ -280,12 +280,6 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     return Array.isArray(raw) ? raw.map(String).filter(Boolean) : [];
   }, [profile]);
 
-  const strongSubjects = useMemo(() => {
-    const m = profile?.metrics ?? {};
-    const raw = m.strongTopics ?? m.strongSubjects;
-    return Array.isArray(raw) ? raw.map(String).filter(Boolean) : [];
-  }, [profile]);
-
   const attendanceConcern = useMemo(() => {
     const recent = attendanceHistory.slice(0, 10);
     if (!recent.length) return false;
@@ -345,10 +339,6 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       answers.push(`Needs attention in: ${weakSubjects.slice(0, 3).join(", ")}`);
       actions.push(`Focus support on ${weakSubjects[0]}`);
     }
-    if (strongSubjects.length) {
-      answers.push(`Strong in: ${strongSubjects.slice(0, 3).join(", ")}`);
-    }
-
     if (attendanceConcern) {
       actions.push("Talk to student/parent about attendance");
     }
@@ -390,7 +380,6 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     homeworkHabit,
     pendingHomework.length,
     weakSubjects,
-    strongSubjects,
     attendanceConcern,
   ]);
 
@@ -567,7 +556,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               </div>
             </div>
 
-            {(weakSubjects.length > 0 || strongSubjects.length > 0 || remarks.length > 0) && (
+            {(weakSubjects.length > 0 || remarks.length > 0) && (
               <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-3">
                 <div className="text-xs font-bold text-foreground">Teacher context</div>
                 {weakSubjects.length > 0 && (
@@ -577,19 +566,6 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                       <span
                         key={s}
                         className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#cc5069]/15 text-[#cc5069]"
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {strongSubjects.length > 0 && (
-                  <div className="flex flex-wrap gap-1 items-center">
-                    <span className="text-[10px] text-muted-foreground mr-1">Strong:</span>
-                    {strongSubjects.map((s) => (
-                      <span
-                        key={s}
-                        className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#10b981]/15 text-[#10b981]"
                       >
                         {s}
                       </span>
@@ -639,7 +615,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               </div>
             )}
 
-            {!(weakSubjects.length > 0 || strongSubjects.length > 0 || remarks.length > 0) && (
+            {!(weakSubjects.length > 0 || remarks.length > 0) && (
               <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
                 <div className="text-xs font-bold text-foreground">Teacher remark</div>
                 <div className="pt-2 space-y-2 border-t border-border">

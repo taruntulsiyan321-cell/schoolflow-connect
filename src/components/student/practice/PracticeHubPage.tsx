@@ -410,7 +410,7 @@ export default function PracticeHubPage() {
                   </div>
                   <p className="font-semibold text-sm text-foreground">{displaySubject(s.id)}</p>
                   <p className="text-2xl font-bold text-foreground mt-1 tabular-nums">{s.mastery}%</p>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">Mastery</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">Accuracy</p>
                   <Progress value={s.mastery} className="h-1.5 mt-3 bg-muted [&>div]:bg-primary" />
                 </button>
               );

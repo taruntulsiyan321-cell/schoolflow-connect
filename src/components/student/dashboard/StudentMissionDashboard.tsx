@@ -196,7 +196,7 @@ function ConceptRadarViz({ scores }: { scores: typeof PLACEHOLDER.radarScores })
       </svg>
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="text-center bg-card backdrop-blur-sm rounded-2xl px-3 py-2 shadow-sm border border-emerald-100">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Mastery</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Accuracy</p>
           <p className="text-lg font-bold text-emerald-900 tabular-nums">71%</p>
         </div>
       </div>

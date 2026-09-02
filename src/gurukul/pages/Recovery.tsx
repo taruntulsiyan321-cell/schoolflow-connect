@@ -171,7 +171,7 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
 
         <div className="mt-3">
           <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-            <span>Mastery</span><span>{topic.mastery}%</span>
+            <span>Accuracy</span><span>{topic.mastery}%</span>
           </div>
           <ProgressBar value={topic.mastery} color={m.color} height="h-1.5"/>
         </div>

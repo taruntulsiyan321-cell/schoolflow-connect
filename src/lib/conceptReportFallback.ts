@@ -14,12 +14,6 @@ export type ConceptRecoveryReport = {
     attempts?: number;
     correct?: number;
   }[];
-  strong_concepts: {
-    subject: string;
-    chapter?: string;
-    concept: string;
-    accuracy: number;
-  }[];
   recovery_assignments: { assignment_id: string; concept: string; severity?: string }[];
   improvement_areas: string[];
   insights?: {

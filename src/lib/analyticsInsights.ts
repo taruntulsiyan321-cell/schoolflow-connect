@@ -29,13 +29,6 @@ export type TopicGapInsight = {
 /** @deprecated use TopicGapInsight */
 export type WeakConceptInsight = TopicGapInsight;
 
-export type StrongConceptInsight = {
-  concept: string;
-  subject: string;
-  topic?: string;
-  note: string;
-};
-
 export type StudyPlanItem = {
   topic: string;
   chapter: string;
@@ -67,7 +60,6 @@ export type AnalyticsInsights = {
   recurring_errors: RecurringError[];
   weak_topics: TopicGapInsight[];
   weak_concepts: TopicGapInsight[];
-  strong_concepts: StrongConceptInsight[];
   study_priority: string[];
   weekly_plan: StudyPlanItem[];
   momentum: MomentumSignal[];
@@ -332,16 +324,6 @@ export function buildRuleAnalyticsInsights(
 ): AnalyticsInsights {
   const weak_topics = aggregatesToTopicGaps(aggregates).slice(0, 10);
 
-  const strong_concepts: StrongConceptInsight[] = mastery
-    .filter((m) => m.mastery_score >= 75 && m.mistake_count <= 1)
-    .slice(0, 4)
-    .map((m) => ({
-      concept: m.concept,
-      subject: m.subject,
-      topic: m.chapter,
-      note: `${Math.round(m.mastery_score)}% mastery — keep revising with mixed problems.`,
-    }));
-
   const practiceAccuracy = practiceAccuracyFromSnapshot(snapshot);
   const top = weak_topics[0];
   const momentum = buildMomentumFromMastery(mastery);
@@ -408,7 +390,6 @@ export function buildRuleAnalyticsInsights(
     recurring_errors,
     weak_topics,
     weak_concepts: weak_topics,
-    strong_concepts,
     study_priority,
     weekly_plan,
     momentum,

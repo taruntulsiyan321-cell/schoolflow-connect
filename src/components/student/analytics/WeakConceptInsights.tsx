@@ -126,7 +126,6 @@ export function WeakConceptInsights({
 
   const weakFromInsights = insights?.weak_topics ?? [];
   const displayGaps = weakFromInsights.length > 0 ? weakFromInsights : aggregatesToTopicGaps(aggregates);
-  const strong = insights?.strong_concepts ?? [];
   const hasMistakes = mistakeCount > 0 || aggregates.length > 0;
 
   return (
@@ -246,22 +245,6 @@ export function WeakConceptInsights({
                 </li>
               ))}
             </ol>
-          </div>
-        )}
-
-        {strong.length > 0 && (
-          <div className="mt-6 pt-5 border-t border-border/60">
-            <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-3 text-accent">
-              <CheckCircle2 className="w-4 h-4" /> Topics you&apos;re handling well
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {strong.map((s, i) => (
-                <Badge key={i} variant="outline" className="bg-accent/10 text-accent border-accent/25 py-1.5 px-3 font-normal">
-                  <span className="font-semibold">{displayConcept(s.concept)}</span>
-                  <span className="opacity-75 ml-1.5">· {displaySubject(s.subject)}</span>
-                </Badge>
-              ))}
-            </div>
           </div>
         )}
 

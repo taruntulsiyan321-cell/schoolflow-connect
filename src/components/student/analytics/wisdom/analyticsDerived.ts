@@ -6,12 +6,15 @@ import type { MistakeTopicAggregate, TopicGapInsight } from "@/lib/analyticsInsi
 import { displayChapter, displaySubject } from "@/lib/academicDisplay";
 import { accuracyBand, BAND_LABEL } from "@/academic/metrics/bands";
 
-export type HeatmapLevel = "mastered" | "proficient" | "learning" | "review";
+// §10.8: no band may read strong / mastered / proficient / excellent. These
+// describe where the figure sits, which the rule permits; the previous names
+// described what the student had become, which it does not.
+export type HeatmapLevel = "high" | "steady" | "learning" | "review";
 
 export function masteryLevel(item: ConceptMasteryItem): HeatmapLevel {
   if (item.mistake_count >= 3 || (item.mastery_score < 45 && item.total_attempts >= 2)) return "review";
-  if (item.mastery_score >= 78 && item.mistake_count <= 1) return "mastered";
-  if (item.mastery_score >= 62) return "proficient";
+  if (item.mastery_score >= 78 && item.mistake_count <= 1) return "high";
+  if (item.mastery_score >= 62) return "steady";
   return "learning";
 }
 

@@ -18,7 +18,6 @@ export type AcademicSnapshot = {
   homework?: { pending: number; completed: number };
   test?: { open: number; completed: number };
   weak_topics?: { subject: string; chapter?: string; topic?: string; accuracy: number }[];
-  strong_topics?: { subject: string; chapter?: string; topic?: string; accuracy: number }[];
   revision_queue?: { id: string; subject: string; topic?: string; chapter?: string; priority: number; due_date: string }[];
   mistake_count?: number;
   recovery_pending?: number;

@@ -40,10 +40,6 @@ export function buildRecoveryAssignmentReport(
     accuracy < 70
       ? [{ subject, chapter, concept, accuracy }]
       : [];
-  const strong =
-    accuracy >= 80
-      ? [{ subject, chapter, concept, accuracy }]
-      : [];
 
   return {
     source_type: "recovery_assignment",
@@ -53,7 +49,6 @@ export function buildRecoveryAssignmentReport(
     total_count: total,
     time_minutes: timeMinutes,
     weak_concepts: weak,
-    strong_concepts: strong,
     recovery_assignments: [],
     improvement_areas: weak.map((w) => w.concept),
     insights: undefined,

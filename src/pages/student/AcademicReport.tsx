@@ -43,11 +43,6 @@ export default function AcademicReport() {
           concept: m.concept,
           accuracy: Math.round(m.mastery_score),
         })),
-        strong_concepts: masteryItems.filter((m) => m.mastery_score >= 75).slice(0, 3).map((m) => ({
-          subject: m.subject,
-          concept: m.concept,
-          accuracy: Math.round(m.mastery_score),
-        })),
         recovery_assignments: [],
         improvement_areas: masteryItems.filter((m) => m.mastery_score < 55).map((m) => m.concept),
       })
@@ -129,17 +124,6 @@ export default function AcademicReport() {
                 <h2 className="font-semibold mb-2">Focus areas</h2>
                 <ul className="text-sm space-y-1">
                   {(snap?.weak_topics ?? []).map((t, i) => (
-                    <li key={i}>{displaySubject(t.subject)}{t.chapter ? ` · ${displayChapter(t.chapter)}` : ""} — {t.accuracy}% accuracy</li>
-                  ))}
-                </ul>
-              </Card>
-            )}
-
-            {(snap?.strong_topics?.length ?? 0) > 0 && (
-              <Card className="p-5 shadow-card">
-                <h2 className="font-semibold mb-2">Strengths</h2>
-                <ul className="text-sm space-y-1">
-                  {(snap?.strong_topics ?? []).map((t, i) => (
                     <li key={i}>{displaySubject(t.subject)}{t.chapter ? ` · ${displayChapter(t.chapter)}` : ""} — {t.accuracy}% accuracy</li>
                   ))}
                 </ul>

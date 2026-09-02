@@ -32,7 +32,6 @@ export async function buildStudentAiSummary(
       doubtsAsked: 0,
       doubtsResolved: 0,
       weakTopics: [],
-      strongTopics: [],
       trends: { isEmpty: true },
     };
   }
@@ -48,7 +47,6 @@ export async function buildStudentAiSummary(
     doubtsAsked: profile.doubtsAsked,
     doubtsResolved: profile.doubtsResolved,
     weakTopics: topicsFromMetrics(profile.metrics, "weakTopics"),
-    strongTopics: topicsFromMetrics(profile.metrics, "strongTopics"),
     trends: {
       lastEventType: profile.lastEventType,
       lastEventAt: profile.lastEventAt,
@@ -141,7 +139,6 @@ export async function listClassStudentSummaries(
     doubtsAsked: profile.doubtsAsked,
     doubtsResolved: profile.doubtsResolved,
     weakTopics: topicsFromMetrics(profile.metrics, "weakTopics"),
-    strongTopics: topicsFromMetrics(profile.metrics, "strongTopics"),
     trends: {
       lastEventType: profile.lastEventType,
       lastEventAt: profile.lastEventAt,
