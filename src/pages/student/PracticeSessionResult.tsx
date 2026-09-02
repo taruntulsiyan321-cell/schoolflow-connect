@@ -175,7 +175,11 @@ export default function PracticeSessionResult() {
           accuracy < 80 ? "Revise weak topics from Analysis before your next practice session." : null,
           'Use "Explain my mistake" on each wrong question to understand the concept.',
         ].filter(Boolean) as string[]
-      : ["Excellent accuracy — keep momentum with a short daily practice."]);
+      // §10.8. This read "Excellent accuracy — keep momentum with a short daily
+      // practice." at 100%. The rule permits the NUMBER — "session totals are
+      // stored so accuracy can be shown" — and forbids the praise attached to
+      // it. The next step survives; the verdict on the student does not.
+      : ["Keep a short daily practice going to hold this topic."]);
 
   const fallbackReport = useMemo(() => {
     if (!id || displayAttempts.length === 0) return null;

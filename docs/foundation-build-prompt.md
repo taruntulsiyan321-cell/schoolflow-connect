@@ -148,6 +148,19 @@ the day it matters most — a new developer, a staging rebuild, a recovery.
 **Report the output of every gate, every chunk.** A gate that regressed is a
 finding even when the chunk's own verification passed.
 
+**Two gates disagreeing is a finding, not a discrepancy to reconcile.** Found
+live: one gate reported every screen reachable while another still counted 30
+violations — different denominators, screens versus all files. Investigating the
+gap surfaced **five dead files and a fourth AI context builder** that had been
+sending empty arrays since a column drop, so nothing looked wrong.
+**When two gates disagree, follow the difference before explaining it away.**
+
+**Record predictions that fail, not only those that hold.** Stale identifiers
+were expected in every long-dark screen after `UpcomingBlock` came back 4-for-4
+wrong. Three later screens came back clean — **dark meant unused, not rotted.**
+An expectation that quietly stops applying is how the next classification goes
+wrong.
+
 **A table with no writer is not built.** Found live: `chapter_tally` was created
 in 7B, its verification asserted against it, and **nothing anywhere wrote a
 row** — while the spec says every accuracy figure and every trend comes from it.
@@ -1754,7 +1767,78 @@ These are **not schema questions** and must be answered first:
 
 ---
 
+# CHUNK 10.7 — TURN ON `strictNullChecks`
+
+**Four defects, one shape, none visible to the compiler.**
+
+`tsconfig.json` has `"strictNullChecks": false` and `tsconfig.app.json` has
+`"strict": false`. The null contract is currently enforced by discipline and
+review alone. What that has cost so far:
+
+| Defect | Effect |
+|---|---|
+| `cls.avgAttendancePct < 75` | `null < 75` is **true** — a class nobody marked led the watchlist as the school's worst |
+| `attendanceColor(value)` typed `number` | accepted `null`, rendered an unmeasured figure in alert red |
+| `practice_accuracy_pct ?? accuracy_pct` | an explicit NULL fell through and relabelled blended accuracy |
+| `lowAttendance` with no total check | a never-marked student headed a list naming children as a problem |
+
+**Do this before Chunks 8 and 9**, so their new code is written under the
+compiler rather than needing a second pass.
+
+### Do
+
+1. Turn it on. Report the error count before touching anything.
+2. **Fix by narrowing, never by asserting.** A `!` or an `as` silences the
+   compiler and keeps the defect — the rename-versus-delete distinction, one
+   level down.
+3. Work file by file, gates after each group.
+4. Where a null genuinely cannot occur, prove it with a guard, not an assertion.
+
+### Verify
+
+1. `strictNullChecks: true`, zero errors.
+2. **Zero new `!` non-null assertions** introduced by this chunk — count before
+   and after.
+3. Every comparison against a threshold has a null guard **before** it.
+4. Full gate set, plus the live smoke on every role.
+
+**STOP after each group of files.**
+
+---
+
 # CHUNK 8 — COMMUNICATION, REQUESTS, NOTIFICATIONS
+
+## THIS IS A CONVERGENCE, NOT A GREENFIELD BUILD
+
+**The app already has live chat, messages, notices, notifications, complaints and
+leave routes across all five panels.** The tables below are written as if none of
+that exists. That is the same mistake as Chunk 7.5, where the spec described
+`tests`/`test_marks` while the product ran on `dpps` — discovered at batch 3,
+costing three passes.
+
+**Do not create a single table until the measurement below is reported and
+approved.**
+
+### Measure first — report, build nothing
+
+1. **Every existing table** in this domain: name, row count, what writes it, what
+   reads it, which panels render it.
+2. **Every route** in all five panels that touches communication, requests or
+   notifications — followed to the element it renders, not the route table. A
+   route existing is not a feature existing.
+3. For each spec table below: does something already do this job under another
+   name? Name the authority.
+4. **Which of the seven caller classes** touch these tables — policies, INVOKER
+   bodies, triggers, defaults, jsonb keys, prose, generated types.
+5. What the spec requires that genuinely does not exist.
+6. What exists that the spec does not describe — and whether it should survive.
+
+**Then stop.** The build is written against that report, not against the tables
+below.
+
+### Spec reference — the intended shape
+
+
 
 **`messages`** / **`message_threads`**
 Participants per role rules:
@@ -1838,6 +1922,17 @@ resolved_at`
 ---
 
 # CHUNK 9 — RESOURCES, TRASH, AUDIT, YEAR-END
+
+## ALSO A CONVERGENCE — measure first
+
+Soft delete and trash retention were built in Chunk 5. An `audit_log` is
+referenced elsewhere. Resources may already exist under another name.
+
+**Run the same six-point measurement as Chunk 8 and report before building.**
+
+### Spec reference — the intended shape
+
+
 
 **`resources`**
 `id · institution_id · uploaded_by_teacher_id · title · file_url ·
@@ -2187,10 +2282,25 @@ principal's dashboard.
 **Nothing is "pending".** Pending requires a named chunk that will route it;
 nothing here has one.
 
+**Port the intent, not the code.** A screen dark since a given commit has never
+run against the current schema. Found live: `UpcomingBlock` named four
+identifiers — `exam_name`, `classes.class_name`, `exam_results` and one more —
+and **all four were wrong**. It would have thrown on every load. There was
+nothing to port but the idea; rewrite it against the real schema and through the
+metric layer.
+
+**"Working" from a static classification is not working.** `UpcomingBlock` was
+classified working-should-be-routed and was 4-for-4 broken. **Reclassify by
+loading, not by inspection.**
+
 **Route the 20 one at a time, loading each as a real user.** A screen dark since
 `9980c05` has never run against the current schema — expect stale columns, stale
 thresholds and null-guard gaps, all of which the gates now catch. Do not route
 them as a batch and inspect afterwards.
+
+**A route existing is not a feature existing.** Found live: three areas that
+looked served turned out to be placeholder redirects rather than screens.
+**Follow each route to the element it renders**, not to the route table.
 
 **Reachability is not safety.** *Can a route reach this* is not *is this safe to
 delete*. Found live: `StudentHomeworkPage` was classified abandoned off a mock

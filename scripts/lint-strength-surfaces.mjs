@@ -50,7 +50,43 @@ const ROUTERS = [
 ];
 
 /** A label a student would read as "you are good at this". */
-const STRENGTH_LABEL = /["'`](Strong|Mastered|Proficient|Excellent|Strength|Strong areas?)["'`]/;
+/**
+ * A label a student would read as "you are good at this".
+ *
+ * WIDENED TWICE, and the second time by a violation it was reporting as absent.
+ * The anchored version matched only a WHOLE quoted string equal to "Strong" or
+ * "Mastered". Analysis.tsx renders
+ *
+ *     label: "Your strongest subject right now"
+ *
+ * with the subject name, its accuracy and a star, on a reachable student screen.
+ * Prose, not a label token — and the gate said zero live surfaces.
+ *
+ * Now a substring match inside any quoted string, over a vocabulary that
+ * includes the SUPERLATIVE forms. `strongest` is not `strong_` and not
+ * `strongCamel`; a prefix that anchors at a word start with an underscore or a
+ * capital after it is still a census with a shape it cannot see.
+ */
+/**
+ * TWO ARMS, because one could not hold both cases without letting a CSS class in.
+ *
+ * The first widening replaced the exact-match alternation with a substring
+ * vocabulary -- and dropped the plain "Strong" label it had always caught. Its
+ * own self-test failed on the very first case: widened in one direction and
+ * narrowed in another, in a single edit.
+ *
+ *   TOKEN  the whole quoted string IS the label -- "Strong", "Mastered".
+ *          Exact, so "border-strong" (a CSS class) stays out.
+ *   PROSE  a phrase CONTAINING a strength claim -- "Your strongest subject
+ *          right now", which the identifier gate and a prose sweep both missed.
+ */
+const STRENGTH_LABEL_TOKEN =
+  /["'`](Strong|Strongest|Mastered|Proficient|Excellent|Strength|Strong areas?)["'`]/,
+  STRENGTH_LABEL_PROSE =
+  /["'`][^"'`]*(strongest|your strengths?|best subject|top strength|keep momentum|doing well|areas? of strength)[^"'`]*["'`]/i;
+const STRENGTH_LABEL = {
+  test: (line) => STRENGTH_LABEL_TOKEN.test(line) || STRENGTH_LABEL_PROSE.test(line),
+};
 
 /**
  * A named selection of strengths.
@@ -110,6 +146,10 @@ if (SELF_TEST) {
     { name: "NOT a violation: accuracy shown as a number (§10.8 permits it)", src: "return `${accuracy}% accuracy`;", find: false },
     { name: "NOT a violation: the word strong inside a comment", src: '// strong areas are never shown\nconst x = 1;', find: false },
     { name: "NOT a violation: a css class called border-strong", src: 'const c = "border-strong";', find: false },
+    // The case that found a LIVE violation the identifier arm and a prose sweep
+    // both missed: prose that the identifier arm cannot see.
+    { name: "a prose claim: \"Your strongest subject right now\"", src: 'label: "Your strongest subject right now",', find: true },
+    { name: "NOT a violation: prose about a weakness", src: 'label: "Subject needing more practice",', find: false },
   ];
   let bad = 0;
   for (const c of cases) {

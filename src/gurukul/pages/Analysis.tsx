@@ -498,16 +498,27 @@ export default function Analysis() {
     const weakest = sorted[sorted.length - 1];
     const weakTopic = snapshot?.weak_topics?.[0];
     const bestDay = studyActivity.bestDay;
-    const items = [];
-    if (strongest) {
-      items.push({
-        label: "Your strongest subject right now",
-        value: strongest.name,
-        sub: `${strongest.accuracy}% accuracy`,
-        color: strongest.color,
-        icon: <Star className="w-4 h-4" />,
-      });
-    }
+    // CHUNK 10.7 / §10.8. Two changes, and the second is the one that matters.
+    //
+    // The annotation: `const items = []` infers `never[]` under strictNullChecks,
+    // so every push was an error. Annotated, not asserted.
+    //
+    // The removal: this list led with a card headed "Your strongest subject
+    // right now", carrying the subject name, its accuracy and a star. §10.8 —
+    // "Strong areas are never shown anywhere in the app. The product surfaces
+    // weaknesses only."
+    //
+    // It survived the identifier gate (`strongest` is not `strong_` and not
+    // `strongCamelCase`) AND the prose sweep in 58acb2e, which found five
+    // user-visible strings and not this one. It took a THIRD widening — prose
+    // matching over superlatives — to see it.
+    const items: {
+      label: string;
+      value: string;
+      sub: string;
+      color: string;
+      icon: JSX.Element;
+    }[] = [];
     if (weakest && weakest.name !== strongest?.name) {
       items.push({
         label: "Subject needing more practice",
@@ -612,7 +623,8 @@ export default function Analysis() {
   );
 
   const upcomingMilestones = useMemo(() => {
-    const items = [];
+    // Annotated, not asserted: `[]` infers never[] under strictNullChecks.
+    const items: { title: string; progress: number; target: number; unit: string }[] = [];
     if (overview.streak < 15 && overview.streak > 0) {
       items.push({ title: "Reach 15-day practice streak", progress: overview.streak, target: 15, unit: "days" });
     }

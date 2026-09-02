@@ -2700,56 +2700,9 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     return rows.slice(0, 12);
   }, [lowCompletionHw, lateHomework, testsNeedingPublish, examsAwaitingMarks]);
 
-  const doingWellRows = useMemo((): DecisionRow[] => {
-    const rows: DecisionRow[] = [];
-    const topPerformers = [...profiles]
-      .filter((p) => p.testsAvgPct > 0 || p.examsAvgPct > 0)
-      .sort(
-        (a, b) =>
-          b.examsAvgPct + b.testsAvgPct - (a.examsAvgPct + a.testsAvgPct),
-      )
-      .slice(0, 5);
-    for (const p of topPerformers) {
-      rows.push({
-        id: `perf-${p.studentId}`,
-        name: displayName(p.studentId),
-        metric: `T ${Math.round(p.testsAvgPct)}% · E ${Math.round(p.examsAvgPct)}%`,
-        why: "Top test/exam performer",
-      });
-    }
-    const bestHw = [...profiles]
-      .filter((p) => p.homeworkAssigned > 0)
-      .sort((a, b) => b.homeworkCompletionPct - a.homeworkCompletionPct)
-      .slice(0, 3);
-    for (const p of bestHw) {
-      if (rows.some((r) => r.id.endsWith(p.studentId))) continue;
-      rows.push({
-        id: `hw-${p.studentId}`,
-        name: displayName(p.studentId),
-        metric: `${Math.round(p.homeworkCompletionPct)}% HW`,
-        why: "Strong homework completion",
-      });
-    }
-    // Not a threshold: nothing fires on it and the build document does not name
-    // it. It is the cut for a "doing well" list, so it is named and local rather
-    // than folded into the thresholds module, which holds only numbers that
-    // trigger something.
-    const ATTENDANCE_EXCELLENT = 95;
-    const perfectAtt = profiles
-      .filter((p) => p.attendancePct >= ATTENDANCE_EXCELLENT && p.attendanceTotal > 0)
-      .sort((a, b) => b.attendancePct - a.attendancePct)
-      .slice(0, 5);
-    for (const p of perfectAtt) {
-      if (rows.some((r) => r.id.endsWith(p.studentId))) continue;
-      rows.push({
-        id: `att-${p.studentId}`,
-        name: displayName(p.studentId),
-        metric: `${Math.round(p.attendancePct)}% att`,
-        why: "Near-perfect attendance (≥95%)",
-      });
-    }
-    return rows.slice(0, 10);
-  }, [profiles, nameById]);
+  // doingWellRows removed (§10.8). It ranked the class by exam+test average and
+  // took the top five — a peer-model list, which is a strength ranking of named
+  // children. The section that rendered it is gone; the computation goes with it.
 
   const interventionRows = useMemo((): DecisionRow[] => {
     const scored = profiles.map((p) => {
@@ -2961,14 +2914,19 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         metricClass="text-[#f59e0b]"
       />
 
+      {/*
+        §10.8 — "Strong areas are never shown anywhere in the app. The product
+        surfaces weaknesses only."
+
+        A DecisionSection headed "Doing well", asking "Who can I reinforce or use
+        as peer models?", listing named students. The rule says anywhere, and a
+        teacher screen naming the strongest children is the case it most plainly
+        covers — a peer-model list is a ranking of pupils by strength.
+
+        Removed with its row builder; a value computed and discarded is one
+        refactor from being live.
+      */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <DecisionSection
-          title="Doing well"
-          question="Who can I reinforce or use as peer models?"
-          rows={doingWellRows}
-          empty="None yet — not enough positive signals"
-          metricClass="text-[#10b981]"
-        />
         <DecisionSection
           title="Require intervention"
           question="Who has stacked risks that need a conversation?"
