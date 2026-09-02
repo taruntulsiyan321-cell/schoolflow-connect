@@ -387,7 +387,7 @@ export default function PracticeHubPage() {
       </section>
 
       <section>
-        <SectionHeader title="Subjects" subtitle="Pick a subject and track your mastery." />
+        <SectionHeader title="Subjects" subtitle="Pick a subject and track your accuracy." />
         {subjects.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6">No subjects in your bank yet for this class.</p>
         ) : (
@@ -554,7 +554,7 @@ export default function PracticeHubPage() {
               <>
                 <h3 className="font-semibold text-lg text-foreground">Keep a daily practice habit</h3>
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-xl">
-                  No weak topics yet. Start a short session to build your mastery baseline.
+                  No weak topics yet. Start a short session to see where you stand.
                 </p>
                 <Button size="sm" className="mt-4 rounded-full" onClick={() => startSession()}>
                   Start practice

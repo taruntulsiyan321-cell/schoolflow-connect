@@ -402,7 +402,7 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
           <div className="flex-1">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Recovery Center</p>
             <h2 className="sd-section-title text-2xl sm:text-3xl font-semibold text-foreground mt-2">
-              Fix what you missed — turn mistakes into mastery.
+              Fix what you missed — turn mistakes into answers you get right.
             </h2>
             <div className="flex flex-wrap gap-8 mt-6">
               <div>

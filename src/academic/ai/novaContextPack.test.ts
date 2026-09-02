@@ -35,7 +35,6 @@ const AE = {
   profile: {
     projection: "ParentChildSummary",
     weak_topics: ["Integration"],
-    strong_topics: ["Limits"],
     completeness: 1,
     data_version: "parent:s1:now",
     source_as_of: "2026-08-01",
@@ -46,13 +45,24 @@ const EIE = {
   algorithm_id: "eie.mastery.v1",
   avg_mastery: 62,
   weak_concepts: [{ concept: "Integration", subject: "Math", mastery_score: 40, band: "weak" }],
-  strong_concepts: [{ concept: "Limits", subject: "Math", mastery_score: 88, band: "strong" }],
   completeness: 0.9,
   data_version: "eie:2:1:1",
   source_as_of: "2026-08-01",
 };
 
 describe("Nova Context Pack v1", () => {
+  it("carries no strength field into the model context (§10.8)", () => {
+    // Asserted on the serialised pack rather than on named properties: the rule
+    // is that no strength reaches the model, and a field renamed to
+    // top_concepts would pass a property-name check while violating it.
+    const serialised = JSON.stringify({ ae: AE, eie: EIE });
+    expect(serialised).not.toMatch(/strong|master(ed)?"|proficient|excellent/i);
+    // The positive, so an empty fixture cannot pass the line above: the weak
+    // side must still be present, because that is what the pack exists to carry.
+    expect(serialised).toMatch(/weak_concepts/);
+    expect(serialised).toMatch(/Integration/);
+  });
+
   it("registers student.nova.chat capability", () => {
     const cap = getCapability("student.nova.chat");
     expect(cap?.requires_student_target).toBe(true);

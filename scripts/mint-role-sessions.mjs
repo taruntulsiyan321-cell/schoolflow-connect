@@ -43,6 +43,12 @@ const ROLES = [
   ["principal", "principal@wisdomcampus.com"],
   ["teacher",   "priya.sharma@wisdomcampus.com"],
   ["student",   "arjun.mehta@wisdomcampus.com"],
+  // Arjun is Class 10. The Class 12 practice hub is behind a class gate that
+  // REDIRECTS rather than refusing, so loading /student/practice/math12 as him
+  // lands on a different screen and any "no strength shown" assertion there is
+  // a pass from the wrong page. A Class 12 session is the only way to assert
+  // against that screen.
+  ["student12", "aarav.sharma@wisdomcampus.com"],
   ["parent",    "mehta.parent@wisdomcampus.com"],
 ];
 
