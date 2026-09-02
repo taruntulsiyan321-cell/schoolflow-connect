@@ -185,7 +185,10 @@ export function aggregateMistakesByTopic(mistakes: MistakeRecord[]): MistakeTopi
         topic,
         chapter,
         subject,
-        concept: m.concept && displayConcept(m.concept) ? m.concept : undefined,
+        // CHUNK 10.7 — `null`, not `undefined`: the field is typed
+        // `string | null`, and the two are not interchangeable once this
+        // object is serialised.
+        concept: m.concept && displayConcept(m.concept) ? m.concept : null,
         mistake_count: 1,
         total_wrong: m.times_wrong,
         sample_question: m.question_text.slice(0, 200),

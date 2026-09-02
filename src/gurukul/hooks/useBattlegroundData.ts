@@ -625,7 +625,9 @@ export function useBattlegroundData(enabled = true) {
             for (const r of roles || []) teacherIdSet.add(r.user_id);
           }
           teacherRows = (teacherBattles as BattleRow[])
-            .filter((b) => teacherIdSet.has(b.creator_user_id))
+            // CHUNK 10.7 — creator_user_id is nullable; a battle with no
+            // recorded creator is not a teacher battle.
+            .filter((b) => b.creator_user_id != null && teacherIdSet.has(b.creator_user_id))
             .slice(0, 1)
             .map((b) => ({ ...b, source: "featured_teacher" }));
         }
@@ -747,6 +749,9 @@ export function useBattlegroundData(enabled = true) {
           .select("user_id, full_name")
           .in("user_id", inviterIds);
         for (const row of inviters || []) {
+          // CHUNK 10.7 — students.user_id is nullable (a student with no
+          // login). Such a row cannot be an inviter and cannot key the map.
+          if (row.user_id === null) continue;
           inviterNames[row.user_id] = row.full_name || "Challenger";
         }
       }

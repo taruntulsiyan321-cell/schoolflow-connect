@@ -132,6 +132,12 @@ export const CalendarEventsService = {
       .select("id, title, description, event_type, audience, class_id, starts_at, ends_at, all_day")
       .single();
     throwIfError(error, "Failed to create calendar event");
+    // CHUNK 10.7. `.single()` types its row as nullable even though it
+    // errors when there is no row — and throwIfError above has already
+    // returned in that case. The guard states the invariant rather than
+    // asserting it away, and turns an impossible-but-untyped null into a
+    // named failure instead of a crash inside mapRow.
+    if (!data) throw new Error("Calendar event was created but not returned");
     broadcastAcademicWrite(ctx.schoolId, ["calendar"], {
       classId: input.audience === "class" ? (input.classId ?? null) : null,
       source: "CalendarEventsService.create",
@@ -175,6 +181,8 @@ export const CalendarEventsService = {
       .select("id, title, description, event_type, audience, class_id, starts_at, ends_at, all_day")
       .single();
     throwIfError(error, "Failed to update calendar event");
+    // See create() above — same `.single()` nullability, same guard.
+    if (!data) throw new Error("Calendar event was updated but not returned");
     broadcastAcademicWrite(ctx.schoolId, ["calendar"], {
       classId: patch.classId ?? null,
       source: "CalendarEventsService.update",

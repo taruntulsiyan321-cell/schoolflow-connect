@@ -12,16 +12,18 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { localDateKey } from "@/lib/localDate";
-import { toErrorMessage } from "@/lib/presentation";
+import { toErrorMessage, toClassLabel, toPercentLabel } from "@/lib/presentation";
 
 type LiveClass = {
   classId: string;
   className: string;
   section: string;
   studentCount: number;
-  avgAttendancePct: number;
-  avgHomeworkCompletionPct: number;
-  avgExamsPct: number;
+  // CHUNK 10.7 — the three averages are nullable: Chunk 10 gave “not
+  // measured” a way to be expressed and this row type still promised a number.
+  avgAttendancePct: number | null;
+  avgHomeworkCompletionPct: number | null;
+  avgExamsPct: number | null;
   dayRatePct: number | null;
 };
 
@@ -295,10 +297,10 @@ function ClassRosterDrawer({
 
         <div className="grid grid-cols-2 gap-2 p-4 border-b border-border/70">
           {[
-            { label: "Profile att.", value: `${Math.round(liveClass.avgAttendancePct)}%` },
+            { label: "Profile att.", value: toPercentLabel(liveClass.avgAttendancePct) },
             { label: "Today day-rate", value: liveClass.dayRatePct != null ? `${liveClass.dayRatePct}%` : "—" },
-            { label: "Homework", value: `${Math.round(liveClass.avgHomeworkCompletionPct)}%` },
-            { label: "Exams", value: `${Math.round(liveClass.avgExamsPct)}%` },
+            { label: "Homework", value: toPercentLabel(liveClass.avgHomeworkCompletionPct) },
+            { label: "Exams", value: toPercentLabel(liveClass.avgExamsPct) },
           ].map((item) => (
             <div key={item.label} className="p-3 rounded-xl bg-muted text-center">
               <div className="text-sm font-black text-foreground">{item.value}</div>
@@ -386,8 +388,9 @@ export default function Classes() {
         setRows(
           rollups.map((r) => ({
             classId: r.classId,
-            className: r.className,
-            section: r.section,
+            // CHUNK 10.7 — nullable in Postgres; resolved at this boundary.
+            className: toClassLabel(r.className),
+            section: r.section ?? "",
             studentCount: r.studentCount,
             avgAttendancePct: r.avgAttendancePct,
             avgHomeworkCompletionPct: r.avgHomeworkCompletionPct,
@@ -449,11 +452,11 @@ export default function Classes() {
                   <div className="text-[8px] text-muted-foreground">Students</div>
                 </div>
                 <div className="text-center p-2 rounded-lg bg-muted">
-                  <div className="text-xs font-bold text-foreground">{Math.round(c.avgAttendancePct)}%</div>
+                  <div className="text-xs font-bold text-foreground">{toPercentLabel(c.avgAttendancePct)}</div>
                   <div className="text-[8px] text-muted-foreground">Profile att.</div>
                 </div>
                 <div className="text-center p-2 rounded-lg bg-muted">
-                  <div className="text-xs font-bold text-foreground">{Math.round(c.avgExamsPct)}%</div>
+                  <div className="text-xs font-bold text-foreground">{toPercentLabel(c.avgExamsPct)}</div>
                   <div className="text-[8px] text-muted-foreground">Exams</div>
                 </div>
               </div>

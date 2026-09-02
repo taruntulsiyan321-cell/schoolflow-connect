@@ -315,9 +315,14 @@ export default function PrincipalTeachers() {
                   ...TYPE.rowPrimary,
                   padding: '12px 16px',
                   fontFeatureSettings: '"tnum" 1',
-                  color: teacher.marksPending > 0 ? PALETTE.alert : PALETTE.ink
+                  // CHUNK 10.7. marksPending is `number | null`. `null > 0`
+                  // is false, so the rendering happened to be right — but
+                  // only by accident, and the next person to invert this
+                  // comparison would have got the alert colour for every
+                  // teacher nobody had measured. The guard makes it explicit.
+                  color: teacher.marksPending !== null && teacher.marksPending > 0 ? PALETTE.alert : PALETTE.ink
                 }}>
-                  {teacher.marksPending > 0 ? teacher.marksPending : '—'}
+                  {teacher.marksPending !== null && teacher.marksPending > 0 ? teacher.marksPending : '—'}
                 </td>
                 <td style={{
                   ...TYPE.rowPrimary,

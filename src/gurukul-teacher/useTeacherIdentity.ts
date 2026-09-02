@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { TeacherProfile } from "./data";
 import { toErrorMessage } from "@/lib/presentation";
+import { toClassLabel } from "@/lib/presentation";
 
 export type TeacherIdentity = TeacherProfile & {
   teacherRowId: string | null;
@@ -84,7 +85,9 @@ export function useTeacherIdentity(): TeacherIdentity {
             .eq("id", t.class_teacher_of)
             .maybeSingle();
           if (classErr) throw classErr;
-          if (c) classTeacherOf = { className: c.name, section: c.section };
+          // CHUNK 10.7 — classes.name and .section are nullable; resolved at
+          // this boundary rather than widening the profile every screen reads.
+          if (c) classTeacherOf = { className: toClassLabel(c.name), section: c.section ?? "" };
         }
         const { data: tc, error: tcErr } = await supabase
           .from("teacher_classes")

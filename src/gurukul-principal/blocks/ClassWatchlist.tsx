@@ -5,11 +5,18 @@ import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { tokens, attendanceColor, homeworkColor } from '../design-tokens'
 import { Loader2 } from 'lucide-react'
 import { ATTENDANCE_LOW, HOMEWORK_LOW } from '@/academic/metrics/thresholds'
+import { toClassLabel } from '@/lib/presentation';
 
 interface WatchlistItem {
   classId: string
-  className: string
-  section: string
+  /**
+   * CHUNK 10.7. Was two fields, className and section, both typed string
+   * while classes.name and classes.section are nullable — and section was
+   * being filled with `cls.section || ""`. One resolved label instead: the
+   * render already concatenated the two, so the screen never had a reason
+   * to hold the halves.
+   */
+  classLabel: string
   metric: 'attendance' | 'homework' | 'unmarked'
   value: number | null
 }
@@ -58,8 +65,7 @@ export function ClassWatchlist() {
           if (cls.avgAttendancePct !== null && cls.avgAttendancePct < ATTENDANCE_LOW) {
             flagged.push({
               classId: cls.classId,
-              className: cls.className,
-              section: cls.section || '',
+              classLabel: toClassLabel(cls.className, cls.section),
               metric: 'attendance',
               value: cls.avgAttendancePct,
             })
@@ -68,8 +74,7 @@ export function ClassWatchlist() {
           if (cls.avgHomeworkCompletionPct !== null && cls.avgHomeworkCompletionPct < HOMEWORK_LOW) {
             flagged.push({
               classId: cls.classId,
-              className: cls.className,
-              section: cls.section || '',
+              classLabel: toClassLabel(cls.className, cls.section),
               metric: 'homework',
               value: cls.avgHomeworkCompletionPct,
             })
@@ -230,7 +235,7 @@ export function ClassWatchlist() {
               }}
             >
               <span style={{ fontWeight: tokens.fontWeight.medium, color: tokens.color.ink, textAlign: 'left' }}>
-                {item.className}{item.section && `-${item.section}`}
+                {item.classLabel}
               </span>
               <span style={{ color: tokens.color.inkMuted, fontSize: tokens.fontSize.small }}>
                 {getLabel(item.metric)}

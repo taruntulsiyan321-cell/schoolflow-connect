@@ -163,7 +163,12 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
     chapter: opts.chapter,
     concept: opts.concept ?? opts.chapter,
     topic: opts.topic ?? opts.concept ?? opts.chapter,
-    difficulty: opts.difficulty,
+    // CHUNK 10.7. `?? null`, not a `!`. This object is written to a jsonb
+    // column, and jsonb has a null but no undefined: JSON.stringify DROPS an
+    // undefined value, so the key would vanish from the stored question
+    // rather than be recorded as "difficulty was not set". Those are
+    // different facts, and only one of them survives a round trip.
+    difficulty: opts.difficulty ?? null,
     practice_mode: opts.practiceMode ?? opts.source ?? "practice",
   };
 

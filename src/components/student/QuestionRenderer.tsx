@@ -135,12 +135,17 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
                 : ""}
             </div>
           )}
-          {q.kind === "short" && q.correct?.text && (
+          {/* CHUNK 10.7 — Boolean(): q.correct.text is `unknown`, so the && chain
+              could evaluate TO that unknown value and React would be asked to
+              render it. The guard keeps the chain boolean. */}
+          {q.kind === "short" && q.correct != null && Boolean(q.correct.text) && (
             /* Expected answers come from the bank and carry the same encoding
                risk as the stem, so they go through MathText like everything
                else the student reads. */
             <div>
-              Expected: <MathText className="font-semibold" text={q.correct.text} />
+              {/* CHUNK 10.7 — q.correct.text is `unknown`; through the same
+                  presentation boundary the tolerance line above already uses. */}
+              Expected: <MathText className="font-semibold" text={toDisplayText(q.correct.text, { kind: "label", fallback: "" })} />
             </div>
           )}
           {q.explanation && (

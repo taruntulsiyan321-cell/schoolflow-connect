@@ -13,6 +13,7 @@ import {
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Loader2 } from "lucide-react";
 import { toErrorMessage, toPersonName } from "@/lib/presentation";
+import { toPercentLabel, toClassLabel } from "@/lib/presentation";
 
 type ReportCategory = "academic" | "account" | "platform" | "communication";
 type ReportKey =
@@ -79,7 +80,9 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
           if (cancelled) return;
           setSummary([
             { label: "Students", value: school.studentCount, color: "#3b5bdb" },
-            { label: "Profile avg att.", value: `${Math.round(school.avgAttendancePct)}%`, color: "#4aa87a" },
+            // CHUNK 10.7. Math.round(null) is 0, so a school with no marked
+            // register showed "0%" here as confidently as a real figure.
+            { label: "Profile avg att.", value: toPercentLabel(school.avgAttendancePct), color: "#4aa87a" },
             { label: "Today day-rate", value: `${day.overallDayRatePct}%`, color: "#4b9fd4" },
             { label: "Classes", value: school.classCount, color: "#6882e8" },
           ]);
@@ -104,8 +107,10 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
           );
           setRows(
             day.classes.map((c) => ({
-              Class: c.className,
-              Section: c.section,
+              // classes.name and .section are nullable; the export column
+              // gets the resolved label rather than a null cell.
+              Class: toClassLabel(c.className),
+              Section: c.section ?? "",
               Students: c.totalStudents,
               "Today Attendance %": c.dayRatePct,
             })),

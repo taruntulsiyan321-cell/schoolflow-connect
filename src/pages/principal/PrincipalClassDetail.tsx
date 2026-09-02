@@ -34,7 +34,8 @@ import {
 } from "recharts";
 import { toErrorMessage } from "@/lib/presentation";
 
-type Klass = { id: string; name: string; section: string; academic_year: string | null };
+// CHUNK 10.7 — classes.name and classes.section are nullable in Postgres.
+type Klass = { id: string; name: string | null; section: string | null; academic_year: string | null };
 type Student = { id: string; full_name: string; roll_number: string | null; admission_number: string };
 
 /**
@@ -51,7 +52,8 @@ export default function PrincipalClassDetail() {
   const [todayPresent, setTodayPresent] = useState(0);
   const [todayAbsent, setTodayAbsent] = useState(0);
   const [todayMarked, setTodayMarked] = useState(0);
-  const [avgAttendancePct, setAvgAttendancePct] = useState(0);
+  // CHUNK 10.7 — null until measured; 0 is a real attendance reading.
+  const [avgAttendancePct, setAvgAttendancePct] = useState<number | null>(null);
   const [profileRows, setProfileRows] = useState<
     { studentId: string; attendancePct: number; examsAvgPct: number }[]
   >([]);
@@ -98,7 +100,9 @@ export default function PrincipalClassDetail() {
         setKlass(k.data ?? null);
         setStudents((s.data ?? []) as Student[]);
         setClassTeacher(ct.data ?? null);
-        setAvgAttendancePct(Math.round(analytics.avgAttendancePct));
+        // CHUNK 10.7 — Math.round(null) is 0. Stored raw; the render decides
+        // how an unmeasured class reads.
+        setAvgAttendancePct(analytics.avgAttendancePct);
         setProfileRows(
           profiles.map((p) => ({
             studentId: p.studentId,
@@ -152,9 +156,12 @@ export default function PrincipalClassDetail() {
   }, [settled, classId, ctx, ready, liveVersion]);
 
   const total = students.length;
-  const attendanceRate = total && todayMarked > 0
+  // CHUNK 10.7. The fallback arm was Math.round(avgAttendancePct), which is 0
+  // when nothing has been measured — so a class with no marked day and no
+  // profile average read as 0% attendance rather than as unmeasured.
+  const attendanceRate: number | null = total && todayMarked > 0
     ? Math.round((todayPresent / total) * 100)
-    : Math.round(avgAttendancePct);
+    : avgAttendancePct;
 
   const distribution = useMemo(() => {
     const buckets = [

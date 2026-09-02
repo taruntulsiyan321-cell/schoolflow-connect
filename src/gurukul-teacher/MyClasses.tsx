@@ -13,6 +13,7 @@ import {
 import { AttendanceService, type AssignedClass } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toErrorMessage } from "@/lib/presentation";
+import { toClassLabel } from "@/lib/presentation";
 
 type SubTab =
   | "students"
@@ -46,8 +47,15 @@ function readOpenTab(): SubTab {
 function assignedToClassInfo(c: AssignedClass): ClassInfo {
   return {
     id: c.id,
-    className: c.name,
-    section: c.section,
+    // CHUNK 10.7. AssignedClass.name and .section are now nullable, because
+    // classes.name and classes.section are. This function is the boundary
+    // between the repository shape and a DISPLAY shape, so the label is
+    // resolved here rather than making every consumer of ClassInfo handle a
+    // null. toClassLabel owns the fallback word for a class with no usable
+    // name; the section stays a separate field because this screen renders
+    // the two apart.
+    className: toClassLabel(c.name),
+    section: c.section ?? "",
     subject: c.subject ?? "—",
     isClassTeacher: c.isClassTeacher,
     studentCount: c.studentCount,

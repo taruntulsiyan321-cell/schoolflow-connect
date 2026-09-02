@@ -281,7 +281,9 @@ export function Chip({ children, color = "var(--muted-foreground)" }: { children
   );
 }
 
-export function DifficultyBadge({ level }: { level:"easy"|"medium"|"hard"|string|undefined }) {
+// CHUNK 10.7 — `null` added: student_mistakes.difficulty is nullable, and a
+// mistake whose difficulty was never recorded is a real state.
+export function DifficultyBadge({ level }: { level:"easy"|"medium"|"hard"|string|undefined|null }) {
   if (!level) return null;
   const map: Record<string, string> = {
     easy: "var(--success)",

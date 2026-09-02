@@ -199,7 +199,11 @@ export function BattleRoom() {
             });
             return;
           }
-        } else {
+        } else if (existing) {
+          // CHUNK 10.7. `pid` is `existing?.id`, so reaching this branch
+          // already implies `existing` is non-null — but the compiler cannot
+          // follow the link through the optional chain. The guard proves it
+          // instead of asserting it, and costs one truthiness check.
           setMe(existing);
           if (existing.finished_at) setFinished(true);
         }

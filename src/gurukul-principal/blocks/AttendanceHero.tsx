@@ -7,6 +7,7 @@ import { tokens, attendanceColor } from '../design-tokens'
 import { Loader2 } from 'lucide-react'
 import { schoolAttendanceToday } from '@/academic/metrics/attendance'
 import { valueOr } from '@/academic/metrics/types'
+import { toClassLabel } from '@/lib/presentation';
 
 interface UnmarkedClass {
   classId: string
@@ -88,7 +89,9 @@ export function AttendanceHero() {
             .filter((c) => c.marked === 0)
             .map((c) => ({
               classId: c.classId,
-              className: c.className,
+              // CHUNK 10.7 — classes.name is nullable; resolved here so the
+              // "not marked" list never shows a blank where a class should be.
+              className: toClassLabel(c.className),
               section: c.section ?? '',
               subject: '',
               period: 0,

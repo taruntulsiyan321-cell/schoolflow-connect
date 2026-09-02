@@ -12,6 +12,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { localDateKey } from "@/lib/localDate";
 import { toErrorMessage } from "@/lib/presentation";
+import { toPercentLabel } from "@/lib/presentation";
 
 function StatCard({
   label, value, sub, icon, color, delta,
@@ -44,14 +45,23 @@ function StatCard({
   );
 }
 
-function AttendanceBar({ label, value, color }: { label: string; value: number; color: string }) {
+/**
+ * CHUNK 10.7. `value` was `number`, and the profile average feeding it is
+ * `number | null`. A null reached both the width and the caption:
+ * `width: null%` is invalid CSS so the bar silently collapsed to nothing,
+ * and the caption read "null%". A bar with no measurement now draws an empty
+ * track and says so, which is the same rendering the rest of the app gives
+ * an unmeasured figure.
+ */
+function AttendanceBar({ label, value, color }: { label: string; value: number | null; color: string }) {
+  const measured = value !== null && Number.isFinite(value);
   return (
     <div className="flex items-center gap-3">
       <div className="text-xs text-muted-foreground w-20 shrink-0">{label}</div>
       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${value}%`, background: color }} />
+        <div className="h-full rounded-full transition-all" style={{ width: measured ? `${value}%` : "0%", background: color }} />
       </div>
-      <div className="text-xs font-bold tabular-nums shrink-0" style={{ color }}>{value}%</div>
+      <div className="text-xs font-bold tabular-nums shrink-0" style={{ color: measured ? color : "var(--muted-foreground, #6b7280)" }}>{toPercentLabel(value)}</div>
     </div>
   );
 }
@@ -80,7 +90,10 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
   const [todayPresent, setTodayPresent] = useState(0);
   const [todayAbsent, setTodayAbsent] = useState(0);
   const [todayPct, setTodayPct] = useState(0);
-  const [profileAvg, setProfileAvg] = useState(0);
+  // CHUNK 10.7. Was useState(0) fed by Math.round(school.avgAttendancePct).
+  // Both halves were wrong the same way: 0 is a real reading of "everybody
+  // was absent", and it was standing in for "nobody has marked anything".
+  const [profileAvg, setProfileAvg] = useState<number | null>(null);
   const [classRows, setClassRows] = useState<
     { name: string; total: number; present: number; submitted: boolean; dayRatePct: number }[]
   >([]);
@@ -206,7 +219,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         setTodayPresent(day.present);
         setTodayAbsent(day.absent);
         setTodayPct(day.overallDayRatePct);
-        setProfileAvg(Math.round(school.avgAttendancePct));
+        setProfileAvg(school.avgAttendancePct);
         setClassRows(
           day.classes.map((c) => ({
             name: `${c.className}-${c.section}`,

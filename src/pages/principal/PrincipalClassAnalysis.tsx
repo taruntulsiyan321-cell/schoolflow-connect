@@ -24,6 +24,7 @@ import { ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react'
 
 import { THRESHOLDS } from '@/gurukul-principal/analysis/thresholds'
 import { PALETTE } from '@/gurukul-principal/shared/palette'
+import { toPercentLabel } from '@/lib/presentation';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PART 1: Three-state helpers
@@ -282,7 +283,9 @@ export default function PrincipalClassAnalysis() {
   const [attendanceMarkedToday, setAttendanceMarkedToday] = useState(false)
   const [presentToday, setPresentToday] = useState(0)
   const [absentToday, setAbsentToday] = useState(0)
-  const [termAttendancePct, setTermAttendancePct] = useState(0)
+  // CHUNK 10.7. null until measured — the sentence below reads
+  // "…% attendance this term" and 0 there is a claim, not a placeholder.
+  const [termAttendancePct, setTermAttendancePct] = useState<number | null>(null)
   const [schoolDaysMarked, setSchoolDaysMarked] = useState(0)
   const [totalSchoolDays, setTotalSchoolDays] = useState(0)
   const [subjectsNoMarks, setSubjectsNoMarks] = useState(0)
@@ -325,7 +328,9 @@ export default function PrincipalClassAnalysis() {
         const classId = classData.id
 
         setKlass(classData)
-        setSelectedSection(classData.section)
+        // CHUNK 10.7 — classes.section is nullable; the picker holds the
+        // empty string for "no section", which is what its options use.
+        setSelectedSection(classData.section ?? "")
 
         // Load all sections for this class
         const { data: sectionsData } = await supabase
@@ -390,7 +395,7 @@ export default function PrincipalClassAnalysis() {
         const analytics = await AnalyticsService.forClass(ctx, classId)
 
         if (!cancelled) {
-          setTermAttendancePct(Math.round(analytics.avgAttendancePct))
+          setTermAttendancePct(analytics.avgAttendancePct)
           setTotalSchoolDays(45)
           setSchoolDaysMarked(42)
           setSubjectsNoMarks(2)
@@ -437,8 +442,8 @@ export default function PrincipalClassAnalysis() {
 
   // Part 2: Header consistency rule
   const headerLine2 = attendanceMarkedToday
-    ? `${presentToday} present · ${absentToday} absent · ${termAttendancePct}% attendance this term`
-    : `Not marked today · ${termAttendancePct}% attendance this term`
+    ? `${presentToday} present · ${absentToday} absent · ${toPercentLabel(termAttendancePct)} attendance this term`
+    : `Not marked today · ${toPercentLabel(termAttendancePct)} attendance this term`
 
   return (
     <div style={{ background: PALETTE.ground, minHeight: '100vh', padding: '16px' }}>

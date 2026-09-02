@@ -10,11 +10,21 @@ import { toErrorMessage } from "@/lib/presentation";
 export type PracticeSessionSummary = {
   id: string;
   subject: string;
-  chapter: string;
+  // CHUNK 10.7 — nullable: a session with no single chapter (Weak Areas,
+  // Incorrect, Skipped, Bookmarked, Custom with no chapter chosen) is a real
+  // state, not missing data.
+  chapter: string | null;
   question_count: number;
   correct_count: number;
   score: number;
   created_at: string;
+  // NOT nullable. Every PracticeSessionSummary is produced by sessionSummary
+  // below, which only ever receives rows the query and the call-site filter
+  // have already restricted to finished sessions. Widening this would have
+  // been the wrong kind of honest: `new Date(null).getTime()` is 0 — the
+  // epoch, not Invalid Date — so it pushed four sorts in
+  // studentAnalysisMetrics into ordering unfinished sessions as though they
+  // happened in 1970.
   finished_at: string;
   duration_minutes: number;
   accuracy_pct: number;
@@ -51,7 +61,8 @@ export type AnalysisPageData = {
 function sessionSummary(row: {
   id: string;
   subject: string;
-  chapter: string;
+  // Nullable in practice_sessions; carried through to the summary unchanged.
+  chapter: string | null;
   question_count: number;
   correct_count: number;
   score: number;
@@ -133,7 +144,9 @@ export function useAnalysisPageData(enabled = true) {
 
       const sessions = sessionsRes.error
         ? []
-        : (sessionsRes.data ?? []).map(sessionSummary);
+        : (sessionsRes.data ?? [])
+            .filter((r): r is typeof r & { finished_at: string } => r.finished_at !== null)
+            .map(sessionSummary);
       const latest = sessions[0];
       const previous = sessions[1];
 

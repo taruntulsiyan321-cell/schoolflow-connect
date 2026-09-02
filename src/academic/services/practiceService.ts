@@ -197,7 +197,15 @@ export const PracticeService = {
     ctx: ServiceContext,
     args: {
       _subject: string;
-      _chapter: string;
+      /**
+       * CHUNK 10.7. Nullable, and deliberately so: this goes straight into
+       * `practice_sessions.chapter`, which migration
+       * 20260804040000_practice_sessions_chapter_nullable made nullable
+       * because "no chapter" is a real state — whole-subject practice.
+       * Coercing to "" here would write an empty string into the column that
+       * migration exists to keep null.
+       */
+      _chapter: string | null;
       _count?: number;
       _practice_mode?: string | null;
       /** easy | medium | hard — persisted for resume; omitted/mixed → null in DB. */
