@@ -72,6 +72,46 @@ later means backfilling every table.
 - No check constraint may force a `0` default on a measurement column.
 - Aggregates exclude `NULL`, never coalesce it to zero.
 
+**Guard on "was it measured", never on "does it exist".** Found live:
+`hasData = c.studentCount > 0` gated four columns on the principal live view.
+It asks whether the class HAS STUDENTS, not whether the class was MARKED — so a
+class of 30 that nobody had touched passed the guard, rendered
+`Math.round(null)` as 0, and `null >= 90` and `null >= 75` both being false
+dropped it into the alert colour. **Every step after the guard was correct.**
+The question is also per METRIC, not per row: a class can have its register
+marked and no exam entered, and those two cells must not agree with each other
+about whether there is data.
+
+**A generated type conflates optional with nullable.** Supabase renders a
+Postgres parameter declared `DEFAULT NULL` as `_p?: string` — optional, but not
+nullable — because it cannot express both. Under `strictNullChecks` every
+`?? null` against such a parameter stops compiling, and **the type is wrong,
+not the call.** Fix it per parameter against the DECLARED DEFAULT, read from
+`pg_get_function_arguments`: omitting the key is identical to passing null only
+where the default IS null. A blanket `?? undefined` across one real call was
+right for three parameters and silently wrong for five, where the defaults were
+`0`, `false`, `'practice'` and `'{}'`.
+
+**Do not widen a type beyond what the DATA allows.** Widening
+`PracticeSessionSummary.finished_at` to `string | null` looked like honesty and
+was not: the query behind it already filtered `finished_at IS NOT NULL`, so the
+null could not arrive. Eight new errors then appeared demanding guards against
+a case that never occurs — **false work that looks like rigour.** Widen to what
+the data permits, not to what the column permits, and make the guarantee
+visible with a filter the compiler can follow rather than a cast.
+**Proving a null cannot occur, asserting it away, and inventing one are three
+different things.**
+
+**The silent coercions are not all zero.** `null` reaches a screen in more
+shapes than `Math.round(null)`:
+
+| Expression | What it does |
+|---|---|
+| `new Date(null).getTime()` | **0** — the epoch, not Invalid Date. An unfinished row sorts to 1 January 1970 and anchors the start of a trend. |
+| `` width: `${null}%` `` | invalid CSS — the bar **silently collapses** to nothing while the caption beside it reads `null%`. One is visible; one is not. |
+| `null - null` in a comparator | **0**, and `null - 5` is `-5` — an unmeasured row sorts to the FRONT and is presented as the worst. |
+| `null > 0` | `false` — which is often the right output for the wrong reason, and inverts the moment somebody flips the comparison. |
+
 ### G5. No stored aggregates
 
 Attendance percentages, completion rates, averages, ranks, leaderboards, counts —
@@ -114,6 +154,28 @@ time, and they catch what a chunk broke somewhere else.
 | Live smoke | open each role's main screens | loads, no console errors, no `undefined%`, **no 5xx** |
 | Query timing | heaviest query per touched table, per role | reported; nothing within 2× the statement timeout |
 | Definer inventory | every SECDEF and edge function vs its declared reader set | no unlisted function, no undeclared grant (G13) |
+| **Divergence** | `npm run check:divergence` | 0 behind the base branch — run BEFORE building, not after |
+
+**"Run one session at a time" is a note, not a mechanism.** Two whole chunks
+have now been built twice and thrown away once each — Chunk 10 batch 2 and
+Chunk 10.5 — because a worktree on its own branch looks completely calm while
+the base branch moves. `git log` shows your commits, `git status` is clean, and
+nothing says the ground has shifted. Both collisions had **different commit
+subjects and identical file lists**, so comparing subjects would not have found
+either. `check-branch-divergence` fails on any distance behind the base and
+prints the overlapping files, and its self-test builds a real divergence in a
+throwaway repository rather than asserting against a fixture.
+
+**A gate that cannot run must fail CLEANLY, and say so in a way no reader can
+mistake for a finding.** The migration preflight read `.env.local` with no
+guard, so on a machine without that file it died with an unhandled `ENOENT` and
+a Node stack trace — non-zero exit, which looks exactly like a real finding,
+while meaning the check never ran. It now separates the three outcomes by exit
+code as well as by text: **0 pass, 1 findings, 2 blocked**. Two further traps
+sat behind that one: the credential parsing was a second home for something
+`scripts/lib/readonly-db.mjs` already did (G9), and `process.exit()` with an
+in-flight `fetch` aborts inside libuv on Windows, so the shell saw **127**
+rather than the code the gate had chosen.
 
 **A gate fails on facts. Judgements are printed as debt, never as failures.**
 A finding derived from unreviewed heuristics is a restatement of the guess, not
@@ -2430,6 +2492,18 @@ one.
 - **A census of readers cannot see writers.** Sweeping for functions that *emit*
   a key missed the one that *writes* the columns — which would have broken with
   `42703` on its next call. Ask what reads it **and** what writes it.
+- **A gate blind once will be blind again, in a different shape.** The same
+  strength gate has now missed three ways: an **enumeration** that omitted two
+  names, **identifiers** that could not see prose, and a **prefix anchored at a
+  word start** that could not see `strongest`. Each fix was correct and each left
+  a different hole. **After closing a gate's blind spot, assume it has another
+  and go looking**, rather than treating the fix as completion.
+- **Widening a pattern can narrow it.** Replacing an exact-match alternation with
+  a substring vocabulary **dropped the plain case it had always caught**. Re-run
+  the self-test **in both directions** after every pattern change — old cases
+  still caught, new cases now caught.
+  (And `\b` inside a JavaScript string is a **backspace**, not a word boundary.
+  It writes `0x08` into the file and matches nothing.)
 - **An enumerated pattern is itself a census.** A gate matching
   `strong_topics|strong_concepts|strong_areas` missed `strong_subjects` and
   `strong_chapters`. **The live count went 9 → 45 on the pattern change alone**,

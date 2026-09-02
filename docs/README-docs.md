@@ -26,13 +26,17 @@ than silently replaced, so the reasoning stays visible.
 
 The chunked database and isolation build. Twelve chunks, each with a STOP gate.
 
-- Consumed as work progresses. Chunks 1, 1.5, 1.6 and 2 are done.
+- Consumed as work progresses. **Check the commit record for what is built —
+  never memory.** Insertion order has stepped over whole chunks before: 8 and 9
+  were skipped because 9.5 and 10 were inserted ahead of them, and the rising
+  numbers made it look complete.
 - Each chunk: build → run its verification block → paste output → **stop for
   approval**.
 - References `locked-decisions.md` throughout. It does not restate rules; it
   points at them.
-- The global rules G1–G7 at the top apply to every chunk and are the things most
-  easily lost.
+- **The global rules G1–G15 at the top apply to every chunk** and matter more
+  than any individual chunk body. They are written from defects that actually
+  happened, each with the case that produced it.
 
 ---
 
@@ -75,3 +79,12 @@ policies, so no future policy can grant across institutions by forgetting a term
 
 **Never invent a rule.** If it is not written down, stop and ask. Every bug worth
 having so far came from something being inferred rather than decided.
+
+**Report contradictions rather than following the doc.** Where these documents
+disagree with the code, the code is the evidence. That instruction has found five
+doc errors and stopped two migrations that would have caused real damage.
+
+**Run one session at a time.** Parallel sessions have now duplicated and
+discarded whole chunks of work twice, left migrations untracked, and half-landed
+CI changes. If two are unavoidable, branch per session and check divergence
+before starting.

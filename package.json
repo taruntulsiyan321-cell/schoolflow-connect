@@ -47,7 +47,10 @@
     "lint:unreachable-screens:self-test": "node scripts/lint-unreachable-screens.mjs --self-test",
     "lint:threshold-disagreements": "node scripts/lint-threshold-literals.mjs --disagreements",
     "lint:strength-surfaces": "node scripts/lint-strength-surfaces.mjs",
-    "lint:strength-surfaces:self-test": "node scripts/lint-strength-surfaces.mjs --self-test"
+    "lint:strength-surfaces:self-test": "node scripts/lint-strength-surfaces.mjs --self-test",
+    "check:divergence": "node scripts/check-branch-divergence.mjs",
+    "check:divergence:self-test": "node scripts/check-branch-divergence.mjs --self-test",
+    "preflight": "npm run check:divergence && node scripts/check-foreign-migrations.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",
