@@ -311,9 +311,15 @@ export const BattleExperienceService = {
       _difficulty: difficulty,
       _count: opts.questions ?? 5,
       _per_q: opts.perQuestionSec ?? 20,
-      _chapter: opts.chapter ?? null,
-      _class_id: opts.classId ?? null,
-      _topic: opts.topic ?? null,
+      // CHUNK 10.7 — omitted, not coerced. `_chapter text DEFAULT NULL`,
+      // `_class_id uuid DEFAULT NULL`, `_topic text DEFAULT NULL`: for these
+      // three, not sending the key and sending null produce the same battle.
+      // `_difficulty DEFAULT 'medium'`, `_count DEFAULT 5` and `_per_q DEFAULT
+      // 20` above are deliberately still sent — omitting those would silently
+      // substitute the database default for a value the caller chose.
+      ...(opts.chapter != null ? { _chapter: opts.chapter } : {}),
+      ...(opts.classId != null ? { _class_id: opts.classId } : {}),
+      ...(opts.topic != null ? { _topic: opts.topic } : {}),
     });
     if (error) {
       const msg = error.message || "Could not start quick battle";

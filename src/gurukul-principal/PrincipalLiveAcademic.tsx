@@ -15,7 +15,7 @@ import {
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { localDateKey } from "@/lib/localDate";
-import { toEnumLabel, toErrorMessage, toPersonName } from "@/lib/presentation";
+import { toEnumLabel, toErrorMessage, toPersonName, toPercentLabel } from "@/lib/presentation";
 
 /**
  * Principal live academic panels — sourced from the Academic Engine only.
@@ -28,9 +28,6 @@ import { toEnumLabel, toErrorMessage, toPersonName } from "@/lib/presentation";
  * nothing measured showed a confident 0% on the principal live view — the third
  * screen carrying this exact shape, after LiveClassPanels and the watchlist.
  */
-function pctOrDash(v: number | null | undefined): string {
-  return v === null || v === undefined ? "—" : `${Math.round(v)}%`;
-}
 
 function todayStr(): string {
   return localDateKey();
@@ -176,22 +173,22 @@ export function PrincipalSchoolOverview({ onDrillDown }: { onDrillDown?: (metric
           color="var(--emerald)"
           onClick={onDrillDown ? () => onDrillDown('attendance') : undefined}
         />
-        <StatBlock label="Profile Avg Attendance" value={pctOrDash(school.avgAttendancePct)} color="var(--emerald)" />
+        <StatBlock label="Profile Avg Attendance" value={toPercentLabel(school.avgAttendancePct)} color="var(--emerald)" />
         <StatBlock
           label="Avg Exams"
-          value={pctOrDash(school.avgExamsPct)}
+          value={toPercentLabel(school.avgExamsPct)}
           color="var(--rose)"
           onClick={onDrillDown ? () => onDrillDown('exams') : undefined}
         />
         <StatBlock
           label="Avg Homework"
-          value={pctOrDash(school.avgHomeworkCompletionPct)}
+          value={toPercentLabel(school.avgHomeworkCompletionPct)}
           color="var(--amber)"
           onClick={onDrillDown ? () => onDrillDown('homework') : undefined}
         />
         <StatBlock
           label="Avg Tests"
-          value={pctOrDash(school.avgTestsPct)}
+          value={toPercentLabel(school.avgTestsPct)}
           color="var(--indigo)"
           onClick={onDrillDown ? () => onDrillDown('tests') : undefined}
         />
@@ -278,8 +275,18 @@ export function PrincipalClassRollups({
           <tbody>
             {rows.map((c, i) => {
               const className = `${c.className}${c.section ? `-${c.section}` : ""}`;
-              // Fix 1: Show em-dash for no data (studentCount === 0)
-              const hasData = c.studentCount > 0
+              // CHUNK 10.7. `hasData = c.studentCount > 0` was the WRONG
+              // QUESTION. It asks whether the class has students, not whether
+              // the class was measured — and a class of 30 that nobody has
+              // marked passes it. Every cell below then rendered
+              // `Math.round(null)`, which is 0, and the attendance cell
+              // coloured it: `null >= 90` is false and `null >= 75` is false,
+              // so it fell through to the alert colour. A class nobody had
+              // touched showed a confident red 0% on the principal live view.
+              //
+              // The question is per METRIC, not per row: a class can have its
+              // register marked and no exam entered, and those two cells should
+              // not agree with each other about whether there is data.
 
               return (
                 <tr
@@ -302,20 +309,20 @@ export function PrincipalClassRollups({
                   <td
                     style={{
                       padding: "12px 14px", fontSize: 12, fontWeight: 600,
-                      color: !hasData ? "var(--text-muted)" : (c.avgAttendancePct >= 90 ? "var(--emerald)" : c.avgAttendancePct >= 75 ? "var(--amber)" : "var(--rose)"),
+                      color: c.avgAttendancePct === null ? "var(--text-muted)" : (c.avgAttendancePct >= 90 ? "var(--emerald)" : c.avgAttendancePct >= 75 ? "var(--amber)" : "var(--rose)"),
                     }}
                     className="font-mono-data"
                   >
-                    {hasData ? `${Math.round(c.avgAttendancePct)}%` : '—'}
+                    {toPercentLabel(c.avgAttendancePct)}
                   </td>
                   <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">
-                    {hasData ? `${Math.round(c.avgHomeworkCompletionPct)}%` : '—'}
+                    {toPercentLabel(c.avgHomeworkCompletionPct)}
                   </td>
                   <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">
-                    {hasData ? `${Math.round(c.avgExamsPct)}%` : '—'}
+                    {toPercentLabel(c.avgExamsPct)}
                   </td>
                   <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">
-                    {hasData ? `${Math.round(c.avgTestsPct)}%` : '—'}
+                    {toPercentLabel(c.avgTestsPct)}
                   </td>
                 </tr>
               );

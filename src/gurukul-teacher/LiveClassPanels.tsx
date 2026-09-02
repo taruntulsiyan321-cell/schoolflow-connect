@@ -45,7 +45,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
-import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
+import { toEnumLabel, toErrorMessage, toPercentLabel } from "@/lib/presentation";
 import { useResetOnIdentityChange } from "@/hooks/useInitialLoadGate";
 import { ATTENDANCE_LOW, HOMEWORK_LOW } from "@/academic/metrics/thresholds";
 
@@ -83,9 +83,6 @@ const MANUAL_QUESTION_KINDS: { value: ManualQuestionKind; label: string }[] = [
  * One helper rather than four inline ternaries: the point of the null contract
  * is that "we did not measure this" has a single rendering.
  */
-function pctOrDash(v: number | null | undefined): string {
-  return v === null || v === undefined ? "—" : `${Math.round(v)}%`;
-}
 
 function errMsg(e: unknown, fallback: string): string {
   return e instanceof Error ? e.message : fallback;
@@ -2823,25 +2820,25 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
             <div>
               <span className="text-muted-foreground">Attendance </span>
               <span className="font-bold text-foreground tabular-nums">
-                {pctOrDash(analytics.avgAttendancePct)}
+                {toPercentLabel(analytics.avgAttendancePct)}
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">HW </span>
               <span className="font-bold text-foreground tabular-nums">
-                {pctOrDash(analytics.avgHomeworkCompletionPct)}
+                {toPercentLabel(analytics.avgHomeworkCompletionPct)}
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">Test avg </span>
               <span className="font-bold text-foreground tabular-nums">
-                {pctOrDash(analytics.avgTestsPct)}
+                {toPercentLabel(analytics.avgTestsPct)}
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">Exam avg </span>
               <span className="font-bold text-foreground tabular-nums">
-                {pctOrDash(analytics.avgExamsPct)}
+                {toPercentLabel(analytics.avgExamsPct)}
               </span>
             </div>
             <div>

@@ -86,8 +86,9 @@ export interface SchoolHomeworkSummary {
   byKind: Record<string, number>;
   classes: {
     classId: string;
-    className: string;
-    section: string;
+    // CHUNK 10.7 — nullable in Postgres; see ClassDateAttendanceSummary.
+    className: string | null;
+    section: string | null;
     homeworkCount: number;
     completionPct: number;
     latePct: number;

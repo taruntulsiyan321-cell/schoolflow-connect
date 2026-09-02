@@ -259,18 +259,33 @@ export async function getSchoolPerformance(ctx: RepoContext): Promise<{
 }
 
 /** Per-class rollups for admin/principal reports — computed in engine, not React. */
-export async function getSchoolClassRollups(ctx: RepoContext): Promise<
-  {
-    classId: string;
-    className: string;
-    section: string;
-    studentCount: number;
-    avgAttendancePct: number;
-    avgHomeworkCompletionPct: number;
-    avgExamsPct: number;
-    avgTestsPct: number;
-  }[]
-> {
+/**
+ * CHUNK 10.7. Three changes to this signature, all of them the same fact:
+ *
+ *  - the four averages are `number | null`, because Chunk 10 gave "not
+ *    measured" a way to be expressed and this row type was still promising a
+ *    number
+ *  - `className` is `string | null`, because `classes.name` is nullable
+ *  - `section` is `string | null`, and the `?? ""` below is gone
+ *
+ * The `?? ""` mattered most. This function feeds the per-class rollups the
+ * admin and principal reports read, and an empty string is not "no section" —
+ * it renders as a blank where a label should be and sorts to the top of an
+ * ordered list. The null contract exists so that absent has one representation;
+ * substituting "" here made a second one.
+ */
+type ClassRollupRow = {
+  classId: string;
+  className: string | null;
+  section: string | null;
+  studentCount: number;
+  avgAttendancePct: number | null;
+  avgHomeworkCompletionPct: number | null;
+  avgExamsPct: number | null;
+  avgTestsPct: number | null;
+};
+
+export async function getSchoolClassRollups(ctx: RepoContext): Promise<ClassRollupRow[]> {
   const schoolId = schoolIdOf(ctx);
   const { data: classes, error } = await getClient(ctx)
     .from("classes")
@@ -279,13 +294,15 @@ export async function getSchoolClassRollups(ctx: RepoContext): Promise<
     .order("name");
   throwIfError(error, "Failed to list classes for rollups");
 
-  const out = [];
+  // Annotated: `const out = []` infers never[] under strictNullChecks, so every
+  // push became an error naming `never` rather than the field that was wrong.
+  const out: ClassRollupRow[] = [];
   for (const cls of classes ?? []) {
     const perf = await getClassPerformance(ctx, cls.id);
     out.push({
       classId: cls.id,
       className: cls.name,
-      section: cls.section ?? "",
+      section: cls.section,
       ...perf,
     });
   }

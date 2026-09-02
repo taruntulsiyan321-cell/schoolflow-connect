@@ -48,8 +48,13 @@ function afterAttendanceWrite(
 
 export interface ClassDateAttendanceSummary {
   classId: string;
-  className: string;
-  section: string;
+  /**
+   * CHUNK 10.7. Both nullable in Postgres (`classes.name`, `classes.section`).
+   * Widened rather than coerced: an unnamed class is a real state, and `?? ""`
+   * would put a blank where a label belongs.
+   */
+  className: string | null;
+  section: string | null;
   totalStudents: number;
   marked: number;
   present: number;

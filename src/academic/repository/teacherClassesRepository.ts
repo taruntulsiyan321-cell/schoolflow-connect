@@ -4,8 +4,19 @@ import { isPlaceholderLabel } from "../ai/novaContextBuilder";
 
 export interface AssignedClass {
   id: string;
-  name: string;
-  section: string;
+  /**
+   * CHUNK 10.7. `classes.name` and `classes.section` are both NULLABLE in
+   * Postgres, and this interface said they were not. Widened rather than
+   * coerced: a class with no name recorded is a real state, and `?? ""` here
+   * would put an empty label on a screen and an empty string in an AI prompt,
+   * neither of which says "unnamed".
+   *
+   * `isPlaceholderLabel` is already imported by this file for exactly this
+   * class of problem, which is the sign the fact was known and the type had
+   * simply not caught up.
+   */
+  name: string | null;
+  section: string | null;
   academicYear: string | null;
   subject: string | null;
   subjectId: string | null;

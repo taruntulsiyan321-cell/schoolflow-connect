@@ -371,9 +371,21 @@ export const PracticeService = {
       _session_id: args.sessionId,
       _score: args.score ?? (skipped ? 0 : args.isCorrect ? 1 : 0),
       _skipped: skipped,
-      _template_id: args.templateId ?? null,
-      _time_taken_ms: args.timeTakenMs ?? null,
-      _bank_question_id: args.bankQuestionId ?? null,
+      // CHUNK 10.7 — omitted, not coerced. The generated Args type renders a
+      // DEFAULT NULL parameter as optional-but-not-nullable, so `?? null` no
+      // longer typechecks. These three are `_template_id uuid DEFAULT NULL`,
+      // `_time_taken_ms integer DEFAULT NULL` and `_bank_question_id uuid
+      // DEFAULT NULL`, so omitting the key and passing null reach the same
+      // column value. The guard narrows; `!` would have asserted.
+      //
+      // Note what is NOT omitted below it: `_score DEFAULT 0`, `_skipped
+      // DEFAULT false`, `_hint_used DEFAULT false`, `_source DEFAULT
+      // 'practice'` and `_meta DEFAULT '{}'`. Omitting any of those would write
+      // the default instead of null and change the row. The substitution is
+      // per-parameter, never blanket.
+      ...(args.templateId != null ? { _template_id: args.templateId } : {}),
+      ...(args.timeTakenMs != null ? { _time_taken_ms: args.timeTakenMs } : {}),
+      ...(args.bankQuestionId != null ? { _bank_question_id: args.bankQuestionId } : {}),
       _hint_used: args.hintUsed ?? false,
       _source: args.source ?? "practice",
       _meta: meta,

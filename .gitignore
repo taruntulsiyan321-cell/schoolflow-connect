@@ -45,3 +45,7 @@ scripts/rbse-commerce-full/.gen-cache/
 # library_books, library_checkouts, staff_attendance). These hold real staff
 # attendance dates and are kept OUTSIDE the repo — git history is forever.
 docs/data-exports/
+
+# tsc -b writes these beside each tsconfig; `npm run typecheck` is build mode
+# since 10.7 group 1, so they appear on every typecheck run. Build output.
+*.tsbuildinfo

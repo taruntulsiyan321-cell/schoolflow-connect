@@ -230,9 +230,13 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
     _session_id: opts.sessionId,
     _score: score,
     _skipped: skipped,
-    _template_id: opts.templateId ?? null,
-    _time_taken_ms: opts.timeTakenMs ?? null,
-    _bank_question_id: bankQuestionId,
+    // CHUNK 10.7 — omitted, not coerced; see practiceService for the full note.
+    // All three are DEFAULT NULL in Postgres, so an omitted key and an explicit
+    // null write the same column. The parameters with a non-null default —
+    // _score, _skipped, _hint_used, _source, _meta — are still sent.
+    ...(opts.templateId != null ? { _template_id: opts.templateId } : {}),
+    ...(opts.timeTakenMs != null ? { _time_taken_ms: opts.timeTakenMs } : {}),
+    ...(bankQuestionId != null ? { _bank_question_id: bankQuestionId } : {}),
     _hint_used: opts.hintUsed ?? false,
     _source: opts.source ?? "practice",
     _meta: meta,

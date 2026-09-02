@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AnalyticsService, useAcademicLive } from '@/academic'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { tokens, homeworkColor } from '../design-tokens'
+import { toPercentLabel } from '@/lib/presentation'
 import { Loader2 } from 'lucide-react'
 
 export function HomeworkBlock() {
@@ -12,7 +13,10 @@ export function HomeworkBlock() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [schoolAvg, setSchoolAvg] = useState(0)
+  // CHUNK 10.7. Was useState(0): "not loaded yet" and "the school is at 0%"
+  // were the same value, and homeworkColor(0) is the alert colour — so the block
+  // rendered a confident red 0% before any data arrived.
+  const [schoolAvg, setSchoolAvg] = useState<number | null>(null)
   const [lowest, setLowest] = useState<{ pct: number; className: string } | null>(null)
   const [highest, setHighest] = useState<{ pct: number; className: string } | null>(null)
 
@@ -38,8 +42,22 @@ export function HomeworkBlock() {
 
         setSchoolAvg(school.avgHomeworkCompletionPct)
 
-        if (classRollups.length > 0) {
-          const sorted = [...classRollups].sort((a, b) => a.avgHomeworkCompletionPct - b.avgHomeworkCompletionPct)
+        // CHUNK 10.7. Unmeasured classes are EXCLUDED before sorting, not
+        // sorted as zero. `null - null` is 0 and `null - 5` is -5, so a class
+        // nobody had marked sorted to the front and was shown to the principal
+        // as the school’s worst for homework — a named class ranked last on
+        // the strength of never having been measured.
+        //
+        // The guard is on `measured`, not on `classRollups`: a school where no
+        // class has been marked has no range to show, and showing one class as
+        // both the best and the worst would be the same lie in another shape.
+        const measured = classRollups.filter(
+          (c): c is typeof c & { avgHomeworkCompletionPct: number } =>
+            c.avgHomeworkCompletionPct !== null,
+        )
+
+        if (measured.length > 0) {
+          const sorted = [...measured].sort((a, b) => a.avgHomeworkCompletionPct - b.avgHomeworkCompletionPct)
           setLowest({
             pct: sorted[0].avgHomeworkCompletionPct,
             className: `${sorted[0].className}${sorted[0].section ? `-${sorted[0].section}` : ''}`,
@@ -149,7 +167,7 @@ export function HomeworkBlock() {
           lineHeight: 1,
           fontVariantNumeric: 'tabular-nums',
         }}>
-          {Math.round(schoolAvg)}%
+          {toPercentLabel(schoolAvg)}
         </div>
         <p style={{
           fontSize: tokens.fontSize.body,
@@ -173,9 +191,9 @@ export function HomeworkBlock() {
             margin: 0,
           }}>
             Range: <span style={{ fontWeight: tokens.fontWeight.semibold, color: tokens.color.accent }}>
-              {Math.round(lowest.pct)}% ({lowest.className})
+              {toPercentLabel(lowest.pct)} ({lowest.className})
             </span> to <span style={{ fontWeight: tokens.fontWeight.semibold, color: tokens.color.positive }}>
-              {Math.round(highest.pct)}% ({highest.className})
+              {toPercentLabel(highest.pct)} ({highest.className})
             </span>
           </p>
         </div>

@@ -8,6 +8,7 @@ import {
 import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import { broadcastAcademicWrite } from "../live";
 import { assertMayAccessStudent } from "./parentAccess";
+import { toDisplayText } from "@/lib/presentation";
 
 export type ClassTimetableSnapshot = {
   classId: string;
@@ -141,7 +142,12 @@ export const TimetableService = {
 
     const grid = normalizeGrid(tt?.grid);
     const hasData = Object.values(grid).some((v) => v.trim() !== "");
-    const classLabel = cls.section ? `${cls.name} — Section ${cls.section}` : cls.name;
+    // CHUNK 10.7. `classes.name` is nullable, so this produced the literal
+    // string "null — Section A" for an unnamed class, or a null label. Routed
+    // through the presentation boundary, which already owns the fallback word
+    // for a class with no usable name — the format is unchanged.
+    const namePart = toDisplayText(cls.name, { kind: "label", fallback: "Unassigned" });
+    const classLabel = cls.section ? `${namePart} — Section ${cls.section}` : namePart;
 
     return {
       classId: resolved.classId,
