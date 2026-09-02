@@ -146,8 +146,8 @@ export function ArenaFocusCards({
           iconClass="bg-[var(--ba-surface-low)] text-[var(--ba-primary-container)]"
           endsLabel="Get started"
           title="Class 12 practice"
-          description="Answer fresh questions to build mastery before your first battle."
-          reward="Mastery"
+          description="Answer fresh questions to warm up before your first battle."
+          reward="Accuracy"
           progress={0}
           total={5}
           href="/student/practice/math12"

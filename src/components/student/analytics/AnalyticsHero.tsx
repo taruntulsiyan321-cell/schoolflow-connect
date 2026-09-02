@@ -18,7 +18,7 @@ type Props = {
 };
 
 function ScoreTile({ value, label }: { value: number; label: string }) {
-  const displayLabel = label.toLowerCase().includes("concept mastery") ? "Mastery" : label;
+  const displayLabel = label.toLowerCase().includes("concept mastery") ? "Accuracy" : label;
   return (
     <div className="wa-hero-score-tile">
       <p className="wa-label text-[#5d4611]">Current {displayLabel}</p>

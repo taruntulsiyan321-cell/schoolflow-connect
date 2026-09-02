@@ -308,18 +308,21 @@ export function InsightHighlight({
   subtitle,
   value,
 }: {
-  kind: "strength" | "focus";
+  kind: "focus";
   title: string;
   subtitle: string;
   value: string;
 }) {
-  const border = kind === "strength" ? "border-l-accent" : "border-l-warning";
-  const badge = kind === "strength" ? "bg-accent/15 text-accent" : "bg-warning/15 text-warning";
+  // §10.8: the "strength" branch is removed, not renamed — nothing ever passed
+  // it, and a rendered "Top strength" card one prop away from existing is the
+  // state the rule calls out.
+  const border = "border-l-warning";
+  const badge = "bg-warning/15 text-warning";
 
   return (
     <Card className={cn("p-4 shadow-card border-l-4", border)}>
       <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-        {kind === "strength" ? "Top strength" : "Needs focus"}
+        Needs focus
       </div>
       <div className="flex items-start justify-between gap-3 mt-2">
         <div className="min-w-0">

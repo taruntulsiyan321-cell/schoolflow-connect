@@ -119,15 +119,14 @@ export function FlowConceptTag({
 }: {
   label: string;
   meta?: string;
-  variant: "strong" | "weak";
+  variant: "weak";
 }) {
   return (
     <span
       className={cn(
         "inline-flex flex-col gap-0.5 rounded-xl border px-3 py-2 text-left max-w-full",
-        variant === "strong"
-          ? "bg-emerald-50/80 border-emerald-200/80 text-emerald-900"
-          : "bg-orange-50/80 border-orange-200/80 text-orange-950",
+        // §10.8: the emerald "strong" styling is gone — nothing passed it.
+        "bg-orange-50/80 border-orange-200/80 text-orange-950",
       )}
     >
       <span className="text-sm font-medium truncate">{label}</span>
@@ -145,17 +144,18 @@ export function FlowConceptPanel({
 }: {
   title: string;
   icon: ReactNode;
-  variant: "strong" | "weak";
+  variant: "weak";
   children: ReactNode;
   empty?: string;
 }) {
-  const isStrong = variant === "strong";
+  // §10.8: nothing passes variant="strong"; the emerald branch is removed
+  // rather than renamed, so a strength styling cannot be one prop away.
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
       <p
         className={cn(
           "text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 mb-3",
-          isStrong ? "text-emerald-700" : "text-orange-700",
+          "text-orange-700",
         )}
       >
         {icon} {title}

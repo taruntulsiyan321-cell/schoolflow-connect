@@ -159,7 +159,10 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
   const r = data.report;
   const s = r.summary ?? {};
   const b = r.battle ?? {};
-  const topics = r.topics ?? { strong: [], weak: [] };
+  // §10.8: no strong key in the default either. The comment below records that
+  // topics.strong is no longer computed; leaving it in the fallback shape is the
+  // plumbing-kept-for-shape state the rule names.
+  const topics = r.topics ?? { weak: [] };
   const speed = r.speed ?? {};
   const cmp = r.comparison ?? {};
   const questions: any[] = r.questions ?? [];
@@ -290,7 +293,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
           no longer computes topics.strong either, so there is nothing to render
           even if this card came back. */}
       <div className="grid gap-3">
-        <TopicCard title="Needs work" items={topics.weak} variant="weak" />
+        <TopicCard title="Needs work" items={topics.weak} />
       </div>
 
       {/* Question breakdown */}
@@ -389,8 +392,9 @@ function Tile({ icon, label, value, tone }: { icon: React.ReactNode; label: stri
   );
 }
 
-function TopicCard({ title, items, variant }: { title: string; items: any[]; variant: "strong" | "weak" }) {
-  const border = variant === "strong" ? "border-accent" : "border-warning";
+// §10.8: variant was "strong" | "weak" and nothing ever passed "strong".
+function TopicCard({ title, items }: { title: string; items: any[] }) {
+  const border = "border-warning";
   return (
     <Card className={cn("p-4 border-l-4", border)}>
       <h3 className="font-bold text-sm mb-2">{title}</h3>

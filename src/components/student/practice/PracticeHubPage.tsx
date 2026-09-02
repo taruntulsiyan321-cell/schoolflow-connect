@@ -268,7 +268,7 @@ export default function PracticeHubPage() {
     const ch = preferRealAcademicLabel(chapter, focusTopic?.topic);
     const n = count ?? QUESTION_SETS.find((q) => q.id === questionSet)?.count ?? 10;
     if (!ch) {
-      toast.message("Pick a weak/strong topic first — Start needs a real chapter.");
+      toast.message("Pick a topic first — Start needs a real chapter.");
       return;
     }
     if (selectedSubject === "Mathematics" || selectedSubject === "Math") {
