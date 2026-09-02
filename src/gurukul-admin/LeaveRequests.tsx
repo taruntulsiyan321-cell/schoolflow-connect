@@ -3,7 +3,7 @@ import {
   Search, Eye, CheckCircle2, XCircle, Calendar, Loader2, X,
 } from "lucide-react";
 import { cn, InitialsAvatar, UndoToast } from "./shared";
-import { LeaveService, useAcademicLive, type SchoolLeaveRequestRow } from "@/academic";
+import { LeaveService, decisionAttribution, useAcademicLive, type SchoolLeaveRequestRow } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
 import { toErrorMessage } from "@/lib/presentation";
@@ -156,11 +156,21 @@ function LeaveDetail({
             <div className="text-xs text-[#c8c8d4] leading-relaxed">{request.reason || "—"}</div>
           </div>
 
-          {request.reviewedAt && (
+          {/* Gated on the DECISION existing, not on reviewedAt. Eight of the
+              eleven live decisions carry no decided_at, and gating on the
+              timestamp hid the verdict entirely for those. Say what the data
+              supports: the verdict always, the time and the decider only when
+              they were actually recorded. */}
+          {request.decision && (
             <div className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
               <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Reviewed</div>
               <div className="text-xs text-[#c8c8d4]">
-                {new Date(request.reviewedAt).toLocaleString("en-IN")}
+                {request.decision.decidedAt
+                  ? new Date(request.decision.decidedAt).toLocaleString("en-IN")
+                  : "Time not recorded"}
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                {decisionAttribution(request.decision)}
               </div>
             </div>
           )}

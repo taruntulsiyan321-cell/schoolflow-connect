@@ -140,7 +140,8 @@ export type {
   AnnouncementPriority,
   AnnouncementStatus,
 } from "./services/announcementService";
-export type { LeaveRequestRow, SchoolLeaveRequestRow } from "./services/leaveService";
+export type { LeaveRequestRow, SchoolLeaveRequestRow, LeaveDecisionRow } from "./services/leaveService";
+export { decisionAttribution } from "./services/leaveService";
 export type {
   ChatContact,
   ChatMessage,

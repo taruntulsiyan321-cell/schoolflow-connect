@@ -153,8 +153,8 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             .limit(6),
           supabase
             .from("leave_requests")
-            .select("id, leave_type, from_date, to_date, created_at, classes!inner(school_id)")
-            .eq("status", "pending")
+            // BATCH 1b: pending is the absence of a decision row, not a column.
+            .select("id, leave_type, from_date, to_date, created_at, classes!inner(school_id), leave_decisions(id)")
             .eq("classes.school_id", ctx.schoolId)
             .order("created_at", { ascending: false })
             .limit(5),
@@ -202,8 +202,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         if (schoolTeacherUserIds.length > 0) {
           const teacherLeaveRes = await supabase
             .from("leave_requests")
-            .select("id, leave_type, from_date, to_date, created_at")
-            .eq("status", "pending")
+            .select("id, leave_type, from_date, to_date, created_at, leave_decisions(id)")
             .eq("applicant_kind", "teacher")
             .is("class_id", null)
             .in("applicant_user_id", schoolTeacherUserIds)
@@ -213,7 +212,11 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           if (teacherLeaveRes.error) {
             throw new Error(`Failed to load pending leaves: ${teacherLeaveRes.error.message}`);
           }
-          teacherLeaveRows = (teacherLeaveRes.data ?? []) as LeaveRow[];
+          // Pending = no decision row. The .eq("status","pending") this replaces
+          // read the column batch 1c drops.
+          teacherLeaveRows = ((teacherLeaveRes.data ?? []) as LeaveRow[]).filter(
+            (r) => ((r as { leave_decisions?: unknown[] }).leave_decisions ?? []).length === 0,
+          );
         }
 
         setTodayPresent(day.present);
@@ -268,7 +271,10 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         setActivity((activityRows.data ?? []) as ActivityRow[]);
         setPendingLeaves(
           [
-            ...((classLeaveRows.data ?? []) as unknown as (LeaveRow & { classes: unknown })[]).map((r) => ({
+            // Pending = no decision row, same as the teacher list above.
+            ...((classLeaveRows.data ?? []) as unknown as (LeaveRow & { classes: unknown })[])
+              .filter((r) => ((r as { leave_decisions?: unknown[] }).leave_decisions ?? []).length === 0)
+              .map((r) => ({
               id: r.id,
               leave_type: r.leave_type,
               from_date: r.from_date,

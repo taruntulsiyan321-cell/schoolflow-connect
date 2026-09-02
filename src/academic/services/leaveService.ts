@@ -23,10 +23,14 @@ export type LeaveRequestRow = {
   fromDate: string;
   toDate: string;
   reason: string | null;
+  /** DERIVED from whether a decision row exists — never read from the column. */
   status: LeaveStatus;
   createdAt: string;
+  /** From the decision row. Null where the decider was not recorded. */
   reviewedAt: string | null;
   reviewedBy: string | null;
+  /** The decision itself, so a screen can say "decider not recorded". */
+  decision: LeaveDecisionRow | null;
   studentId: string | null;
   classId: string | null;
 };
@@ -54,7 +58,63 @@ type DbLeave = {
   class_id: string | null;
 };
 
-function mapRow(row: DbLeave): LeaveRequestRow {
+/**
+ * CHUNK 8 BATCH 1b — the decision row, which is the authority.
+ *
+ * `leave_requests.status` is still on the table and still written (batch 1c
+ * drops it and the dual write together). Nothing READS it from here any more:
+ * resolution is derived from whether a decision row exists, per G5, so the two
+ * cannot drift into disagreement without one of them being unread.
+ *
+ * Measured before repointing — the two agree exactly today:
+ *   status=pending   no decision row   8
+ *   status=approved  decision row      6
+ *   status=rejected  decision row      5
+ * and no policy, function or trigger in the database reads the column.
+ */
+export type LeaveDecisionRow = {
+  leaveRequestId: string;
+  decision: Exclude<LeaveStatus, "pending">;
+  /** NULL where the decider was genuinely not recorded. Never invented. */
+  decidedBy: string | null;
+  decidedByRole: string | null;
+  decidedAt: string | null;
+  reason: string | null;
+};
+
+type DbLeaveDecision = {
+  leave_request_id: string;
+  decision: string;
+  decided_by: string | null;
+  decided_by_role: string | null;
+  decided_at: string | null;
+  reason: string | null;
+};
+
+const mapDecision = (d: DbLeaveDecision): LeaveDecisionRow => ({
+  leaveRequestId: d.leave_request_id,
+  decision: d.decision as Exclude<LeaveStatus, "pending">,
+  decidedBy: d.decided_by,
+  decidedByRole: d.decided_by_role,
+  decidedAt: d.decided_at,
+  reason: d.reason,
+});
+
+/**
+ * What a screen should say about who decided.
+ *
+ * Eight of the eleven decided rows name nobody. The ruling: verdict plus
+ * "decider not recorded" — the same principle as the never-marked attendance
+ * line. Say what the data supports, and do not attribute an outcome to someone
+ * who never acted.
+ */
+export function decisionAttribution(d: LeaveDecisionRow | undefined): string | null {
+  if (!d) return null;
+  if (!d.decidedBy) return "decider not recorded";
+  return d.decidedByRole ? `decided by ${d.decidedByRole}` : "decided";
+}
+
+function mapRow(row: DbLeave, decision?: LeaveDecisionRow): LeaveRequestRow {
   return {
     id: row.id,
     applicantUserId: row.applicant_user_id,
@@ -63,10 +123,13 @@ function mapRow(row: DbLeave): LeaveRequestRow {
     fromDate: row.from_date,
     toDate: row.to_date,
     reason: row.reason,
-    status: row.status,
+    // DERIVED, not read. A request with no decision row is pending, whatever
+    // the column happens to hold.
+    status: decision ? decision.decision : "pending",
     createdAt: row.created_at,
-    reviewedAt: row.reviewed_at,
-    reviewedBy: row.reviewed_by,
+    reviewedAt: decision?.decidedAt ?? null,
+    reviewedBy: decision?.decidedBy ?? null,
+    decision: decision ?? null,
     studentId: row.student_id,
     classId: row.class_id,
   };
@@ -83,13 +146,34 @@ function daysBetween(from: string, to: string): number {
 export const LeaveService = {
   async listMine(ctx: ServiceContext): Promise<LeaveRequestRow[]> {
     assertCanConsume(ctx, "leave_request");
-    const { data, error } = await getClient(toRepoContext(ctx))
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client
       .from("leave_requests")
       .select("*")
       .eq("applicant_user_id", ctx.userId)
       .order("created_at", { ascending: false });
     throwIfError(error, "Failed to list leave requests");
-    return ((data ?? []) as DbLeave[]).map(mapRow);
+
+    const rows = (data ?? []) as DbLeave[];
+    if (rows.length === 0) return [];
+
+    // The decisions have to be fetched here too. `.map(mapRow)` would pass the
+    // array index as the second argument and every request the applicant owns
+    // would derive as pending — their own approved leave would read as still
+    // waiting. Deriving from row existence means the rows have to be present.
+    const { data: decisions, error: decisionsErr } = await client
+      .from("leave_decisions")
+      .select("leave_request_id, decision, decided_by, decided_by_role, decided_at, reason")
+      .in("leave_request_id", rows.map((r) => r.id));
+    throwIfError(decisionsErr, "Failed to load leave decisions");
+
+    const byRequest = new Map(
+      ((decisions ?? []) as unknown as DbLeaveDecision[]).map((d) => [
+        d.leave_request_id,
+        mapDecision(d),
+      ]),
+    );
+    return rows.map((r) => mapRow(r, byRequest.get(r.id)));
   },
 
   async listPending(ctx: ServiceContext): Promise<LeaveRequestRow[]> {
@@ -134,22 +218,43 @@ export const LeaveService = {
       teachers.filter((t) => t.user_id).map((t) => [t.user_id as string, t]),
     );
 
-    let query = client
-      .from("leave_requests")
-      .select("*")
-      .eq("school_id", ctx.schoolId)
-      .order("created_at", { ascending: false })
-      .limit(limit);
-    if (status !== "all") {
-      query = query.eq("status", status);
-    }
-    const { data, error } = await query;
-    throwIfError(error, "Failed to list leave requests");
+    // CHUNK 8 BATCH 1b. The filter used to be `.eq("status", status)` against
+    // the stored column. It now derives from the decision rows.
+    //
+    // The order matters: the status filter is applied BEFORE the limit, not
+    // after. Fetching a limited page and then filtering would return fewer rows
+    // than asked for and silently drop the rest — a pending inbox that looks
+    // short rather than paged. So the decisions are fetched first (one row per
+    // decided request, school-scoped) and the filter runs on the derived value.
+    const [requestsRes, decisionsRes] = await Promise.all([
+      client
+        .from("leave_requests")
+        .select("*")
+        .eq("school_id", ctx.schoolId)
+        .order("created_at", { ascending: false }),
+      client
+        .from("leave_decisions")
+        .select("leave_request_id, decision, decided_by, decided_by_role, decided_at, reason")
+        .eq("school_id", ctx.schoolId),
+    ]);
+    throwIfError(requestsRes.error, "Failed to list leave requests");
+    throwIfError(decisionsRes.error, "Failed to list leave decisions");
 
-    const scoped = (data ?? []) as DbLeave[];
+    const decisionByRequest = new Map(
+      ((decisionsRes.data ?? []) as DbLeaveDecision[]).map((d) => [
+        d.leave_request_id,
+        mapDecision(d),
+      ]),
+    );
+
+    const scoped = ((requestsRes.data ?? []) as DbLeave[]).filter((r) => {
+      if (status === "all") return true;
+      const d = decisionByRequest.get(r.id);
+      return (d ? d.decision : "pending") === status;
+    });
 
     return scoped.slice(0, limit).map((row) => {
-      const base = mapRow(row);
+      const base = mapRow(row, decisionByRequest.get(row.id));
       const teacher = teacherByUserId.get(row.applicant_user_id);
       const student = row.student_id ? studentById.get(row.student_id) : undefined;
       const applicantName =
@@ -261,16 +366,27 @@ export const LeaveService = {
       ]);
     }
 
-    // Schema has no review_note column — persist decision only; remarks go on the event.
-    const patch: Record<string, unknown> = {
-      status: decision,
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: ctx.userId,
-    };
+    const client = getClient(toRepoContext(ctx));
+    const decidedAt = new Date().toISOString();
 
-    const { data, error } = await getClient(toRepoContext(ctx))
+    // CHUNK 8 BATCH 1b. The decision row is written FIRST and is the authority.
+    //
+    // The column is still updated below, and that is deliberate for one batch:
+    // batch 1c drops the column and this dual write together. Nothing reads the
+    // column any more, so it cannot disagree with the authority in a way anyone
+    // can see — but leaving it stale while it still exists would be a second
+    // home that only looks harmless because 1c is coming.
+    //
+    // `.eq("status", "pending")` on the UPDATE is what makes this idempotent:
+    // a second decide() on an already-decided request matches no row and is
+    // rejected below, so the insert cannot produce a duplicate decision.
+    const { data, error } = await client
       .from("leave_requests")
-      .update(patch as never)
+      .update({
+        status: decision,
+        reviewed_at: decidedAt,
+        reviewed_by: ctx.userId,
+      } as never)
       .eq("id", leaveId)
       .eq("status", "pending")
       .select("*")
@@ -281,7 +397,23 @@ export const LeaveService = {
         { field: "leaveId", code: "not_found", message: "Pending leave request not found" },
       ]);
     }
-    const row = mapRow(data as DbLeave);
+
+    const decisionRow: DbLeaveDecision = {
+      leave_request_id: leaveId,
+      decision,
+      decided_by: ctx.userId,
+      // The CAPACITY acted in, not the app_role — the distinction batch 1a made
+      // for the backfill, kept for new rows so the two are one vocabulary.
+      decided_by_role: ctx.role ?? null,
+      decided_at: decidedAt,
+      reason: adminRemarks?.trim() || null,
+    };
+    const { error: decisionErr } = await client
+      .from("leave_decisions")
+      .insert({ ...decisionRow, school_id: ctx.schoolId } as never);
+    throwIfError(decisionErr, "Failed to record leave decision");
+
+    const row = mapRow(data as DbLeave, mapDecision(decisionRow));
 
     await emitEvent(toRepoContext(ctx), {
       eventType: "leave.reviewed",

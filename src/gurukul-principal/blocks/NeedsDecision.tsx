@@ -33,14 +33,21 @@ export function NeedsDecision() {
 
       try {
         // Fetch pending leave requests
-        const { data: leaves, error: leavesErr } = await supabase
+        // CHUNK 8 BATCH 1b. This was `.eq('status', 'pending')` against the
+        // stored column. Pending is now the ABSENCE of a decision row, so the
+        // query embeds the decisions and filters on emptiness. It reads the
+        // authority rather than the copy, and survives batch 1c dropping the
+        // column.
+        const { data: leaveRows, error: leavesErr } = await supabase
           .from('leave_requests')
-          .select('created_at')
+          .select('created_at, leave_decisions(id)')
           .eq('school_id', school.id)
-          .eq('status', 'pending')
           .order('created_at', { ascending: true })
-
         if (leavesErr) throw leavesErr
+
+        const leaves = (leaveRows ?? []).filter(
+          (r) => ((r as { leave_decisions?: unknown[] }).leave_decisions ?? []).length === 0,
+        )
 
         // Fetch open/in-progress complaints
         const { data: complaints, error: complaintsErr } = await supabase
