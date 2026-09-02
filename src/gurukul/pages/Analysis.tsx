@@ -41,6 +41,12 @@ import {
   practiceCountForTopic,
   scoreAxisDomain,
 } from "@/lib/studentAnalysisMetrics";
+import {
+  hasPracticeAccuracy,
+  hasStudyActiveDays,
+  practiceAccuracyFromSnapshot,
+  studyActiveDaysFromSnapshot,
+} from "@/lib/learningMetrics";
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { toErrorMessage } from "@/lib/presentation";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
@@ -636,6 +642,20 @@ export default function Analysis() {
     );
   }
 
+  // null means "no figure recorded", never 0. See the Summary block below.
+  const summaryRows: { label: string; value: string | number | null }[] = [
+    { label: "Practice accuracy", value: hasPracticeAccuracy(snapshot) ? `${practiceAccuracyFromSnapshot(snapshot)}%` : null },
+    { label: "Study consistency", value: hasStudyActiveDays(snapshot) ? `${studyActiveDaysFromSnapshot(snapshot)} active days (14d)` : null },
+    {
+      label: "Attendance",
+      value: snapshot?.exam_readiness?.attendance_pct == null
+        ? null
+        : `${snapshot.exam_readiness.attendance_pct}%`,
+    },
+    { label: "Open mistakes", value: snapshot?.mistake_count ?? null },
+    { label: "Recovery pending", value: snapshot?.recovery_pending ?? null },
+  ];
+
   return (
     <div className="space-y-6">
       {loadError && (
@@ -643,6 +663,31 @@ export default function Analysis() {
           Some analysis data failed to load: {loadError}. Showing available stats as zeros where missing.
         </div>
       )}
+      {/* ── Summary ──────────────────────────────────────────────────────
+          Five figures in one place. Ported from AcademicReport (Chunk 10.6),
+          which was the only screen that put them together; Analysis had them
+          scattered or absent.
+
+          The ?? 0 that AcademicReport used on attendance, mistakes and recovery
+          is deliberately NOT ported. A student with nothing recorded has no
+          figure, not a zero — and "Attendance 0%" is the most alarming number
+          this row can display, invented from an absence. */}
+      <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+        <h2 className="font-semibold text-lg mb-3">Summary</h2>
+        <div className="grid sm:grid-cols-2 gap-3 text-sm">
+          {summaryRows.map((row) => (
+            <p key={row.label}>
+              {row.label}:{" "}
+              {row.value === null ? (
+                <span className="text-muted-foreground">not recorded yet</span>
+              ) : (
+                <strong>{row.value}</strong>
+              )}
+            </p>
+          ))}
+        </div>
+      </div>
+
       {/* ── 3 Questions bar ─────────────── */}
       <div className="grid sm:grid-cols-3 gap-3">
         {questionCards.map((item) => (

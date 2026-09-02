@@ -3,11 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 export type AcademicBrain = {
   id?: string;
   user_id?: string;
-  strong_subjects: { subject: string; avg_mastery: number }[];
   weak_subjects: { subject: string; avg_mastery: number }[];
-  strong_chapters: { chapter: string; subject: string; avg_mastery?: number }[];
   weak_chapters: { chapter: string; subject: string; avg_mastery?: number }[];
-  strong_concepts: { concept: string; subject: string; chapter?: string; mastery_score: number }[];
   weak_concepts: { concept: string; subject: string; chapter?: string; mastery_score: number; mistake_count?: number }[];
   mistake_history: Record<string, unknown>;
   recovery_history: Record<string, unknown>;
@@ -51,11 +48,8 @@ export type RevisionPlanPayload = {
 };
 
 const EMPTY_BRAIN: AcademicBrain = {
-  strong_subjects: [],
   weak_subjects: [],
-  strong_chapters: [],
   weak_chapters: [],
-  strong_concepts: [],
   weak_concepts: [],
   mistake_history: {},
   recovery_history: {},
@@ -76,11 +70,8 @@ function normalizeBrain(raw: Record<string, unknown> | null): AcademicBrain {
   return {
     ...EMPTY_BRAIN,
     ...raw,
-    strong_subjects: (raw.strong_subjects as AcademicBrain["strong_subjects"]) ?? [],
     weak_subjects: (raw.weak_subjects as AcademicBrain["weak_subjects"]) ?? [],
-    strong_chapters: (raw.strong_chapters as AcademicBrain["strong_chapters"]) ?? [],
     weak_chapters: (raw.weak_chapters as AcademicBrain["weak_chapters"]) ?? [],
-    strong_concepts: (raw.strong_concepts as AcademicBrain["strong_concepts"]) ?? [],
     weak_concepts: (raw.weak_concepts as AcademicBrain["weak_concepts"]) ?? [],
     improvement_trend: (raw.improvement_trend as AcademicBrain["improvement_trend"]) ?? "steady",
     recovery_completion_pct: Number(raw.recovery_completion_pct ?? 0),
@@ -145,11 +136,12 @@ export function buildAgentPayload(brain: AcademicBrain, displayName?: string) {
   return {
     display_name: displayName ?? "Student",
     academic_brain: {
-      strong_subjects: brain.strong_subjects.slice(0, 4),
+      // §10.8: the three strength lists are gone from the agent payload, not
+      // just from the screens. This is a context builder — a generated sentence
+      // is a render, and the columns behind these were dropped in 10.5 so they
+      // had been sending [] to the model since.
       weak_subjects: brain.weak_subjects.slice(0, 4),
-      strong_chapters: brain.strong_chapters.slice(0, 5),
       weak_chapters: brain.weak_chapters.slice(0, 5),
-      strong_concepts: brain.strong_concepts.slice(0, 6),
       weak_concepts: brain.weak_concepts.slice(0, 8),
       mistake_history: brain.mistake_history,
       recovery_history: brain.recovery_history,

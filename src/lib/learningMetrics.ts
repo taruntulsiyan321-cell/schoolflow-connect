@@ -28,6 +28,45 @@ export function practiceAccuracyFromSnapshot(snap: AcademicSnapshot | null | und
 }
 
 /**
+ * Does the snapshot actually CARRY these figures?
+ *
+ * practiceAccuracyFromSnapshot and studyActiveDaysFromSnapshot both return 0
+ * when the underlying value is null, and their 16 call sites depend on getting
+ * a number. That contract stays. What was missing is a way to ask whether the
+ * number means anything — and a student who has never practised showing
+ * "Practice accuracy: 0%" is the same defect as a session with nothing
+ * attempted being scored zero.
+ *
+ * These live here, beside the metrics they qualify, rather than being
+ * re-derived at each screen. A caller that re-reads exam_readiness itself to
+ * decide is a second definition of the same fact.
+ */
+export function hasPracticeAccuracy(snap: AcademicSnapshot | null | undefined): boolean {
+  const readiness = snap?.exam_readiness;
+  if (!readiness) return false;
+  // undefined and null mean DIFFERENT things here, and collapsing them with ??
+  // is what kept showing "Practice accuracy: 0%" to a student with zero
+  // attempts even after the RPC started emitting null:
+  //
+  //   key ABSENT   a snapshot predating practice_accuracy_pct — fall back to
+  //                the blended accuracy_pct, which is why that fallback exists
+  //   key NULL     a current snapshot saying there is no practice accuracy,
+  //                because there were no attempts. Falling back here would
+  //                relabel the blended figure as a practice figure — the exact
+  //                mislabelling the comment on the blend warns about.
+  if ("practice_accuracy_pct" in readiness) {
+    const raw = readiness.practice_accuracy_pct;
+    return raw != null && !Number.isNaN(Number(raw));
+  }
+  const legacy = readiness.accuracy_pct;
+  return legacy != null && !Number.isNaN(Number(legacy));
+}
+
+export function hasStudyActiveDays(snap: AcademicSnapshot | null | undefined): boolean {
+  return snap?.exam_readiness?.active_days_14d != null;
+}
+
+/**
  * Blended Test + practice accuracy — the "overall accuracy" used by Analysis totals
  * and Battleground chrome. Distinct metric from practiceAccuracyFromSnapshot; these
  * two were aliased to the same function, which is what mislabelled the practice tiles.

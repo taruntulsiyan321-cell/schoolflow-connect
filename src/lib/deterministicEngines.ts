@@ -22,9 +22,7 @@ export type SessionAnalytics = {
   correct: number;
   wrong: number;
   skipped: number;
-  strong_chapters: { chapter: string; subject: string }[];
   weak_chapters: { chapter: string; subject: string }[];
-  strong_concepts: { concept: string; subject: string; chapter?: string | null }[];
   weak_concepts: { concept: string; subject: string; chapter?: string | null }[];
 };
 
@@ -61,9 +59,7 @@ export function computeSessionAnalytics(attempts: AttemptRecord[]): SessionAnaly
     correct,
     wrong,
     skipped,
-    strong_chapters: [],
     weak_chapters: [],
-    strong_concepts: [],
     weak_concepts: [],
   };
 }
