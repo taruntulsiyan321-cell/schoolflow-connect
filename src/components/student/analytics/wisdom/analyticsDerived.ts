@@ -4,6 +4,7 @@ import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { SubjectChartPoint } from "@/hooks/useStudentPerformanceCharts";
 import type { MistakeTopicAggregate, TopicGapInsight } from "@/lib/analyticsInsights";
 import { displayChapter, displaySubject } from "@/lib/academicDisplay";
+import { accuracyBand, BAND_LABEL } from "@/academic/metrics/bands";
 
 export type HeatmapLevel = "mastered" | "proficient" | "learning" | "review";
 
@@ -126,10 +127,12 @@ export function peerBenchmarkSubjects(
 ): { name: string; pct: number; label: string }[] {
   return subjects.slice(0, 4).map((s) => {
     const pct = Math.round(s.accuracy);
-    let label = "On track";
-    if (pct >= 85) label = "Strong";
-    else if (pct < 60) label = "Needs focus";
-    else if (pct >= 75) label = "Solid";
+    // CHUNK 10.5 — §10.8. The ladder used to top out at "Strong" and "Solid",
+    // which tell a student what they are good at. It now uses the one band
+    // module, whose top rung is "On track" — a statement about the figure, not
+    // about the child. The boundaries come with it, so this screen can no longer
+    // disagree with the one beside it.
+    const label = BAND_LABEL[accuracyBand(pct)];
     return { name: s.name, pct, label };
   });
 }

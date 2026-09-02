@@ -240,34 +240,10 @@ export default function PracticeHubPage() {
       .slice(0, 4);
   }, [snapshot, mastery]);
 
-  const strongTopics = useMemo(() => {
-    const fromSnap = (snapshot?.strong_topics ?? [])
-      .map((t) => {
-        const topic = preferRealAcademicLabel(t.topic, t.chapter);
-        const subject = preferRealAcademicLabel(t.subject);
-        if (!topic || !subject) return null;
-        return { topic, subject, mastery: Math.round(t.accuracy ?? 0), questions: 0 };
-      })
-      .filter((row): row is NonNullable<typeof row> => !!row)
-      .slice(0, 4);
-    if (fromSnap.length) return fromSnap;
-    return mastery
-      .filter((m) => (m.mastery_score ?? 0) >= 80)
-      .sort((a, b) => (b.mastery_score ?? 0) - (a.mastery_score ?? 0))
-      .map((m) => {
-        const topic = preferRealAcademicLabel(m.concept, m.chapter);
-        const subject = preferRealAcademicLabel(m.subject);
-        if (!topic || !subject) return null;
-        return {
-          topic,
-          subject,
-          mastery: Math.round(m.mastery_score ?? 0),
-          questions: m.total_attempts ?? 0,
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => !!row)
-      .slice(0, 4);
-  }, [snapshot, mastery]);
+  // CHUNK 10.5 — §10.8. The computation is removed with the render: a value
+  // computed and discarded is one refactor from being live, and this one was
+  // selecting the student's four best topics with a mastery figure each.
+
 
   const focusTopic = weakTopics[0];
   const loading = snapLoading || masteryLoading;
@@ -443,36 +419,38 @@ export default function PracticeHubPage() {
         )}
       </section>
 
+      {/*
+        CHUNK 10.5 — §10.8: "Strong areas are never shown anywhere in the app.
+        The product surfaces weaknesses only."
+
+        This section was two columns. The right-hand one was headed "Strong
+        topics — keep momentum" and listed, per card, a topic the student is good
+        at with a mastery figure beside it. That is the rule's exact subject, on
+        a student's own screen.
+
+        Chunk 7B closed this in the database — _snapshot_battle_report computed
+        topics.strong and three policies served it — and the client was never
+        swept, because that verification read information_schema for correctness
+        COLUMNS while the data sat in a jsonb blob and, here, in JSX.
+
+        One column now. The heading loses "Weak topics" as a contrast pair and
+        becomes the whole point of the section, which is what the rule intends:
+        the product surfaces weaknesses only.
+      */}
       <section>
         <SectionHeader title="Recommended topics" subtitle="Based on your recent performance." />
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-orange-700 flex items-center gap-1.5 mb-3">
-              <Flame className="w-3.5 h-3.5" /> Weak topics — practice these
-            </p>
-            <div className="space-y-3">
-              {weakTopics.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4">No weak topics tracked yet.</p>
-              ) : (
-                weakTopics.map((t) => (
-                  <TopicCard key={`${t.subject}-${t.topic}`} {...t} variant="weak" onPractice={() => startSession(t.topic, 10)} />
-                ))
-              )}
-            </div>
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5 mb-3">
-              <TrendingUp className="w-3.5 h-3.5" /> Strong topics — keep momentum
-            </p>
-            <div className="space-y-3">
-              {strongTopics.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4">No strong topics yet — keep practicing.</p>
-              ) : (
-                strongTopics.map((t) => (
-                  <TopicCard key={`${t.subject}-${t.topic}`} {...t} variant="strong" onPractice={() => startSession(t.topic, 10)} />
-                ))
-              )}
-            </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-orange-700 flex items-center gap-1.5 mb-3">
+            <Flame className="w-3.5 h-3.5" /> Weak topics — practice these
+          </p>
+          <div className="space-y-3">
+            {weakTopics.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">No weak topics tracked yet.</p>
+            ) : (
+              weakTopics.map((t) => (
+                <TopicCard key={`${t.subject}-${t.topic}`} {...t} variant="weak" onPractice={() => startSession(t.topic, 10)} />
+              ))
+            )}
           </div>
         </div>
       </section>

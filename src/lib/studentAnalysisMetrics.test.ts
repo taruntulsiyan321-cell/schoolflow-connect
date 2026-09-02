@@ -211,7 +211,38 @@ describe("analyticsDerived honesty", () => {
 
   it("peerBenchmarkSubjects never claims Top X% from class XP rank", () => {
     const labels = peerBenchmarkSubjects([{ name: "Math", accuracy: 90, attempts: 10 }], 1, 40);
-    expect(labels[0].label).toBe("Strong");
     expect(labels[0].label.includes("Top")).toBe(false);
+  });
+
+  /**
+   * This assertion used to read `expect(labels[0].label).toBe("Strong")`.
+   *
+   * It was pinning the §10.8 violation in place: "Strong areas are never shown
+   * anywhere in the app." A test that asserts the exact wording of a label is
+   * only as right as the label, and this one made the wrong label load-bearing —
+   * changing it broke a test named for something else entirely.
+   *
+   * Replaced with the rule rather than the string. The label may be reworded
+   * again; it may never name a strength.
+   */
+  it("peerBenchmarkSubjects never tells a student what they are good at (§10.8)", () => {
+    const labels = peerBenchmarkSubjects(
+      [
+        { name: "Math", accuracy: 95, attempts: 10 },
+        { name: "Physics", accuracy: 80, attempts: 10 },
+        { name: "Chemistry", accuracy: 50, attempts: 10 },
+        { name: "Biology", accuracy: 10, attempts: 10 },
+      ],
+      1,
+      40,
+    );
+    expect(labels).toHaveLength(4);
+    for (const l of labels) {
+      expect(/strong|master|proficient|excellent|strength/i.test(l.label), l.label).toBe(false);
+      expect(l.label.length).toBeGreaterThan(0);
+    }
+    // And the top of the range still says something — silence would be its own
+    // defect, and would let an empty label pass the check above.
+    expect(labels[0].label).toBe("On track");
   });
 });

@@ -109,7 +109,10 @@ export function SubjectBadge({ subject, color }: { subject: string; color?: stri
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
     "in-recovery":  { label: "In Recovery",  color: "var(--warning)", bg: "var(--warning) / 0.1" },
-    "mastered":     { label: "Mastered",     color: "var(--success)", bg: "var(--success) / 0.1" },
+    // §10.8: the status a RECOVERY item reaches when it is finished. "Mastered"
+    // told the student they are good at the concept; "Recovered" says the work
+    // is done, which is the fact the badge is actually reporting.
+    "mastered":     { label: "Recovered",    color: "var(--success)", bg: "var(--success) / 0.1" },
     "pending":      { label: "Pending",      color: "var(--destructive)", bg: "var(--destructive) / 0.1" },
     "active":       { label: "Active",       color: "var(--info)", bg: "var(--info) / 0.1" },
     "won":          { label: "Won",          color: "var(--success)", bg: "var(--success) / 0.1" },

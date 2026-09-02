@@ -45,9 +45,18 @@ export function buildParentScheduledNarrative(input: ParentNarrativeInput): Pare
   if (input.tests_avg_pct > 0) bullets.push(`Tests average: ${pct(input.tests_avg_pct)}.`);
   if (input.exams_avg_pct > 0) bullets.push(`Exams average: ${pct(input.exams_avg_pct)}.`);
 
-  if (input.strong_topics.length) {
-    bullets.push(`Stronger areas: ${input.strong_topics.slice(0, 3).join(", ")}.`);
-  }
+  // CHUNK 10.5 — §10.8: "Strong areas are never shown anywhere in the app."
+  //
+  // This pushed `Stronger areas: <topic>, <topic>, <topic>.` into the narrative a
+  // PARENT reads. A generated sentence is a render — the rule is about what a
+  // user may see, not about which layer assembled it, and a sentence built from
+  // strong_topics is the same disclosure as a list of cards headed "Strong
+  // topics".
+  //
+  // strong_topics stays on the input type for now: it is fed by the AI context
+  // builders, which 10.5 closes separately. Removing the field here without
+  // closing the source would leave the data flowing and only this consumer
+  // silent — and a value computed and discarded is one refactor from being live.
   if (input.weak_topics.length) {
     bullets.push(`Focus areas: ${input.weak_topics.slice(0, 3).join(", ")}.`);
   }

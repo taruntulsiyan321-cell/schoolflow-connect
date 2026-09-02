@@ -192,13 +192,12 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
     }
     case "student.eie.mastery_summary": {
       const weak = Array.isArray(d.weak_concepts) ? d.weak_concepts : [];
-      const strong = Array.isArray(d.strong_concepts) ? d.strong_concepts : [];
+      // CHUNK 10.5 — §10.8. `strong_concepts` is no longer read into the prompt.
+      // The model was handed a "Strong:" block and would repeat it back to the
+      // student, which is the rule's subject however the sentence is produced.
       const rev = Array.isArray(d.revision_priority) ? d.revision_priority : [];
       const weakLines = weak.slice(0, 5).map((c: { concept?: string; subject?: string; mastery_score?: number; band?: string }) =>
         `• ${presentAcademicLabel(c.subject, "subject")}: **${presentAcademicLabel(c.concept, "concept")}** — ${c.mastery_score}% (${c.band})`,
-      );
-      const strongLines = strong.slice(0, 4).map((c: { concept?: string; subject?: string; mastery_score?: number }) =>
-        `• ${presentAcademicLabel(c.subject, "subject")}: **${presentAcademicLabel(c.concept, "concept")}** — ${c.mastery_score}%`,
       );
       const revLines = rev
         .slice(0, 4)
@@ -211,7 +210,6 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
         `**Mastery & revision (Educational Intelligence)**\n` +
         `Average mastery: **${d.avg_mastery ?? 0}%** · Concepts tracked: **${d.total_tracked ?? 0}**\n` +
         (weakLines.length ? `Weak:\n${weakLines.join("\n")}\n` : "Weak: —\n") +
-        (strongLines.length ? `Strong:\n${strongLines.join("\n")}\n` : "") +
         (revLines.length ? `Revision priority:\n${revLines.join("\n")}\n` : "") +
         `_Computed by EIE · LLM does not calculate mastery._`
       );
