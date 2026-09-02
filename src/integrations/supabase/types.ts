@@ -2379,6 +2379,83 @@ export type Database = {
         }
         Relationships: []
       }
+      chapter_state: {
+        Row: {
+          chapter_id: string
+          consecutive_revision_passes: number
+          created_at: string
+          id: string
+          last_recovery_readiness: number | null
+          next_revision_at: string | null
+          recovered_at: string | null
+          revision_stage: number
+          school_id: string
+          state: string
+          student_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chapter_id: string
+          consecutive_revision_passes?: number
+          created_at?: string
+          id?: string
+          last_recovery_readiness?: number | null
+          next_revision_at?: string | null
+          recovered_at?: string | null
+          revision_stage?: number
+          school_id: string
+          state?: string
+          student_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chapter_id?: string
+          consecutive_revision_passes?: number
+          created_at?: string
+          id?: string
+          last_recovery_readiness?: number | null
+          next_revision_at?: string | null
+          recovered_at?: string | null
+          revision_stage?: number
+          school_id?: string
+          state?: string
+          student_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_state_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_state_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_state_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_state_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapter_tally: {
         Row: {
           attempted: number
@@ -5959,6 +6036,128 @@ export type Database = {
           },
         ]
       }
+      recovery_constants: {
+        Row: {
+          key: string
+          rationale: string
+          spec_ref: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          key: string
+          rationale: string
+          spec_ref: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          key?: string
+          rationale?: string
+          spec_ref?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      recovery_sessions: {
+        Row: {
+          chapter_id: string
+          completed_at: string | null
+          conceptual_rate: number | null
+          id: string
+          outcome: string | null
+          procedural_rate: number | null
+          readiness: number | null
+          round: number
+          school_id: string
+          started_at: string
+          student_id: string | null
+          tier0_correct: number
+          tier0_total: number
+          tier1_correct: number
+          tier1_total: number
+          tier2_correct: number
+          tier2_total: number
+          tier3_correct: number
+          tier3_total: number
+          user_id: string
+        }
+        Insert: {
+          chapter_id: string
+          completed_at?: string | null
+          conceptual_rate?: number | null
+          id?: string
+          outcome?: string | null
+          procedural_rate?: number | null
+          readiness?: number | null
+          round?: number
+          school_id: string
+          started_at?: string
+          student_id?: string | null
+          tier0_correct?: number
+          tier0_total?: number
+          tier1_correct?: number
+          tier1_total?: number
+          tier2_correct?: number
+          tier2_total?: number
+          tier3_correct?: number
+          tier3_total?: number
+          user_id: string
+        }
+        Update: {
+          chapter_id?: string
+          completed_at?: string | null
+          conceptual_rate?: number | null
+          id?: string
+          outcome?: string | null
+          procedural_rate?: number | null
+          readiness?: number | null
+          round?: number
+          school_id?: string
+          started_at?: string
+          student_id?: string | null
+          tier0_correct?: number
+          tier0_total?: number
+          tier1_correct?: number
+          tier1_total?: number
+          tier2_correct?: number
+          tier2_total?: number
+          tier3_correct?: number
+          tier3_total?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recovery_sessions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_sessions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_cards: {
         Row: {
           exam_id: string
@@ -6078,6 +6277,80 @@ export type Database = {
           },
           {
             foreignKeyName: "revision_queue_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revision_sessions: {
+        Row: {
+          chapter_id: string
+          completed_at: string | null
+          correct: number
+          id: string
+          passed: boolean | null
+          school_id: string
+          stage: number
+          started_at: string
+          student_id: string | null
+          total: number
+          triggered_by: string
+          user_id: string
+        }
+        Insert: {
+          chapter_id: string
+          completed_at?: string | null
+          correct?: number
+          id?: string
+          passed?: boolean | null
+          school_id: string
+          stage: number
+          started_at?: string
+          student_id?: string | null
+          total?: number
+          triggered_by: string
+          user_id: string
+        }
+        Update: {
+          chapter_id?: string
+          completed_at?: string | null
+          correct?: number
+          id?: string
+          passed?: boolean | null
+          school_id?: string
+          stage?: number
+          started_at?: string
+          student_id?: string | null
+          total?: number
+          triggered_by?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revision_sessions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revision_sessions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revision_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revision_sessions_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students_current"
@@ -6503,9 +6776,6 @@ export type Database = {
           recovery_history: Json
           school_id: string | null
           speed_trend: Json
-          strong_chapters: Json
-          strong_concepts: Json
-          strong_subjects: Json
           student_id: string | null
           total_activities: number
           updated_at: string
@@ -6529,9 +6799,6 @@ export type Database = {
           recovery_history?: Json
           school_id?: string | null
           speed_trend?: Json
-          strong_chapters?: Json
-          strong_concepts?: Json
-          strong_subjects?: Json
           student_id?: string | null
           total_activities?: number
           updated_at?: string
@@ -6555,9 +6822,6 @@ export type Database = {
           recovery_history?: Json
           school_id?: string | null
           speed_trend?: Json
-          strong_chapters?: Json
-          strong_concepts?: Json
-          strong_subjects?: Json
           student_id?: string | null
           total_activities?: number
           updated_at?: string
@@ -8379,6 +8643,7 @@ export type Database = {
     }
     Functions: {
       _academic_label_match_key: { Args: { t: string }; Returns: string }
+      _apply_chapter_state: { Args: { _session_id: string }; Returns: Json }
       _award_achievement: {
         Args: { _code: string; _uid: string }
         Returns: undefined
@@ -8738,7 +9003,20 @@ export type Database = {
         Args: { _session_id: string }
         Returns: undefined
       }
+      _recovery_chapter_is_mine: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
+      _recovery_const: { Args: { _key: string }; Returns: number }
       _recovery_question_count: { Args: { _severity: string }; Returns: number }
+      _recovery_variant_pool: {
+        Args: {
+          _difficulty: string
+          _source_question_id: string
+          _tier: number
+        }
+        Returns: string[]
+      }
       _repair_utf8_mojibake: { Args: { t: string }; Returns: string }
       _revision_recently_completed: {
         Args: {
@@ -8815,6 +9093,7 @@ export type Database = {
           topic: string
         }[]
       }
+      _write_chapter_tally: { Args: { _session_id: string }; Returns: number }
       active_local_person_id: { Args: never; Returns: string }
       active_membership_id: { Args: never; Returns: string }
       active_membership_role: {
@@ -9858,6 +10137,10 @@ export type Database = {
           _time_taken_ms?: number
         }
         Returns: string
+      }
+      rpc_recovery_session_plan: {
+        Args: { _chapter_id: string }
+        Returns: Json
       }
       rpc_recovery_v2: {
         Args: never

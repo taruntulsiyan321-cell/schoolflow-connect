@@ -52,9 +52,22 @@ const ROUTERS = [
 /** A label a student would read as "you are good at this". */
 const STRENGTH_LABEL = /["'`](Strong|Mastered|Proficient|Excellent|Strength|Strong areas?)["'`]/;
 
-/** A named selection of strengths. */
+/**
+ * A named selection of strengths.
+ *
+ * WIDENED, and this gate is an instance of the rule it now carries: every census
+ * has a representation it cannot see.
+ *
+ * The first version enumerated topics, concepts and areas. It missed
+ * `strong_subjects` and `strong_chapters` — two more columns on
+ * student_academic_brain, mapped straight through src/lib/academicBrain.ts —
+ * so it reported the §10.8 closure complete while two named selections stood.
+ *
+ * A prefix match, not a list. An enumeration is itself a census with a shape it
+ * cannot see; `strong_<anything>` has no such gap.
+ */
 const STRENGTH_SELECTION =
-  /\b(strong_concepts|strongConcepts|strong_areas|strongAreas|strong_topics|strongTopics|masteredConcepts|mastered_concepts)\b/;
+  /\b(strong_[a-z_]+|strong[A-Z][A-Za-z]*|mastered_?[Cc]oncepts)\b/;
 
 /** A band whose rung is a strength name, e.g. `return "mastered"`. */
 const STRENGTH_BAND = /\breturn\s+["'`](mastered|strong|proficient)["'`]/i;

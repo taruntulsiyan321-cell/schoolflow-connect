@@ -545,6 +545,30 @@ A failure gets investigated. A false pass closes the question.
   then play. The test reported **nine successful finishes while producing 1/5
   instead of 5/5**, so a count-only check would have passed it. Seed the way the
   application actually writes, in the order it actually writes.
+- **A test can hold a bug in place — expect more than one.** Two were found here,
+  in different files, both pinning the exact wording of the same product-rule
+  violation, both under names that gave no hint. When a rule turns out to be
+  violated, **grep the test suite for the violating vocabulary before fixing the
+  code** — otherwise the fix fails the tests instead of the tests failing the
+  bug. And assert the *shape*, not the property name: checking that
+  `strong_topics` is absent passes on a rename to `top_concepts`. Found live: `expect(label).toBe("Strong")`
+  pinned the exact wording of a §10.8 violation — inside a test named *"never
+  claims Top X% from class XP rank"*, so its name gave no hint. **Assert the rule,
+  not the current output.** And when replacing such a test, assert the positive
+  too: "no label matches `strong|master|proficient`" passes on an empty label,
+  which is its own defect.
+- **A wait that fails instantly looks exactly like a wait that succeeds
+  instantly.** Found live: `waitForFunction` polling `innerText`, which throws
+  *"Execution context was destroyed"* while an SPA routes — `.catch()` ate the
+  rejection and the helper returned in milliseconds. Every assertion then ran
+  against a spinner. **Never swallow a rejection inside a wait**; use a helper
+  that retries rather than races, and assert the page has real content before
+  asserting anything about it. This is G10 living in the test harness.
+- **Loading a URL is not loading the screen.** A route behind a class or role
+  gate **silently redirects**, so an assertion runs against different content and
+  passes. Found live: checking the Class 12 practice hub as a Class 10 student
+  would have reported "no strength mentions" from a page that never renders them.
+  **Assert you are on the screen you think you are**, then assert its content.
 - **Never edit a verification file so your own change passes.** Found live: two
   internal predicates were granted only because `CHUNK15_VERIFY` calls them as a
   real role. Editing that file would have been tidier and would have compromised
@@ -1998,6 +2022,29 @@ answer is `no_data`.
 ### Rules
 
 - **One function per metric.** In the data layer. Nowhere else.
+- **Fix the source, never the caller.** Found live: `overallDayRatePct` divided by
+  the whole roster instead of the submitted sections, and was read by **eight
+  screens**. An earlier batch fixed one of them — **by bypassing the service** —
+  which left seven wrong and removed the one screen that would have revealed it.
+  **A fix that routes around the shared definition makes the defect harder to
+  find than leaving it alone.** If a caller is wrong, ask whether the source is.
+- **Use the type checker as the census.** Remove the field, the column or the
+  property **at the source**, then let `tsc` enumerate every consumer. Found
+  live: deleting `strong_topics` from one type named **ten consumers a manual
+  sweep had missed**, including two rendered sections nobody had reported.
+  **A consumer sweep finds what it thinks to look for; the type checker finds
+  what is actually there.** This works only if the typecheck gate has inputs —
+  see the `tsc --noEmit` finding above.
+
+  **Its boundary: an untyped fixture opts out.** A test feeding an object literal
+  is not a typed consumer, so removing the field breaks nothing there. Found
+  live: a third test held the violation and `tsc` could not have named it.
+  **After a type-driven census, grep the test suite for the vocabulary as well.**
+- **Delete a capability, do not rename it.** Found live: `isStrongBand` had
+  exactly one caller — selecting a student's best concepts. Renaming it
+  `isHighBand` would have kept the capability and moved the violation one
+  identifier away. `isWeakBand` stays, because the rule is about which direction
+  the product looks, not about vocabulary.
 - **Components render. They never calculate.**
 - Every function returns **value plus state**:
   `{ value, state: 'ok' | 'no_data' | 'not_marked', basis }`
@@ -2223,6 +2270,50 @@ headed *"Strong topics — keep momentum"* and a parent narrative reading
 
 That chunk's verification **could not have caught it**: it swept
 `information_schema` for columns while the data sat in a `jsonb` blob and in JSX.
+
+**One fact, many representations — and each census sees only one.** Found three
+times in three consecutive batches, same shape each time:
+
+| Census | Blind to | What it missed |
+|---|---|---|
+| Column-level | **jsonb keys** | 3 functions emitting `strong_topics` in a payload |
+| Type checker | **untyped fixtures** | A test feeding object literals |
+| Identifier gate | **prose** | *"track your mastery"* in body copy |
+
+**Before declaring a fact removed, list every container it can live in** —
+columns, jsonb payloads, enum values, CHECK constraints, generated types, test
+fixtures, band labels, identifiers, and the sentences a user reads. Then check
+each with an instrument that can see it. **A gate reporting zero is only ever
+reporting zero within its own representation.**
+
+**And count rather than assert zero where closure is partial.** A partial
+closure that reports zero reads as complete. One that reports three reads as
+partial, which is the truth.
+
+**Every census has a representation it cannot see — name it before trusting the
+count.** Three instances of the same shape:
+
+| Census | Blind to | Found there |
+|---|---|---|
+| Column / `information_schema` | **jsonb keys** | 3 functions emitting `strong_topics`, one live to 4 client files |
+| Identifier / symbol gate | **prose** | *"track your mastery"* on a screen it called clean |
+| Type checker | **untyped fixtures** | a test holding the violation in an object literal |
+
+**A closure looks complete from the side that was swept.** The client comments
+claimed strength was removed while the RPC feeding them still emitted it.
+
+**Sweep every representation the fact can take** — column, jsonb key, prose,
+fixture, generated type — and **count rather than assert zero** where a
+representation is out of scope, so a partial closure cannot read as a complete
+one.
+
+**A static gate over identifiers cannot read prose.** Found live:
+`lint-strength-surfaces` matched identifiers and band labels, reported **3 live
+sites**, and the smoke immediately found user-visible copy on a screen it had
+called clean — *"Pick a subject and track your mastery"*, *"build your mastery
+baseline"*, *"turn mistakes into mastery"*. **Sentences are what users read.**
+A rule about what a user may see needs a prose sweep and a live load, not only a
+symbol sweep.
 
 **Any product rule about what a user may see must be verified at the surface the
 user sees** — the rendered screen — not only at the table. Schema sweeps do not
