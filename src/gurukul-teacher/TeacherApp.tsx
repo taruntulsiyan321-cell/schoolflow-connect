@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { MessageService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import QuestionBankPage from "@/pages/shared/QuestionBankPage";
+import TeacherTimetablePage from "@/pages/shared/TeacherTimetablePage";
 import TeacherAICoach from "./TeacherAICoach";
 import TeacherBattleground from "@/pages/teacher/TeacherBattleground";
 import BattleMonitor from "@/pages/teacher/BattleMonitor";
@@ -309,7 +310,11 @@ export default function TeacherApp() {
               <Route path="my-class" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="my-subjects" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="exams" element={<RedirectTeacherClassTab tab="exams-marks" />} />
-              <Route path="timetable" element={<Navigate to="/teacher/classes" replace />} />
+              {/* Was a placeholder redirect to /teacher/classes, which has no timetable.
+                  TeacherTimetablePage was dark, not broken: every identifier it uses
+                  (teachers.class_teacher_of, teacher_classes.class_id,
+                  class_timetables.grid) checks out against the live schema. */}
+              <Route path="timetable" element={<TeacherTimetablePage />} />
               <Route path="performance" element={<RedirectTeacherClassTab tab="insights" />} />
               <Route path="homework" element={<RedirectTeacherClassTab tab="homework" />} />
               <Route path="chat" element={<Navigate to="/teacher/communication" replace />} />

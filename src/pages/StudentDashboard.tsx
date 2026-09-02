@@ -42,6 +42,7 @@ import TestAttempt from "./student/TestAttempt";
 import TestResult from "./student/TestResult";
 import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
 import BattleReportPage from "./student/BattleReportPage";
+import StudentClassesPage from "@/pages/shared/StudentClassesPage";
 import ChatPage from "./shared/ChatPage";
 import Notices from "@/gurukul/pages/Notices";
 import Notifications from "@/gurukul/pages/Notifications";
@@ -335,9 +336,18 @@ export default function StudentDashboard() {
           <Route path="notices" element={<Notices />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="fees" element={<MyFeesPage />} />
+          {/* The redirect stays for LEGACY HASH links (#timetable, #attendance and
+              friends) — removing it would break every old bookmark. With no hash it
+              now renders the screen, because ClassHub covers Attendance and Homework
+              and nothing covered Class Teacher, Class Timetable, Classmates,
+              Subjects & Teachers or Class & school rankings. */}
           <Route
             path="classes"
-            element={<Navigate to={legacyClassesRedirectPath(location.hash)} replace />}
+            element={
+              location.hash
+                ? <Navigate to={legacyClassesRedirectPath(location.hash)} replace />
+                : <StudentClassesPage />
+            }
           />
           <Route path="*" element={<Navigate to="/student" replace />} />
         </Routes>

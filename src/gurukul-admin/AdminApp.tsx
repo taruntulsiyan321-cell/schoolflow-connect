@@ -20,6 +20,7 @@ import ClassManagement from "./Classes";
 import AnnouncementManagement from "./Announcements";
 import CalendarEventsPage from "./CalendarEvents";
 import Reports from "./Reports";
+import FinancialReportsPage from "@/pages/admin/FinancialReportsPage";
 import ExaminationManagement from "./Examinations";
 import HomeworkAdmin from "./Homework";
 import LeaveRequests from "./LeaveRequests";
@@ -276,7 +277,10 @@ export default function AdminApp() {
               <Route path="announcements/*" element={<AnnouncementManagement />} />
               <Route path="notices" element={<Navigate to="/admin/announcements" replace />} />
               <Route path="reports/*" element={<Reports />} />
-              <Route path="fees" element={<Navigate to="/admin/reports" replace />} />
+              {/* Was a placeholder redirect to /admin/reports, which is not a fees
+                  screen. FinancialReportsPage was dark, not broken: fees, students and
+                  classes all resolve against the live schema. */}
+              <Route path="fees" element={<FinancialReportsPage />} />
               <Route path="examinations/*" element={<ExaminationManagement />} />
               <Route path="homework/*" element={<HomeworkAdmin />} />
               <Route path="calendar/*" element={<CalendarEventsPage />} />
