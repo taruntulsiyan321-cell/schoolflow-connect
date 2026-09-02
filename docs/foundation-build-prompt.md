@@ -2084,6 +2084,73 @@ function. Then prove:
 
 ---
 
+# CHUNK 10.5 — CLOSE §10.8 AT THE SURFACE
+
+**43 strength surfaces on reachable screens.** Chunk 7B closed this in the
+database and never swept the client. §10.8 is verbatim: *"Strong areas are never
+shown anywhere in the app. The product surfaces weaknesses only."*
+
+Two that unambiguously render today:
+- `PracticeHubPage.tsx:465` — a section headed **"Strong topics — keep
+  momentum"**, one card per topic. A student is shown a list of what they are
+  good at.
+- `parentNarrative.ts:44` — **"Stronger areas: …"** in the narrative a parent
+  reads.
+
+**This is a product-rule closure across ~20 files, not a literal sweep.**
+
+### Do
+
+1. **Report every site first** — reachable and unreachable, both columns always.
+   A violation on a dead screen is not live and is not fixed.
+2. For each: is it **rendered**, **computed and discarded**, or **plumbing**.
+   Only the first is urgent; all three go.
+3. Remove the surface. Where a screen becomes empty, it says so plainly rather
+   than showing a weaker version of the same thing.
+4. **Check the AI paths separately** — `parentNarrative`, the weekly summary, any
+   prompt assembling "areas of strength". A generated sentence is a render.
+
+### Verify
+
+1. **Zero strength surfaces on any reachable screen**, asserted by the gate.
+2. **Load the student practice hub and the parent narrative as real users** and
+   assert the sections are absent — not merely that the code changed.
+3. No band, label or rung matches `strong|mastered|proficient|excellent`.
+4. Nothing computes a strength value and discards it — that is one refactor away
+   from being rendered again.
+5. The unreachable count is reported, not zero-claimed.
+
+**STOP. Wait for approval.**
+
+---
+
+# CHUNK 10.6 — ROUTE OR DELETE THE 54
+
+**Nothing stays dead.** A dead screen is untested code someone routes later
+believing it works — which is exactly how an 847-student mock became the
+principal's dashboard.
+
+| Group | Count | Action |
+|---|---|---|
+| Working, implements a locked-decisions feature | 20 | **Route it** |
+| Carrying mock data | 13 | **Delete** |
+| Stubs under 80 lines | 7 | **Delete** |
+| Imported by nothing at all | 6 | **Delete** |
+
+**Nothing is "pending".** Pending requires a named chunk that will route it;
+nothing here has one.
+
+**Route the 20 one at a time, loading each as a real user.** A screen dark since
+`9980c05` has never run against the current schema — expect stale columns, stale
+thresholds and null-guard gaps, all of which the gates now catch. Do not route
+them as a batch and inspect afterwards.
+
+**Delete, do not comment out or move aside.** Git keeps it.
+
+**STOP after routing each screen.**
+
+---
+
 # CHUNK 11 — VERIFICATION SWEEPS
 
 Three automated sweeps. **They must fail before the fixes and pass after.**
@@ -2146,6 +2213,44 @@ as data.
 across rows that should differ is the signature. And check every screen a role
 can reach, not the ones the code contains — a dashboard nobody routed is a
 dashboard nobody checked.
+
+**A rule enforced in the database is not enforced if the client renders it.**
+Found live: Chunk 7B closed strength-surfacing at the data layer — a definer
+computed `topics.strong`, three policies served it, all removed. **43 strength
+surfaces remained on reachable client screens**, including a student section
+headed *"Strong topics — keep momentum"* and a parent narrative reading
+*"Stronger areas: …"*.
+
+That chunk's verification **could not have caught it**: it swept
+`information_schema` for columns while the data sat in a `jsonb` blob and in JSX.
+
+**Any product rule about what a user may see must be verified at the surface the
+user sees** — the rendered screen — not only at the table. Schema sweeps do not
+read JSX, and a value can be computed client-side from data that is legitimately
+readable.
+
+**Report both reachable and unreachable violations, always.** A violation on a
+dead screen is not live — and is not fixed. Routing that screen later makes it
+live with nothing to notice.
+
+**Check reachability before fixing anything.** Found live: **54 of 169 screen
+files are reachable from no route**, including every file being fixed at the
+time. `dashboard-blocks/*` went dark when a previous batch unrouted its only
+parent, and nobody noticed for a batch and a half. **Walk the import closure from
+every router first**, and fix what a user can actually open.
+
+**Match the instrument to the kind of question.** *Reachable from a route* is
+structural — an import closure answers it, over-reporting reachability, which is
+the safe direction when hunting dead screens. *Callable before sign-in* is a
+runtime question — an import closure answers it badly, reporting 127 against a
+true 0. **Know which kind you are asking, and which direction your instrument
+errs.**
+
+**Guard the damaging list as carefully as the flattering one.** Found live: a
+"doing well" list correctly required `attendanceTotal > 0`; the "low attendance"
+list two hundred lines above did not — so a student **nobody had marked** headed
+a list naming children as a problem. Same defect, only one direction matters.
+**Audit every list that names a person negatively first.**
 
 **A stub that satisfies a condition makes its check unfailable.**
 `setUnmarked([])` behind a TODO meant the unmarked-classes block showed clean

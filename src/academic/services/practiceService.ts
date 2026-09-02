@@ -36,6 +36,8 @@ import {
 import { WEAK_CONCEPT_THRESHOLD } from "../eie/masteryBands";
 import { DecisionEngineService, type WeakAreaRecommendation } from "./decisionEngineService";
 import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
+import { sessionAccuracy } from "../metrics/practice";
+import { valueOr } from "../metrics/types";
 
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
@@ -1414,7 +1416,9 @@ export const PracticeService = {
     assertCanOwn(ctx, "practice");
     if (!attempts.length) return { score: 0, clearedIds: [], sessionId: null, persisted: false };
     const correctN = attempts.filter((a) => a.selectedIndex === a.correctIndex).length;
-    const score = Math.round((100 * correctN) / attempts.length);
+    // Chunk 10: one definition of accuracy. This one had no guard at all —
+    // attempts.length of 0 gave NaN, which renders as "NaN%".
+    const score = valueOr(sessionAccuracy(correctN, attempts.length), 0);
     const subjectRaw = attempts[0]?.subject?.trim() || "";
     const chapterRaw =
       attempts[0]?.chapter?.trim() ||

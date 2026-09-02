@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { isGenericAcademicLabel } from "@/lib/qualityGuards";
+import { sessionAccuracy } from "@/academic/metrics/practice";
+import { valueOr } from "@/academic/metrics/types";
 
 export type RecoveryAssignment = {
   id: string;
@@ -116,7 +118,8 @@ export function useRecoveryZone(enabled = true) {
               const correct = row.questions_correct ?? 0;
               const completed = row.questions_completed ?? 0;
               const denom = qCount > 0 ? qCount : completed;
-              const score = denom > 0 ? Math.round((100 * correct) / denom) : 0;
+              // Chunk 10: one definition of accuracy.
+              const score = valueOr(sessionAccuracy(correct, denom), 0);
               return {
                 id: row.id,
                 concept: row.concept,

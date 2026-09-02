@@ -64,18 +64,12 @@ const METRIC_WORDS = [
  */
 const BASELINE = [
   "src/academic/repository/marksRepository.ts",
-  "src/academic/services/attendanceService.ts",
-  "src/academic/services/practiceService.ts",
   "src/components/student/analytics/AnalyticsStudio.tsx",
   "src/gurukul-parent/ParentLiveAcademic.tsx",
   "src/gurukul-principal/dashboard-drilldowns/AttendanceDrillDown.tsx",
   "src/gurukul/pages/Analysis.tsx",
   "src/gurukul/pages/MistakeBook.tsx",
   "src/gurukul/pages/Tests.tsx",
-  "src/hooks/useRecoveryZone.ts",
-  "src/lib/practiceSessionSnapshot.ts",
-  "src/lib/recoveryCompletionReport.ts",
-  "src/lib/recoverySessionSnapshot.ts",
   "src/pages/admin/ClassDetail.tsx",
   "src/pages/parent/ParentInsights.tsx",
   "src/pages/principal/PrincipalClassDetail.tsx",
@@ -87,7 +81,7 @@ const BASELINE = [
   "src/pages/student/Battleground.tsx",
   "src/pages/student/RecoverySessionResult.tsx",
   "src/pages/student/TestResult.tsx",
-]; // 24 site(s)
+]; // 18 site(s)
 
 function walk(dir, out = []) {
   if (!existsSync(dir)) return out;

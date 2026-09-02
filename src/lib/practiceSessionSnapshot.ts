@@ -1,5 +1,7 @@
 import type { ConceptRecoveryReport } from "@/lib/conceptReportFallback";
 import { supabase } from "@/integrations/supabase/client";
+import { sessionAccuracy } from "@/academic/metrics/practice";
+import { valueOr } from "@/academic/metrics/types";
 
 export type PracticeAttemptSnapshot = {
   question: string;
@@ -99,7 +101,13 @@ export function buildPracticeRecoveryReport(
 ): ConceptRecoveryReport {
   const total = attempts.length;
   const correct = attempts.filter((a) => a.isCorrect).length;
-  const accuracy = total ? Math.round((correct / total) * 100) : 0;
+  // Chunk 10. Was `total ? … : 0` — the same expression, with the same defect,
+  // in five files. A session with nothing attempted is not a session scored
+  // zero. valueOr(..., 0) keeps this snapshot's numeric shape for its callers,
+  // but the zero now comes from ONE place that knows it is standing in for
+  // no_data, instead of five that thought it was an answer.
+  const accuracyMetric = sessionAccuracy(correct, total);
+  const accuracy = valueOr(accuracyMetric, 0);
   const concept = chapter;
 
   const weak =

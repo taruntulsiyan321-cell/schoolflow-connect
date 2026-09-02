@@ -2,6 +2,8 @@ import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import type { RecoverySessionResultState } from "@/lib/recoverySessionSnapshot";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { sessionAccuracy } from "@/academic/metrics/practice";
+import { valueOr } from "@/academic/metrics/types";
 
 export type MetricPair = { before: number; after: number; label: string };
 
@@ -134,7 +136,8 @@ export function buildRecoveryCompletionReport(opts: {
   const attempts = state.attempts;
   const total = attempts.length;
   const correct = attempts.filter((a) => a.isCorrect).length;
-  const recoveryAccuracy = total ? Math.round((correct / total) * 100) : 0;
+  // Chunk 10: one definition of accuracy.
+  const recoveryAccuracy = valueOr(sessionAccuracy(correct, total), 0);
 
   const chapter = state.chapter ?? state.concept;
   const concept = state.concept;

@@ -1,4 +1,6 @@
 import type { ConceptRecoveryReport } from "@/lib/conceptReportFallback";
+import { sessionAccuracy } from "@/academic/metrics/practice";
+import { valueOr } from "@/academic/metrics/types";
 
 export type RecoveryAttemptSnapshot = {
   questionId: string;
@@ -30,7 +32,9 @@ export function buildRecoveryAssignmentReport(
 ): ConceptRecoveryReport {
   const total = attempts.length;
   const correct = attempts.filter((a) => a.isCorrect).length;
-  const accuracy = total ? Math.round((correct / total) * 100) : 0;
+  // Chunk 10: one definition of accuracy. See practice.ts for why `: 0` was
+  // wrong in all five copies of this line.
+  const accuracy = valueOr(sessionAccuracy(correct, total), 0);
 
   const weak =
     accuracy < 70

@@ -27,6 +27,8 @@ import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
 import { assertMayAccessStudent } from "./parentAccess";
 import { broadcastAcademicWrite } from "../live";
+import { schoolAttendanceToday } from "../metrics/attendance";
+import { valueOr, type Metric } from "../metrics/types";
 
 function afterAttendanceWrite(
   ctx: ServiceContext,
@@ -64,7 +66,22 @@ export interface ClassDateAttendanceSummary {
 
 export interface SchoolDateAttendanceSummary {
   date: string;
+  /**
+   * present ÷ students in the sections that SUBMITTED — §10's hard requirement.
+   *
+   * It used to divide by totalStudents, the whole roster, so a day on which one
+   * of three sections had marked read as a third of the truth. EIGHT screens
+   * read this field, including the admin dashboard and the principal live view,
+   * so one line put the wrong denominator on eight surfaces.
+   *
+   * Still a plain number for those callers, and still 0 where nothing was
+   * marked — but the 0 now comes from one place that knows it is standing in
+   * for not_marked. Read `overallDayRate` where the difference matters.
+   */
   overallDayRatePct: number;
+  /** The same figure carrying its state. Prefer this. */
+  overallDayRate: Metric<number>;
+  /** The whole roster. NOT the denominator of overallDayRatePct. */
   totalStudents: number;
   present: number;
   absent: number;
@@ -334,9 +351,22 @@ export const AttendanceService = {
       absent += s.absent;
     }
 
+    // One definition of "school attendance for a day", shared by every screen
+    // that shows it. A section with no marked record did not submit, and
+    // contributes neither its present count nor its headcount.
+    const overallDayRate = schoolAttendanceToday(
+      summaries.map((c) => ({
+        sectionId: c.classId,
+        submitted: c.marked > 0,
+        present: c.present,
+        enrolled: c.totalStudents,
+      })),
+    );
+
     return {
       date,
-      overallDayRatePct: totalStudents ? Math.round((present / totalStudents) * 100) : 0,
+      overallDayRatePct: valueOr(overallDayRate, 0),
+      overallDayRate,
       totalStudents,
       present,
       absent,
