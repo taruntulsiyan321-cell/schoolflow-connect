@@ -140,6 +140,13 @@ describe("Response Validator v1", () => {
     expect(v.ok).toBe(true);
   });
 
+  // The §10.8 vocabulary in the string below is DELIBERATE and stays.
+  //
+  // It is the INPUT the validator has to refuse, not an output the app
+  // produces — a rejection fixture is the opposite of a test holding a
+  // violation in place. Grepping the suite for strength vocabulary (which found
+  // two real cases) also surfaces this one, and deleting it would remove the
+  // proof that the guard works. The grep is a lead, not a verdict.
   it("rejects invented mastery percentage", () => {
     const v = validateModelResponse(
       "Your concept mastery is 97% — excellent work!",
