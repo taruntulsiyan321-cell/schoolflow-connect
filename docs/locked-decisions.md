@@ -327,6 +327,27 @@ point*. A battle produces XP and a winner, not marks.
 - Session totals are stored (attempted, correct count) so accuracy can be shown.
 - **Strong areas are never shown anywhere in the app.** The product surfaces
   weaknesses only.
+
+**RULING — where the line falls between a number and a strength display.**
+
+A figure is not forbidden for being high. Accuracy per chapter can read 92% and
+that is fine. What is forbidden is **presenting a figure as an achievement, or
+filtering a list to the best of them.**
+
+| Allowed | Forbidden |
+|---|---|
+| A metric shown for **every** subject or chapter, high and low alike | A list **filtered** to the highest — "Strong topics", "Stronger areas" |
+| A neutral label — *accuracy*, *completion*, *score* | An achievement label — *mastery*, *mastered*, *proficient*, *strong*, *excellent* |
+| "On track" as a band describing the **figure** | Any band describing the **child** |
+
+**Applied to the per-subject "MASTERY %" figure:** the number stays, shown for
+every subject including the weak ones. **The word goes** — rename it to something
+that describes the measure rather than the achievement. "Mastery 78%" tells a
+student they have mastered it; "Accuracy 78%" tells them what happened.
+
+**And nothing may compute a strength value and discard it.** A value assembled
+upstream and silenced at the consumer is one refactor from being rendered again.
+Close it at the source, including in any AI context builder or prompt.
 - Recorded per question: right/wrong, time taken, skipped, bookmarked.
 
 **Modes:**

@@ -72,45 +72,105 @@ later means backfilling every table.
 - No check constraint may force a `0` default on a measurement column.
 - Aggregates exclude `NULL`, never coalesce it to zero.
 
-**Guard on "was it measured", never on "does it exist".** Found live:
-`hasData = c.studentCount > 0` gated four columns on the principal live view.
-It asks whether the class HAS STUDENTS, not whether the class was MARKED — so a
-class of 30 that nobody had touched passed the guard, rendered
-`Math.round(null)` as 0, and `null >= 90` and `null >= 75` both being false
-dropped it into the alert colour. **Every step after the guard was correct.**
-The question is also per METRIC, not per row: a class can have its register
-marked and no exam entered, and those two cells must not agree with each other
-about whether there is data.
+### G4a. Every way a null has become a zero in this codebase
 
-**A generated type conflates optional with nullable.** Supabase renders a
-Postgres parameter declared `DEFAULT NULL` as `_p?: string` — optional, but not
-nullable — because it cannot express both. Under `strictNullChecks` every
-`?? null` against such a parameter stops compiling, and **the type is wrong,
-not the call.** Fix it per parameter against the DECLARED DEFAULT, read from
-`pg_get_function_arguments`: omitting the key is identical to passing null only
-where the default IS null. A blanket `?? undefined` across one real call was
-right for three parameters and silently wrong for five, where the defaults were
-`0`, `false`, `'practice'` and `'{}'`.
+Each of these was live. None was visible to the compiler.
 
-**Do not widen a type beyond what the DATA allows.** Widening
-`PracticeSessionSummary.finished_at` to `string | null` looked like honesty and
-was not: the query behind it already filtered `finished_at IS NOT NULL`, so the
-null could not arrive. Eight new errors then appeared demanding guards against
-a case that never occurs — **false work that looks like rigour.** Widen to what
-the data permits, not to what the column permits, and make the guarantee
-visible with a filter the compiler can follow rather than a cast.
-**Proving a null cannot occur, asserting it away, and inventing one are three
-different things.**
+**Comparisons**
 
-**The silent coercions are not all zero.** `null` reaches a screen in more
-shapes than `Math.round(null)`:
+- **`null < 75` is `true`.** A null coerces to 0 in a numeric comparison, so
+  every "below threshold" test treats *not measured* as *worst possible*. Found
+  live: `ClassWatchlist` wrote `cls.avgAttendancePct < 75`, so **a class nobody
+  had marked led the watchlist as the school's worst.**
+- **`a.pct - b.pct` with two nulls is `0`**, so an unmeasured row **sorts to the
+  front** and is presented as the worst. Found live in `HomeworkBlock`.
+- **Guard the damaging list as carefully as the flattering one.** A "doing well"
+  list correctly required `attendanceTotal > 0`; the "low attendance" list two
+  hundred lines above did not. **Audit every list that names a person negatively
+  first.**
 
-| Expression | What it does |
-|---|---|
-| `new Date(null).getTime()` | **0** — the epoch, not Invalid Date. An unfinished row sorts to 1 January 1970 and anchors the start of a trend. |
-| `` width: `${null}%` `` | invalid CSS — the bar **silently collapses** to nothing while the caption beside it reads `null%`. One is visible; one is not. |
-| `null - null` in a comparator | **0**, and `null - 5` is `-5` — an unmeasured row sorts to the FRONT and is presented as the worst. |
-| `null > 0` | `false` — which is often the right output for the wrong reason, and inverts the moment somebody flips the comparison. |
+**Wrong premise in the guard**
+
+- **Guard on "was it measured", never on "does it exist".** Found live:
+  `hasData = c.studentCount > 0` asks whether a class **has students**, not
+  whether it was **measured**. A class of 30 with an unmarked register passed it,
+  rendered `Math.round(null) = 0`, and — since `null >= 90` and `null >= 75` are
+  both false — dropped into the alert colour. Every step correct, the premise
+  wrong.
+
+**Guards that cancel themselves**
+
+- **A null guard wrapped in a default cancels itself.**
+  `COALESCE(round(x / NULLIF(count(*), 0), 1), 0)` — the `NULLIF` correctly
+  yields NULL with no attempts; the `COALESCE` converts it straight back to 0.
+  **The guard and its cancellation sit on the same line, which is why it reads as
+  careful code.** Grep for `COALESCE(…, 0)` around any division and ask what the
+  zero means.
+- **`n = rows.length || 1`** returns a figure where the answer is `no_data`.
+
+**Two different absences treated as one**
+
+- **`??` conflates "absent" with "explicitly null", and they are different
+  facts.** Found live: `practice_accuracy_pct ?? accuracy_pct` — an absent key
+  meant a legacy snapshot, an explicit NULL meant no practice, and the fallback
+  **relabelled blended accuracy as practice accuracy**. Use an `in` check or a
+  discriminated shape.
+- **`?? null` and a non-null assertion are not interchangeable for jsonb.**
+  Asserting stores `undefined`, which `JSON.stringify` drops — the key vanishes
+  rather than being recorded as unset. Where absence must be *recorded*, write
+  the null.
+- **A generated type conflates optional with nullable.** Supabase renders
+  `_entity_id uuid DEFAULT NULL` as `_entity_id?: string`, keeping the
+  optionality and dropping the null. **The correct fix depends on the database
+  default** — omitting the key writes `DEFAULT NULL` for one parameter and
+  `DEFAULT 0` or `DEFAULT '{}'` for the next. A blanket `?? undefined` was right
+  for three parameters and silently wrong for five. **Fix per parameter, against
+  the declared default.**
+
+**Silent coercions that are not zero**
+
+| Expression | Result | Effect |
+|---|---|---|
+| `Math.round(null)` | `0` | A group with nothing measured renders a confident 0% |
+| `new Date(null).getTime()` | `0` — the epoch, not Invalid Date | Unfinished records sort as 1970 |
+| `width: null%` | invalid CSS | The bar collapses while the caption reads `null%` |
+| `null - null` | `0` | Unmeasured rows sort first, shown as worst |
+
+**Types**
+
+- **Do not widen a type beyond what the data allows.** Making a column nullable
+  "for honesty" when the query already filters it produced **eight guards against
+  a case that never arrives** — false work that looks like rigour. **Proving a
+  null cannot occur, asserting it away, and inventing one are three different
+  things.** Where a query guarantees non-null, make the guarantee visible at the
+  call site, not in the type.
+- **Fix by narrowing, never by asserting.** A `!` or an `as` silences the
+  compiler and keeps the defect. Count non-null assertions before and after any
+  null-safety work.
+
+**Presentation**
+
+- **Zero is the one value some columns must never invent.** `marksPending = 0`
+  reads as *nothing to chase*, which is the opposite of *not yet known*.
+- **Say why something is excluded — do not silently exclude it.** A
+  chronic-absentee block skipped never-marked students with a length check —
+  correct by accident, and invisible. The replacement renders *"✓ No student
+  below 80% · 1 student has no attendance marked at all — not counted above."*
+  **A correct number whose basis a principal cannot see is a number they cannot
+  act on.**
+- **Put the presence check beside the metric, not in the component**, so the
+  numeric contract stays intact for every other call site.
+
+**The one that leaves no trace**
+
+- **A null laundered through an LLM becomes untraceable.** Found live:
+  `ClassAiSummary` and `SchoolAiSummary` declared their averages `number`, so a
+  null coerced to `0` — and **those figures are what the model is told before it
+  writes to a parent.** The output is a fluent sentence stating a school had 0%
+  attendance, with nothing pointing back to an unmarked register. **Every value
+  entering a prompt must carry its absence explicitly** — "not recorded" as a
+  value the model is given, never a zero standing in for one. A wrong number on
+  a screen is visible; the same number in a paragraph is not.
 
 ### G5. No stored aggregates
 
@@ -154,28 +214,6 @@ time, and they catch what a chunk broke somewhere else.
 | Live smoke | open each role's main screens | loads, no console errors, no `undefined%`, **no 5xx** |
 | Query timing | heaviest query per touched table, per role | reported; nothing within 2× the statement timeout |
 | Definer inventory | every SECDEF and edge function vs its declared reader set | no unlisted function, no undeclared grant (G13) |
-| **Divergence** | `npm run check:divergence` | 0 behind the base branch — run BEFORE building, not after |
-
-**"Run one session at a time" is a note, not a mechanism.** Two whole chunks
-have now been built twice and thrown away once each — Chunk 10 batch 2 and
-Chunk 10.5 — because a worktree on its own branch looks completely calm while
-the base branch moves. `git log` shows your commits, `git status` is clean, and
-nothing says the ground has shifted. Both collisions had **different commit
-subjects and identical file lists**, so comparing subjects would not have found
-either. `check-branch-divergence` fails on any distance behind the base and
-prints the overlapping files, and its self-test builds a real divergence in a
-throwaway repository rather than asserting against a fixture.
-
-**A gate that cannot run must fail CLEANLY, and say so in a way no reader can
-mistake for a finding.** The migration preflight read `.env.local` with no
-guard, so on a machine without that file it died with an unhandled `ENOENT` and
-a Node stack trace — non-zero exit, which looks exactly like a real finding,
-while meaning the check never ran. It now separates the three outcomes by exit
-code as well as by text: **0 pass, 1 findings, 2 blocked**. Two further traps
-sat behind that one: the credential parsing was a second home for something
-`scripts/lib/readonly-db.mjs` already did (G9), and `process.exit()` with an
-in-flight `fetch` aborts inside libuv on Windows, so the shell saw **127**
-rather than the code the gate had chosen.
 
 **A gate fails on facts. Judgements are printed as debt, never as failures.**
 A finding derived from unreviewed heuristics is a restatement of the guess, not
@@ -246,7 +284,15 @@ guard.
 **A skipped check is not a passing check.** Found live: the smoke gate reported
 "5 skipped / PASS" without `SMOKE_SESSIONS` and exited 0 — asserting nothing
 while reporting success. Same shape as a swallowed catch, one level up.
-A gate that cannot run must **fail**, not skip.
+A gate that cannot run must **fail**, not skip — **and it must fail cleanly.**
+Found live: `check-foreign-migrations.mjs` exited on an unhandled `ENOENT` when
+`.env.local` was absent, which is indistinguishable from a real finding. A gate
+must report *why* it could not run. **Two traps sat behind that one:** it carried
+its **own copy of credential parsing** while seven other scripts shared a helper —
+which is exactly why it was the only gate that crashed instead of reporting — and
+`process.exit()` with an in-flight fetch aborts inside libuv on Windows, so the
+shell saw `127` rather than the code the gate chose. **Wrap the body in a `main()`
+that returns its exit code.**
 
 **Every gate needs a negative control.** Prove it can fail: break the thing it
 guards, confirm it reports failure, restore. A gate never seen to fail is a gate
