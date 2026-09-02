@@ -22,6 +22,16 @@ import { toEnumLabel, toErrorMessage, toPersonName } from "@/lib/presentation";
  * No mock attendanceTrend / classPerformance / attendanceClasses / student rankings here.
  */
 
+/**
+ * CHUNK 10.7. Four StatBlocks rendered `${Math.round(school.avgExamsPct)}%` and
+ * those fields are `number | null`. Math.round(null) is 0, so a school with
+ * nothing measured showed a confident 0% on the principal live view — the third
+ * screen carrying this exact shape, after LiveClassPanels and the watchlist.
+ */
+function pctOrDash(v: number | null | undefined): string {
+  return v === null || v === undefined ? "—" : `${Math.round(v)}%`;
+}
+
 function todayStr(): string {
   return localDateKey();
 }
@@ -166,22 +176,22 @@ export function PrincipalSchoolOverview({ onDrillDown }: { onDrillDown?: (metric
           color="var(--emerald)"
           onClick={onDrillDown ? () => onDrillDown('attendance') : undefined}
         />
-        <StatBlock label="Profile Avg Attendance" value={`${Math.round(school.avgAttendancePct)}%`} color="var(--emerald)" />
+        <StatBlock label="Profile Avg Attendance" value={pctOrDash(school.avgAttendancePct)} color="var(--emerald)" />
         <StatBlock
           label="Avg Exams"
-          value={`${Math.round(school.avgExamsPct)}%`}
+          value={pctOrDash(school.avgExamsPct)}
           color="var(--rose)"
           onClick={onDrillDown ? () => onDrillDown('exams') : undefined}
         />
         <StatBlock
           label="Avg Homework"
-          value={`${Math.round(school.avgHomeworkCompletionPct)}%`}
+          value={pctOrDash(school.avgHomeworkCompletionPct)}
           color="var(--amber)"
           onClick={onDrillDown ? () => onDrillDown('homework') : undefined}
         />
         <StatBlock
           label="Avg Tests"
-          value={`${Math.round(school.avgTestsPct)}%`}
+          value={pctOrDash(school.avgTestsPct)}
           color="var(--indigo)"
           onClick={onDrillDown ? () => onDrillDown('tests') : undefined}
         />

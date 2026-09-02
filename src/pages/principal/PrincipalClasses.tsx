@@ -55,21 +55,32 @@ export default function PrincipalClasses() {
         // Count students per section
         const studentCounts: Record<string, number> = {}
         students?.forEach(s => {
+          // Second instance of this shape today — AcademicsAhead had the same
+          // one. A student with no class_id would be counted under the literal
+          // key "null", and a section that never existed would appear in the
+          // roll. Skipped, not defaulted: they belong to no section, and adding
+          // them to one would be inventing a fact.
+          if (!s.class_id) return
           studentCounts[s.class_id] = (studentCounts[s.class_id] || 0) + 1
         })
 
         // Group sections by class name
         const grouped: Record<string, ClassGroup> = {}
         sections.forEach(section => {
-          if (!grouped[section.name]) {
-            grouped[section.name] = {
-              className: section.name,
+          // classes.name is nullable. A section with no name cannot be grouped
+          // under one — it would collide with every other unnamed section under
+          // the key "null" and report their combined roll as a single class.
+          const name = section.name
+          if (!name) return
+          if (!grouped[name]) {
+            grouped[name] = {
+              className: name,
               sectionsCount: 0,
               studentsTotal: 0,
             }
           }
-          grouped[section.name].sectionsCount++
-          grouped[section.name].studentsTotal += studentCounts[section.id] || 0
+          grouped[name].sectionsCount++
+          grouped[name].studentsTotal += studentCounts[section.id] || 0
         })
 
         setClasses(Object.values(grouped))

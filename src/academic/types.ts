@@ -86,13 +86,24 @@ export interface StudentAiSummary {
   trends: Record<string, unknown>;
 }
 
+/**
+ * CHUNK 10.7. The three averages became `number | null`.
+ *
+ * These two shapes are the AI CONTEXT — what the model is told about a class or
+ * a school before it answers a parent or a student. Coercing a null to 0 here
+ * would state, in the prompt, that a school had 0% attendance, and the model
+ * would repeat it in a sentence nobody could trace back to a missing register.
+ *
+ * null travels, and the prompt builder decides how to say "not measured". The
+ * one thing it must not do is arrive as a number.
+ */
 export interface ClassAiSummary {
   classId: string;
   schoolId: string;
   studentCount: number;
-  avgAttendancePct: number;
-  avgHomeworkCompletionPct: number;
-  avgMarksPct: number;
+  avgAttendancePct: number | null;
+  avgHomeworkCompletionPct: number | null;
+  avgMarksPct: number | null;
 }
 
 export interface SchoolAiSummary {
@@ -100,9 +111,9 @@ export interface SchoolAiSummary {
   classCount: number;
   studentCount: number;
   teacherCount: number;
-  avgAttendancePct: number;
-  avgHomeworkCompletionPct: number;
-  avgMarksPct: number;
+  avgAttendancePct: number | null;
+  avgHomeworkCompletionPct: number | null;
+  avgMarksPct: number | null;
 }
 
 export type ValidationIssue = {

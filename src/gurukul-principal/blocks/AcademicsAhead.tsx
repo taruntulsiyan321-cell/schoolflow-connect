@@ -143,6 +143,11 @@ export function AcademicsAhead() {
         }
         const rollByClass = new Map<string, number>()
         for (const s of rollRows.data ?? []) {
+          // A student with no class_id cannot be counted toward any class roll.
+          // Without this the map gains a null key, and the expected count for
+          // every exam is measured against a roll that includes students who
+          // belong to no class — inflating "marks missing" for all of them.
+          if (!s.class_id) continue
           rollByClass.set(s.class_id, (rollByClass.get(s.class_id) ?? 0) + 1)
         }
 

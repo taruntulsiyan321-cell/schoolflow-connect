@@ -1639,12 +1639,17 @@ function Session({
           options: snap.options,
           explanation: snap.explanation ?? "",
           bank_question_id: snap.bankQuestionId ?? null,
-          subject: snap.subject,
-          chapter: snap.chapter,
-          concept: snap.concept,
-          topic: snap.topic,
-          difficulty: snap.difficulty,
-          practice_mode: snap.practiceMode,
+          // `?? null` rather than `!`: these are optional on the snapshot and
+          // the column is jsonb, which has a null but no undefined. Giving the
+          // absent case an explicit representation is narrowing; asserting it
+          // away would store `undefined`, which JSON.stringify drops silently —
+          // the key would vanish from the row rather than be recorded as unset.
+          subject: snap.subject ?? null,
+          chapter: snap.chapter ?? null,
+          concept: snap.concept ?? null,
+          topic: snap.topic ?? null,
+          difficulty: snap.difficulty ?? null,
+          practice_mode: snap.practiceMode ?? null,
         },
         selectedAnswer: {
           index: snap.selectedIndex,

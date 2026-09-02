@@ -71,6 +71,22 @@ const MANUAL_QUESTION_KINDS: { value: ManualQuestionKind; label: string }[] = [
   { value: "numerical", label: "Numerical" },
 ];
 
+/**
+ * CHUNK 10.7. Four sites on the teacher header strip read
+ * `{Math.round(analytics.avgAttendancePct)}%`, and that field became
+ * `number | null` in Chunk 10 when "not measured" got a way to be expressed.
+ *
+ * `Math.round(null)` is 0. So a class nobody had marked rendered a confident
+ * 0% — the same defect as `null < 75`, one operator along, and invisible to the
+ * compiler until strictNullChecks.
+ *
+ * One helper rather than four inline ternaries: the point of the null contract
+ * is that "we did not measure this" has a single rendering.
+ */
+function pctOrDash(v: number | null | undefined): string {
+  return v === null || v === undefined ? "—" : `${Math.round(v)}%`;
+}
+
 function errMsg(e: unknown, fallback: string): string {
   return e instanceof Error ? e.message : fallback;
 }
@@ -2807,25 +2823,25 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
             <div>
               <span className="text-muted-foreground">Attendance </span>
               <span className="font-bold text-foreground tabular-nums">
-                {Math.round(analytics.avgAttendancePct)}%
+                {pctOrDash(analytics.avgAttendancePct)}
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">HW </span>
               <span className="font-bold text-foreground tabular-nums">
-                {Math.round(analytics.avgHomeworkCompletionPct)}%
+                {pctOrDash(analytics.avgHomeworkCompletionPct)}
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">Test avg </span>
               <span className="font-bold text-foreground tabular-nums">
-                {Math.round(analytics.avgTestsPct)}%
+                {pctOrDash(analytics.avgTestsPct)}
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">Exam avg </span>
               <span className="font-bold text-foreground tabular-nums">
-                {Math.round(analytics.avgExamsPct)}%
+                {pctOrDash(analytics.avgExamsPct)}
               </span>
             </div>
             <div>
