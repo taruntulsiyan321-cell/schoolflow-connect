@@ -10,14 +10,13 @@ import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumS
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import { GlassCard, SubjectBadge, ProgressBar, cn } from "@/gurukul/components/shared";
-import { urgencyBand, ACCURACY_CONCEPTUAL, type Urgency } from "@/academic/metrics/bands";
+import { urgencyBand, type Urgency } from "@/academic/metrics/bands";
 import {
   RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2,
   Brain, BookOpen, Clock, Target, Search, Filter,
   RotateCcw, TrendingUp, History, Play, SkipForward,
 } from "lucide-react";
 
-type RecoveryView = "overview" | "session" | "results";
 type Priority = "high" | "medium" | "low";
 
 interface RecoveryTopic {
@@ -232,138 +231,7 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
   );
 }
 
-function RecoverySession({ topic, onBack }: { topic: RecoveryTopic; onBack: () => void }) {
-  return (
-    <div className="space-y-5">
-      <GlassCard className="p-8 text-center">
-        <RefreshCw className="w-8 h-8 text-muted-foreground mx-auto mb-3"/>
-        <p className="text-sm font-semibold text-foreground mb-1">Open live recovery</p>
-        <p className="text-xs text-muted-foreground mb-4">
-          Recovery drills load from your assigned concepts. Practice, Revision, or Nova can help meanwhile.
-        </p>
-        <div className="flex flex-wrap justify-center gap-2">
-          {topic.assignmentId ? (
-            <Link
-              to={`/student/recovery/${topic.assignmentId}`}
-              className="px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm font-semibold hover:bg-rose-500/30 transition-all"
-            >
-              Open assignment
-            </Link>
-          ) : (
-            <Link
-              to={`/student/practice?chapter=${encodeURIComponent(topic.chapter !== "—" ? topic.chapter : topic.concept)}&subject=${encodeURIComponent(topic.subject)}`}
-              className="px-4 py-2 rounded-xl bg-[#3b5bdb]/20 border border-[#3b5bdb]/30 text-[#4b9fd4] text-sm font-semibold hover:bg-[#3b5bdb]/30 transition-all"
-            >
-              Go to Practice
-            </Link>
-          )}
-          <Link to="/student/aicoach" className="px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/25 text-violet-300 text-sm font-semibold">
-            Ask Nova
-          </Link>
-          <button onClick={onBack}
-            className="px-4 py-2 rounded-xl bg-muted border border-border text-muted-foreground text-sm font-semibold hover:bg-secondary transition-all">
-            Back
-          </button>
-        </div>
-      </GlassCard>
-    </div>
-  );
-}
-
-function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopic; score: number; setPage?: (p: PageKey) => void; onBack: () => void }) {
-  // NEEDS A RULING — flagged in the report, not silently settled here.
-  //
-  // §4.2b: "Readiness is two numbers, never blended — procedural and
-  // conceptual. Procedural passing while conceptual fails is the most common
-  // real result." This screen has ONE blended `score` and declares a single
-  // pass from it, which is the blend the spec forbids. Splitting it needs the
-  // per-tier breakdown (tiers 0–1 vs 2–3), which is not passed down to this
-  // component.
-  //
-  // The literal 70 is sourced to the conceptual bar in the meantime so it
-  // cannot drift, but sourcing the number does not make the single verdict
-  // correct.
-  const passed = score >= ACCURACY_CONCEPTUAL;
-  const color = passed ? "#4aa87a" : "#c08a3a";
-  const size = 110, stroke = 9, r = (size - stroke) / 2, c = 2 * Math.PI * r;
-  const offset = c - (score / 100) * c;
-  const [addingRevision, setAddingRevision] = useState(false);
-
-  async function addToRevision() {
-    setAddingRevision(true);
-    try {
-      await assignRecoveryOnMistake({
-        subject: topic.subject,
-        chapter: topic.chapter !== "—" ? topic.chapter : null,
-        concept: topic.concept,
-        sourceType: "recovery_followup",
-        sourceId: topic.assignmentId ?? topic.id,
-        accuracy: score,
-      });
-      // Recovery assign also queues revision when applicable; navigate to revision hub.
-      setPage?.("revision");
-    } catch {
-      setPage?.("revision");
-    } finally {
-      setAddingRevision(false);
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <GlassCard className="p-6 text-center">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-4">Recovery Session Complete</div>
-        <div className="flex justify-center mb-4">
-          <div className="relative inline-flex" style={{width:size,height:size}}>
-            <svg width={size} height={size} className="-rotate-90">
-              <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke}/>
-              <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-                strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-                style={{filter:`drop-shadow(0 0 10px ${color})`}}/>
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-black" style={{color}}>{score}%</span>
-            </div>
-          </div>
-        </div>
-        <div className="text-lg font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>
-          {displayConcept(topic.concept)}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {passed ? "Great improvement! Topic is recovering well." : "Keep going — a few more sessions will strengthen this."}
-        </p>
-
-        <div className="grid grid-cols-3 gap-3 mt-5">
-          {[
-            { label:"Score",    value:`${score}%`,            color },
-            { label:"Previous", value:`${topic.accuracyPct}%`,   color:"hsl(var(--muted-foreground))" },
-            { label:"Change",   value: score >= topic.accuracyPct ? `+${score - topic.accuracyPct}%` : `${score - topic.accuracyPct}%`, color: score > topic.accuracyPct ? "#4aa87a" : "#cc5069" },
-          ].map(s => (
-            <div key={s.label} className="p-3 rounded-xl bg-muted border border-border">
-              <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </GlassCard>
-
-      <div className="space-y-2">
-        {!passed && (
-          <button onClick={addToRevision} disabled={addingRevision}
-            className="w-full py-3 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-300 text-sm font-bold flex items-center justify-center gap-2 hover:bg-violet-500/25 transition-all disabled:opacity-50">
-            <RotateCcw className="w-4 h-4"/> {addingRevision ? "Adding…" : "Add to Revision Schedule"}
-          </button>
-        )}
-        <button onClick={onBack}
-          className="w-full py-3 rounded-xl bg-muted border border-border text-muted-foreground text-sm font-semibold hover:bg-secondary transition-all">
-          Back to Recovery Hub
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }) {
+export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { ctx, ready: academicReady } = useAcademicContext();
@@ -412,9 +280,6 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     [v2WeakAreas, data?.weak_concepts],
   );
 
-  const [view, setView] = useState<RecoveryView>("overview");
-  const [activeTopic, setActiveTopic] = useState<RecoveryTopic | null>(null);
-  const [sessionScore, setSessionScore] = useState(0);
   const [search, setSearch] = useState("");
   const [priority, setPriority] = useState<Priority | "all">("all");
   const [sourceFilter, setSourceFilter] = useState("all");
@@ -557,12 +422,6 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     }
   }
 
-  function onSessionDone(score: number) {
-    setSessionScore(score);
-    setView("results");
-  }
-  void onSessionDone;
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -589,14 +448,6 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     );
   }
 
-  if (view === "session" && activeTopic) {
-    return <RecoverySession topic={activeTopic}
-      onBack={() => { setView("overview"); setActiveTopic(null); }}/>;
-  }
-  if (view === "results" && activeTopic) {
-    return <SessionResults topic={activeTopic} score={sessionScore} setPage={setPage}
-      onBack={() => { setView("overview"); setActiveTopic(null); }}/>;
-  }
 
   const filtered = TOPICS.filter(t => {
     const matchSearch = !search || t.concept.toLowerCase().includes(search.toLowerCase()) || t.subject.toLowerCase().includes(search.toLowerCase());
