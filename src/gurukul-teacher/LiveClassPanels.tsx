@@ -508,7 +508,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                   warn:
                     (selected.testsAvgPct != null &&
                       selected.testsAvgPct > 0 &&
-                      selected.testsAvgPct < 40) ||
+                      selected.testsAvgPct < SUBJECT_AVERAGE_LOW) ||
                     (selected.examsAvgPct != null &&
                       selected.examsAvgPct > 0 &&
                       selected.examsAvgPct < SUBJECT_AVERAGE_LOW),
@@ -717,7 +717,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
           const flag =
             (s.attendancePct != null && s.attendancePct < ATTENDANCE_LOW) ||
             (s.homeworkCompletionPct != null && s.homeworkCompletionPct < HOMEWORK_LOW) ||
-            (s.testsAvgPct != null && s.testsAvgPct > 0 && s.testsAvgPct < 40);
+            (s.testsAvgPct != null && s.testsAvgPct > 0 && s.testsAvgPct < SUBJECT_AVERAGE_LOW);
           return (
             <button
               key={s.id}
@@ -2629,7 +2629,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       profiles
         .filter(
           (p) =>
-            (p.testsAvgPct > 0 && p.testsAvgPct < 40) ||
+            (p.testsAvgPct > 0 && p.testsAvgPct < SUBJECT_AVERAGE_LOW) ||
             (p.examsAvgPct > 0 && p.examsAvgPct < SUBJECT_AVERAGE_LOW),
         )
         .sort(
@@ -2673,7 +2673,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     }
     for (const p of lowAverages) {
       const parts: string[] = [];
-      if (p.testsAvgPct > 0 && p.testsAvgPct < 40)
+      if (p.testsAvgPct > 0 && p.testsAvgPct < SUBJECT_AVERAGE_LOW)
         parts.push(`tests ${Math.round(p.testsAvgPct)}%`);
       if (p.examsAvgPct > 0 && p.examsAvgPct < SUBJECT_AVERAGE_LOW)
         parts.push(`exams ${Math.round(p.examsAvgPct)}%`);
@@ -2737,7 +2737,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       )
         flags.push("missing homework");
       if (
-        (p.testsAvgPct > 0 && p.testsAvgPct < 40) ||
+        (p.testsAvgPct > 0 && p.testsAvgPct < SUBJECT_AVERAGE_LOW) ||
         (p.examsAvgPct > 0 && p.examsAvgPct < SUBJECT_AVERAGE_LOW)
       )
         flags.push("low averages");
