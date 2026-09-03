@@ -44,7 +44,7 @@ const SCHOOL_SCOPED_TABLES = [
   "community_doubts", "community_reputation", "concept_mastery", "device_tokens", "dpp_answers",
   "dpp_attempts", "dpp_questions", "dpps", "exams", "fees", "homework", "homework_submissions",
   "learning_resources", "leave_requests", "marks",
-  "message_read_receipts", "messages", "notices", "notifications", "parent_academic_alerts",
+  "messages", "notices", "notifications", "parent_academic_alerts",
   "parent_students", "parents", "practice_sessions", "profiles", "progression_history",
   "progression_league_history", "question_attempts", "question_bank", "question_records",
   "question_templates", "recovery_assignment_questions", "recovery_assignments",

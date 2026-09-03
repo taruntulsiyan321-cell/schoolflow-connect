@@ -4596,6 +4596,7 @@ export type Database = {
           message_id: string
           mime_type: string | null
           name: string
+          school_id: string
           size_bytes: number | null
           url: string
         }
@@ -4605,6 +4606,7 @@ export type Database = {
           message_id: string
           mime_type?: string | null
           name: string
+          school_id?: string
           size_bytes?: number | null
           url: string
         }
@@ -4614,6 +4616,7 @@ export type Database = {
           message_id?: string
           mime_type?: string | null
           name?: string
+          school_id?: string
           size_bytes?: number | null
           url?: string
         }
@@ -4625,54 +4628,12 @@ export type Database = {
             referencedRelation: "messages"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      message_read_receipts: {
-        Row: {
-          conversation_id: string | null
-          id: string
-          message_id: string
-          read_at: string
-          school_id: string
-          user_id: string
-        }
-        Insert: {
-          conversation_id?: string | null
-          id?: string
-          message_id: string
-          read_at?: string
-          school_id: string
-          user_id: string
-        }
-        Update: {
-          conversation_id?: string | null
-          id?: string
-          message_id?: string
-          read_at?: string
-          school_id?: string
-          user_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "message_read_receipts_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "chat_conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_read_receipts_message_id_fkey"
-            columns: ["message_id"]
+            foreignKeyName: "message_attachments_message_school_fkey"
+            columns: ["message_id", "school_id"]
             isOneToOne: false
             referencedRelation: "messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_read_receipts_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "school_id"]
           },
         ]
       }

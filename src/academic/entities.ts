@@ -224,7 +224,7 @@ export const ENTITY_REGISTRY: Record<AcademicEntityKey, EntityMapping> = {
   message: {
     key: "message",
     table: "messages",
-    aliases: ["chat_conversations", "chat_participants", "message_attachments", "message_read_receipts"],
+    aliases: ["chat_conversations", "chat_participants", "message_attachments"],
     notes: "Gurukul Chat MVP SSOT via MessageService + conversation RPCs",
     tenantScoped: true,
   },
