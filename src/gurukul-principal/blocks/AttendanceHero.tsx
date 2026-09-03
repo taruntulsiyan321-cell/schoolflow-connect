@@ -7,7 +7,7 @@ import { tokens, attendanceColor } from '../design-tokens'
 import { Loader2 } from 'lucide-react'
 import { schoolAttendanceToday } from '@/academic/metrics/attendance'
 import { valueOr } from '@/academic/metrics/types'
-import { toClassLabel } from '@/lib/presentation';
+import { toClassLabel, toErrorMessage } from '@/lib/presentation';
 
 interface UnmarkedClass {
   classId: string
@@ -99,7 +99,7 @@ export function AttendanceHero() {
         )
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load attendance')
+          setError(toErrorMessage(err, 'Failed to load attendance'))
         }
       } finally {
         if (!cancelled) setLoading(false)

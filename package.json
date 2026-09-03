@@ -26,7 +26,7 @@
     "dump:variants": "node scripts/dump-variants.mjs",
     "check:recovery-constants:offline": "node scripts/check-recovery-constants.mjs --offline",
     "check:recovery-constants:negative": "node scripts/check-recovery-constants-negative.mjs",
-    "db:types": "npx --yes supabase@latest gen types typescript --project-id psqxykzqfvxgsvkmgurn > src/integrations/supabase/types.ts",
+    "db:types": "node scripts/gen-types.mjs",
     "seed:math12": "node scripts/seed-class12-math-templates.mjs",
     "functions:deploy-gateway": "npx --yes supabase@latest functions deploy ai-gateway --project-ref psqxykzqfvxgsvkmgurn --use-api",
     "ai:ping": "node scripts/ai-ping.mjs",
@@ -50,7 +50,8 @@
     "lint:strength-surfaces:self-test": "node scripts/lint-strength-surfaces.mjs --self-test",
     "check:divergence": "node scripts/check-branch-divergence.mjs",
     "check:divergence:self-test": "node scripts/check-branch-divergence.mjs --self-test",
-    "preflight": "npm run check:divergence && node scripts/check-foreign-migrations.mjs"
+    "preflight": "npm run check:divergence && node scripts/check-foreign-migrations.mjs",
+    "db:types:dry-run": "node scripts/gen-types.mjs --dry-run"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

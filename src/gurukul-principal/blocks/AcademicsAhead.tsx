@@ -6,6 +6,7 @@ import { tokens } from '../design-tokens'
 import { Loader2 } from 'lucide-react'
 import { marksOverdue } from '@/academic/metrics/marks'
 import { valueOr } from '@/academic/metrics/types'
+import { toErrorMessage } from '@/lib/presentation'
 
 interface AcademicEvent {
   id: string
@@ -179,7 +180,7 @@ export function AcademicsAhead() {
         setOverdueBasis(overdueMetric.basis)
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load calendar')
+          setError(toErrorMessage(err, 'Failed to load calendar'))
         }
       } finally {
         if (!cancelled) setLoading(false)

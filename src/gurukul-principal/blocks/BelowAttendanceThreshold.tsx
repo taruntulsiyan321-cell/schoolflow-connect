@@ -29,6 +29,7 @@ import { Loader2 } from 'lucide-react'
 import { belowAttendanceThreshold } from '@/academic/metrics/attendance'
 import { ATTENDANCE_LOW } from '@/academic/metrics/thresholds'
 import { isOk } from '@/academic/metrics/types'
+import { toErrorMessage } from '@/lib/presentation'
 
 interface Row {
   studentId: string
@@ -108,7 +109,7 @@ export function BelowAttendanceThreshold() {
         )
         setNeverMarked(metric.value.neverMarked.length)
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load attendance')
+        if (!cancelled) setError(toErrorMessage(e, 'Failed to load attendance'))
       } finally {
         if (!cancelled) setLoading(false)
       }

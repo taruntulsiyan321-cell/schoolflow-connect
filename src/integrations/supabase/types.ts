@@ -4606,7 +4606,7 @@ export type Database = {
           message_id: string
           mime_type?: string | null
           name: string
-          school_id?: string
+          school_id: string
           size_bytes?: number | null
           url: string
         }

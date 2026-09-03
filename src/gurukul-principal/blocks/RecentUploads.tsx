@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { tokens, timeAgo } from '../design-tokens'
 import { Loader2 } from 'lucide-react'
+import { toErrorMessage } from '@/lib/presentation'
 
 interface Upload {
   id: string
@@ -72,7 +73,7 @@ export function RecentUploads() {
         setUploads(transformed)
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load uploads')
+          setError(toErrorMessage(err, 'Failed to load uploads'))
         }
       } finally {
         if (!cancelled) setLoading(false)

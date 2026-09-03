@@ -5,7 +5,7 @@ import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { tokens, attendanceColor, homeworkColor } from '../design-tokens'
 import { Loader2 } from 'lucide-react'
 import { ATTENDANCE_LOW, HOMEWORK_LOW } from '@/academic/metrics/thresholds'
-import { toClassLabel } from '@/lib/presentation';
+import { toClassLabel, toErrorMessage } from '@/lib/presentation';
 
 interface WatchlistItem {
   classId: string
@@ -86,7 +86,7 @@ export function ClassWatchlist() {
         setItems(flagged.slice(0, 5))
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to compute watchlist')
+          setError(toErrorMessage(err, 'Failed to compute watchlist'))
         }
       } finally {
         if (!cancelled) setLoading(false)

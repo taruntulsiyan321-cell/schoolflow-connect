@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { tokens, daysWaiting } from '../design-tokens'
 import { Loader2 } from 'lucide-react'
+import { toErrorMessage } from '@/lib/presentation'
 
 interface DecisionItem {
   type: 'leave' | 'complaint' | 'inquiry'
@@ -100,7 +101,7 @@ export function NeedsDecision() {
         setItems(result.sort((a, b) => b.oldestDays - a.oldestDays)) // Oldest first
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load decision items')
+          setError(toErrorMessage(err, 'Failed to load decision items'))
         }
       } finally {
         if (!cancelled) setLoading(false)

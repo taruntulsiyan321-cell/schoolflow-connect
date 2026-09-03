@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AnalyticsService, useAcademicLive } from '@/academic'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
 import { tokens, homeworkColor } from '../design-tokens'
-import { toPercentLabel } from '@/lib/presentation'
+import { toPercentLabel, toErrorMessage } from '@/lib/presentation'
 import { Loader2 } from 'lucide-react'
 
 export function HomeworkBlock() {
@@ -69,7 +69,7 @@ export function HomeworkBlock() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load homework data')
+          setError(toErrorMessage(err, 'Failed to load homework data'))
         }
       } finally {
         if (!cancelled) setLoading(false)
