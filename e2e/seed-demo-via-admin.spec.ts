@@ -234,8 +234,8 @@ test("fill demo data via admin session", async ({ page }) => {
         status: "in_progress",
       },
     ];
-    const inqRes = await post("school_inquiries", inqRows);
-    log.push(`school_inquiries: posted ${inqRows.length} rows → HTTP ${inqRes.status} ${inqRes.text}`);
+    const inqRes = await post("admission_enquiries", inqRows);
+    log.push(`admission_enquiries: posted ${inqRows.length} rows → HTTP ${inqRes.status} ${inqRes.text}`);
 
     const cmpRows = [
       {
@@ -295,7 +295,7 @@ test("fill demo data via admin session", async ({ page }) => {
       homework: (await get(`homework?select=id&school_id=eq.${schoolId}`)).rows.length,
       notices: (await get(`notices?select=id&school_id=eq.${schoolId}`)).rows.length,
       leave_requests: (await get(`leave_requests?select=id&school_id=eq.${schoolId}`)).rows.length,
-      inquiries: (await get(`school_inquiries?select=id&school_id=eq.${schoolId}`)).rows.length,
+      inquiries: (await get(`admission_enquiries?select=id&school_id=eq.${schoolId}`)).rows.length,
       complaints: (await get(`school_complaints?select=id&school_id=eq.${schoolId}`)).rows.length,
       homework_submissions: (await get(`homework_submissions?select=id&school_id=eq.${schoolId}`)).rows.length,
       marks: (await get(`marks?select=id&school_id=eq.${schoolId}`)).rows.length,

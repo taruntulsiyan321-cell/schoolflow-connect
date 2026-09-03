@@ -29,7 +29,7 @@ const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "psqxykzqfvxgsvkmgur
 
 const MARKERS = [
   { id: "20260509065137", label: "Admin connect student/teacher", sql: "SELECT proname FROM pg_proc WHERE proname = 'admin_connect_student_account' LIMIT 1" },
-  { id: "20260516000000", label: "Inquiries & complaints", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='school_inquiries' LIMIT 1" },
+  { id: "20260516000000", label: "Inquiries & complaints", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='admission_enquiries' LIMIT 1" },
   { id: "20260604000000", label: "Wisdom student engine", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='dpps' LIMIT 1" },
   { id: "20260604010000", label: "Leaderboard RPC", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_leaderboard' LIMIT 1" },
   { id: "20260604020000", label: "Notifications", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='notifications' LIMIT 1" },
@@ -106,7 +106,7 @@ async function probeViaRest() {
   const unknown = [];
 
   const tableMap = {
-    "20260516000000": ["school_inquiries"],
+    "20260516000000": ["admission_enquiries"],
     "20260604000000": ["dpps"],
     "20260604020000": ["notifications"],
     "20260604040000": ["app_settings"],

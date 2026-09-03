@@ -457,6 +457,59 @@ export type Database = {
         }
         Relationships: []
       }
+      admission_enquiries: {
+        Row: {
+          contact_email: string | null
+          contact_name: string
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          grade_interest: string | null
+          id: string
+          message: string
+          notes: string | null
+          school_id: string | null
+          status: Database["public"]["Enums"]["case_status"]
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name: string
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          grade_interest?: string | null
+          id?: string
+          message: string
+          notes?: string | null
+          school_id?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          grade_interest?: string | null
+          id?: string
+          message?: string
+          notes?: string | null
+          school_id?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admission_enquiries_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_answer_cache: {
         Row: {
           answer: string
@@ -6591,59 +6644,6 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students_current"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      school_inquiries: {
-        Row: {
-          contact_email: string | null
-          contact_name: string
-          contact_phone: string | null
-          created_at: string
-          created_by: string | null
-          grade_interest: string | null
-          id: string
-          message: string
-          notes: string | null
-          school_id: string | null
-          status: Database["public"]["Enums"]["case_status"]
-          updated_at: string
-        }
-        Insert: {
-          contact_email?: string | null
-          contact_name: string
-          contact_phone?: string | null
-          created_at?: string
-          created_by?: string | null
-          grade_interest?: string | null
-          id?: string
-          message: string
-          notes?: string | null
-          school_id?: string | null
-          status?: Database["public"]["Enums"]["case_status"]
-          updated_at?: string
-        }
-        Update: {
-          contact_email?: string | null
-          contact_name?: string
-          contact_phone?: string | null
-          created_at?: string
-          created_by?: string | null
-          grade_interest?: string | null
-          id?: string
-          message?: string
-          notes?: string | null
-          school_id?: string | null
-          status?: Database["public"]["Enums"]["case_status"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "school_inquiries_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]

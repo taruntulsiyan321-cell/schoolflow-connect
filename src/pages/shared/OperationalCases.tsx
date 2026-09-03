@@ -52,7 +52,7 @@ export function InquiriesReport() {
 
   const reload = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("school_inquiries").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("admission_enquiries").select("*").order("created_at", { ascending: false });
     if (error) toast.error(error.message);
     else setRows((data as InquiryRow[]) ?? []);
     setLoading(false);
@@ -63,7 +63,7 @@ export function InquiriesReport() {
   }, []);
 
   const updateStatus = async (id: string, status: CaseStatus) => {
-    const { error } = await supabase.from("school_inquiries").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await supabase.from("admission_enquiries").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) toast.error(error.message);
     else {
       toast.success("Updated");

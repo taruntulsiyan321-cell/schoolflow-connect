@@ -61,7 +61,7 @@ export function NeedsDecision() {
 
         // Fetch open inquiries
         const { data: inquiries, error: inquiriesErr } = await supabase
-          .from('school_inquiries')
+          .from('admission_enquiries')
           .select('created_at')
           .eq('school_id', school.id)
           .eq('status', 'open')

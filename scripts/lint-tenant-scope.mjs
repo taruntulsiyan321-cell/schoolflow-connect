@@ -33,7 +33,7 @@ const MIGRATIONS_DIR = join(ROOT, "supabase", "migrations");
 // here just means this check can't see it, not that it's exempt.
 const SCHOOL_SCOPED_TABLES = [
   "academic_agent_cache", "academic_audit", "academic_daily_activity", "academic_events",
-  "academic_terms", "academic_years", "ai_answer_cache", "ai_budget_quotas", "ai_budget_usage",
+  "academic_terms", "academic_years", "admission_enquiries", "ai_answer_cache", "ai_budget_quotas", "ai_budget_usage",
   "ai_embedding_jobs", "ai_explanations", "ai_feature_flags", "ai_feedback_signals",
   "ai_kms_documents", "ai_request_decisions", "ai_session_memory", "ai_solution_cache",
   "app_settings", "approval_requests", "attendance", "attendance_audit", "attendance_locks",
@@ -49,7 +49,7 @@ const SCHOOL_SCOPED_TABLES = [
   "progression_league_history", "question_attempts", "question_bank", "question_records",
   "question_templates", "recovery_assignment_questions", "recovery_assignments",
   "revision_queue", "school_activity_feed", "school_calendar_events", "school_complaints",
-  "school_inquiries", "student_academic_brain", "student_academic_profiles",
+  "student_academic_brain", "student_academic_profiles",
   "student_badges", "student_improvement_plans", "student_mistakes", "student_question_history",
   "student_xp", "students", "subjects", "teacher_classes", "teacher_remarks", "teachers",
   "timetable_slots",

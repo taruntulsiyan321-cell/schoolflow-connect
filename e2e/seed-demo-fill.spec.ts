@@ -123,15 +123,15 @@ test("fill demo data", async ({ page }) => {
       await post("homework_submissions", newSubs);
 
       // ---- principal: Inquiries & Complaints ------------------------------
-      const inqCount = (await get("school_inquiries?select=id")).length;
+      const inqCount = (await get("admission_enquiries?select=id")).length;
       if (inqCount < 5) {
-        await post("school_inquiries", [
+        await post("admission_enquiries", [
           { contact_name: "Meena Kulkarni", contact_phone: "9822011223", contact_email: "meena.k@example.com", grade_interest: "Class 6", message: "Looking for admission for my daughter from next session. Do you offer a bus route to Kothrud?", status: "open", school_id: SCHOOL },
           { contact_name: "Farhan Qureshi", contact_phone: "9700456712", contact_email: "farhan.q@example.com", grade_interest: "Class 11 Commerce", message: "Enquiring about the commerce stream and Accountancy faculty.", status: "in_progress", school_id: SCHOOL },
           { contact_name: "Lata Menon", contact_phone: "9611223344", contact_email: "lata.menon@example.com", grade_interest: "Class 1", message: "What documents are needed for first-standard admission?", status: "resolved", school_id: SCHOOL },
           { contact_name: "Devendra Rathore", contact_phone: "9945667788", contact_email: "d.rathore@example.com", grade_interest: "Class 9", message: "Transfer case from Jaipur. Is a mid-session seat available?", status: "open", school_id: SCHOOL },
         ]);
-      } else log.push("school_inquiries: already has " + inqCount);
+      } else log.push("admission_enquiries: already has " + inqCount);
 
       const compCount = (await get("school_complaints?select=id")).length;
       if (compCount < 4) {
