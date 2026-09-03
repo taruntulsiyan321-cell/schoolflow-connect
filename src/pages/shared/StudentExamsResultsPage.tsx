@@ -11,6 +11,8 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { displaySubject } from "@/lib/academicPresentation";
+import { belowPass } from "@/academic/metrics/thresholds";
+import { isOk, type Metric } from "@/academic/metrics/types";
 import {
   Calendar,
   CalendarClock,
@@ -36,10 +38,44 @@ const typeColors: Record<string, string> = {
   other: "bg-muted text-muted-foreground border-border",
 };
 
-function scoreTone(pct: number) {
-  if (pct >= 75) return { text: "text-emerald-700", bar: "bg-emerald-500", bg: "border-emerald-200/60" };
-  if (pct >= 40) return { text: "text-amber-700", bar: "bg-amber-500", bg: "border-amber-200/60" };
-  return { text: "text-red-700", bar: "bg-red-500", bg: "border-red-200/60" };
+/**
+ * The pass boundary comes from exams.passing_marks, never from a literal.
+ *
+ * It used to be `pct < 40` — the app inventing a pass mark. passing_marks in
+ * this database ranges 8 to 33 across five distinct max_marks values, so a
+ * fixed 40 percent was wrong in both directions: it failed students who had
+ * passed and passed students who had failed.
+ *
+ * Where passing_marks is NULL the answer is no_data and NO FLAG FIRES. That is
+ * visible here as a deliberate loss: those exams get a neutral bar instead of
+ * a confident red, amber or green. An exam whose pass mark nobody entered is
+ * an exam nobody can be below the pass of, and painting one anyway is the same
+ * invention in a quieter form.
+ *
+ * The 75 boundary below is NOT a pass mark — it is an un-ruled band, and it
+ * stays a literal until it is ruled. It only ever splits students who have
+ * already passed.
+ */
+// Every class name is written out in full: Tailwind only generates what it can
+// see literally in the source, so an assembled class would produce a bar with
+// no colour and look like a working rule. These go to Progress as
+// indicatorClassName rather than as a [&>div]: variant — see progress.tsx for
+// why the variant form never took effect on the student panel.
+const NEUTRAL_TONE = {
+  text: "text-foreground",
+  bar: "bg-muted-foreground/40",
+  bg: "border-border",
+};
+
+export function scoreTone(pct: number, failed: Metric<boolean>) {
+  if (!isOk(failed)) return NEUTRAL_TONE;
+  if (failed.value) {
+    return { text: "text-red-700", bar: "bg-red-500", bg: "border-red-200/60" };
+  }
+  if (pct >= 75) {
+    return { text: "text-emerald-700", bar: "bg-emerald-500", bg: "border-emerald-200/60" };
+  }
+  return { text: "text-amber-700", bar: "bg-amber-500", bg: "border-amber-200/60" };
 }
 
 function examTypeLabel(type: string | null | undefined) {
@@ -250,7 +286,9 @@ export default function StudentExamsResultsPage() {
               const max = exam?.maxMarks ?? 0;
               const obtained = Number(r.marksObtained);
               const pct = max ? (obtained / max) * 100 : 0;
-              const tone = scoreTone(pct);
+              // exams.passing_marks decides this, not the percentage.
+              const failed = belowPass(obtained, exam?.passingMarks ?? null, max || null);
+              const tone = scoreTone(pct, failed);
               const dateStr = exam?.examDate
                 ? new Date(exam.examDate).toLocaleDateString("en-IN", {
                     day: "numeric",
@@ -311,13 +349,14 @@ export default function StudentExamsResultsPage() {
                     <div className="mt-4">
                       <Progress
                         value={pct}
-                        className={cn(
-                          "h-2 bg-black/5",
-                          pct >= 75 && "[&>div]:bg-emerald-500",
-                          pct >= 40 && pct < 75 && "[&>div]:bg-amber-500",
-                          pct < 40 && "[&>div]:bg-red-500",
-                        )}
+                        className="h-2 bg-black/5"
+                        indicatorClassName={tone.bar}
                       />
+                      {!isOk(failed) && (
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {failed.basis}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
