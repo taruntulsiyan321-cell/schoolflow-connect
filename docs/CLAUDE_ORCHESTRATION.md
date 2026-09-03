@@ -13,16 +13,38 @@ verifies and integrates the result.
 ## Architecture
 
 ```
-                 you ── task ──▶  COMMANDER  (claude, team lead)
-                                     │  plans, creates a shared task list,
-                                     │  assigns work, supervises, integrates
-                 ┌───────────────────┼───────────────────────┬───────────────┐
-                 ▼                   ▼                       ▼               ▼
-           researcher        frontend-engineer       supabase-engineer   qa-verifier
-        (read-only map)     (React/TS/Vite UI)       (SQL/RPC/RLS)       (runs gates)
-                                     │                       │
-                                     └───────▶ code-reviewer ◀┘  (final review)
+              you ── task ──▶  SUPERVISOR  (claude team lead · Claude Opus)
+                                   │  plans, creates a shared task list,
+                                   │  assigns work, supervises, reviews, integrates
+               ┌───────────────────┼───────────────────────┬───────────────┐
+               ▼                   ▼                       ▼               ▼
+         researcher        frontend-engineer       supabase-engineer   qa-verifier
+          (Sonnet)             (Sonnet)                (Sonnet)          (Haiku)
+        read-only map       React/TS/Vite UI          SQL/RPC/RLS       runs gates
+                                   │                       │
+                                   └──────▶ code-reviewer ◀┘  (Sonnet · final review)
 ```
+
+### Model tiering (supervisor on top, worker bots below)
+
+| Role | Agent | Model | Why |
+| --- | --- | --- | --- |
+| Supervisor | the `claude` lead session | **Opus** | Expensive judgment: planning, decomposition, coordination, final sign-off. |
+| Worker | `researcher` | Sonnet | Capable read-only code/flow mapping. |
+| Worker | `frontend-engineer` | Sonnet | React/TS implementation. |
+| Worker | `supabase-engineer` | Sonnet | SQL/RLS correctness. |
+| Worker | `code-reviewer` | Sonnet | Diff review with judgment. |
+| Worker | `qa-verifier` | Haiku | Mechanical: run gates, quote output, pass/fail. |
+
+The supervisor model is set at launch (`--model`, default `opus`, override with
+`SUPERVISOR_MODEL`). Each worker's model is pinned in its own
+`.claude/agents/<name>.md` frontmatter, so workers never inherit the Opus tier.
+Change any worker's `model:` line to `haiku`/`sonnet`/`opus` (or `inherit`) to
+retune the cost/quality trade-off.
+
+> Plan note: **Opus access requires a Max (or Team/Enterprise) plan.** On Claude
+> Pro, run the supervisor on Sonnet instead: `SUPERVISOR_MODEL=sonnet
+> scripts/claude-orchestrator/commander.sh "<task>"`.
 
 - **Commander**: the interactive `claude` session. Enabled as a team lead via the
   experimental Agent Teams feature (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`). It

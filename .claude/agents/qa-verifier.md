@@ -2,7 +2,7 @@
 name: qa-verifier
 description: Runs the repository's quality gates and reports pass/fail with evidence — typecheck, unit tests, render-safety, build, and (when asked) Playwright e2e. Delegate verification to this teammate after code changes. Reports results; does not implement features.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: haiku
 color: yellow
 ---
 

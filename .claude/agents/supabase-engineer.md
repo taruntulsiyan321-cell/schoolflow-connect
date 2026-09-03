@@ -2,7 +2,7 @@
 name: supabase-engineer
 description: Owns the Supabase/Postgres layer — SQL migrations, RPCs, RLS policies, and database-side integrity under supabase/. Delegate schema changes, new RPCs, and data-model work to this teammate. Does not build React UI.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: inherit
+model: sonnet
 color: green
 ---
 

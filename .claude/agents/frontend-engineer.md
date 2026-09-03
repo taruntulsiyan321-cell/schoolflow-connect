@@ -2,7 +2,7 @@
 name: frontend-engineer
 description: Implements React + TypeScript + Vite + Tailwind UI and client logic (components, hooks, routing, state, Supabase client calls). Delegate front-end feature work and UI bug fixes to this teammate. Does not write SQL migrations.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: inherit
+model: sonnet
 color: blue
 ---
 

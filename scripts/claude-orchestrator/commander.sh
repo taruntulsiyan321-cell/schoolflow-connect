@@ -10,7 +10,17 @@
 # integrates. Agent teams require an INTERACTIVE session, so this does not use
 # -p/--print.
 #
+# Model tiering:
+#   The SUPERVISOR runs on a high-end model (Claude Opus by default); the worker
+#   bots in .claude/agents/ run on cheaper models (Sonnet/Haiku) set per-agent in
+#   their frontmatter. This keeps the expensive model on planning/review while
+#   the bulk token work happens on lower models.
+#
 # Env toggles:
+#   SUPERVISOR_MODEL=opus        Model for the supervisor session (default: opus).
+#                                Use "sonnet" if your plan has no Opus access
+#                                (e.g. Claude Pro). Accepts aliases (opus/sonnet/
+#                                haiku) or a full model id (e.g. claude-opus-5).
 #   CLAUDE_ORCHESTRATOR_YOLO=1   Add --dangerously-skip-permissions (autonomous;
 #                                only do this in a sandboxed VM with no secrets
 #                                you care about — e.g. a Cloud Agent).
@@ -32,7 +42,12 @@ export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
 TASK="${*:-}"
 
-CLAUDE_ARGS=()
+# The supervisor sits on top and runs the high-end model. Workers keep the
+# lower models pinned in their own .claude/agents/*.md frontmatter.
+SUPERVISOR_MODEL="${SUPERVISOR_MODEL:-opus}"
+
+CLAUDE_ARGS=("--model" "$SUPERVISOR_MODEL")
+echo "[commander] Supervisor model: $SUPERVISOR_MODEL (workers use their per-agent models)."
 if [ "${CLAUDE_ORCHESTRATOR_YOLO:-0}" = "1" ]; then
   echo "[commander] YOLO mode: bypassing permission prompts."
   CLAUDE_ARGS+=("--dangerously-skip-permissions")

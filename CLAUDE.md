@@ -36,9 +36,10 @@ database — the app talks to the live Supabase project configured in `.env`.
 
 ## Orchestration ("commander")
 
-This repo ships a Claude Code multi-agent setup. The lead session is the
-**commander**; specialized teammates live in `.claude/agents/`. Kick off a run
-with the `/commander <task>` slash command, or use
-`scripts/claude-orchestrator/commander.sh "<task>"`. See
-`docs/CLAUDE_ORCHESTRATION.md` for setup (including the subscription token) and
-usage.
+This repo ships a Claude Code multi-agent setup with a **model-tiered** design: a
+**supervisor** (the lead session, on **Claude Opus**) plans, coordinates, and
+reviews, while cheaper **worker bots** in `.claude/agents/` (Sonnet/Haiku) do the
+hands-on work. Kick off a run with the `/commander <task>` slash command, or use
+`scripts/claude-orchestrator/commander.sh "<task>"` (supervisor model via
+`SUPERVISOR_MODEL`, default `opus`). See `docs/CLAUDE_ORCHESTRATION.md` for setup
+(including the subscription token), the model roster, and usage.
