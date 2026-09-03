@@ -14,6 +14,7 @@ import type { TeacherRemark } from "../types";
 import type { PageParams } from "../repository/base";
 import { ForbiddenError, isSchoolOperator } from "./context";
 import { ValidationFailedError } from "../repository/errors";
+import { emitEventBestEffort } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 
 /**
@@ -64,6 +65,15 @@ export const RemarksService = {
     const row = await createTeacherRemark(toRepoContext(ctx), {
       ...input,
       teacherId,
+    });
+    await emitEventBestEffort(toRepoContext(ctx), {
+      eventType: "remark.created",
+      entityType: "teacher_remark",
+      entityId: row.id,
+      studentId: row.studentId,
+      classId: row.classId ?? null,
+      teacherId: row.teacherId,
+      payload: { remark_type: row.remarkType, body: row.body },
     });
     broadcastAcademicWrite(ctx.schoolId, ["profile"], {
       studentId: input.studentId,

@@ -30,8 +30,6 @@ export {
   NOT_AVAILABLE,
   describeDisplayText,
   toDisplayText,
-  toPercentLabel,
-  toCountLabel,
   isDisplaySafe,
   isIdentifierLike,
   type DisplayKind,

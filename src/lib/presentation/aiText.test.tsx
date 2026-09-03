@@ -132,7 +132,7 @@ describe("MathText — the question-content surface", () => {
   });
 
   it("does not render an object option as [object Object]", () => {
-    // TestQuestion.options is untyped jsonb, so an object option really can
+    // DppQuestion.options is untyped jsonb, so an object option really can
     // reach here. Passing the wrong shape on purpose: the prop is `unknown`.
     render(<MathText text={{ label: "A" }} />);
     expect(document.body.textContent).not.toContain("[object Object]");

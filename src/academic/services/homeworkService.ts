@@ -36,7 +36,7 @@ import { teacherAssignedToClassSubject } from "../repository/teacherAssignmentRe
 import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
 import { assertMayAccessStudent } from "./parentAccess";
-import { emitEvent } from "../repository/eventsRepository";
+import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 
 function afterHomeworkWrite(
@@ -579,6 +579,14 @@ export const HomeworkService = {
     }
     const hwGate = await assertStudentInHomeworkClass(ctx, input.homeworkId, input.studentId);
     const row = await upsertHomeworkSubmission(toRepoContext(ctx), input);
+    await emitEventBestEffort(toRepoContext(ctx), {
+      eventType: row.status === "resubmitted" ? "homework.resubmitted" : "homework.submitted",
+      entityType: "homework_submission",
+      entityId: row.id,
+      studentId: input.studentId,
+      classId: hwGate.classId,
+      payload: { homeworkId: input.homeworkId, status: row.status },
+    });
     afterHomeworkWrite(ctx, {
       classId: hwGate.classId,
       studentId: input.studentId,
@@ -644,6 +652,14 @@ export const HomeworkService = {
     const gate = await assertTeacherMayManageSubmission(ctx, input.submissionId);
     const row = await gradeHomeworkSubmission(toRepoContext(ctx), input);
     const hw = await getHomework(toRepoContext(ctx), gate.homeworkId);
+    await emitEventBestEffort(toRepoContext(ctx), {
+      eventType: "homework.graded",
+      entityType: "homework_submission",
+      entityId: input.submissionId,
+      studentId: row.studentId,
+      classId: hw.classId,
+      payload: { homeworkId: gate.homeworkId, title: hw.title, grade: input.grade },
+    });
     afterHomeworkWrite(ctx, {
       classId: hw.classId,
       studentId: row.studentId,
@@ -660,6 +676,21 @@ export const HomeworkService = {
     const gate = await assertTeacherMayManageSubmission(ctx, input.submissionId);
     const row = await reviewHomeworkSubmission(toRepoContext(ctx), input);
     const hw = await getHomework(toRepoContext(ctx), gate.homeworkId);
+    
+    const eventType =
+      input.action === "return" || input.action === "reject" ? "homework.returned"
+      : input.action === "grade" ? "homework.graded"
+      : "homework.reviewed";
+
+    await emitEventBestEffort(toRepoContext(ctx), {
+      eventType,
+      entityType: "homework_submission",
+      entityId: input.submissionId,
+      studentId: row.studentId,
+      classId: hw.classId,
+      payload: { homeworkId: gate.homeworkId, title: hw.title, action: input.action },
+    });
+
     afterHomeworkWrite(ctx, {
       classId: hw.classId,
       studentId: row.studentId,
