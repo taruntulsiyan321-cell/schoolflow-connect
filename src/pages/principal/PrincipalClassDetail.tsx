@@ -9,6 +9,7 @@ import {
   useAcademicLive,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { rungOf, SUBJECT_AVERAGE_BOUNDARIES } from "@/academic/metrics/bands";
 import { localDateKey } from "@/lib/localDate";
 import { Card } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui-bits";
@@ -172,9 +173,12 @@ export default function PrincipalClassDetail() {
       { range: "90-100", count: 0 },
     ];
     profileRows.forEach(({ examsAvgPct }) => {
-      if (!examsAvgPct && examsAvgPct !== 0) return;
-      const i =
-        examsAvgPct < 40 ? 0 : examsAvgPct < 60 ? 1 : examsAvgPct < 75 ? 2 : examsAvgPct < 90 ? 3 : 4;
+      // `rungOf` carries the null contract, so the guard below no longer has to.
+      // -1 is an unmeasured average and lands in no bucket; the old
+      // `!examsAvgPct && examsAvgPct !== 0` said the same thing in a form that
+      // had to be re-derived by every reader.
+      const i = rungOf(examsAvgPct, SUBJECT_AVERAGE_BOUNDARIES);
+      if (i < 0) return;
       buckets[i].count += 1;
     });
     return buckets;

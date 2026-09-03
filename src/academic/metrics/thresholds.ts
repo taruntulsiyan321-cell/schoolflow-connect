@@ -41,6 +41,29 @@ export const MARKS_OVERDUE = 7;
 export const CLASS_FLAGGED_ON_MARKS = 25;
 
 /**
+ * Percent. A student's subject or exam AVERAGE below this puts them on the
+ * teacher's watchlist.
+ *
+ * RULED. It arrived as `SUBJECT_AVERAGE_LOW_AWAITING_RULING` in `bands.ts` and
+ * was moved here by the ruling, because the move IS the ruling: something fires
+ * on it. `LiveClassPanels` puts a named child in front of a teacher at this
+ * number. A number that raises a person onto a list is a threshold, whatever
+ * file it was living in, and `bands.ts` says so itself — it holds "only numbers
+ * that trigger something" the other way round.
+ *
+ * It is NOT `exams.passing_marks`. That is per exam, expressed in marks, and
+ * answers "did this child pass this paper" — an 8-mark pass on a 20-mark unit
+ * test. This is one number for the whole school, expressed in percent, and
+ * answers "is this child's average low enough that someone should look". Two
+ * questions, two numbers; collapsing them is how a 20-mark test ends up judged
+ * against a 40.
+ *
+ * The COLOUR ladder that starts at this same 40 lives in `bands.ts` and imports
+ * it, so moving the flag moves the colour with it.
+ */
+export const SUBJECT_AVERAGE_LOW = 40;
+
+/**
  * Every threshold, for the gate that proves no component declares its own.
  * A component importing this object is importing, not redeclaring.
  */
@@ -51,6 +74,7 @@ export const THRESHOLDS = {
   HOMEWORK_WINDOW,
   MARKS_OVERDUE,
   CLASS_FLAGGED_ON_MARKS,
+  SUBJECT_AVERAGE_LOW,
 } as const;
 
 export type ThresholdName = keyof typeof THRESHOLDS;

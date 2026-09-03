@@ -4,6 +4,7 @@ import { useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { isGenericAcademicLabel } from "@/lib/qualityGuards";
 import { sessionAccuracy } from "@/academic/metrics/practice";
+import { ACCURACY_CONCEPTUAL } from "@/academic/metrics/bands";
 import { valueOr } from "@/academic/metrics/types";
 
 export type RecoveryAssignment = {
@@ -126,7 +127,15 @@ export function useRecoveryZone(enabled = true) {
                 subject: row.subject,
                 date: row.completed_at ?? "",
                 score,
-                improved: score >= 65,
+                // 65 was this file's own boundary and no other screen's. A
+                // completed RECOVERY session is judged against the recovery
+                // bar, so it now reads the conceptual threshold (§4.2b).
+                //
+                // Recorded, not fixed: `improved` is computed from an absolute
+                // score with no prior value in hand, so it says "cleared the
+                // bar", not "improved". Naming it correctly needs the previous
+                // attempt's score, which this query does not fetch.
+                improved: score >= ACCURACY_CONCEPTUAL,
               };
             })
             .filter(hasUsableRecoveryLabels);

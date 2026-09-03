@@ -2,6 +2,7 @@ import type { ConceptRecoveryReport } from "@/lib/conceptReportFallback";
 import { supabase } from "@/integrations/supabase/client";
 import { sessionAccuracy } from "@/academic/metrics/practice";
 import { valueOr } from "@/academic/metrics/types";
+import { ACCURACY_CONCEPTUAL } from "@/academic/metrics/bands";
 
 export type PracticeAttemptSnapshot = {
   question: string;
@@ -110,8 +111,9 @@ export function buildPracticeRecoveryReport(
   const accuracy = valueOr(accuracyMetric, 0);
   const concept = chapter;
 
+  // The weak-topic bar IS the conceptual readiness bar; it was a bare 70.
   const weak =
-    accuracy < 70
+    accuracy < ACCURACY_CONCEPTUAL
       ? [{ subject, chapter, concept, accuracy }]
       : [];
 

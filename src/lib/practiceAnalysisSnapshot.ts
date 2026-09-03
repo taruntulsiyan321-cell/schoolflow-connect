@@ -1,3 +1,5 @@
+import { ACCURACY_BUILDING, ACCURACY_PROCEDURAL } from "@/academic/metrics/bands";
+
 /**
  * Frozen Practice Analysis payload — saved with the session so reopen
  * shows the same summary without regenerating analysis.
@@ -74,17 +76,19 @@ export function buildPracticeAnalysisSnapshot(input: {
       : null;
 
   const recommendations: string[] = [];
-  if (accuracy < 60) {
+  if (accuracy < ACCURACY_BUILDING) {
     recommendations.push("Review wrong answers in Mistake Book before your next session.");
   }
-  if (accuracy < 80) {
+  if (accuracy < ACCURACY_PROCEDURAL) {
     recommendations.push("Revise weak topics from Analysis, then retry this chapter.");
   }
   if (skippedCount > 0) {
     recommendations.push(`Revisit ${skippedCount} skipped question${skippedCount === 1 ? "" : "s"} in Skipped Practice.`);
   }
   if (recommendations.length === 0) {
-    recommendations.push("Strong session — keep the streak with a short daily practice.");
+    // §10.8 — this read "Strong session — keep the streak with a short daily
+    // practice." The next step survives; the verdict on the student does not.
+    recommendations.push("Nothing outstanding from this session — keep a short daily practice going.");
   }
 
   return {
@@ -108,11 +112,14 @@ export function buildPracticeAnalysisSnapshot(input: {
     startedAt: input.startedAt ?? null,
     attempts: input.attempts,
     insights: {
+      // §10.8 — "Solid performance — concepts are sticking" praised the
+      // student. Each headline now says what to do next at that level, which is
+      // the half of the sentence that was ever useful.
       headline:
-        accuracy >= 80
-          ? "Solid performance — concepts are sticking."
-          : accuracy >= 60
-            ? "Progressing — tighten weak spots next."
+        accuracy >= ACCURACY_PROCEDURAL
+          ? "Keep a short daily practice going to hold this chapter."
+          : accuracy >= ACCURACY_BUILDING
+            ? "Tighten the weak spots before moving on."
             : "Needs recovery focus on missed concepts.",
       bullets: [
         `${correctCount}/${questionCount} correct (${accuracy}%)`,

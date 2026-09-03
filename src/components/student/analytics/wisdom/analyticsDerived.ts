@@ -1,22 +1,30 @@
-import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { SubjectChartPoint } from "@/hooks/useStudentPerformanceCharts";
 import type { MistakeTopicAggregate, TopicGapInsight } from "@/lib/analyticsInsights";
 import { displayChapter, displaySubject } from "@/lib/academicDisplay";
-import { accuracyBand, BAND_LABEL } from "@/academic/metrics/bands";
+import { accuracyBand, ACCURACY_LABEL } from "@/academic/metrics/bands";
 
-// §10.8: no band may read strong / mastered / proficient / excellent. These
-// describe where the figure sits, which the rule permits; the previous names
-// described what the student had become, which it does not.
-export type HeatmapLevel = "high" | "steady" | "learning" | "review";
-
-export function masteryLevel(item: ConceptMasteryItem): HeatmapLevel {
-  if (item.mistake_count >= 3 || (item.mastery_score < 45 && item.total_attempts >= 2)) return "review";
-  if (item.mastery_score >= 78 && item.mistake_count <= 1) return "high";
-  if (item.mastery_score >= 62) return "steady";
-  return "learning";
-}
+// RULING 1 — `masteryLevel` is deleted, not converged.
+//
+// It graded every concept on a mastery_score ladder at 45 / 62 / 78 and
+// returned a "high" rung, which `MasterySection` counted and printed as
+// "N at 78%+" beside the words "Your strongest concepts". Renaming the rungs
+// had already been tried here — the comment that stood in this place explained
+// that "high" and "steady" describe the figure rather than the child — and it
+// did not help, because the violation was never the rung name. It was that
+// something computed which concepts were the best ones and a screen counted
+// them.
+//
+// §10.8: "nothing may compute a strength value and discard it. A value
+// assembled upstream and silenced at the consumer is one refactor from being
+// rendered again. Close it at the source." So it is closed at the source, along
+// with `pyramidStage`, which computed `mastered / total >= 0.5` for a screen
+// that no longer exists either. Both were exported and imported nowhere.
+//
+// What replaced them is the open-mistakes count, which is the same rows read
+// from the side the product is allowed to look at: `mistake_count` per concept,
+// already on every ConceptMasteryItem.
 
 export function shortLabel(text: string, max = 8): string {
   const words = text.trim().split(/\s+/);
@@ -112,13 +120,18 @@ export function buildPersonalBests(
       icon: "flame",
     });
   }
-  if (accuracy >= 80 && items.length < 3) {
-    items.push({
-      kind: "ACCURACY",
-      title: `${accuracy}% overall accuracy`,
-      icon: "target",
-    });
-  }
+  // RULING 2 — the accuracy milestone is REMOVED, and it is the celebration the
+  // ruling went looking for. The three `accuracy < 100` sites turned out to be
+  // suppression gates for corrective advice, not perfect-score praise; this was
+  // the real thing, one boundary lower. A milestone that appears only when the
+  // figure is high, titled with the figure, is "presenting a figure as an
+  // achievement" and "filtering a list to the best of them" at once — both
+  // sides of the §10.8 table.
+  //
+  // The number itself is not forbidden and has not gone anywhere: overall
+  // accuracy is still shown, for every subject, high and low alike, banded by
+  // `accuracyBand`. What is gone is the version that only appears when it
+  // flatters.
   return items.slice(0, 3);
 }
 
@@ -135,17 +148,9 @@ export function peerBenchmarkSubjects(
     // module, whose top rung is "On track" — a statement about the figure, not
     // about the child. The boundaries come with it, so this screen can no longer
     // disagree with the one beside it.
-    const label = BAND_LABEL[accuracyBand(pct)];
+    const label = ACCURACY_LABEL[accuracyBand(pct)];
     return { name: s.name, pct, label };
   });
-}
-
-export function pyramidStage(mastery: ConceptMasteryItem[], topicGaps: TopicGapInsight[]) {
-  const mastered = mastery.filter((m) => m.mastery_score >= 75).length;
-  const total = mastery.length || 1;
-  const foundationalDone = mastered / total >= 0.5;
-  const coreTopic = topicGaps[0]?.topic ?? mastery.find((m) => m.mastery_score < 60)?.concept ?? "Core topics";
-  return { foundationalDone, coreTopic, mastered, total };
 }
 
 export type Milestone = { title: string; when: string; detail?: string; badge?: string };

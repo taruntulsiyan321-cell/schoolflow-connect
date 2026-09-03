@@ -8,6 +8,7 @@ import { useRevisionItems, type RevItem } from "./useRevisionQueueV2";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { REVISION_PASS_THRESHOLD } from "@/academic/recovery/constants";
 import {
   RotateCcw, Brain, CheckCircle2, AlertCircle,
   ChevronRight, Flame, History, Bookmark,
@@ -121,7 +122,11 @@ function RevisionSession({ item, onBack }: { item: RevItem; onBack: () => void }
 }
 
 function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: number; setPage?: (p: PageKey) => void; onBack: () => void }) {
-  const passed = score >= 70;
+  // G9. This was a bare `>= 70` while REVISION_PASS_THRESHOLD (§5.5) held 0.7 in
+  // the constants module AND in the recovery_constants table, with a gate
+  // proving those two agree. The screen that tells the student whether they
+  // passed was the one home nothing was checking.
+  const passed = score >= REVISION_PASS_THRESHOLD * 100;
   const color = passed ? "#4aa87a" : "#c08a3a";
   const size = 110, stroke = 9, r = (size - stroke) / 2, c = 2 * Math.PI * r, offset = c - (score / 100) * c;
   return (

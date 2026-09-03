@@ -10,6 +10,26 @@ import type {
   TopicGapInsight,
 } from "@/lib/analyticsInsights";
 import { FlowSectionTitle } from "@/components/student/flow/FlowDesign";
+import { accuracyBand, type AccuracyBand } from "@/academic/metrics/bands";
+
+/** Palette local, boundaries imported — this screen banded at 55/75, the one
+ *  beside it at 40/55/75, for the same subject's accuracy. */
+const SUBJECT_ACCURACY_TEXT: Record<AccuracyBand, string> = {
+  unknown: "text-muted-foreground",
+  low: "text-orange-700",
+  weak: "text-orange-700",
+  building: "text-foreground",
+  near: "text-foreground",
+  high: "text-emerald-700",
+};
+const SUBJECT_ACCURACY_BAR: Record<AccuracyBand, string> = {
+  unknown: "bg-muted-foreground/30",
+  low: "bg-orange-500",
+  weak: "bg-orange-500",
+  building: "bg-primary",
+  near: "bg-primary",
+  high: "bg-emerald-500",
+};
 import { AlertTriangle, BookOpen, Calendar, Clock, TrendingDown, TrendingUp } from "lucide-react";
 import { displayChapter, displayConcept, displayTopic, displaySubject } from "@/lib/academicDisplay";
 import { toEnumLabel } from "@/lib/presentation";
@@ -393,13 +413,13 @@ export function SubjectBreakdown({ subjects }: { subjects: SubjectChartPoint[] }
           <div key={s.name} className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
             <div className="flex justify-between items-baseline">
               <p className="font-semibold text-foreground">{s.name}</p>
-              <p className={cn("text-xl font-bold tabular-nums", s.accuracy >= 75 ? "text-emerald-700" : s.accuracy >= 55 ? "text-foreground" : "text-orange-700")}>
+              <p className={cn("text-xl font-bold tabular-nums", SUBJECT_ACCURACY_TEXT[accuracyBand(s.accuracy)])}>
                 {Math.round(s.accuracy)}%
               </p>
             </div>
             <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
               <div
-                className={cn("h-full rounded-full transition-all", s.accuracy >= 75 ? "bg-emerald-500" : s.accuracy >= 55 ? "bg-primary" : "bg-orange-500")}
+                className={cn("h-full rounded-full transition-all", SUBJECT_ACCURACY_BAR[accuracyBand(s.accuracy)])}
                 style={{ width: `${Math.min(100, s.accuracy)}%` }}
               />
             </div>

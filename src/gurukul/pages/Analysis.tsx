@@ -18,6 +18,7 @@ import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { accuracyBand } from "@/academic/metrics/bands";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
 import { MarksService, useAcademicLive } from "@/academic";
@@ -454,11 +455,19 @@ export default function Analysis() {
     [snapshot?.revision_queue],
   );
 
+  // RULING 1. This read `mastery_score >= 75` and printed the result as "Topics
+  // completed" — a count of mastered concepts shown to a student, which §10.8
+  // forbids whatever boundary is chosen. The progress figure is now the
+  // open-mistakes count, which answers "what is left to fix" from the same rows
+  // without telling the student what they are good at.
+  //
+  // "Yet to begin" survives unchanged: a concept with no attempts is a fact
+  // about coverage, not a judgement about the child.
   const learningProgress = useMemo(() => {
-    const completed = mastery.filter((m) => m.mastery_score >= 75).length;
-    const inProgress = mastery.filter((m) => m.total_attempts > 0 && m.mastery_score < 75).length;
+    const toRevisit = mastery.filter((m) => m.mistake_count > 0).length;
+    const openMistakes = mastery.reduce((n, m) => n + (m.mistake_count ?? 0), 0);
     const notStarted = mastery.filter((m) => m.total_attempts === 0).length;
-    return { completed, inProgress, notStarted, total: mastery.length };
+    return { toRevisit, openMistakes, notStarted, total: mastery.length };
   }, [mastery]);
 
   const milestones = useMemo(() => {
@@ -631,7 +640,11 @@ export default function Analysis() {
     if (overview.totalQuestions < 100) {
       items.push({ title: "Solve 100 practice questions", progress: overview.totalQuestions, target: 100, unit: "questions" });
     }
-    const weak = subjectData.find((s) => s.accuracy < 75 && s.accuracy > 0);
+    // `> 0` stays: it is excluding an unmeasured subject, not a real zero —
+    // subjectData carries 0 for "no attempts yet", which is not an accuracy.
+    const weak = subjectData.find(
+      (s) => s.accuracy > 0 && !["high", "near"].includes(accuracyBand(s.accuracy)),
+    );
     if (weak) {
       items.push({ title: `Improve ${weak.name} above 75%`, progress: weak.accuracy, target: 75, unit: "%" });
     }
@@ -872,7 +885,10 @@ export default function Analysis() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-foreground">{displaySubject(s.name) || s.name}</span>
-                      {s.status === "best" && <span className="text-[9px] uppercase tracking-wider text-success bg-success/10 px-1.5 py-0.5 rounded-full">Best subject</span>}
+                      {/* The "Best subject" badge that stood here was §10.8's
+                          exact prohibition — a list filtered to the highest.
+                          The accuracy figure beside it is unchanged and still
+                          shown for every subject, high and low alike. */}
                       {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">{s.questions} questions{s.timeHrs > 0 ? ` · ${s.timeHrs}h study time` : ""}{s.rankInClass > 0 ? ` · Rank #${s.rankInClass}` : ""}</div>
@@ -960,9 +976,9 @@ export default function Analysis() {
           {/* Learning journey overview */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Topics completed",   value: learningProgress.completed,  color: "hsl(var(--success))", icon: <CheckCircle2 className="w-5 h-5" /> },
-              { label: "Topics in progress", value: learningProgress.inProgress, color: "hsl(var(--primary))", icon: <BookOpen className="w-5 h-5" /> },
-              { label: "Yet to begin",        value: learningProgress.notStarted, color: "hsl(var(--muted-foreground))", icon: <Minus className="w-5 h-5" /> },
+              { label: "Open mistakes",    value: learningProgress.openMistakes, color: "hsl(var(--destructive))", icon: <AlertCircle className="w-5 h-5" /> },
+              { label: "Topics to revisit", value: learningProgress.toRevisit,   color: "hsl(var(--warning))", icon: <BookOpen className="w-5 h-5" /> },
+              { label: "Yet to begin",      value: learningProgress.notStarted,  color: "hsl(var(--muted-foreground))", icon: <Minus className="w-5 h-5" /> },
             ].map((item) => (
               <div key={item.label} className="p-4 rounded-xl border border-border/70 bg-surface/60 text-center">
                 <div className="flex justify-center mb-2" style={{ color: item.color }}>{item.icon}</div>

@@ -10,6 +10,22 @@ import {
   Zap, CheckCircle2, Radio, Flag, BarChart3, Loader2, FileBarChart, Sparkles,
 } from "lucide-react";
 import { useAcademicContext, BattleExperienceService } from "@/academic";
+import { accuracyBand, type AccuracyBand } from "@/academic/metrics/bands";
+
+/**
+ * Per-question ITEM DIFFICULTY across participants — §10.8 permits this above
+ * the five-participant floor, because it describes the question rather than any
+ * named child. `unknown` keeps the existing `q.accuracy == null` case: an
+ * unattempted question is drawn as unattempted, not as the hardest one.
+ */
+const ITEM_DIFFICULTY_BAR: Record<AccuracyBand, string> = {
+  unknown: "bg-muted",
+  low: "bg-destructive",
+  weak: "bg-warning",
+  building: "bg-warning",
+  near: "bg-accent",
+  high: "bg-accent",
+};
 import { toErrorMessage } from "@/lib/presentation";
 
 type Participant = {
@@ -282,7 +298,7 @@ export default function BattleMonitor() {
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div className={cn("h-full rounded-full transition-all",
-                  q.accuracy == null ? "bg-muted" : q.accuracy >= 70 ? "bg-accent" : q.accuracy >= 40 ? "bg-warning" : "bg-destructive")}
+                  ITEM_DIFFICULTY_BAR[accuracyBand(q.accuracy)])}
                   style={{ width: `${q.accuracy ?? 0}%` }} />
               </div>
             </div>

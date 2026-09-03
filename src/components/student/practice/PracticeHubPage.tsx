@@ -587,7 +587,12 @@ export default function PracticeHubPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-4 sm:gap-6">
-                    <Stat label="Accuracy" value={`${s.accuracy}%`} highlight={s.accuracy >= 75} />
+                    {/* §10.8 — `highlight={s.accuracy >= 75}` picked out the
+                        sessions the student did best in. The number is allowed
+                        and stays; what went is the styling that appeared only
+                        when it was high, which is "presenting a figure as an
+                        achievement" in the one form that needs no words. */}
+                    <Stat label="Accuracy" value={`${s.accuracy}%`} />
                     <Stat label="Correct" value={toDisplayText(s.correct)} />
                     <Stat label="Incorrect" value={toDisplayText(s.incorrect)} warn />
                   </div>

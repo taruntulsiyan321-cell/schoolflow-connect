@@ -12,6 +12,7 @@ import type {
   SubjectChartPoint,
 } from "@/hooks/useStudentPerformanceCharts";
 import { normalizeSubjectName } from "@/lib/curriculumScope";
+import { accuracyBand } from "@/academic/metrics/bands";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
   buildSubjectRadarPoints,
@@ -102,7 +103,14 @@ export type DerivedSubjectRow = {
   questions: number;
   timeHrs: number;
   trend: number | null;
-  status: "best" | "needs-attention" | "good";
+  /**
+   * §10.8 — the "best" rung is GONE, not renamed. It drove a "Best subject"
+   * badge on the Analysis screen: a list filtered to the highest and a figure
+   * presented as an achievement, which is both halves of the forbidden column.
+   * A rung nothing can reach is still a rung the next screen can render, so it
+   * is removed from the union rather than left unused.
+   */
+  status: "needs-attention" | "steady";
 };
 
 export function deriveSubjectRows(
@@ -132,7 +140,9 @@ export function deriveSubjectRows(
       questions: s.attempts,
       timeHrs: Math.round((timeMins / 60) * 10) / 10,
       trend,
-      status: accuracy >= 85 ? "best" : accuracy < 65 ? "needs-attention" : "good",
+      // Converged onto the one accuracy ladder: this asked "< 65", which was a
+      // boundary no other screen used and the ruling does not carry.
+      status: ["low", "weak"].includes(accuracyBand(accuracy)) ? "needs-attention" : "steady",
     };
   });
 }
@@ -192,7 +202,13 @@ export function deriveChapterRows(
         accuracy,
         questions: attempts,
         trend,
-        status: (accuracy >= 75 ? "ready" : accuracy >= 55 ? "practice-more" : "needs-work") as DerivedChapterRow["status"],
+        // Converged: 75/55 were this file's own boundaries for the same figure
+        // the subject rows above band at 40/60/70/80.
+        status: (["high", "near"].includes(accuracyBand(accuracy))
+          ? "ready"
+          : accuracyBand(accuracy) === "building"
+            ? "practice-more"
+            : "needs-work") as DerivedChapterRow["status"],
       };
     })
     .filter((r): r is DerivedChapterRow => r != null)

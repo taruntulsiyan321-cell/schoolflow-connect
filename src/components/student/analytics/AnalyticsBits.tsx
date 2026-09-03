@@ -1,6 +1,62 @@
 ﻿import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { WeeklyActivityPoint } from "@/hooks/useStudentPerformanceCharts";
+import { accuracyBand, riskBand, type AccuracyBand, type Band } from "@/academic/metrics/bands";
+
+/**
+ * Palettes, keyed by rung. Five rungs over a four-colour palette, so `building`
+ * and `near` share a swatch — the LABEL separates them, and inventing a fifth
+ * hex to fill the gap would be a design decision made by a refactor.
+ *
+ * `unknown` is new. These bars took a non-null `number` and drew NaN as the
+ * worst rung; an unmeasured subject is now drawn as unmeasured.
+ */
+const SOFT_BAR: Record<AccuracyBand, string> = {
+  unknown: "bg-[#E0DDD4]",
+  low: "bg-[#E07A5F]",
+  weak: "bg-[#D4A574]",
+  building: "bg-[#81B29A]",
+  near: "bg-[#81B29A]",
+  high: "bg-[#7A9E7E]",
+};
+const DEFAULT_BAR: Record<AccuracyBand, string> = {
+  unknown: "bg-muted",
+  low: "bg-destructive",
+  weak: "bg-warning",
+  building: "bg-primary",
+  near: "bg-primary",
+  high: "bg-accent",
+};
+const SOFT_TEXT: Record<AccuracyBand, string> = {
+  unknown: "text-[#8A8578]",
+  low: "text-[#C45C44]",
+  weak: "text-[#B8864A]",
+  building: "text-[#5A8A6E]",
+  near: "text-[#5A8A6E]",
+  high: "text-[#5A7D5E]",
+};
+const DEFAULT_TEXT: Record<AccuracyBand, string> = {
+  unknown: "text-muted-foreground",
+  low: "text-destructive",
+  weak: "text-warning",
+  building: "text-primary",
+  near: "text-primary",
+  high: "text-accent",
+};
+
+/** Readiness rings read `riskBand`, not the accuracy ladder — ruling 4. */
+const SOFT_RING: Record<Band, string> = {
+  unknown: "stroke-[#E0DDD4]",
+  low: "stroke-[#E07A5F]",
+  middle: "stroke-[#81B29A]",
+  high: "stroke-[#7A9E7E]",
+};
+const DEFAULT_RING: Record<Band, string> = {
+  unknown: "stroke-muted",
+  low: "stroke-warning",
+  middle: "stroke-primary",
+  high: "stroke-accent",
+};
 
 /** Light Scandinavian variant for analytics studio. */
 export function SoftReadinessRing({ score, size = 108, label }: { score: number; size?: number; label?: string }) {
@@ -8,8 +64,7 @@ export function SoftReadinessRing({ score, size = 108, label }: { score: number;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c - (Math.min(100, Math.max(0, score)) / 100) * c;
-  const tone =
-    score >= 75 ? "stroke-[#7A9E7E]" : score >= 50 ? "stroke-[#81B29A]" : "stroke-[#E07A5F]";
+  const tone = SOFT_RING[riskBand(score)];
 
   return (
     <div className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
@@ -93,8 +148,7 @@ export function ReadinessRing({ score, size = 112, label }: { score: number; siz
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c - (Math.min(100, Math.max(0, score)) / 100) * c;
-  const tone =
-    score >= 75 ? "stroke-accent" : score >= 50 ? "stroke-primary" : "stroke-warning";
+  const tone = DEFAULT_RING[riskBand(score)];
 
   return (
     <div className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
@@ -140,17 +194,12 @@ export function SubjectBar({
   rank?: number;
   variant?: "default" | "soft";
 }) {
-  const softTone =
-    accuracy >= 75 ? "bg-[#7A9E7E]" : accuracy >= 55 ? "bg-[#81B29A]" : accuracy >= 40 ? "bg-[#D4A574]" : "bg-[#E07A5F]";
-  const defaultTone =
-    accuracy >= 75 ? "bg-accent" : accuracy >= 55 ? "bg-primary" : accuracy >= 40 ? "bg-warning" : "bg-destructive";
-  const tone = variant === "soft" ? softTone : defaultTone;
-
-  const softText =
-    accuracy >= 75 ? "text-[#5A7D5E]" : accuracy >= 55 ? "text-[#5A8A6E]" : accuracy >= 40 ? "text-[#B8864A]" : "text-[#C45C44]";
-  const defaultText =
-    accuracy >= 75 ? "text-accent" : accuracy >= 55 ? "text-primary" : accuracy >= 40 ? "text-warning" : "text-destructive";
-  const textTone = variant === "soft" ? softText : defaultText;
+  // The PALETTE stays local — it is this screen's design. The BOUNDARIES do
+  // not: they come from `accuracyBand`, so this bar and the one on Analysis can
+  // no longer disagree about where "weak" starts for the same subject.
+  const band = accuracyBand(accuracy);
+  const tone = (variant === "soft" ? SOFT_BAR : DEFAULT_BAR)[band];
+  const textTone = (variant === "soft" ? SOFT_TEXT : DEFAULT_TEXT)[band];
 
   return (
     <div className="group">

@@ -1,6 +1,7 @@
 import type { ConceptRecoveryReport } from "@/lib/conceptReportFallback";
 import { sessionAccuracy } from "@/academic/metrics/practice";
 import { valueOr } from "@/academic/metrics/types";
+import { ACCURACY_CONCEPTUAL } from "@/academic/metrics/bands";
 
 export type RecoveryAttemptSnapshot = {
   questionId: string;
@@ -36,8 +37,9 @@ export function buildRecoveryAssignmentReport(
   // wrong in all five copies of this line.
   const accuracy = valueOr(sessionAccuracy(correct, total), 0);
 
+  // The weak-topic bar IS the conceptual readiness bar; it was a bare 70.
   const weak =
-    accuracy < 70
+    accuracy < ACCURACY_CONCEPTUAL
       ? [{ subject, chapter, concept, accuracy }]
       : [];
 

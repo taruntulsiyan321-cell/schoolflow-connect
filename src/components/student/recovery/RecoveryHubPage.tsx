@@ -19,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { displayConcept, displaySubject } from "@/lib/academicPresentation";
+import { accuracyBand } from "@/academic/metrics/bands";
 import "./recovery-hub.css";
 import "../dashboard/student-dashboard.css";
 import { toDisplayText } from "@/lib/presentation";
@@ -232,8 +233,15 @@ export function RecoveryHubPage({
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4 sm:gap-6 text-center sm:text-left">
-                <MiniStat label="Accuracy" value={`${p.accuracy}%`} warn={p.accuracy < 50} />
-                <MiniStat label="Mastery" value={`${p.mastery}%`} />
+                {/* §10.8 — the number stays, the word goes. "Mastery 62%" tells
+                    a student what they have become; "Retention" names the
+                    measure. The warn boundary is the one accuracy ladder. */}
+                <MiniStat
+                  label="Accuracy"
+                  value={`${p.accuracy}%`}
+                  warn={accuracyBand(p.accuracy) === "low" || accuracyBand(p.accuracy) === "weak"}
+                />
+                <MiniStat label="Retention" value={`${p.mastery}%`} />
                 <MiniStat label="Questions" value={toDisplayText(p.questionsAssigned)} />
               </div>
             </div>
@@ -396,7 +404,7 @@ export function RecoveryHubPage({
               to={forecast.accuracy[1]}
             />
             <ForecastRow
-              label="Concept mastery"
+              label="Concept retention"
               from={forecast.mastery[0]}
               to={forecast.mastery[1]}
             />

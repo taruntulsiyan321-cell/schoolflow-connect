@@ -3,6 +3,14 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
+import { riskBand, type Band } from "@/academic/metrics/bands";
+
+const RING_COLOR: Record<Band, string> = {
+  unknown: "var(--muted-foreground)",
+  low: "var(--destructive)",
+  middle: "var(--warning)",
+  high: "var(--info)",
+};
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -149,7 +157,10 @@ export function ProgressRing({ score, size=80, color }: { score:number; size?:nu
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c - (Math.min(100, Math.max(0, score)) / 100) * c;
-  const colorVar = color ?? (score >= 80 ? "var(--info)" : score >= 60 ? "var(--warning)" : "var(--destructive)");
+  // Converged from 60/80 onto the one risk ladder. This component has no
+  // callers, so the two boundaries it contributed to the `score` survey existed
+  // only here — the disagreement was never on a screen.
+  const colorVar = color ?? RING_COLOR[riskBand(score)];
   return (
     <div className="relative inline-flex" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">

@@ -1,3 +1,4 @@
+import { ACCURACY_BUILDING, ACCURACY_PROCEDURAL } from "@/academic/metrics/bands";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -169,10 +170,20 @@ export default function PracticeSessionResult() {
   const insights = snapshot?.insights;
   const recommendations =
     insights?.recommendations ??
-    (accuracy < 100
+    // RULING 2, and the finding it produced. This was reported as one of three
+    // "perfect-score celebrations"; it is not one. `accuracy < 100` GATES
+    // corrective advice — at 100 the advice is hidden, not a trophy shown. The
+    // celebration that did live here was removed earlier (see the §10.8 note
+    // below), leaving only the gate.
+    //
+    // It is now written as what it means: "did anything go wrong". The old form
+    // asked it through a ROUNDED percentage, and Math.round(99.6) is 100 — a
+    // long session with one wrong answer could round to a clean sheet and lose
+    // the advice. Rare, but it fails in the direction that hides the fix.
+    (wrong > 0
       ? [
-          accuracy < 60 ? "Review wrong answers below — they feed Mistake Book automatically." : null,
-          accuracy < 80 ? "Revise weak topics from Analysis before your next practice session." : null,
+          accuracy < ACCURACY_BUILDING ? "Review wrong answers below — they feed Mistake Book automatically." : null,
+          accuracy < ACCURACY_PROCEDURAL ? "Revise weak topics from Analysis before your next practice session." : null,
           'Use "Explain my mistake" on each wrong question to understand the concept.',
         ].filter(Boolean) as string[]
       // §10.8. This read "Excellent accuracy — keep momentum with a short daily

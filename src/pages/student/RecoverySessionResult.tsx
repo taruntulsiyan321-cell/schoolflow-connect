@@ -1,3 +1,4 @@
+import { ACCURACY_BUILDING, ACCURACY_PROCEDURAL } from "@/academic/metrics/bands";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -265,12 +266,15 @@ export default function RecoverySessionResult() {
         </Button>
       </div>
 
-      {accuracy < 100 && displayAttempts.length > 0 && (
+      {/* Not a celebration gate — see PracticeSessionResult for the full note.
+          "Did anything go wrong" asked directly, rather than through a rounded
+          percentage that can reach 100 with a wrong answer still in the set. */}
+      {correct < total && displayAttempts.length > 0 && (
         <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
           <h3 className="font-semibold text-sm mb-2">Improvement focus</h3>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
-            {accuracy < 60 && <li>Review wrong answers below — they stay in your Mistake Book until mastered.</li>}
-            {accuracy < 80 && <li>Schedule another recovery round for {concept} within 48 hours.</li>}
+            {accuracy < ACCURACY_BUILDING && <li>Review wrong answers below — they stay in your Mistake Book until you clear them.</li>}
+            {accuracy < ACCURACY_PROCEDURAL && <li>Schedule another recovery round for {concept} within 48 hours.</li>}
             <li>Use &quot;Explain my mistake&quot; on each wrong question to fix the concept, not just the answer.</li>
           </ul>
         </Card>

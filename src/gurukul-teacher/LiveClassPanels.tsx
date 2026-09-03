@@ -47,7 +47,11 @@ import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepos
 import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
 import { toEnumLabel, toErrorMessage, toPercentLabel } from "@/lib/presentation";
 import { useResetOnIdentityChange } from "@/hooks/useInitialLoadGate";
-import { ATTENDANCE_LOW, HOMEWORK_LOW } from "@/academic/metrics/thresholds";
+import {
+  ATTENDANCE_LOW,
+  HOMEWORK_LOW,
+  SUBJECT_AVERAGE_LOW,
+} from "@/academic/metrics/thresholds";
 
 export {
   LiveHomeworkTab,
@@ -507,7 +511,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                       selected.testsAvgPct < 40) ||
                     (selected.examsAvgPct != null &&
                       selected.examsAvgPct > 0 &&
-                      selected.examsAvgPct < 40),
+                      selected.examsAvgPct < SUBJECT_AVERAGE_LOW),
                 },
               ].map((m) => (
                 <div
@@ -2626,7 +2630,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         .filter(
           (p) =>
             (p.testsAvgPct > 0 && p.testsAvgPct < 40) ||
-            (p.examsAvgPct > 0 && p.examsAvgPct < 40),
+            (p.examsAvgPct > 0 && p.examsAvgPct < SUBJECT_AVERAGE_LOW),
         )
         .sort(
           (a, b) =>
@@ -2652,7 +2656,10 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       rows.push({ id: p.studentId, name: displayName(p.studentId), metric, why });
     };
     for (const p of lowAttendance) {
-      push(p, `${Math.round(p.attendancePct)}% att`, "Below 75% attendance");
+      // The reason is interpolated, not written out. It read "Below 75%
+      // attendance" while `lowAttendance` was filtering on ATTENDANCE_LOW — a
+      // teacher was told a student had failed a bar the app was not using.
+      push(p, `${Math.round(p.attendancePct)}% att`, `Below ${ATTENDANCE_LOW}% attendance`);
     }
     for (const p of pendingHwStudents) {
       const missing = Math.max(0, p.homeworkAssigned - p.homeworkSubmitted);
@@ -2668,9 +2675,9 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       const parts: string[] = [];
       if (p.testsAvgPct > 0 && p.testsAvgPct < 40)
         parts.push(`tests ${Math.round(p.testsAvgPct)}%`);
-      if (p.examsAvgPct > 0 && p.examsAvgPct < 40)
+      if (p.examsAvgPct > 0 && p.examsAvgPct < SUBJECT_AVERAGE_LOW)
         parts.push(`exams ${Math.round(p.examsAvgPct)}%`);
-      push(p, parts.join(" · ") || "Low avg", "Average under 40%");
+      push(p, parts.join(" · ") || "Low avg", `Average under ${SUBJECT_AVERAGE_LOW}%`);
     }
     return rows.slice(0, 10);
   }, [lowAttendance, pendingHwStudents, lowAverages, nameById]);
@@ -2731,7 +2738,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         flags.push("missing homework");
       if (
         (p.testsAvgPct > 0 && p.testsAvgPct < 40) ||
-        (p.examsAvgPct > 0 && p.examsAvgPct < 40)
+        (p.examsAvgPct > 0 && p.examsAvgPct < SUBJECT_AVERAGE_LOW)
       )
         flags.push("low averages");
       return { p, flags };

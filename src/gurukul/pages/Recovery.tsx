@@ -10,6 +10,7 @@ import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumS
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import { GlassCard, SubjectBadge, ProgressBar, cn } from "@/gurukul/components/shared";
+import { urgencyBand, ACCURACY_CONCEPTUAL, type Urgency } from "@/academic/metrics/bands";
 import {
   RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2,
   Brain, BookOpen, Clock, Target, Search, Filter,
@@ -21,9 +22,22 @@ type Priority = "high" | "medium" | "low";
 
 interface RecoveryTopic {
   id: string; assignmentId?: string; concept: string; subject: string; chapter: string;
-  priority: Priority; mastery: number; attempts: number;
+  // Renamed from `mastery`. §10.8: "the number stays … the word goes."
+  // The screen already labelled this figure "Accuracy" where it renders it; the
+  // field name was the last place the achievement word survived.
+  priority: Priority; accuracyPct: number; attempts: number;
   source: string; pendingQs: number; lastAttempt: string;
   aiReason: string; teacherAssigned: boolean;
+}
+
+/**
+ * `urgencyBand` has an `unknown` rung; a priority filter does not. An item
+ * whose open-mistakes count is missing is placed at "low" rather than given a
+ * rung of its own, because the alternative is a fourth chip in the filter bar
+ * that nobody can act on.
+ */
+function urgencyToPriority(u: Urgency): Priority {
+  return u === "unknown" ? "low" : u;
 }
 
 function severityToPriority(severity: string): Priority {
@@ -69,13 +83,13 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
       subject: a.subject,
       chapter,
       priority: severityToPriority(a.severity),
-      mastery: Math.round(weak?.mastery_score ?? 0),
+      accuracyPct: Math.round(weak?.mastery_score ?? 0),
       attempts: weak?.mistake_count ?? 0,
       source: sourceFromType(a.source_type),
       pendingQs: Math.max(0, (a.question_count ?? 0) - (a.questions_completed ?? 0)),
       lastAttempt: formatRelativeDate(a.created_at),
       aiReason: weak
-        ? `Mastery ${Math.round(weak.mastery_score)}% on ${displayConcept(a.concept)} — recovery drill queued from recent mistakes.`
+        ? `Accuracy ${Math.round(weak.mastery_score)}% on ${displayConcept(a.concept)} — recovery drill queued from recent mistakes.`
         : `Recovery assignment for ${displayConcept(a.concept)} from your mistake pattern.`,
       teacherAssigned: false,
     });
@@ -92,13 +106,19 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
       concept: w.concept,
       subject: w.subject,
       chapter,
-      priority: w.mastery_score < 40 ? "high" : w.mastery_score < 55 ? "medium" : "low",
-      mastery: Math.round(w.mastery_score),
+      // RULINGS 1 AND 4 meet here. The queue was ordered by `mastery_score`
+      // at 40 / 55 — the ladder ruling 1 deleted — and it is now ordered by
+      // `urgencyBand` over the OPEN-MISTAKES COUNT, which is what a recovery
+      // queue is actually sorted by: how much is left to fix, not how good the
+      // student is. `unknown` sorts as "low" so a concept with no mistake count
+      // cannot jump the queue on missing data.
+      priority: urgencyToPriority(urgencyBand(w.mistake_count)),
+      accuracyPct: Math.round(w.mastery_score),
       attempts: w.mistake_count ?? 0,
       source: "practice",
       pendingQs: 0,
       lastAttempt: "—",
-      aiReason: `Weak concept detected at ${Math.round(w.mastery_score)}% mastery — start practice or open Nova for a targeted review.`,
+      aiReason: `Weak concept detected at ${Math.round(w.mastery_score)}% accuracy — start practice or open Nova for a targeted review.`,
       teacherAssigned: false,
     });
   }
@@ -163,7 +183,7 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="text-right">
-              <div className="text-lg font-black tabular-nums" style={{color:m.color}}>{topic.mastery}%</div>
+              <div className="text-lg font-black tabular-nums" style={{color:m.color}}>{topic.accuracyPct}%</div>
               <div className="text-[10px] text-muted-foreground">{topic.attempts} mistakes</div>
             </div>
           </div>
@@ -171,9 +191,9 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
 
         <div className="mt-3">
           <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-            <span>Accuracy</span><span>{topic.mastery}%</span>
+            <span>Accuracy</span><span>{topic.accuracyPct}%</span>
           </div>
-          <ProgressBar value={topic.mastery} color={m.color} height="h-1.5"/>
+          <ProgressBar value={topic.accuracyPct} color={m.color} height="h-1.5"/>
         </div>
 
         <div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -251,7 +271,19 @@ function RecoverySession({ topic, onBack }: { topic: RecoveryTopic; onBack: () =
 }
 
 function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopic; score: number; setPage?: (p: PageKey) => void; onBack: () => void }) {
-  const passed = score >= 70;
+  // NEEDS A RULING — flagged in the report, not silently settled here.
+  //
+  // §4.2b: "Readiness is two numbers, never blended — procedural and
+  // conceptual. Procedural passing while conceptual fails is the most common
+  // real result." This screen has ONE blended `score` and declares a single
+  // pass from it, which is the blend the spec forbids. Splitting it needs the
+  // per-tier breakdown (tiers 0–1 vs 2–3), which is not passed down to this
+  // component.
+  //
+  // The literal 70 is sourced to the conceptual bar in the meantime so it
+  // cannot drift, but sourcing the number does not make the single verdict
+  // correct.
+  const passed = score >= ACCURACY_CONCEPTUAL;
   const color = passed ? "#4aa87a" : "#c08a3a";
   const size = 110, stroke = 9, r = (size - stroke) / 2, c = 2 * Math.PI * r;
   const offset = c - (score / 100) * c;
@@ -304,8 +336,8 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
         <div className="grid grid-cols-3 gap-3 mt-5">
           {[
             { label:"Score",    value:`${score}%`,            color },
-            { label:"Previous", value:`${topic.mastery}%`,   color:"hsl(var(--muted-foreground))" },
-            { label:"Change",   value: score >= topic.mastery ? `+${score - topic.mastery}%` : `${score - topic.mastery}%`, color: score > topic.mastery ? "#4aa87a" : "#cc5069" },
+            { label:"Previous", value:`${topic.accuracyPct}%`,   color:"hsl(var(--muted-foreground))" },
+            { label:"Change",   value: score >= topic.accuracyPct ? `+${score - topic.accuracyPct}%` : `${score - topic.accuracyPct}%`, color: score > topic.accuracyPct ? "#4aa87a" : "#cc5069" },
           ].map(s => (
             <div key={s.label} className="p-3 rounded-xl bg-muted border border-border">
               <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
@@ -509,7 +541,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
         concept: topic.concept,
         sourceType: "weak_concept",
         sourceId: topic.id,
-        accuracy: topic.mastery,
+        accuracy: topic.accuracyPct,
       });
       if (assignmentId) {
         navigate(`/student/recovery/${assignmentId}`);
@@ -765,7 +797,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                         subject: h.subject,
                         chapter: "—",
                         priority: "medium",
-                        mastery: 0,
+                        accuracyPct: 0,
                         attempts: 0,
                         source: "practice",
                         pendingQs: 0,

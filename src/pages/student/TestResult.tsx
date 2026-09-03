@@ -1,3 +1,4 @@
+import { ACCURACY_BUILDING, ACCURACY_PROCEDURAL } from "@/academic/metrics/bands";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -193,14 +194,15 @@ export default function TestResult() {
         </div>
       </Card>
 
-      {accuracy < 100 && (
+      {/* Not a celebration gate — see PracticeSessionResult for the full note. */}
+      {correctCount < totalCount && (
         <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
           <h3 className="font-semibold text-sm mb-2">Improvement focus</h3>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
-            {accuracy < 60 && (
+            {accuracy < ACCURACY_BUILDING && (
               <li>Review wrong answers below — they were added to your Mistake Book automatically.</li>
             )}
-            {accuracy < 80 && (
+            {accuracy < ACCURACY_PROCEDURAL && (
               <li>Revise weak topics from your Dashboard before the next test.</li>
             )}
             <li>
