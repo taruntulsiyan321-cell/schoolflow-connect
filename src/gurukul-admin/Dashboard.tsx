@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { cn, InitialsAvatar } from "./shared";
 import type { AdminPageKey } from "./nav";
-import { AnalyticsService, AttendanceService, useAcademicLive } from "@/academic";
+import { AnalyticsService, AttendanceService, LeaveService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { localDateKey } from "@/lib/localDate";
@@ -101,6 +101,10 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
   const [recentTeachers, setRecentTeachers] = useState<RecentTeacher[]>([]);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<LeaveRow[]>([]);
+  // The tile is a COUNT; the list below it is a page of five. Deriving the tile
+  // from the page made it report the page size — it read 5 against 8 pending,
+  // and would read 5 against forty.
+  const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
   const [notices, setNotices] = useState<NoticeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +128,6 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           recentTeacherRows,
           activityRows,
           classLeaveRows,
-          schoolTeacherRows,
           noticeRows,
         ] = await Promise.all([
           AttendanceService.summarizeSchoolDate(ctx, today),
@@ -151,18 +154,14 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             .eq("school_id", ctx.schoolId)
             .order("created_at", { ascending: false })
             .limit(6),
-          supabase
-            .from("leave_requests")
-            // BATCH 1b: pending is the absence of a decision row, not a column.
-            .select("id, leave_type, from_date, to_date, created_at, classes!inner(school_id), leave_decisions(id)")
-            .eq("classes.school_id", ctx.schoolId)
-            .order("created_at", { ascending: false })
-            .limit(5),
-          // Teacher leave requests always have class_id = null, so they can never
-          // match the classes!inner join above. Resolve this school's teacher user
-          // ids separately (same approach as LeaveService.listForSchool) so their
-          // pending leaves aren't silently dropped from the widget.
-          supabase.from("teachers").select("user_id").eq("school_id", ctx.schoolId),
+          // BATCH 1c. This was a hand-rolled query joining classes!inner, which
+          // could only ever see requests carrying a class_id — 2 of 19 live rows
+          // and 0 of the 8 pending — so the widget rendered a confident zero next
+          // to a Leave Requests page showing all 8. Asking LeaveService, which
+          // already owns this question, removes the widget's second home rather
+          // than repairing it: the two agree by construction now, and the widget
+          // stops bypassing the service's own authorization check.
+          LeaveService.listPending(ctx),
           supabase
             .from("notices")
             .select("id, title, body, created_at, priority")
@@ -188,36 +187,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           throw new Error(`Failed to load recent teachers: ${recentTeacherRows.error.message}`);
         }
         if (activityRows.error) throw new Error(`Failed to load activity feed: ${activityRows.error.message}`);
-        if (classLeaveRows.error) throw new Error(`Failed to load pending leaves: ${classLeaveRows.error.message}`);
-        if (schoolTeacherRows.error) {
-          throw new Error(`Failed to load teacher roster: ${schoolTeacherRows.error.message}`);
-        }
         if (noticeRows.error) throw new Error(`Failed to load notices: ${noticeRows.error.message}`);
-
-        const schoolTeacherUserIds = ((schoolTeacherRows.data ?? []) as { user_id: string | null }[])
-          .map((t) => t.user_id)
-          .filter((id): id is string => !!id);
-
-        let teacherLeaveRows: LeaveRow[] = [];
-        if (schoolTeacherUserIds.length > 0) {
-          const teacherLeaveRes = await supabase
-            .from("leave_requests")
-            .select("id, leave_type, from_date, to_date, created_at, leave_decisions(id)")
-            .eq("applicant_kind", "teacher")
-            .is("class_id", null)
-            .in("applicant_user_id", schoolTeacherUserIds)
-            .order("created_at", { ascending: false })
-            .limit(5);
-          if (cancelled) return;
-          if (teacherLeaveRes.error) {
-            throw new Error(`Failed to load pending leaves: ${teacherLeaveRes.error.message}`);
-          }
-          // Pending = no decision row. The .eq("status","pending") this replaces
-          // read the column batch 1c drops.
-          teacherLeaveRows = ((teacherLeaveRes.data ?? []) as LeaveRow[]).filter(
-            (r) => ((r as { leave_decisions?: unknown[] }).leave_decisions ?? []).length === 0,
-          );
-        }
 
         setTodayPresent(day.present);
         setTodayAbsent(day.absent);
@@ -269,23 +239,18 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         );
 
         setActivity((activityRows.data ?? []) as ActivityRow[]);
-        setPendingLeaves(
-          [
-            // Pending = no decision row, same as the teacher list above.
-            ...((classLeaveRows.data ?? []) as unknown as (LeaveRow & { classes: unknown })[])
-              .filter((r) => ((r as { leave_decisions?: unknown[] }).leave_decisions ?? []).length === 0)
-              .map((r) => ({
-              id: r.id,
-              leave_type: r.leave_type,
-              from_date: r.from_date,
-              to_date: r.to_date,
-              created_at: r.created_at,
-            })),
-            ...teacherLeaveRows,
-          ]
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-            .slice(0, 5),
-        );
+        // The tile is the count of every pending request; the list below it is a
+        // page of five. Deriving the tile from the page made it report the page
+        // size — 5 against 8, and 5 against forty.
+        const pending = classLeaveRows.map((r) => ({
+          id: r.id,
+          leave_type: r.leaveType,
+          from_date: r.fromDate,
+          to_date: r.toDate,
+          created_at: r.createdAt,
+        }));
+        setPendingLeaveCount(pending.length);
+        setPendingLeaves(pending.slice(0, 5));
         setNotices((noticeRows.data ?? []) as NoticeRow[]);
       } catch (e) {
         if (!cancelled) setError(toErrorMessage(e, "Failed to load dashboard"));
@@ -343,7 +308,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         <StatCard label="Total Parents" value={counts.parents} icon={<UserCheck className="w-5 h-5" />} color="#6882e8" />
         <StatCard label="Classes" value={counts.classes} icon={<Building2 className="w-5 h-5" />} color="#4aa87a" />
         <StatCard label="Present Today" value={todayPresent} icon={<Activity className="w-5 h-5" />} color="#c08a3a" sub="marked attendance" />
-        <StatCard label="Pending Leaves" value={pendingLeaves.length} icon={<AlertCircle className="w-5 h-5" />} color="#cc5069" />
+        <StatCard label="Pending Leaves" value={pendingLeaveCount} icon={<AlertCircle className="w-5 h-5" />} color="#cc5069" />
       </div>
 
       {/* Middle Row */}

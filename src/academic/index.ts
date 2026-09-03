@@ -141,7 +141,7 @@ export type {
   AnnouncementStatus,
 } from "./services/announcementService";
 export type { LeaveRequestRow, SchoolLeaveRequestRow, LeaveDecisionRow } from "./services/leaveService";
-export { decisionAttribution } from "./services/leaveService";
+export { decisionAttribution, matchesStatus } from "./services/leaveService";
 export type {
   ChatContact,
   ChatMessage,

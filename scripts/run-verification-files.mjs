@@ -86,7 +86,15 @@ for (const f of files) {
 
   // Within our own report, a failure announces itself explicitly. Matching a
   // bare "FAIL" would hit the word inside an unused conditional branch.
-  const failed = /AT LEAST ONE|CHECK FAILED|\(FAIL\)/.test(text);
+  // Widened after CHUNK8_BATCH1A_VERIFY reported a real FAIL and this runner
+  // announced "0 reported a failure". That file closes with "ONE OR MORE CHECKS
+  // FAILED"; the old pattern wanted "CHECK FAILED" (no S) and "AT LEAST ONE",
+  // so the one file using that wording could not be failed by the gate that
+  // runs it. Second time this predicate has been wrong — see the note above.
+  //
+  // "FAIL" followed by the two spaces every report uses is matched directly
+  // now, rather than trusting each file to close with a banner this list knows.
+  const failed = /AT LEAST ONE|CHECKS? FAILED|\(FAIL\)|FAIL {2}/.test(text);
   results.push({ f, state: failed ? "FAILED" : "RAN", why: "" });
 }
 

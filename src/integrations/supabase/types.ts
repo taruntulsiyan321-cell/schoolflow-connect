@@ -4347,10 +4347,7 @@ export type Database = {
           leave_type: string
           reason: string | null
           review_note: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
           school_id: string | null
-          status: Database["public"]["Enums"]["leave_status"]
           student_id: string | null
           to_date: string
           updated_at: string
@@ -4365,10 +4362,7 @@ export type Database = {
           leave_type?: string
           reason?: string | null
           review_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
           school_id?: string | null
-          status?: Database["public"]["Enums"]["leave_status"]
           student_id?: string | null
           to_date: string
           updated_at?: string
@@ -4383,10 +4377,7 @@ export type Database = {
           leave_type?: string
           reason?: string | null
           review_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
           school_id?: string | null
-          status?: Database["public"]["Enums"]["leave_status"]
           student_id?: string | null
           to_date?: string
           updated_at?: string
@@ -10609,7 +10600,6 @@ export type Database = {
         | "revoked"
         | "expired"
       leave_applicant: "student" | "teacher"
-      leave_status: "pending" | "approved" | "rejected"
       membership_status: "pending" | "active" | "declined" | "revoked"
       notice_audience:
         | "all"
@@ -10817,7 +10807,6 @@ export const Constants = {
         "expired",
       ],
       leave_applicant: ["student", "teacher"],
-      leave_status: ["pending", "approved", "rejected"],
       membership_status: ["pending", "active", "declined", "revoked"],
       notice_audience: [
         "all",

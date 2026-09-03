@@ -6,7 +6,7 @@
 -- genuine restore, not an approximation — leave_requests still holds every
 -- verdict, and dropping the table loses nothing that is not still there.
 --
--- That is only true while batch 1b has NOT run. Once 1b drops
+-- That is only true while batch 1c has NOT run. Once 1c drops
 -- leave_requests.status, leave_decisions becomes the only copy of the verdicts
 -- and this file would destroy them. The guard below refuses to run in that
 -- case rather than leaving the caller to notice.
@@ -28,7 +28,7 @@ BEGIN
   IF NOT _status_exists THEN
     RAISE EXCEPTION
       'REFUSING TO ROLL BACK: leave_requests.status is already dropped, so '
-      'leave_decisions holds the only copy of every verdict. Roll back batch 1b '
+      'leave_decisions holds the only copy of every verdict. Roll back batch 1c '
       'first (it restores the column and its values), then run this file.';
   END IF;
 

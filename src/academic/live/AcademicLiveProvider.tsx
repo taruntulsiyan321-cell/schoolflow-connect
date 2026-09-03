@@ -237,6 +237,21 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         },
         onTable(["profile"]),
       )
+      // BATCH 1c. A verdict used to touch leave_requests too — the dual write —
+      // so this subscription alone was enough to refresh the applicant. With the
+      // column dropped, a decision changes leave_decisions and nothing else, and
+      // without this the applicant's leave would sit on screen as Pending until
+      // they reloaded by hand. No applicant_user_id filter is possible here:
+      // leave_decisions has no such column, so RLS is what scopes it.
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "leave_decisions",
+        },
+        onTable(["profile"]),
+      )
       .on(
         "postgres_changes",
         {

@@ -759,6 +759,31 @@ named and justified.
 **In Chunk 11:** sweep the whole repo. Also enumerate every CHECK constraint over
 a value set and prove it matches the emitted values.
 
+### G16. A rollback that restores a snapshot is not a rollback
+
+**Found live, and it would have destroyed working fixes.**
+
+A migration that rewrites a function by splicing `pg_get_functiondef` leaves **no
+literal body in the repo**. So the obvious rollback — restore the last literal
+definition — silently discards **every fix applied since**. For one migration
+that meant reverting 18, 8, 3 and 2 intervening migrations, including two
+security-leak closures.
+
+**Rules:**
+
+- **A rollback must invert the change, not restore a state.** Where a splice
+  replaces text for text, the inverse splice is exact — apply the inverses, and
+  **mind their order**: a write-restore must precede read-restores or the
+  patterns collide.
+- **Where a splice deletes text, it does not invert.** Say so. Ship a partial
+  rollback that reverses what it can — columns, grants, tables — and **states
+  plainly which parts cannot be scripted back**, rather than a destructive one
+  that looks complete.
+- **Express the refusal so it expires.** A runtime `NOTICE` that stops firing on
+  its own if the removed emitters ever return beats a comment nobody re-reads.
+- **Write the rollback while writing the migration**, not at the next preflight.
+  Seven accumulated here, and writing them is what surfaced this.
+
 ### G9. Watch for two sources of truth
 
 **This has been the root cause three times.** Every time, the same shape: two
@@ -2596,7 +2621,29 @@ list two hundred lines above did not — so a student **nobody had marked** head
 a list naming children as a problem. Same defect, only one direction matters.
 **Audit every list that names a person negatively first.**
 
-**A stub that satisfies a condition makes its check unfailable.**
+**A feature nothing invokes cannot fail, and nothing will say so.** Two shapes,
+both found live:
+
+- **A stub that satisfies a condition makes its check unfailable.**
+  `setUnmarked([])` behind a TODO meant the unmarked-classes block showed clean
+  permanently.
+- **A helper exported and never called renders nowhere.** `decisionAttribution`
+  implemented an approved wording ruling in a function **no screen used** — the
+  rule was written, tested and invisible.
+
+**After implementing anything, grep for its call sites.** A passing test on an
+uncalled function proves the function works and nothing else.
+
+**Two more premise errors of the same family:**
+
+- **`.map(mapRow)` passes the index as the second argument.** Where the second
+  parameter is now a data row, every item silently takes `0`, `1`, `2` as its
+  input. Found live: every student's leave request would have derived as pending,
+  forever, with no error anywhere.
+- **Guarding on `reviewedAt` rather than on the decision existing** meant 8 of 11
+  decided requests showed **no review information at all** — a verdict reached
+  and the screen saying nothing. Guard on the thing that determines the state,
+  not on a field that usually accompanies it.
 `setUnmarked([])` behind a TODO meant the unmarked-classes block showed clean
 permanently, with nothing to flag it. Same shape as an empty catch, one layer up.
 

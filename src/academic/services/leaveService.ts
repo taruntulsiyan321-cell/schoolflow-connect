@@ -23,14 +23,22 @@ export type LeaveRequestRow = {
   fromDate: string;
   toDate: string;
   reason: string | null;
-  /** DERIVED from whether a decision row exists — never read from the column. */
-  status: LeaveStatus;
+  /**
+   * EVERY decision on this request. A student's leave goes to both the class
+   * teacher and the principal and either may act, so two rows are legal —
+   * leave_decisions is UNIQUE on (leave_request_id, decided_by_role), not on
+   * leave_request_id alone.
+   *
+   * An array, not a scalar, because the spec forbids computing a single
+   * combined verdict: "Approved by class teacher · Rejected by principal" is
+   * displayed as it stands. A Map keyed by request id used to collapse the
+   * pair to whichever row Postgres happened to return last — and the query
+   * carries no ORDER BY, so which one survived could flip between two loads.
+   */
+  decisions: LeaveDecisionRow[];
+  /** No one has decided. The only scalar that stays well-defined at two. */
+  isPending: boolean;
   createdAt: string;
-  /** From the decision row. Null where the decider was not recorded. */
-  reviewedAt: string | null;
-  reviewedBy: string | null;
-  /** The decision itself, so a screen can say "decider not recorded". */
-  decision: LeaveDecisionRow | null;
   studentId: string | null;
   classId: string | null;
 };
@@ -50,10 +58,7 @@ type DbLeave = {
   from_date: string;
   to_date: string;
   reason: string | null;
-  status: LeaveStatus;
   created_at: string;
-  reviewed_at: string | null;
-  reviewed_by: string | null;
   student_id: string | null;
   class_id: string | null;
 };
@@ -108,13 +113,38 @@ const mapDecision = (d: DbLeaveDecision): LeaveDecisionRow => ({
  * line. Say what the data supports, and do not attribute an outcome to someone
  * who never acted.
  */
+function groupDecisions(rows: DbLeaveDecision[]): Map<string, LeaveDecisionRow[]> {
+  const byRequest = new Map<string, LeaveDecisionRow[]>();
+  for (const d of rows) {
+    const list = byRequest.get(d.leave_request_id);
+    if (list) list.push(mapDecision(d));
+    else byRequest.set(d.leave_request_id, [mapDecision(d)]);
+  }
+  return byRequest;
+}
+
+/**
+ * Does this request belong under a status tab? Membership, not a verdict — a
+ * request the class teacher approved and the principal rejected appears under
+ * both, which is what "no single combined verdict is computed" has to mean at
+ * the filter as well as at the badge.
+ */
+export function matchesStatus(
+  decisions: LeaveDecisionRow[],
+  status: LeaveStatus | "all",
+): boolean {
+  if (status === "all") return true;
+  if (status === "pending") return decisions.length === 0;
+  return decisions.some((d) => d.decision === status);
+}
+
 export function decisionAttribution(d: LeaveDecisionRow | undefined): string | null {
   if (!d) return null;
   if (!d.decidedBy) return "decider not recorded";
   return d.decidedByRole ? `decided by ${d.decidedByRole}` : "decided";
 }
 
-function mapRow(row: DbLeave, decision?: LeaveDecisionRow): LeaveRequestRow {
+function mapRow(row: DbLeave, decisions: LeaveDecisionRow[] = []): LeaveRequestRow {
   return {
     id: row.id,
     applicantUserId: row.applicant_user_id,
@@ -123,13 +153,11 @@ function mapRow(row: DbLeave, decision?: LeaveDecisionRow): LeaveRequestRow {
     fromDate: row.from_date,
     toDate: row.to_date,
     reason: row.reason,
-    // DERIVED, not read. A request with no decision row is pending, whatever
-    // the column happens to hold.
-    status: decision ? decision.decision : "pending",
+    // DERIVED, not read. Pending is the absence of any decision — the one
+    // question that stays well-defined when two deciders disagree.
+    decisions,
+    isPending: decisions.length === 0,
     createdAt: row.created_at,
-    reviewedAt: decision?.decidedAt ?? null,
-    reviewedBy: decision?.decidedBy ?? null,
-    decision: decision ?? null,
     studentId: row.student_id,
     classId: row.class_id,
   };
@@ -167,13 +195,8 @@ export const LeaveService = {
       .in("leave_request_id", rows.map((r) => r.id));
     throwIfError(decisionsErr, "Failed to load leave decisions");
 
-    const byRequest = new Map(
-      ((decisions ?? []) as unknown as DbLeaveDecision[]).map((d) => [
-        d.leave_request_id,
-        mapDecision(d),
-      ]),
-    );
-    return rows.map((r) => mapRow(r, byRequest.get(r.id)));
+    const byRequest = groupDecisions((decisions ?? []) as unknown as DbLeaveDecision[]);
+    return rows.map((r) => mapRow(r, byRequest.get(r.id) ?? []));
   },
 
   async listPending(ctx: ServiceContext): Promise<LeaveRequestRow[]> {
@@ -240,21 +263,16 @@ export const LeaveService = {
     throwIfError(requestsRes.error, "Failed to list leave requests");
     throwIfError(decisionsRes.error, "Failed to list leave decisions");
 
-    const decisionByRequest = new Map(
-      ((decisionsRes.data ?? []) as DbLeaveDecision[]).map((d) => [
-        d.leave_request_id,
-        mapDecision(d),
-      ]),
+    const decisionByRequest = groupDecisions((decisionsRes.data ?? []) as DbLeaveDecision[]);
+
+    // Filter on the DERIVED membership before the limit. Limiting first would
+    // return fewer rows than asked for and silently drop the rest.
+    const scoped = ((requestsRes.data ?? []) as DbLeave[]).filter((r) =>
+      matchesStatus(decisionByRequest.get(r.id) ?? [], status),
     );
 
-    const scoped = ((requestsRes.data ?? []) as DbLeave[]).filter((r) => {
-      if (status === "all") return true;
-      const d = decisionByRequest.get(r.id);
-      return (d ? d.decision : "pending") === status;
-    });
-
     return scoped.slice(0, limit).map((row) => {
-      const base = mapRow(row, decisionByRequest.get(row.id));
+      const base = mapRow(row, decisionByRequest.get(row.id) ?? []);
       const teacher = teacherByUserId.get(row.applicant_user_id);
       const student = row.student_id ? studentById.get(row.student_id) : undefined;
       const applicantName =
@@ -323,7 +341,6 @@ export const LeaveService = {
         reason,
         student_id: kind === "student" ? (input.studentId ?? ctx.studentId ?? null) : null,
         class_id: kind === "student" ? (input.classId ?? null) : null,
-        status: "pending",
       })
       .select("*")
       .single();
@@ -369,32 +386,35 @@ export const LeaveService = {
     const client = getClient(toRepoContext(ctx));
     const decidedAt = new Date().toISOString();
 
-    // CHUNK 8 BATCH 1b. The decision row is written FIRST and is the authority.
+    // CHUNK 8 BATCH 1c. The dual write is gone: leave_decisions is the only
+    // record of a verdict, and status / reviewed_at / reviewed_by are dropped.
     //
-    // The column is still updated below, and that is deliberate for one batch:
-    // batch 1c drops the column and this dual write together. Nothing reads the
-    // column any more, so it cannot disagree with the authority in a way anyone
-    // can see — but leaving it stale while it still exists would be a second
-    // home that only looks harmless because 1c is coming.
+    // The UPDATE this replaces was doing two jobs. Keeping the column in sync
+    // was one; the other was `.eq("status", "pending")`, which proved the
+    // request existed AND was undecided, and was what stopped a second decide()
+    // inserting a duplicate. Deleting the UPDATE without replacing that check
+    // is the one way this batch could silently regress correctness.
     //
-    // `.eq("status", "pending")` on the UPDATE is what makes this idempotent:
-    // a second decide() on an already-decided request matches no row and is
-    // rejected below, so the insert cannot produce a duplicate decision.
+    // Existence is now proved by reading the row — RLS scopes it, so a request
+    // in another school reads as absent, exactly as before. Uniqueness is no
+    // longer the client's job at all: leave_decisions is UNIQUE per
+    // (leave_request_id, decided_by_role), with a partial unique index covering
+    // the role-less case, so a duplicate is rejected by Postgres rather than by
+    // a predicate the client hopes it remembered to write.
+    //
+    // Deliberately NOT re-added: a guard rejecting a decision because someone
+    // else already decided. A student's leave goes to both the class teacher
+    // and the principal and either may act — the old guard made the second
+    // decision impossible, which is why no live request has two.
     const { data, error } = await client
       .from("leave_requests")
-      .update({
-        status: decision,
-        reviewed_at: decidedAt,
-        reviewed_by: ctx.userId,
-      } as never)
-      .eq("id", leaveId)
-      .eq("status", "pending")
       .select("*")
+      .eq("id", leaveId)
       .maybeSingle();
-    throwIfError(error, "Failed to review leave request");
+    throwIfError(error, "Failed to load leave request");
     if (!data) {
       throw new ValidationFailedError([
-        { field: "leaveId", code: "not_found", message: "Pending leave request not found" },
+        { field: "leaveId", code: "not_found", message: "Leave request not found" },
       ]);
     }
 
@@ -413,7 +433,17 @@ export const LeaveService = {
       .insert({ ...decisionRow, school_id: ctx.schoolId } as never);
     throwIfError(decisionErr, "Failed to record leave decision");
 
-    const row = mapRow(data as DbLeave, mapDecision(decisionRow));
+    // Re-read every decision on this request. Mapping only the row just written
+    // would hand the caller a request that hides the other decider's verdict.
+    const { data: allDecisions, error: reReadErr } = await client
+      .from("leave_decisions")
+      .select("leave_request_id, decision, decided_by, decided_by_role, decided_at, reason")
+      .eq("leave_request_id", leaveId);
+    throwIfError(reReadErr, "Failed to re-read leave decisions");
+    const row = mapRow(
+      data as DbLeave,
+      groupDecisions((allDecisions ?? []) as unknown as DbLeaveDecision[]).get(leaveId) ?? [],
+    );
 
     await emitEvent(toRepoContext(ctx), {
       eventType: "leave.reviewed",

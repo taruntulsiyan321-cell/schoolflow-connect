@@ -30,19 +30,23 @@ DECLARE
   _seen       int;
   _inserted   int;
 BEGIN
-  -- ---------- 1. the derivation agrees with the column it replaces --------
-  -- Batch 1b drops leave_requests.status. Before that happens, the derived
-  -- answer must equal the stored one on every row, or the drop loses meaning.
+  -- ---------- 1. there is exactly one home for a verdict ------------------
+  -- This check used to compare the derivation against leave_requests.status.
+  -- Batch 1c dropped that column, so the comparison is no longer possible —
+  -- and what it was really asserting has become the stronger statement below:
+  -- there is nothing left to disagree with. The 1c migration ran the old
+  -- comparison one last time immediately before the DROP and refused to
+  -- proceed on any disagreement, which is the only moment it could be asked.
   SELECT count(*) INTO _total FROM public.leave_requests;
   SELECT count(*) INTO _n
-    FROM public.leave_requests lr
-   WHERE (lr.status <> 'pending')
-     <> EXISTS (SELECT 1 FROM public.leave_decisions d WHERE d.leave_request_id = lr.id);
+    FROM information_schema.columns
+   WHERE table_schema = 'public' AND table_name = 'leave_requests'
+     AND column_name IN ('status', 'reviewed_at', 'reviewed_by');
 
   IF _n = 0 THEN
-    _out := _out || format(E'PASS  derivation matches stored status on all %s row(s)\n', _total);
+    _out := _out || format(E'PASS  leave_decisions is the only home for a verdict across %s request(s)\n', _total);
   ELSE
-    _out := _out || format(E'FAIL  %s row(s) disagree between status and decision-row existence\n', _n);
+    _out := _out || format(E'FAIL  %s dual-write column(s) still on leave_requests\n', _n);
     _ok := false;
   END IF;
 
@@ -121,7 +125,8 @@ BEGIN
     FROM public.leave_requests lr
     JOIN public.students s  ON s.id = lr.student_id
     JOIN public.teachers t  ON t.class_teacher_of = s.class_id
-   WHERE lr.status = 'pending' AND t.user_id IS NOT NULL
+   WHERE NOT EXISTS (SELECT 1 FROM public.leave_decisions d WHERE d.leave_request_id = lr.id)
+     AND t.user_id IS NOT NULL
    LIMIT 1;
 
   IF _ct IS NULL THEN
@@ -151,17 +156,68 @@ BEGIN
     END IF;
   END IF;
 
-  -- ---------- 5. no pending request carries a decision --------------------
-  -- The derivation only means something while this holds.
-  SELECT count(*) INTO _n
-    FROM public.leave_decisions d
-    JOIN public.leave_requests lr ON lr.id = d.leave_request_id
-   WHERE lr.status = 'pending' AND d.reason IS DISTINCT FROM 'verification fixture';
-  IF _n = 0 THEN
-    _out := _out || E'PASS  no pending request carries a decision row (fixture excluded)\n';
-  ELSE
-    _out := _out || format(E'FAIL  %s pending request(s) carry a decision row\n', _n);
+  -- ---------- 5. a decision cannot be recorded twice ----------------------
+  -- This check used to assert that no pending request carried a decision —
+  -- detecting disagreement between the column and the table. With one home
+  -- that is tautological, and a check that cannot fail is not a check. What
+  -- replaced it is the guarantee batch 1c had to move into the database when
+  -- it deleted the client-side .eq("status","pending") predicate that had
+  -- been standing in for it: UNIQUE (leave_request_id, decided_by_role)
+  -- rejects a same-role duplicate, and the partial index covers the role-less
+  -- case that NULLs would otherwise let through.
+  SELECT count(*) INTO _n FROM (
+    SELECT leave_request_id
+      FROM public.leave_decisions
+     WHERE decided_by_role IS NULL
+     GROUP BY 1 HAVING count(*) > 1
+  ) x;
+  IF _n <> 0 THEN
+    _out := _out || format(E'FAIL  %s request(s) carry more than one role-less decision\n', _n);
     _ok := false;
+  ELSIF NOT EXISTS (SELECT 1 FROM pg_indexes
+                     WHERE schemaname = 'public'
+                       AND indexname = 'leave_decisions_one_roleless_per_request') THEN
+    _out := _out || E'FAIL  leave_decisions_one_roleless_per_request is missing — nothing refuses a role-less duplicate\n';
+    _ok := false;
+  ELSE
+    -- Prove it FIRES. An index that exists and an index that refuses look the
+    -- same from pg_indexes. This whole file rolls back, so nothing persists.
+    --
+    -- The id is captured and reused deliberately: an earlier version selected
+    -- the second row with `WHERE reason = 'verification fixture' LIMIT 1`, which
+    -- picked up check 4's fixture instead — a DIFFERENT request, carrying a
+    -- role — so no duplicate was ever attempted and the proof reported a
+    -- failure it had not actually tested for.
+    _req := NULL;
+    SELECT lr.id INTO _req
+      FROM public.leave_requests lr
+     WHERE NOT EXISTS (SELECT 1 FROM public.leave_decisions d WHERE d.leave_request_id = lr.id)
+     LIMIT 1;
+
+    IF _req IS NULL THEN
+      _out := _out || E'SKIP  no undecided request to attempt a duplicate against\n';
+    ELSE
+      INSERT INTO public.leave_decisions (leave_request_id, school_id, decision, decided_by_role, reason)
+      SELECT _req, lr.school_id, 'approved', NULL, 'verification fixture'
+        FROM public.leave_requests lr WHERE lr.id = _req;
+      GET DIAGNOSTICS _inserted = ROW_COUNT;
+
+      IF _inserted <> 1 THEN
+        -- The probe has to land before it can prove anything.
+        _out := _out || E'FAIL  could not insert the first role-less decision — the proof never ran\n';
+        _ok := false;
+      ELSE
+        BEGIN
+          INSERT INTO public.leave_decisions (leave_request_id, school_id, decision, decided_by_role, reason)
+          SELECT _req, lr.school_id, 'rejected', NULL, 'verification fixture'
+            FROM public.leave_requests lr WHERE lr.id = _req;
+          _out := _out || E'FAIL  a second role-less decision was accepted — the partial index does not refuse\n';
+          _ok := false;
+        EXCEPTION WHEN unique_violation THEN
+          _out := _out || E'PASS  a duplicate decision is refused by the database, not by a client predicate\n';
+        END;
+      END IF;
+    END IF;
   END IF;
 
   _out := _out || E'=====================================\n';

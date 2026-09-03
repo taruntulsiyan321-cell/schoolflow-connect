@@ -21,7 +21,12 @@ type UiLeave = {
   toDate: string;
   days: number;
   reason: string;
-  status: "pending" | "approved" | "rejected";
+  /**
+   * One entry per decision, or ["pending"] when nobody has decided. An array
+   * because leave_decisions permits a class-teacher and a principal verdict on
+   * the same request, and the spec displays both rather than merging them.
+   */
+  statuses: ("pending" | "approved" | "rejected")[];
   appliedAt: string;
   adminRemarks?: string;
 };
@@ -72,7 +77,7 @@ export default function Leave() {
             toDate: r.toDate,
             days: dayCount(r.fromDate, r.toDate),
             reason: r.reason ?? "",
-            status: r.status,
+        statuses: r.isPending ? ["pending"] : r.decisions.map((d) => d.decision),
             appliedAt: r.createdAt.slice(0, 10),
           })),
         );
@@ -112,7 +117,7 @@ export default function Leave() {
           toDate: r.toDate,
           days: dayCount(r.fromDate, r.toDate),
           reason: r.reason ?? "",
-          status: r.status,
+          statuses: r.isPending ? ["pending"] : r.decisions.map((d) => d.decision),
           appliedAt: r.createdAt.slice(0, 10),
         })),
       );
@@ -127,8 +132,12 @@ export default function Leave() {
     }
   }
 
-  const approved = requests.filter((r) => r.status === "approved").reduce((s, r) => s + r.days, 0);
-  const pending = requests.filter((r) => r.status === "pending").length;
+  // Membership, not a partition — a request carrying two conflicting verdicts
+  // counts under both, because no combined verdict is computed.
+  const approved = requests
+    .filter((r) => r.statuses.includes("approved"))
+    .reduce((s, r) => s + r.days, 0);
+  const pending = requests.filter((r) => r.statuses.includes("pending")).length;
 
   if (loading) {
     return (
@@ -256,19 +265,25 @@ export default function Leave() {
             <div key={r.id} className="bg-surface border border-border/70 rounded-2xl p-4 flex items-start gap-3">
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: `${statusColor[r.status]}18`, color: statusColor[r.status] }}
+                style={{
+                  background: `${statusColor[r.statuses[0]]}18`,
+                  color: statusColor[r.statuses[0]],
+                }}
               >
-                {statusIcon[r.status]}
+                {statusIcon[r.statuses[0]]}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="text-xs font-bold text-foreground">{toEnumLabel(r.leaveType, "leave_type")}</div>
-                  <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                    style={{ background: `${statusColor[r.status]}18`, color: statusColor[r.status] }}
-                  >
-                    {toEnumLabel(r.status, "leave_status")}
-                  </span>
+                  {r.statuses.map((st, i) => (
+                    <span
+                      key={`${st}-${i}`}
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: `${statusColor[st]}18`, color: statusColor[st] }}
+                    >
+                      {toEnumLabel(st, "leave_status")}
+                    </span>
+                  ))}
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1">

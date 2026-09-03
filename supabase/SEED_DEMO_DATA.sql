@@ -396,17 +396,32 @@ BEGIN
   ON CONFLICT DO NOTHING;
 
   -- ===================== LEAVE REQUESTS =====================
+  -- BATCH 1c: status / reviewed_by / reviewed_at are gone from leave_requests.
+  -- A verdict is a row in leave_decisions, and pending is the absence of one,
+  -- so the seed writes the request and then the decision separately.
   INSERT INTO public.leave_requests (
     id, applicant_user_id, applicant_kind, student_id, class_id,
-    leave_type, from_date, to_date, reason, status, reviewed_by, reviewed_at
+    leave_type, from_date, to_date, reason
   ) VALUES
     ('d9000002-0001-4000-8000-000000000001', u_s5, 'student', st5, c10a,
-     'medical', _today, _today + 1, 'Viral fever', 'pending', NULL, NULL),
+     'medical', _today, _today + 1, 'Viral fever'),
     ('d9000002-0002-4000-8000-000000000002', u_s3, 'student', st3, c10a,
-     'family', _today - 10, _today - 9, 'Family function', 'approved', u_t_math, now() - interval '11 days'),
+     'family', _today - 10, _today - 9, 'Family function'),
     ('d9000002-0003-4000-8000-000000000003', u_t_phys, 'teacher', NULL, NULL,
-     'personal', _today + 5, _today + 5, 'Personal work', 'rejected', u_principal, now() - interval '1 day')
-  ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status;
+     'personal', _today + 5, _today + 5, 'Personal work')
+  ON CONFLICT (id) DO NOTHING;
+
+  -- The first request stays pending: no decision row is written for it.
+  INSERT INTO public.leave_decisions (
+    leave_request_id, school_id, decision, decided_by, decided_by_role, decided_at
+  )
+  SELECT lr.id, lr.school_id, v.decision, v.decided_by, v.decided_by_role, v.decided_at
+    FROM (VALUES
+      ('d9000002-0002-4000-8000-000000000002'::uuid, 'approved', u_t_math, 'class_teacher', now() - interval '11 days'),
+      ('d9000002-0003-4000-8000-000000000003'::uuid, 'rejected', u_principal, 'principal', now() - interval '1 day')
+    ) AS v(leave_request_id, decision, decided_by, decided_by_role, decided_at)
+    JOIN public.leave_requests lr ON lr.id = v.leave_request_id
+  ON CONFLICT (leave_request_id, decided_by_role) DO NOTHING;
 
   -- ===================== INQUIRIES & COMPLAINTS =====================
   INSERT INTO public.school_inquiries (id, contact_name, contact_phone, contact_email, grade_interest, message, status, created_by) VALUES

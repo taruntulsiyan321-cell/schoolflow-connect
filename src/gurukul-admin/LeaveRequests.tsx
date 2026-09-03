@@ -3,7 +3,13 @@ import {
   Search, Eye, CheckCircle2, XCircle, Calendar, Loader2, X,
 } from "lucide-react";
 import { cn, InitialsAvatar, UndoToast } from "./shared";
-import { LeaveService, decisionAttribution, useAcademicLive, type SchoolLeaveRequestRow } from "@/academic";
+import {
+  LeaveService,
+  decisionAttribution,
+  matchesStatus,
+  useAcademicLive,
+  type SchoolLeaveRequestRow,
+} from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
 import { toErrorMessage } from "@/lib/presentation";
@@ -106,7 +112,11 @@ function LeaveDetail({
   onClose: () => void;
   onAction: (action: "approve" | "reject") => void;
 }) {
-  const cfg = STATUS_CONFIG[request.status];
+  // One badge per decision, never a merged verdict. A request the class teacher
+  // approved and the principal rejected shows both, side by side.
+  const badges = request.isPending
+    ? [STATUS_CONFIG.pending]
+    : request.decisions.map((d) => STATUS_CONFIG[d.decision]);
 
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
@@ -119,13 +129,16 @@ function LeaveDetail({
             <div className="text-[10px] text-muted-foreground">
               {request.department ?? request.applicantKind}
             </div>
-            <div className="mt-1">
-              <span
-                className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: cfg.bg, color: cfg.color }}
-              >
-                {cfg.label}
-              </span>
+            <div className="mt-1 flex items-center gap-1 flex-wrap">
+              {badges.map((b, i) => (
+                <span
+                  key={`${b.label}-${i}`}
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: b.bg, color: b.color }}
+                >
+                  {b.label}
+                </span>
+              ))}
             </div>
           </div>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
@@ -161,22 +174,24 @@ function LeaveDetail({
               timestamp hid the verdict entirely for those. Say what the data
               supports: the verdict always, the time and the decider only when
               they were actually recorded. */}
-          {request.decision && (
-            <div className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
-              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Reviewed</div>
+          {request.decisions.map((d, i) => (
+            <div key={`${d.decidedByRole ?? "unattributed"}-${i}`} className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">
+                Reviewed
+              </div>
+              <div className="text-xs" style={{ color: STATUS_CONFIG[d.decision].color }}>
+                {STATUS_CONFIG[d.decision].label}
+              </div>
               <div className="text-xs text-[#c8c8d4]">
-                {request.decision.decidedAt
-                  ? new Date(request.decision.decidedAt).toLocaleString("en-IN")
-                  : "Time not recorded"}
+                {d.decidedAt ? new Date(d.decidedAt).toLocaleString("en-IN") : "Time not recorded"}
               </div>
-              <div className="text-[10px] text-muted-foreground">
-                {decisionAttribution(request.decision)}
-              </div>
+              <div className="text-[10px] text-muted-foreground">{decisionAttribution(d)}</div>
+              {d.reason && <div className="text-[10px] text-muted-foreground">{d.reason}</div>}
             </div>
-          )}
+          ))}
         </div>
 
-        {request.status === "pending" && (
+        {request.isPending && (
           <div className="p-4 border-t border-border/70 space-y-2">
             <button
               type="button"
@@ -243,7 +258,7 @@ export default function LeaveRequests() {
 
   const filtered = useMemo(() => {
     let list = requests;
-    if (statusTab !== "all") list = list.filter((r) => r.status === statusTab);
+    if (statusTab !== "all") list = list.filter((r) => matchesStatus(r.decisions, statusTab));
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -275,10 +290,13 @@ export default function LeaveRequests() {
   }
 
   const tabCounts = useMemo(() => {
+    // Membership, not a partition: a request with two conflicting decisions is
+    // counted under both Approved and Rejected. The tabs therefore need not sum
+    // to All, which is the honest shape when no combined verdict exists.
     const c: Record<string, number> = { all: requests.length };
-    requests.forEach((r) => {
-      c[r.status] = (c[r.status] ?? 0) + 1;
-    });
+    for (const tab of ["pending", "approved", "rejected"] as const) {
+      c[tab] = requests.filter((r) => matchesStatus(r.decisions, tab)).length;
+    }
     return c;
   }, [requests]);
 
@@ -365,7 +383,9 @@ export default function LeaveRequests() {
         )}
 
         {filtered.map((req) => {
-          const cfg = STATUS_CONFIG[req.status];
+          const rowBadges = req.isPending
+            ? [STATUS_CONFIG.pending]
+            : req.decisions.map((d) => STATUS_CONFIG[d.decision]);
           return (
             <div
               key={req.id}
@@ -376,12 +396,15 @@ export default function LeaveRequests() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="text-sm font-bold text-foreground">{req.applicantName}</span>
-                    <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: cfg.bg, color: cfg.color }}
-                    >
-                      {cfg.label}
-                    </span>
+                    {rowBadges.map((b, i) => (
+                      <span
+                        key={`${b.label}-${i}`}
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: b.bg, color: b.color }}
+                      >
+                        {b.label}
+                      </span>
+                    ))}
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       {leaveTypeLabel(req.leaveType)}
                     </span>
@@ -418,7 +441,7 @@ export default function LeaveRequests() {
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
-                  {req.status === "pending" && (
+                  {req.isPending && (
                     <>
                       <button
                         type="button"
