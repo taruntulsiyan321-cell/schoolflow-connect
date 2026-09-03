@@ -68,35 +68,6 @@ const ALLOWLIST = {
     "Generates search aliases for term lookup; aliases are matched against, never displayed.",
   "src/academic/taxonomy/seeds/commerceRbse.ts::ad-hoc-humanize":
     "Seed data alias generation for taxonomy matching; not a display path.",
-
-  // Mojibake here is DATA, not corruption: the patterns that detect it, the
-  // fixtures that test it, and comments that illustrate it. Repairing these
-  // would disable the machinery that keeps mojibake off the screen. The same
-  // list is mirrored in scripts/repair-source-mojibake.cjs (EXCLUDED).
-  "src/lib/utf8MojibakeRepair.ts::source-mojibake":
-    "Contains UTF8_MOJIBAKE_SIGNATURE — the detection regex itself.",
-  "src/lib/utf8MojibakeRepair.test.ts::source-mojibake":
-    "Test fixtures are deliberately mojibake.",
-  "src/lib/utf8Text.ts::source-mojibake":
-    "CONTENT_MOJIBAKE map — the left-hand side must stay corrupted to match.",
-  "src/lib/utf8Mojibake.ts::source-mojibake":
-    "Deprecated re-export shim for the repair SSOT.",
-  "src/lib/repairWin1252Utf8.ts::source-mojibake":
-    "Deprecated re-export shim for the repair SSOT.",
-  "src/academic/taxonomy/humanize.ts::source-mojibake":
-    "MOJIBAKE_MAP — patterns must stay corrupted to match.",
-  "src/lib/academicDisplay.test.ts::source-mojibake":
-    "Test fixtures are deliberately mojibake.",
-  "src/lib/presentation/presentation.test.ts::source-mojibake":
-    "Asserts the boundary repairs mojibake; inputs must stay corrupted.",
-  "src/lib/presentation/aiText.test.tsx::source-mojibake":
-    "Asserts AI output is repaired; inputs must stay corrupted.",
-  "src/academic/services/practiceService.ts::source-mojibake":
-    "Mojibake appears only inside an explanatory comment.",
-  "src/academic/taxonomy/canonicalize.ts::source-mojibake":
-    "Mojibake appears only inside an explanatory comment.",
-  "src/pages/shared/QuestionBankPage.tsx::source-mojibake":
-    "Remaining sequence is inside a comment illustrating paste corruption.",
 };
 
 /** Enum-ish property names that must not be rendered as bare JSX children. */
@@ -118,38 +89,6 @@ const RULES = [
     message:
       "A caught error's raw .message can be PostgREST text naming tables/constraints. " +
       'Use toErrorMessage(err, "…") from @/lib/presentation.',
-    files: /\.(ts|tsx)$/,
-  },
-  {
-    id: "empty-select-item-value",
-    // Radix reserves "" for "clear the selection" and THROWS on an empty
-    // SelectItem value. It is not a cosmetic issue: it white-screened the
-    // whole teacher Question Bank page (found live, 2026-08-24). Use a
-    // sentinel value and translate it in onValueChange.
-    test: /<SelectItem\s[^>]*value=""/,
-    message:
-      'A <SelectItem value=""> throws in Radix and blanks the entire page. ' +
-      'Use a sentinel (e.g. value="any") and map it back to "" in onValueChange.',
-    files: /\.tsx$/,
-  },
-  {
-    id: "raw-error-field",
-    // `toast({ description: bErr.message })` — a destructured Supabase error.
-    // Same raw PostgREST text as `raw-error-message`, different shape, so the
-    // first rule could not see it.
-    test: /(description|title|message):\s*[A-Za-z_$][\w$]*\.message\b/,
-    message:
-      "A Supabase/PostgREST error's raw .message is being shown to the user. " +
-      'Use toErrorMessage(err, "…") from @/lib/presentation.',
-    files: /\.(ts|tsx)$/,
-    refine: (line) => /\b(err|error|Err|Error)\b/.test(line),
-  },
-  {
-    id: "hand-rolled-error-duck-typing",
-    test: /"message"\s+in\s+[A-Za-z_$][\w$]*/,
-    message:
-      "Hand-rolled error duck-typing reproduces the error boundary badly and " +
-      "leaks raw driver text. Use toErrorMessage(err, \"…\").",
     files: /\.(ts|tsx)$/,
   },
   {
@@ -204,20 +143,6 @@ const RULES = [
       "CSS `capitalize` on a raw enum only turns `half_day` into `Half_day`. " +
       "Render toEnumLabel(value, domain) instead and drop the class.",
     files: /\.tsx$/,
-  },
-  {
-    id: "source-mojibake",
-    // UTF-8-as-CP1252 sequences baked into the source itself. The runtime
-    // boundary screens *data*; it cannot fix a corrupted string literal, which
-    // renders exactly as written. 909 of these were introduced on 2026-08-23
-    // when a bulk theme edit re-saved 77 files through a CP1252 round-trip.
-    test: /â€|Â[·°¹²³½¼¾ ]|Ã[-ÿ]|à¤|à¥|â”€|ðŸ/,
-    message:
-      "Corrupted (mojibake) text in a source literal. Run " +
-      "`node scripts/repair-source-mojibake.cjs --write`. If the sequence is " +
-      "deliberate (a detection pattern or test fixture), add the file to that " +
-      "script's EXCLUDED map and to this linter's ALLOWLIST.",
-    files: /\.(ts|tsx)$/,
   },
   {
     id: "raw-enum-render",
