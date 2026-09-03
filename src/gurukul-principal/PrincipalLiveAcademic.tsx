@@ -16,6 +16,8 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { localDateKey } from "@/lib/localDate";
 import { toEnumLabel, toErrorMessage, toPersonName, toPercentLabel } from "@/lib/presentation";
+// CHUNK 8. Was a literal 75 on both bands while ATTENDANCE_LOW is 80 and locked.
+import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds";
 
 /**
  * Principal live academic panels — sourced from the Academic Engine only.
@@ -309,7 +311,7 @@ export function PrincipalClassRollups({
                   <td
                     style={{
                       padding: "12px 14px", fontSize: 12, fontWeight: 600,
-                      color: c.avgAttendancePct === null ? "var(--text-muted)" : (c.avgAttendancePct >= 90 ? "var(--emerald)" : c.avgAttendancePct >= 75 ? "var(--amber)" : "var(--rose)"),
+                      color: c.avgAttendancePct === null ? "var(--text-muted)" : (c.avgAttendancePct >= 90 ? "var(--emerald)" : c.avgAttendancePct >= ATTENDANCE_LOW ? "var(--amber)" : "var(--rose)"),
                     }}
                     className="font-mono-data"
                   >
@@ -569,7 +571,7 @@ export function PrincipalAttendanceLive() {
                     <td
                       style={{
                         padding: "10px 14px", fontSize: 12, fontWeight: 600,
-                        color: c.dayRatePct >= 90 ? "var(--emerald)" : c.dayRatePct >= 75 ? "var(--amber)" : "var(--rose)",
+                        color: c.dayRatePct >= 90 ? "var(--emerald)" : c.dayRatePct >= ATTENDANCE_LOW ? "var(--amber)" : "var(--rose)",
                       }}
                       className="font-mono-data"
                     >

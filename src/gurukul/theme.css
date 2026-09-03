@@ -869,10 +869,30 @@
     0 8px 24px rgba(59, 91, 219, 0.02);
 }
 
-/* More vibrant primary buttons */
+/* More vibrant primary buttons.
+ *
+ * CHUNK 8. The third selector here was `.gurukul-student [class*="bg-primary"]`
+ * with NO element qualifier, so a rule written for buttons reached every element
+ * in the student shell carrying a bare `bg-primary` — 22 of them, across 11
+ * files. Its two siblings at lines 474 and 481 both qualify on `button`; this
+ * one did not, and the comment above it says "buttons".
+ *
+ * What it was doing to them: a `border: 1px solid` and a 16px shadow on things
+ * that are 2px to 6px across. `w-8 h-0.5` nav underlines (Layout 672, 702) are
+ * two pixels tall and were entirely border. A `w-1 h-4` section divider
+ * (shared.tsx:70) is four pixels wide, of which two became border.
+ *
+ * And `[class*="bg-primary"]` is a SUBSTRING match, so it also caught
+ * `[&>div]:bg-primary` — the arbitrary-variant class sits on the Progress
+ * TRACK while the colour it names is meant for the fill inside it. Two progress
+ * bars (PracticeHubPage:414, RecoveryHubPage:323) had the gradient applied to
+ * the wrong element entirely.
+ *
+ * Removed rather than qualified: qualifying it on `button` would have made it a
+ * duplicate of the line above.
+ */
 .gurukul-student button[class*="bg-[#3b5bdb]"],
-.gurukul-student button[class*="bg-primary"]:not([class*="bg-primary/"]),
-.gurukul-student [class*="bg-primary"]:not([class*="bg-primary/"]) {
+.gurukul-student button[class*="bg-primary"]:not([class*="bg-primary/"]) {
   background: linear-gradient(135deg, 
     hsl(var(--primary)) 0%, 
     hsl(var(--primary) / 0.92) 100%) !important;
