@@ -57,9 +57,27 @@ function runEslint() {
   // through `npx`: on Windows npx resolves to npx.cmd, which Node 24 refuses to
   // spawn without `shell: true`, and a shell would then have to quote a repo
   // path containing spaces. Calling the script directly avoids both.
-  const BIN = join(ROOT, "node_modules", "eslint", "bin", "eslint.js");
-  if (!existsSync(BIN)) {
-    console.error(`BLOCKED: eslint not installed at ${BIN}. Run npm install.`);
+  //
+  // RESOLVED BY WALKING UP, not by joining ROOT. In a git worktree under
+  // .claude/worktrees/, node_modules is EMPTY and Node resolves packages from
+  // the primary checkout further up the tree — so a hardcoded
+  // `join(ROOT, "node_modules", ...)` reports "eslint not installed" in exactly
+  // the place the gate is most needed. The BLOCKED exit was correct; the path
+  // was not.
+  const BIN = (() => {
+    let dir = ROOT;
+    for (;;) {
+      const candidate = join(dir, "node_modules", "eslint", "bin", "eslint.js");
+      if (existsSync(candidate)) return candidate;
+      const parent = dirname(dir);
+      if (parent === dir) return null;
+      dir = parent;
+    }
+  })();
+  if (!BIN) {
+    console.error(
+      `BLOCKED: eslint not found in any node_modules from ${ROOT} upwards. Run npm install.`,
+    );
     process.exit(2);
   }
   try {
