@@ -51,7 +51,8 @@
     "check:divergence": "node scripts/check-branch-divergence.mjs",
     "check:divergence:self-test": "node scripts/check-branch-divergence.mjs --self-test",
     "preflight": "npm run check:divergence && node scripts/check-foreign-migrations.mjs",
-    "db:types:dry-run": "node scripts/gen-types.mjs --dry-run"
+    "db:types:dry-run": "node scripts/gen-types.mjs --dry-run",
+    "verify:caller-privileges": "node scripts/verify-caller-privileges.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",
