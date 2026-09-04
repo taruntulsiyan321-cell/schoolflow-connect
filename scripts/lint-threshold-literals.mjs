@@ -67,7 +67,28 @@ const METRIC_WORDS = [
   "marks", "score", "exam", "test",
   "pct", "percent", "percentage", "rate", "ratio",
   "accuracy", "mastery", "pass", "threshold",
+  // A subject AVERAGE is a metric and nothing above spells it. Its absence let
+  // `SUBJECT_AVERAGE_LOW_AWAITING_RULING = 40` sit in
+  // gurukul-principal/analysis/thresholds.ts as a live second home for
+  // SUBJECT_AVERAGE_LOW while the gate reported the file clean.
+  "average", "avg",
 ];
+
+/**
+ * The smallest real threshold in the module is CONSECUTIVE_ABSENCE = 3, so a
+ * literal below it is an emptiness check, a counter seed or a sort rank — never
+ * a threshold. Applied to comparisons, declarations AND properties; it used to
+ * guard only comparisons, which is why `max: 0`, `high: 0`, `low: 2` and four
+ * `= 0` counter seeds were being reported as threshold debt.
+ */
+const SMALLEST_THRESHOLD = 3;
+
+/**
+ * `.length` and `.size` are collection arithmetic. `pendingHomework.length >= 3`
+ * matched only because the CHAIN contains "homework"; the thing being compared
+ * is a count of array entries, not a metric.
+ */
+const COLLECTION_LEAF = /^(length|size)$/;
 
 /** Names that end a threshold hunt: they are the imported constant, not a literal. */
 const THRESHOLD_CONST = /^[A-Z][A-Z0-9_]*$/;
@@ -93,6 +114,19 @@ function stripNoise(src) {
     .replace(/'(?:[^'\\]|\\.)*'/g, " ");
 }
 
+/**
+ * `(selected?.attendancePct ?? 100) < 75` was invisible: the token immediately
+ * left of the operator is `)`, so the comparison regex never matched, and the
+ * defaulted form is EXACTLY how a nullable metric gets compared. Rewriting
+ * `(X ?? n)` and `(X || n)` to `X` puts those comparisons back in view.
+ */
+function unwrapDefaults(src) {
+  return src.replace(
+    /\(\s*([A-Za-z_$][\w$.?]*)\s*(?:\?\?|\|\|)\s*\d+(?:\.\d+)?\s*\)/g,
+    "$1",
+  );
+}
+
 const isMetricName = (name) => {
   const n = name.toLowerCase();
   return METRIC_WORDS.some((w) => n.includes(w));
@@ -104,7 +138,7 @@ const isMetricName = (name) => {
  * so a clean result states what it looked at.
  */
 export function findThresholdLiterals(src) {
-  const body = stripNoise(src);
+  const body = unwrapDefaults(stripNoise(src));
   const findings = [];
   let examined = 0;
 
@@ -119,12 +153,13 @@ export function findThresholdLiterals(src) {
     // The last segment of a chain is the property being compared.
     const leaf = name.split(/[.?]/).filter(Boolean).pop() ?? name;
     if (THRESHOLD_CONST.test(leaf)) continue; // comparing against a CONSTANT, fine
+    if (COLLECTION_LEAF.test(leaf)) continue;  // array arithmetic, not a metric
     if (!isMetricName(name)) continue;
     // `x > 0`, `x === 0`, `length === 1` are EMPTINESS checks, not thresholds.
     // Every threshold in the module is 3 or greater (CONSECUTIVE_ABSENCE = 3 is
     // the smallest), so 0 and 1 can be excluded without losing one — and the
     // self-test carries both directions to prove the narrowing did not blind it.
-    if (Number(num) <= 1) continue;
+    if (Number(num) < SMALLEST_THRESHOLD) continue;
     findings.push({ kind: "comparison", text: `${name} ${op} ${num}`, name, value: num });
   }
 
@@ -133,6 +168,7 @@ export function findThresholdLiterals(src) {
   for (const m of body.matchAll(DECL)) {
     examined += 1;
     if (!isMetricName(m[1])) continue;
+    if (Number(m[2]) < SMALLEST_THRESHOLD) continue;
     findings.push({ kind: "declaration", text: `${m[1]} = ${m[2]}`, name: m[1], value: m[2] });
   }
 
@@ -140,6 +176,7 @@ export function findThresholdLiterals(src) {
   const PROP = /\b(pass|low|high|threshold|min|max|floor|ceiling|classFlag|overdue)\s*:\s*(\d+(?:\.\d+)?)\b/gi;
   for (const m of body.matchAll(PROP)) {
     examined += 1;
+    if (Number(m[2]) < SMALLEST_THRESHOLD) continue;
     findings.push({ kind: "property", text: `${m[1]}: ${m[2]}`, name: m[1], value: m[2] });
   }
 
@@ -208,6 +245,58 @@ const FIXTURES = [
   {
     name: "STILL a threshold after the narrowing: attendance at 80",
     src: "if (attendancePct < 80) { flag() }",
+    mustFind: true,
+  },
+
+  // ── The two shapes that were hiding from the detector ────────────────────
+  {
+    name: "WAS INVISIBLE: a subject-average constant, second home for SUBJECT_AVERAGE_LOW",
+    src: "const SUBJECT_AVERAGE_LOW_AWAITING_RULING = 40;",
+    mustFind: true,
+  },
+  {
+    name: "WAS INVISIBLE: a nullish-defaulted comparison",
+    src: "if ((selected?.attendancePct ?? 100) < 75) { flag() }",
+    mustFind: true,
+  },
+  {
+    name: "WAS INVISIBLE: the || form of the same shape",
+    src: "if ((cls.homeworkCompletionPct || 0) < 60) { flag() }",
+    mustFind: true,
+  },
+  // Unwrapping must not invent a finding where the default IS the comparison.
+  {
+    name: "NOT a threshold: unwrapping leaves an imported constant alone",
+    src: "if ((s.attendancePct ?? 100) < ATTENDANCE_LOW) { flag() }",
+    mustFind: false,
+  },
+
+  // ── Precision: what the narrowing must now stay quiet about ─────────────
+  // Twelve of the forty findings were these. A gate that reports a dozen
+  // non-findings is a gate people stop reading, so both directions are pinned.
+  {
+    name: "NOT a threshold: a counter seeded at zero",
+    src: "let pendingMarks = 0;",
+    mustFind: false,
+  },
+  {
+    name: "NOT a threshold: a sort-rank map",
+    src: "const order = { high: 0, medium: 1, low: 2 };",
+    mustFind: false,
+  },
+  {
+    name: "NOT a threshold: an axis maximum of zero",
+    src: "const axis = { max: 0 };",
+    mustFind: false,
+  },
+  {
+    name: "NOT a threshold: array length, even on a metric-named collection",
+    src: "if (pendingHomework.length >= 3) { flag() }",
+    mustFind: false,
+  },
+  {
+    name: "STILL a threshold: a real property at the smallest real value",
+    src: "export const T = { marks: { pass: 40 }, absence: { threshold: 3 } };",
     mustFind: true,
   },
 ];
