@@ -138,22 +138,34 @@ export function useSchoolFees() {
           return a.collectedPct - b.collectedPct
         })
 
-        // Unpaid past due, worst (largest outstanding) first.
-        const unpaidPastDue: UnpaidStudentRow[] = feeRows
-          .filter((r) => r.status !== 'paid' && r.due_date !== null && r.due_date < today)
-          .map((r) => {
-            const classId = studentClass.get(r.student_id) ?? null
-            const cls = classId ? classById.get(classId) : null
-            return {
+        // Unpaid past due — one row per STUDENT (not per fee row), so the count
+        // is "students", matching the §7 label and the "students unpaid" KPI.
+        // Outstanding is summed across the student's overdue months; the oldest
+        // due date is kept. Worst (largest outstanding) first.
+        const overdueByStudent = new Map<string, UnpaidStudentRow>()
+        for (const r of feeRows) {
+          if (r.status === 'paid' || r.due_date === null || r.due_date >= today) continue
+          const classId = studentClass.get(r.student_id) ?? null
+          const cls = classId ? classById.get(classId) : null
+          const existing = overdueByStudent.get(r.student_id)
+          const outstanding = Math.max(0, r.amount - r.paid_amount)
+          if (existing) {
+            existing.outstanding += outstanding
+            if (r.due_date < (existing.dueDate ?? '9999')) existing.dueDate = r.due_date
+          } else {
+            overdueByStudent.set(r.student_id, {
               studentId: r.student_id,
               name: studentName.get(r.student_id) ?? 'Unnamed',
               classId,
               classLabel: cls ? toClassLabel(cls.name, cls.section) : '—',
-              outstanding: Math.max(0, r.amount - r.paid_amount),
+              outstanding,
               dueDate: r.due_date,
-            }
-          })
-          .sort((a, b) => b.outstanding - a.outstanding)
+            })
+          }
+        }
+        const unpaidPastDue: UnpaidStudentRow[] = [...overdueByStudent.values()].sort(
+          (a, b) => b.outstanding - a.outstanding,
+        )
 
         setData({
           enabled,
