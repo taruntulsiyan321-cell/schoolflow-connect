@@ -40,6 +40,8 @@ DECLARE
   cls12  uuid := 'd2000001-0012-4000-8000-000000000012';
   sch_a  uuid := '00000000-0000-4000-8000-000000000001';
   res    uuid := 'c0ffee00-0009-4000-8000-000000000009';  -- the probe's resource row
+  wide   uuid := 'c0ffee00-0010-4000-8000-000000000010';  -- a school-wide row (class_id NULL)
+  par_a  uuid := 'd1000004-0001-4000-8000-000000000001';  -- parent of Arjun Mehta, 10-A
   r text; r2 text; n int;
 BEGIN
   -- ---- upload: the teacher who teaches the class ----
@@ -81,17 +83,34 @@ BEGIN
      CASE WHEN r='OK: 1' THEN 'PASS' ELSE 'FAIL' END);
 
   -- ---- read: a student of ANOTHER CLASS in the same school ----
-  -- MEASURED, NOT ASSUMED. resources_select is
-  --   same_school(school_id) AND (is_published OR admin OR teacher)
-  -- with no class predicate, so RLS alone does NOT confine a published resource
-  -- to its target class. §10.11 states no read rule at all, so this is
-  -- unspecified rather than a violated requirement. The class scoping that the
-  -- product actually shows is applied one layer up, in
-  -- ResourceService.listForStudent, and the next assertion measures that.
+  -- Ruled 2026-09-04 and closed by 20260905020000: "targeted at a specific
+  -- class" now binds the READ as well as the upload. Before that migration this
+  -- returned 1 — resources_select was same_school AND (is_published OR admin OR
+  -- teacher), with no class predicate anywhere, and the only class scoping in
+  -- the product lived in ResourceService.listForStudent's filter.
   r := pg_temp.as_user(stud12, format(
     $q$SELECT count(*)::text FROM public.learning_resources WHERE id = %L$q$, res));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('10.11 RLS alone does NOT confine a resource to its class','student of 12-A','OK: 1 - school-wide read, see KNOWN_ISSUES',r,
+    ('10.11 RLS confines a resource to its class','student of 12-A','OK: 0',r,
+     CASE WHEN r='OK: 0' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- Pair for the denial above: a school-wide row (class_id IS NULL) must still
+  -- reach that same student, or "0" above would also be produced by a policy
+  -- that simply hid everything (G11).
+  INSERT INTO public.learning_resources
+    (id, school_id, class_id, title, resource_type, storage_path, created_by)
+  VALUES (wide, sch_a, NULL, 'probe9 school-wide', 'pdf', 'probe/wide.pdf', priya);
+  r := pg_temp.as_user(stud12, format(
+    $q$SELECT count(*)::text FROM public.learning_resources WHERE id = %L$q$, wide));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('10.11 school-wide resource still reaches every student (positive control)','student of 12-A','OK: 1',r,
+     CASE WHEN r='OK: 1' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- And a parent of a child in the target class must see it.
+  r := pg_temp.as_user(par_a, format(
+    $q$SELECT count(*)::text FROM public.learning_resources WHERE id = %L$q$, res));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('10.11 parent of a child in that class can read it','parent','OK: 1',r,
      CASE WHEN r='OK: 1' THEN 'PASS' ELSE 'FAIL' END);
 
   -- The filter ResourceService.listForStudent actually sends for that student:
@@ -127,6 +146,19 @@ BEGIN
   SELECT count(*) INTO n FROM public.learning_resources WHERE id = res;
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('10.11 uploader deletes their own resource (positive control)','teacher who uploaded it','OK: 1 AND row gone',
+     format('%s / rows now: %s', r, n),
+     CASE WHEN r='OK: 1' AND n = 0 THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ---- a resource orphaned by a deleted class is still the uploader's ----
+  -- KNOWN_ISSUES 8: every write policy used to require class_id IS NOT NULL, so
+  -- ON DELETE SET NULL left rows nobody could edit or remove.
+  UPDATE public.learning_resources SET class_id = NULL WHERE id = wide;
+  r := pg_temp.as_user(priya, format(
+    $q$WITH del AS (DELETE FROM public.learning_resources WHERE id = %L RETURNING 1)
+      SELECT count(*)::text FROM del$q$, wide));
+  SELECT count(*) INTO n FROM public.learning_resources WHERE id = wide;
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('10.11 uploader can delete a resource orphaned by a deleted class','teacher who uploaded it','OK: 1 AND row gone',
      format('%s / rows now: %s', r, n),
      CASE WHEN r='OK: 1' AND n = 0 THEN 'PASS' ELSE 'FAIL' END);
 

@@ -90,8 +90,24 @@ Its body and expected response match `dpp-generate-questions` exactly, so it now
 points there — but that function's role gate is teacher/admin/principal, so
 students are refused **by design** even once issue 1 is fixed.
 
-Whether students may trigger AI question generation — and so spend school AI
-budget — is a policy question, not a build decision. **Needs a ruling.**
+**RULED 2026-09-04: students should reach it. BLOCKED, on issue 1 and on a
+deploy.** Two reasons it cannot be done yet, neither of them the ruling:
+
+1. Widening the gate to `["teacher","admin","principal","student"]` changes
+   nothing while `has_role` answers `false` for every role from a service-role
+   client. Issue 1 must land first or students swap a 403 for the same 403.
+2. It requires redeploying `dpp-generate-questions`, and the two `_shared`
+   modules in issue 3 have drifted, so a deploy from this repo does not
+   reproduce production.
+
+The recovered `supabase/functions/dpp-generate-questions/index.ts` was
+deliberately NOT edited: its README states it is byte-for-byte deployed v12,
+and editing it would quietly make that false. Change the role list at deploy
+time, together with the drift resolution.
+
+Worth deciding at the same time: the call charges the budget line
+`teacher.dpp.generate_questions`. A student-triggered generation probably wants
+its own feature_id so the two are separable in `ai_budget_usage`.
 
 ## 3. `dpp-generate-questions` is deployed but exists in no branch
 
@@ -188,10 +204,20 @@ The class scoping users actually experience is applied one layer up, in
 `or(class_id.eq.<mine>, class_id.is.null)` filter — also measured in `probe9`
 and in the end-to-end run, where the 12-A student did not see the 10-A resource.
 
-§10.11 states no read rule at all — it constrains who uploads, not who reads —
-so this is unspecified rather than a violated requirement. Left alone because
-the build brief said not to change any policy, and narrowing the read is a
-separate decision. **Needs a ruling** if class-confined reading was intended.
+§10.11 states no read rule at all — it constrains who uploads, not who reads.
+
+**RULED AND FIXED 2026-09-04** (`20260905020000`): "targeted at a specific
+class" now binds the read too. A published resource reaches a student of the
+target class, a parent of a child in that class (`is_class_of_my_child`), and
+anything with `class_id IS NULL` (school-wide). Staff see everything in their
+school. Principal was ADDED to the staff branch — previously they saw published
+rows only through the `is_published` disjunct that this rewrite removes, so
+without it they would have seen nothing.
+
+probe9 now measures `OK: 0` for the 12-A student where it measured `OK: 1`
+before, paired with two controls so a policy that merely hid everything could
+not pass: the school-wide row still reaches that student, and the parent still
+reads the class row.
 
 ## 7. `academic-files` is a public bucket with no tenancy scoping
 
@@ -205,16 +231,69 @@ So any authenticated user of any school can list every object, and anyone at all
 with the URL can download one without a session. `storage.objects` has no
 RESTRICTIVE tenancy fence, unlike the `public` schema tables.
 
-Not changed here: the brief scoped this item to UI and service layer and
-forbade policy changes, and moving the bucket would break the existing student
-read path. Worth a ruling on whether school material belongs in a public bucket.
+**RULED 2026-09-04 — fix written, BLOCKED by this environment's safety
+classifier** (it rewrites `storage.objects` policies). Needs an explicit
+go-ahead, exactly like issue 1.
+
+This is the cheapest moment the change will ever have, because nothing depends
+on the public URLs yet. Measured: `learning_resources` 0 rows, `homework` with
+attachments 0 rows, `homework_submissions` with attachments 0 rows, objects in
+the bucket 1.
+
+The migration, ready to apply:
+
+```sql
+UPDATE storage.buckets SET public = false WHERE id = 'academic-files';
+
+DROP POLICY IF EXISTS "academic files read" ON storage.objects;
+CREATE POLICY "academic files read" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'academic-files'
+    AND EXISTS (
+      SELECT 1 FROM public.profiles p
+       WHERE p.id::text = (storage.foldername(name))[1]
+         AND p.school_id = public.get_my_school_id()
+    )
+  );
+```
+
+Object keys are `{auth.uid}/{ts}-{name}` — user first, no school segment — so
+the fence goes through the uploader's profile rather than a path prefix.
+INSERT/UPDATE/DELETE already pin segment 1 to `auth.uid()` and stay untouched.
+
+**The client work it needs**, which is NOT done and must land in the same
+change or downloads break:
+
+- `publicAcademicFileUrl` becomes async and returns a signed URL, handling
+  three inputs: a bucket path, a legacy full public URL of this bucket (extract
+  the path, then sign), and an external http(s) link (passthrough). The chat
+  module already has this exact shape in `extractChatStoragePath`.
+- Its two callers become async: `src/gurukul/pages/Resources.tsx:22` and
+  `src/gurukul-teacher/Resources.tsx:350`.
+- `uploadAcademicFile` returns a durable bucket path in `url` rather than a
+  public URL, matching `toDurableChatAttachmentRef`.
+- `AttachmentUI.AttachmentList` renders `a.url` straight into `<a href>` and
+  `<img src>` (6 call sites), so it must resolve signed URLs into state, with
+  the raw value as the fallback while loading.
 
 ## 8. A deleted class strands its resources permanently
 
 `learning_resources.class_id` is nullable and its FK is `ON DELETE SET NULL`,
-but every write policy requires `class_id IS NOT NULL`. Deleting a class
-therefore leaves its resources readable school-wide (if `is_published`) and
-editable and deletable by nobody — not even the uploader.
+but every write policy required `class_id IS NOT NULL`. Deleting a class
+therefore left its resources editable and deletable by nobody — not even the
+uploader.
+
+**FIXED 2026-09-04** (`20260905020000`). §10.11 says "Deletable by the
+uploader" and attaches no class condition, so the old delete policy was
+over-restrictive against the spec as well as stranding orphans. Delete now keys
+on `created_by = auth.uid()` alone. Update still tests the teaching
+relationship for the row's current class and still refuses to leave one
+untargeted, but an orphan can be repaired. Update was additionally narrowed to
+the uploader, matching the delete rule; nothing calls update today.
+
+probe9 asserts the orphan case directly: class set to NULL, uploader deletes,
+row gone.
 
 ## 9. `ownership.ts` disagreed with the database about who owns resources
 
