@@ -49,3 +49,4 @@ docs/data-exports/
 # tsc -b writes these beside each tsconfig; `npm run typecheck` is build mode
 # since 10.7 group 1, so they appear on every typecheck run. Build output.
 *.tsbuildinfo
+.eslint-baseline-report.json

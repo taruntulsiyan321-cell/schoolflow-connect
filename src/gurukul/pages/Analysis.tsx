@@ -13,6 +13,7 @@ import {
   ArrowUp, ArrowDown, Minus, Printer, Star,
 } from "lucide-react";
 import { cn } from "@/gurukul/components/shared";
+import { type Tab, TABS, TABS_NEEDING_MARKS } from "./analysisTabs";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
@@ -93,19 +94,6 @@ const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: 
   );
 };
 
-// ── Tab types ─────────────────────────────────────────────────────────────────
-
-type Tab = "overview" | "subjects" | "topics" | "practice" | "activity" | "milestones";
-
-const TABS: { key: Tab; label: string }[] = [
-  { key: "overview",    label: "Overview" },
-  { key: "subjects",    label: "Subjects & Chapters" },
-  { key: "topics",      label: "Topics" },
-  { key: "practice",    label: "Practice & Tests" },
-  { key: "activity",    label: "Activity & Speed" },
-  { key: "milestones",  label: "Milestones & Reports" },
-];
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Analysis() {
@@ -158,7 +146,9 @@ export default function Analysis() {
       return { marks: markRows, exams: examRows };
     },
     {
-      enabled: academicReady && !!ctx && !!studentId,
+      // Gated per tab — see TABS_NEEDING_MARKS. On the practice tab this query
+      // does not run, so no test table is touched while that surface is open.
+      enabled: academicReady && !!ctx && !!studentId && TABS_NEEDING_MARKS.includes(tab),
       errorFallback: "Could not load marks for reports",
     },
   );
@@ -1161,53 +1151,6 @@ export default function Analysis() {
             )}
           </Card>
 
-          {/* Test results */}
-          <div>
-            <SLabel>Recent tests</SLabel>
-            {testResults.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No test results yet</p>
-            ) : (
-            <div className="space-y-2">
-              {testResults.map((t) => {
-                const col = scoreColor(t.score);
-                return (
-                  <div key={t.name} className="flex items-center gap-4 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-black" style={{ background: `${withAlpha(col, 0.08)}`, color: col }}>
-                      {t.score}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground">{t.name}</div>
-                      <div className="text-[11px] text-muted-foreground">{t.subject} · {t.date}</div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-black tabular-nums" style={{ color: col }}>{t.marksObtained}/{t.rawMax}</div>
-                      <div className="text-[11px] text-muted-foreground">{t.score}%</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            )}
-          </div>
-
-          {/* Score trend */}
-          {testTrend.length > 0 && (
-          <Card label="How your test scores changed">
-            <div className="h-40 mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={testTrend}>
-                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={testTrendDomain} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Line type="monotone" dataKey="score" name="Score" stroke="hsl(var(--info))" strokeWidth={2.5}
-                    isAnimationActive={false} dot={{ r: 5, fill: "hsl(var(--info))", strokeWidth: 0 }} activeDot={{ r: 7, stroke: "hsl(var(--card))", strokeWidth: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-          )}
-
           {/* Speed */}
           <div>
             <SLabel>How fast you solve questions</SLabel>
@@ -1236,6 +1179,60 @@ export default function Analysis() {
               )}
             </Card>
           </div>
+        </div>
+      )}
+
+      {/* ── Tab: Marks history ───────────────
+          Moved out of the practice tab under rule 11. These are MARKS, which
+          are a durable record on the student profile — not the ephemeral test
+          report, and so on the right side of that line. The student sees their
+          own marks; nothing here is another student's or the class's. */}
+      {tab === "marks" && (
+        <div className="space-y-6">
+          <div>
+            <SLabel>Recent tests</SLabel>
+            {testResults.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No test results yet</p>
+            ) : (
+            <div className="space-y-2">
+              {testResults.map((t) => {
+                const col = scoreColor(t.score);
+                return (
+                  <div key={t.name} className="flex items-center gap-4 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-black" style={{ background: `${withAlpha(col, 0.08)}`, color: col }}>
+                      {t.score}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-foreground">{t.name}</div>
+                      <div className="text-[11px] text-muted-foreground">{t.subject} · {t.date}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-black tabular-nums" style={{ color: col }}>{t.marksObtained}/{t.rawMax}</div>
+                      <div className="text-[11px] text-muted-foreground">{t.score}%</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            )}
+          </div>
+
+          {testTrend.length > 0 && (
+          <Card label="How your test scores changed">
+            <div className="h-40 mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={testTrend}>
+                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={testTrendDomain} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Line type="monotone" dataKey="score" name="Score" stroke="hsl(var(--info))" strokeWidth={2.5}
+                    isAnimationActive={false} dot={{ r: 5, fill: "hsl(var(--info))", strokeWidth: 0 }} activeDot={{ r: 7, stroke: "hsl(var(--card))", strokeWidth: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+          )}
         </div>
       )}
 
