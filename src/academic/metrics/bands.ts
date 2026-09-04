@@ -60,6 +60,7 @@
  */
 
 import { ATTENDANCE_LOW, HOMEWORK_LOW, SUBJECT_AVERAGE_LOW } from "./thresholds";
+import { isOk, type Metric } from "./types";
 import {
   RECOVERY_CONCEPTUAL_THRESHOLD,
   RECOVERY_PROCEDURAL_THRESHOLD,
@@ -204,6 +205,38 @@ export const ACCURACY_TONE: Record<
   near: "warning",
   high: "positive",
 };
+
+// ── One exam's score — NOT an average ──────────────────────────────────────
+
+/**
+ * ONE EXAM'S SCORE. Not an average of anything.
+ *
+ * §4.2b: band names do not travel across measures. So this has its own
+ * constant AND its own TYPE, and `ExamScoreBand` must never be produced by an
+ * aggregate or cross-exam figure. A subject average of 76% and one exam scored
+ * 76% are different claims; giving them one type is how they end up drawn the
+ * same and then reasoned about the same.
+ *
+ * Deliberately NOT pointed at SUBJECT_AVERAGE_LOW — thresholds.ts is explicit
+ * that the subject-average number is not a per-exam measure.
+ *
+ * The below-pass rung is NOT a number here. Whether a score failed is
+ * `exams.passing_marks`, per exam, and NULL on 5 of 18 — so it arrives as a
+ * Metric<boolean> and `unknown` propagates rather than silently becoming a pass.
+ */
+export const EXAM_SCORE_BAND_HIGH = 75;
+
+export type ExamScoreBand = "unknown" | "below_pass" | "passed" | "high";
+
+export function examScoreBand(
+  pct: number | null | undefined,
+  belowPass: Metric<boolean>,
+): ExamScoreBand {
+  if (!isOk(belowPass)) return "unknown";
+  if (belowPass.value) return "below_pass";
+  if (pct === null || pct === undefined || !Number.isFinite(pct)) return "unknown";
+  return pct >= EXAM_SCORE_BAND_HIGH ? "high" : "passed";
+}
 
 // ── Subject average — RULING 3, the colour half ────────────────────────────
 

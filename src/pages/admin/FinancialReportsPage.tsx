@@ -16,6 +16,7 @@ import {
   Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   Download, PieChart as PieIcon, BarChart3, IndianRupee, FileSpreadsheet,
 } from "lucide-react";
+import { feeCollectionBand, type FeeCollectionBand } from "@/finance/metrics";
 
 /* ── helpers ─────────────────────────────────────────────────── */
 const fmt = (n: number) =>
@@ -30,6 +31,18 @@ const CHART_COLORS = [
 const PIE_COLORS = ["hsl(142, 71%, 45%)", "hsl(38, 92%, 50%)", "hsl(0, 84%, 60%)"];
 
 /* ── component ───────────────────────────────────────────────── */
+/**
+ * Collection-rate tone. Keyed on FeeCollectionBand, not on a number, so the
+ * boundaries live in one place and this file cannot drift from them.
+ * `unknown` is muted: nothing billed yet is not a failure to collect.
+ */
+const FEE_TONE: Record<FeeCollectionBand, string> = {
+  unknown: "bg-muted text-muted-foreground border-border",
+  low: "bg-destructive/10 text-destructive border-destructive/30",
+  partial: "bg-warning/10 text-warning border-warning/30",
+  healthy: "bg-accent/10 text-accent border-accent/30",
+};
+
 export default function FinancialReportsPage() {
   const [fees, setFees] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -354,7 +367,7 @@ export default function FinancialReportsPage() {
                         <td className="p-2 text-right text-accent font-medium">{fmt(c.collected)}</td>
                         <td className="p-2 text-right text-destructive">{fmt(out)}</td>
                         <td className="p-2 text-right">
-                          <Badge variant="outline" className={rate >= 80 ? "bg-accent/10 text-accent border-accent/30" : rate >= 50 ? "bg-warning/10 text-warning border-warning/30" : "bg-destructive/10 text-destructive border-destructive/30"}>
+                          <Badge variant="outline" className={FEE_TONE[feeCollectionBand(rate)]}>
                             {rate}%
                           </Badge>
                         </td>

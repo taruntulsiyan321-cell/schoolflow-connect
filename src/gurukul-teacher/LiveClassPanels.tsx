@@ -336,8 +336,24 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     const hw = selected.homeworkCompletionPct ?? 0;
     const testsAvg = selected.testsAvgPct ?? 0;
     const examsAvg = selected.examsAvgPct ?? 0;
-    const scores = [att, hw, testsAvg, examsAvg].filter((n) => n > 0);
-    const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+
+    // NO MEAN. Attendance, homework, test average and exam average measure
+    // four different things against four different lines; averaging them
+    // produced a number with no unit that could be "60" because attendance was
+    // 100 and marks were 20. Each rate is now checked against ITS OWN
+    // threshold, and where one signal is needed it is the WORST rate, NAMED.
+    const rates = [
+      { label: "attendance", pct: att, low: ATTENDANCE_LOW },
+      { label: "homework", pct: hw, low: HOMEWORK_LOW },
+      { label: "test average", pct: testsAvg, low: SUBJECT_AVERAGE_LOW },
+      { label: "exam average", pct: examsAvg, low: SUBJECT_AVERAGE_LOW },
+    ];
+    // 0 means "not measured yet" in these fields, not "zero percent".
+    const measured = rates.filter((m) => m.pct > 0);
+    const below = measured.filter((m) => m.pct < m.low);
+    // Worst = furthest below its OWN line, so the comparison stays within one
+    // measure rather than across four.
+    const worst = below.slice().sort((a, b) => a.pct - a.low - (b.pct - b.low))[0];
 
     if (att >= ATTENDANCE_COMFORTABLE) answers.push("Attendance is healthy");
     else if (att > 0) answers.push(`Attendance is a problem (${att}%)`);
@@ -349,12 +365,24 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       actions.push("Follow up on pending homework");
     }
 
-    if (testsAvg > 0 || examsAvg > 0) {
-      const academic = testsAvg && examsAvg ? (testsAvg + examsAvg) / 2 : testsAvg || examsAvg;
-      if (academic >= 75) answers.push("Performing well in tests/exams");
-      else if (academic >= 40) answers.push("Academic scores need improvement");
-      else answers.push("Struggling in assessments — intervention recommended");
-    } else {
+    // Tests and exams are reported SEPARATELY against SUBJECT_AVERAGE_LOW.
+    // They were previously averaged into one "academic" figure, which hid the
+    // common real case: passing tests while failing exams, or the reverse.
+    if (testsAvg > 0) {
+      answers.push(
+        testsAvg < SUBJECT_AVERAGE_LOW
+          ? `Test average is below ${SUBJECT_AVERAGE_LOW}% (${Math.round(testsAvg)}%)`
+          : `Test average ${Math.round(testsAvg)}%`,
+      );
+    }
+    if (examsAvg > 0) {
+      answers.push(
+        examsAvg < SUBJECT_AVERAGE_LOW
+          ? `Exam average is below ${SUBJECT_AVERAGE_LOW}% (${Math.round(examsAvg)}%)`
+          : `Exam average ${Math.round(examsAvg)}%`,
+      );
+    }
+    if (testsAvg === 0 && examsAvg === 0) {
       answers.push("Not enough test/exam marks yet to judge academic level");
     }
 
@@ -369,20 +397,20 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     let verdict = "Insufficient data";
     let color = "#78788c";
     let intervention = false;
-    if (scores.length >= 2) {
-      if (avg >= 80 && pendingHomework.length <= 1 && !attendanceConcern) {
-        verdict = "Performing well";
+    if (measured.length >= 2) {
+      if (below.length === 0 && pendingHomework.length <= 1 && !attendanceConcern) {
+        verdict = "No measure below its threshold";
         color = "#10b981";
-      } else if (avg >= 60) {
+      } else if (below.length === 0) {
         verdict = "Stable — watch closely";
         color = "#3b5bdb";
-      } else if (avg >= 40) {
-        verdict = "Needs support";
+      } else if (below.length === 1) {
+        verdict = `Needs support — ${worst.label}`;
         color = "#f59e0b";
         intervention = true;
-        actions.push("Plan a short check-in this week");
+        actions.push(`Plan a short check-in about ${worst.label} this week`);
       } else {
-        verdict = "At risk — intervene";
+        verdict = `At risk — intervene (${worst.label} lowest)`;
         color = "#cc5069";
         intervention = true;
         actions.push("Escalate with class teacher / parent meeting");
@@ -393,7 +421,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       intervention = true;
     }
 
-    if (!actions.length && verdict === "Performing well") {
+    if (!actions.length && verdict === "No measure below its threshold") {
       actions.push("Keep encouraging — no urgent action");
     }
 

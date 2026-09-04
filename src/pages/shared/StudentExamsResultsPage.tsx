@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { displaySubject } from "@/lib/academicPresentation";
 import { belowPass } from "@/academic/metrics/thresholds";
 import { isOk, type Metric } from "@/academic/metrics/types";
+import { examScoreBand, type ExamScoreBand } from "@/academic/metrics/bands";
 import {
   Calendar,
   CalendarClock,
@@ -67,15 +68,20 @@ const NEUTRAL_TONE = {
   bg: "border-border",
 };
 
+/**
+ * Tone for ONE exam's score. Keyed on ExamScoreBand so the 75 lives in the
+ * metric layer, and so this cannot be handed a subject average by mistake -
+ * §4.2b, band names do not travel across measures.
+ */
+const EXAM_SCORE_TONE: Record<ExamScoreBand, { text: string; bar: string; bg: string }> = {
+  unknown: NEUTRAL_TONE,
+  below_pass: { text: "text-red-700", bar: "bg-red-500", bg: "border-red-200/60" },
+  passed: { text: "text-amber-700", bar: "bg-amber-500", bg: "border-amber-200/60" },
+  high: { text: "text-emerald-700", bar: "bg-emerald-500", bg: "border-emerald-200/60" },
+};
+
 export function scoreTone(pct: number, failed: Metric<boolean>) {
-  if (!isOk(failed)) return NEUTRAL_TONE;
-  if (failed.value) {
-    return { text: "text-red-700", bar: "bg-red-500", bg: "border-red-200/60" };
-  }
-  if (pct >= 75) {
-    return { text: "text-emerald-700", bar: "bg-emerald-500", bg: "border-emerald-200/60" };
-  }
-  return { text: "text-amber-700", bar: "bg-amber-500", bg: "border-amber-200/60" };
+  return EXAM_SCORE_TONE[examScoreBand(pct, failed)];
 }
 
 function examTypeLabel(type: string | null | undefined) {
