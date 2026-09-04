@@ -10241,6 +10241,10 @@ export type Database = {
         }
       }
       rpc_send_parent_weekly_digests: { Args: never; Returns: Json }
+      rpc_set_equipped_badge: {
+        Args: { _badge_code: string }
+        Returns: undefined
+      }
       rpc_set_featured_badges: {
         Args: { _badges: string[] }
         Returns: undefined

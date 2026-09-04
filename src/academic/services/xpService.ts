@@ -116,26 +116,20 @@ export const XpService = {
   /**
    * Equip / unequip a badge the student already earned.
    * Does not invent XP or unlock badges.
+   *
+   * Goes through rpc_set_equipped_badge rather than writing the row. student_xp
+   * carries no client write privilege any more (20260905000000_xp_engine_owned):
+   * the update/insert that used to live here was the same door that let a
+   * student set their own xp and reach rank 1 on both leaderboards. The RPC
+   * re-checks that the badge was earned, so BadgeService.equip's check is now a
+   * courtesy rather than the boundary.
    */
   async setEquippedBadge(ctx: ServiceContext, badgeCode: string | null): Promise<void> {
     assertCanOwn(ctx, "student_xp");
-    const client = getClient(toRepoContext(ctx));
-    const { data: row, error: readErr } = await client
-      .from("student_xp")
-      .select("user_id")
-      .eq("user_id", ctx.userId)
-      .maybeSingle();
-    throwIfError(readErr, "Failed to load XP row for equip");
-
-    const payload = { equipped_badge: badgeCode };
-    const { error } = row
-      ? await client.from("student_xp").update(payload).eq("user_id", ctx.userId)
-      : await client.from("student_xp").insert({
-          user_id: ctx.userId,
-          xp: 0,
-          level: 1,
-          ...payload,
-        });
+    const { error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_set_equipped_badge",
+      { _badge_code: badgeCode } as never,
+    );
     throwIfError(error, "Failed to equip badge");
     broadcastAcademicWrite(ctx.schoolId, ["achievements", "xp"], {
       studentId: ctx.studentId,
