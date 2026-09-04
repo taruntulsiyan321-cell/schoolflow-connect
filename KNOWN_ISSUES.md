@@ -41,10 +41,43 @@ not a data gap. Confirmed over real HTTP: a genuine teacher's JWT gets
 `403 {"error":"Forbidden","error_code":"insufficient_role"}` from
 `dpp-generate-questions`.
 
-Not fixed here because the fix is in `supabase/functions/_shared/requireRole.ts`
-and needs an edge-function redeploy, which is outside a UI/service item. The
-likely shape is to have `requireAnyRole` read `memberships` directly rather than
-going through a session-dependent helper from a session-less context.
+**STILL OPEN — the fix is written but needs a human decision.** Two routes:
+
+**(a) Fix `has_role` (preferred, no redeploy, fixes every caller at once).**
+Widen only the cross-account branch, and only for a caller that has no session
+and is `service_role`:
+
+```sql
+AND ( m.school_id = public.get_my_school_id()
+      OR (auth.uid() IS NULL
+          AND current_setting('role', true) = 'service_role') )
+```
+
+This is a no-op for every real user, and that is measurable rather than
+asserted. Inside a SECURITY DEFINER function the obvious markers are useless —
+measured:
+
+| caller | `current_user` | `session_user` | `current_setting('role')` |
+|---|---|---|---|
+| authenticated | postgres | postgres | authenticated |
+| anon | postgres | postgres | anon |
+| service_role | postgres | postgres | service_role |
+
+`current_user` is the *definer* for all three, so testing it would admit `anon`.
+`current_setting('role')` is the one that survives, because PostgREST issues
+`SET LOCAL ROLE`. For `authenticated` and `anon` the added disjunct is
+literally false. `service_role` gains nothing it lacked — it already bypasses
+RLS by role attribute; the change only stops a tenancy fence answering "no" to
+a question it has no session to evaluate.
+
+Writing that migration was **blocked by this environment's safety classifier**,
+which is reasonable: `has_role` is referenced by hundreds of policies. It needs
+an explicit go-ahead.
+
+**(b) Fix `_shared/requireRole.ts` and redeploy.** Confirmed viable — the repo's
+copy is byte-identical to the deployed one, so the local file really is the code
+at fault. But a deploy would also ship the two drifted `_shared` modules in
+issue 3, so that drift must be resolved first.
 
 ## 2. Students cannot reach question generation at all
 
@@ -73,6 +106,19 @@ repointed in this session depend on the *deployed* contract.
 Three other deployed slugs also have no local directory: `ai-expand-questions`,
 `ai-ping`, `mcp`.
 
+**PARTLY FIXED 2026-09-04.** The deployed version 12 of
+`dpp-generate-questions` was pulled back byte-for-byte into
+`supabase/functions/dpp-generate-questions/`, with a README recording its
+provenance. Production now has a home in git.
+
+Measured while doing it, and this is the part that still bites: **two of the
+eight `_shared` modules it bundles have drifted** since version 12 was pushed —
+`structuredCompletion.ts` and `promptLibrary.ts`. The other six, including
+`requireRole.ts`, are byte-identical. So a deploy from this repo still would
+not reproduce production, and that has to be resolved deliberately before
+anyone redeploys. `ai-expand-questions`, `ai-ping` and `mcp` are still
+unrecovered.
+
 ## 4. `npm run db:migrate` re-runs 356 migrations and cannot complete
 
 The applier lists every file at or after `RECENT_SINCE` and runs all of them; it
@@ -84,15 +130,26 @@ FAILED: 20260509064250_0d3a48e5-93b0-4835-8c62-e3e252a5dbd6.sql
 ERROR: 42710: policy "locks read auth" for table "attendance_locks" already exists
 ```
 
-It exits 1 there, so no later migration is reached.
+It exited 1 there, so no later migration was ever reached.
 
-**Use `node scripts/apply-one-migration.mjs <file>` instead** — it already
-exists, applies exactly one file through the same Management API endpoint, and
-records the same `schema_migrations` row (`--no-ledger` for fixtures and
-verification files). `npm run db:migrate` is the trap; the single-file applier
-is the tool. Worth wiring the pending check into `db:migrate` so it skips what
-the ledger already holds, rather than leaving a script in package.json that
-cannot complete.
+**FIXED 2026-09-04.** The applier now reads `public.schema_migrations` and runs
+only what is genuinely pending. The ledger had been complete the whole time —
+373 rows going back to 20260503, including the very file that failed. It was
+written on every apply and never read.
+
+    npm run db:migrate
+    Ledger: 373 recorded, 356 skipped, 0 pending
+    Nothing to apply.          (exit 0; it previously died on file 4 of 356)
+
+`--replay` restores the old ignore-the-ledger behaviour if it is ever wanted. A
+ledger that cannot be READ now aborts rather than replaying the folder blind —
+"I could not tell what was applied" must not look like "nothing was applied" —
+and that abort was tested with a deliberately invalid token. Its exit code is
+now 1 rather than 127: `process.exit()` after a `fetch` trips a libuv assertion
+and loses the code, so the script sets `process.exitCode` instead.
+
+`node scripts/apply-one-migration.mjs <file>` remains the tool for applying
+exactly one file (`--no-ledger` for fixtures and verification files).
 
 ## 5. `information_schema.role_table_grants` hides grants — do not audit with it
 
