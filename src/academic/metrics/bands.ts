@@ -124,6 +124,19 @@ export const homeworkBand = (v: number | null | undefined): Band =>
 // ── Accuracy — RULING 2 ────────────────────────────────────────────────────
 
 /**
+ * Homework HABIT — the sentence a teacher reads on a student card
+ * ("Submits homework regularly" / "Inconsistent" / "a concern").
+ *
+ * A DIFFERENT QUESTION from "is completion low", which is HOMEWORK_LOW and
+ * fires a flag. Habit describes a pattern over the term; the flag describes one
+ * figure against a line. They are allowed different numbers precisely because
+ * they answer different questions — and they live here, separately named, so
+ * nobody later "reconciles" them into one and silently moves a flag.
+ */
+export const HOMEWORK_HABIT_REGULAR = 85;
+export const HOMEWORK_HABIT_INCONSISTENT = 50;
+
+/**
  * Accuracy over a practice or test session. One ladder, replacing seven
  * boundaries (40, 50, 55, 60, 70, 75, 80) spread across ten files.
  *

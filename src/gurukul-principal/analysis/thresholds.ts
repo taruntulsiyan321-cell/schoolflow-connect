@@ -24,9 +24,15 @@
  * BUT the 40 here is not doing that job. Every call site applies it to a SUBJECT
  * AVERAGE — `student.testAvg`, `section.examAvg` — which is a different
  * measurement from "did this student fail this exam", and the build document
- * lists no threshold for it. So it stays, named for what it actually is, and is
- * flagged as needing a ruling rather than quietly repointed at a per-exam
- * function that means something else.
+ * lists no threshold for it.
+ *
+ * NOW RULED. That number is SUBJECT_AVERAGE_LOW in the metrics module, and this
+ * file imports it like everything else here. It had survived as a local
+ * copy under an "awaiting ruling" name — the last second home in this file, and
+ * invisible to lint:threshold-literals because the metric vocabulary had no word
+ * meaning "average". bands.test.ts already asserted the old name was gone from
+ * bands.ts while this copy sat here unexamined, which is exactly how a converged
+ * number grows a second home back.
  */
 
 import {
@@ -36,6 +42,7 @@ import {
   HOMEWORK_WINDOW,
   MARKS_OVERDUE,
   CLASS_FLAGGED_ON_MARKS,
+  SUBJECT_AVERAGE_LOW,
 } from "@/academic/metrics/thresholds";
 
 export {
@@ -45,17 +52,8 @@ export {
   HOMEWORK_WINDOW,
   MARKS_OVERDUE,
   CLASS_FLAGGED_ON_MARKS,
+  SUBJECT_AVERAGE_LOW,
 };
-
-/**
- * AWAITING A RULING. A subject AVERAGE below this percent is shown in alert
- * colour on the principal screens. It is not `exams.passing_marks` — that is
- * per-exam and answers a different question — and the build document's threshold
- * list does not name it. Left at its existing value so no screen changes
- * meaning, and deliberately not folded into the metrics module until it is
- * either ruled a real threshold or removed.
- */
-const SUBJECT_AVERAGE_LOW_AWAITING_RULING = 40;
 
 export const THRESHOLDS = {
   attendance: {
@@ -70,7 +68,7 @@ export const THRESHOLDS = {
   },
   marks: {
     /** Subject AVERAGE, not exam pass mark. See the note above. */
-    pass: SUBJECT_AVERAGE_LOW_AWAITING_RULING,
+    pass: SUBJECT_AVERAGE_LOW,
     classFlag: CLASS_FLAGGED_ON_MARKS,
   },
   upload: {
@@ -80,7 +78,7 @@ export const THRESHOLDS = {
   // Flat aliases read by the principal redesign screens.
   ATTENDANCE_LOW,
   HOMEWORK_LOW,
-  SUBJECT_MARKS_LOW: SUBJECT_AVERAGE_LOW_AWAITING_RULING,
+  SUBJECT_MARKS_LOW: SUBJECT_AVERAGE_LOW,
 } as const;
 
 export type AttendanceThresholds = typeof THRESHOLDS.attendance;

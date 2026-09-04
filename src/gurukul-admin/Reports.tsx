@@ -14,6 +14,8 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Loader2 } from "lucide-react";
 import { toErrorMessage, toPersonName } from "@/lib/presentation";
 import { toPercentLabel, toClassLabel } from "@/lib/presentation";
+import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds";
+import { ATTENDANCE_COMFORTABLE } from "@/academic/metrics/bands";
 
 type ReportCategory = "academic" | "account" | "platform" | "communication";
 type ReportKey =
@@ -129,20 +131,20 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
             // Report exists so admin/principal can act on "who is at risk" —
             // a truncated UUID can't be followed up on, and this class's
             // seed IDs happen to share an 8-char prefix, making every row
-            // in "Below 75%" indistinguishable from every other. Resolve
+            // in the below-threshold list indistinguishable from every other. Resolve
             // the actual name; fall back to the id only if the roster
             // fetch itself failed (never silently drop the row).
             const nameById = new Map<string, string>();
             for (const s of roster) nameById.set(s.id, s.fullName);
             for (const p of profiles) {
               const pct = Math.round(p.attendancePct);
-              if (pct < 75) below += 1;
-              if (pct >= 90) above += 1;
+              if (pct < ATTENDANCE_LOW) below += 1;
+              if (pct >= ATTENDANCE_COMFORTABLE) above += 1;
               allRows.push({
                 Student: toPersonName(nameById.get(p.studentId), { kind: "student" }),
                 Class: `${c.className}-${c.section}`,
                 "Attendance %": pct,
-                Status: pct >= 75 ? "OK" : "Low",
+                Status: pct >= ATTENDANCE_LOW ? "OK" : "Low",
               });
             }
           }

@@ -10,6 +10,8 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
 import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/shared";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
+import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds";
+import { ATTENDANCE_COMFORTABLE } from "@/academic/metrics/bands";
 
 /**
  * How many calendar months the "Recent attendance" card shows, newest first.
@@ -97,7 +99,8 @@ export default function Attendance() {
     return map;
   }, [records]);
 
-  const col = pct >= 90 ? "#4aa87a" : pct >= 75 ? "#c08a3a" : "#cc5069";
+  const col =
+    pct >= ATTENDANCE_COMFORTABLE ? "#4aa87a" : pct >= ATTENDANCE_LOW ? "#c08a3a" : "#cc5069";
   // Group by calendar month, newest month first. A flat day-number grid was
   // ambiguous the moment records spanned a month boundary: only the day-of-month
   // was rendered, so a 2020-01-02 row sat next to 2026-08-06/07 as "2 6 7" with
@@ -143,7 +146,7 @@ export default function Attendance() {
 
   return (
     <div className="space-y-5">
-      <GlassCard glow={pct >= 90 ? "green" : "amber"} className="p-6 flex items-center gap-6">
+      <GlassCard glow={pct >= ATTENDANCE_COMFORTABLE ? "green" : "amber"} className="p-6 flex items-center gap-6">
         <OverallRing pct={pct} col={col} />
         <div>
           <div className="text-sm text-muted-foreground mb-0.5">Overall attendance</div>

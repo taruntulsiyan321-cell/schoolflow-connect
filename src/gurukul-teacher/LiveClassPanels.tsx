@@ -52,6 +52,11 @@ import {
   HOMEWORK_LOW,
   SUBJECT_AVERAGE_LOW,
 } from "@/academic/metrics/thresholds";
+import {
+  ATTENDANCE_COMFORTABLE,
+  HOMEWORK_HABIT_REGULAR,
+  HOMEWORK_HABIT_INCONSISTENT,
+} from "@/academic/metrics/bands";
 
 export {
   LiveHomeworkTab,
@@ -301,7 +306,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     const recent = attendanceHistory.slice(0, 10);
     if (!recent.length) return false;
     const bad = recent.filter((a) => a.status === "absent").length;
-    return bad >= 3 || (selected?.attendancePct ?? 100) < 75;
+    return bad >= 3 || (selected?.attendancePct ?? 100) < ATTENDANCE_LOW;
   }, [attendanceHistory, selected]);
 
   const homeworkHabit = useMemo(() => {
@@ -309,8 +314,8 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     const rate = selected?.homeworkCompletionPct;
     if (rate == null) return "Homework metrics unavailable";
     if (pendingHomework.length >= 3) return "Often leaves homework incomplete";
-    if (rate >= 85) return "Submits homework regularly";
-    if (rate >= 50) return "Inconsistent homework submissions";
+    if (rate >= HOMEWORK_HABIT_REGULAR) return "Submits homework regularly";
+    if (rate >= HOMEWORK_HABIT_INCONSISTENT) return "Inconsistent homework submissions";
     return "Homework submissions are a concern";
   }, [homeworkRows.length, selected, pendingHomework.length]);
 
@@ -333,7 +338,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     const scores = [att, hw, testsAvg, examsAvg].filter((n) => n > 0);
     const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
 
-    if (att >= 85) answers.push("Attendance is healthy");
+    if (att >= ATTENDANCE_COMFORTABLE) answers.push("Attendance is healthy");
     else if (att > 0) answers.push(`Attendance is a problem (${att}%)`);
     else answers.push("Attendance data not available yet");
 
@@ -2778,7 +2783,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       ...interventionRows.filter((r) => r.metric.includes("concerns")).map((r) => r.id),
     ]);
     const itemAction =
-      lowCompletionHw.filter((h) => h.completionPct < 70).length +
+      lowCompletionHw.filter((h) => h.completionPct < HOMEWORK_LOW).length +
       lateHomework.length +
       testsNeedingPublish.length +
       examsAwaitingMarks.length;
