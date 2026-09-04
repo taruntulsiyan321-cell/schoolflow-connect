@@ -29,7 +29,7 @@ import { broadcastAcademicWrite } from "../live";
 import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
 import { isSchoolOperator } from "./context";
 import type { TestKind } from "./workLifecycle";
-import { ValidationFailedError } from "../repository/errors";
+import { ValidationFailedError, AcademicRepositoryError } from "../repository/errors";
 
 export type TestStatus = "draft" | "scheduled" | "published" | "archived";
 
@@ -578,8 +578,42 @@ export const TestService = {
     } catch {
       /* still attempt delete */
     }
+    // MARKS ARE CHECKED BEFORE ANYTHING IS DELETED, and the order matters.
+    //
+    // `tests` → `test_marks` is ON DELETE RESTRICT (20260904180000), so the
+    // delete below now fails for any test that has been marked. That is the
+    // intended behaviour — marks are the durable record and must outlive the
+    // test row — but these are two separate requests with no transaction
+    // around them. Deleting test_questions first and discovering the refusal
+    // second would leave the test in place with its questions gone, and
+    // nothing to roll that back.
+    //
+    // So the refusal is anticipated rather than caught: ask about marks first,
+    // and stop before touching anything.
+    const { count: markCount, error: markErr } = await getClient(repo)
+      .from("test_marks")
+      .select("id", { count: "exact", head: true })
+      .eq("test_id", testId);
+    throwIfError(markErr, "Failed to check whether this test has marks");
+
+    if ((markCount ?? 0) > 0) {
+      throw new AcademicRepositoryError(
+        "test_has_marks",
+        `This test cannot be deleted: ${markCount} student mark(s) are recorded against it, ` +
+          `and marks are kept even when a test is removed. Delete the marks first if that is really intended.`,
+      );
+    }
+
     await getClient(repo).from("test_questions").delete().eq("test_id", testId);
     const { error } = await getClient(repo).from("tests").delete().eq("id", testId);
+    // Belt and braces: a mark written between the check above and this delete
+    // still reaches the constraint, and 23503 is unreadable to a teacher.
+    if (error?.code === "23503") {
+      throw new AcademicRepositoryError(
+        "test_has_marks",
+        "This test cannot be deleted: marks were recorded against it while the deletion was in progress.",
+      );
+    }
     throwIfError(error, "Failed to delete test");
     afterTestWrite(ctx, {
       classId,
