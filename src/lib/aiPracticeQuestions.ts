@@ -97,8 +97,19 @@ export async function generateAiPracticeQuestions(opts: {
     .filter(Boolean)
     .join("\n\n");
 
+  // "test-generate-questions" was invoked here and 404s: it is deployed nowhere,
+  // exists in no supabase/functions directory, and appears on no branch. The
+  // deployed dpp-generate-questions accepts this exact body — every key here is
+  // one it destructures, and source_url defaults to "" server-side — and returns
+  // the { questions, error? } shape this function already reads.
+  //
+  // KNOWN, and NOT fixed by this repoint: dpp-generate-questions gates on
+  // requireAnyRole(["teacher","admin","principal"]), so the student callers of
+  // this helper (Class12AiSession, mistakeRecovery) are refused by design. See
+  // KNOWN_ISSUES.md — widening that gate to students is a ruling, not a build
+  // decision.
   const { data, error } = await invokeEdgeFunction<{ questions: AiMcq[]; error?: string }>(
-    "test-generate-questions",
+    "dpp-generate-questions",
     {
       subject: opts.subject,
       chapter: opts.chapter ?? "",

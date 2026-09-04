@@ -107,7 +107,13 @@ export default function QuestionBankPage() {
     }
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("test-generate-questions", {
+      // "test-generate-questions" was invoked here and 404s: it is deployed
+      // nowhere and exists in no supabase/functions directory on any branch.
+      // This body is byte-for-byte the contract dpp-generate-questions
+      // destructures, and its { questions, source } response carries the
+      // questions/error keys read below. This screen is teacher-only
+      // (TeacherApp.tsx:298), which is the role that function gates on.
+      const { data, error } = await supabase.functions.invoke("dpp-generate-questions", {
         body: {
           topic: topic.trim(), subject, chapter: chapter.trim(),
           difficulty, count, source_text: sourceText.trim(), source_url: url.trim(),
