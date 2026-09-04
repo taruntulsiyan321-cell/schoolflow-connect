@@ -114,22 +114,22 @@ BEGIN
     -- ── ATTENDANCE ────────────────────────────────────────────────────────
     -- attendance carries no date of its own; the day lives on the submission.
     SELECT jsonb_build_object(
-             'present',  count(*) FILTER (WHERE a.status = 'present'),
-             'absent',   count(*) FILTER (WHERE a.status = 'absent'),
-             'late',     count(*) FILTER (WHERE a.status = 'late'),
-             'leave',    count(*) FILTER (WHERE a.status = 'leave'),
-             'half_day', count(*) FILTER (WHERE a.status = 'half_day'),
+             'present',  count(*) FILTER (WHERE att.status = 'present'),
+             'absent',   count(*) FILTER (WHERE att.status = 'absent'),
+             'late',     count(*) FILTER (WHERE att.status = 'late'),
+             'leave',    count(*) FILTER (WHERE att.status = 'leave'),
+             'half_day', count(*) FILTER (WHERE att.status = 'half_day'),
              'marked',   count(*),
              -- NULL, not 0, when nothing was marked. A child with no attendance
              -- record this week has an UNKNOWN rate, not a rate of zero.
              'pct',      CASE WHEN count(*) = 0 THEN NULL
-                              ELSE round(100.0 * count(*) FILTER (WHERE a.status IN ('present','late','half_day'))
+                              ELSE round(100.0 * count(*) FILTER (WHERE att.status IN ('present','late','half_day'))
                                          / count(*), 1) END
            )
       INTO _att
-      FROM public.attendance a
-      JOIN public.attendance_submissions sub ON sub.id = a.submission_id
-     WHERE a.student_id = _child.id
+      FROM public.attendance att
+      JOIN public.attendance_submissions sub ON sub.id = att.submission_id
+     WHERE att.student_id = _child.id
        AND sub.date BETWEEN _from AND _to;
 
     -- ── HOMEWORK ──────────────────────────────────────────────────────────
