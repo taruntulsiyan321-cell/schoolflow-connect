@@ -30,7 +30,10 @@ const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "psqxykzqfvxgsvkmgur
 const MARKERS = [
   { id: "20260509065137", label: "Admin connect student/teacher", sql: "SELECT proname FROM pg_proc WHERE proname = 'admin_connect_student_account' LIMIT 1" },
   { id: "20260516000000", label: "Inquiries & complaints", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='admission_enquiries' LIMIT 1" },
-  { id: "20260604000000", label: "Wisdom student engine", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='dpps' LIMIT 1" },
+  // Marker was `dpps`, a table this migration never created and that the DPP
+  // removal deliberately dropped. It reported an applied migration as pending
+  // for as long as the drop stood. `student_question_history` IS its artifact.
+  { id: "20260604000000", label: "Wisdom student engine", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='student_question_history' LIMIT 1" },
   { id: "20260604010000", label: "Leaderboard RPC", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_leaderboard' LIMIT 1" },
   { id: "20260604020000", label: "Notifications", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='notifications' LIMIT 1" },
   { id: "20260604030000", label: "Student panel fixes", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_classmates' LIMIT 1" },
@@ -53,7 +56,23 @@ const MARKERS = [
   { id: "20260615000000", label: "Battle template fallback", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_create_template_solo_battle' LIMIT 1" },
   { id: "20260616000000", label: "Revision queue fix", sql: "SELECT proname FROM pg_proc WHERE proname = '_revision_recently_completed' LIMIT 1" },
   { id: "20260617000000", label: "Practice recovery quality", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_assign_concept_recovery' AND pg_get_function_arguments(oid) LIKE '%_concept%' LIMIT 1" },
-  { id: "20260618000000", label: "Mistake triggers recovery", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_record_concept_mistake' AND pg_get_function_arguments(oid) LIKE '%_error_type%' LIMIT 1" },
+  // 20260618000000 "Mistake triggers recovery" HAS NO MARKER, deliberately.
+  //
+  // Its entire content is one CREATE OR REPLACE of rpc_record_concept_mistake,
+  // and four later migrations (…613, …614, …619, 20260802330000) replace that
+  // same function. Whatever is in pg_proc today was installed by the last of
+  // them, so no probe of the function can distinguish "…618 ran" from "…618
+  // never ran and a later one did". There is no artifact to look for.
+  //
+  // The two probes that were here both lied, in opposite directions. The SQL
+  // path looked for an `_error_type` ARGUMENT, which the function has never
+  // had — permanently pending. The REST path looked for the
+  // student_mistakes.error_type COLUMN, which is added by 20260619000000, so
+  // it reported this migration applied whenever the NEXT one was.
+  //
+  // A marker that cannot fail for the right reason is worse than no marker:
+  // it makes a red gate routine. The ledger is the only thing that can answer
+  // for this migration, and `npm run preflight` already reads it.
   { id: "20260619000000", label: "Academic intelligence system", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='student_academic_brain' LIMIT 1" },
   { id: "20260620000000", label: "Practice session persistence fix", sql: "SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='question_attempts' AND column_name='template_id' AND is_nullable='YES' LIMIT 1" },
 ];
@@ -173,11 +192,9 @@ async function probeViaRest() {
       (pe.exists && !pe.columnMissing ? applied : pending).push({ id: m.id, label });
       continue;
     }
-    if (m.id === "20260618000000") {
-      const et = await tableExists(url, key, "student_mistakes", "error_type");
-      (et.exists && !et.columnMissing ? applied : pending).push({ id: m.id, label });
-      continue;
-    }
+    // The 20260618000000 special case is gone with its marker — see MARKERS.
+    // It probed student_mistakes.error_type, which 20260619000000 adds, so it
+    // answered for a different migration than the one it named.
     if (m.id === "20260604120000") {
       const st = await tableExists(url, key, "students", "id");
       (st.exists && st.hasRows ? applied : pending).push({
