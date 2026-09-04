@@ -340,9 +340,40 @@ async function main() {
   await check(
     // rpc_parent_concept_analytics dropped from this list by Chunk 1.6: it is
     // now gutted and raises, so it has no parent_students join to check.
-    "rpc_parent_child_snapshot/rpc_parent_weekly_digest also check the parent_students join table, not just the legacy parent_user_id column",
-    `SELECT proname FROM pg_proc WHERE proname IN ('rpc_parent_child_snapshot','rpc_parent_weekly_digest')
-       AND prosrc NOT ILIKE '%parent_students%'`,
+    //
+    // THIS CHECK FOLLOWS DELEGATION, and it has to. 20260904190000 split the
+    // digest into rpc_parent_weekly_digest (auth gate, thin) and
+    // _parent_weekly_digest (the computation, which is where the child
+    // resolution actually lives), so that a signed-in parent and the weekly
+    // cron job share ONE definition of "this parent's children" instead of
+    // drifting apart. From that migration onward the wrapper's own body has
+    // contained no `parent_students`, and the original form of this check —
+    // `prosrc NOT ILIKE '%parent_students%'` on the entry point alone — went
+    // red while the property it guards was fully satisfied one call down.
+    //
+    // So an entry point passes if EITHER it resolves children itself, OR it
+    // calls a public function that does. \m…\M are word boundaries: they stop
+    // `rpc_parent_weekly_digest` matching itself on the `_parent_weekly_digest`
+    // substring, which would make every entry point trivially pass.
+    //
+    // It still goes red if the delegation target loses the join, because the
+    // inner function's prosrc is what the EXISTS actually reads.
+    "rpc_parent_child_snapshot/rpc_parent_weekly_digest resolve children through the parent_students join table — directly, or via a function they delegate to — and not by the legacy parent_user_id column alone",
+    `SELECT p.proname
+       FROM pg_proc p
+       JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public'
+        AND p.proname IN ('rpc_parent_child_snapshot','rpc_parent_weekly_digest')
+        AND p.prosrc NOT ILIKE '%parent_students%'
+        AND NOT EXISTS (
+          SELECT 1
+            FROM pg_proc d
+            JOIN pg_namespace dn ON dn.oid = d.pronamespace
+           WHERE dn.nspname = 'public'
+             AND d.oid <> p.oid
+             AND p.prosrc ~ ('\\m' || d.proname || '\\M')
+             AND d.prosrc ILIKE '%parent_students%'
+        )`,
     (r) => r.length === 0,
   );
 

@@ -64,6 +64,59 @@ BEGIN
     ('190000 alerts key is gone','parent','OK: false - weak-concept alerts do not exist',r,
      CASE WHEN r='OK: false' THEN 'PASS' ELSE 'FAIL' END);
 
+  -- ── 210000: exam marks are the exam report's job, not the digest's ────
+  -- Ruled: exam marks have an explicit other home (the exam report, available
+  -- all year), so carrying them here duplicated a surface and left a key that
+  -- is empty in every week without an exam. The positive control above — the
+  -- payload has at least one child, and item 5 `test_marks` IS present — is
+  -- what stops this passing for a payload that is empty for another reason.
+  r := pg_temp.as_user(par_a, 'SELECT ((public.rpc_parent_weekly_digest()->''children''->0) ? ''exam_marks'')::text');
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('210000 exam_marks absent from the payload','parent','OK: false - the exam report is the other surface',r,
+     CASE WHEN r='OK: false' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 210000: a rate nobody measured is NULL, never 0 ──────────────────
+  -- "Not entered is never zero" exists for exactly this: `null < 60` is TRUE
+  -- in JavaScript, so a 0 here would band a child with no attendance record as
+  -- the WORST rung rather than as unknown.
+  --
+  -- Run against _parent_weekly_digest directly, as postgres, and deliberately
+  -- so: this is a property of the COMPUTATION, not of anyone's privileges, and
+  -- the windowed signature is REVOKEd from authenticated precisely because
+  -- only the wrapper and the cron job may choose a window.
+  --
+  -- BOTH HALVES ARE ASSERTED. "pct is null" alone would pass for a function
+  -- that returned null unconditionally — the same defect one rung down.
+  DECLARE
+    _empty jsonb;
+    _full  jsonb;
+    _att   jsonb;
+  BEGIN
+    -- A window with certainly nothing in it. This child's attendance spans
+    -- 2020-01-02 to 2026-08-26, so 1999 is empty by construction.
+    _empty := public._parent_weekly_digest(par_a, DATE '1999-01-01', DATE '1999-01-07');
+    _att   := _empty->'children'->0->'attendance';
+
+    INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+      ('210000 pct is NULL when nothing was marked','-','OK: marked 0, pct null',
+       format('OK: marked %s, pct %s', coalesce(_att->>'marked','(absent)'),
+              coalesce(jsonb_typeof(_att->'pct'),'(absent)')),
+       CASE WHEN _att->>'marked' = '0' AND jsonb_typeof(_att->'pct') = 'null'
+            THEN 'PASS' ELSE 'FAIL' END);
+
+    -- Positive control: in a window that DOES have attendance, pct must be a
+    -- number. Without this, the assertion above tests nothing.
+    _full := public._parent_weekly_digest(par_a, DATE '2019-01-01', CURRENT_DATE);
+    _att  := _full->'children'->0->'attendance';
+
+    INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+      ('210000 pct is a number when something WAS marked (positive control)','-','OK: marked > 0, pct number',
+       format('OK: marked %s, pct %s', coalesce(_att->>'marked','(absent)'),
+              coalesce(jsonb_typeof(_att->'pct'),'(absent)')),
+       CASE WHEN coalesce((_att->>'marked')::int,0) > 0 AND jsonb_typeof(_att->'pct') = 'number'
+            THEN 'PASS' ELSE 'FAIL' END);
+  END;
+
   -- §10.8 — practice is private to the student. No practice figure may appear
   -- in a parent payload under any key.
   r := pg_temp.as_user(par_a, 'SELECT (public.rpc_parent_weekly_digest()::text ILIKE ''%practice%'')::text');

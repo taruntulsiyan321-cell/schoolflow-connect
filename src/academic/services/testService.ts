@@ -578,18 +578,26 @@ export const TestService = {
     } catch {
       /* still attempt delete */
     }
-    // MARKS ARE CHECKED BEFORE ANYTHING IS DELETED, and the order matters.
+    // STUDENT DATA IS CHECKED BEFORE ANYTHING IS DELETED, and the order matters.
     //
-    // `tests` → `test_marks` is ON DELETE RESTRICT (20260904180000), so the
-    // delete below now fails for any test that has been marked. That is the
-    // intended behaviour — marks are the durable record and must outlive the
-    // test row — but these are two separate requests with no transaction
-    // around them. Deleting test_questions first and discovering the refusal
-    // second would leave the test in place with its questions gone, and
-    // nothing to roll that back.
+    // Two constraints now refuse this delete, for the same reason and with
+    // different messages:
     //
-    // So the refusal is anticipated rather than caught: ask about marks first,
-    // and stop before touching anything.
+    //   test_marks_test_fk          RESTRICT (20260904180000) — marks
+    //   test_attempts_test_id_fkey  RESTRICT (20260904220000) — attempts
+    //
+    // Both are student data and must outlive the test row. `test_questions`
+    // deliberately still CASCADEs: questions are the test's own body, not
+    // student data, and are meaningless without their parent.
+    //
+    // These are separate requests with no transaction around them. Deleting
+    // test_questions first and discovering a refusal second would leave the
+    // test in place with its questions gone, and nothing to roll that back.
+    // So both refusals are ANTICIPATED rather than caught: ask first, and stop
+    // before touching anything.
+    //
+    // Marks are asked about first because a marked test is the commoner case
+    // and names the more actionable thing.
     const { count: markCount, error: markErr } = await getClient(repo)
       .from("test_marks")
       .select("id", { count: "exact", head: true })
@@ -604,14 +612,54 @@ export const TestService = {
       );
     }
 
+    const { count: attemptCount, error: attemptErr } = await getClient(repo)
+      .from("test_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("test_id", testId);
+    throwIfError(attemptErr, "Failed to check whether this test has attempts");
+
+    if ((attemptCount ?? 0) > 0) {
+      // Worth saying what an attempt IS, because a teacher looking at an
+      // unmarked test will reasonably think nothing is attached to it. An
+      // attempt with no mark is a student who opened the test and did not
+      // submit, or who was force-closed and recorded as "Not given" — the
+      // record a disputed result would be settled from.
+      throw new AcademicRepositoryError(
+        "test_has_attempts",
+        `This test cannot be deleted: ${attemptCount} student attempt(s) are recorded against it. ` +
+          `An attempt is kept even when no mark was given — it is the record of who sat the test ` +
+          `and what happened, including students who did not submit.`,
+      );
+    }
+
     await getClient(repo).from("test_questions").delete().eq("test_id", testId);
     const { error } = await getClient(repo).from("tests").delete().eq("id", testId);
-    // Belt and braces: a mark written between the check above and this delete
-    // still reaches the constraint, and 23503 is unreadable to a teacher.
+    // Belt and braces: a mark or an attempt written between the checks above
+    // and this delete still reaches the constraint, and 23503 is unreadable to
+    // a teacher. Which constraint fired decides which message is true, so the
+    // name is read off the error rather than assumed — attributing an attempt
+    // refusal to marks would send the teacher to look for marks that are not
+    // there.
     if (error?.code === "23503") {
+      const detail = `${error.message ?? ""} ${error.details ?? ""}`;
+      if (detail.includes("test_attempts")) {
+        throw new AcademicRepositoryError(
+          "test_has_attempts",
+          "This test cannot be deleted: a student attempt was recorded against it while the deletion was in progress.",
+        );
+      }
+      if (detail.includes("test_marks")) {
+        throw new AcademicRepositoryError(
+          "test_has_marks",
+          "This test cannot be deleted: marks were recorded against it while the deletion was in progress.",
+        );
+      }
+      // A third constraint we do not know about. Say that, rather than
+      // guessing at one of the two we do — a wrong-but-confident message is
+      // worse here than an honest vague one.
       throw new AcademicRepositoryError(
-        "test_has_marks",
-        "This test cannot be deleted: marks were recorded against it while the deletion was in progress.",
+        "test_has_dependent_records",
+        "This test cannot be deleted: other records still refer to it.",
       );
     }
     throwIfError(error, "Failed to delete test");

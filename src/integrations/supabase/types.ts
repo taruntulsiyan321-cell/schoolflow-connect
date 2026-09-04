@@ -1689,6 +1689,63 @@ export type Database = {
           },
         ]
       }
+      attendance_audit: {
+        Row: {
+          attendance_id: string | null
+          class_id: string | null
+          date: string | null
+          edited_at: string
+          edited_by: string | null
+          id: string
+          new_status: string | null
+          prev_status: string | null
+          student_id: string | null
+        }
+        Insert: {
+          attendance_id?: string | null
+          class_id?: string | null
+          date?: string | null
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          new_status?: string | null
+          prev_status?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          attendance_id?: string | null
+          class_id?: string | null
+          date?: string | null
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          new_status?: string | null
+          prev_status?: string | null
+          student_id?: string | null
+        }
+        Relationships: []
+      }
+      attendance_locks: {
+        Row: {
+          class_id: string
+          date: string
+          locked_at: string
+          locked_by: string | null
+        }
+        Insert: {
+          class_id: string
+          date: string
+          locked_at?: string
+          locked_by?: string | null
+        }
+        Update: {
+          class_id?: string
+          date?: string
+          locked_at?: string
+          locked_by?: string | null
+        }
+        Relationships: []
+      }
       attendance_submissions: {
         Row: {
           academic_year_id: string | null
@@ -4701,64 +4758,6 @@ export type Database = {
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      parent_academic_alerts: {
-        Row: {
-          body: string
-          created_at: string
-          id: string
-          kind: string
-          parent_user_id: string
-          read: boolean
-          school_id: string | null
-          student_id: string
-          title: string
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          id?: string
-          kind: string
-          parent_user_id: string
-          read?: boolean
-          school_id?: string | null
-          student_id: string
-          title: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          id?: string
-          kind?: string
-          parent_user_id?: string
-          read?: boolean
-          school_id?: string | null
-          student_id?: string
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "parent_academic_alerts_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "parent_academic_alerts_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "parent_academic_alerts_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students_current"
             referencedColumns: ["id"]
           },
         ]
@@ -8836,6 +8835,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _parent_weekly_digest: {
+        Args: { _from: string; _parent: string; _to: string }
+        Returns: Json
+      }
       _peek_teacher_featured_battle: {
         Args: { _class_id: string }
         Returns: string
@@ -8986,10 +8989,15 @@ export type Database = {
         }
         Returns: string
       }
-      admin_connect_student_account: {
-        Args: { _as?: string; _identifier: string; _student_id: string }
-        Returns: string
-      }
+      admin_connect_student_account:
+        | {
+            Args: { _identifier: string; _student_id: string }
+            Returns: string
+          }
+        | {
+            Args: { _as?: string; _identifier: string; _student_id: string }
+            Returns: string
+          }
       admin_connect_teacher_account: {
         Args: { _identifier: string; _teacher_id: string }
         Returns: string
@@ -10232,6 +10240,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      rpc_send_parent_weekly_digests: { Args: never; Returns: Json }
       rpc_set_featured_badges: {
         Args: { _badges: string[] }
         Returns: undefined
