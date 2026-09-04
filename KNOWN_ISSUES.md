@@ -84,9 +84,15 @@ FAILED: 20260509064250_0d3a48e5-93b0-4835-8c62-e3e252a5dbd6.sql
 ERROR: 42710: policy "locks read auth" for table "attendance_locks" already exists
 ```
 
-It exits 1 there, so no later migration is reached. This session applied its own
-migration through the same Management API endpoint with the same ledger insert,
-one file at a time.
+It exits 1 there, so no later migration is reached.
+
+**Use `node scripts/apply-one-migration.mjs <file>` instead** — it already
+exists, applies exactly one file through the same Management API endpoint, and
+records the same `schema_migrations` row (`--no-ledger` for fixtures and
+verification files). `npm run db:migrate` is the trap; the single-file applier
+is the tool. Worth wiring the pending check into `db:migrate` so it skips what
+the ledger already holds, rather than leaving a script in package.json that
+cannot complete.
 
 ## 5. `information_schema.role_table_grants` hides grants — do not audit with it
 
