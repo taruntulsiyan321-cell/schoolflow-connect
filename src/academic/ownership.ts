@@ -186,9 +186,15 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
   },
   learning_resource: {
     entity: "learning_resource",
-    owners: ["admin", "principal", "teacher"],
+    // §10.11: "Uploaded by teachers only — not admin, not principal." This said
+    // admin and principal could own, which contradicted both the spec and the
+    // live policies: resources_write/update/delete all require
+    // has_role(auth.uid(),'teacher'), and probe4 measures admin being refused.
+    // The client guard now agrees with the database instead of promising a
+    // write the database refuses.
+    owners: ["teacher"],
     consumers: ["admin", "principal", "teacher", "student", "parent"],
-    description: "Published class study materials",
+    description: "Published class study materials — teacher-uploaded (§10.11)",
   },
   announcement: {
     entity: "announcement",

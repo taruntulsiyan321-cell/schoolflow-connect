@@ -170,7 +170,8 @@ export type {
 export type { StudentHomeworkRow, SchoolHomeworkSummary, HomeworkClassStatsRow } from "./services/homeworkService";
 export type { ClassTimetableSnapshot } from "./services/timetableService";
 export type { CalendarEvent, CalendarEventType, CalendarEventAudience } from "./services/calendarEventsService";
-export type { LearningResourceRow } from "./services/resourceService";
+export type { LearningResourceRow, ResourceKind } from "./services/resourceService";
+export { RESOURCE_KINDS } from "./services/resourceService";
 export {
   uploadDoubtAttachment,
   signedDoubtUrl,

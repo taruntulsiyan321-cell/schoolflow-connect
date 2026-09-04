@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-
 import {
   LayoutDashboard, BookOpen, HelpCircle, MessageCircle, Megaphone,
   Calendar, User, ChevronLeft, ChevronRight, GraduationCap, Menu, LogOut,
-  Swords, Library, Brain,
+  Swords, Library, Brain, FolderOpen,
 } from "lucide-react";
 import { cn } from "./shared";
 import {
@@ -18,6 +18,7 @@ import TeacherAttendancePage from "./TeacherAttendancePage";
 import Doubts from "./Doubts";
 import Communication from "./Communication";
 import Announcements from "./Announcements";
+import TeacherResources from "./Resources";
 import Leave from "./Leave";
 import TeacherProfile from "./Profile";
 import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
@@ -55,6 +56,7 @@ const navItems: NavItem[] = [
   { key: "myclasses", label: "My Classes", icon: <BookOpen className="w-4 h-4" /> },
   { key: "battleground", label: "Battles", icon: <Swords className="w-4 h-4" /> },
   { key: "questionbank", label: "Question Bank", icon: <Library className="w-4 h-4" /> },
+  { key: "resources", label: "Resources", icon: <FolderOpen className="w-4 h-4" /> },
   { key: "aicoach", label: "AI Coach", icon: <Brain className="w-4 h-4" /> },
   { key: "doubts", label: "Student Doubts", icon: <HelpCircle className="w-4 h-4" /> },
   { key: "communication", label: "Communication", icon: <MessageCircle className="w-4 h-4" /> },
@@ -296,6 +298,7 @@ export default function TeacherApp() {
               <Route path="leave" element={<Leave />} />
               <Route path="profile" element={<TeacherProfile />} />
               <Route path="question-bank" element={<QuestionBankPage />} />
+              <Route path="resources" element={<TeacherResources />} />
               <Route path="ai-coach" element={<TeacherAICoach />} />
               <Route path="practice" element={<Navigate to="/teacher/question-bank" replace />} />
               <Route path="battleground" element={<TeacherBattleground />} />

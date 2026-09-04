@@ -53,7 +53,17 @@ function safeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120);
 }
 
-export async function uploadAcademicFile(file: File): Promise<HomeworkAttachmentMeta> {
+/**
+ * Returns the attachment meta plus the bucket-relative object path.
+ *
+ * `storagePath` is additive: every existing caller destructures
+ * HomeworkAttachmentMeta and is unaffected. It exists because
+ * learning_resources stores `storage_path` and resolves it back through
+ * publicAcademicFileUrl, so that caller needs the path, not just the URL.
+ */
+export async function uploadAcademicFile(
+  file: File,
+): Promise<HomeworkAttachmentMeta & { storagePath: string }> {
   if (file.size > MAX_BYTES) {
     throw new Error(`"${file.name}" is larger than 20 MB`);
   }
@@ -91,6 +101,7 @@ export async function uploadAcademicFile(file: File): Promise<HomeworkAttachment
     url: data.publicUrl,
     mimeType: file.type || guessMime(ext),
     sizeBytes: file.size,
+    storagePath: path,
   };
 }
 

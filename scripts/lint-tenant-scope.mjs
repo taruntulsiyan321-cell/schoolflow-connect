@@ -233,6 +233,8 @@ const ALLOWLIST = {
   rpc_refresh_academic_brain: "No parameters; self-scoped via auth.uid(). Also independently checked for the nested-aggregate bug found in the two _concept_analytics functions -- already uses the correct row_data/plain-column ORDER BY pattern.",
   rpc_create_template_solo_battle: "Creates a battle owned by the caller (creator_user_id = auth.uid()); no cross-user target.",
   rpc_set_featured_badges: "Self-scoped; sets the caller's own featured badge selection via auth.uid().",
+  rpc_set_equipped_badge:
+    "Self-scoped, and strictly tighter than an institution predicate: _uid is auth.uid() with no target-user parameter at all, and every statement is keyed to it -- the earned-badge check reads student_badges WHERE user_id = _uid, and the write is UPDATE student_xp ... WHERE user_id = _uid. One person, where same_school() would admit thousands. Same shape and same reason as rpc_set_featured_badges directly above, for the neighbouring column on the same table; it exists because 20260905000000_xp_engine_owned.sql revoked the client's direct write to student_xp, so equip needed a definer path. school_id is set, when the row is first created, by _ensure_student_xp from the student's own record. Read body 2026-09-04.",
   rpc_classmates: "Self-scoped; resolves the caller's own class via auth.uid() before listing classmates in that same class.",
   rpc_battle_feed: "uses_teacher_scope_helper; already gated by role + class-teacher check, no cross-school target parameter.",
   rpc_battle_curriculum: "Global curriculum/topic catalog (both overloads), no user-specific data -- same reasoning as rpc_pick_question_templates.",
