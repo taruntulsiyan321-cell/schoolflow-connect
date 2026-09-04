@@ -36,12 +36,14 @@ export type RecoveryCompletionReport = {
     overallAccuracy: MetricPair;
     practiceAccuracy: MetricPair;
     weakConceptsFixed: number;
-    masteryScoreIncrease: number;
   };
   academicHealth: MetricPair;
   journey: JourneyStage[];
   conceptStatus: {
-    mastered: string[];
+    // No `mastered` list. §10.8: "Strong areas are never shown anywhere in the
+    // app. The product surfaces weaknesses only." A list of concepts the student
+    // has mastered is the plainest possible strength surface, and it was being
+    // rendered to them at /student/recovery/:id/complete.
     improving: string[];
     needsRecovery: string[];
   };
@@ -150,7 +152,6 @@ export function buildRecoveryCompletionReport(opts: {
   const practiceAcc = practiceAccuracyFromSnapshot(snapshot);
   const conceptImprovements = relatedConcepts(mastery, concept, chapter);
 
-  const mastered = conceptImprovements.filter((c) => c.after >= 80).map((c) => c.name);
   const improving = conceptImprovements.filter((c) => c.after >= 60 && c.after < 80).map((c) => c.name);
   const needsRecovery = [
     ...conceptImprovements.filter((c) => c.after < 60).map((c) => c.name),
@@ -271,11 +272,10 @@ export function buildRecoveryCompletionReport(opts: {
         after: practiceAcc,
       },
       weakConceptsFixed: masteryAfter >= 60 ? 1 : 0,
-      masteryScoreIncrease: 0,
     },
     academicHealth: { label: "Session health (accuracy + mastery)", before: healthScore, after: healthScore },
     journey,
-    conceptStatus: { mastered, improving, needsRecovery },
+    conceptStatus: { improving, needsRecovery },
     successHistory: successHistory.slice(0, 5),
     coach: { headline: coachHeadline, bullets: coachBullets, focusNext },
     whatsNext: {

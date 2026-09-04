@@ -182,10 +182,6 @@ export function RecoveryCompletionReportView({ report }: Props) {
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Weak concepts fixed</p>
             <p className="text-3xl font-bold mt-2 tabular-nums text-emerald-700">{r.recoveryImpact.weakConceptsFixed}</p>
           </div>
-          <div className="rc-card p-5">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Mastery score increase</p>
-            <p className="text-3xl font-bold mt-2 tabular-nums text-[#c49a2a]">+{r.recoveryImpact.masteryScoreIncrease}</p>
-          </div>
         </div>
       </section>
 
@@ -256,24 +252,7 @@ export function RecoveryCompletionReportView({ report }: Props) {
       <section>
         <h2 className="rc-section-title text-xl mb-1">Concept status</h2>
         <p className="text-sm text-muted-foreground mb-4">Where you stand right now.</p>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div className="rc-card p-4 border-emerald-200/60">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 mb-3 flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Mastered
-            </p>
-            <ul className="space-y-2 text-sm">
-              {r.conceptStatus.mastered.length > 0 ? (
-                r.conceptStatus.mastered.map((c) => (
-                  <li key={c} className="flex items-start gap-2">
-                    <span className="text-emerald-600">✓</span>
-                    <span>{displayConcept(c) || c}</span>
-                  </li>
-                ))
-              ) : (
-                <li className="text-muted-foreground text-xs">Keep practicing — mastery is close.</li>
-              )}
-            </ul>
-          </div>
+        <div className="grid sm:grid-cols-2 gap-4">
           <div className="rc-card p-4 border-amber-200/60">
             <p className="text-xs font-semibold uppercase tracking-wider text-amber-800 mb-3 flex items-center gap-1">
               <AlertTriangle className="w-3.5 h-3.5" /> Improving
