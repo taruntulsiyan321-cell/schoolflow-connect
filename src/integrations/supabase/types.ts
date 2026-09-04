@@ -89,7 +89,7 @@ export type Database = {
           actor_role: string | null
           actor_user_id: string | null
           created_at: string
-          entity_id: string
+          entity_id: string | null
           entity_type: string
           id: string
           metadata: Json
@@ -102,7 +102,7 @@ export type Database = {
           actor_role?: string | null
           actor_user_id?: string | null
           created_at?: string
-          entity_id: string
+          entity_id?: string | null
           entity_type: string
           id?: string
           metadata?: Json
@@ -115,7 +115,7 @@ export type Database = {
           actor_role?: string | null
           actor_user_id?: string | null
           created_at?: string
-          entity_id?: string
+          entity_id?: string | null
           entity_type?: string
           id?: string
           metadata?: Json
@@ -1689,98 +1689,6 @@ export type Database = {
           },
         ]
       }
-      attendance_audit: {
-        Row: {
-          attendance_id: string | null
-          class_id: string | null
-          date: string | null
-          edited_at: string
-          edited_by: string | null
-          id: string
-          new_status: string | null
-          prev_status: string | null
-          school_id: string | null
-          student_id: string | null
-          submission_id: string | null
-        }
-        Insert: {
-          attendance_id?: string | null
-          class_id?: string | null
-          date?: string | null
-          edited_at?: string
-          edited_by?: string | null
-          id?: string
-          new_status?: string | null
-          prev_status?: string | null
-          school_id?: string | null
-          student_id?: string | null
-          submission_id?: string | null
-        }
-        Update: {
-          attendance_id?: string | null
-          class_id?: string | null
-          date?: string | null
-          edited_at?: string
-          edited_by?: string | null
-          id?: string
-          new_status?: string | null
-          prev_status?: string | null
-          school_id?: string | null
-          student_id?: string | null
-          submission_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "attendance_audit_attendance_id_fkey"
-            columns: ["attendance_id"]
-            isOneToOne: false
-            referencedRelation: "attendance"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_audit_attendance_id_fkey"
-            columns: ["attendance_id"]
-            isOneToOne: false
-            referencedRelation: "attendance_current"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_audit_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_audit_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_audit_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_audit_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students_current"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_audit_submission_id_fkey"
-            columns: ["submission_id"]
-            isOneToOne: false
-            referencedRelation: "attendance_submissions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       attendance_submissions: {
         Row: {
           academic_year_id: string | null
@@ -1835,47 +1743,6 @@ export type Database = {
             columns: ["section_id"]
             isOneToOne: false
             referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      audit_logs: {
-        Row: {
-          action: string
-          actor_user_id: string | null
-          created_at: string
-          entity: string | null
-          entity_id: string | null
-          id: string
-          metadata: Json | null
-          school_id: string | null
-        }
-        Insert: {
-          action: string
-          actor_user_id?: string | null
-          created_at?: string
-          entity?: string | null
-          entity_id?: string | null
-          id?: string
-          metadata?: Json | null
-          school_id?: string | null
-        }
-        Update: {
-          action?: string
-          actor_user_id?: string | null
-          created_at?: string
-          entity?: string | null
-          entity_id?: string | null
-          id?: string
-          metadata?: Json | null
-          school_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "audit_logs_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -8565,13 +8432,6 @@ export type Database = {
           submission_id: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "attendance_audit_submission_id_fkey"
-            columns: ["submission_id"]
-            isOneToOne: false
-            referencedRelation: "attendance_submissions"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "attendance_submissions_school_id_fkey"
             columns: ["school_id"]
