@@ -9,7 +9,10 @@ Started 2026-09-04, build session 1 (XP write / test-generate-questions / Resour
 
 ## 1. `requireAnyRole` in edge functions can never admit anybody
 
-**Severity: high — it makes at least one deployed function unusable by everyone.**
+**Severity: high — it makes every deployed function using `requireAnyRole`
+unusable by everyone. Two confirmed so far: `dpp-generate-questions` and
+`ai-ping`, the latter being the connectivity check for the whole AI path
+(`npm run ai:ping`), which no admin or principal can pass.**
 
 `dpp-generate-questions` gates on
 `requireAnyRole(req, ["teacher","admin","principal"])`, which calls
@@ -116,8 +119,21 @@ eight `_shared` modules it bundles have drifted** since version 12 was pushed �
 `structuredCompletion.ts` and `promptLibrary.ts`. The other six, including
 `requireRole.ts`, are byte-identical. So a deploy from this repo still would
 not reproduce production, and that has to be resolved deliberately before
-anyone redeploys. `ai-expand-questions`, `ai-ping` and `mcp` are still
-unrecovered.
+anyone redeploys.
+
+`ai-ping` (deployed v10) was recovered too. `ai-expand-questions` and `mcp` are
+still unrecovered.
+
+**How to recover one, and the trap in doing it.** Use the MCP
+`get_edge_function` tool and take `files[].content` — that is the pristine
+source. Do **not** use the Management API
+`GET /v1/projects/{ref}/functions/{slug}/body`: it returns an eszip whose
+embedded sources are *transpiled*, with array literals re-wrapped, `*/ import`
+joined onto one line and formatting normalised. Verified by trying it — a
+byte-comparison against the real source fails on line 22 of a 60-line file for
+formatting reasons alone. It is fine for asking "is this identifier present"
+and useless for reproducing a file. A copy taken from it would look
+authoritative and be subtly wrong. Extract programmatically; do not retype.
 
 ## 4. `npm run db:migrate` re-runs 356 migrations and cannot complete
 
