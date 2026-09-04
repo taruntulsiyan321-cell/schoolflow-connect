@@ -250,6 +250,8 @@ export default function Resources() {
   const [creating, setCreating] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** "" means every class this teacher teaches. */
+  const [classFilter, setClassFilter] = useState<string>("");
   const loadedRef = useRef(false);
 
   const showFlash = (msg: string) => {
@@ -259,7 +261,7 @@ export default function Resources() {
 
   const reload = async () => {
     if (!ctx) return;
-    setItems(await ResourceService.listForTeacher(ctx));
+    setItems(await ResourceService.listForTeacher(ctx, { classId: classFilter || null }));
   };
 
   useEffect(() => {
@@ -270,16 +272,21 @@ export default function Resources() {
       if (isFirst) setLoading(true);
       setError(null);
       try {
-        const assigned = await ResourceService.listTeachableClasses(ctx);
-        if (cancelled) return;
-        setClasses(assigned);
-        const rows = await ResourceService.listForTeacher(ctx);
+        // The class list only needs fetching once; the filter re-runs the rows.
+        let assigned = classes;
+        if (!loadedRef.current) {
+          assigned = await ResourceService.listTeachableClasses(ctx);
+          if (cancelled) return;
+          setClasses(assigned);
+        }
+        const rows = await ResourceService.listForTeacher(ctx, {
+          classId: classFilter || null,
+        });
         if (cancelled) return;
         setItems(rows);
         loadedRef.current = true;
       } catch (e) {
         if (!cancelled) {
-          setClasses([]);
           setItems([]);
           setError(toErrorMessage(e, "Could not load resources"));
         }
@@ -291,10 +298,10 @@ export default function Resources() {
       cancelled = true;
     };
     // ctx is a fresh object on every render, so depending on it would refetch
-    // in a loop; the two ids that actually decide the query are the deps. Same
-    // shape as the sibling teacher screens (Announcements.tsx:179).
+    // in a loop; the ids and the filter are what actually decide the query.
+    // Same shape as the sibling teacher screens (Announcements.tsx:179).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx?.schoolId, ctx?.userId]);
+  }, [ready, ctx?.schoolId, ctx?.userId, classFilter]);
 
   async function handleCreate(form: FormState) {
     if (!ctx || form.resourceType === "") return;
@@ -359,16 +366,33 @@ export default function Resources() {
             Study material for the classes you teach. Students see it in their library.
           </div>
         </div>
-        {!creating && (
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            disabled={classes.length === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all"
-          >
-            <Plus className="w-3.5 h-3.5" /> New Resource
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {classes.length > 1 && (
+            <select
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              aria-label="Filter by class"
+              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none"
+            >
+              <option value="">All classes</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name ?? "Unnamed"} {c.section ?? ""}
+                </option>
+              ))}
+            </select>
+          )}
+          {!creating && (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              disabled={classes.length === 0}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" /> New Resource
+            </button>
+          )}
+        </div>
       </div>
 
       {flash && (
@@ -397,7 +421,9 @@ export default function Resources() {
         <div className="text-xs text-muted-foreground py-10 text-center">
           {classes.length === 0
             ? "You have no assigned classes, so there is nowhere to upload yet."
-            : "You have not uploaded anything yet."}
+            : classFilter
+              ? `You have not uploaded anything for ${classLabel(classFilter)} yet.`
+              : "You have not uploaded anything yet."}
         </div>
       ) : (
         <div className="space-y-2">
