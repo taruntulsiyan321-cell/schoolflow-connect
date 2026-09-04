@@ -4145,7 +4145,7 @@ export type Database = {
           id: string
           is_published: boolean
           published_at: string | null
-          resource_type: Database["public"]["Enums"]["resource_type"]
+          resource_type: Database["public"]["Enums"]["resource_file_type"]
           school_id: string
           storage_path: string | null
           subject: string | null
@@ -4161,7 +4161,7 @@ export type Database = {
           id?: string
           is_published?: boolean
           published_at?: string | null
-          resource_type?: Database["public"]["Enums"]["resource_type"]
+          resource_type: Database["public"]["Enums"]["resource_file_type"]
           school_id?: string
           storage_path?: string | null
           subject?: string | null
@@ -4177,7 +4177,7 @@ export type Database = {
           id?: string
           is_published?: boolean
           published_at?: string | null
-          resource_type?: Database["public"]["Enums"]["resource_type"]
+          resource_type?: Database["public"]["Enums"]["resource_file_type"]
           school_id?: string
           storage_path?: string | null
           subject?: string | null
@@ -8506,6 +8506,18 @@ export type Database = {
           },
         ]
       }
+      trash: {
+        Row: {
+          deleted_at: string | null
+          deleted_by: string | null
+          entity_id: string | null
+          entity_type: string | null
+          label: string | null
+          restore_before: string | null
+          school_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _academic_label_match_key: { Args: { t: string }; Returns: string }
@@ -9974,7 +9986,7 @@ export type Database = {
         }
         Returns: Json
       }
-      rpc_purge_deleted_homework: { Args: never; Returns: number }
+      rpc_purge_expired: { Args: never; Returns: Json }
       rpc_record_community_doubt_view: {
         Args: { _doubt_id: string }
         Returns: number
@@ -10040,6 +10052,10 @@ export type Database = {
       rpc_respond_to_invitation: {
         Args: { _accept: boolean; _invitation_id: string }
         Returns: Database["public"]["Enums"]["invitation_status"]
+      }
+      rpc_restore_from_trash: {
+        Args: { _entity_id: string; _entity_type: string }
+        Returns: boolean
       }
       rpc_revision_plan_v2: {
         Args: never
@@ -10353,6 +10369,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      trash_retention_days: { Args: { _entity_type: string }; Returns: number }
       write_academic_audit: {
         Args: {
           _action: string
@@ -10431,14 +10448,7 @@ export type Database = {
         | "students"
       notice_priority: "low" | "normal" | "high" | "urgent"
       person_status: "active" | "inactive" | "suspended" | "alumni"
-      resource_type:
-        | "pdf"
-        | "video"
-        | "link"
-        | "notes"
-        | "worksheet"
-        | "presentation"
-        | "other"
+      resource_file_type: "pdf" | "image"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -10639,15 +10649,7 @@ export const Constants = {
       ],
       notice_priority: ["low", "normal", "high", "urgent"],
       person_status: ["active", "inactive", "suspended", "alumni"],
-      resource_type: [
-        "pdf",
-        "video",
-        "link",
-        "notes",
-        "worksheet",
-        "presentation",
-        "other",
-      ],
+      resource_file_type: ["pdf", "image"],
     },
   },
 } as const
