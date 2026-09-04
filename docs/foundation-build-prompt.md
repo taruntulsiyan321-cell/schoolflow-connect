@@ -2139,13 +2139,30 @@ referenced elsewhere. Resources may already exist under another name.
 
 **`resources`**
 `id · institution_id · uploaded_by_teacher_id · title · file_url ·
-type (pdf/image) · target_class_id · target_section_id · created_at`
+type (pdf/image) · target_class_id · created_at`
 
 - **Uploaded by teachers only** — not admin, not principal.
 - **PDF and image only.**
-- Targeted at a class or a section, **restricted to sections the teacher teaches.**
+- Targeted at a class, **restricted to classes the teacher teaches.**
 - **No view tracking of any kind.** No opens, no counts. Do not create the table.
 - **Hard delete by the uploader. No trash.**
+
+> **VOCABULARY — "class" and "section" are ONE entity in this schema.**
+> There is no `sections` table and there never was. Every `section_id` in the
+> database — `attendance_submissions.section_id`, `section_subjects.section_id`,
+> `student_enrolments.section_id` — is a foreign key to **`classes`**, and a
+> `classes` row carries BOTH `name` and `section` ("10", "A"). **A class row IS
+> a section.**
+>
+> This shape originally read `target_class_id · target_section_id`. Building
+> both would have put two columns on one table pointing at the same table for
+> the same purpose — G9, created to satisfy a word. `target_section_id` is
+> removed from the shape above rather than left to be reintroduced from the
+> same wording next time.
+>
+> Read "a section they teach" throughout this document as
+> `teacher_teaches_class(auth.uid(), class_id)`. If a genuine sub-class grouping
+> is ever needed, it needs a `sections` table and a ruling, not a second column.
 
 **`trash`** — soft-delete registry
 `entity_type · entity_id · deleted_at · deleted_by · restore_before`

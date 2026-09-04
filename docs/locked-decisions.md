@@ -424,8 +424,12 @@ trend — the exact failure the stable-ID rule exists to prevent.
 - **Per school only. Never centralised.** Distinct from the question bank.
 - **Uploaded by teachers only** — not admin, not principal.
 - Types: **PDF/document and image** only.
-- Targeted at a **specific class or a specific section**.
-- A teacher may only upload to **sections they teach**.
+- Targeted at a **specific class**. ("Class" and "section" are one entity here —
+  there is no `sections` table; a `classes` row carries both `name` and
+  `section`, so a class row IS a section. See the vocabulary note in
+  `foundation-build-prompt.md` under Chunk 9.)
+- A teacher may only upload to **classes they teach** —
+  `teacher_teaches_class(auth.uid(), class_id)`.
 - **No view tracking of any kind.** Not who opened it, not a view count.
 - Deletable by the uploader. **Permanent deletion — no trash.**
 
