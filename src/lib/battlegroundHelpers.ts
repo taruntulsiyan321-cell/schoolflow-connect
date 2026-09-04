@@ -8,6 +8,7 @@ import {
   progressionLeagueFromXp,
   progressionXpToNextLeague,
 } from "@/academic/services/progressionMath";
+import { STREAK_ESTABLISHED } from "@/academic/metrics/bands";
 
 export type League = {
   name: string;
@@ -116,7 +117,7 @@ export function motivationCard(input: MotivationCardInput): MotivationCard {
       icon: "target",
     };
   }
-  if (streak >= 3) {
+  if (streak >= STREAK_ESTABLISHED) {
     return {
       title: `${streak}-win streak`,
       message: "You're on fire! Keep battling today to protect your streak.",

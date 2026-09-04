@@ -5,6 +5,28 @@
 
 export type RiskBand = "low" | "moderate" | "elevated" | "high" | "unknown";
 
+/**
+ * RISK: higher score = more risk. A student's standing.
+ *
+ * Named because three ladders in this package all produced a RiskBand from
+ * different boundaries, so "elevated" meant >= 55 here, >= 50 in
+ * doubtUrgency.ts, and the 50-70 band in bandFromConsistency below. Four words,
+ * three meanings, one type. The words are only comparable if the numbers are
+ * visible.
+ */
+export const RISK_SCORE_HIGH = 75;
+export const RISK_SCORE_ELEVATED = 55;
+export const RISK_SCORE_MODERATE = 35;
+
+/**
+ * CONSISTENCY: INVERTED — a higher score is HEALTHIER, so the ladder runs the
+ * other way. Deliberately not sharing RISK_SCORE_*: reusing those constants
+ * here would read as agreement while meaning the opposite.
+ */
+export const CONSISTENCY_HEALTHY = 85;
+export const CONSISTENCY_MODERATE = 70;
+export const CONSISTENCY_ELEVATED = 50;
+
 export type AttendanceRiskProduct = {
   product: "attendance_risk";
   attendance_pct: number | null;
@@ -27,17 +49,17 @@ function clampScore(n: number): number {
 }
 
 function bandFromRiskScore(score: number): RiskBand {
-  if (score >= 75) return "high";
-  if (score >= 55) return "elevated";
-  if (score >= 35) return "moderate";
+  if (score >= RISK_SCORE_HIGH) return "high";
+  if (score >= RISK_SCORE_ELEVATED) return "elevated";
+  if (score >= RISK_SCORE_MODERATE) return "moderate";
   return "low";
 }
 
 function bandFromConsistency(score: number): RiskBand {
   // For consistency, invert language: high score = healthy (low risk band)
-  if (score >= 85) return "low";
-  if (score >= 70) return "moderate";
-  if (score >= 50) return "elevated";
+  if (score >= CONSISTENCY_HEALTHY) return "low";
+  if (score >= CONSISTENCY_MODERATE) return "moderate";
+  if (score >= CONSISTENCY_ELEVATED) return "elevated";
   return "high";
 }
 

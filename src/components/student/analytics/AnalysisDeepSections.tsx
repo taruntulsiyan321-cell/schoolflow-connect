@@ -10,7 +10,7 @@ import type {
   TopicGapInsight,
 } from "@/lib/analyticsInsights";
 import { FlowSectionTitle } from "@/components/student/flow/FlowDesign";
-import { accuracyBand, type AccuracyBand } from "@/academic/metrics/bands";
+import { accuracyBand, type AccuracyBand, ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
 
 /** Palette local, boundaries imported — this screen banded at 55/75, the one
  *  beside it at 40/55/75, for the same subject's accuracy. */
@@ -388,7 +388,7 @@ export function SessionLog({ sessions, variant = "default" }: { sessions: Practi
                 </p>
               </div>
               <div className="text-right tabular-nums">
-                <p className={cn("font-semibold", s.accuracy_pct >= 70 ? "text-emerald-700" : s.accuracy_pct >= 50 ? "text-foreground" : "text-orange-700")}>
+                <p className={cn("font-semibold", s.accuracy_pct >= ACCURACY_CONCEPTUAL ? "text-emerald-700" : s.accuracy_pct >= ACCURACY_BUILDING ? "text-foreground" : "text-orange-700")}>
                   {s.accuracy_pct}%
                 </p>
                 <p className="text-[10px] text-muted-foreground">

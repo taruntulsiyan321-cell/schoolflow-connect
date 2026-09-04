@@ -3,7 +3,7 @@ import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { SubjectChartPoint } from "@/hooks/useStudentPerformanceCharts";
 import type { MistakeTopicAggregate, TopicGapInsight } from "@/lib/analyticsInsights";
 import { displayChapter, displaySubject } from "@/lib/academicDisplay";
-import { accuracyBand, ACCURACY_LABEL } from "@/academic/metrics/bands";
+import { accuracyBand, ACCURACY_LABEL, ACCURACY_CONCEPTUAL, STREAK_ESTABLISHED } from "@/academic/metrics/bands";
 
 // RULING 1 — `masteryLevel` is deleted, not converged.
 //
@@ -95,7 +95,7 @@ export function buildPersonalBests(
 ): PersonalBest[] {
   const items: PersonalBest[] = [];
   const bestSession = [...sessions].sort((a, b) => b.accuracy_pct - a.accuracy_pct)[0];
-  if (bestSession && bestSession.accuracy_pct >= 70) {
+  if (bestSession && bestSession.accuracy_pct >= ACCURACY_CONCEPTUAL) {
     items.push({
       kind: "RECORD",
       title: `${bestSession.accuracy_pct}% in ${displayChapter(bestSession.chapter) || displaySubject(bestSession.subject) || "practice"}`,
@@ -113,7 +113,7 @@ export function buildPersonalBests(
     });
   }
   const streak = data.xp?.study_streak ?? 0;
-  if (streak >= 3) {
+  if (streak >= STREAK_ESTABLISHED) {
     items.push({
       kind: "STREAK",
       title: `${streak}-day practice streak`,

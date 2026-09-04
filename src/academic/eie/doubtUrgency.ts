@@ -1,19 +1,36 @@
-import type { RiskBand } from "./riskProducts";
-
 /**
- * EIE doubt-triage product — deterministic urgency from age + visibility.
+ * EIE doubt-triage product - deterministic urgency from age + visibility.
  * No LLM: a stale, widely-viewed unanswered doubt is objectively more
- * urgent than a fresh one nobody has looked at yet. Reuses the RiskBand
- * vocabulary (low/moderate/elevated/high) already used for attendance and
- * homework risk, rather than inventing a parallel scale.
+ * urgent than a fresh one nobody has looked at yet.
+ *
+ * THIS IS NOT A RiskBand, though it used to be typed as one. The header here
+ * argued the reuse was a virtue - "rather than inventing a parallel scale" -
+ * but the scale was already parallel: this ladder breaks at 75/50/25 while
+ * attendance risk breaks at 75/55/35 and consistency runs INVERTED at 85/70/50.
+ * Three ladders, one type, four shared words meaning three different things.
+ *
+ * A risk band describes A STUDENT'S STANDING. An urgency band describes AN
+ * ITEM'S CLAIM ON SOMEONE'S ATTENTION. That is the same split already made
+ * between riskBand and urgencyBand in metrics/bands.ts, applied here.
+ *
+ * The two unions share their members, so TypeScript's structural typing will
+ * still permit a cross-assignment. What the split buys is in the NAMES and the
+ * NUMBERS: nobody can now "align" the three ladders without noticing they were
+ * never measuring the same thing.
  */
+export type DoubtUrgencyBand = "low" | "moderate" | "elevated" | "high" | "unknown";
+
+/** An ITEM'S claim on attention. Not comparable to RISK_SCORE_* - different subject. */
+export const DOUBT_URGENCY_HIGH = 75;
+export const DOUBT_URGENCY_ELEVATED = 50;
+export const DOUBT_URGENCY_MODERATE = 25;
 
 export type DoubtUrgencyProduct = {
   product: "doubt_urgency";
   age_hours: number;
   view_count: number;
   score: number;
-  band: RiskBand;
+  band: DoubtUrgencyBand;
   reason_codes: string[];
 };
 
@@ -51,10 +68,10 @@ export function computeDoubtUrgency(input: {
   if (views >= 5) reason_codes.push("doubt_high_visibility");
   if (reason_codes.length === 0) reason_codes.push("doubt_recent_low_visibility");
 
-  let band: RiskBand;
-  if (score >= 75) band = "high";
-  else if (score >= 50) band = "elevated";
-  else if (score >= 25) band = "moderate";
+  let band: DoubtUrgencyBand;
+  if (score >= DOUBT_URGENCY_HIGH) band = "high";
+  else if (score >= DOUBT_URGENCY_ELEVATED) band = "elevated";
+  else if (score >= DOUBT_URGENCY_MODERATE) band = "moderate";
   else band = "low";
 
   return {

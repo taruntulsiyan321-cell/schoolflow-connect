@@ -260,6 +260,18 @@ export const riskBand = (v: number | null | undefined): Band =>
  * exactly backwards, which is the confusion that made one `score` ladder answer
  * two questions in the first place.
  */
+/**
+ * Study streak, in days. EFFORT, not ability — §10.8 permits it, which is why
+ * this is the one family in the survey that keeps its numbers instead of being
+ * converged away. What it did not have was one home: `streak >= 3` was written
+ * in three files and `streak < 15` in a fourth.
+ *
+ * STREAK_ESTABLISHED gates whether a consistency card is emitted at all.
+ * STREAK_MILESTONE is the next target shown to a student still short of it.
+ */
+export const STREAK_ESTABLISHED = 3;
+export const STREAK_MILESTONE = 15;
+
 export const URGENCY_SOME = 2;
 export const URGENCY_MANY = 4;
 

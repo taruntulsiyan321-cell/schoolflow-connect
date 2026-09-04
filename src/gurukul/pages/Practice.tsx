@@ -29,6 +29,7 @@ import {
   RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle, Filter,
 } from "lucide-react";
 import { toErrorMessage } from "@/lib/presentation";
+import { ACCURACY_PROCEDURAL, ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
 
 const CLASS_UNRESOLVED_MSG =
   "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
@@ -569,7 +570,7 @@ function Hub({
                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:border-border hover:bg-muted transition-all text-left"
               >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background:`${withAlpha(h.pct>=75?"hsl(var(--success))":h.pct>=55?"hsl(var(--warning))":"hsl(var(--destructive))", 0.08)}`, color:h.pct>=75?"hsl(var(--success))":h.pct>=55?"hsl(var(--warning))":"hsl(var(--destructive))" }}>
+                  style={{ background:`${withAlpha(h.pct>=ACCURACY_CONCEPTUAL?"hsl(var(--success))":h.pct>=ACCURACY_BUILDING?"hsl(var(--warning))":"hsl(var(--destructive))", 0.08)}`, color:h.pct>=ACCURACY_CONCEPTUAL?"hsl(var(--success))":h.pct>=ACCURACY_BUILDING?"hsl(var(--warning))":"hsl(var(--destructive))" }}>
                   <span className="text-xs font-black">{h.pct}%</span>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1985,13 +1986,13 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   });
   const wrong = stats.wrongCount;
   const pct = stats.accuracy;
-  const color = pct >= 80 ? "hsl(var(--success))" : pct >= 60 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
-  const emoji = pct >= 90 ? "🏆" : pct >= 75 ? "🎯" : pct >= 60 ? "📈" : "💪";
+  const color = pct >= ACCURACY_PROCEDURAL ? "hsl(var(--success))" : pct >= ACCURACY_BUILDING ? "hsl(var(--warning))" : "hsl(var(--destructive))";
+  const emoji = pct >= ACCURACY_PROCEDURAL ? "🏆" : pct >= ACCURACY_CONCEPTUAL ? "🎯" : pct >= ACCURACY_BUILDING ? "📈" : "💪";
   const xpFormatted = formatSessionXp(stats.xpEarned, stats.xpFromDb);
   const xpLabel = xpFormatted === "—" ? null : `+${xpFormatted} XP`;
 return (
     <div className="max-w-lg mx-auto space-y-5">
-      <GlassCard className="p-8 text-center" glow={pct>=75?"green":pct>=55?"amber":"rose"}>
+      <GlassCard className="p-8 text-center" glow={pct>=ACCURACY_CONCEPTUAL?"green":pct>=ACCURACY_BUILDING?"amber":"rose"}>
         <div className="text-5xl mb-3">{emoji}</div>
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{config.label} · Complete</div>
         <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>

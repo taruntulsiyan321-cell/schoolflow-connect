@@ -18,7 +18,7 @@ import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
-import { accuracyBand } from "@/academic/metrics/bands";
+import { accuracyBand, STREAK_ESTABLISHED, STREAK_MILESTONE } from "@/academic/metrics/bands";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
 import { MarksService, useAcademicLive } from "@/academic";
@@ -480,7 +480,7 @@ export default function Analysis() {
       icon: m.badge ? "â­" : "📈",
       category: m.badge ?? "Progress",
     }));
-    if (streak >= 3) {
+    if (streak >= STREAK_ESTABLISHED) {
       items.unshift({
         title: `${streak}-day practice streak`,
         desc: "Keep practicing daily to maintain your streak.",
@@ -634,7 +634,7 @@ export default function Analysis() {
   const upcomingMilestones = useMemo(() => {
     // Annotated, not asserted: `[]` infers never[] under strictNullChecks.
     const items: { title: string; progress: number; target: number; unit: string }[] = [];
-    if (overview.streak < 15 && overview.streak > 0) {
+    if (overview.streak < STREAK_MILESTONE && overview.streak > 0) {
       items.push({ title: "Reach 15-day practice streak", progress: overview.streak, target: 15, unit: "days" });
     }
     if (overview.totalQuestions < 100) {

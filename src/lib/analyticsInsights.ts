@@ -6,6 +6,7 @@ import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import { displayChapter, displayTopic, displayConcept, displaySubject } from "@/lib/academicDisplay";
+import { URGENCY_SOME, URGENCY_MANY } from "@/academic/metrics/bands";
 
 export type TopicGapInsight = {
   topic: string;
@@ -135,9 +136,23 @@ export function normalizeSeverity(raw: string | undefined): "critical" | "modera
   return "mild";
 }
 
+/**
+ * Severity of a weak concept, from two different counts.
+ *
+ * `mistakeCount` is DISTINCT OPEN MISTAKES, which is exactly what
+ * urgencyBand already bands — URGENCY_SOME = 2, URGENCY_MANY = 4 — and this
+ * function was restating both numbers. Converged: the mistake half now imports.
+ *
+ * `totalWrong` is a different quantity (wrong ANSWERS, which repeat on one
+ * mistake), so it keeps its own boundaries rather than borrowing numbers that
+ * happen to sit nearby. They are named here so the difference is visible.
+ */
+export const WRONG_ANSWERS_CRITICAL = 5;
+export const WRONG_ANSWERS_MODERATE = 3;
+
 export function severityFromWrong(totalWrong: number, mistakeCount: number): "critical" | "moderate" | "mild" {
-  if (totalWrong >= 5 || mistakeCount >= 4) return "critical";
-  if (totalWrong >= 3 || mistakeCount >= 2) return "moderate";
+  if (totalWrong >= WRONG_ANSWERS_CRITICAL || mistakeCount >= URGENCY_MANY) return "critical";
+  if (totalWrong >= WRONG_ANSWERS_MODERATE || mistakeCount >= URGENCY_SOME) return "moderate";
   return "mild";
 }
 
