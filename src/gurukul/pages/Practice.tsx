@@ -1987,7 +1987,12 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   const wrong = stats.wrongCount;
   const pct = stats.accuracy;
   const color = pct >= ACCURACY_PROCEDURAL ? "hsl(var(--success))" : pct >= ACCURACY_BUILDING ? "hsl(var(--warning))" : "hsl(var(--destructive))";
-  const emoji = pct >= ACCURACY_PROCEDURAL ? "🏆" : pct >= ACCURACY_CONCEPTUAL ? "🎯" : pct >= ACCURACY_BUILDING ? "📈" : "💪";
+  // No trophy rung. §10.8: the product surfaces weaknesses, never ability, and
+  // a trophy for a high score is the plainest celebration of ability there is.
+  // Converging its boundary from 90 to ACCURACY_PROCEDURAL had made it MORE
+  // frequent, which is the opposite of what the rule wants. The remaining three
+  // describe effort and direction, not attainment.
+  const emoji = pct >= ACCURACY_CONCEPTUAL ? "🎯" : pct >= ACCURACY_BUILDING ? "📈" : "💪";
   const xpFormatted = formatSessionXp(stats.xpEarned, stats.xpFromDb);
   const xpLabel = xpFormatted === "—" ? null : `+${xpFormatted} XP`;
 return (

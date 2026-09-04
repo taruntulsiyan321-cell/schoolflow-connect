@@ -50,6 +50,7 @@ import { useResetOnIdentityChange } from "@/hooks/useInitialLoadGate";
 import {
   ATTENDANCE_LOW,
   HOMEWORK_LOW,
+  HOMEWORK_ITEM_NEEDS_ACTION,
   SUBJECT_AVERAGE_LOW,
 } from "@/academic/metrics/thresholds";
 import {
@@ -2783,7 +2784,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       ...interventionRows.filter((r) => r.metric.includes("concerns")).map((r) => r.id),
     ]);
     const itemAction =
-      lowCompletionHw.filter((h) => h.completionPct < HOMEWORK_LOW).length +
+      lowCompletionHw.filter((h) => h.completionPct < HOMEWORK_ITEM_NEEDS_ACTION).length +
       lateHomework.length +
       testsNeedingPublish.length +
       examsAwaitingMarks.length;

@@ -28,8 +28,23 @@ export const ATTENDANCE_LOW = 80;
 /** Days running. An unbroken absence run of this length is flagged. */
 export const CONSECUTIVE_ABSENCE = 3;
 
-/** Percent. Below this, homework completion is flagged. */
+/** Percent. Below this, a STUDENT's homework completion is flagged. */
 export const HOMEWORK_LOW = 60;
+
+/**
+ * Percent. Below this, a HOMEWORK ITEM enters the teacher's action list.
+ *
+ * A DIFFERENT SUBJECT from HOMEWORK_LOW, which is why it is a different number
+ * and not a drift. HOMEWORK_LOW asks "is this CHILD falling behind";
+ * this asks "does this PIECE OF WORK still need chasing across the class".
+ * A worksheet at 65% returned is not a struggling student — it is a task the
+ * teacher has not finished collecting.
+ *
+ * Briefly converged onto HOMEWORK_LOW during the Chunk 10 threshold sweep. That
+ * was wrong: it silently dropped every item between 60% and 70% off the action
+ * list, which is a product change made inside a rename.
+ */
+export const HOMEWORK_ITEM_NEEDS_ACTION = 70;
 
 /** Rolling days of due dates that "current homework" covers. */
 export const HOMEWORK_WINDOW = 7;
@@ -69,6 +84,7 @@ export const SUBJECT_AVERAGE_LOW = 40;
  */
 export const THRESHOLDS = {
   ATTENDANCE_LOW,
+  HOMEWORK_ITEM_NEEDS_ACTION,
   CONSECUTIVE_ABSENCE,
   HOMEWORK_LOW,
   HOMEWORK_WINDOW,

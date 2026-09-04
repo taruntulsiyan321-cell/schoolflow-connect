@@ -4145,7 +4145,7 @@ export type Database = {
           id: string
           is_published: boolean
           published_at: string | null
-          resource_type: Database["public"]["Enums"]["resource_file_type"]
+          resource_type: Database["public"]["Enums"]["resource_type"]
           school_id: string
           storage_path: string | null
           subject: string | null
@@ -4161,7 +4161,7 @@ export type Database = {
           id?: string
           is_published?: boolean
           published_at?: string | null
-          resource_type: Database["public"]["Enums"]["resource_file_type"]
+          resource_type: Database["public"]["Enums"]["resource_type"]
           school_id?: string
           storage_path?: string | null
           subject?: string | null
@@ -4177,7 +4177,7 @@ export type Database = {
           id?: string
           is_published?: boolean
           published_at?: string | null
-          resource_type?: Database["public"]["Enums"]["resource_file_type"]
+          resource_type?: Database["public"]["Enums"]["resource_type"]
           school_id?: string
           storage_path?: string | null
           subject?: string | null
@@ -10448,7 +10448,15 @@ export type Database = {
         | "students"
       notice_priority: "low" | "normal" | "high" | "urgent"
       person_status: "active" | "inactive" | "suspended" | "alumni"
-      resource_file_type: "pdf" | "image"
+      resource_type:
+        | "pdf"
+        | "image"
+        | "video"
+        | "link"
+        | "notes"
+        | "worksheet"
+        | "presentation"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -10649,7 +10657,16 @@ export const Constants = {
       ],
       notice_priority: ["low", "normal", "high", "urgent"],
       person_status: ["active", "inactive", "suspended", "alumni"],
-      resource_file_type: ["pdf", "image"],
+      resource_type: [
+        "pdf",
+        "image",
+        "video",
+        "link",
+        "notes",
+        "worksheet",
+        "presentation",
+        "other",
+      ],
     },
   },
 } as const
