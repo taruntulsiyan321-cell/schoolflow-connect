@@ -48,7 +48,7 @@
  *   node scripts/check-edge-drift.mjs --only <slug>   one function
  */
 import { createHash } from "crypto";
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync, statSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, mkdirSync, rmSync, statSync } from "fs";
 import { join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
 import { tmpdir } from "os";
@@ -118,17 +118,33 @@ const findings = [];
 
 try {
   for (const slug of slugs) {
+    // EACH SLUG DOWNLOADS INTO ITS OWN DIRECTORY, and this is the whole point.
+    //
+    // Every deployed function carries its OWN snapshot of `_shared`, frozen at
+    // that function's deploy time. They are not copies of one tree. Measured:
+    // `_shared/modelRouter.ts` is 278 lines under `ai-ping` and 426 under
+    // `dpp-generate-questions`, and only the second matches the repo.
+    //
+    // This gate used to download all 17 into ONE scratch tree, so each
+    // download overwrote the previous function's shared files, and then
+    // compared `_shared` once at the end. Whichever function happened to
+    // download last decided the verdict for every shared module. That is how
+    // `modelRouter.ts` read as "not drifted" while `ai-ping` was running a
+    // 278-line copy of it. EVERY not-drifted verdict this gate issued about a
+    // shared module was suspect.
+    const slugTmp = join(tmp, slug);
     // The CLI writes into supabase/functions/<slug> relative to its cwd, so it
     // runs against a scratch tree and never touches the working copy.
     // `shell: true` because on Windows npx is a .cmd shim that spawnSync will
     // not execute directly — without it every download fails silently with no
     // stdout and no stderr, which the first run of this gate reported as
     // COULD-NOT-DOWNLOAD for a function that downloads fine.
+    mkdirSync(slugTmp, { recursive: true });
     const r = spawnSync(
       "npx --yes supabase@latest functions download " + slug + " --project-ref " + PROJECT_REF,
-      { cwd: tmp, encoding: "utf8", env: process.env, shell: true },
+      { cwd: slugTmp, encoding: "utf8", env: process.env, shell: true },
     );
-    const prodDir = join(tmp, "supabase", "functions", slug);
+    const prodDir = join(slugTmp, "supabase", "functions", slug);
     if (!existsSync(prodDir)) {
       findings.push({ slug, file: "-", state: "COULD-NOT-DOWNLOAD", detail: (r.stderr || r.stdout || "").trim().slice(0, 160) });
       continue;
@@ -148,28 +164,28 @@ try {
         if (ha !== hb) findings.push({ slug, file: f, state: "DRIFT", repoHash: ha, detail: `repo ${ha} / prod ${hb}` });
       }
     }
-  }
 
-  // `_shared` IS THE POINT, AND THE FIRST VERSION OF THIS GATE MISSED IT.
-  //
-  // The download writes a function's `../_shared/*.ts` imports alongside it,
-  // preserving the relative path — but the loop above walks only
-  // `supabase/functions/<slug>/`, so every shared module was skipped. That is
-  // why the first full run reported 6 findings where a manual diff had found
-  // 14: ten of the differences were in `_shared`, including
-  // `structuredCompletion.ts`, which ten functions bundle.
-  //
-  // A provenance gate with a silent hole is worse than no gate, so the shared
-  // tree is compared once, after every download has contributed to it.
-  const prodShared = join(tmp, "supabase", "functions", "_shared");
-  const repoShared = join(FUNCTIONS, "_shared");
-  if (existsSync(prodShared)) {
-    for (const f of [...new Set(walk(prodShared))].sort()) {
-      const a = join(repoShared, f), b = join(prodShared, f);
-      if (!existsSync(a)) findings.push({ slug: "_shared", file: f, state: "PROD-ONLY", detail: hash(b) });
-      else {
-        const ha = hash(a), hb = hash(b);
-        if (ha !== hb) findings.push({ slug: "_shared", file: f, state: "DRIFT", repoHash: ha, detail: `repo ${ha} / prod ${hb}` });
+    // ...and this function's OWN `_shared` snapshot, compared against the repo.
+    //
+    // `_shared` IS THE POINT, and the first version of this gate missed it
+    // entirely: the download writes a function's `../_shared/*.ts` imports
+    // alongside it, but the loop walked only `supabase/functions/<slug>/`. The
+    // second version compared them once from a merged tree, which is worse than
+    // missing them — it answered confidently and wrongly.
+    //
+    // Reported per function, so `_shared/promptLibrary.ts` under `ai-ping` is a
+    // different finding from the same file under `dpp-generate-questions`. They
+    // are different bytes in production, so they are different facts.
+    const prodShared = join(slugTmp, "supabase", "functions", "_shared");
+    if (existsSync(prodShared)) {
+      for (const f of [...new Set(walk(prodShared))].sort()) {
+        const a = join(FUNCTIONS, "_shared", f), b = join(prodShared, f);
+        const rel = "_shared/" + f;
+        if (!existsSync(a)) findings.push({ slug, file: rel, state: "PROD-ONLY", detail: hash(b) });
+        else {
+          const ha = hash(a), hb = hash(b);
+          if (ha !== hb) findings.push({ slug, file: rel, state: "DRIFT", repoHash: ha, detail: `repo ${ha} / prod ${hb}` });
+        }
       }
     }
   }
