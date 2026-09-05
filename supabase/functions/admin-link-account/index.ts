@@ -33,17 +33,50 @@ Deno.serve(async (req) => {
     if (!u?.user) return json({ error: "Not authenticated" }, 401);
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const { data: hasRole } = await admin.rpc("has_role", { _user_id: u.user.id, _role: "admin" });
-    if (!hasRole) return json({ error: "Admin only" }, 403);
 
-    const { data: callerProfile } = await admin
+    // THE SCHOOL IS RESOLVED FIRST, BECAUSE THE ROLE CHECK NEEDS IT.
+    //
+    // `has_role(user, role)` asks "is this caller ACTING in this role right
+    // now", and answers from `active_membership_id()`, which is derived from
+    // `auth.uid()`. This client is created with the service key and carries no
+    // user session, so `auth.uid()` is NULL, the predicate takes its
+    // cross-account branch, and that branch resolves the institution with
+    // `get_my_school_id()` -- also NULL without a session. The two-argument
+    // form therefore answered false for every role, and this function returned
+    // 403 "Admin only" to every admin who called it.
+    //
+    // 20260905120000 added the three-argument form for precisely this caller:
+    // one with no session that nevertheless KNOWS which institution it is
+    // asking about. It is not an escape hatch -- probe12 asserts that the wrong
+    // school and a NULL school both still answer false. Naming the school is
+    // the fix. Widening the predicate for session-less callers was proposed as
+    // KNOWN_ISSUES 1 route (a) and was rejected.
+    const { data: callerProfile, error: profileErr } = await admin
       .from("profiles")
       .select("school_id, is_active")
       .eq("id", u.user.id)
       .maybeSingle();
+    // A lookup that FAILED is not a caller who has no school. Distinguish them,
+    // or an outage reads to the admin as a tenancy decision.
+    if (profileErr) {
+      return json({ error: `Could not read the caller's profile: ${profileErr.message}` }, 500);
+    }
     if (!callerProfile?.school_id) return json({ error: "No school context" }, 403);
     if (callerProfile.is_active === false) return json({ error: "Account disabled" }, 403);
     const callerSchoolId = callerProfile.school_id as string;
+
+    const { data: hasRole, error: roleErr } = await admin.rpc("has_role", {
+      _user_id: u.user.id,
+      _role: "admin",
+      _school_id: callerSchoolId,
+    });
+    // Same rule: a predicate that could not be EVALUATED is not a denial. The
+    // previous version discarded this error, so a failing RPC was indistinguishable
+    // from an admin who genuinely lacked the role.
+    if (roleErr) {
+      return json({ error: `Could not check the admin role: ${roleErr.message}` }, 500);
+    }
+    if (!hasRole) return json({ error: "Admin only" }, 403);
 
     const body = await req.json().catch(() => ({}));
     const kind = String(body.kind || "");

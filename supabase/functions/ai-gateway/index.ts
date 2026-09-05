@@ -33,6 +33,7 @@ function json(body: unknown, status = 200) {
 }
 
 async function resolveActor(
+  userClient: ReturnType<typeof createClient>,
   admin: ReturnType<typeof createClient>,
   userId: string,
   targetStudentId?: string,
@@ -41,7 +42,42 @@ async function resolveActor(
   const roles = ["admin", "principal", "teacher", "student", "parent"] as const;
   let role: AiActorRole | null = null;
   for (const r of roles) {
-    const { data } = await admin.rpc("has_role", { _user_id: userId, _role: r });
+    // ASK AS THE CALLER, NOT AS THE SERVICE ROLE.
+    //
+    // `has_role(user, role)` answers from `active_membership_id()`, which is
+    // derived from `auth.uid()`. Asked through `admin` -- a service-role client
+    // with no user session -- `auth.uid()` is NULL, the predicate falls to its
+    // cross-account branch, that branch resolves the institution with
+    // `get_my_school_id()` (also NULL without a session), and every role
+    // answered false. `resolveActor` therefore returned null for everybody and
+    // this gateway 403'd every request. `has_role` moved onto memberships in
+    // 20260825120000, and `ai_request_decisions` has recorded nothing since
+    // 2026-08-25.
+    //
+    // WHY NOT THE THREE-ARGUMENT FORM HERE. Naming the school is right where
+    // the caller knows which institution it means. This function is the place
+    // that FINDS the school -- it derives it per role from students/parents
+    // below -- so it has none to name yet. The only school available before the
+    // role is `profiles.school_id`, which is NULL for 44 of 62 accounts, and
+    // this is the student and parent path. Using it would refuse most students.
+    //
+    // The membership a caller is acting in lives in their session and nowhere
+    // else. `userClient` already carries their JWT, `routeAiRequest` below is
+    // already handed both clients, and `authenticated` holds EXECUTE on both
+    // overloads.
+    //
+    // CONSEQUENCE, STATED RATHER THAN SLIPPED IN: this loop used to take the
+    // first role in a fixed priority order that the account merely HELD. It now
+    // matches only the membership the caller is acting in, so at most one role
+    // can match and the order of the array no longer decides anything.
+    const { data, error } = await userClient.rpc("has_role", { _user_id: userId, _role: r });
+    if (error) {
+      // Not a denial -- a predicate that could not be evaluated. Returning null
+      // still reads as 403 actor_unresolved to the caller, so say so in the log
+      // rather than letting an outage look like a missing role.
+      console.error(`[ai-gateway] has_role(${r}) failed for ${userId}: ${error.message}`);
+      return null;
+    }
     if (data) {
       role = r;
       break;
@@ -210,6 +246,7 @@ Deno.serve(async (req) => {
       body.student_id ??
       undefined;
     const actor = await resolveActor(
+      userClient,
       admin,
       userData.user.id,
       early_target_student_id ? String(early_target_student_id) : undefined,
