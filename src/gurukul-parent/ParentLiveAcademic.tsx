@@ -265,7 +265,11 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
               homework_completion_pct: summary.homeworkCompletionPct,
               tests_avg_pct: summary.testsAvgPct,
               exams_avg_pct: summary.examsAvgPct,
-              weak_topics: summary.weakTopics,
+              // RULE 25: `weak_topics` is deliberately NOT passed. What the
+              // school taught or tested, a parent may see; what the system
+              // inferred about their child, they may not. Closed here at the
+              // source rather than silenced in the builder — a value assembled
+              // and discarded is one refactor from being rendered again.
               source_as_of: localDateKey(),
               data_version: `parent_performance:${studentId}`,
             })

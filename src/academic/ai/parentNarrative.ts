@@ -9,7 +9,13 @@ export type ParentNarrativeInput = {
   homework_completion_pct: number;
   tests_avg_pct: number;
   exams_avg_pct: number;
-  weak_topics: string[];
+  // RULE 25 — optional, and omitted by every parent surface. A weak-topic
+  // inference is something the SYSTEM concluded about the child, not something
+  // the school taught or tested, so it is not the parent's to see. It stays on
+  // the type because the AI context builders (contextApis.ts) still supply it
+  // for non-parent consumers; the parent path closes it at the source, which is
+  // the same treatment strong_topics got below and for the same reason.
+  weak_topics?: string[];
   // strong_topics removed — §10.8. Closed at the source rather than at the consumer:
   // a value assembled here and silenced downstream is one refactor from being
   // rendered again, which is the state the rule calls out by name.
@@ -59,7 +65,7 @@ export function buildParentScheduledNarrative(input: ParentNarrativeInput): Pare
   // builders, which 10.5 closes separately. Removing the field here without
   // closing the source would leave the data flowing and only this consumer
   // silent — and a value computed and discarded is one refactor from being live.
-  if (input.weak_topics.length) {
+  if (input.weak_topics?.length) {
     bullets.push(`Focus areas: ${input.weak_topics.slice(0, 3).join(", ")}.`);
   }
   if (typeof input.avg_mastery === "number" && input.avg_mastery > 0) {
@@ -76,7 +82,7 @@ export function buildParentScheduledNarrative(input: ParentNarrativeInput): Pare
   const narrative =
     `${label}'s recent academic snapshot: attendance ${pct(input.attendance_pct)}, ` +
     `homework completion ${pct(input.homework_completion_pct)}.` +
-    (input.weak_topics[0] ? ` Priority practice: ${input.weak_topics[0]}.` : "") +
+    (input.weak_topics?.[0] ? ` Priority practice: ${input.weak_topics[0]}.` : "") +
     asOf;
 
   let completeness = 0.2;
@@ -87,7 +93,7 @@ export function buildParentScheduledNarrative(input: ParentNarrativeInput): Pare
   // With strong_topics gone the signal is weak_topics alone — which is the
   // honest version anyway: a student with nothing weak recorded has a thin
   // profile, not a complete one.
-  if (input.weak_topics.length) completeness += 0.2;
+  if (input.weak_topics?.length) completeness += 0.2;
   completeness = Math.min(1, Math.round(completeness * 100) / 100);
 
   return {

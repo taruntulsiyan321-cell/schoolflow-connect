@@ -130,6 +130,11 @@ export default function TestResult() {
   const totalCount = Number(attempt.total_count ?? 0);
   const correctCount = Number(attempt.correct_count ?? 0);
   const accuracy = totalCount ? Math.round((correctCount / totalCount) * 100) : 0;
+  // Rule 27. The per-question responses live in `test_answers`, which is a
+  // different table from the attempt that carries the score — so "we have a
+  // score" does not imply "we have the answers". Keyed off the map this page
+  // actually renders from, not off the attempt's status.
+  const hasResponses = Object.keys(answers).length > 0;
   const mins = Math.round(Number(attempt.time_spent_sec ?? 0) / 60);
   const subjectLabel = displaySubject(testSubject(test)) || "—";
   const chapterRaw = test.chapter ? String(test.chapter) : "";
@@ -194,12 +199,24 @@ export default function TestResult() {
         </div>
       </Card>
 
+      {/* ── RULE 27: A MISSING-DATA RENDER MUST NOT READ AS A DATA-BEARING ONE ──
+          The attempt row records a score; the per-question responses are a
+          separate table. `test_answers` is written only by `rpc_test_submit`,
+          and every one of the 458 attempts in this database was written
+          directly, so it holds 0 rows. This page used to render each question
+          with the correct answer and a blank student response — visually
+          identical to "you left it blank" — under a line promising the wrong
+          ones had been saved to the Mistake Book.
+
+          It looked functional and misrepresented. Where the responses are
+          absent, say they are absent, and make no claim about the Mistake
+          Book, which is fed from the same rows. */}
       {/* Not a celebration gate — see PracticeSessionResult for the full note. */}
       {correctCount < totalCount && (
         <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
           <h3 className="font-semibold text-sm mb-2">Improvement focus</h3>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
-            {accuracy < ACCURACY_BUILDING && (
+            {accuracy < ACCURACY_BUILDING && hasResponses && (
               <li>Review wrong answers below — they were added to your Mistake Book automatically.</li>
             )}
             {accuracy < ACCURACY_PROCEDURAL && (
@@ -214,6 +231,13 @@ export default function TestResult() {
       )}
 
       <h3 className="font-semibold mb-3">Question review</h3>
+      {!hasResponses ? (
+        <Card className="p-4 text-sm text-muted-foreground">
+          Your individual answers for this test were not recorded, so there is
+          nothing to review question by question. Your score above is unaffected
+          — it is stored on the attempt itself.
+        </Card>
+      ) : (
       <div className="space-y-4">
         {questions.map((q, i) => {
           const a = answers[q.id];
@@ -262,6 +286,7 @@ export default function TestResult() {
           );
         })}
       </div>
+      )}
     </>
   );
 }

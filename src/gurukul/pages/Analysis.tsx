@@ -13,7 +13,7 @@ import {
   ArrowUp, ArrowDown, Minus, Printer, Star,
 } from "lucide-react";
 import { cn } from "@/gurukul/components/shared";
-import { type Tab, TABS, TABS_NEEDING_MARKS } from "./analysisTabs";
+import { type Tab, TABS } from "./analysisTabs";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
@@ -22,11 +22,10 @@ import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { accuracyBand, STREAK_ESTABLISHED, STREAK_MILESTONE } from "@/academic/metrics/bands";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
-import { MarksService, useAcademicLive } from "@/academic";
+import { useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { DecisionEngineService, type WeakAreaRecommendation } from "@/academic/services/decisionEngineService";
 import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
-import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
   DAY_LABELS,
@@ -100,7 +99,9 @@ export default function Analysis() {
   const [tab, setTab] = useState<Tab>("overview");
   const student = useGurukulStudent();
   const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
-  const liveVersion = useAcademicLive(["marks", "examination", "profile"]);
+  // Rule 11: Analysis is practice-only, so it no longer subscribes to the
+  // marks or examination channels — it has nothing to refresh from them.
+  useAcademicLive(["profile"]);
   const { data: analysis, loading: analysisLoading, error: analysisError } = useAnalysisPageData(academicReady);
   const { data: charts, loading: chartsLoading, error: chartsError } = useStudentPerformanceCharts(academicReady);
   const { data: snapshot, loading: snapshotLoading, error: snapshotError } = useStudentAcademicSnapshot(academicReady);
@@ -134,31 +135,11 @@ export default function Analysis() {
       cancelled = true;
     };
   }, [ctx, academicReady]);
-  // Keyed on student + class: the previous subject's marks are never left on
-  // screen after a switch, and a failed load yields empty rather than stale.
-  const marksQuery = useKeyedResource(
-    [studentId, classId ?? "no-class", liveVersion],
-    async () => {
-      const [markRows, examRows] = await Promise.all([
-        MarksService.listForStudent(ctx!, studentId!, { limit: 50 }),
-        classId ? MarksService.listExamsForClass(ctx!, classId, { limit: 50 }) : Promise.resolve([]),
-      ]);
-      return { marks: markRows, exams: examRows };
-    },
-    {
-      // Gated per tab — see TABS_NEEDING_MARKS. On the practice tab this query
-      // does not run, so no test table is touched while that surface is open.
-      enabled: academicReady && !!ctx && !!studentId && TABS_NEEDING_MARKS.includes(tab),
-      errorFallback: "Could not load marks for reports",
-    },
-  );
-
-  const marks = useMemo<MarksRecord[]>(() => marksQuery.data?.marks ?? [], [marksQuery.data]);
-  const exams = useMemo<ExamRecord[]>(() => marksQuery.data?.exams ?? [], [marksQuery.data]);
-
-  useEffect(() => {
-    if (marksQuery.error) toast.error(marksQuery.error);
-  }, [marksQuery.error]);
+  // The marks/exams fetch that used to sit here is GONE (rule 11, amended
+  // 2026-09-05). Analysis issues no query against `marks` or `exams` at all,
+  // which is what "provably practice-only" has to mean — rendering nothing is
+  // not the same as fetching nothing. The student reads their exam marks on
+  // their marks surface instead.
 
   const loading = analysisLoading || chartsLoading || snapshotLoading || masteryLoading;
   const loadError = analysisError || chartsError || snapshotError || masteryError;
@@ -169,33 +150,6 @@ export default function Analysis() {
     }
   }, [loadError]);
 
-  const testResults = useMemo(() => {
-    const examById = new Map(exams.map((e) => [e.id, e]));
-    return marks
-      .map((m) => {
-        const exam = examById.get(m.examId);
-        if (!exam) return null;
-        const maxScore = exam.maxMarks || 100;
-        const score = Math.round((m.marksObtained / maxScore) * 100);
-        return {
-          name: exam.name,
-          date: exam.examDate
-            ? new Date(exam.examDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })
-            : "—",
-          subject: exam.subject || "—",
-          score,
-          maxScore: 100,
-          marksObtained: m.marksObtained,
-          rawMax: maxScore,
-          rank: 0,
-          total: 0,
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => row != null)
-      .slice(0, 12);
-  }, [marks, exams]);
-  const testTrend = testResults.map((t) => ({ name: t.date, score: t.score }));
-
   const overview = useMemo(() => {
     const correct = analysis?.totals.correct ?? 0;
     const incorrect = analysis?.totals.wrong ?? 0;
@@ -204,26 +158,29 @@ export default function Analysis() {
     const studyMinutes = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
     // Accuracy + study streak: same shell SSOT as Home (Progression + snapshot) — not mastery recompute.
     const accuracy = Math.round(student.accuracy);
-    const examAvg =
-      testResults.length > 0
-        ? Math.round(testResults.reduce((s, t) => s + t.score, 0) / testResults.length)
-        : null;
+    // The average-score field here used to fall back from an exam average to
+    // practice accuracy — one number that meant a different measure depending
+    // on whether the student had marks, with a sibling boolean as the only way
+    // to tell which. That is the §4.2b blend in miniature, and it went with the
+    // exam fetch. Practice accuracy is the only rate on this page now, and it
+    // is named for what it is.
+    //
+    // The identifiers are deliberately not spelled out: analysisTabSources
+    // asserts they appear nowhere in this file, and a guard that trips on its
+    // own explanation is a guard nobody keeps.
     return {
       accuracy,
       totalQuestions,
       correct,
       incorrect,
       practiceCompleted: snapshot?.self_practice?.sessions_completed ?? analysis?.recent_sessions.length ?? 0,
-      testsCompleted: testResults.length,
-      avgScore: examAvg ?? accuracy,
-      avgScoreIsExam: examAvg != null,
       studyHours: Math.round(studyMinutes / 60),
       streak: student.streak,
       rank: analysis?.class_rank ?? student.rank ?? 0,
       totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
       examReadiness: snapshot?.exam_readiness?.score ?? 0,
     };
-  }, [analysis, snapshot, testResults, student.accuracy, student.streak, student.rank, student.totalStudents]);
+  }, [analysis, snapshot, student.accuracy, student.streak, student.rank, student.totalStudents]);
 
   const scoreTrend = useMemo(() => {
     const trend = charts?.practice_trend ?? [];
@@ -616,11 +573,6 @@ export default function Analysis() {
     [scoreTrend],
   );
 
-  const testTrendDomain = useMemo(
-    () => scoreAxisDomain(testTrend.map((t) => t.score)),
-    [testTrend],
-  );
-
   const upcomingMilestones = useMemo(() => {
     // Annotated, not asserted: `[]` infers never[] under strictNullChecks.
     const items: { title: string; progress: number; target: number; unit: string }[] = [];
@@ -748,9 +700,15 @@ export default function Analysis() {
               { label: "Questions solved",   value: overview.totalQuestions.toLocaleString(), color: "hsl(var(--foreground))" },
               { label: "Correct answers",    value: overview.correct.toLocaleString(),        color: "hsl(var(--info))" },
               { label: "Incorrect answers",  value: overview.incorrect.toLocaleString(),      color: "hsl(var(--destructive))" },
-              { label: overview.avgScoreIsExam ? "Average score" : "Accuracy", value: `${overview.avgScore}%`, color: "hsl(var(--warning))" },
+              // Was a tile whose LABEL changed between "Average score" and
+              // "Accuracy" depending on whether the student had exam marks —
+              // two different measures wearing one slot. It is practice
+              // accuracy now, always, and named that way.
+              { label: "Accuracy",           value: `${overview.accuracy}%`,                  color: "hsl(var(--warning))" },
               { label: "Practice sessions",  value: overview.practiceCompleted,               color: "hsl(var(--foreground))" },
-              { label: "Marks recorded",     value: overview.testsCompleted,                  color: "hsl(var(--foreground))" },
+              // "Marks recorded" was a count of exam marks. Marks are not an
+              // Analysis figure any more (rule 11); the student reads them on
+              // their marks surface.
               { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "hsl(var(--info))" },
               { label: "Exam readiness",     value: `${overview.examReadiness}%`,             color: "hsl(var(--primary))" },
             ].map((s) => (
@@ -1182,61 +1140,6 @@ export default function Analysis() {
         </div>
       )}
 
-      {/* ── Tab: Marks history ───────────────
-          Moved out of the practice tab under rule 11. These are MARKS, which
-          are a durable record on the student profile — not the ephemeral test
-          report, and so on the right side of that line. The student sees their
-          own marks; nothing here is another student's or the class's. */}
-      {tab === "marks" && (
-        <div className="space-y-6">
-          <div>
-            <SLabel>Recent tests</SLabel>
-            {testResults.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No test results yet</p>
-            ) : (
-            <div className="space-y-2">
-              {testResults.map((t) => {
-                const col = scoreColor(t.score);
-                return (
-                  <div key={t.name} className="flex items-center gap-4 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-black" style={{ background: `${withAlpha(col, 0.08)}`, color: col }}>
-                      {t.score}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground">{t.name}</div>
-                      <div className="text-[11px] text-muted-foreground">{t.subject} · {t.date}</div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-black tabular-nums" style={{ color: col }}>{t.marksObtained}/{t.rawMax}</div>
-                      <div className="text-[11px] text-muted-foreground">{t.score}%</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            )}
-          </div>
-
-          {testTrend.length > 0 && (
-          <Card label="How your test scores changed">
-            <div className="h-40 mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={testTrend}>
-                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={testTrendDomain} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Line type="monotone" dataKey="score" name="Score" stroke="hsl(var(--info))" strokeWidth={2.5}
-                    isAnimationActive={false} dot={{ r: 5, fill: "hsl(var(--info))", strokeWidth: 0 }} activeDot={{ r: 7, stroke: "hsl(var(--card))", strokeWidth: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-          )}
-        </div>
-      )}
-
-      {/* ── Tab: Activity & Speed ────────── */}
       {tab === "activity" && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
