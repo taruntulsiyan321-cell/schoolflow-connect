@@ -145,7 +145,7 @@ try {
       else if (!existsSync(b)) findings.push({ slug, file: f, state: "REPO-ONLY", detail: hash(a) });
       else {
         const ha = hash(a), hb = hash(b);
-        if (ha !== hb) findings.push({ slug, file: f, state: "DRIFT", detail: `repo ${ha} / prod ${hb}` });
+        if (ha !== hb) findings.push({ slug, file: f, state: "DRIFT", repoHash: ha, detail: `repo ${ha} / prod ${hb}` });
       }
     }
   }
@@ -169,7 +169,7 @@ try {
       if (!existsSync(a)) findings.push({ slug: "_shared", file: f, state: "PROD-ONLY", detail: hash(b) });
       else {
         const ha = hash(a), hb = hash(b);
-        if (ha !== hb) findings.push({ slug: "_shared", file: f, state: "DRIFT", detail: `repo ${ha} / prod ${hb}` });
+        if (ha !== hb) findings.push({ slug: "_shared", file: f, state: "DRIFT", repoHash: ha, detail: `repo ${ha} / prod ${hb}` });
       }
     }
   }
@@ -177,7 +177,23 @@ try {
   try { rmSync(tmp, { recursive: true, force: true }); } catch { /* scratch dir */ }
 }
 
-const key = (f) => `${f.slug}:${f.file}:${f.state}`;
+// The key carries the REPO hash for a DRIFT finding, and deliberately not the
+// production one.
+//
+// It used to be `slug:file:state` alone. That accepted the FACT that a file
+// differed from production, not WHAT it differed by -- so once a file entered
+// the baseline, every later edit to it was invisible to this gate. That is not
+// hypothetical: an edit to `ai-gateway/index.ts` passed silently on 2026-09-05
+// because its drift was already accepted.
+//
+// Only the repo side is keyed. A redeploy that changes production is supposed
+// to RESOLVE the finding (the two hashes converge and it disappears), and the
+// two-sided check below then reports the stale baseline entry. Keying on the
+// production hash instead would turn every unrelated deploy into a NEW finding.
+const key = (f) =>
+  f.state === "DRIFT" && f.repoHash
+    ? `${f.slug}:${f.file}:${f.state}:${f.repoHash}`
+    : `${f.slug}:${f.file}:${f.state}`;
 const now = findings.map(key).sort();
 
 if (update) {

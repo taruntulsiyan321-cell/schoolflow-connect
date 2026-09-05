@@ -1,19 +1,19 @@
 {
   "accepted": [
-    "_shared:aiRouter.ts:DRIFT",
-    "_shared:conceptMasteryEngine.ts:DRIFT",
-    "_shared:embeddingWorker.ts:DRIFT",
-    "_shared:imageDoubtSolve.ts:DRIFT",
-    "_shared:parentNarrative.ts:DRIFT",
-    "_shared:promptLibrary.ts:DRIFT",
-    "_shared:questionPaperMarkingScheme.ts:DRIFT",
-    "_shared:questionPaperOutline.ts:DRIFT",
-    "_shared:responseValidator.ts:DRIFT",
-    "_shared:revisionAgent.ts:DRIFT",
-    "_shared:structuredCompletion.ts:DRIFT",
+    "_shared:aiRouter.ts:DRIFT:d38c75714c25",
+    "_shared:conceptMasteryEngine.ts:DRIFT:b804ce2d9212",
+    "_shared:embeddingWorker.ts:DRIFT:a02db433e52d",
+    "_shared:imageDoubtSolve.ts:DRIFT:445a5828e344",
+    "_shared:parentNarrative.ts:DRIFT:1cefc0fd7b71",
+    "_shared:promptLibrary.ts:DRIFT:4a28b47c6d34",
+    "_shared:questionPaperMarkingScheme.ts:DRIFT:c1e5a8991c50",
+    "_shared:questionPaperOutline.ts:DRIFT:22ca2ed412e9",
+    "_shared:responseValidator.ts:DRIFT:fe51c93df5d8",
+    "_shared:revisionAgent.ts:DRIFT:f823c1f37153",
+    "_shared:structuredCompletion.ts:DRIFT:d5fb667140a7",
     "ai-expand-questions:-:NO-REPO-SOURCE",
-    "ai-gateway:index.ts:DRIFT",
-    "ai-ping:index.ts:DRIFT",
+    "ai-gateway:index.ts:DRIFT:6c5987b4b446",
+    "ai-ping:index.ts:DRIFT:18f97d290497",
     "mcp:-:NO-REPO-SOURCE"
   ]
 }

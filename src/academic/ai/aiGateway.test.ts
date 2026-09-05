@@ -20,6 +20,7 @@ import {
 } from "./gatewayClient";
 import { AeSnapshotL1Cache, buildL1CacheKey } from "./l1Cache";
 import { mapIntentToCapability } from "./intentMapper";
+import { stripComments } from "@/test/stripComments";
 
 const FLAGS_ON: KillSwitchState = {
   gatewayEnabled: true,
@@ -309,7 +310,11 @@ describe("L1 cache", () => {
 
 describe("no demo / fake numbers in mapper", () => {
   it("does not embed demo XP or fake names", () => {
-    const src = mapIntentToCapability.toString() + resolveCoachCapability.toString();
+    // RULE 29 — Function.prototype.toString() INCLUDES comments, so a comment
+    // saying "never return a demo name like Arjun" would fail this guard.
+    const src = stripComments(
+      mapIntentToCapability.toString() + resolveCoachCapability.toString(),
+    );
     expect(src).not.toMatch(/Arjun|Priya Nair|1382|Level 14/i);
   });
 });

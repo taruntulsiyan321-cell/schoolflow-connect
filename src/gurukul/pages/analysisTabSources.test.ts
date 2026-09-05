@@ -24,8 +24,15 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TABS, type Tab } from "./analysisTabs";
+import { stripComments } from "@/test/stripComments";
 
-const SOURCE = readFileSync(join(__dirname, "Analysis.tsx"), "utf8");
+// RULE 29 — comments are stripped before matching. Every assertion below
+// asserts ABSENCE, so a comment in Analysis.tsx explaining why the marks
+// fetch was removed would name the very identifiers these forbid and fail a
+// correct change. That happened twice already, over `examAvg`, in f6e2f51
+// and 1ec1628. src/test/stripComments.test.ts is the control that the
+// stripper actually runs; without it these assertions could pass vacuously.
+const SOURCE = stripComments(readFileSync(join(__dirname, "Analysis.tsx"), "utf8"));
 
 describe("rule 11 — Analysis touches practice tables only", () => {
   it("issues no query against marks or exams", () => {
