@@ -54,6 +54,8 @@
     "db:types:dry-run": "node scripts/gen-types.mjs --dry-run",
     "verify:caller-privileges": "node scripts/verify-caller-privileges.mjs",
     "lint:baseline": "node scripts/lint-baseline.mjs",
+    "check:edge-drift": "node scripts/check-edge-drift.mjs",
+    "check:edge-drift:update": "node scripts/check-edge-drift.mjs --update",
     "lint:baseline:update": "node scripts/lint-baseline.mjs --update"
   },
   "dependencies": {

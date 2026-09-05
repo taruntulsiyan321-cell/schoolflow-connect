@@ -1,0 +1,19 @@
+{
+  "accepted": [
+    "_shared:aiRouter.ts:DRIFT",
+    "_shared:conceptMasteryEngine.ts:DRIFT",
+    "_shared:embeddingWorker.ts:DRIFT",
+    "_shared:imageDoubtSolve.ts:DRIFT",
+    "_shared:parentNarrative.ts:DRIFT",
+    "_shared:promptLibrary.ts:DRIFT",
+    "_shared:questionPaperMarkingScheme.ts:DRIFT",
+    "_shared:questionPaperOutline.ts:DRIFT",
+    "_shared:responseValidator.ts:DRIFT",
+    "_shared:revisionAgent.ts:DRIFT",
+    "_shared:structuredCompletion.ts:DRIFT",
+    "ai-expand-questions:-:NO-REPO-SOURCE",
+    "ai-gateway:index.ts:DRIFT",
+    "ai-ping:index.ts:DRIFT",
+    "mcp:-:NO-REPO-SOURCE"
+  ]
+}

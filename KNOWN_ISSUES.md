@@ -306,3 +306,95 @@ already measured admin being refused.
 `ResourceService.create`/`remove` guard through it and would otherwise have
 promised a write the database refuses. Recorded here because it is the same
 two-homes shape as the rest of this list.
+
+---
+
+## 7b. `doubt-images` is public and unsized — fold into the §7 approval
+
+**Status:** SQL written, NOT applied. Needs the same approval as §7; the
+environment refuses migrations that rewrite `storage.objects` policies.
+
+`§7` named `academic-files`. It is not the only public bucket. Measured
+2026-09-05 from `storage.buckets`:
+
+| bucket | public | size limit |
+|---|---|---|
+| `academic-files` | **PUBLIC** | 20 MB |
+| `doubt-images` | **PUBLIC** | **none** |
+| `chat-attachments` | private | 10 MB |
+| `doubt-attachments` | private | 20 MB |
+
+`doubt-images` holds student-uploaded photographs of homework and handwriting —
+faces, names, and a child's own work. Public on a Supabase bucket means
+URL-enumerable: no token, no signature, no expiry. It is also the only bucket in
+the project with **no size limit at all**, so it is an unmetered upload target
+as well as a disclosure surface.
+
+It is the worse of the two configurations and was not in the original §7.
+
+### The SQL, preserved verbatim
+
+Apply with §7's, so one approval covers both buckets.
+
+```sql
+-- doubt-images joins doubt-attachments: private, 20 MB.
+UPDATE storage.buckets
+   SET public = false,
+       file_size_limit = 20971520
+ WHERE id = 'doubt-images';
+
+-- Read is via signed URL only; no anon SELECT policy is created. The owner
+-- check matches doubt-attachments so the two behave identically.
+DROP POLICY IF EXISTS "doubt images public read" ON storage.objects;
+
+CREATE POLICY "doubt images owner read"
+  ON storage.objects FOR SELECT
+  TO authenticated
+  USING (bucket_id = 'doubt-images' AND owner = auth.uid());
+
+-- Verification: both buckets private, both sized, and no anon read survives.
+DO $verify$
+BEGIN
+  IF EXISTS (SELECT 1 FROM storage.buckets
+              WHERE id IN ('doubt-images','academic-files') AND public) THEN
+    RAISE EXCEPTION 'ABORT: a bucket is still public';
+  END IF;
+  IF EXISTS (SELECT 1 FROM storage.buckets
+              WHERE id IN ('doubt-images','academic-files') AND file_size_limit IS NULL) THEN
+    RAISE EXCEPTION 'ABORT: a bucket still has no size limit';
+  END IF;
+END $verify$;
+```
+
+### It is not done when the migration applies
+
+Making the bucket private breaks every existing `<bucket>/<path>` URL in the
+client. The same signed-URL work §7 needs applies here, across the **6
+`AttachmentList` call sites** — each must call `createSignedUrl` with a TTL
+instead of `getPublicUrl`. `src/academic/storage/chatFileUpload.ts` already does
+this for `chat-attachments` and is the pattern to copy.
+
+Applying the SQL without that client change turns every doubt image into a
+broken image. Sequence it: client first behind a flag, or both in one release.
+
+---
+
+## 8. Two deployed edge functions nothing calls
+
+**Status:** Recorded, not acted on.
+
+`send-otp` and `verify-otp` are deployed and ACTIVE. Neither is referenced
+anywhere in `src` — the wired OTP path is `verify-msg91-widget`
+(`src/lib/msg91Auth.ts:32`). Both predate the MSG91 widget integration.
+
+They are `verify_jwt = false`, which is correct for an OTP endpoint and also
+means they are reachable unauthenticated by anyone who knows the URL. Two live,
+unauthenticated, uncalled endpoints.
+
+Not deleted, because deleting a deployed function is irreversible from this repo
+— neither has source that has ever been verified against production beyond the
+provenance snapshot. Decide deliberately: retire both, or keep one as the
+documented fallback and say so.
+
+Note for provisioning a real project: they are in the 17 that would need
+recreating, and probably should not be.
