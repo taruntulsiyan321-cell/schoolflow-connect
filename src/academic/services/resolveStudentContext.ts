@@ -100,11 +100,25 @@ export async function loadStudentAcademicIdentity(
   } catch {
     /* optional */
   }
+  // RULE 27 — a swallowed authorization failure must not read as success.
+  //
+  // `ensure_default_role` WRITES `public.user_roles`, which has been read-only
+  // at the table level since Chunk 1.5 (`trg_user_roles_read_only` raises on
+  // INSERT, UPDATE and DELETE alike). So this call does not "sometimes fail" —
+  // it raises on EVERY student context resolution, and a bare `catch {}` with
+  // the comment "optional" made that indistinguishable from success.
+  //
+  // The call is kept because the surrounding contract has not been ruled on
+  // yet, but the failure is now visible. Roles come from `memberships`; nothing
+  // downstream here depends on this succeeding, which is why the resolution can
+  // continue past it — that is stated rather than implied by silence.
   try {
-    // Portal link only — never invents a synthetic student role.
     await supabase.rpc("ensure_default_role");
-  } catch {
-    /* optional */
+  } catch (e) {
+    console.warn(
+      "[resolveStudentContext] ensure_default_role failed (expected: user_roles is read-only since Chunk 1.5):",
+      e instanceof Error ? e.message : e,
+    );
   }
 
   let role: AppRole | null = null;
