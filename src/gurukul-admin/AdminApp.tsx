@@ -28,6 +28,7 @@ import SettingsPage from "./Settings";
 import AiAnalyticsPanel from "./AiAnalytics";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/auth/constants";
+import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 
 export type { AdminPageKey } from "./nav";
 
@@ -255,6 +256,7 @@ export default function AdminApp() {
               <Shield className="w-3 h-3 text-[#3b5bdb]" />
               <span className="text-[10px] font-bold text-[#3b5bdb]">{roleLabel}</span>
             </div>
+            <MembershipSwitcher className="shrink-0" />
             <button
               type="button"
               onClick={() => setPage("settings")}

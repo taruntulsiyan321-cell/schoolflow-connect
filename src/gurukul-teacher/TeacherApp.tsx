@@ -30,6 +30,7 @@ import TeacherTimetablePage from "@/pages/shared/TeacherTimetablePage";
 import TeacherAICoach from "./TeacherAICoach";
 import TeacherBattleground from "@/pages/teacher/TeacherBattleground";
 import BattleMonitor from "@/pages/teacher/BattleMonitor";
+import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 
 /** Set My Classes sub-tab then bounce to /teacher/classes (sessionStorage contract). */
 function RedirectTeacherClassTab({ tab }: { tab: string }) {
@@ -275,6 +276,7 @@ export default function TeacherApp() {
               </div>
             </div>
           </div>
+          <MembershipSwitcher className="shrink-0" />
           <button
             type="button"
             onClick={() => setPage("profile")}

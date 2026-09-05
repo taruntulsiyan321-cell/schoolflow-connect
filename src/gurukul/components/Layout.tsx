@@ -19,6 +19,7 @@ import {
   FlaskConical, Calendar, Clock, GraduationCap, Settings, LogOut,
   User, BarChart, Wallet, Megaphone,
 } from "lucide-react";
+import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 
 type NavItem  = { key: PageKey; label: string; icon: ReactNode };
 type NavEntry =
@@ -480,6 +481,7 @@ export default function Layout({
 
             {/* Right badges */}
             <div className="flex items-center gap-2">
+              <MembershipSwitcher className="shrink-0" />
               {/* Streak */}
               <div className="hidden sm:flex items-center gap-1.5 bg-warning/10 border border-warning/20 rounded-full px-2.5 py-1">
                 <Flame className="w-3 h-3 text-warning"/>
