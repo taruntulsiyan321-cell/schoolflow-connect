@@ -398,3 +398,41 @@ documented fallback and say so.
 
 Note for provisioning a real project: they are in the 17 that would need
 recreating, and probably should not be.
+
+---
+
+## 9. Two shared modules drift across 7 AI functions each — found 2026-09-06, not fixed
+
+`_shared/modelRouter.ts` (repo `2cd4c73acfbd` / prod `2273dd3d509c`, 426 vs 278
+lines) and `_shared/reasoningBudget.ts` (repo `fb5369f99b16` / prod
+`3e2d4c35d6e6`) differ from the repo in **7 deployed functions each**:
+`ai-academic-coach-agent`, `ai-concept-report`, `ai-explain`,
+`ai-learning-pattern-agent`, `ai-ping`, `ai-recovery-agent`, `ai-revision-agent`.
+
+Invisible until `check:edge-drift` began comparing each function's own `_shared`
+snapshot: the merged tree let `dpp-generate-questions`, whose copies match the
+repo, overwrite the copies that do not. `reasoningBudget.ts` had never been
+reported as drifted at all.
+
+Out of frozen scope (every AI function except `dpp-generate-questions`).
+Recorded, accepted in the baseline as "known", **not reviewed and not fixed**.
+Consequence to be aware of: prod's `modelRouter` there predates the
+Nemotron/Qwen split, so cost attribution for those seven differs again from both
+the repo and from `dpp-generate-questions`.
+
+## 10. Three academic event types are unreachable aliases — found 2026-09-06, not fixed
+
+`homework.assigned`, `homework.submission.created` and
+`homework.submission.graded` are declared in `src/academic/events.ts` and are
+emitted by nothing. The live triggers `trg_emit_homework_event` and
+`trg_emit_homework_submission_event` emit `homework.published`,
+`homework.submitted` and `homework.graded` instead — and `EVENT_SYNC_TARGETS`
+maps each alias to **exactly the same** fan-out as the name actually emitted.
+
+So they are duplicate vocabulary, not a missing emitter. Adding a service-layer
+emitter for them would emit a second event per action and double every homework
+notification, analytics row and audit entry. The SQL consumers already accept
+both spellings (`20260731090000:434,439,469`).
+
+Left in place rather than removed, because removing a name from the catalog is a
+ruling. Recorded so the next session does not read the gap as work.
