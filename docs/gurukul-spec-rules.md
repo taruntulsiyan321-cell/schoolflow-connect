@@ -91,7 +91,7 @@ Out of scope and not to be built, reconciled, or deployed: the ephemeral test re
 
 ## Lint
 
-`npm run lint` has a **143-error baseline**, all pre-existing. `supabase/functions/` is excluded from eslint (Deno runtime, different globals); linting it was never intentional and briefly pushed the count to 151. Any report claiming "all gates green" means tests and typecheck — say so explicitly rather than implying lint passed.
+`npm run lint` has a 134-error / 77-warning baseline across 607 files, all pre-existing. `supabase/functions/` is excluded from eslint (Deno runtime, different globals); nine of the previously-cited 143 errors were always Deno-source, so 143 was never the application's number. The baseline gate fails when the count improves as well as when it regresses — this is intended; lower it deliberately. Any report claiming "all gates green" means tests and typecheck — say so explicitly rather than implying lint passed.
 
 ## Definition of done
 
