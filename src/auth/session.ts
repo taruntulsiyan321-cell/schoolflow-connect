@@ -15,7 +15,19 @@ type AuthContextRow = {
   school_logo_url: string | null;
 };
 
-const ROLE_PRIORITY: AppRole[] = [
+/**
+ * Which app a multi-role account lands in, highest precedence first.
+ *
+ * MIRRORED IN THE DATABASE as `public._role_precedence` (20260906000000). The
+ * database uses it to pick a DEFAULT active membership when an account holds
+ * several and has chosen none; if the two orders disagree, the client renders
+ * one role's app while the database activates another's membership -- a
+ * fully-drawn screen on which nothing works. `rolePrecedenceParity.test.ts`
+ * fails if they diverge. Exported for that test.
+ *
+ * Not a privilege ordering, and not an authorization check.
+ */
+export const ROLE_PRIORITY: AppRole[] = [
   "super_admin",
   "admin",
   "principal",

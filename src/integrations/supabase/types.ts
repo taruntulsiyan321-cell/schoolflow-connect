@@ -8930,6 +8930,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _role_precedence: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: number
+      }
       _rule_improvement_plan: {
         Args: {
           _accuracy: number
@@ -8982,22 +8986,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       active_membership_school_id: { Args: never; Returns: string }
-      admin_assign_role: {
-        Args: {
-          _identifier: string
-          _role: Database["public"]["Enums"]["app_role"]
-        }
+      admin_connect_student_account: {
+        Args: { _as?: string; _identifier: string; _student_id: string }
         Returns: string
       }
-      admin_connect_student_account:
-        | {
-            Args: { _identifier: string; _student_id: string }
-            Returns: string
-          }
-        | {
-            Args: { _as?: string; _identifier: string; _student_id: string }
-            Returns: string
-          }
       admin_connect_teacher_account: {
         Args: { _identifier: string; _teacher_id: string }
         Returns: string
@@ -9019,13 +9011,6 @@ export type Database = {
           roles: Database["public"]["Enums"]["app_role"][]
           user_id: string
         }[]
-      }
-      admin_remove_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: undefined
       }
       admin_revoke_student_account: {
         Args: { _student_id: string }
@@ -9217,10 +9202,6 @@ export type Database = {
         }
         Returns: string
       }
-      ensure_default_role: {
-        Args: never
-        Returns: Database["public"]["Enums"]["app_role"]
-      }
       ensure_student_academic_profile: {
         Args: { _student_id: string }
         Returns: string
@@ -9298,13 +9279,22 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      has_role:
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _school_id: string
+              _user_id: string
+            }
+            Returns: boolean
+          }
       is_battle_participant: { Args: { _battle_id: string }; Returns: boolean }
       is_chat_participant: {
         Args: { _conversation_id: string; _user_id?: string }
@@ -9995,6 +9985,7 @@ export type Database = {
         Returns: Json
       }
       rpc_purge_expired: { Args: never; Returns: Json }
+      rpc_purge_expired_battle_reports: { Args: never; Returns: Json }
       rpc_record_community_doubt_view: {
         Args: { _doubt_id: string }
         Returns: number

@@ -2,7 +2,18 @@
 
 Commit to `docs/gurukul-spec-rules.md`. This file supersedes the claude.ai project file previously cited as `gurukul-handoff-prompt.md`, which was never in the repo and which two sessions were told to obey while unable to read it.
 
-The product spec is the authority. Its numbered clauses — §4.2b, §10.8, §10.11, §10.12, §10.15, §10.18 — must be re-read before touching anything they govern. Where code and spec disagree, the spec wins and the code is the bug.
+**The product spec is `docs/locked-decisions.md`, in this repository, on every branch including `main`.** It is named here because three documents have now been treated as missing when they were only unnamed, and a fourth session spent its opening searching for this one. Its numbered clauses must be re-read before touching anything they govern:
+
+| clause | where |
+|---|---|
+| §10.8 Practice | `docs/locked-decisions.md:269` |
+| §10.11 Resources | `docs/locked-decisions.md:422` |
+| §10.12 Student panel | `docs/locked-decisions.md:436` |
+| §10.15 Parent panel | `docs/locked-decisions.md:496` |
+| §10.18 Admin panel | `docs/locked-decisions.md:564` |
+| §4.2b Readiness on the ladder | `docs/recovery-revision-analysis-spec.md:221` |
+
+Line numbers drift as the file is edited; the headings (`## 10.8 Practice (student panel)` and so on) are the durable anchors. Where code and spec disagree, the spec wins and the code is the bug — this has now overturned two rulings, so it is not a formality.
 
 Rules 1–23 are as issued. Rules 24–27 were added 2026-09-05. Rules 12–15 and 18's second half are **parked** — see the Parked section; they describe a feature with no code.
 

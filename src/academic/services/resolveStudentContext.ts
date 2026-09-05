@@ -73,7 +73,7 @@ export async function loadStudentAcademicIdentity(
     throw new Error("Student identity user mismatch");
   }
 
-  // Prefer SSOT RPC (applies link_portal + ensure_default_role + class join as definer).
+  // Prefer SSOT RPC (applies link_portal + class join as definer).
   const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
     "rpc_get_my_student_identity",
   );
@@ -100,26 +100,16 @@ export async function loadStudentAcademicIdentity(
   } catch {
     /* optional */
   }
-  // RULE 27 — a swallowed authorization failure must not read as success.
+  // `ensure_default_role` was called here and is GONE as of 20260906020000.
   //
-  // `ensure_default_role` WRITES `public.user_roles`, which has been read-only
-  // at the table level since Chunk 1.5 (`trg_user_roles_read_only` raises on
-  // INSERT, UPDATE and DELETE alike). So this call does not "sometimes fail" —
-  // it raises on EVERY student context resolution, and a bare `catch {}` with
-  // the comment "optional" made that indistinguishable from success.
+  // It inserted `(auth.uid(), 'student')` into `public.user_roles` for any
+  // authenticated caller holding no role. That table has been read-only at the
+  // table level since Chunk 1.5, so the call raised on every student context
+  // resolution; and under memberships the function was incoherent anyway, since
+  // a membership requires an institution and this named none. Removed rather
+  // than logged: there is no longer a function to call.
   //
-  // The call is kept because the surrounding contract has not been ruled on
-  // yet, but the failure is now visible. Roles come from `memberships`; nothing
-  // downstream here depends on this succeeding, which is why the resolution can
-  // continue past it — that is stated rather than implied by silence.
-  try {
-    await supabase.rpc("ensure_default_role");
-  } catch (e) {
-    console.warn(
-      "[resolveStudentContext] ensure_default_role failed (expected: user_roles is read-only since Chunk 1.5):",
-      e instanceof Error ? e.message : e,
-    );
-  }
+  // Nothing downstream depended on it. Roles come from `memberships`.
 
   let role: AppRole | null = null;
   const { data: roleRaw, error: roleErr } = await supabase.rpc("get_my_role");
