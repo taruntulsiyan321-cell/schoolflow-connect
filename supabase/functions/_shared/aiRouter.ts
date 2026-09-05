@@ -424,7 +424,7 @@ function numbersMatch(a: string, b: string): boolean {
 
 async function fetchAttendance(admin: SupabaseClient, schoolId: string, studentId: string) {
   const { data: rows } = await admin
-    .from("attendance_current")
+    .from("attendance")
     .select("date, status")
     .eq("school_id", schoolId)
     .eq("student_id", studentId)
@@ -438,15 +438,9 @@ async function fetchAttendance(admin: SupabaseClient, schoolId: string, studentI
     if (s in counts) (counts as Record<string, number>)[s] += 1;
   }
   const total = list.length;
-  // Matches refresh_student_academic_profile's definition exactly (present-only
-  // over total marked days) -- this used to give late/half_day half credit,
-  // a different formula from the one that actually populates
-  // student_academic_profiles.attendance_pct (what the student/parent/
-  // principal dashboards and the risk-band alerting both read). Nova would
-  // report a different attendance % than every other surface in the app for
-  // the same student whenever a late/half_day row existed. Aligned to the
-  // authoritative source rather than inventing a third definition.
-  const attendance_pct = total ? Math.round((counts.present / total) * 1000) / 10 : 0;
+  const attendance_pct = total
+    ? Math.round(((counts.present + counts.late * 0.5 + counts.half_day * 0.5) / total) * 1000) / 10
+    : 0;
   const latest = list[0]?.date ? String(list[0].date) : null;
   return {
     projection: "StudentAttendanceQuery",
@@ -620,7 +614,7 @@ async function fetchMarksSummary(admin: SupabaseClient, schoolId: string, studen
  * Progression Engine facts for Nova context (never invent XP/streak/league).
  * SSOT: study_streak + practice_sessions_count + league_code (ProgressionService parity).
  */
-async function fetchProgression(admin: SupabaseClient, schoolId: string, studentId: string, actorRole: string) {
+async function fetchProgression(admin: SupabaseClient, schoolId: string, studentId: string) {
   const empty = {
     projection: "StudentProgression",
     version: 1,
@@ -711,45 +705,16 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
     leagueLabel = !leagueErr && leagueRow?.label ? String(leagueRow.label) : leagueCode;
   }
 
-  // 10.16 splits this row in half. Public: xp, level, league, streak, battles.
-  // Private: practice session counts and practice-derived weak concepts. The
-  // private half is omitted entirely rather than zeroed — a 0 would tell the
-  // model the student had done no practice, which is a different and false
-  // statement than "not yours to see" (G4).
-  const selfOnly = actorRole === "student"
-    ? { practice_sessions: practice, weak_concepts }
-    : {};
   return {
     projection: "StudentProgression", version: 1, studentId, schoolId,
     xp: xpVal, level, study_streak: streak, battleground_wins: wins,
-    total_battles: battles, league: leagueCode, league_label: leagueLabel,
-    ...selfOnly, source_as_of: asOf,
-    data_version: `prog:${studentId}:${xpVal}:${level}:${streak}:${leagueCode ?? "none"}:${actorRole === "student" ? weak_concepts.length : "p"}`,
-    completeness: hasData ? 1 : hasRow ? 0.4 : 0,
+    practice_sessions: practice, total_battles: battles, league: leagueCode, league_label: leagueLabel,
+    weak_concepts, source_as_of: asOf,
+    data_version: `prog:${studentId}:${xpVal}:${level}:${streak}:${leagueCode ?? "none"}:${weak_concepts.length}`,
+    completeness: hasData ? 1 : hasRow || weak_concepts.length > 0 ? 0.4 : 0,
   };
 }
-/**
- * Chunk 7B. `actorRole` is REQUIRED, and the reason it is required is the whole
- * point of the chunk.
- *
- * concept_mastery is practice data — private to the student under 10.8. Chunk
- * 1.6 removed the parent and teacher SELECT policies from it. But this function
- * reads it on `admin`, the service-role client, so RLS never runs, and
- * `case "parent.child.narrative"` called it. A parent asking for their child's
- * narrative was getting weak AND strong concepts derived from the child's
- * practice mastery — the same table and the same role 1.6 closed, reopened
- * through the door policy-level auditing cannot see. 10.8 also says strong
- * areas are never surfaced anywhere at all.
- *
- * fetchPracticeHistory, fetchMistakesBook and fetchRecoveryQueue already carry
- * this gate. This one was missed.
- */
-async function fetchEie(
-  admin: SupabaseClient,
-  schoolId: string,
-  studentId: string,
-  actorRole: string,
-) {
+async function fetchEie(admin: SupabaseClient, schoolId: string, studentId: string) {
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -776,10 +741,7 @@ async function fetchEie(
     completed?: boolean;
   }[] = [];
 
-  // Practice mastery reaches the student and nobody else. A non-student gets
-  // the empty shape, not a reduced one — an absent weak-concept list must not
-  // be distinguishable from a list that happens to be empty.
-  if (userId && actorRole === "student") {
+  if (userId) {
     const { data: masteryRows } = await admin
       .from("concept_mastery")
       .select("subject, chapter, concept, mastery_score, mistake_count, updated_at")
@@ -846,32 +808,11 @@ function pickConceptFromEie(
   };
 }
 
-/**
- * Chunk 7B batch 2d. `actorRole` is REQUIRED here for the same reason it is
- * required in fetchEie.
- *
- * student_academic_profiles.metrics.weakTopics / .strongTopics were written
- * from public.concept_mastery by the old refresh_student_academic_profile
- * (weak = mastery_score < 50, strong = mastery_score >= 75). That write path
- * is gone, but the rows it wrote survived, and this function handed them
- * straight back — with no role gate at all, while every other practice
- * fetcher in this file (fetchEie, fetchPracticeHistory, fetchMistakesBook,
- * fetchRecoveryQueue, fetchProgression, probeEie) carries one.
- *
- * Reachable as parent, principal or admin via parent.child.summary and
- * parent.child.narrative, and as teacher, principal or admin via
- * student.nova.chat, where the result is returned to the client as
- * data.facts.profile AND fed to the model.
- *
- * The residual metrics are purged by migration 20260828220000; this is the
- * read side, so that a profile written by any future path cannot leak the
- * same way.
- */
 async function fetchParentSummary(
   admin: SupabaseClient,
   schoolId: string,
   studentId: string,
-  actorRole: string,
+  actorRole?: string,
 ) {
   const { data: profile } = await admin
     .from("student_academic_profiles")
@@ -887,8 +828,10 @@ async function fetchParentSummary(
     Array.isArray(metrics.weakTopics) ? metrics.weakTopics.map(String) : [],
     8,
   );
-  // strongTopics is deliberately NOT read into a binding any more. See the
-  // payload block below: it is not withheld conditionally, it is never sent.
+  const strong = dedupeSubjects(
+    Array.isArray(metrics.strongTopics) ? metrics.strongTopics.map(String) : [],
+    8,
+  );
 
   const pctOrNull = (v: unknown): number | null => {
     if (v == null) return null;
@@ -919,11 +862,8 @@ async function fetchParentSummary(
     homework_completion_pct: pctOrNull(profile?.homework_completion_pct),
     tests_avg_pct: pctOrNull(profile?.tests_avg_pct),
     exams_avg_pct: examsAvgPct,
-    // 10.8: practice is the student's. Omitted, not emptied — an empty array
-    // would assert "no weak areas", which is a different and false claim (G4).
-    ...(actorRole === "student" ? { weak_topics: weak } : {}),
-    // strong_topics is not gated, it is gone: "strong areas are never
-    // surfaced anywhere in the app", including to the student.
+    weak_topics: weak,
+    strong_topics: strong,
     source_as_of: profile?.refreshed_at ? String(profile.refreshed_at) : null,
     data_version: `parent:${studentId}:${profile?.refreshed_at ?? "none"}`,
     completeness: profile
@@ -957,7 +897,7 @@ async function fetchStudentProfileContext(admin: SupabaseClient, schoolId: strin
   };
 
   const { data: student } = await admin
-    .from("students_current")
+    .from("students")
     .select("full_name, roll_number, class_id, classes(name, section)")
     .eq("id", studentId)
     .eq("school_id", schoolId)
@@ -1008,7 +948,7 @@ async function fetchStudentProfileContext(admin: SupabaseClient, schoolId: strin
 }
 
 /** Recent practice history for Nova. */
-async function fetchPracticeHistory(admin: SupabaseClient, schoolId: string, studentId: string, actorRole: string) {
+async function fetchPracticeHistory(admin: SupabaseClient, schoolId: string, studentId: string) {
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -1016,9 +956,7 @@ async function fetchPracticeHistory(admin: SupabaseClient, schoolId: string, stu
     .eq("school_id", schoolId)
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
-  // Practice is private to the student (locked decision 10.8/10.16). Nova runs
-  // on the service role, so RLS never applies here — the gate has to be explicit.
-  if (!userId || actorRole !== "student") {
+  if (!userId) {
     return {
       projection: "StudentPracticeHistory",
       version: 1,
@@ -1074,7 +1012,7 @@ async function fetchPracticeHistory(admin: SupabaseClient, schoolId: string, stu
 }
 
 /** Mistake Book summary for Nova. */
-async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studentId: string, actorRole: string) {
+async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studentId: string) {
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -1082,9 +1020,7 @@ async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studen
     .eq("school_id", schoolId)
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
-  // The mistake book is the single most private object in the product.
-  // 10.23: a practice mistake is never school data. Service role bypasses RLS.
-  if (!userId || actorRole !== "student") {
+  if (!userId) {
     return {
       projection: "StudentMistakesBook",
       version: 1,
@@ -1132,7 +1068,7 @@ async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studen
 }
 
 /** Recovery queue summary for Nova. */
-async function fetchRecoveryQueue(admin: SupabaseClient, schoolId: string, studentId: string, actorRole: string) {
+async function fetchRecoveryQueue(admin: SupabaseClient, schoolId: string, studentId: string) {
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -1140,8 +1076,7 @@ async function fetchRecoveryQueue(admin: SupabaseClient, schoolId: string, stude
     .eq("school_id", schoolId)
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
-  // Recovery derives entirely from practice mistakes — private (10.8).
-  if (!userId || actorRole !== "student") {
+  if (!userId) {
     return {
       projection: "StudentRecoveryQueue",
       version: 1,
@@ -1268,7 +1203,7 @@ async function hashRows(rows: unknown[] | null | undefined): Promise<string> {
 
 async function probeAttendance(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
   const { data } = await admin
-    .from("attendance_current")
+    .from("attendance")
     .select("date, status")
     .eq("school_id", schoolId)
     .eq("student_id", studentId)
@@ -1321,12 +1256,7 @@ async function probeMarks(admin: SupabaseClient, schoolId: string, studentId: st
   return `marks:${await hashRows(marks)}:${await hashRows(exams)}`;
 }
 
-async function probeEie(
-  admin: SupabaseClient,
-  schoolId: string,
-  studentId: string,
-  actorRole: string,
-): Promise<string> {
+async function probeEie(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -1335,9 +1265,6 @@ async function probeEie(
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
   if (!userId) return "eie:nouser";
-  // Same gate as fetchEie. The probe builds the cache key, so without it a
-  // student's EIE version string could be computed — and cached — for a parent.
-  if (actorRole !== "student") return `eie:notstudent:${studentId}`;
   const [{ data: mastery }, { data: revision }, { data: profile }] = await Promise.all([
     admin
       .from("concept_mastery")
@@ -1398,7 +1325,7 @@ async function probeParentSummary(admin: SupabaseClient, schoolId: string, stude
 
 async function probeStudentProfile(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
   const { data: student } = await admin
-    .from("students_current")
+    .from("students")
     .select("full_name, roll_number, class_id, classes(name, section)")
     .eq("id", studentId)
     .eq("school_id", schoolId)
@@ -1817,8 +1744,8 @@ export async function routeAiRequest(
             message: "Student target required", route_class: cap.route_class,
           });
         }
-        data = await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
-          fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
+        data = await withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
+          fetchEie(admin, req.actor.schoolId, studentId),
         );
         decision = "answered_eie";
         provenance = {
@@ -1854,8 +1781,8 @@ export async function routeAiRequest(
             `${await probeParentSummary(admin, req.actor.schoolId, studentId)}:${examsVisibilityTier}`,
             () => fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role),
           ) as Promise<Awaited<ReturnType<typeof fetchParentSummary>>>,
-          withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
-            fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
+          withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
+            fetchEie(admin, req.actor.schoolId, studentId),
           ),
         ]);
         const narrative = buildParentScheduledNarrative({
@@ -1863,6 +1790,8 @@ export async function routeAiRequest(
           homework_completion_pct: parentSummary.homework_completion_pct,
           tests_avg_pct: parentSummary.tests_avg_pct,
           exams_avg_pct: parentSummary.exams_avg_pct,
+          weak_topics: parentSummary.weak_topics,
+          strong_topics: parentSummary.strong_topics,
           avg_mastery: (eie as { avg_mastery?: number }).avg_mastery ?? null,
           revision_topics: ((eie as { revision_priority?: { topic?: string | null }[] })
             .revision_priority ?? [])
@@ -1892,14 +1821,14 @@ export async function routeAiRequest(
           probeAttendance(admin, req.actor.schoolId, studentId),
           probeHomework(admin, req.actor.schoolId, studentId),
           probeMarks(admin, req.actor.schoolId, studentId),
-          probeEie(admin, req.actor.schoolId, studentId, req.actor.role),
+          probeEie(admin, req.actor.schoolId, studentId),
         ]);
         const factsBundle = (await withCache(factsVersionSeed, async () => {
           const [attendance, homework, marks, eie] = await Promise.all([
             fetchAttendance(admin, req.actor.schoolId, studentId),
             fetchHomeworkDue(admin, req.actor.schoolId, studentId),
             fetchMarksSummary(admin, req.actor.schoolId, studentId),
-            fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
+            fetchEie(admin, req.actor.schoolId, studentId),
           ]);
           return {
             attendance,
@@ -2105,7 +2034,6 @@ export async function routeAiRequest(
           const evidence = evidenceFromExplainFacts(facts);
           const validation = validateModelResponse(modelResult.text, evidence, {
             max_chars: pack.token_budget.output * 6,
-            system_template: modelResult.prompt?.system_template,
           });
           validation_ok = validation.ok && !validation.material_failure;
 
@@ -2206,12 +2134,10 @@ export async function routeAiRequest(
             route_class: cap.route_class,
           });
         }
-        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
-          fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
+        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
+          fetchEie(admin, req.actor.schoolId, studentId),
         )) as Awaited<ReturnType<typeof fetchEie>>;
-        // Was missing req.actor.role, which is why the parameter had been
-        // optional. student.recommendations is reachable by staff.
-        const parentLike = await fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role);
+        const parentLike = await fetchParentSummary(admin, req.actor.schoolId, studentId);
         data = buildRecommendationPackage({
           studentId,
           schoolId: req.actor.schoolId,
@@ -2673,17 +2599,11 @@ export async function routeAiRequest(
           rawSummary.flags && typeof rawSummary.flags === "object"
             ? (rawSummary.flags as Record<string, unknown>)
             : {};
-        // AI-02 fix: outlineInSession/outlineFromSession gate whether a marking
-        // scheme can be drafted at all — they must only ever be satisfied by
-        // session memory (written server-side after generate_outline actually
-        // ran), never by structured.outline_text, which is client-supplied on
-        // this very request. Trusting the client payload here let a teacher
-        // call marking_scheme directly with an arbitrary made-up "outline",
-        // skipping the intended generate_outline step entirely.
         const outlineFromSession =
           (typeof flagsObj.outline_text === "string" && flagsObj.outline_text.trim()
             ? flagsObj.outline_text
             : null) ??
+          (typeof structured.outline_text === "string" ? structured.outline_text : null) ??
           (typeof rawSummary.outline_text === "string" ? rawSummary.outline_text : null);
         const planHash =
           (typeof flagsObj.plan_hash === "string" ? flagsObj.plan_hash : null) ??
@@ -2824,29 +2744,25 @@ export async function routeAiRequest(
           .select("id, class_id, user_id")
           .eq("school_id", schoolId)
           .limit(2000);
+        const userIds = (schoolStudents ?? [])
+          .map((s) => (s as { user_id?: string | null }).user_id)
+          .filter((u): u is string => !!u)
+          .map(String);
         const classByStudent = new Map(
           (schoolStudents ?? []).map((s) => [String(s.id), s.class_id ? String(s.class_id) : null]),
         );
-
-        // Chunk 7B: REMOVED — a school-wide practice aggregate served to a
-        // principal. It read concept_mastery for up to 500 students and
-        // reduced it to avg_mastery and weak_concept_count.
-        //
-        // 10.8 is not only "no individual practice data": it says no teacher,
-        // parent, principal, admin, "or aggregate". Chunk 1.6 deleted
-        // rpc_teacher_concept_analytics() for serving exactly this shape at the
-        // RPC layer; it survived here because this runs on the service role,
-        // where RLS never applies and policy-level auditing does not look.
-        //
-        // avg_mastery and weak_concept_count stay in the response and stay
-        // NULL. They are not zeroed (G4): the brief must say it has no such
-        // figure, not that the figure is nought. The consumer at
-        // `avgMastery != null` already handles the absent case.
-        //
-        // A school-health signal is legitimate — it must be derived from tests
-        // and exams, which are school data, not from practice. Nothing is
-        // substituted here: 1.6's rule is to leave it absent and report it,
-        // because quietly swapping the source is how the leak returns.
+        if (userIds.length) {
+          const { data: masteryAgg } = await admin
+            .from("concept_mastery")
+            .select("mastery_score")
+            .in("user_id", userIds.slice(0, 500))
+            .limit(5000);
+          if (masteryAgg && masteryAgg.length) {
+            const scores = masteryAgg.map((r) => Number(r.mastery_score) || 0);
+            avgMastery = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+            weakConceptCount = scores.filter((s) => s < 60).length;
+          }
+        }
         const latestRefresh = rows
           .map((r) => (r as { refreshed_at?: string }).refreshed_at)
           .filter(Boolean)
@@ -2922,8 +2838,8 @@ export async function routeAiRequest(
             route_class: cap.route_class,
           });
         }
-        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
-          fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
+        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
+          fetchEie(admin, req.actor.schoolId, studentId),
         )) as Awaited<ReturnType<typeof fetchEie>>;
         const concept = pickConceptFromEie(eie, req.input_text);
 
@@ -3224,7 +3140,6 @@ export async function routeAiRequest(
           };
           const validation = validateModelResponse(modelResult.text, evidence, {
             max_chars: pack.token_budget.output * 6,
-            system_template: modelResult.prompt?.system_template,
           });
           validation_ok = validation.ok && !validation.material_failure;
           const conf = scoreConfidence({
@@ -3462,7 +3377,7 @@ export async function routeAiRequest(
           probeAttendance(admin, req.actor.schoolId, studentId),
           probeHomework(admin, req.actor.schoolId, studentId),
           probeMarks(admin, req.actor.schoolId, studentId),
-          probeEie(admin, req.actor.schoolId, studentId, req.actor.role),
+          probeEie(admin, req.actor.schoolId, studentId),
           probeParentSummary(admin, req.actor.schoolId, studentId),
           probeProgression(admin, req.actor.schoolId, studentId),
           probeStudentProfile(admin, req.actor.schoolId, studentId),
@@ -3471,10 +3386,7 @@ export async function routeAiRequest(
           probeRecoveryQueue(admin, req.actor.schoolId, studentId),
           probeUpcomingEvents(admin, req.actor.schoolId, studentId),
         ]);
-        // The actor role is part of the key: the bundle now differs by role (practice
-        // facts are student-only), so a student-built bundle must never be replayed
-        // to a parent or teacher out of the cache.
-        const factsBundle = (await withCache(`${factsVersionSeed}:${examsVisibilityTier}:${req.actor.role}`, async () => {
+        const factsBundle = (await withCache(`${factsVersionSeed}:${examsVisibilityTier}`, async () => {
           const [
             attendance,
             homework,
@@ -3491,13 +3403,13 @@ export async function routeAiRequest(
             fetchAttendance(admin, req.actor.schoolId, studentId),
             fetchHomeworkDue(admin, req.actor.schoolId, studentId),
             fetchMarksSummary(admin, req.actor.schoolId, studentId),
-            fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
+            fetchEie(admin, req.actor.schoolId, studentId),
             fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role),
-            fetchProgression(admin, req.actor.schoolId, studentId, req.actor.role),
+            fetchProgression(admin, req.actor.schoolId, studentId),
             fetchStudentProfileContext(admin, req.actor.schoolId, studentId),
-            fetchPracticeHistory(admin, req.actor.schoolId, studentId, req.actor.role),
-            fetchMistakesBook(admin, req.actor.schoolId, studentId, req.actor.role),
-            fetchRecoveryQueue(admin, req.actor.schoolId, studentId, req.actor.role),
+            fetchPracticeHistory(admin, req.actor.schoolId, studentId),
+            fetchMistakesBook(admin, req.actor.schoolId, studentId),
+            fetchRecoveryQueue(admin, req.actor.schoolId, studentId),
             fetchUpcomingEvents(admin, req.actor.schoolId, studentId),
           ]);
           // Merge enrolled subjects with practice/marks subjects (deduped).
@@ -3600,11 +3512,8 @@ export async function routeAiRequest(
         const factsEmpty =
           factsBundle.completeness < 0.25 &&
           !(eie.weak_concepts?.length || eie.strong_concepts?.length) &&
-          !profile.weak_topics?.length &&
-          // practice_sessions is present only for the student themselves; for a
-          // parent or teacher its absence is not evidence of emptiness, so it only
-          // counts toward "no facts" when it was actually supplied.
-          !(progression.xp > 0 || (progression.practice_sessions ?? 0) > 0) &&
+          !(profile.weak_topics?.length || profile.strong_topics?.length) &&
+          !(progression.xp > 0 || progression.practice_sessions > 0) &&
           !(practice.sessions_completed > 0 || mistakes.open_count > 0 || recovery.pending_count > 0);
 
         // Question matching — two-stage, across BOTH question_bank (authoritative) and
@@ -3646,7 +3555,6 @@ export async function routeAiRequest(
                   admin.rpc("match_question_bank", {
                     p_query_embedding: queryEmbedding,
                     p_class_level: matchClassLevel,
-                    p_school_id: req.actor.schoolId,
                     p_subjects: matchSubjects,
                     p_match_threshold: 0.65,
                     p_match_count: 2,
@@ -3654,31 +3562,11 @@ export async function routeAiRequest(
                   admin.rpc("match_ai_answer_cache", {
                     p_query_embedding: queryEmbedding,
                     p_class_level: matchClassLevel,
-                    p_school_id: req.actor.schoolId,
                     p_subjects: matchSubjects,
                     p_match_threshold: 0.65,
                     p_match_count: 2,
                   }),
                 ]);
-                // G10. An error from either RPC is currently indistinguishable
-                // from a genuine "no similar question" — both become []. That is
-                // how match_question_bank went on throwing 42703 for weeks
-                // without anyone noticing semantic lookup had stopped: the
-                // degraded answer looks exactly like the healthy one. The
-                // fallback stays (a doubt should still be answered without a
-                // reference), but it no longer stays silent.
-                if (bankRes.error) {
-                  console.error(
-                    "match_question_bank failed — semantic lookup degraded to no-match:",
-                    JSON.stringify(bankRes.error),
-                  );
-                }
-                if (cacheRes.error) {
-                  console.error(
-                    "match_ai_answer_cache failed — semantic lookup degraded to no-match:",
-                    JSON.stringify(cacheRes.error),
-                  );
-                }
                 const bankRows: Record<string, unknown>[] =
                   !bankRes.error && Array.isArray(bankRes.data)
                     ? (bankRes.data as Record<string, unknown>[])
@@ -3792,14 +3680,8 @@ export async function routeAiRequest(
                   }
                 }
               }
-            } catch (e) {
-              // Embedding/match failure never blocks the chat — fall through to
-              // generation. G10: falling through is fine; doing it silently is not,
-              // because a permanently-failing embed looks identical to a cache miss.
-              console.warn(
-                "[nova] question match/embed failed, falling through to generation:",
-                e instanceof Error ? e.message : e,
-              );
+            } catch {
+              // Embedding/match failure never blocks the chat — fall through to generation.
             }
           }
         }
@@ -4073,7 +3955,6 @@ export async function routeAiRequest(
         const evidence = evidenceFromExplainFacts(facts);
         const validation = validateModelResponse(modelResult.text, evidence, {
           max_chars: pack.token_budget.output * 6,
-          system_template: modelResult.prompt?.system_template,
         });
         validation_ok = validation.ok && !validation.material_failure;
 
