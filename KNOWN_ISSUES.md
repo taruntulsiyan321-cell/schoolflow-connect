@@ -436,3 +436,96 @@ both spellings (`20260731090000:434,439,469`).
 
 Left in place rather than removed, because removing a name from the catalog is a
 ruling. Recorded so the next session does not read the gap as work.
+
+## 11. `QuestionBankService.insert` sends a `school_id` that does not exist — found 2026-09-06
+
+**Severity: high if confirmed — it would mean no teacher can save a question to
+the bank through the app at all**, by either route.
+
+`src/academic/services/questionBankService.ts:78` builds every insert payload
+with `school_id: r.school_id ?? ctx.schoolId`. **`public.question_bank` has no
+`school_id` column.** Measured twice: the full `information_schema.columns` list
+for the table (30 columns, no `school_id`), and a targeted count returning 0.
+That is by design — §10.9 makes the bank "centralised and shared across all
+schools", and `match_question_bank`'s own body says so.
+
+Both teacher write paths go through that method:
+`QuestionBankPage.saveDrafts` (the "Save to bank" button) and `importCsv`.
+
+**What is NOT measured: the resulting error.** PostgREST rejects an unknown
+column with `PGRST204` before reaching the database, which would make both
+buttons fail every time — but that was not observed end to end. Reproducing it
+needs a request as a real teacher, and the one attempt from here (an anon-key
+insert against production) was refused by this environment's safety classifier,
+correctly. **Confirm it with a teacher session before acting on it**; the column
+facts above are solid, the consequence is inference.
+
+Not fixed here: the fence in `20260906030000` was the scoped work, and removing
+the key is a one-line change that should be made by whoever can watch the button
+work afterwards.
+
+## 12. Contributed questions are student-visible immediately — `is_approved` defaults to `true`
+
+**This is a ruling request, not a defect report.**
+
+The ownership ruling for the question bank states that contributed questions are
+central on entry and that "`is_approved = false` is the scoping mechanism and
+already exists", giving "visible to others only after approval".
+
+The column exists. The mechanism does not. Measured 2026-09-06:
+
+- `public.question_bank.is_approved` has **`DEFAULT true`**.
+- `QuestionBankService.insert` sets it explicitly anyway:
+  `is_approved: r.is_approved ?? true`.
+- All 21,696 rows are `is_approved = true`; zero are false.
+
+So a teacher's contribution becomes readable by **students at every school** the
+moment it is saved (via `qb_select_approved_board`, subject to board match). The
+author fence in `20260906030000` governs who may EDIT a row; it does not and
+cannot govern who may SEE one.
+
+Making entry `is_approved = false` is a two-line change, but it is not obviously
+right and was deliberately not made:
+
+- Staff read via `qb_staff_read`, which ignores `is_approved`, so the author and
+  colleagues would still see their own contributions. Only students would lose
+  them. That part is clean.
+- **There is no approval mechanism anywhere** — no UI, no RPC, no role that
+  approves. Flipping the default would mean contributed questions never reach a
+  student at all, which is a different failure from the one it fixes.
+
+Decide: (a) leave entry approved and accept cross-school visibility on save,
+(b) default to false and build an approval surface, or (c) default to false and
+accept that contributions are staff-only until one exists.
+
+## 13. `match_question_bank`'s body cites §4.2a for a rule that lives in §10.9
+
+Cosmetic, and recorded only because the same misattribution has now reached two
+session prompts and the database.
+
+The function comment reads "question_bank has no school_id and is shared across
+schools by design (§4.2a)". The substance is right; the citation is not. §4.2a
+is `docs/recovery-revision-analysis-spec.md:193` ("Generating the variants"),
+part of the frozen recovery feature, and its "shared bank" means shared across
+STUDENTS and over time. The clause that says "Centralised and shared across all
+schools and all users" is **§10.9**, `docs/locked-decisions.md:385`. The phrase
+"across schools" appears nowhere in the §4.2a document.
+
+Corrected in `docs/gurukul-spec-rules.md`'s clause table. Not corrected in the
+database, because that is a migration to change a comment.
+
+## 14. `dpp-generate-questions` reserves AI budget it never releases on failure
+
+`ai_budget_check_and_reserve` is called with `p_units: 2` **before** the
+generation is attempted, and there is no compensating release on any failure
+path. A run that reserves and then fails — provider down, bad JSON, truncation,
+an exception — still consumes the school's daily units. Repeated failures burn a
+school's whole allowance without producing a single question.
+
+There is no `ai_budget_release`-shaped function to call, so fixing it means
+adding one. Left alone deliberately: it predates this session's changes, it
+affects the frozen AI functions equally, and inventing a budget-release path is
+a design decision rather than a bug fix.
+
+Noted while adding the same reservation to `embed` (1 unit,
+`staff.embed.query`), which has the identical shape and the same caveat.
