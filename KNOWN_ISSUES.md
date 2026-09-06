@@ -776,3 +776,23 @@ turned out, exam creation inside one of them was refused 42501 every time.
 
 `tier1-writes.spec.ts` reaches the panels by opening the tab, which is why it
 found what the URL probe could not.
+
+## 24. Service class names are rendered to parents as UI labels
+
+**Found 2026-09-06 while asserting the Tier 1 read surfaces. Tier 3, not fixed.**
+
+Two internal identifiers are on screen in the Parent panel, in the place a
+caption belongs:
+
+| surface | on screen |
+|---|---|
+| `/parent/marks` | `EXAMINATION MARKS (MARKSSERVICE)` |
+| `/parent` | `0` / `Pending Homework` / `HomeworkService` |
+
+Captured from `document.body.innerText` as the signed-in parent, not from a
+dev build. These read as debug breadcrumbs left from wiring each block to its
+service, and a parent has no use for the name of a TypeScript class.
+
+Not fixed here: it is cosmetic, it is outside the Tier 1 write paths this
+change was scoped to, and renaming a visible label is the kind of thing worth
+doing deliberately across the panel rather than in two spots.
