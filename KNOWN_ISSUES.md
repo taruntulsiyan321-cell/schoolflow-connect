@@ -796,3 +796,62 @@ service, and a parent has no use for the name of a TypeScript class.
 Not fixed here: it is cosmetic, it is outside the Tier 1 write paths this
 change was scoped to, and renaming a visible label is the kind of thing worth
 doing deliberately across the panel rather than in two spots.
+
+## 25. An admin can never correct submitted attendance — a stale audit trigger
+
+**Found 2026-09-06. HIGH for the rule it breaks; not fixed here (Tier 2).**
+
+§10.5 (docs/locked-decisions.md:203-205) says attendance is "submitted once.
+After submission, only admin can edit." `rpc_bulk_upsert_attendance` implements
+exactly that: it refuses a non-admin with "Attendance for this section on % has
+already been submitted. Only an admin can change it.", and lets an admin
+through to the UPDATE.
+
+The UPDATE then always fails:
+
+```
+42703  record "new" has no field "class_id"
+```
+
+`attendance_audit_trg` (AFTER UPDATE) runs `tg_log_attendance_change`, whose
+body is
+
+```sql
+INSERT INTO public.attendance_audit
+  (attendance_id, student_id, class_id, date, prev_status, new_status, edited_by)
+VALUES (NEW.id, NEW.student_id, NEW.class_id, NEW.date, ...)
+```
+
+`public.attendance` has neither `class_id` nor `date` any more — its columns are
+`id, student_id, status, marked_by, created_at, school_id, submission_id`. Both
+moved to `attendance_submissions` in the submissions refactor and the trigger
+was never carried over. It fires only when the status actually changes
+(`OLD.status IS DISTINCT FROM NEW.status`), which is precisely a correction, so
+the failure lands on the one operation it exists to record.
+
+Measured as the admin over real HTTP: `POST /rest/v1/rpc/rpc_bulk_upsert_attendance`
+for a day already submitted returns
+`{"code":"42703","message":"record \"new\" has no field \"class_id\""}`.
+
+Consequences: a student marked absent by mistake stays absent forever, and the
+`attendance_audit` table can never receive a row. The insert path is unaffected,
+so first-time marking works and this stays invisible until someone tries to fix
+a mistake.
+
+Not fixed here: it is outside the Tier 1 list (which is marking and submitting,
+both of which work), and the fix has a real decision in it — whether the audit
+row should now carry the submission's class and date via a join, or whether
+`attendance_audit` should be re-shaped to point at `submission_id` instead.
+
+## 26. No admin screen exists for the correction §10.5 reserves to admins
+
+**Found 2026-09-06 alongside 25. Tier 2, not fixed.**
+
+§10.5 gives the admin the sole right to edit a submitted day. There is no
+admin attendance screen to do it from: `/teacher/attendance` is behind
+`ROUTE_ALLOW["/teacher"] = ["teacher"]`, the principal's attendance view is a
+read-only monitor, and `grep -rn attendance src/pages/admin src/gurukul-admin`
+finds no marking UI.
+
+So even with 25 fixed, the only way to exercise the admin's right is a direct
+RPC call. The right the spec grants has no door.

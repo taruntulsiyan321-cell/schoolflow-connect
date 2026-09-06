@@ -18,7 +18,19 @@ import { readFileSync } from 'node:fs'
  * EACH TEST RESTORES WHAT IT CHANGED, AND ASSERTS THE RESTORE. The demo tenant
  * is the only environment that exists; a test that leaves a class absent has
  * damaged the thing it was meant to protect, and an unverified restore is how a
- * suite silently rots the data it runs on.
+ * suite silently rots the data it runs on. Homework is archived again, the
+ * evidence exam is deleted, and both restores are asserted with a positive
+ * control so a cleanup that silently matched nothing fails instead of passing.
+ *
+ * ATTENDANCE IS THE ONE EXCEPTION, AND IT IS DELIBERATE. §10.5 makes a day
+ * one-shot: "submitted once. After submission, only admin can edit." A teacher
+ * therefore CANNOT undo a submission, and the admin route that could is itself
+ * broken by a stale audit trigger (KNOWN_ISSUES 25). So this suite does not
+ * try: it submits an ALL-PRESENT day, which records nothing false about any
+ * student, and on any later run that day the test asserts the §10.5 refusal
+ * instead of writing again. An earlier version marked one student absent and
+ * failed to put them back, leaving a real demo student wrongly absent with no
+ * path in the app to correct it — that is what this shape exists to prevent.
  *
  * ASSERT DURABLE STATE, NOT TRANSIENT TOAST. The "Attendance saved" flash
  * clears itself after 2.8s (TeacherAttendancePage `showFlash`). Waiting on it
@@ -142,21 +154,35 @@ test.describe('Tier1-W · teacher · attendance', () => {
   test.use({ storageState: authFile('teacher') })
   test.beforeEach(() => test.skip(!roleAuthed('teacher'), 'teacher session not available'))
 
-  test('marks a student absent, submits, and the mark survives a reload', async ({ page, signals }, testInfo) => {
+  /**
+   * §10.5 (docs/locked-decisions.md:203-205): "Whole class entered in a grid,
+   * saved as draft, reviewed, then submitted once. After submission, only
+   * admin can edit." The database enforces it —
+   * `rpc_bulk_upsert_attendance` raises "Attendance for this section on % has
+   * already been submitted. Only an admin can change it." — so a day is a
+   * one-shot, and this test has to be written for that rather than around it.
+   *
+   * TWO THINGS THIS DELIBERATELY DOES NOT DO.
+   *
+   * It does not leave anybody marked absent. An earlier version marked the
+   * first student absent, submitted, and then tried to put them back; the
+   * restore is an UPDATE, and updates to `attendance` raise 42703 on a stale
+   * audit trigger (KNOWN_ISSUES 25), so it left a real demo student wrongly
+   * absent with no path in the app to undo it. The marking CONTROLS are still
+   * exercised — a student is toggled to Absent and back before saving — but
+   * what gets submitted is an all-present day, which is benign and true.
+   *
+   * It does not skip when the day is already submitted. Skipping would make a
+   * green run mean nothing on the second run of any day. The already-submitted
+   * branch asserts the rule instead: the teacher is refused, and told why.
+   */
+  test('marks and submits attendance, or is correctly refused a second time', async ({
+    page,
+    signals,
+  }, testInfo) => {
+    test.setTimeout(180000)
     const absentBtns = () => page.getByRole('button', { name: /^(Mark Absent|Absent)$/ })
     const saveBtn = () => page.getByRole('button', { name: /Save Attendance/i })
-
-    /** Click Save and wait for the roster to read back as submitted-and-clean. */
-    const saveAndConfirm = async (what: string) => {
-      await expect(saveBtn(), `${what}: save is enabled`).toBeEnabled({ timeout: 20000 })
-      await saveBtn().click()
-      // `saveState` becomes "submitted" only when the write returned AND the
-      // roster reloaded clean, so this covers the whole round trip.
-      await expect(
-        page.getByText('Attendance submitted'),
-        `${what}: save completed — ${dump(signals, testInfo, what)}`,
-      ).toBeVisible({ timeout: 45000 })
-    }
 
     await page.goto('/teacher/attendance', { waitUntil: 'domcontentloaded' })
     await settle(page)
@@ -168,30 +194,72 @@ test.describe('Tier1-W · teacher · attendance', () => {
 
     const rosterSize = await absentBtns().count()
     expect(rosterSize, 'the roster has students to mark').toBeGreaterThan(0)
-    const wasAbsent = (await absentBtns().first().innerText()).trim() === 'Absent'
 
-    // ── write: flip the first student to Absent ──────────────────────────
-    if (!wasAbsent) await absentBtns().first().click()
-    await expect(absentBtns().first(), 'row reads Absent before saving').toHaveText('Absent')
-    await saveAndConfirm('mark absent')
+    // The state has to be read from the DURABLE badge, not from the refusal
+    // message: that message is only produced by a rejected save, so a test
+    // that looks for it on load always takes the submit branch — and then
+    // asserts "Attendance submitted" is visible when it was already visible
+    // from the earlier submission, which passes while proving nothing.
+    // `saveState` renders exactly one of these two before any click.
+    const before = await bodyText(page)
+    const alreadySubmitted = before.includes('Attendance submitted')
+    const isDraft = before.includes('Not submitted yet')
+    expect(
+      alreadySubmitted !== isDraft,
+      `the day reports exactly one save state (submitted=${alreadySubmitted}, draft=${isDraft})`,
+    ).toBe(true)
 
-    // ── the real assertion: it round-tripped to the database ─────────────
+    // ── THE MARKING CONTROLS WORK ──────────────────────────────────────
+    // Asserted in both branches, and reverted before anything is saved.
+    await absentBtns().first().click()
+    await expect(absentBtns().first(), 'a student can be marked Absent').toHaveText('Absent')
+    await absentBtns().first().click()
+    await expect(absentBtns().first(), '...and put back to Present').toHaveText('Mark Absent')
+
+    if (alreadySubmitted) {
+      // ── §10.5: a submitted day is the admin's from here ──────────────
+      await absentBtns().first().click()
+      await saveBtn().click()
+      await expect(
+        page.getByText(/has already been submitted\. Only an admin can change it/i),
+        'the second submission of the day is refused, and says why',
+      ).toBeVisible({ timeout: 45000 })
+      testInfo.annotations.push({
+        type: 'tier1-write',
+        description: 'attendance already submitted today; §10.5 refusal asserted instead',
+      })
+      return
+    }
+
+    // ── THE SUBMIT ─────────────────────────────────────────────────────
+    // Reaching here means the badge read "Not submitted yet", so the assertion
+    // below is a TRANSITION, not the re-observation of a badge that was
+    // already on screen.
+    await page.getByRole('button', { name: 'All Present' }).click()
+    await expect(saveBtn(), 'save is enabled').toBeEnabled({ timeout: 20000 })
+    await saveBtn().click()
+    // `saveState` reaches "submitted" only when the write returned AND the
+    // roster reloaded clean, so this covers the whole round trip.
+    await expect(
+      page.getByText('Attendance submitted'),
+      `the submit completed — ${dump(signals, testInfo, 'attendance submit')}`,
+    ).toBeVisible({ timeout: 45000 })
+    expect(
+      await bodyText(page),
+      'the day no longer reports itself as an unsubmitted draft',
+    ).not.toContain('Not submitted yet')
+
+    // ── IT ROUND-TRIPPED TO THE DATABASE ───────────────────────────────
     await page.reload({ waitUntil: 'domcontentloaded' })
     await settle(page)
-    await expect(absentBtns().first(), 'the absence persisted across a reload').toHaveText('Absent', {
-      timeout: 20000,
-    })
-    expect(await bodyText(page), 'the day reads as submitted after reload').toContain('Attendance submitted')
-
-    // ── restore, and assert the restore ──────────────────────────────────
-    if (!wasAbsent) {
-      await absentBtns().first().click()
-      await expect(absentBtns().first(), 'row reads Mark Absent before saving').toHaveText('Mark Absent')
-      await saveAndConfirm('restore present')
-      await page.reload({ waitUntil: 'domcontentloaded' })
-      await settle(page)
-      await expect(absentBtns().first(), 'restored to Present').toHaveText('Mark Absent', { timeout: 20000 })
-    }
+    expect(await bodyText(page), 'the day reads as submitted after a reload').toContain(
+      'Attendance submitted',
+    )
+    await expect(
+      page.getByRole('button', { name: /^Absent$/ }),
+      'nobody was left marked absent by this test',
+    ).toHaveCount(0, { timeout: 20000 })
+    testInfo.annotations.push({ type: 'tier1-write', description: 'attendance submitted (all present)' })
   })
 })
 
