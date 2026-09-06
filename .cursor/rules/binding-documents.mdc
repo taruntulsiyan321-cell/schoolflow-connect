@@ -10,7 +10,7 @@ wins and the code is the bug**.
 
 1. `docs/locked-decisions.md` — the product spec. Where code and spec disagree,
    the spec wins and the code is the bug.
-2. `docs/gurukul-spec-rules.md` — **rules 1–31, binding.** Read in full before
+2. `docs/gurukul-spec-rules.md` — **rules 1–32, binding.** Read in full before
    working. (Was omitted from an earlier version of this rule only because it
    appeared absent on a stale checkout at tip `7c8b435`; it is present from
    `4ee4dae` onward.)
@@ -19,7 +19,26 @@ wins and the code is the bug**.
 
 ## Branch
 
-Live work is `claude/threshold-rulings-schema-f179b7`. `main`'s tip lacks
-`KNOWN_ISSUES.md`, `docs/gurukul-spec-rules.md`, and the
-`verify:caller-privileges` script, so gates pass meaninglessly there. Confirm the
-branch before running any gate.
+Live work is `claude/gurukul-s10-cold-start-96242c`.
+
+**NOT `claude/threshold-rulings-schema-f179b7`**, which this rule named until
+2026-09-08 and which is now 13+ commits behind. Three sessions ran against that
+stale tip and produced figures that looked plausible; a fourth stopped only
+because a file it expected was missing. `main`'s tip is worse still — it lacks
+`KNOWN_ISSUES.md`, `docs/gurukul-spec-rules.md` and the
+`verify:caller-privileges` script, so gates pass there meaninglessly.
+
+Confirm the branch before running any gate, and confirm the numbers too. On the
+live tip expect **167 caller-privileges assertions** and **618 tests / 56 files**.
+Seeing 129, 158, 571 or 613 means an older tip — stop rather than report from it.
+
+`npm run check:pushed` (rule 32) fails if HEAD is ahead of or behind origin, and
+runs first in `npm run preflight`.
+
+## A document this rule does NOT list
+
+`docs/GURUKUL-V1.md` has been cited to sessions as the canonical v1 description
+and as the first thing to read. **It exists in no ref**, local or remote —
+searched exhaustively on 2026-09-07 and again on 2026-09-08. It is not a stale
+checkout. Until someone pushes it, the three documents above are the binding set,
+and v1 scope must not be inferred from anything else.
