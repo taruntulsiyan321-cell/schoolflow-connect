@@ -93,6 +93,12 @@ These are the product owner's, given directly. They override any inference from 
 
     *(Counts re-measured live 2026-09-06 and all three confirmed: 21,696 rows, 11,917 distinct topics, 523 distinct chapters. Note the tension to be aware of rather than resolved here: §10.9 lists topic among the tags that "keep content appropriate" and says a student sees "nothing outside their class, subject, chapter or topic". This rule does not remove topic as a stored tag or as a filter where one is already supplied — it rules that nothing may **invent** one, and that selection and analysis surfaces key on chapter and subject.)*
 
+32. **Work is not landed until `git ls-remote` shows it.** Committing is half the guarantee; a commit on one machine is one disk failure from gone. A deploy whose source is unpushed is the same defect as a deploy whose source was never committed — `ai-expand-questions` and `mcp` reached production that way, and six sessions of schema, migration and edge-function work sat local-only for weeks the same way. Every session ends by pushing and confirming from the remote. Preflight fails if `HEAD` is **ahead** of `origin`, not only behind.
+
+    *(Enforced by `npm run check:pushed`, which is the FIRST thing `npm run preflight` runs. It asks `git ls-remote` rather than reading `refs/remotes/origin/*` or a local `git log` — both of those answer "what did this machine last hear", and both reported everything fine throughout the incident that produced this rule. `--all` checks every local branch. A branch that DIVERGED is pushed as `<branch>-local-YYYYMMDD` and reconciled deliberately; it is never force-pushed. Being unable to reach `origin` fails too, because "I could not ask" must not look like "nothing to push".)*
+
+    *(Measured 2026-09-07 when this was written: `claude/threshold-rulings-schema-f179b7` was **16 commits ahead** of its remote, and `claude/edge-function-provenance` — which holds the only copy of `mcp/index.ts` outside the running deployment — had never been pushed at all in eight sessions.)*
+
 ---
 
 ## Parked — the ephemeral test report
