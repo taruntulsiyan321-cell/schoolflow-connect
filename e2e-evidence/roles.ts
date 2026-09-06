@@ -30,10 +30,10 @@ export const ROLES: RoleAccount[] = [
   { role: 'teacher', email: env('E2E_TEACHER_EMAIL', 'priya.sharma@wisdomcampus.com'), password: env('E2E_TEACHER_PASSWORD', P), home: /\/teacher/, reachable: true },
   { role: 'student', email: env('E2E_STUDENT_EMAIL', 'qa.automation@wisdomcampus.com'), password: env('E2E_STUDENT_PASSWORD', 'QaAutomation123!'), home: /\/student/, reachable: true },
   { role: 'parent', email: env('E2E_PARENT_EMAIL', 'mehta.parent@wisdomcampus.com'), password: env('E2E_PARENT_PASSWORD', P), home: /\/parent/, reachable: true },
-  // Not in the demo seed — supply E2E_SUPERADMIN_EMAIL/PASSWORD to enable.
-  { role: 'super_admin', email: env('E2E_SUPERADMIN_EMAIL', ''), password: env('E2E_SUPERADMIN_PASSWORD', ''), home: /\/admin/, reachable: !!process.env.E2E_SUPERADMIN_EMAIL },
-  // Dual-role teacher+parent — supply E2E_DUAL_EMAIL/PASSWORD to enable.
-  { role: 'dual_teacher_parent', email: env('E2E_DUAL_EMAIL', ''), password: env('E2E_DUAL_PASSWORD', ''), home: /\/(teacher|parent)/, reachable: !!process.env.E2E_DUAL_EMAIL },
+  // Seeded by e2e-evidence/seed-eval-accounts.mjs (platform role; routes to /admin).
+  { role: 'super_admin', email: env('E2E_SUPERADMIN_EMAIL', 'superadmin@wisdomcampus.com'), password: env('E2E_SUPERADMIN_PASSWORD', P), home: /\/admin/, reachable: true },
+  // Seeded dual-role teacher+parent; lands in teacher by precedence, switches to parent.
+  { role: 'dual_teacher_parent', email: env('E2E_DUAL_EMAIL', 'dual.role@wisdomcampus.com'), password: env('E2E_DUAL_PASSWORD', P), home: /\/(teacher|parent)/, reachable: true },
 ]
 
 export const authFile = (role: string) => `e2e-evidence/.auth/${role}.json`

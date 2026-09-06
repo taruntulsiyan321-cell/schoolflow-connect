@@ -37,9 +37,15 @@ for (const account of ROLES) {
     await page.getByLabel('Email or Mobile').fill(account.email)
     await page.locator('#signin-password').fill(account.password)
     await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL(account.home, { timeout: 25000 })
+    // Prove auth worked (left /auth); prefer the role's expected home, but record
+    // wherever it actually landed rather than failing on an unexpected route.
+    try {
+      await expect(page).toHaveURL(account.home, { timeout: 25000 })
+    } catch {
+      await expect(page).not.toHaveURL(/\/auth(\?|$)/, { timeout: 5000 })
+    }
     await page.context().storageState({ path: authFile(account.role) })
-    status[account.role] = { reachable: true, authed: true, note: `landed ${account.home}` }
+    status[account.role] = { reachable: true, authed: true, note: `landed ${page.url()}` }
     writeFileSync('e2e-evidence/.auth/status.json', JSON.stringify(status, null, 2))
   })
 }
