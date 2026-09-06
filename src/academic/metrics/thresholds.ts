@@ -25,6 +25,25 @@
 /** Percent. A student or section below this is flagged on attendance. */
 export const ATTENDANCE_LOW = 80;
 
+/**
+ * Cosine similarity, 0..1. A generated question at or above this against
+ * anything already in the bank is a NEAR-DUPLICATE and is rejected rather than
+ * stored.
+ *
+ * In the bank's own units: the same embedding space `match_question_bank`
+ * retrieves with, so "duplicate" means duplicate to the same measure that
+ * decides what a paper pulls back. It is deliberately well above
+ * `match_question_bank`'s own default match threshold of 0.82 — that one asks
+ * "is this RELEVANT to the query", and every question in a chapter is relevant
+ * to its chapter. Rejecting at relevance would reject the whole section.
+ *
+ * Chosen conservatively: a false negative costs a near-duplicate in one paper,
+ * a false positive silently drops a legitimate question and the teacher is
+ * never told what they did not get. Tune with measurements from a grown bank,
+ * not by feel.
+ */
+export const NEAR_DUPLICATE_SIMILARITY = 0.95;
+
 /** Days running. An unbroken absence run of this length is flagged. */
 export const CONSECUTIVE_ABSENCE = 3;
 

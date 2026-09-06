@@ -72,6 +72,11 @@ const METRIC_WORDS = [
   // gurukul-principal/analysis/thresholds.ts as a live second home for
   // SUBJECT_AVERAGE_LOW while the gate reported the file clean.
   "average", "avg",
+  // Near-duplicate rejection is a threshold in the embedding space and nothing
+  // above spells it. Without these two words NEAR_DUPLICATE_SIMILARITY could be
+  // redeclared as a bare 0.95 in the paper builder and this gate would report
+  // the file clean -- the same hole "average" was added to close.
+  "similarity", "duplicate",
 ];
 
 /**
