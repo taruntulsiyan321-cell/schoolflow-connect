@@ -37,6 +37,40 @@ For every chunk:
 
 ## GLOBAL RULES — enforced in every chunk
 
+## GLOBAL RULES — INDEX
+
+**Read this list. Pull the full rule only when a decision needs it.**
+Every one was written from a defect that actually happened.
+
+| | Rule | Reach for it when |
+|---|---|---|
+| **G1** | Isolation — `institution_id` + RLS on every table | Adding any table |
+| **G2** | The only shared tables | Something looks global |
+| **G3** | Academic year on every record | Adding any table |
+| **G4** | Null is not zero | Any measurement column |
+| **G4a** | **Every way a null has become a zero here** | Any comparison, sort, guard, average, or value entering a prompt |
+| **G5** | No stored aggregates | Tempted to cache a percentage |
+| **G6** | Soft delete and retention | Deleting anything |
+| **G7** | Audit | Admin writes |
+| **G8** | Standing gates after every chunk | Every chunk — includes seed, smoke, timing, definer inventory |
+| **G9** | Two sources of truth | Any fact stored twice |
+| **G10** | No swallowed failures | Any catch, any "safe" wrapper |
+| **G11** | A test must pass for the reason it claims | Writing or reading any verification |
+| **G12** | A policy that times out is a broken feature | Touching any policy |
+| **G13** | Every `SECURITY DEFINER` is a door | Any definer or edge function |
+| **G14** | A control in a comment is not a control | Any grant, any fence |
+| **G15** | Constructs that silently do nothing | `ON CONFLICT`, `IF EXISTS`, plpgsql column refs, DROP+CREATE |
+| **G16** | A rollback that restores a snapshot is not a rollback | Writing any rollback |
+| **G17** | Removing a barrier can turn a refusal into a silent loss | Dropping a constraint, predicate or guard |
+
+**The five that catch the most, if you read nothing else:**
+**G4a** (nulls), **G8** (prove the gate has inputs; a skipped check is not a
+passing check), **G11** (assert the guarantee, not a snapshot), **G13** (verify by
+calling as each role, never by reading the body), **G17** (check what a guard was
+preventing before removing it).
+
+---
+
 ### G1. Isolation
 
 Every table carries `institution_id` **except** the shared tables named in G2.
@@ -362,6 +396,18 @@ printed `2 declared TS-only (…, VARIANT_CACHE_FIRST)` **after the constant had
 been deleted.** Reporting the presence of something absent is worse than
 reporting nothing.
 
+**The runner that runs the gates is a gate.** Found live: a verification runner
+matched `/CHECK FAILED/` while one file closed with `ONE OR MORE CHECKS FAILED` —
+so it reported *"34 ran clean, 0 reported a failure"* **while that file was
+actively failing.** Plant a deliberately failing file and confirm the runner
+reports it, every time the runner changes.
+
+**A fixture selected by a shared predicate is not your fixture.** A proof
+selecting its second row `WHERE reason = 'verification fixture' LIMIT 1` picked
+up a different check's fixture, so the duplicate it claimed to test was never
+attempted. **Capture the id you inserted and assert `ROW_COUNT` before concluding
+anything.**
+
 **Controls need controls.** Point the negative control at the last known-broken
 version of the gate and confirm it reports NOT DETECTED on exactly the cases that
 version missed. A control that has never failed is not known to detect anything.
@@ -393,238 +439,57 @@ timestamps, ledger position, or the commit that introduced it. Do not silently
 inherit someone else's failure, and do not claim one is pre-existing without
 evidence.
 
-### G14. A control that exists only in a comment is not a control
+### G9. Watch for two sources of truth
 
-**Found live, self-inflicted:** `test_questions_read` granted SELECT to every
-user in the institution — including the `correct` column. The answer key, on the
-client, before the answer is given. It shipped with a comment promising that a
-definer would withhold that column.
+**This has been the root cause three times.** Every time, the same shape: two
+places hold the same fact, one is authoritative, nobody maintains the other, and
+no error is ever raised.
 
-**A promise in a comment is not a fence.** The grant is the fence.
-
-- Where a column must not be read, **do not grant it.** Withhold it in the grant
-  or serve the row through a definer that omits it.
-- Never rely on "the client won't select that", "the RPC filters it", or "we only
-  call it through X". Every table with a SELECT grant is directly readable
-  through PostgREST by anyone holding it.
-- **Verify by reading as the role that must not see it**, and asserting the
-  column is absent — not by reading the policy.
-
-**A control that disappears on error is not a control either.**
-
-Found live: `listForClass` caught any error matching `/school_id/` and re-ran the
-query **without the institution filter**. A cross-tenant leak armed and waiting
-for a schema change to fire it — during a period when the schema was changing
-weekly.
-
-This is distinct from a swallowed failure (G10). The error was not hidden; it was
-**answered by removing the fence.**
-
-- **No fallback, retry or degraded path may drop a security predicate.** If the
-  fenced query fails, the request fails.
-- Sweep for `catch` blocks that re-issue a query with fewer conditions, and for
-  any error handler whose recovery path is a wider query.
-- **A filtering join beats a post-filter.** `section_subjects!inner` excludes a
-  mismatched row structurally; a `.filter()` afterwards relies on every call site
-  remembering. Prefer the construct that cannot be forgotten.
-
-### G15. Constructs that silently do nothing
-
-Three found in one chunk, all of which look protective and were not:
-
-- **`ON CONFLICT DO NOTHING` with no matching unique constraint.** It cannot
-  fire. `student_mistakes` had only a PK on a generated uuid, so a retake would
-  have silently duplicated every mistake. **Confirm the constraint the clause
-  targets actually exists.**
-- **`DROP CONSTRAINT IF EXISTS` on a guessed name.** The drop matched nothing,
-  the add created a second constraint, and both had to pass — so the value stayed
-  rejected. `IF EXISTS` turned a wrong guess into silence. **Look the name up;
-  never guess it.**
-- **An enum or CHECK that omits the value you are about to write.**
-  `student_mistakes.source` and `.assessment_type` each enumerated `'dpp'` and
-  neither admitted `'test'` — so no mistake could be recorded at all.
-  **A table name is not the only place a legacy feature lives; it is also a value
-  in a constraint.**
-
-- **`DROP` + `CREATE` loses everything that is not the body.**
-  `pg_get_functiondef` carries the definition and nothing else — **not grants,
-  not comments, not ownership.** Found live: recreating `_bump_academic_activity`
-  to rename a parameter silently reset an internal helper to `EXECUTE` for
-  `PUBLIC`, undoing a revoke from August. Live for one migration, caught only by
-  a standing gate.
-  **Prefer `CREATE OR REPLACE`.** Where a DROP is unavoidable — a parameter
-  rename is — **capture the grants first, restore them after, and assert them.**
-
-- **A body that validates is not a body that works.** `CREATE OR REPLACE`
-  validates a `LANGUAGE sql` body at definition time; a `plpgsql` body is
-  accepted and fails at run time. Two broken rewrites in this chunk failed loudly
-  **only because both happened to be SQL**. Do not treat a successful
-  `CREATE OR REPLACE` as proof for a plpgsql function — call it.
-
-- **plpgsql resolves columns at execution, not at definition.** A migration that
-  drops or renames a column does **not** break the function bodies referencing
-  it. They compile, `CREATE OR REPLACE` succeeds, every gate passes, and the
-  failure waits for the first real user.
-
-  Found live: Chunk 7.5c repointed four functions from `dpps` to `tests` and
-  changed the table without changing the columns. `tests` has `status` and
-  `published_at`, not `is_published`. **The student dashboard errored on every
-  load, along with the leaderboard, the principal health brief and the homework
-  publisher — for days.** The chunk's own verification swept for the string
-  `dpp` and found none, because the bodies now say `tests`.
-
-  **After any column drop or rename, parse every function body for
-  `alias.column` references against the tables it selects from.** A string sweep
-  for the old *table* name does not find a stale *column* name. And call the
-  affected surfaces as a real user — this class is invisible to every static
-  check.
-
-**The shared shape:** a construct whose precondition is absent fails open and
-quietly. **Assert the precondition, then use the construct.**
-
-**Make the checker stricter than the thing it checks.** A case-insensitive
-assertion over a case-sensitive collector found uppercase `"DPP"` in advice
-strings that students and parents read. **Asymmetry in that direction fails
-safe**; the reverse reports clean and is wrong.
-
-### G13. Every `SECURITY DEFINER` function is a door — inventory them
-
-**Five instances of the same pattern, in five different chunks:**
-
-| Found in | Function | What it served |
+| Found | Authority | Stale copy |
 |---|---|---|
-| 1.6 | Nova edge function | A child's mistake book, to parent and teacher |
-| 1.6 | `rpc_teacher_concept_analytics` | Class practice aggregates, to teachers |
-| 7A | `rpc_dpp_pick_from_bank`, `rpc_generate_battle` | Class 12 questions, to a Class 5 student |
-| 7B | `rpc_teacher_class_insights` | Named students' accuracy, to any teacher |
-| 7B | `rpc_get_battle_report` | The whole report blob, to five roles |
+| Chunk 1.5 | `memberships` | `user_roles` |
+| Chunk 3 | `student_enrolments.roll_number` | `students.roll_number` |
+| Chunk 3 | RLS policies | the service-role path around them |
 
-Every one had **correct policies.** RLS does not run inside a definer body, so
-policy-level auditing cannot see any of them.
+**In every chunk, ask explicitly: does anything here duplicate a fact that lives
+somewhere else?** If yes, name the authority, converge the other, and **drop the
+stale one.** Leaving a deprecated column commented is what lets a new call site
+be written against it next month.
 
-**Two lessons the last one adds:**
+Report this as its own line in every chunk report, even when the answer is none.
 
-- **Locking a wrapper does not lock what it wraps.**
-  `rpc_ensure_battle_report` was narrowed while its last line still called
-  `rpc_get_battle_report`, which was untouched and separately callable.
-- **Deleting a page removes a link, not reachability.** Every RPC is callable
-  directly through PostgREST by anyone holding the grant.
+### G10. No swallowed failures
 
-### Standing inventory — a gate, not a habit
+**A bare `catch {}` is a bug that hides bugs.**
 
-Maintain a checked-in inventory of **every `SECURITY DEFINER` function and every
-edge function**, recording for each: what it returns, who holds EXECUTE, what it
-calls, and the rule that justifies its reader set.
+Found live: `awardSafe` swallowed every XP award failure. A CHECK constraint
+whitelisted 4 source types while the app emitted 11, so **nine of eleven paths
+failed on every call** — for four days — while the UI displayed
+"Attendance submitted". The only evidence was that `progression_history`
+contained one kind of row, and nobody was looking.
 
-**The gate fails when:**
-- A definer or edge function exists that is not in the inventory
-- One grants EXECUTE to `anon` or `authenticated` without a declared justification
-- One calls another definer whose reader set is wider than its own
-- Its declared reader set disagrees with what its body actually permits
-
-**Per chunk:** re-run it. **Verify by calling each function as each role**, never
-by reading the body — that is how four of the five above survived a body review.
-
-**`SECURITY INVOKER` does not mean "RLS applies." It means "the caller's RLS
-applies" — and some callers have none.**
-
-Found live: `match_question_bank` is INVOKER, and the reasoning *"removing the
-predicate restores it to behaviour RLS already governs"* was true for
-`authenticated` and false for its **only** caller. `aiRouter.ts` calls it through
-`service_role`, which holds `rolbypassrls` — so no policy is evaluated on that
-path at all. The fence would have run for the first time on the one path
-production never takes.
-
-**Before relying on RLS to govern an INVOKER function, name its actual callers.**
-A service-role or `rolbypassrls` caller is governed by nothing.
-
-**A fence written into the body needs no `IS NULL OR` escape.** An unknown
-parameter must **narrow** — here, to board-agnostic rows — never widen to
-everything. And a caller must not be able to widen it by passing someone else's
-identifier: RLS on the lookup table hides the row and the subselect goes NULL.
-
-**And "returned without error" is not "wrote nothing."** Measure the effect, not
-the outcome. Found live: of 58 PUBLIC-executable definer-writers called as an
-ordinary student, 11 refused, 37 died on something else, and **10 completed
-cleanly. Five of those actually wrote** — including `_backfill_battle_question_concepts()`,
-a no-argument function with no caller anywhere, which a signed-in student could
-use to write **749 rows of shared battle data**, repeatably.
-
-Use transaction-local tuple counters (`pg_stat_xact_user_tables`) rather than
-reasoning from the body.
-
-**Two things that will make the probe lie, both found live:**
-
-- **`set_config('request.jwt.claims')` changes what `auth.uid()` returns, not the
-  database role.** Testing a **grant** needs `SET LOCAL ROLE`; testing an
-  **in-function auth check** needs the JWT claim. Conflating them made
-  just-revoked functions report "STILL RUNS".
-- **A `BEGIN … EXCEPTION` block is a subtransaction with its own xid**, so rows
-  matched against `pg_current_xact_id()` are not found and read as "0 rows
-  written."
-
-- **Not entering a function is not the same as the function being fine.** Two
-  probes returned "ran with no error" because one exits early when `auth.uid()`
-  is null and the other checks the **JWT claim** role rather than the database
-  role — so `SET LOCAL ROLE service_role` never satisfied it. Both were broken.
-  Assert that the body was actually reached.
-
-**Both probes need a control**, because a column of refusals and a column of
-zeros are exactly what a broken harness produces:
-- Before believing a refusal, assert the session really is that role.
-- Before believing a zero write, perform a known INSERT and assert the counter
-  moved.
-
-**Separate live holes from defence-in-depth gaps.** Six admin functions that
-looked worst on paper — definer, writing, staff-declared, PUBLIC-granted — all
-fenced themselves. Reporting 138 contradictions as 138 holes is true and useless.
-**Five were live. Say which.**
-
-### G12. A policy that times out is a broken feature
-
-**Found live:** the parent panel returned **HTTP 500 in production** — 33 seconds
-against an 8-second statement timeout, on ten visible rows. Not slow. Broken.
-
-**Root cause, one pattern repeated 31 times across 17 tables:** a policy that
-reaches another RLS-protected table pays that table's **entire policy stack, per
-candidate row.** `EXISTS (SELECT 1 FROM students …)` re-evaluates `students`'
-policies for every row considered. A single count over `students` as a parent
-cost 375 ms; multiplied per row, it timed out.
-
-**This gets worse with every chunk.** Each new table adds policies; each policy
-that reaches a protected table multiplies. Chunk 1's role binding is what turned
-cheap column comparisons into expensive lookups — the cost was created by
-correct work, and only surfaced when something finally measured it.
+**This is worse than a visible bug.** A visible bug is fixed the same day. A
+swallowed one runs until someone happens to query the table.
 
 **Rules:**
 
-- **A policy must not nest RLS.** Where a policy needs a fact from another
-  protected table, resolve it through a `SECURITY DEFINER` helper so the inner
-  table's stack runs once, not per row.
-- **A helper that bypasses RLS must re-state every guarantee it bypassed** —
-  active role, active local person, institution — and assert them. Otherwise the
-  optimisation becomes a privacy hole. `can_manage_homework` shipped with no
-  institution check on its `created_by` arm; a teacher who changed schools could
-  still manage homework from the old one.
-- **Duplicate permissive policies are pure cost.** `homework_submissions` carried
-  ten, five of them duplicates. G9's two-sources-of-truth, showing up as latency.
-- **Measure, then measure again.** The first fix took 33s → 14.5s — still a 500.
-  The remaining cost had moved into a policy written during the fix. Never assume
-  a fix landed; re-run the timing. In Chunk 6 the first two fixes moved nothing at
-  all — 855ms → 855ms, 1128ms → 1138ms — and only measurement revealed it.
-- **Dispatch on role before evaluating arms.** An `OR` chain evaluates every arm
-  until one returns true, so a parent pays `teacher_teaches_class` (18.5ms) and
-  `is_my_student_record` (19.2ms) on every row before reaching their own. Check
-  the active role first — `active_membership_role()` costs 0.06ms because it
-  takes no argument and is cached per statement. This was the entire fix:
-  1138ms → 496ms.
-- **Demo data hides this.** 14ms/row is invisible at 26 rows and ~2.8s at 200.
-  **Report per-row cost, not just total**, and state what it becomes at realistic
-  volume. A figure comfortably under the gate today is a 500 next term.
+- **No empty catch blocks anywhere.** A caught error is logged with enough
+  context to identify it, or re-thrown.
+- **"Safe" wrappers must still report.** A function whose job is to not crash the
+  caller still surfaces the failure — a log line, a counter, a monitored event.
+  Silence is not safety.
+- **A success message must mean success.** Never render "saved" or "submitted"
+  on a path where the write may have failed.
+- **Constraint whitelists must match what the code emits.** Where a CHECK
+  constrains a set of values, enumerate every value the application actually
+  produces and prove the two agree. Keep the whitelist; widen it to the truth.
 
-**Per chunk:** for every table the chunk touches, time the heaviest realistic
-query **as each role that can read it**, and report the numbers. Anything within
-2× of the statement timeout is a finding, not a footnote.
+**Per chunk:** grep for empty catch blocks and unlogged catches in the code paths
+that chunk touches, and report the count. Zero is the target; anything else is
+named and justified.
+
+**In Chunk 11:** sweep the whole repo. Also enumerate every CHECK constraint over
+a value set and prove it matches the emitted values.
 
 ### G11. A test must pass for the reason it claims
 
@@ -726,38 +591,238 @@ A failure gets investigated. A false pass closes the question.
   misreports is the same defect class. Classify on structural signals — SQLSTATE,
   exit codes — never on matching report wording.
 
-### G10. No swallowed failures
+### G12. A policy that times out is a broken feature
 
-**A bare `catch {}` is a bug that hides bugs.**
+**Found live:** the parent panel returned **HTTP 500 in production** — 33 seconds
+against an 8-second statement timeout, on ten visible rows. Not slow. Broken.
 
-Found live: `awardSafe` swallowed every XP award failure. A CHECK constraint
-whitelisted 4 source types while the app emitted 11, so **nine of eleven paths
-failed on every call** — for four days — while the UI displayed
-"Attendance submitted". The only evidence was that `progression_history`
-contained one kind of row, and nobody was looking.
+**Root cause, one pattern repeated 31 times across 17 tables:** a policy that
+reaches another RLS-protected table pays that table's **entire policy stack, per
+candidate row.** `EXISTS (SELECT 1 FROM students …)` re-evaluates `students`'
+policies for every row considered. A single count over `students` as a parent
+cost 375 ms; multiplied per row, it timed out.
 
-**This is worse than a visible bug.** A visible bug is fixed the same day. A
-swallowed one runs until someone happens to query the table.
+**This gets worse with every chunk.** Each new table adds policies; each policy
+that reaches a protected table multiplies. Chunk 1's role binding is what turned
+cheap column comparisons into expensive lookups — the cost was created by
+correct work, and only surfaced when something finally measured it.
 
 **Rules:**
 
-- **No empty catch blocks anywhere.** A caught error is logged with enough
-  context to identify it, or re-thrown.
-- **"Safe" wrappers must still report.** A function whose job is to not crash the
-  caller still surfaces the failure — a log line, a counter, a monitored event.
-  Silence is not safety.
-- **A success message must mean success.** Never render "saved" or "submitted"
-  on a path where the write may have failed.
-- **Constraint whitelists must match what the code emits.** Where a CHECK
-  constrains a set of values, enumerate every value the application actually
-  produces and prove the two agree. Keep the whitelist; widen it to the truth.
+- **A policy must not nest RLS.** Where a policy needs a fact from another
+  protected table, resolve it through a `SECURITY DEFINER` helper so the inner
+  table's stack runs once, not per row.
+- **A helper that bypasses RLS must re-state every guarantee it bypassed** —
+  active role, active local person, institution — and assert them. Otherwise the
+  optimisation becomes a privacy hole. `can_manage_homework` shipped with no
+  institution check on its `created_by` arm; a teacher who changed schools could
+  still manage homework from the old one.
+- **Duplicate permissive policies are pure cost.** `homework_submissions` carried
+  ten, five of them duplicates. G9's two-sources-of-truth, showing up as latency.
+- **Measure, then measure again.** The first fix took 33s → 14.5s — still a 500.
+  The remaining cost had moved into a policy written during the fix. Never assume
+  a fix landed; re-run the timing. In Chunk 6 the first two fixes moved nothing at
+  all — 855ms → 855ms, 1128ms → 1138ms — and only measurement revealed it.
+- **Dispatch on role before evaluating arms.** An `OR` chain evaluates every arm
+  until one returns true, so a parent pays `teacher_teaches_class` (18.5ms) and
+  `is_my_student_record` (19.2ms) on every row before reaching their own. Check
+  the active role first — `active_membership_role()` costs 0.06ms because it
+  takes no argument and is cached per statement. This was the entire fix:
+  1138ms → 496ms.
+- **Demo data hides this.** 14ms/row is invisible at 26 rows and ~2.8s at 200.
+  **Report per-row cost, not just total**, and state what it becomes at realistic
+  volume. A figure comfortably under the gate today is a 500 next term.
 
-**Per chunk:** grep for empty catch blocks and unlogged catches in the code paths
-that chunk touches, and report the count. Zero is the target; anything else is
-named and justified.
+**Per chunk:** for every table the chunk touches, time the heaviest realistic
+query **as each role that can read it**, and report the numbers. Anything within
+2× of the statement timeout is a finding, not a footnote.
 
-**In Chunk 11:** sweep the whole repo. Also enumerate every CHECK constraint over
-a value set and prove it matches the emitted values.
+### G13. Every `SECURITY DEFINER` function is a door — inventory them
+
+**Five instances of the same pattern, in five different chunks:**
+
+| Found in | Function | What it served |
+|---|---|---|
+| 1.6 | Nova edge function | A child's mistake book, to parent and teacher |
+| 1.6 | `rpc_teacher_concept_analytics` | Class practice aggregates, to teachers |
+| 7A | `rpc_dpp_pick_from_bank`, `rpc_generate_battle` | Class 12 questions, to a Class 5 student |
+| 7B | `rpc_teacher_class_insights` | Named students' accuracy, to any teacher |
+| 7B | `rpc_get_battle_report` | The whole report blob, to five roles |
+
+Every one had **correct policies.** RLS does not run inside a definer body, so
+policy-level auditing cannot see any of them.
+
+**Two lessons the last one adds:**
+
+- **Locking a wrapper does not lock what it wraps.**
+  `rpc_ensure_battle_report` was narrowed while its last line still called
+  `rpc_get_battle_report`, which was untouched and separately callable.
+- **Deleting a page removes a link, not reachability.** Every RPC is callable
+  directly through PostgREST by anyone holding the grant.
+
+### Standing inventory — a gate, not a habit
+
+Maintain a checked-in inventory of **every `SECURITY DEFINER` function and every
+edge function**, recording for each: what it returns, who holds EXECUTE, what it
+calls, and the rule that justifies its reader set.
+
+**The gate fails when:**
+- A definer or edge function exists that is not in the inventory
+- One grants EXECUTE to `anon` or `authenticated` without a declared justification
+- One calls another definer whose reader set is wider than its own
+- Its declared reader set disagrees with what its body actually permits
+
+**Per chunk:** re-run it. **Verify by calling each function as each role**, never
+by reading the body — that is how four of the five above survived a body review.
+
+**`SECURITY INVOKER` does not mean "RLS applies." It means "the caller's RLS
+applies" — and some callers have none.**
+
+Found live: `match_question_bank` is INVOKER, and the reasoning *"removing the
+predicate restores it to behaviour RLS already governs"* was true for
+`authenticated` and false for its **only** caller. `aiRouter.ts` calls it through
+`service_role`, which holds `rolbypassrls` — so no policy is evaluated on that
+path at all. The fence would have run for the first time on the one path
+production never takes.
+
+**Before relying on RLS to govern an INVOKER function, name its actual callers.**
+A service-role or `rolbypassrls` caller is governed by nothing.
+
+**A fence written into the body needs no `IS NULL OR` escape.** An unknown
+parameter must **narrow** — here, to board-agnostic rows — never widen to
+everything. And a caller must not be able to widen it by passing someone else's
+identifier: RLS on the lookup table hides the row and the subselect goes NULL.
+
+**And "returned without error" is not "wrote nothing."** Measure the effect, not
+the outcome. Found live: of 58 PUBLIC-executable definer-writers called as an
+ordinary student, 11 refused, 37 died on something else, and **10 completed
+cleanly. Five of those actually wrote** — including `_backfill_battle_question_concepts()`,
+a no-argument function with no caller anywhere, which a signed-in student could
+use to write **749 rows of shared battle data**, repeatably.
+
+Use transaction-local tuple counters (`pg_stat_xact_user_tables`) rather than
+reasoning from the body.
+
+**Two things that will make the probe lie, both found live:**
+
+- **`set_config('request.jwt.claims')` changes what `auth.uid()` returns, not the
+  database role.** Testing a **grant** needs `SET LOCAL ROLE`; testing an
+  **in-function auth check** needs the JWT claim. Conflating them made
+  just-revoked functions report "STILL RUNS".
+- **A `BEGIN … EXCEPTION` block is a subtransaction with its own xid**, so rows
+  matched against `pg_current_xact_id()` are not found and read as "0 rows
+  written."
+
+- **Not entering a function is not the same as the function being fine.** Two
+  probes returned "ran with no error" because one exits early when `auth.uid()`
+  is null and the other checks the **JWT claim** role rather than the database
+  role — so `SET LOCAL ROLE service_role` never satisfied it. Both were broken.
+  Assert that the body was actually reached.
+
+**Both probes need a control**, because a column of refusals and a column of
+zeros are exactly what a broken harness produces:
+- Before believing a refusal, assert the session really is that role.
+- Before believing a zero write, perform a known INSERT and assert the counter
+  moved.
+
+**Separate live holes from defence-in-depth gaps.** Six admin functions that
+looked worst on paper — definer, writing, staff-declared, PUBLIC-granted — all
+fenced themselves. Reporting 138 contradictions as 138 holes is true and useless.
+**Five were live. Say which.**
+
+### G14. A control that exists only in a comment is not a control
+
+**Found live, self-inflicted:** `test_questions_read` granted SELECT to every
+user in the institution — including the `correct` column. The answer key, on the
+client, before the answer is given. It shipped with a comment promising that a
+definer would withhold that column.
+
+**A promise in a comment is not a fence.** The grant is the fence.
+
+- Where a column must not be read, **do not grant it.** Withhold it in the grant
+  or serve the row through a definer that omits it.
+- Never rely on "the client won't select that", "the RPC filters it", or "we only
+  call it through X". Every table with a SELECT grant is directly readable
+  through PostgREST by anyone holding it.
+- **Verify by reading as the role that must not see it**, and asserting the
+  column is absent — not by reading the policy.
+
+**A control that disappears on error is not a control either.**
+
+Found live: `listForClass` caught any error matching `/school_id/` and re-ran the
+query **without the institution filter**. A cross-tenant leak armed and waiting
+for a schema change to fire it — during a period when the schema was changing
+weekly.
+
+This is distinct from a swallowed failure (G10). The error was not hidden; it was
+**answered by removing the fence.**
+
+- **No fallback, retry or degraded path may drop a security predicate.** If the
+  fenced query fails, the request fails.
+- Sweep for `catch` blocks that re-issue a query with fewer conditions, and for
+  any error handler whose recovery path is a wider query.
+- **A filtering join beats a post-filter.** `section_subjects!inner` excludes a
+  mismatched row structurally; a `.filter()` afterwards relies on every call site
+  remembering. Prefer the construct that cannot be forgotten.
+
+### G15. Constructs that silently do nothing
+
+Three found in one chunk, all of which look protective and were not:
+
+- **`ON CONFLICT DO NOTHING` with no matching unique constraint.** It cannot
+  fire. `student_mistakes` had only a PK on a generated uuid, so a retake would
+  have silently duplicated every mistake. **Confirm the constraint the clause
+  targets actually exists.**
+- **`DROP CONSTRAINT IF EXISTS` on a guessed name.** The drop matched nothing,
+  the add created a second constraint, and both had to pass — so the value stayed
+  rejected. `IF EXISTS` turned a wrong guess into silence. **Look the name up;
+  never guess it.**
+- **An enum or CHECK that omits the value you are about to write.**
+  `student_mistakes.source` and `.assessment_type` each enumerated `'dpp'` and
+  neither admitted `'test'` — so no mistake could be recorded at all.
+  **A table name is not the only place a legacy feature lives; it is also a value
+  in a constraint.**
+
+- **`DROP` + `CREATE` loses everything that is not the body.**
+  `pg_get_functiondef` carries the definition and nothing else — **not grants,
+  not comments, not ownership.** Found live: recreating `_bump_academic_activity`
+  to rename a parameter silently reset an internal helper to `EXECUTE` for
+  `PUBLIC`, undoing a revoke from August. Live for one migration, caught only by
+  a standing gate.
+  **Prefer `CREATE OR REPLACE`.** Where a DROP is unavoidable — a parameter
+  rename is — **capture the grants first, restore them after, and assert them.**
+
+- **A body that validates is not a body that works.** `CREATE OR REPLACE`
+  validates a `LANGUAGE sql` body at definition time; a `plpgsql` body is
+  accepted and fails at run time. Two broken rewrites in this chunk failed loudly
+  **only because both happened to be SQL**. Do not treat a successful
+  `CREATE OR REPLACE` as proof for a plpgsql function — call it.
+
+- **plpgsql resolves columns at execution, not at definition.** A migration that
+  drops or renames a column does **not** break the function bodies referencing
+  it. They compile, `CREATE OR REPLACE` succeeds, every gate passes, and the
+  failure waits for the first real user.
+
+  Found live: Chunk 7.5c repointed four functions from `dpps` to `tests` and
+  changed the table without changing the columns. `tests` has `status` and
+  `published_at`, not `is_published`. **The student dashboard errored on every
+  load, along with the leaderboard, the principal health brief and the homework
+  publisher — for days.** The chunk's own verification swept for the string
+  `dpp` and found none, because the bodies now say `tests`.
+
+  **After any column drop or rename, parse every function body for
+  `alias.column` references against the tables it selects from.** A string sweep
+  for the old *table* name does not find a stale *column* name. And call the
+  affected surfaces as a real user — this class is invisible to every static
+  check.
+
+**The shared shape:** a construct whose precondition is absent fails open and
+quietly. **Assert the precondition, then use the construct.**
+
+**Make the checker stricter than the thing it checks.** A case-insensitive
+assertion over a case-sensitive collector found uppercase `"DPP"` in advice
+strings that students and parents read. **Asymmetry in that direction fails
+safe**; the reverse reports clean and is wrong.
 
 ### G16. A rollback that restores a snapshot is not a rollback
 
@@ -784,24 +849,29 @@ security-leak closures.
 - **Write the rollback while writing the migration**, not at the next preflight.
   Seven accumulated here, and writing them is what surfaced this.
 
-### G9. Watch for two sources of truth
+### G17. Removing a barrier can turn a refusal into a silent loss
 
-**This has been the root cause three times.** Every time, the same shape: two
-places hold the same fact, one is authoritative, nobody maintains the other, and
-no error is ever raised.
+**Before deleting a constraint, a predicate or a guard, ask what it was
+preventing that nobody asked it to prevent.**
 
-| Found | Authority | Stale copy |
-|---|---|---|
-| Chunk 1.5 | `memberships` | `user_roles` |
-| Chunk 3 | `student_enrolments.roll_number` | `students.roll_number` |
-| Chunk 3 | RLS policies | the service-role path around them |
+Found live: `.eq("status","pending")` on a leave review kept the update
+idempotent — and **also made the spec's two-decision case impossible**, because
+after the first decision the predicate matched no row. Dropping the column
+removed the barrier, and the client behind it collapsed the pair through a `Map`
+keyed on the request id **with no `ORDER BY`** — so which decision survived could
+flip between page loads with no data change. **A 409 becoming a coin flip.**
 
-**In every chunk, ask explicitly: does anything here duplicate a fact that lives
-somewhere else?** If yes, name the authority, converge the other, and **drop the
-stale one.** Leaving a deprecated column commented is what lets a new call site
-be written against it next month.
-
-Report this as its own line in every chunk report, even when the answer is none.
+- **A predicate can do two jobs while its comment names one.** Read what it
+  actually excludes, not what it says it does.
+- **The widening must land in the same change as the removal.** A barrier removed
+  in one commit and the consumer widened in the next leaves a window where data
+  is lost silently.
+- **Absence of data is not evidence of disuse.** "No live row has ever carried
+  two" looked like an unused feature and was a suppressed one. **Before
+  concluding something is unused, check whether anything prevents it.**
+- **NULLs are distinct in a unique index.** A uniqueness rule with a nullable
+  column in its key does not constrain the null case at all — use a partial
+  index.
 
 ---
 
