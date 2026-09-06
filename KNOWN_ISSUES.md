@@ -529,3 +529,67 @@ a design decision rather than a bug fix.
 
 Noted while adding the same reservation to `embed` (1 unit,
 `staff.embed.query`), which has the identical shape and the same caveat.
+
+## 15. No approval queue — contributions are author-only until one exists
+
+**Required before the bank is meant to grow cross-school. Recorded 2026-09-07.**
+
+`20260907000000` made `is_approved` default false and widened
+`match_question_bank` to `is_approved OR created_by = auth.uid()`. That closed a
+measured leak — before it, another teacher, a student, and **a student at a
+different school** all retrieved a teacher's contribution the instant it saved.
+
+The consequence, accepted deliberately: **a contributed question is usable by
+its author and by nobody else, permanently**, because nothing can approve it.
+There is no UI, no RPC, and no role that sets `is_approved = true`.
+
+That is the right trade for v1 — a paper builder that can use your own
+questions is useful; a bank that broadcasts unreviewed questions to every school
+in the country is not. But it means the write-back does **not** grow a shared
+bank yet. It grows 21,696 shared reference questions plus one private pile per
+teacher.
+
+What an approval path needs, when it is wanted: a reviewer role (principal? a
+subject lead? the spec does not say), a queue of `is_approved = false` rows
+scoped to something a reviewer can actually see, and a decision about whether
+approval is per-school or central. §10.9 says the bank is central, which implies
+central approval, which implies a role that does not exist yet. **That is a
+ruling, not a build task.**
+
+## 16. `test_questions` cannot carry a written answer — decide before pushing a paper online
+
+**Found while designing the paper output, 2026-09-07. Not fixed.**
+
+The ruling for the question paper says the answer key is the marking source: if
+a paper is pushed as an online test, the key drives the marking. The Tests
+feature stores questions in `public.test_questions`, whose columns are:
+
+    id, test_id, school_id, order_index, question, options jsonb,
+    correct jsonb, marks numeric DEFAULT 1, explanation, chapter_id,
+    chapter, concept, created_at
+
+There is **no `question_format` column and no `answer` column.** `correct` is
+`jsonb`, so a written answer *can* be stored in it, but nothing in the schema
+distinguishes "index 2 of these options" from "a paragraph the teacher marks by
+hand", and `rpc_test_questions_for_attempt` — the only path a student receives
+questions through — was built for the MCQ shape.
+
+So a paper with short/long sections has three possible routes and they are not
+interchangeable:
+
+- **(a)** Only MCQ sections are pushable online; written sections are
+  print-only. Cheapest, and honest.
+- **(b)** Add `question_format` and `answer` to `test_questions` and teach the
+  attempt path to render and hand-mark them. Real work in a frozen-adjacent
+  feature.
+- **(c)** Store the written answer in `correct` and let the marking surface
+  interpret it. Fastest, and exactly the two-homes shape (G9) this codebase
+  keeps finding — the same column meaning two different things depending on a
+  format that is not recorded.
+
+`marks numeric DEFAULT 1` already exists per question, so the per-question marks
+override maps cleanly whichever route is chosen. Only the answer does not.
+
+**Not decided here.** The paper's own tables
+(`question_paper_questions.answer`) hold the written answer correctly; this is
+purely about the hand-off to Tests, which nothing does yet.
