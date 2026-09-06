@@ -486,16 +486,24 @@ export const HomeworkService = {
     if (!testListErr) {
       testIds = (dueTests ?? []).map((r) => String(r.id));
       if (testIds.length > 0) {
-        await client
+        // `is_published` was removed here. 7.5 dropped that boolean from
+        // `tests` deliberately — it was the same fact as `status` twice and
+        // drifts the moment one is written without the other (G9,
+        // `isPublishedFlag` in testService.ts). `tests` has no such column, so
+        // this write was naming one that does not exist.
+        const { error: testUpdErr } = await client
           .from("tests")
           .update({
             status: "published",
-            is_published: true,
             published_at: now,
             updated_at: now,
           } as never)
           .eq("school_id", schoolId)
           .in("id", testIds);
+        // This used to be an unchecked `await`. A failure here meant scheduled
+        // TESTS silently never published while homework did, and the caller was
+        // told the whole sweep had succeeded.
+        throwIfError(testUpdErr, "Failed to publish due scheduled tests");
       }
     }
 

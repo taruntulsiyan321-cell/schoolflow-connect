@@ -208,8 +208,11 @@ export const TestService = {
     if (ctx.role === "student" || ctx.role === "parent") {
       rows = rows.filter((r) => isPublishedFlag(r as Record<string, unknown>));
     } else if (opts?.status) {
-      rows = rows.filter((r) => String((r as { status?: string }).status ?? "") === opts.status
-        || (opts.status === "published" && (r as { is_published?: boolean }).is_published));
+      // `|| is_published` was here, reading a column `tests` does not have —
+      // 7.5 dropped it as the same fact as `status` twice (G9). It always
+      // evaluated undefined, so it never widened anything; it only suggested a
+      // second source of truth that isPublishedFlag() exists to deny.
+      rows = rows.filter((r) => String((r as { status?: string }).status ?? "") === opts.status);
     }
     if (opts?.testKind) {
       rows = rows.filter((r) => String((r as { test_kind?: string }).test_kind ?? "class_test") === opts.testKind);
