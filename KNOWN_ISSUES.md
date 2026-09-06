@@ -675,3 +675,104 @@ So the accounts landed but the harness did not. Whether they sit inside
 `strip-demo-tenants.mjs`'s UUID coverage was NOT verified — both use the
 `d1000005-…` prefix rather than the two demo-tenant UUIDs that script keys on,
 which is worth confirming before provisioning relies on it.
+
+## 19. `MarksService.removeExam` has no UI caller — an exam is uncreatable-then-undeletable
+
+**Found 2026-09-06 while making exam creation work again. Tier 2, not fixed.**
+
+`removeExam` exists in `src/academic/services/marksService.ts:308` and
+`deleteExam` in `examRepository.ts:142`. `grep -rn "removeExam" src/ --include=*.tsx`
+returns **nothing**: no button, no menu item, on any panel — teacher, admin or
+principal. The teacher exam card offers `<subject> marks`, `Review / publish`,
+and nothing else; the admin Examinations screen is a read-only monitor
+(`listExamSittingsForSchool` is its only service call).
+
+So an exam created by mistake — a typo in the name, the wrong class — is
+permanent as far as the application is concerned. `exams_delete` already
+permits the class teacher, so this is a missing control, not a missing
+permission. The Tier 1 evidence suite deletes its own exams over REST for
+exactly this reason, and says so where it does it.
+
+Not fixed here: adding a delete control to the exam card is a product change
+beyond making the Tier 1 write path work.
+
+## 20. Navigating away while marks save bounces the teacher back
+
+**Found 2026-09-06. Tier 3, not fixed. Cosmetic — the write always lands.**
+
+`LiveClassPanels.saveMarks()` does its work in this order:
+
+```
+await MarksService.publishBatch(...)
+showFlash("Marks saved")          // the teacher is told it is done
+await reload()                    // ...then two more awaits
+const refreshed = await MarksService.getExam(ctx, exam.id)
+setActiveSubject({ exam: refreshed, subject })   // re-mounts the marks sheet
+```
+
+The flash appears before the last three lines run, so a teacher who clicks
+"Back to exams" in that window is silently returned to the marks sheet.
+`finalizeSitting()` has the same shape: its `reload()` resolves after the
+flash, so the exam list can serve a pre-finalise row and "Publish Results"
+renders disabled even though `marks_locked` is already `true` in the database
+(measured: it was true every time).
+
+Nothing is lost either way — clicking again works. The fix is to move the
+flash after the awaits, or to guard the trailing `setActiveSubject` on the
+sheet still being open.
+
+## 21. `students_read` has the same self-referential shape `exams_read` had
+
+**Found 2026-09-06 while fixing `exams_read`. Not fixed: no Tier 1 path hits it.**
+
+`students_read` is `id IN (SELECT my_visible_student_ids())`, and
+`my_visible_student_ids()` selects `FROM public.students`. That is exactly the
+shape that made `INSERT ... RETURNING` on `exams` fail 42501 — a STABLE
+function cannot see the row its own statement is inserting.
+
+It does not bite today only because `students` carries a SECOND permissive
+policy, `students admin and principal all`, whose predicate is row-local
+(`school_id IN my_accessible_school_ids() AND (has_role admin OR principal)`).
+Permissive policies are OR-ed, so admin and principal are rescued by it.
+Measured, as admin over real HTTP: `POST /students` with
+`Prefer: return=representation` returns **201**.
+
+The rescue is role-shaped, not universal. Any future insert into `students` by
+a role outside that second policy — a teacher enrolling a student, a
+self-registration path — would be refused 42501 with a message that names
+row-level security while every visibility term is actually true. The same
+`can_read_*_row` treatment applied to `exams` in 20260909000000 fixes it if
+that day comes.
+
+## 22. Both exam event emitters swallow their own failure
+
+**Found 2026-09-06. Tier 3, not fixed.**
+
+`MarksService.createClassExam`, `finalizeMarks` and `publishResults` all end
+their emit with `.catch(() => undefined)`. A publish whose
+`marks.results_published` event failed to write still returns the exam and
+still tells the teacher "Results published to students & parents", while every
+downstream fan-out keyed on that event — notifications, activity feed — simply
+never happens, with nothing recorded anywhere.
+
+This is why the Tier 1 evidence for exams asserts the event ROW in
+`academic_events`, not just the success banner: the banner cannot distinguish
+"published and announced" from "published and silent".
+
+## 23. `/teacher/homework` and `/teacher/exams` are redirects, so tier1.spec never saw those panels
+
+**Found 2026-09-06. Not a defect in the app; a defect in what the evidence proved.**
+
+Both routes render `RedirectTeacherClassTab`, which writes a
+`sessionStorage` hint and `<Navigate to="/teacher/classes" replace />`. The
+homework and exam panels are tabs inside the class screen, mounted with a
+`classId`, and are never at those URLs.
+
+`tier1.spec.ts` navigates to `/teacher/homework` and `/teacher/exams` and
+records what renders. What renders is the class list. Both surfaces were
+recorded green — `rendered-empty`, no 4xx, no console error — for the whole
+life of that spec, while the panels they name were never loaded and, as it
+turned out, exam creation inside one of them was refused 42501 every time.
+
+`tier1-writes.spec.ts` reaches the panels by opening the tab, which is why it
+found what the URL probe could not.

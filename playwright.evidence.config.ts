@@ -38,7 +38,7 @@ export default defineConfig({
     },
     {
       name: 'evidence',
-      testMatch: /tier\d\.spec\.ts/,
+      testMatch: /tier\d(-writes)?\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },

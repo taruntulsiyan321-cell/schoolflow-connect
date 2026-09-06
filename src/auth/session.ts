@@ -65,7 +65,10 @@ function mapRow(row: AuthContextRow): AuthContextData {
 }
 
 /**
- * Role resolution: bind the session → read the ACTIVE membership → pick by priority.
+ * Role resolution: bind the session → ask the database which membership the
+ * caller is ACTING IN. Priority is a fallback, not the rule: it decides only
+ * which membership becomes the DEFAULT for an account that has chosen none,
+ * and that decision is made in the database (`_role_precedence`, 20260906000000).
  * Missing role fails closed to null → AuthStatus missing_role /unauthorized.
  *
  * Since Chunk 1.5 `memberships` is the only authority for a role; `user_roles`
@@ -81,15 +84,42 @@ async function resolveRole(userId: string): Promise<AppRole | null> {
     /* optional - portal linking may not exist in all envs */
   }
 
-  // Binds this GoTrue session to a sessions row and, when the account holds
-  // exactly one active membership, activates it. With two or more the picker
-  // must choose, and the role stays null until it does.
+  // Binds this GoTrue session to a sessions row and materialises an active
+  // membership: an explicit choice already recorded on the session is preserved
+  // (rpc_start_session COALESCEs it), and only an account that has chosen
+  // nothing gets the highest-precedence default.
   try {
     await (supabase.rpc as any)("rpc_start_session");
   } catch {
     /* optional - pre-Chunk-1 environments have no session table */
   }
 
+  // THE DATABASE DECIDES WHICH MEMBERSHIP THE CALLER IS ACTING IN.
+  //
+  // `get_my_role()` is `effective_role(auth.uid())`, which resolves through
+  // `active_membership_id()` — the same function the 111 RLS policies are keyed
+  // on. Asking it is the only way this answer cannot disagree with the one every
+  // query in the app is about to be judged by.
+  //
+  // Re-deriving the role here instead (pickRole, below) is what made
+  // `rpc_switch_membership` decorative. The RPC recorded the switch on
+  // `sessions.active_membership_id` and the database honoured it — measured:
+  // the dual-role account's session rows carry the parent membership — but this
+  // function then re-picked `teacher` by precedence, so the client routed a
+  // switched-to-parent account to /parent and ProtectedRoute sent it to
+  // /unauthorized. G9: two homes for one decision.
+  try {
+    // No `as any` cast: unlike the two RPCs either side of it, `get_my_role`
+    // IS in the generated types (Args: never, Returns: app_role), so the typed
+    // call compiles and costs the lint baseline nothing.
+    const { data: dbRole } = await supabase.rpc("get_my_role");
+    if (dbRole) return dbRole as AppRole;
+  } catch {
+    /* optional - resolved by the fallbacks below in older environments */
+  }
+
+  // FALLBACKS ONLY, for an environment where the RPC above is absent. A switch
+  // cannot take effect on this path; nothing that has get_my_role uses it.
   const { data: memberships } = await supabase
     .from("memberships")
     .select("role")
@@ -106,9 +136,10 @@ async function resolveRole(userId: string): Promise<AppRole | null> {
 /**
  * Load profile + role + school for the signed-in user.
  *
- * Role resolution always uses the proven user_roles path (same as before the
- * auth refactor). Optional get_auth_context / school columns enrich the
- * payload but must never wipe a successfully resolved role.
+ * The role comes from the database (`effective_role`, via get_auth_context or
+ * get_my_role) so it agrees with the active membership every RLS policy is
+ * keyed on. The local precedence pick survives only as a fallback for an
+ * environment where neither RPC answers, and must never wipe a resolved role.
  */
 export async function loadAuthContext(userId: string): Promise<AuthContextData | null> {
   // 1) Resolve role first - this is what broke after the refactor
@@ -118,11 +149,14 @@ export async function loadAuthContext(userId: string): Promise<AuthContextData |
   const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("get_auth_context");
   if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
     const row = rpcData[0] as AuthContextRow;
-    // Prefer user_roles pickRole (priority) over RPC's arbitrary multi-role row.
-    // RPC may still enrich profile/school; role must stay aligned with get_my_role.
+    // `row.role` IS `get_my_role()`: get_auth_context selects
+    // `effective_role(_uid)`. The comment this replaces asked for the role to
+    // "stay aligned with get_my_role" and then overrode it with the client-side
+    // precedence pick — the exact disagreement it warned about. `role` is kept
+    // only for an environment where the RPC resolved nothing.
     return mapRow({
       ...row,
-      role: role ?? row.role,
+      role: row.role ?? role,
     });
   }
 

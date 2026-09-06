@@ -3482,6 +3482,7 @@ export type Database = {
           subject: string | null
           subject_id: string | null
           topics: string[] | null
+          updated_at: string
         }
         Insert: {
           academic_year_id?: string | null
@@ -3509,6 +3510,7 @@ export type Database = {
           subject?: string | null
           subject_id?: string | null
           topics?: string[] | null
+          updated_at?: string
         }
         Update: {
           academic_year_id?: string | null
@@ -3536,6 +3538,7 @@ export type Database = {
           subject?: string | null
           subject_id?: string | null
           topics?: string[] | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -8346,6 +8349,7 @@ export type Database = {
           topic: string | null
           topics: Json | null
           total_marks: number | null
+          updated_at: string
         }
         Insert: {
           academic_year_id?: string | null
@@ -8375,6 +8379,7 @@ export type Database = {
           topic?: string | null
           topics?: Json | null
           total_marks?: number | null
+          updated_at?: string
         }
         Update: {
           academic_year_id?: string | null
@@ -8404,6 +8409,7 @@ export type Database = {
           topic?: string | null
           topics?: Json | null
           total_marks?: number | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -9349,6 +9355,10 @@ export type Database = {
       can_manage_exam: { Args: { _exam_id: string }; Returns: boolean }
       can_manage_homework: { Args: { _homework_id: string }; Returns: boolean }
       can_manage_test: { Args: { _test_id: string }; Returns: boolean }
+      can_read_exam_row: {
+        Args: { _class_id: string; _school_id: string }
+        Returns: boolean
+      }
       can_read_mark: {
         Args: { _exam_id: string; _student_id: string }
         Returns: boolean
@@ -9588,9 +9598,10 @@ export type Database = {
       }
       progression_level_for_xp: { Args: { _xp: number }; Returns: number }
       progression_xp_for_level: { Args: { _level: number }; Returns: number }
-      publish_due_scheduled_homework:
-        | { Args: never; Returns: number }
-        | { Args: { _school_id?: string }; Returns: number }
+      publish_due_scheduled_homework: {
+        Args: { _school_id?: string }
+        Returns: number
+      }
       refresh_student_academic_profile: {
         Args: { _student_id: string }
         Returns: string
