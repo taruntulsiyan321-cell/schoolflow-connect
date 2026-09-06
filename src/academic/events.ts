@@ -1,13 +1,26 @@
 /**
  * Academic event catalog — every academic action emits one of these.
  * Sync engine fans out to profile / notifications / analytics / AI / audit.
+ *
+ * REMOVED 2026-09-06: `homework.assigned`, `homework.submission.created` and
+ * `homework.submission.graded`. They were never emitted by anything, because
+ * they were ALIASES of three types that already fire —
+ * `homework.published`, `homework.submitted` and `homework.graded` — from the
+ * live triggers `trg_emit_homework_event` and
+ * `trg_emit_homework_submission_event`, which have produced 313 events. Each
+ * alias mapped to exactly the same fan-out as the name actually emitted, and
+ * the SQL consumers accept both spellings (20260731090000:434,439,469).
+ *
+ * They read as missing emitters to every session that saw them. Wiring one
+ * would have emitted a SECOND event per action and doubled every homework
+ * notification, analytics row and audit entry. Removed so the gap stops
+ * looking like work. See KNOWN_ISSUES 10.
  */
 
 export const ACADEMIC_EVENT_TYPES = [
   "attendance.marked",
   "attendance.updated",
   "homework.created",
-  "homework.assigned",
   "homework.published",
   "homework.unpublished",
   "homework.updated",
@@ -20,8 +33,6 @@ export const ACADEMIC_EVENT_TYPES = [
   "homework.reviewed",
   "homework.returned",
   "homework.graded",
-  "homework.submission.created",
-  "homework.submission.graded",
   "student.profile.refresh_requested",
   "test.scheduled",
   "test.published",
@@ -108,7 +119,6 @@ export const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]
   ],
   "attendance.updated": ["student_academic_profile", "analytics", "ai_insights", "audit"],
   "homework.created": ["audit", "activity_feed"],
-  "homework.assigned": HW_FULL,
   "homework.published": HW_FULL,
   "homework.unpublished": ["student_academic_profile", "analytics", "activity_feed", "audit"],
   "homework.updated": ["analytics", "audit"],
@@ -127,8 +137,6 @@ export const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]
     "audit",
   ],
   "homework.graded": HW_FULL,
-  "homework.submission.created": ["student_academic_profile", "notifications", "analytics", "audit"],
-  "homework.submission.graded": HW_FULL,
   "student.profile.refresh_requested": ["student_academic_profile"],
   "test.scheduled": ["notifications", "activity_feed"],
   "test.published": ["notifications", "activity_feed"],
