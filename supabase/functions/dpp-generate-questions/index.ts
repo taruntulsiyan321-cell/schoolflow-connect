@@ -65,8 +65,28 @@ Deno.serve(async (req) => {
     p_feature_id: "teacher.dpp.generate_questions",
     p_units: 2,
   });
-  if (budgetErr || !budgetRow || (budgetRow as { ok?: boolean }).ok === false) {
-    return jsonResponse({ error: "Daily AI generation budget for this school has been reached" }, 429);
+  // A budget that could not be READ is not a budget that was EXCEEDED. These
+  // were one branch returning one 429, which told a teacher to wait until
+  // tomorrow when the reservation RPC itself had failed — a wrong reason is its
+  // own kind of silent failure. `error_code` is carried so the client can tell
+  // the two apart without parsing prose.
+  if (budgetErr) {
+    return jsonResponse(
+      { error: "Could not check this school's AI budget", error_code: "budget_check_failed" },
+      503,
+    );
+  }
+  if (!budgetRow || (budgetRow as { ok?: boolean }).ok === false) {
+    const b = (budgetRow ?? {}) as { units_used?: number; hard_limit?: number; error_code?: string };
+    return jsonResponse(
+      {
+        error: "Daily AI generation budget for this school has been reached",
+        error_code: b.error_code ?? "budget_exhausted",
+        units_used: b.units_used ?? null,
+        hard_limit: b.hard_limit ?? null,
+      },
+      429,
+    );
   }
 
   try {
@@ -79,9 +99,43 @@ Deno.serve(async (req) => {
       count = 5,
       source_text = "",
       source_url = "",
+      // ADDITIVE ONLY. The flat {subject, chapter, topic, difficulty, count}
+      // contract is unchanged and every existing caller keeps working: omitting
+      // question_format yields the original MCQ behaviour byte-for-byte, and
+      // omitting class_level means no class is asserted rather than a wrong one.
+      question_format = "mcq",
+      class_level = null,
     } = body ?? {};
 
     const n = Math.max(1, Math.min(20, Number(count) || 5));
+
+    const format = String(question_format).toLowerCase();
+    if (format !== "mcq" && format !== "short" && format !== "long") {
+      return jsonResponse({ error: "question_format must be mcq, short or long" }, 400);
+    }
+
+    // THE BOARD IS THE SCHOOL'S, NOT A LITERAL. The prompt used to hardcode
+    // "CBSE Class 12" for every request; the bank is RBSE across 8 class levels
+    // (6-12), so the generator was being asked for the wrong board and the wrong
+    // class on nearly every call. This is a correctness bug independent of the
+    // non-MCQ work and is fixed here because the same prompt string carries both.
+    const { data: schoolRow } = await admin
+      .from("schools").select("board").eq("id", schoolId).maybeSingle();
+    const boardCode = (schoolRow as { board?: string } | null)?.board ?? null;
+    const boardLabel = boardCode === "rbse"
+      ? "RBSE (Rajasthan Board)"
+      : boardCode === "cbse"
+      ? "CBSE"
+      : null;
+
+    // An unknown class or board is stated as unknown, never guessed. A wrong
+    // "Class 12" is worse than no class: it silently produces off-syllabus
+    // questions that look right.
+    const lvl = Number(class_level);
+    const classPhrase = Number.isFinite(lvl) && lvl >= 6 && lvl <= 12
+      ? `Class ${lvl}`
+      : "the class level indicated by the subject and source material";
+    const boardPhrase = boardLabel ?? "the school's own board";
 
     let fetchedText = "";
     if (source_url && isSafePublicHttpUrl(String(source_url))) {
@@ -122,13 +176,25 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Provide a topic, URL, or source text" }, 400);
     }
 
-    const system =
-      "You are an expert CBSE Class 12 question setter for Indian schools (NCERT-aligned). " +
-      "GENERATE fresh MCQs — each question must test a DIFFERENT sub-concept or skill. " +
+    const common =
+      `You are an expert ${boardPhrase} ${classPhrase} question setter for Indian schools (NCERT-aligned). ` +
       "Never repeat the same question stem or pattern. Vary numbers, scenarios, and wording. " +
-      "If reference material lists student mistakes, generate remedial MCQs that test the same underlying skills with new numbers and wording — never copy listed mistake questions verbatim. " +
-      "If the student made recent mistakes, target those weak concepts first with remedial questions. " +
-      "Exactly 4 options per question, one unambiguously correct answer, clear step-by-step explanation.";
+      "If reference material lists student mistakes, generate remedial questions that test the same underlying skills with new numbers and wording — never copy listed mistake questions verbatim. " +
+      "If the student made recent mistakes, target those weak concepts first with remedial questions. ";
+
+    const system = format === "mcq"
+      ? common +
+        "GENERATE fresh MCQs — each question must test a DIFFERENT sub-concept or skill. " +
+        "Exactly 4 options per question, one unambiguously correct answer, clear step-by-step explanation."
+      : format === "short"
+      ? common +
+        "GENERATE fresh SHORT-ANSWER questions — each must test a DIFFERENT sub-concept or skill. " +
+        "Each answer is 2–3 sentences or a worked numerical result: the complete expected answer, not a hint. " +
+        "Do NOT produce options; this is not a multiple-choice paper."
+      : common +
+        "GENERATE fresh LONG-ANSWER questions — each must test a DIFFERENT sub-concept or skill. " +
+        "Each answer is a full model answer a teacher could mark against: the argument or derivation in steps, stated completely. " +
+        "Do NOT produce options; this is not a multiple-choice paper.";
 
     const user = [
       `Subject: ${subject || "(infer from source)"}`,
@@ -142,43 +208,81 @@ Deno.serve(async (req) => {
         : "",
     ].filter(Boolean).join("\n");
 
-    const schema = {
-      type: "object",
-      properties: {
-        questions: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              question: { type: "string" },
-              options: { type: "array", items: { type: "string" } },
-              correct_index: { type: "integer" },
-              explanation: { type: "string" },
+    // The MCQ branch is the original schema, unchanged. The non-MCQ branch
+    // carries `answer` instead of options/correct_index — §4.2a's "the correct
+    // answer must be generated with the question" applies to every format, not
+    // just the one that could encode it as an index.
+    const schema = format === "mcq"
+      ? {
+          type: "object",
+          properties: {
+            questions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  question: { type: "string" },
+                  options: { type: "array", items: { type: "string" } },
+                  correct_index: { type: "integer" },
+                  explanation: { type: "string" },
+                },
+                required: ["question", "options", "correct_index", "explanation"],
+              },
             },
-            required: ["question", "options", "correct_index", "explanation"],
           },
-        },
-      },
-      required: ["questions"],
-    };
+          required: ["questions"],
+        }
+      : {
+          type: "object",
+          properties: {
+            questions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  question: { type: "string" },
+                  answer: { type: "string" },
+                  explanation: { type: "string" },
+                },
+                required: ["question", "answer", "explanation"],
+              },
+            },
+          },
+          required: ["questions"],
+        };
 
     // ~180 tokens per MCQ (question + 4 options + explanation) is a safe
     // working estimate; the default 1200-token cap only covers ~5 questions
-    // and silently truncated/broke JSON parsing for larger batches.
+    // and silently truncated/broke JSON parsing for larger batches. A long
+    // answer is the whole model answer, so it needs materially more room —
+    // budgeting MCQ-sized tokens for it is what truncation looks like.
+    const perQuestionTokens = format === "long" ? 700 : format === "short" ? 300 : 180;
     const result = await generateStructuredWithFallback<{ questions: Array<{
       question: string;
-      options: string[];
-      correct_index: number;
+      options?: string[];
+      correct_index?: number;
+      answer?: string;
       explanation: string;
     }> }>(
       { system, user, schema, toolName: "emit_questions" },
-      { max_tokens: Math.min(4000, Math.max(1200, n * 180)) },
+      { max_tokens: Math.min(8000, Math.max(1200, n * perQuestionTokens)) },
     );
 
     if (!result.ok) return jsonResponse({ error: result.error }, result.status);
 
-    const questions = (result.data.questions ?? []).slice(0, n);
-    return jsonResponse({ questions, source: result.source });
+    // Each question is stamped with the format that produced it so a caller
+    // never has to infer it from which keys happen to be present.
+    // `topic` is deliberately absent: rule 31 — generated questions carry
+    // chapter and leave topic NULL, never a guessed topic string.
+    const questions = (result.data.questions ?? []).slice(0, n)
+      .map((q) => ({ ...q, question_format: format }));
+    return jsonResponse({
+      questions,
+      source: result.source,
+      question_format: format,
+      board: boardCode,
+      class_level: Number.isFinite(lvl) && lvl >= 6 && lvl <= 12 ? lvl : null,
+    });
   } catch (err) {
     return jsonResponse({ error: (err as Error).message ?? "Unknown error" }, 500);
   }

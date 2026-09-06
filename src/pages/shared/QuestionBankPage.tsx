@@ -16,6 +16,7 @@ import { fixUtf8Content } from "@/lib/utf8Text";
 import { supabase } from "@/integrations/supabase/client";
 import "@/pages/teacher/teacher-premium.css";
 import { toErrorMessage } from "@/lib/presentation";
+import { readEdgeFunctionError } from "@/lib/edgeFunctionError";
 
 /** Radix forbids an empty SelectItem value; this stands in for "no class filter". */
 const ANY_CLASS = "any";
@@ -117,9 +118,28 @@ export default function QuestionBankPage() {
         body: {
           topic: topic.trim(), subject, chapter: chapter.trim(),
           difficulty, count, source_text: sourceText.trim(), source_url: url.trim(),
+          // The screen has always had a class, and never sent it. The function
+          // prompted for a hardcoded "CBSE Class 12" regardless, so a teacher
+          // picking Class 8 got Class 12 questions. The board is resolved
+          // server-side from the school and is not sent from here.
+          class_level: classLevel ? Number(classLevel) : null,
         },
       });
-      if (error) return toast.error(toErrorMessage(error, "Question generation failed"));
+      if (error) {
+        // The function's own body carries the reason — a 429 budget message, a
+        // 503 "could not check the budget", a 403 role refusal. `invoke` leaves
+        // all of that in `error.context` and stringifies to "Edge Function
+        // returned a non-2xx status code", so without this the teacher was told
+        // "Question generation failed" no matter what actually happened.
+        const failure = await readEdgeFunctionError(error);
+        if (failure.status === 429) {
+          return toast.error(
+            failure.message ?? "This school's daily AI generation budget has been reached",
+            { description: "It resets tomorrow. Saved questions are unaffected." },
+          );
+        }
+        return toast.error(failure.message ?? toErrorMessage(error, "Question generation failed"));
+      }
       const arr = (data?.questions ?? []) as Array<{ question: string; options: string[]; correct_index: number; explanation?: string }>;
       if (arr.length === 0) return toast.error(data?.error ?? "No questions returned");
       setDrafts(arr.map((a) => ({
