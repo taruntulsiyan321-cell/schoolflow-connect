@@ -11,7 +11,11 @@ Commit to `docs/gurukul-spec-rules.md`. This file supersedes the claude.ai proje
 | §10.12 Student panel | `docs/locked-decisions.md:436` |
 | §10.15 Parent panel | `docs/locked-decisions.md:496` |
 | §10.18 Admin panel | `docs/locked-decisions.md:564` |
+| §10.9 Question bank | `docs/locked-decisions.md:385` |
+
+**A citation correction, because two rulings rested on it.** The question bank's sharing rule is **§10.9**, in `docs/locked-decisions.md`. It has been cited in session prompts as "§4.2a", which is a different clause in a different document (`recovery-revision-analysis-spec.md:193`, *Generating the variants*) and belongs to the frozen recovery feature. §4.2a does say "saved to the shared bank", but its sharing is across STUDENTS and over TIME — "there, free and instant, for the next student who fails the same one" — and it defers to §10.9. The phrase "across schools" appears in neither document. §10.9 is the one that says it: "Centralised and shared across all schools and all users." The substance of the ruling is right; cite §10.9 for it.
 | §4.2b Readiness on the ladder | `docs/recovery-revision-analysis-spec.md:221` |
+| §4.2a Generating the variants | `docs/recovery-revision-analysis-spec.md:193` |
 
 Line numbers drift as the file is edited; the headings (`## 10.8 Practice (student panel)` and so on) are the durable anchors. Where code and spec disagree, the spec wins and the code is the bug — this has now overturned two rulings, so it is not a formality.
 
@@ -78,6 +82,16 @@ These are the product owner's, given directly. They override any inference from 
 29. **A guard that matches a function or file body must strip comments first — in both directions.** Asserting ABSENCE, a comment naming the forbidden identifier fails a correct change: this cost two sessions over `examAvg`, in `f6e2f51` and again in `1ec1628`. Asserting PRESENCE is worse, because a comment containing the required string lets a genuinely unguarded function pass as safe. `stripComments()` in `scripts/lint-render-safety.mjs` is the implementation to copy; it blanks comment bodies while preserving line and column offsets. Pair the guard with a control proving the stripper ran — otherwise a stripper that silently fails makes every assertion around it meaningless (G11).
 
 30. **`active_membership_id()` must never be NULL for an account holding at least one active membership.** 111 policies key on it through `has_role/2`, so a NULL is not a degraded answer, it is a total account lockout — and it presents as a fully-rendered app in which nothing works, because `src/auth/session.ts` resolves the client-side role from `memberships` directly and routes on it. Where a default must be chosen, it is `ROLE_PRIORITY` from `src/auth/session.ts:18-25`, mirrored in `public._role_precedence`; the database and the client must agree on which app the user is in. **The `app_role` enum order is not a privilege order** — it is `(admin, teacher, student, parent, principal, super_admin)` — and must never be used for this.
+
+## Added 2026-09-06
+
+31. **Topic is not a selection or analysis unit; chapter and subject are.** The bank holds 11,917 distinct topic strings over 21,696 questions — about 1.8 each — inconsistent in both naming and granularity, so the same teachable topic appears under several labels. Student-facing analysis is delivered at chapter and subject level, and that is sufficient.
+
+    Unification into a canonical per-chapter taxonomy is **deferred until the bank has grown through write-back**. It is a batch data job, not app work: cluster each chapter's questions on the embeddings they already carry, name the clusters, then assign new questions by nearest-cluster similarity with a threshold, flagging anything below it rather than inventing a topic. At current volume a viable taxonomy — 15–20 questions per topic, or one bad day reads as a weakness — would yield roughly 1,000–1,500 topics against 523 existing chapters, which is not meaningfully finer. The payoff scales with bank size, not with effort spent now.
+
+    Until then, generated questions carry `chapter` and leave `topic` NULL. Never a guessed topic string.
+
+    *(Counts re-measured live 2026-09-06 and all three confirmed: 21,696 rows, 11,917 distinct topics, 523 distinct chapters. Note the tension to be aware of rather than resolved here: §10.9 lists topic among the tags that "keep content appropriate" and says a student sees "nothing outside their class, subject, chapter or topic". This rule does not remove topic as a stored tag or as a filter where one is already supplied — it rules that nothing may **invent** one, and that selection and analysis surfaces key on chapter and subject.)*
 
 ---
 
