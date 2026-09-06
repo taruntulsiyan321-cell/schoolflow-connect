@@ -74,7 +74,11 @@ export function buildQuestionBankInsertPayload(
           ? fixUtf8Content(r.explanation)
           : r.explanation ?? null,
       created_by: r.created_by ?? ctx.userId,
-      is_approved: r.is_approved ?? true,
+      // `is_approved` is NOT defaulted here. The column defaults to FALSE
+      // (20260907000000) so a contribution is not student-visible at every
+      // school the moment it saves; `?? true` here overrode that default and
+      // was the reason it leaked. An explicit value from a caller still wins,
+      // which is what an approval path would use once one exists.
     };
   });
 }

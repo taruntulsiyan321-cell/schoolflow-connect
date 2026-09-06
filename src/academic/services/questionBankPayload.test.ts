@@ -71,6 +71,21 @@ describe("buildQuestionBankInsertPayload", () => {
     expect(payload[0].created_by).toBe("teacher-1");
   });
 
+  it("does not force is_approved true — the column defaults false", () => {
+    // The override `is_approved: r.is_approved ?? true` is what made a
+    // contribution student-visible at every school the instant it saved.
+    // Measured before 20260907000000: another teacher, a student, and a
+    // student at a DIFFERENT school all retrieved an unapproved contribution.
+    const payload = buildQuestionBankInsertPayload([row()], ctx);
+
+    expect(Object.keys(payload[0])).not.toContain("is_approved");
+  });
+
+  it("still lets a caller set is_approved explicitly, for a future approval path", () => {
+    const payload = buildQuestionBankInsertPayload([row({ is_approved: true })], ctx);
+    expect(payload[0].is_approved).toBe(true);
+  });
+
   it("lets an explicit created_by win over the context", () => {
     const payload = buildQuestionBankInsertPayload([row({ created_by: "someone-else" })], ctx);
     expect(payload[0].created_by).toBe("someone-else");
