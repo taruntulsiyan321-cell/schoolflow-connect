@@ -593,3 +593,85 @@ override maps cleanly whichever route is chosen. Only the answer does not.
 **Not decided here.** The paper's own tables
 (`question_paper_questions.answer`) hold the written answer correctly; this is
 purely about the hand-off to Tests, which nothing does yet.
+
+## 17. `super_admin` on `/admin` — RULING REQUEST, not a data problem
+
+**Found 2026-09-08. Cause established; the fix is blocked on a decision, and a
+change was written, tested and REVERTED rather than overturn a ruling.**
+
+The `/admin` index renders an error banner for `super_admin` while its
+sub-pages render fine.
+
+**It is not the memberships-resolution problem it looks like.** That hypothesis
+is measurable and it is wrong:
+
+- `memberships` carries `CHECK (role <> 'super_admin')` — the role is
+  structurally forbidden there **by design**, and nothing tries to read it there.
+- The role still resolves correctly: `get_auth_context()` calls
+  `effective_role()`, which has an explicit
+  `WHEN _user_id = auth.uid() AND is_super_admin() THEN 'super_admin'` branch.
+  `loadAuthContext` takes it through `role ?? row.role`.
+- The school resolves too: `profiles.school_id` is set on
+  `superadmin@wisdomcampus.com` (`00000000-0000-4000-8000-000000000001`).
+
+**The actual cause is the service-layer capability matrix.**
+`asOwnerRole()` in `src/academic/services/context.ts` returns `null` for
+`super_admin` — "Never map super_admin into school portal ownership (not a
+Gurukul actor role)" — so `assertCanConsume` throws `ForbiddenError` on every
+read. The `/admin` **index** is the page that goes through that service layer
+(`AttendanceService`, `AnalyticsService`, `LeaveService`); the sub-pages query
+PostgREST directly, where RLS already admits super_admin through
+`my_accessible_school_ids()`. That is exactly why one page fails and the rest do
+not.
+
+**Why this is a ruling and not a fix.** Two homes disagree (G9):
+
+| says super_admin belongs in /admin | says it is not an actor |
+|---|---|
+| `auth/constants.ts:24` — `ROUTE_ALLOW["/admin"] = ["admin","super_admin"]` | `services/context.ts:48` — returns null, refuses every read |
+| `auth/constants.ts:32,49` — every `ADMIN_PANEL_MODULE` granted | `services.test.ts` — asserts `assertCanConsume(super_admin,"marks")` **throws** |
+
+A change mapping super_admin to admin **for reads only** (never writes) was
+written and it worked — and it broke that existing test, which encodes the
+opposite decision deliberately. It was reverted rather than edited away.
+`rbac.ts:9` points the same way: `if (role === "super_admin") return "/admin"; //
+future: platform console` — `/admin` is a **placeholder** for a console that
+does not exist.
+
+**Decide one of:**
+
+- **(a)** super_admin reads school data as an admin does (writes still refused).
+  Two lines in `context.ts`; the existing test must then be updated
+  deliberately, because it is the ruling being overturned.
+- **(b)** super_admin is not a school actor at all — then stop routing it to
+  `/admin` and build the platform console `rbac.ts` already anticipates. The
+  banner is then correct behaviour on a page it should never have reached.
+
+Related and separate: `my_accessible_school_ids()` gives this account school A
+through `profiles.school_id`, not through the audited, expiring
+`super_admin_access_log` (0 live grants). If (a) is chosen, whether a platform
+role should reach a school without an access grant is its own question.
+
+## 18. PR #6 is not on the live branch — `e2e-evidence/` and the demo accounts
+
+**Checked 2026-09-08.** The interaction run depends on this harness.
+
+- `e2e-evidence/` exists on `origin/cursor/test-auth-e2e-suite-193d` and
+  `origin/cursor/test-auth-e2e-suite-v2-193d` **only**. It is on no local
+  branch and not on `claude/gurukul-s10-cold-start-96242c`.
+- `docs/GURUKUL-V1.md` — named as the canonical v1 description and the first
+  thing to read — **exists on no branch at all**, local or remote. Searched
+  every ref. This session worked from the prompt plus `docs/locked-decisions.md`
+  and `docs/gurukul-spec-rules.md` instead.
+
+The two seeded demo accounts DO exist in the database and are usable:
+
+| account | shape |
+|---|---|
+| `dual.role@wisdomcampus.com` | `d1000005-0002-…`, teacher:active **and** parent:active, one school |
+| `superadmin@wisdomcampus.com` | `d1000005-0001-…`, **no memberships**, one live `super_admins` row |
+
+So the accounts landed but the harness did not. Whether they sit inside
+`strip-demo-tenants.mjs`'s UUID coverage was NOT verified — both use the
+`d1000005-…` prefix rather than the two demo-tenant UUIDs that script keys on,
+which is worth confirming before provisioning relies on it.
