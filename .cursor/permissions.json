@@ -1,0 +1,29 @@
+{
+  "note": "Destructive / environment-mutating commands blocked for agent sessions on Gurukul. The only Supabase project is dev+demo+deploy+test simultaneously; there is no production. A Playwright run against the working database is safe; the commands below are not.",
+  "deny": [
+    {
+      "match": "scripts/strip-demo-tenants.mjs --apply",
+      "reason": "Empties the tenant space. Destroys the single working Supabase project (no production exists)."
+    },
+    {
+      "match": "npm run db:migrate",
+      "reason": "Applies migrations to the live database. Not permitted in evidence/test sessions."
+    },
+    {
+      "match": "node scripts/apply-pending-migrations.mjs",
+      "reason": "Migration apply against the live database."
+    },
+    {
+      "match": "supabase db push",
+      "reason": "Migration apply against the live database."
+    },
+    {
+      "match": "supabase functions deploy",
+      "reason": "Deploys edge functions to the live project."
+    },
+    {
+      "match": "git push",
+      "reason": "No pushes from evidence sessions; a reviewer handles integration. (Cloud delivery pushes only a throwaway cursor/* review branch, never the live branch, never --force.)"
+    }
+  ]
+}

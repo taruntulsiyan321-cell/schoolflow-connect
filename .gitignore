@@ -15,6 +15,7 @@ supabase/.temp
 
 # Playwright — never commit a captured login session or its report/trace output.
 /e2e/.auth/
+/e2e-evidence/.auth/
 /playwright-report/
 /test-results/
 /blob-report/
