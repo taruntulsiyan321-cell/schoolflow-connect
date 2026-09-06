@@ -9,7 +9,10 @@ export interface Signals {
 }
 
 export const test = base.extend<{ signals: Signals }>({
-  signals: async ({ page }, use) => {
+  // Param is Playwright's fixture-provide callback (positional). Named `provide`
+  // rather than `use` so eslint's react-hooks rule does not misread `use(...)`
+  // as a React hook call in a non-component function.
+  signals: async ({ page }, provide) => {
     const signals: Signals = { consoleErrors: [], pageErrors: [], badResponses: [] }
     page.on('console', (m) => {
       if (m.type() === 'error') signals.consoleErrors.push(m.text().slice(0, 300))
@@ -22,7 +25,7 @@ export const test = base.extend<{ signals: Signals }>({
         signals.badResponses.push({ status: s, url: url.slice(0, 200), supabase: /supabase\.co/.test(url) })
       }
     })
-    await use(signals)
+    await provide(signals)
   },
 })
 

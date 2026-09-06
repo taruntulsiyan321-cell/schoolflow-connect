@@ -8,12 +8,13 @@ alwaysApply: true
 Gurukul has three binding documents. Where code and spec disagree, **the spec
 wins and the code is the bug**.
 
-1. `docs/locked-decisions.md` — the product spec. **Present.**
-2. `docs/gurukul-spec-rules.md` — rules 1–31, binding. **NOT FOUND in the repo**
-   on `claude/threshold-rulings-schema-f179b7` (tip `7c8b435`) as of 2026-09-06.
-   If a session relies on it, locate/restore it first; do not assume its rules
-   are satisfied because the file is absent.
-3. `KNOWN_ISSUES.md` (repo root) — deferred work / known findings. **Present.**
+1. `docs/locked-decisions.md` — the product spec. Where code and spec disagree,
+   the spec wins and the code is the bug.
+2. `docs/gurukul-spec-rules.md` — **rules 1–31, binding.** Read in full before
+   working. (Was omitted from an earlier version of this rule only because it
+   appeared absent on a stale checkout at tip `7c8b435`; it is present from
+   `4ee4dae` onward.)
+3. `KNOWN_ISSUES.md` (repo root) — deferred work / known findings.
    Note: it contains **two sections numbered 8**; both are real, not a typo.
 
 ## Branch
