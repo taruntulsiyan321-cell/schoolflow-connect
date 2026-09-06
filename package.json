@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "test:e2e:auth": "playwright test --project=setup",
     "test:e2e": "playwright test --project=chromium",
+    "test:e2e:evidence": "playwright test --config=playwright.evidence.config.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
