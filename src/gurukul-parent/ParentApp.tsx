@@ -18,6 +18,7 @@ import ParentAnnouncements from "./Announcements";
 import ParentMessages from "./Messages";
 import ParentNotifications from "./Notifications";
 import ParentProfile from "./Profile";
+import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 import AcademicInsights from "./AcademicInsights";
 import TestResults from "./TestResults";
 import { useParentLiveChildren } from "./ParentLiveAttendance";
@@ -385,6 +386,16 @@ export default function ParentApp() {
               <BookOpen className="w-3 h-3 text-[#3b5bdb]" />
               <span className="text-[10px] font-bold text-[#3b5bdb]">Parent Panel</span>
             </div>
+            {/*
+              The shell that needed it most and was the only one without it.
+              A teacher-parent defaults into `teacher` by ROLE_PRIORITY
+              (20260906000000), so the parent shell is where they arrive after
+              switching — and with no switcher here it was a one-way door in the
+              direction that matters: no way back to their own child's surfaces.
+              Renders nothing for a single-membership account, which is every
+              account but the dual-role one.
+            */}
+            <MembershipSwitcher className="shrink-0" />
             <button
               onClick={() => setPage("profile")}
               className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0"

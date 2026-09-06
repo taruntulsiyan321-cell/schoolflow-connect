@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthProvider";
+import { dashboardForRole } from "./rbac";
 import type { AppRole } from "./types";
 
 /**
@@ -51,7 +52,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export function MembershipSwitcher({ className = "" }: { className?: string }) {
-  const { user, role, refreshAuth, homePath } = useAuth();
+  const { user, role, refreshAuth } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<MembershipRow[]>([]);
   const [busy, setBusy] = useState(false);
@@ -108,7 +109,22 @@ export function MembershipSwitcher({ className = "" }: { className?: string }) {
     }
     await refreshAuth();
     setBusy(false);
-    navigate(homePath, { replace: true });
+
+    // NAVIGATE TO THE TARGET ROLE'S HOME, NOT `homePath`.
+    //
+    // This is why the RPC worked when called directly and the UI switch did
+    // not take effect. `homePath` is `dashboardForRole(role)` from the auth
+    // context, and this closure captured it AT THE RENDER THAT CREATED IT —
+    // before the switch. `refreshAuth()` updates the context, but the `const`
+    // in this closure is still the OLD role's path, so the user was navigated
+    // straight back into the app they had just left, where every query is
+    // refused. It looked like the switch had failed; it had succeeded and then
+    // sent them back.
+    //
+    // The target membership's role is already in hand, so the destination is
+    // derived from it rather than from state that has to have caught up.
+    const target = rows.find((r) => r.id === membershipId);
+    navigate(dashboardForRole(target?.role ?? role), { replace: true });
   };
 
   return (
