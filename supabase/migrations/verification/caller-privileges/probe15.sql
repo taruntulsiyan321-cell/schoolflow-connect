@@ -22,6 +22,8 @@
 --   9. the school-B teacher really resolves to school B.     (fixture control)
 --  10. a teacher at ANOTHER SCHOOL still reads the shared bank. (§10.9 control)
 --  11. ...including the reference seed.                      (§10.9 control)
+--  12. match_question_bank is CALLABLE by a teacher -- the retrieval half of
+--      the MCQ path, proven by calling it rather than by reading its grant.
 --
 -- Every write is rolled back. The school-B teacher is built inside this
 -- transaction because school B holds no memberships at all; active_membership_id()
@@ -49,6 +51,7 @@ DO $probe$
 DECLARE
   t1      uuid := 'd1000002-0001-4000-8000-000000000001';  -- teacher, school A
   t2      uuid := 'd1000002-0002-4000-8000-000000000002';  -- a 2nd teacher, school A
+  sch_a   uuid := '00000000-0000-4000-8000-000000000001';  -- school A (rbse)
   sch_b   uuid := '00000000-0000-4000-8000-000000000002';  -- school B (rbse)
   tb      uuid;   -- an unattached account, made a school-B teacher below
   ref_d   uuid;   -- a reference seed row, for the DELETE claim
@@ -182,6 +185,30 @@ BEGIN
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('10.9 reference seed readable at another school','teacher (school B)','OK: 1',r,
      CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
+  -- 12. match_question_bank is REACHABLE from a teacher context.
+  -- The `embed` edge function is only half of MCQ retrieval; the other half is
+  -- this RPC, which takes the pre-computed vector. It is STABLE and NOT
+  -- SECURITY DEFINER, and `authenticated` holds EXECUTE directly rather than
+  -- only through PUBLIC -- but reading a grant is not the same as being able
+  -- to call it, so it is CALLED here with a real 1536-dim vector.
+  -- The caller's OWN school is passed, not NULL. match_question_bank fences on
+  -- BOARD via `board = (SELECT board FROM schools WHERE id = p_school_id)`, and
+  -- passing NULL narrows the result to board-agnostic rows rather than opening
+  -- it (G14, deliberate) -- which returned 0 and would have made this assertion
+  -- pass while exercising an empty path. All 21,696 rows are embedded, so the
+  -- real path returns the full LIMIT.
+  -- pgvector's input syntax is [a,b,c], not Postgres's own {a,b,c}, so the
+  -- literal is built rather than cast from an array. 0.01 rather than 0.0
+  -- because a zero vector has zero norm and cosine distance against it is
+  -- undefined -- that would fail for a reason that has nothing to do with
+  -- permission, which is the only thing this claim is about.
+  r := pg_temp.as_user(t1,
+        'SELECT count(*)::text FROM public.match_question_bank('
+        || '($x$[$x$ || array_to_string(array_fill(0.01::real, ARRAY[1536]), $x$,$x$) || $x$]$x$)::vector, '
+        || format('12, %L::uuid, ARRAY[$x$Accountancy$x$], 0.0::float8, 5)', sch_a));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('match_question_bank callable by a teacher','teacher (school A)','OK: 5 rows back',r,
+     CASE WHEN r = 'OK: 5' THEN 'PASS' ELSE 'FAIL' END);
 END $probe$;
 
 SELECT area, role_tested, expected, observed, verdict FROM probe ORDER BY n;

@@ -21,6 +21,9 @@ verify_jwt = true
 [functions.ai-gateway]
 verify_jwt = true
 
+[functions.embed]
+verify_jwt = true
+
 # Functions with no entry here inherit Supabase's default verify_jwt = true,
 # which is the correct (JWT-required) setting for all of them:
 #   admin-link-account, ai-academic-coach-agent, ai-learning-pattern-agent,
