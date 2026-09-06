@@ -1,0 +1,25 @@
+---
+description: Binding documents every Cursor session must read before working on Gurukul. Spec wins over code.
+alwaysApply: true
+---
+
+# Binding documents (read before working)
+
+Gurukul has three binding documents. Where code and spec disagree, **the spec
+wins and the code is the bug**.
+
+1. `docs/locked-decisions.md` — the product spec. Where code and spec disagree,
+   the spec wins and the code is the bug.
+2. `docs/gurukul-spec-rules.md` — **rules 1–31, binding.** Read in full before
+   working. (Was omitted from an earlier version of this rule only because it
+   appeared absent on a stale checkout at tip `7c8b435`; it is present from
+   `4ee4dae` onward.)
+3. `KNOWN_ISSUES.md` (repo root) — deferred work / known findings.
+   Note: it contains **two sections numbered 8**; both are real, not a typo.
+
+## Branch
+
+Live work is `claude/threshold-rulings-schema-f179b7`. `main`'s tip lacks
+`KNOWN_ISSUES.md`, `docs/gurukul-spec-rules.md`, and the
+`verify:caller-privileges` script, so gates pass meaninglessly there. Confirm the
+branch before running any gate.
