@@ -2050,6 +2050,44 @@ export function LiveExamsMarksTab({
     }
   };
 
+  /**
+   * §10.5 gives the class teacher the exam for their own section. Being able to
+   * create one and never remove it is a one-way door: a typo in the name or the
+   * wrong section was permanent as far as the application was concerned.
+   *
+   * `MarksService.removeExam` already existed, already carried the right guard
+   * (`assertTeacherMayManageAcademicWork`, which for a multi-subject sitting —
+   * `subject` is NULL by construction — reduces to "do you own this class"),
+   * and had ZERO callers anywhere in src/. This is the missing control, not a
+   * new permission: `exams_delete` has always admitted the class teacher.
+   *
+   * The confirm names the marks explicitly because `deleteExam` removes them
+   * with the sitting and nothing puts them back.
+   */
+  const deleteSitting = async (examId: string, name: string, subjectCount: number) => {
+    if (!ctx) return;
+    const subjects = `${subjectCount} subject${subjectCount === 1 ? "" : "s"}`;
+    if (
+      !window.confirm(
+        `Delete "${name}"?\n\nIts ${subjects} and every mark already entered against it are deleted too. This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await MarksService.removeExam(ctx, examId);
+      showFlash("Exam deleted");
+      setActiveSitting(null);
+      await reload();
+    } catch (e) {
+      setError(toErrorMessage(e, "Delete failed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <Loading label="Loading exams…" />;
 
   if (activeSubject) {
@@ -2387,6 +2425,16 @@ export function LiveExamsMarksTab({
                     className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-[#a0a0b0]"
                   >
                     Review / publish
+                  </button>
+                )}
+                {isClassTeacher && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void deleteSitting(g.examId, g.name, g.subjects.length)}
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#cc5069]/15 text-[#cc5069] flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3 h-3" /> Delete
                   </button>
                 )}
               </div>

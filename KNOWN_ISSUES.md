@@ -678,6 +678,18 @@ which is worth confirming before provisioning relies on it.
 
 ## 19. `MarksService.removeExam` has no UI caller — an exam is uncreatable-then-undeletable
 
+**FIXED 2026-09-07.** A Delete control now sits on the teacher's exam card
+(`LiveClassPanels`), rendered for the class teacher — the same person §10.5
+lets create the sitting — and calls `MarksService.removeExam`. The confirm
+names the marks, because `deleteExam` removes them with the sitting. No
+permission changed: `exams_delete` already admitted the class teacher, and
+`assertTeacherMayManageAcademicWork` already guarded the service. Proven by
+`examination.deleted` appearing in `academic_events` for the first time — the
+REST fallback the suite used before could not have emitted it. The Tier 1 exam
+test now cleans up through this button.
+
+The original finding follows.
+
 **Found 2026-09-06 while making exam creation work again. Tier 2, not fixed.**
 
 `removeExam` exists in `src/academic/services/marksService.ts:308` and
@@ -799,6 +811,34 @@ doing deliberately across the panel rather than in two spots.
 
 ## 25. An admin can never correct submitted attendance — a stale audit trigger
 
+**FIXED 2026-09-07 by 20260910000000, and the cause was not what this entry
+assumed.** The fix was never missing: 20260904100000 (audit consolidation) had
+already repointed `tg_log_attendance_change` at `academic_audit`, resolving
+section and date from `attendance_submissions`. That migration APPLIED — 48
+rows carry `metadata.migrated_from = 'attendance_audit'` and `audit_logs` is
+gone — but the live function was chunk46's and `attendance_audit` still
+existed, although the same migration ends with `DROP TABLE`.
+
+One explanation covers both: `20260826200000_chunk46` CREATEs that table and
+CREATE OR REPLACEs the old function, and `npm run db:migrate` replays every
+file from the 20260509 cutoff (issue 4 below). **A replay after 2026-09-04
+reinstated both on top of a consolidation that had already succeeded.**
+Re-running the consolidation could not repair it either: its verification
+asserts `academic_audit` holds exactly 8878 rows, and an audit table grows.
+
+20260910000000 re-applies only what the replay undid, and asserts shape rather
+than row counts so it cannot rot the same way. probe21 asserts the behaviour as
+the caller: the teacher is refused with the §10.5 message and the mark is
+untouched; the admin's correction succeeds, the mark changes, and the
+`academic_audit` row lands carrying the frozen class_id, date and
+submission_id. Re-verified over real HTTP as the admin, and restored after.
+
+**The general hazard stands: a `db:migrate` replay can silently revert any
+later migration.** That is issue 4, and this is the first time it has been
+caught doing it.
+
+The original finding follows.
+
 **Found 2026-09-06. HIGH for the rule it breaks; not fixed here (Tier 2).**
 
 §10.5 (docs/locked-decisions.md:203-205) says attendance is "submitted once.
@@ -853,5 +893,14 @@ admin attendance screen to do it from: `/teacher/attendance` is behind
 read-only monitor, and `grep -rn attendance src/pages/admin src/gurukul-admin`
 finds no marking UI.
 
-So even with 25 fixed, the only way to exercise the admin's right is a direct
-RPC call. The right the spec grants has no door.
+**STILL OPEN, and now the only thing standing between §10.5 and a working
+correction.** 25 is fixed as of 2026-09-07, so the RPC works for an admin —
+verified over real HTTP. But the only way to reach it is a direct call. The
+right the spec grants still has no door in the application.
+
+The smallest honest fix is not a new screen: `TeacherAttendancePage` already
+renders the grid, already resolves `canMark`, and the database already decides
+who may write. What blocks an admin is `ROUTE_ALLOW["/teacher"] = ["teacher"]`
+plus `canMark = selected?.isClassTeacher`, both of which are client-side role
+gates in front of a server-side rule that is stricter than they are. Worth a
+ruling on whether admins reach that page or get their own.

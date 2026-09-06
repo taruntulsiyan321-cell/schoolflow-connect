@@ -23,14 +23,16 @@ import { readFileSync } from 'node:fs'
  * control so a cleanup that silently matched nothing fails instead of passing.
  *
  * ATTENDANCE IS THE ONE EXCEPTION, AND IT IS DELIBERATE. §10.5 makes a day
- * one-shot: "submitted once. After submission, only admin can edit." A teacher
- * therefore CANNOT undo a submission, and the admin route that could is itself
- * broken by a stale audit trigger (KNOWN_ISSUES 25). So this suite does not
- * try: it submits an ALL-PRESENT day, which records nothing false about any
- * student, and on any later run that day the test asserts the §10.5 refusal
- * instead of writing again. An earlier version marked one student absent and
- * failed to put them back, leaving a real demo student wrongly absent with no
- * path in the app to correct it — that is what this shape exists to prevent.
+ * one-shot: "submitted once. After submission, only admin can edit." A TEACHER
+ * therefore cannot undo a submission at all, and this suite runs as the
+ * teacher. (The admin route now works — 20260910000000 restored the writer a
+ * replay had broken — but there is still no admin attendance screen to reach
+ * it from, KNOWN_ISSUES 26.) So this suite does not try: it submits an
+ * ALL-PRESENT day, which records nothing false about any student, and on any
+ * later run that day it asserts the §10.5 refusal instead of writing again.
+ * An earlier version marked one student absent and failed to put them back,
+ * leaving a real demo student wrongly absent — that is what this shape exists
+ * to prevent.
  *
  * ASSERT DURABLE STATE, NOT TRANSIENT TOAST. The "Attendance saved" flash
  * clears itself after 2.8s (TeacherAttendancePage `showFlash`). Waiting on it
@@ -98,11 +100,14 @@ async function accessToken(page: Page): Promise<string> {
 }
 
 /**
- * Delete this suite's exams as the TEACHER, over the same REST surface the app
+ * Sweep this suite's exams as the TEACHER, over the same REST surface the app
  * uses, relying on the permission `exams_delete` already grants the class
- * teacher. There is no UI for it: MarksService.removeExam exists and has zero
- * callers in src/, so an exam created through the app can never be removed
- * through it. Returns the number deleted, as a positive control.
+ * teacher.
+ *
+ * This is the FALLBACK, not the main path. The exam test deletes through the
+ * Delete control on the exam card; this exists only to collect what a run that
+ * died before reaching that click left behind, which by definition never got a
+ * chance to use the button. Returns the number deleted.
  */
 async function deleteEvidenceExams(page: Page, prefix = 'E2E exam'): Promise<number> {
   const url = envVal('VITE_SUPABASE_URL')
@@ -545,18 +550,33 @@ test.describe('Tier1-W · teacher · exam marks', () => {
 
     testInfo.annotations.push({ type: 'tier1-write', description: `exam published: ${examName}` })
 
-    // ── 6. RESTORE ─────────────────────────────────────────────────────
-    // Deleted over REST as the teacher, using the permission exams_delete
-    // already grants the class teacher. NOT a UI click, because
-    // `MarksService.removeExam` exists and has ZERO callers in src/ — an exam
-    // created in the app can never be removed from it. That gap is recorded in
-    // KNOWN_ISSUES; leaving a published evidence exam in the only tenant that
-    // exists is not an acceptable alternative. exam_subjects, marks and
-    // report_cards are ON DELETE CASCADE, so one DELETE is enough.
-    const removed = await deleteEvidenceExams(page)
-    expect(removed, 'cleanup deleted the exam this run created').toBeGreaterThan(0)
+    // ── 6. RESTORE, THROUGH THE UI ─────────────────────────────────────
+    // The Delete control on the exam card calls `MarksService.removeExam`,
+    // which existed with the right guard and had ZERO callers in src/ until it
+    // was wired up. Cleaning up through it means this suite leaves by the same
+    // door a teacher does, instead of reaching past the app over REST.
+    //
+    // Playwright dismisses dialogs by default, so the confirm has to be
+    // accepted BEFORE the click or the delete silently does nothing.
+    page.once('dialog', (d) => void d.accept())
+    await examCard().getByRole('button', { name: 'Delete' }).click()
+    await expect(page.getByText('Exam deleted'), 'the delete returned').toBeVisible({
+      timeout: 45000,
+    })
+
     await openExamsTab()
-    await expect(examCard(), 'no evidence exam is left behind').toHaveCount(0, { timeout: 30000 })
+    await expect(examCard(), 'the sitting is gone from the list').toHaveCount(0, { timeout: 30000 })
+
+    // A run that died before this point cannot have used the button, so sweep
+    // any leftovers over REST. Reported rather than asserted: a stray means an
+    // EARLIER run failed, and failing this one for it would blame the wrong run.
+    const strays = await deleteEvidenceExams(page)
+    if (strays > 0) {
+      testInfo.annotations.push({
+        type: 'cleanup',
+        description: `${strays} stray evidence exam(s) from an earlier failed run removed over REST`,
+      })
+    }
   })
 })
 
