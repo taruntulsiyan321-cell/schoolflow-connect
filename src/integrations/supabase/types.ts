@@ -5708,6 +5708,196 @@ export type Database = {
           },
         ]
       }
+      question_paper_questions: {
+        Row: {
+          answer: string | null
+          bank_id: string | null
+          chapter: string | null
+          correct_index: number | null
+          created_at: string
+          explanation: string | null
+          id: string
+          marks: number | null
+          options: Json | null
+          order_index: number
+          origin: string
+          paper_id: string
+          question: string
+          school_id: string
+          section_id: string
+        }
+        Insert: {
+          answer?: string | null
+          bank_id?: string | null
+          chapter?: string | null
+          correct_index?: number | null
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          marks?: number | null
+          options?: Json | null
+          order_index: number
+          origin: string
+          paper_id: string
+          question: string
+          school_id: string
+          section_id: string
+        }
+        Update: {
+          answer?: string | null
+          bank_id?: string | null
+          chapter?: string | null
+          correct_index?: number | null
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          marks?: number | null
+          options?: Json | null
+          order_index?: number
+          origin?: string
+          paper_id?: string
+          question?: string
+          school_id?: string
+          section_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_paper_questions_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_paper_questions_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "question_papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_paper_questions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_paper_questions_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "question_paper_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      question_paper_sections: {
+        Row: {
+          chapters: string[]
+          created_at: string
+          difficulty: string | null
+          id: string
+          marks_per_question: number
+          order_index: number
+          paper_id: string
+          question_format: string
+          school_id: string
+          target_count: number
+          title: string
+        }
+        Insert: {
+          chapters?: string[]
+          created_at?: string
+          difficulty?: string | null
+          id?: string
+          marks_per_question: number
+          order_index: number
+          paper_id: string
+          question_format: string
+          school_id: string
+          target_count: number
+          title: string
+        }
+        Update: {
+          chapters?: string[]
+          created_at?: string
+          difficulty?: string | null
+          id?: string
+          marks_per_question?: number
+          order_index?: number
+          paper_id?: string
+          question_format?: string
+          school_id?: string
+          target_count?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_paper_sections_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "question_papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_paper_sections_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      question_papers: {
+        Row: {
+          board: string | null
+          class_level: number | null
+          created_at: string
+          created_by: string
+          duration_minutes: number | null
+          id: string
+          school_id: string
+          status: string
+          subject: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          board?: string | null
+          class_level?: number | null
+          created_at?: string
+          created_by: string
+          duration_minutes?: number | null
+          id?: string
+          school_id: string
+          status?: string
+          subject: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          board?: string | null
+          class_level?: number | null
+          created_at?: string
+          created_by?: string
+          duration_minutes?: number | null
+          id?: string
+          school_id?: string
+          status?: string
+          subject?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_papers_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_reports: {
         Row: {
           body: string | null
