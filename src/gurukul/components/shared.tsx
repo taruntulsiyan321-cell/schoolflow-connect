@@ -250,20 +250,45 @@ export function XPBar({
   );
 }
 
-export function EmptyState({ icon, title, sub }: { icon:ReactNode; title:string; sub?:string }) {
+export function EmptyState({ icon, title, sub, action, actionLabel }: {
+  icon:ReactNode; title:string; sub?:string; action?: () => void; actionLabel?: string;
+}) {
   return (
     <motion.div className="flex flex-col items-center gap-3 py-12 text-center"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: EASE_OUT }}
     >
-      <motion.div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground"
-        initial={{ scale: 0.7, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
+      <motion.div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center text-muted-foreground border border-border/50 shadow-sm"
+        initial={{ scale: 0.7, opacity: 0, rotate: -5 }}
+        animate={{ scale: 1, opacity: 1, rotate: 0 }}
         transition={{ ...springSnappy, delay: 0.05 }}
       >{icon}</motion.div>
-      <div className="text-sm font-semibold text-foreground">{title}</div>
-      {sub && <div className="text-xs text-muted-foreground/70">{sub}</div>}
+      <motion.div
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.3 }}
+        className="text-sm font-semibold text-foreground"
+      >{title}</motion.div>
+      {sub && (
+        <motion.div
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.3 }}
+          className="text-xs text-muted-foreground/70 max-w-xs"
+        >{sub}</motion.div>
+      )}
+      {action && actionLabel && (
+        <motion.button
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={action}
+          className="mt-2 text-xs font-semibold text-primary hover:text-primary/80 px-4 py-2 rounded-xl border border-primary/20 bg-primary/5 transition-colors"
+        >{actionLabel}</motion.button>
+      )}
     </motion.div>
   );
 }
@@ -307,3 +332,184 @@ export const subjectColor: Record<string, string> = {
   Science: "var(--color-physics)",
   "Social Science": "var(--color-social)",
 };
+
+// Premium hover card with glow effect
+export function HoverCard({ children, className, color = "var(--primary)", onClick }: {
+  children: ReactNode; className?: string; color?: string; onClick?: () => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.div
+      onClick={onClick}
+      className={cn(
+        "rounded-2xl border border-border/70 bg-card/95 p-4 cursor-pointer transition-shadow",
+        className
+      )}
+      initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={reduceMotion ? undefined : {
+        y: -3,
+        boxShadow: `0 8px 25px -5px hsl(${color} / 0.15), 0 0 0 1px hsl(${color} / 0.12)`,
+        borderColor: `hsl(${color} / 0.3)`,
+      }}
+      whileTap={reduceMotion ? undefined : { scale: 0.985, y: -1 }}
+      transition={{ duration: 0.2, ease: EASE_OUT }}
+    >{children}</motion.div>
+  );
+}
+
+// Animated icon wrapper
+export function AnimatedIcon({ icon, color = "var(--primary)", size = "md", pulse = false }: {
+  icon: ReactNode; color?: string; size?: "sm" | "md" | "lg"; pulse?: boolean;
+}) {
+  const sizes = { sm: "w-8 h-8", md: "w-10 h-10", lg: "w-12 h-12" };
+  return (
+    <motion.div
+      className={cn(
+        "rounded-xl flex items-center justify-center shrink-0",
+        sizes[size],
+        pulse && "animate-pulse"
+      )}
+      style={{
+        background: `linear-gradient(135deg, hsl(${color} / 0.15), hsl(${color} / 0.05))`,
+        border: `1px solid hsl(${color} / 0.2)`,
+        color: `hsl(${color})`,
+      }}
+      whileHover={{ scale: 1.08, rotate: 3 }}
+      transition={springSnappy}
+    >
+      {icon}
+    </motion.div>
+  );
+}
+
+// Animated badge/tag with icon
+export function TagWithIcon({ icon, label, color = "var(--muted-foreground)", onClick }: {
+  icon: ReactNode; label: string; color?: string; onClick?: () => void;
+}) {
+  return (
+    <motion.span
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full border",
+        onClick && "cursor-pointer"
+      )}
+      style={{
+        color: `hsl(${color})`,
+        borderColor: `hsl(${color} / 0.25)`,
+        background: `hsl(${color} / 0.08)`,
+      }}
+      whileHover={onClick ? { scale: 1.03, background: `hsl(${color} / 0.12)` } : undefined}
+      whileTap={onClick ? { scale: 0.97 } : undefined}
+      transition={springSnappy}
+    >
+      {icon}
+      {label}
+    </motion.span>
+  );
+}
+
+// Shimmer loading skeleton
+export function Skeleton({ className, animate = true }: { className?: string; animate?: boolean }) {
+  return (
+    <div className={cn(
+      "bg-gradient-to-r from-muted via-muted/60 to-muted rounded-lg",
+      animate && "animate-pulse",
+      className
+    )} />
+  );
+}
+
+// List item with hover animation
+export function ListItem({ icon, title, subtitle, value, valueColor, onClick, className }: {
+  icon: ReactNode; title: string; subtitle?: string; value?: string | number;
+  valueColor?: string; onClick?: () => void; className?: string;
+}) {
+  return (
+    <motion.div
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-card/50",
+        onClick && "cursor-pointer hover:border-border hover:bg-muted/50",
+        className
+      )}
+      whileHover={onClick ? { x: 4, borderColor: "hsl(var(--primary) / 0.3)" } : undefined}
+      whileTap={onClick ? { scale: 0.99 } : undefined}
+      transition={{ duration: 0.15, ease: EASE_OUT }}
+    >
+      <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0 text-muted-foreground">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-foreground truncate">{title}</div>
+        {subtitle && <div className="text-[11px] text-muted-foreground truncate">{subtitle}</div>}
+      </div>
+      {value !== undefined && (
+        <div className="text-sm font-bold tabular-nums shrink-0" style={{ color: valueColor || "hsl(var(--foreground))" }}>
+          {value}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// Premium page header with animated elements
+export function PageHeader({ title, subtitle, badge, icon, action }: {
+  title: string; subtitle?: string; badge?: string; icon?: ReactNode; action?: ReactNode;
+}) {
+  return (
+    <motion.div
+      className="flex items-start gap-4 mb-6"
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: EASE_OUT }}
+    >
+      {icon && (
+        <motion.div
+          className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/20 flex items-center justify-center text-primary shrink-0"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1, ...springSnappy }}
+        >
+          {icon}
+        </motion.div>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="text-2xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
+            {title}
+          </h1>
+          {badge && (
+            <motion.span
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2, ...springSnappy }}
+            >
+              {badge}
+            </motion.span>
+          )}
+        </div>
+        {subtitle && (
+          <motion.p
+            className="text-sm text-muted-foreground mt-1"
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.3 }}
+          >
+            {subtitle}
+          </motion.p>
+        )}
+      </div>
+      {action && (
+        <motion.div
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+        >
+          {action}
+        </motion.div>
+      )}
+    </motion.div>
+  );
+}
