@@ -379,11 +379,12 @@ test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the uni
 // as a real teacher: upload -> sign -> fetch -> delete. The pure ref/path
 // parsing is covered in src/academic/storage/academicFileRef.test.ts.
 // ═════════════════════════════════════════════════════════════════════════════
-test.describe('KNOWN_ISSUES 7 — a teacher can sign and fetch their own academic file', () => {
-  test.use({ storageState: authFile('teacher') })
-
-  test('upload, sign, fetch, delete — all as the caller', async ({ page }) => {
-    test.setTimeout(120000)
+test.describe('KNOWN_ISSUES 7 — the buckets are private and signing still reaches the right people', () => {
+  test('upload, sign, fetch, delete — and the public URL is dead', async ({ browser }) => {
+    test.setTimeout(180000)
+    // Own sessions for both roles: `teacher` and `student` are loaded from the
+    // shared files by tier1/tier2, and a second context on those revokes them.
+    const page = await freshSession(browser, 'teacher')
     await page.goto('/teacher/resources', { waitUntil: 'domcontentloaded' })
     await settle(page)
 
@@ -428,10 +429,37 @@ test.describe('KNOWN_ISSUES 7 — a teacher can sign and fetch their own academi
       // A signed URL that cannot be downloaded would pass every check above
       // and still leave every attachment broken. This is deliberately sent
       // WITHOUT the Authorization header: the signature is the whole authority,
-      // which is what keeps it working once the bucket is private.
+      // which is what keeps it working now that the bucket is private.
       const fetched = await page.request.get(absolute)
       expect(fetched.status(), 'signed URL did not fetch').toBe(200)
       expect(await fetched.text()).toBe(body)
+
+      // ── THE FENCE: the public URL that used to work must not ─────────────
+      // `academic-files` was `public = true`, so this exact path was
+      // downloadable by anyone on the internet with no token at all. That is
+      // the thing KNOWN_ISSUES 7 was about, and it is the only assertion here
+      // that a still-public bucket would fail.
+      const publicUrl = url + '/storage/v1/object/public/academic-files/' + objectPath
+      const anon = await page.request.get(publicUrl)
+      expect(anon.status(), 'the object is STILL downloadable with no token').not.toBe(200)
+
+      // ── A CLASSMATE'S TEACHER'S FILE: the case the first policy broke ────
+      // The drafted policy read `public.profiles` from inside the predicate,
+      // which runs as the caller — and a student sees exactly one row there,
+      // their own. Every academic file uploaded by anyone else was refused.
+      // Every DENIAL test still passed; only this one failed.
+      const studentPage = await freshSession(browser, 'student')
+      await studentPage.goto('/student', { waitUntil: 'domcontentloaded' })
+      await settle(studentPage)
+      const studentH = await restHeaders(studentPage)
+      const studentSign = await studentPage.request.post(
+        url + '/storage/v1/object/sign/academic-files/' + objectPath,
+        { headers: { ...studentH, 'Content-Type': 'application/json' }, data: { expiresIn: 600 } },
+      )
+      const studentBody = await studentSign.text()
+      expect(studentSign.status(),
+        'a same-school student cannot sign the teacher file: ' + studentBody).toBe(200)
+      await studentPage.context().close()
     } finally {
       const del = await page.request.delete(
         url + '/storage/v1/object/academic-files/' + objectPath, { headers: auth },
@@ -446,5 +474,7 @@ test.describe('KNOWN_ISSUES 7 — a teacher can sign and fetch their own academi
     })
     const names = (JSON.parse(await after.text()) as Array<{ name: string }>).map((o) => o.name)
     expect(names).not.toContain(objectPath.split('/').slice(1).join('/'))
+
+    await page.context().close()
   })
 })

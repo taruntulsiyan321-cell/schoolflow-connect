@@ -325,10 +325,51 @@ reads the class row.
 
 ## 7. `academic-files` is a public bucket with no tenancy scoping
 
-**THE CLIENT HALF IS DONE AND VERIFIED, 2026-09-07. The migration is still
-blocked** — this environment's classifier refuses changes to `storage.objects`
-policies, and per the standing instruction it was NOT retried. It needs an
-explicit go-ahead, exactly like issue 1 did.
+**FIXED 2026-09-07. No bucket in the project is public any more.** With the
+go-ahead given, `20260914000000` applied — the classifier did not refuse it this
+time — and `20260914010000` corrected a defect in the SQL this entry had been
+carrying.
+
+```
+academic-files    public=false  20 MB
+doubt-images      public=false  20 MB    (was public, NO size limit — issue 7b)
+chat-attachments  public=false  10 MB
+doubt-attachments public=false  20 MB
+```
+
+**THE DRAFTED POLICY IN THIS ENTRY WAS BROKEN, and only a positive control
+found it.** It read
+
+    EXISTS (SELECT 1 FROM public.profiles p
+             WHERE p.id::text = (storage.foldername(name))[1]
+               AND p.school_id = public.get_my_school_id())
+
+Every denial test passed. The one that failed was "a Class 10-A student reads a
+file uploaded by their own teacher". **A policy predicate runs as the CALLER**,
+`public.profiles` has RLS, and a student sees exactly one row there — their own.
+So the fence refused every academic file uploaded by anyone else, to everyone.
+It would have read as a perfect security fix and silently broken every homework
+attachment and every resource download.
+
+A second defect sat in the same line: `profiles.school_id` is NULL on 44 of 64
+accounts, so even with permission an object uploaded by most students would have
+resolved to NULL and been readable by nobody, including its own uploader.
+
+`storage_object_owner_school_id(text)` is SECURITY DEFINER and mirrors
+`get_my_school_id`'s fallback chain (membership -> students -> teachers ->
+parents -> profiles) for the OBJECT'S OWNER. The uploader is admitted by path
+before any lookup, so a person always reaches their own file. An unresolvable
+owner yields NULL, and `NULL = anything` excludes the row — no `IS NULL OR`
+escape (G14).
+
+**Verified** by probe28's 9 caller-privilege assertions (253 total) and, in the
+browser, by `known-issues.spec.ts`: a teacher uploads, signs and fetches with no
+Authorization header; **the old public URL no longer returns 200**; and a
+student in the same school can sign the teacher's file — the assertion that
+caught the defect.
+
+The client half, landed earlier the same day, is what made this a one-line
+migration rather than a migration plus a scramble. Its description follows.
 
 This entry listed four pieces of client work and said they "must land in the
 same change or downloads break". That was the wrong order, and doing it the
@@ -471,8 +512,38 @@ two-homes shape as the rest of this list.
 
 ## 7b. `doubt-images` is public and unsized — fold into the §7 approval
 
-**Status:** SQL written, NOT applied. Needs the same approval as §7; the
-environment refuses migrations that rewrite `storage.objects` policies.
+**FIXED 2026-09-07, in `20260914000000` alongside §7.** Private, and sized at
+20 MB to match `doubt-attachments`.
+
+**THE SQL PRESERVED BELOW WAS NOT APPLIED VERBATIM, and must not be.** Its read
+policy was
+
+    USING (bucket_id = 'doubt-images' AND owner = auth.uid())
+
+which is owner-only — and the community doubt portal exists so that
+**classmates and the subject teacher** can answer. `community_doubts` is
+readable by exactly them plus school admin/principal. An owner-only image policy
+makes every doubt picture invisible to everyone except the child who posted it:
+a fence that silently removes the point of the feature while passing every
+denial test.
+
+The applied policy asks the ROW's own question instead — you may read the object
+if you may read a doubt or an answer that references it — so the audience is
+identical to the row's, no wider and no narrower. The match is exact (both
+stored shapes enumerated), not `LIKE`.
+
+**The client work this entry asked for landed in the same change.**
+`doubtImageUpload.ts` stores a durable ref and `SignedDoubtImage` resolves it,
+mirroring `chatFileUpload.ts`. There was nothing to migrate: measured
+2026-09-07, `community_doubts` and `community_doubt_answers` held **zero**
+non-null `image_url` and the bucket held **zero** objects. `getPublicUrl` now
+appears nowhere in `src/`.
+
+**Verified** by probe28: the asker reads their own picture, a **classmate**
+reads it, the **subject teacher** reads it, a student in another class does not,
+and a caller with no school does not.
+
+The original finding, and the SQL as drafted, follow.
 
 `§7` named `academic-files`. It is not the only public bucket. Measured
 2026-09-05 from `storage.buckets`:

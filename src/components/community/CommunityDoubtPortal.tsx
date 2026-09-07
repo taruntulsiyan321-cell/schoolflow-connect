@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
 import { getNcertSubjects } from "@/lib/ncertSyllabus";
 import { PracticeService, DoubtService, useAcademicContext, resolveStudentServiceContext } from "@/academic";
+import { doubtImageUrl, uploadDoubtImage } from "@/academic/storage/doubtImageUpload";
 
 type DoubtStatus = "unsolved" | "teacher_answered" | "community_solved" | "solved";
 
@@ -139,14 +140,31 @@ function statusBadge(status: DoubtStatus) {
   );
 }
 
-async function uploadDoubtImage(file: File | null, userId: string | undefined) {
-  if (!file || !userId) return null;
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-  const path = `${userId}/${Date.now()}-${safeName}`;
-  const { error } = await db.storage.from("doubt-images").upload(path, file, { upsert: false });
-  if (error) throw error;
-  const { data } = db.storage.from("doubt-images").getPublicUrl(path);
-  return data?.publicUrl ?? null;
+/**
+ * A doubt picture, resolved from its durable ref to a short-lived signed URL.
+ *
+ * `image_url` holds `doubt-images/{uid}/{file}`, not a URL — `doubt-images` is
+ * a private bucket (KNOWN_ISSUES 7b) and a public URL persisted in a row is a
+ * permanent bet that it stays public. Rendering the ref straight into `src`
+ * would produce a broken image.
+ *
+ * Renders nothing until the signature lands, rather than flashing a broken
+ * image icon: an image that appears a moment late reads as loading, one that
+ * appears broken reads as lost.
+ */
+function SignedDoubtImage({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [href, setHref] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setHref(null);
+    void (async () => {
+      const resolved = await doubtImageUrl(src);
+      if (!cancelled) setHref(resolved);
+    })();
+    return () => { cancelled = true; };
+  }, [src]);
+  if (!href) return null;
+  return <img src={href} alt={alt} className={className} />;
 }
 
 function RichBody({ body }: { body: string }) {
@@ -477,7 +495,7 @@ function DoubtDetail({
         </div>
         <div className="space-y-4 p-5">
           <RichBody body={selected.body} />
-          {selected.image_url && <img src={selected.image_url} alt="Doubt attachment" className="max-h-72 rounded-2xl border object-contain" />}
+          {selected.image_url && <SignedDoubtImage src={selected.image_url} alt="Doubt attachment" className="max-h-72 rounded-2xl border object-contain" />}
           <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" />{selected.answer_count} answers</span>
             <span className="inline-flex items-center gap-1"><Eye className="h-3.5 w-3.5" />{selected.view_count} views</span>
@@ -520,7 +538,7 @@ function DoubtDetail({
             </div>
             <div className="mt-3">
               <RichBody body={answer.body} />
-              {answer.image_url && <img src={answer.image_url} alt="Answer attachment" className="mt-3 max-h-64 rounded-xl border object-contain" />}
+              {answer.image_url && <SignedDoubtImage src={answer.image_url} alt="Answer attachment" className="mt-3 max-h-64 rounded-xl border object-contain" />}
             </div>
             {canAccept && !answer.is_accepted && (
               <Button size="sm" variant="outline" className="mt-3" onClick={() => onAccept(answer.id)}>
