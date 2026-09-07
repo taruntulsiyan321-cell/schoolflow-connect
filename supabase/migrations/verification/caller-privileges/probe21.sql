@@ -16,6 +16,8 @@
 --   6. that row carries the FROZEN class_id, date and submission_id in
 --      metadata, which is what the dedicated table used to hold.
 --   7. the legacy attendance_audit table is gone.
+--   8. a PRINCIPAL is refused outright (§10: "Cannot mark or edit
+--      attendance"), and 9. the mark is unchanged by that attempt.
 --
 -- 3, 4, 5 and 6 are what would catch a "fix" that merely stopped erroring
 -- without recording anything; 1 and 2 are what would catch one that opened the
@@ -45,6 +47,7 @@ DO $probe$
 DECLARE
   t1      uuid := 'd1000002-0001-4000-8000-000000000001';  -- Priya Sharma, class teacher of 10 A
   adm     uuid := 'd1000001-0001-4000-8000-000000000001';  -- admin, same school
+  prin    uuid := 'd1000001-0002-4000-8000-000000000002';  -- principal, same school
   sch_a   uuid := '00000000-0000-4000-8000-000000000001';
   cls     uuid := 'd2000001-0001-4000-8000-000000000001';  -- 10 A
   d       date := current_date;
@@ -141,6 +144,38 @@ BEGIN
          CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END
     FROM information_schema.tables
    WHERE table_schema = 'public' AND table_name = 'attendance_audit';
+
+  -- ── 8/9. §10: the principal is out of attendance entirely ──────────────
+  -- "Cannot mark or edit attendance" (docs/locked-decisions.md:151). Asserted
+  -- here because the CLIENT used to disagree: ownership.ts listed principal
+  -- among the owners of attendance and assertTeacherMayMarkClass admitted every
+  -- isSchoolOperator, so the UI would have offered an action this raise refuses.
+  -- Both sides now say admin; this is the half that cannot drift.
+  --
+  -- Asserted on the OUTCOME, not on one exact sentence. TWO guards refuse the
+  -- principal and the outer one wins: `rpc_bulk_upsert_attendance` carries its
+  -- own class-teacher check ("Only the class teacher can mark attendance for
+  -- class %"), while the §10-shaped message ("The principal cannot mark
+  -- attendance") lives in `rpc_ensure_attendance_submission`, which is reached
+  -- later and so never speaks. Pinning this to the second sentence would have
+  -- failed on a correct refusal — it did, on the first run of this claim.
+  -- What must hold is that it is refused ON AUTHORITY, not by 42703 and not by
+  -- the already-submitted branch, either of which would refuse the principal
+  -- for a reason that has nothing to do with §10.
+  r := pg_temp.as_user(prin, format(
+        'SELECT public.rpc_bulk_upsert_attendance(%L::jsonb)::text', payload::text));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('correct a submitted day','principal','ERROR on authority (§10)', r,
+     CASE WHEN r LIKE 'ERROR%'
+           AND r ~* '(principal cannot mark|only the class teacher)'
+           AND r !~ 'class_id'
+           AND r !~ 'already been submitted'
+          THEN 'PASS' ELSE 'FAIL' END);
+
+  SELECT status::text INTO st FROM public.attendance WHERE id = att_id;
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('...and the mark is unchanged by the principal','-','absent', coalesce(st,'null'),
+     CASE WHEN st = 'absent' THEN 'PASS' ELSE 'FAIL' END);
 END $probe$;
 
 SELECT area, role_tested, expected, observed, verdict FROM probe ORDER BY n;

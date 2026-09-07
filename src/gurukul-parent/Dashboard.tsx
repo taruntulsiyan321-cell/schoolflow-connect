@@ -211,7 +211,7 @@ export default function ParentDashboard({
         <QuickStat
           label="Pending Homework"
           value={pendingHw}
-          sub="HomeworkService"
+          sub="not yet submitted"
           color={pendingHw > 0 ? "#c08a3a" : "#3b5bdb"}
           icon={<BookOpen className="w-5 h-5" />}
         />
@@ -259,7 +259,7 @@ export default function ParentDashboard({
         >
           <BookOpen className="w-4 h-4 text-[#3b5bdb] mb-2" />
           <div className="text-xs font-bold text-foreground">Test Results</div>
-          <div className="text-[10px] text-muted-foreground">MarksService · TestService</div>
+          <div className="text-[10px] text-muted-foreground">Exams and tests</div>
         </button>
       </div>
     </div>

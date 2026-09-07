@@ -78,9 +78,16 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
   },
   attendance: {
     entity: "attendance",
-    owners: ["teacher", "admin", "principal"],
+    // NOT principal. §10 Principal panel (docs/locked-decisions.md:150-151):
+    // "Cannot mark or edit attendance", and the design consequence stated in
+    // that same section — "No screen offers the principal an action they lack
+    // permission for." The database has always agreed: rpc_bulk_upsert_attendance
+    // raises "The principal cannot mark attendance". Listing them here made the
+    // CLIENT promise something the server refuses, which is the two-homes shape
+    // that only ever surfaces as an error the user cannot act on.
+    owners: ["teacher", "admin"],
     consumers: ["teacher", "student", "parent", "principal", "admin"],
-    description: "Daily attendance — teacher creates; admin/principal may correct; others consume",
+    description: "Daily attendance — teacher creates; admin may correct; others consume",
   },
   homework: {
     entity: "homework",

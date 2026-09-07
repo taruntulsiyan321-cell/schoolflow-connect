@@ -102,7 +102,7 @@ function AttendancePanel({
       setFlash(
         unmarkedCount > 0
           ? `Saved ${toSave.length} of ${students.length} — ${unmarkedCount} still unmarked`
-          : "Saved via AttendanceService",
+          : "Attendance saved",
       );
       setTimeout(() => {
         if (!unmountedRef.current) setFlash(null);
@@ -133,7 +133,7 @@ function AttendancePanel({
               Attendance — {liveClass.className} {liveClass.section}
             </div>
             <div className="text-[10px] text-muted-foreground">
-              Class ID · {liveClass.classId.slice(0, 8)}… · AttendanceService
+              Correcting a submitted day is admin-only (§10.5)
             </div>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
@@ -228,7 +228,7 @@ function AttendancePanel({
             onClick={() => void save()}
             className="w-full py-2.5 rounded-xl text-sm font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40"
           >
-            {saving ? "Saving…" : "Save via AttendanceService"}
+            {saving ? "Saving…" : "Save attendance"}
           </button>
         </div>
       </div>
@@ -412,7 +412,7 @@ export default function Classes() {
   return (
     <div className="space-y-4">
       <div className="text-xs text-muted-foreground">
-        {rows.length} live classes · AnalyticsService.classRollups · AttendanceService
+        {rows.length} live classes
       </div>
 
       {error && <div className="text-xs text-[#cc5069]">{error}</div>}

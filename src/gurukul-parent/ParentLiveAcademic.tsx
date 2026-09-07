@@ -146,7 +146,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
     <div className="space-y-6">
       <div>
         <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
-          Examination marks (MarksService)
+          Examination marks
         </div>
         <div className="space-y-2">
           {marks.map((m) => {

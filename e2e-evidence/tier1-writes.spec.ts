@@ -24,15 +24,18 @@ import { readFileSync } from 'node:fs'
  *
  * ATTENDANCE IS THE ONE EXCEPTION, AND IT IS DELIBERATE. §10.5 makes a day
  * one-shot: "submitted once. After submission, only admin can edit." A TEACHER
- * therefore cannot undo a submission at all, and this suite runs as the
- * teacher. (The admin route now works — 20260910000000 restored the writer a
- * replay had broken — but there is still no admin attendance screen to reach
- * it from, KNOWN_ISSUES 26.) So this suite does not try: it submits an
- * ALL-PRESENT day, which records nothing false about any student, and on any
- * later run that day it asserts the §10.5 refusal instead of writing again.
- * An earlier version marked one student absent and failed to put them back,
- * leaving a real demo student wrongly absent — that is what this shape exists
- * to prevent.
+ * therefore cannot undo a submission at all, and the teacher test runs as the
+ * teacher. So it does not try: it submits an ALL-PRESENT day, which records
+ * nothing false about any student, and on any later run that day it asserts
+ * the §10.5 refusal instead of writing again. An earlier version marked one
+ * student absent and failed to put them back, leaving a real demo student
+ * wrongly absent — that is what this shape exists to prevent.
+ *
+ * The correction itself IS covered, by the admin test at the end of this file:
+ * /admin/classes → Attendance opens the panel §10.5 reserves to admins, and
+ * that test flips a mark and puts it back, asserting both. It is the path
+ * 20260910000000 unblocked — every attendance UPDATE used to raise 42703 on a
+ * stale audit trigger.
  *
  * ASSERT DURABLE STATE, NOT TRANSIENT TOAST. The "Attendance saved" flash
  * clears itself after 2.8s (TeacherAttendancePage `showFlash`). Waiting on it
@@ -669,5 +672,103 @@ test.describe('Tier1-W · admin · account linking', () => {
       'the student was linked to an existing auth account',
     ).toBeVisible({ timeout: 60000 })
     testInfo.annotations.push({ type: 'tier1-write', description: 'student account linked' })
+  })
+})
+
+/**
+ * §10.5 gives the correction of a SUBMITTED day to the admin, and only to the
+ * admin: "submitted once. After submission, only admin can edit." §10 puts the
+ * principal out of it entirely — "Cannot mark or edit attendance."
+ *
+ * The door is /admin/classes → the class's Attendance button, which opens the
+ * AttendancePanel in `gurukul-admin/Classes.tsx`. An earlier note in
+ * KNOWN_ISSUES claimed no such screen existed; that was wrong, and this test is
+ * what settles it either way.
+ *
+ * This is the path 20260910000000 unblocked. A correction is an UPDATE to
+ * `attendance`, and until that migration every UPDATE raised
+ * `42703 record "new" has no field "class_id"` on a stale audit trigger, which
+ * the UI showed as "This feature isn't available right now."
+ *
+ * The test asserts the student is ALREADY MARKED before flipping, so the save
+ * under test is genuinely an UPDATE. If today were unmarked this would be an
+ * INSERT — a path that never broke — and the test would prove nothing while
+ * still going green.
+ *
+ * It runs after the teacher attendance test in this file, which is what puts
+ * today's day into the submitted state it corrects.
+ */
+test.describe('Tier1-W · admin · correct a submitted day', () => {
+  test.use({ storageState: authFile('admin') })
+  test.beforeEach(() => test.skip(!roleAuthed('admin'), 'admin session not available'))
+
+  test('an admin corrects an already-submitted attendance day, and it sticks', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(240000)
+
+    /** Open /admin/classes and the 10-A attendance panel. */
+    const openPanel = async () => {
+      await page.goto('/admin/classes', { waitUntil: 'domcontentloaded' })
+      await settle(page)
+      // Class labels render as "10-A", and each row carries its own
+      // Roster / Attendance pair.
+      const card = page
+        .locator('div')
+        .filter({ hasText: '10-A' })
+        .filter({ has: page.getByRole('button', { name: 'Attendance' }) })
+        .last()
+      await card.getByRole('button', { name: 'Attendance' }).click()
+      const marks = page.locator('select')
+      await expect(marks.first(), 'the roster loaded in the panel').toBeVisible({ timeout: 30000 })
+      return marks
+    }
+
+    let marks = await openPanel()
+    const first = marks.first()
+
+    // PRECONDITION, asserted rather than assumed: an already-marked student is
+    // what makes the save an UPDATE, which is the path that used to raise 42703.
+    const before = await first.inputValue()
+    expect(
+      ['present', 'absent'],
+      'the day is already marked, so this is a correction and not a first mark',
+    ).toContain(before)
+    const flipped = before === 'present' ? 'absent' : 'present'
+
+    // ── the correction ─────────────────────────────────────────────────
+    await first.selectOption(flipped)
+    await page.getByRole('button', { name: 'Save attendance' }).click()
+    await expect(
+      page.getByText(/Attendance saved|Saved \d+ of \d+/),
+      'the admin correction returned without error',
+    ).toBeVisible({ timeout: 45000 })
+    expect(
+      await bodyText(page),
+      'no 42703 surfaced as the generic unavailable banner',
+    ).not.toContain("This feature isn't available right now")
+
+    // ── it round-tripped ───────────────────────────────────────────────
+    marks = await openPanel()
+    await expect(marks.first(), 'the correction survived a reload').toHaveValue(flipped, {
+      timeout: 30000,
+    })
+
+    // ── restore, and assert the restore ────────────────────────────────
+    await marks.first().selectOption(before)
+    await page.getByRole('button', { name: 'Save attendance' }).click()
+    await expect(
+      page.getByText(/Attendance saved|Saved \d+ of \d+/),
+      'the restore returned',
+    ).toBeVisible({ timeout: 45000 })
+    marks = await openPanel()
+    await expect(marks.first(), 'restored to the original mark').toHaveValue(before, {
+      timeout: 30000,
+    })
+
+    testInfo.annotations.push({
+      type: 'tier1-write',
+      description: `admin corrected a submitted day: ${before} -> ${flipped} -> ${before}`,
+    })
   })
 })

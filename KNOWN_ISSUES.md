@@ -791,6 +791,23 @@ found what the URL probe could not.
 
 ## 24. Service class names are rendered to parents as UI labels
 
+**FIXED 2026-09-07.** Five user-facing labels stopped naming TypeScript classes:
+
+| where | was | now |
+|---|---|---|
+| `/parent/marks` | `Examination marks (MarksService)` | `Examination marks` |
+| `/parent` | `MarksService · TestService` | `Exams and tests` |
+| `/parent` | Pending Homework sub `HomeworkService` | `not yet submitted` |
+| `/admin/classes` | `Save via AttendanceService` | `Save attendance` |
+| `/admin/classes` | `… · AnalyticsService.classRollups · AttendanceService` | `N live classes` |
+
+Also the attendance panel's `Class ID · d2000001… · AttendanceService`, which
+now states the rule the panel exists for: "Correcting a submitted day is
+admin-only (§10.5)". No test asserted any of these strings, checked before
+changing them.
+
+The original finding follows.
+
 **Found 2026-09-06 while asserting the Tier 1 read surfaces. Tier 3, not fixed.**
 
 Two internal identifiers are on screen in the Parent panel, in the place a
@@ -883,24 +900,36 @@ both of which work), and the fix has a real decision in it — whether the audit
 row should now carry the submission's class and date via a join, or whether
 `attendance_audit` should be re-shaped to point at `submission_id` instead.
 
-## 26. No admin screen exists for the correction §10.5 reserves to admins
+## 26. ~~No admin screen exists for the correction §10.5 reserves to admins~~
 
-**Found 2026-09-06 alongside 25. Tier 2, not fixed.**
+**WITHDRAWN 2026-09-07 — this finding was WRONG, and the error is worth
+recording because of how it was made.**
 
-§10.5 gives the admin the sole right to edit a submitted day. There is no
-admin attendance screen to do it from: `/teacher/attendance` is behind
-`ROUTE_ALLOW["/teacher"] = ["teacher"]`, the principal's attendance view is a
-read-only monitor, and `grep -rn attendance src/pages/admin src/gurukul-admin`
-finds no marking UI.
+The screen exists. `/admin/classes` renders every class with its own **Roster**
+and **Attendance** buttons, and Attendance opens `AttendancePanel` in
+`src/gurukul-admin/Classes.tsx`: a date picker, the roster, a
+Unmarked/Present/Absent select per student, and Save, going through
+`AttendanceService.markBulk` — the same service the teacher grid uses.
 
-**STILL OPEN, and now the only thing standing between §10.5 and a working
-correction.** 25 is fixed as of 2026-09-07, so the RPC works for an admin —
-verified over real HTTP. But the only way to reach it is a direct call. The
-right the spec grants still has no door in the application.
+**How the wrong conclusion was reached.** The check was
+`grep -rn attendance src/pages/admin src/gurukul-admin`, which DID list
+`Classes.tsx`. The file was never opened. A grep that returns a hit is not
+evidence of absence, and "no marking UI" was asserted from a file list rather
+than from the file. The same session had already been bitten by asserting
+behaviour it had not executed; this is that shape again, in prose instead of
+in a test.
 
-The smallest honest fix is not a new screen: `TeacherAttendancePage` already
-renders the grid, already resolves `canMark`, and the database already decides
-who may write. What blocks an admin is `ROUTE_ALLOW["/teacher"] = ["teacher"]`
-plus `canMark = selected?.isClassTeacher`, both of which are client-side role
-gates in front of a server-side rule that is stricter than they are. Worth a
-ruling on whether admins reach that page or get their own.
+It is now covered by a test that would have caught the claim either way:
+`Tier1-W · admin · correct a submitted day` drives /admin/classes → Attendance,
+flips an already-marked student, saves, reloads to prove it stuck, and puts it
+back. It asserts the student is ALREADY MARKED first, so the save under test is
+an UPDATE — the path 25 had broken — rather than an insert that never failed.
+
+One real defect did come out of re-checking this, and is fixed: `ownership.ts`
+listed `principal` among the owners of `attendance`, and
+`assertTeacherMayMarkClass` waved through every `isSchoolOperator`. §10
+Principal panel says "Cannot mark or edit attendance" and, in the same breath,
+"No screen offers the principal an action they lack permission for". The
+database always agreed — `rpc_bulk_upsert_attendance` raises "The principal
+cannot mark attendance" — so the client was promising something the server
+refuses. Both now say admin.

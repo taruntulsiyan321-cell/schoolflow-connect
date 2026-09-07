@@ -94,9 +94,17 @@ export interface SchoolDateAttendanceSummary {
 }
 
 async function assertTeacherMayMarkClass(ctx: ServiceContext, classId: string): Promise<void> {
-  if (isSchoolOperator(ctx.role)) return;
+  // ADMIN, not every school operator. `isSchoolOperator` is admin OR principal,
+  // and §10 Principal panel is explicit: "Cannot mark or edit attendance", with
+  // "No screen offers the principal an action they lack permission for." The
+  // database already refuses them — rpc_bulk_upsert_attendance raises "The
+  // principal cannot mark attendance" — so the old check did not create a hole,
+  // it created a LIE: the client let a principal through to an error the server
+  // was always going to raise. §10.5 gives the correction to admins, and this
+  // is the client saying the same thing.
+  if (ctx.role === "admin") return;
   if (ctx.role !== "teacher") {
-    throw new ForbiddenError("Only teachers may mark attendance");
+    throw new ForbiddenError("Only the class teacher or an admin may mark attendance");
   }
   // Marking (write) is class-teacher-only, matching TeacherAttendancePage's
   // own canMark = !!selected?.isClassTeacher — a subject-only teacher can
