@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/((?!app\\.html|landing\\.html|favicon\\.ico|favicon\\.svg|robots\\.txt|sitemap\\.xml|assets/).*)",
+      "source": "/((?!app\\.html|landing\\.html|favicon\\.ico|favicon\\.svg|gurukul-logo\\.png|gurukul-logo\\.svg|robots\\.txt|sitemap\\.xml|assets/).*)",
       "destination": "/app.html"
     }
   ]
