@@ -51,3 +51,6 @@ docs/data-exports/
 # since 10.7 group 1, so they appear on every typecheck run. Build output.
 *.tsbuildinfo
 .eslint-baseline-report.json
+
+# throwaway probe output from the evidence harness
+/e2e-evidence/scratch/
