@@ -45,25 +45,105 @@ function isSafePublicHttpUrl(raw: string): boolean {
   return true;
 }
 
+/**
+ * The caller's school, for a caller who may be a student.
+ *
+ * `getCallerSchoolId` reads `profiles.school_id` and nothing else, and that
+ * column is NULL on 44 of 64 accounts — including **40 of the 52 student
+ * accounts**, measured 2026-09-07. Widening the role gate without this would
+ * have swapped one 403 for another: `insufficient_role` becomes
+ * `No school context for caller` for three students in four, which is the same
+ * feature still not working with a new message.
+ *
+ * The order is the one the app itself uses (`useAcademicContext`: "Prefer
+ * portal-bound school (students.school_id) over profile fallback — never invent
+ * a tenant"), inverted only in that `profiles` is tried first here to keep every
+ * existing staff caller resolving byte-for-byte as before:
+ *
+ *   1. profiles.school_id      — what every staff caller has today
+ *   2. students.school_id      — authoritative for a student; it is the row the
+ *                                student portal is bound to
+ *   3. memberships.school_id   — the active membership, for an account with
+ *                                neither of the above
+ *
+ * NOTHING IS INVENTED. If all three are silent the caller is refused, exactly
+ * as before. A guessed tenant here would bill the wrong school and hand a
+ * student another school's board.
+ *
+ * Kept local rather than pushed into `_shared/requireRole.ts` deliberately:
+ * that module is snapshotted into all 18 deployed functions, and changing it
+ * would report drift against every one of them for a fix that only this
+ * function needs.
+ */
+async function resolveSchoolId(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<string | null> {
+  const fromProfile = await getCallerSchoolId(userId);
+  if (fromProfile) return fromProfile;
+
+  const { data: student } = await admin
+    .from("students")
+    .select("school_id")
+    .eq("user_id", userId)
+    .not("school_id", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (student?.school_id) return student.school_id as string;
+
+  const { data: membership } = await admin
+    .from("memberships")
+    .select("school_id")
+    .eq("account_id", userId)
+    .eq("status", "active")
+    .not("school_id", "is", null)
+    .limit(1)
+    .maybeSingle();
+  return (membership?.school_id as string | undefined) ?? null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const __auth = await requireAnyRole(req, ["teacher", "admin", "principal"]);
+  // `student` is in this list as of KNOWN_ISSUES 2, which ruled that students
+  // should reach generation: `aiPracticeQuestions.ts` is called from
+  // Class12AiSession and mistakeRecovery, both live student routes, and both
+  // were being refused by a gate that named only staff.
+  const __auth = await requireAnyRole(req, ["teacher", "admin", "principal", "student"]);
   if (!__auth.ok) return __auth.response;
-
-  const schoolId = await getCallerSchoolId(__auth.value.user.id);
-  if (!schoolId) {
-    return jsonResponse({ error: "No school context for caller" }, 403);
-  }
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  const schoolId = await resolveSchoolId(admin, __auth.value.user.id);
+  if (!schoolId) {
+    return jsonResponse({ error: "No school context for caller" }, 403);
+  }
+
+  // A STUDENT'S GENERATION IS BILLED SEPARATELY, and this is the whole reason
+  // the matched roles are read rather than ignored. Staff keep
+  // `teacher.dpp.generate_questions` byte for byte, so existing per-feature
+  // quotas and every `ai_budget_usage` row already written keep meaning what
+  // they meant. A student-triggered run gets its own feature_id so a school can
+  // cap the two independently and tell them apart afterwards -- without it, a
+  // class of students exhausting the day's units would read as the teachers
+  // having done it.
+  const isStaff = __auth.value.roles.some((r) => r !== "student");
+  const featureId = isStaff
+    ? "teacher.dpp.generate_questions"
+    : "student.dpp.generate_questions";
+
+  // Named, and used at BOTH ends. The reservation and the release have to move
+  // together or a refund silently returns the wrong amount; a literal at each
+  // site is how that drift starts.
+  const RESERVED_UNITS = 2;
+
   const { data: budgetRow, error: budgetErr } = await admin.rpc("ai_budget_check_and_reserve", {
     p_school_id: schoolId,
-    p_feature_id: "teacher.dpp.generate_questions",
-    p_units: 2,
+    p_feature_id: featureId,
+    p_units: RESERVED_UNITS,
   });
   // A budget that could not be READ is not a budget that was EXCEEDED. These
   // were one branch returning one 429, which told a teacher to wait until
@@ -89,6 +169,34 @@ Deno.serve(async (req) => {
     );
   }
 
+  // ── THE RESERVATION IS NOW HELD. Everything below must give it back ──────
+  //
+  // KNOWN_ISSUES 14: the units are taken BEFORE the provider is called, which
+  // is what makes the admission check race-free, and nothing ever returned
+  // them. A provider outage, a malformed body, a thrown exception -- each one
+  // charged the school 2 units for nothing, and a morning of provider trouble
+  // could burn a whole day's allowance without producing one question.
+  //
+  // `refund` is idempotent through `held` so no path can double-release, and it
+  // swallows its own failure on purpose: a release that fails must not turn a
+  // 400 into a 500 and hide the real reason from the caller. It is logged
+  // instead, because a silently failing refund is the defect coming back.
+  let held = true;
+  const refund = async (why: string): Promise<void> => {
+    if (!held) return;
+    held = false;
+    const { error } = await admin.rpc("ai_budget_release", {
+      p_school_id: schoolId,
+      p_feature_id: featureId,
+      p_units: RESERVED_UNITS,
+    });
+    if (error) {
+      console.error(
+        `[dpp-generate-questions] budget release failed after ${why}: ${error.message}`,
+      );
+    }
+  };
+
   try {
     const body = await req.json();
     const {
@@ -111,6 +219,7 @@ Deno.serve(async (req) => {
 
     const format = String(question_format).toLowerCase();
     if (format !== "mcq" && format !== "short" && format !== "long") {
+      await refund("an unusable question_format");
       return jsonResponse({ error: "question_format must be mcq, short or long" }, 400);
     }
 
@@ -167,12 +276,14 @@ Deno.serve(async (req) => {
         /* ignore fetch errors */
       }
     } else if (source_url) {
+      await refund("a rejected source_url");
       return jsonResponse({ error: "source_url is not allowed" }, 400);
     }
 
     const combined_source = [source_text, fetchedText].filter(Boolean).join("\n\n").slice(0, 9000);
 
     if (!topic && !combined_source) {
+      await refund("no topic, URL or source text");
       return jsonResponse({ error: "Provide a topic, URL, or source text" }, 400);
     }
 
@@ -268,7 +379,12 @@ Deno.serve(async (req) => {
       { max_tokens: Math.min(8000, Math.max(1200, n * perQuestionTokens)) },
     );
 
-    if (!result.ok) return jsonResponse({ error: result.error }, result.status);
+    // The provider path itself failed -- down, rate limited, or unparseable.
+    // This is the case the entry named and the one that actually burns budget.
+    if (!result.ok) {
+      await refund("the provider returned no usable result");
+      return jsonResponse({ error: result.error }, result.status);
+    }
 
     // Each question is stamped with the format that produced it so a caller
     // never has to infer it from which keys happen to be present.
@@ -284,6 +400,7 @@ Deno.serve(async (req) => {
       class_level: Number.isFinite(lvl) && lvl >= 6 && lvl <= 12 ? lvl : null,
     });
   } catch (err) {
+    await refund("an unhandled error");
     return jsonResponse({ error: (err as Error).message ?? "Unknown error" }, 500);
   }
 });

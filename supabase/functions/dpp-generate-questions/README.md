@@ -1,5 +1,35 @@
 # dpp-generate-questions
 
+## v15 is deployed from this directory — 2026-09-07
+
+`npm run check:edge-drift` reports **no finding of any kind** for this function:
+repo and production are the same source. Two more changes shipped in v15, both
+verified against the live project:
+
+1. **Students may call it** (KNOWN_ISSUES 2). The role gate is
+   `["teacher","admin","principal","student"]`, and a student-triggered run
+   bills `student.dpp.generate_questions` rather than the teacher line, so the
+   two are separable in `ai_budget_usage`. Staff billing is unchanged.
+
+   The gate was not the only thing in the way. `getCallerSchoolId` reads
+   `profiles.school_id`, which is NULL on 40 of the 52 student accounts, so a
+   local `resolveSchoolId` falls through `profiles` → `students.school_id` →
+   the active membership. Measured across all 52: 12 / 40 / 0, none
+   unresolvable. It is local rather than in `_shared/requireRole.ts` on purpose
+   — that module is snapshotted into all 18 deployed functions.
+
+2. **A reservation that fails is given back** (KNOWN_ISSUES 14). The 2 units are
+   reserved before the provider is called; every failure path now calls
+   `public.ai_budget_release` (`20260913000000`). `RESERVED_UNITS` is one
+   constant used at both ends so the pair cannot drift, and `refund()` is
+   idempotent and swallows its own error so a failed release never turns a 400
+   into a 500.
+
+**A live generation HAS now run from here.** A seeded student got a real MCQ
+back, so `OPENROUTER_API_KEY` is present in the deployed environment — which the
+"Not verified" section below could not say. The short/long schemas remain
+unproven; that caveat still stands.
+
 ## `index.ts` NO LONGER MATCHES deployed v12 — deliberately, as of 2026-09-06
 
 This file used to say `index.ts` was a faithful byte-for-byte copy of deployed

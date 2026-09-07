@@ -118,6 +118,47 @@ issue 3, so that drift must be resolved first.
 
 ## 2. Students cannot reach question generation at all
 
+**FIXED 2026-09-07 and verified in production. A student generated a question.**
+Deployed `dpp-generate-questions` v15. Both blockers this entry named are gone —
+issue 1 landed, and the `_shared` drift for this function was already resolved —
+and a THIRD one it did not name was found and fixed in the same change.
+
+**The blocker that was not in this entry.** `getCallerSchoolId` reads
+`profiles.school_id` and nothing else, and that column is NULL on **40 of the 52
+student accounts** (measured 2026-09-07). Widening the role gate alone would
+have swapped `403 insufficient_role` for `403 No school context for caller` for
+three students in four — the same feature still not working, with a new message.
+A local `resolveSchoolId` now falls through `profiles.school_id` →
+`students.school_id` → the active membership, which is the order
+`useAcademicContext` already uses ("never invent a tenant"). Measured across all
+52 student accounts: 12 resolve by profile, **40 by `students.school_id`**, 0 by
+membership, **0 unresolvable**. It is deliberately local rather than in
+`_shared/requireRole.ts`, which is snapshotted into all 18 deployed functions —
+changing it there would report drift against every one of them for a fix only
+this function needs.
+
+**The budget question this entry raised is answered.** A student-triggered run
+bills `student.dpp.generate_questions`; staff keep
+`teacher.dpp.generate_questions` byte for byte, so existing per-feature quotas
+and every `ai_budget_usage` row already written still mean what they meant. The
+feature_id is chosen from the roles `requireAnyRole` matched, so a
+teacher-who-is-also-a-parent bills as staff.
+
+**Verified end to end** in `e2e-evidence/known-issues.spec.ts`, two browser
+contexts because only an admin may read `ai_budget_usage`: the seeded student
+POSTs to the function and gets **200 with a real generated MCQ** — not a 403,
+not `insufficient_role`, not `No school context for caller` — and the
+`student.dpp.generate_questions` usage row appears, charged 2 units. Live
+afterwards: `student.dpp.generate_questions = 4` (two runs), while
+`teacher.dpp.generate_questions` sat unchanged at 4.
+
+A side effect worth recording: the README's "no live generation has ever been
+run through this function from here" caveat is now partly answered.
+`OPENROUTER_API_KEY` **is** present in the deployed environment — the MCQ above
+came back from the provider. The non-MCQ (short/long) schemas remain unproven.
+
+The original finding follows.
+
 `src/lib/aiPracticeQuestions.ts` is called from `Class12AiSession.tsx:121` (a
 student route, `StudentDashboard.tsx:321`) and from `mistakeRecovery.ts:212`.
 Its body and expected response match `dpp-generate-questions` exactly, so it now
@@ -630,6 +671,62 @@ Corrected in `docs/gurukul-spec-rules.md`'s clause table. Not corrected in the
 database, because that is a migration to change a comment.
 
 ## 14. `dpp-generate-questions` reserves AI budget it never releases on failure
+
+**FIXED 2026-09-07 and verified in production.** `20260913000000` adds
+`public.ai_budget_release`, the exact inverse of the reservation, and
+`dpp-generate-questions` v15 calls it on every failure path after the units are
+taken: an unusable `question_format`, a rejected `source_url`, a request with no
+topic or source, a provider that returns nothing usable, and the catch-all.
+
+The entry said fixing it "means adding one" and that inventing a budget-release
+path is a design decision. It is, so the decisions are written down rather than
+implied:
+
+- **It never inserts.** A release for a school/day with no usage row is a
+  release of something never reserved; creating the row would manufacture a
+  negative balance out of a bug elsewhere. It reports `released: false` instead.
+- **It never goes below zero.** `GREATEST(units_used - p_units, 0)`, so a double
+  release — a retry, a duplicated failure path — cannot mint credit that lets a
+  school exceed its hard limit.
+- **It is service_role only**, exactly as `ai_budget_check_and_reserve` is. A
+  function that lowers your own bill is not callable from a browser.
+- **It takes the same advisory lock** as the reservation, so a release cannot
+  interleave with a concurrent reservation's read-then-write.
+- **Nothing is retro-credited.** There is no record of which past reservations
+  failed, so any correction would be invented. From here forward only.
+
+In the function, `RESERVED_UNITS` is one constant used at both ends — the
+reserve and the release have to move together or a refund silently returns the
+wrong amount. `refund()` is idempotent through a `held` flag so no path can
+double-release, and it swallows its own failure on purpose: a release that fails
+must not turn a 400 into a 500 and hide the real reason from the caller. It logs
+instead.
+
+**Verified, and deliberately not by the happy path.** The provider answered on
+the first run, so the success branch charged 2 units — correct, but it never
+exercised the refund. The test therefore makes a second call with
+`question_format: "bogus"`, which is rejected AFTER the reservation and BEFORE
+the provider: precisely the shape this entry described.
+
+    400 {"error":"question_format must be mcq, short or long"}
+    units_used before == units_used after
+
+Live afterwards, two full suite runs later: `student.dpp.generate_questions = 4`
+— the four units from the two runs that produced questions, and nothing from the
+two that were rejected.
+
+probe27 adds 11 caller-privilege assertions: a teacher is refused EXECUTE on
+both the release and the reservation (with a control proving the probe's session
+is genuinely authenticated, so the two denials cannot pass for the wrong
+reason), reserve(3) then release(3) returns both the school and feature counters
+to where they started, a double release clamps at zero, a release for a school
+with no usage row inserts nothing, and zero units is rejected as `invalid_args`.
+
+The `embed` function noted below has the same shape and still does not release;
+it reserves 1 unit for `staff.embed.query`. Not changed here — it is a different
+deploy, and this entry's scope was the function it names.
+
+The original finding follows.
 
 `ai_budget_check_and_reserve` is called with `p_units: 2` **before** the
 generation is attempted, and there is no compensating release on any failure

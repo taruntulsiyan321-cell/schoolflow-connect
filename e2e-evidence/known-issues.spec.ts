@@ -238,3 +238,120 @@ test.describe('KNOWN_ISSUES 11 — a teacher can save to the question bank', () 
     expect(JSON.parse(await stragglers.text())).toEqual([])
   })
 })
+
+// ═════════════════════════════════════════════════════════════════════════════
+// KNOWN_ISSUES 2 + 14 — one call proves both, because they are the same call
+//
+//   2. `dpp-generate-questions` gated on ["teacher","admin","principal"], so
+//      the two STUDENT callers of `aiPracticeQuestions.ts` (Class12AiSession,
+//      mistakeRecovery — both live student routes) were refused by design. The
+//      ruling was made on 2026-09-04: students should reach it.
+//
+//  14. The 2 units are reserved BEFORE the provider is called and were never
+//      returned. A failed generation charged the school for nothing.
+//
+// A student-triggered run bills `student.dpp.generate_questions`, a feature_id
+// that did not exist before this change — so the row's mere existence proves
+// the gate admitted a student, and its `units_used` proves what happened to the
+// reservation afterwards. Two contexts are needed because only an admin or
+// principal of the school may read `ai_budget_usage`.
+// ═════════════════════════════════════════════════════════════════════════════
+test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the units are accounted for', () => {
+  test('a student is admitted, billed on their own line, and refunded if it fails', async ({ browser }, testInfo) => {
+    test.setTimeout(240000)
+    const url = envVal('VITE_SUPABASE_URL')
+    const FEATURE = 'student.dpp.generate_questions'
+    const day = new Date().toISOString().slice(0, 10)   // the function keys on UTC
+
+    const adminCtx = await browser.newContext({ storageState: authFile('admin') })
+    const adminPage = await adminCtx.newPage()
+    await adminPage.goto('/admin', { waitUntil: 'domcontentloaded' })
+    await settle(adminPage)
+    const adminH = await restHeaders(adminPage)
+
+    /** The student feature line for today, as the admin. null when no row yet. */
+    const readUnits = async (): Promise<number | null> => {
+      const res = await adminPage.request.get(
+        url + '/rest/v1/ai_budget_usage?select=units_used&period=eq.daily'
+          + '&period_key=eq.' + day + '&feature_id=eq.' + encodeURIComponent(FEATURE),
+        { headers: adminH },
+      )
+      const rows = JSON.parse(await res.text()) as Array<{ units_used: number }>
+      return rows.length > 0 ? Number(rows[0].units_used) : null
+    }
+    const before = await readUnits()
+
+    const studentCtx = await browser.newContext({ storageState: authFile('student') })
+    const studentPage = await studentCtx.newPage()
+    await studentPage.goto('/student', { waitUntil: 'domcontentloaded' })
+    await settle(studentPage)
+    const studentToken = await accessToken(studentPage)
+
+    // count:1 deliberately — the README asks that the first live run be small.
+    const res = await studentPage.request.post(url + '/functions/v1/dpp-generate-questions', {
+      headers: {
+        apikey: envVal('VITE_SUPABASE_PUBLISHABLE_KEY'),
+        Authorization: 'Bearer ' + studentToken,
+        'Content-Type': 'application/json',
+      },
+      data: { subject: 'Mathematics', topic: 'fractions', count: 1, difficulty: 'easy' },
+      timeout: 120000,
+    })
+    const status = res.status()
+    const body = await res.text()
+    testInfo.annotations.push({ type: 'dpp-response', description: status + ' ' + body.slice(0, 400) })
+
+    // ── ISSUE 2: the gate. Neither refusal may appear again. ────────────────
+    expect(status, 'a student was refused outright: ' + body).not.toBe(403)
+    expect(body).not.toContain('insufficient_role')
+    expect(body).not.toContain('No school context for caller')
+
+    const after = await readUnits()
+
+    // ── ISSUE 2, the billing line. It exists only because a student ran. ────
+    expect(after, 'no ' + FEATURE + ' usage row — the student never reached the reservation').not.toBeNull()
+
+    // ── ISSUE 14: what happened to the 2 units. ─────────────────────────────
+    // Both branches make a definite claim; neither can pass by accident.
+    const succeeded = status >= 200 && status < 300 && !/"error"/.test(body)
+    if (succeeded) {
+      expect(after, 'a successful generation must CHARGE the 2 units it used')
+        .toBe((before ?? 0) + 2)
+    } else {
+      expect(after, 'a failed generation must give the 2 units back: ' + status + ' ' + body.slice(0, 200))
+        .toBe(before ?? 0)
+    }
+
+    // ── ISSUE 14, DETERMINISTICALLY ─────────────────────────────────────────
+    //
+    // The branch above is honest but not reliable: when the provider answers,
+    // the success branch runs and the REFUND is never exercised. This second
+    // call always takes a failure path — `question_format: "bogus"` is rejected
+    // AFTER the reservation and BEFORE the provider, which is precisely the
+    // shape KNOWN_ISSUES 14 described: units taken, nothing produced.
+    const beforeBad = await readUnits()
+    const bad = await studentPage.request.post(url + '/functions/v1/dpp-generate-questions', {
+      headers: {
+        apikey: envVal('VITE_SUPABASE_PUBLISHABLE_KEY'),
+        Authorization: 'Bearer ' + studentToken,
+        'Content-Type': 'application/json',
+      },
+      data: { subject: 'Mathematics', topic: 'fractions', count: 1, question_format: 'bogus' },
+      timeout: 60000,
+    })
+    const badBody = await bad.text()
+    testInfo.annotations.push({ type: 'dpp-refund', description: bad.status() + ' ' + badBody.slice(0, 200) })
+
+    // It has to fail for the right reason — a 403 here would mean the units
+    // were never reserved and the refund assertion below would prove nothing.
+    expect(bad.status(), 'expected the format rejection, got: ' + badBody).toBe(400)
+    expect(badBody).toContain('question_format')
+
+    const afterBad = await readUnits()
+    expect(afterBad, 'the reservation was not returned after a rejected request')
+      .toBe(beforeBad)
+
+    await studentCtx.close()
+    await adminCtx.close()
+  })
+})

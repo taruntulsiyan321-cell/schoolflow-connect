@@ -103,11 +103,13 @@ export async function generateAiPracticeQuestions(opts: {
   // one it destructures, and source_url defaults to "" server-side — and returns
   // the { questions, error? } shape this function already reads.
   //
-  // KNOWN, and NOT fixed by this repoint: dpp-generate-questions gates on
-  // requireAnyRole(["teacher","admin","principal"]), so the student callers of
-  // this helper (Class12AiSession, mistakeRecovery) are refused by design. See
-  // KNOWN_ISSUES.md — widening that gate to students is a ruling, not a build
-  // decision.
+  // The gate WAS ["teacher","admin","principal"], so the student callers of this
+  // helper (Class12AiSession, mistakeRecovery) were refused by design. Fixed in
+  // deployed v15 (2026-09-07): "student" is on the role list, the school is
+  // resolved from `students.school_id` when `profiles.school_id` is NULL — 40 of
+  // 52 student accounts — and a student's run bills
+  // `student.dpp.generate_questions` rather than the teacher line. Verified with
+  // a real generation from the seeded student. KNOWN_ISSUES 2.
   const { data, error } = await invokeEdgeFunction<{ questions: AiMcq[]; error?: string }>(
     "dpp-generate-questions",
     {
