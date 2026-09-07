@@ -742,7 +742,23 @@ through `profiles.school_id`, not through the audited, expiring
 `super_admin_access_log` (0 live grants). If (a) is chosen, whether a platform
 role should reach a school without an access grant is its own question.
 
-## 18. PR #6 is not on the live branch — `e2e-evidence/` and the demo accounts
+## 18. ~~PR #6 is not on the live branch~~ — STALE
+
+**RESOLVED 2026-09-07 by the merge this entry asked for.** `e2e-evidence/`
+is on `claude/gurukul-tier1-e2e-fixes-c0b3c3` and has been the whole Tier 1
+evidence surface this session: tier1.spec, tier1-writes.spec, tier1-reads.spec,
+tier2-5 and the auth setup all run from it, 61 tests, 0 failing.
+
+Both seeded accounts work: `superadmin@wisdomcampus.com` signs in and
+`/admin` now renders for it (KNOWN_ISSUES 17), and
+`dual.role@wisdomcampus.com` switches teacher -> parent through the UI.
+
+STILL TRUE, and still unresolved: **`docs/GURUKUL-V1.md` exists on no branch**,
+local or remote. Every session since has worked from `docs/locked-decisions.md`
+and `docs/gurukul-spec-rules.md` instead. If that document exists anywhere, it
+is outside this repository.
+
+The original finding follows.
 
 **Checked 2026-09-08.** The interaction run depends on this harness.
 
