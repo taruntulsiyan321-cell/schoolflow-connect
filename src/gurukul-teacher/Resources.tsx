@@ -28,7 +28,7 @@ import {
 } from "@/academic";
 import {
   ACADEMIC_FILE_ACCEPT,
-  publicAcademicFileUrl,
+  academicFileUrl,
 } from "@/academic/storage/academicFileUpload";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -241,10 +241,27 @@ function ResourceForm({
   );
 }
 
+/** What was stored for this resource: a link, a durable bucket ref, or a path. */
+function resourceRef(r: LearningResourceRow): string | null {
+  const link = r.url?.trim();
+  if (link) return link;
+  const path = r.storagePath?.trim();
+  return path || null;
+}
+
 export default function Resources() {
   const { ctx, ready } = useAcademicContext();
   const [classes, setClasses] = useState<AssignedClass[]>([]);
   const [items, setItems] = useState<LearningResourceRow[]>([]);
+  /**
+   * Resolved hrefs by resource id, refreshed whenever the list changes.
+   *
+   * Signed URLs are fetched here rather than in the click handler: an await
+   * between the user's click and `window.open` is what a popup blocker
+   * cancels. Its own effect rather than the two fetch sites, because `reload()`
+   * also replaces `items`.
+   */
+  const [hrefs, setHrefs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -253,6 +270,18 @@ export default function Resources() {
   /** "" means every class this teacher teaches. */
   const [classFilter, setClassFilter] = useState<string>("");
   const loadedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const resolved = await Promise.all(
+        items.map(async (r) => [r.id, await academicFileUrl(resourceRef(r))] as const),
+      );
+      if (cancelled) return;
+      setHrefs(Object.fromEntries(resolved.filter(([, u]) => u) as [string, string][]));
+    })();
+    return () => { cancelled = true; };
+  }, [items]);
 
   const showFlash = (msg: string) => {
     setFlash(msg);
@@ -347,9 +376,14 @@ export default function Resources() {
   }
 
   function openResource(r: LearningResourceRow) {
-    const href = r.url || (r.storagePath ? publicAcademicFileUrl(r.storagePath) : null);
+    const href = hrefs[r.id];
     if (!href) {
-      setError("That resource has no file or link attached.");
+      // Distinguish "nothing attached" from "the signature has not landed yet".
+      setError(
+        resourceRef(r)
+          ? "That file is still being prepared — try again in a moment."
+          : "That resource has no file or link attached.",
+      );
       return;
     }
     window.open(href, "_blank", "noopener,noreferrer");

@@ -325,6 +325,60 @@ reads the class row.
 
 ## 7. `academic-files` is a public bucket with no tenancy scoping
 
+**THE CLIENT HALF IS DONE AND VERIFIED, 2026-09-07. The migration is still
+blocked** — this environment's classifier refuses changes to `storage.objects`
+policies, and per the standing instruction it was NOT retried. It needs an
+explicit go-ahead, exactly like issue 1 did.
+
+This entry listed four pieces of client work and said they "must land in the
+same change or downloads break". That was the wrong order, and doing it the
+other way round is why the fence is now a one-line migration:
+
+- `uploadAcademicFile` returns a **durable ref** (`academic-files/{uid}/{file}`)
+  in `url` instead of a public URL, matching `toDurableChatAttachmentRef`. A
+  public URL persisted into `homework.attachments` is a permanent bet that the
+  bucket stays public; every such row breaks the moment the fence lands.
+- `publicAcademicFileUrl` is replaced by **`academicFileUrl`**, async, returning
+  a signed URL for our own objects and passing external links through
+  untouched. It reads all three shapes that exist in live rows: a durable ref, a
+  bare object path (`learning_resources.storage_path`), and a legacy public URL.
+- Both `Resources.tsx` pages resolve hrefs **when the list arrives**, not on
+  click. An await between the click and `window.open` is what a popup blocker
+  cancels; the entry's "make them async" would have introduced exactly that.
+- `AttachmentUI.AttachmentList` resolves each attachment to a signed URL in
+  state, keyed by the stored ref rather than by index — this list is reordered
+  by removal, and an index-keyed cache hands one attachment another's URL.
+  Every render site the entry counted goes through this one component, student
+  and teacher alike, so the six call sites were one fix.
+
+**Why this works before AND after the fence.** `academic files read` is
+`TO authenticated USING (bucket_id = 'academic-files')`, so signing succeeds for
+every signed-in caller today. Once the fence narrows that predicate to the
+uploader's school, signing starts failing for outsiders — which is the point —
+and not one line of client code changes at that moment.
+
+**Verified.** 12 unit tests in `src/academic/storage/academicFileRef.test.ts`
+pin the ref/path parsing, including the two that would silently break things: a
+legacy public URL must resolve to its path, and an external link (YouTube,
+NCERT) must NOT, because signing it would replace a working link with a dead
+one. The live half is in `e2e-evidence/known-issues.spec.ts`, as the seeded
+teacher against the real bucket and the real policy: upload to
+`{auth.uid}/{ts}-{name}`, sign, **fetch the signed URL with no Authorization
+header at all** — the signature is the whole authority, which is what keeps it
+working once the bucket is private — assert the body matches, delete, and assert
+the object is gone.
+
+A trap worth recording, because the first run passed on it: the sign API returns
+a URL **relative to `/storage/v1`**. Fetching it unprefixed resolves against the
+app's own origin and returns the SPA's `index.html` with status 200 — a green
+assertion measuring nothing. supabase-js prefixes it; so does the test now.
+
+**What is still needed** is only the migration below, unchanged. The measured
+counts still hold: `learning_resources` 0 rows, homework attachments 0, objects
+in the bucket 1. It remains the cheapest moment this change will ever have.
+
+The original finding follows.
+
 Uploaded resources land in `academic-files`, which the student library already
 resolves through `publicAcademicFileUrl` — that pairing predates this session
 and decided the bucket.
@@ -366,8 +420,10 @@ Object keys are `{auth.uid}/{ts}-{name}` — user first, no school segment — s
 the fence goes through the uploader's profile rather than a path prefix.
 INSERT/UPDATE/DELETE already pin segment 1 to `auth.uid()` and stay untouched.
 
-**The client work it needs**, which is NOT done and must land in the same
-change or downloads break:
+**The client work it needs** — DONE 2026-09-07, see the top of this entry. Left
+below as written, because the list is accurate about what had to change even
+though the sequencing advice ("must land in the same change") turned out to be
+the wrong way round:
 
 - `publicAcademicFileUrl` becomes async and returns a signed URL, handling
   three inputs: a bucket path, a legacy full public URL of this bucket (extract

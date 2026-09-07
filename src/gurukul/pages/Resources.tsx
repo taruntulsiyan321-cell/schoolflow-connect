@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { FileText, Video, Download, Search, Loader2, ExternalLink } from "lucide-react";
 import { ResourceService, type LearningResourceRow } from "@/academic";
-import { publicAcademicFileUrl } from "@/academic/storage/academicFileUpload";
+import { academicFileUrl } from "@/academic/storage/academicFileUpload";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
@@ -17,16 +17,29 @@ function formatDate(iso: string | null) {
   }
 }
 
-function resolveResourceUrl(r: LearningResourceRow): string | null {
-  if (r.url?.trim()) return r.url.trim();
-  if (r.storagePath?.trim()) return publicAcademicFileUrl(r.storagePath);
-  return null;
+/**
+ * What was STORED for this resource — a link, a durable bucket ref, or a bare
+ * object path. Sync, because the render needs to know whether a row is openable
+ * at all without waiting on a signature.
+ */
+function resourceRef(r: LearningResourceRow): string | null {
+  const link = r.url?.trim();
+  if (link) return link;
+  const path = r.storagePath?.trim();
+  return path || null;
 }
 
 export default function Resources() {
   const { ctx, ready, classId } = useAcademicContext();
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<LearningResourceRow[]>([]);
+  /**
+   * Resolved hrefs by resource id. Signed URLs are fetched when the LIST
+   * arrives, not on click: `academicFileUrl` is async, and resolving inside the
+   * handler would put an await between the user's click and `window.open`,
+   * which is exactly what a popup blocker cancels.
+   */
+  const [hrefs, setHrefs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate([classId]);
 
@@ -41,7 +54,13 @@ export default function Resources() {
       beginLoading(setLoading);
       try {
         const list = await ResourceService.listForStudent(ctx, { classId: classId ?? null });
-        if (!cancelled) setRows(list);
+        if (cancelled) return;
+        setRows(list);
+        const resolved = await Promise.all(
+          list.map(async (r) => [r.id, await academicFileUrl(resourceRef(r))] as const),
+        );
+        if (cancelled) return;
+        setHrefs(Object.fromEntries(resolved.filter(([, u]) => u) as [string, string][]));
       } catch (e) {
         if (!cancelled) {
           setRows([]);
@@ -68,12 +87,18 @@ export default function Resources() {
   );
 
   const openResource = (r: LearningResourceRow) => {
-    const url = resolveResourceUrl(r);
+    const url = hrefs[r.id];
     if (url) {
       window.open(url, "_blank", "noopener,noreferrer");
       return;
     }
-    toast.info("No download link available for this material yet.");
+    // A row WITH a ref whose signature has not landed is a different state from
+    // a row with nothing attached, and saying so beats one message for both.
+    toast.info(
+      resourceRef(r)
+        ? "That file is still being prepared — try again in a moment."
+        : "No download link available for this material yet.",
+    );
   };
 
   return (
@@ -98,7 +123,7 @@ export default function Resources() {
           <div className="space-y-2">
             {filtered.map((r) => {
               const col = subjectColor[r.subject] ?? "#78788c";
-              const hasLink = Boolean(resolveResourceUrl(r));
+              const hasLink = Boolean(resourceRef(r));
               return (
                 <button
                   key={r.id}

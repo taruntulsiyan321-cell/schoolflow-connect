@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FileText,
   FileImage,
@@ -15,6 +15,7 @@ import {
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import {
   ACADEMIC_FILE_ACCEPT,
+  academicFileUrl,
   attachmentFromLink,
   fileKindFromName,
   formatFileSize,
@@ -54,6 +55,32 @@ export function AttachmentList({
   emptyLabel?: string;
   dense?: boolean;
 }) {
+  /**
+   * `a.url` is a DURABLE REF, not a usable URL.
+   *
+   * `uploadAcademicFile` stores `academic-files/{uid}/{file}` so a row does not
+   * bake in the assumption that the bucket is public (KNOWN_ISSUES 7). Rendering
+   * that straight into `href`/`src` would produce a dead link and a broken
+   * image, so each one is resolved to a signed URL here.
+   *
+   * Keyed by the stored ref, not by index: this list is reordered by removal,
+   * and an index-keyed cache would hand one attachment another's URL.
+   * `academicFileUrl` passes external links through unchanged, so a link
+   * attachment costs nothing and needs no special case.
+   */
+  const [resolved, setResolved] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const pairs = await Promise.all(
+        items.map(async (a) => [a.url, await academicFileUrl(a.url)] as const),
+      );
+      if (cancelled) return;
+      setResolved(Object.fromEntries(pairs.filter(([, u]) => u) as [string, string][]));
+    })();
+    return () => { cancelled = true; };
+  }, [items]);
+
   if (!items.length) {
     return <div className="text-[10px] text-muted-foreground">{emptyLabel}</div>;
   }
@@ -63,15 +90,19 @@ export function AttachmentList({
         const kind = fileKindFromName(a.name, a.mimeType);
         const size = formatFileSize(a.sizeBytes);
         const isImage = kind === "image";
+        // The raw ref while the signature is in flight: for a legacy public URL
+        // it already works, and for a durable ref it is a visibly broken link
+        // rather than a silently missing one.
+        const href = resolved[a.url] ?? a.url;
         return (
           <div
             key={`${a.url}-${i}`}
             className="flex items-center gap-2 p-2 rounded-xl bg-muted border border-border"
           >
             {isImage ? (
-              <a href={a.url} target="_blank" rel="noreferrer" className="shrink-0">
+              <a href={href} target="_blank" rel="noreferrer" className="shrink-0">
                 <img
-                  src={a.url}
+                  src={href}
                   alt=""
                   className="w-10 h-10 rounded-lg object-cover border border-border"
                 />
@@ -88,7 +119,7 @@ export function AttachmentList({
               </div>
             </div>
             <a
-              href={a.url}
+              href={href}
               target="_blank"
               rel="noreferrer"
               className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80"

@@ -355,3 +355,91 @@ test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the uni
     await adminCtx.close()
   })
 })
+
+// ═════════════════════════════════════════════════════════════════════════════
+// KNOWN_ISSUES 7 — the client half, landed ahead of the fence
+//
+// The fence itself (make `academic-files` private, scope the read policy to the
+// uploader's school) is BLOCKED: this environment's safety classifier refuses
+// migrations that rewrite `storage.objects` policies, and it is not retried
+// here. What that fence needed first was for the app to stop depending on
+// public URLs — rows storing `https://…/object/public/…` would all break the
+// instant the bucket turned private.
+//
+// So uploads now store a durable ref and every read resolves a SIGNED url. That
+// works both before and after the fence, which is what makes the fence a
+// one-line migration instead of a migration plus a scramble.
+//
+// This test proves the mechanism against the live bucket and the live policy,
+// as a real teacher: upload -> sign -> fetch -> delete. The pure ref/path
+// parsing is covered in src/academic/storage/academicFileRef.test.ts.
+// ═════════════════════════════════════════════════════════════════════════════
+test.describe('KNOWN_ISSUES 7 — a teacher can sign and fetch their own academic file', () => {
+  test.use({ storageState: authFile('teacher') })
+
+  test('upload, sign, fetch, delete — all as the caller', async ({ page }) => {
+    test.setTimeout(120000)
+    await page.goto('/teacher/resources', { waitUntil: 'domcontentloaded' })
+    await settle(page)
+
+    const url = envVal('VITE_SUPABASE_URL')
+    const anon = envVal('VITE_SUPABASE_PUBLISHABLE_KEY')
+    const token = await accessToken(page)
+    const uid = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf8')).sub as string
+    const auth = { apikey: anon, Authorization: 'Bearer ' + token }
+
+    // The path shape `uploadAcademicFile` writes: {auth.uid}/{ts}-{name}.
+    // The INSERT policy pins segment 1 to auth.uid(), so any other shape is
+    // refused — which also means a passing upload proves the shape is right.
+    const objectPath = uid + '/' + Date.now() + '-e2e-signed-url-probe.txt'
+    const body = 'evidence for KNOWN_ISSUES 7\n'
+
+    const up = await page.request.post(url + '/storage/v1/object/academic-files/' + objectPath, {
+      headers: { ...auth, 'Content-Type': 'text/plain' },
+      data: body,
+    })
+    expect(up.status(), 'upload failed: ' + (await up.text())).toBe(200)
+
+    try {
+      // ── The signing the client now does on every read ────────────────────
+      const sign = await page.request.post(
+        url + '/storage/v1/object/sign/academic-files/' + objectPath,
+        { headers: { ...auth, 'Content-Type': 'application/json' }, data: { expiresIn: 3600 } },
+      )
+      const signBody = await sign.text()
+      expect(sign.status(), 'signing failed: ' + signBody).toBe(200)
+      const signedURL = (JSON.parse(signBody) as { signedURL: string }).signedURL
+      expect(signedURL, 'no signedURL in ' + signBody).toBeTruthy()
+      expect(signedURL).toContain('token=')
+      // The API returns a path relative to /storage/v1, not an absolute URL —
+      // supabase-js prefixes it, and so must this. Without the prefix the GET
+      // below resolves against the app's own origin and cheerfully returns the
+      // SPA's index.html with status 200: a green assertion measuring nothing.
+      const absolute = /^https?:/i.test(signedURL)
+        ? signedURL
+        : url + '/storage/v1' + (signedURL.startsWith('/') ? '' : '/') + signedURL
+
+      // ── ...and it has to actually FETCH, with no session ─────────────────
+      // A signed URL that cannot be downloaded would pass every check above
+      // and still leave every attachment broken. This is deliberately sent
+      // WITHOUT the Authorization header: the signature is the whole authority,
+      // which is what keeps it working once the bucket is private.
+      const fetched = await page.request.get(absolute)
+      expect(fetched.status(), 'signed URL did not fetch').toBe(200)
+      expect(await fetched.text()).toBe(body)
+    } finally {
+      const del = await page.request.delete(
+        url + '/storage/v1/object/academic-files/' + objectPath, { headers: auth },
+      )
+      expect([200, 204]).toContain(del.status())
+    }
+
+    // Assert the cleanup: the object must be gone, not merely reported deleted.
+    const after = await page.request.post(url + '/storage/v1/object/list/academic-files', {
+      headers: { ...auth, 'Content-Type': 'application/json' },
+      data: { prefix: uid + '/', limit: 100 },
+    })
+    const names = (JSON.parse(await after.text()) as Array<{ name: string }>).map((o) => o.name)
+    expect(names).not.toContain(objectPath.split('/').slice(1).join('/'))
+  })
+})
