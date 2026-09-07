@@ -17,6 +17,7 @@ import { BadgeService } from "./badgeService";
 import { ProgressionService } from "./progressionService";
 import { BattleExperienceService } from "./battleExperienceService";
 import { QuestionBankService } from "./questionBankService";
+import { CurriculumService } from "./curriculumService";
 import { AnnouncementService } from "./announcementService";
 import { LeaveService } from "./leaveService";
 import { MessageService } from "./messageService";
@@ -57,6 +58,7 @@ export const AcademicServices = {
   progression: ProgressionService,
   battle: BattleExperienceService,
   questionBank: QuestionBankService,
+  curriculum: CurriculumService,
   announcement: AnnouncementService,
   leave: LeaveService,
   message: MessageService,
@@ -80,6 +82,7 @@ export {
   ProgressionService,
   BattleExperienceService,
   QuestionBankService,
+  CurriculumService,
   AnnouncementService,
   LeaveService,
   MessageService,
@@ -124,3 +127,4 @@ export {
 } from "./workLifecycle";
 
 export type { StudentContextReadiness } from "./assertStudentContext";
+export type { CurriculumSubject, CurriculumChapter } from "./curriculumService";

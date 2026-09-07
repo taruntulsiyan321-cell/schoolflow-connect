@@ -8,6 +8,9 @@ import { defineConfig, devices } from '@playwright/test'
  * each other's files.
  *
  * Run: npm run test:e2e:evidence   (dev server must be up on :8080)
+ *
+ * `known-issues.spec.ts` is matched alongside the tier files: it verifies
+ * specific KNOWN_ISSUES fixes end to end rather than a role's surfaces.
  */
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080'
 
@@ -38,7 +41,7 @@ export default defineConfig({
     },
     {
       name: 'evidence',
-      testMatch: /tier\d(-writes|-reads)?\.spec\.ts/,
+      testMatch: /(tier\d(-writes|-reads)?|known-issues)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },

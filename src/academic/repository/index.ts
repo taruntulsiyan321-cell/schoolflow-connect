@@ -18,3 +18,4 @@ export {
   listStudentsForClass,
 } from "./teacherClassesRepository";
 export * from "./examRepository";
+export * from "./curriculumRepository";

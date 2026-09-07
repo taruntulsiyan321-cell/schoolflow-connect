@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertQuestionRowsAreKeyed,
   buildQuestionBankInsertPayload,
   type QuestionBankInsertRow,
 } from "@/academic/services/questionBankService";
@@ -89,5 +90,53 @@ describe("buildQuestionBankInsertPayload", () => {
   it("lets an explicit created_by win over the context", () => {
     const payload = buildQuestionBankInsertPayload([row({ created_by: "someone-else" })], ctx);
     expect(payload[0].created_by).toBe("someone-else");
+  });
+
+  it("carries chapter_id through to the wire", () => {
+    // Without this the builder could drop the one column the CHECK constraint
+    // requires and every test above would still pass.
+    const payload = buildQuestionBankInsertPayload(
+      [row({ chapter_id: "c0000000-0000-4000-8000-000000000001", class_level: 12 })],
+      ctx,
+    );
+    expect(payload[0].chapter_id).toBe("c0000000-0000-4000-8000-000000000001");
+  });
+});
+
+/**
+ * `question_bank_active_must_be_keyed` is
+ * `CHECK (NOT is_active OR (chapter_id IS NOT NULL AND class_level IS NOT NULL))`
+ * and `is_active` defaults TRUE. Measured as a real teacher on 2026-09-07, an
+ * insert with neither key returned:
+ *   23514 new row for relation "question_bank" violates check constraint
+ *         "question_bank_active_must_be_keyed"
+ * These pin the refusal to something a teacher can act on, and — the part that
+ * matters — pin that a properly keyed row is NOT refused.
+ */
+describe("assertQuestionRowsAreKeyed", () => {
+  const keyed = (over: Partial<QuestionBankInsertRow> = {}) =>
+    row({ chapter_id: "c0000000-0000-4000-8000-000000000001", class_level: 12, ...over });
+
+  it("accepts a fully keyed row (positive control)", () => {
+    expect(() => assertQuestionRowsAreKeyed([keyed(), keyed()])).not.toThrow();
+  });
+
+  it("refuses a row with no chapter_id", () => {
+    expect(() => assertQuestionRowsAreKeyed([keyed({ chapter_id: null })]))
+      .toThrow(/pick a chapter/i);
+  });
+
+  it("refuses a row with no class_level", () => {
+    expect(() => assertQuestionRowsAreKeyed([keyed({ class_level: null })]))
+      .toThrow(/pick a class/i);
+  });
+
+  it("names the offending row, so a 20-question batch is actionable", () => {
+    expect(() => assertQuestionRowsAreKeyed([keyed(), keyed({ chapter_id: null })]))
+      .toThrow(/Question 2/);
+  });
+
+  it("accepts an empty batch — insert short-circuits before it", () => {
+    expect(() => assertQuestionRowsAreKeyed([])).not.toThrow();
   });
 });

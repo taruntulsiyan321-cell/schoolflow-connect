@@ -5,6 +5,7 @@ import {
   type ServiceContext,
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
+import { ValidationFailedError } from "../repository/errors";
 import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import type { Json } from "@/integrations/supabase/types";
@@ -15,6 +16,13 @@ export type QuestionBankInsertRow = {
   class_level?: number | null;
   subject: string;
   chapter?: string | null;
+  /**
+   * The curriculum chapter this question belongs to. NOT optional in practice:
+   * see `assertQuestionRowsAreKeyed` — the database refuses an active row
+   * without one. It is typed optional only because the column is nullable for
+   * the 15 retired legacy rows that have no chapter.
+   */
+  chapter_id?: string | null;
   topic?: string | null;
   concept?: string | null;
   difficulty?: string;
@@ -84,6 +92,87 @@ export function buildQuestionBankInsertPayload(
 }
 
 /**
+ * The class levels an ACTIVE bank question may carry.
+ *
+ * Not a UI preference: `question_bank_class_level_check` is
+ * `CHECK (is_active = false OR (class_level IS NOT NULL AND class_level >= 6
+ * AND class_level <= 12))`. Outside this range the insert is refused `23514`,
+ * which reaches a teacher as the useless "One of the values isn't valid."
+ *
+ * IT DISAGREES WITH THE CURRICULUM TREE, and that disagreement is reported
+ * rather than resolved here. `curriculum_classes` seeds Class 5 — 4 subjects,
+ * 55 chapters — and 2,189 Class 5 questions sit in `question_bank`, every one
+ * of them INACTIVE, because this constraint is what deactivated them. Whether
+ * Class 5 belongs in the bank is a ruling about what students are served, not
+ * something to settle inside a bug fix, so it is logged in KNOWN_ISSUES and the
+ * picker offers only the levels that can actually be saved.
+ */
+export const QUESTION_BANK_CLASS_LEVELS = { min: 6, max: 12 } as const;
+
+/** True when a class level can carry an active bank question. */
+export function isSavableClassLevel(level: number | null | undefined): boolean {
+  return (
+    level != null &&
+    Number.isFinite(level) &&
+    level >= QUESTION_BANK_CLASS_LEVELS.min &&
+    level <= QUESTION_BANK_CLASS_LEVELS.max
+  );
+}
+
+/**
+ * Every question saved to the bank must be keyed to a chapter and a class.
+ *
+ * This is not a preference. `question_bank_active_must_be_keyed`
+ * (20260828160000 §4) is `CHECK (NOT is_active OR (chapter_id IS NOT NULL AND
+ * class_level IS NOT NULL))`, and `is_active` defaults TRUE — so an unkeyed row
+ * is refused by the database with `23514`, whose message names a constraint and
+ * tells a teacher nothing. Measured as a real teacher on 2026-09-07: both the
+ * "Save to bank" button and the CSV import failed with exactly that, on every
+ * attempt, because neither path had ever sent a `chapter_id`.
+ *
+ * The rule it enforces is §10.10 — "Everything downstream — mistake book,
+ * custom sessions, analysis — keys on chapter_id" — and §10.22, "Chapter is
+ * picked, never typed." A question with no chapter can never be served, so
+ * saving one is not a partial success to be tolerated; it is a row that would
+ * sit in the bank forever and reach no student.
+ *
+ * Checked here rather than only in the UI because there are two write paths and
+ * a third (an importer, a seeding script) is the obvious next one.
+ */
+export function assertQuestionRowsAreKeyed(rows: QuestionBankInsertRow[]): void {
+  const issues: { field: string; code: string; message: string }[] = [];
+  rows.forEach((r, i) => {
+    // Row numbers are 1-based: they are read by a person against a list.
+    const at = `Question ${i + 1}`;
+    if (!r.chapter_id) {
+      issues.push({
+        field: "chapter_id",
+        code: "chapter_required",
+        message: `${at}: pick a chapter — a question with no chapter is never served.`,
+      });
+    }
+    if (r.class_level == null) {
+      issues.push({
+        field: "class_level",
+        code: "class_required",
+        message: `${at}: pick a class — it is what keeps a Class 6 student off Class 12 content.`,
+      });
+    } else if (!isSavableClassLevel(r.class_level)) {
+      // Named, not `>= 6 && <= 12` inline: the bound is the database's, and it
+      // has one home so a widening ruling changes one line.
+      issues.push({
+        field: "class_level",
+        code: "class_out_of_range",
+        message:
+          `${at}: the question bank holds Class ${QUESTION_BANK_CLASS_LEVELS.min}` +
+          `–${QUESTION_BANK_CLASS_LEVELS.max} only.`,
+      });
+    }
+  });
+  if (issues.length > 0) throw new ValidationFailedError(issues);
+}
+
+/**
  * QuestionBankService — teacher/admin bank writes go through AE (not raw UI inserts).
  */
 export const QuestionBankService = {
@@ -110,6 +199,7 @@ export const QuestionBankService = {
   ): Promise<{ count: number }> {
     assertCanOwn(ctx, "question");
     if (!rows.length) return { count: 0 };
+    assertQuestionRowsAreKeyed(rows);
 
     const payload = buildQuestionBankInsertPayload(rows, ctx);
 

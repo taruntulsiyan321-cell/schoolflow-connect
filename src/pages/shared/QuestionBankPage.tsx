@@ -1,6 +1,13 @@
 ﻿import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicContext, QuestionBankService } from "@/academic";
+import {
+  useAcademicContext,
+  QuestionBankService,
+  CurriculumService,
+  isSavableClassLevel,
+  type CurriculumSubject,
+  type CurriculumChapter,
+} from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,31 +18,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Database, Upload, Check, Trash2, Library, Target, Brain, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import { normalizeIncomingAcademicTerm, presentAcademicLabel } from "@/lib/academicPresentation";
+import { normalizeIncomingAcademicTerm } from "@/lib/academicPresentation";
 import { fixUtf8Content } from "@/lib/utf8Text";
 import { supabase } from "@/integrations/supabase/client";
 import "@/pages/teacher/teacher-premium.css";
 import { toErrorMessage } from "@/lib/presentation";
 import { readEdgeFunctionError } from "@/lib/edgeFunctionError";
 
-/** Radix forbids an empty SelectItem value; this stands in for "no class filter". */
-const ANY_CLASS = "any";
-
-const SUBJECTS = [
-  "Mathematics",
-  "Science",
-  "Physics",
-  "Chemistry",
-  "Biology",
-  "English",
-  "Hindi",
-  "Social Studies",
-  "General Knowledge",
-  "Computer Science",
-  "Economics",
-  "Accountancy",
-  "Business Studies",
-];
+/**
+ * Class, subject and chapter all come from the curriculum tree now — §10.22,
+ * "Chapter is picked, never typed."
+ *
+ * What used to be here was a hardcoded SUBJECTS list and a free-text chapter
+ * box, and it made this screen unable to save at all: `question_bank` refuses
+ * an active row with no `chapter_id` (`question_bank_active_must_be_keyed`),
+ * and a typed chapter name is not a `chapter_id`. The list also disagreed with
+ * the seeded curriculum in both directions — it offered Computer Science,
+ * Social Studies and General Knowledge, which no class teaches, and omitted
+ * Social Science and Environmental Studies, which 5,112 bank questions use.
+ *
+ * The "Any" class option went with it. It could not survive a save either:
+ * the same constraint requires `class_level`, and this is a creation screen,
+ * not a filter.
+ */
 const DIFFS = ["easy", "medium", "hard"];
 
 type DraftQ = {
@@ -51,18 +56,25 @@ export default function QuestionBankPage() {
   const { ctx, ready: academicReady } = useAcademicContext();
   const [tab, setTab] = useState("generate");
 
-  // shared meta
-  const [subject, setSubject] = useState("Mathematics");
-  /**
-   * "" means "any class". Radix reserves the empty string for "clear the
-   * selection", and rendering `<SelectItem value="">` throws — which used to
-   * white-screen this whole page. The sentinel below keeps "any" expressible
-   * in the dropdown while the state stays "" for every downstream consumer
-   * (`classLevel ? Number(classLevel) : null`).
-   */
+  // shared meta — every one of these is a curriculum key, not a label
   const [classLevel, setClassLevel] = useState<string>("10");
-  const [chapter, setChapter] = useState("");
+  const [subject, setSubject] = useState("");
+  const [chapterId, setChapterId] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
+
+  // the curriculum tree, one level at a time
+  const [classLevels, setClassLevels] = useState<number[]>([]);
+  const [subjects, setSubjects] = useState<CurriculumSubject[]>([]);
+  const [chapters, setChapters] = useState<CurriculumChapter[]>([]);
+  const [subjectsBusy, setSubjectsBusy] = useState(false);
+  const [chaptersBusy, setChaptersBusy] = useState(false);
+  const treeBusy = subjectsBusy || chaptersBusy;
+
+  const subjectIds = subjects.find((s) => s.name === subject)?.ids ?? [];
+  const subjectKey = subjectIds.join(",");
+  const chapter = chapters.find((c) => c.id === chapterId)?.name ?? "";
+  /** Nothing may be saved until the row can satisfy the keying constraint. */
+  const keyed = Boolean(classLevel && subject && chapterId);
 
   // AI generation
   const [topic, setTopic] = useState("");
@@ -80,6 +92,90 @@ export default function QuestionBankPage() {
   // Bank summary
   const [summary, setSummary] = useState<{ subject: string; count: number }[]>([]);
   const [total, setTotal] = useState(0);
+
+  // Class levels the curriculum actually covers. Read, not hardcoded: the old
+  // dropdown offered 6-12 while the tree runs 5-12, so Class 5 was unreachable.
+  useEffect(() => {
+    if (!academicReady || !ctx) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        // Only the levels the bank will actually accept. The curriculum tree
+        // seeds Class 5 and `question_bank_class_level_check` refuses it, so
+        // offering it would put a chapter list in front of a teacher whose
+        // every save is then rejected as "One of the values isn't valid."
+        const levels = (await CurriculumService.listClassLevels(ctx)).filter(isSavableClassLevel);
+        if (cancelled) return;
+        setClassLevels(levels);
+        // Keep the current pick if the tree has it; otherwise fall to the first
+        // real level rather than leaving a value nothing can resolve.
+        setClassLevel((prev) =>
+          prev && levels.includes(Number(prev)) ? prev : String(levels[0] ?? ""),
+        );
+      } catch (e) {
+        if (!cancelled) toast.error(toErrorMessage(e, "Could not load the curriculum"));
+      }
+    })();
+    return () => { cancelled = true; };
+    // `ctx` itself is the dep, not `ctx?.schoolId`: useAcademicContext memoises
+    // it on primitives, so its identity is stable, and keying on the whole thing
+    // means a role or class change reloads the tree instead of being missed.
+  }, [academicReady, ctx]);
+
+  // Subjects for the chosen class.
+  //
+  // The list is EMPTIED first, not replaced on arrival. Class 6 does not teach
+  // Biology; leaving Class 10's subjects on screen while the new ones load lets
+  // a teacher pick one that is about to be replaced under them — which is
+  // exactly what happened: a save recorded English after Biology was clicked.
+  // An empty list disables the control, so there is nothing to mis-click.
+  useEffect(() => {
+    if (!academicReady || !ctx || !classLevel) { setSubjects([]); return; }
+    let cancelled = false;
+    setSubjects([]);
+    setSubjectsBusy(true);
+    void (async () => {
+      try {
+        const rows = await CurriculumService.listSubjects(ctx, Number(classLevel));
+        if (cancelled) return;
+        setSubjects(rows);
+        setSubject((prev) => (rows.some((r) => r.name === prev) ? prev : rows[0]?.name ?? ""));
+      } catch (e) {
+        if (!cancelled) toast.error(toErrorMessage(e, "Could not load subjects"));
+      } finally {
+        if (!cancelled) setSubjectsBusy(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [academicReady, ctx, classLevel]);
+
+  // Chapters for the chosen subject. Keyed on the joined id list, not the array
+  // itself: a fresh array every render would re-fetch forever.
+  useEffect(() => {
+    if (!academicReady || !ctx || !subjectKey) { setChapters([]); setChapterId(""); return; }
+    let cancelled = false;
+    // Same reason as above, and it matters more here: a chapter belonging to a
+    // subject the teacher has moved off would key the question to the wrong
+    // place, and nothing downstream could tell.
+    setChapters([]);
+    setChapterId("");
+    setChaptersBusy(true);
+    void (async () => {
+      try {
+        const rows = await CurriculumService.listChapters(ctx, subjectKey.split(","));
+        if (cancelled) return;
+        setChapters(rows);
+        // A chapter is never carried across subjects — it would key the question
+        // to a chapter of a subject the teacher is no longer writing for.
+        setChapterId((prev) => (rows.some((r) => r.id === prev) ? prev : ""));
+      } catch (e) {
+        if (!cancelled) toast.error(toErrorMessage(e, "Could not load chapters"));
+      } finally {
+        if (!cancelled) setChaptersBusy(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [academicReady, ctx, subjectKey]);
 
   const loadSummary = async () => {
     if (!academicReady || !ctx) {
@@ -116,7 +212,7 @@ export default function QuestionBankPage() {
       // (TeacherApp.tsx:298), which is the role that function gates on.
       const { data, error } = await supabase.functions.invoke("dpp-generate-questions", {
         body: {
-          topic: topic.trim(), subject, chapter: chapter.trim(),
+          topic: topic.trim(), subject, chapter,
           difficulty, count, source_text: sourceText.trim(), source_url: url.trim(),
           // The screen has always had a class, and never sent it. The function
           // prompted for a hardcoded "CBSE Class 12" regardless, so a teacher
@@ -161,11 +257,17 @@ export default function QuestionBankPage() {
     const chosen = drafts.filter((d) => d.include && d.question.trim() && d.options.filter(Boolean).length >= 2);
     if (chosen.length === 0) return toast.error("Nothing selected to save");
     if (!academicReady || !ctx) return toast.error("Academic context not ready");
+    if (!keyed) return toast.error("Pick a class, subject and chapter first");
     setSaving(true);
     const rows = chosen.map((d) => ({
-      class_level: classLevel ? Number(classLevel) : null,
-      subject: presentAcademicLabel(subject, "subject") || subject,
-      chapter: chapter.trim() ? normalizeIncomingAcademicTerm(chapter, "chapter") : null,
+      class_level: Number(classLevel),
+      chapter_id: chapterId,
+      // The curriculum's own spelling, stored verbatim. NOT run through
+      // `presentAcademicLabel`: the text columns are what `listSummary` groups
+      // by and what the legacy text lookups match on, so they have to agree
+      // with the tree the id points at, character for character.
+      subject,
+      chapter,
       topic: topic.trim() ? normalizeIncomingAcademicTerm(topic, "topic") : null,
       concept: topic.trim() ? normalizeIncomingAcademicTerm(topic, "concept") : null,
       difficulty,
@@ -188,7 +290,10 @@ export default function QuestionBankPage() {
   };
 
   const importCsv = async () => {
-    const { rows, skipped } = parseCsv(csv, { subject, classLevel, chapter, difficulty, userId: user?.id ?? null });
+    if (!keyed) return toast.error("Pick a class, subject and chapter first");
+    const { rows, skipped } = parseCsv(csv, {
+      subject, classLevel, chapter, chapterId, difficulty, userId: user?.id ?? null,
+    });
     const skipSummary = summarizeSkippedRows(skipped);
     if (rows.length === 0) {
       return toast.error(
@@ -215,39 +320,54 @@ export default function QuestionBankPage() {
     }
   };
 
+  // Class -> Subject -> Chapter, each list narrowed by the one before it.
+  // The order matters: a chapter only means anything inside a subject, and a
+  // subject only inside a class, so the tree is walked in that order.
   const metaBar = (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div>
-        <Label className="text-xs">Subject</Label>
-        <Select value={subject} onValueChange={setSubject}>
-          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-          <SelectContent>{SUBJECTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-        </Select>
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div>
+          <Label className="text-xs">Class</Label>
+          <Select value={classLevel} onValueChange={setClassLevel}>
+            <SelectTrigger className="h-9"><SelectValue placeholder="Class" /></SelectTrigger>
+            <SelectContent>
+              {classLevels.map((c) => <SelectItem key={c} value={String(c)}>Class {c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Subject</Label>
+          <Select value={subject} onValueChange={setSubject} disabled={subjectsBusy || subjects.length === 0}>
+            <SelectTrigger className="h-9"><SelectValue placeholder="Subject" /></SelectTrigger>
+            <SelectContent>
+              {subjects.map((s) => <SelectItem key={s.name} value={s.name}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Chapter</Label>
+          <Select value={chapterId} onValueChange={setChapterId} disabled={chaptersBusy || chapters.length === 0}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={chaptersBusy ? "Loading…" : chapters.length === 0 ? "No chapters" : "Pick a chapter"} />
+            </SelectTrigger>
+            <SelectContent>
+              {chapters.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Difficulty</Label>
+          <Select value={difficulty} onValueChange={setDifficulty}>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>{DIFFS.map((d) => <SelectItem key={d} value={d} className="capitalize">{d}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
       </div>
-      <div>
-        <Label className="text-xs">Class</Label>
-        <Select
-          value={classLevel || ANY_CLASS}
-          onValueChange={(v) => setClassLevel(v === ANY_CLASS ? "" : v)}
-        >
-          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ANY_CLASS}>Any</SelectItem>
-            {[6, 7, 8, 9, 10, 11, 12].map((c) => <SelectItem key={c} value={String(c)}>Class {c}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
-        <Label className="text-xs">Chapter</Label>
-        <Input className="h-9" value={chapter} onChange={(e) => setChapter(e.target.value)} placeholder="Optional" />
-      </div>
-      <div>
-        <Label className="text-xs">Difficulty</Label>
-        <Select value={difficulty} onValueChange={setDifficulty}>
-          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-          <SelectContent>{DIFFS.map((d) => <SelectItem key={d} value={d} className="capitalize">{d}</SelectItem>)}</SelectContent>
-        </Select>
-      </div>
+      {!keyed && !treeBusy && (
+        <p className="text-xs text-muted-foreground" data-testid="qb-keying-hint">
+          Pick a class, subject and chapter — a question saves against a chapter, not a typed label.
+        </p>
+      )}
     </div>
   );
   const topSubject = summary[0]?.subject ?? subject;
@@ -281,7 +401,7 @@ export default function QuestionBankPage() {
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <BankMetric icon={<Database className="w-5 h-5" />} label="Question Pool" value={total} sub="ready to assign" />
         <BankMetric icon={<Brain className="w-5 h-5" />} label="Top Subject" value={topSubject} sub="largest pool" />
-        <BankMetric icon={<Target className="w-5 h-5" />} label="Class" value={classLevel ? `Class ${classLevel}` : "Any"} sub="current filter" />
+        <BankMetric icon={<Target className="w-5 h-5" />} label="Class" value={classLevel ? `Class ${classLevel}` : "—"} sub={chapter || "pick a chapter"} />
         <BankMetric icon={<SlidersHorizontal className="w-5 h-5" />} label="Mode" value={tab === "generate" ? "Generate" : "Import"} sub="creation workflow" />
       </div>
 
@@ -308,8 +428,8 @@ export default function QuestionBankPage() {
       <Card className="tp-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
-            <p className="tp-label">Question filters</p>
-            <h3 className="tp-display text-xl mt-1">Choose subject, chapter, concept level</h3>
+            <p className="tp-label">Question keying</p>
+            <h3 className="tp-display text-xl mt-1">Pick the class, subject and chapter</h3>
           </div>
           <Badge variant="outline" className="rounded-full">Assignment ready</Badge>
         </div>
@@ -354,7 +474,7 @@ export default function QuestionBankPage() {
             <Card className="tp-card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-sm">{drafts.filter((d) => d.include).length} of {drafts.length} selected</span>
-                <Button size="sm" onClick={saveDrafts} disabled={saving}>
+                <Button size="sm" onClick={saveDrafts} disabled={saving || !keyed}>
                   <Check className="w-4 h-4 mr-1.5" /> {saving ? "Saving…" : "Save to bank"}
                 </Button>
               </div>
@@ -403,7 +523,7 @@ export default function QuestionBankPage() {
             </div>
             <p className="text-xs text-muted-foreground">
               One question per line. Columns: <code className="bg-muted px-1 rounded">question, optionA, optionB, optionC, optionD, correctIndex(0-3), explanation</code>.
-              Subject / class / chapter / difficulty above are applied to all rows. A header row is auto-skipped.
+              Class / subject / chapter / difficulty above are applied to all rows. A header row is auto-skipped.
             </p>
             <Textarea
               value={csv}
@@ -412,7 +532,7 @@ export default function QuestionBankPage() {
               className="font-mono text-xs"
               placeholder={`What is 2+2?,2,3,4,5,2,Basic addition\nCapital of India?,Mumbai,New Delhi,Chennai,Kolkata,1,New Delhi is the capital`}
             />
-            <Button size="sm" onClick={importCsv} disabled={csvBusy || !csv.trim()}>
+            <Button size="sm" onClick={importCsv} disabled={csvBusy || !csv.trim() || !keyed}>
               <Upload className="w-4 h-4 mr-1.5" /> {csvBusy ? "Importing…" : "Import to bank"}
             </Button>
           </Card>
@@ -440,9 +560,10 @@ function BankMetric({ icon, label, value, sub }: { icon: ReactNode; label: strin
 type SkippedRow = { line: number; reason: string };
 
 type CsvQuestionRow = {
-  class_level: number | null;
+  class_level: number;
+  chapter_id: string;
   subject: string;
-  chapter: string | null;
+  chapter: string;
   difficulty: string;
   question: string;
   options: string[];
@@ -455,7 +576,14 @@ type CsvQuestionRow = {
 // Minimal CSV parser supporting quoted fields.
 function parseCsv(
   text: string,
-  meta: { subject: string; classLevel: string; chapter: string; difficulty: string; userId: string | null },
+  meta: {
+    subject: string;
+    classLevel: string;
+    chapter: string;
+    chapterId: string;
+    difficulty: string;
+    userId: string | null;
+  },
 ): { rows: CsvQuestionRow[]; skipped: SkippedRow[] } {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const rows: CsvQuestionRow[] = [];
@@ -481,11 +609,12 @@ function parseCsv(
       continue;
     }
     rows.push({
-      class_level: meta.classLevel ? Number(meta.classLevel) : null,
-      subject: presentAcademicLabel(meta.subject, "subject") || meta.subject,
-      chapter: meta.chapter.trim()
-        ? normalizeIncomingAcademicTerm(meta.chapter, "chapter")
-        : null,
+      // The meta bar is a curriculum pick, so these are keys, not labels — see
+      // the note in `saveDrafts` for why neither is re-normalised on the way in.
+      class_level: Number(meta.classLevel),
+      chapter_id: meta.chapterId,
+      subject: meta.subject,
+      chapter: meta.chapter,
       difficulty: meta.difficulty,
       question: fixUtf8Content(q),
       options,

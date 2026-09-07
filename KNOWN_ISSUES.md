@@ -413,7 +413,7 @@ broken image. Sequence it: client first behind a flag, or both in one release.
 
 ---
 
-## 8. Two deployed edge functions nothing calls
+## 8b. Two deployed edge functions nothing calls
 
 **Status:** Recorded, not acted on.
 
@@ -435,7 +435,7 @@ recreating, and probably should not be.
 
 ---
 
-## 9. Two shared modules drift across 7 AI functions each — found 2026-09-06, not fixed
+## 9b. Two shared modules drift across 7 AI functions each — found 2026-09-06, not fixed
 
 `_shared/modelRouter.ts` (repo `2cd4c73acfbd` / prod `2273dd3d509c`, 426 vs 278
 lines) and `_shared/reasoningBudget.ts` (repo `fb5369f99b16` / prod
@@ -473,6 +473,63 @@ ruling. Recorded so the next session does not read the gap as work.
 
 ## 11. `QuestionBankService.insert` sends a `school_id` that does not exist — found 2026-09-06
 
+**FIXED 2026-09-07, and it was worse than the entry said.** The `school_id` was
+real and is gone, but removing it only exposed the next refusal. Measured as a
+real teacher over HTTP, both shapes in one run:
+
+```
+WITH school_id     400  PGRST204  Could not find the 'school_id' column of 'question_bank'
+WITHOUT school_id  400  23514     violates check constraint "question_bank_active_must_be_keyed"
+```
+
+So the inferred consequence — **no teacher could save a question to the bank by
+either route** — was correct, and it survived the obvious one-line fix.
+
+`question_bank_active_must_be_keyed` is
+`CHECK (NOT is_active OR (chapter_id IS NOT NULL AND class_level IS NOT NULL))`
+with `is_active` defaulting TRUE. **No write path had ever sent a `chapter_id`**
+— `QuestionBankInsertRow` had no such field, and `saveDrafts` built rows with a
+free-text `chapter` string. §10.22 says why that could never work: *"Chapter is
+picked, never typed."* A typed name is not a `chapter_id`, and §10.10 keys
+everything downstream — mistake book, custom sessions, analysis — on the id.
+
+**What changed.** The meta bar is now Class → Subject → Chapter, each list read
+from the curriculum tree and narrowed by the one before it
+(`CurriculumService` / `curriculumRepository`, new). The picked chapter's id
+goes on every row, its name into the legacy `chapter` text column, and the
+subject is stored with the curriculum's own spelling so the text columns agree
+with the id. `assertQuestionRowsAreKeyed` refuses an unkeyed row in the service
+with a message naming the row and what to pick, so a 23514 never reaches a
+teacher as "One of the values isn't valid."
+
+Three things the old screen got wrong fell out with it: the hardcoded subject
+list offered Computer Science, Social Studies and General Knowledge (no class
+teaches them) and omitted Social Science and Environmental Studies (5,112 bank
+questions use them); the class dropdown started at 6 while the tree starts at 5;
+and "Any" class was unsavable by construction.
+
+**Verified end to end** by `e2e-evidence/known-issues.spec.ts`, as the seeded
+teacher through the browser: a CSV import saves, the row carries the picked
+`chapter_id`, that id resolves to the chapter whose name was picked, and the
+class matches — with a negative control asserting a chapterless insert is still
+refused 23514, and both rows deleted and the deletion asserted.
+
+**Two defects found while verifying, both fixed here:**
+
+1. Switching class left the previous class's subjects on screen until the new
+   list arrived, so a click could record a subject that was about to be replaced
+   — measured: Biology clicked at Class 6, English saved. The lists are now
+   emptied before each reload, which disables the control instead of offering
+   stale options.
+2. The negative-control probe originally omitted `created_by`, so the author
+   fence refused it 42501 and the check constraint was never reached — a
+   refusal that looked right and measured nothing.
+
+**Not fixed, and NOT this entry's to decide — see issue 27.** The curriculum
+tree seeds Class 5 and the bank refuses it.
+
+The original finding follows.
+
 **Severity: high if confirmed — it would mean no teacher can save a question to
 the bank through the app at all**, by either route.
 
@@ -499,6 +556,19 @@ the key is a one-line change that should be made by whoever can watch the button
 work afterwards.
 
 ## 12. Contributed questions are student-visible immediately — `is_approved` defaults to `true`
+
+**RULED AND APPLIED by `20260907000000`; the title above is now stale.** Measured
+live 2026-09-07: `question_bank.is_approved` **defaults to `false`**, and
+`buildQuestionBankInsertPayload` no longer forces it true — a test asserts the
+key is absent from the payload so the column default is what decides.
+
+**The consequence this entry predicted is now the live state, and it is issue
+15's, not this one's:** with no approval mechanism anywhere, a teacher's
+contribution reaches no student at all. Staff still read their own through
+`qb_staff_read`, which ignores `is_approved`, so nothing is lost — it is
+parked. The 21,696 seeded questions were not touched and remain approved.
+
+The original ruling request follows.
 
 **This is a ruling request, not a defect report.**
 
@@ -533,6 +603,17 @@ Decide: (a) leave entry approved and accept cross-school visibility on save,
 accept that contributions are staff-only until one exists.
 
 ## 13. `match_question_bank`'s body cites §4.2a for a rule that lives in §10.9
+
+**FIXED — and it was already fixed when this entry was re-read on 2026-09-07.**
+`20260907000000_question_bank_approval_default.sql` rewrote the function's
+header in the same change that fixed the `is_approved` default. Verified against
+the live database, not the file: `pg_get_functiondef` now reads "§10.9,
+docs/locked-decisions.md:385. (This comment previously cited §4.2a, which is a
+different clause in a different document and governs variant generation, not
+cross-school sharing.)" No further migration is needed. The last paragraph
+below — "Not corrected in the database" — is stale.
+
+The original finding follows.
 
 Cosmetic, and recorded only because the same misattribution has now reached two
 session prompts and the database.
@@ -1075,3 +1156,39 @@ Principal panel says "Cannot mark or edit attendance" and, in the same breath,
 database always agreed — `rpc_bulk_upsert_attendance` raises "The principal
 cannot mark attendance" — so the client was promising something the server
 refuses. Both now say admin.
+
+## 27. The curriculum seeds Class 5; the question bank refuses it — RULING REQUEST
+
+**Found 2026-09-07 while fixing issue 11. Not fixed: it is a ruling, not a bug.**
+
+Two parts of the schema disagree about whether Class 5 exists.
+
+| Measured | |
+|---|---|
+| `curriculum_classes` | Class 5 seeded — 4 subjects, **55 chapters** |
+| `question_bank` rows at `class_level = 5` | **2,189** |
+| ...of those, `is_active` | **0** |
+| `question_bank_class_level_check` | `CHECK (is_active = false OR (class_level IS NOT NULL AND class_level BETWEEN 6 AND 12))` |
+
+So the constraint is what deactivated all 2,189. They are keyed, gradable and
+sitting in the table; nothing serves them, and nothing can, because activating
+one violates the check.
+
+**Why this is a ruling and not a fix.** Making Class 5 savable is one line
+(`QUESTION_BANK_CLASS_LEVELS.min`) plus a migration widening the constraint —
+but it would also make 2,189 existing questions eligible to be served to
+students, and whether the platform teaches Class 5 at all is a product decision
+with a data consequence. The opposite reading is just as consistent with what is
+live: Class 5 is seed residue and the curriculum rows should go.
+
+**What was done instead.** The question bank's class picker offers only
+`QUESTION_BANK_CLASS_LEVELS` (6–12), read from one named constant in
+`questionBankService.ts` whose comment carries this measurement. A teacher can
+no longer pick a class whose every save would be refused as "One of the values
+isn't valid." Nothing was activated, deleted or widened.
+
+**To resolve, someone has to answer:** does Gurukul serve Class 5? If yes, widen
+the constraint and decide whether the 2,189 are reactivated wholesale or
+reviewed. If no, the Class 5 curriculum rows and those questions should be
+retired together, and the chapter tree stops claiming a class that has no
+students.

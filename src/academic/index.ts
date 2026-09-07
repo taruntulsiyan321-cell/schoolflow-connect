@@ -77,6 +77,7 @@ export {
   ProgressionService,
   BattleExperienceService,
   QuestionBankService,
+  CurriculumService,
   AnnouncementService,
   LeaveService,
   MessageService,
@@ -134,6 +135,12 @@ export type { BattleCreateOpts } from "./services/battleExperienceService";
 export type { CurriculumScope } from "./services/practiceService";
 export type { PracticeSessionRow } from "./services/practiceService";
 export type { QuestionBankInsertRow } from "./services/questionBankService";
+export {
+  QUESTION_BANK_CLASS_LEVELS,
+  isSavableClassLevel,
+  assertQuestionRowsAreKeyed,
+} from "./services/questionBankService";
+export type { CurriculumSubject, CurriculumChapter } from "./services/curriculumService";
 export type {
   TeacherAnnouncementRow,
   UpsertAnnouncementInput,
