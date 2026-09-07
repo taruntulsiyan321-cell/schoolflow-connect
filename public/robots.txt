@@ -1,14 +1,15 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
+Allow: /landing.html
+Disallow: /auth
+Disallow: /login
+Disallow: /signup
+Disallow: /reset-password
+Disallow: /unauthorized
+Disallow: /student
+Disallow: /teacher
+Disallow: /parent
+Disallow: /principal
+Disallow: /admin
+
+Sitemap: https://www.gurukul.study/sitemap.xml

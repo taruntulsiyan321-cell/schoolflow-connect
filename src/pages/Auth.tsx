@@ -195,6 +195,27 @@ export default function Auth() {
   const { user, role, loading, status, signIn, requestPasswordReset, homePath, refreshAuth } = useAuth();
   const [busy, setBusy] = useState(false);
 
+  // Keep Google from ranking the login screen as the homepage.
+  useEffect(() => {
+    const prevTitle = document.title;
+    document.title = "Sign in — Gurukul";
+    let robots = document.querySelector('meta[name="robots"]');
+    const created = !robots;
+    if (!robots) {
+      robots = document.createElement("meta");
+      robots.setAttribute("name", "robots");
+      document.head.appendChild(robots);
+    }
+    const prevRobots = robots.getAttribute("content");
+    robots.setAttribute("content", "noindex, nofollow");
+    return () => {
+      document.title = prevTitle;
+      if (created) robots?.remove();
+      else if (prevRobots != null) robots?.setAttribute("content", prevRobots);
+      else robots?.removeAttribute("content");
+    };
+  }, []);
+
   /** Top-level account type — Organization is the only live path today;
    *  Individual is a disabled placeholder per the current design brief. */
   const [accountType, setAccountType] = useState<"individual" | "organization">("organization");
