@@ -3,6 +3,7 @@ import { canonicalizeConceptId, slugifyAcademicId } from "./canonicalize";
 import { CONCEPT_DISPLAY_DICTIONARY, TOKEN_DISPLAY } from "./dictionary";
 import { lookupDisplayName } from "./registry";
 import { repairUtf8Mojibake } from "@/lib/utf8MojibakeRepair";
+import { CLASS_LEVEL_PATTERN } from "@/lib/curriculumScope";
 
 const SMALL_WORDS = new Set(["a", "an", "the", "and", "or", "of", "in", "on", "to", "for", "vs", "via"]);
 
@@ -173,7 +174,7 @@ export function presentAcademicLabel(
   if (fromRegistry) return fromRegistry;
 
   if (kind === "class_level") {
-    const m = cleaned.match(/\b(6|7|8|9|10|11|12)\b/);
+    const m = cleaned.match(CLASS_LEVEL_PATTERN);
     if (m) return `Class ${m[1]}`;
   }
 

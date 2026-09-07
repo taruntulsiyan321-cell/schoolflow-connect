@@ -4,7 +4,6 @@ import {
   useAcademicContext,
   QuestionBankService,
   CurriculumService,
-  isSavableClassLevel,
   type CurriculumSubject,
   type CurriculumChapter,
 } from "@/academic";
@@ -100,11 +99,11 @@ export default function QuestionBankPage() {
     let cancelled = false;
     void (async () => {
       try {
-        // Only the levels the bank will actually accept. The curriculum tree
-        // seeds Class 5 and `question_bank_class_level_check` refuses it, so
-        // offering it would put a chapter list in front of a teacher whose
-        // every save is then rejected as "One of the values isn't valid."
-        const levels = (await CurriculumService.listClassLevels(ctx)).filter(isSavableClassLevel);
+        // Every level the curriculum holds, unfiltered. There used to be a
+        // `.filter(isSavableClassLevel)` here because the bank refused anything
+        // below Class 6; 20260914020000 removed that range, so the tree is now
+        // the only authority on which classes exist.
+        const levels = await CurriculumService.listClassLevels(ctx);
         if (cancelled) return;
         setClassLevels(levels);
         // Keep the current pick if the tree has it; otherwise fall to the first

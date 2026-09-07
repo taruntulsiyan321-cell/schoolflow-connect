@@ -10,7 +10,18 @@ export type TaxonomyKind =
 
 export type BoardId = "rbse" | "cbse" | "icse" | "other" | "both";
 
-export type ClassLevel = 6 | 7 | 8 | 9 | 10 | 11 | 12;
+/**
+ * Imported and re-exported, not re-declared. This union used to be written out
+ * here as `6 | 7 | … | 12`, which made it one of six homes for the class-level
+ * domain and silently excluded Class 5 — a class §10.9 names by hand and the
+ * seeded curriculum carries 55 chapters for. `@/lib/curriculumScope` owns the
+ * list; `ClassLevel` is derived from it, so the two can never disagree.
+ *
+ * Imported as well as re-exported because a bare `export type { X } from` does
+ * NOT bring the name into this file's scope, and the fields below use it.
+ */
+import type { ClassLevel } from "@/lib/curriculumScope";
+export type { ClassLevel };
 
 export type QuestionTypeId =
   | "mcq"

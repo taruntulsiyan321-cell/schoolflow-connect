@@ -669,7 +669,22 @@ Consequence to be aware of: prod's `modelRouter` there predates the
 Nemotron/Qwen split, so cost attribution for those seven differs again from both
 the repo and from `dpp-generate-questions`.
 
-## 10. Three academic event types are unreachable aliases — found 2026-09-06, not fixed
+## 10. ~~Three academic event types are unreachable aliases~~ — ALREADY DONE
+
+**Re-read 2026-09-07: this entry is STALE.** It says the aliases were "left in
+place rather than removed"; they were removed from `src/academic/events.ts` on
+2026-09-06, and that file's header records why. Confirmed against the live
+database rather than the code: `academic_events` holds **0** rows of any of the
+three types, ever, while the live triggers have produced
+`homework.published`, `homework.submitted`, `homework.graded`,
+`homework.updated`, `homework.archived`, `homework.deleted` and
+`homework.submission.deleted`.
+
+Note that `homework.submission.*` is not a dead namespace — `.deleted` is live.
+Only `.created` and `.graded` under it were aliases.
+
+Nothing to do. The original finding, which is still the clearest statement of
+why wiring an emitter would have been wrong, follows.
 
 `homework.assigned`, `homework.submission.created` and
 `homework.submission.graded` are declared in `src/academic/events.ts` and are
@@ -1428,7 +1443,67 @@ database always agreed — `rpc_bulk_upsert_attendance` raises "The principal
 cannot mark attendance" — so the client was promising something the server
 refuses. Both now say admin.
 
-## 27. The curriculum seeds Class 5; the question bank refuses it — RULING REQUEST
+## 27. ~~The curriculum seeds Class 5; the question bank refuses it — RULING REQUEST~~ — RULED BY THE SPEC
+
+**FIXED 2026-09-07. It was not a ruling request: §10.9 had already decided it**,
+the same way §10.20 had already decided issue 17.
+
+> "Filtering by tag is what keeps content appropriate — **a Class 5 student is
+> only ever served Class 5 content for their own board.**"
+> — §10.9, `docs/locked-decisions.md:391`
+
+The spec names Class 5 by hand, as the worked example of the whole tagging rule.
+The curriculum tree agrees: Class 5, 4 subjects, 55 chapters, seeded. Nothing
+was open.
+
+**Where the 6..12 came from.** `20260821120000` archived all 2,189 Class 5
+questions on these stated grounds:
+
+> "outside the app's ClassLevel domain (6..12, ... resolveCurriculumScope only
+> ever queries 6-12), so these 2204 rows are silently unreachable by any
+> student/teacher query. Archive (is_active=false), don't delete — these may be
+> legitimate content for a future class-5 rollout."
+
+The measurement was right and the conclusion was backwards. **The client's
+domain was the defect, not the data**, and
+`question_bank_class_level_check` then wrote the client's mistake into the
+schema. This is that rollout.
+
+**Six homes for one domain, now one.** `6|7|8|9|10|11|12` was written out
+separately in `curriculumScope.parseClassLevel`, `taxonomy/canonicalize`,
+`taxonomy/humanize`, `taxonomy/registry`, `ncertSyllabus.parseClassGrade`, and
+the `ClassLevel` union in `taxonomy/types`. A Class 5 label parsed to `null` in
+all six, so the tag filter §10.9 depends on had nothing to filter by. They all
+now derive from `CLASS_LEVELS` in `@/lib/curriculumScope`. The Roman-numeral
+branch gained `V` — and was reordered longest-first, because `X` ahead of `XII`
+reads a Class 12 label as Class 10.
+
+**The range is gone and nothing replaced it** (`20260914020000`). A range is a
+literal that drifts; the curriculum already knows which classes exist. Every
+keyed question resolves a class through `chapter_id -> chapters ->
+curriculum_subjects -> curriculum_classes.level`, so `class_level` was a
+duplicate — the two-homes shape (G9) waiting to disagree.
+`tg_question_bank_class_follows_chapter` now fills it from the chapter when
+omitted and refuses any row where the two disagree. A CHECK could not do this:
+it may not run a subquery. Adding Class 4 later is a seeding job, not a code
+change.
+
+Measured before writing it, across all 21,696 rows: 15 with no chapter, **0**
+chapters that fail to resolve, **0** rows disagreeing with their chapter, and
+2,189 of 2,189 Class 5 rows keyed to genuine Class 5 chapters.
+
+**Live after:** Class 5 `2189 active / 2189 total`. The bank went from 19,492 to
+21,681 active questions. The 15 unkeyed rows chunk 7A retired stay retired —
+§10.10 is untouched, and probe29 asserts that as a positive control.
+
+**Verified** by probe29's 7 caller assertions (260 total): a teacher saves a
+Class 5 question; omitting `class_level` fills it from the chapter; tagging a
+Class 12 chapter as Class 5 is refused with the §10.9 reason in the message; an
+unkeyed active question is still refused; no Class 5 question is left archived.
+And in the browser, the question bank's class picker now opens on Class 5 and
+the CSV import saves against it.
+
+The original finding follows.
 
 **Found 2026-09-07 while fixing issue 11. Not fixed: it is a ruling, not a bug.**
 

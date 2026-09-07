@@ -1,5 +1,6 @@
 import type { TaxonomyKind } from "./types";
 import { repairUtf8Mojibake } from "@/lib/utf8MojibakeRepair";
+import { CLASS_LEVEL_PATTERN } from "@/lib/curriculumScope";
 
 /** Collapse whitespace / punctuation into a stable slug id. */
 export function slugifyAcademicId(raw: string | null | undefined): string {
@@ -170,7 +171,7 @@ export function normalizeIncomingAcademicTerm(
     return slugifyAcademicId(trimmed);
   }
   if (kind === "class_level") {
-    const m = trimmed.match(/\b(6|7|8|9|10|11|12)\b/);
+    const m = trimmed.match(CLASS_LEVEL_PATTERN);
     return m ? m[1] : trimmed;
   }
   // subject / chapter — keep readable title; collapse inner whitespace

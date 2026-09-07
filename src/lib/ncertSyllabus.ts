@@ -1,3 +1,4 @@
+import { CLASS_LEVEL_PATTERN } from "@/lib/curriculumScope";
 /** NCERT chapter/topic allowlists by class grade (6–12). Used to limit battleground pickers. */
 
 export type NcertChapter = { chapter: string; topics: string[] };
@@ -142,7 +143,9 @@ const SUBJECT_MAP: Record<string, Record<number, NcertChapter[]>> = {
 
 export function parseClassGrade(className?: string | null): number | null {
   if (!className) return null;
-  const m = className.match(/\b(6|7|8|9|10|11|12)\b/);
+  // The pattern comes from `@/lib/curriculumScope`, which owns the class-level
+  // domain. This used to carry its own `(6|…|12)` and so could not see Class 5.
+  const m = className.match(CLASS_LEVEL_PATTERN);
   return m ? Number(m[1]) : null;
 }
 

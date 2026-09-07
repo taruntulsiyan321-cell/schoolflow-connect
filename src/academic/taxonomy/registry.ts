@@ -1,4 +1,5 @@
 import type { AcademicLabelKind, TaxonomyKind, TaxonomyTerm } from "./types";
+import { CLASS_LEVELS_ASCENDING } from "@/lib/curriculumScope";
 import { canonicalizeConceptId, slugifyAcademicId } from "./canonicalize";
 import {
   BOARD_DISPLAY,
@@ -26,12 +27,16 @@ const QUESTION_TYPES: TaxonomyTerm[] = Object.entries(QUESTION_TYPE_DISPLAY).map
   }),
 );
 
-const CLASS_LEVELS: TaxonomyTerm[] = [6, 7, 8, 9, 10, 11, 12].map((n) => ({
+// Ascending so the registry lists classes the way a person reads them. The set
+// itself comes from `@/lib/curriculumScope` — this file used to carry its own
+// `[6, 7, …, 12]` and its own widening cast, which is how Class 5 came to be
+// missing from the taxonomy while sitting in the curriculum tree.
+const CLASS_LEVEL_TERMS: TaxonomyTerm[] = CLASS_LEVELS_ASCENDING.map((n) => ({
   id: String(n),
   displayName: `Class ${n}`,
   aliases: [`${n}`, `class ${n}`, `std ${n}`],
   kind: "class_level" as const,
-  classLevel: n as 6 | 7 | 8 | 9 | 10 | 11 | 12,
+  classLevel: n,
 }));
 
 function buildRegistry(): {
@@ -41,7 +46,7 @@ function buildRegistry(): {
 } {
   const all: TaxonomyTerm[] = [
     ...BOARDS,
-    ...CLASS_LEVELS,
+    ...CLASS_LEVEL_TERMS,
     ...QUESTION_TYPES,
     ...commerceTaxonomyBundle(),
     ...scienceTaxonomyBundle(),

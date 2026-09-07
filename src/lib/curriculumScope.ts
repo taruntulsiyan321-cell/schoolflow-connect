@@ -5,6 +5,45 @@
  * science) apply only for Class 11–12 so lower classes keep age-appropriate subjects.
  */
 
+/**
+ * EVERY class level the platform teaches. ONE home for the domain.
+ *
+ * §10.9 names the smallest one explicitly: "a Class 5 student is only ever
+ * served Class 5 content for their own board." The seeded curriculum agrees —
+ * `curriculum_classes` holds Class 5 with 4 subjects and 55 chapters, and 2,189
+ * Class 5 questions sit in `question_bank`.
+ *
+ * IT USED TO BE 6–12, IN SIX PLACES: `parseClassLevel` below, the
+ * `class_level` branches of `taxonomy/canonicalize` and `taxonomy/humanize`,
+ * the `CLASS_LEVELS` array in `taxonomy/registry`,
+ * `ncertSyllabus.parseClassGrade`, and the `ClassLevel` union in
+ * `taxonomy/types` — each carrying its own literal `(6|7|8|9|10|11|12)`. A
+ * Class 5 label therefore parsed to `null` in all six, so the tag filter §10.9
+ * depends on had nothing to filter by, and `20260821120000` archived all 2,189
+ * Class 5 questions on the stated grounds that they were "outside the app's
+ * ClassLevel domain". The domain was the thing that was wrong.
+ *
+ * Ordered DESCENDING because it is joined into a regex alternation: with `\b`
+ * anchors either order matches, but longest-first is the habit that survives
+ * someone later removing the anchors.
+ */
+export const CLASS_LEVELS = [12, 11, 10, 9, 8, 7, 6, 5] as const;
+
+/** A class level the platform teaches. Derived — never re-listed. */
+export type ClassLevel = (typeof CLASS_LEVELS)[number];
+
+/** Ascending, for anything that renders the list to a person. */
+export const CLASS_LEVELS_ASCENDING: readonly ClassLevel[] =
+  [...CLASS_LEVELS].sort((a, b) => a - b);
+
+/** Built from CLASS_LEVELS so the pattern and the list cannot drift apart. */
+export const CLASS_LEVEL_PATTERN = new RegExp(`\\b(${CLASS_LEVELS.join("|")})\\b`);
+
+/** True when a number is a class level the platform teaches. */
+export function isClassLevel(n: unknown): n is ClassLevel {
+  return typeof n === "number" && (CLASS_LEVELS as readonly number[]).includes(n);
+}
+
 export const COMMERCE_SUBJECT_ALLOWLIST = [
   "Accountancy",
   "Business Studies",
@@ -71,16 +110,18 @@ export type CurriculumScope = {
   classLabel: string | null;
 };
 
-/** Parse class level from digits or senior Roman numerals (e.g. "Class-10", "Std 9", "XI-A"). */
+/** Parse class level from digits or Roman numerals (e.g. "Class-10", "Std 9", "XI-A", "V-B"). */
 export function parseClassLevel(label?: string | null): number | null {
   if (!label) return null;
   const text = String(label);
-  const m = text.match(/\b(6|7|8|9|10|11|12)\b/);
+  const m = text.match(CLASS_LEVEL_PATTERN);
   if (m) return Number(m[1]);
-  const roman = text.toUpperCase().match(/\b(XII|XI|IX|X|VIII|VII|VI)\b/);
+  // Longest-first, and it matters: with "X" ahead of "XII" the alternation
+  // matches the X in XII and a Class 12 label reads as Class 10.
+  const roman = text.toUpperCase().match(/\b(XII|XI|IX|VIII|VII|VI|X|V)\b/);
   if (!roman) return null;
   const romanLevels: Record<string, number> = {
-    VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12,
+    V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12,
   };
   return romanLevels[roman[1]] ?? null;
 }

@@ -92,32 +92,21 @@ export function buildQuestionBankInsertPayload(
 }
 
 /**
- * The class levels an ACTIVE bank question may carry.
+ * THERE IS NO CLASS-LEVEL RANGE HERE ANY MORE, and that is the fix.
  *
- * Not a UI preference: `question_bank_class_level_check` is
- * `CHECK (is_active = false OR (class_level IS NOT NULL AND class_level >= 6
- * AND class_level <= 12))`. Outside this range the insert is refused `23514`,
- * which reaches a teacher as the useless "One of the values isn't valid."
+ * This file briefly carried `QUESTION_BANK_CLASS_LEVELS = { min: 6, max: 12 }`,
+ * mirroring `question_bank_class_level_check`. Both are gone
+ * (`20260914020000`). §10.9 names Class 5 by hand — "a Class 5 student is only
+ * ever served Class 5 content for their own board" — and a hardcoded 6..12 was
+ * what archived all 2,189 Class 5 questions in the first place.
  *
- * IT DISAGREES WITH THE CURRICULUM TREE, and that disagreement is reported
- * rather than resolved here. `curriculum_classes` seeds Class 5 — 4 subjects,
- * 55 chapters — and 2,189 Class 5 questions sit in `question_bank`, every one
- * of them INACTIVE, because this constraint is what deactivated them. Whether
- * Class 5 belongs in the bank is a ruling about what students are served, not
- * something to settle inside a bug fix, so it is logged in KNOWN_ISSUES and the
- * picker offers only the levels that can actually be saved.
+ * The class a question belongs to is now decided by the CHAPTER it is keyed to:
+ * a database trigger fills `class_level` from the chapter's curriculum class and
+ * refuses any row where the two disagree. So the domain is whatever the
+ * curriculum tree holds, there is no literal to drift, and adding Class 4 later
+ * is a seeding job rather than a code change. `assertQuestionRowsAreKeyed` below
+ * therefore checks only that a class is PRESENT.
  */
-export const QUESTION_BANK_CLASS_LEVELS = { min: 6, max: 12 } as const;
-
-/** True when a class level can carry an active bank question. */
-export function isSavableClassLevel(level: number | null | undefined): boolean {
-  return (
-    level != null &&
-    Number.isFinite(level) &&
-    level >= QUESTION_BANK_CLASS_LEVELS.min &&
-    level <= QUESTION_BANK_CLASS_LEVELS.max
-  );
-}
 
 /**
  * Every question saved to the bank must be keyed to a chapter and a class.
@@ -155,19 +144,13 @@ export function assertQuestionRowsAreKeyed(rows: QuestionBankInsertRow[]): void 
       issues.push({
         field: "class_level",
         code: "class_required",
-        message: `${at}: pick a class — it is what keeps a Class 6 student off Class 12 content.`,
-      });
-    } else if (!isSavableClassLevel(r.class_level)) {
-      // Named, not `>= 6 && <= 12` inline: the bound is the database's, and it
-      // has one home so a widening ruling changes one line.
-      issues.push({
-        field: "class_level",
-        code: "class_out_of_range",
-        message:
-          `${at}: the question bank holds Class ${QUESTION_BANK_CLASS_LEVELS.min}` +
-          `–${QUESTION_BANK_CLASS_LEVELS.max} only.`,
+        message: `${at}: pick a class — it is what keeps a Class 5 student off Class 12 content.`,
       });
     }
+    // No RANGE check. Which classes exist is the curriculum tree's answer, and
+    // `tg_question_bank_class_follows_chapter` refuses any row whose class
+    // disagrees with its chapter — so a wrong class is impossible rather than
+    // merely discouraged, and a right one is never rejected for being new.
   });
   if (issues.length > 0) throw new ValidationFailedError(issues);
 }

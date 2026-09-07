@@ -1,6 +1,6 @@
 import { test, expect, freshSession } from './fixtures'
 import { authFile } from './roles'
-import type { Page } from '@playwright/test'
+import type { Browser, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 
 /**
@@ -257,20 +257,22 @@ test.describe('KNOWN_ISSUES 11 — a teacher can save to the question bank', () 
 // principal of the school may read `ai_budget_usage`.
 // ═════════════════════════════════════════════════════════════════════════════
 test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the units are accounted for', () => {
-  test('a student is admitted, billed on their own line, and refunded if it fails', async ({ browser }, testInfo) => {
-    test.setTimeout(240000)
-    const url = envVal('VITE_SUPABASE_URL')
-    const FEATURE = 'student.dpp.generate_questions'
-    const day = new Date().toISOString().slice(0, 10)   // the function keys on UTC
+  const FEATURE = 'student.dpp.generate_questions'
 
-    // Own session, same reason as the student below: `admin` is also loaded from
-    // the shared file by tier1, tier1-writes and tier3.
+  /**
+   * `admin` and `student` both get their OWN sessions rather than the shared
+   * `.auth/*.json` ones: two contexts on one stored Supabase session look like
+   * refresh-token reuse, and Supabase revokes the whole family when it sees
+   * that. Only an admin or principal of the school may read `ai_budget_usage`,
+   * so both roles are genuinely needed.
+   */
+  async function openBudgetReader(browser: Browser) {
+    const url = envVal('VITE_SUPABASE_URL')
+    const day = new Date().toISOString().slice(0, 10)   // the function keys on UTC
     const adminPage = await freshSession(browser, 'admin')
     await adminPage.goto('/admin', { waitUntil: 'domcontentloaded' })
     await settle(adminPage)
     const adminH = await restHeaders(adminPage)
-
-    /** The student feature line for today, as the admin. null when no row yet. */
     const readUnits = async (): Promise<number | null> => {
       const res = await adminPage.request.get(
         url + '/rest/v1/ai_budget_usage?select=units_used&period=eq.daily'
@@ -280,62 +282,33 @@ test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the uni
       const rows = JSON.parse(await res.text()) as Array<{ units_used: number }>
       return rows.length > 0 ? Number(rows[0].units_used) : null
     }
-    const before = await readUnits()
+    return { adminPage, readUnits }
+  }
 
-    // Its OWN session, not the shared `.auth/student.json` one. Two contexts
-    // loading the same stored Supabase session look like refresh-token reuse,
-    // and Supabase revokes the whole session family when it sees that — which
-    // took 13 student surfaces red across tier1 and tier2 in one run while the
-    // same specs passed alone. `freshSession` signs in through the real form.
+  /**
+   * THE DETERMINISTIC HALF. No provider call, so nothing here depends on how
+   * an LLM feels today.
+   *
+   * `question_format: "bogus"` is rejected AFTER the role gate, AFTER the school
+   * resolution and AFTER the budget reservation, and BEFORE the provider. So a
+   * 400 naming `question_format` proves every one of those three steps admitted
+   * a STUDENT — which is exactly KNOWN_ISSUES 2 — and the units returning to
+   * where they started proves the refund, which is KNOWN_ISSUES 14. A 403 here
+   * would mean the units were never reserved and the refund assertion would be
+   * measuring nothing, so the status is asserted before the counter.
+   */
+  test('a student is admitted, billed on their own line, and refunded when the call fails', async ({ browser }, testInfo) => {
+    test.setTimeout(180000)
+    const url = envVal('VITE_SUPABASE_URL')
+    const { adminPage, readUnits } = await openBudgetReader(browser)
+
     const studentPage = await freshSession(browser, 'student')
     await studentPage.goto('/student', { waitUntil: 'domcontentloaded' })
     await settle(studentPage)
     const studentToken = await accessToken(studentPage)
 
-    // count:1 deliberately — the README asks that the first live run be small.
+    const before = await readUnits()
     const res = await studentPage.request.post(url + '/functions/v1/dpp-generate-questions', {
-      headers: {
-        apikey: envVal('VITE_SUPABASE_PUBLISHABLE_KEY'),
-        Authorization: 'Bearer ' + studentToken,
-        'Content-Type': 'application/json',
-      },
-      data: { subject: 'Mathematics', topic: 'fractions', count: 1, difficulty: 'easy' },
-      timeout: 120000,
-    })
-    const status = res.status()
-    const body = await res.text()
-    testInfo.annotations.push({ type: 'dpp-response', description: status + ' ' + body.slice(0, 400) })
-
-    // ── ISSUE 2: the gate. Neither refusal may appear again. ────────────────
-    expect(status, 'a student was refused outright: ' + body).not.toBe(403)
-    expect(body).not.toContain('insufficient_role')
-    expect(body).not.toContain('No school context for caller')
-
-    const after = await readUnits()
-
-    // ── ISSUE 2, the billing line. It exists only because a student ran. ────
-    expect(after, 'no ' + FEATURE + ' usage row — the student never reached the reservation').not.toBeNull()
-
-    // ── ISSUE 14: what happened to the 2 units. ─────────────────────────────
-    // Both branches make a definite claim; neither can pass by accident.
-    const succeeded = status >= 200 && status < 300 && !/"error"/.test(body)
-    if (succeeded) {
-      expect(after, 'a successful generation must CHARGE the 2 units it used')
-        .toBe((before ?? 0) + 2)
-    } else {
-      expect(after, 'a failed generation must give the 2 units back: ' + status + ' ' + body.slice(0, 200))
-        .toBe(before ?? 0)
-    }
-
-    // ── ISSUE 14, DETERMINISTICALLY ─────────────────────────────────────────
-    //
-    // The branch above is honest but not reliable: when the provider answers,
-    // the success branch runs and the REFUND is never exercised. This second
-    // call always takes a failure path — `question_format: "bogus"` is rejected
-    // AFTER the reservation and BEFORE the provider, which is precisely the
-    // shape KNOWN_ISSUES 14 described: units taken, nothing produced.
-    const beforeBad = await readUnits()
-    const bad = await studentPage.request.post(url + '/functions/v1/dpp-generate-questions', {
       headers: {
         apikey: envVal('VITE_SUPABASE_PUBLISHABLE_KEY'),
         Authorization: 'Bearer ' + studentToken,
@@ -344,20 +317,102 @@ test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the uni
       data: { subject: 'Mathematics', topic: 'fractions', count: 1, question_format: 'bogus' },
       timeout: 60000,
     })
-    const badBody = await bad.text()
-    testInfo.annotations.push({ type: 'dpp-refund', description: bad.status() + ' ' + badBody.slice(0, 200) })
+    const body = await res.text()
+    testInfo.annotations.push({ type: 'dpp-refund', description: res.status() + ' ' + body.slice(0, 200) })
 
-    // It has to fail for the right reason — a 403 here would mean the units
-    // were never reserved and the refund assertion below would prove nothing.
-    expect(bad.status(), 'expected the format rejection, got: ' + badBody).toBe(400)
-    expect(badBody).toContain('question_format')
+    // ── ISSUE 2: the gate, and the two 403s that must not come back. ───────
+    expect(res.status(), 'a student was refused before reaching the format check: ' + body).toBe(400)
+    expect(body).not.toContain('insufficient_role')
+    expect(body).not.toContain('No school context for caller')
+    expect(body).toContain('question_format')
 
-    const afterBad = await readUnits()
-    expect(afterBad, 'the reservation was not returned after a rejected request')
-      .toBe(beforeBad)
+    // ── ISSUE 2: the billing line, which exists only because a student ran. ─
+    const after = await readUnits()
+    expect(after, 'no ' + FEATURE + ' usage row — the student never reached the reservation')
+      .not.toBeNull()
+
+    // ── ISSUE 14: the units taken before the failure came back. ────────────
+    // `before` is null on the very first run of the day, when the reservation
+    // creates the row; the refund then leaves it at 0, which is still "back to
+    // where it started".
+    expect(after, 'the reservation was not returned after a rejected request')
+      .toBe(before ?? 0)
 
     await studentPage.context().close()
     await adminPage.context().close()
+  })
+
+  /**
+   * THE LIVE HALF. A student really generating a question is the strongest
+   * evidence for KNOWN_ISSUES 2, and it is also the only assertion here that
+   * depends on a third-party LLM answering in time.
+   *
+   * So it is EVIDENCE, not a gate: if the provider does not answer it SKIPS
+   * with the reason stated, rather than reporting a red suite for someone
+   * else's latency. Everything it would have proved about admission and billing
+   * is already proved deterministically above; what it adds is that real
+   * questions come back. Measured at ~60-90s for count:1, and it has exceeded
+   * 120s once.
+   */
+  test('a student really generates a question (live provider)', async ({ browser }, testInfo) => {
+    test.setTimeout(300000)
+    const url = envVal('VITE_SUPABASE_URL')
+    const { adminPage, readUnits } = await openBudgetReader(browser)
+
+    const studentPage = await freshSession(browser, 'student')
+    await studentPage.goto('/student', { waitUntil: 'domcontentloaded' })
+    await settle(studentPage)
+    const studentToken = await accessToken(studentPage)
+
+    const before = await readUnits()
+    let status = 0
+    let body = ''
+    let timedOut = false
+    try {
+      // count:1 deliberately — the function's README asks that live runs be small.
+      const res = await studentPage.request.post(url + '/functions/v1/dpp-generate-questions', {
+        headers: {
+          apikey: envVal('VITE_SUPABASE_PUBLISHABLE_KEY'),
+          Authorization: 'Bearer ' + studentToken,
+          'Content-Type': 'application/json',
+        },
+        data: { subject: 'Mathematics', topic: 'fractions', count: 1, difficulty: 'easy' },
+        timeout: 240000,
+      })
+      status = res.status()
+      body = await res.text()
+    } catch (e) {
+      timedOut = true
+      body = String((e as Error).message).slice(0, 200)
+    }
+    testInfo.annotations.push({ type: 'dpp-response', description: status + ' ' + body.slice(0, 400) })
+
+    // The budget is read BEFORE the contexts close: `readUnits` goes through
+    // `adminPage.request`, which dies with its context, and closing first threw
+    // "Target page, context or browser has been closed" from inside the
+    // assertion — a failure that looks like the feature and is the test.
+    const after = timedOut ? null : await readUnits()
+
+    await studentPage.context().close()
+    await adminPage.context().close()
+
+    if (timedOut) {
+      // Nothing is asserted about the budget here: the function is still running
+      // server-side, so the counter is genuinely unknown rather than wrong.
+      test.skip(true, 'the AI provider did not answer within 240s — ' + body)
+      return
+    }
+
+    expect(status, 'live generation failed: ' + body).toBe(200)
+    const parsed = JSON.parse(body) as { questions?: Array<{ question?: string; options?: string[] }> }
+    expect(parsed.questions?.length, 'a 200 with no questions is not a generation').toBeGreaterThan(0)
+    expect(String(parsed.questions?.[0]?.question ?? '').length).toBeGreaterThan(0)
+    expect(parsed.questions?.[0]?.options?.length, 'an MCQ needs its options').toBeGreaterThan(1)
+
+    // A generation that produced questions really did spend provider tokens, so
+    // it must CHARGE. The refund is for calls that produced nothing.
+    expect(after, 'a successful generation must charge the 2 units it used')
+      .toBe((before ?? 0) + 2)
   })
 })
 
