@@ -9,6 +9,40 @@ Started 2026-09-04, build session 1 (XP write / test-generate-questions / Resour
 
 ## 1. `requireAnyRole` in edge functions can never admit anybody
 
+**FIXED 2026-09-07, and most of it was already done.** Route (b) was taken:
+`_shared/requireRole.ts` asks `has_role` through the CALLER's client
+(`requireUserJwt` already returns one) instead of the service-role client, so
+the predicate resolves from the caller's own session. Route (a) — widening
+`has_role` for session-less callers — stays rejected.
+
+Measured in production, empty body on purpose so the role gate answers before
+argument validation:
+
+| function | as | before | after |
+|---|---|---|---|
+| `ai-ping` | admin | 403 insufficient_role | **200 `{"ok":true,"text":"pong"}`** |
+| `dpp-generate-questions` | teacher | — | 400 (gate passed) |
+| `embed` | teacher | — | 400 (gate passed) |
+| `ai-gateway` | student | — | 400 (gate passed) |
+
+Only `ai-ping` still needed deploying; the other three had already been
+redeployed with the fixed helper. `npm run ai:ping` — the connectivity check
+this entry says "no admin or principal can pass" — now passes.
+
+A correction to how this was measured the first time: `ai-ping` gates on
+`["admin","principal"]`, so testing it as a TEACHER returns 403 correctly and
+proves nothing. The teacher result was briefly read as evidence of the defect.
+The admin result is the one that means something.
+
+Deploying `ai-ping` also reconciled its five drifted `_shared` modules;
+`edge-drift-baseline.json` is lowered accordingly. `ai-gateway/index.ts` drift
+remains and is accepted in the baseline — its actor gate is verified working in
+production, and redeploying it would ship eight more drifted modules, which is
+not this change.
+
+The original finding follows.
+
+
 **Severity: high — it makes every deployed function using `requireAnyRole`
 unusable by everyone. Two confirmed so far: `dpp-generate-questions` and
 `ai-ping`, the latter being the connectivity check for the whole AI path
@@ -594,7 +628,63 @@ override maps cleanly whichever route is chosen. Only the answer does not.
 (`question_paper_questions.answer`) hold the written answer correctly; this is
 purely about the hand-off to Tests, which nothing does yet.
 
-## 17. `super_admin` on `/admin` — RULING REQUEST, not a data problem
+## 17. ~~`super_admin` on `/admin` — RULING REQUEST~~ — RULED BY THE SPEC
+
+**FIXED 2026-09-07. It was not a ruling: §10.20 already decided it, and the
+entry below did not consult it.**
+
+> "**Unrestricted access to academic data, for support.** Every access is
+> logged... **The access-log row is the grant.** Unlogged super admin access is
+> not expressible in the schema — there is no path to data without a log entry."
+> — §10.20, docs/locked-decisions.md:611-634
+
+So option (a) — super_admin reads school data, writes still refused — is what
+the spec says, with a condition the entry's two options both missed: the read
+must arrive through a logged, expiring GRANT.
+
+**And the grant was not the only path.** `get_my_school_id()` ends in a
+`profiles.school_id` fallback, and the seeded super admin carries school A
+there with 0 memberships, 0 grants and 0 access-log rows ever written. It
+reached a tenant's academic data through a column on its own profile row. That
+is precisely what §10.20 says is not expressible. **20260911000000** closes it;
+`rpc_super_admin_open_access` (which already existed) is now the only way in.
+
+Three more things had to be true before /admin actually rendered, each found by
+re-running the test rather than by reasoning:
+
+1. **20260911010000** — `same_school()` returned NULL rather than false for a
+   caller with no school, and called `super_admin_has_access()` per row.
+2. **20260911020000 / 20260911030000** — the activity-feed policies were built
+   from per-row `same_school(school_id)` and bare `has_role()` calls, so
+   `ORDER BY created_at DESC LIMIT 6` walked all 9,134 rows and returned
+   `57014 canceling statement due to statement timeout`. That 500 — not a
+   ForbiddenError — was what the banner had become. Rewritten to the set form
+   (`school_id IN (SELECT my_accessible_school_ids())`) with the role test
+   hoisted into a scalar subquery, the idiom 31 other fences already use.
+3. **The service layer** — `assertCanConsume` no longer refuses super_admin,
+   and eleven school-wide READ guards moved from `isSchoolOperator` to a new
+   `canReadSchoolWide` (admin | principal | super_admin). `assertCanOwn` and
+   every WRITE guard are untouched: support is a read.
+
+`services.test.ts` asserted the opposite ruling and was updated deliberately,
+with the reason in the test. probe22, probe23 and probe24 assert the behaviour
+as the caller — 25 assertions, both directions, including that a super admin
+with no grant reads nothing and one with a grant reads only the granted school.
+`T4 super_admin · admin home` passes.
+
+**Two adjacent contradictions fixed on the way**, both the same shape — a client
+promising what the database refuses:
+
+- `ownership.ts` listed `principal` among the owners of `attendance`; §10
+  says "Cannot mark or edit attendance".
+- `AuditReadService` gated on `isSchoolOperator` (admin OR principal); §10.18
+  says the audit log is "Visible to admin only". Narrowed to admin. The one
+  caller, `PrincipalClassDetail`, already wraps it in its own try/catch and
+  degrades to zero, so nothing regressed.
+
+The original finding follows, including its two proposed options.
+
+
 
 **Found 2026-09-08. Cause established; the fix is blocked on a decision, and a
 change was written, tested and REVERTED rather than overturn a ruling.**

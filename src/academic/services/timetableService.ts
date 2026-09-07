@@ -3,6 +3,7 @@ import {
   toRepoContext,
   ForbiddenError,
   isSchoolOperator,
+  canReadSchoolWide,
   type ServiceContext,
 } from "./context";
 import { getClient, schoolIdOf, throwIfError } from "../repository/base";
@@ -72,7 +73,7 @@ async function resolveStudentClassId(
   if (ctx.role === "teacher") {
     const { assertTeacherOwnsClass } = await import("../repository/teacherClassesRepository");
     await assertTeacherOwnsClass(repo, ctx.userId, classId);
-  } else if (!isSchoolOperator(ctx.role)) {
+  } else if (!canReadSchoolWide(ctx.role)) {
     throw new ForbiddenError("Not authorized to read class timetable");
   }
 

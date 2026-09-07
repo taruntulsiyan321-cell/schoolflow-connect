@@ -1,6 +1,7 @@
 import {
   assertCanOwn,
   assertCanConsume,
+  canReadSchoolWide,
   toRepoContext,
   type ServiceContext,
 } from "./context";
@@ -113,7 +114,7 @@ export const MarksService = {
     page?: PageParams,
   ): Promise<ExamRecord[]> {
     assertCanConsume(ctx, "examination");
-    if (!isSchoolOperator(ctx.role)) {
+    if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("Only school operators may list school-wide exams");
     }
     return listExamsForSchool(toRepoContext(ctx), page);
@@ -129,7 +130,7 @@ export const MarksService = {
     page?: PageParams,
   ): Promise<{ exam: ExamRecord; subjects: ExamSubjectRecord[] }[]> {
     assertCanConsume(ctx, "examination");
-    if (!isSchoolOperator(ctx.role)) {
+    if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("Only school operators may list school-wide exams");
     }
     const repo = toRepoContext(ctx);

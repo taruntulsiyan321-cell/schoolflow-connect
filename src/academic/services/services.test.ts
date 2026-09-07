@@ -43,8 +43,27 @@ describe("academic services — ownership gates", () => {
     expect(() => assertCanOwn(ctx("teacher"), "practice_attempt")).toThrow(ForbiddenError);
   });
 
-  it("never elevates super_admin into school academic ownership", () => {
+  // CHANGED DELIBERATELY 2026-09-07, because it encoded the opposite ruling.
+  //
+  // This used to assert that assertCanConsume(super_admin, "marks") THROWS. The
+  // spec says otherwise: §10.20 (docs/locked-decisions.md:611-624) gives the
+  // super admin "unrestricted access to academic data, for support". Refusing
+  // the read in the service layer is what made the /admin index render an error
+  // banner for them while its sub-pages — which query PostgREST directly —
+  // rendered fine (KNOWN_ISSUES 17).
+  //
+  // The half that must NOT change is ownership: support is a read, and §10.20's
+  // "Can do" list is platform-level, not authoring a school's records.
+  //
+  // Reading is not the same as reading SOMETHING. Which school they can see is
+  // decided in the database by `my_accessible_school_ids()`, which since
+  // 20260911000000 returns only schools with a live, logged, expiring grant. So
+  // a super admin with no grant passes this assertion and still reads zero
+  // rows. probe22 asserts that end, as the caller.
+  it("lets super_admin READ school academic data (§10.20) but never own it", () => {
     expect(() => assertCanOwn(ctx("super_admin"), "student")).toThrow(ForbiddenError);
-    expect(() => assertCanConsume(ctx("super_admin"), "marks")).toThrow(ForbiddenError);
+    expect(() => assertCanOwn(ctx("super_admin"), "marks")).toThrow(ForbiddenError);
+    expect(() => assertCanConsume(ctx("super_admin"), "marks")).not.toThrow();
+    expect(() => assertCanConsume(ctx("super_admin"), "student")).not.toThrow();
   });
 });

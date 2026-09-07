@@ -4,6 +4,7 @@ import {
   toRepoContext,
   ForbiddenError,
   isSchoolOperator,
+  canReadSchoolWide,
   type ServiceContext,
 } from "./context";
 import {
@@ -247,7 +248,7 @@ export const HomeworkService = {
     filters?: HomeworkListFilters,
   ): Promise<HomeworkRecord[]> {
     assertCanConsume(ctx, "homework");
-    if (!isSchoolOperator(ctx.role)) {
+    if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("School homework list is admin/principal-only");
     }
     return listHomeworkForSchool(toRepoContext(ctx), page, filters);
@@ -673,7 +674,7 @@ export const HomeworkService = {
    */
   async summarizeSchool(ctx: ServiceContext): Promise<SchoolHomeworkSummary> {
     assertCanConsume(ctx, "homework");
-    if (!isSchoolOperator(ctx.role)) {
+    if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("School homework summary is admin/principal-only");
     }
     const repo = toRepoContext(ctx);

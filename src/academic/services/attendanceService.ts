@@ -4,6 +4,7 @@ import {
   toRepoContext,
   ForbiddenError,
   isSchoolOperator,
+  canReadSchoolWide,
   type ServiceContext,
 } from "./context";
 import {
@@ -134,7 +135,7 @@ export const AttendanceService = {
     assertCanConsume(ctx, "attendance");
     if (ctx.role === "teacher") {
       await assertTeacherOwnsClass(toRepoContext(ctx), ctx.userId, classId);
-    } else if (!isSchoolOperator(ctx.role)) {
+    } else if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("Not authorized to list class students for attendance");
     }
     return listStudentsForClass(toRepoContext(ctx), classId);
@@ -303,7 +304,7 @@ export const AttendanceService = {
     date: string,
   ): Promise<SchoolDateAttendanceSummary> {
     assertCanConsume(ctx, "attendance");
-    if (!isSchoolOperator(ctx.role)) {
+    if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("School attendance summary is admin/principal-only");
     }
     const repo = toRepoContext(ctx);

@@ -15,7 +15,8 @@ import {
 import { getPublishedExamsAverage } from "../repository/marksRepository";
 import type { StudentAcademicProfile } from "../types";
 import type { PageParams } from "../repository/base";
-import { isSchoolOperator } from "./context";
+import { canReadSchoolWide,
+  isSchoolOperator } from "./context";
 import { assertMayAccessStudent } from "./parentAccess";
 
 /**
@@ -93,7 +94,7 @@ export const AcademicProfileService = {
     page?: PageParams,
   ): Promise<StudentAcademicProfile[]> {
     assertCanConsume(ctx, "student_academic_profile");
-    if (!isSchoolOperator(ctx.role)) {
+    if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("School-wide academic profiles are admin/principal-only");
     }
     return listSchoolAcademicProfiles(toRepoContext(ctx), page);
@@ -107,7 +108,7 @@ export const AcademicProfileService = {
     n = 5,
   ): Promise<{ top: StudentAcademicProfile[]; bottom: StudentAcademicProfile[] }> {
     assertCanConsume(ctx, "student_academic_profile");
-    if (!isSchoolOperator(ctx.role)) {
+    if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("School-wide academic profiles are admin/principal-only");
     }
     return listSchoolAcademicProfileExtremes(

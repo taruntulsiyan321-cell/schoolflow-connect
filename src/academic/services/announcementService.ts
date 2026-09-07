@@ -4,6 +4,7 @@ import {
   toRepoContext,
   ForbiddenError,
   isSchoolOperator,
+  canReadSchoolWide,
   type ServiceContext,
 } from "./context";
 import { getClient, schoolIdOf, throwIfError } from "../repository/base";
@@ -368,7 +369,7 @@ export const AnnouncementService = {
   /** All school notices (draft / scheduled / published) for principal/admin. */
   async listForSchool(ctx: ServiceContext): Promise<TeacherAnnouncementRow[]> {
     assertCanConsume(ctx, "announcement");
-    if (!isSchoolOperator(ctx.role)) {
+    if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("School announcement list is admin/principal-only");
     }
     const { data, error } = await getClient(toRepoContext(ctx))

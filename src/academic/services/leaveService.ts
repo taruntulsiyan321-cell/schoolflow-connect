@@ -4,6 +4,7 @@ import {
   toRepoContext,
   ForbiddenError,
   isSchoolOperator,
+  canReadSchoolWide,
   type ServiceContext,
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
@@ -212,7 +213,7 @@ export const LeaveService = {
     opts?: { status?: LeaveStatus | "all"; limit?: number },
   ): Promise<SchoolLeaveRequestRow[]> {
     assertCanConsume(ctx, "leave_request");
-    if (!isSchoolOperator(ctx.role)) {
+    if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("Only school operators may list school leave requests");
     }
     const client = getClient(toRepoContext(ctx));

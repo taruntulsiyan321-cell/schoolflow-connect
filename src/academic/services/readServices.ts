@@ -3,6 +3,7 @@ import {
   toRepoContext,
   ForbiddenError,
   isSchoolOperator,
+  canReadSchoolWide,
   type ServiceContext,
 } from "../services/context";
 import { AnalyticsFoundation } from "../analytics";
@@ -120,7 +121,7 @@ export const AiSummaryService = {
 
   async school(ctx: ServiceContext) {
     assertCanConsume(ctx, "ai_insights");
-    if (!isSchoolOperator(ctx.role)) {
+    if (!canReadSchoolWide(ctx.role)) {
       throw new ForbiddenError("School AI summaries are admin/principal-only");
     }
     return AiDataLayer.buildSchoolAiSummary(toRepoContext(ctx));
@@ -137,15 +138,23 @@ export const AiSummaryService = {
 
 export const AuditReadService = {
   async forEntity(ctx: ServiceContext, entityType: string, entityId: string) {
-    if (!isSchoolOperator(ctx.role)) {
-      throw new ForbiddenError("Audit trail is admin/principal-only");
+    // §10.18: "Visible to admin only" -- not principal, and not super admin.
+    // The database agrees: 20260904100000 narrowed academic_audit_admin_select
+    // to admin. This guard said isSchoolOperator (admin OR principal), so the
+    // client promised the principal a screen the server refuses.
+    if (ctx.role !== "admin") {
+      throw new ForbiddenError("Audit trail is admin-only");
     }
     return AuditService.listAuditForEntity(toRepoContext(ctx), entityType, entityId);
   },
 
   async recent(ctx: ServiceContext) {
-    if (!isSchoolOperator(ctx.role)) {
-      throw new ForbiddenError("Audit trail is admin/principal-only");
+    // §10.18: "Visible to admin only" -- not principal, and not super admin.
+    // The database agrees: 20260904100000 narrowed academic_audit_admin_select
+    // to admin. This guard said isSchoolOperator (admin OR principal), so the
+    // client promised the principal a screen the server refuses.
+    if (ctx.role !== "admin") {
+      throw new ForbiddenError("Audit trail is admin-only");
     }
     return AuditService.listRecentAudit(toRepoContext(ctx));
   },
