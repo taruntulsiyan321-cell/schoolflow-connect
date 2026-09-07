@@ -2,10 +2,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/", "destination": "/landing.html" },
     {
-      "source": "/((?!landing\\.html|favicon\\.ico|favicon\\.svg|robots\\.txt|sitemap\\.xml|assets/).*)",
-      "destination": "/index.html"
+      "source": "/((?!app\\.html|landing\\.html|favicon\\.ico|favicon\\.svg|robots\\.txt|sitemap\\.xml|assets/).*)",
+      "destination": "/app.html"
     }
   ]
 }
