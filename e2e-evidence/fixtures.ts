@@ -1,5 +1,6 @@
-import { test as base, expect, type Page, type TestInfo } from '@playwright/test'
+import { test as base, expect, type Browser, type Page, type TestInfo } from '@playwright/test'
 import { readFileSync, existsSync } from 'node:fs'
+import { ROLES } from './roles'
 
 export interface Signals {
   consoleErrors: string[]
@@ -100,4 +101,36 @@ export async function recordSurface(
   expect.soft(supa5xx, `${name}: supabase 5xx`).toEqual([])
   expect.soft(supa4xx, `${name}: supabase 4xx (broken query/RPC)`).toEqual([])
   expect.soft(errorBannerVisible, `${name}: visible error banner`).toBe(false)
+}
+
+/**
+ * A browser context holding a session of its OWN, signed in through the real
+ * /auth form rather than loaded from `.auth/<role>.json`.
+ *
+ * WHY NOT JUST `storageState: authFile(role)`. Supabase ROTATES refresh tokens
+ * and detects reuse: when two contexts in one run load the same stored session,
+ * the second one's refresh looks like a replay and the whole session family is
+ * revoked — which revokes the ACCESS token too. Every later test using that
+ * role then gets `403 /auth/v1/user` on every surface.
+ *
+ * That is not hypothetical. Adding one second student context to this suite
+ * turned 13 student surfaces red across tier1 and tier2 in a single run, while
+ * the same specs passed on their own. The failures were pure session
+ * revocation — no app query failed, no page errored.
+ *
+ * So a test that needs a role ALREADY IN USE by the file-backed specs mints its
+ * own instead. Sessions are independent per sign-in, so nothing is shared and
+ * nothing is rotated out from under anyone.
+ */
+export async function freshSession(browser: Browser, role: string): Promise<Page> {
+  const account = ROLES.find((r) => r.role === role)
+  if (!account) throw new Error(`freshSession: no account for role ${role}`)
+  const context = await browser.newContext()
+  const page = await context.newPage()
+  await page.goto('/auth')
+  await page.getByLabel('Email or Mobile').fill(account.email)
+  await page.locator('#signin-password').fill(account.password)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page).not.toHaveURL(/\/auth(\?|$)/, { timeout: 30000 })
+  return page
 }

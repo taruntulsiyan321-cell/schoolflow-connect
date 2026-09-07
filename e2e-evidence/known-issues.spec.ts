@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, freshSession } from './fixtures'
 import { authFile } from './roles'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -263,8 +263,9 @@ test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the uni
     const FEATURE = 'student.dpp.generate_questions'
     const day = new Date().toISOString().slice(0, 10)   // the function keys on UTC
 
-    const adminCtx = await browser.newContext({ storageState: authFile('admin') })
-    const adminPage = await adminCtx.newPage()
+    // Own session, same reason as the student below: `admin` is also loaded from
+    // the shared file by tier1, tier1-writes and tier3.
+    const adminPage = await freshSession(browser, 'admin')
     await adminPage.goto('/admin', { waitUntil: 'domcontentloaded' })
     await settle(adminPage)
     const adminH = await restHeaders(adminPage)
@@ -281,8 +282,12 @@ test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the uni
     }
     const before = await readUnits()
 
-    const studentCtx = await browser.newContext({ storageState: authFile('student') })
-    const studentPage = await studentCtx.newPage()
+    // Its OWN session, not the shared `.auth/student.json` one. Two contexts
+    // loading the same stored Supabase session look like refresh-token reuse,
+    // and Supabase revokes the whole session family when it sees that — which
+    // took 13 student surfaces red across tier1 and tier2 in one run while the
+    // same specs passed alone. `freshSession` signs in through the real form.
+    const studentPage = await freshSession(browser, 'student')
     await studentPage.goto('/student', { waitUntil: 'domcontentloaded' })
     await settle(studentPage)
     const studentToken = await accessToken(studentPage)
@@ -351,8 +356,8 @@ test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the uni
     expect(afterBad, 'the reservation was not returned after a rejected request')
       .toBe(beforeBad)
 
-    await studentCtx.close()
-    await adminCtx.close()
+    await studentPage.context().close()
+    await adminPage.context().close()
   })
 })
 
