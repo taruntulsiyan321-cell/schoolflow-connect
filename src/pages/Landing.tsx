@@ -1,24 +1,20 @@
 /**
- * Guest marketing homepage.
- * Renders the Gurukul landing design from /landing.html while keeping
- * Index.tsx auth redirects on `/` for signed-in users.
+ * Guest marketing homepage → full Gurukul landing.
+ * Hard-navigate so the document title/URL are the landing page,
+ * not the SPA shell ("Vidyalaya — School Management Platform").
  */
-export default function Landing({ noRoleBanner = false }: { noRoleBanner?: boolean } = {}) {
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
+
+export default function Landing(_props: { noRoleBanner?: boolean } = {}) {
+  useEffect(() => {
+    window.location.replace("/landing.html");
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-0 bg-[#FAFBFC]">
-      {noRoleBanner && (
-        <div className="absolute top-0 inset-x-0 z-20 bg-amber-50 border-b border-amber-200 text-amber-950">
-          <p className="mx-auto max-w-3xl px-4 py-2.5 text-center text-sm">
-            You&apos;re signed in but don&apos;t have a role yet. Your admin will assign access to unlock your dashboard.
-          </p>
-        </div>
-      )}
-      <iframe
-        title="Gurukul — AI-Powered Learning Engine"
-        src="/landing.html"
-        className="absolute inset-0 h-full w-full border-0"
-        style={noRoleBanner ? { top: 44 } : undefined}
-      />
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#FAFBFC]">
+      <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
+      <p className="text-sm text-slate-500">Loading Gurukul…</p>
     </div>
   );
 }
