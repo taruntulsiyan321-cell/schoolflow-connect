@@ -11,7 +11,11 @@
     "ai-concept-report:_shared/promptLibrary.ts:DRIFT:4a28b47c6d34",
     "ai-concept-report:_shared/reasoningBudget.ts:DRIFT:fb5369f99b16",
     "ai-concept-report:_shared/structuredCompletion.ts:DRIFT:d5fb667140a7",
-    "ai-expand-questions:-:NO-REPO-SOURCE",
+    "ai-expand-questions:_shared/modelRouter.ts:DRIFT:2cd4c73acfbd",
+    "ai-expand-questions:_shared/promptLibrary.ts:DRIFT:4a28b47c6d34",
+    "ai-expand-questions:_shared/reasoningBudget.ts:DRIFT:fb5369f99b16",
+    "ai-expand-questions:_shared/requireRole.ts:DRIFT:d636f71af7fa",
+    "ai-expand-questions:_shared/structuredCompletion.ts:DRIFT:d5fb667140a7",
     "ai-explain:_shared/modelRouter.ts:DRIFT:2cd4c73acfbd",
     "ai-explain:_shared/promptLibrary.ts:DRIFT:4a28b47c6d34",
     "ai-explain:_shared/reasoningBudget.ts:DRIFT:fb5369f99b16",
@@ -40,7 +44,6 @@
     "ai-revision-agent:_shared/promptLibrary.ts:DRIFT:4a28b47c6d34",
     "ai-revision-agent:_shared/reasoningBudget.ts:DRIFT:fb5369f99b16",
     "ai-revision-agent:_shared/revisionAgent.ts:DRIFT:f823c1f37153",
-    "ai-revision-agent:_shared/structuredCompletion.ts:DRIFT:d5fb667140a7",
-    "mcp:-:NO-REPO-SOURCE"
+    "ai-revision-agent:_shared/structuredCompletion.ts:DRIFT:d5fb667140a7"
   ]
 }
