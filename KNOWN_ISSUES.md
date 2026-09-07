@@ -800,6 +800,15 @@ beyond making the Tier 1 write path work.
 
 ## 20. Navigating away while marks save bounces the teacher back
 
+**FIXED 2026-09-07.** `saveMarks()` still shows its flash before the trailing
+`reload()` and `getExam()`, but the `setActiveSubject` after them is now
+guarded by a ref mirroring the sheet the user is actually on. If they left, it
+is not re-opened. State could not be read from the closure, which is why a ref
+rather than the state value.
+
+The original finding follows.
+
+
 **Found 2026-09-06. Tier 3, not fixed. Cosmetic — the write always lands.**
 
 `LiveClassPanels.saveMarks()` does its work in this order:
@@ -825,6 +834,24 @@ sheet still being open.
 
 ## 21. `students_read` has the same self-referential shape `exams_read` had
 
+**FIXED 2026-09-07 by 20260912010000 — and a claim made while fixing it was
+wrong, so it is corrected here.** I first wrote that the self-reference also
+made every roster read O(n²), "a scan of students per student row". It does
+not: `id IN (SELECT my_visible_student_ids())` is a hashed SubPlan, so the
+function runs once per statement. Measured as a teacher, before and after:
+463/190/619 ms against 580/890/415 ms — indistinguishable. **There was no
+performance defect here.** What is real is the latent 42501 this entry
+originally described, and that is the only reason the change stands.
+
+Replaced with `can_read_student_row(id, school_id, user_id, parent_user_id,
+class_id)` — the same predicate term for term, asked about the row. probe26
+asserts all eight claims as the caller: teacher, student, parent, admin,
+another guardian's child refused, another school refused, and
+`INSERT ... RETURNING` succeeding.
+
+The original finding follows.
+
+
 **Found 2026-09-06 while fixing `exams_read`. Not fixed: no Tier 1 path hits it.**
 
 `students_read` is `id IN (SELECT my_visible_student_ids())`, and
@@ -847,6 +874,15 @@ row-level security while every visibility term is actually true. The same
 that day comes.
 
 ## 22. Both exam event emitters swallow their own failure
+
+**FIXED 2026-09-07.** All five `emitEvent(...).catch(() => undefined)` calls in
+`marksService` now use `emitEventBestEffort`, which this same file already
+used for `removeExam`. It still never fails the write — an event is not worth
+losing a published result over — but it logs `[academic] emit <type> failed`
+instead of discarding the reason.
+
+The original finding follows.
+
 
 **Found 2026-09-06. Tier 3, not fixed.**
 

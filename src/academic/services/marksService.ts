@@ -281,7 +281,7 @@ export const MarksService = {
     const repo = toRepoContext(ctx);
     const exam = await upsertExam(repo, input);
     if (!input.id) {
-      await emitEvent(repo, {
+      await emitEventBestEffort(repo, {
         eventType: "examination.scheduled",
         entityType: "examination",
         entityId: exam.id,
@@ -292,15 +292,15 @@ export const MarksService = {
           examType: exam.examType,
           title: exam.name,
         },
-      }).catch(() => undefined);
+      });
     } else {
-      await emitEvent(repo, {
+      await emitEventBestEffort(repo, {
         eventType: "examination.updated",
         entityType: "examination",
         entityId: exam.id,
         classId: exam.classId,
         payload: { name: exam.name, subject: exam.subject, examType: exam.examType },
-      }).catch(() => undefined);
+      });
     }
     afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.upsertExam" });
     return exam;
@@ -391,7 +391,7 @@ export const MarksService = {
     const subjects = await listSectionSubjects(repo, input.classId);
     const sitting = await createClassExam(repo, { ...input, subjects });
 
-    await emitEvent(repo, {
+    await emitEventBestEffort(repo, {
       eventType: "examination.scheduled",
       entityType: "examination",
       entityId: sitting.exam.id,
@@ -402,7 +402,7 @@ export const MarksService = {
         examId: sitting.exam.id,
         subjectCount: sitting.subjects.length,
       },
-    }).catch(() => undefined);
+    });
     afterMarksWrite(ctx, { classId: input.classId, source: "MarksService.createClassExam" });
     return sitting;
   },
@@ -491,13 +491,13 @@ export const MarksService = {
     const { setExamLocked } = await import("../repository/examRepository");
     await setExamLocked(repo, examId, true);
 
-    await emitEvent(repo, {
+    await emitEventBestEffort(repo, {
       eventType: "examination.finalized",
       entityType: "examination",
       entityId: examId,
       classId: exam.classId,
       payload: { name: exam.name, examId, examType: exam.examType },
-    }).catch(() => undefined);
+    });
 
     afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.finalizeMarks" });
     return getExam(repo, examId);
@@ -530,13 +530,13 @@ export const MarksService = {
     const { setExamResultsPublished } = await import("../repository/examRepository");
     await setExamResultsPublished(repo, examId, now);
 
-    await emitEvent(repo, {
+    await emitEventBestEffort(repo, {
       eventType: "marks.results_published",
       entityType: "examination",
       entityId: examId,
       classId: exam.classId,
       payload: { classId: exam.classId, name: exam.name, examId },
-    }).catch(() => undefined);
+    });
 
     afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.publishResults" });
     return getExam(repo, examId);

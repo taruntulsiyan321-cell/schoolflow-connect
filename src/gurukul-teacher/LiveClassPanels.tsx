@@ -1875,6 +1875,18 @@ export function LiveExamsMarksTab({
   // has to carry both — the sitting for max marks and lock state, the subject
   // for the anchor every mark is written against.
   const [activeSubject, setActiveSubject] = useState<PendingSubject | null>(null);
+  /**
+   * KNOWN_ISSUES 20. saveMarks() finishes with two awaits AFTER it has already
+   * shown "Marks saved", then calls setActiveSubject(refreshed). A teacher who
+   * clicks "Back to exams" in that window was silently pulled back into the
+   * marks sheet — the write had landed, but the app looked stuck. State cannot
+   * be read from a closure that was created before the awaits, so the open
+   * sheet is mirrored here and the tail checks it before re-opening anything.
+   */
+  const activeSubjectRef = useRef<PendingSubject | null>(null);
+  useEffect(() => {
+    activeSubjectRef.current = activeSubject;
+  }, [activeSubject]);
   const [activeSitting, setActiveSitting] = useState<ExamSitting | null>(null);
   const [roster, setRoster] = useState<ClassStudentRow[]>([]);
   const [marksDraft, setMarksDraft] = useState<Record<string, string>>({});
@@ -2010,7 +2022,11 @@ export function LiveExamsMarksTab({
       showFlash("Marks saved");
       await reload();
       const refreshed = await MarksService.getExam(ctx, exam.id);
-      setActiveSubject({ exam: refreshed, subject });
+      // Only re-open the sheet the user is STILL on. Without this the teacher
+      // is yanked back to a screen they deliberately left.
+      if (activeSubjectRef.current?.subject.examSubjectId === subject.examSubjectId) {
+        setActiveSubject({ exam: refreshed, subject });
+      }
     } catch (e) {
       setError(toErrorMessage(e, "Failed to save marks"));
     } finally {
