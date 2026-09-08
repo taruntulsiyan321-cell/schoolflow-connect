@@ -104,23 +104,31 @@ export async function recordSurface(
 }
 
 /**
- * A browser context holding a session of its OWN, signed in through the real
+ * A browser context with a session of its OWN, signed in through the real
  * /auth form rather than loaded from `.auth/<role>.json`.
  *
- * WHY NOT JUST `storageState: authFile(role)`. Supabase ROTATES refresh tokens
- * and detects reuse: when two contexts in one run load the same stored session,
- * the second one's refresh looks like a replay and the whole session family is
- * revoked — which revokes the ACCESS token too. Every later test using that
- * role then gets `403 /auth/v1/user` on every surface.
+ * ── WHY, AND WHAT IT COSTS ───────────────────────────────────────────────
  *
- * That is not hypothetical. Adding one second student context to this suite
- * turned 13 student surfaces red across tier1 and tier2 in a single run, while
- * the same specs passed on their own. The failures were pure session
- * revocation — no app query failed, no page errored.
+ * Loading `storageState: authFile(role)` into a SECOND context kills the
+ * session: Supabase rotates refresh tokens and detects reuse, so the second
+ * context's refresh reads as a replay. Measured — one extra student context
+ * turned 13 student surfaces red across tier1 and tier2 while the same specs
+ * passed alone.
  *
- * So a test that needs a role ALREADY IN USE by the file-backed specs mints its
- * own instead. Sessions are independent per sign-in, so nothing is shared and
- * nothing is rotated out from under anyone.
+ * Signing in separately avoids that, but it is NOT free: after this spec ran
+ * mid-suite, the shared sessions for exactly the roles it signs in came back
+ * `403` from `/auth/v1/user` and their refresh tokens `400`. Parent — the one
+ * role it never touches — stayed `200`. Writing the fresh session back to the
+ * file did not help; the sessions were already dead by the time the tier specs
+ * loaded them.
+ *
+ * The mechanism was not worth pinning down further, because the ordering fix
+ * removes the interaction entirely: **the spec that uses this runs LAST**
+ * (`zz-known-issues.spec.ts`, see playwright.evidence.config.ts). Anything it
+ * does to a session can no longer reach a spec that has not run yet.
+ *
+ * So: use this ONLY from a spec that runs after every file-backed one. A new
+ * caller earlier in the alphabet reintroduces the whole failure.
  */
 export async function freshSession(browser: Browser, role: string): Promise<Page> {
   const account = ROLES.find((r) => r.role === role)

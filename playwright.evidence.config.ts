@@ -45,7 +45,20 @@ export default defineConfig({
     },
     {
       name: 'evidence',
-      testMatch: /(aa-reachability|tier\d(-writes|-reads)?|known-issues)\.spec\.ts/,
+      // FILE ORDER IS LOAD-BEARING — Playwright runs spec files alphabetically,
+      // and two names exploit that deliberately:
+      //
+      //   aa-reachability  FIRST. Answers "is the app broken, or is the network
+      //                    down?" before hours go into the wrong cause.
+      //   zz-known-issues  LAST. It signs roles in through the real /auth form
+      //                    to get sessions of their own, and doing that mid-run
+      //                    left the shared `.auth/<role>.json` sessions DEAD:
+      //                    32 of 68 tests failed, and the four failing roles
+      //                    were exactly the four it signs in. Parent, which it
+      //                    never touches, passed every time; tier1-reads passed
+      //                    12/12 when run without it. Last means nothing it does
+      //                    to a session can reach a spec that has not run yet.
+      testMatch: /(aa-reachability|tier\d(-writes|-reads)?|zz-known-issues)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
