@@ -491,6 +491,49 @@
     }
 
     @keyframes pulseDot { 0%,100%{ opacity:1; transform: scale(1)} 50%{ opacity:0.55; transform: scale(0.85)} }
+
+    /* ─── Mobile layout ─── */
+    @media (max-width: 768px) {
+      .site-nav { padding: 10px 14px !important; }
+      .site-nav-inner {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        gap: 8px 10px !important;
+      }
+      .site-nav-brand { flex: 1 1 auto; min-width: 0; }
+      .site-nav-brand span { font-size: 17px !important; }
+      .site-nav-tabs {
+        order: 3;
+        flex: 1 1 100%;
+        display: flex !important;
+        justify-content: center !important;
+        gap: 6px !important;
+      }
+      .site-nav-tabs .tab-btn { flex: 1; padding: 8px 10px; font-size: 13px; }
+      .site-nav-cta { flex: 0 0 auto; }
+      .site-nav-cta .nav-sign-in { display: none !important; }
+      .site-nav-cta .btn-primary { padding: 9px 14px !important; font-size: 13px !important; }
+      .brand-logo { width: 34px; height: 34px; }
+      .hero-logo-wrap { width: 76px; height: 76px; margin-bottom: 12px; }
+      .section { padding: 56px 0 !important; }
+      .section-inner { padding-left: 16px !important; padding-right: 16px !important; }
+      .feature-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+      .feature-grid-4 .card { padding: 14px !important; }
+      .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; padding: 0 8px !important; }
+      .showcase-shell { height: 340px !important; margin-bottom: 40px !important; }
+      .pricing-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+      .pricing-grid > div { padding: 22px !important; }
+      .hero-ctas .btn { width: 100%; max-width: 320px; }
+      .tech-float { display: none !important; }
+      .scroll-hint { display: none !important; }
+      .ai-coach-demo { max-width: 100% !important; }
+    }
+    @media (max-width: 420px) {
+      .feature-grid-4 { grid-template-columns: 1fr !important; }
+      .site-nav-brand span { font-size: 16px !important; }
+    }
+
     @media (prefers-reduced-motion: reduce){
       .bg-orb, .bg-beam{ animation: none !important; }
     }
@@ -1699,6 +1742,7 @@
 
       return (
         <motion.nav
+          className="site-nav"
           initial={{ y: -100 }}
           animate={{ y: 0 }}
           transition={{ duration: 0.5 }}
@@ -1715,8 +1759,9 @@
             transition: 'all 0.2s'
           }}
         >
-          <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="site-nav-inner" style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <motion.div
+              className="site-nav-brand"
               style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
               whileHover={{ scale: 1.01 }}
               onClick={() => { setActiveSection(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
@@ -1730,7 +1775,7 @@
               <span style={{ fontWeight: 700, fontSize: 20, color: 'var(--text)', letterSpacing: '-0.02em' }}>Gurukul</span>
             </motion.div>
 
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div className="site-nav-tabs" style={{ display: 'flex', gap: 6 }}>
               <button
                 onClick={() => setActiveSection('individual')}
                 className={`tab-btn ${activeSection === 'individual' ? 'active' : ''}`}
@@ -1741,8 +1786,8 @@
               >Organization</button>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <a href="/auth" target="_top" className="btn btn-secondary" style={{ padding: '10px 18px', fontSize: 14, textDecoration: 'none' }}>Sign in</a>
+            <div className="site-nav-cta" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <a href="/auth" target="_top" className="btn btn-secondary nav-sign-in" style={{ padding: '10px 18px', fontSize: 14, textDecoration: 'none' }}>Sign in</a>
               <motion.a
                 href="/auth" target="_top"
                 className="btn btn-primary"
@@ -1762,7 +1807,7 @@
     function HeroSection({ setActiveSection }) {
       return (
         <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 80, overflow: 'hidden', paddingBottom: 48 }}>
-          <div style={{ position: 'absolute', bottom: 18, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, zIndex: 5, pointerEvents: 'none' }}>
+          <div className="scroll-hint" style={{ position: 'absolute', bottom: 18, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, zIndex: 5, pointerEvents: 'none' }}>
             <span className="font-mono" style={{ fontSize: 10, letterSpacing: '0.14em', color: 'var(--text-muted)', opacity: 0.7 }}>SCROLL</span>
             <motion.div animate={{ y: [0,5,0] }} transition={{ duration: 1.6, repeat: Infinity }} style={{ width: 18, height: 26, borderRadius: 10, border: '1px solid var(--border-strong)', display: 'flex', justifyContent: 'center', paddingTop: 5 }}><div style={{ width: 3, height: 6, borderRadius: 10, background: 'var(--violet)' }} /></motion.div>
           </div>
@@ -1813,7 +1858,7 @@
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}
+              className="hero-ctas" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}
             >
               <motion.button
                 onClick={() => setActiveSection('individual')}
@@ -1900,7 +1945,7 @@
 
       return (
         <section id="individual" className="section section-subtle" ref={containerRef}>
-          <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
+          <div className="section-inner" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
             <motion.div
               initial={{ opacity: 0, y: 32 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -1919,7 +1964,7 @@
             </motion.div>
 
             {/* Feature cards — HOVER TO POP */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 22 }}>
+            <div className="feature-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 22 }}>
               {INDIVIDUAL_FEATURES.map((feature, i) => {
                 const isHovered = hoveredId === feature.id;
                 const isActive = selectedFeature?.id === feature.id;
@@ -2123,7 +2168,7 @@
 
       return (
         <section id="organization" className="section section-white" ref={containerRef}>
-          <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
+          <div className="section-inner" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
             <motion.div
               initial={{ opacity: 0, y: 32 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -2146,6 +2191,7 @@
               initial={{ opacity: 0 }}
               animate={isInView ? { opacity: 1 } : {}}
               transition={{ duration: 0.8, delay: 0.2 }}
+              className="showcase-shell"
               style={{
                 marginBottom: 64,
                 height: 420,
@@ -2159,7 +2205,7 @@
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, background: 'linear-gradient(180deg, var(--bg), transparent)', zIndex: 10 }} />
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 70, background: 'linear-gradient(0deg, var(--bg), transparent)', zIndex: 10 }} />
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, height: '100%', padding: '0 16px' }}>
+              <div className="showcase-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, height: '100%', padding: '0 16px' }}>
                 {[0, 1, 2, 3].map(colIdx => {
                   const colFeatures = ORG_SHOWCASE_FEATURES.filter((_, idx) => idx % 4 === colIdx);
                   const loop = [...colFeatures, ...colFeatures];
@@ -2356,7 +2402,7 @@
 
       return (
         <section id="pricing" className="section section-subtle" ref={ref}>
-          <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
+          <div className="section-inner" style={{ maxWidth: 1000, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
             <motion.div
               initial={{ opacity: 0, y: 32 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -2408,7 +2454,7 @@
             </motion.div>
 
             <AnimatePresence mode="wait">
-              <motion.div key={tab} initial={{ opacity: 0, x: 28, filter: 'blur(6px)' }} animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, x: -24, filter: 'blur(6px)' }} transition={{ duration: 0.42, ease: [0.16,1,0.3,1] }} style={{ display: 'grid', gridTemplateColumns: tab === 'organization' ? 'min(420px, 100%)' : 'repeat(3, 1fr)', gap: 20, justifyContent: tab === 'organization' ? 'center' : 'initial' }}>
+              <motion.div key={tab} initial={{ opacity: 0, x: 28, filter: 'blur(6px)' }} animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, x: -24, filter: 'blur(6px)' }} transition={{ duration: 0.42, ease: [0.16,1,0.3,1] }} className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: tab === 'organization' ? 'min(420px, 100%)' : 'repeat(3, 1fr)', gap: 20, justifyContent: tab === 'organization' ? 'center' : 'initial' }}>
                 {plans.map((plan, i) => (
                 <motion.div
                   key={plan.name}
