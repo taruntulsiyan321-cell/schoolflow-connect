@@ -10,7 +10,6 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { Sword, Trophy, Sparkles, Users, Clock, ArrowLeft, TrendingUp, ChevronRight, Loader2 } from "lucide-react";
 import { XPRing, BadgeCard, PodiumRow, Countdown } from "@/components/battleground/bg-bits";
-// ArenaHub intentionally not mounted as product home — design Battleground is canonical.
 import "@/components/battleground/battle-arena.css";
 import { FrictionlessChallenge } from "@/components/battleground/FrictionlessChallenge";
 import { BADGES, badgesByGroup, GROUP_LABEL, GROUP_ORDER } from "@/lib/badges";
@@ -68,8 +67,14 @@ function BattlegroundLayout() {
   );
 }
 
-// =================== ARENA (LEGACY — not product home) ===================
-/** Design Battleground at /student/battleground is canonical. ArenaHub is isolated. */
+// =================== ARENA (LEGACY — a redirect, nothing more) ===========
+/**
+ * The Arena design was never the product home. Its eight components
+ * (`components/battleground/Arena*`, `BattleFeed`, `QuickPlay`,
+ * `ChallengeClassmates`, `Invites`) were unmounted and unimported, and were
+ * deleted on 2026-09-08. This route stays only so an old link still lands
+ * somewhere: it redirects to the canonical Battleground.
+ */
 function Arena() {
   return <Navigate to="/student/battleground" replace />;
 }
