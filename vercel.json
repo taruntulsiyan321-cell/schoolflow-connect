@@ -2,6 +2,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/((?!app\\.html|landing\\.html|favicon\\.ico|favicon\\.svg|gurukul-logo\\.png|gurukul-logo\\.svg|robots\\.txt|sitemap\\.xml|assets/).*)",
+      "destination": "/app.html"
+    }
   ]
 }

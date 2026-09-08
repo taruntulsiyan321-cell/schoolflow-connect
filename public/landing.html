@@ -1,0 +1,2827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gurukul — AI-Powered Learning Engine</title>
+  <meta name="description" content="Gurukul is the AI learning engine that practices with you, analyzes your weaknesses, and cross-questions until you truly understand." />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="https://www.gurukul.study/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.gurukul.study/" />
+  <meta property="og:title" content="Gurukul — AI-Powered Learning Engine" />
+  <meta property="og:description" content="Gurukul is the AI learning engine that practices with you, analyzes your weaknesses, and cross-questions until you truly understand." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Gurukul — AI-Powered Learning Engine" />
+  <meta name="twitter:description" content="Gurukul is the AI learning engine that practices with you, analyzes your weaknesses, and cross-questions until you truly understand." />
+  <link rel="icon" href="gurukul-logo.png" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+  <script src="https://unpkg.com/framer-motion@11.11.13/dist/framer-motion.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #FFFFFF;
+      color: #1a1a2e;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+    :root {
+      --bg: #FFFFFF;
+      --bg-subtle: #F9FAFB;
+      --bg-card: #FFFFFF;
+      --text: #1a1a2e;
+      --text-secondary: #4b5563;
+      --text-muted: #9ca3af;
+      --border: rgba(0,0,0,0.08);
+      --border-strong: rgba(0,0,0,0.12);
+      --violet: #7c3aed;
+      --violet-light: #ede9fe;
+      --orange: #ea580c;
+      --orange-light: #fff7ed;
+      --emerald: #059669;
+      --emerald-light: #ecfdf5;
+      --sky: #0284c7;
+      --sky-light: #f0f9ff;
+      --rose: #e11d48;
+      --rose-light: #fff1f2;
+    }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-subtle); }
+    ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 3px; }
+
+    /* ─── DYNAMIC WHITE BACKGROUND — visibly moving  ─── */
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      background: #FFFFFF;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    /* moving mesh that actually drifts across the screen */
+    .bg-mesh{
+      position:absolute;
+      inset: -40%;
+      background:
+        radial-gradient(ellipse 780px 520px at 22% 18%, rgba(124,58,237,0.16), transparent 58%),
+        radial-gradient(ellipse 680px 560px at 82% 22%, rgba(234,88,12,0.13), transparent 58%),
+        radial-gradient(ellipse 720px 520px at 18% 84%, rgba(5,150,105,0.11), transparent 58%),
+        radial-gradient(ellipse 560px 560px at 78% 88%, rgba(2,132,199,0.10), transparent 58%);
+      filter: blur(22px);
+      animation: meshPan 26s ease-in-out infinite alternate;
+      will-change: transform;
+    }
+    @keyframes meshPan { 0%{ transform: translate3d(0,0,0) scale(1)} 50%{ transform: translate3d(3%, -2%,0) scale(1.04)} 100%{ transform: translate3d(-2.5%, 2.5%,0) scale(1.02)} }
+    /* shimmer band that sweeps */}
+    .bg-shimmer{
+      position:absolute;
+      inset: -20% -10%;
+      background: linear-gradient(108deg, transparent 42%, rgba(124,58,237,0.085) 50%, transparent 58%);
+      transform: translateX(-55%) skewX(-12deg);
+      animation: shimmerSweep 9s ease-in-out infinite;
+    }
+    @keyframes shimmerSweep { 0%{ transform: translateX(-55%) skewX(-12deg)} 50%{ transform: translateX(55%) skewX(-12deg)} 100%{ transform: translateX(-55%) skewX(-12deg)} }
+    /* flowing aurora ribbons */
+    .bg-aurora{
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(180deg, transparent 0%, rgba(124,58,237,0.045) 35%, transparent 70%),
+        linear-gradient(180deg, transparent 10%, rgba(234,88,12,0.035) 45%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse 92% 70% at 50% 50%, #000 55%, transparent 82%);
+              mask-image: radial-gradient(ellipse 92% 70% at 50% 50%, #000 55%, transparent 82%);
+      opacity: 0.9;
+      animation: auroraShift 14s ease-in-out infinite alternate;
+    }
+    @keyframes auroraShift { 0%{ transform: translateY(0) scaleY(1)} 100%{ transform: translateY(12px) scaleY(1.06)} }
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, rgba(17,24,39,0.055) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(17,24,39,0.055) 1px, transparent 1px);
+      background-size: 64px 64px;
+      -webkit-mask-image: radial-gradient(ellipse 96% 78% at 50% 0%, #000 42%, transparent 76%);
+              mask-image: radial-gradient(ellipse 96% 78% at 50% 0%, #000 42%, transparent 76%);
+      animation: gridPan 40s linear infinite;
+    }
+    @keyframes gridPan { 0%{ background-position: 0 0} 100%{ background-position: 64px 64px} }
+    .bg-grid::after{
+      content:'';
+      position:absolute; inset:0;
+      background-image:
+        linear-gradient(to right, rgba(17,24,39,0.022) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(17,24,39,0.022) 1px, transparent 1px);
+      background-size: 16px 16px;
+      opacity: 1;
+    }
+    .bg-dot-accent{
+      position:absolute; inset:0;
+      background-image: radial-gradient(circle, rgba(124,58,237,0.14) 1.35px, transparent 1.35px);
+      background-size: 24px 24px;
+      -webkit-mask-image: radial-gradient(ellipse 48% 42% at 72% 16%, #000 0%, transparent 68%);
+              mask-image: radial-gradient(ellipse 48% 42% at 72% 16%, #000 0%, transparent 68%);
+      opacity: 0.62;
+      animation: dotDrift 22s ease-in-out infinite alternate;
+    }
+    @keyframes dotDrift { 0%{ transform: translate(0,0)} 100%{ transform: translate(-10px, 8px)} }
+    .background{
+      position:absolute; inset:0;
+      background-image: radial-gradient(circle, rgba(17,24,39,0.09) 1.1px, transparent 1.1px);
+      background-size: 20px 20px;
+      opacity: 0.42;
+      will-change: transform; transition: transform 0.55s cubic-bezier(0.16,1,0.3,1);
+      -webkit-mask-image: radial-gradient(ellipse 88% 70% at 50% 50%, #000 58%, transparent 82%);
+              mask-image: radial-gradient(ellipse 88% 70% at 50% 50%, #000 58%, transparent 82%);
+    }
+    .bg-canvas{
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      opacity: 0.34;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+    .bg-orb{
+      position:absolute;
+      border-radius: 50%;
+      filter: blur(30px);
+      will-change: transform;
+      mix-blend-mode: multiply;
+      transition: transform 0.6s cubic-bezier(0.16,1,0.3,1);
+    }
+    .orb-1{
+      width: 520px; height: 360px;
+      left: 48%; top: -100px;
+      transform: translateX(-50%);
+      background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(124,58,237,0.14) 0%, rgba(124,58,237,0.06) 36%, transparent 72%);
+      animation: orbDrift1 11s ease-in-out infinite alternate;
+    }
+    .orb-2{
+      width: 440px; height: 420px;
+      right: -80px; top: 22%;
+      background: radial-gradient(circle at 50% 50%, rgba(234,88,12,0.10) 0%, rgba(234,88,12,0.045) 42%, transparent 70%);
+      animation: orbDrift2 13s ease-in-out infinite alternate;
+    }
+    .orb-3{
+      width: 460px; height: 380px;
+      left: -90px; top: 58%;
+      background: radial-gradient(circle at 50% 50%, rgba(5,150,105,0.09) 0%, rgba(5,150,105,0.04) 45%, transparent 70%);
+      animation: orbDrift3 15s ease-in-out infinite alternate;
+    }
+    .orb-4{
+      width: 400px; height: 380px;
+      left: 58%; bottom: -100px;
+      background: radial-gradient(circle at 50% 50%, rgba(2,132,199,0.08) 0%, transparent 70%);
+      animation: orbDrift1 17s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes orbDrift1 { 0%{ transform: translateX(-50%) translateY(0) scale(1)} 100%{ transform: translateX(-46%) translateY(22px) scale(1.06)} }
+    @keyframes orbDrift2 { 0%{ transform: translate(0,0) scale(1)} 100%{ transform: translate(-26px, 28px) scale(1.08)} }
+    @keyframes orbDrift3 { 0%{ transform: translate(0,0) scale(1)} 100%{ transform: translate(28px, -20px) scale(1.07)} }
+
+    .bg-halo{
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(ellipse 110% 70% at 50% -16%, rgba(124,58,237,0.085), transparent 62%),
+        radial-gradient(ellipse 90% 55% at 92% 18%, rgba(234,88,12,0.07), transparent 55%),
+        radial-gradient(ellipse 70% 45% at 8% 82%, rgba(5,150,105,0.055), transparent 58%);
+      animation: haloPulse 10s ease-in-out infinite alternate;
+    }
+    @keyframes haloPulse { 0%{ opacity:0.95} 100%{ opacity:1; filter: brightness(1.06)} }
+    .bg-noise{
+      position:absolute; inset:0;
+      opacity: 0.032;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+      mix-blend-mode: multiply;
+    }
+    .bg-vignette{
+      position:absolute; inset:0;
+      background: radial-gradient(ellipse 120% 90% at 50% 50%, transparent 58%, rgba(17,24,39,0.032) 100%);
+    }
+    .bg-beam{
+      position:absolute;
+      width: 1.5px; height: 140%;
+      top: -20%;
+      background: linear-gradient(180deg, transparent, rgba(124,58,237,0.18), transparent);
+      opacity: 0.0;
+      animation: beamSweep 9s ease-in-out infinite;
+    }
+    .bg-beam.b1{ left: 26%; transform: rotate(14deg); animation-delay: 0s; }
+    .bg-beam.b2{ left: 74%; transform: rotate(-12deg); animation-delay: 3.5s; }
+    @keyframes beamSweep { 0%, 90%, 100%{ opacity:0; transform: translateX(0) rotate(14deg)} 6%{ opacity:0.7} 16%{ opacity:0} }
+
+    .brand-logo{
+      width: 42px; height: 42px;
+      object-fit: contain;
+      display: block;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      filter: drop-shadow(0 2px 8px rgba(17,24,39,0.08));
+    }
+    .brand-logo--footer{ width: 38px; height: 38px; }
+    .hero-logo-wrap{
+      width: 110px; height: 110px;
+      margin: 0 auto 18px;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      filter: drop-shadow(0 12px 28px rgba(17,24,39,0.10)) drop-shadow(0 2px 8px rgba(17,24,39,0.06));
+    }
+    .hero-logo-wrap::after{ display: none; }
+    .hero-logo{ width:100%; height:100%; object-fit: contain; border-radius: 0; background: transparent; }
+
+    /* Section backgrounds — translucent glass so moving bg is visible */
+    .section-white { background: rgba(255,255,255,0.62); backdrop-filter: blur(8px) saturate(1.05); -webkit-backdrop-filter: blur(8px) saturate(1.05); }
+    .section-subtle { background: rgba(249,250,251,0.52); backdrop-filter: blur(8px) saturate(1.05); -webkit-backdrop-filter: blur(8px) saturate(1.05); }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card:hover {
+      border-color: var(--violet);
+      box-shadow: 0 8px 30px rgba(124,58,237,0.08), 0 2px 8px rgba(0,0,0,0.04);
+      transform: translateY(-2px);
+    }
+
+    /* Pills */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid;
+    }
+    .pill-violet { background: var(--violet-light); color: var(--violet); border-color: rgba(124,58,237,0.2); }
+    .pill-orange { background: var(--orange-light); color: var(--orange); border-color: rgba(234,88,12,0.2); }
+    .pill-emerald { background: var(--emerald-light); color: var(--emerald); border-color: rgba(5,150,105,0.2); }
+    .pill-sky { background: var(--sky-light); color: var(--sky); border-color: rgba(2,132,199,0.2); }
+    .pill-rose { background: var(--rose-light); color: var(--rose); border-color: rgba(225,29,72,0.2); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--violet);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(124,58,237,0.25);
+    }
+    .btn-primary:hover {
+      background: #6d28d9;
+      box-shadow: 0 4px 16px rgba(124,58,237,0.35);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border-strong);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-subtle);
+      border-color: var(--violet);
+    }
+    .btn-orange {
+      background: var(--orange);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(234,88,12,0.25);
+    }
+    .btn-orange:hover {
+      background: #c2410c;
+      box-shadow: 0 4px 16px rgba(234,88,12,0.35);
+      transform: translateY(-1px);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      max-width: 900px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+    }
+
+    /* Chat interface - Light theme */
+    .chat-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-strong);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .chat-header {
+      background: linear-gradient(135deg, var(--violet) 0%, #8b5cf6 100%);
+      padding: 20px 24px;
+      color: #fff;
+    }
+    .chat-messages {
+      padding: 24px;
+      min-height: 380px;
+      max-height: 420px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: var(--bg-subtle);
+    }
+    .chat-input-area {
+      border-top: 1px solid var(--border);
+      padding: 20px 24px;
+      background: var(--bg-card);
+    }
+
+    /* Message bubbles - Light */
+    .msg-nova {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px 16px 16px 4px;
+      padding: 16px 20px;
+      max-width: 85%;
+      font-size: 14px;
+      line-height: 1.7;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .msg-user {
+      background: var(--violet);
+      color: #fff;
+      border-radius: 16px 16px 4px 16px;
+      padding: 16px 20px;
+      max-width: 85%;
+      align-self: flex-end;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    /* Revision mode — highlighted to drive clicks */
+    .revision-active {
+      background: linear-gradient(135deg, var(--emerald) 0%, #10b981 100%);
+    }
+    .revision-highlight{
+      position: relative;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.42), 0 6px 18px rgba(5,150,105,0.28);
+      animation: revisionPulse 1.6s ease-in-out infinite;
+    }
+    .revision-highlight::after{
+      content:'● TRY'; position:absolute; top:-8px; right:-10px;
+      font-size:8px; font-weight:800; letter-spacing:0.06em;
+      background:#f59e0b; color:#fff; padding:2px 6px; border-radius:100px;
+      box-shadow:0 2px 8px rgba(245,158,11,0.35);
+    }
+    @keyframes revisionPulse { 0%,100%{ transform: scale(1); box-shadow:0 0 0 2px rgba(255,255,255,0.42), 0 6px 18px rgba(5,150,105,0.18)} 50%{ transform: scale(1.04); box-shadow:0 0 0 3px rgba(255,255,255,0.55), 0 8px 22px rgba(5,150,105,0.30)} }
+    .voice-indicator {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--emerald);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+      position: relative;
+    }
+    .voice-indicator::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 2px solid var(--emerald);
+      animation: voice-pulse 1.5s ease-out infinite;
+    }
+    @keyframes voice-pulse {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+
+    /* Tab system */
+    .tab-btn {
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--bg-subtle); }
+    .tab-btn.active {
+      background: var(--violet-light);
+      border-color: rgba(124,58,237,0.2);
+      color: var(--violet);
+    }
+
+    /* Feature showcase scroll — seamless infinite, no gap */
+    @keyframes scroll-up { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+    @keyframes scroll-down { from { transform: translateY(-50%); } to { transform: translateY(0); } }
+    .scroll-col-up { animation: scroll-up 40s linear infinite; will-change: transform; }
+    .scroll-col-down { animation: scroll-down 40s linear infinite; will-change: transform; }
+
+    /* Section */
+    .section { position: relative; padding: 100px 0; overflow: hidden; }
+
+    /* Role panel */
+    .role-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    .role-panel-header {
+      padding: 24px 28px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Gradient text */
+    .gradient-text {
+      background: linear-gradient(135deg, var(--violet) 0%, var(--orange) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    @keyframes pulseDot { 0%,100%{ opacity:1; transform: scale(1)} 50%{ opacity:0.55; transform: scale(0.85)} }
+
+    /* ─── Mobile layout ─── */
+    @media (max-width: 768px) {
+      .site-nav { padding: 10px 14px !important; }
+      .site-nav-inner {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        gap: 8px 10px !important;
+      }
+      .site-nav-brand { flex: 1 1 auto; min-width: 0; }
+      .site-nav-brand span { font-size: 17px !important; }
+      .site-nav-tabs {
+        order: 3;
+        flex: 1 1 100%;
+        display: flex !important;
+        justify-content: center !important;
+        gap: 6px !important;
+      }
+      .site-nav-tabs .tab-btn { flex: 1; padding: 8px 10px; font-size: 13px; }
+      .site-nav-cta { flex: 0 0 auto; }
+      .site-nav-cta .nav-sign-in { display: none !important; }
+      .site-nav-cta .btn-primary { padding: 9px 14px !important; font-size: 13px !important; }
+      .brand-logo { width: 34px; height: 34px; }
+      .hero-logo-wrap { width: 76px; height: 76px; margin-bottom: 12px; }
+      .section { padding: 56px 0 !important; }
+      .section-inner { padding-left: 16px !important; padding-right: 16px !important; }
+      .feature-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+      .feature-grid-4 .card { padding: 14px !important; }
+      .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; padding: 0 8px !important; }
+      .showcase-shell { height: 340px !important; margin-bottom: 40px !important; }
+      .pricing-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+      .pricing-grid > div { padding: 22px !important; }
+      .hero-ctas .btn { width: 100%; max-width: 320px; }
+      .tech-float { display: none !important; }
+      .scroll-hint { display: none !important; }
+      .learning-loop {
+        flex-direction: column !important;
+        gap: 8px !important;
+      }
+      .learning-loop-step { width: min(240px, 100%); text-align: center; }
+      .learning-loop-arrow { transform: rotate(90deg); display: inline-block; }
+
+      .ai-coach-demo { max-width: 100% !important; }
+    }
+    @media (max-width: 420px) {
+      .feature-grid-4 { grid-template-columns: 1fr !important; }
+      .site-nav-brand span { font-size: 16px !important; }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .bg-orb, .bg-beam{ animation: none !important; }
+    }
+    /* Waveform bars */
+    .waveform {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 40px;
+    }
+    .waveform-bar {
+      width: 4px;
+      background: #fff;
+      border-radius: 2px;
+      animation: waveform-anim 1s ease-in-out infinite;
+    }
+    @keyframes waveform-anim {
+      0%, 100% { height: 8px; }
+      50% { height: 32px; }
+    }
+    /* ─── Tech dynamic — scroll progress, magnetic, float, tilt ─── */
+    .scroll-progress{
+      position: fixed; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, #7c3aed, #ea580c, #059669);
+      transform-origin: 0 0; z-index: 9999;
+    }
+    .tech-float{
+      position: absolute; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+      padding: 6px 10px; border-radius: 10px;
+      background: rgba(255,255,255,0.92); border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+      pointer-events: none; white-space: nowrap;
+    }
+    /* dot background cursor parallax */
+    .bg-dot-accent{ will-change: transform; transition: transform 0.55s cubic-bezier(0.16,1,0.3,1); }
+    .hero-logo{ will-change: transform; transition: transform 0.55s cubic-bezier(0.16,1,0.3,1); }
+    .hero-logo-wrap{ animation: logoFloat 4.2s ease-in-out infinite; }
+    @keyframes logoFloat { 0%,100%{ transform: translateY(0)} 50%{ transform: translateY(-9px)} }
+    .hero-orbit{
+      position: absolute; width: 9px; height: 9px; border-radius: 50%;
+      pointer-events: none;
+      box-shadow: 0 0 10px currentColor, 0 0 18px currentColor;
+      opacity: 0.92;
+    }
+    .hero-orbit.o1{ background: #7c3aed; color: #7c3aed; top: 8%; right: 12%; animation: orbitPulse 2.2s ease-in-out infinite; }
+    .hero-orbit.o2{ background: #ea580c; color: #ea580c; bottom: 14%; left: 6%; animation: orbitPulse 2.2s ease-in-out infinite 0.7s; }
+    .hero-orbit.o3{ background: #059669; color: #059669; top: 44%; right: -6%; width: 7px; height: 7px; animation: orbitPulse 2.2s ease-in-out infinite 1.1s; }
+    @keyframes orbitPulse { 0%,100%{ transform: scale(1); opacity: 0.92} 50%{ transform: scale(1.45); opacity: 0.62} }
+    .hero-logo-wrap::before{
+      content:''; position: absolute; inset: -14px; border-radius: 28px;
+      background: conic-gradient(from 0deg, rgba(124,58,237,0.18), rgba(234,88,12,0.14), rgba(5,150,105,0.12), rgba(124,58,237,0.18));
+      filter: blur(14px); opacity: 0.55; z-index: -1;
+      animation: logoConic 6s linear infinite;
+    }
+    @keyframes logoConic { 0%{ transform: rotate(0deg)} 100%{ transform: rotate(360deg)} }
+    @keyframes shimmerText { 0%{ background-position: 0% 50%} 100%{ background-position: 200% 50%} }
+    .shimmer-gradient{
+      background: linear-gradient(90deg, #7c3aed 0%, #ea580c 25%, #059669 50%, #0284c7 75%, #7c3aed 100%);
+      background-size: 200% 100%;
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      animation: shimmerText 4.5s linear infinite;
+    }
+    .magnetic-btn{ position: relative; will-change: transform; transition: transform 0.18s cubic-bezier(0.16,1,0.3,1); }
+    .mouse-glow{
+      position: fixed; width: 420px; height: 420px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(124,58,237,0.10) 0%, transparent 62%);
+      pointer-events: none; z-index: 1; mix-blend-mode: multiply;
+      transform: translate(-50%,-50%);
+    }
+    .tilt-card{ transform-style: preserve-3d; will-change: transform; }
+    @media (hover:hover) and (pointer:fine){
+      .tilt-card:hover{ transform: perspective(700px) rotateX(1.2deg) rotateY(-1.2deg) translateY(-6px) scale(1.015) !important; box-shadow: 0 18px 40px rgba(17,24,39,0.10), 0 6px 14px rgba(17,24,39,0.06) !important; }
+    }
+    @keyframes gridPulse { 0%,100%{ opacity: 1} 50%{ opacity: 0.85} }
+    /* ─── Rocket — real cinematic blast (no gamify) ─── */
+    .rocket-overlay{
+      position: fixed; inset: 0; z-index: 2000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+      background: rgba(8,10,24,0.52);
+      backdrop-filter: blur(8px) saturate(1.1);
+      -webkit-backdrop-filter: blur(8px) saturate(1.1);
+    }
+    .rocket-chaos-bg{
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 900px 600px at 50% 38%, rgba(124,58,237,0.16), transparent 62%),
+        radial-gradient(ellipse 760px 520px at 84% 78%, rgba(234,88,12,0.11), transparent 60%);
+    }
+    @keyframes chaosShake { 0%,100%{ transform: translate(0,0)} 20%{ transform: translate(-2px,1px)} 40%{ transform: translate(1.6px,-1px)} 60%{ transform: translate(-1.2px,-0.7px)} 80%{ transform: translate(1.3px,0.8px)} }
+    .rocket-stage{ position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .rocket-svg-wrap{ filter: drop-shadow(0 14px 28px rgba(124,58,237,0.28)) drop-shadow(0 4px 10px rgba(0,0,0,0.16)); will-change: transform; }
+    .rocket-flame{
+      width: 28px; height: 38px; margin: -1px auto 0;
+      background: linear-gradient(180deg, #fff7ed 0%, #fed7aa 22%, #fb923c 48%, #ef4444 74%, #7f1d1d 100%);
+      border-radius: 0 0 12px 12px;
+      animation: flameFlicker 0.08s ease-in-out infinite alternate;
+      box-shadow: 0 0 16px rgba(251,146,60,0.8), 0 0 28px rgba(239,68,68,0.42);
+      position: relative;
+    }
+    .rocket-flame::after{ content:''; position:absolute; inset:5px 7px -3px 7px; background: radial-gradient(ellipse 60% 75% at 50% 22%, #fff 0%, transparent 64%); border-radius:50%; opacity:0.82; }
+    @keyframes flameFlicker { 0%{ transform: scaleY(1) scaleX(1)} 100%{ transform: scaleY(1.18) scaleX(0.9)} }
+    .rocket-smoke{ position:absolute; left:50%; width:9px; height:9px; border-radius:50%; background: radial-gradient(circle, rgba(255,255,255,0.88) 0%, rgba(229,231,235,0.5) 48%, transparent 72%); pointer-events:none; }
+    .shockwave{ position:absolute; left:50%; top:34%; width:70px; height:70px; margin-left:-35px; margin-top:-35px; border:2px solid rgba(255,255,255,0.92); border-radius:50%; box-shadow: 0 0 0 1px rgba(124,58,237,0.2), 0 0 18px rgba(255,255,255,0.55); }
+    .explosion-dot{ position:absolute; border-radius:50%; background: radial-gradient(circle, #fff 0%, #fde68a 32%, #f97316 64%, #dc2626 100%); box-shadow: 0 0 10px rgba(249,115,22,0.9); }
+  </style>
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true">
+    <canvas class="bg-canvas" data-od-id="bg-canvas" aria-hidden="true"></canvas>
+    <div class="bg-mesh"></div>
+    <div class="bg-aurora"></div>
+    <div class="bg-shimmer"></div>
+    <div class="bg-halo"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-dot-accent"></div>
+    <div class="background" data-od-id="background"></div>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+    <div class="bg-orb orb-4"></div>
+    <div class="bg-beam b1"></div>
+    <div class="bg-beam b2"></div>
+    <div class="bg-noise"></div>
+    <div class="bg-vignette"></div>
+  </div>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const { motion, AnimatePresence, useScroll, useTransform, useInView } = Motion;
+
+    function ScrollProgress(){
+      const { scrollYProgress } = useScroll();
+      const scaleX = useTransform(scrollYProgress, [0,1], [0,1]);
+      return <motion.div className="scroll-progress" style={{ scaleX }} />;
+    }
+    function MouseGlow(){
+      const [pos, setPos] = useState({ x: -400, y: -400 });
+      useEffect(() => {
+        const handle = (e) => {
+          const x = e.touches ? e.touches[0].clientX : e.clientX;
+          const y = e.touches ? e.touches[0].clientY : e.clientY;
+          setPos({ x, y });
+          const nx = (x / window.innerWidth - 0.5);
+          const ny = (y / window.innerHeight - 0.5);
+          const dot = document.querySelector('.bg-dot-accent');
+          if(dot) dot.style.transform = `translate(${nx*22}px, ${ny*16}px)`;
+          const bg = document.querySelector('.background');
+          if(bg) bg.style.transform = `translate(${nx*18}px, ${ny*14}px)`;
+          const logo = document.querySelector('.hero-logo');
+          if(logo) logo.style.transform = `translate(${nx*10}px, ${ny*8}px)`;
+          const grid = document.querySelector('.bg-grid');
+          if(grid) grid.style.transform = `translate(${nx*8}px, ${ny*6}px)`;
+          const canvas = document.querySelector('.bg-canvas');
+          if(canvas) canvas.style.transform = `translate(${nx*10}px, ${ny*7}px)`;
+          document.querySelectorAll('.hero-orbit').forEach((el,i) => {
+            const m = [1.2, -1.0, 0.9][i] || 1;
+            el.style.transform = `translate(${nx*14*m}px, ${ny*10*m}px)`;
+          });
+          document.querySelectorAll('.bg-orb').forEach((el,i) => {
+            const m = [0.6, 0.5, 0.7, 0.45][i] || 0.5;
+            const base = el.classList.contains('orb-1') ? 'translateX(-50%) ' : '';
+            el.style.transform = base + `translate(${nx*14*m}px, ${ny*12*m}px)`;
+          });
+        };
+        window.addEventListener('mousemove', handle);
+        window.addEventListener('touchmove', handle, { passive: true });
+        window.addEventListener('touchstart', handle, { passive: true });
+        return () => {
+          window.removeEventListener('mousemove', handle);
+          window.removeEventListener('touchmove', handle);
+          window.removeEventListener('touchstart', handle);
+        };
+      }, []);
+      return <div className="mouse-glow" style={{ left: pos.x, top: pos.y }} />;
+    }
+    function BgCanvasFX(){
+      useEffect(() => {
+        const c = document.querySelector('.bg-canvas');
+        if(!c) return;
+        const ctx = c.getContext('2d');
+        let w,h,dpr, raf;
+        let mx=0, my=0;
+        const dots = [];
+        const init = () => {
+          dpr = window.devicePixelRatio || 1;
+          w = c.clientWidth; h = c.clientHeight;
+          c.width = w*dpr; c.height = h*dpr;
+          ctx.setTransform(dpr,0,0,dpr,0,0);
+          dots.length = 0;
+          const cols = Math.ceil(w/26)+2, rows = Math.ceil(h/26)+2;
+          for(let y=-1;y<rows;y++) for(let x=-1;x<cols;x++){
+            dots.push({ ox: x*26+13, oy: y*26+13, a: Math.random()*Math.PI*2, s: 0.005+Math.random()*0.01, r: 1.25+Math.random()*0.75, z: 0.62+Math.random()*0.44 });
+          }
+        };
+        let cx=w/2, cy=h/2;
+        const onMove = (e) => {
+          const x = e.touches ? e.touches[0].clientX : e.clientX;
+          const y = e.touches ? e.touches[0].clientY : e.clientY;
+          cx = x; cy = y;
+          mx = (x/w -0.5)*2; my = (y/h -0.5)*2;
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchmove', onMove, { passive: true });
+        window.addEventListener('touchstart', onMove, { passive: true });
+        init();
+        window.addEventListener('resize', init);
+        const draw = () => {
+          ctx.clearRect(0,0,w,h);
+          dots.forEach(d => {
+            d.a += d.s;
+            const driftX = Math.sin(d.a)*1.15;
+            const driftY = Math.cos(d.a*0.68)*0.95;
+            const parX = mx*8*d.z;
+            const parY = my*6*d.z;
+            const baseX = d.ox + driftX + parX;
+            const baseY = d.oy + driftY + parY;
+            const dx = baseX - cx;
+            const dy = baseY - cy;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const R = 118;
+            let r = d.r * (0.9 + d.z*0.18);
+            let addA = 0;
+            let px = 0, py = 0;
+            if(dist < R){
+              const t = 1 - dist/R;
+              r = r * (1 + t*1.6);
+              addA = t*0.5;
+              px = (dx/dist)* t*7;
+              py = (dy/dist)* t*7;
+            }
+            const x = baseX + px;
+            const y = baseY + py;
+            const isAccent = (Math.floor(d.ox/26)+Math.floor(d.oy/26)) % 9 === 0;
+            ctx.beginPath();
+            ctx.arc(x,y,r,0,Math.PI*2);
+            if(isAccent){
+              ctx.fillStyle = `rgba(124,58,237,${0.44 + addA*0.48})`;
+              ctx.shadowColor = dist < R ? 'rgba(124,58,237,0.28)' : 'transparent';
+              ctx.shadowBlur = dist < R ? 6 : 0;
+            } else {
+              ctx.fillStyle = `rgba(17,24,39,${0.19 + addA*0.24})`;
+              ctx.shadowBlur = 0;
+            }
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          });
+          raf = requestAnimationFrame(draw);
+        };
+        raf = requestAnimationFrame(draw);
+        return () => { cancelAnimationFrame(raf); window.removeEventListener('mousemove', onMove); window.removeEventListener('touchmove', onMove); window.removeEventListener('resize', init); };
+      }, []);
+      return null;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       INDIVIDUAL FEATURES — COMPREHENSIVE DATA
+    ═══════════════════════════════════════════════════════════════════════════ */
+    const INDIVIDUAL_FEATURES = [
+      {
+        id: 'practice',
+        name: 'Practice',
+        icon: '◎',
+        color: '#7c3aed',
+        colorLight: '#ede9fe',
+        tagline: 'Master every concept',
+        description: '9 distinct practice modes designed for every learning situation.',
+        modes: [
+          { name: 'Subject Practice', desc: 'Comprehensive practice across an entire subject', icon: '◉' },
+          { name: 'Chapter Practice', desc: 'Deep dive into a specific chapter', icon: '◈' },
+          { name: 'Topic Practice', desc: 'Laser focus on one topic within a chapter', icon: '◆' },
+          { name: 'Custom Practice', desc: 'You select the exact chapters and topics', icon: '⊞' },
+          { name: 'PYQ Practice', desc: 'Previous year questions for exam preparation', icon: '◷' },
+          { name: 'Weak Areas', desc: 'Auto-generated from concepts you struggle with', icon: '⟳' },
+          { name: 'Incorrect Questions', desc: 'Questions you got wrong, returned for mastery', icon: '✕' },
+          { name: 'Skipped Questions', desc: 'Questions you moved past without answering', icon: '◐' },
+          { name: 'Bookmarked', desc: 'Questions you flagged to revisit later', icon: '★' }
+        ],
+        details: [
+          'Session continuation — pick up exactly where you left off',
+          'Complete history of all practice sessions',
+          'Save sessions for later',
+          'Intelligent hints when you\'re stuck',
+          'Immediate feedback after each question',
+          'Detailed results with AI-powered explanations'
+        ]
+      },
+      {
+        id: 'analysis',
+        name: 'Deep Analysis',
+        icon: '◈',
+        color: '#0284c7',
+        colorLight: '#f0f9ff',
+        tagline: 'See exactly where you stand',
+        description: 'Much more than basic analytics. A lot more insights than any other platform — drill down from subject → chapter → topic.',
+        views: [
+          { name: 'Performance Overview', desc: 'High-level snapshot of your progress' },
+          { name: 'Subject Analysis', desc: 'Performance breakdown across all subjects' },
+          { name: 'Chapter Analysis', desc: 'Chapter-wise insights within each subject' },
+          { name: 'Topic Analysis', desc: 'Pinpoint the exact topics causing trouble' },
+          { name: 'Practice History', desc: 'Complete timeline of all your sessions' },
+          { name: 'Marks History', desc: 'Test and exam performance trends' },
+          { name: 'Speed & Accuracy', desc: 'Time analysis per question type' },
+          { name: 'Milestones & Reports', desc: 'Progress markers and exportable reports' }
+        ],
+        details: [
+          'Much more granular than traditional analytics',
+          'Week-wise, month-wise performance tracking',
+          'Improvement or decline visualized over time',
+          'A lot more insights — weak areas auto-surfaced',
+          'Speed analysis — see where you\'re slow',
+          'Accuracy breakdown by topic and question type',
+          'Exportable detailed reports'
+        ]
+      },
+      {
+        id: 'recovery',
+        name: 'Recovery',
+        icon: '⟳',
+        color: '#e11d48',
+        colorLight: '#fff1f2',
+        tagline: 'Conquer your weak spots automatically',
+        description: 'Automatic recovery sessions are created from your weak concepts as soon as you finish your practice session. No manual tracking needed.',
+        flow: [
+          { step: '1', name: 'Practice Complete', desc: 'You finish a practice session' },
+          { step: '2', name: 'Auto-Detect', desc: 'System identifies weak concepts instantly' },
+          { step: '3', name: 'Queue Created', desc: 'Weak concepts enter recovery queue automatically' },
+          { step: '4', name: 'Priority Set', desc: 'Rule-based priority — worst concepts first' },
+          { step: '5', name: 'Recovery Session', desc: 'Personalized recovery sessions ready to start' }
+        ],
+        details: [
+          'Fully automatic — sessions created as soon as practice ends',
+          'No manual tracking or logging required',
+          'Priority based on frequency and severity of mistakes',
+          'Recovery sessions are built from your actual weak concepts',
+          'Verification step to confirm concept is now solid',
+          'Concepts stay in queue until truly recovered'
+        ]
+      },
+      {
+        id: 'revision',
+        name: 'Revision',
+        icon: '◷',
+        color: '#059669',
+        colorLight: '#ecfdf5',
+        tagline: 'Never forget what you learned',
+        description: 'Automatic revision sessions are created with the concepts you studied last time, combined with fresh new questions. Spaced repetition powered by AI.',
+        schedule: [
+          { name: 'Due Today', desc: 'Concepts scheduled for revision right now' },
+          { name: 'Due This Week', desc: 'Upcoming revision items in your queue' },
+          { name: 'Quick Revision', desc: 'Jump straight into revision practice' },
+          { name: 'AI Scheduling', desc: 'Nova schedules based on your retention patterns' }
+        ],
+        details: [
+          'Automatic revision sessions created for you',
+          'Combines concepts you studied + new questions',
+          'Spaced repetition algorithm optimizes retention',
+          'AI analyzes your learning patterns',
+          'Notifications when revision is due',
+          'Nothing to plan — system handles everything'
+        ]
+      },
+      {
+        id: 'ai-coach',
+        name: 'AI Coach',
+        icon: '✧',
+        color: '#ea580c',
+        colorLight: '#fff7ed',
+        tagline: 'Your personal AI tutor — unlimited',
+        description: 'Nova — the cross-questioning AI tutor. No cap limit on usage. Unlimited conversations. The differentiator that sets Gurukul apart.',
+        capabilities: [
+          { name: 'Chat Mode', desc: 'Ask anything, get clear explanations grounded in your syllabus' },
+          { name: 'Revision Mode', desc: 'Select a topic, then speak — Nova cross-questions you using the Feynman technique' },
+          { name: 'Voice-First', desc: 'In Revision Mode, you speak your answers — no typing' },
+          { name: 'Context-Aware', desc: 'Knows your curriculum, your weak areas, your progress' },
+          { name: 'Unlimited Usage', desc: 'No cap, no limits — use as much as you need' }
+        ],
+        details: [
+          'NO CAP LIMIT — unlimited AI sessions',
+          'This is the key differentiator',
+          'Chat mode: text-based Q&A anytime',
+          'Revision mode: voice-only cross-questioning',
+          'Attach images, files, screenshots',
+          'Conversation history saved',
+          'Available 24/7 — a student stuck at 11pm gets a teacher at 11pm'
+        ]
+      },
+      {
+        id: 'mistake-book',
+        name: 'Mistake Book',
+        icon: '✕',
+        color: '#dc2626',
+        colorLight: '#fef2f2',
+        tagline: 'Learn from every error',
+        description: 'Every wrong answer automatically captured. AI explains why you got it wrong. Retry until mastered.',
+        features: [
+          { name: 'Auto-Capture', desc: 'Wrong answers collected automatically' },
+          { name: 'AI Explanations', desc: 'Nova explains why you got it wrong' },
+          { name: 'Retry', desc: 'Attempt the question again until mastered' },
+          { name: 'Subject Breakdown', desc: 'Filter by subject, chapter, topic' },
+          { name: 'Enter Recovery', desc: 'Move stubborn mistakes into recovery queue' }
+        ],
+        details: [
+          'Zero manual logging required',
+          'Each mistake has AI explanation ready',
+          'Retry directly from the notebook',
+          'Track resolution status',
+          'Filter and search mistakes'
+        ]
+      },
+      {
+        id: 'battleground',
+        name: 'Battleground',
+        icon: '⚔',
+        color: '#7c3aed',
+        colorLight: '#ede9fe',
+        tagline: 'Compete. Challenge. Win.',
+        description: 'Live competitive quizzes. Challenge anyone. Prove your mastery against peers.',
+        modes: [
+          { name: '1v1 Challenge', desc: 'Challenge a specific friend or classmate' },
+          { name: 'Open Battle', desc: 'Join or create public battles anyone can enter' },
+          { name: 'Timed Battle', desc: 'Speed competition with time limits' },
+          { name: 'Tournament', desc: 'Multi-round competitive brackets' }
+        ],
+        details: [
+          'Choose subject and chapters',
+          'Set your own time limits',
+          'Share invite codes — anyone can join',
+          'Cross-school battles',
+          'Live leaderboard during battle',
+          'Detailed battle reports after'
+        ]
+      },
+      {
+        id: 'gamification',
+        name: 'Achievements',
+        icon: '★',
+        color: '#ca8a04',
+        colorLight: '#fefce8',
+        tagline: 'Stay motivated every day',
+        description: 'XP, levels, leagues, streaks. The consistency layer that keeps you going.',
+        elements: [
+          { name: 'XP System', desc: 'Earn XP from practice, tests, and battles' },
+          { name: 'Levels', desc: 'Level up as you accumulate XP' },
+          { name: 'Leagues', desc: 'Compete in weekly leagues by XP earned' },
+          { name: 'Streaks', desc: 'Daily streaks reward consistency' },
+          { name: 'Badges', desc: 'Achievement badges for milestones' },
+          { name: 'Leaderboard', desc: 'Rank against classmates and globally' }
+        ],
+        details: [
+          'XP from both school activity and practice',
+          'Streak reminders to keep you going',
+          'Achievement notifications',
+          'Class and global rankings'
+        ]
+      }
+    ];
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ORGANIZATION — ALL FEATURES FOR SHOWCASE (elevator / accelerator)
+       Covers Student + Teacher + Parent + Principal + Admin
+    ═══════════════════════════════════════════════════════════════════════════ */
+    const ORG_SHOWCASE_FEATURES = [
+      { name: 'Practice Engine', icon: '◎', color: '#7c3aed', group: 'Student' },
+      { name: 'AI Coach (Nova)', icon: '✧', color: '#ea580c', group: 'Student' },
+      { name: 'Homework Submissions', icon: '▭', color: '#7c3aed', group: 'Student' },
+      { name: 'Class Timetable', icon: '◷', color: '#7c3aed', group: 'Student' },
+      { name: 'Doubt Portal', icon: '◈', color: '#7c3aed', group: 'Student' },
+      { name: 'Battleground', icon: '⚔', color: '#7c3aed', group: 'Student' },
+      { name: 'Test Reports', icon: '▦', color: '#0284c7', group: 'Teacher', highlight: true },
+      { name: 'Exam Reports', icon: '◫', color: '#0284c7', group: 'Teacher', highlight: true },
+      { name: 'AI Question Generation', icon: '✎', color: '#7c3aed', group: 'Teacher', highlight: true },
+      { name: 'Auto Grading', icon: '✓', color: '#059669', group: 'Teacher', highlight: true },
+      { name: 'Class Insights', icon: '◎', color: '#0284c7', group: 'Teacher' },
+      { name: 'Question Bank', icon: '⊞', color: '#0284c7', group: 'Teacher' },
+      { name: 'Attendance Marking', icon: '☑', color: '#0284c7', group: 'Teacher' },
+      { name: 'Doubt Responses', icon: '✉', color: '#0284c7', group: 'Teacher' },
+      { name: 'Child Profile', icon: '◉', color: '#059669', group: 'Parent' },
+      { name: 'Homework Status', icon: '▭', color: '#059669', group: 'Parent' },
+      { name: 'Weekly Report', icon: '◈', color: '#059669', group: 'Parent' },
+      { name: 'Fee Payments', icon: '₹', color: '#059669', group: 'Parent' },
+      { name: 'School Analytics', icon: '◆', color: '#ea580c', group: 'Principal' },
+      { name: 'At-Risk Students', icon: '⚑', color: '#e11d48', group: 'Principal' },
+      { name: 'Teacher Monitoring', icon: '◐', color: '#ea580c', group: 'Principal' },
+      { name: 'Fee Collection Status', icon: '₨', color: '#ea580c', group: 'Principal' },
+      { name: 'Student Management', icon: '◐', color: '#e11d48', group: 'Admin' },
+      { name: 'Timetable Management', icon: '▥', color: '#e11d48', group: 'Admin' },
+      { name: 'Fee Management', icon: '≡', color: '#e11d48', group: 'Admin' },
+      { name: 'Class Management', icon: '▤', color: '#e11d48', group: 'Admin' },
+      { name: 'Academic Reports', icon: '▦', color: '#e11d48', group: 'Admin' },
+      { name: 'AI Analytics', icon: '✧', color: '#e11d48', group: 'Admin' }
+    ];
+    // backwards compat
+    const STUDENT_SHOWCASE_FEATURES = ORG_SHOWCASE_FEATURES;
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ORGANIZATION — FEATURES BY ROLE/PANEL
+    ═══════════════════════════════════════════════════════════════════════════ */
+    const ORG_ROLES = [
+      {
+        id: 'student',
+        name: 'Student Panel',
+        icon: '◎',
+        color: '#7c3aed',
+        colorLight: '#ede9fe',
+        description: 'Full learning engine + school academic ecosystem',
+        features: [
+          { name: 'Practice & Learning', inherited: false, desc: 'All 9 practice modes + school homework & tests' },
+          { name: 'Deep Analysis', inherited: false, desc: 'Subject → chapter → topic drill-down' },
+          { name: 'Recovery System', inherited: false, desc: 'Auto-queued weak-concept sessions' },
+          { name: 'Revision & Scheduling', inherited: false, desc: 'Spaced repetition, AI-scheduled' },
+          { name: 'AI Coach (Nova) — Unlimited', inherited: false, desc: 'Chat + voice Feynman cross-questioning' },
+          { name: 'Mistake Book', inherited: false, desc: 'Every wrong answer with AI explanation' },
+          { name: 'Battleground', inherited: false, desc: '1v1 & open battles' },
+          { name: 'Achievements & XP', inherited: false, desc: 'Streaks, leagues, leaderboards' },
+          { name: 'School Tests', inherited: false, desc: 'Online tests assigned by teachers' },
+          { name: 'Homework Submissions', inherited: false, desc: 'Submit & track homework' },
+          { name: 'Attendance History', inherited: false, desc: 'Daily attendance & analytics' },
+          { name: 'Class Timetable', inherited: false, desc: 'Period-wise timetable' },
+          { name: 'Academic Calendar', inherited: false, desc: 'Holidays, exams, events' },
+          { name: 'Doubt Portal', inherited: false, desc: 'Ask teachers & get answers' },
+          { name: 'Resources from Teachers', inherited: false, desc: 'Notes, PDFs, videos' },
+          { name: 'School Notices', inherited: false, desc: 'Announcements & circulars' },
+          { name: 'Exam Marks', inherited: false, desc: 'Report cards & transcripts' },
+          { name: 'Fees Ledger', inherited: false, desc: 'Dues, receipts, payments' }
+        ]
+      },
+      {
+        id: 'teacher',
+        name: 'Teacher Panel',
+        icon: '✎',
+        color: '#0284c7',
+        colorLight: '#f0f9ff',
+        description: 'Teach, assess, monitor, and intervene — with AI doing the heavy lifting',
+        features: [
+          { name: 'Class Dashboard', desc: 'Overview of all assigned classes & at-risk alerts' },
+          { name: 'Student List & Profiles', desc: 'One tap into any student — practice, mistakes, recovery queue' },
+          { name: 'Attendance Marking', desc: 'Mark daily attendance, auto-syncs to parents & reports' },
+          { name: 'Homework Creation', desc: 'Assign homework with due dates, attachments & auto-reminders' },
+          { name: 'Auto Grading (Homework & Tests)', desc: 'Unified for Homework and Tests — MCQs auto-checked instantly, subjective answers scored with AI rubric, instant detailed report with question-wise accuracy, common errors and feedback pushed to students', highlight: true },
+          { name: 'Test Creation', desc: 'Create MCQ tests with answer keys, time limits & shuffling' },
+          { name: 'Test Reports', desc: 'Each test auto-generates a full report: class average and distribution, question-wise accuracy, topic and chapter weakness heatmap, per-student scorecard with rank, percentile, time per question and error-pattern analysis — exportable PDF with answer key', highlight: true },
+          { name: 'Exam Reports', desc: 'Complete exam analysis per subject and overall: school and class averages, grade distribution, topper and improvement lists, subject-wise strength and weakness, fail-risk cohorts and historical trend comparison — per-student marksheet ready for print', highlight: true },
+          { name: 'Question Bank', desc: 'Curated syllabus-aligned bank — filter by topic, difficulty & past usage' },
+          { name: 'AI Question Paper Generation', desc: 'Generate balanced question papers from any chapters in 30s — difficulty mix, blueprint & answer key included', highlight: true },
+          { name: 'Class Insights', desc: 'Topic-wise mastery heatmap for the whole class — know what to re-teach tomorrow' },
+          { name: 'Doubt Responses', desc: 'Answer student doubts with text, image or voice — tracked to closure' },
+          { name: 'Battleground (Class)', desc: 'Create class battles to drive engagement' },
+          { name: 'Communication', desc: 'Message students and parents — broadcasts & 1:1' }
+        ]
+      },
+      {
+        id: 'parent',
+        name: 'Parent Panel',
+        icon: '◈',
+        color: '#059669',
+        colorLight: '#ecfdf5',
+        description: 'Stay informed about child\'s academic progress',
+        features: [
+          { name: 'Child Profile', desc: 'Complete view of child\'s academic profile' },
+          { name: 'Attendance View', desc: 'See attendance history and alerts' },
+          { name: 'Homework Status', desc: 'What\'s assigned, what\'s completed' },
+          { name: 'Test Results', desc: 'View test scores and rankings' },
+          { name: 'Exam Marks', desc: 'See examination results' },
+          { name: 'Weekly Report', desc: 'Automated weekly summary' },
+          { name: 'Performance Insights', desc: 'Subject-wise and topic-wise analysis' },
+          { name: 'Teacher Communication', desc: 'Direct messaging with teachers' },
+          { name: 'School Notices', desc: 'All school announcements' },
+          { name: 'Fee Payments', desc: 'View ledger and pay fees' },
+          { name: 'Notifications', desc: 'Real-time alerts on child\'s activity' }
+        ]
+      },
+      {
+        id: 'principal',
+        name: 'Principal Panel',
+        icon: '◆',
+        color: '#ea580c',
+        colorLight: '#fff7ed',
+        description: 'School-wide command centre — every analysis that matters',
+        features: [
+          { name: 'School Analytics', desc: 'Institution-level overview: enrolment, performance trends and year-on-year growth', highlight: true },
+          { name: 'Teacher Analysis', desc: 'Teacher-wise deep dive: classes taught, tests and homework created, grading timeliness, doubt response rate and class outcome correlation', highlight: true },
+          { name: 'Student Analysis', desc: 'Student-wise full trajectory: subject averages, weak topics, recovery and revision status, streaks and exam vs practice delta', highlight: true },
+          { name: 'Class & Section Analysis', desc: 'Compare every class and section side-by-side on scores, attendance and fees' },
+          { name: 'Exam Analysis', desc: 'Exam-wise school performance: overall pass percentage, subject averages, grade distribution, topper lists, fail-risk cohorts and historical trends', highlight: true },
+          { name: 'Fees Collection Analysis', desc: 'Fees overview: collected vs pending, class-wise dues, payment mode split, defaulter trends and reminder effectiveness', highlight: true },
+          { name: 'Attendance Analytics', desc: 'School-wide attendance patterns with class and student drill-down' },
+          { name: 'At-Risk Students', desc: 'AI-flagged students needing attention — auto-surfaced by performance and attendance' },
+          { name: 'Leave Management', desc: 'Approve or reject leave requests with calendar impact' },
+          { name: 'Inquiries & Complaints', desc: 'Handle escalated issues from parents and staff' },
+          { name: 'Announcements', desc: 'School-wide communications and notices' },
+          { name: 'Messages', desc: 'Direct communication with staff and parents' }
+        ]
+      },
+      {
+        id: 'admin',
+        name: 'Admin Panel',
+        icon: '⊞',
+        color: '#e11d48',
+        colorLight: '#fff1f2',
+        description: 'Operate the school platform',
+        features: [
+          { name: 'Student Management', desc: 'Add, edit, remove students' },
+          { name: 'Teacher Management', desc: 'Manage teacher accounts and assignments' },
+          { name: 'Parent Account Linking', desc: 'Link parents to students' },
+          { name: 'Class Management', desc: 'Create classes, sections, assign teachers' },
+          { name: 'Attendance Operations', desc: 'Bulk marking, corrections, reports' },
+          { name: 'Academic Calendar', desc: 'Set holidays, events, exam schedules' },
+          { name: 'Timetable Management', desc: 'Create and manage timetables' },
+          { name: 'Fee Management', desc: 'Set fee structures, track payments' },
+          { name: 'Financial Reports', desc: 'Revenue, collections, pending' },
+          { name: 'Examinations Setup', desc: 'Configure exams and grading' },
+          { name: 'Academic Reports', desc: 'Generate and export reports' },
+          { name: 'Leave Requests', desc: 'Process leave applications' },
+          { name: 'AI Analytics', desc: 'AI-driven insights and recommendations' }
+        ]
+      }
+    ];
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       FEATURE DETAIL MODAL
+    ═══════════════════════════════════════════════════════════════════════════ */
+    function FeatureModal({ feature, onClose }) {
+      if (!feature) return null;
+
+      return (
+        <motion.div
+          className="modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
+          <motion.div
+            className="modal-content"
+            initial={{ scale: 0.95, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.95, y: 20 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: `${feature.color}0F`, borderBottom: '1px solid var(--border)', fontSize: 11, color: feature.color, fontWeight: 600, letterSpacing: '0.06em' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: feature.color, display: 'inline-block', animation: 'pulseDot 1s ease-in-out infinite' }} /> DETAILED VIEW
+              <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>Esc or × to close</span>
+            </div>
+            <AnimatePresence mode="wait">
+            <motion.div
+              key={feature.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2, ease: [0.16,1,0.3,1] }}
+            >
+            <div style={{ padding: '28px 32px 20px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 14,
+                  background: feature.colorLight,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 24,
+                  color: feature.color
+                }}>
+                  {feature.icon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 2, color: 'var(--text)' }}>{feature.name}</h2>
+                  <p style={{ color: feature.color, fontWeight: 600, fontSize: 13 }}>{feature.tagline}</p>
+                </div>
+                <button
+                  onClick={onClose}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-subtle)',
+                    color: 'var(--text-secondary)',
+                    fontSize: 18,
+                    cursor: 'pointer'
+                  }}
+                >×</button>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.6 }}>{feature.description}</p>
+            </div>
+
+            <div style={{ padding: '24px 32px' }}>
+              {feature.modes && (
+                <div style={{ marginBottom: 28 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: feature.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {feature.id === 'practice' ? '9 Practice Modes' : 'Available Modes'}
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                    {feature.modes.map((mode, i) => (
+                      <motion.div
+                        key={mode.name || mode}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        style={{
+                          padding: 14,
+                          background: 'var(--bg-subtle)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 12
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ color: feature.color, fontSize: 14 }}>{mode.icon || '◉'}</span>
+                          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{mode.name || mode}</span>
+                        </div>
+                        {mode.desc && <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{mode.desc}</p>}
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {feature.views && (
+                <div style={{ marginBottom: 28 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: feature.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Analysis Views</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                    {feature.views.map((view, i) => (
+                      <motion.div
+                        key={view.name}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        style={{
+                          padding: 14,
+                          background: 'var(--bg-subtle)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 12,
+                          textAlign: 'center'
+                        }}
+                      >
+                        <p style={{ fontWeight: 600, fontSize: 12, marginBottom: 3, color: 'var(--text)' }}>{view.name}</p>
+                        <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>{view.desc}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {feature.flow && (
+                <div style={{ marginBottom: 28 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: feature.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Automatic Recovery Flow</h3>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    {feature.flow.map((step, i) => (
+                      <React.Fragment key={step.name}>
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: i * 0.08 }}
+                          style={{
+                            flex: 1,
+                            padding: 14,
+                            background: 'var(--bg-subtle)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 12,
+                            textAlign: 'center'
+                          }}
+                        >
+                          <div style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 8,
+                            background: feature.colorLight,
+                            color: feature.color,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            fontSize: 12,
+                            margin: '0 auto 8px'
+                          }}>{step.step}</div>
+                          <p style={{ fontWeight: 600, fontSize: 11, marginBottom: 2, color: 'var(--text)' }}>{step.name}</p>
+                          <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>{step.desc}</p>
+                        </motion.div>
+                        {i < feature.flow.length - 1 && (
+                          <span style={{ color: feature.color, marginTop: 24, fontSize: 14 }}>→</span>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {feature.capabilities && (
+                <div style={{ marginBottom: 28 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: feature.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Coach Capabilities</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                    {feature.capabilities.map((cap, i) => (
+                      <motion.div
+                        key={cap.name}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        style={{
+                          padding: 14,
+                          background: cap.name === 'Unlimited Usage' ? feature.colorLight : 'var(--bg-subtle)',
+                          border: cap.name === 'Unlimited Usage' ? `2px solid ${feature.color}` : '1px solid var(--border)',
+                          borderRadius: 12
+                        }}
+                      >
+                        <p style={{ fontWeight: 600, fontSize: 13, marginBottom: 3, color: 'var(--text)' }}>{cap.name}</p>
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{cap.desc}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {feature.details && (
+                <div>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Key Details</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                    {feature.details.map((detail, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                        <span style={{ color: feature.color, marginTop: 2 }}>✓</span>
+                        <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            </motion.div>
+            </AnimatePresence>
+          </motion.div>
+        </motion.div>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       AI COACH DEMO — CHAT + REVISION MODE (VOICE ONLY)
+    ═══════════════════════════════════════════════════════════════════════════ */
+    function AICoachDemo() {
+      const [mode, setMode] = useState('chat');
+      const [messages, setMessages] = useState([
+        { role: 'nova', text: 'Hi! I\'m Nova, your AI learning coach. Ask me anything about your syllabus, or switch to Revision Mode for voice-based cross-questioning.' }
+      ]);
+      const [input, setInput] = useState('');
+      const [isTyping, setIsTyping] = useState(false);
+      const [revisionTopic, setRevisionTopic] = useState('');
+      const [revisionStarted, setRevisionStarted] = useState(false);
+      const [isListening, setIsListening] = useState(false);
+      const [currentQuestion, setCurrentQuestion] = useState(0);
+      const messagesEndRef = useRef(null);
+
+      const revisionQuestions = [
+        "In your own words, explain what photosynthesis is and why it matters.",
+        "Where exactly in the plant cell does photosynthesis occur? Be specific.",
+        "What are the two main stages of photosynthesis? Describe each briefly.",
+        "Why is water split during the light reactions? What happens to each product?",
+        "If I removed all CO₂ from the environment, what would happen to the Calvin cycle?"
+      ];
+
+      useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [messages]);
+
+      const handleSend = () => {
+        if (!input.trim() || mode === 'revision') return;
+        const userMsg = { role: 'user', text: input };
+        setMessages(prev => [...prev, userMsg]);
+        setInput('');
+        setIsTyping(true);
+
+        setTimeout(() => {
+          const response = {
+            role: 'nova',
+            text: "Great question! Photosynthesis is the process by which plants convert light energy into chemical energy stored in glucose. It occurs in the chloroplasts.\n\nNow — can you explain back to me what the two main inputs are? This is how real learning happens."
+          };
+          setMessages(prev => [...prev, response]);
+          setIsTyping(false);
+        }, 1500);
+      };
+
+      const startRevisionMode = () => {
+        if (!revisionTopic.trim()) return;
+        setRevisionStarted(true);
+        setCurrentQuestion(0);
+        setMessages([{
+          role: 'nova',
+          text: `Starting Revision Mode on "${revisionTopic}".\n\nI'll ask you questions to test your understanding. You'll answer by speaking — no typing allowed in this mode. This is the Feynman technique.\n\nTap the microphone when you're ready, then answer aloud.`,
+          isRevisionStart: true
+        }]);
+      };
+
+      const simulateVoiceAnswer = () => {
+        setIsListening(true);
+        setTimeout(() => {
+          setIsListening(false);
+          setMessages(prev => [...prev, { role: 'user', text: '[Voice answer recorded]', isVoice: true }]);
+
+          setTimeout(() => {
+            if (currentQuestion < revisionQuestions.length - 1) {
+              setCurrentQuestion(prev => prev + 1);
+              setMessages(prev => [...prev, {
+                role: 'nova',
+                text: `Good explanation! Let me probe deeper.\n\n${revisionQuestions[currentQuestion + 1]}`,
+                isQuestion: true
+              }]);
+            } else {
+              setMessages(prev => [...prev, {
+                role: 'nova',
+                text: "Excellent! You've demonstrated solid understanding of this topic. Your weak point seems to be the Calvin cycle details — I'll add that to your Recovery queue.\n\nReady to go back to Chat Mode or practice some questions?",
+                isComplete: true
+              }]);
+            }
+          }, 1000);
+        }, 3000);
+      };
+
+      const switchToChat = () => {
+        setMode('chat');
+        setRevisionStarted(false);
+        setRevisionTopic('');
+        setCurrentQuestion(0);
+        setMessages([
+          { role: 'nova', text: 'Back to Chat Mode! Ask me anything about your syllabus.' }
+        ]);
+      };
+
+      const switchToRevision = () => {
+        setMode('revision');
+        setRevisionStarted(false);
+        setRevisionTopic('');
+        setMessages([]);
+      };
+
+      return (
+        <div className="chat-container">
+          {/* Header */}
+          <div className={`chat-header ${mode === 'revision' && revisionStarted ? 'revision-active' : ''}`}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: 'rgba(255,255,255,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: 18
+                }}>N</div>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: 15 }}>Nova — AI Coach</p>
+                  <p style={{ fontSize: 12, opacity: 0.8 }}>
+                    {mode === 'revision' && revisionStarted ? `Revision Mode · ${revisionTopic}` : 'Unlimited usage · No cap'}
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={switchToChat}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: mode === 'chat' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
+                    color: '#fff',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >Chat</button>
+                <button
+                  onClick={switchToRevision}
+                  className={mode === 'chat' ? 'revision-highlight' : ''}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: mode === 'revision' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.95)',
+                    color: mode === 'revision' ? '#fff' : '#065f46',
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: 'pointer'
+                  }}
+                >⟳ Revision</button>
+              </div>
+            </div>
+          </div>
+          {/* Highlight bar to drive click to Revision */}
+          {mode === 'chat' && (
+            <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} onClick={switchToRevision} style={{ background: 'linear-gradient(90deg, #ecfdf5 0%, #f0fdfa 100%)', borderBottom: '1px solid #a7f3d0', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <span style={{ width: 26, height: 26, borderRadius: 8, background: '#10b981', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>⟳</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 12, fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>Try Revision mode → voice cross-questioning</p>
+                <p style={{ fontSize: 11, color: '#047857' }}>Feynman technique • Nova will quiz you by voice (tap Revision above)</p>
+              </div>
+              <motion.span animate={{ x: [0,4,0] }} transition={{ duration: 1.2, repeat: Infinity }} style={{ fontSize: 14, color: '#059669', fontWeight: 800 }}>→</motion.span>
+            </motion.div>
+          )}
+
+          {/* Revision Mode - Topic Selection */}
+          {mode === 'revision' && !revisionStarted && (
+            <div style={{ padding: 32, textAlign: 'center', background: 'var(--bg-subtle)' }}>
+              <div style={{
+                width: 64,
+                height: 64,
+                borderRadius: 16,
+                background: 'var(--emerald-light)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 28,
+                margin: '0 auto 20px'
+              }}>⟳</div>
+              <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>Revision Mode</h3>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: 14, maxWidth: 400, margin: '0 auto 24px' }}>
+                Enter the topic you want to revise. Nova will cross-question you using the Feynman technique. You'll answer by speaking — voice only.
+              </p>
+              <div style={{ maxWidth: 400, margin: '0 auto' }}>
+                <input
+                  type="text"
+                  placeholder="Enter topic (e.g., Photosynthesis, Newton's Laws)"
+                  value={revisionTopic}
+                  onChange={e => setRevisionTopic(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '14px 18px',
+                    borderRadius: 12,
+                    border: '1px solid var(--border-strong)',
+                    background: 'var(--bg-card)',
+                    fontSize: 14,
+                    marginBottom: 16,
+                    outline: 'none'
+                  }}
+                />
+                <button
+                  onClick={startRevisionMode}
+                  disabled={!revisionTopic.trim()}
+                  style={{
+                    width: '100%',
+                    padding: '14px 24px',
+                    borderRadius: 12,
+                    border: 'none',
+                    background: revisionTopic.trim() ? 'var(--emerald)' : 'var(--bg-subtle)',
+                    color: revisionTopic.trim() ? '#fff' : 'var(--text-muted)',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    cursor: revisionTopic.trim() ? 'pointer' : 'not-allowed'
+                  }}
+                >Start Voice Revision Session</button>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 16 }}>
+                No cap limit — use as many times as you want
+              </p>
+            </div>
+          )}
+
+          {/* Chat Messages */}
+          {(mode === 'chat' || (mode === 'revision' && revisionStarted)) && (
+            <div className="chat-messages">
+              {messages.map((msg, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={msg.role === 'nova' ? 'msg-nova' : 'msg-user'}
+                >
+                  {msg.isRevisionStart && (
+                    <div style={{
+                      background: 'var(--emerald-light)',
+                      border: '1px solid rgba(5,150,105,0.2)',
+                      borderRadius: 10,
+                      padding: 12,
+                      marginBottom: 12
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14 }}>⟳</span>
+                        <span style={{ fontWeight: 700, color: 'var(--emerald)', fontSize: 13 }}>Revision Mode Active</span>
+                      </div>
+                      <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Voice-only cross-questioning. Speak your answers.</p>
+                    </div>
+                  )}
+                  {msg.isQuestion && (
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '3px 8px',
+                      background: 'var(--orange-light)',
+                      borderRadius: 4,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: 'var(--orange)',
+                      marginBottom: 8
+                    }}>CROSS-QUESTION</span>
+                  )}
+                  {msg.isVoice && (
+                    <span style={{ fontSize: 12, opacity: 0.7 }}>🎤 </span>
+                  )}
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</p>
+                </motion.div>
+              ))}
+
+              {/* Voice listening indicator */}
+              {mode === 'revision' && revisionStarted && !isListening && messages.length > 0 && !messages[messages.length - 1].isComplete && (
+                <div style={{ textAlign: 'center', padding: 20 }}>
+                  <div
+                    className="voice-indicator"
+                    onClick={simulateVoiceAnswer}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span style={{ fontSize: 28, color: '#fff' }}>🎤</span>
+                  </div>
+                  <p style={{ marginTop: 12, fontSize: 13, color: 'var(--text-secondary)' }}>Tap to speak your answer</p>
+                </div>
+              )}
+
+              {isListening && (
+                <div style={{ textAlign: 'center', padding: 20 }}>
+                  <div className="voice-indicator" style={{ background: 'var(--rose)' }}>
+                    <div className="waveform">
+                      {[0, 1, 2, 3, 4].map(i => (
+                        <div key={i} className="waveform-bar" style={{ animationDelay: `${i * 0.1}s` }} />
+                      ))}
+                    </div>
+                  </div>
+                  <p style={{ marginTop: 12, fontSize: 13, color: 'var(--rose)', fontWeight: 600 }}>Listening...</p>
+                </div>
+              )}
+
+              {isTyping && mode === 'chat' && (
+                <div className="msg-nova" style={{ display: 'flex', gap: 4, padding: 16 }}>
+                  {[0, 1, 2].map(i => (
+                    <motion.div
+                      key={i}
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
+                      style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--violet)' }}
+                    />
+                  ))}
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+
+          {/* Chat Input - Only in Chat Mode */}
+          {mode === 'chat' && (
+            <div className="chat-input-area">
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border)',
+                borderRadius: 14,
+                padding: '10px 16px'
+              }}>
+                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }} title="Attach image">📷</button>
+                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }} title="Attach file">📎</button>
+                <input
+                  type="text"
+                  placeholder="Ask Nova anything..."
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSend()}
+                  style={{
+                    flex: 1,
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text)',
+                    fontSize: 14,
+                    outline: 'none'
+                  }}
+                />
+                <button
+                  onClick={handleSend}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    border: 'none',
+                    background: 'var(--violet)',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: 16
+                  }}
+                >↑</button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       NAVBAR
+    ═══════════════════════════════════════════════════════════════════════════ */
+    function Navbar({ activeSection, setActiveSection }) {
+      const [scrolled, setScrolled] = useState(false);
+
+      useEffect(() => {
+        const handleScroll = () => setScrolled(window.scrollY > 50);
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+      }, []);
+
+      return (
+        <motion.nav
+          className="site-nav"
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.5 }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 100,
+            padding: '12px 48px',
+            background: scrolled ? 'rgba(255,255,255,0.84)' : 'transparent',
+            backdropFilter: scrolled ? 'blur(14px) saturate(1.2)' : 'none',
+            borderBottom: scrolled ? '1px solid var(--border)' : 'none',
+            transition: 'all 0.2s'
+          }}
+        >
+          <div className="site-nav-inner" style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <motion.div
+              className="site-nav-brand"
+              style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+              whileHover={{ scale: 1.01 }}
+              onClick={() => { setActiveSection(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            >
+              <img
+                src="gurukul-logo.png"
+                alt="Gurukul logo"
+                className="brand-logo"
+                data-od-id="brand-logo-nav"
+              />
+              <span style={{ fontWeight: 700, fontSize: 20, color: 'var(--text)', letterSpacing: '-0.02em' }}>Gurukul</span>
+            </motion.div>
+
+            <div className="site-nav-tabs" style={{ display: 'flex', gap: 6 }}>
+              <button
+                onClick={() => setActiveSection('individual')}
+                className={`tab-btn ${activeSection === 'individual' ? 'active' : ''}`}
+              >Individual</button>
+              <button
+                onClick={() => setActiveSection('organization')}
+                className={`tab-btn ${activeSection === 'organization' ? 'active' : ''}`}
+              >Organization</button>
+            </div>
+
+            <div className="site-nav-cta" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <a href="/auth" target="_top" className="btn btn-secondary nav-sign-in" style={{ padding: '10px 18px', fontSize: 14, textDecoration: 'none' }}>Sign in</a>
+              <motion.a
+                href="/auth" target="_top"
+                className="btn btn-primary"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                style={{ padding: '10px 22px', fontSize: 14 }}
+              >Get Started</motion.a>
+            </div>
+          </div>
+        </motion.nav>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       HERO SECTION
+    ═══════════════════════════════════════════════════════════════════════════ */
+    function HeroSection({ setActiveSection }) {
+      return (
+        <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 80, overflow: 'hidden', paddingBottom: 48 }}>
+          <div className="scroll-hint" style={{ position: 'absolute', bottom: 18, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, zIndex: 5, pointerEvents: 'none' }}>
+            <span className="font-mono" style={{ fontSize: 10, letterSpacing: '0.14em', color: 'var(--text-muted)', opacity: 0.7 }}>SCROLL</span>
+            <motion.div animate={{ y: [0,5,0] }} transition={{ duration: 1.6, repeat: Infinity }} style={{ width: 18, height: 26, borderRadius: 10, border: '1px solid var(--border-strong)', display: 'flex', justifyContent: 'center', paddingTop: 5 }}><div style={{ width: 3, height: 6, borderRadius: 10, background: 'var(--violet)' }} /></motion.div>
+          </div>
+          <div style={{ maxWidth: 900, textAlign: 'center', padding: '0 24px', position: 'relative', zIndex: 10 }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: [0.16,1,0.3,1] }}
+              className="hero-logo-wrap"
+              data-od-id="hero-logo"
+            >
+              <img src="gurukul-logo.png" alt="Gurukul" className="hero-logo" />
+              <span className="hero-orbit o1" aria-hidden="true" />
+              <span className="hero-orbit o2" aria-hidden="true" />
+              <span className="hero-orbit o3" aria-hidden="true" />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.08 }}
+              style={{ marginBottom: 24 }}
+            >
+              <span className="pill pill-violet">
+                AI-Powered Learning Engine
+              </span>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              style={{ fontSize: 'clamp(40px, 6vw, 72px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 20, color: 'var(--text)' }}
+            >
+              Study smarter.<br />
+              <span className="shimmer-gradient">Improve faster.</span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              style={{ fontSize: 18, color: 'var(--text-secondary)', maxWidth: 600, margin: '0 auto 36px', lineHeight: 1.7 }}
+            >
+              The AI learning engine that practices with you, analyzes your weaknesses, and cross-questions until you truly understand.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="hero-ctas" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}
+            >
+              <motion.button
+                onClick={() => setActiveSection('individual')}
+                className="btn btn-primary"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                For Individual Students
+              </motion.button>
+              <motion.button
+                onClick={() => setActiveSection('organization')}
+                className="btn btn-secondary"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                For Schools
+              </motion.button>
+            </motion.div>
+
+            {/* Learning Loop — Ask AI at the end */}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.5 }}
+              style={{ marginTop: 72 }}
+            >
+              <p className="font-mono" style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.15em', marginBottom: 16 }}>THE LEARNING LOOP</p>
+              <div className="learning-loop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {['Practice', 'Analyse', 'Recover', 'Revise', 'Ask AI'].map((step, i) => (
+                  <React.Fragment key={step}>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.6 + i * 0.08 }}
+                      className="learning-loop-step"
+                      style={{
+                        padding: '12px 20px',
+                        background: 'var(--bg-card)',
+                        borderRadius: 10,
+                        border: '1px solid var(--border)',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: 'var(--text)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                      }}
+                    >{step}</motion.div>
+                    {i < 4 && (
+                      <span className="learning-loop-arrow" style={{ color: 'var(--violet)', fontSize: 14 }}>→</span>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       INDIVIDUAL SECTION
+    ═══════════════════════════════════════════════════════════════════════════ */
+    function IndividualSection() {
+      const [selectedFeature, setSelectedFeature] = useState(null);
+      const [hoveredId, setHoveredId] = useState(null);
+      const hoverTimer = useRef(null);
+      const containerRef = useRef(null);
+      const isInView = useInView(containerRef, { once: true, margin: "-80px" });
+
+      const isHoverDevice = typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      const handleHoverEnter = (feature) => {
+        setHoveredId(feature.id);
+        if (!isHoverDevice) return;
+        if (hoverTimer.current) clearTimeout(hoverTimer.current);
+        if (selectedFeature) {
+          hoverTimer.current = setTimeout(() => setSelectedFeature(feature), 3000);
+        } else {
+          hoverTimer.current = setTimeout(() => setSelectedFeature(feature), 3000);
+        }
+      };
+      const handleHoverLeave = () => {
+        setHoveredId(null);
+        if (hoverTimer.current) clearTimeout(hoverTimer.current);
+      };
+      useEffect(() => () => { if (hoverTimer.current) clearTimeout(hoverTimer.current); }, []);
+
+      return (
+        <section id="individual" className="section section-subtle" ref={containerRef}>
+          <div className="section-inner" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 32 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6 }}
+              style={{ textAlign: 'center', marginBottom: 40 }}
+            >
+              <span className="pill pill-violet" style={{ marginBottom: 16 }}>
+                For Individual Students
+              </span>
+              <h2 style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 700, marginBottom: 16, color: 'var(--text)' }}>
+                Your personal <span className="gradient-text">learning engine.</span>
+              </h2>
+              <p style={{ fontSize: 17, color: 'var(--text-secondary)', maxWidth: 560, margin: '0 auto' }}>
+                8 core systems that work together.
+              </p>
+            </motion.div>
+
+            {/* Feature cards — HOVER TO POP */}
+            <div className="feature-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 22 }}>
+              {INDIVIDUAL_FEATURES.map((feature, i) => {
+                const isHovered = hoveredId === feature.id;
+                const isActive = selectedFeature?.id === feature.id;
+                return (
+                <motion.div
+                  key={feature.id}
+                  data-od-id={`feature-card-${feature.id}`}
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={isInView ? { opacity: 1, y: 0 } : {}}
+                  transition={{ duration: 0.5, delay: i * 0.05 }}
+                  className="card tilt-card"
+                  onMouseEnter={() => handleHoverEnter(feature)}
+                  onMouseLeave={handleHoverLeave}
+                  onFocus={() => handleHoverEnter(feature)}
+                  onBlur={handleHoverLeave}
+                  onClick={() => setSelectedFeature(feature)}
+                  tabIndex={0}
+                  whileHover={{ y: -4, scale: 1.015 }}
+                  style={{
+                    padding: 22,
+                    cursor: 'pointer',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderColor: isHovered || isActive ? feature.color : 'var(--border)',
+                    background: isHovered || isActive ? '#fff' : 'var(--bg-card)',
+                    boxShadow: isHovered ? `0 12px 32px ${feature.color}18, 0 4px 12px rgba(0,0,0,0.06)` : isActive ? `0 8px 24px ${feature.color}14` : 'none',
+                    transform: isHovered ? 'translateY(-2px)' : 'none'
+                  }}
+                >
+                  {/* loading bar — fills linearly over 3s on hover */}
+                  <motion.div
+                    animate={{ scaleX: isActive ? 1 : isHovered ? 1 : 0 }}
+                    transition={{ duration: isHovered && !isActive ? 3 : 0.22, ease: isHovered && !isActive ? 'linear' : 'easeOut' }}
+                    style={{
+                      position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+                      background: feature.color, transformOrigin: 'left'
+                    }}
+                  />
+                  {/* active pulse */}
+                  {isActive && <div style={{ position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: '50%', background: feature.color, boxShadow: `0 0 0 6px ${feature.color}18` }} />}
+
+                  <div style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 12,
+                    background: isHovered || isActive ? feature.color : feature.colorLight,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 20,
+                    color: isHovered || isActive ? '#fff' : feature.color,
+                    marginBottom: 14,
+                    transition: 'all 0.22s',
+                    transform: isHovered ? 'scale(1.06) rotate(-2deg)' : 'none'
+                  }}>
+                    {feature.icon}
+                  </div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, color: 'var(--text)' }}>{feature.name}</h3>
+                  <p style={{ fontSize: 12, color: feature.color, fontWeight: 600, marginBottom: 8 }}>{feature.tagline}</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, minHeight: 38 }}>
+                    {feature.description.length > 92 ? feature.description.substring(0, 92) + '…' : feature.description}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12 }}>
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: isHovered ? feature.color : 'var(--text-muted)',
+                      letterSpacing: '0.02em',
+                      transition: 'color 0.2s'
+                    }}>{isActive ? 'Selected ✓' : 'Explore →'}</span>
+                    <motion.span animate={{ x: isHovered ? 4 : 0 }} transition={{ duration: 0.2 }} style={{ fontSize: 11, color: feature.color }}>↗</motion.span>
+                  </div>
+
+                  {/* mini preview on hover */}
+                  <AnimatePresence>
+                    {isHovered && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6, height: 0 }}
+                        animate={{ opacity: 1, y: 0, height: 'auto' }}
+                        exit={{ opacity: 0, y: 6, height: 0 }}
+                        transition={{ duration: 0.22 }}
+                        style={{ overflow: 'hidden', marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}
+                      >
+                        <p className="font-mono" style={{ fontSize: 10, color: feature.color, fontWeight: 700, letterSpacing: '0.07em', marginBottom: 8 }}>
+                          {(feature.modes?.length || feature.views?.length || feature.capabilities?.length || feature.flow?.length || feature.features?.length || feature.elements?.length || 0)} INSIDE
+                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {(feature.modes || feature.views || feature.capabilities || feature.flow || feature.features || feature.elements || []).slice(0,3).map((it, idx) => (
+                            <span key={idx} style={{
+                              fontSize: 11, padding: '5px 9px', borderRadius: 100,
+                              background: feature.colorLight, color: feature.color, fontWeight: 600,
+                              border: `1px solid ${feature.color}18`
+                            }}>{it.name || it}</span>
+                          ))}
+                          <span style={{ fontSize: 11, padding: '5px 9px', borderRadius: 100, background: 'var(--bg-subtle)', color: 'var(--text-muted)', fontWeight: 600 }}>+ more</span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Inline live preview — follows hover instantly */}
+            <div style={{ minHeight: 84, marginBottom: 56 }}>
+              <AnimatePresence mode="wait">
+                {hoveredId ? (
+                  <motion.div
+                    key={hoveredId}
+                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                    transition={{ duration: 0.22, ease: [0.16,1,0.3,1] }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 18,
+                      padding: '16px 20px',
+                      background: '#fff',
+                      border: `1.5px solid ${INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.color}22`,
+                      borderLeft: `4px solid ${INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.color}`,
+                      borderRadius: 14,
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.06)'
+                    }}
+                  >
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 11, flexShrink: 0,
+                      background: INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.colorLight,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 20, color: INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.color
+                    }}>{INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 3 }}>
+                        <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>{INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.name}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 100, background: INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.colorLight, color: INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.color }}>{INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.tagline}</span>
+                        <span className="font-mono" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>● LIVE PREVIEW</span>
+                      </div>
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.description}</p>
+                    </div>
+                    <div style={{ flexShrink: 0, display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.color, animation: 'pulseDot 1.2s ease-in-out infinite' }} />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: INDIVIDUAL_FEATURES.find(f=>f.id===hoveredId)?.color }}>Preview</span>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                      padding: '18px 20px',
+                      background: 'rgba(255,255,255,0.7)',
+                      border: '1px dashed var(--border-strong)',
+                      borderRadius: 14,
+                      color: 'var(--text-muted)',
+                      fontSize: 13
+                    }}
+                  >
+                    <span style={{ fontSize: 14 }}>✦</span> Explore the 8 systems — <span style={{ color: 'var(--violet)', fontWeight: 600 }}>Practice • Analysis • Recovery</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* AI Coach Demo */}
+            <motion.div
+              initial={{ opacity: 0, y: 32 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
+              <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                <span className="pill pill-orange" style={{ marginBottom: 12 }}>AI Coach — The Differentiator</span>
+                <h3 style={{ fontSize: 26, fontWeight: 700, marginBottom: 10, color: 'var(--text)' }}>
+                  Try Nova <span style={{ color: 'var(--orange)' }}>right here.</span>
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 15, maxWidth: 550, margin: '0 auto' }}>
+                  Unlimited usage. No cap limit. Chat mode for Q&A, Revision mode for voice-based cross-questioning.
+                </p>
+              </div>
+              <div style={{ maxWidth: 700, margin: '0 auto' }}>
+                <AICoachDemo />
+              </div>
+            </motion.div>
+          </div>
+
+          <AnimatePresence>
+            {selectedFeature && (
+              <FeatureModal feature={selectedFeature} onClose={() => setSelectedFeature(null)} />
+            )}
+          </AnimatePresence>
+        </section>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ORGANIZATION SECTION
+    ═══════════════════════════════════════════════════════════════════════════ */
+    function OrganizationSection() {
+      const [activeRole, setActiveRole] = useState(0);
+      const containerRef = useRef(null);
+      const isInView = useInView(containerRef, { once: true, margin: "-80px" });
+
+      return (
+        <section id="organization" className="section section-white" ref={containerRef}>
+          <div className="section-inner" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 32 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6 }}
+              style={{ textAlign: 'center', marginBottom: 60 }}
+            >
+              <span className="pill pill-orange" style={{ marginBottom: 16 }}>
+                For Schools & Organizations
+              </span>
+              <h2 style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 700, marginBottom: 16, color: 'var(--text)' }}>
+                Complete school platform.
+              </h2>
+              <p style={{ fontSize: 17, color: 'var(--text-secondary)', maxWidth: 650, margin: '0 auto' }}>
+                Every student gets the full learning engine. Each role gets a dedicated panel with exactly what they need.
+              </p>
+            </motion.div>
+
+            {/* Organization Features Showcase — ALL organizational features (elevator / accelerator) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={isInView ? { opacity: 1 } : {}}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="showcase-shell"
+              style={{
+                marginBottom: 64,
+                height: 420,
+                position: 'relative',
+                overflow: 'hidden',
+                borderRadius: 20,
+                background: 'linear-gradient(135deg, var(--violet-light) 0%, var(--orange-light) 100%)',
+                border: '1px solid var(--border)'
+              }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, background: 'linear-gradient(180deg, var(--bg), transparent)', zIndex: 10 }} />
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 70, background: 'linear-gradient(0deg, var(--bg), transparent)', zIndex: 10 }} />
+
+              <div className="showcase-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, height: '100%', padding: '0 16px' }}>
+                {[0, 1, 2, 3].map(colIdx => {
+                  const colFeatures = ORG_SHOWCASE_FEATURES.filter((_, idx) => idx % 4 === colIdx);
+                  const loop = [...colFeatures, ...colFeatures];
+                  const speed = colIdx === 0 ? 18 : colIdx === 1 ? 22 : colIdx === 2 ? 19 : 24;
+                  const dirClass = colIdx % 2 === 0 ? 'scroll-col-up' : 'scroll-col-down';
+                    return (
+                    <div key={colIdx} style={{ overflow: 'hidden', height: '100%' }}>
+                      <motion.div
+                        animate={ dirClass === 'scroll-col-up' ? { y: ["0%", "-50%"] } : { y: ["-50%", "0%"] } }
+                        transition={{ duration: speed, repeat: Infinity, ease: "linear", repeatType: "loop" }}
+                        style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+                      >
+                        {loop.map((feature, i) => (
+                          <div
+                            key={`${colIdx}-${feature.name}-${i}`}
+                            style={{
+                              padding: '11px 14px',
+                              background: feature.highlight ? '#fff' : 'var(--bg-card)',
+                              border: feature.highlight ? `1.5px solid ${feature.color}` : '1px solid var(--border)',
+                              borderRadius: 12,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 10,
+                              boxShadow: feature.highlight ? `0 4px 14px ${feature.color}1A, 0 1px 4px rgba(0,0,0,0.04)` : '0 2px 6px rgba(0,0,0,0.03)',
+                              position: 'relative'
+                            }}
+                          >
+                            {feature.highlight && <span style={{ position: 'absolute', top: -5, right: -5, width: 16, height: 16, borderRadius: '50%', background: feature.color, color: '#fff', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>★</span>}
+                            <span style={{ fontSize: 16, color: feature.color, flexShrink: 0 }}>{feature.icon}</span>
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{feature.name}</span>
+                            <span style={{ marginLeft: 'auto', fontSize: 8.5, fontWeight: 700, padding: '2px 6px', borderRadius: 100, background: feature.highlight ? `${feature.color}15` : 'var(--bg-subtle)', color: feature.highlight ? feature.color : 'var(--text-muted)', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{feature.group.toUpperCase()}</span>
+                          </div>
+                        ))}
+                      </motion.div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'var(--bg-card)',
+                padding: '24px 40px',
+                borderRadius: 18,
+                border: '1px solid var(--border)',
+                textAlign: 'center',
+                zIndex: 20,
+                boxShadow: '0 12px 40px rgba(0,0,0,0.1)'
+              }}>
+                <p className="font-mono" style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.12em', marginBottom: 6 }}>ACCELERATING SHOWCASE — 28 FEATURES</p>
+                <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', lineHeight: 1.1 }}>Every role.<br/>Every workflow.</p>
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>Student • Teacher • Parent • Principal • Admin</p>
+              </div>
+            </motion.div>
+
+            {/* Role tabs */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 32, flexWrap: 'wrap' }}
+            >
+              {ORG_ROLES.map((role, i) => (
+                <button
+                  key={role.id}
+                  onClick={() => setActiveRole(i)}
+                  style={{
+                    padding: '12px 22px',
+                    borderRadius: 12,
+                    border: activeRole === i ? `2px solid ${role.color}` : '1px solid var(--border)',
+                    background: activeRole === i ? role.colorLight : 'var(--bg-card)',
+                    color: activeRole === i ? role.color : 'var(--text-secondary)',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>{role.icon}</span>
+                  {role.name}
+                </button>
+              ))}
+            </motion.div>
+
+            {/* Role panel content — outstanding slide */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeRole}
+                initial={{ opacity: 0, x: 36, scale: 0.97, filter: 'blur(6px)' }}
+                animate={{ opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, x: -28, scale: 0.97, filter: 'blur(6px)' }}
+                transition={{ duration: 0.48, ease: [0.16,1,0.3,1] }}
+                className="role-panel"
+              >
+                <div className="role-panel-header" style={{ background: ORG_ROLES[activeRole].colorLight }}>
+                  <div style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: 14,
+                    background: 'var(--bg-card)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 22,
+                    color: ORG_ROLES[activeRole].color,
+                    border: `1px solid ${ORG_ROLES[activeRole].color}30`
+                  }}>
+                    {ORG_ROLES[activeRole].icon}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 2, color: 'var(--text)' }}>{ORG_ROLES[activeRole].name}</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{ORG_ROLES[activeRole].description}</p>
+                  </div>
+                  <span className="font-mono" style={{
+                    padding: '6px 14px',
+                    background: 'var(--bg-card)',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    color: ORG_ROLES[activeRole].color,
+                    border: `1px solid ${ORG_ROLES[activeRole].color}30`
+                  }}>
+                    {ORG_ROLES[activeRole].features.length} Features
+                  </span>
+                </div>
+                <div style={{ padding: '20px 28px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                    {ORG_ROLES[activeRole].features.map((feature, i) => {
+                      const isHighlight = !!feature.highlight;
+                      return (
+                      <motion.div
+                        key={feature.name}
+                        initial={{ opacity: 0, scale: 0.97 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.02 }}
+                        style={{
+                          padding: '14px 18px',
+                          background: isHighlight ? '#FFFBEB' : 'var(--bg-subtle)',
+                          border: isHighlight ? '1.5px solid #f59e0b' : '1px solid var(--border)',
+                          borderRadius: 12,
+                          position: 'relative',
+                          boxShadow: isHighlight ? '0 6px 20px rgba(245,158,11,0.12), 0 2px 8px rgba(0,0,0,0.04)' : 'none'
+                        }}
+                      >
+                        {isHighlight && <span style={{ position: 'absolute', top: -8, right: 10, fontSize: 9, fontWeight: 800, padding: '3px 7px', borderRadius: 100, background: '#f59e0b', color: '#fff', letterSpacing: '0.05em', boxShadow: '0 2px 8px rgba(245,158,11,0.35)' }}>★ FEATURED</span>}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                          <span style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: isHighlight ? '#f59e0b' : ORG_ROLES[activeRole].color
+                          }} />
+                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>{feature.name}</span>
+                        </div>
+                        {feature.desc && (
+                          <p style={{ fontSize: 11, color: isHighlight ? '#92400e' : 'var(--text-muted)', marginLeft: 14, lineHeight: 1.5, fontWeight: isHighlight ? 500 : 400 }}>{feature.desc}</p>
+                        )}
+                      </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </section>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       PRICING
+    ═══════════════════════════════════════════════════════════════════════════ */
+    function PricingSection() {
+      const [tab, setTab] = useState('individual');
+      const ref = useRef(null);
+      const isInView = useInView(ref, { once: true });
+
+      const individualPlans = [
+        { name: 'Starter', price: '₹199', period: '/mo', features: ['All 9 practice modes', 'AI Coach (limited)', 'Basic analysis', 'Mistake Book', 'Battleground'], color: '#7c3aed' },
+        { name: 'Standard', price: '₹499', period: '/mo', popular: true, features: ['Everything in Starter', 'Unlimited AI Coach', 'Deep Analysis', 'Auto Recovery sessions', 'Auto Revision sessions', 'XP & Achievements'], color: '#ea580c' },
+        { name: 'Premium', price: '₹999', period: '/mo', features: ['Everything in Standard', 'Priority AI responses', 'Advanced insights', 'Performance reports', 'Priority support'], color: '#059669' }
+      ];
+
+      const orgPlans = [
+        { name: 'Enterprise', price: 'Custom', period: '', features: ['Full platform for every role — Student, Teacher, Parent, Principal & Admin', 'All learning engine features + school operations', 'Attendance, Homework, Tests & Exams with Auto Grading & Reports', 'Fee management, Timetable, Analytics & AI insights', 'Dedicated support, Custom integrations & Multi-branch'], color: '#059669' }
+      ];
+
+      const plans = tab === 'individual' ? individualPlans : orgPlans;
+
+      return (
+        <section id="pricing" className="section section-subtle" ref={ref}>
+          <div className="section-inner" style={{ maxWidth: 1000, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 32 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6 }}
+              style={{ textAlign: 'center', marginBottom: 48 }}
+            >
+              <span className="pill pill-emerald" style={{ marginBottom: 16 }}>Pricing</span>
+              <h2 style={{ fontSize: 'clamp(28px, 3.5vw, 40px)', fontWeight: 700, marginBottom: 12, color: 'var(--text)' }}>
+                Simple, transparent pricing.
+              </h2>
+              <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 28 }}>
+                Private tuition costs a multiple of this.
+              </p>
+
+              <div style={{
+                display: 'inline-flex',
+                background: 'var(--bg-card)',
+                padding: 4,
+                borderRadius: 12,
+                border: '1px solid var(--border)'
+              }}>
+                <button
+                  onClick={() => setTab('individual')}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: 8,
+                    background: tab === 'individual' ? 'var(--violet-light)' : 'transparent',
+                    border: 'none',
+                    color: tab === 'individual' ? 'var(--violet)' : 'var(--text-secondary)',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: 'pointer'
+                  }}
+                >Individual</button>
+                <button
+                  onClick={() => setTab('organization')}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: 8,
+                    background: tab === 'organization' ? 'var(--orange-light)' : 'transparent',
+                    border: 'none',
+                    color: tab === 'organization' ? 'var(--orange)' : 'var(--text-secondary)',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: 'pointer'
+                  }}
+                >Organization</button>
+              </div>
+            </motion.div>
+
+            <AnimatePresence mode="wait">
+              <motion.div key={tab} initial={{ opacity: 0, x: 28, filter: 'blur(6px)' }} animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, x: -24, filter: 'blur(6px)' }} transition={{ duration: 0.42, ease: [0.16,1,0.3,1] }} className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: tab === 'organization' ? 'min(420px, 100%)' : 'repeat(3, 1fr)', gap: 20, justifyContent: tab === 'organization' ? 'center' : 'initial' }}>
+                {plans.map((plan, i) => (
+                <motion.div
+                  key={plan.name}
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={isInView ? { opacity: 1, y: 0 } : {}}
+                  transition={{ delay: i * 0.08 }}
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: plan.popular ? `2px solid ${plan.color}` : '1px solid var(--border)',
+                    borderRadius: 20,
+                    padding: 28,
+                    position: 'relative'
+                  }}
+                >
+                  {plan.popular && (
+                    <div style={{
+                      position: 'absolute',
+                      top: -12,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: plan.color,
+                      padding: '5px 14px',
+                      borderRadius: 20,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#fff',
+                      letterSpacing: '0.03em'
+                    }}>POPULAR</div>
+                  )}
+
+                  <p className="font-mono" style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 8 }}>{plan.name.toUpperCase()}</p>
+                  {tab === 'organization' ? (
+                    <div style={{ marginBottom: 20, height: 44, display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', lineHeight: 1.4 }}>Contact Sales — tailored to your schools & students</span>
+                    </div>
+                  ) : plan.price === 'Custom' ? (
+                    <div style={{ marginBottom: 20, height: 44, display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', lineHeight: 1.4 }}>Custom pricing — we’ll tailor to your schools & students</span>
+                    </div>
+                  ) : (
+                    <div style={{ marginBottom: 20 }}>
+                      <span style={{ fontSize: 40, fontWeight: 800, color: 'var(--text)' }}>{plan.price}</span>
+                      <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{plan.period}</span>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+                    {plan.features.map(f => (
+                      <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+                        <span style={{ color: plan.color, fontSize: 14 }}>✓</span>
+                        {f}
+                      </div>
+                    ))}
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => { const dest = (tab === 'organization' || plan.price === 'Custom') ? 'mailto:hello@gurukul.study' : '/auth'; (window.top || window).location.href = dest; }}
+                    style={{
+                      width: '100%',
+                      padding: 14,
+                      borderRadius: 10,
+                      border: plan.popular ? 'none' : '1px solid var(--border)',
+                      background: plan.popular ? plan.color : 'var(--bg-subtle)',
+                      color: plan.popular ? '#fff' : 'var(--text)',
+                      fontWeight: 600,
+                      fontSize: 14,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {tab === 'organization' || plan.price === 'Custom' ? 'Contact Sales' : 'Get Started'}
+                  </motion.button>
+                </motion.div>
+                ))}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </section>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ROCKET — sudden blast, real flight
+    ═══════════════════════════════════════════════════════════════════════════ */
+    function RocketChallenge(){
+      const [phase, setPhase] = useState('waiting');
+      const [selected, setSelected] = useState(null);
+      const [answered, setAnswered] = useState(false);
+      const [isCorrect, setIsCorrect] = useState(false);
+      const [bookmarked, setBookmarked] = useState(false);
+      const [dismissed, setDismissed] = useState(() => {
+        try { return localStorage.getItem('gurukul_rocket_shown') === '1'; } catch(e){ return false; }
+      });
+      const [smokes, setSmokes] = useState([]);
+      const question = {
+        q: 'What is  3/4  +  1/8  ?',
+        correct: '7/8',
+        options: [
+          { label: 'A', value: '7/8', correct: true, explain: 'Correct — A is 7/8. 3/4 = 6/8, so 6/8 + 1/8 = 7/8.' },
+          { label: 'B', value: '5/8', correct: false, explain: 'You chose B (5/8) — that’s 1/8 short. You kept 3/4 as 4/8 instead of 6/8. 3/4 = (3×2)/(4×2) = 6/8, so 6/8 + 1/8 = 7/8, not 5/8. So A (7/8) is correct and B is wrong.' },
+          { label: 'C', value: '4/12', correct: false, explain: 'You chose C (4/12) — you added numerators (3+1=4) and denominators (4+8=12). You never add denominators. Need a common denominator: 3/4 = 6/8, so 6/8 + 1/8 = 7/8. 4/12 = 1/3, far from correct. So A (7/8) is correct and C is wrong.' },
+          { label: 'D', value: '9/8', correct: false, explain: 'You chose D (9/8) — that’s >1 and too large (1.125). You likely did 3/4 = 8/8 or added incorrectly. Correct is 3/4 = 6/8, so 6/8 + 1/8 = 7/8 = 0.875. So A (7/8) is correct and D is wrong.' }
+        ],
+        // fallback for safety
+        explanation: '3/4 = 6/8, so 6/8 + 1/8 = 7/8.'
+      };
+      useEffect(() => {
+        try { if(localStorage.getItem('gurukul_rocket_shown') === '1') return; } catch(e){}
+        const t = setTimeout(() => {
+          try { localStorage.setItem('gurukul_rocket_shown', '1'); } catch(e){}
+          setPhase('flying');
+        }, 5000);
+        return () => clearTimeout(t);
+      }, []);
+      useEffect(() => {
+        if(phase === 'flying'){
+          const t = setTimeout(() => setPhase('exploding'), 1900);
+          return () => clearTimeout(t);
+        }
+        if(phase === 'exploding'){
+          const t = setTimeout(() => setPhase('question'), 1000);
+          return () => clearTimeout(t);
+        }
+      }, [phase]);
+      useEffect(() => {
+        if(phase !== 'flying') return;
+        const id = setInterval(() => {
+          setSmokes(s => [...s.slice(-12), { id: Date.now()+Math.random(), x: 50 + (Math.random()-0.5)*2.5 }]);
+        }, 70);
+        return () => clearInterval(id);
+      }, [phase]);
+      const handleAnswer = (opt) => {
+        if(answered) return;
+        setSelected(opt.value);
+        setAnswered(true);
+        setIsCorrect(!!opt.correct);
+      };
+      if(dismissed || phase === 'waiting') return null;
+      if(phase === 'flying' || phase === 'exploding'){
+        return (
+          <div className="rocket-overlay" style={{ background: phase==='exploding' ? 'rgba(255,255,255,0.94)' : 'rgba(8,10,24,0.06)', backdropFilter: phase==='flying' ? 'blur(1px)' : 'blur(8px)' }} data-od-id="rocket-stage">
+            <div className="rocket-stage">
+              {phase==='flying' && <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 420px 320px at 50% 72%, rgba(255,255,255,0.06), transparent 68%)' }} />}
+              {phase==='flying' && [...Array(14)].map((_,i) => (
+                <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: [0,0.85,0] }} transition={{ duration: 1.1+Math.random()*0.8, repeat: Infinity, delay: i*0.09 }}
+                  style={{ position: 'absolute', left: (8+i*6.2)+'%', top: (7+i%3*21)+'%', width: 1.8, height: 1.8, borderRadius: '50%', background: '#fff', boxShadow: '0 0 6px #fff' }} />
+              ))}
+              {smokes.map(s => (
+                <motion.div key={s.id} initial={{ y: 0, opacity: 0.72, scale: 0.6 }} animate={{ y: -26, opacity: 0, scale: 1.7 }} transition={{ duration: 1.15, ease: 'easeOut' }}
+                  className="rocket-smoke" style={{ left: s.x + '%', top: '68%' }} />
+              ))}
+              {phase==='flying' && (
+                <motion.div
+                  initial={{ y: 80, x: 0, rotate: 0, scale: 0.96 }}
+                  animate={{ y: -560, x: [0, -5, 4, -2, 0], rotate: [-1, 0.7, -0.7, 0.5, 0] }}
+                  transition={{ y: { duration: 1.85, ease: [0.22,1,0.36,1] }, x: { duration: 1.85, ease: 'easeInOut' }, rotate: { duration: 1.85, ease: 'easeInOut' } }}
+                  style={{ position: 'absolute', left: '50%', bottom: 10, marginLeft: -30, width: 60, textAlign: 'center' }}
+                >
+                  <div className="rocket-svg-wrap">
+                    <svg width="60" height="92" viewBox="0 0 60 92" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', margin: '0 auto' }}>
+                      <defs>
+                        <linearGradient id="rb2" x1="30" y1="12" x2="30" y2="74" gradientUnits="userSpaceOnUse"><stop stopColor="#fff"/><stop offset="0.55" stopColor="#f1f5f9"/><stop offset="1" stopColor="#cbd5e1"/></linearGradient>
+                        <linearGradient id="rf2" x1="22" y1="54" x2="38" y2="60" gradientUnits="userSpaceOnUse"><stop stopColor="#7c3aed"/><stop offset="1" stopColor="#ea580c"/></linearGradient>
+                      </defs>
+                      <path d="M12 62 L4 78 L16 72 Z" fill="#6d28d9" stroke="#4c1d95" strokeWidth="1.2"/>
+                      <path d="M48 62 L56 78 L44 72 Z" fill="#6d28d9" stroke="#4c1d95" strokeWidth="1.2"/>
+                      <rect x="16" y="18" width="28" height="54" rx="13" fill="url(#rb2)" stroke="#94a3b8" strokeWidth="1.1"/>
+                      <path d="M30 4 L16 18 L44 18 Z" fill="#dc2626" stroke="#7f1d1d" strokeWidth="1.1"/>
+                      <circle cx="30" cy="38" r="10" fill="#0ea5e9" stroke="#0c4a6e" strokeWidth="1.5"/>
+                      <circle cx="30" cy="38" r="6.5" fill="#e0f2fe"/>
+                      <circle cx="27.8" cy="35.8" r="1.9" fill="#fff" opacity="0.9"/>
+                      <rect x="16" y="53" width="28" height="6" rx="2" fill="url(#rf2)"/>
+                      <path d="M20 74 L40 74 L37 82 L23 82 Z" fill="#1f2937" stroke="#020617" strokeWidth="1"/>
+                    </svg>
+                    <div className="rocket-flame" />
+                  </div>
+                </motion.div>
+              )}
+              {phase==='exploding' && (
+                <>
+                  <motion.div initial={{ scale: 0.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.26 }} style={{ position: 'absolute', left: '50%', top: '36%', transform: 'translate(-50%,-50%)', textAlign: 'center' }}>
+                    <div style={{ fontSize: 88, lineHeight: 1, filter: 'drop-shadow(0 12px 30px rgba(239,68,68,0.4))' }}>💥</div>
+                    <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.18em', color: '#991b1b', marginTop: 6, background: '#fff', padding: '5px 12px', borderRadius: 100, border: '1px solid #fecaca' }}>BOOM — CHAOS!</div>
+                  </motion.div>
+                  {[0,1,2].map(i => (
+                    <motion.div key={'s'+i} className="shockwave" initial={{ scale: 0.15, opacity: 0.9 }} animate={{ scale: 5.8, opacity: 0 }} transition={{ duration: 0.85, delay: i*0.11, ease: 'easeOut' }} style={{ borderColor: i===0 ? 'rgba(124,58,237,0.9)' : i===1 ? 'rgba(239,68,68,0.88)' : 'rgba(234,88,12,0.82)' }} />
+                  ))}
+                  {[...Array(18)].map((_,i) => (
+                    <motion.div key={i} className="explosion-dot"
+                      initial={{ x: '50vw', y: '36vh', scale: 0, opacity: 1 }}
+                      animate={{ x: (50 + Math.cos(i/18*Math.PI*2)*(18 + Math.random()*22))+'vw', y: (36 + Math.sin(i/18*Math.PI*2)*(14 + Math.random()*18))+'vh', scale: [0,1.2,0], opacity: [1,1,0] }}
+                      transition={{ duration: 0.88, delay: i*0.016, ease: 'easeOut' }}
+                      style={{ width: 9+Math.random()*13, height: 9+Math.random()*13 }}
+                    />
+                  ))}
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: [0,0.8,0] }} transition={{ duration: 0.42 }} style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 680px 440px at 50% 36%, rgba(255,255,255,0.92), transparent 66%)' }} />
+                </>
+              )}
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div className="rocket-overlay" data-od-id="rocket-question">
+          <div className="rocket-chaos-bg" style={{ animation: answered && isCorrect ? 'none' : 'chaosShake 0.55s ease infinite' }} />
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.38, ease: [0.16,1,0.3,1] }}
+            style={{
+              position: 'relative', zIndex: 1,
+              width: '100%', maxWidth: 520,
+              background: '#fff',
+              border: '1px solid var(--border)',
+              borderRadius: 20,
+              boxShadow: '0 24px 60px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.08)',
+              overflow: 'hidden',
+              animation: answered ? 'none' : 'chaosShake 0.7s ease infinite'
+            }}
+          >
+            <AnimatePresence>
+              {answered && !isCorrect && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ background: '#fef2f2', borderBottom: '1px solid #fecaca', padding: '13px 18px', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ width: 28, height: 28, borderRadius: 8, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🤖</span>
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', color: '#dc2626', marginBottom: 3 }}>NOVA AI EXPLAINS — FOR YOUR CHOICE ({selected})</p>
+                      <p style={{ fontSize: 13, color: '#7f1d1d', lineHeight: 1.6 }}>{(question.options.find(o=>o.value===selected)?.explain) || question.explanation} <span style={{ fontWeight: 700 }}>Correct is A (7/8).</span></p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              {answered && isCorrect && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} style={{ background: '#ecfdf5', borderBottom: '1px solid #a7f3d0', padding: '13px 18px' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ width: 28, height: 28, borderRadius: 8, background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>✨</span>
+                    <p style={{ fontSize: 13, color: '#065f46', fontWeight: 600 }}>Brilliant — you nailed the common denominator.</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <div style={{ padding: '20px 20px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span className="font-mono" style={{ fontSize: 11, letterSpacing: '0.11em', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'pulseDot 0.9s ease infinite' }} /> CHAOS CHALLENGE</span>
+                <button onClick={() => setDismissed(true)} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 700 }}>×</button>
+              </div>
+              <div style={{ background: 'linear-gradient(180deg, #f9fafb 0%, #fff 100%)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 18px', textAlign: 'center', marginBottom: 14 }}>
+                <p style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.02em' }}>{question.q}</p>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>Fractions — simple but not too simple</p>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 12 }}>
+                {question.options.map(opt => {
+                  const isSelected = selected === opt.value;
+                  const showCorrect = answered && opt.correct;
+                  const showWrong = answered && isSelected && !opt.correct;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => handleAnswer(opt)}
+                      disabled={answered}
+                      style={{
+                        padding: '13px 14px',
+                        borderRadius: 12,
+                        border: showCorrect ? '2px solid #059669' : showWrong ? '2px solid #dc2626' : isSelected ? '1.5px solid var(--violet)' : '1px solid var(--border)',
+                        background: showCorrect ? '#ecfdf5' : showWrong ? '#fef2f2' : isSelected ? 'var(--violet-light)' : '#fff',
+                        color: showCorrect ? '#065f46' : showWrong ? '#991b1b' : 'var(--text)',
+                        fontWeight: 800, fontSize: 15, cursor: answered ? 'default' : 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 10, transition: 'all 0.16s'
+                      }}
+                    >
+                      <span style={{ width: 26, height: 26, borderRadius: 8, background: showCorrect ? '#10b981' : showWrong ? '#ef4444' : 'var(--bg-subtle)', color: showCorrect || showWrong ? '#fff' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900 }}>{opt.label}</span>
+                      {opt.value}
+                      {showCorrect && <span style={{ marginLeft: 'auto' }}>✓</span>}
+                      {showWrong && <span style={{ marginLeft: 'auto' }}>✕</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <AnimatePresence>
+                {answered && (
+                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 12 }}>
+                    {isCorrect ? (
+                      <div style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', border: '1.5px solid #f59e0b', borderRadius: 12, padding: '12px 14px', textAlign: 'center' }}>
+                        <p style={{ fontSize: 14.5, fontWeight: 900, color: '#92400e' }}>🎉 Congratulations, genius, you have answered it correctly.</p>
+                      </div>
+                    ) : (
+                      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
+                        <p style={{ fontSize: 13, fontWeight: 800, color: '#92400e' }}>Huh? Check the AI explanation at the top.</p>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setBookmarked(b => !b)} style={{ flex: 1, padding: '11px 14px', borderRadius: 10, border: bookmarked ? '1.5px solid #7c3aed' : '1px solid var(--border)', background: bookmarked ? 'var(--violet-light)' : '#fff', color: bookmarked ? 'var(--violet)' : 'var(--text-secondary)', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <span>{bookmarked ? '★' : '☆'}</span> {bookmarked ? 'Saved' : 'Save / Bookmark'}
+                </button>
+                <button onClick={() => setDismissed(true)} style={{ padding: '11px 18px', borderRadius: 10, border: 'none', background: 'var(--text)', color: '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>{answered ? 'Continue' : 'Skip'}</button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════════════════ */
+    function Footer() {
+      return (
+        <footer style={{
+          padding: '36px 24px',
+          background: 'rgba(255,255,255,0.92)',
+          backdropFilter: 'blur(8px)'
+        }}>
+          <div style={{ maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
+            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
+              © 2026 Gurukul. AI-Powered Learning Engine. <span style={{ opacity: 0.6 }}>—</span> Built for learners, loved by tech.
+            </p>
+          </div>
+        </footer>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       MAIN APP
+    ═══════════════════════════════════════════════════════════════════════════ */
+    function App() {
+      const [activeSection, setActiveSection] = useState(null);
+
+      useEffect(() => {
+        if (activeSection) {
+          setTimeout(() => {
+            const el = document.getElementById(activeSection);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 100);
+        }
+      }, [activeSection]);
+
+      return (
+        <div style={{ minHeight: '100vh' }}>
+          <ScrollProgress />
+          <MouseGlow />
+          <BgCanvasFX />
+          <Navbar activeSection={activeSection} setActiveSection={setActiveSection} />
+          <HeroSection setActiveSection={setActiveSection} />
+          <IndividualSection />
+          <OrganizationSection />
+          <PricingSection />
+          <Footer />
+          <RocketChallenge />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

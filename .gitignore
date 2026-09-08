@@ -58,3 +58,6 @@ docs/data-exports/
 # Transient status file written by the offline push-retry loop.
 push-status.txt
 *.bundle
+
+# Vercel local build/link state (from the landing-page work on main).
+.vercel

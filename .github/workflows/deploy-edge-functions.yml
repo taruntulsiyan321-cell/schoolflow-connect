@@ -25,20 +25,55 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
 
-      - name: Sync Gemini client into function folders
-        run: npm run functions:sync
+      - run: npm ci
+
+      # Gate before deploying (PC-04): this workflow pushes straight to the
+      # production Supabase project, and until 2026-08-23 it did so with no
+      # verification of any kind.
+      - run: npx tsc --noEmit -p tsconfig.app.json
+      - run: npm run test
 
       - uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Deploy all AI edge functions
+      # The function list is derived from disk, never hardcoded.
+      #
+      # The previous hardcoded list had drifted badly and the workflow was in
+      # fact DEAD, not merely stale:
+      #   * Step 1 ran `npm run functions:sync`, a Gemini-era script that was
+      #     deleted from package.json in e9c0fc5 ("Remove Gemini entirely").
+      #     `npm run` on a missing script exits non-zero, so this job failed at
+      #     its first step on every run after that commit -- no edge function
+      #     has deployed through CI since. Anything that did reach production
+      #     got there by a manual `supabase functions deploy`.
+      #   * The list named two functions that do not exist on disk
+      #     (ai-improvement-plan, ai-analytics-insights). With `set -e` the
+      #     loop would have aborted on the first of them regardless.
+      #   * It omitted five functions that DO exist: admin-link-account,
+      #     send-otp, send-push, verify-otp, verify-msg91-widget.
+      #
+      # Deriving the list removes the whole class of drift. Note this widens
+      # deploy scope to those five previously-omitted functions -- intended, but
+      # it does mean their first CI deploy will overwrite whatever is live with
+      # repo state, so confirm the repo is the source of truth for them before
+      # enabling the SUPABASE_ACCESS_TOKEN secret.
+      - name: Deploy every edge function in supabase/functions
         run: |
           set -euo pipefail
-          FUNCS="ai-gateway ai-explain ai-battle-report ai-improvement-plan ai-concept-report ai-analytics-insights dpp-generate-questions ai-learning-pattern-agent ai-recovery-agent ai-revision-agent ai-academic-coach-agent"
-          for func in $FUNCS; do
+          shopt -s nullglob
+          deployed=0
+          for dir in supabase/functions/*/; do
+            func="$(basename "$dir")"
+            # _shared is a library imported by the functions, not a function.
+            [ "$func" = "_shared" ] && continue
+            [ -f "$dir/index.ts" ] || { echo "SKIP $func (no index.ts)"; continue; }
             echo "Deploying $func ..."
             supabase functions deploy "$func" --project-ref "$PROJECT_ID" --use-api
             echo "OK: $func"
+            deployed=$((deployed + 1))
           done
+          echo "Deployed $deployed function(s)."
+          [ "$deployed" -gt 0 ] || { echo "No functions found -- refusing to report success."; exit 1; }

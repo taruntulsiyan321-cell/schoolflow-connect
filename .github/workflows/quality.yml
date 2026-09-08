@@ -53,20 +53,37 @@ jobs:
       # gate above can rot back into passing on input it should reject, and
       # nothing would say so.
       - run: npm run check:recovery-constants:negative
+      # Hard gate from 2026-08-23, added because main shipped UNBUILDABLE for
+      # five consecutive commits (543e4b2..d9a3208) and every Vercel deploy in
+      # that window failed silently -- production kept serving a pre-543e4b2
+      # bundle while main looked healthy. tsc is NOT a substitute for this and
+      # proved it: all three defects passed `tsc --noEmit` and still broke the
+      # build, because tsc never sees CSS and never runs esbuild's parser.
+      #   1. `.${panel}` -- an uninterpolated JS template literal written into
+      #      four theme.css files by a codemod; PostCSS aborted. tsc: clean.
+      #   2. a duplicated `active` line inside a cn() ternary; esbuild parse
+      #      error. tsc: clean.
+      #   3. curly quotes used as JSX attribute delimiters; esbuild parse
+      #      error. tsc: clean.
+      # Keep this above any deploy step: a build that cannot run is the one
+      # failure mode that makes every other green check meaningless.
+      - run: npm run build
       # Static, credential-free: flags any function touching a school-scoped
       # table with zero school_id reference -- the exact pattern that caused
       # the match_question_bank / match_ai_answer_cache cross-school leak.
-      # NOT a blocking gate yet: on its first run (2026-08-21) it flagged 114
-      # functions, and one genuinely was a real bug (recovery_assignments.school_id,
-      # fixed same day) -- but most of the 114 are exact-single-row-ID lookups
-      # (e.g. "does this teacher teach this exact class") where tenant scoping
-      # doesn't apply, which the current regex heuristic can't yet tell apart
-      # from a real gap. Continue-on-error until each of the 114 is triaged
-      # into either a real fix or an ALLOWLIST entry with a specific reason --
-      # rubber-stamping them all into the allowlist today just to turn this
-      # into a passing gate would defeat the entire point of the check.
+      # Promoted to a BLOCKING gate on 2026-08-23. It was added continue-on-error
+      # on 2026-08-21 with an explicit condition: "continue-on-error until each
+      # of the 114 is triaged into either a real fix or an ALLOWLIST entry with
+      # a specific reason." That condition is now met -- the script reports
+      # "PASS: no unexplained tenant-scoping gaps" and exits 0, with every
+      # allowlist entry carrying its own checkable justification (revoked from
+      # anon/authenticated, auth.uid()-self-scoped, RLS-policy primitive, or a
+      # read-and-confirmed trigger body).
+      #
+      # Leaving it non-blocking now would be strictly worse than never having
+      # added it: the backlog that justified the exemption is gone, so any new
+      # finding is a genuinely new tenant gap -- exactly what this must fail on.
       - run: npm run lint:tenant-scope
-        continue-on-error: true
       #
       # NOT yet enabled as gates, both need a live SUPABASE_ACCESS_TOKEN this
       # repo's GitHub Actions secrets don't have (gh secret list is empty --
