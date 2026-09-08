@@ -799,7 +799,7 @@
             alt=""
             className="page-curtain-logo"
             initial={{ scale: 0.6, opacity: 0, filter: 'blur(8px)' }}
-            animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
+            animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.55, ease: [0.16,1,0.3,1] }}
           />
           <motion.div
@@ -814,7 +814,7 @@
 
     function Reveal({ children, delay = 0, y = 36, x = 0, once = 1, style, className }) {
       const ref = useRef(null);
-      const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+      const inView = useInView(ref, { once: true, margin: '-80px' });
       return (
         <motion.div
           ref={ref}
@@ -831,7 +831,7 @@
 
     function SlideIn({ children, from = 'left', delay = 0, style, className }) {
       const ref = useRef(null);
-      const inView = useInView(ref, { once: true, margin: '-12% 0px' });
+      const inView = useInView(ref, { once: true, margin: '-80px' });
       const x = from === 'left' ? -48 : from === 'right' ? 48 : 0;
       const y = from === 'up' ? 40 : from === 'down' ? -24 : 0;
       return (
@@ -839,8 +839,8 @@
           ref={ref}
           className={className}
           style={style}
-          initial={{ opacity: 0, x, y, filter: 'blur(6px)' }}
-          animate={inView ? { opacity: 1, x: 0, y: 0, filter: 'blur(0px)' } : {}}
+          initial={{ opacity: 0, x, y }}
+          animate={inView ? { opacity: 1, x: 0, y: 0 } : {}}
           transition={{ duration: 0.75, delay, ease: [0.16, 1, 0.3, 1] }}
         >
           {children}
@@ -2515,9 +2515,9 @@
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeRole}
-                initial={{ opacity: 0, x: 36, scale: 0.97, filter: 'blur(6px)' }}
-                animate={{ opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, x: -28, scale: 0.97, filter: 'blur(6px)' }}
+                initial={{ opacity: 0, x: 36, scale: 0.97 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -28, scale: 0.97 }}
                 transition={{ duration: 0.48, ease: [0.16,1,0.3,1] }}
                 className="role-panel"
               >
@@ -2669,16 +2669,13 @@
             </motion.div>
 
             <AnimatePresence mode="wait">
-              <motion.div key={tab} initial={{ opacity: 0, x: 28, filter: 'blur(6px)' }} animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, x: -24, filter: 'blur(6px)' }} transition={{ duration: 0.42, ease: [0.16,1,0.3,1] }} className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: tab === 'organization' ? 'min(420px, 100%)' : 'repeat(3, 1fr)', gap: 20, justifyContent: tab === 'organization' ? 'center' : 'initial' }}>
+              <motion.div key={tab} initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.42, ease: [0.16,1,0.3,1] }} className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: tab === 'organization' ? 'min(420px, 100%)' : 'repeat(3, 1fr)', gap: 20, justifyContent: tab === 'organization' ? 'center' : 'initial' }}>
                 {plans.map((plan, i) => (
                 <motion.div
                   key={plan.name}
-                  initial={{ opacity: 0, y: 24 }}
-                  animate={isInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ delay: i * 0.08 }}
                   className={plan.popular ? 'glow-border' : undefined}
                   whileHover={{ y: -6, scale: 1.02 }}
-                  transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 22, delay: i * 0.08 }}
                   style={{
                     background: 'var(--bg-card)',
                     border: plan.popular ? `2px solid ${plan.color}` : '1px solid var(--border)',
