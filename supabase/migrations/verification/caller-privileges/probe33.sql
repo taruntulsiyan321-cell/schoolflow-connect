@@ -12,8 +12,9 @@
 --   1. the student session is genuinely authenticated.        (harness control)
 --   2. a label key is REFUSED.                        <- the constraint's point
 --   3. a position key is ACCEPTED.                            (positive control)
---   4. an out-of-range position is accepted by the CHECK, and the migration's
---      invariant is what covers it — recorded, not hidden.
+--   4. a key that addresses no option is REFUSED — an index past the end, an
+--      empty array, a numerical key holding a string — with the last VALID
+--      index and a real numeric key as the positive controls.
 --   5. a student picking the right option SCORES.       <- what the fix is for
 --   6. a student picking a wrong option scores zero.          (negative control)
 --   7. no row anywhere in the table still keys on the option text.
@@ -118,10 +119,13 @@ BEGIN
     ('key a choice question by POSITION (positive control)','-','OK: accepted', r,
      CASE WHEN r = 'OK: accepted' THEN 'PASS' ELSE 'FAIL' END);
 
-  -- ── 4. what the CHECK still cannot see, said out loud ───────────────────
-  -- A CHECK may not run a subquery, so it cannot compare an index against the
-  -- length of `options`. The migration asserts that as an invariant instead.
-  -- Recorded here so the gap is visible rather than assumed covered.
+  -- ── 4. a key that addresses no option is refused ──────────────────────
+  -- This was an accepted GAP until 20260914110000: a CHECK may not run a
+  -- subquery, so `test_questions_shape_matches_format` pins the SHAPE of the key
+  -- and cannot compare its indexes against the LENGTH of `options`.
+  -- `{"indexes":[7]}` on a two-option question is exactly as unmarkable as the
+  -- label shape was. A trigger closes it, for the same reason
+  -- tg_question_bank_class_follows_chapter is a trigger.
   BEGIN
     INSERT INTO public.test_questions
       (test_id, school_id, order_index, question, question_format, options, correct, marks)
@@ -131,9 +135,68 @@ BEGIN
   EXCEPTION WHEN check_violation THEN r := 'ERROR: check_violation';
   END;
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('an out-of-range index (KNOWN gap: CHECK cannot subquery)','-','OK: accepted', r,
-     CASE WHEN r = 'OK: accepted' THEN 'PASS' ELSE 'FAIL' END);
+    ('an index past the end of `options`','-','ERROR: check_violation', r,
+     CASE WHEN r = 'ERROR: check_violation' THEN 'PASS' ELSE 'FAIL' END);
   DELETE FROM public.test_questions WHERE test_id = t_id AND order_index = 82;
+
+  -- An empty key: nothing is correct, so nothing can be marked correct.
+  BEGIN
+    INSERT INTO public.test_questions
+      (test_id, school_id, order_index, question, question_format, options, correct, marks)
+    VALUES (t_id, sch_a, 83, 'probe33 empty key', 'mcq',
+            '["a","b"]'::jsonb, '{"indexes":[]}'::jsonb, 1);
+    r := 'OK: accepted';
+  EXCEPTION WHEN check_violation THEN r := 'ERROR: check_violation';
+  END;
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('an EMPTY indexes array','-','ERROR: check_violation', r,
+     CASE WHEN r = 'ERROR: check_violation' THEN 'PASS' ELSE 'FAIL' END);
+  DELETE FROM public.test_questions WHERE test_id = t_id AND order_index = 83;
+
+  -- A numerical key holding a STRING. jsonb equality is typed -- '"4"' <> '4' --
+  -- and QuestionRenderer.tsx:134 sends Number(...), so this could never match.
+  BEGIN
+    INSERT INTO public.test_questions
+      (test_id, school_id, order_index, question, question_format, correct, marks)
+    VALUES (t_id, sch_a, 84, 'probe33 numeric key as text', 'numerical',
+            '{"value":"4"}'::jsonb, 1);
+    r := 'OK: accepted';
+  EXCEPTION WHEN check_violation THEN r := 'ERROR: check_violation';
+  END;
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('a numerical key holding the STRING "4"','-','ERROR: check_violation', r,
+     CASE WHEN r = 'ERROR: check_violation' THEN 'PASS' ELSE 'FAIL' END);
+  DELETE FROM public.test_questions WHERE test_id = t_id AND order_index = 84;
+
+  -- POSITIVE CONTROL for all three: the LAST valid index must still be accepted.
+  -- A trigger that refused everything would pass the three refusals above, and
+  -- an off-by-one rejecting index n-1 is the likeliest way to get this wrong.
+  BEGIN
+    INSERT INTO public.test_questions
+      (test_id, school_id, order_index, question, question_format, options, correct, marks)
+    VALUES (t_id, sch_a, 85, 'probe33 last valid index', 'mcq',
+            '["a","b"]'::jsonb, '{"indexes":[1]}'::jsonb, 1);
+    r := 'OK: accepted';
+  EXCEPTION WHEN check_violation THEN r := 'ERROR: check_violation';
+  END;
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('the LAST valid index, n-1 (positive control)','-','OK: accepted', r,
+     CASE WHEN r = 'OK: accepted' THEN 'PASS' ELSE 'FAIL' END);
+  DELETE FROM public.test_questions WHERE test_id = t_id AND order_index = 85;
+
+  -- And a valid numerical key, so the numeric refusal above means something.
+  BEGIN
+    INSERT INTO public.test_questions
+      (test_id, school_id, order_index, question, question_format, correct, marks)
+    VALUES (t_id, sch_a, 86, 'probe33 numeric key as number', 'numerical',
+            '{"value":4}'::jsonb, 1);
+    r := 'OK: accepted';
+  EXCEPTION WHEN check_violation THEN r := 'ERROR: check_violation';
+  END;
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('a numerical key holding the NUMBER 4 (positive control)','-','OK: accepted', r,
+     CASE WHEN r = 'OK: accepted' THEN 'PASS' ELSE 'FAIL' END);
+  DELETE FROM public.test_questions WHERE test_id = t_id AND order_index = 86;
 
   -- ── 5/6. marking, both directions, in ONE submit ───────────────────────
   -- Both directions have to ride the same attempt: `test_attempts` carries a
