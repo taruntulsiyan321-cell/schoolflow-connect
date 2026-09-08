@@ -812,16 +812,14 @@
       );
     }
 
-    function Reveal({ children, delay = 0, y = 36, x = 0, once = 1, style, className }) {
-      const ref = useRef(null);
-      const inView = useInView(ref, { once: true, margin: '-80px' });
+    function Reveal({ children, delay = 0, y = 36, x = 0, scale = 1, style, className }) {
       return (
         <motion.div
-          ref={ref}
           className={className}
           style={style}
           initial={{ opacity: 0, y, x, scale }}
-          animate={inView ? { opacity: 1, y: 0, x: 0, scale: 1 } : {}}
+          whileInView={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
         >
           {children}
@@ -830,17 +828,15 @@
     }
 
     function SlideIn({ children, from = 'left', delay = 0, style, className }) {
-      const ref = useRef(null);
-      const inView = useInView(ref, { once: true, margin: '-80px' });
       const x = from === 'left' ? -48 : from === 'right' ? 48 : 0;
       const y = from === 'up' ? 40 : from === 'down' ? -24 : 0;
       return (
         <motion.div
-          ref={ref}
           className={className}
           style={style}
           initial={{ opacity: 0, x, y }}
-          animate={inView ? { opacity: 1, x: 0, y: 0 } : {}}
+          whileInView={{ opacity: 1, x: 0, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.75, delay, ease: [0.16, 1, 0.3, 1] }}
         >
           {children}
