@@ -54,3 +54,7 @@ docs/data-exports/
 
 # throwaway probe output from the evidence harness
 /e2e-evidence/scratch/
+
+# Transient status file written by the offline push-retry loop.
+push-status.txt
+*.bundle
