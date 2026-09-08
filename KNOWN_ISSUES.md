@@ -1862,9 +1862,19 @@ and reported a green end-to-end run over a paper no real client could have sat.
 **Verified** by probe33: a label key is refused, a position key accepted, the
 right option scores and the wrong one does not — both on the same attempt,
 because `test_attempts` carries a UNIQUE (test_id, user_id) and
-`rpc_test_submit` closes the attempt it marks. A known gap is recorded rather
-than hidden: a CHECK may not run a subquery, so an out-of-range index is
-accepted by the constraint and caught by the migration's invariant instead.
+`rpc_test_submit` closes the attempt it marks.
+
+**The range gap this entry first recorded as accepted is CLOSED**, by
+`20260914110000`. A CHECK may not run a subquery, so it cannot compare an index
+against `jsonb_array_length(options)` — which left `{"indexes":[7]}` on a
+two-option question writable, and exactly as unmarkable as the label shape.
+`tg_test_question_key_addresses_an_option` refuses that, an empty `indexes`
+array, and a numerical key holding a STRING (jsonb equality is typed, so
+`'"4"' <> '4'` and the renderer sends `Number(...)`). A trigger, for the same
+structural reason `tg_question_bank_class_follows_chapter` is one. probe33
+asserts all three refusals plus two positive controls — the LAST valid index
+(n-1) and a real numeric key — without which a trigger that refused everything
+would pass.
 
 ## 30. ~~A signed-out visitor could call two school helpers~~ — FIXED
 
@@ -1977,3 +1987,117 @@ postgres/service_role only (measured: anon false, authenticated false).
 `lint-metric-duplication`'s baseline (converged in f6e2f51), leaving a backlog
 of **10** sites still computing a metric outside the metric layer. That is a
 backlog the gate holds flat, not a defect this session introduced.
+
+## 34. ~~A generation that produced nothing was sold as a success, and billed~~ — FIXED
+
+**FIXED 2026-09-08. Found because the evidence suite failed and I went looking
+for a provider outage that was not there.**
+
+`dpp-generate-questions` returned, verbatim:
+
+```
+200 {"questions":[],"source":"openrouter_qwen","question_format":"mcq","board":"rbse","class_level":null}
+```
+
+A 200 with an empty array. The function only refunded on `!result.ok`, and
+`result.ok` is TRUE when the model answers with well-formed but empty JSON — so
+the reservation was never released. **That is KNOWN_ISSUES 14 surviving in the
+one path its fix did not cover:** the student was billed for nothing and told it
+worked. No caller can tell that response from a real generation.
+
+Now: refund, then `502` with "Nothing was charged — please try again."
+
+**A second defect in the same function, found while reading it.** Two hardcoded
+`lvl >= 6 && lvl <= 12` ranges — the same literal `20260914020000` removed from
+the database, where it had archived 2,189 legitimate Class 5 questions. Here it
+was worse than a filter: the FIRST of the two decides the prompt, so a Class 5
+request produced a prompt with **no class in it at all** and the model pitched
+the question wherever it liked. §10.9: "a Class 5 student is only ever served
+Class 5 content for their own board." Both now resolve the class against
+`curriculum_classes`, so the domain is data, not a literal.
+
+Deployed and verified in the browser: a student generated *"A pizza is divided
+into 8 equal slices. If Rohan eats 3 slices, what fraction of the pizza did he
+eat?"* with four options and `correct_index: 1`.
+
+## 35. ~~`npm run ai:ping` could never pass~~ — FIXED
+
+**FIXED 2026-09-08.** The connectivity check for the whole AI path sent
+`max_tokens: 16` and **no `reasoning` field**. Qwen 3.7 Flash is a reasoning
+model: left enabled it spends its budget on the internal trace before writing
+anything to `content`, so the reply came back `content: null`,
+`finish_reason: "length"`, and the script printed `FAIL: empty model response`
+— which reads as "the provider is down".
+
+Measured, same key, same model, same prompt:
+
+    max_tokens 20, no reasoning field ..... content null    (trace only)
+    max_tokens 2000, enabled:false ........ content "pong", 1 completion token
+
+`supabase/functions/_shared/modelRouter.ts:141` has sent
+`reasoning: { enabled: false }` on every real call for some time — the probe
+simply did not. **A gate that cannot pass while the path is healthy is worse
+than no gate**: it sends the next reader hunting an outage that is not there. It
+did exactly that here, for about an hour.
+
+Also: a `429` is now named separately (exit code 2), because
+"qwen/qwen3.7-flash is temporarily rate-limited upstream" from Alibaba is not a
+broken path, and reporting it as one sends you to the wrong place. And an empty
+reply now says WHY — reasoning-trace-ate-the-budget is a request problem, a
+genuinely empty answer is the provider's.
+
+`npm run ai:ping` → `{"ok": true, "text": "pong", "reasoning_tokens": 0}`.
+
+## 36. ~~A signed-out visitor could read every school's attendance edits~~ — FIXED
+
+**FIXED 2026-09-08 by `20260914120000` and `20260914130000`.**
+`npm run db:verify-integrity` had been reporting it and nothing had acted:
+
+    FAIL  every view in public is security_invoker  -- [{"relname":"attendance_day_edits"}]
+
+It is the only view in `public` without it — `attendance_current`,
+`students_current` and `trash` all have it — so it ran as its owner and RLS
+never applied. Asked as each role rather than inferred from the grant table:
+
+    anon (the browser-bundle key) ... 20 rows, 1 school
+    a student ....................... 20 rows, 1 school
+    the owner (ground truth) ........ 20 rows, 1 school
+
+Identical. A signed-out visitor saw exactly what the table owner saw. Only one
+of the two schools currently has edits, so nothing was crossing schools *today*
+— nothing was stopping it either, and `school_id` is a column it returns.
+
+**It is deliberately still not `security_invoker`,** and that is now recorded
+rather than implicit: the view reads `academic_audit`, which §10.18 reserves to
+admin, so a principal can see that a figure moved without being handed the audit
+log. Flipping the flag would have silently emptied the marker for the people who
+use it, with every gate green. So both fences live in the view body —
+`my_accessible_school_ids()` for the school, and the role set
+`AttendanceService.summarizeSchoolDate` already enforces
+("School attendance summary is admin/principal-only") for the caller. The
+service and the database now agree; before, only the service did.
+
+The integrity check was rewritten to match: a non-invoker view passes **only
+while both fences are present in its body**, exactly one such view may exist and
+it is named, and no non-invoker view may be readable by anon. Remove a fence and
+it goes red again — which a name-based allowlist would not have done.
+
+probe36 asserts it as the caller: anon refused, student 0, teacher 0, admin
+sees their own school's 20 and another school's 0, and all five columns the
+service reads are still there.
+
+## 37. ~~An integrity check demanded the defect back~~ — FIXED
+
+**FIXED 2026-09-08.** `db:verify-integrity` asserted
+`question_bank.class_level 5/null archived (expect 0 active)` and reported
+**2,189** — because `20260914020000` reactivated exactly those rows, on §10.9's
+instruction. The check encoded `20260821120000`'s ruling, which had been
+overturned; left alone it would have argued for re-archiving Class 5.
+
+Replaced with the rule that holds now, in both directions: Class 5 questions ARE
+active (§10.9), no active question is unkeyed (§10.10), and every keyed question
+agrees with its chapter's class — the invariant
+`tg_question_bank_class_follows_chapter` makes structural.
+
+`npm run db:verify-integrity` now reports **All checks passed** for the first
+time.

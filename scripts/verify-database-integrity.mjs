@@ -92,9 +92,35 @@ async function main() {
   if (missing.length) failures++;
 
   // --- Phase 1 fixes (supabase/migrations/20260821120000_phase1_verified_fixes.sql) ---
+  // This check used to be "question_bank.class_level 5/null archived (expect 0
+  // active)". It encoded 20260821120000's ruling, which 20260914020000
+  // OVERTURNED: §10.9 (locked-decisions.md:391) names Class 5 by hand as the
+  // worked example of the whole tagging rule -- "a Class 5 student is only ever
+  // served Class 5 content for their own board" -- and the curriculum seeds
+  // Class 5 with 4 subjects and 55 chapters. 2,189 legitimate questions had
+  // been archived for disagreeing with a hardcoded 6..12.
+  //
+  // Asserting the OLD ruling made this gate demand the defect back. What
+  // replaces it is the rule that actually holds now, in both directions.
   await check(
-    "question_bank.class_level 5/null archived (expect 0 active)",
-    "SELECT count(*) FROM question_bank WHERE (class_level=5 OR class_level IS NULL) AND is_active=true",
+    "Class 5 questions are ACTIVE — §10.9 names Class 5 as the worked example",
+    "SELECT count(*) FROM question_bank WHERE class_level=5 AND is_active=true",
+    (r) => count(r) > 0,
+  );
+  await check(
+    "no ACTIVE question is unkeyed (class_level NULL) — §10.10, chapter is the unit",
+    "SELECT count(*) FROM question_bank WHERE class_level IS NULL AND is_active=true",
+    (r) => count(r) === 0,
+  );
+  // The invariant the trigger makes structural: a question's class is its
+  // chapter's class, so the two can never drift apart again.
+  await check(
+    "every keyed question agrees with its chapter's class (tg_question_bank_class_follows_chapter)",
+    `SELECT count(*) FROM question_bank qb
+       JOIN chapters ch ON ch.id = qb.chapter_id
+       JOIN curriculum_subjects cs ON cs.id = ch.curriculum_subject_id
+       JOIN curriculum_classes cc ON cc.id = cs.curriculum_class_id
+      WHERE qb.class_level IS DISTINCT FROM cc.level`,
     (r) => count(r) === 0,
   );
   await check(
@@ -615,11 +641,44 @@ async function main() {
   // EVERY view instead, so a new one that forgets security_invoker is caught
   // the first time this runs. A view without it inherits its owner's rights
   // and becomes a hole around every policy on its base tables.
+  //
+  // ONE view is exempt, and the exemption is not by name — a name would go
+  // green the moment someone gutted the view. `attendance_day_edits` reads
+  // `academic_audit`, which §10.18 reserves to admin, so that a PRINCIPAL can
+  // see that an attendance figure moved without being handed the audit log.
+  // Made security_invoker it would silently return nothing to exactly the
+  // people who use it, with this gate green. Because RLS therefore never runs
+  // for it, both fences live in the view BODY, and this check requires them:
+  // remove either one and the view is flagged again.
   await check(
-    "every view in public is security_invoker (inherits the caller's RLS, not the owner's)",
+    "every view in public is security_invoker, or fences the caller itself in its body",
+    `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'v'
+        AND coalesce(c.reloptions::text, '') NOT LIKE '%security_invoker=true%'
+        AND NOT (
+          pg_get_viewdef(c.oid, true) LIKE '%my_accessible_school_ids%'
+          AND pg_get_viewdef(c.oid, true) LIKE '%is_principal_or_admin%'
+        )`,
+    (r) => r.length === 0,
+  );
+  // ...and the exemption must not become a way to stop being watched: the one
+  // view using it is named here so a SECOND one appearing is visible, and so a
+  // reader can see exactly how large the exception is.
+  await check(
+    "exactly one view relies on fencing itself, and it is the one that has a reason",
     `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public' AND c.relkind = 'v'
         AND coalesce(c.reloptions::text, '') NOT LIKE '%security_invoker=true%'`,
+    (r) => r.length === 1 && r[0].relname === "attendance_day_edits",
+  );
+  // And a non-invoker view must never be readable signed out, fence or no
+  // fence: anon has no school, but a surface that answers is still a surface.
+  await check(
+    "no non-security_invoker view is readable by anon",
+    `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'v'
+        AND coalesce(c.reloptions::text, '') NOT LIKE '%security_invoker=true%'
+        AND has_table_privilege('anon', c.oid, 'SELECT')`,
     (r) => r.length === 0,
   );
   await check(

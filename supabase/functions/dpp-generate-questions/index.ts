@@ -240,9 +240,41 @@ Deno.serve(async (req) => {
     // An unknown class or board is stated as unknown, never guessed. A wrong
     // "Class 12" is worse than no class: it silently produces off-syllabus
     // questions that look right.
+    // WHICH CLASSES EXIST IS A DATA QUESTION, NOT A LITERAL.
+    //
+    // This read `lvl >= 6 && lvl <= 12`. That is the same hardcoded range
+    // 20260914020000 removed from the database, where it had archived 2,189
+    // legitimate Class 5 questions -- and §10.9 names Class 5 by hand as the
+    // worked example of the whole tagging rule.
+    //
+    // Here it was worse than a filter. An out-of-range class fell through to
+    // the "indicated by the subject" phrasing, so a Class 5 student's request
+    // produced a prompt with NO class in it and the model pitched the question
+    // at a level of its own choosing. §10.9: "a Class 5 student is only ever
+    // served Class 5 content for their own board."
+    //
+    // The curriculum tree already knows which classes exist, so it is asked.
+    // Seeding Class 4 becomes a data job, not another edit to another literal.
     const lvl = Number(class_level);
-    const classPhrase = Number.isFinite(lvl) && lvl >= 6 && lvl <= 12
-      ? `Class ${lvl}`
+    let resolvedLevel: number | null = null;
+    if (Number.isFinite(lvl)) {
+      const { data: known, error: lookupErr } = await admin
+        .from("curriculum_classes")
+        .select("level")
+        .eq("level", lvl)
+        .limit(1);
+      // A failed lookup must not silently become "unknown class": that is the
+      // old behaviour wearing a different cause. State it and carry on
+      // unqualified, which is what the phrase below already means.
+      if (lookupErr) {
+        console.error(
+          `[dpp-generate-questions] curriculum_classes lookup failed for level ${lvl}: ${lookupErr.message}`,
+        );
+      }
+      resolvedLevel = (known?.length ?? 0) > 0 ? lvl : null;
+    }
+    const classPhrase = resolvedLevel !== null
+      ? `Class ${resolvedLevel}`
       : "the class level indicated by the subject and source material";
     const boardPhrase = boardLabel ?? "the school's own board";
 
@@ -392,12 +424,34 @@ Deno.serve(async (req) => {
     // chapter and leave topic NULL, never a guessed topic string.
     const questions = (result.data.questions ?? []).slice(0, n)
       .map((q) => ({ ...q, question_format: format }));
+
+    // AN EMPTY ARRAY IS A FAILURE, AND IT WAS BEING SOLD AS A SUCCESS.
+    //
+    // `result.ok` is true when the model answers with a well-formed but EMPTY
+    // tool call, so this fell straight through to a 200 -- and, because only
+    // the `!result.ok` branch refunds, the reservation was never released.
+    // That is KNOWN_ISSUES 14 (budget reserved and never released on failure)
+    // surviving in the one path its fix did not cover: the student was billed
+    // for nothing and told it worked.
+    //
+    // Measured in the browser 2026-09-08:
+    //   200 {"questions":[],"source":"openrouter_qwen","question_format":"mcq",...}
+    // No caller can tell that from a real generation. The evidence suite only
+    // caught it because it asserts the array is non-empty.
+    if (questions.length === 0) {
+      await refund("the provider answered with no questions");
+      return jsonResponse(
+        { error: "The generator returned no questions. Nothing was charged — please try again." },
+        502,
+      );
+    }
+
     return jsonResponse({
       questions,
       source: result.source,
       question_format: format,
       board: boardCode,
-      class_level: Number.isFinite(lvl) && lvl >= 6 && lvl <= 12 ? lvl : null,
+      class_level: resolvedLevel,
     });
   } catch (err) {
     await refund("an unhandled error");
