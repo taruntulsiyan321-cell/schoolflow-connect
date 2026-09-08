@@ -24,6 +24,7 @@ import {
   type ServiceContext,
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
+import type { Json } from "@/integrations/supabase/types";
 import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
@@ -82,13 +83,35 @@ export interface ManualQuestionInput {
   explanation?: string | null;
 }
 
-function mapKindToDb(kind: ManualQuestionKind): "mcq" | "multi" | "numerical" | "short" {
+/**
+ * The builder's kind -> `test_questions.question_format`.
+ *
+ * THE COLUMN IS `question_format`, NOT `kind`. This mapper existed and its
+ * result was written to a `kind` column that `public.test_questions` does not
+ * have, behind an `.insert(rows as never)` cast — so PostgREST rejected every
+ * manual test's questions with `PGRST204` and no manually-built test ever saved
+ * one. Same shape as KNOWN_ISSUES 11's `school_id`, in a different table.
+ *
+ * `long` is no longer collapsed into `short`: the column carries it, and a long
+ * answer is budgeted and printed differently from a short one.
+ *
+ * `fill` maps to `short` because a fill-in-the-blank is prose a person reads —
+ * §10.24 auto-marks only structured answers, and jsonb equality on free text is
+ * a lottery, not marking.
+ */
+function mapKindToFormat(kind: ManualQuestionKind): "mcq" | "numerical" | "short" | "long" {
   if (kind === "mcq" || kind === "true_false") return "mcq";
   if (kind === "numerical") return "numerical";
+  if (kind === "long") return "long";
   return "short";
 }
 
-function toOptions(kind: ManualQuestionKind, options?: string[]): unknown[] {
+/** True when the format is auto-marked by `rpc_test_submit`'s jsonb equality. */
+function isAutoMarked(format: string): boolean {
+  return format === "mcq" || format === "multi" || format === "numerical";
+}
+
+function toOptions(kind: ManualQuestionKind, options?: string[]): Json {
   if (kind === "true_false") return ["True", "False"];
   return options ?? [];
 }
@@ -97,7 +120,7 @@ function toCorrect(
   kind: ManualQuestionKind,
   correct?: ManualQuestionInput["correct"],
   options?: string[],
-): unknown {
+): Json {
   // Grader (rpc_test_submit) expects: MCQ/TF → {indexes:[i]}, numerical → {value}, short → {text}
   if (kind === "true_false") {
     const opts = toOptions(kind, options) as string[];
@@ -385,21 +408,34 @@ export const TestService = {
       return [];
     }
 
-    const rows = questions.map((q, i) => ({
-      test_id: testId,
-      order_index: i,
-      kind: mapKindToDb(q.kind),
-      question: q.question.trim(),
-      options: toOptions(q.kind, q.options),
-      correct: toCorrect(q.kind, q.correct, q.options),
-      marks: q.marks ?? 1,
-      explanation: q.explanation ?? null,
-      school_id: ctx.schoolId,
-    }));
+    const rows = questions.map((q, i) => {
+      const question_format = mapKindToFormat(q.kind);
+      const auto = isAutoMarked(question_format);
+      // `test_questions_shape_matches_format` (20260914050000) refuses a row
+      // that carries both, and refuses a written question with no `answer`.
+      // The two branches are the constraint, restated where the row is built.
+      const key = toCorrect(q.kind, q.correct, q.options);
+      return {
+        test_id: testId,
+        order_index: i,
+        question_format,
+        question: q.question.trim(),
+        options: toOptions(q.kind, q.options),
+        correct: auto ? key : null,
+        answer: auto
+          ? null
+          // A written question's model answer is TEXT, not jsonb. `toCorrect`
+          // returns `{text}` for these kinds, so the string comes out of there.
+          : String((key as { text?: unknown })?.text ?? "").trim() || "(no model answer given)",
+        marks: q.marks ?? 1,
+        explanation: q.explanation ?? null,
+        school_id: ctx.schoolId,
+      };
+    });
 
     const { data, error } = await getClient(repo)
       .from("test_questions")
-      .insert(rows as never)
+      .insert(rows)
       .select("*");
     throwIfError(error, "Failed to save questions");
 

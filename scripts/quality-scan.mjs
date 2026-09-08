@@ -7,7 +7,6 @@ const ALLOWLIST = new Set([
   "src/gurukul/data/mock.ts",
   "src/gurukul/pages/ConceptMastery.tsx",
   "src/gurukul/components/AnalyticsPage.tsx",
-  "src/lib/presentationAnalytics.ts",
   "src/lib/presentationMode.ts",
   "src/gurukul/emptyStudent.ts",
   "src/components/student/dashboard/StudentMissionDashboard.tsx",

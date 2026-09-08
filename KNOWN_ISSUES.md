@@ -1659,7 +1659,76 @@ reviewed. If no, the Class 5 curriculum rows and those questions should be
 retired together, and the chapter tree stops claiming a class that has no
 students.
 
-## 28. `TestService.setQuestions` sends a `kind` column that does not exist — found 2026-09-07
+## 28. ~~`TestService.setQuestions` sends a `kind` column that does not exist~~ — FIXED
+
+**FIXED 2026-09-08, and it was broken at BOTH ends.** The entry asked for the
+first thing to establish — "whether any teacher-facing screen actually calls
+`setQuestions`". It does: `src/gurukul-teacher/LiveClassPanels.tsx:1113`, when a
+teacher builds a test by hand or from the library. So this was a broken feature,
+not dead code.
+
+**The teacher half.** Every row carried `kind: mapKindToDb(q.kind)` and
+`public.test_questions` has no `kind` column, behind an
+`.insert(rows as never)` cast — PostgREST rejects an unknown column with
+PGRST204 before the database sees it. **No manually built test ever saved a
+single question.**
+
+**The student half, which is why nobody noticed.** `QuestionRenderer` — the only
+component that draws a test question — branches entirely on `q.kind`:
+
+```tsx
+{(q.kind === "mcq" || q.kind === "multi") && ...options...}
+{q.kind === "numerical" && <Input type="number" .../>}
+{q.kind === "short" && <Textarea .../>}
+```
+
+and `rpc_test_questions_for_attempt` returned **no format at all**. So `q.kind`
+was `undefined` for every question a student was ever served, no branch matched,
+and the paper would have rendered as a list of stems with **no way to answer any
+of them**. Nothing could be saved, so nothing could be rendered, so neither half
+could reveal the other.
+
+**The fix.** `question_format` (added by `20260914050000` for entry 16) already
+carries exactly the vocabulary the renderer wants, so both ends now speak it:
+
+- `setQuestions` writes `question_format`, and splits the answer per
+  `test_questions_shape_matches_format` — the key in `correct` for
+  mcq/multi/numerical, the model answer in `answer` for short/long, never both.
+  `long` is no longer collapsed into `short`.
+- The `as never` cast is gone, so the compiler checks the row shape. It
+  immediately caught `toOptions`/`toCorrect` returning `unknown`; both are typed
+  `Json` now.
+- `20260914060000` adds `question_format` to `rpc_test_questions_for_attempt`
+  and to `rpc_test_submit`'s result payload — the review screen draws through
+  the same component, so without it a student reviewing their own submitted
+  paper would see their answers vanish.
+- `correct`, `answer` and `explanation` stay OUT of the attempt path (G14). The
+  format is how a question is drawn, not part of the key.
+
+**A defect I introduced and caught within minutes, recorded because the shape
+recurs.** Adding a column to a `RETURNS TABLE` needs `DROP FUNCTION` first
+(42P13) — and **a DROP takes the grants with it**. The recreated function came
+back with default privileges, Chunk 9.5 revokes EXECUTE from PUBLIC across this
+schema, so `authenticated` had none and every student sitting a test got
+`permission denied for function rpc_test_questions_for_attempt`. Seven
+assertions failed at once and **every one of them was a positive control** — a
+suite of denial tests would have gone green on a function nobody could call.
+Restored by `20260914070000`, which also asserts PUBLIC still does not hold it.
+
+**Verified** by probe32's 9 caller assertions (291 total): a `kind` insert is
+still rejected (the original defect, pinned), the shape the service now writes
+is accepted, every served question carries its format and it is the format that
+was written, the key is still withheld, a right answer scores its marks, and the
+review payload carries the format too.
+
+The `correct`-shape disagreement this entry also noted is real and unchanged:
+`toCorrect` writes `{indexes:[i]}` / `{value}` / `{text}`, which is exactly what
+`QuestionRenderer` and `rpc_test_submit` expect, while the 576 pre-existing rows
+hold a bare jsonb string. Those 576 were written by something else and would
+never grade against this client. They are seed data for tests nobody has taken;
+left alone deliberately rather than rewritten on a guess.
+
+The original finding follows.
 
 **Found while ruling on entry 16. NOT fixed: it is a defect with its own
 verification needs, not a ruling, and folding it into a schema decision would
@@ -1702,3 +1771,50 @@ column this code wanted exists — under a different name and with `long` added.
 Whoever fixes this should write `question_format`, and put a short/long model
 answer in `answer`, never in `correct` (`test_questions_shape_matches_format`
 now refuses that outright).
+
+---
+
+## Housekeeping — 75 dead files removed, 2026-09-08
+
+`scripts/lint-unreferenced-src.mjs` (new) walks the import graph from
+`index.html`'s entry and every test file, and reports what it never reaches.
+Reachability is a graph question: a file imported only by a file nothing
+imports looks "referenced" to a grep and is still dead.
+
+**70 files under `src/`** were reachable from nothing. They were not random —
+they were four superseded designs left in place:
+
+- the `battleground/Arena*` cluster (8 files). `pages/student/Battleground.tsx`
+  says so in a comment: *"ArenaHub intentionally not mounted as product home —
+  design Battleground is canonical."*
+- the `student/analytics/*` cluster (8), including a `wisdom/` subtree
+- `AppLayout` + `NavLink` + `NotificationBell` — a superseded shell
+- `academicBrain` / `academicAgents` / `useAcademicBrain` / `useAcademicCoach`
+- 30 unused shadcn components (the app uses `sonner`, not the shadcn toast kit)
+- two `@deprecated` re-export shims kept "so parallel supervisors do not
+  diverge on APIs" — a coordination that ended long ago
+- `src/engines/class12Math/*`, whose live twin is `scripts/math12Catalog.mjs`
+  ("mirrors …/buildCatalog.ts") — two homes, one of them never running
+
+Plus **5 scripts**: four headed "One-shot codemod" whose output is already in
+the tree, and `run-verifications.mjs`, a superseded duplicate of
+`run-verification-files.mjs`.
+
+**KEPT deliberately, and why:**
+
+- `src/test/setup.ts` — unimported, but `vitest.config.ts` names it in
+  `setupFiles`. Load-bearing by convention, which is exactly the case a
+  reachability scan gets wrong on its own.
+- `docs/APPLY_*.sql` (46 files) — cross-referenced by ten documents. They are
+  the record of what was applied by hand before the migration ledger existed.
+- `supabase/functions/send-otp` and `verify-otp` — deleted from the PROJECT
+  (issue 8b), source kept so the deletion stays reversible.
+- Hand-run gates and generators in `scripts/` that `package.json` does not
+  name: `run-verification-files`, `seed-gate`, `query-timing`,
+  `mint-role-sessions`, `gen-tenant-fence-migration` and the rest. Not being
+  wired to an npm script is not the same as having no use.
+
+**Proof it was dead:** typecheck clean, `npm run build` succeeds, 636 tests
+pass, every screen still reachable from a router, and lint fell from
+**134 errors / 77 warnings to 122 / 71** — the deleted files were carrying that
+debt. The baseline was lowered so the ratchet keeps meaning something.

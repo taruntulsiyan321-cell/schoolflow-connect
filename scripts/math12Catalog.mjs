@@ -1,4 +1,11 @@
-/** Pure JS catalog builder for seed script (mirrors src/engines/class12Math/buildCatalog.ts) */
+/**
+ * Pure JS catalog builder for the seed script.
+ *
+ * It used to say "mirrors src/engines/class12Math/buildCatalog.ts". That file
+ * was deleted 2026-09-08: nothing in the app imported it, so the "mirror" was
+ * one live copy and one dead one — two homes for the catalog (G9), with only
+ * this side ever running. This is now the only home.
+ */
 
 export const CLASS12_MATH_CHAPTERS = [
   "Relations and Functions",

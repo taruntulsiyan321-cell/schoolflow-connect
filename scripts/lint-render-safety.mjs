@@ -79,10 +79,6 @@ const ALLOWLIST = {
     "Test fixtures are deliberately mojibake.",
   "src/lib/utf8Text.ts::source-mojibake":
     "CONTENT_MOJIBAKE map — the left-hand side must stay corrupted to match.",
-  "src/lib/utf8Mojibake.ts::source-mojibake":
-    "Deprecated re-export shim for the repair SSOT.",
-  "src/lib/repairWin1252Utf8.ts::source-mojibake":
-    "Deprecated re-export shim for the repair SSOT.",
   "src/academic/taxonomy/humanize.ts::source-mojibake":
     "MOJIBAKE_MAP — patterns must stay corrupted to match.",
   "src/lib/academicDisplay.test.ts::source-mojibake":

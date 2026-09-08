@@ -43,8 +43,6 @@ const EXCLUDED = new Map([
   ["src/lib/utf8MojibakeRepair.ts", "Contains UTF8_MOJIBAKE_SIGNATURE — the detection regex itself."],
   ["src/lib/utf8MojibakeRepair.test.ts", "Test fixtures are deliberately mojibake."],
   ["src/lib/utf8Text.ts", "CONTENT_MOJIBAKE map — the left-hand side must stay corrupted to match."],
-  ["src/lib/utf8Mojibake.ts", "Deprecated re-export shim for the repair SSOT."],
-  ["src/lib/repairWin1252Utf8.ts", "Deprecated re-export shim for the repair SSOT."],
   ["src/academic/taxonomy/humanize.ts", "MOJIBAKE_MAP — patterns must stay corrupted to match."],
   ["src/lib/academicDisplay.test.ts", "Test fixtures are deliberately mojibake."],
   ["src/lib/presentation/presentation.test.ts", "Asserts the boundary repairs mojibake; inputs must stay corrupted."],

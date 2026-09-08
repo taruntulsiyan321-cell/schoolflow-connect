@@ -18,16 +18,38 @@ export type TestCorrect = {
   text?: unknown;
 };
 
+export type TestQuestionFormat = "mcq" | "multi" | "numerical" | "short" | "long";
+
 export type TestQuestionShape = {
   id: string;
   order_index: number;
-  kind: "mcq" | "multi" | "numerical" | "short";
+  /**
+   * THE COLUMN IS `question_format`. This field used to be `kind`, and nothing
+   * ever populated it: `rpc_test_questions_for_attempt` returned
+   * `id, order_index, question, options, marks, chapter_id, chapter, concept`
+   * and no format at all, so every branch below compared `undefined` and a
+   * student was served a list of question stems with **no way to answer any of
+   * them**. `20260914060000` adds it to both the attempt and result payloads.
+   */
+  question_format?: TestQuestionFormat | null;
   question: string;
   options: unknown;
   correct?: TestCorrect | null;
   marks: number;
   explanation?: string | null;
 };
+
+/**
+ * The format to draw, defaulting to `mcq`.
+ *
+ * The default is not a guess: `test_questions.question_format` is NOT NULL with
+ * a default of `'mcq'`, and all 576 rows that predate the column are MCQs
+ * (measured: 0 with a NULL `options`, 0 with a NULL `correct`). So an absent
+ * value means an old row, and an old row is an MCQ.
+ */
+function formatOf(q: TestQuestionShape): TestQuestionFormat {
+  return q.question_format ?? "mcq";
+}
 
 /** Options that are safe to render, in their original order. */
 function readOptions(raw: unknown): unknown[] {
@@ -52,13 +74,14 @@ type Props = {
 
 export function QuestionRenderer({ question, mode, value, onChange, isCorrect }: Props) {
   const q = question;
+  const format = formatOf(q);
   const opts = readOptions(q.options);
   const correctIdx = readCorrectIndexes(q.correct?.indexes);
   const selected = value.indexes ?? [];
 
   const toggle = (i: number) => {
     if (mode !== "attempt" || !onChange) return;
-    if (q.kind === "mcq") onChange({ indexes: [i] });
+    if (format === "mcq") onChange({ indexes: [i] });
     else onChange({ indexes: selected.includes(i) ? selected.filter(x => x !== i) : [...selected, i] });
   };
 
@@ -69,7 +92,7 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
         <span className="text-xs text-muted-foreground whitespace-nowrap">+{q.marks}</span>
       </div>
 
-      {(q.kind === "mcq" || q.kind === "multi") && (
+      {(format === "mcq" || format === "multi") && (
         <div className="space-y-2">
           {opts.map((opt, i) => {
             const isSel = selected.includes(i);
@@ -101,7 +124,7 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
         </div>
       )}
 
-      {q.kind === "numerical" && (
+      {format === "numerical" && (
         <Input
           type="number"
           inputMode="decimal"
@@ -112,7 +135,7 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
         />
       )}
 
-      {q.kind === "short" && (
+      {(format === "short" || format === "long") && (
         <Textarea
           placeholder="Type your answer"
           value={value.text ?? ""}
@@ -124,7 +147,7 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
 
       {mode === "review" && (
         <div className="text-xs space-y-1 mt-2">
-          {q.kind === "numerical" && q.correct?.value !== undefined && (
+          {format === "numerical" && q.correct?.value !== undefined && (
             <div>
               Correct answer:{" "}
               <span className="font-semibold">
@@ -138,7 +161,7 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
           {/* CHUNK 10.7 — Boolean(): q.correct.text is `unknown`, so the && chain
               could evaluate TO that unknown value and React would be asked to
               render it. The guard keeps the chain boolean. */}
-          {q.kind === "short" && q.correct != null && Boolean(q.correct.text) && (
+          {(format === "short" || format === "long") && q.correct != null && Boolean(q.correct.text) && (
             /* Expected answers come from the bank and carry the same encoding
                risk as the stem, so they go through MathText like everything
                else the student reads. */

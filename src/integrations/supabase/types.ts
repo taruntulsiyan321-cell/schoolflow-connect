@@ -10541,6 +10541,7 @@ export type Database = {
           options: Json
           order_index: number
           question: string
+          question_format: string
         }[]
       }
       rpc_test_start: { Args: { _test_id: string }; Returns: string }
