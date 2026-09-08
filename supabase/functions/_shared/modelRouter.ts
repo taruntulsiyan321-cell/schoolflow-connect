@@ -1,11 +1,18 @@
 /**
- * Model Router — OpenRouter, Nemotron 3 Ultra (free, primary) → Qwen 3.7 Flash (paid, fallback).
+ * Model Router — OpenRouter, Qwen 3.7 Flash. ONE MODEL.
+ *
  * Credentials live exclusively here (edge secrets). Never expose to clients.
  * Adaptive Reasoning Budget ceilings applied via max_tokens / temperature.
  * Prompt Library v1 supplies versioned system/user contracts when available.
- * Enterprise Failure Recovery wraps transient provider calls AND now drives the
- * primary→fallback model switch via its existing (previously unused) fallback stage —
- * no new retry/classification logic, just wiring a second model into what was already there.
+ * Enterprise Failure Recovery still wraps transient provider calls.
+ *
+ * IT BRIEFLY HAD TWO. An undeployed version of this file made a free Nemotron
+ * tier the primary and Qwen the paid fallback. That was never deployed to the
+ * seven AI functions and is not wanted: ruled 2026-09-07, keep one model, Qwen
+ * 3.7 Flash. The two-stage machinery below is KEPT because it is also the
+ * vision path and the retry path, but with one model configured the second
+ * stage is skipped rather than re-calling the same model and paying twice for
+ * the same refusal (see `hasDistinctFallback`).
  */
 
 import {
@@ -26,12 +33,10 @@ import {
 import { selectPromptWithShadow } from "./promptEvaluation.ts";
 
 /**
- * Primary: Nemotron 3 Ultra 550B (free) — used until its daily free-credit allowance runs out.
- * Fallback: Qwen 3.7 Flash (paid) — used for the rest of that day once Nemotron is exhausted.
- * Both configurable so a live account/provider change never needs a code deploy.
+ * The one model. Configurable so a live account/provider change never needs a
+ * code deploy — but there is a single default, not a pair.
  */
-const PRIMARY_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
-const FALLBACK_MODEL = "qwen/qwen3.7-flash";
+const MODEL = "qwen/qwen3.7-flash";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export type ModelRouterResult =
@@ -39,7 +44,7 @@ export type ModelRouterResult =
       ok: true;
       text: string;
       model_id: string;
-      source: "openrouter_nemotron" | "openrouter_qwen";
+      source: "openrouter_qwen";
       budget_tier?: ReasoningTier;
       usage?: { prompt_tokens?: number; completion_tokens?: number };
       recovery_attempts?: number;
@@ -61,12 +66,28 @@ export function isOpenRouterConfigured(): boolean {
 }
 
 export function getPrimaryModelId(): string {
-  return Deno.env.get("OPENROUTER_PRIMARY_MODEL")?.trim() || PRIMARY_MODEL;
+  return Deno.env.get("OPENROUTER_PRIMARY_MODEL")?.trim() || MODEL;
 }
 
-/** Fallback model — used once the primary's daily allowance is exhausted for a given request. */
+/**
+ * The same model as the primary unless an operator has deliberately configured
+ * a second one. Kept as a separate accessor because the vision path and
+ * `ai-ping` both call it by name.
+ */
 export function getConfiguredModelId(): string {
-  return Deno.env.get("OPENROUTER_MODEL")?.trim() || FALLBACK_MODEL;
+  return Deno.env.get("OPENROUTER_MODEL")?.trim() || MODEL;
+}
+
+/**
+ * True only when someone has configured a genuinely DIFFERENT second model.
+ *
+ * With one model, handing a failed call to "the fallback" means calling the
+ * same model again with the same request — which fails the same way and bills
+ * twice for it. Retrying transient errors is `withRetry`'s job and still
+ * happens; this gate is about not pretending a second stage exists.
+ */
+function hasDistinctFallback(): boolean {
+  return getConfiguredModelId() !== getPrimaryModelId();
 }
 
 async function invokeOpenRouterOnce(input: {
@@ -156,7 +177,9 @@ async function invokeOpenRouterOnce(input: {
       ok: true,
       text: text.trim(),
       model_id: input.model,
-      source: input.is_primary ? "openrouter_nemotron" : "openrouter_qwen",
+      // One model, so one source. The field is kept because every AI function
+      // passes it through to its response and `ai_usage` records it.
+      source: "openrouter_qwen",
       budget_tier: input.budget_tier,
       usage: json?.usage
         ? {
@@ -177,18 +200,23 @@ async function invokeOpenRouterOnce(input: {
 
 /**
  * Bounded chat completion. Returns degraded error when key missing — callers must fail safe.
- * Tries the primary model (Nemotron) first, with the existing bounded/jittered transient-retry
- * policy; if it's still failing once retries are exhausted AND the failure is quota/availability
- * shaped (429/5xx/timeout — never a plain 400 from our own malformed request, which retrying
- * against a different model would not fix), falls back to Qwen exactly once. No further fallback
- * beyond that — a straight two-step chain, never a retry loop between the two models.
+ *
+ * Calls the configured model (Qwen 3.7 Flash) with the existing bounded/jittered
+ * transient-retry policy. The second stage below only engages when an operator
+ * has set OPENROUTER_MODEL to something genuinely different from
+ * OPENROUTER_PRIMARY_MODEL; with the single default they are the same string
+ * and the hand-off is skipped, because re-calling one model with the same
+ * request fails the same way and bills for it twice.
+ *
+ * The name says Qwen and means it. It is `completeWithQwen` because there is
+ * one model and it is Qwen.
  */
 export async function completeWithQwen(input: {
   system: string;
   user: string;
-  /** Data-URI images — routes straight to Qwen; Nemotron 3 Ultra is text-only (verified against
-   * OpenRouter's /models: input_modalities: ["text"]), so trying it first would just waste a
-   * round-trip and always fail. */
+  /** Data-URI images — routed through `getConfiguredModelId()`, which is the
+   * same Qwen model as the text path. The separate branch is kept because a
+   * vision request is shaped differently, not because the model differs. */
   images?: string[];
   max_tokens?: number;
   temperature?: number;
@@ -270,8 +298,9 @@ export async function completeWithQwen(input: {
       policy: DEFAULT_PROVIDER_RETRY,
       isSuccess: (r) => r.ok === true,
       mapError: (r) => (r.ok ? "ok" : r.error),
-      // A real fallback model now exists — let a transient/quota-exhausted primary hand off.
-      has_approved_fallback: true,
+      // Only when a genuinely different model is configured. Otherwise the
+      // "fallback" is the same model and the hand-off is a second bill.
+      has_approved_fallback: hasDistinctFallback(),
       queue_eligible: false,
     },
   );
@@ -285,7 +314,7 @@ export async function completeWithQwen(input: {
     planFailureRecovery({
       error: primaryAttempt.error,
       attempt: primaryAttempt.attempts,
-      has_approved_fallback: true,
+      has_approved_fallback: hasDistinctFallback(),
     });
 
   const primaryErrMsg =

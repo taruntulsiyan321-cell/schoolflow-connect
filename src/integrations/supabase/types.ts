@@ -5556,6 +5556,8 @@ export type Database = {
       }
       question_bank: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           board: string | null
           chapter: string | null
           chapter_id: string | null
@@ -5576,6 +5578,7 @@ export type Database = {
           question: string
           question_format: string | null
           replaced_by_question_id: string | null
+          review_note: string | null
           source: string | null
           source_question_id: string | null
           source_type: string | null
@@ -5588,6 +5591,8 @@ export type Database = {
           variant_tier: number | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           board?: string | null
           chapter?: string | null
           chapter_id?: string | null
@@ -5608,6 +5613,7 @@ export type Database = {
           question: string
           question_format?: string | null
           replaced_by_question_id?: string | null
+          review_note?: string | null
           source?: string | null
           source_question_id?: string | null
           source_type?: string | null
@@ -5620,6 +5626,8 @@ export type Database = {
           variant_tier?: number | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           board?: string | null
           chapter?: string | null
           chapter_id?: string | null
@@ -5640,6 +5648,7 @@ export type Database = {
           question?: string
           question_format?: string | null
           replaced_by_question_id?: string | null
+          review_note?: string | null
           source?: string | null
           source_question_id?: string | null
           source_type?: string | null
@@ -8216,6 +8225,7 @@ export type Database = {
       }
       test_questions: {
         Row: {
+          answer: string | null
           chapter: string | null
           chapter_id: string | null
           concept: string | null
@@ -8227,10 +8237,12 @@ export type Database = {
           options: Json | null
           order_index: number
           question: string
+          question_format: string
           school_id: string
           test_id: string
         }
         Insert: {
+          answer?: string | null
           chapter?: string | null
           chapter_id?: string | null
           concept?: string | null
@@ -8242,10 +8254,12 @@ export type Database = {
           options?: Json | null
           order_index: number
           question: string
+          question_format?: string
           school_id: string
           test_id: string
         }
         Update: {
+          answer?: string | null
           chapter?: string | null
           chapter_id?: string | null
           concept?: string | null
@@ -8257,6 +8271,7 @@ export type Database = {
           options?: Json | null
           order_index?: number
           question?: string
+          question_format?: string
           school_id?: string
           test_id?: string
         }
@@ -9203,6 +9218,10 @@ export type Database = {
         Args: { p_feature_id: string; p_school_id: string; p_units?: number }
         Returns: Json
       }
+      ai_budget_release: {
+        Args: { p_feature_id: string; p_school_id: string; p_units?: number }
+        Returns: Json
+      }
       ai_cosine_similarity: {
         Args: { a: number[]; b: number[] }
         Returns: number
@@ -9325,6 +9344,16 @@ export type Database = {
       }
       can_read_mark: {
         Args: { _exam_id: string; _student_id: string }
+        Returns: boolean
+      }
+      can_read_student_row: {
+        Args: {
+          _class_id: string
+          _id: string
+          _parent_user_id: string
+          _school_id: string
+          _user_id: string
+        }
         Returns: boolean
       }
       can_read_test: { Args: { _test_id: string }; Returns: boolean }
@@ -10151,6 +10180,24 @@ export type Database = {
       }
       rpc_purge_expired: { Args: never; Returns: Json }
       rpc_purge_expired_battle_reports: { Args: never; Returns: Json }
+      rpc_question_bank_review_queue: {
+        Args: { _limit?: number; _offset?: number }
+        Returns: {
+          author_name: string
+          chapter: string
+          class_level: number
+          correct_index: number
+          created_at: string
+          created_by: string
+          difficulty: string
+          explanation: string
+          id: string
+          options: Json
+          question: string
+          source: string
+          subject: string
+        }[]
+      }
       rpc_record_community_doubt_view: {
         Args: { _doubt_id: string }
         Returns: number
@@ -10220,6 +10267,10 @@ export type Database = {
       rpc_restore_from_trash: {
         Args: { _entity_id: string; _entity_type: string }
         Returns: boolean
+      }
+      rpc_review_question: {
+        Args: { _approved: boolean; _note?: string; _question_id: string }
+        Returns: Json
       }
       rpc_revision_plan_v2: {
         Args: never
@@ -10522,6 +10573,10 @@ export type Database = {
         }[]
       }
       same_school: { Args: { _school_id: string }; Returns: boolean }
+      storage_object_owner_school_id: {
+        Args: { _object_name: string }
+        Returns: string
+      }
       student_class_id: { Args: { _user_id: string }; Returns: string }
       super_admin_has_access: { Args: { _school_id: string }; Returns: boolean }
       super_admin_has_any_access: { Args: never; Returns: boolean }

@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Users, GraduationCap, Building2,
   BarChart2, Bell, Settings, ChevronLeft, ChevronRight,
   Shield, Menu, ClipboardList, CalendarCheck, LogOut, BookOpen, Activity, CalendarDays,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "./shared";
 import {
@@ -27,6 +28,7 @@ import LeaveRequests from "./LeaveRequests";
 import SettingsPage from "./Settings";
 import AiAnalyticsPanel from "./AiAnalytics";
 import { useAuth } from "@/hooks/useAuth";
+import QuestionBankReview from "@/pages/admin/QuestionBankReview";
 import { ROLE_LABELS } from "@/auth/constants";
 import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 
@@ -37,6 +39,8 @@ interface NavItem {
   label: string;
   icon: ReactNode;
   badge?: number;
+  /** Hidden from a school admin; see the note beside the item that uses it. */
+  superAdminOnly?: boolean;
 }
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
@@ -70,6 +74,12 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "System",
     items: [
       { key: "ai_analytics", label: "AI Analytics", icon: <Activity className="w-4 h-4" /> },
+      // Super admin only. §10.20 gives "Manage the central question bank" to
+      // them and §10.9 makes the bank central, so approving one question decides
+      // what students at EVERY school are served. A school admin must not see
+      // this at all — the RPC refuses them anyway, and a control that is only
+      // ever refused is worse than one that is not offered.
+      { key: "question_review", label: "Question Bank Review", icon: <ShieldCheck className="w-4 h-4" />, superAdminOnly: true },
       { key: "settings", label: "Settings", icon: <Settings className="w-4 h-4" /> },
     ],
   },
@@ -83,6 +93,7 @@ function Sidebar({
   mobile = false,
   onClose,
   onSignOut,
+  isSuperAdmin = false,
 }: {
   page: AdminPageKey;
   setPage: (p: AdminPageKey) => void;
@@ -91,6 +102,7 @@ function Sidebar({
   mobile?: boolean;
   onClose?: () => void;
   onSignOut?: () => void;
+  isSuperAdmin?: boolean;
 }) {
   return (
     <div className={cn(
@@ -130,6 +142,7 @@ function Sidebar({
             )}
             {collapsed && !mobile && <div className="h-2" />}
             {group.items.map((item) => {
+              if (item.superAdminOnly && !isSuperAdmin) return null;
               const active = page === item.key;
               return (
                 <button
@@ -216,6 +229,7 @@ export default function AdminApp() {
           collapsed={collapsed}
           setCollapsed={setCollapsed}
           onSignOut={handleSignOut}
+          isSuperAdmin={role === "super_admin"}
         />
       </div>
 
@@ -231,6 +245,7 @@ export default function AdminApp() {
               mobile
               onClose={() => setMobileOpen(false)}
               onSignOut={handleSignOut}
+              isSuperAdmin={role === "super_admin"}
             />
           </div>
         </div>
@@ -291,6 +306,7 @@ export default function AdminApp() {
               <Route path="leave-requests/*" element={<LeaveRequests />} />
               <Route path="leave" element={<Navigate to="/admin/leave-requests" replace />} />
               <Route path="ai-analytics" element={<AiAnalyticsPanel />} />
+              <Route path="question-bank-review" element={<QuestionBankReview />} />
               <Route path="settings/*" element={<SettingsPage />} />
               <Route path="roles" element={<Navigate to="/admin/settings" replace />} />
               <Route path="users" element={<Navigate to="/admin/settings" replace />} />

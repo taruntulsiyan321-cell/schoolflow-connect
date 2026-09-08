@@ -610,47 +610,79 @@ broken image. Sequence it: client first behind a flag, or both in one release.
 
 ---
 
-## 8b. Two deployed edge functions nothing calls — make that four
+## 8b. ~~Two deployed edge functions nothing calls — make that four~~ — TWO DELETED
 
-**Status:** Still not acted on, and the count has gone up. Two more uncalled
-deployed functions surfaced on 2026-09-07 while recovering their source
-(issue 3):
+**RULED AND DONE 2026-09-07: delete the two unauthenticated ones, keep the two
+that need a JWT.**
 
-- `ai-expand-questions` (v6, ACTIVE) — nothing in `src` invokes it. It writes
-  `question_templates` with `template_type='ai_mcq'`, the legacy Class 12 path,
-  and hardcodes "Class 12" throughout its prompt. Unlike the OTP pair it is
-  `verify_jwt = true` and staff-gated, so it is not an open endpoint — but its
-  snapshot of `requireRole.ts` predates the has_role fix, so the gate almost
-  certainly refuses everyone anyway.
-- `mcp` (v5, ACTIVE) — nothing invokes it, its generator is absent from this
-  repo, and its OAuth issuer names a different Supabase project. Its seven tools
-  are read-only and route through the caller's own token, so they inherit RLS.
+`send-otp` and `verify-otp` were `verify_jwt = false` — reachable by anyone who
+knew the URL — and nothing called them; the wired OTP path is
+`verify-msg91-widget` (`src/lib/msg91Auth.ts:32`). Both are **deleted from the
+project**. `supabase functions list` now returns 16 functions, and **not one of
+them is public**: there is no `verify_jwt = false` function left in this
+project. Their `[functions.*]` entries went from `supabase/config.toml` with
+them — a declaration for a function that does not exist is exactly how the
+`ai-improvement-plan` entry noted in that file came to be stale.
 
-Both now have source and a README, which is the prerequisite for deciding
-anything about them. The decision itself is still open, for the same reason as
-the OTP pair: deleting a deployed function is irreversible from this repo.
+**Their source stays in `supabase/functions/`.** That is what made the deletion
+a reversible decision rather than a permanent one: `supabase functions deploy
+send-otp` puts either of them back.
+
+`ai-expand-questions` and `mcp` were KEPT. Both require a JWT, so neither is an
+open endpoint, and `mcp`'s OAuth issuer names a different Supabase project — it
+may belong to something outside this repo, and deleting it could break a
+consumer not visible from here. They remain uncalled and documented, each with
+a README recording exactly that.
 
 The original two follow.
 
-`send-otp` and `verify-otp` are deployed and ACTIVE. Neither is referenced
-anywhere in `src` — the wired OTP path is `verify-msg91-widget`
-(`src/lib/msg91Auth.ts:32`). Both predate the MSG91 widget integration.
+## 9b. ~~Two shared modules drift across 7 AI functions each~~ — RESOLVED, and the model was ruled
 
-They are `verify_jwt = false`, which is correct for an OTP endpoint and also
-means they are reachable unauthenticated by anyone who knows the URL. Two live,
-unauthenticated, uncalled endpoints.
+**FIXED 2026-09-07. The seven AI functions are deployed and clean.** The drift
+baseline fell from **45 findings across 9 functions to 15 across 2**.
 
-Not deleted, because deleting a deployed function is irreversible from this repo
-— neither has source that has ever been verified against production beyond the
-provenance snapshot. Decide deliberately: retire both, or keep one as the
-documented fallback and say so.
+**What the drift actually was, measured rather than assumed.** Production was
+not arbitrarily behind; the repo held three deliberate improvements that had
+never shipped:
 
-Note for provisioning a real project: they are in the 17 that would need
-recreating, and probably should not be.
+  1. `modelRouter.ts` — a free Nemotron primary with Qwen as a paid fallback.
+  2. `structuredCompletion.ts` — real token counts and the model that actually
+     answered, where production hardcoded `source: "openrouter_qwen"`. Every
+     cost figure in this codebase was therefore an estimate.
+  3. `promptLibrary.ts` — an anti-prompt-injection suffix on every system
+     template, telling the model that content inside `<student_input>` /
+     `<teacher_input>` tags and retrieval fields is data, not instructions.
+     Production had none.
 
----
+**RULED 2026-09-07: keep ONE model, Qwen 3.7 Flash.** The Nemotron primary is
+removed. `modelRouter.ts` now has a single `MODEL` constant, and the two-stage
+machinery is kept only because it is also the vision path and the retry path —
+with one model configured, `hasDistinctFallback()` is false and the second stage
+is skipped rather than re-calling the same model and paying twice for the same
+refusal. `source` is `"openrouter_qwen"` in both unions, since there is one
+model to name.
 
-## 9b. Two shared modules drift across 7 AI functions each — found 2026-09-06, not fixed
+Verified after the redeploy: a seeded student generated a real MCQ through
+`dpp-generate-questions` in **38.6s**, against 60–90s on the Nemotron primary.
+
+**Deployed:** ai-explain, ai-concept-report, ai-battle-report,
+ai-academic-coach-agent, ai-learning-pattern-agent, ai-recovery-agent,
+ai-revision-agent, plus ai-ping and dpp-generate-questions (the latter was live
+on Nemotron and had to come off it). Safe to widen: no consumer compares
+`result.source` to a literal — all five callers pass it straight through to
+their response, and no client code mentions either model name.
+
+**Two functions deliberately NOT deployed, and both are the remaining 15
+findings:**
+
+- `ai-expand-questions` — no caller, and its README says a redeploy would
+  replace five modules it has never run against as a side effect. Deploying it
+  would gain nothing and contradict that note.
+- `ai-gateway` — its `index.ts` is drifted too, not just its shared modules.
+  Shipping an index change to the busiest AI function is a larger decision than
+  a shared-module refresh and is not folded in here.
+
+The original finding follows.
 
 `_shared/modelRouter.ts` (repo `2cd4c73acfbd` / prod `2273dd3d509c`, 426 vs 278
 lines) and `_shared/reasoningBudget.ts` (repo `fb5369f99b16` / prod
@@ -792,11 +824,10 @@ live 2026-09-07: `question_bank.is_approved` **defaults to `false`**, and
 `buildQuestionBankInsertPayload` no longer forces it true — a test asserts the
 key is absent from the payload so the column default is what decides.
 
-**The consequence this entry predicted is now the live state, and it is issue
-15's, not this one's:** with no approval mechanism anywhere, a teacher's
-contribution reaches no student at all. Staff still read their own through
-`qb_staff_read`, which ignores `is_approved`, so nothing is lost — it is
-parked. The 21,696 seeded questions were not touched and remain approved.
+**RESOLVED IN FULL 2026-09-07.** The consequence this entry predicted — with no
+approval mechanism, a contribution reaches no student — was real and is now
+gone: issue 15 built the queue, and a super admin can approve. The 21,696 seeded
+questions were not touched and remain approved.
 
 The original ruling request follows.
 
@@ -931,7 +962,60 @@ a design decision rather than a bug fix.
 Noted while adding the same reservation to `embed` (1 unit,
 `staff.embed.query`), which has the identical shape and the same caveat.
 
-## 15. No approval queue — contributions are author-only until one exists
+## 15. ~~No approval queue~~ — BUILT 2026-09-07, and the spec named the reviewer
+
+**FIXED. It was not an open ruling either.** This entry asked "a reviewer role
+(principal? a subject lead? the spec does not say)" and "whether approval is
+per-school or central". §10.20 Super admin, "Can do", says: **"Manage the
+central question bank."** §10.9 says the bank is "Centralised and shared across
+all schools and all users." Central bank, central approval, a named role that
+already exists. That is three entries in a row (17, 27, 15) where the ruling was
+already written down.
+
+**A hole this entry did not know about, closed in the same change.**
+`qb_staff_update` is `created_by = auth.uid() AND (admin OR principal OR
+teacher)` and did not exclude `is_approved`, so **a teacher could approve their
+own question** and broadcast it to every school. Measured as the author
+immediately before the migration:
+
+    UPDATE question_bank SET is_approved = true WHERE id = <my own>   -> OK: 1
+
+`is_approved`'s FALSE default was the entire protection added by
+`20260907000000`, and the person it protected against could undo it with one
+statement. A BEFORE UPDATE trigger now refuses any change to `is_approved` by
+anyone who is not a super admin — a trigger and not a policy, because WITH CHECK
+cannot see the OLD row and so cannot tell an UPDATE that CHANGES the column from
+one that leaves it alone. A teacher still edits their own question's text;
+probe30 asserts that as a positive control.
+
+**And the reviewer could not see what they were reviewing.** Measured: a super
+admin could read **56 of 21,696** rows. `qb_staff_read` is
+`is_principal_or_admin OR teacher`, neither of which includes a super admin, so
+the only policy admitting them was `qb_select_approved_board` — which needs
+`is_approved` AND a board match against `get_my_school_id()`, deliberately NULL
+for a super admin (§10.20). That left the `board = 'both'` rows: 56. The other
+21,640 are `board = 'rbse'`. `qb_super_admin_read` fixes it.
+
+**What was built** (`20260914030000`): `approved_by` / `approved_at` /
+`review_note` for provenance, a partial index on the pending rows,
+`rpc_question_bank_review_queue` and `rpc_review_question` (both super-admin
+only, both resolving the author's NAME through the definer because a super
+admin cannot read `profiles`), and a real screen at
+`/admin/question-bank-review` whose nav item appears for a super admin and
+nobody else.
+
+Rejection is `is_approved = false` with a reason, **not a delete** — §10.21's
+reasoning for reported questions applies unchanged: a question may already sit
+in a student's mistake book.
+
+The 21,696 seeded rows keep `approved_by` NULL. They were seeded, not reviewed,
+and inventing a reviewer for them would be a lie in a provenance column.
+
+**Verified** by probe30's 11 caller assertions and, in the browser, by a teacher
+contributing a question and a super admin approving it on the real screen — with
+the row's `approved_by` and `approved_at` read back afterwards.
+
+The original finding follows.
 
 **Required before the bank is meant to grow cross-school. Recorded 2026-09-07.**
 
@@ -957,7 +1041,43 @@ approval is per-school or central. §10.9 says the bank is central, which implie
 central approval, which implies a role that does not exist yet. **That is a
 ruling, not a build task.**
 
-## 16. `test_questions` cannot carry a written answer — decide before pushing a paper online
+## 16. ~~`test_questions` cannot carry a written answer~~ — DECIDED AND BUILT
+
+**FIXED 2026-09-07. §10.24 makes the choice:** "The app can only analyse what it
+holds as structured questions with answers", and its table gives auto-grading to
+"MCQs in the app, with answer key" alone; everything else is "Completion only".
+That is this entry's **option (a)** — written sections are print-only — which it
+called "cheapest, and honest".
+
+**The schema half of (b) was built anyway, and that is the point.** (a) alone
+leaves the trap this entry named: a `correct jsonb` column that will happily
+hold a paragraph, so the next person wiring the hand-off takes route (c) —
+one column meaning "which option" or "prose a person marks", decided by a format
+recorded nowhere (G9). `question_format` and `answer` now exist and
+`test_questions_shape_matches_format` makes route (c) **structurally
+impossible**. probe31 asserts both directions.
+
+**The line is auto-markable versus hand-marked, not MCQ versus rest** — the
+first version of this migration got that wrong and `20260914050000` corrected
+it. `TestService.mapKindToDb` already emits four kinds, and `rpc_test_submit`
+grades by `a.response = q.correct`, plain jsonb equality — which handles
+`{value: 4}` as well as it handles an option index. So `numerical` is
+auto-marked and stays online; only `short` and `long` are prose.
+
+**The attempt path REFUSES rather than filters.** A paper containing a written
+question raises, naming §10.24, instead of quietly serving a shorter paper —
+a silently truncated paper is a wrong mark nobody can see. probe31 asserts the
+refusal AND that an all-MCQ paper, and a numerical one, still serve.
+
+Measured before: 576 rows, 0 with a NULL `options`, 0 with a NULL `correct`,
+every `correct` a jsonb string. All 576 are MCQ, so the `'mcq'` default is right
+for every one of them.
+
+**Two things found while doing this and NOT folded in:** `TestService` sends a
+`kind` column that does not exist, and writes `correct` in a shape the 576
+existing rows disagree with. Logged as issue 28.
+
+The original finding follows.
 
 **Found while designing the paper output, 2026-09-07. Not fixed.**
 
@@ -1538,3 +1658,47 @@ the constraint and decide whether the 2,189 are reactivated wholesale or
 reviewed. If no, the Class 5 curriculum rows and those questions should be
 retired together, and the chapter tree stops claiming a class that has no
 students.
+
+## 28. `TestService.setQuestions` sends a `kind` column that does not exist — found 2026-09-07
+
+**Found while ruling on entry 16. NOT fixed: it is a defect with its own
+verification needs, not a ruling, and folding it into a schema decision would
+have hidden it.**
+
+`src/academic/services/testService.ts` builds every row as
+
+```ts
+const rows = questions.map((q, i) => ({
+  test_id: testId, order_index: i,
+  kind: mapKindToDb(q.kind),          // <- public.test_questions has no `kind`
+  ...
+}));
+await getClient(repo).from("test_questions").insert(rows as never)
+```
+
+`public.test_questions` columns, measured: `id, test_id, school_id, order_index,
+question, options, correct, marks, explanation, chapter_id, chapter, concept,
+created_at` (plus `question_format` and `answer` as of `20260914040000`). **There
+is no `kind`.** PostgREST rejects an unknown column with `PGRST204` before the
+database sees it, so this is the same shape as KNOWN_ISSUES 11's `school_id`, in
+a different table — and the `as never` cast is again what hides it from the
+compiler.
+
+**A second disagreement in the same function.** `toCorrect` writes
+`{indexes:[i]}` for MCQ, `{value}` for numerical and `{text}` for short, while
+all **576** existing `test_questions` rows hold `correct` as a bare jsonb
+**string**. `rpc_test_submit` grades with `a.response = q.correct` — plain jsonb
+equality — so the two shapes cannot both be right. Whichever path wrote the 576
+rows was not this one.
+
+**Not measured:** whether any teacher-facing screen actually calls
+`setQuestions` today, and therefore whether this is a broken feature or dead
+code. That is the first thing to establish, because it decides whether the fix
+is a column, a data migration, or a deletion.
+
+**Related and already handled:** `mapKindToDb`'s vocabulary (`mcq | multi |
+numerical | short`) is what `test_questions.question_format` now uses, so the
+column this code wanted exists — under a different name and with `long` added.
+Whoever fixes this should write `question_format`, and put a short/long model
+answer in `answer`, never in `correct` (`test_questions_shape_matches_format`
+now refuses that outright).

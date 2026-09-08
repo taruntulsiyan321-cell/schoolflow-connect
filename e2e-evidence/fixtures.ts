@@ -134,3 +134,56 @@ export async function freshSession(browser: Browser, role: string): Promise<Page
   await expect(page).not.toHaveURL(/\/auth(\?|$)/, { timeout: 30000 })
   return page
 }
+
+/**
+ * Close a context minted by `freshSession`, SIGNING OUT first.
+ *
+ * WHY THIS IS NOT OPTIONAL. A Supabase sign-in creates a row in
+ * `auth.sessions` and closing the browser does not remove it. Measured
+ * 2026-09-07 after a day of suite runs: **166 live sessions for one teacher
+ * account**, 146 for the admin, 142 for the parent. GoTrue slows down under
+ * that, and the symptom is not an error — the app sits on "Restoring your
+ * session…" and Playwright times out. It took tier1-writes from ~2 minutes to
+ * 2 HOURS in one run, on tests that had nothing to do with what had changed.
+ *
+ * Sign-out is best-effort: failing to tidy up must not fail a test that has
+ * already proved its point. `scope=global` is deliberate — it retires the
+ * session server-side, which is the whole purpose; `local` would only clear
+ * the browser and leave the row behind.
+ */
+export async function closeSession(page: Page): Promise<void> {
+  try {
+    const token = await page.evaluate(() => {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k && /^sb-.*-auth-token$/.test(k)) {
+          try {
+            const v = JSON.parse(localStorage.getItem(k) || '{}')
+            if (v && v.access_token) return v.access_token as string
+          } catch { /* keep looking */ }
+        }
+      }
+      return null
+    })
+    if (token) {
+      const url = envValue('VITE_SUPABASE_URL')
+      const anon = envValue('VITE_SUPABASE_PUBLISHABLE_KEY')
+      await page.request.post(url + '/auth/v1/logout?scope=global', {
+        headers: { apikey: anon, Authorization: 'Bearer ' + token },
+      })
+    }
+  } catch { /* best effort — never fail a test on cleanup */ }
+  await page.context().close()
+}
+
+/** Read one value out of the committed .env (no regex: keeps escapes out of it). */
+function envValue(key: string): string {
+  for (const line of readFileSync('.env', 'utf8').split(/\r?\n/)) {
+    const t = line.trim()
+    if (!t.startsWith(key + '=')) continue
+    let v = t.slice(key.length + 1).trim()
+    if (v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1)
+    return v
+  }
+  throw new Error('missing ' + key + ' in .env')
+}

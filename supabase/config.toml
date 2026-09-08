@@ -1,11 +1,5 @@
 project_id = "psqxykzqfvxgsvkmgurn"
 
-[functions.send-otp]
-verify_jwt = false
-
-[functions.verify-otp]
-verify_jwt = false
-
 [functions.ai-battle-report]
 verify_jwt = true
 
@@ -27,9 +21,17 @@ verify_jwt = true
 # Functions with no entry here inherit Supabase's default verify_jwt = true,
 # which is the correct (JWT-required) setting for all of them:
 #   admin-link-account, ai-academic-coach-agent, ai-learning-pattern-agent,
-#   ai-recovery-agent, ai-revision-agent, send-push, verify-msg91-widget.
-# Only send-otp / verify-otp above are deliberately public, since they run
-# before the user has a session.
+#   ai-recovery-agent, ai-revision-agent, ai-ping, send-push,
+#   verify-msg91-widget, mcp, ai-expand-questions.
+#
+# THERE IS NO LONGER A PUBLIC FUNCTION IN THIS PROJECT. `send-otp` and
+# `verify-otp` were `verify_jwt = false` -- reachable by anyone who knew the
+# URL -- and nothing called them: the wired OTP path is `verify-msg91-widget`
+# (src/lib/msg91Auth.ts:32). Both were DELETED from the project on 2026-09-07
+# (KNOWN_ISSUES 8b). Their source stays in `supabase/functions/` so the
+# deletion is reversible with one `functions deploy`; these two config entries
+# went with them, because a declaration for a function that does not exist is
+# how the ai-improvement-plan entry below came to be stale.
 #
 # Removed 2026-08-23: [functions.ai-improvement-plan] and
 # [functions.ai-analytics-insights] -- neither function exists on disk.

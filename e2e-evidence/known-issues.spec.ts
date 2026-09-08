@@ -1,4 +1,4 @@
-import { test, expect, freshSession } from './fixtures'
+import { test, expect, freshSession, closeSession } from './fixtures'
 import { authFile } from './roles'
 import type { Browser, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -338,8 +338,8 @@ test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the uni
     expect(after, 'the reservation was not returned after a rejected request')
       .toBe(before ?? 0)
 
-    await studentPage.context().close()
-    await adminPage.context().close()
+    await closeSession(studentPage)
+    await closeSession(adminPage)
   })
 
   /**
@@ -393,8 +393,8 @@ test.describe('KNOWN_ISSUES 2 + 14 — a student reaches generation, and the uni
     // assertion — a failure that looks like the feature and is the test.
     const after = timedOut ? null : await readUnits()
 
-    await studentPage.context().close()
-    await adminPage.context().close()
+    await closeSession(studentPage)
+    await closeSession(adminPage)
 
     if (timedOut) {
       // Nothing is asserted about the budget here: the function is still running
@@ -514,7 +514,7 @@ test.describe('KNOWN_ISSUES 7 — the buckets are private and signing still reac
       const studentBody = await studentSign.text()
       expect(studentSign.status(),
         'a same-school student cannot sign the teacher file: ' + studentBody).toBe(200)
-      await studentPage.context().close()
+      await closeSession(studentPage)
     } finally {
       const del = await page.request.delete(
         url + '/storage/v1/object/academic-files/' + objectPath, { headers: auth },
@@ -530,6 +530,136 @@ test.describe('KNOWN_ISSUES 7 — the buckets are private and signing still reac
     const names = (JSON.parse(await after.text()) as Array<{ name: string }>).map((o) => o.name)
     expect(names).not.toContain(objectPath.split('/').slice(1).join('/'))
 
-    await page.context().close()
+    await closeSession(page)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// KNOWN_ISSUES 15 (and 12's parked state) — somebody can approve a question now
+//
+// `is_approved` defaults FALSE so a contribution is not broadcast to every
+// school the instant it saves. Until this screen there was nothing that could
+// ever set it true, so a contributed question was permanently invisible to
+// students — which entry 15 called "the right trade for v1" while asking for
+// the queue.
+//
+// §10.20 names the reviewer: "Manage the central question bank" is a super
+// admin power. §10.9 makes the bank central, so approval is central too.
+//
+// This drives the real screen: a teacher contributes, the super admin sees it
+// in the queue, approves it, and the row records who and when.
+// ═════════════════════════════════════════════════════════════════════════════
+test.describe('KNOWN_ISSUES 15 — the super admin can approve a contributed question', () => {
+  const TAG = 'E2E review evidence'
+
+  test('a teacher contributes, the super admin approves it on the real screen', async ({ browser }) => {
+    test.setTimeout(240000)
+    const url = envVal('VITE_SUPABASE_URL')
+    const anon = envVal('VITE_SUPABASE_PUBLISHABLE_KEY')
+
+    // ── the contribution, made the way the app makes one ──────────────────
+    const teacherPage = await freshSession(browser, 'teacher')
+    await teacherPage.goto('/teacher/question-bank', { waitUntil: 'domcontentloaded' })
+    await settle(teacherPage)
+    const tH = await restHeaders(teacherPage)
+    const tUid = JSON.parse(
+      Buffer.from((await accessToken(teacherPage)).split('.')[1], 'base64').toString('utf8'),
+    ).sub as string
+
+    // Any real curriculum chapter: `question_bank_active_must_be_keyed` refuses
+    // an unkeyed row, and the trigger fills class_level from the chapter.
+    const chapters = await teacherPage.request.get(
+      url + '/rest/v1/chapters?select=id&limit=1', { headers: tH },
+    )
+    const chapterId = (JSON.parse(await chapters.text()) as Array<{ id: string }>)[0]?.id
+    expect(chapterId, 'the curriculum has no chapters').toBeTruthy()
+
+    const question = TAG + ' ' + Date.now() + ' — pending approval?'
+    const created = await teacherPage.request.post(
+      url + '/rest/v1/question_bank?select=id,is_approved',
+      {
+        headers: { ...tH, Prefer: 'return=representation' },
+        data: {
+          subject: 'Mathematics', chapter_id: chapterId, question,
+          options: ['a', 'b', 'c', 'd'], correct_index: 0, created_by: tUid,
+        },
+      },
+    )
+    const createdBody = await created.text()
+    expect(created.status(), 'the teacher could not contribute: ' + createdBody).toBe(201)
+    const row = (JSON.parse(createdBody) as Array<{ id: string; is_approved: boolean }>)[0]
+
+    // The default is the protection this whole feature rests on.
+    expect(row.is_approved, 'a contribution must NOT be approved on arrival').toBe(false)
+
+    try {
+      // ── the teacher may not approve their own ───────────────────────────
+      const selfApprove = await teacherPage.request.patch(
+        url + '/rest/v1/question_bank?id=eq.' + row.id,
+        { headers: { ...tH, Prefer: 'return=representation' }, data: { is_approved: true } },
+      )
+      const selfBody = await selfApprove.text()
+      expect(selfApprove.status(), 'the author approved their own question: ' + selfBody)
+        .not.toBe(200)
+      expect(selfBody).toContain('super admin')
+
+      // ── the super admin, on the real screen ─────────────────────────────
+      const superPage = await freshSession(browser, 'super_admin')
+      await superPage.goto('/admin/question-bank-review', { waitUntil: 'domcontentloaded' })
+      await settle(superPage, 3000)
+
+      // The nav item, the header and the page heading all carry this text, so
+      // the role is what disambiguates. That all three render is itself the
+      // evidence that a super admin gets the screen at all.
+      await expect(
+        superPage.getByRole('heading', { name: 'Question bank review' }),
+      ).toBeVisible({ timeout: 30000 })
+      await expect(
+        superPage.getByRole('button', { name: 'Question Bank Review' }),
+        'the nav item is missing for a super admin',
+      ).toBeVisible()
+      const card = superPage.locator('[data-testid="review-card"]').filter({ hasText: question })
+      await expect(card, 'the contribution is not in the review queue').toHaveCount(1, { timeout: 30000 })
+
+      await card.getByRole('button', { name: /^Approve$/ }).click()
+      await settle(superPage, 3000)
+
+      // ── the durable proof, read back as the teacher ─────────────────────
+      const after = await teacherPage.request.get(
+        url + '/rest/v1/question_bank?select=is_approved,approved_by,approved_at&id=eq.' + row.id,
+        { headers: tH },
+      )
+      const [state] = JSON.parse(await after.text()) as Array<{
+        is_approved: boolean; approved_by: string | null; approved_at: string | null
+      }>
+      expect(state.is_approved, 'the approval did not stick').toBe(true)
+      // Provenance, not just a flag: §10.20's model is that what a super admin
+      // does is recorded.
+      expect(state.approved_by, 'no reviewer recorded').toBeTruthy()
+      expect(state.approved_at, 'no review time recorded').toBeTruthy()
+      expect(state.approved_by).not.toBe(tUid)
+
+      // ...and it leaves the queue.
+      await expect(
+        superPage.locator('[data-testid="review-card"]').filter({ hasText: question }),
+      ).toHaveCount(0)
+
+      await closeSession(superPage)
+    } finally {
+      // Delete as the author — `qb_staff_delete` is created_by-fenced.
+      const del = await teacherPage.request.delete(
+        url + '/rest/v1/question_bank?id=eq.' + row.id, { headers: tH },
+      )
+      expect([200, 204]).toContain(del.status())
+    }
+
+    const left = await teacherPage.request.get(
+      url + '/rest/v1/question_bank?select=id&question=like.'
+        + encodeURIComponent(TAG + '*'),
+      { headers: { apikey: anon, Authorization: tH.Authorization } },
+    )
+    expect(JSON.parse(await left.text())).toEqual([])
+
+    await closeSession(teacherPage)
   })
 })

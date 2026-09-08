@@ -22,11 +22,11 @@
  * and ai-recovery-variants deployed. Until it is deployed this script cannot
  * run, and it says so rather than reporting zeros.
  *
- * COST IS COMPUTED FROM REAL TOKEN COUNTS, and per model. The primary model is
- * a FREE Nemotron tier and Qwen is the paid fallback, so a run served entirely
- * by the free tier costs nothing and a run that fell back costs real money.
- * Reporting one number across both would be the wrong answer to the exact
- * question this run exists to settle -- so the split is printed.
+ * COST IS COMPUTED FROM REAL TOKEN COUNTS, and per model. One model is
+ * configured -- Qwen 3.7 Flash, ruled 2026-09-07 -- so every call is billable
+ * and the per-model split below has one row. It is KEPT per-model rather than
+ * summed: the moment a second model is configured, a single total would be the
+ * wrong answer to the exact question this run exists to settle.
  */
 import { readFileSync, existsSync, writeFileSync } from "fs";
 import { queryRows, closeConnection } from "./lib/readonly-db.mjs";

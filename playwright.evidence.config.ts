@@ -11,6 +11,10 @@ import { defineConfig, devices } from '@playwright/test'
  *
  * `known-issues.spec.ts` is matched alongside the tier files: it verifies
  * specific KNOWN_ISSUES fixes end to end rather than a role's surfaces.
+ *
+ * `aa-reachability.spec.ts` is named to sort FIRST. It asserts that Supabase
+ * answers at all, so a network outage reads as one red line at the top instead
+ * of a hundred plausible-looking product regressions underneath it.
  */
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080'
 
@@ -41,7 +45,7 @@ export default defineConfig({
     },
     {
       name: 'evidence',
-      testMatch: /(tier\d(-writes|-reads)?|known-issues)\.spec\.ts/,
+      testMatch: /(aa-reachability|tier\d(-writes|-reads)?|known-issues)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },

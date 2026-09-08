@@ -11,6 +11,7 @@ export type AdminPageKey =
   | "calendar"
   | "leave_requests"
   | "ai_analytics"
+  | "question_review"
   | "settings";
 
 export const ADMIN_PAGE_PATH: Record<AdminPageKey, string> = {
@@ -26,6 +27,7 @@ export const ADMIN_PAGE_PATH: Record<AdminPageKey, string> = {
   calendar: "/admin/calendar",
   leave_requests: "/admin/leave-requests",
   ai_analytics: "/admin/ai-analytics",
+  question_review: "/admin/question-bank-review",
   settings: "/admin/settings",
 };
 
@@ -42,6 +44,7 @@ export const ADMIN_PAGE_TITLES: Record<AdminPageKey, string> = {
   calendar: "Academic Calendar",
   leave_requests: "Leave Requests",
   ai_analytics: "AI Analytics",
+  question_review: "Question Bank Review",
   settings: "Settings",
 };
 
@@ -58,6 +61,7 @@ export function adminPathToPage(pathname: string): AdminPageKey {
   if (p.startsWith("/admin/calendar")) return "calendar";
   if (p.startsWith("/admin/leave")) return "leave_requests";
   if (p.startsWith("/admin/ai-analytics")) return "ai_analytics";
+  if (p.startsWith("/admin/question-bank-review")) return "question_review";
   if (
     p.startsWith("/admin/settings") ||
     p.startsWith("/admin/roles") ||

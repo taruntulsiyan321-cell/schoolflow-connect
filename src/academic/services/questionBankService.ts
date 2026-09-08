@@ -2,15 +2,48 @@ import {
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
+  ForbiddenError,
   type ServiceContext,
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
 import { ValidationFailedError } from "../repository/errors";
-import { emitEvent } from "../repository/eventsRepository";
+import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import type { Json } from "@/integrations/supabase/types";
 import { fixUtf8Content } from "@/lib/utf8Text";
 import { repairUtf8Mojibake } from "@/lib/utf8MojibakeRepair";
+
+/** One row of the super admin's review queue. */
+export type QuestionReviewRow = {
+  id: string;
+  question: string;
+  options: Json;
+  correct_index: number;
+  explanation: string | null;
+  subject: string;
+  chapter: string | null;
+  class_level: number | null;
+  difficulty: string | null;
+  source: string | null;
+  created_by: string | null;
+  author_name: string;
+  created_at: string;
+};
+
+/** How many pending questions one page of the queue shows. */
+export const REVIEW_PAGE_SIZE = 25;
+
+/**
+ * §10.20 gives "Manage the central question bank" to the super admin, and only
+ * to them. Both review calls assert it before the network, so the screen can
+ * say what is wrong instead of surfacing a bare 42501 from the RPC — which
+ * enforces the same rule server-side and is the actual authority.
+ */
+function assertSuperAdmin(ctx: ServiceContext, action: string): void {
+  if (ctx.role !== "super_admin") {
+    throw new ForbiddenError(`Only a super admin may ${action} (§10.20).`);
+  }
+}
 
 export type QuestionBankInsertRow = {
   class_level?: number | null;
@@ -209,5 +242,59 @@ export const QuestionBankService = {
     });
 
     return { count };
+  },
+
+  /**
+   * Questions waiting for review, newest first.
+   *
+   * §10.20 puts the central question bank in the super admin's hands, and §10.9
+   * makes the bank central — so approval is central and this is the only role
+   * that has it. The RPC asserts that itself; the check here is so the screen
+   * fails with a sentence instead of a 42501.
+   */
+  async listReviewQueue(
+    ctx: ServiceContext,
+    opts?: { limit?: number; offset?: number },
+  ): Promise<QuestionReviewRow[]> {
+    assertSuperAdmin(ctx, "review the central question bank");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .rpc("rpc_question_bank_review_queue", {
+        _limit: opts?.limit ?? REVIEW_PAGE_SIZE,
+        _offset: opts?.offset ?? 0,
+      });
+    throwIfError(error, "Failed to load the review queue");
+    return (data ?? []) as QuestionReviewRow[];
+  },
+
+  /**
+   * Approve or reject one contributed question.
+   *
+   * Rejection is `is_approved = false` with a note, NOT a delete — §10.21's
+   * reasoning for reported questions applies unchanged here: a rejected
+   * question may already sit in a student's mistake book, and removing it would
+   * take away something they really got wrong.
+   */
+  async review(
+    ctx: ServiceContext,
+    questionId: string,
+    approved: boolean,
+    note?: string | null,
+  ): Promise<void> {
+    assertSuperAdmin(ctx, "approve or reject a question");
+    const { error } = await getClient(toRepoContext(ctx)).rpc("rpc_review_question", {
+      _question_id: questionId,
+      _approved: approved,
+      // Omitted rather than sent as null: `_note` has a SQL default, and a
+      // generated optional parameter typed non-null cannot take `null`.
+      ...(note && note.trim() ? { _note: note.trim() } : {}),
+    });
+    throwIfError(error, approved ? "Could not approve the question" : "Could not reject the question");
+
+    await emitEventBestEffort(toRepoContext(ctx), {
+      eventType: "question.bank.saved",
+      entityType: "question",
+      entityId: questionId,
+      payload: { reviewed: true, approved, note: note?.trim() || null },
+    });
   },
 };

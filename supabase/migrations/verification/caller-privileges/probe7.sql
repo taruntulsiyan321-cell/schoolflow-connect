@@ -87,8 +87,14 @@ BEGIN
 
   INSERT INTO public.tests (school_id, section_subject_id, max_mark, title, created_by)
   VALUES (sch_a, ss_a, 10, 'probe: questions only', admin_a) RETURNING id INTO t_qs;
-  INSERT INTO public.test_questions (school_id, test_id, order_index, question)
-  VALUES (sch_a, t_qs, 1, 'probe question');
+  -- A REAL MCQ shape, not a bare stem. `test_questions_shape_matches_format`
+  -- (20260914050000) refuses a question with no options and no `correct`, and
+  -- it is right to: the grader marks by `a.response = q.correct`, so such a row
+  -- could never be marked correct by anyone. This fixture asserts nothing about
+  -- the question's contents — only that deleting a test takes its questions —
+  -- so giving it a shape it could actually have costs nothing.
+  INSERT INTO public.test_questions (school_id, test_id, order_index, question, options, correct)
+  VALUES (sch_a, t_qs, 1, 'probe question', '["a","b","c","d"]'::jsonb, '"a"'::jsonb);
 
   -- Guard the premise: this test must genuinely have NO marks, or the refusal
   -- below would be test_marks' constraint firing and this probe would be

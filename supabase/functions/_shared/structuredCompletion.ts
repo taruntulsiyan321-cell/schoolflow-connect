@@ -53,11 +53,11 @@ export type AiResult<T> =
   | {
       ok: true;
       data: T;
-      /** Which model actually answered. This was hardcoded to "openrouter_qwen"
-       *  regardless, which is wrong in the case that matters for money: the
-       *  primary model is a FREE Nemotron tier and Qwen is the paid fallback,
-       *  so a cost figure built on the old value would bill every free call. */
-      source: "openrouter_nemotron" | "openrouter_qwen";
+      /** Which model answered. One model is configured (Qwen 3.7 Flash), so
+       *  this is always "openrouter_qwen" — it is carried from the router
+       *  rather than hardcoded here so that configuring a second model is a
+       *  router change and not a hunt through every caller. */
+      source: "openrouter_qwen";
       model_id?: string;
       /** Real token counts from OpenRouter. modelRouter has always captured
        *  these; this type dropped them, which is why every cost number in this

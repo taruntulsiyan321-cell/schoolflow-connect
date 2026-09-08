@@ -46,7 +46,10 @@ const ADMIN_PANEL_MODULES = [
 
 /** Modules allowed per role (for future fine-grained UI gating) */
 export const ROLE_MODULES: Record<AppRole, readonly string[]> = {
-  super_admin: ["platform", "schools", "billing", ...ADMIN_PANEL_MODULES],
+  // `question_review` is super-admin ONLY: §10.20 gives "Manage the central
+  // question bank" to them, and §10.9 makes the bank central, so one approval
+  // decides what students at every school are served.
+  super_admin: ["platform", "schools", "billing", "question_review", ...ADMIN_PANEL_MODULES],
   admin: ADMIN_PANEL_MODULES,
   principal: [
     "dashboard",
