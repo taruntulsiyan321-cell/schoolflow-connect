@@ -325,17 +325,19 @@
       transform: translateY(-1px);
     }
 
-    /* Modal */
+    /* Modal — portaled to body; fixed to viewport (not section) */
     .modal-overlay {
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.5);
       backdrop-filter: blur(4px);
-      z-index: 1000;
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 10000;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
+      overscroll-behavior: contain;
     }
     .modal-content {
       background: var(--bg-card);
@@ -343,9 +345,39 @@
       border-radius: 20px;
       max-width: 900px;
       width: 100%;
-      max-height: 85vh;
+      max-height: min(85vh, 85dvh);
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
       box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+    }
+    @media (max-width: 768px) {
+      .modal-overlay {
+        align-items: flex-end;
+        justify-content: stretch;
+        padding: 0;
+        padding-top: env(safe-area-inset-top, 0px);
+      }
+      .modal-content {
+        max-width: 100%;
+        width: 100%;
+        max-height: min(92dvh, 92vh);
+        border-radius: 20px 20px 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+      }
+      .modal-modes,
+      .modal-views,
+      .modal-caps,
+      .modal-details {
+        grid-template-columns: 1fr !important;
+      }
+      .modal-flow {
+        flex-direction: column !important;
+        align-items: stretch !important;
+      }
+      .modal-flow > span { display: none !important; }
     }
 
     /* Chat interface - Light theme */
@@ -491,6 +523,85 @@
     }
 
     @keyframes pulseDot { 0%,100%{ opacity:1; transform: scale(1)} 50%{ opacity:0.55; transform: scale(0.85)} }
+
+
+    /* ─── Dynamic motion system ─── */
+    html { scroll-behavior: smooth; }
+    .page-curtain {
+      position: fixed; inset: 0; z-index: 20000;
+      background: #0b0d17;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .page-curtain-logo {
+      width: 88px; height: 88px; object-fit: contain;
+      filter: drop-shadow(0 0 28px rgba(124,58,237,0.45));
+    }
+    .btn { position: relative; overflow: hidden; }
+    .btn::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.28) 50%, transparent 70%);
+      transform: translateX(-120%);
+      transition: transform 0.55s ease;
+    }
+    .btn:hover::after { transform: translateX(120%); }
+    .reveal-up { will-change: transform, opacity; }
+    .glow-border {
+      position: relative;
+    }
+    .glow-border::before {
+      content: '';
+      position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+      background: linear-gradient(120deg, #7c3aed, #ea580c, #059669, #7c3aed);
+      background-size: 300% 300%;
+      animation: glowShift 6s linear infinite;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none; opacity: 0.85;
+    }
+    @keyframes glowShift {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+    .float-chip {
+      animation: floatY 4.5s ease-in-out infinite;
+    }
+    @keyframes floatY {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .learning-loop-step {
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .learning-loop-step:hover {
+      transform: translateY(-3px);
+      border-color: rgba(124,58,237,0.35) !important;
+      box-shadow: 0 10px 24px rgba(124,58,237,0.12) !important;
+    }
+    .tilt-card { transform-style: preserve-3d; }
+    .section-title-accent {
+      display: inline-block;
+      background: linear-gradient(90deg, var(--violet), var(--orange), var(--violet));
+      background-size: 200% auto;
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: gradientText 5s ease infinite;
+    }
+    @keyframes gradientText {
+      0% { background-position: 0% center; }
+      50% { background-position: 100% center; }
+      100% { background-position: 0% center; }
+    }
+    .hero-headline .word {
+      display: inline-block;
+      will-change: transform, opacity;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .page-curtain, .btn::after, .glow-border::before, .float-chip, .section-title-accent { animation: none !important; }
+      html { scroll-behavior: auto; }
+    }
 
     /* ─── Mobile layout ─── */
     @media (max-width: 768px) {
@@ -672,6 +783,70 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
     const { motion, AnimatePresence, useScroll, useTransform, useInView } = Motion;
+
+
+    function PageIntro({ onDone }) {
+      return (
+        <motion.div
+          className="page-curtain"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.7, delay: 0.85, ease: [0.16,1,0.3,1] }}
+          onAnimationComplete={onDone}
+        >
+          <motion.img
+            src="gurukul-logo.png"
+            alt=""
+            className="page-curtain-logo"
+            initial={{ scale: 0.6, opacity: 0, filter: 'blur(8px)' }}
+            animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
+            transition={{ duration: 0.55, ease: [0.16,1,0.3,1] }}
+          />
+          <motion.div
+            style={{ position: 'absolute', bottom: '18%', left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 12, letterSpacing: '0.22em', fontFamily: 'JetBrains Mono, monospace' }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+          >GURUKUL</motion.div>
+        </motion.div>
+      );
+    }
+
+    function Reveal({ children, delay = 0, y = 36, x = 0, once = 1, style, className }) {
+      const ref = useRef(null);
+      const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+      return (
+        <motion.div
+          ref={ref}
+          className={className}
+          style={style}
+          initial={{ opacity: 0, y, x, scale }}
+          animate={inView ? { opacity: 1, y: 0, x: 0, scale: 1 } : {}}
+          transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {children}
+        </motion.div>
+      );
+    }
+
+    function SlideIn({ children, from = 'left', delay = 0, style, className }) {
+      const ref = useRef(null);
+      const inView = useInView(ref, { once: true, margin: '-12% 0px' });
+      const x = from === 'left' ? -48 : from === 'right' ? 48 : 0;
+      const y = from === 'up' ? 40 : from === 'down' ? -24 : 0;
+      return (
+        <motion.div
+          ref={ref}
+          className={className}
+          style={style}
+          initial={{ opacity: 0, x, y, filter: 'blur(6px)' }}
+          animate={inView ? { opacity: 1, x: 0, y: 0, filter: 'blur(0px)' } : {}}
+          transition={{ duration: 0.75, delay, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {children}
+        </motion.div>
+      );
+    }
 
     function ScrollProgress(){
       const { scrollYProgress } = useScroll();
@@ -1165,9 +1340,22 @@
        FEATURE DETAIL MODAL
     ═══════════════════════════════════════════════════════════════════════════ */
     function FeatureModal({ feature, onClose }) {
+      useEffect(() => {
+        if (!feature) return undefined;
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', onKey);
+        return () => {
+          document.body.style.overflow = prevOverflow;
+          window.removeEventListener('keydown', onKey);
+        };
+      }, [feature, onClose]);
+
       if (!feature) return null;
 
-      return (
+      return ReactDOM.createPortal(
+        (
         <motion.div
           className="modal-overlay"
           initial={{ opacity: 0 }}
@@ -1177,9 +1365,10 @@
         >
           <motion.div
             className="modal-content"
-            initial={{ scale: 0.95, y: 20 }}
+            initial={{ scale: 0.98, y: 28 }}
             animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.95, y: 20 }}
+            exit={{ scale: 0.98, y: 28 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: `${feature.color}0F`, borderBottom: '1px solid var(--border)', fontSize: 11, color: feature.color, fontWeight: 600, letterSpacing: '0.06em' }}>
@@ -1236,7 +1425,7 @@
                   <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: feature.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {feature.id === 'practice' ? '9 Practice Modes' : 'Available Modes'}
                   </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  <div className="modal-modes" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                     {feature.modes.map((mode, i) => (
                       <motion.div
                         key={mode.name || mode}
@@ -1264,7 +1453,7 @@
               {feature.views && (
                 <div style={{ marginBottom: 28 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: feature.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Analysis Views</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                  <div className="modal-views" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
                     {feature.views.map((view, i) => (
                       <motion.div
                         key={view.name}
@@ -1290,7 +1479,7 @@
               {feature.flow && (
                 <div style={{ marginBottom: 28 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: feature.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Automatic Recovery Flow</h3>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <div className="modal-flow" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                     {feature.flow.map((step, i) => (
                       <React.Fragment key={step.name}>
                         <motion.div
@@ -1334,7 +1523,7 @@
               {feature.capabilities && (
                 <div style={{ marginBottom: 28 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: feature.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Coach Capabilities</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  <div className="modal-caps" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                     {feature.capabilities.map((cap, i) => (
                       <motion.div
                         key={cap.name}
@@ -1359,7 +1548,7 @@
               {feature.details && (
                 <div>
                   <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Key Details</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                  <div className="modal-details" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                     {feature.details.map((detail, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                         <span style={{ color: feature.color, marginTop: 2 }}>✓</span>
@@ -1374,6 +1563,8 @@
             </AnimatePresence>
           </motion.div>
         </motion.div>
+        ),
+        document.body
       );
     }
 
@@ -1798,8 +1989,9 @@
               <motion.a
                 href="/auth" target="_top"
                 className="btn btn-primary"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.05, y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 20 }}
                 style={{ padding: '10px 22px', fontSize: 14 }}
               >Get Started</motion.a>
             </div>
@@ -1820,10 +2012,10 @@
           </div>
           <div style={{ maxWidth: 900, textAlign: 'center', padding: '0 24px', position: 'relative', zIndex: 10 }}>
             <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.55, ease: [0.16,1,0.3,1] }}
-              className="hero-logo-wrap"
+              initial={{ opacity: 0, scale: 0.55, y: 24, rotate: -8 }}
+              animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 220, damping: 16, delay: 0.05 }}
+              className="hero-logo-wrap float-chip"
               data-od-id="hero-logo"
             >
               <img src="gurukul-logo.png" alt="Gurukul" className="hero-logo" />
@@ -1843,13 +2035,19 @@
             </motion.div>
 
             <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
+              className="hero-headline"
+              initial="hidden"
+              animate="show"
+              variants={{
+                hidden: {},
+                show: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } }
+              }}
               style={{ fontSize: 'clamp(40px, 6vw, 72px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 20, color: 'var(--text)' }}
             >
-              Study smarter.<br />
-              <span className="shimmer-gradient">Improve faster.</span>
+              <motion.span className="word" style={{ display: 'inline-block' }} variants={{ hidden: { opacity: 0, y: 28 }, show: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.16,1,0.3,1] } } }}>Study</motion.span>{' '}
+              <motion.span className="word" style={{ display: 'inline-block' }} variants={{ hidden: { opacity: 0, y: 28 }, show: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.16,1,0.3,1] } } }}>smarter.</motion.span>
+              <br />
+              <motion.span className="word shimmer-gradient" style={{ display: 'inline-block' }} variants={{ hidden: { opacity: 0, y: 36, scale: 0.94 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.75, ease: [0.16,1,0.3,1] } } }}>Improve faster.</motion.span>
             </motion.h1>
 
             <motion.p
@@ -1870,16 +2068,18 @@
               <motion.button
                 onClick={() => setActiveSection('individual')}
                 className="btn btn-primary"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.045, y: -2 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 22 }}
               >
                 For Individual Students
               </motion.button>
               <motion.button
                 onClick={() => setActiveSection('organization')}
                 className="btn btn-secondary"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.045, y: -2 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 22 }}
               >
                 For Schools
               </motion.button>
@@ -1897,9 +2097,10 @@
                 {['Practice', 'Analyse', 'Recover', 'Revise', 'Ask AI'].map((step, i) => (
                   <React.Fragment key={step}>
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.6 + i * 0.08 }}
+                      initial={{ opacity: 0, scale: 0.8, y: 16 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 18, delay: 0.55 + i * 0.1 }}
+                      whileHover={{ scale: 1.06 }}
                       className="learning-loop-step"
                       style={{
                         padding: '12px 20px',
@@ -1913,7 +2114,13 @@
                       }}
                     >{step}</motion.div>
                     {i < 4 && (
-                      <span className="learning-loop-arrow" style={{ color: 'var(--violet)', fontSize: 14 }}>→</span>
+                      <motion.span
+                        className="learning-loop-arrow"
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.7 + i * 0.1 }}
+                        style={{ color: 'var(--violet)', fontSize: 14 }}
+                      >→</motion.span>
                     )}
                   </React.Fragment>
                 ))}
@@ -1964,7 +2171,7 @@
                 For Individual Students
               </span>
               <h2 style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 700, marginBottom: 16, color: 'var(--text)' }}>
-                Your personal <span className="gradient-text">learning engine.</span>
+                Your personal <span className="gradient-text section-title-accent">learning engine.</span>
               </h2>
               <p style={{ fontSize: 17, color: 'var(--text-secondary)', maxWidth: 560, margin: '0 auto' }}>
                 8 core systems that work together.
@@ -1980,9 +2187,9 @@
                 <motion.div
                   key={feature.id}
                   data-od-id={`feature-card-${feature.id}`}
-                  initial={{ opacity: 0, y: 24 }}
-                  animate={isInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.5, delay: i * 0.05 }}
+                  initial={{ opacity: 0, y: 40, scale: 0.94 }}
+                  animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+                  transition={{ type: 'spring', stiffness: 280, damping: 22, delay: i * 0.06 }}
                   className="card tilt-card"
                   onMouseEnter={() => handleHoverEnter(feature)}
                   onMouseLeave={handleHoverLeave}
@@ -1990,7 +2197,7 @@
                   onBlur={handleHoverLeave}
                   onClick={() => setSelectedFeature(feature)}
                   tabIndex={0}
-                  whileHover={{ y: -4, scale: 1.015 }}
+                  whileHover={{ y: -8, scale: 1.03, rotateX: 2, rotateY: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 24 }}
                   style={{
                     padding: 22,
                     cursor: 'pointer',
@@ -2187,7 +2394,7 @@
                 For Schools & Organizations
               </span>
               <h2 style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 700, marginBottom: 16, color: 'var(--text)' }}>
-                Complete school platform.
+                <span className="section-title-accent">Complete school platform.</span>
               </h2>
               <p style={{ fontSize: 17, color: 'var(--text-secondary)', maxWidth: 650, margin: '0 auto' }}>
                 Every student gets the full learning engine. Each role gets a dedicated panel with exactly what they need.
@@ -2469,6 +2676,9 @@
                   initial={{ opacity: 0, y: 24 }}
                   animate={isInView ? { opacity: 1, y: 0 } : {}}
                   transition={{ delay: i * 0.08 }}
+                  className={plan.popular ? 'glow-border' : undefined}
+                  whileHover={{ y: -6, scale: 1.02 }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 22 }}
                   style={{
                     background: 'var(--bg-card)',
                     border: plan.popular ? `2px solid ${plan.color}` : '1px solid var(--border)',
@@ -2779,11 +2989,13 @@
           background: 'rgba(255,255,255,0.92)',
           backdropFilter: 'blur(8px)'
         }}>
-          <div style={{ maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
-            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
-              © 2026 Gurukul. AI-Powered Learning Engine. <span style={{ opacity: 0.6 }}>—</span> Built for learners, loved by tech.
-            </p>
-          </div>
+          <Reveal y={20}>
+            <div style={{ maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
+              <p style={{ fontSize: 12.5, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
+                © 2026 Gurukul. AI-Powered Learning Engine. <span style={{ opacity: 0.6 }}>—</span> Built for learners, loved by tech.
+              </p>
+            </div>
+          </Reveal>
         </footer>
       );
     }
@@ -2793,6 +3005,7 @@
     ═══════════════════════════════════════════════════════════════════════════ */
     function App() {
       const [activeSection, setActiveSection] = useState(null);
+      const [booting, setBooting] = useState(true);
 
       useEffect(() => {
         if (activeSection) {
@@ -2807,16 +3020,25 @@
 
       return (
         <div style={{ minHeight: '100vh' }}>
-          <ScrollProgress />
-          <MouseGlow />
-          <BgCanvasFX />
-          <Navbar activeSection={activeSection} setActiveSection={setActiveSection} />
-          <HeroSection setActiveSection={setActiveSection} />
-          <IndividualSection />
-          <OrganizationSection />
-          <PricingSection />
-          <Footer />
-          <RocketChallenge />
+          <AnimatePresence>
+            {booting && <PageIntro key="intro" onDone={() => setBooting(false)} />}
+          </AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: booting ? 0.35 : 1 }}
+            transition={{ duration: 0.55, ease: [0.16,1,0.3,1] }}
+          >
+            <ScrollProgress />
+            <MouseGlow />
+            <BgCanvasFX />
+            <Navbar activeSection={activeSection} setActiveSection={setActiveSection} />
+            <HeroSection setActiveSection={setActiveSection} />
+            <IndividualSection />
+            <OrganizationSection />
+            <PricingSection />
+            <Footer />
+            <RocketChallenge />
+          </motion.div>
         </div>
       );
     }
