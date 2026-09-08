@@ -2101,3 +2101,45 @@ agrees with its chapter's class — the invariant
 
 `npm run db:verify-integrity` now reports **All checks passed** for the first
 time.
+
+## 38. ~~An upstream rate limit read as a product regression~~ — FIXED
+
+**FIXED 2026-09-08.** The live-provider generation test failed in the full
+evidence suite and passed every time it ran alone. Measured cause, from the run
+itself rather than assumed:
+
+```
+OpenRouter error 429 on qwen/qwen3.7-flash: "qwen/qwen3.7-flash is
+temporarily rate-limited upstream. Please retry shortly."
+```
+
+That is Alibaba throttling, not Gurukul breaking. It only appears in the full
+suite because several provider calls land before it — the refund test in the
+same describe block, and the Tier 5 AI-coach test — so the order is what
+triggers it, and running the test alone can never reproduce it.
+
+**The product was right.** `dpp-generate-questions` treated the 429 correctly:
+`result.ok` was false, so it refunded the reservation and propagated the error.
+Nothing needed fixing there. The test was hard-failing on a provider condition.
+
+**The skip is not a free pass.** What can still be proven when the provider
+refuses is exactly what KNOWN_ISSUES 14 is about — a call that produced nothing
+costs the school nothing — so the refund is asserted BEFORE skipping. A
+permanently rate-limited provider now shows up as a loud skip with the refund
+still enforced, never as a silent green. 429/503 are the provider refusing;
+502 is this function's own "the model answered with no questions" (entry 34).
+
+**A defect in the first version of that fix, caught before it landed.** It
+asserted `expect(after).toBe(before)`. `readUnits` returns `null` when no usage
+row exists yet for the day, and a reserve-then-refund can leave the row at 0 —
+so null vs 0 would have failed for a bookkeeping detail rather than a charge,
+and if both were null it would have passed vacuously. Both sides are normalised
+with `?? 0` now, because "no row" and "0 units" are the same fact, and the
+assertion states the real invariant: the refused call did not INCREASE what the
+school owes.
+
+This is the same shape as `aa-reachability.spec.ts`, which exists so a network
+outage reads as one red line instead of a hundred plausible product regressions.
+An outage and a throttle are both the world being unavailable; neither is a
+defect in this app, and both had already sent a reader hunting one — twice on
+the day this was written.
