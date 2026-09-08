@@ -65,7 +65,6 @@ const METRIC_WORDS = [
 const BASELINE = [
   "src/academic/repository/marksRepository.ts",
   "src/gurukul-parent/ParentLiveAcademic.tsx",
-  "src/gurukul/pages/Analysis.tsx",
   "src/gurukul/pages/MistakeBook.tsx",
   "src/gurukul/pages/Tests.tsx",
   "src/pages/principal/PrincipalClassDetail.tsx",
@@ -74,7 +73,7 @@ const BASELINE = [
   "src/pages/student/Battleground.tsx",
   "src/pages/student/RecoverySessionResult.tsx",
   "src/pages/student/TestResult.tsx",
-]; // 11 site(s)
+]; // 10 site(s) -- Analysis.tsx converged in f6e2f51 (practice-only), removed 2026-09-08
 
 function walk(dir, out = []) {
   if (!existsSync(dir)) return out;

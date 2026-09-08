@@ -276,7 +276,11 @@ BEGIN
   -- frozen count instead of the guarantee is what made this check fail for a
   -- reason it did not mean (G11).
   SELECT count(*), string_agg(t.tbl, ', ') INTO _n, _txt
-    FROM (VALUES ('academic_events'),('attendance_audit'),
+    -- `attendance_audit` was in this list until 2026-09-08. It is not a
+    -- missing FK -- Chunk 9 folded the table into `academic_audit`, which is
+    -- keyed on entity_id and holds no FK to classes by design. Leaving it
+    -- here made this file report a failure for a change that was deliberate.
+    FROM (VALUES ('academic_events'),
                  ('battles'),('chat_conversations'),('class_timetables'),('exams'),
                  ('homework'),('learning_resources'),('leave_requests'),('notices'),
                  ('school_calendar_events'),('students'),('teacher_classes'),

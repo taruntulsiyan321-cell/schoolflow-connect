@@ -94,7 +94,7 @@ BEGIN
   -- the question's contents — only that deleting a test takes its questions —
   -- so giving it a shape it could actually have costs nothing.
   INSERT INTO public.test_questions (school_id, test_id, order_index, question, options, correct)
-  VALUES (sch_a, t_qs, 1, 'probe question', '["a","b","c","d"]'::jsonb, '"a"'::jsonb);
+  VALUES (sch_a, t_qs, 1, 'probe question', '["a","b","c","d"]'::jsonb, '{"indexes":[0]}'::jsonb);
 
   -- Guard the premise: this test must genuinely have NO marks, or the refusal
   -- below would be test_marks' constraint firing and this probe would be

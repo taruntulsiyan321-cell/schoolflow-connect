@@ -1689,27 +1689,6 @@ export type Database = {
           },
         ]
       }
-      attendance_locks: {
-        Row: {
-          class_id: string
-          date: string
-          locked_at: string
-          locked_by: string | null
-        }
-        Insert: {
-          class_id: string
-          date: string
-          locked_at?: string
-          locked_by?: string | null
-        }
-        Update: {
-          class_id?: string
-          date?: string
-          locked_at?: string
-          locked_by?: string | null
-        }
-        Relationships: []
-      }
       attendance_submissions: {
         Row: {
           academic_year_id: string | null
@@ -9577,7 +9556,6 @@ export type Database = {
       my_readable_test_ids: { Args: never; Returns: string[] }
       my_teacher_class_ids: { Args: never; Returns: string[] }
       my_teacher_submission_ids: { Args: never; Returns: string[] }
-      my_visible_exam_ids: { Args: never; Returns: string[] }
       my_visible_student_ids: { Args: never; Returns: string[] }
       normalize_phone: { Args: { _raw: string }; Returns: string }
       process_academic_event: { Args: { _event_id: string }; Returns: boolean }

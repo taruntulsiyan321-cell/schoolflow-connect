@@ -263,7 +263,7 @@ DO $scale_tests$
 DECLARE _scale uuid := '00000000-0000-4000-8000-000000000002';
 BEGIN
   INSERT INTO public.test_questions (test_id, school_id, order_index, question, options, correct, marks)
-  SELECT t.id, t.school_id, g, 'Scale Q' || g, '["a","b","c","d"]'::jsonb, '"a"'::jsonb, 1
+  SELECT t.id, t.school_id, g, 'Scale Q' || g, '["a","b","c","d"]'::jsonb, '{"indexes":[0]}'::jsonb, 1
     FROM public.tests t CROSS JOIN generate_series(1, 8) g
    WHERE t.school_id = _scale
   ON CONFLICT (test_id, order_index) DO NOTHING;

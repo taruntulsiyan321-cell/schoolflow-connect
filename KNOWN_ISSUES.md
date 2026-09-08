@@ -1818,3 +1818,162 @@ the tree, and `run-verifications.mjs`, a superseded duplicate of
 pass, every screen still reachable from a router, and lint fell from
 **134 errors / 77 warnings to 122 / 71** — the deleted files were carrying that
 debt. The baseline was lowered so the ratchet keeps meaning something.
+
+---
+
+## 29. ~~576 answer keys were written as labels and read as positions~~ — FIXED
+
+**FIXED 2026-09-08 by `20260914080000`. This was the second half of entry 28,
+left there as "seed data for tests nobody has taken". It was worse than that:
+no student could have been marked right on any of them.**
+
+`rpc_test_submit` marks with plain jsonb equality —
+`is_correct = (a.response IS NOT NULL AND a.response = q.correct)` — and
+`QuestionRenderer.tsx:84` sends `{"indexes":[i]}` when a student picks option
+`i`. Every one of the 576 rows held the option's **text** instead:
+
+    correct is a jsonb string ................... 576 of 576   (all 'mcq')
+    the string is one of the row's own options ... 576 of 576
+    the string matches MORE than one option .....   0
+    rows where correct is an object .............   0
+
+`{"indexes":[0]} = "a"` is false, so the answer was unreachable — not a wrong
+key, but no key the student could have matched.
+
+**Why the constraint did not catch it.** `test_questions_shape_matches_format`
+existed, was VALIDATED, and passed all 576, because for a choice question it
+only asserted `correct IS NOT NULL`. A constraint named for a shape it does not
+check is the G11 shape: it reads as coverage and provides none. The name is now
+true — mcq/multi require an `indexes` array, numerical a `value`.
+
+**Where the shape came from, and why nobody noticed.** Not the client:
+`TestService.toCorrect` has written positions since `20260914040000`. All 576
+came from `supabase/fixtures/SCALE_FIXTURE.sql`. Four more writers held the same
+shape and are corrected: `SEED_DEMO_DATA.sql`, `CHUNK75_VERIFY.sql`, and the
+fixtures inside probe7 and probe31.
+
+`CHUNK75_VERIFY` is the reason this survived. It keyed its questions by text
+**and answered them by text**, so it agreed with itself and with nothing else,
+and reported a green end-to-end run over a paper no real client could have sat.
+
+**No re-marking question:** `test_answers` held 0 rows, so no stored
+`is_correct` and no stored score was ever computed from the old shape.
+
+**Verified** by probe33: a label key is refused, a position key accepted, the
+right option scores and the wrong one does not — both on the same attempt,
+because `test_attempts` carries a UNIQUE (test_id, user_id) and
+`rpc_test_submit` closes the attempt it marks. A known gap is recorded rather
+than hidden: a CHECK may not run a subquery, so an out-of-range index is
+accepted by the constraint and caught by the migration's invariant instead.
+
+## 30. ~~A signed-out visitor could call two school helpers~~ — FIXED
+
+**FIXED 2026-09-08 by `20260914090000`. One of the two was introduced by me the
+day before.** Found by `node scripts/run-verification-files.mjs`, which nothing
+was wired to run:
+
+    (FAIL) 1: anon can EXECUTE these and no class explains why —
+    my_visible_exam_ids(), storage_object_owner_school_id(text)
+
+`anon` is the key that ships in the browser bundle, so this is what anyone can
+call signed out, with curl.
+
+`storage_object_owner_school_id(text)` was created by `20260914010000` — the §7
+storage fence — which revoked PUBLIC and then wrote
+`GRANT ... TO anon, authenticated, service_role`. That triple is the Supabase
+default and was copied without asking whether a signed-out visitor needs a
+SECURITY DEFINER function that resolves an uploader's school. It does not: both
+buckets it serves are private, so anon never evaluates that policy.
+
+`my_visible_exam_ids()` was left behind by `20260909000000`, which replaced it
+in `exams_read` with the row-local `can_read_exam_row`. Measured across policies
+(USING and WITH CHECK), function bodies, views and constraints: **0 references.**
+Dropped rather than re-granted.
+
+**Verified** by probe35, which asks from the other end — it becomes `anon` and
+tries the call, because a grant table and an actual refusal are not the same
+claim. Positive controls carry the weight: a signed-in student still resolves
+the storage helper, `can_read_exam_row` still answers, and exams still read. A
+revoke that cut off the legitimate roles would have satisfied the anon gate
+perfectly while making every academic file unreadable.
+
+## 31. ~~Six verification files could not run, and one lied~~ — FIXED
+
+**FIXED 2026-09-08.** `run-verification-files.mjs` reported **6 ROTTED, 2
+FAILED** of 33. Nothing ran it — it was in no npm script — which is why entry 30
+sat undetected underneath the noise.
+
+Each rotted file died on ONE obsolete reference and took 6–10 still-valid
+assertions with it, so five were repointed rather than deleted:
+
+| file | referenced | now |
+|---|---|---|
+| `CHUNK4_VERIFY` item 7 | `attendance_audit` | `academic_audit` (Chunk 9 folded it) |
+| `CHUNK67_BATCH2` item 7 | `attendance_audit` | `academic_audit` |
+| `CHUNK5_VERIFY` item 8 | `rpc_purge_deleted_homework()` | `rpc_purge_expired()` |
+| `CHUNK7B_BATCH2D` item 4 | `parent_academic_alerts` | asks the catalog — the table is gone, which is stronger than counting 0 rows in it |
+| `CHUNK7A_VERIFY` item 4 | a class_level disagreeing with its chapter | a chapter of ANOTHER class |
+
+`CHUNK7A` is worth its own line: `20260914020000` made a question's class derive
+from its chapter, so the fixture's wrong-class row became structurally
+impossible and the insert raised 23514. The fix was not to re-open the
+disagreement — it plants the only wrong-class question that can still exist, one
+keyed on another class's chapter, and so tests the real path.
+
+`CHUNK67_BATCH2` item 7 then reported a genuine FAIL once it could run: a
+teacher read 0 audit rows. That expectation was the stale part — it said
+"staff-only", and §10.18 (`locked-decisions.md:154`) says "Cannot see the audit
+log — admin only". Rewritten to teacher 0 / student 0 / **admin > 0**, the admin
+being the positive control without which "everyone sees 0" passes.
+
+**`CHUNK47_VERIFY.sql` was DELETED**, not repointed: it is *about* the removed
+table across items 7, 8 and 10, and probe21 supersedes it claim-for-claim as the
+caller.
+
+Now `32 files: 32 ran clean, 0 failed, 0 rotted`, and it is wired as
+**`npm run verify:chunk-files`** so it cannot rot silently again.
+
+## 32. ~~`attendance_locks` outlived the chunk that replaced it~~ — FIXED
+
+**FIXED 2026-09-08 by `20260914100000`.** Two verification files had been
+asserting this table was gone and it was still there — CHUNK47 item 10 said
+"attendance_locks does not exist anywhere", CHUNK2 section 7 expected 0 and
+measured 1. Chunk 4.7 replaced the lock with `attendance_submissions` (a day is
+locked because it was submitted — one fact instead of two that can disagree) and
+never dropped the table.
+
+    rows 0 · inbound FKs 0 · functions naming it 0 · policies naming it 0
+    references in src/ 0 (only the generated types.ts)
+
+It was also an unfenced surface: ACL `anon=arwdDxtm`, and its only SELECT policy
+was `USING (true)` for `authenticated` with no `same_school` predicate of any
+kind. Empty, so nothing leaked; a dead table is still no place to leave a fence
+open. Dropped rather than fenced, because fencing keeps a second home for "is
+this day closed?" alive — the thing 4.7 removed on purpose. The rollback
+recreates the table, its key, RLS, all three policies and the grants as
+measured.
+
+`scripts/lint-tenant-scope.mjs` was still listing both `attendance_audit` and
+`attendance_locks` among its tenant-scoped tables; both entries are gone.
+
+## 33. ~~`lint:tenant-scope` was failing, on two functions I wrote~~ — FIXED
+
+**FIXED 2026-09-08.** The gate reported three functions touching a
+tenant-scoped table with no `school_id` anywhere in the body, two of them from
+`20260914030000` — the question-bank approval queue built the day before.
+
+All three are genuine allowlist cases, and each entry records what was measured
+rather than an assurance: `question_bank` has **no `school_id` column at all**
+(0 of 33 — it is a G2 global table), so there is no tenant predicate available
+to add. What bounds `rpc_question_bank_review_queue` and `rpc_review_question`
+is the ACTOR: both open with `IF NOT (SELECT public.is_super_admin()) THEN
+RAISE`, citing §10.20, and `rpc_review_question` is defended a second time at
+row level by `tg_question_bank_approval_is_super_admin_only`.
+`rpc_purge_expired_battle_reports` is the same shape as the already-allowlisted
+`rpc_purge_expired`: it RAISEs when `auth.uid() IS NOT NULL` and its proacl is
+postgres/service_role only (measured: anon false, authenticated false).
+
+**Still open, deliberately:** `Analysis.tsx` was removed from
+`lint-metric-duplication`'s baseline (converged in f6e2f51), leaving a backlog
+of **10** sites still computing a metric outside the metric layer. That is a
+backlog the gate holds flat, not a defect this session introduced.

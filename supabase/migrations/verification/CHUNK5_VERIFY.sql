@@ -240,14 +240,17 @@ BEGIN
   IF _n <> 1 THEN _ok := false; END IF;
 
   -- Within 7 days the purge leaves it alone.
-  SELECT public.rpc_purge_deleted_homework() INTO _n;
+  -- `rpc_purge_deleted_homework()` was dropped by 20260904130000 (the Chunk 9
+  -- trash registry) and replaced by the one `rpc_purge_expired()`, which
+  -- sweeps every registered feature rather than homework alone.
+  PERFORM public.rpc_purge_expired();
   SELECT count(*) INTO _n FROM public.homework WHERE id = _hw_del;
   _out := _out || format('  after purge, still within 7 days ... %s   (expected 1)%s', _n, E'\n');
   IF _n <> 1 THEN _ok := false; END IF;
 
   -- Past 7 days it is gone for good.
   UPDATE public.homework SET deleted_at = now() - interval '8 days' WHERE id = _hw_del;
-  PERFORM public.rpc_purge_deleted_homework();
+  PERFORM public.rpc_purge_expired();
   SELECT count(*) INTO _n FROM public.homework WHERE id = _hw_del;
   _out := _out || format('  after purge, past 7 days ........... %s   (expected 0 — permanent)%s', _n, E'\n');
   IF _n <> 0 THEN _ok := false; END IF;

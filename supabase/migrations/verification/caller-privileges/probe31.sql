@@ -78,8 +78,8 @@ BEGIN
   INSERT INTO public.test_questions
     (test_id, school_id, order_index, question, options, correct, marks)
   VALUES
-    (t_id, sch_a, 1, 'probe31 mcq', '["a","b","c","d"]'::jsonb, '"a"'::jsonb, 1),
-    (t_id, sch_a, 2, 'probe31 mcq two', '["a","b","c","d"]'::jsonb, '"b"'::jsonb, 1);
+    (t_id, sch_a, 1, 'probe31 mcq', '["a","b","c","d"]'::jsonb, '{"indexes":[0]}'::jsonb, 1),
+    (t_id, sch_a, 2, 'probe31 mcq two', '["a","b","c","d"]'::jsonb, '{"indexes":[1]}'::jsonb, 1);
 
   INSERT INTO public.test_attempts (test_id, user_id, school_id)
   VALUES (t_id, stu, sch_a) RETURNING id INTO att;
@@ -127,7 +127,7 @@ BEGIN
   BEGIN
     INSERT INTO public.test_questions
       (test_id, school_id, order_index, question, options, correct, answer, marks)
-    VALUES (t_id, sch_a, 4, 'probe31 mcq with an answer too', '["a","b"]'::jsonb, '"a"'::jsonb, 'also this', 1);
+    VALUES (t_id, sch_a, 4, 'probe31 mcq with an answer too', '["a","b"]'::jsonb, '{"indexes":[0]}'::jsonb, 'also this', 1);
     r := 'OK: accepted';
   EXCEPTION WHEN check_violation THEN r := 'ERROR: check_violation';
   END;

@@ -176,7 +176,9 @@ BEGIN
   IF _stu IS NULL THEN
     RAISE EXCEPTION 'item 7 cannot run: submission % has no present row to edit', _sub;
   END IF;
-  SELECT count(*) INTO _n FROM public.attendance_audit;
+  -- Chunk 9 consolidated every per-feature audit table into `academic_audit`.
+  -- This item asks the same question of the table that now answers it.
+  SELECT count(*) INTO _n FROM public.academic_audit WHERE entity_type = 'attendance';
 
   -- The previous block left the principal's JWT claims set after RESET ROLE.
   -- This UPDATE therefore ran as the table owner with RLS bypassed, while
@@ -190,13 +192,16 @@ BEGIN
   UPDATE public.attendance SET status = 'absent' WHERE id = _stu AND status::text = 'present';
   RESET ROLE;
   PERFORM set_config('request.jwt.claims', NULL, true);
-  _r7 := 'attendance_audit rows before=' || _n || ' after=' ||
-         (SELECT count(*) FROM public.attendance_audit)::text ||
+  _r7 := 'academic_audit attendance rows before=' || _n || ' after=' ||
+         (SELECT count(*) FROM public.academic_audit WHERE entity_type = 'attendance')::text ||
          ', latest=' ||
-         COALESCE((SELECT 'prev='||prev_status::text||' new='||new_status::text||
-                          ' by='||coalesce(edited_by::text,'null')||' at='||edited_at::text
-                     FROM public.attendance_audit ORDER BY edited_at DESC LIMIT 1), 'none')
-      || CASE WHEN (SELECT count(*) FROM public.attendance_audit) > _n THEN ' PASS' ELSE ' FAIL' END;
+         COALESCE((SELECT 'prev='||coalesce(previous_value::text,'null')||
+                          ' new='||coalesce(new_value::text,'null')||
+                          ' by='||coalesce(actor_user_id::text,'null')||' at='||created_at::text
+                     FROM public.academic_audit WHERE entity_type = 'attendance'
+                    ORDER BY created_at DESC LIMIT 1), 'none')
+      || CASE WHEN (SELECT count(*) FROM public.academic_audit WHERE entity_type = 'attendance') > _n
+              THEN ' PASS' ELSE ' FAIL' END;
 
   ------------------------------------------------------------------
   -- 8. A past date with no submission is a holiday, not a zero

@@ -61,7 +61,8 @@
     "check:edge-drift": "node scripts/check-edge-drift.mjs",
     "check:edge-drift:update": "node scripts/check-edge-drift.mjs --update",
     "lint:baseline:update": "node scripts/lint-baseline.mjs --update",
-    "db:strip-demo-tenants": "node scripts/strip-demo-tenants.mjs"
+    "db:strip-demo-tenants": "node scripts/strip-demo-tenants.mjs",
+    "verify:chunk-files": "node scripts/run-verification-files.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

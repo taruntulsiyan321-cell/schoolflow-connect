@@ -146,12 +146,18 @@ BEGIN
   ------------------------------------------------------------------
   -- 4. What the writer already wrote is gone
   ------------------------------------------------------------------
-  SELECT count(*) INTO _alerts FROM public.parent_academic_alerts
-   WHERE kind = 'weakness' AND title = 'Mistakes need revision';
+  -- `parent_academic_alerts` no longer exists: the table itself was removed
+  -- when the writer was closed, which is a STRONGER form of this claim than
+  -- counting zero rows in it. Asked of the catalog, because a query against a
+  -- dropped table is an error, not a zero -- and an error killed this whole
+  -- file (six items) until 2026-09-08.
+  SELECT count(*) INTO _alerts
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE n.nspname = 'public' AND c.relname = 'parent_academic_alerts';
   SELECT count(*) INTO _profiles FROM public.student_academic_profiles
    WHERE metrics ?| ARRAY['weakTopics','strongTopics'];
 
-  _r4 := 'durable mistake-book alerts=' || _alerts || ', profiles carrying weak/strong topics=' || _profiles
+  _r4 := 'parent_academic_alerts table still present=' || _alerts || ', profiles carrying weak/strong topics=' || _profiles
       || CASE WHEN _alerts = 0 AND _profiles = 0
               THEN ' — closing the writer without purging what it wrote would not have been a closure (PASS)'
               ELSE ' — residue survives (FAIL)' END;

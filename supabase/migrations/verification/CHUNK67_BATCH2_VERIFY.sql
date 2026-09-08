@@ -23,6 +23,7 @@ DO $verify$
 DECLARE
   _demo        uuid := '00000000-0000-4000-8000-000000000001';
   _uid_admin   uuid; _uid_principal uuid; _uid_teacher uuid;
+  _aud_admin   int;
   _uid_parent  uuid; _uid_student   uuid;
 
   -- One pair per item. Nothing below is shared.
@@ -184,28 +185,45 @@ BEGIN
               WHEN _other_seen = 0 THEN ' (PASS)' ELSE ' — LEAK (FAIL)' END;
 
   ------------------------------------------------------------------
-  -- 7. attendance_audit stays staff-only; submissions stay school-wide
+  -- 7. the attendance audit is ADMIN-ONLY; submissions stay school-wide
+  --
+  -- This item said "staff-only" and expected a TEACHER to read the audit
+  -- trail. Two things moved underneath it. Chunk 9 folded attendance_audit
+  -- into the one `academic_audit` table, and §10.18 (locked-decisions.md:154,
+  -- teacher panel) says "Cannot see the audit log -- admin only". A teacher
+  -- reading 0 rows is the rule working, not the trail being lost.
+  --
+  -- So the roles are teacher / student / ADMIN, and the admin is the positive
+  -- control: without it "everyone sees 0" would pass, which is what a dropped
+  -- policy or an empty table looks like.
   ------------------------------------------------------------------
   PERFORM set_config('request.jwt.claims',
     json_build_object('sub', _uid_teacher, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
-  SELECT count(*) INTO _aud_staff  FROM public.attendance_audit;
+  SELECT count(*) INTO _aud_staff  FROM public.academic_audit WHERE entity_type = 'attendance';
   SELECT count(*) INTO _sub_seen   FROM public.attendance_submissions;
   RESET ROLE;
 
   PERFORM set_config('request.jwt.claims',
     json_build_object('sub', _uid_student, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
-  SELECT count(*) INTO _aud_student FROM public.attendance_audit;
+  SELECT count(*) INTO _aud_student FROM public.academic_audit WHERE entity_type = 'attendance';
+  RESET ROLE;
+
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', _uid_admin, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO _aud_admin FROM public.academic_audit WHERE entity_type = 'attendance';
   RESET ROLE;
 
   SELECT count(*) INTO _sub_truth FROM public.attendance_submissions WHERE school_id = _demo;
 
-  _r7 := 'audit: teacher ' || _aud_staff || ' / student ' || _aud_student
+  _r7 := 'audit: admin ' || _aud_admin || ' / teacher ' || _aud_staff || ' / student ' || _aud_student
       || ' · submissions: teacher ' || _sub_seen || ' of ' || _sub_truth
-      || CASE WHEN _aud_staff > 0 AND _aud_student = 0 AND _sub_seen = _sub_truth
-              THEN ' — staff-only audit, school-wide submissions (PASS)'
-              WHEN _aud_staff = 0 THEN ' — staff LOST the audit trail (FAIL)'
+      || CASE WHEN _aud_admin > 0 AND _aud_staff = 0 AND _aud_student = 0 AND _sub_seen = _sub_truth
+              THEN ' — §10.18 admin-only audit, school-wide submissions (PASS)'
+              WHEN _aud_admin = 0 THEN ' — the ADMIN lost the audit trail too (FAIL)'
+              WHEN _aud_staff > 0 THEN ' — a teacher can read the audit log, §10.18 says admin only (FAIL)'
               WHEN _aud_student > 0 THEN ' — student can read the audit trail (FAIL)'
               ELSE ' — submissions set changed (FAIL)' END;
 

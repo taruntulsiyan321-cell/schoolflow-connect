@@ -283,10 +283,27 @@ BEGIN
   -- submission_id matters: attendance_day_edits resolves the marker by joining
   -- on it, so an audit row without one would record an edit that no screen can
   -- show. The edit is attributed to the admin, the only role that may edit.
-  INSERT INTO public.attendance_audit
-    (school_id, submission_id, class_id, date, student_id, prev_status, new_status, edited_by)
-  SELECT _demo_school, s.id, c10a, _today - 2, st3, 'absent', 'present', u_admin
+  --
+  -- Chunk 9 folded `attendance_audit` into the one `academic_audit` table, and
+  -- this INSERT was never repointed -- so `npm run db:seed` had been dying here
+  -- with 42P01 and the seed gate reported "the seed did not run to completion".
+  -- Everything after this statement (fees, notices, chat, tests) never seeded.
+  --
+  -- The shape below is the one `tg_log_attendance_change` actually writes, read
+  -- off a live row rather than assumed, because `attendance_day_edits` reads
+  -- `metadata->>'submission_id'` and `metadata->>'student_id'` and would resolve
+  -- nothing if this seeded a different shape under the same entity_type.
+  INSERT INTO public.academic_audit
+    (school_id, entity_type, entity_id, action, actor_user_id,
+     previous_value, new_value, metadata)
+  SELECT _demo_school, 'attendance', a.id, 'attendance.status_edited', u_admin,
+         to_jsonb('absent'::text), to_jsonb('present'::text),
+         jsonb_build_object('date',          (_today - 2)::text,
+                            'class_id',      c10a,
+                            'student_id',    st3,
+                            'submission_id', s.id)
     FROM public.attendance_submissions s
+    JOIN public.attendance a ON a.submission_id = s.id AND a.student_id = st3
    WHERE s.section_id = c10a AND s.date = _today - 2;
 
   -- ===================== FEES =====================
@@ -423,12 +440,10 @@ BEGIN
     JOIN public.leave_requests lr ON lr.id = v.leave_request_id
   ON CONFLICT (leave_request_id, decided_by_role) DO NOTHING;
 
-  -- ===================== INQUIRIES & COMPLAINTS =====================
-  INSERT INTO public.school_inquiries (id, contact_name, contact_phone, contact_email, grade_interest, message, status, created_by) VALUES
-    ('d9000003-0001-4000-8000-000000000001', 'Amit Deshmukh', '9988776655', 'amit@example.com', 'Class 9',
-     'Interested in CBSE admission for 2026-27.', 'open', u_admin)
-  ON CONFLICT (id) DO NOTHING;
-
+  -- ===================== COMPLAINTS =====================
+  -- The `school_inquiries` block that stood here was removed 2026-09-08: the
+  -- table does not exist in this schema and no code in `src/` references it.
+  -- `school_complaints` below is live and stays.
   INSERT INTO public.school_complaints (id, student_id, submitted_by, complainant_name, subject, body, category, status) VALUES
     ('d9000004-0001-4000-8000-000000000001', st3, u_p1, 'Suresh Mehta', 'Canteen hygiene',
      'Request to improve lunch hygiene standards.', 'facilities', 'in_progress')
@@ -542,11 +557,11 @@ BEGIN
     INSERT INTO public.test_questions (id, test_id, school_id, order_index, question, options, correct, marks, explanation) VALUES
       (test_q1, test_pub, _demo_school, 1,
        'The roots of x^2 - 5x + 6 = 0 are:',
-       '["2 and 3","1 and 6","-2 and -3","5 and 6"]'::jsonb, '"2 and 3"'::jsonb, 1,
+       '["2 and 3","1 and 6","-2 and -3","5 and 6"]'::jsonb, '{"indexes":[0]}'::jsonb, 1,
        'Factorise: (x-2)(x-3) = 0.'),
       (test_q2, test_pub, _demo_school, 2,
        'The discriminant of x^2 + 4x + 4 = 0 is:',
-       '["0","4","16","-4"]'::jsonb, '"0"'::jsonb, 1,
+       '["0","4","16","-4"]'::jsonb, '{"indexes":[0]}'::jsonb, 1,
        'b^2 - 4ac = 16 - 16 = 0, so the roots are equal.')
     ON CONFLICT (id) DO NOTHING;
 
@@ -646,10 +661,16 @@ BEGIN
     updated_by = EXCLUDED.updated_by;
 
   -- ===================== AUDIT LOGS =====================
-  INSERT INTO public.audit_logs (actor_user_id, action, entity, entity_id, metadata) VALUES
-    (u_admin, 'demo_seed', 'migration', NULL, '{"note":"Wisdom Campus demo dataset applied"}'::jsonb),
-    (u_principal, 'leave_review', 'leave_requests', 'd9000002-0003-4000-8000-000000000003', '{"status":"rejected"}'::jsonb)
-  ON CONFLICT DO NOTHING;
+  -- Removed 2026-09-08. `public.audit_logs` was dropped by
+  -- 20260904100000_audit_consolidation.sql, and this INSERT was never
+  -- repointed -- it is one of the two statements that made `npm run db:seed`
+  -- die partway through with 42P01.
+  --
+  -- NOT repointed at `academic_audit`, deliberately. That table is written by
+  -- triggers from real activity and is read by the admin's audit screen
+  -- (§10.18). Seeding two synthetic rows -- a 'demo_seed' entry against a NULL
+  -- entity -- would put fabricated history in front of an admin reading a log
+  -- whose whole value is that it records what actually happened.
 
   RAISE NOTICE 'Wisdom Campus demo data applied. Login: admin@wisdomcampus.com / DemoPass123! — see docs/DEMO_ACCOUNTS.md';
 END $demo$;

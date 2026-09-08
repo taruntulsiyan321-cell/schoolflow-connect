@@ -134,15 +134,28 @@ BEGIN
   IF _battle IS NULL THEN
     _r4 := 'no battle with a resolvable class and stocked subject — NO FIXTURE, PROVES NOTHING (FAIL)';
   ELSE
+    -- HOW THE FIXTURE PLANTS A WRONG-CLASS QUESTION, AND WHY IT CHANGED.
+    --
+    -- It used to write a class_level of its own choosing while keeping some
+    -- other question's chapter_id. Since 20260914020000 a question's class is
+    -- DERIVED from its chapter: the trigger fills class_level in when omitted
+    -- and REFUSES any value that disagrees with the chapter. That insert now
+    -- raises 23514, which killed this whole file -- seven items -- rather than
+    -- this one.
+    --
+    -- The fix is not to re-open the disagreement. The only wrong-class question
+    -- that can exist now is one keyed on ANOTHER CLASS'S CHAPTER, so that is
+    -- what is planted, and this item tests the real path instead of an
+    -- arrangement the database no longer allows. Right subject, wrong class,
+    -- exactly as the ground truth requires.
     INSERT INTO public.question_bank
       (question, options, correct_index, subject, difficulty, is_approved, is_active,
-       class_level, board, chapter, chapter_id)
+       board, chapter, chapter_id)
     SELECT 'VERIFY wrong-class question', '["a","b"]'::jsonb, 0, _subj, q.difficulty,
-           -- A DIFFERENT class, but still inside question_bank_class_level_check,
-           -- which already constrains the range and refused _lvl + 3 = 13.
-           true, true, CASE WHEN _lvl > 6 THEN _lvl - 3 ELSE _lvl + 3 END, 'both', q.chapter, q.chapter_id
+           true, true, 'both', q.chapter, q.chapter_id
       FROM public.question_bank q
      WHERE q.is_active AND q.chapter_id IS NOT NULL
+       AND q.class_level IS DISTINCT FROM _lvl
      ORDER BY q.id LIMIT 1
     RETURNING id INTO _planted_class;
 
@@ -158,9 +171,13 @@ BEGIN
     SELECT count(*) INTO _picked_planted FROM public.battle_questions
      WHERE battle_id = _battle AND bank_question_id = _planted_class;
 
-    _r4 := 'battle drew ' || _picked_total || ' question(s), of which '
+    _r4 := CASE WHEN _planted_class IS NULL
+                THEN 'no question exists on another class''s chapter — NO FIXTURE, PROVES NOTHING (FAIL). '
+                ELSE '' END
+        || 'battle drew ' || _picked_total || ' question(s), of which '
         || _picked_planted || ' were the planted wrong-class row'
-        || CASE WHEN _picked_total > 0 AND _picked_planted = 0
+        || CASE WHEN _planted_class IS NULL THEN ''
+                WHEN _picked_total > 0 AND _picked_planted = 0
                 THEN ' — definer filters class, still draws (PASS)'
                 WHEN _picked_total = 0 THEN ' — definer drew NOTHING, proves nothing (FAIL)'
                 ELSE ' — WRONG-CLASS QUESTION SERVED (FAIL)' END;
