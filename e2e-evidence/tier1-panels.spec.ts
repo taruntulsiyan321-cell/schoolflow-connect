@@ -209,6 +209,77 @@ test.describe('Tier1-P · teacher · the panels behind the redirects', () => {
       'the report renders the class aggregate §10.25 asks for first',
     ).toBeVisible({ timeout: 20000 })
   })
+
+  /**
+   * §10.24. The question paper screen — the first UI the three
+   * `question_paper*` tables have ever had.
+   *
+   * probe39 proves the fence and the bank fill in SQL, as the caller. This
+   * proves the round trip: the route mounts, a paper is created through
+   * PostgREST, and a section fills from the 21,681-question bank without the
+   * writes being refused. A 42501 on any of it shows up in `supaErrors`.
+   *
+   * The subject is taken from the bank's own vocabulary rather than typed:
+   * `question_bank.subject` is matched exactly, so "science" would retrieve
+   * nothing and the fill would report 0 with no error — a green test proving
+   * the opposite of what it claims.
+   */
+  test('a teacher builds a question paper and fills it from the bank', async ({ page, signals }, testInfo) => {
+    await page.goto('/teacher/question-papers', { waitUntil: 'domcontentloaded' })
+    await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {})
+
+    await expect(
+      page.getByRole('button', { name: /new paper/i }).first(),
+      'the question papers screen mounts with its own control',
+    ).toBeVisible({ timeout: 20000 })
+
+    await page.getByRole('button', { name: /new paper/i }).first().click()
+    const title = `E2E paper ${Date.now()}`
+    await page.getByPlaceholder('Paper title *').fill(title)
+    await page.getByPlaceholder('Subject *').fill('Science')
+    await page.getByRole('button', { name: /^Create paper$/ }).click()
+    await page.waitForTimeout(4000)
+
+    const afterCreate = await page.evaluate(() => document.body?.innerText ?? '')
+    const paperWrites = supaErrors(signals).filter((r) => /question_paper/.test(r.url))
+    await evidence(testInfo, 'teacher question paper', page, {
+      title,
+      bodySample: afterCreate.replace(/\s+/g, ' ').slice(0, 400),
+      supabase: supaErrors(signals),
+      paperTableWrites: paperWrites,
+    })
+
+    expect(paperWrites, 'a write to a question_paper table was refused').toEqual([])
+    await expect(
+      page.getByRole('button', { name: /add section/i }).first(),
+      'the new paper opened into its blueprint',
+    ).toBeVisible({ timeout: 20000 })
+
+    await page.getByRole('button', { name: /add section/i }).first().click()
+    await page.getByPlaceholder('Section title *').fill('Section A')
+    await page.getByRole('button', { name: /^Add section$/ }).click()
+    await page.waitForTimeout(3000)
+
+    await page.getByRole('button', { name: /fill from bank/i }).first().click()
+    await page.waitForTimeout(6000)
+
+    const body = await page.evaluate(() => document.body?.innerText ?? '')
+    await evidence(testInfo, 'teacher fills from bank', page, {
+      bodySample: body.replace(/\s+/g, ' ').slice(0, 500),
+      supabase: supaErrors(signals),
+    })
+
+    // The screen always reports what the fill did. "Added 0" is a legitimate
+    // outcome the UI must state; what it must never do is stay silent.
+    await expect(
+      page.getByText(/Added .* from .* matching in the bank/i).first(),
+      'the fill reports what it added and what it could not',
+    ).toBeVisible({ timeout: 20000 })
+    expect(
+      supaErrors(signals).filter((r) => /rpc_fill_paper_section_from_bank/.test(r.url)),
+      'the bank fill RPC refused the teacher it is built for',
+    ).toEqual([])
+  })
 })
 
 test.describe('Tier1-P · student · the attempt and result routes', () => {

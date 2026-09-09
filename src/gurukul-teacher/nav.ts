@@ -8,6 +8,7 @@ export type TeacherPageKey =
   | "profile"
   | "battleground"
   | "questionbank"
+  | "questionpapers"
   | "aicoach"
   | "resources";
 
@@ -21,6 +22,7 @@ export const TEACHER_PAGE_PATH: Record<TeacherPageKey, string> = {
   profile: "/teacher/profile",
   battleground: "/teacher/battleground",
   questionbank: "/teacher/question-bank",
+  questionpapers: "/teacher/question-papers",
   aicoach: "/teacher/ai-coach",
   resources: "/teacher/resources",
 };
@@ -35,6 +37,7 @@ export const TEACHER_PAGE_TITLES: Record<TeacherPageKey, string> = {
   profile: "My Profile",
   battleground: "Battles Monitor",
   questionbank: "Question Bank",
+  questionpapers: "Question Papers",
   aicoach: "AI Coach",
   resources: "Resources",
 };
@@ -69,6 +72,9 @@ export function teacherPathToPage(pathname: string): TeacherPageKey {
   if (p.startsWith("/teacher/leave") || p.startsWith("/teacher/leaves")) return "leave";
   if (p.startsWith("/teacher/profile")) return "profile";
   if (p.startsWith("/teacher/battleground")) return "battleground";
+  // Checked BEFORE question-bank only for readability; the two prefixes
+  // diverge at "question-b" vs "question-p" and cannot shadow each other.
+  if (p.startsWith("/teacher/question-papers")) return "questionpapers";
   if (p.startsWith("/teacher/question-bank") || p.startsWith("/teacher/practice"))
     return "questionbank";
   if (p.startsWith("/teacher/ai-coach")) return "aicoach";

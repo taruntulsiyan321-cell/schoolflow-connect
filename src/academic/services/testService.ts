@@ -243,7 +243,7 @@ async function assertTeacherCanWriteTest(ctx: ServiceContext, classId: string) {
  * the test would simply appear in the wrong subject's analysis for the rest of
  * the year.
  */
-async function resolveSectionSubjectId(
+export async function resolveSectionSubjectId(
   ctx: ServiceContext,
   classId: string,
   subject?: string | null,

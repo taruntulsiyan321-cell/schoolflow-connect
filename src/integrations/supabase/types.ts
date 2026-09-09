@@ -9318,6 +9318,7 @@ export type Database = {
       }
       ai_session_memory_read: { Args: { p_session_id: string }; Returns: Json }
       bump_ai_answer_cache_hit: { Args: { p_id: string }; Returns: undefined }
+      can_author_question_paper: { Args: never; Returns: boolean }
       can_create_test: {
         Args: {
           _created_by: string
@@ -9349,6 +9350,14 @@ export type Database = {
       }
       can_read_test: { Args: { _test_id: string }; Returns: boolean }
       can_read_test_report: { Args: { _test_id: string }; Returns: boolean }
+      can_read_test_row: {
+        Args: {
+          _created_by: string
+          _school_id: string
+          _section_subject_id: string
+        }
+        Returns: boolean
+      }
       can_read_test_student_report: {
         Args: { _student_id: string; _test_id: string }
         Returns: boolean
@@ -9575,6 +9584,7 @@ export type Database = {
       my_teacher_submission_ids: { Args: never; Returns: string[] }
       my_visible_student_ids: { Args: never; Returns: string[] }
       normalize_phone: { Args: { _raw: string }; Returns: string }
+      owns_question_paper: { Args: { _paper_id: string }; Returns: boolean }
       process_academic_event: { Args: { _event_id: string }; Returns: boolean }
       process_pending_academic_events: {
         Args: { _limit?: number }
@@ -9941,6 +9951,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      rpc_fill_paper_section_from_bank: {
+        Args: { _section_id: string }
+        Returns: Json
+      }
       rpc_finish_battle: {
         Args: { _participant_id: string }
         Returns: undefined
@@ -10192,6 +10206,14 @@ export type Database = {
           source: string
           subject: string
         }[]
+      }
+      rpc_question_paper_to_test: {
+        Args: {
+          _duration_sec?: number
+          _paper_id: string
+          _section_subject_id: string
+        }
+        Returns: string
       }
       rpc_record_community_doubt_view: {
         Args: { _doubt_id: string }

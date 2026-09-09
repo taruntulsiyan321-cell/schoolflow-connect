@@ -11,7 +11,7 @@ bottom before touching anything.
 |---|---|
 | Worktree | `.claude/worktrees/gurukul-tier1-e2e-fixes-c0b3c3` |
 | Branch | `claude/gurukul-tier1-e2e-fixes-c0b3c3` |
-| Local HEAD | `006e606` + three later commits — **FIVE COMMITS NOT PUSHED** (see §1) |
+| Local HEAD | `006e606` + four later commits — **SIX COMMITS NOT PUSHED** (see §1) |
 | Last pushed | `9daf600` |
 | Supabase project | `psqxykzqfvxgsvkmgurn` |
 
@@ -161,14 +161,14 @@ there is nothing to attempt, deliberately.
 ## 4. Gate state after the §4 UI commit
 
 ```
-verify:caller-privileges .. 370 assertions   PASS   (was 355; probe38 claims 11-19)
+verify:caller-privileges .. 390 assertions   PASS   (probe39 new, 20 claims)
 db:verify-integrity ....... All checks passed
 verify:chunk-files ........ 32 files, 32 clean, 0 rotted
 npm test .................. 646 passed / 58 files   (was 636/57; answerText new)
 npm run typecheck ......... clean   (tsc -b --force)
 npm run build ............. clean
 10 lint/check gates ....... all PASS
-db:check-migrations ....... 414 applied / 414 files / 0 pending   (rewritten)
+db:check-migrations ....... 418 applied / 418 files / 0 pending   (rewritten)
 lint:baseline ............. 113 errors, 71 warnings — FROZEN, and now a CI gate
 ```
 
@@ -195,27 +195,63 @@ curl -s http://localhost:8181/src/main.tsx | head -3   # confirm it is THIS tree
 PLAYWRIGHT_BASE_URL=http://localhost:8181 npm run test:e2e:evidence
 ```
 
-Expect 68 pre-existing tests + **7** new `tier1-panels` ones (5, plus the two
+Expect 68 pre-existing tests + **8** new `tier1-panels` ones (5, plus the two
 added with the report UI: the teacher opening a class report, and the student's
 "Topics to revise" card on their own result). **None of the seven has ever
 run** — treat their first result as a finding, not a regression.
 
 ### 5.2 §4 — Teacher test report (DONE — database and UI, see §9)
 
-### 5.3 §5 — Question paper generation UI
+### 5.3 §5 — Question paper UI — **BUILT, minus the two AI halves**
 
-Tables `question_papers`, `question_paper_sections`,
-`question_paper_questions` all exist with **0 rows**. `planQuestionPaper`,
-`buildQuestionPaperOutline`, `buildQuestionPaperMarkingScheme` exist in
-`src/academic/ai/` with **zero callers outside their own directory and unit
-tests**. No `.tsx` file in the repo references them.
+The brief: teacher supplies the blueprint first (class, subject, chapters,
+per-section type/count/marks/difficulty). MCQ bank-first via `embed` →
+`match_question_bank`, generate the shortfall. Short/long generated with
+answers. Answer key a separate sheet. **Only all-MCQ papers can be pushed as
+online tests.**
 
-The user's brief: teacher supplies the blueprint first (class, subject,
-chapters, per-section type/count/marks/difficulty). MCQ: bank-first via `embed`
-→ `match_question_bank`, generate the shortfall. Short/long generated with
-answers. Write-back tagged, `created_by` set, `is_approved=false`, `topic`
-NULL, quality guard on. Answer key a separate sheet. **Only all-MCQ papers can
-be pushed as online tests.**
+**WHAT LANDED.** `/teacher/question-papers` (nav: Question Papers) →
+`src/gurukul-teacher/QuestionPapers.tsx`, over
+`src/academic/services/questionPaperService.ts`. Blueprint first: paper
+(title, subject, class 6-12, duration), then sections (format, count, marks
+each, difficulty, chapters). MCQ sections fill from the bank; the paper and the
+answer key are two separate CSVs; an all-MCQ paper pushes out as a draft online
+test. probe39 — **20 claims, all green** — holds the fence and the behaviour.
+
+**WHAT WAS MEASURED FIRST (1a / 1b).**
+
+* **1a retrieval — ESTABLISHED.** `match_question_bank`, as the teacher: 10
+  rows, best similarity 1.0000, subject and class filters honoured, anon
+  refused at the grant. Bank: 21,696 rows, **all embedded**, 21,681 usable,
+  every one `question_format='mcq'`, every one carrying a chapter and a
+  difficulty, 516 distinct chapters.
+* **1b generation — NOT ESTABLISHED, and not establishable here.**
+  `psqxykzqfvxgsvkmgurn.supabase.co` is `000` — no IPv4 route. `embed` and
+  `ai-gateway` are both unreachable. Separately, and this survives the network
+  coming back: **`ai-gateway` has no capability that generates questions.** It
+  exposes `teacher.question_paper.plan`, `.generate_outline` and
+  `.marking_scheme`, and all three declare `generates_full_paper: false`.
+
+**THE DEVIATION, STATED.** The MCQ fill is a STRUCTURED query — class level,
+subject, chapter, difficulty — not a vector search, because `embed` cannot make
+a query vector from this machine and a section is a structured query by nature.
+The semantic path is a widening of `rpc_fill_paper_section_from_bank` once
+`embed` is reachable, not a different function and not a different service
+call. Every fill returns `shortfall`, the screen prints it, and that number is
+the brief's "generate the shortfall" with nothing behind it yet.
+
+**STILL OPEN on this feature:** generating short/long questions and the
+shortfall (needs a new gateway capability, a prompt, a validator, and a deploy
+— and `ai-gateway` carries 49 undispositioned drift hunks); `is_approved=false`
+write-back of generated questions into `question_bank` (nothing generates yet,
+so nothing writes back); the quality guard.
+
+**THE THREE `src/academic/ai/questionPaper*.ts` MODULES ARE STILL UNCALLED.**
+`planQuestionPaper` is a deterministic chapter-weight allocator and could feed
+the blueprint form's defaults; `buildQuestionPaperOutline` returns question
+STEMS, not questions. Neither was wired, because the teacher now states the
+blueprint directly and an auto-allocator that disagrees with what they typed is
+a second home for the same fact.
 
 ### 5.4 §6 — Gates that cannot fail — **ALL THREE DONE, 2026-09-09**
 

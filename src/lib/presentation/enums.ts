@@ -30,6 +30,7 @@ export type EnumDomain =
   | "exam_type"
   | "test_kind"
   | "test_status"
+  | "question_paper_status"
   | "homework_status"
   | "homework_priority"
   | "submission_status"
@@ -114,6 +115,13 @@ const LABELS: Record<EnumDomain, LabelMap> = {
     scheduled: "Scheduled",
     published: "Published",
     archived: "Archived",
+  },
+  // question_papers.status is its own two-value vocabulary and NOT test_status:
+  // a paper is never scheduled or published, and `final` means "stop editing",
+  // not "the students can see it".
+  question_paper_status: {
+    draft: "Draft",
+    final: "Final",
   },
   homework_status: {
     draft: "Draft",

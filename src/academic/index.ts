@@ -77,6 +77,7 @@ export {
   ProgressionService,
   BattleExperienceService,
   QuestionBankService,
+  QuestionPaperService,
   CurriculumService,
   AnnouncementService,
   LeaveService,
@@ -135,6 +136,16 @@ export type { BattleCreateOpts } from "./services/battleExperienceService";
 export type { CurriculumScope } from "./services/practiceService";
 export type { PracticeSessionRow } from "./services/practiceService";
 export type { QuestionBankInsertRow, QuestionReviewRow } from "./services/questionBankService";
+export type {
+  QuestionPaperRow,
+  QuestionPaperSectionRow,
+  QuestionPaperQuestionRow,
+  PaperSectionFormat,
+  PaperDifficulty,
+  SectionFillResult,
+  CreatePaperInput,
+  CreateSectionInput,
+} from "./services/questionPaperService";
 export { assertQuestionRowsAreKeyed, REVIEW_PAGE_SIZE } from "./services/questionBankService";
 export type { CurriculumSubject, CurriculumChapter } from "./services/curriculumService";
 export type {
