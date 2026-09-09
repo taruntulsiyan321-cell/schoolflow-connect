@@ -44,6 +44,7 @@
 import { assertCanConsume, toRepoContext, type ServiceContext } from "./context";
 import { getClient, throwIfError } from "../repository/base";
 import { resolveSectionSubjectId } from "./testService";
+import { invokeAiGateway } from "../ai/gatewayClient";
 import type { Json } from "@/integrations/supabase/types";
 
 /** The three formats `qps_format_check` admits. */
@@ -300,6 +301,105 @@ export const QuestionPaperService = {
       .single();
     throwIfError(error, "Failed to add the question");
     return data as QuestionPaperQuestionRow;
+  },
+
+  /**
+   * Generate the questions a section still needs, and store them.
+   *
+   * This is the brief's "generate the shortfall", and for short and long
+   * sections it is the only way to fill them at all — the question bank is
+   * 21,696 rows and every one is multiple choice.
+   *
+   * It goes through `ai-gateway`'s
+   * `teacher.question_paper.generate_questions`, which is the capability that
+   * did not exist until now: `plan`, `generate_outline` and `marking_scheme`
+   * all declare `generates_full_paper: false`. The prompt, the schema and the
+   * per-format token budget are shared with `dpp-generate-questions` through
+   * `_shared/questionGenerator.ts`.
+   *
+   * NOTHING IS STORED THAT THE QUALITY GUARD REFUSED. The gateway drops a
+   * three-option MCQ, an answer key pointing past the options, and a one-word
+   * "short answer", and returns the reasons — which are handed back here so the
+   * screen can say why a request for ten produced seven, rather than quietly
+   * writing seven.
+   */
+  async generateForSection(
+    ctx: ServiceContext,
+    paper: QuestionPaperRow,
+    section: QuestionPaperSectionRow,
+    alreadyPresent: number,
+  ): Promise<{ inserted: number; rejected: string[]; degradedReason: string | null }> {
+    const wanted = Math.max(section.target_count - alreadyPresent, 0);
+    if (wanted === 0) return { inserted: 0, rejected: [], degradedReason: null };
+
+    const response = await invokeAiGateway<{
+      questions?: {
+        question?: string;
+        options?: string[];
+        correct_index?: number;
+        answer?: string;
+        explanation?: string;
+      }[];
+      rejected?: string[];
+      degraded_reason?: string | null;
+    }>({
+      feature_id: "teacher.question_paper.generate_questions",
+      input: {
+        structured: {
+          question_format: section.question_format,
+          subject: paper.subject,
+          // Rule 31 — a generated question carries its CHAPTER and leaves
+          // `topic` NULL. The section may name several chapters; the first is
+          // the one the model is pointed at, and the rest are covered by
+          // generating per chapter rather than by guessing a blend.
+          chapter: section.chapters[0] ?? null,
+          difficulty: section.difficulty ?? "medium",
+          count: wanted,
+          board: paper.board,
+          class_level: paper.class_level,
+        },
+      },
+    });
+
+    if (!response) {
+      // The request was cancelled, not refused. There is no envelope and
+      // nothing was generated; saying "0 generated" would be a claim about the
+      // model that nobody made.
+      return { inserted: 0, rejected: [], degradedReason: "the request was cancelled" };
+    }
+
+    const payload = response.data ?? null;
+    const generated = payload?.questions ?? [];
+    const rejected = payload?.rejected ?? [];
+    const degradedReason =
+      payload?.degraded_reason ??
+      (generated.length === 0 ? (response.message ?? "the generator returned nothing") : null);
+
+    if (generated.length === 0) {
+      return { inserted: 0, rejected, degradedReason };
+    }
+
+    const client = getClient(toRepoContext(ctx));
+    const rows = generated.map((q, i) => ({
+      paper_id: paper.id,
+      section_id: section.id,
+      school_id: ctx.schoolId,
+      order_index: alreadyPresent + i,
+      origin: "generated" as const,
+      question: String(q.question ?? "").trim(),
+      options:
+        section.question_format === "mcq" ? ((q.options ?? []) as unknown as Json) : null,
+      correct_index: section.question_format === "mcq" ? (q.correct_index ?? 0) : null,
+      answer: section.question_format === "mcq" ? null : (q.answer ?? null),
+      explanation: q.explanation ?? null,
+      chapter: section.chapters[0] ?? null,
+      marks: section.marks_per_question,
+    }));
+
+    const { error } = await client.from("question_paper_questions").insert(rows);
+    throwIfError(error, "The questions were generated but could not be saved");
+
+    return { inserted: rows.length, rejected, degradedReason: null };
   },
 
   async setStatus(

@@ -11,7 +11,7 @@ bottom before touching anything.
 |---|---|
 | Worktree | `.claude/worktrees/gurukul-tier1-e2e-fixes-c0b3c3` |
 | Branch | `claude/gurukul-tier1-e2e-fixes-c0b3c3` |
-| Local HEAD | `006e606` + four later commits — **SIX COMMITS NOT PUSHED** (see §1) |
+| Local HEAD | `006e606` + five later commits — **SEVEN COMMITS NOT PUSHED** (see §1) |
 | Last pushed | `9daf600` |
 | Supabase project | `psqxykzqfvxgsvkmgurn` |
 
@@ -164,7 +164,7 @@ there is nothing to attempt, deliberately.
 verify:caller-privileges .. 390 assertions   PASS   (probe39 new, 20 claims)
 db:verify-integrity ....... All checks passed
 verify:chunk-files ........ 32 files, 32 clean, 0 rotted
-npm test .................. 646 passed / 58 files   (was 636/57; answerText new)
+npm test .................. 666 passed / 59 files   (questionGeneration new)
 npm run typecheck ......... clean   (tsc -b --force)
 npm run build ............. clean
 10 lint/check gates ....... all PASS
@@ -240,11 +240,48 @@ The semantic path is a widening of `rpc_fill_paper_section_from_bank` once
 call. Every fill returns `shortfall`, the screen prints it, and that number is
 the brief's "generate the shortfall" with nothing behind it yet.
 
-**STILL OPEN on this feature:** generating short/long questions and the
-shortfall (needs a new gateway capability, a prompt, a validator, and a deploy
-— and `ai-gateway` carries 49 undispositioned drift hunks); `is_approved=false`
-write-back of generated questions into `question_bank` (nothing generates yet,
-so nothing writes back); the quality guard.
+**GENERATION IS NOW BUILT — AND CANNOT BE VERIFIED FROM HERE.**
+
+`teacher.question_paper.generate_questions` is a real ai-gateway capability:
+MCQ, short and long, each with its answer, quality-guarded, with the shortfall
+and every rejection reported. The Generate control is on every section of the
+paper screen. **None of it runs until `ai-gateway` is deployed**, and that is a
+decision rather than a step — see §5.5.
+
+The prompt, the schema, the per-format token budget and the quality guard live
+in ONE place: `supabase/functions/_shared/questionGenerator.ts`, mirrored from
+`src/academic/ai/questionGeneration.ts`. **The pair is gated** — a vitest
+comparison strips comments from both copies and fails on any drift, with a
+control that fails if the comparison is reading an empty string.
+
+`dpp-generate-questions` already had all of this inline, reachable by that one
+function; it now calls the shared module, so there is one description of a good
+question rather than two. It also gains the quality guard it never had: a
+three-option MCQ, an answer key pointing past the end of the options, and a
+one-word "short answer" all used to reach the caller unchallenged.
+
+**STILL OPEN on this feature:** `is_approved=false` write-back of generated
+questions into `question_bank` — they are written to the PAPER, not the bank —
+and the semantic `embed` → `match_question_bank` path.
+
+### 5.5 THE DEPLOY DECISION — do not take it without the user
+
+Nothing in §5's generation half works until `ai-gateway` is deployed, and
+deploying it is not a neutral act:
+
+* `ai-gateway`'s production copy had **49 undispositioned drift hunks** at the
+  last measurement — `index.ts` (+110/-5), `aiRouter.ts` (37 hunks, +188/-69),
+  `responseValidator.ts`, `parentNarrative.ts` and four more. A deploy
+  OVERWRITES all of it with the repo's version. Whatever those hunks are, they
+  stop existing.
+* The function's own endpoint is on `*.supabase.co`, which has no IPv4 route
+  from this machine, so a deploy could not be tested afterwards. Uploading code
+  nobody can then call is how a green deploy hides a broken function.
+* `dpp-generate-questions` was the ONE function with clean drift, and it no
+  longer is: its `index.ts` now imports `_shared/questionGenerator.ts`. That is
+  the intended change, but it means the next dpp deploy carries it too.
+
+Run `npm run check:edge-drift` for the current numbers before deciding.
 
 **THE THREE `src/academic/ai/questionPaper*.ts` MODULES ARE STILL UNCALLED.**
 `planQuestionPaper` is a deterministic chapter-weight allocator and could feed

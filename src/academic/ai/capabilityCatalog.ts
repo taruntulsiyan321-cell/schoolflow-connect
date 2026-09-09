@@ -171,6 +171,15 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     description:
       "Step-1 paper outline from plan + Context Builder + Prompt Library + Qwen + Validator (no marking scheme)",
   },
+  "teacher.question_paper.generate_questions": {
+    feature_id: "teacher.question_paper.generate_questions",
+    route_class: "content_generation",
+    model_policy: "required_when_budget",
+    allowed_roles: ["teacher", "admin"],
+    requires_student_target: false,
+    description:
+      "Generate MCQ / short / long questions WITH answers for one paper section — the only capability here that produces questions; quality-guarded, shortfall reported",
+  },
   "teacher.question_paper.marking_scheme": {
     feature_id: "teacher.question_paper.marking_scheme",
     route_class: "content_generation",

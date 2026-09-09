@@ -27,6 +27,7 @@ import {
   Loader2,
   Plus,
   Send,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -114,6 +115,9 @@ export default function QuestionPapers() {
   const [sectionForm, setSectionForm] = useState(emptySectionForm);
   const [addingSection, setAddingSection] = useState(false);
   const [fills, setFills] = useState<Record<string, SectionFillResult>>({});
+  const [generated, setGenerated] = useState<
+    Record<string, { inserted: number; rejected: string[]; degradedReason: string | null }>
+  >({});
   const [showKey, setShowKey] = useState(false);
 
   const [pairs, setPairs] = useState<ClassSubjectPair[]>([]);
@@ -183,6 +187,7 @@ export default function QuestionPapers() {
       setSections([]);
       setQuestions([]);
       setFills({});
+      setGenerated({});
       setShowKey(false);
       return;
     }
@@ -190,6 +195,7 @@ export default function QuestionPapers() {
     setSections([]);
     setQuestions([]);
     setFills({});
+    setGenerated({});
     setShowKey(false);
     await loadDetail(paperId);
   };
@@ -244,6 +250,20 @@ export default function QuestionPapers() {
       );
       setSectionForm(emptySectionForm());
       setAddingSection(false);
+      await loadDetail(openId);
+    });
+
+  const generate = (section: QuestionPaperSectionRow) =>
+    run("Generate", async () => {
+      if (!ctx || !openId || !openPaper) return;
+      const present = questions.filter((q) => q.section_id === section.id).length;
+      const out = await QuestionPaperService.generateForSection(
+        ctx,
+        openPaper,
+        section,
+        present,
+      );
+      setGenerated((prev) => ({ ...prev, [section.id]: out }));
       await loadDetail(openId);
     });
 
@@ -466,6 +486,16 @@ export default function QuestionPapers() {
                                   Fill from bank
                                 </button>
                               )}
+                              {p.status === "draft" && (
+                                <button
+                                  type="button"
+                                  disabled={busy || inSection.length >= s.target_count}
+                                  onClick={() => void generate(s)}
+                                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#6882e8]/20 text-[#6882e8] flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  <Sparkles className="w-3 h-3" /> Generate
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 disabled={busy}
@@ -488,11 +518,32 @@ export default function QuestionPapers() {
                               a control that always errors. */}
                           {s.question_format !== "mcq" && (
                             <div className="text-[9px] text-muted-foreground">
-                              The question bank is multiple choice only, so this section has to
-                              be written by hand.
+                              The question bank is multiple choice only — use Generate for this
+                              section, or write it by hand.
                             </div>
                           )}
 
+                          {generated[s.id] && (
+                            <div
+                              className={cn(
+                                "text-[9px] rounded-lg px-2 py-1",
+                                generated[s.id].degradedReason
+                                  ? "bg-[#cc5069]/10 text-[#cc5069]"
+                                  : "bg-[#6882e8]/10 text-[#6882e8]",
+                              )}
+                            >
+                              {/* "Generated nothing" and "generated 3" are
+                                  different facts and one of them has a reason
+                                  attached. Neither is allowed to render as a
+                                  blank line. */}
+                              {generated[s.id].degradedReason
+                                ? `Generated nothing — ${generated[s.id].degradedReason}.`
+                                : `Generated ${toCountLabel(generated[s.id].inserted)}.`}
+                              {generated[s.id].rejected.length > 0
+                                ? ` ${generated[s.id].rejected.length} rejected by the quality check: ${generated[s.id].rejected.join("; ")}.`
+                                : ""}
+                            </div>
+                          )}
                           {f && (
                             <div
                               className={cn(

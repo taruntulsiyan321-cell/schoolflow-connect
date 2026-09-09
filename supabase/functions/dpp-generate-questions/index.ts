@@ -1,5 +1,9 @@
 // Generate DPP MCQs — OpenRouter (Qwen).
 import { corsHeaders, generateStructuredWithFallback, jsonResponse } from "../_shared/structuredCompletion.ts";
+import {
+  buildQuestionGenerationRequest,
+  normalizeGeneratedQuestions,
+} from "../_shared/questionGenerator.ts";
 import { requireAnyRole, getCallerSchoolId } from "../_shared/requireRole.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -319,87 +323,25 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Provide a topic, URL, or source text" }, 400);
     }
 
-    const common =
-      `You are an expert ${boardPhrase} ${classPhrase} question setter for Indian schools (NCERT-aligned). ` +
-      "Never repeat the same question stem or pattern. Vary numbers, scenarios, and wording. " +
-      "If reference material lists student mistakes, generate remedial questions that test the same underlying skills with new numbers and wording — never copy listed mistake questions verbatim. " +
-      "If the student made recent mistakes, target those weak concepts first with remedial questions. ";
+    // The prompt, the schema and the per-format token budget all come from
+    // _shared/questionGenerator.ts, which ai-gateway's
+    // teacher.question_paper.generate_questions capability also calls. They used
+    // to live inline here, reachable by this one function; §5 needed the same
+    // thing from the question-paper screen and copying them would have made two
+    // homes for what a good question looks like.
+    const gen = buildQuestionGenerationRequest({
+      format,
+      subject,
+      chapter,
+      topic,
+      difficulty,
+      count: n,
+      boardPhrase,
+      classPhrase,
+      sourceUrl: source_url,
+      sourceText: combined_source,
+    });
 
-    const system = format === "mcq"
-      ? common +
-        "GENERATE fresh MCQs — each question must test a DIFFERENT sub-concept or skill. " +
-        "Exactly 4 options per question, one unambiguously correct answer, clear step-by-step explanation."
-      : format === "short"
-      ? common +
-        "GENERATE fresh SHORT-ANSWER questions — each must test a DIFFERENT sub-concept or skill. " +
-        "Each answer is 2–3 sentences or a worked numerical result: the complete expected answer, not a hint. " +
-        "Do NOT produce options; this is not a multiple-choice paper."
-      : common +
-        "GENERATE fresh LONG-ANSWER questions — each must test a DIFFERENT sub-concept or skill. " +
-        "Each answer is a full model answer a teacher could mark against: the argument or derivation in steps, stated completely. " +
-        "Do NOT produce options; this is not a multiple-choice paper.";
-
-    const user = [
-      `Subject: ${subject || "(infer from source)"}`,
-      chapter ? `Chapter: ${chapter}` : "",
-      `Topic: ${topic || "(derive from source)"}`,
-      `Difficulty: ${difficulty}`,
-      `Count: up to ${n} questions`,
-      source_url ? `Source URL: ${source_url}` : "",
-      combined_source
-        ? `\nReference material:\n${combined_source}`
-        : "",
-    ].filter(Boolean).join("\n");
-
-    // The MCQ branch is the original schema, unchanged. The non-MCQ branch
-    // carries `answer` instead of options/correct_index — §4.2a's "the correct
-    // answer must be generated with the question" applies to every format, not
-    // just the one that could encode it as an index.
-    const schema = format === "mcq"
-      ? {
-          type: "object",
-          properties: {
-            questions: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  question: { type: "string" },
-                  options: { type: "array", items: { type: "string" } },
-                  correct_index: { type: "integer" },
-                  explanation: { type: "string" },
-                },
-                required: ["question", "options", "correct_index", "explanation"],
-              },
-            },
-          },
-          required: ["questions"],
-        }
-      : {
-          type: "object",
-          properties: {
-            questions: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  question: { type: "string" },
-                  answer: { type: "string" },
-                  explanation: { type: "string" },
-                },
-                required: ["question", "answer", "explanation"],
-              },
-            },
-          },
-          required: ["questions"],
-        };
-
-    // ~180 tokens per MCQ (question + 4 options + explanation) is a safe
-    // working estimate; the default 1200-token cap only covers ~5 questions
-    // and silently truncated/broke JSON parsing for larger batches. A long
-    // answer is the whole model answer, so it needs materially more room —
-    // budgeting MCQ-sized tokens for it is what truncation looks like.
-    const perQuestionTokens = format === "long" ? 700 : format === "short" ? 300 : 180;
     const result = await generateStructuredWithFallback<{ questions: Array<{
       question: string;
       options?: string[];
@@ -407,8 +349,8 @@ Deno.serve(async (req) => {
       answer?: string;
       explanation: string;
     }> }>(
-      { system, user, schema, toolName: "emit_questions" },
-      { max_tokens: Math.min(8000, Math.max(1200, n * perQuestionTokens)) },
+      { system: gen.system, user: gen.user, schema: gen.schema, toolName: "emit_questions" },
+      { max_tokens: gen.max_tokens },
     );
 
     // The provider path itself failed -- down, rate limited, or unparseable.
@@ -422,8 +364,14 @@ Deno.serve(async (req) => {
     // never has to infer it from which keys happen to be present.
     // `topic` is deliberately absent: rule 31 — generated questions carry
     // chapter and leave topic NULL, never a guessed topic string.
-    const questions = (result.data.questions ?? []).slice(0, n)
-      .map((q) => ({ ...q, question_format: format }));
+    //
+    // The QUALITY GUARD runs here now. Previously anything the model returned
+    // in roughly the right shape was passed through, so a three-option MCQ, an
+    // answer key pointing past the end of the options, or a one-word "short
+    // answer" all reached the caller. Rejections are reported rather than
+    // silently reducing the count.
+    const normalized = normalizeGeneratedQuestions(result.data.questions, format, n);
+    const questions = normalized.questions;
 
     // AN EMPTY ARRAY IS A FAILURE, AND IT WAS BEING SOLD AS A SUCCESS.
     //
@@ -452,6 +400,9 @@ Deno.serve(async (req) => {
       question_format: format,
       board: boardCode,
       class_level: resolvedLevel,
+      // What the guard threw away, and why. An empty array here means the
+      // model produced nothing unusable, not that nothing was checked.
+      rejected: normalized.rejected,
     });
   } catch (err) {
     await refund("an unhandled error");

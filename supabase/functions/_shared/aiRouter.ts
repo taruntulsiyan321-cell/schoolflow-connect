@@ -37,6 +37,12 @@ import {
 } from "./sessionMemory.ts";
 import { planQuestionPaper } from "./questionPaperPlan.ts";
 import {
+  buildQuestionGenerationRequest,
+  normalizeGeneratedQuestions,
+  type GeneratedFormat,
+} from "./questionGenerator.ts";
+import { generateStructuredWithFallback } from "./structuredCompletion.ts";
+import {
   buildQuestionPaperOutline,
   renderOutlinePrompt,
 } from "./questionPaperOutline.ts";
@@ -2317,6 +2323,124 @@ export async function routeAiRequest(
           plan_hash: plan.plan_hash,
           completeness: plan.chapters.length ? 0.9 : 0.3,
           data_version: plan.plan_hash,
+        };
+        break;
+      }
+      case "teacher.question_paper.generate_questions": {
+        // The capability §5 needed and did not have. `plan`, `generate_outline`
+        // and `marking_scheme` all declare `generates_full_paper: false`; none
+        // of them produces a question. This one does.
+        //
+        // IT DOES NOT GO THROUGH `completeWithPromptLibrary`, and that is a
+        // deliberate trade. The prompt library exists to A/B prose templates
+        // held in the database; this capability must return JSON that PARSES
+        // against a schema, and the schema, the prompt and the per-format token
+        // budget are one artefact shared with `dpp-generate-questions`
+        // (_shared/questionGenerator.ts). Moving half of it into a database
+        // template would put the prompt out of reach of the file that owns the
+        // schema it has to match. The cost is no shadow sampling on this
+        // capability, which is the right thing to lose on a generator whose
+        // output has to parse.
+        const structured = req.input_structured ?? {};
+        const rawFormat = String(structured.question_format ?? structured.format ?? "mcq");
+        const format: GeneratedFormat =
+          rawFormat === "short" || rawFormat === "long" ? rawFormat : "mcq";
+        const requested = Math.min(20, Math.max(1, Number(structured.count ?? 5) || 5));
+        const spec = {
+          format,
+          subject: String(structured.subject ?? "").trim(),
+          chapter: structured.chapter != null ? String(structured.chapter) : null,
+          topic: structured.topic != null ? String(structured.topic) : null,
+          difficulty: String(structured.difficulty ?? "medium"),
+          count: requested,
+          boardPhrase: structured.board != null ? String(structured.board).toUpperCase() : null,
+          classPhrase:
+            structured.class_level != null ? `class ${String(structured.class_level)}` : null,
+        };
+        const emptyPayload = (reason: string, rejected: string[] = []) => ({
+          capability_id: "teacher.question_paper.generate_questions",
+          questions: [] as unknown[],
+          rejected,
+          requested,
+          question_format: format,
+          degraded_reason: reason,
+          session_memory: sessionForContext,
+          workflow_id: "teacher.question_paper.generate_questions.v1",
+        });
+
+        if (!spec.subject) {
+          data = emptyPayload("no_subject");
+          decision = "answered_capability_unavailable";
+          provenance = { generates_questions: false, completeness: 0 };
+          break;
+        }
+
+        if (!mayCallModel) {
+          // Kill switch, or no key. Say which, and return an EMPTY list rather
+          // than a placeholder: an invented question with an invented answer
+          // would go onto a real paper and be sat by real students.
+          data = emptyPayload(
+            !flags.generativeEnabled ? "generative_kill_switch" : "openrouter_not_configured",
+          );
+          decision = "degraded";
+          provenance = { generates_questions: false, completeness: 0 };
+          break;
+        }
+
+        const gen = buildQuestionGenerationRequest(spec);
+        const genResult = await generateStructuredWithFallback<{
+          questions: Array<Record<string, unknown>>;
+        }>(
+          { system: gen.system, user: gen.user, schema: gen.schema, toolName: "emit_questions" },
+          { max_tokens: gen.max_tokens },
+        );
+
+        if (!genResult.ok) {
+          data = emptyPayload(genResult.error);
+          decision = "degraded";
+          provenance = { generates_questions: false, completeness: 0 };
+          break;
+        }
+
+        const normalized = normalizeGeneratedQuestions(
+          genResult.data?.questions,
+          format,
+          requested,
+        );
+
+        // AN EMPTY ARRAY IS A FAILURE, NOT A SUCCESS WITH NOTHING IN IT. The
+        // provider answers ok with a well-formed empty list often enough that
+        // dpp-generate-questions had to learn this the same way: it returned
+        // 200 {"questions":[]} and no caller could tell that from a generation.
+        if (normalized.questions.length === 0) {
+          data = emptyPayload(
+            normalized.rejected.length
+              ? "every_question_failed_the_quality_guard"
+              : "model_returned_no_questions",
+            normalized.rejected,
+          );
+          decision = "degraded";
+          provenance = { generates_questions: false, completeness: 0 };
+          break;
+        }
+
+        data = {
+          capability_id: "teacher.question_paper.generate_questions",
+          questions: normalized.questions,
+          // What the guard threw away, and why. Reported rather than hidden: a
+          // teacher who asked for ten and got seven is owed the reason.
+          rejected: normalized.rejected,
+          requested,
+          question_format: format,
+          degraded_reason: null,
+          session_memory: sessionForContext,
+          workflow_id: "teacher.question_paper.generate_questions.v1",
+        };
+        decision = "answered_model";
+        provenance = {
+          generates_questions: true,
+          model_id: genResult.model_id,
+          completeness: normalized.questions.length / requested,
         };
         break;
       }
