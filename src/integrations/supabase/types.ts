@@ -5567,6 +5567,7 @@ export type Database = {
           subject: string
           subtopic: string | null
           topic: string | null
+          topic_group: string | null
           updated_at: string | null
           variant_tier: number | null
         }
@@ -5603,6 +5604,7 @@ export type Database = {
           subject: string
           subtopic?: string | null
           topic?: string | null
+          topic_group?: string | null
           updated_at?: string | null
           variant_tier?: number | null
         }
@@ -5639,6 +5641,7 @@ export type Database = {
           subject?: string
           subtopic?: string | null
           topic?: string | null
+          topic_group?: string | null
           updated_at?: string | null
           variant_tier?: number | null
         }
@@ -10572,7 +10575,7 @@ export type Database = {
         Returns: Json
       }
       rpc_test_submit: {
-        Args: { _answers: Json; _attempt_id: string }
+        Args: { _answers?: Json; _attempt_id: string }
         Returns: Json
       }
       rpc_toggle_question_bookmark: {

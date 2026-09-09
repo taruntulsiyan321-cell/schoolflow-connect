@@ -2309,3 +2309,71 @@ rollback refuses to do for the same reason.
 probe37 asserts all four the builder offers are accepted, and the migration
 refuses to commit unless the CHECK still rejects a value outside the vocabulary
 — a wider CHECK that accepts everything is an absent one.
+
+
+## 42. ~~No student could hand in a class test~~ — FIXED
+
+Found 2026-09-09 by `e2e-evidence/tier1-panels.spec.ts` driving the student
+attempt route in a real browser for the first time. The attempt screen rendered
+the question, took the answer, and then stayed on
+`/student/test/<id>/attempt` for ever. The attempt row stayed `in_progress`.
+
+```
+rpc_test_submit(_attempt_id uuid, _answers jsonb)   -- pronargdefaults = 0
+```
+
+`_answers` had **no default**, so PostgREST treated it as required. Nothing
+sends it: `TestAttempt.tsx` saves each answer as it is chosen, then calls
+`TestService.submitAttempt(ctx, attemptId)` with no answers, and the service
+omits the parameter rather than sending null — the documented repo pattern for
+an optional RPC argument. PostgREST looked for a one-argument
+`rpc_test_submit`, found none, returned PGRST202; the page caught it, raised a
+toast, and stayed put.
+
+The generated types said so all along — `Args: { _answers: Json; _attempt_id:
+string }`, both required — but `testService` casts the payload `as never`, so
+the compiler never got to object. **That cast is why a typecheck-clean tree
+shipped a dead submit button**, and it is worth remembering the next time a
+service reaches for `as never`.
+
+Fixed by `20260916140000` giving `_answers` `DEFAULT NULL`. The body always
+read `jsonb_array_elements(COALESCE(_answers, '[]'::jsonb))`, so the
+incremental-save path the page uses was the intended one and only the signature
+disagreed. The migration refuses to commit unless `pronargdefaults = 1` and the
+body still COALESCEs the argument.
+
+## 43. The attempt screen's "n/N answered" counter does not count
+
+**OPEN.** Not a loss of data — the answer is saved; only the number on screen is
+wrong.
+
+Measured 2026-09-09 on a one-question test: the student clicks an option, and
+
+* `test_answers` gains its row — confirmed in the database, `answers_saved = 1`;
+* the option paints as chosen;
+* the footer still reads **`0/1 answered`**, and the question chip in the
+  navigator still renders as unanswered.
+
+Both readouts come from the same `responses` state that `persist()` sets on its
+first line, before it ever touches the network:
+
+```ts
+const persist = (qid: string, r: Response) => {
+  if (!attemptId) return;
+  setResponses((prev) => ({ ...prev, [qid]: r }));
+  ...
+```
+
+so the write reaching the database while the counter stays at zero means the
+component that rendered the footer is not the one holding that state — a remount,
+or a second `load()` resetting `responses` from a read that raced the save. Not
+diagnosed further; `src/pages/student/TestAttempt.tsx` `load()` (which calls
+`setResponses(m)`) is where to start.
+
+Consequence for a student: no reliable way to see which questions are still
+unanswered before submitting. Grading is unaffected — `rpc_test_submit` grades
+from `test_answers`, not from this state.
+
+`tier1-panels.spec.ts` deliberately does NOT assert this counter, with a comment
+saying why, so the suite does not go red for a defect that is neither in the
+submit path nor a loss of data.

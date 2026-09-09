@@ -57,11 +57,31 @@ function supaErrors(signals: Signals) {
 async function openClassTab(page: Page, tab: RegExp): Promise<void> {
   await page.goto('/teacher/classes', { waitUntil: 'domcontentloaded' })
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {})
-  // The class selector renders once the teacher's classes load.
-  const firstClass = page.locator('button', { hasText: /^\s*\d+/ }).first()
-  await firstClass.waitFor({ state: 'visible', timeout: 30000 })
-  await firstClass.click()
-  await page.getByRole('button', { name: tab }).first().click()
+  // `MyClasses` auto-selects the teacher's first class, so the SUB-TAB BAR is
+  // what proves the classes loaded — waiting for it is both simpler and closer
+  // to what this file actually asserts.
+  //
+  // What was here before waited for a `button` whose text began with a digit.
+  // The class chip renders its SECTION badge first, so its accessible name is
+  // "A 10 A · Mathematics" — that pattern could never match, and all five
+  // teacher panel tests timed out on this line rather than on anything they
+  // were written to check. Measured 2026-09-09 from the failure snapshot.
+  const tabButton = page.getByRole('button', { name: tab }).first()
+  await tabButton.waitFor({ state: 'visible', timeout: 30000 }).catch(() => {})
+
+  if (!(await tabButton.isVisible())) {
+    // No tab bar means no class is selected. Say which of the two reasons that
+    // is, rather than timing out on a locator and leaving it ambiguous.
+    const chips = page.getByRole('button', { name: /\d+\s*\S*\s*·/ })
+    expect(
+      await chips.count(),
+      'the teacher has at least one assigned class — with none there is no panel to open',
+    ).toBeGreaterThan(0)
+    await chips.first().click()
+    await tabButton.waitFor({ state: 'visible', timeout: 30000 })
+  }
+
+  await tabButton.click()
   await page.waitForTimeout(2500)
 }
 
@@ -133,8 +153,28 @@ test.describe('Tier1-P · teacher · the panels behind the redirects', () => {
 
     await page.getByText(/write questions manually/i).click()
     await page.getByPlaceholder('Question text *').fill('What is 2 + 3?')
+    // The composer defaults to MCQ, and `addManualQuestion` refuses one
+    // without at least two options AND a correct answer. Filling only the
+    // question and the marks — which is what this test used to do — left
+    // `questions` empty, so "Next: Review" never advanced and the Publish
+    // button this test then waited 20s for was never rendered. The app was
+    // right and said so ("MCQ needs at least 2 options"); the test was not.
+    await page.getByPlaceholder('Option A').fill('4')
+    await page.getByPlaceholder('Option B').fill('5')
+    await page.getByPlaceholder('Option C').fill('6')
+    await page.getByPlaceholder('Option D').fill('7')
+    await page.getByPlaceholder('Correct option text *').fill('5')
     await page.getByPlaceholder('Marks').fill('5')
     await page.getByRole('button', { name: /add question/i }).click()
+
+    // Prove the question actually landed before moving on, so a future
+    // validation change fails HERE with a readable reason instead of 20s later
+    // on a missing Publish button.
+    await expect(
+      page.getByText(/total questions:\s*1/i).first(),
+      'the composer accepted the question — an empty test cannot be published',
+    ).toBeVisible({ timeout: 10000 })
+
     await page.getByRole('button', { name: /next: review/i }).click()
 
     await page.getByRole('button', { name: /^Publish$/ }).click()
@@ -313,7 +353,17 @@ test.describe('Tier1-P · student · the attempt and result routes', () => {
     await expect(page, 'the attempt route loaded').toHaveURL(/\/student\/test\/[0-9a-f-]+\/attempt/i, {
       timeout: 30000,
     })
-    await page.waitForTimeout(3000)
+
+    // The attempt screen mounts as "Loading Test…" and then fetches the paper.
+    // A fixed 3s wait raced that and read the loading placeholder as the final
+    // render, so this failed on "a question is on screen" while the app was
+    // merely still loading. Wait for the placeholder to go: a refusal clears it
+    // too, so the two assertions below still get their say.
+    await page
+      .waitForFunction(() => !/Loading Test/i.test(document.body?.innerText ?? ''), undefined, {
+        timeout: 30000,
+      })
+      .catch(() => {})
 
     const attemptBody = await page.evaluate(() => document.body?.innerText ?? '')
     await evidence(testInfo, 'student test attempt', page, {
@@ -327,13 +377,28 @@ test.describe('Tier1-P · student · the attempt and result routes', () => {
     expect(attemptBody, 'a question is on screen').toMatch(/Question\s+1\s+of\s+\d+/i)
 
     // Answer whatever the first question offers, then walk to the end.
-    const firstChoice = page.locator('input[type="radio"], input[type="checkbox"]').first()
-    if (await firstChoice.count()) {
-      await firstChoice.check({ force: true }).catch(() => {})
+    //
+    // `QuestionRenderer` draws each choice as a <button> carrying an A/B/C/D
+    // badge — there is no radio or checkbox anywhere on the attempt screen. The
+    // old `input[type=radio], input[type=checkbox]` selector therefore matched
+    // nothing and silently fell through, and this test submitted a paper with
+    // "0/1 answered" while claiming to have answered it.
+    const choice = page.getByRole('button', { name: /^[A-D]\s/ }).first()
+    if (await choice.count()) {
+      await choice.click()
     } else {
       const textAnswer = page.locator('textarea, input[type="text"], input[type="number"]').first()
       if (await textAnswer.count()) await textAnswer.fill('42')
     }
+
+    // Deliberately NOT asserting the "n/N answered" counter here.
+    //
+    // Measured 2026-09-09: after this click the answer DOES reach the database
+    // — test_answers gained its row — while the on-screen counter stayed at
+    // "0/1 answered". So the counter is not a trustworthy statement about
+    // whether the answer was recorded, and asserting it would fail this test
+    // for a defect that is neither in the submit path nor a loss of data.
+    // Recorded in KNOWN_ISSUES as its own item rather than smuggled in here.
     await page.waitForTimeout(1500)
 
     for (let i = 0; i < 30; i++) {
