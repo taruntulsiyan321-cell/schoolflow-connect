@@ -15,7 +15,7 @@
     "ai-gateway:_shared/questionPaperMarkingScheme.ts:DRIFT:c1e5a8991c50",
     "ai-gateway:_shared/questionPaperOutline.ts:DRIFT:22ca2ed412e9",
     "ai-gateway:_shared/responseValidator.ts:DRIFT:fe51c93df5d8",
-    "ai-gateway:index.ts:DRIFT:6665f4e4346e",
+    "ai-gateway:index.ts:DRIFT:1323d552a9e3",
     "dpp-generate-questions:index.ts:DRIFT:e297ee476bd5"
   ]
 }
