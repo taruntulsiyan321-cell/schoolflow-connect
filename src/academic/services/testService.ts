@@ -410,6 +410,19 @@ export interface TestStudentReport {
    * every question of the paper with its correct answer.
    */
   submitted: boolean;
+  /**
+   * The leaderboard, as a position — "plus leaderboard" in the 2026-09-09
+   * ruling. How many submitted attempts scored above this one, plus one.
+   *
+   * NULL when there is no submitted attempt: without that guard the database's
+   * `count(*) WHERE score > NULL` is 0 and every non-sitter ranks first.
+   *
+   * No other student's name or mark is returned with it, deliberately
+   * (20260916030000). A rank says where you stand without saying anything
+   * about a named child, and a student may still never see the class list.
+   */
+  rank: number | null;
+  class_size: number | null;
   wrong_answers: TestReportWrongAnswer[];
 }
 

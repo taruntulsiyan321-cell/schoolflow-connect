@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, TestService, resolveStudentServiceContext } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Target, Timer } from "lucide-react";
+import { ArrowLeft, Download, Target, Timer, Trophy } from "lucide-react";
 import { ScoreRing } from "@/components/student/ScoreRing";
 import { QuestionRenderer, TestQuestionShape } from "@/components/student/QuestionRenderer";
 import { PageHeader } from "@/components/ui-bits";
@@ -244,6 +244,20 @@ export default function TestResult() {
       )}
       {report && report.submitted && (
         <Card className="p-4 mb-6">
+          {/* The leaderboard the ruling asked for, as a position. The names and
+              marks of the other children are not in this payload and are not
+              meant to be — a student still never sees the class list. */}
+          {report.rank != null && report.class_size != null && (
+            <div className="flex items-center gap-2 mb-3 pb-3 border-b">
+              <Trophy className="w-5 h-5 text-accent shrink-0" />
+              <div>
+                <div className="text-xs text-muted-foreground">On this test</div>
+                <div className="font-bold text-lg">
+                  {report.rank} of {report.class_size}
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2 mb-2">
             <h3 className="font-semibold text-sm">Topics to revise</h3>
             <Button

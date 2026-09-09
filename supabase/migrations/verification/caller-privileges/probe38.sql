@@ -1,12 +1,18 @@
 -- probe38: the teacher test report reaches its own class and nobody else
 -- (§10.25, §10.19, §10.23).
 --
--- Built fail-closed against `docs/locked-decisions.md` §10.25, which names the
--- principal and the parent as readers. The build instruction said "Student sees
--- their own data only. Principal sees nothing." Those contradict; the narrower
--- rule was taken because a report wrongly withheld is a missing feature and a
--- report wrongly shown is a disclosure about a named child. If the wider rule
--- is ruled for later, edit `can_read_test_report` and flip claims 5 and 9 here.
+-- THE ROLE SET IS RULED, 2026-09-09, and this file is the record of it.
+-- `docs/locked-decisions.md` §10.25 named teacher · principal · the student ·
+-- parent (own child only). The build instruction said "Principal sees
+-- nothing." Asked to settle it, the user ruled:
+--
+--     "Admin and Principal sees nothing. Teacher get a test report. Student
+--      get their own reports plus leaderboard. Parents get their own child
+--      reports."
+--
+-- So the principal exclusion stands, the ADMIN joins it — they had been
+-- admitted by the first build and by no ruling — and the parent is admitted
+-- for their own child alone. Applied by `20260916030000`; claims 15-19 hold it.
 --
 -- THE CLAIMS
 --   1. the sessions are genuinely who they say.               (harness control)
@@ -23,6 +29,11 @@
 --  12. ...including one in ANOTHER SCHOOL.                         <- 20260916020000
 --  13. a non-sitter's report is empty and says so, not the paper.  <- 20260916020000
 --  14. a wrong answer carries its options, so it can be read.  (POSITIVE CONTROL)
+--  15. the ADMIN is refused, by role AND by authorship.            <- ruling
+--  16. a PARENT reaches their own child's report.             (POSITIVE CONTROL)
+--  17. ...and not another family's child.                          <- the fence
+--  18. ...and never the class list, nor a test not sat.            <- the fence
+--  19. the student's report carries a leaderboard RANK.       (POSITIVE CONTROL)
 --
 -- 2, 3 and 7 are what make the refusals mean anything. A report that returns
 -- nothing to everybody satisfies every denial here while being useless.
@@ -84,6 +95,9 @@ DECLARE
   teacher   uuid;   -- Priya — teaches 10-A
   other_t   uuid;   -- teaches 10-A but NOT 12-A (Rajesh)
   principal uuid;
+  admin_u   uuid;   -- the office, refused by the 2026-09-09 ruling
+  par_a     uuid;   -- guardian of stu_a
+  par_b     uuid;   -- guardian of stu_b — a DIFFERENT family
   ss        uuid;
   ss12      uuid;
   t_id      uuid;
@@ -100,6 +114,7 @@ DECLARE
 BEGIN
   SELECT id INTO teacher   FROM auth.users WHERE email = 'priya.sharma@wisdomcampus.com';
   SELECT id INTO principal FROM auth.users WHERE email = 'principal@wisdomcampus.com';
+  SELECT id INTO admin_u   FROM auth.users WHERE email = 'admin@wisdomcampus.com';
 
   SELECT s.id INTO ss FROM public.section_subjects s
    WHERE s.section_id = cls10 AND s.school_id = sch_a LIMIT 1;
@@ -132,22 +147,29 @@ BEGIN
   SELECT s.id INTO ss12 FROM public.section_subjects s
    WHERE s.section_id = cls12 AND s.school_id = sch_a LIMIT 1;
 
-  SELECT s.id, s.user_id INTO stu_a, stu_a_uid
+  -- BOTH students must carry a GUARDIAN, and two DIFFERENT guardians, or the
+  -- parent claims below cannot tell "not my child" from "no parent link at
+  -- all". Two 10-A students qualify (measured 2026-09-09), which is exactly
+  -- enough: one is the sitter, the other is the other family.
+  SELECT s.id, s.user_id, s.parent_user_id INTO stu_a, stu_a_uid, par_a
     FROM public.students s
-   WHERE s.class_id = cls10 AND s.school_id = sch_a AND s.user_id IS NOT NULL
+   WHERE s.class_id = cls10 AND s.school_id = sch_a
+     AND s.user_id IS NOT NULL AND s.parent_user_id IS NOT NULL
    ORDER BY s.id LIMIT 1;
 
-  SELECT s.id INTO stu_b
+  SELECT s.id, s.parent_user_id INTO stu_b, par_b
     FROM public.students s
    WHERE s.class_id = cls10 AND s.school_id = sch_a AND s.id <> stu_a
+     AND s.parent_user_id IS NOT NULL AND s.parent_user_id <> par_a
    ORDER BY s.id LIMIT 1;
 
-  IF teacher IS NULL OR principal IS NULL OR ss IS NULL OR ss12 IS NULL
-     OR other_t IS NULL OR stu_a IS NULL OR stu_b IS NULL THEN
+  IF teacher IS NULL OR principal IS NULL OR admin_u IS NULL OR ss IS NULL
+     OR ss12 IS NULL OR other_t IS NULL OR stu_a IS NULL OR stu_b IS NULL
+     OR par_a IS NULL OR par_b IS NULL THEN
     RAISE EXCEPTION
-      'probe38: fixtures missing (teacher=%, principal=%, ss=%, ss12=%, other_teacher=%, stu_a=%, stu_b=%) '
-      '— a skipped check is not a passing check',
-      teacher, principal, ss, ss12, other_t, stu_a, stu_b;
+      'probe38: fixtures missing (teacher=%, principal=%, admin=%, ss=%, ss12=%, other_teacher=%, '
+      'stu_a=%, stu_b=%, parent_a=%, parent_b=%) — a skipped check is not a passing check',
+      teacher, principal, admin_u, ss, ss12, other_t, stu_a, stu_b, par_a, par_b;
   END IF;
 
   -- ── fixture: a published test on 10-A with two questions, one answered
@@ -370,6 +392,83 @@ BEGIN
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('the wrong answer carries its options (positive control)','student','OK: 9', r,
      CASE WHEN r = 'OK: 9' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 15. the office. USER RULING 2026-09-09: "Admin and Principal sees
+  --        nothing." The admin was admitted by 20260916000000's fence and by
+  --        nothing anyone had ruled. Claim 2 above is its positive control —
+  --        the same report reaches the teacher who teaches the section.
+  r := pg_temp.as_user(admin_u, format(
+        $q$SELECT (public.rpc_test_class_report(%L) ->> 'submitted_count')$q$, t_id));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('class report — the ADMIN is refused (ruling)','admin of this school','ERROR: Not your class', r,
+     CASE WHEN r LIKE 'ERROR:%Not your class%' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ...and not through authorship either. The admin branch and `created_by`
+  -- were the same door with two keys, so removing one and keeping the other
+  -- would leave this passing while the rule stayed broken.
+  r := pg_temp.as_user(admin_u, format(
+        $q$SELECT public.can_read_test_report(%L)::text$q$, t12));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('...on any test in their own school','admin','OK: false', r,
+     CASE WHEN r = 'OK: false' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 16. the parent of the sitter — the widening the ruling asked for ────
+  r := pg_temp.as_user(par_a, format(
+        $q$SELECT jsonb_array_length(public.rpc_test_student_report(%L,%L) -> 'wrong_answers')::text$q$,
+        t_id, stu_a));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('their OWN child''s report reaches the parent (positive control)','parent of the sitter','OK: 1', r,
+     CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 17. and not another family's child ─────────────────────────────────
+  r := pg_temp.as_user(par_b, format(
+        $q$SELECT (public.rpc_test_student_report(%L,%L) ->> 'mark')$q$, t_id, stu_a));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('ANOTHER family''s child','parent of a different 10-A child','ERROR: Not your test report', r,
+     CASE WHEN r LIKE 'ERROR:%Not your test report%' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 18. the class aggregate stays shut to the parent ───────────────────
+  --        "Parents get their own child reports" — the class list is every
+  --        other family's marks.
+  r := pg_temp.as_user(par_a, format(
+        $q$SELECT (public.rpc_test_class_report(%L) ->> 'submitted_count')$q$, t_id));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('class report — a parent may never see the class list','parent of the sitter','ERROR: Not your class', r,
+     CASE WHEN r LIKE 'ERROR:%Not your class%' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ...and a parent is refused a test their child never sat, same as the
+  -- child is (20260916020000 carried into the parent branch).
+  r := pg_temp.as_user(par_a, format(
+        $q$SELECT (public.rpc_test_student_report(%L,%L) ->> 'mark')$q$, t_unsat, stu_a));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('...and a test their child NEVER SAT','parent','ERROR: Not your test report', r,
+     CASE WHEN r LIKE 'ERROR:%Not your test report%' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 19. "student get their own reports plus leaderboard" ───────────────
+  --        A POSITION, not a list of names. stu_a is the only submitter, so
+  --        the rank is 1 of 1 — and `class_size` proves the field is computed
+  --        rather than hard-coded, because a rank of 1 alone would pass on a
+  --        constant.
+  r := pg_temp.as_user(stu_a_uid, format(
+        $q$SELECT (public.rpc_test_student_report(%L,%L) ->> 'rank')$q$, t_id, stu_a));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('their own report carries a leaderboard rank (ruling)','student','OK: 1', r,
+     CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
+
+  r := pg_temp.as_user(stu_a_uid, format(
+        $q$SELECT (public.rpc_test_student_report(%L,%L) ->> 'class_size')$q$, t_id, stu_a));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('...out of the number who sat it','student','OK: 1', r,
+     CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- A non-sitter has NO rank. Without this, `rank` could be a constant 1 and
+  -- every claim above it would still pass (G11).
+  r := pg_temp.as_user(teacher, format(
+        $q$SELECT coalesce(public.rpc_test_student_report(%L,%L) ->> 'rank', 'null')$q$,
+        t_id, stu_b));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('...and a student who did not sit it has none','teacher reading a non-sitter','OK: null', r,
+     CASE WHEN r = 'OK: null' THEN 'PASS' ELSE 'FAIL' END);
 END $probe$;
 
 SELECT area, role_tested, expected, observed, verdict FROM probe ORDER BY n;

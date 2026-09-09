@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Loader2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { BarChart3, Download, Loader2 } from "lucide-react";
 import {
   AcademicProfileService,
   AnalyticsService,
@@ -19,7 +19,14 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { localDateKey } from "@/lib/localDate";
 import { cn } from "./shared";
-import { toDisplayText, toErrorMessage } from "@/lib/presentation";
+import { displayTopic, toDisplayText, toErrorMessage } from "@/lib/presentation";
+import type { TestStudentReport } from "@/academic/services/testService";
+import { answerToText } from "@/academic/services/answerText";
+import {
+  studentReportCsvRows,
+  wrongAnswersByTopic,
+} from "@/academic/services/testReportSheets";
+import { exportCSV } from "@/lib/exportCsv";
 
 function Loading({ label }: { label: string }) {
   return (
@@ -91,6 +98,146 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
       ))}
       {rows.length === 0 && (
         <div className="text-center py-10 text-xs text-muted-foreground">No homework assigned yet.</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One child's test report, for their own parent (§10.25, user ruling
+ * 2026-09-09: "Parents get their own child reports").
+ *
+ * It comes from `rpc_test_student_report`, the same fenced call the teacher and
+ * the child use — a parent reaches it through `can_read_test_student_report`'s
+ * guardian branch and never through the class aggregate, which is every other
+ * family's marks. No role check here: the rule has one home in SQL and this
+ * component does not restate it.
+ *
+ * Only offered on a test the child SUBMITTED. The RPC refuses the rest, which
+ * is what stops a parent reading the paper before their child sits it, and
+ * offering a control that is always refused would be a worse screen than not
+ * offering it.
+ */
+function ParentTestReport({ studentId, testId }: { studentId: string; testId: string }) {
+  const { ctx } = useAcademicContext();
+  const [open, setOpen] = useState(false);
+  const [report, setReport] = useState<TestStudentReport | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = async () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (report || !ctx) return;
+    setLoading(true);
+    try {
+      setReport(await TestService.studentReport(ctx, testId, studentId));
+      setError(null);
+    } catch (e) {
+      setReport(null);
+      setError(toErrorMessage(e, "Could not load this report"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="pt-2 mt-2 border-t border-border/60">
+      <button
+        type="button"
+        onClick={() => void toggle()}
+        aria-expanded={open}
+        className={cn(
+          "px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1",
+          open ? "bg-[#4b9fd4] text-foreground" : "bg-[#4b9fd4]/20 text-[#4b9fd4]",
+        )}
+      >
+        <BarChart3 className="w-3 h-3" /> Report
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          {loading && <Loading label="Loading report" />}
+          {error && <div className="text-[10px] text-[#cc5069]">{error}</div>}
+          {report && !report.submitted && (
+            <div className="text-[10px] text-muted-foreground">
+              This test was not submitted, so there is nothing to review.
+            </div>
+          )}
+          {report && report.submitted && (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[10px] text-muted-foreground">
+                  {report.rank != null && report.class_size != null
+                    ? `Placed ${report.rank} of ${report.class_size} who sat it`
+                    : "—"}
+                </div>
+                <button
+                  type="button"
+                  disabled={report.wrong_answers.length === 0}
+                  onClick={() =>
+                    exportCSV(
+                      `test-report-${report.test_id}-${report.student_id}`,
+                      studentReportCsvRows(report),
+                    )
+                  }
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-muted-foreground flex items-center gap-1 disabled:opacity-50"
+                >
+                  <Download className="w-3 h-3" /> CSV
+                </button>
+              </div>
+              {report.wrong_answers.length === 0 ? (
+                <div className="text-[10px] text-muted-foreground">
+                  Nothing went wrong — every question was correct.
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-1">
+                    {wrongAnswersByTopic(report).map((row) => (
+                      <span
+                        key={row.topic}
+                        className="px-2 py-0.5 rounded-lg bg-[#cc5069]/10 text-[#cc5069] text-[9px]"
+                      >
+                        {row.topic} · {row.wrong}
+                      </span>
+                    ))}
+                  </div>
+                  {report.wrong_answers.map((w) => {
+                    const theirs = answerToText(w.their_answer, w.options);
+                    const right = answerToText(w.correct_answer, w.options);
+                    return (
+                      <div
+                        key={w.question_id}
+                        className="rounded-lg bg-muted/40 px-2 py-1.5 space-y-0.5"
+                      >
+                        <div className="text-[10px] text-foreground">
+                          {toDisplayText(w.question, { fallback: "Question" })}
+                        </div>
+                        <div className="text-[9px] text-muted-foreground">
+                          {displayTopic(w.topic) || w.topic}
+                        </div>
+                        <div className="text-[9px]">
+                          <span className="text-[#cc5069]">
+                            {!w.answered
+                              ? "Left blank"
+                              : theirs != null
+                                ? `Answered: ${theirs}`
+                                : "Their answer was recorded in a form this screen cannot read"}
+                          </span>
+                          {right != null && (
+                            <span className="text-[#4aa87a]"> · Correct: {right}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </>
+          )}
+        </div>
       )}
     </div>
   );
@@ -194,7 +341,8 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
               scoreLabel = "In progress";
             }
             return (
-              <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl flex justify-between gap-3">
+              <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl">
+                <div className="flex justify-between gap-3">
                 <div>
                   <div className="text-xs font-bold text-foreground">{t.title}</div>
                   {/* A test carries no subject column of its own: it anchors on
@@ -205,6 +353,11 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
                 <div className="text-right shrink-0">
                   <div className="text-xs font-black text-foreground">{scoreLabel}</div>
                 </div>
+                </div>
+                {/* Only where there is a submitted attempt: the RPC refuses the
+                    rest, and that refusal is the fence that keeps the answer
+                    key away from a parent before their child sits the paper. */}
+                {submitted && <ParentTestReport studentId={studentId} testId={String(t.id)} />}
               </div>
             );
           })}

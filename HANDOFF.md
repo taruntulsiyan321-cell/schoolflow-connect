@@ -11,7 +11,7 @@ bottom before touching anything.
 |---|---|
 | Worktree | `.claude/worktrees/gurukul-tier1-e2e-fixes-c0b3c3` |
 | Branch | `claude/gurukul-tier1-e2e-fixes-c0b3c3` |
-| Local HEAD | `006e606` + the §4 UI commit — **THREE COMMITS NOT PUSHED** (see §1) |
+| Local HEAD | `006e606` + three later commits — **FIVE COMMITS NOT PUSHED** (see §1) |
 | Last pushed | `9daf600` |
 | Supabase project | `psqxykzqfvxgsvkmgurn` |
 
@@ -161,7 +161,7 @@ there is nothing to attempt, deliberately.
 ## 4. Gate state after the §4 UI commit
 
 ```
-verify:caller-privileges .. 361 assertions   PASS   (was 355; probe38 claims 11-14)
+verify:caller-privileges .. 370 assertions   PASS   (was 355; probe38 claims 11-19)
 db:verify-integrity ....... All checks passed
 verify:chunk-files ........ 32 files, 32 clean, 0 rotted
 npm test .................. 646 passed / 58 files   (was 636/57; answerText new)
@@ -381,7 +381,7 @@ npm run test:e2e:evidence         # needs IPv4 + your own Vite
 | `20260916010000_the_class_list_reads_the_roll_number_where_it_lives.sql` | corrective — `roll_number` is on `students_current`, not `students` |
 | `20260916020000_the_answer_key_walked_around_its_own_grant.sql` | **security** — the student branch of the fence, and the empty-attempt payload |
 
-`probe38.sql` — 19 assertions, all green. **Suite is 361/361.**
+`probe38.sql` — 28 assertions, all green. **Suite is 370/370.**
 
 ### TWO FIXTURE TRAPS THIS COST ME — do not repeat them
 
@@ -440,10 +440,36 @@ decoder for "what does this answer payload say" — an answer is a POSITION and
 needs its option list, which is why `options` now travels with each wrong
 answer. `TestResult` uses it too, so the two screens cannot drift apart.
 
-### Unresolved — needs a human ruling
+### RULED, 2026-09-09 — do not re-open this
 
-§10.25 says the report is visible to **teacher · principal · the student ·
-parent (own child only)**. The build instruction said **"Principal sees
-nothing."** Built fail-closed to the instruction. **The user has not ruled.**
-Ask before building any parent or principal UI. Widening = one edit to
-`can_read_test_report` + flip claims 5 and 9 in probe38.
+Asked directly, with §10.25's wording and the build instruction's wording side
+by side, the user ruled:
+
+> "Admin and Principal sees nothing. Teacher get a test report. Student get
+> their own reports plus leaderboard. Parents get their own child reports."
+
+That is neither option that was on the table. Applied by `20260916030000`:
+
+* **the office is out.** `can_read_test_report` lost BOTH its `has_role(admin)`
+  branch and its `created_by` branch — the second is the first with a different
+  key, and a rule saying "the office sees nothing" with an authorship exception
+  is not the rule that was given. The fence is now exactly "the teachers who
+  teach this section". §10.20's super-admin support access is refused too, and
+  that is fail-closed and one `OR` from being reopened if support needs it.
+* **the parent is in, for their own child alone** — through
+  `my_children_student_ids()`, which already resolves both guardian linkages,
+  and never through `rpc_test_class_report`, which is every other family's
+  marks. Same "must have sat it" condition as the student, so a parent cannot
+  read the paper before their child does; that condition is now
+  `_test_was_sat_by()`, written once and shared by both branches.
+* **the student's leaderboard** is `rank` + `class_size` on their own report:
+  a POSITION, with no other child's name or mark in the payload. If a NAMED
+  leaderboard was meant, that is a widening of that one field and a disclosure
+  decision — ask before building it.
+
+probe38 claims 15-19 hold all three, each with its positive control. Suite
+**370/370**.
+
+UI: the rank is on `TestResult`; the parent's copy is a Report control per test
+in `ParentLiveExams` (`src/gurukul-parent/ParentLiveAcademic.tsx`), offered only
+where there is a submitted attempt, because the RPC correctly refuses the rest.

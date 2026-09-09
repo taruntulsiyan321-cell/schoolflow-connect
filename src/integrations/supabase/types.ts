@@ -9107,6 +9107,10 @@ export type Database = {
         Args: { _participant_id: string }
         Returns: string
       }
+      _test_was_sat_by: {
+        Args: { _student_id: string; _test_id: string }
+        Returns: boolean
+      }
       _upsert_concept_mastery: {
         Args: {
           _chapter: string
