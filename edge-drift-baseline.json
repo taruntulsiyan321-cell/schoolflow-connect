@@ -5,7 +5,8 @@
     "ai-expand-questions:_shared/reasoningBudget.ts:DRIFT:fb5369f99b16",
     "ai-expand-questions:_shared/requireRole.ts:DRIFT:d636f71af7fa",
     "ai-expand-questions:_shared/structuredCompletion.ts:DRIFT:705cfe3dc340",
-    "ai-gateway:_shared/aiRouter.ts:DRIFT:d38c75714c25",
+    "ai-gateway:_shared/aiRouter.ts:DRIFT:07ca683883c0",
+    "ai-gateway:_shared/capabilityCatalog.ts:DRIFT:56682c98c423",
     "ai-gateway:_shared/embeddingWorker.ts:DRIFT:a02db433e52d",
     "ai-gateway:_shared/imageDoubtSolve.ts:DRIFT:445a5828e344",
     "ai-gateway:_shared/modelRouter.ts:DRIFT:6e7fb5d1b6a3",
@@ -14,6 +15,7 @@
     "ai-gateway:_shared/questionPaperMarkingScheme.ts:DRIFT:c1e5a8991c50",
     "ai-gateway:_shared/questionPaperOutline.ts:DRIFT:22ca2ed412e9",
     "ai-gateway:_shared/responseValidator.ts:DRIFT:fe51c93df5d8",
-    "ai-gateway:index.ts:DRIFT:6665f4e4346e"
+    "ai-gateway:index.ts:DRIFT:6665f4e4346e",
+    "dpp-generate-questions:index.ts:DRIFT:e297ee476bd5"
   ]
 }

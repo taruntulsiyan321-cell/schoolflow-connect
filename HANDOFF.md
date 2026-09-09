@@ -269,11 +269,15 @@ and the semantic `embed` → `match_question_bank` path.
 Nothing in §5's generation half works until `ai-gateway` is deployed, and
 deploying it is not a neutral act:
 
-* `ai-gateway`'s production copy had **49 undispositioned drift hunks** at the
-  last measurement — `index.ts` (+110/-5), `aiRouter.ts` (37 hunks, +188/-69),
-  `responseValidator.ts`, `parentNarrative.ts` and four more. A deploy
-  OVERWRITES all of it with the repo's version. Whatever those hunks are, they
-  stop existing.
+* **`ai-gateway` drifts from the repo in 11 files**, measured 2026-09-09 with
+  `npm run check:edge-drift`: `index.ts`, `aiRouter.ts`, `capabilityCatalog.ts`,
+  `embeddingWorker.ts`, `imageDoubtSolve.ts`, `modelRouter.ts`,
+  `parentNarrative.ts`, `promptLibrary.ts`, `questionPaperMarkingScheme.ts`,
+  `questionPaperOutline.ts`, `responseValidator.ts`. Two of those eleven
+  (`aiRouter`, `capabilityCatalog`) are THIS session's work and are meant to go
+  up. **The other nine are production changes that never came back to the
+  repo, and a deploy overwrites every one of them.** Nobody has established
+  what they are.
 * The function's own endpoint is on `*.supabase.co`, which has no IPv4 route
   from this machine, so a deploy could not be tested afterwards. Uploading code
   nobody can then call is how a green deploy hides a broken function.
@@ -281,7 +285,11 @@ deploying it is not a neutral act:
   longer is: its `index.ts` now imports `_shared/questionGenerator.ts`. That is
   the intended change, but it means the next dpp deploy carries it too.
 
-Run `npm run check:edge-drift` for the current numbers before deciding.
+The three new findings were accepted into `edge-drift-baseline.json` on
+2026-09-09 — repo-ahead-of-production is the normal state for undeployed work,
+and a gate left permanently red is a gate that stops being read. Re-run
+`npm run check:edge-drift` before deciding; after a deploy the drift resolves
+and the baseline needs lowering again.
 
 **THE THREE `src/academic/ai/questionPaper*.ts` MODULES ARE STILL UNCALLED.**
 `planQuestionPaper` is a deterministic chapter-weight allocator and could feed
