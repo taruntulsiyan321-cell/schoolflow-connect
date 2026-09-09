@@ -156,7 +156,14 @@ export function BattleRoom() {
         }
         const { data: qs, error: qsErr } = await supabase
           .from("battle_questions")
-          .select("id, battle_id, order_index, question, options, points, explanation, concept, subconcept, bank_question_id")
+          // `explanation` is NOT a column on battle_questions. Measured
+          // 2026-09-09: the table is id, battle_id, order_index, question,
+          // options, correct_index, points, bank_question_id, concept,
+          // subconcept, school_id. PostgREST refuses the WHOLE select for one
+          // unknown name, so this load failed for every student on every
+          // battle — and the value was never read anywhere in this file.
+          // Caught by `npm run lint:client-columns` on its first run.
+          .select("id, battle_id, order_index, question, options, points, concept, subconcept, bank_question_id")
           .eq("battle_id", id)
           .order("order_index");
         if (qsErr) {

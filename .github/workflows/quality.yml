@@ -113,11 +113,32 @@ jobs:
       # number, and nothing may add to it.
       - run: npm run lint:baseline
       #
-      # NOT yet enabled as gates, both need a live SUPABASE_ACCESS_TOKEN this
-      # repo's GitHub Actions secrets don't have (gh secret list is empty --
-      # see docs/PRODUCTION_DEPLOYMENT_ARCHITECTURE.md). Add the secret, then
-      # add these two lines back -- check-pending-migrations was rewritten on
-      # 2026-09-09 into a real set-difference against public.schema_migrations
-      # that exits 1, so it is now worth enabling rather than noise:
+      # NOT yet enabled as gates. All FOUR read the live schema and need a
+      # SUPABASE_ACCESS_TOKEN this repo's GitHub Actions secrets don't have
+      # (gh secret list is empty -- see
+      # docs/PRODUCTION_DEPLOYMENT_ARCHITECTURE.md). Add the secret, then add
+      # these lines back:
+      #
       #   - run: npm run db:check-migrations
       #   - run: npm run db:verify-integrity
+      #   - run: npm run lint:client-columns:self-test
+      #   - run: npm run lint:client-columns
+      #
+      # check-pending-migrations was rewritten on 2026-09-09 into a real
+      # set-difference against public.schema_migrations that exits 1, so it is
+      # now worth enabling rather than noise.
+      #
+      # lint:client-columns is the CLIENT half of the question
+      # `lint:stale-columns` asks of SQL. That gate reads 340 function bodies
+      # and cannot see TypeScript -- which is how `testService.ts` sent six
+      # columns `public.tests` does not have for weeks with every gate green.
+      # On its FIRST run this one found a live defect: `Battleground.tsx`
+      # selected `explanation` from `battle_questions`, a column that table has
+      # never had, so PostgREST refused the whole select and no student could
+      # load a battle question.
+      #
+      # It exits 2 (BLOCKED) rather than 0 when it cannot reach the schema, so
+      # wiring it in WITHOUT the secret would fail the build for the wrong
+      # reason -- which is why it sits here rather than above. Its --self-test
+      # injects that original testService defect and fails if the gate stops
+      # catching it.
