@@ -64,6 +64,19 @@ export type QuestionBankInsertRow = {
   correct_index: number;
   explanation?: string | null;
   source?: string | null;
+  /**
+   * Where the question came from, in the vocabulary
+   * `question_bank_source_type_check` admits: ncert_aligned,
+   * ncert_exemplar_aligned, teacher, ai_generated, licensed_import, legacy.
+   *
+   * This is the "tagged" half of §5's write-back rule. A generated question
+   * that reaches the bank untagged is indistinguishable from a curated one the
+   * moment it is approved, and the point of routing it through review is that
+   * the reviewer can see what they are reviewing.
+   */
+  source_type?: string | null;
+  /** mcq / short / long / … — `question_bank_question_format_check`. */
+  question_format?: string | null;
   created_by?: string | null;
   board?: string | null;
   stream?: string | null;

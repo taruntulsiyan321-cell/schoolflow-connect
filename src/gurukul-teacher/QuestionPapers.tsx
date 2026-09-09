@@ -8,13 +8,17 @@
  * sections, each with a format, a count, marks per question, a difficulty and
  * the chapters it draws on. Only once that exists can anything fill it.
  *
- * WHAT FILLS IT, AND WHAT DOES NOT. MCQ sections pull from the 21,681-question
- * bank. Short and long sections do not, and the screen says so rather than
- * offering a control that always fails: the bank is entirely multiple choice,
- * and nothing in this system generates a question — `ai-gateway` exposes
- * `plan`, `generate_outline` and `marking_scheme`, and all three declare
- * `generates_full_paper: false`. Where the bank cannot fill a section the
- * shortfall is printed. A paper that comes back short must look short.
+ * WHAT FILLS IT. MCQ sections pull from the 21,681-question bank, which is
+ * entirely multiple choice; short and long sections cannot, and the screen
+ * says so. Every section can also GENERATE, through ai-gateway's
+ * `teacher.question_paper.generate_questions`. Where the bank falls short the
+ * shortfall is printed — a paper that comes back short must look short — and
+ * every question the quality guard rejected is named with its reason.
+ *
+ * A GENERATED MCQ ALSO GOES BACK TO THE SHARED BANK, unapproved and tagged
+ * `ai_generated`, and the screen reports that as a separate outcome from the
+ * paper write. Written-answer questions cannot go back: `question_bank`'s
+ * `options` and `correct_index` are both NOT NULL.
  *
  * THE ANSWER KEY IS A SEPARATE SHEET, on a toggle and in its own CSV, because
  * the paper is what a student sees and the key is not.
@@ -41,6 +45,7 @@ import {
   type PaperSectionFormat,
   type PaperDifficulty,
   type SectionFillResult,
+  type GenerationOutcome,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { listTeacherClassSubjectPairs } from "@/academic/repository/teacherClassesRepository";
@@ -115,9 +120,7 @@ export default function QuestionPapers() {
   const [sectionForm, setSectionForm] = useState(emptySectionForm);
   const [addingSection, setAddingSection] = useState(false);
   const [fills, setFills] = useState<Record<string, SectionFillResult>>({});
-  const [generated, setGenerated] = useState<
-    Record<string, { inserted: number; rejected: string[]; degradedReason: string | null }>
-  >({});
+  const [generated, setGenerated] = useState<Record<string, GenerationOutcome>>({});
   const [showKey, setShowKey] = useState(false);
 
   const [pairs, setPairs] = useState<ClassSubjectPair[]>([]);
@@ -541,6 +544,17 @@ export default function QuestionPapers() {
                                 : `Generated ${toCountLabel(generated[s.id].inserted)}.`}
                               {generated[s.id].rejected.length > 0
                                 ? ` ${generated[s.id].rejected.length} rejected by the quality check: ${generated[s.id].rejected.join("; ")}.`
+                                : ""}
+                              {/* The shared bank is a separate write with a
+                                  separate outcome. "Saved to the paper" and
+                                  "contributed to the bank" are different facts
+                                  and a teacher should not have to guess which
+                                  happened. */}
+                              {generated[s.id].bankSaved > 0
+                                ? ` ${generated[s.id].bankSaved} also sent to the question bank for review.`
+                                : ""}
+                              {generated[s.id].bankSkipped.length > 0
+                                ? ` Not sent to the bank: ${generated[s.id].bankSkipped.join("; ")}.`
                                 : ""}
                             </div>
                           )}

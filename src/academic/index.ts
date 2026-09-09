@@ -143,6 +143,7 @@ export type {
   PaperSectionFormat,
   PaperDifficulty,
   SectionFillResult,
+  GenerationOutcome,
   CreatePaperInput,
   CreateSectionInput,
 } from "./services/questionPaperService";

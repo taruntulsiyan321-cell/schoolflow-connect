@@ -36,15 +36,27 @@
  * path is a widening of that RPC once `embed` is reachable, not a different
  * one, and not a different service call.
  *
- * `shortfall` comes back on every fill and the UI must show it. The brief asks
- * for the shortfall to be GENERATED; nothing generates questions — `ai-gateway`
- * exposes `plan`, `generate_outline` and `marking_scheme`, and all three
- * declare `generates_full_paper: false`.
+ * `shortfall` comes back on every fill and the UI must show it. Generating that
+ * shortfall is `generateForSection`, through `ai-gateway`'s
+ * `teacher.question_paper.generate_questions` — the capability added for §5,
+ * because `plan`, `generate_outline` and `marking_scheme` all declare
+ * `generates_full_paper: false` and none of them produces a question.
+ *
+ * ── WHAT HAPPENS TO A GENERATED QUESTION ─────────────────────────────────
+ *
+ * It goes onto the paper, and — if it is an MCQ that resolves to a curriculum
+ * chapter — into the shared `question_bank` as well, tagged `ai_generated`,
+ * credited to its author, `topic` NULL (rule 31), and UNAPPROVED. It is
+ * therefore invisible to every student until a super admin approves it, which
+ * `trg_question_bank_approval_is_super_admin_only` enforces and this code
+ * cannot bypass. See `writeBackToBank` for why written-answer questions cannot
+ * go back at all.
  */
 import { assertCanConsume, toRepoContext, type ServiceContext } from "./context";
 import { getClient, throwIfError } from "../repository/base";
 import { resolveSectionSubjectId } from "./testService";
 import { invokeAiGateway } from "../ai/gatewayClient";
+import { toErrorMessage } from "@/lib/presentation";
 import type { Json } from "@/integrations/supabase/types";
 
 /** The three formats `qps_format_check` admits. */
@@ -124,6 +136,30 @@ export interface CreateSectionInput {
   difficulty?: PaperDifficulty | null;
   chapters?: string[];
 }
+
+/**
+ * What one generation attempt did — to the paper, and to the shared bank.
+ *
+ * The two are separate numbers on purpose: the paper write is the thing the
+ * teacher asked for, the bank write is a contribution to every other school,
+ * and one can succeed while the other is skipped for a reason worth reading.
+ */
+export interface GenerationOutcome {
+  inserted: number;
+  rejected: string[];
+  degradedReason: string | null;
+  bankSaved: number;
+  bankSkipped: string[];
+}
+
+/** Nothing was generated and nothing was written. Not an error by itself. */
+const NOTHING_GENERATED: GenerationOutcome = {
+  inserted: 0,
+  rejected: [],
+  degradedReason: null,
+  bankSaved: 0,
+  bankSkipped: [],
+};
 
 const PAPER_COLUMNS =
   "id, school_id, created_by, title, subject, class_level, board, duration_minutes, status, created_at, updated_at";
@@ -328,9 +364,9 @@ export const QuestionPaperService = {
     paper: QuestionPaperRow,
     section: QuestionPaperSectionRow,
     alreadyPresent: number,
-  ): Promise<{ inserted: number; rejected: string[]; degradedReason: string | null }> {
+  ): Promise<GenerationOutcome> {
     const wanted = Math.max(section.target_count - alreadyPresent, 0);
-    if (wanted === 0) return { inserted: 0, rejected: [], degradedReason: null };
+    if (wanted === 0) return NOTHING_GENERATED;
 
     const response = await invokeAiGateway<{
       questions?: {
@@ -365,7 +401,7 @@ export const QuestionPaperService = {
       // The request was cancelled, not refused. There is no envelope and
       // nothing was generated; saying "0 generated" would be a claim about the
       // model that nobody made.
-      return { inserted: 0, rejected: [], degradedReason: "the request was cancelled" };
+      return { ...NOTHING_GENERATED, degradedReason: "the request was cancelled" };
     }
 
     const payload = response.data ?? null;
@@ -376,7 +412,7 @@ export const QuestionPaperService = {
       (generated.length === 0 ? (response.message ?? "the generator returned nothing") : null);
 
     if (generated.length === 0) {
-      return { inserted: 0, rejected, degradedReason };
+      return { ...NOTHING_GENERATED, rejected, degradedReason };
     }
 
     const client = getClient(toRepoContext(ctx));
@@ -399,7 +435,153 @@ export const QuestionPaperService = {
     const { error } = await client.from("question_paper_questions").insert(rows);
     throwIfError(error, "The questions were generated but could not be saved");
 
-    return { inserted: rows.length, rejected, degradedReason: null };
+    // THE PAPER IS SAVED BEFORE THE BANK IS TOUCHED, and the bank write is
+    // allowed to fail without taking the paper with it. The paper is the thing
+    // the teacher asked for; the bank is a contribution to everyone else.
+    const bank = await this.writeBackToBank(ctx, paper, section, generated).catch(
+      // Through the presentation boundary, not `.message`: a PostgREST failure
+      // here names tables and constraints, and this string is printed on the
+      // teacher's screen beside the generation result.
+      (e: unknown) => ({
+        saved: 0,
+        skipped: [toErrorMessage(e, "the question bank rejected the write")],
+      }),
+    );
+
+    return {
+      inserted: rows.length,
+      rejected,
+      degradedReason: null,
+      bankSaved: bank.saved,
+      bankSkipped: bank.skipped,
+    };
+  },
+
+  /**
+   * Contribute the generated questions back to the shared question bank,
+   * UNAPPROVED (§5, §10.20).
+   *
+   * `is_approved` is passed explicitly as `false` even though the column
+   * already defaults to it: the rule is a product rule, and a rule that holds
+   * only because of a default stops holding the day someone changes the
+   * default. Approval is not this code's to give either way —
+   * `trg_question_bank_approval_is_super_admin_only` refuses it to everyone
+   * but a super admin, which is what makes the write safe.
+   *
+   * ── ONLY MCQs GO BACK, AND THAT IS THE SCHEMA'S DOING ──────────────────
+   *
+   * `question_bank.options` and `question_bank.correct_index` are both NOT
+   * NULL. Measured as the caller, 2026-09-09:
+   *
+   *   INSERT ... question_format='short', options NULL
+   *   -> null value in column "options" violates not-null constraint
+   *
+   * So the bank cannot hold a short or long question at all, even though
+   * `question_bank_question_format_check` admits 'short' and 'long' — the
+   * vocabulary anticipates them and the columns forbid them. Written-answer
+   * questions therefore stay on the paper and are reported as skipped rather
+   * than dropped silently.
+   *
+   * ── AN UNKEYED QUESTION IS NEVER SERVED ────────────────────────────────
+   *
+   * `question_bank_active_must_be_keyed` refuses an active row without a
+   * `chapter_id`, and `assertQuestionRowsAreKeyed` says the same in the
+   * service. The chapter NAME on the section is resolved to a curriculum
+   * chapter id through `CurriculumService`; a name that resolves to nothing is
+   * skipped with that as the reason, because storing it would file a question
+   * nobody will ever be served.
+   */
+  async writeBackToBank(
+    ctx: ServiceContext,
+    paper: QuestionPaperRow,
+    section: QuestionPaperSectionRow,
+    generated: {
+      question?: string;
+      options?: string[];
+      correct_index?: number;
+      answer?: string;
+      explanation?: string;
+    }[],
+  ): Promise<{ saved: number; skipped: string[] }> {
+    const skipped: string[] = [];
+
+    if (section.question_format !== "mcq") {
+      return {
+        saved: 0,
+        skipped: [
+          `the question bank stores multiple-choice questions only, so ${generated.length} ${section.question_format} question(s) stayed on the paper`,
+        ],
+      };
+    }
+    if (paper.class_level == null) {
+      return { saved: 0, skipped: ["the paper has no class level, so nothing could be keyed"] };
+    }
+
+    const chapterName = section.chapters[0] ?? null;
+    if (!chapterName) {
+      return {
+        saved: 0,
+        skipped: ["the section names no chapter, and an unkeyed question is never served"],
+      };
+    }
+
+    const { CurriculumService } = await import("./curriculumService");
+    const subjects = await CurriculumService.listSubjects(ctx, paper.class_level);
+    const subject = subjects.find(
+      (s) => s.name.trim().toLowerCase() === paper.subject.trim().toLowerCase(),
+    );
+    if (!subject) {
+      return {
+        saved: 0,
+        skipped: [`"${paper.subject}" is not a curriculum subject at class ${paper.class_level}`],
+      };
+    }
+
+    const chapters = await CurriculumService.listChapters(ctx, subject.ids);
+    const chapter = chapters.find(
+      (c) => c.name.trim().toLowerCase() === chapterName.trim().toLowerCase(),
+    );
+    if (!chapter) {
+      return {
+        saved: 0,
+        skipped: [`"${chapterName}" is not a chapter of ${subject.name} at class ${paper.class_level}`],
+      };
+    }
+
+    const rows = generated
+      .filter((q) => {
+        const usable =
+          Array.isArray(q.options) && q.options.length > 0 && typeof q.correct_index === "number";
+        if (!usable) skipped.push("a generated question had no options and answer key");
+        return usable;
+      })
+      .map((q) => ({
+        subject: paper.subject,
+        chapter: chapterName,
+        chapter_id: chapter.id,
+        class_level: paper.class_level,
+        // Rule 31 — a generated question carries its chapter and leaves `topic`
+        // NULL. A guessed topic string is worse than none: it becomes a facet
+        // nobody can filter on correctly.
+        topic: null,
+        difficulty: section.difficulty ?? "medium",
+        question: String(q.question ?? "").trim(),
+        options: (q.options ?? []) as string[],
+        correct_index: q.correct_index as number,
+        explanation: q.explanation ?? null,
+        question_format: "mcq",
+        source_type: "ai_generated",
+        source: `question_paper:${paper.id}`,
+        board: paper.board ?? null,
+        created_by: ctx.userId,
+        is_approved: false,
+      }));
+
+    if (rows.length === 0) return { saved: 0, skipped };
+
+    const { QuestionBankService } = await import("./questionBankService");
+    const { count } = await QuestionBankService.insert(ctx, rows);
+    return { saved: count, skipped };
   },
 
   async setStatus(

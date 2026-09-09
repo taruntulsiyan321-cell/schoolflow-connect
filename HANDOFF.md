@@ -11,7 +11,7 @@ bottom before touching anything.
 |---|---|
 | Worktree | `.claude/worktrees/gurukul-tier1-e2e-fixes-c0b3c3` |
 | Branch | `claude/gurukul-tier1-e2e-fixes-c0b3c3` |
-| Local HEAD | `006e606` + five later commits — **SEVEN COMMITS NOT PUSHED** (see §1) |
+| Local HEAD | `006e606` + six later commits — **EIGHT COMMITS NOT PUSHED** (see §1) |
 | Last pushed | `9daf600` |
 | Supabase project | `psqxykzqfvxgsvkmgurn` |
 
@@ -161,7 +161,7 @@ there is nothing to attempt, deliberately.
 ## 4. Gate state after the §4 UI commit
 
 ```
-verify:caller-privileges .. 390 assertions   PASS   (probe39 new, 20 claims)
+verify:caller-privileges .. 401 assertions   PASS   (probe40 new, 11 claims)
 db:verify-integrity ....... All checks passed
 verify:chunk-files ........ 32 files, 32 clean, 0 rotted
 npm test .................. 666 passed / 59 files   (questionGeneration new)
@@ -260,9 +260,32 @@ question rather than two. It also gains the quality guard it never had: a
 three-option MCQ, an answer key pointing past the end of the options, and a
 one-word "short answer" all used to reach the caller unchallenged.
 
-**STILL OPEN on this feature:** `is_approved=false` write-back of generated
-questions into `question_bank` — they are written to the PAPER, not the bank —
-and the semantic `embed` → `match_question_bank` path.
+**THE WRITE-BACK IS DONE.** A generated MCQ goes onto the paper AND into the
+shared `question_bank`, tagged `source_type='ai_generated'`, credited to its
+author, `topic` NULL (rule 31), and `is_approved=false` — passed explicitly,
+not left to the column default, because a product rule that holds only because
+of a default stops holding the day someone changes the default. probe40 holds
+all eleven claims.
+
+Two things the write-back cannot do, both measured rather than assumed:
+
+* **Written-answer questions cannot go back at all.** `question_bank.options`
+  and `.correct_index` are both NOT NULL, so the bank structurally holds MCQs
+  only — even though `question_bank_question_format_check` admits 'short' and
+  'long'. The vocabulary anticipates them and the columns forbid them. Short
+  and long questions stay on the paper and the screen says so.
+* **An unkeyed question is never written.** `question_bank_active_must_be_keyed`
+  refuses an active row with no `chapter_id`, so the section's chapter NAME is
+  resolved to a curriculum chapter id through `CurriculumService`; a name that
+  resolves to nothing is skipped with that as the printed reason.
+
+Approval is not the author's to give: `trg_question_bank_approval_is_super_admin_only`
+refuses it to everyone but a super admin (§10.20), which is exactly what makes
+an unapproved contribution safe to accept.
+
+**STILL OPEN on this feature:** the semantic `embed` → `match_question_bank`
+path, and letting the bank hold a written-answer question at all — that is a
+schema decision about a 21,696-row shared table, not a code change.
 
 ### 5.5 THE DEPLOY DECISION — do not take it without the user
 
