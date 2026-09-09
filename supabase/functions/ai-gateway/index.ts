@@ -72,17 +72,79 @@ async function resolveActor(
     // can match and the order of the array no longer decides anything.
     const { data, error } = await userClient.rpc("has_role", { _user_id: userId, _role: r });
     if (error) {
-      // Not a denial -- a predicate that could not be evaluated. Returning null
-      // still reads as 403 actor_unresolved to the caller, so say so in the log
-      // rather than letting an outage look like a missing role.
+      // Not a denial -- a predicate that could not be evaluated. It is NOT
+      // returned as null here any more: that is what the fallbacks below are
+      // for. Logged, because an outage must not look like a missing role.
       console.error(`[ai-gateway] has_role(${r}) failed for ${userId}: ${error.message}`);
-      return null;
+      break;
     }
     if (data) {
       role = r;
       break;
     }
   }
+
+  // ── FALLBACK 1: READ MEMBERSHIPS DIRECTLY ────────────────────────────────
+  //
+  // RECONCILED FROM PRODUCTION, 2026-09-09. The deployed copy of this function
+  // did not have the caller-scoped `has_role` above at all — it read
+  // memberships directly, with this comment:
+  //
+  //   "a has_role() loop through this SERVICE-ROLE client answered false for
+  //    every role and every user, so this function returned null for everyone
+  //    and the gateway replied 403 actor_unresolved to all six student
+  //    surfaces. ai_request_decisions recorded nothing from 2026-08-25 onward."
+  //
+  // The repo's fix and production's fix solve the SAME defect differently, and
+  // only production's has ever run. Keeping both, in this order, is strictly
+  // better than choosing:
+  //
+  //   * `has_role` first, because it answers the right question — the
+  //     membership the caller is ACTING IN. For a teacher+parent account acting
+  //     as parent, a priority-ordered read of what they merely HOLD returns
+  //     "teacher", and the gateway then treats them as one.
+  //   * memberships second, because it needs no session at all. If
+  //     `active_membership_id()` cannot resolve in the edge context, this is the
+  //     path that kept the gateway working for weeks, and 403-for-everyone
+  //     cannot come back through this door.
+  //
+  // service_role bypasses RLS, so this needs no session. The order mirrors
+  // ROLE_PRIORITY in src/auth/session.ts minus super_admin, which `memberships`
+  // forbids by CHECK anyway.
+  if (!role) {
+    const { data: memberships } = await admin
+      .from("memberships")
+      .select("role")
+      .eq("account_id", userId)
+      .eq("status", "active");
+    const owned = new Set((memberships ?? []).map((m: { role?: string }) => String(m.role)));
+    for (const r of roles) {
+      if (owned.has(r)) {
+        role = r;
+        break;
+      }
+    }
+  }
+
+  // ── FALLBACK 2: THE PRE-MEMBERSHIPS ACCOUNTS ─────────────────────────────
+  //
+  // Also from production, and also absent from the repo. An account created
+  // before the memberships migration has no row there and must not be locked
+  // out. Matches the same transitional read `session.ts` does on the client.
+  if (!role) {
+    const { data: legacy } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const legacyOwned = new Set((legacy ?? []).map((m: { role?: string }) => String(m.role)));
+    for (const r of roles) {
+      if (legacyOwned.has(r)) {
+        role = r;
+        break;
+      }
+    }
+  }
+
   if (!role) return null;
 
   if (role === "student") {

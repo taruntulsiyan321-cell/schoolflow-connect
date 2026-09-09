@@ -11,7 +11,7 @@ bottom before touching anything.
 |---|---|
 | Worktree | `.claude/worktrees/gurukul-tier1-e2e-fixes-c0b3c3` |
 | Branch | `claude/gurukul-tier1-e2e-fixes-c0b3c3` |
-| Local HEAD | `006e606` + seven later commits — **NINE COMMITS NOT PUSHED** (see §1) |
+| Local HEAD | `13117f9` — **PUSHED AND CONFIRMED** against origin |
 | Last pushed | `9daf600` |
 | Supabase project | `psqxykzqfvxgsvkmgurn` |
 
@@ -19,7 +19,27 @@ bottom before touching anything.
 
 ---
 
-## 1. THE NETWORK IS HALF DOWN — read this before you diagnose anything
+## 1. THE NETWORK — FIXED 2026-09-09, and what it taught
+
+**The outage is over.** github.com, api.supabase.com and
+`psqxykzqfvxgsvkmgurn.supabase.co` all answer. Everything below is kept
+because the failure mode is worth recognising again.
+
+It came back FLAPPING, not cleanly: curl saw 200, the very next `git push`
+died with "RPC failed; curl 55 Send failure: Connection was reset", and three
+curls a minute later could not open a socket. Ten commits existed only on this
+machine at that moment. `scripts/push-when-online.sh` retries until the remote
+confirms the tip — it took **51 attempts**.
+
+**It also produced 19 fake test failures.** The first evidence run scored
+56 passed / 19 failed across panels, reads, writes and tier4. The tell was in
+the page snapshot: "Profile unavailable — We could not load your user
+profile." Every other failure was downstream of a page that never loaded. The
+sessions were fine; the app could not reach Supabase mid-run. Re-run on a
+stable line before believing any of it — this is the
+network-outage-looks-like-a-regression trap, and it cost a diagnosis.
+
+## 1b. THE OLD NETWORK NOTES (historical)
 
 The user's router has **no IPv4 route to the internet**. IPv6 is fully healthy.
 
@@ -161,7 +181,7 @@ there is nothing to attempt, deliberately.
 ## 4. Gate state after the §4 UI commit
 
 ```
-verify:caller-privileges .. 412 assertions   PASS   (probe41 new, 11 claims)
+verify:caller-privileges .. 413 assertions   PASS   (probe40 grew to 12 claims)
 db:verify-integrity ....... All checks passed
 verify:chunk-files ........ 32 files, 32 clean, 0 rotted
 npm test .................. 666 passed / 59 files   (questionGeneration new)
@@ -318,69 +338,65 @@ nobody has written.
 at all — `options` and `correct_index` are NOT NULL, so that is a schema
 decision about a 21,696-row shared table, not a code change.
 
-### 5.5 THE DEPLOY DECISION — do not take it without the user
+### 5.5 THE DEPLOY — RECONCILED 2026-09-09, one decision left
 
-Nothing in §5's generation half works until `ai-gateway` is deployed, and
-deploying it is not a neutral act:
+`ai-gateway` was 9 files adrift from the repo and nobody had established what
+was in them. It has now been downloaded and read, file by file. **Most of the
+"drift" was Windows line endings** — `imageDoubtSolve`, `questionPaperOutline`
+and `questionPaperMarkingScheme` showed every line differing on identical line
+counts. Ignoring CR, the real picture:
 
-* **`ai-gateway` drifts from the repo in 11 files**, measured 2026-09-09 with
-  `npm run check:edge-drift`: `index.ts`, `aiRouter.ts`, `capabilityCatalog.ts`,
-  `embeddingWorker.ts`, `imageDoubtSolve.ts`, `modelRouter.ts`,
-  `parentNarrative.ts`, `promptLibrary.ts`, `questionPaperMarkingScheme.ts`,
-  `questionPaperOutline.ts`, `responseValidator.ts`. Two of those eleven
-  (`aiRouter`, `capabilityCatalog`) are THIS session's work and are meant to go
-  up. **The other nine are production changes that never came back to the
-  repo, and a deploy overwrites every one of them.** Nobody has established
-  what they are.
-* The function's own endpoint is on `*.supabase.co`, which has no IPv4 route
-  from this machine, so a deploy could not be tested afterwards. Uploading code
-  nobody can then call is how a green deploy hides a broken function.
-* `dpp-generate-questions` was the ONE function with clean drift, and it no
-  longer is: its `index.ts` now imports `_shared/questionGenerator.ts`. That is
-  the intended change, but it means the next dpp deploy carries it too.
+| file | who is ahead |
+|---|---|
+| `index.ts` | **BOTH** — now merged, see below |
+| `_shared/embeddingWorker.ts` | repo (adds the S-04 `school_id` match) |
+| `_shared/imageDoubtSolve.ts` | repo (same cap plus `system_template`) |
+| `_shared/modelRouter.ts` | repo — **and this one costs money, see below** |
+| `_shared/parentNarrative.ts` | repo (removes a LIVE §10.8 violation) |
+| `_shared/promptLibrary.ts` | neither — identical prompts, reformatted |
+| `_shared/questionPaperMarkingScheme.ts` | repo (`system_template`) |
+| `_shared/questionPaperOutline.ts` | repo (`system_template`) |
+| `_shared/responseValidator.ts` | repo (superset: has both prod-only lines) |
 
-The three new findings were accepted into `edge-drift-baseline.json` on
-2026-09-09 — repo-ahead-of-production is the normal state for undeployed work,
-and a gate left permanently red is a gate that stops being read. Re-run
-`npm run check:edge-drift` before deciding; after a deploy the drift resolves
-and the baseline needs lowering again.
+**WHAT WAS MERGED IN.** Production's `resolveActor` read `memberships`
+directly and had a `user_roles` legacy fallback; the repo had neither, and
+instead asked `has_role` through the CALLER's client. Both fix the same
+defect — the service-role `has_role` loop that 403'd every request from
+2026-08-25 — and only production's has ever run. The repo now does
+`has_role` (right question: the membership the caller is ACTING IN) **then**
+memberships (proven, needs no session) **then** `user_roles`. Strictly better
+than either, and 403-for-everyone cannot return through that door.
 
-**THE THREE `src/academic/ai/questionPaper*.ts` MODULES ARE STILL UNCALLED.**
-`planQuestionPaper` is a deterministic chapter-weight allocator and could feed
-the blueprint form's defaults; `buildQuestionPaperOutline` returns question
-STEMS, not questions. Neither was wired, because the teacher now states the
-blueprint directly and an auto-allocator that disagrees with what they typed is
-a second home for the same fact.
+The repo keeps its S-05 parent fix, which production does not have at all: a
+parent's school resolved from the NAMED child, verified through both linkage
+tables, and REFUSED rather than falling through to an unrelated child's
+school.
 
-### 5.4 §6 — Gates that cannot fail — **ALL THREE DONE, 2026-09-09**
+**DEPLOYING IS NOW A NET IMPROVEMENT**, not a gamble. It ships:
 
-* **typecheck.** `npx tsc --noEmit` compiles 0 files under `src/` (measured:
-  the root tsconfig's `files` is `[]`). Both workflows ran the one-flag-away
-  variant `-p tsconfig.app.json`, which compiles 489 files but **never
-  compiled `tsconfig.node.json` — the project with `strict: true`**. Both now
-  run `npm run typecheck` (`tsc -b --force`), and spec rule 23 names the trap.
-* **`db:check-migrations` — rewritten, not patched.** It asked 27 hand-written
-  marker questions against **414** migration files, and exited 0 whatever it
-  found. It is now the set difference against `public.schema_migrations`, exits
-  1 on any file not in the ledger, and exits 2 when it cannot run. Proven both
-  ways: 414/414 clean, and a throwaway unapplied file made it exit 1 naming
-  that file. Its first run exited **127** — `process.exit()` with a live handle
-  aborts inside libuv on Windows — which is the same "gate reports the wrong
-  code" defect one layer down; it sets `process.exitCode` now.
-  The opposite direction (applied, no file here) stays `npm run preflight`'s,
-  and is reported but never failed on, so one fact cannot redden two gates.
-* **lint.** `npm run lint:baseline` is now a blocking CI gate. The seven
-  assorted errors are fixed — 2 `prefer-const`, 1 `no-unused-expressions`,
-  1 `no-empty-object-type` by code, and 3 by an `eslint-disable` carrying a
-  checkable reason, because "fixing" them meant changing a Devanagari
-  character class, a NUL-anchored ASCII range and a mojibake repair map, all
-  of which would have been behaviour changes wearing a lint fix. **113 errors
-  / 71 warnings**, all `no-explicit-any`, frozen in `lint-baseline.json`.
+* the §10.8 fix — production still emits `"Stronger areas: …"` to parents,
+  which the spec forbids anywhere in the app;
+* the S-04 tenancy fix in `embeddingWorker` — production can clear a claim
+  belonging to another school;
+* the S-05 parent-school fix;
+* `teacher.question_paper.generate_questions` and `.match_questions`, without
+  which §5's generation and semantic fill do not run at all.
 
-Still open, and unchanged: **`lint:stale-columns` parses SQL function bodies
-only** (340 of them). It cannot see TypeScript, which is why it passed while
-`testService.ts` sent six non-existent columns for weeks.
+**THE ONE THING THAT CHANGES FOR THE WORSE, AND IT IS A RULING NOT A BUG.**
+Production's `modelRouter` routes to **Nemotron 3 Ultra 550B (free)** first
+and falls back to Qwen 3.7 Flash (paid). The repo has ONE model, Qwen — and
+its header says why: *"ruled 2026-09-07, keep one model, Qwen 3.7 Flash"*.
 
+So the ruling is already made and the repo implements it. But note the repo's
+claim that the two-model version "was never deployed to the seven AI
+functions" is WRONG for ai-gateway — it is deployed there right now.
+**Deploying will therefore stop ai-gateway using the free tier**, and every
+request starts costing. That is the ruling being applied, not a regression,
+and it is the one thing to confirm before pressing the button.
+
+Command: `npm run functions:deploy-gateway`. Afterwards re-run
+`npm run check:edge-drift` — the drift resolves and the baseline needs
+lowering with `--update`.
 ---
 
 ## 6. §4 — SPEC CONFLICT, AND THE DECISION TAKEN
