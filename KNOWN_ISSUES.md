@@ -2342,38 +2342,75 @@ incremental-save path the page uses was the intended one and only the signature
 disagreed. The migration refuses to commit unless `pronargdefaults = 1` and the
 body still COALESCEs the argument.
 
-## 43. The attempt screen's "n/N answered" counter does not count
+## 43. ~~The attempt screen's "n/N answered" counter does not count~~ — FIXED
 
-**OPEN.** Not a loss of data — the answer is saved; only the number on screen is
-wrong.
+Opened 2026-09-09 with a guess, closed 2026-09-10 with a measurement. The guess
+("a remount, or a second `load()` resetting `responses` from a read that raced
+the save") was the right shape and the wrong mechanism, and the wrong mechanism
+would not have been fixed by the obvious change.
 
-Measured 2026-09-09 on a one-question test: the student clicks an option, and
+**What it looked like.** A student clicks an option; the counter reads
+`1/1 answered`; ~250ms later it falls back to `0/1` and stays there for good.
+Sampled in the browser at t+0/100/250/500/1000/2000/4000/8000/12000ms:
 
-* `test_answers` gains its row — confirmed in the database, `answers_saved = 1`;
-* the option paints as chosen;
-* the footer still reads **`0/1 answered`**, and the question chip in the
-  navigator still renders as unanswered.
-
-Both readouts come from the same `responses` state that `persist()` sets on its
-first line, before it ever touches the network:
-
-```ts
-const persist = (qid: string, r: Response) => {
-  if (!attemptId) return;
-  setResponses((prev) => ({ ...prev, [qid]: r }));
-  ...
+```
+t+0ms     counter=1/1 answered
+t+100ms   counter=1/1 answered
+t+250ms   counter=0/1 answered     <-- clobbered
+t+12000ms counter=0/1 answered
 ```
 
-so the write reaching the database while the counter stays at zero means the
-component that rendered the footer is not the one holding that state — a remount,
-or a second `load()` resetting `responses` from a read that raced the save. Not
-diagnosed further; `src/pages/student/TestAttempt.tsx` `load()` (which calls
-`setResponses(m)`) is where to start.
+**The mechanism.** `load()` opened with
 
-Consequence for a student: no reliable way to see which questions are still
-unanswered before submitting. Grading is unaffected — `rpc_test_submit` grades
-from `test_answers`, not from this state.
+```ts
+if (startedForIdRef.current === id) return;   // checked here
+...four awaits...
+startedForIdRef.current = id;                 // set here
+```
 
-`tier1-panels.spec.ts` deliberately does NOT assert this counter, with a comment
-saying why, so the suite does not go red for a defect that is neither in the
-submit path nor a loss of data.
+The guard was checked on entry and assigned four awaits later, so it could not
+stop CONCURRENT runs — only sequential ones. The effect's deps are
+`[id, user, ctx, academicReady]`, and `user`, `ctx` and `academicReady` each
+settle at a slightly different moment during mount, so several effect runs
+arrived inside that window and every one of them passed the check. Measured:
+**six `rpc_test_start` calls for a single mount**. Each of those loads ends with
+`setResponses(m)` built from `listAnswers()`, so whichever one resolved after the
+click replaced the student's answer with the server's older view.
+
+That is also why it looked intermittent. Whether the clobber landed depended on
+whether a load happened to resolve after the click, which is why one run left
+`test_answers` populated and the next left it empty.
+
+**The fix** (`src/pages/student/TestAttempt.tsx`), two independent halves:
+
+1. `loadRef` holds the in-flight *promise* keyed by test id and is assigned
+   BEFORE the first await, so a second caller joins the first load instead of
+   starting another. Cleared on failure so a later dep change — or the Retry
+   button — can still retry, which is what those deps were for. 6 → 2
+   `rpc_test_start` calls (the remaining 2 are React StrictMode's dev
+   double-mount; production does 1).
+2. `locallyEditedRef` records every question the student has answered, marked
+   synchronously in `persist()` before the save is queued. A load that resolves
+   later now merges rather than replaces: the server's map wins for untouched
+   questions, the student's own edit wins for theirs. Answering is instant and
+   saving is a round trip, so this ordering will always be possible.
+
+Either half alone would hide the symptom; both are kept because they fix
+different things — one stops the redundant loads, the other makes any load that
+does happen non-destructive.
+
+**Proof.** `e2e-evidence/tier1-panels.spec.ts` now asserts the counter reads zero
+BEFORE the click (the positive control — without it the assertion after the click
+would also pass on a page that always said "1/1"), that it moves on the click,
+and that it is STILL moved 3s later once every in-flight load has settled. Run
+against the unfixed file the suite is 13/14 and the only failure is
+"the answer survived the loads that resolve after the click"; with the fix it is
+14/14.
+
+**A second defect the same investigation found**, in the test rather than the
+app: the spec chose its answer with `if (await choice.count())`, and `count()`
+races the render — it returns 0 while the question is still painting, so the
+click was silently skipped and the paper submitted empty. That is how a run
+recorded `answers_saved = 0` while reporting green. It now waits for the option
+to be visible, so "no options" and "no options YET" are no longer the same
+answer.

@@ -36,15 +36,27 @@ export default function TestAttempt() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const startRef = useRef<number>(Date.now());
-  /** Which test id we've already successfully started an attempt for in this
-   *  component's lifetime. This effect's deps include ctx/academicReady so it
-   *  can retry once a fallback-context load resolves to the real one — but
-   *  rpc_test_start is idempotent (upserts on (test_id, user_id)), so a second
-   *  full re-run after the first already succeeded isn't fixing anything; it
-   *  only re-flashes the loading skeleton and re-fetches responses, which can
-   *  clobber answers the student has changed locally since the first load
-   *  finished but before that edit's save round-trip lands. */
-  const startedForIdRef = useRef<string | null>(null);
+  /** The load for a given test id — in flight or already settled.
+   *
+   *  This replaces a `startedForIdRef` that was CHECKED on entry to load() but
+   *  only SET four awaits later, so it could not stop concurrent runs: this
+   *  effect's deps are [id, user, ctx, academicReady], and user/ctx/academicReady
+   *  all settle at slightly different moments during mount. Every re-run that
+   *  arrived before the first load reached its assignment passed the check and
+   *  started its own load. Measured 2026-09-10: SIX rpc_test_start calls for one
+   *  mount, and each of those loads ended by calling setResponses() with the
+   *  server's view — wiping any answer the student had clicked in between.
+   *
+   *  Holding the promise instead of a flag makes the guard atomic: it is set
+   *  BEFORE the first await, so a second caller gets the first call's promise
+   *  rather than starting a second load. Cleared on failure so a later dep
+   *  change can still retry, which is what the deps were there for. */
+  const loadRef = useRef<{ id: string; promise: Promise<void> } | null>(null);
+
+  /** Questions the student has answered in this session. A load that resolves
+   *  after an edit must not replace that edit with the server's older view —
+   *  the save is a round trip, and the click is not. */
+  const locallyEditedRef = useRef<Set<string>>(new Set());
 
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -55,7 +67,6 @@ export default function TestAttempt() {
 
   const load = async () => {
     if (!id || !user) return;
-    if (startedForIdRef.current === id) return;
     setLoading(true);
     setLoadError(null);
     try {
@@ -81,7 +92,6 @@ export default function TestAttempt() {
 
       const aid = await TestService.startAttempt(serviceCtx, id);
       setAttemptId(aid as string);
-      startedForIdRef.current = id;
 
       // Prefer server started_at for timed tests (survives reload)
       let startedMs = Date.now();
@@ -103,15 +113,44 @@ export default function TestAttempt() {
       (existing ?? []).forEach((a) => {
         m[a.question_id as string] = ((a.response as Response) ?? {}) as Response;
       });
-      setResponses(m);
+      // The student's own edits win over this read. Answering is instant and
+      // saving is a round trip, so a load that started before a click can
+      // easily resolve after it — and a plain setResponses(m) would then throw
+      // the click away, which is exactly what KNOWN_ISSUES 43 was.
+      setResponses((prev) => {
+        const merged: Record<string, Response> = { ...m };
+        locallyEditedRef.current.forEach((qid) => {
+          if (prev[qid]) merged[qid] = prev[qid];
+        });
+        return merged;
+      });
     } catch (e) {
       setLoadError(toErrorMessage(e, "Could not start test"));
+      // Let a later dep change (or the Retry button) try again.
+      loadRef.current = null;
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { void load(); }, [id, user, ctx, academicReady]);
+  /** One load per test id, guarded before the first await. */
+  const loadOnce = (testId: string): Promise<void> => {
+    if (loadRef.current?.id === testId) return loadRef.current.promise;
+    const promise = load();
+    loadRef.current = { id: testId, promise };
+    return promise;
+  };
+
+  const retryLoad = () => {
+    loadRef.current = null;
+    if (id && user) void loadOnce(id);
+  };
+
+  useEffect(() => {
+    if (!id || !user) return;
+    void loadOnce(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user, ctx, academicReady]);
 
   const timedTest = ((test?.duration_sec as number | undefined) ?? 0) > 0;
   const remaining = useMemo(
@@ -140,6 +179,9 @@ export default function TestAttempt() {
 
   const persist = (qid: string, r: Response) => {
     if (!attemptId) return;
+    // Marked BEFORE the save is queued, so a load already in flight cannot
+    // resolve into the gap and overwrite this answer.
+    locallyEditedRef.current.add(qid);
     setResponses((prev) => ({ ...prev, [qid]: r }));
     const seq = (saveSeqRef.current[qid] ?? 0) + 1;
     saveSeqRef.current[qid] = seq;
@@ -182,7 +224,7 @@ export default function TestAttempt() {
   if (loadError) {
     return (
       <div className="max-w-md mx-auto space-y-4">
-        <StudentErrorState title="Could not start Test" message={loadError} onRetry={load} />
+        <StudentErrorState title="Could not start Test" message={loadError} onRetry={retryLoad} />
         <div className="text-center">
           <Button variant="outline" size="sm" asChild><Link to="/student/tests">Back to Tests</Link></Button>
         </div>

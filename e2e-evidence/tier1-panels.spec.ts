@@ -383,23 +383,47 @@ test.describe('Tier1-P · student · the attempt and result routes', () => {
     // old `input[type=radio], input[type=checkbox]` selector therefore matched
     // nothing and silently fell through, and this test submitted a paper with
     // "0/1 answered" while claiming to have answered it.
+    // THE CONTROL. Nothing is answered yet, and the counter is on screen to say
+    // so. Without this, the assertion after the click would also pass on a page
+    // that had said "1/1 answered" all along, and the regression below would be
+    // invisible.
+    await expect(
+      page.getByText(/\b0\s*\/\s*\d+\s+answered/i).first(),
+      'control: the counter is present and reads zero before the click',
+    ).toBeVisible({ timeout: 20000 })
+
     const choice = page.getByRole('button', { name: /^[A-D]\s/ }).first()
-    if (await choice.count()) {
+    const isMultipleChoice = await choice
+      .waitFor({ state: 'visible', timeout: 10000 })
+      .then(() => true)
+      .catch(() => false)
+    // `count()` was here, and it races the render: it returns 0 while the
+    // question is still painting, so the click was silently skipped and the
+    // paper submitted empty. Waiting is the difference between "no options" and
+    // "no options YET".
+    if (isMultipleChoice) {
       await choice.click()
     } else {
       const textAnswer = page.locator('textarea, input[type="text"], input[type="number"]').first()
       if (await textAnswer.count()) await textAnswer.fill('42')
     }
 
-    // Deliberately NOT asserting the "n/N answered" counter here.
-    //
-    // Measured 2026-09-09: after this click the answer DOES reach the database
-    // — test_answers gained its row — while the on-screen counter stayed at
-    // "0/1 answered". So the counter is not a trustworthy statement about
-    // whether the answer was recorded, and asserting it would fail this test
-    // for a defect that is neither in the submit path nor a loss of data.
-    // Recorded in KNOWN_ISSUES as its own item rather than smuggled in here.
-    await page.waitForTimeout(1500)
+    // The regression probe for KNOWN_ISSUES 43. The click updates `responses`
+    // synchronously, so this half always passed; what failed was the state
+    // SURVIVING. Six concurrent `load()` calls raced the click, and the first to
+    // resolve replaced the answer with the server's older view — the counter
+    // fell back to "0/1 answered" about 250ms later and stayed there.
+    await expect(
+      page.getByText(/\b[1-9]\d*\s*\/\s*\d+\s+answered/i).first(),
+      'the attempt screen recorded the answer',
+    ).toBeVisible({ timeout: 10000 })
+
+    // The half that used to fail: still true once every in-flight load settles.
+    await page.waitForTimeout(3000)
+    await expect(
+      page.getByText(/\b[1-9]\d*\s*\/\s*\d+\s+answered/i).first(),
+      'the answer survived the loads that resolve after the click (KNOWN_ISSUES 43)',
+    ).toBeVisible()
 
     for (let i = 0; i < 30; i++) {
       const next = page.getByRole('button', { name: /^Next$/ })
