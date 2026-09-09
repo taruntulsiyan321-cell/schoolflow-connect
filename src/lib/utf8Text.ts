@@ -50,6 +50,11 @@ const CONTENT_MOJIBAKE: Array<[RegExp, string]> = [
   [/âˆ¼/g, "\u223C"],
   [/âˆ´/g, "\u2234"],
   [/âˆµ/g, "\u2235"],
+  // The LEFT-HAND SIDE of this pair is the corrupted byte sequence being
+  // searched for, and the third byte of a mis-decoded U+2220 IS a no-break
+  // space. Normalising it would stop the repair matching the very text it
+  // exists to fix.
+  // eslint-disable-next-line no-irregular-whitespace -- see above
   [/âˆ /g, "\u2220"],
   [/âˆ¥/g, "\u2225"],
   [/âŠ‚/g, "\u2282"],

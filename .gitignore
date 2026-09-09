@@ -61,3 +61,10 @@ push-status.txt
 
 # Vercel local build/link state (from the landing-page work on main).
 .vercel
+
+# Claude Code's per-machine settings. This file holds a live SUPABASE_ACCESS_TOKEN
+# in its permission entries, and until 2026-09-09 the only thing keeping it out of
+# a commit was a rule in the USER's global ~/.config/git/ignore — which does not
+# travel with the repository. On any other machine it was one `git add -A` away
+# from being committed.
+.claude/settings.local.json

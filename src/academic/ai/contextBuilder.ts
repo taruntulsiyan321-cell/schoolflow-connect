@@ -217,7 +217,7 @@ export function buildContextPack(input: BuildContextInput): ContextPack {
     truncated = true;
     const shrink = (obj: Record<string, unknown>, maxArr: number) =>
       redactProjection(obj, { dropIds: true, maxArray: maxArr }) as Record<string, unknown>;
-    ae_facts && Object.assign(ae_facts, shrink(ae_facts, 4));
+    if (ae_facts) Object.assign(ae_facts, shrink(ae_facts, 4));
     if (eie_facts) Object.assign(eie_facts, shrink(eie_facts, 4));
     packBody = {
       ae: ae_facts,

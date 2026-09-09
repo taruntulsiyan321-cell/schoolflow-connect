@@ -65,7 +65,7 @@ These are the product owner's, given directly. They override any inference from 
 20. **Don't delete a handler to make a gap disappear.** Where a handler exists and its emitter does not, the handler is the half already right.
 21. **`npm run db:types` is fixed** (verified 2026-09-05). `scripts/gen-types.mjs` has five guards — exit code, JSON body, `export type Database` marker, 20 KB floor, 20% shrink guard — then temp-file plus atomic rename.
 22. **Every migration ships with a rollback and a caller-privileges assertion.** Apply with `npm run db:migrate`, confirm with `npm run db:check-migrations`.
-23. **Gates before every commit:** test suite, typecheck, `db:check-migrations`. `npm run lint` is a stated-not-implied gate — see Lint below.
+23. **Gates before every commit:** test suite, `npm run typecheck` (**never** `npx tsc --noEmit` — the root tsconfig's `files` is `[]`, so it compiles zero files and cannot fail; measured 2026-09-09), `db:check-migrations`, and `npm run lint:baseline`. Since 2026-09-09 `db:check-migrations` is a real set-difference against `public.schema_migrations` over every migration file and exits 1 — it used to ask 27 hand-written marker questions, cover 27 of 414 migrations, and exit 0 either way. See Lint below for what the lint baseline does and does not prove.
 
 ## Added 2026-09-05
 
@@ -128,7 +128,9 @@ Out of scope and not to be built, reconciled, or deployed: the ephemeral test re
 
 ## Lint
 
-`npm run lint` has a 134-error / 77-warning baseline across 607 files, all pre-existing. `supabase/functions/` is excluded from eslint (Deno runtime, different globals); nine of the previously-cited 143 errors were always Deno-source, so 143 was never the application's number. The baseline gate fails when the count improves as well as when it regresses — this is intended; lower it deliberately. Any report claiming "all gates green" means tests and typecheck — say so explicitly rather than implying lint passed.
+`npm run lint` has a **113-error / 71-warning** baseline across 582 files, all pre-existing and now all `@typescript-eslint/no-explicit-any` — the seven assorted errors beside them were fixed on 2026-09-09, three of them by an `eslint-disable` carrying a checkable reason rather than by a behaviour change to a mojibake map or a Devanagari character class. `supabase/functions/` is excluded from eslint (Deno runtime, different globals); nine of the previously-cited 143 errors were always Deno-source, so 143 was never the application's number. The baseline gate fails when the count improves as well as when it regresses — this is intended; lower it deliberately.
+
+**`npm run lint:baseline` is a blocking CI gate as of 2026-09-09** (`.github/workflows/quality.yml`). "Lint's status is stated, not implied" still holds for a report — say the number — but it is no longer true that nothing enforces it: the debt is frozen and nothing may add to it. Bounded, and the script says so itself: totals cannot hide one fixed and one added.
 
 ## Definition of done
 

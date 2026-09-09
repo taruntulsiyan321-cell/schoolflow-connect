@@ -328,7 +328,7 @@ test.describe("Workflow: Skipped Questions lifecycle", () => {
     await page.goto("/student/practice");
     await openMode(page, "Skipped Questions");
     await waitForLoaded(page);
-    let err = await hasStartError(page);
+    const err = await hasStartError(page);
     expect(err, `Skipped Questions failed to load: ${err}`).toBeNull();
     await waitForQuestion(page);
     const needle = qText.slice(0, 30);

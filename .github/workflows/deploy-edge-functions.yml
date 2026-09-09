@@ -32,7 +32,11 @@ jobs:
       # Gate before deploying (PC-04): this workflow pushes straight to the
       # production Supabase project, and until 2026-08-23 it did so with no
       # verification of any kind.
-      - run: npx tsc --noEmit -p tsconfig.app.json
+      # `npm run typecheck` is `tsc -b --force`, which builds BOTH project
+      # references. `npx tsc --noEmit -p tsconfig.app.json`, which stood here,
+      # covered only the app project and never compiled tsconfig.node.json —
+      # and that is the one with `strict: true`.
+      - run: npm run typecheck
       - run: npm run test
 
       - uses: supabase/setup-cli@v1

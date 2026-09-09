@@ -1208,7 +1208,7 @@ function Session({
           config.topic ||
           null;
 
-        let excludeIds: string[] = [];
+        const excludeIds: string[] = [];
         let remainingCount = config.qCount;
         /** Effective bank difficulty — prefer config, then session row, then prior attempts. */
         let effectiveDifficulty = config.difficulty || "mixed";

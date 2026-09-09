@@ -168,12 +168,12 @@ npm test .................. 646 passed / 58 files   (was 636/57; answerText new)
 npm run typecheck ......... clean   (tsc -b --force)
 npm run build ............. clean
 10 lint/check gates ....... all PASS
-db:check-migrations ....... pending: []
-npx eslint . .............. 120 errors, 71 warnings   ← PRE-EXISTING, see §6
+db:check-migrations ....... 414 applied / 414 files / 0 pending   (rewritten)
+lint:baseline ............. 113 errors, 71 warnings — FROZEN, and now a CI gate
 ```
 
 `npx tsc --noEmit` compiles **0 files** and cannot fail — the real gate is
-`npm run typecheck`. This is on the §6 list.
+`npm run typecheck`, which is what both CI workflows now run. See §5.4.
 
 ---
 
@@ -217,23 +217,33 @@ answers. Write-back tagged, `created_by` set, `is_approved=false`, `topic`
 NULL, quality guard on. Answer key a separate sheet. **Only all-MCQ papers can
 be pushed as online tests.**
 
-### 5.4 §6 — Gates that cannot fail
+### 5.4 §6 — Gates that cannot fail — **ALL THREE DONE, 2026-09-09**
 
-* `npx tsc --noEmit` compiles 0 files → make the gate `tsc -b --force` or
-  delete it.
-* `db:check-migrations` probes **27 hand-written markers**, newest
-  `20260620000000`, while the repo has **409** migrations. Replace with the
-  set-difference against `public.schema_migrations` (the real ledger — the
-  CLI's `supabase_migrations.schema_migrations` is stale at 255 rows), or
-  delete it.
-* `npm run lint` — 120 errors, exit 1. Fix or formally exclude, and make CI
-  enforce whichever is chosen. **Do not leave it ambiguous.** Breakdown: 113
-  `no-explicit-any`, 2 `prefer-const`, 5 assorted; plus 30
-  `react-refresh/only-export-components` and 27 `react-hooks/exhaustive-deps`
-  warnings and 14 unused `eslint-disable` directives.
+* **typecheck.** `npx tsc --noEmit` compiles 0 files under `src/` (measured:
+  the root tsconfig's `files` is `[]`). Both workflows ran the one-flag-away
+  variant `-p tsconfig.app.json`, which compiles 489 files but **never
+  compiled `tsconfig.node.json` — the project with `strict: true`**. Both now
+  run `npm run typecheck` (`tsc -b --force`), and spec rule 23 names the trap.
+* **`db:check-migrations` — rewritten, not patched.** It asked 27 hand-written
+  marker questions against **414** migration files, and exited 0 whatever it
+  found. It is now the set difference against `public.schema_migrations`, exits
+  1 on any file not in the ledger, and exits 2 when it cannot run. Proven both
+  ways: 414/414 clean, and a throwaway unapplied file made it exit 1 naming
+  that file. Its first run exited **127** — `process.exit()` with a live handle
+  aborts inside libuv on Windows — which is the same "gate reports the wrong
+  code" defect one layer down; it sets `process.exitCode` now.
+  The opposite direction (applied, no file here) stays `npm run preflight`'s,
+  and is reported but never failed on, so one fact cannot redden two gates.
+* **lint.** `npm run lint:baseline` is now a blocking CI gate. The seven
+  assorted errors are fixed — 2 `prefer-const`, 1 `no-unused-expressions`,
+  1 `no-empty-object-type` by code, and 3 by an `eslint-disable` carrying a
+  checkable reason, because "fixing" them meant changing a Devanagari
+  character class, a NUL-anchored ASCII range and a mojibake repair map, all
+  of which would have been behaviour changes wearing a lint fix. **113 errors
+  / 71 warnings**, all `no-explicit-any`, frozen in `lint-baseline.json`.
 
-Also worth folding in: **`lint:stale-columns` parses SQL function bodies only**
-(340 of them). It cannot see TypeScript, which is why it passed while
+Still open, and unchanged: **`lint:stale-columns` parses SQL function bodies
+only** (340 of them). It cannot see TypeScript, which is why it passed while
 `testService.ts` sent six non-existent columns for weeks.
 
 ---
@@ -353,7 +363,8 @@ npm run build
 npm run verify:caller-privileges  # 340 assertions, as the caller
 npm run verify:chunk-files        # 32 verification files
 npm run db:verify-integrity
-npm run db:check-migrations       # narrow — see §5.4
+npm run db:check-migrations       # set difference vs public.schema_migrations
+npm run lint:baseline             # frozen at 113/71; fails if the totals move
 node scripts/apply-one-migration.mjs supabase/migrations/<file>.sql
 npm run test:e2e:evidence         # needs IPv4 + your own Vite
 ```

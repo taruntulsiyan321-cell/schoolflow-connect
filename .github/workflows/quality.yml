@@ -26,7 +26,19 @@ jobs:
       - run: npm run lint:render-safety
       # tsc is a hard gate: the baseline was cleaned to zero errors on
       # 2026-08-21 specifically so this could be turned on for real.
-      - run: npx tsc --noEmit -p tsconfig.app.json
+      #
+      # It runs `npm run typecheck` (`tsc -b --force`), NOT the
+      # `npx tsc --noEmit -p tsconfig.app.json` that stood here until
+      # 2026-09-09. Two reasons, and the second is the one that matters:
+      #   1. `-p tsconfig.app.json` builds ONE of the two project references.
+      #      tsconfig.node.json — the one with `strict: true` — was never
+      #      compiled by CI at all.
+      #   2. The bare form of the same command, `npx tsc --noEmit`, uses the
+      #      solution-style root tsconfig, whose `files` is []. Measured
+      #      2026-09-09: it compiles ZERO files under src/ and cannot fail.
+      #      It is one flag away from what stood here, and it is quoted as a
+      #      passing gate in several audit documents.
+      - run: npm run typecheck
       # Full suite, not the old hand-picked 8/35 files.
       - run: npm run test
       # Credential-free half of the two-homes check (added 2026-08-30).
@@ -84,19 +96,28 @@ jobs:
       # added it: the backlog that justified the exemption is gone, so any new
       # finding is a genuinely new tenant gap -- exactly what this must fail on.
       - run: npm run lint:tenant-scope
+      # LINT IS A GATE FROM 2026-09-09, AT TODAY'S NUMBER.
+      #
+      # `npm run lint` itself is still red: 113 errors, all
+      # @typescript-eslint/no-explicit-any, none of them from recent work. That
+      # left two bad options -- annotate 113 sites before lint can gate
+      # anything, or leave it permanently red -- and this repo has already
+      # learned what a permanently red gate becomes: unread. `lint:baseline`
+      # is the third option and it existed before this line did; it simply was
+      # not wired to anything. It records the totals and fails when they GROW,
+      # and also when they shrink without `--update`, so the recorded debt
+      # cannot quietly drift above reality.
+      #
+      # This is the answer to "fix it or exclude it, do not leave it
+      # ambiguous": the debt is written down in lint-baseline.json with a
+      # number, and nothing may add to it.
+      - run: npm run lint:baseline
       #
       # NOT yet enabled as gates, both need a live SUPABASE_ACCESS_TOKEN this
       # repo's GitHub Actions secrets don't have (gh secret list is empty --
       # see docs/PRODUCTION_DEPLOYMENT_ARCHITECTURE.md). Add the secret, then
-      # add these two lines back:
-      #   - run: node scripts/check-pending-migrations.mjs
+      # add these two lines back -- check-pending-migrations was rewritten on
+      # 2026-09-09 into a real set-difference against public.schema_migrations
+      # that exits 1, so it is now worth enabling rather than noise:
+      #   - run: npm run db:check-migrations
       #   - run: npm run db:verify-integrity
-      #
-      # `npm run lint` is intentionally NOT a gate yet: it currently reports
-      # 274 pre-existing errors (almost entirely @typescript-eslint/no-explicit-any)
-      # across files this pass never touched. That's real type-safety debt,
-      # but fixing 274 annotations correctly needs its own deliberate pass --
-      # rubber-stamping them under time pressure to make a CI gate green
-      # would trade real type safety for a passing checkmark. Tracked, not
-      # silently dropped: fix it for real, then turn this on.
-      # - run: npm run lint

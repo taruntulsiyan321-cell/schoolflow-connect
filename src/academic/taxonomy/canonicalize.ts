@@ -11,7 +11,16 @@ export function slugifyAcademicId(raw: string | null | undefined): string {
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/&/g, " and ")
-    // Keep Devanagari so Hindi chapter/concept ids stay unique and human-matchable
+    // Keep Devanagari so Hindi chapter/concept ids stay unique and human-matchable.
+    //
+    // The Devanagari block contains combining marks, which is what
+    // no-misleading-character-class objects to, and keeping them is the point:
+    // this is a NEGATED class deciding which code points survive into a slug,
+    // not one matching whole graphemes. The NFKD pass two lines up has already
+    // stripped the Latin combining marks. Adding the `u` flag to silence the
+    // rule would change which code points this class covers \u2014 a behaviour
+    // change to every Hindi id in the database, not a lint fix.
+    // eslint-disable-next-line no-misleading-character-class -- see above
     .replace(/[^a-z0-9\u0900-\u097f]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .replace(/_+/g, "_");
