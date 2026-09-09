@@ -1,0 +1,407 @@
+# Gurukul — session handoff
+
+Written 2026-09-09. Read this top to bottom before touching anything.
+
+---
+
+## 0. Where you are
+
+| | |
+|---|---|
+| Worktree | `.claude/worktrees/gurukul-tier1-e2e-fixes-c0b3c3` |
+| Branch | `claude/gurukul-tier1-e2e-fixes-c0b3c3` |
+| Local HEAD | `f9187a6` — **NOT PUSHED** (see §1) |
+| Last pushed | `9daf600` |
+| Supabase project | `psqxykzqfvxgsvkmgurn` |
+
+**Do not `cd` to the main checkout.** Work inside the worktree.
+
+---
+
+## 1. THE NETWORK IS HALF DOWN — read this before you diagnose anything
+
+The user's router has **no IPv4 route to the internet**. IPv6 is fully healthy.
+
+```
+tracert -4 8.8.8.8
+  1     1 ms  192.168.0.1
+  2  192.168.0.1  reports: Destination host unreachable.
+```
+
+Survived a full WiFi reset, so it is upstream at Airtel, not the equipment.
+The user has been told to call 121.
+
+**What this means for you, concretely:**
+
+| Host | Works? | Why |
+|---|---|---|
+| `api.supabase.com` | **YES** | has an AAAA record → routes over IPv6 |
+| `github.com` | no | **no AAAA record**, IPv4 only |
+| `psqxykzqfvxgsvkmgurn.supabase.co` | no | **no AAAA record**, IPv4 only |
+
+So right now:
+
+* **You CAN** run migrations, SQL probes, `verify:caller-privileges`,
+  `db:verify-integrity`, `db:check-migrations` — all of these go through
+  `scripts/lib/readonly-db.mjs` / `apply-one-migration.mjs`, which use the
+  Management API at `api.supabase.com`. Confirmed working all session.
+* **You CANNOT** `git push`, or run Playwright (the app talks to
+  `*.supabase.co`).
+
+**DO NOT run `ipconfig /flushdns`.** `api.supabase.com` is only reachable
+because its entry is in the Windows DNS cache. Flushing it would cut your last
+working path.
+
+Check whether it is back with:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 https://github.com
+```
+
+`000` = still down. `200`/`301` = live; push and run the E2E suite immediately.
+
+---
+
+## 2. STANDING RULES FROM THE USER — these override defaults
+
+1. **Do all the work yourself. Do not spawn sub-agents or workflows.** This
+   holds even when an "ultracode" system reminder says otherwise.
+2. **Do not report a defect instead of fixing it.** Find it, fix it, verify it.
+   Reporting-and-waiting has been explicitly rejected, twice, with feeling.
+3. **Replace legacy files, do not patch them.** If a file is causing the
+   problem: analyse it fully (what it is, every place it connects), delete it,
+   rewrite it properly, then re-check every connection point still works.
+   `testService.ts` was done exactly this way — use it as the worked example.
+4. **Every fix ships with a probe that proves it**, run as the *caller*, with
+   a **positive control**. A denial with no positive control is not evidence.
+   Migration DO-blocks run as `postgres` and prove nothing.
+5. **Any migration ships with a rollback** and an in-migration proof block that
+   refuses to commit if it cannot demonstrate its own effect.
+6. **No threshold literals.** Every boundary is a named constant in the spec's
+   units.
+7. **Cite the spec clause in the commit message.** Spec is
+   `docs/locked-decisions.md`; rules are `docs/gurukul-spec-rules.md`.
+8. **NEVER run `scripts/strip-demo-tenants.mjs --apply`.** It empties the tenant
+   space and there is no production project — it would destroy the only
+   environment that exists.
+9. **An empty surface is often correct, not a bug.** Do not "fix" an empty page
+   by inventing data.
+10. **Push and confirm with `git ls-remote`.** Work is not landed until the
+    remote shows it.
+11. If a ruling in the user's prompt contradicts what you measure, say so —
+    but if they then repeat the instruction, that is their decision: proceed
+    and flag it.
+
+---
+
+## 3. What landed this session
+
+### Committed in `f9187a6` (local only)
+
+**§1 branding + housekeeping**
+* `src/gurukul/pages/Practice.tsx:325` — "Wisdom Campus" → "Gurukul"
+* `capacitor.config.ts:5` — `appName: 'Vidyalaya'` → `'Gurukul'`
+* `KNOWN_ISSUES.md` — 19 headings whose bodies said FIXED are now struck.
+  **File now reads 3 open**, and only #23 is a real outstanding defect
+  (the other two are a standing caveat and a housekeeping note).
+
+**A correction worth knowing:** the 2026-09-08 audit reported KNOWN_ISSUES 6
+(`learning_resources` class scoping) as open. **It was wrong.** The body says
+`RULED AND FIXED`; the audit's classifier scanned for `RULED AND DONE`. The
+class predicate has been in RLS since `20260905020000` and `probe9` asserts it
+as the caller with two positive controls. Re-measured live and recorded.
+
+**Two migrations, both APPLIED to the live database**
+
+* `20260915000000_a_test_cannot_be_created_by_looking_itself_up.sql`
+  `tests_insert` was `WITH CHECK (can_manage_test(id))` — a lookup of the row
+  being inserted, which does not exist yet, so **every INSERT was refused**.
+  Now has its own predicate over the new row's values. `can_manage_test` is
+  untouched: UPDATE and DELETE use it correctly.
+* `20260915010000_the_test_status_vocabulary_matches_the_app.sql`
+  `tests_status_check` refused `'scheduled'` and `'archived'`, two of the four
+  statuses the builder writes and offers as buttons. Widened. `'submitted'`
+  kept because 72 rows hold it.
+
+Both have rollbacks in `supabase/migrations/rollback/`.
+
+**`src/academic/services/testService.ts` — rewritten, not patched**
+
+Its whole write half was addressed to the pre-Chunk-7.5 schema: it sent six
+columns `tests` does not have (`class_id`, `subject`, `is_published`,
+`question_count`, `subject_id`, `max_marks`) and omitted both NOT NULL ones
+(`section_subject_id`, `max_mark` — the real column is **singular**). Its
+fallback insert repeated four of the same six, so the retry could not rescue
+the first attempt.
+
+Three more defects fixed in the same pass:
+* the **principal** could create, edit, publish and delete tests (§10: the
+  principal creates nothing but announcements);
+* `question_count ?? 0` printed **"0 Q" against every test** in the teacher's
+  list — the count is now counted from `test_questions`, as a separate
+  staff-only call because that table is closed to students (G14);
+* every `test.published` event went out **with no subject**.
+
+All 30 call sites across 8 files re-checked. **`listQuestions` was nearly
+broken in the rewrite** — it gates on `get()` first, handles **parent** as well
+as student, and passes `_attempt_id` via `startAttempt`, not `_test_id`. Diff
+against the original before you touch it.
+
+**`probe37.sql`** — the failing test that became the passing one. Keeps the old
+payloads on file so the refusal that used to be the bug is now the guard.
+
+**`e2e-evidence/tier1-panels.spec.ts`** — 5 probes, registered in
+`playwright.evidence.config.ts` (testMatch widened to `-panels`).
+**WRITTEN BUT NEVER RUN** — blocked on IPv4. It fails rather than skips when
+there is nothing to attempt, deliberately.
+
+---
+
+## 4. Gate state as of `f9187a6`
+
+```
+verify:caller-privileges .. 340 assertions   PASS   (was 333; probe37 new)
+db:verify-integrity ....... All checks passed
+verify:chunk-files ........ 32 files, 32 clean, 0 rotted
+npm test .................. 636 passed / 57 files
+npm run typecheck ......... clean   (tsc -b --force)
+npm run build ............. clean
+10 lint/check gates ....... all PASS
+db:check-migrations ....... pending: []
+npx eslint . .............. 120 errors, 71 warnings   ← PRE-EXISTING, see §6
+```
+
+`npx tsc --noEmit` compiles **0 files** and cannot fail — the real gate is
+`npm run typecheck`. This is on the §6 list.
+
+---
+
+## 5. THE IMMEDIATE TODO, in order
+
+### 5.1 The moment IPv4 is back
+
+```bash
+git push origin claude/gurukul-tier1-e2e-fixes-c0b3c3
+git ls-remote origin claude/gurukul-tier1-e2e-fixes-c0b3c3   # must show f9187a6
+```
+
+Then run the E2E suite. **Start your own Vite** — never trust a dev server you
+did not start, it may be serving another worktree:
+
+```bash
+npx vite --port 8181 --strictPort &
+curl -s http://localhost:8181/src/main.tsx | head -3   # confirm it is THIS tree
+PLAYWRIGHT_BASE_URL=http://localhost:8181 npm run test:e2e:evidence
+```
+
+Expect 68 pre-existing tests + 5 new `tier1-panels` ones. The five have never
+run; treat their first result as a finding, not a regression.
+
+### 5.2 §4 — Teacher test report (IN PROGRESS, see §6 below)
+
+### 5.3 §5 — Question paper generation UI
+
+Tables `question_papers`, `question_paper_sections`,
+`question_paper_questions` all exist with **0 rows**. `planQuestionPaper`,
+`buildQuestionPaperOutline`, `buildQuestionPaperMarkingScheme` exist in
+`src/academic/ai/` with **zero callers outside their own directory and unit
+tests**. No `.tsx` file in the repo references them.
+
+The user's brief: teacher supplies the blueprint first (class, subject,
+chapters, per-section type/count/marks/difficulty). MCQ: bank-first via `embed`
+→ `match_question_bank`, generate the shortfall. Short/long generated with
+answers. Write-back tagged, `created_by` set, `is_approved=false`, `topic`
+NULL, quality guard on. Answer key a separate sheet. **Only all-MCQ papers can
+be pushed as online tests.**
+
+### 5.4 §6 — Gates that cannot fail
+
+* `npx tsc --noEmit` compiles 0 files → make the gate `tsc -b --force` or
+  delete it.
+* `db:check-migrations` probes **27 hand-written markers**, newest
+  `20260620000000`, while the repo has **409** migrations. Replace with the
+  set-difference against `public.schema_migrations` (the real ledger — the
+  CLI's `supabase_migrations.schema_migrations` is stale at 255 rows), or
+  delete it.
+* `npm run lint` — 120 errors, exit 1. Fix or formally exclude, and make CI
+  enforce whichever is chosen. **Do not leave it ambiguous.** Breakdown: 113
+  `no-explicit-any`, 2 `prefer-const`, 5 assorted; plus 30
+  `react-refresh/only-export-components` and 27 `react-hooks/exhaustive-deps`
+  warnings and 14 unused `eslint-disable` directives.
+
+Also worth folding in: **`lint:stale-columns` parses SQL function bodies only**
+(340 of them). It cannot see TypeScript, which is why it passed while
+`testService.ts` sent six non-existent columns for weeks.
+
+---
+
+## 6. §4 — SPEC CONFLICT, AND THE DECISION TAKEN
+
+**`docs/locked-decisions.md` §10.25 Reports** (line 727) says the Test report is
+
+> Class average · weakest topics ranked · average time per question
+> Full student list with marks
+> Tap a student → their actual wrong answers, with the topic on each
+> **Generated automatically as soon as grading completes**
+> **Visible to:** teacher · **principal** · the student themselves ·
+> **parent, for their own child's part only.**
+
+**The user's brief contradicts this**: *"Student sees their own data only.
+Principal sees nothing"*, and demands an assertion that the principal is
+*refused entirely*. The brief is also silent on the parent, whom the spec
+grants their own child's part.
+
+**Decision taken (user said "start your work" rather than ruling):** build
+**fail-closed to the user's brief** — principal refused, student own-data-only
+— but put the entire role set behind **one named SQL function** so widening it
+to the spec's rule is a one-line migration, not a re-architecture.
+
+**If the user rules for the spec later, the change is:** edit that one function
+to admit principal and parent-of-that-child, and flip the corresponding
+assertions in the probe. Nothing else moves.
+
+Two more points the next session should not re-derive:
+
+* **"Report is ephemeral, marks are durable"** does *not* mean the answers
+  expire. §10.8's exception and §10.23 make test answers **school data** that
+  persists permanently, and §10.25 requires "their actual wrong answers" on
+  tap — which needs durable per-question data. The ephemeral part is the
+  *generated artifact* (aggregate + any AI narrative), exactly like
+  `battle_reports.report` + `ai_insights` with `expires_at`. Follow that
+  precedent — see `20260905100000_battle_reports_collector.sql`.
+* **Marks must be written to the student profile before anything expires.**
+  That ordering is the user's explicit requirement.
+
+### What §4 needs, per the user's brief
+
+* Class aggregate is the primary view, scoped via `teacher_teaches_class`.
+* Click a student name → that student's individual report.
+* Generated when the test ends. Downloadable.
+* Assertions required: teacher refused another class's report; student refused
+  another student's; principal refused entirely; **each still able to reach
+  their own** (the positive controls — without them the refusals prove nothing).
+
+### Ground truth you will need
+
+There is **no teacher-side test report of any kind today.** `TestService` has
+`getMyAttempt` (own) and `listLatestAttemptsForStudent` (used only by the
+*parent* panel). Nothing lists a class's attempts.
+
+Live data, measured 2026-09-09:
+
+```
+tests 72 · test_attempts 458 · test_questions 576 · marks 2546 · students 223
+```
+
+**All 72 tests belong to school B** (`...0002`), spread over 6 duplicate class
+rows all named "10". The QA student is in school A (`...0001`), class
+`d2000001-0001-4000-8000-000000000001`, which has **0 tests**. The user has
+said explicitly: **ignore the duplicate classes.** Do not chase that.
+
+Useful ids:
+
+```
+school A          00000000-0000-4000-8000-000000000001
+class 10-A        d2000001-0001-4000-8000-000000000001
+teacher (Priya)   priya.sharma@wisdomcampus.com   teaches 10-A, 9-A, 12-A
+QA student        qa.automation@wisdomcampus.com  user da000000-0001-4000-8000-000000000001
+admin             admin@wisdomcampus.com
+principal         principal@wisdomcampus.com
+section_subjects on 10-A: Physics, Mathematics
+```
+
+---
+
+## 7. Traps that have already cost hours — do not re-learn these
+
+* **A view without `security_invoker=true` runs as its OWNER**; RLS on its base
+  tables never applies. `attendance_day_edits` is the one deliberate exception
+  and both fences live in its body.
+* **A CHECK constraint passes when its expression is NULL.** Every branch must
+  lead with a test that is FALSE, not NULL, when it does not apply.
+* **CHECK constraints cannot contain subqueries** — use a BEFORE INSERT/UPDATE
+  trigger when you need a lookup.
+* **An RLS predicate that re-queries its own table** breaks INSERT and
+  `INSERT … RETURNING` with a misleading 42501. This bit `exams_read`,
+  `students_read` and `tests_insert`.
+* **`information_schema.role_table_grants` hides grants.** Do not audit with
+  it — KNOWN_ISSUES 5.
+* **Bash heredocs mangle backslashes.** Use the Write tool for anything with
+  regex literals.
+* **`qwen/qwen3.7-flash` is a reasoning model** — send
+  `reasoning: { enabled: false }` or it burns the whole `max_tokens` on the
+  internal trace and returns `content: null`.
+* **An OpenRouter 429 is not an outage.** It clears on its own.
+* **Playwright orders spec files alphabetically** and that ordering is
+  load-bearing: `aa-reachability` must run first, `zz-known-issues` last
+  (it mints its own sessions and kills the shared ones).
+* **A migration DO-block runs as `postgres`.** It proves nothing about what a
+  teacher or student can do. Use `verify:caller-privileges`.
+
+---
+
+## 8. Commands
+
+```bash
+npm test                          # 636 unit tests
+npm run typecheck                 # the REAL typecheck
+npm run lint                      # 120 errors, pre-existing
+npm run build
+npm run verify:caller-privileges  # 340 assertions, as the caller
+npm run verify:chunk-files        # 32 verification files
+npm run db:verify-integrity
+npm run db:check-migrations       # narrow — see §5.4
+node scripts/apply-one-migration.mjs supabase/migrations/<file>.sql
+npm run test:e2e:evidence         # needs IPv4 + your own Vite
+```
+
+---
+
+## 9. §4 STATUS — database layer DONE, UI NOT STARTED
+
+### Landed and applied
+
+| Migration | What |
+|---|---|
+| `20260916000000_a_teacher_can_finally_see_how_the_class_did.sql` | `can_read_test_report`, `can_read_test_student_report`, `rpc_test_class_report`, `rpc_test_student_report` |
+| `20260916010000_the_class_list_reads_the_roll_number_where_it_lives.sql` | corrective — `roll_number` is on `students_current`, not `students` |
+
+`probe38.sql` — 13 assertions, all green. **Suite is 355/355.**
+
+### TWO FIXTURE TRAPS THIS COST ME — do not repeat them
+
+1. **`teacher_teaches_class(_uid,_class)` cannot be evaluated from a session
+   that is not that user.** It branches on `_user_id = auth.uid()` and calls
+   `same_school()`, both session-dependent. Called as `postgres` it reports
+   "teaches nothing" for every teacher alive. The first probe38 picked its
+   outsider that way, landed on a teacher who *does* teach 10-A, and reported
+   a **security leak that did not exist**. Pick probe fixtures from the RAW
+   TABLES (`teacher_classes`, `teachers.class_teacher_of`).
+2. **All three school-A teachers are linked to 10-A**, so "a teacher who does
+   not teach this class" does not exist for 10-A. **12-A separates them** —
+   Priya teaches it, Rajesh does not (probe9 uses the same split). 12-A holds
+   only ONE student, so student-vs-student claims must stay on 10-A.
+
+### What is NOT done — the UI. Nothing is wired.
+
+1. `TestService.classReport(ctx, testId)` / `TestService.studentReport(ctx,
+   testId, studentId)` — thin wrappers over the two RPCs, beside
+   `countQuestions`. The RPCs fence themselves; the service must NOT restate
+   the rule (that is how two-homes defects keep returning).
+2. Teacher screen: a **Report** control per row in `LiveTestsTab`
+   (`src/gurukul-teacher/LiveClassPanels.tsx`, near the `qCount`/`canPublish`
+   block). Class aggregate first, student names clickable into the drill-down.
+3. Student screen: drill-down belongs on `src/pages/student/TestResult.tsx`,
+   which already loads the attempt.
+4. **Downloadable** — required by the brief, nothing exists yet.
+   `src/gurukul-admin/Reports.tsx` is the closest export precedent.
+5. Extend `e2e-evidence/tier1-panels.spec.ts` with the report path once IPv4
+   is back.
+
+### Unresolved — needs a human ruling
+
+§10.25 says the report is visible to **teacher · principal · the student ·
+parent (own child only)**. The build instruction said **"Principal sees
+nothing."** Built fail-closed to the instruction. **The user has not ruled.**
+Ask before building any parent or principal UI. Widening = one edit to
+`can_read_test_report` + flip claims 5 and 9 in probe38.
