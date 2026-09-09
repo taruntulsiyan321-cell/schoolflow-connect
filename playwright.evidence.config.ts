@@ -58,7 +58,7 @@ export default defineConfig({
       //                    never touches, passed every time; tier1-reads passed
       //                    12/12 when run without it. Last means nothing it does
       //                    to a session can reach a spec that has not run yet.
-      testMatch: /(aa-reachability|tier\d(-writes|-reads)?|zz-known-issues)\.spec\.ts/,
+      testMatch: /(aa-reachability|tier\d(-writes|-reads|-panels)?|zz-known-issues)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },

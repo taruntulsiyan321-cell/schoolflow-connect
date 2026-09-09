@@ -322,7 +322,7 @@ function Hub({
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="flex-1">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Wisdom Campus</div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Gurukul</div>
           <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>
             Practice
           </h1>

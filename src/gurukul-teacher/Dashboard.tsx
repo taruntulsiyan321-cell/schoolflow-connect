@@ -180,9 +180,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
                   ? AttendanceService.listForClassDate(ctx, c.id, todayDate)
                   : Promise.resolve(null),
                 HomeworkService.listForClassWithStats(ctx, c.id, { limit: 100 }),
-                TestService.listForClass(ctx, c.id) as Promise<
-                  { status?: string; is_published?: boolean }[]
-                >,
+                TestService.listForClass(ctx, c.id) as Promise<{ status?: string }[]>,
                 MarksService.listExamsForClass(ctx, c.id, { limit: 100 }),
                 AcademicProfileService.listForClass(ctx, c.id),
               ]);
@@ -211,7 +209,9 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
 
               if (testsRes.status === "fulfilled") {
                 testsNHere = testsRes.value.filter((t) => {
-                  const st = String(t.status ?? (t.is_published ? "published" : "draft"));
+                  // `status` is NOT NULL on tests; the old is_published
+                  // fallback read a column the table does not have.
+                  const st = String(t.status ?? "draft");
                   return st === "draft" || st === "scheduled";
                 }).length;
               } else {

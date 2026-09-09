@@ -7,7 +7,7 @@ Started 2026-09-04, build session 1 (XP write / test-generate-questions / Resour
 
 ---
 
-## 1. `requireAnyRole` in edge functions can never admit anybody
+## 1. ~~`requireAnyRole` in edge functions can never admit anybody~~ — FIXED
 
 **FIXED 2026-09-07, and most of it was already done.** Route (b) was taken:
 `_shared/requireRole.ts` asks `has_role` through the CALLER's client
@@ -116,7 +116,7 @@ copy is byte-identical to the deployed one, so the local file really is the code
 at fault. But a deploy would also ship the two drifted `_shared` modules in
 issue 3, so that drift must be resolved first.
 
-## 2. Students cannot reach question generation at all
+## 2. ~~Students cannot reach question generation at all~~ — FIXED
 
 **FIXED 2026-09-07 and verified in production. A student generated a question.**
 Deployed `dpp-generate-questions` v15. Both blockers this entry named are gone —
@@ -184,7 +184,7 @@ Worth deciding at the same time: the call charges the budget line
 `teacher.dpp.generate_questions`. A student-triggered generation probably wants
 its own feature_id so the two are separable in `ai_budget_usage`.
 
-## 3. `dpp-generate-questions` is deployed but exists in no branch
+## 3. ~~`dpp-generate-questions` is deployed but exists in no branch~~ — FIXED
 
 **FIXED 2026-09-07. Every deployed function now has a home in git.**
 `npm run check:edge-drift` compares 18 deployed functions and reports **zero**
@@ -255,7 +255,7 @@ formatting reasons alone. It is fine for asking "is this identifier present"
 and useless for reproducing a file. A copy taken from it would look
 authoritative and be subtly wrong. Extract programmatically; do not retype.
 
-## 4. `npm run db:migrate` re-runs 356 migrations and cannot complete
+## 4. ~~`npm run db:migrate` re-runs 356 migrations and cannot complete~~ — FIXED
 
 The applier lists every file at or after `RECENT_SINCE` and runs all of them; it
 never consults `public.schema_migrations` to skip what is already applied. It
@@ -297,7 +297,7 @@ of. A privilege audit run through `information_schema` would have called
 
 Use `pg_class.relacl`, or `has_table_privilege(role, table, priv)`.
 
-## 6. `learning_resources` read is school-wide, not class-scoped
+## 6. ~~`learning_resources` read is school-wide, not class-scoped~~ — FIXED
 
 `resources_select` is `same_school(school_id) AND (is_published OR admin OR
 teacher)` — there is no class predicate. Measured in `probe9`: a student of 12-A
@@ -323,7 +323,35 @@ before, paired with two controls so a policy that merely hid everything could
 not pass: the school-wide row still reaches that student, and the parent still
 reads the class row.
 
-## 7. `academic-files` is a public bucket with no tenancy scoping
+**Re-measured live 2026-09-09**, because the 2026-09-08 audit reported this
+entry as still open. It is not: the audit's classifier scanned for `RULED AND
+DONE` and this body says `RULED AND FIXED`, so it read a closed entry as an
+open one. The policy in the live database today is
+
+```
+resources_select USING (
+  same_school(school_id) AND (
+    admin OR principal OR teacher
+    OR (is_published AND (class_id IS NULL
+                          OR class_id = student_class_id(auth.uid())
+                          OR is_class_of_my_child(class_id)))))
+```
+
+— the class predicate is in RLS, not only in `ResourceService`. Asked as the
+caller, straight at the table, `npm run verify:caller-privileges` reports:
+
+```
+ok  10.11 RLS confines a resource to its class            student of 12-A  OK: 0
+ok  10.11 school-wide resource still reaches every student student of 12-A  OK: 1
+ok  10.11 resource visible to a student of that class      student of 10-A  OK: 1
+ok  10.11 parent of a child in that class can read it      parent           OK: 1
+ok  10.11 resource invisible across schools                student school B OK: 0
+```
+
+The refusal and its positive controls both hold, so the `0` is the fence and
+not an empty table.
+
+## 7. ~~`academic-files` is a public bucket with no tenancy scoping~~ — FIXED
 
 **FIXED 2026-09-07. No bucket in the project is public any more.** With the
 go-ahead given, `20260914000000` applied — the classifier did not refuse it this
@@ -478,7 +506,7 @@ the wrong way round:
   `<img src>` (6 call sites), so it must resolve signed URLs into state, with
   the raw value as the fallback while loading.
 
-## 8. A deleted class strands its resources permanently
+## 8. ~~A deleted class strands its resources permanently~~ — FIXED
 
 `learning_resources.class_id` is nullable and its FK is `ON DELETE SET NULL`,
 but every write policy required `class_id IS NOT NULL`. Deleting a class
@@ -496,7 +524,7 @@ the uploader, matching the delete rule; nothing calls update today.
 probe9 asserts the orphan case directly: class set to NULL, uploader deletes,
 row gone.
 
-## 9. `ownership.ts` disagreed with the database about who owns resources
+## 9. ~~`ownership.ts` disagreed with the database about who owns resources~~ — FIXED
 
 `owners: ["admin", "principal", "teacher"]` against §10.11's "Uploaded by
 teachers only — not admin, not principal" and against the live policies, which
@@ -510,7 +538,7 @@ two-homes shape as the rest of this list.
 
 ---
 
-## 7b. `doubt-images` is public and unsized — fold into the §7 approval
+## 7b. ~~`doubt-images` is public and unsized — fold into the §7 approval~~ — FIXED
 
 **FIXED 2026-09-07, in `20260914000000` alongside §7.** Private, and sized at
 20 MB to match `doubt-attachments`.
@@ -733,7 +761,7 @@ both spellings (`20260731090000:434,439,469`).
 Left in place rather than removed, because removing a name from the catalog is a
 ruling. Recorded so the next session does not read the gap as work.
 
-## 11. `QuestionBankService.insert` sends a `school_id` that does not exist — found 2026-09-06
+## 11. ~~`QuestionBankService.insert` sends a `school_id` that does not exist — found 2026-09-06~~ — FIXED
 
 **FIXED 2026-09-07, and it was worse than the entry said.** The `school_id` was
 real and is gone, but removing it only exposed the next refusal. Measured as a
@@ -817,7 +845,7 @@ Not fixed here: the fence in `20260906030000` was the scoped work, and removing
 the key is a one-line change that should be made by whoever can watch the button
 work afterwards.
 
-## 12. Contributed questions are student-visible immediately — `is_approved` defaults to `true`
+## 12. ~~Contributed questions are student-visible immediately — `is_approved` defaults to `true`~~ — RESOLVED
 
 **RULED AND APPLIED by `20260907000000`; the title above is now stale.** Measured
 live 2026-09-07: `question_bank.is_approved` **defaults to `false`**, and
@@ -863,7 +891,7 @@ Decide: (a) leave entry approved and accept cross-school visibility on save,
 (b) default to false and build an approval surface, or (c) default to false and
 accept that contributions are staff-only until one exists.
 
-## 13. `match_question_bank`'s body cites §4.2a for a rule that lives in §10.9
+## 13. ~~`match_question_bank`'s body cites §4.2a for a rule that lives in §10.9~~ — FIXED
 
 **FIXED — and it was already fixed when this entry was re-read on 2026-09-07.**
 `20260907000000_question_bank_approval_default.sql` rewrote the function's
@@ -890,7 +918,7 @@ schools and all users" is **§10.9**, `docs/locked-decisions.md:385`. The phrase
 Corrected in `docs/gurukul-spec-rules.md`'s clause table. Not corrected in the
 database, because that is a migration to change a comment.
 
-## 14. `dpp-generate-questions` reserves AI budget it never releases on failure
+## 14. ~~`dpp-generate-questions` reserves AI budget it never releases on failure~~ — FIXED
 
 **FIXED 2026-09-07 and verified in production.** `20260913000000` adds
 `public.ai_budget_release`, the exact inverse of the reservation, and
@@ -1269,7 +1297,7 @@ So the accounts landed but the harness did not. Whether they sit inside
 `d1000005-…` prefix rather than the two demo-tenant UUIDs that script keys on,
 which is worth confirming before provisioning relies on it.
 
-## 19. `MarksService.removeExam` has no UI caller — an exam is uncreatable-then-undeletable
+## 19. ~~`MarksService.removeExam` has no UI caller — an exam is uncreatable-then-undeletable~~ — FIXED
 
 **FIXED 2026-09-07.** A Delete control now sits on the teacher's exam card
 (`LiveClassPanels`), rendered for the class teacher — the same person §10.5
@@ -1301,7 +1329,7 @@ exactly this reason, and says so where it does it.
 Not fixed here: adding a delete control to the exam card is a product change
 beyond making the Tier 1 write path work.
 
-## 20. Navigating away while marks save bounces the teacher back
+## 20. ~~Navigating away while marks save bounces the teacher back~~ — FIXED
 
 **FIXED 2026-09-07.** `saveMarks()` still shows its flash before the trailing
 `reload()` and `getExam()`, but the `setActiveSubject` after them is now
@@ -1335,7 +1363,7 @@ Nothing is lost either way — clicking again works. The fix is to move the
 flash after the awaits, or to guard the trailing `setActiveSubject` on the
 sheet still being open.
 
-## 21. `students_read` has the same self-referential shape `exams_read` had
+## 21. ~~`students_read` has the same self-referential shape `exams_read` had~~ — FIXED
 
 **FIXED 2026-09-07 by 20260912010000 — and a claim made while fixing it was
 wrong, so it is corrected here.** I first wrote that the self-reference also
@@ -1376,7 +1404,7 @@ row-level security while every visibility term is actually true. The same
 `can_read_*_row` treatment applied to `exams` in 20260909000000 fixes it if
 that day comes.
 
-## 22. Both exam event emitters swallow their own failure
+## 22. ~~Both exam event emitters swallow their own failure~~ — FIXED
 
 **FIXED 2026-09-07.** All five `emitEvent(...).catch(() => undefined)` calls in
 `marksService` now use `emitEventBestEffort`, which this same file already
@@ -1418,7 +1446,7 @@ turned out, exam creation inside one of them was refused 42501 every time.
 `tier1-writes.spec.ts` reaches the panels by opening the tab, which is why it
 found what the URL probe could not.
 
-## 24. Service class names are rendered to parents as UI labels
+## 24. ~~Service class names are rendered to parents as UI labels~~ — FIXED
 
 **FIXED 2026-09-07.** Five user-facing labels stopped naming TypeScript classes:
 
@@ -1455,7 +1483,7 @@ Not fixed here: it is cosmetic, it is outside the Tier 1 write paths this
 change was scoped to, and renaming a visible label is the kind of thing worth
 doing deliberately across the panel rather than in two spots.
 
-## 25. An admin can never correct submitted attendance — a stale audit trigger
+## 25. ~~An admin can never correct submitted attendance — a stale audit trigger~~ — FIXED
 
 **FIXED 2026-09-07 by 20260910000000, and the cause was not what this entry
 assumed.** The fix was never missing: 20260904100000 (audit consolidation) had
@@ -2143,3 +2171,141 @@ outage reads as one red line instead of a hundred plausible product regressions.
 An outage and a throttle are both the world being unavailable; neither is a
 defect in this app, and both had already sent a reader hunting one — twice on
 the day this was written.
+
+## 39. ~~Every teacher test write was addressed to a schema that had not existed for weeks~~ — FIXED
+
+**FIXED 2026-09-09.** Found by writing the probe KNOWN_ISSUES 23 says was
+missing, and confirmed in the data before a line was changed:
+
+```
+72 tests · 0 published · tests.status holds exactly one value ('submitted')
+```
+
+All 72 came from seed SQL. **Not one test in this project was ever created
+through the app.**
+
+Chunk 7.5 replaced `tests.class_id` with `section_subject_id` (§10.22) and
+dropped `is_published` in favour of `status`. The READ half of `testService.ts`
+was updated for that — `isPublishedFlag` and `listForClass` both carry comments
+explaining the drop — and the WRITE half was not:
+
+```
+sent, and not on `tests`   class_id · subject · is_published ·
+                           question_count · subject_id · max_marks
+required, and not sent     section_subject_id (NOT NULL)
+                           max_mark          (NOT NULL, and the real column
+                                              is SINGULAR — it sent the plural)
+```
+
+Measured as the caller, probe37:
+
+```
+ok  TestService.create — the payload it sent BEFORE the rewrite
+      ERROR: column "class_id" of relation "tests" does not exist
+ok  TestService.create — its old fallback payload (no escape hatch)
+      ERROR: column "class_id" of relation "tests" does not exist
+```
+
+**The fallback repeated the defect it existed to survive.** `create` inserted
+`extended`, and on any error retried with `base` — which carried four of the
+same six phantom columns and omitted the same two NOT NULL ones. A retry that
+cannot succeed is not a fallback, it is a second copy of the bug.
+
+`update`, `publish`, `archive`, `schedule`, `setQuestions` and `remove` each
+read `class_id` off a row that has none, so `String(existing.class_id)` was the
+literal `"undefined"`, handed to the class-ownership guard at 14 sites.
+
+**The file was rewritten rather than patched**, because the whole write half was
+addressed to the old shape and a six-column patch would have left the next
+reader believing the rest was checked. Every write path now resolves its class
+through the section-subject anchor (`sectionIdOfTest`), and creating one
+resolves the other way (`resolveSectionSubjectId`) — which **refuses rather than
+guesses** when a class teaches several subjects and the caller named none.
+Filing a Physics test under Mathematics would be silent and permanent.
+
+**Three things found while rewriting, all fixed here:**
+
+* **The principal could create, edit, publish and delete tests.** The guard
+  opened `if (isSchoolOperator(ctx.role)) return;`, and `isSchoolOperator` is
+  admin OR principal. §10: the principal "cannot create or edit any record
+  except announcements".
+* **`question_count ?? 0` printed "0 Q" against every test** in the teacher's
+  list. The column does not exist. The count is now counted from
+  `test_questions` — as a separate staff-only call, because that table is
+  closed to students (G14) and embedding it in the shared list query would
+  break the student's own test list.
+* **Every `test.published` event went out with no subject.** The payload read
+  `existing.subject`, and a test has no subject column — it comes from the
+  anchor. Now `subjectOfTest()`.
+
+Callers re-checked, all 30 sites across 8 files: `LiveClassPanels`,
+`TestAttempt`, `TestResult`, `Tests`, `Calendar`, `gurukul-teacher/Dashboard`,
+`ParentLiveAcademic`, `services/index`. Three of them read the phantom columns
+as dead fallbacks and were cleaned. `listQuestions` was nearly broken in the
+rewrite — it gates on `get()` first, handles **parent** as well as student, and
+passes `_attempt_id` (via `startAttempt`), not `_test_id` — and was restored
+verbatim after checking the original.
+
+## 40. ~~`tests_insert` refused every insert, by looking up the row being inserted~~ — FIXED
+
+**FIXED 2026-09-09 by `20260915000000`.** The policy was
+
+```sql
+tests_insert  INSERT  WITH CHECK (can_manage_test(id))
+```
+
+and `can_manage_test` is `SELECT EXISTS (SELECT 1 FROM public.tests t WHERE
+t.id = _test_id …)`. It looks the new row up **in `tests`**, by the id the row
+is being given. On an INSERT that row is not visible to the function's snapshot
+— it is STABLE — so the predicate is false and every insert is refused.
+
+This is a SECOND, independent blocker: even with the columns corrected, the
+insert was refused. It surfaced because probe37's **positive control failed**:
+
+```
+FAIL  the same teacher, the columns tests actually has (positive control)
+        ERROR: new row violates row-level security policy for table "tests"
+```
+
+A denial with no positive control would have read as proof that the column fix
+was enough.
+
+`can_manage_test` is **not** touched — `tests_update` and `tests_delete` use it
+and are correct there, because by then the row exists. INSERT got its own
+predicate over the new row's values: the anchor must belong to the same school,
+`created_by` must be the caller (§8, credited to whoever created it), and the
+caller is admin or teaches that section (§10.5). The principal is deliberately
+absent (§10).
+
+Same family as `students_read` (entry 21) and `exams_read` before it. There a
+self-referential policy broke `INSERT … RETURNING`; here it broke the INSERT.
+
+## 41. ~~Two of the three buttons in the test builder wrote a status the database refused~~ — FIXED
+
+**FIXED 2026-09-09 by `20260915010000`.** `tests_status_check` admitted
+`draft`, `published`, `submitted`. `TestService` declares four and writes two
+the constraint refused:
+
+```
+TestService.schedule() -> 'scheduled'  -> 23514
+TestService.archive()  -> 'archived'   -> 23514
+```
+
+The builder's review step offers **Save draft · Schedule · Publish** side by
+side. Two of those three wrote a value the database threw out.
+
+Meanwhile `submitted` is in the constraint and **nothing in the application
+writes it** — all 72 rows carry it because they came from seed SQL. The
+vocabulary and its writer had drifted in both directions.
+
+Widened rather than narrowing the app: the table already carries
+`scheduled_publish_at` and `archived_at`, so the schema expected both states;
+only the enum was left behind. Nothing in the database reads this vocabulary —
+`my_readable_test_ids` and `my_manageable_test_ids` do not mention status, and
+no `public` function referencing `'scheduled'` touches `tests`. `submitted` is
+KEPT: dropping a value 72 rows satisfy would make them un-updatable, which the
+rollback refuses to do for the same reason.
+
+probe37 asserts all four the builder offers are accepted, and the migration
+refuses to commit unless the CHECK still rejects a value outside the vocabulary
+— a wider CHECK that accepts everything is an absent one.

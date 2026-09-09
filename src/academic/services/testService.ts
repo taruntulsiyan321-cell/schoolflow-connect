@@ -2,19 +2,56 @@
  * TestService — the Tests feature, on `tests` + `test_questions` +
  * `test_attempts` + `test_answers` (Chunk 7.5).
  *
- * It previously ran on `tests`, which was a second implementation of the same
- * feature: Chunk 6 built `tests`/`test_marks` for the teacher-uploads-marks
- * flow while Test carried the student-takes-a-test-in-app flow, and both were
- * called "test".
+ * ── WHY THIS FILE WAS REWRITTEN, 2026-09-09 ──────────────────────────────
  *
- * Two things here are NOT simple renames:
+ * Chunk 7.5 replaced `tests.class_id` with `section_subject_id` (§10.22) and
+ * dropped `is_published` in favour of `status`. The READ half of this file was
+ * updated for that and the WRITE half was not, so every teacher write path was
+ * addressed to a table shape that had not existed for weeks:
+ *
+ *   sent, and not on `tests`   class_id · subject · is_published ·
+ *                              question_count · subject_id · max_marks
+ *   required, and not sent     section_subject_id (NOT NULL)
+ *                              max_mark          (NOT NULL, and the real
+ *                                                 column is SINGULAR)
+ *
+ * `create` sent all six phantom columns, and its fallback insert repeated the
+ * same defect, so the retry could not rescue the first attempt. `update`,
+ * `publish`, `archive`, `schedule`, `setQuestions` and `remove` each read
+ * `class_id` off a row that has none — `String(undefined)`, the literal
+ * "undefined", handed to the class-ownership guard.
+ *
+ * Measured as the caller before the rewrite (probe37):
+ *
+ *     ERROR: column "class_id" of relation "tests" does not exist
+ *
+ * and in the data: 72 tests, 0 published, `tests.status` holding exactly one
+ * value across the whole database. Not one test in this project was ever
+ * created through the app; all 72 arrived from seed SQL.
+ *
+ * Two database faults were fixed alongside, because the client could not work
+ * without them:
+ *
+ *   20260915000000  `tests_insert` checked `can_manage_test(id)` — a lookup of
+ *                   the row being inserted, which does not exist yet, so every
+ *                   INSERT was refused. It now tests the NEW row's values.
+ *   20260915010000  `tests_status_check` refused 'scheduled' and 'archived',
+ *                   two of the four statuses this file writes and the builder
+ *                   offers as buttons.
+ *
+ * ── WHAT IS LOAD-BEARING HERE ────────────────────────────────────────────
  *
  *   - A test anchors on section_subject (§10.22), not on a class. Listing for
- *     a class resolves through section_subjects rather than a second class_id
- *     column naming the same fact (G9).
- *   - Students never receive `correct`. test_questions is not SELECT-able by
- *     them at all; the paper comes from rpc_test_questions_for_attempt, which
- *     omits the answer key (G14).
+ *     a class resolves through `section_subjects` rather than a second
+ *     class_id column naming the same fact (G9). Creating one resolves the
+ *     other way, and REFUSES rather than guessing when the class teaches more
+ *     than one subject and the caller named none.
+ *   - Students never receive `correct`. `test_questions` is not SELECT-able by
+ *     them at all; the paper comes from `rpc_test_questions_for_attempt`,
+ *     which omits the answer key (G14).
+ *   - The principal creates nothing. §10: "Cannot create or edit any record
+ *     except announcements." The previous guard admitted them through
+ *     `isSchoolOperator`, which is admin OR principal.
  */
 import {
   assertCanOwn,
@@ -28,10 +65,16 @@ import type { Json } from "@/integrations/supabase/types";
 import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
-import { isSchoolOperator } from "./context";
 import type { TestKind } from "./workLifecycle";
 import { ValidationFailedError, AcademicRepositoryError } from "../repository/errors";
 
+/**
+ * The four states the builder offers and this file writes.
+ *
+ * `tests_status_check` admits these four plus 'submitted', which only seeded
+ * rows carry — nothing in the application writes it, and it is kept in the
+ * constraint because 72 rows would otherwise become un-updatable.
+ */
 export type TestStatus = "draft" | "scheduled" | "published" | "archived";
 
 function afterTestWrite(
@@ -170,30 +213,117 @@ function toCorrect(
   return { text: String(correct) };
 }
 
+/**
+ * Who may write a test.
+ *
+ * PRINCIPAL IS EXCLUDED, DELIBERATELY. This used to open with
+ * `if (isSchoolOperator(ctx.role)) return;`, and `isSchoolOperator` is admin OR
+ * principal — so a principal could create, edit, publish and delete tests.
+ * §10: the principal "cannot create or edit any record except announcements".
+ * `can_manage_test` and `can_create_test` in the database do not admit them
+ * either, so this is the service agreeing with the fence rather than being the
+ * only thing enforcing it.
+ */
 async function assertTeacherCanWriteTest(ctx: ServiceContext, classId: string) {
-  if (isSchoolOperator(ctx.role)) return;
+  if (ctx.role === "admin" || ctx.role === "super_admin") return;
   if (ctx.role !== "teacher") {
-    throw new ForbiddenError("Only teachers may manage tests");
+    throw new ForbiddenError("Only teachers and admins may manage tests");
   }
   // Class ownership only — subject soft-check was blocking real teachers
   await assertTeacherOwnsClass(toRepoContext(ctx), ctx.userId, classId);
 }
 
 /**
- * Sole source of truth for "may a student/parent see this test." Every
- * write path (create/update/publish/archive/schedule) sets is_published in
- * lockstep with status, so trusting status as an alternative here only ever
- * adds risk, never legitimate coverage — a hand-edited or seeded row where
- * status="published" but is_published=false must stay hidden. Confirmed via
- * a live incident: a seeded draft Test with exactly that mismatch was
- * reachable and attemptable by a real student through this exact OR check.
+ * §10.22: a test anchors on the section-subject, not on a class. Creating one
+ * therefore has to resolve `(class, subject) -> section_subject_id`.
+ *
+ * It REFUSES rather than picking when the class teaches several subjects and
+ * the caller named none. Guessing here would file a Physics test under
+ * Mathematics and there would be nothing on screen to show it had happened —
+ * the test would simply appear in the wrong subject's analysis for the rest of
+ * the year.
+ */
+async function resolveSectionSubjectId(
+  ctx: ServiceContext,
+  classId: string,
+  subject?: string | null,
+): Promise<string> {
+  const { data, error } = await getClient(toRepoContext(ctx))
+    .from("section_subjects")
+    .select("id, curriculum_subjects(name)")
+    .eq("section_id", classId)
+    .eq("school_id", ctx.schoolId);
+  throwIfError(error, "Failed to resolve the subject this test belongs to");
+
+  const rows = (data ?? []) as { id: string; curriculum_subjects?: { name?: string } | null }[];
+  const nameOf = (r: (typeof rows)[number]) => (r.curriculum_subjects?.name ?? "").trim();
+
+  if (rows.length === 0) {
+    throw new ValidationFailedError([
+      {
+        field: "classId",
+        code: "no_section_subject",
+        message:
+          "This class has no subjects set up yet, so a test has nothing to anchor on (§10.22). " +
+          "Add the subject to the section first.",
+      },
+    ]);
+  }
+
+  const wanted = (subject ?? "").trim().toLowerCase();
+  if (wanted) {
+    const hit = rows.find((r) => nameOf(r).toLowerCase() === wanted);
+    if (hit) return hit.id;
+  }
+  if (rows.length === 1) return rows[0].id;
+
+  throw new ValidationFailedError([
+    {
+      field: "subject",
+      code: "ambiguous_subject",
+      message:
+        `Choose which subject this test is for. This class teaches: ` +
+        rows.map(nameOf).filter(Boolean).join(", "),
+    },
+  ]);
+}
+
+/**
+ * The class a fetched test belongs to, read back through its anchor.
+ *
+ * Every write path needs this for the ownership guard and for the live
+ * broadcast. It used to be `String(row.class_id)` on a row that has no
+ * `class_id`, which produced the string "undefined" and handed that to
+ * `assertTeacherOwnsClass`. Throwing beats passing a fake id on: a guard given
+ * nonsense refuses everyone, which reads as a permissions bug.
+ */
+function sectionIdOfTest(row: unknown): string {
+  const ss = (row as { section_subjects?: { section_id?: string | null } | null } | null)
+    ?.section_subjects;
+  const id = ss?.section_id;
+  if (!id) {
+    throw new AcademicRepositoryError(
+      "test_without_section",
+      "This test does not resolve to a class — its section-subject anchor is missing.",
+    );
+  }
+  return String(id);
+}
+
+/**
+ * Sole source of truth for "may a student/parent see this test."
+ *
+ * `is_published` was a boolean beside `status`, which is the same fact twice
+ * and drifts the moment one is written without the other (G9). Chunk 7.5 kept
+ * the enum and dropped the boolean, so `status` is now the only place the
+ * answer lives and there is nothing left to disagree with it.
  */
 export function isPublishedFlag(row: Record<string, unknown>): boolean {
-  // `is_published` was a boolean beside `status`, which is the same fact
-  // twice and drifts the moment one is written without the other (G9). 7.5
-  // kept the enum and dropped the boolean.
   return row.status === "published";
 }
+
+/** `tests` columns that describe when the test was created, for reuse below. */
+const TEST_WITH_ANCHOR = "*, section_subjects(section_id, curriculum_subjects(name))";
 
 /**
  * TestService — usable teacher workflows first.
@@ -231,10 +361,6 @@ export const TestService = {
     if (ctx.role === "student" || ctx.role === "parent") {
       rows = rows.filter((r) => isPublishedFlag(r as Record<string, unknown>));
     } else if (opts?.status) {
-      // `|| is_published` was here, reading a column `tests` does not have —
-      // 7.5 dropped it as the same fact as `status` twice (G9). It always
-      // evaluated undefined, so it never widened anything; it only suggested a
-      // second source of truth that isPublishedFlag() exists to deny.
       rows = rows.filter((r) => String((r as { status?: string }).status ?? "") === opts.status);
     }
     if (opts?.testKind) {
@@ -246,11 +372,12 @@ export const TestService = {
   async get(ctx: ServiceContext, testId: string) {
     assertCanConsume(ctx, "test");
     // A test has no subject column of its own — it anchors on section_subject
-    // (§10.22), so the subject is whatever that section teaches. Resolved here
-    // once and surfaced as `subject`, so no screen has to know the join.
+    // (§10.22), so the subject is whatever that section teaches. `section_id`
+    // comes back in the same round trip because every write path needs it for
+    // the ownership guard.
     const { data, error } = await getClient(toRepoContext(ctx))
       .from("tests")
-      .select("*, section_subjects(curriculum_subjects(name))")
+      .select(TEST_WITH_ANCHOR)
       .eq("id", testId)
       .maybeSingle();
     throwIfError(error, "Failed to load test");
@@ -298,13 +425,32 @@ export const TestService = {
     return data ?? [];
   },
 
-  /** Create test — base schema first, optional workspace columns. */
   async create(ctx: ServiceContext, input: CreateTestInput) {
     assertCanOwn(ctx, "test");
     await assertTeacherCanWriteTest(ctx, input.classId);
     if (!input.title?.trim()) {
       throw new ValidationFailedError([
         { field: "title", code: "required", message: "Test title is required" },
+      ]);
+    }
+
+    // §10.22: resolve the anchor before anything else, so an ambiguous subject
+    // fails before a row exists rather than after.
+    const sectionSubjectId = await resolveSectionSubjectId(ctx, input.classId, input.subject);
+
+    // `tests.max_mark` is NOT NULL with CHECK (max_mark > 0). The builder
+    // already has the field and fills it from the question total in manual
+    // mode, so asking for it is surfacing the table's own rule rather than
+    // inventing one — and defaulting it would put a fabricated denominator on
+    // every mark computed against this test.
+    const maxMark = Number(input.maxMarks ?? 0);
+    if (!Number.isFinite(maxMark) || maxMark <= 0) {
+      throw new ValidationFailedError([
+        {
+          field: "maxMarks",
+          code: "required",
+          message: "Set the maximum mark for this test — every mark is scored against it.",
+        },
       ]);
     }
 
@@ -317,61 +463,44 @@ export const TestService = {
             .join("\n")}`
         : "";
 
-    const base: Record<string, unknown> = {
-      class_id: input.classId,
-      title: input.title.trim(),
-      subject: input.subject ?? "",
-      created_by: ctx.userId,
+    // Every key below is a column `public.tests` actually has. The previous
+    // version sent six that it does not, then retried with a payload carrying
+    // four of the same six — a fallback that repeated the defect it was there
+    // to survive. There is no fallback now: one payload, addressed correctly.
+    const row: Record<string, unknown> = {
       school_id: ctx.schoolId,
+      section_subject_id: sectionSubjectId,
+      created_by: ctx.userId,
+      title: input.title.trim(),
+      max_mark: Math.round(maxMark),
+      total_marks: input.maxMarks ?? null,
+      passing_marks: input.passingMarks ?? null,
+      status,
+      test_kind: input.testKind ?? "class_test",
       difficulty: input.difficulty ?? "medium",
       duration_sec: input.duration_sec ?? 1800,
       instructions: `${input.instructions ?? ""}${paperNote}`.trim() || null,
       chapter: input.chapters?.[0] ?? null,
       topic: input.topics?.[0] ?? null,
-      total_marks: input.maxMarks ?? 0,
-      is_published: published,
-      question_count: 0,
-    };
-
-    const extended: Record<string, unknown> = {
-      ...base,
-      school_id: ctx.schoolId,
-      subject_id: input.subjectId ?? null,
-      test_kind: input.testKind ?? "class_test",
-      max_marks: input.maxMarks ?? null,
-      passing_marks: input.passingMarks ?? null,
       chapters: input.chapters ?? [],
       topics: input.topics ?? [],
-      status,
       scheduled_publish_at: input.scheduledPublishAt ?? null,
       published_at: published ? new Date().toISOString() : null,
     };
 
-    const repo = toRepoContext(ctx);
-    let data: unknown = null;
-    let error: { message: string } | null = null;
-
-    ({ data, error } = await getClient(repo)
+    const { data, error } = await getClient(toRepoContext(ctx))
       .from("tests")
-      .insert(extended as never)
-      .select("*")
-      .single());
-
-    if (error) {
-      ({ data, error } = await getClient(repo)
-        .from("tests")
-        .insert(base as never)
-        .select("*")
-        .single());
-    }
+      .insert(row as never)
+      .select(TEST_WITH_ANCHOR)
+      .single();
     throwIfError(error, "Failed to create test");
 
-    const row = data as { id: string };
+    const created = data as { id: string };
     if (published || status === "scheduled") {
-      await emitEvent(repo, {
+      await emitEvent(toRepoContext(ctx), {
         eventType: published ? "test.published" : "test.scheduled",
         entityType: "test",
-        entityId: row.id,
+        entityId: created.id,
         classId: input.classId,
         payload: {
           title: input.title,
@@ -391,19 +520,19 @@ export const TestService = {
   async setQuestions(ctx: ServiceContext, testId: string, questions: ManualQuestionInput[]) {
     assertCanOwn(ctx, "test");
     const repo = toRepoContext(ctx);
-    const test = (await this.get(ctx, testId)) as { class_id: string };
-    await assertTeacherCanWriteTest(ctx, String(test.class_id));
+    const test = await this.get(ctx, testId);
+    const classId = sectionIdOfTest(test);
+    await assertTeacherCanWriteTest(ctx, classId);
 
     await getClient(repo).from("test_questions").delete().eq("test_id", testId);
 
     if (questions.length === 0) {
+      // `question_count` was written here and does not exist on `tests`. The
+      // count is derivable from test_questions and storing it would be the
+      // same fact twice (G9), so it is simply not stored.
       await getClient(repo)
         .from("tests")
-        .update({
-          question_count: 0,
-          total_marks: 0,
-          updated_at: new Date().toISOString(),
-        } as never)
+        .update({ total_marks: 0, updated_at: new Date().toISOString() } as never)
         .eq("id", testId);
       return [];
     }
@@ -442,37 +571,38 @@ export const TestService = {
     const total = rows.reduce((s, r) => s + Number(r.marks), 0);
     await getClient(repo)
       .from("tests")
-      .update({
-        question_count: rows.length,
-        total_marks: total,
-        updated_at: new Date().toISOString(),
-      } as never)
+      .update({ total_marks: total, updated_at: new Date().toISOString() } as never)
       .eq("id", testId);
 
-    afterTestWrite(ctx, {
-      classId: String(test.class_id),
-      source: "TestService.setQuestions",
-    });
+    afterTestWrite(ctx, { classId, source: "TestService.setQuestions" });
     return data ?? [];
   },
 
   async update(ctx: ServiceContext, testId: string, patch: UpdateTestInput) {
     assertCanOwn(ctx, "test");
     const repo = toRepoContext(ctx);
-    const existing = (await this.get(ctx, testId)) as { class_id: string };
-    await assertTeacherCanWriteTest(ctx, String(existing.class_id));
+    const existing = await this.get(ctx, testId);
+    const classId = sectionIdOfTest(existing);
+    await assertTeacherCanWriteTest(ctx, classId);
 
     const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (patch.title !== undefined) row.title = patch.title;
-    if (patch.subject !== undefined) row.subject = patch.subject;
     if (patch.difficulty !== undefined) row.difficulty = patch.difficulty;
     if (patch.duration_sec !== undefined) row.duration_sec = patch.duration_sec;
     if (patch.instructions !== undefined) row.instructions = patch.instructions;
     if (patch.chapters?.[0] !== undefined) row.chapter = patch.chapters[0];
     if (patch.topics?.[0] !== undefined) row.topic = patch.topics[0];
-    if (patch.maxMarks !== undefined) {
+    // `subject` is not a column on `tests` (§10.22 — it comes from the anchor),
+    // and `max_marks` is not one either; the mark column is `max_mark`.
+    if (patch.maxMarks !== undefined && patch.maxMarks !== null) {
+      const m = Number(patch.maxMarks);
+      if (!Number.isFinite(m) || m <= 0) {
+        throw new ValidationFailedError([
+          { field: "maxMarks", code: "invalid", message: "Maximum mark must be greater than zero." },
+        ]);
+      }
       row.total_marks = patch.maxMarks;
-      row.max_marks = patch.maxMarks;
+      row.max_mark = Math.round(m);
     }
     if (patch.passingMarks !== undefined) row.passing_marks = patch.passingMarks;
     if (patch.testKind !== undefined) row.test_kind = patch.testKind;
@@ -480,7 +610,9 @@ export const TestService = {
     if (patch.topics !== undefined) row.topics = patch.topics;
     if (patch.status !== undefined) {
       row.status = patch.status;
-      row.is_published = patch.status === "published";
+      // `is_published` was set here in lockstep with status. The column is
+      // gone; `status` is the single source (see isPublishedFlag).
+      if (patch.status === "published") row.published_at = new Date().toISOString();
     }
     if (patch.scheduledPublishAt !== undefined) {
       row.scheduled_publish_at = patch.scheduledPublishAt;
@@ -490,119 +622,89 @@ export const TestService = {
       .from("tests")
       .update(row as never)
       .eq("id", testId)
-      .select("*")
+      .select(TEST_WITH_ANCHOR)
       .single();
     throwIfError(error, "Failed to update test");
-    afterTestWrite(ctx, {
-      classId: String(existing.class_id),
-      source: "TestService.update",
-    });
+    afterTestWrite(ctx, { classId, source: "TestService.update" });
     return data;
   },
 
   async publish(ctx: ServiceContext, testId: string) {
     assertCanOwn(ctx, "test");
     const repo = toRepoContext(ctx);
-    const existing = (await this.get(ctx, testId)) as {
-      class_id: string;
-      title: string;
-      subject?: string;
-      test_kind?: string;
-    };
-    await assertTeacherCanWriteTest(ctx, String(existing.class_id));
+    const existing = (await this.get(ctx, testId)) as Record<string, unknown>;
+    const classId = sectionIdOfTest(existing);
+    await assertTeacherCanWriteTest(ctx, classId);
 
     const now = new Date().toISOString();
     const { data, error } = await getClient(repo)
       .from("tests")
-      .update({
-        status: "published",
-        is_published: true,
-        published_at: now,
-        updated_at: now,
-      } as never)
+      .update({ status: "published", published_at: now, updated_at: now } as never)
       .eq("id", testId)
-      .select("*")
+      .select(TEST_WITH_ANCHOR)
       .single();
     throwIfError(error, "Failed to publish test");
     await emitEvent(repo, {
       eventType: "test.published",
       entityType: "test",
       entityId: testId,
-      classId: String(existing.class_id),
+      classId,
       payload: {
         title: existing.title,
-        subject: existing.subject,
-        testKind: existing.test_kind ?? "class_test",
+        subject: subjectOfTest(existing),
+        testKind: (existing.test_kind as string) ?? "class_test",
       },
     }).catch(() => undefined);
-    afterTestWrite(ctx, {
-      classId: String(existing.class_id),
-      source: "TestService.publish",
-    });
+    afterTestWrite(ctx, { classId, source: "TestService.publish" });
     return data;
   },
 
   async archive(ctx: ServiceContext, testId: string) {
     assertCanOwn(ctx, "test");
-    const existing = (await this.get(ctx, testId)) as { class_id: string };
-    await assertTeacherCanWriteTest(ctx, String(existing.class_id));
+    const existing = await this.get(ctx, testId);
+    const classId = sectionIdOfTest(existing);
+    await assertTeacherCanWriteTest(ctx, classId);
     const now = new Date().toISOString();
     const { data, error } = await getClient(toRepoContext(ctx))
       .from("tests")
-      .update({
-        status: "archived",
-        is_published: false,
-        archived_at: now,
-        updated_at: now,
-      } as never)
+      .update({ status: "archived", archived_at: now, updated_at: now } as never)
       .eq("id", testId)
-      .select("*")
+      .select(TEST_WITH_ANCHOR)
       .single();
     throwIfError(error, "Failed to archive test");
-    afterTestWrite(ctx, {
-      classId: String(existing.class_id),
-      source: "TestService.archive",
-    });
+    afterTestWrite(ctx, { classId, source: "TestService.archive" });
     return data;
   },
 
   async schedule(ctx: ServiceContext, testId: string, at: string) {
     assertCanOwn(ctx, "test");
-    const existing = (await this.get(ctx, testId)) as {
-      class_id: string;
-      title: string;
-      subject?: string;
-      test_kind?: string;
-    };
-    await assertTeacherCanWriteTest(ctx, String(existing.class_id));
+    const existing = (await this.get(ctx, testId)) as Record<string, unknown>;
+    const classId = sectionIdOfTest(existing);
+    await assertTeacherCanWriteTest(ctx, classId);
     const { data, error } = await getClient(toRepoContext(ctx))
       .from("tests")
       .update({
         status: "scheduled",
-        is_published: false,
         scheduled_publish_at: at,
         updated_at: new Date().toISOString(),
       } as never)
       .eq("id", testId)
-      .select("*")
+      .select(TEST_WITH_ANCHOR)
       .single();
     throwIfError(error, "Failed to schedule test");
     await emitEvent(toRepoContext(ctx), {
       eventType: "test.scheduled",
       entityType: "test",
       entityId: testId,
-      classId: String(existing.class_id),
+      classId,
       payload: {
         title: existing.title,
-        subject: existing.subject,
-        testKind: existing.test_kind ?? "class_test",
+        subject: subjectOfTest(existing),
+        testKind: (existing.test_kind as string) ?? "class_test",
         scheduledPublishAt: at,
       },
     }).catch(() => undefined);
-    afterTestWrite(ctx, {
-      classId: String(existing.class_id),
-      source: "TestService.schedule",
-    });
+    afterTestWrite(ctx, { classId, source: "TestService.schedule" });
     return data;
   },
 
@@ -611,8 +713,8 @@ export const TestService = {
     const repo = toRepoContext(ctx);
     let classId: string | null = null;
     try {
-      const existing = (await this.get(ctx, testId)) as { class_id: string };
-      classId = String(existing.class_id);
+      const existing = await this.get(ctx, testId);
+      classId = sectionIdOfTest(existing);
       await assertTeacherCanWriteTest(ctx, classId);
     } catch {
       /* still attempt delete */
@@ -702,10 +804,42 @@ export const TestService = {
       );
     }
     throwIfError(error, "Failed to delete test");
-    afterTestWrite(ctx, {
-      classId,
-      source: "TestService.remove",
-    });
+    afterTestWrite(ctx, { classId, source: "TestService.remove" });
+  },
+
+  /**
+   * How many questions each of these tests carries — staff only.
+   *
+   * The teacher's list used to read `question_count` off the test row. That
+   * column does not exist on `tests`, so `t.question_count ?? 0` rendered
+   * "0 Q" against every test ever built. The count is not stored, deliberately
+   * (it would be the same fact as `test_questions` twice, G9), so it is
+   * counted here instead.
+   *
+   * NOT folded into `listForClass`: `test_questions` is not SELECT-able by
+   * students at all — the answer key fence is the GRANT (G14) — so embedding
+   * a count in the shared list query would break the student's own test list.
+   */
+  async countQuestions(
+    ctx: ServiceContext,
+    testIds: string[],
+  ): Promise<Record<string, number>> {
+    assertCanConsume(ctx, "test");
+    if (ctx.role === "student" || ctx.role === "parent") {
+      throw new ForbiddenError("Question counts are staff-only");
+    }
+    if (!testIds.length) return {};
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("test_questions")
+      .select("test_id")
+      .in("test_id", testIds);
+    throwIfError(error, "Failed to count test questions");
+    const counts: Record<string, number> = {};
+    for (const id of testIds) counts[id] = 0;
+    for (const row of (data ?? []) as { test_id: string }[]) {
+      counts[row.test_id] = (counts[row.test_id] ?? 0) + 1;
+    }
+    return counts;
   },
 
   /** Empty library framework — content added later. */
@@ -987,3 +1121,17 @@ export const TestService = {
     return result ?? data;
   },
 };
+
+/**
+ * The subject a fetched test belongs to, read through its anchor.
+ *
+ * A test has no `subject` column (§10.22). Event payloads used to carry
+ * `existing.subject`, which was always undefined on a row that does not have
+ * it — so every `test.published` event went out with the subject missing.
+ */
+function subjectOfTest(row: unknown): string | undefined {
+  const ss = (row as {
+    section_subjects?: { curriculum_subjects?: { name?: string } | null } | null;
+  } | null)?.section_subjects;
+  return ss?.curriculum_subjects?.name ?? undefined;
+}

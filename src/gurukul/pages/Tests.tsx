@@ -69,7 +69,6 @@ export default function Tests() {
               title: string;
               subject?: string;
               test_kind?: string;
-              is_published?: boolean;
               status?: string;
             }[]
           ).map((t) => ({

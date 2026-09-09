@@ -108,25 +108,31 @@ function Loading({ label }: { label: string }) {
 
 const TEST_KINDS = Object.keys(TEST_KIND_LABELS) as TestKind[];
 
+/**
+ * A row of `public.tests`, and nothing else.
+ *
+ * This carried `subject`, `is_published`, `max_marks` and `question_count`.
+ * None of the four is a column on `tests` — Chunk 7.5 moved the subject to the
+ * section_subject anchor (§10.22) and replaced `is_published` with `status`,
+ * and the mark column is `max_mark`. Every read of them was `undefined`, so
+ * each was a fallback that could never fire and a display that could never be
+ * right: `question_count ?? 0` printed "0 Q" against every test in the list.
+ */
 type TestRow = {
   id: string;
   title?: string;
-  subject?: string;
   status?: string;
-  is_published?: boolean;
   test_kind?: string;
   duration_sec?: number;
-  max_marks?: number | null;
   total_marks?: number | null;
-  question_count?: number | null;
   passing_marks?: number | null;
   created_at?: string | null;
 };
 
 function resolveTestStatus(t: TestRow): string {
-  if (t.status) return String(t.status);
-  if (t.is_published) return "published";
-  return "draft";
+  // `status` is NOT NULL on `tests`, so the old `is_published` fallback below
+  // this line was unreachable as well as addressed to a missing column.
+  return t.status ? String(t.status) : "draft";
 }
 
 /** Live roster + AcademicProfileService metrics + student detail panels. */
@@ -838,6 +844,8 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["test", "profile"]);
   const [tests, setTests] = useState<TestRow[]>([]);
+  /** Counted from `test_questions`; `tests` carries no question_count column. */
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
@@ -874,7 +882,13 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     try {
       await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
       const t = await TestService.listForClass(ctx, classId);
-      setTests((t ?? []) as TestRow[]);
+      const rows = (t ?? []) as TestRow[];
+      setTests(rows);
+      // Counting is a second request on purpose: test_questions is closed to
+      // students (G14), so it cannot ride along in the shared list query.
+      setQuestionCounts(
+        await TestService.countQuestions(ctx, rows.map((r) => r.id)).catch(() => ({})),
+      );
       setError(null);
       loadedRef.current = true;
     } catch (err) {
@@ -1664,9 +1678,9 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
       <div className="space-y-2">
         {tests.map((t) => {
           const status = resolveTestStatus(t);
-          const marks = t.total_marks ?? t.max_marks;
-          const qCount = t.question_count ?? 0;
-          const canPublish = status === "draft" || status === "scheduled" || (!t.is_published && status !== "published" && status !== "archived");
+          const marks = t.total_marks;
+          const qCount = questionCounts[t.id] ?? 0;
+          const canPublish = status !== "published" && status !== "archived";
           return (
             <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
               <div className="flex justify-between gap-2">
