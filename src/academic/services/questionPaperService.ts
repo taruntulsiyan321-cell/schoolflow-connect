@@ -44,13 +44,16 @@
  *
  * ── WHAT HAPPENS TO A GENERATED QUESTION ─────────────────────────────────
  *
- * It goes onto the paper, and — if it is an MCQ that resolves to a curriculum
- * chapter — into the shared `question_bank` as well, tagged `ai_generated`,
- * credited to its author, `topic` NULL (rule 31), and UNAPPROVED. It is
- * therefore invisible to every student until a super admin approves it, which
+ * It goes onto the paper, and — if it resolves to a curriculum chapter — into
+ * the shared `question_bank` as well, tagged `ai_generated`, credited to its
+ * author, `topic` NULL (rule 31), and UNAPPROVED. It is therefore invisible to
+ * every student until a super admin approves it, which
  * `trg_question_bank_approval_is_super_admin_only` enforces and this code
- * cannot bypass. See `writeBackToBank` for why written-answer questions cannot
- * go back at all.
+ * cannot bypass.
+ *
+ * Every format goes back now, not just multiple choice: `20260916100000`
+ * replaced the bank's two NOT NULL columns with the same either/or answer-shape
+ * rule the paper table already used. See `writeBackToBank`.
  */
 import { assertCanConsume, toRepoContext, type ServiceContext } from "./context";
 import { getClient, throwIfError } from "../repository/base";
@@ -536,19 +539,26 @@ export const QuestionPaperService = {
    * `trg_question_bank_approval_is_super_admin_only` refuses it to everyone
    * but a super admin, which is what makes the write safe.
    *
-   * ── ONLY MCQs GO BACK, AND THAT IS THE SCHEMA'S DOING ──────────────────
+   * ── EVERY FORMAT GOES BACK, SINCE 20260916100000 ───────────────────────
    *
-   * `question_bank.options` and `question_bank.correct_index` are both NOT
-   * NULL. Measured as the caller, 2026-09-09:
+   * `question_bank.options` and `.correct_index` used to be NOT NULL, so the
+   * bank could not hold a short or long question at all — even though
+   * `question_bank_question_format_check` admitted both. The vocabulary
+   * anticipated them and the columns forbade them. Measured as the caller:
    *
    *   INSERT ... question_format='short', options NULL
    *   -> null value in column "options" violates not-null constraint
    *
-   * So the bank cannot hold a short or long question at all, even though
-   * `question_bank_question_format_check` admits 'short' and 'long' — the
-   * vocabulary anticipates them and the columns forbid them. Written-answer
-   * questions therefore stay on the paper and are reported as skipped rather
-   * than dropped silently.
+   * That is now one either/or CHECK — options AND a key, OR non-empty answer
+   * text — deliberately the same rule `question_paper_questions` already
+   * carried as `qpq_answer_shape`. A question that can go on a paper can go in
+   * the bank, and the two tables cannot disagree about what a complete
+   * question is.
+   *
+   * What is still refused, by that CHECK and by the guard in
+   * `assertQuestionRowsAreKeyed`, is an ANSWERLESS question: no options, no
+   * key, no answer text. Nobody can mark it, so storing it would be worse than
+   * storing nothing.
    *
    * ── AN UNKEYED QUESTION IS NEVER SERVED ────────────────────────────────
    *
@@ -573,14 +583,6 @@ export const QuestionPaperService = {
   ): Promise<{ saved: number; skipped: string[] }> {
     const skipped: string[] = [];
 
-    if (section.question_format !== "mcq") {
-      return {
-        saved: 0,
-        skipped: [
-          `the question bank stores multiple-choice questions only, so ${generated.length} ${section.question_format} question(s) stayed on the paper`,
-        ],
-      };
-    }
     if (paper.class_level == null) {
       return { saved: 0, skipped: ["the paper has no class level, so nothing could be keyed"] };
     }
@@ -616,11 +618,21 @@ export const QuestionPaperService = {
       };
     }
 
+    const isChoice = section.question_format === "mcq";
     const rows = generated
       .filter((q) => {
-        const usable =
-          Array.isArray(q.options) && q.options.length > 0 && typeof q.correct_index === "number";
-        if (!usable) skipped.push("a generated question had no options and answer key");
+        // The same either/or the database now enforces: options AND a key,
+        // or written answer text. Anything else cannot be marked.
+        const usable = isChoice
+          ? Array.isArray(q.options) && q.options.length > 0 && typeof q.correct_index === "number"
+          : typeof q.answer === "string" && q.answer.trim() !== "";
+        if (!usable) {
+          skipped.push(
+            isChoice
+              ? "a generated question had no options and answer key"
+              : "a generated question had no written answer",
+          );
+        }
         return usable;
       })
       .map((q) => ({
@@ -634,10 +646,11 @@ export const QuestionPaperService = {
         topic: null,
         difficulty: section.difficulty ?? "medium",
         question: String(q.question ?? "").trim(),
-        options: (q.options ?? []) as string[],
-        correct_index: q.correct_index as number,
+        options: isChoice ? ((q.options ?? []) as string[]) : null,
+        correct_index: isChoice ? (q.correct_index as number) : null,
+        answer: isChoice ? null : (q.answer ?? null),
         explanation: q.explanation ?? null,
-        question_format: "mcq",
+        question_format: section.question_format,
         source_type: "ai_generated",
         source: `question_paper:${paper.id}`,
         board: paper.board ?? null,

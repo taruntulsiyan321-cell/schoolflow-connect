@@ -60,8 +60,20 @@ export type QuestionBankInsertRow = {
   concept?: string | null;
   difficulty?: string;
   question: string;
-  options: string[] | Json;
-  correct_index: number;
+  /**
+   * Multiple choice: options AND correct_index. Written answer: `answer`.
+   *
+   * Both were REQUIRED here because `question_bank.options` and
+   * `.correct_index` were NOT NULL, which meant the bank could not hold a
+   * short or long question even though `question_format` admitted both.
+   * `20260916100000` replaced the two NOT NULLs with one either/or CHECK —
+   * the same rule `question_paper_questions` already used — so a question
+   * that can go on a paper can now go in the bank.
+   */
+  options?: string[] | Json | null;
+  correct_index?: number | null;
+  /** The expected answer for a written-answer question (§4.2a). */
+  answer?: string | null;
   explanation?: string | null;
   source?: string | null;
   /**
@@ -177,6 +189,20 @@ export function buildQuestionBankInsertPayload(
 export function assertQuestionRowsAreKeyed(rows: QuestionBankInsertRow[]): void {
   const issues: { field: string; code: string; message: string }[] = [];
   rows.forEach((r, i) => {
+    // The shape rule, checked here so a caller gets a sentence rather than a
+    // raw `question_bank_answer_shape` violation from PostgREST. The database
+    // still enforces it — this is the message, not the fence.
+    const hasChoice = r.options != null && r.correct_index != null;
+    const hasWritten = typeof r.answer === "string" && r.answer.trim() !== "";
+    if (!hasChoice && !hasWritten) {
+      issues.push({
+        field: "answer",
+        code: "answer_required",
+        message:
+          `Question ${i + 1}: give either options with a correct answer, or the ` +
+          `written answer — a question nobody can mark is worse than no question.`,
+      });
+    }
     // Row numbers are 1-based: they are read by a person against a list.
     const at = `Question ${i + 1}`;
     if (!r.chapter_id) {

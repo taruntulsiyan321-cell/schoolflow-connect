@@ -9,16 +9,17 @@
  * the chapters it draws on. Only once that exists can anything fill it.
  *
  * WHAT FILLS IT. MCQ sections pull from the 21,681-question bank, which is
- * entirely multiple choice; short and long sections cannot, and the screen
- * says so. Every section can also GENERATE, through ai-gateway's
+ * entirely multiple choice today, so short and long sections will come up
+ * short from it. Every section can also GENERATE, through ai-gateway's
  * `teacher.question_paper.generate_questions`. Where the bank falls short the
  * shortfall is printed — a paper that comes back short must look short — and
  * every question the quality guard rejected is named with its reason.
  *
- * A GENERATED MCQ ALSO GOES BACK TO THE SHARED BANK, unapproved and tagged
- * `ai_generated`, and the screen reports that as a separate outcome from the
- * paper write. Written-answer questions cannot go back: `question_bank`'s
- * `options` and `correct_index` are both NOT NULL.
+ * A GENERATED QUESTION ALSO GOES BACK TO THE SHARED BANK, unapproved and
+ * tagged `ai_generated`, and the screen reports that as a separate outcome
+ * from the paper write. Written answers go back too since `20260916100000`
+ * replaced the bank's `options`/`correct_index` NOT NULLs with the same
+ * either/or answer-shape rule the paper table already had.
  *
  * THE ANSWER KEY IS A SEPARATE SHEET, on a toggle and in its own CSV, because
  * the paper is what a student sees and the key is not.
@@ -37,6 +38,7 @@ import {
 } from "lucide-react";
 import { cn } from "./shared";
 import {
+  CurriculumService,
   QuestionPaperService,
   useAcademicLive,
   type QuestionPaperRow,
@@ -60,8 +62,20 @@ import {
   toErrorMessage,
 } from "@/lib/presentation";
 
-/** `question_papers_class_level_check` admits 6..12 and nothing else. */
-const CLASS_LEVELS = [6, 7, 8, 9, 10, 11, 12] as const;
+/**
+ * WHICH CLASSES EXIST IS THE CURRICULUM TREE'S ANSWER, NOT A LITERAL HERE.
+ *
+ * This was `[6, 7, 8, 9, 10, 11, 12]`, copied from a CHECK constraint that
+ * said the same. The curriculum runs 5 to 12 and the bank holds 2,189 usable
+ * Class 5 questions, so both the constraint and this array made a Class 5
+ * paper impossible — the exact defect that archived those questions the first
+ * time (KNOWN_ISSUES 27). `20260916110000` replaced the constraint with a
+ * curriculum lookup; this reads the same source.
+ *
+ * The fallback is used only until the read returns, and deliberately covers
+ * the full seeded range rather than a narrower guess.
+ */
+const CLASS_LEVEL_FALLBACK = [5, 6, 7, 8, 9, 10, 11, 12];
 const FORMATS: { value: PaperSectionFormat; label: string }[] = [
   { value: "mcq", label: "Multiple choice" },
   { value: "short", label: "Short answer" },
@@ -123,6 +137,7 @@ export default function QuestionPapers() {
   const [generated, setGenerated] = useState<Record<string, GenerationOutcome>>({});
   const [showKey, setShowKey] = useState(false);
 
+  const [classLevels, setClassLevels] = useState<number[]>(CLASS_LEVEL_FALLBACK);
   const [pairs, setPairs] = useState<ClassSubjectPair[]>([]);
   const [pushTarget, setPushTarget] = useState("");
 
@@ -149,6 +164,15 @@ export default function QuestionPapers() {
     if (!ready || !ctx) return;
     let cancelled = false;
     void (async () => {
+      try {
+        // The classes the curriculum actually has. A literal here is what made
+        // Class 5 unreachable; the fallback only covers the gap before this
+        // returns.
+        const levels = await CurriculumService.listClassLevels(ctx);
+        if (!cancelled && levels.length) setClassLevels(levels);
+      } catch {
+        // Keep the fallback — an empty class list would make the form unusable.
+      }
       try {
         const rows = await listTeacherClassSubjectPairs(toRepoContext(ctx), ctx.userId);
         if (!cancelled) setPairs(rows);
@@ -368,7 +392,7 @@ export default function QuestionPapers() {
               onChange={(e) => setPaperForm({ ...paperForm, classLevel: e.target.value })}
               className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
             >
-              {CLASS_LEVELS.map((c) => (
+              {classLevels.map((c) => (
                 <option key={c} value={c}>
                   Class {c}
                 </option>
@@ -521,8 +545,8 @@ export default function QuestionPapers() {
                               a control that always errors. */}
                           {s.question_format !== "mcq" && (
                             <div className="text-[9px] text-muted-foreground">
-                              The question bank is multiple choice only — use Generate for this
-                              section, or write it by hand.
+                              The bank holds mostly multiple choice, so this section will
+                              usually come up short — use Generate, or write it by hand.
                             </div>
                           )}
 

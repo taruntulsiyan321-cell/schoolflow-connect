@@ -5535,6 +5535,7 @@ export type Database = {
       }
       question_bank: {
         Row: {
+          answer: string | null
           approved_at: string | null
           approved_by: string | null
           board: string | null
@@ -5542,7 +5543,7 @@ export type Database = {
           chapter_id: string | null
           class_level: number | null
           concept: string | null
-          correct_index: number
+          correct_index: number | null
           created_at: string
           created_by: string | null
           difficulty: string
@@ -5553,7 +5554,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_approved: boolean
-          options: Json
+          options: Json | null
           question: string
           question_format: string | null
           replaced_by_question_id: string | null
@@ -5570,6 +5571,7 @@ export type Database = {
           variant_tier: number | null
         }
         Insert: {
+          answer?: string | null
           approved_at?: string | null
           approved_by?: string | null
           board?: string | null
@@ -5577,7 +5579,7 @@ export type Database = {
           chapter_id?: string | null
           class_level?: number | null
           concept?: string | null
-          correct_index: number
+          correct_index?: number | null
           created_at?: string
           created_by?: string | null
           difficulty?: string
@@ -5588,7 +5590,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_approved?: boolean
-          options: Json
+          options?: Json | null
           question: string
           question_format?: string | null
           replaced_by_question_id?: string | null
@@ -5605,6 +5607,7 @@ export type Database = {
           variant_tier?: number | null
         }
         Update: {
+          answer?: string | null
           approved_at?: string | null
           approved_by?: string | null
           board?: string | null
@@ -5612,7 +5615,7 @@ export type Database = {
           chapter_id?: string | null
           class_level?: number | null
           concept?: string | null
-          correct_index?: number
+          correct_index?: number | null
           created_at?: string
           created_by?: string | null
           difficulty?: string
@@ -5623,7 +5626,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_approved?: boolean
-          options?: Json
+          options?: Json | null
           question?: string
           question_format?: string | null
           replaced_by_question_id?: string | null

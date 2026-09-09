@@ -21,7 +21,7 @@
 --   7. ...but can still READ it.                            (POSITIVE CONTROL)
 --   8. a STUDENT cannot write to the bank.                        <- the fence
 --   9. the author cannot APPROVE their own question.              <- §10.20
---  10. a SHORT question cannot be stored at all.                  <- the schema
+--  10. a written-answer question IS stored, answerless is not.   <- 20260916100000
 --  11. anon holds no write grant.                                 <- the grant
 --
 -- 1, 5 and 7 are what make the refusals mean anything.
@@ -162,23 +162,38 @@ BEGIN
     ('approving their own contribution','teacher (§10.20)','ERROR: only a super admin', r,
      CASE WHEN r LIKE 'ERROR:%only a super admin%' THEN 'PASS' ELSE 'FAIL' END);
 
-  -- ── 10. a written-answer question has nowhere to go ────────────────────
+  -- ── 10. a written-answer question now HAS somewhere to go ──────────────
   --
-  -- Not a policy refusal: `options` and `correct_index` are NOT NULL, so the
-  -- bank cannot hold a short or long question even though
-  -- `question_bank_question_format_check` admits both. This is why the §5
-  -- write-back is MCQ-only, and it is asserted so the day that changes, the
-  -- claim changes with it.
+  -- `options` and `correct_index` were NOT NULL, so the bank could not hold a
+  -- short or long question even though `question_bank_question_format_check`
+  -- admitted both — the vocabulary anticipated them and the columns forbade
+  -- them. `20260916100000` replaced the two NOT NULLs with one either/or
+  -- CHECK, the same rule `qpq_answer_shape` already applied to the paper.
   r := pg_temp.as_user(teacher, format(
     $q$INSERT INTO public.question_bank
          (subject, chapter_id, class_level, question, options, correct_index,
-          explanation, question_format, source_type, created_by, is_approved)
-       VALUES (%L, %L, %s, 'probe40 short question', NULL, NULL, 'because',
-               'short', 'ai_generated', %L, false)
+          answer, explanation, question_format, source_type, created_by, is_approved)
+       VALUES (%L, %L, %s, 'probe40 short question', NULL, NULL,
+               'A complete written answer a teacher can mark against.',
+               'because', 'short', 'ai_generated', %L, false)
        RETURNING id::text$q$, subj, chap, lvl, teacher));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('storing a SHORT-answer question in the bank','teacher','ERROR: options not-null', r,
-     CASE WHEN r LIKE 'ERROR:%not-null%' AND r LIKE '%options%' THEN 'PASS' ELSE 'FAIL' END);
+    ('a SHORT-answer question is stored (positive control)','teacher','OK: <uuid>', r,
+     CASE WHEN r LIKE 'OK: ________-%' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ...and an ANSWERLESS one still is not. Dropping the NOT NULLs must not
+  -- have opened the door to a question nobody can mark — that would be worse
+  -- than the limitation it replaced.
+  r := pg_temp.as_user(teacher, format(
+    $q$INSERT INTO public.question_bank
+         (subject, chapter_id, class_level, question, options, correct_index,
+          answer, explanation, question_format, source_type, created_by, is_approved)
+       VALUES (%L, %L, %s, 'probe40 answerless question', NULL, NULL, NULL,
+               'because', 'short', 'ai_generated', %L, false)
+       RETURNING id::text$q$, subj, chap, lvl, teacher));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('...while an ANSWERLESS question is still refused','teacher','ERROR: question_bank_answer_shape', r,
+     CASE WHEN r LIKE 'ERROR:%question_bank_answer_shape%' THEN 'PASS' ELSE 'FAIL' END);
 
   -- ── 11. anon ───────────────────────────────────────────────────────────
   SELECT 'OK: ' || count(*)::text INTO r
