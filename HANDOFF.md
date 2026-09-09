@@ -11,7 +11,7 @@ bottom before touching anything.
 |---|---|
 | Worktree | `.claude/worktrees/gurukul-tier1-e2e-fixes-c0b3c3` |
 | Branch | `claude/gurukul-tier1-e2e-fixes-c0b3c3` |
-| Local HEAD | `006e606` + six later commits — **EIGHT COMMITS NOT PUSHED** (see §1) |
+| Local HEAD | `006e606` + seven later commits — **NINE COMMITS NOT PUSHED** (see §1) |
 | Last pushed | `9daf600` |
 | Supabase project | `psqxykzqfvxgsvkmgurn` |
 
@@ -161,7 +161,7 @@ there is nothing to attempt, deliberately.
 ## 4. Gate state after the §4 UI commit
 
 ```
-verify:caller-privileges .. 401 assertions   PASS   (probe40 new, 11 claims)
+verify:caller-privileges .. 412 assertions   PASS   (probe41 new, 11 claims)
 db:verify-integrity ....... All checks passed
 verify:chunk-files ........ 32 files, 32 clean, 0 rotted
 npm test .................. 666 passed / 59 files   (questionGeneration new)
@@ -283,9 +283,40 @@ Approval is not the author's to give: `trg_question_bank_approval_is_super_admin
 refuses it to everyone but a super admin (§10.20), which is exactly what makes
 an unapproved contribution safe to accept.
 
-**STILL OPEN on this feature:** the semantic `embed` → `match_question_bank`
-path, and letting the bank hold a written-answer question at all — that is a
-schema decision about a 21,696-row shared table, not a code change.
+**THE SEMANTIC PATH IS BUILT.** `rpc_fill_paper_section_from_bank` now takes
+an optional ORDERED LIST OF BANK IDS. Given one it draws from those ids in
+that order; given none it behaves exactly as before. One function, two ways of
+choosing which questions come first — which is what `20260916050000`'s header
+promised.
+
+The ids come from `ai-gateway`'s `teacher.question_paper.match_questions`,
+which embeds the section blueprint through `resolveQueryEmbedding` and calls
+`match_question_bank`. **It returns IDS ONLY**, never rows: that RPC runs with
+the SERVICE ROLE and bypasses RLS — it re-states the board test in its own body
+for exactly that reason — so handing rows back would make the endpoint a
+service-role read of the question bank.
+
+**THE PROPERTY THE WHOLE THING RESTS ON**, and probe41 is eleven claims about
+it: the fill RPC re-applies every one of the section's own filters — subject,
+chapter, difficulty, class level, board, not-already-on-this-paper — AS THE
+CALLER. A ranking can reorder what a teacher may retrieve; it cannot widen it.
+Measured: a list of ids for the wrong subject, the wrong class, the wrong
+chapter and one junk uuid inserts **nothing**, while the same section still
+fills three from its own chapter.
+
+When there is no embedding provider the gateway returns `embedding_unavailable`
+and the fill proceeds structurally — and the screen SAYS which path ran. A
+structured fill dressed as a semantic one is a claim nobody made.
+
+**A PERFORMANCE FINDING, not fixed:** `question_bank` has **no vector index**
+at all — measured, zero indexes mentioning `embedding`. Every semantic lookup
+is a sequential scan computing `<=>` over 21,696 rows. It works and it is
+correct; it will not stay cheap. An ivfflat or hnsw index is a migration
+nobody has written.
+
+**STILL OPEN on this feature:** letting the bank hold a written-answer question
+at all — `options` and `correct_index` are NOT NULL, so that is a schema
+decision about a 21,696-row shared table, not a code change.
 
 ### 5.5 THE DEPLOY DECISION — do not take it without the user
 

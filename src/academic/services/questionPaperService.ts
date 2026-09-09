@@ -118,6 +118,19 @@ export interface SectionFillResult {
   pool_size: number;
   inserted: number;
   shortfall: number;
+  /**
+   * Which path chose these questions. `semantic` means the gateway ranked
+   * the candidates by embedding similarity first; `structured` means it
+   * could not, and the deterministic chapter round-robin was used instead.
+   *
+   * The distinction is reported rather than hidden: a teacher who asked for
+   * a semantic fill and silently got the other one has been told something
+   * false about their own paper.
+   */
+  strategy: "semantic" | "structured";
+  ranked_candidates: number;
+  /** Why the semantic path was not used, when it was not. */
+  semantic_note?: string | null;
 }
 
 export interface CreatePaperInput {
@@ -284,14 +297,69 @@ export const QuestionPaperService = {
    */
   async fillSectionFromBank(
     ctx: ServiceContext,
-    sectionId: string,
+    paper: QuestionPaperRow,
+    section: QuestionPaperSectionRow,
   ): Promise<SectionFillResult> {
+    // THE SEMANTIC PATH FIRST, AND IT IS ALLOWED TO FAIL.
+    //
+    // The gateway embeds the section's blueprint and ranks bank candidates
+    // by similarity, returning IDS ONLY — it runs `match_question_bank` with
+    // the service role, so handing back rows would be a service-role read of
+    // the bank. The RPC below then re-applies every one of the section's own
+    // filters as the caller, which is what keeps a ranking from widening
+    // what this teacher may retrieve.
+    //
+    // When there is no embedding provider — or none reachable — this returns
+    // nothing and the fill proceeds structurally. That fallback is REPORTED,
+    // never silent.
+    let bankIds: string[] | null = null;
+    let semanticNote: string | null = null;
+
+    try {
+      const ranked = await invokeAiGateway<{
+        bank_ids?: string[];
+        degraded_reason?: string | null;
+      }>({
+        feature_id: "teacher.question_paper.match_questions",
+        input: {
+          structured: {
+            subject: paper.subject,
+            class_level: paper.class_level,
+            chapter: section.chapters[0] ?? null,
+            title: section.title,
+            difficulty: section.difficulty,
+            count: section.target_count,
+          },
+        },
+      });
+      const reason = ranked?.data?.degraded_reason ?? null;
+      const ids = ranked?.data?.bank_ids ?? [];
+      if (reason) {
+        semanticNote = reason;
+      } else if (ids.length === 0) {
+        // A real answer, not a failure: the bank has nothing similar enough.
+        // Falling through to the structured fill is the right move, and the
+        // teacher is told why the ranking did not apply.
+        semanticNote = "nothing in the bank was close enough to rank";
+      } else {
+        bankIds = ids;
+      }
+    } catch (e) {
+      semanticNote = toErrorMessage(e, "the semantic ranking was unavailable");
+    }
+
+    // `_bank_ids` is `DEFAULT NULL` in SQL, and a DEFAULT NULL parameter
+    // generates as OPTIONAL-NON-NULL in types.ts — `string[] | undefined`, never
+    // `| null`. So it is OMITTED behind a guard rather than passed as null, per
+    // parameter. A blanket `?? undefined` would paper over the same mismatch
+    // everywhere else it appears and hide the next one.
     const { data, error } = await getClient(toRepoContext(ctx)).rpc(
       "rpc_fill_paper_section_from_bank",
-      { _section_id: sectionId },
+      bankIds ? { _section_id: section.id, _bank_ids: bankIds } : { _section_id: section.id },
     );
     throwIfError(error, "Failed to fill this section from the question bank");
-    return data as unknown as SectionFillResult;
+    const result = data as unknown as SectionFillResult;
+    return { ...result, semantic_note: semanticNote };
   },
 
   /**

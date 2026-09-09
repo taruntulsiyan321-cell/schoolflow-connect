@@ -183,6 +183,15 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     description:
       "Step-1 paper outline from plan + Context Builder + Prompt Library + Qwen + Validator (no marking scheme)",
   },
+  "teacher.question_paper.match_questions": {
+    feature_id: "teacher.question_paper.match_questions",
+    route_class: "grounded_retrieval",
+    model_policy: "never",
+    allowed_roles: ["teacher", "admin"],
+    requires_student_target: false,
+    description:
+      "Semantically rank question-bank candidates for one paper section — returns IDS ONLY; the fill RPC re-applies the section filters as the caller",
+  },
   "teacher.question_paper.generate_questions": {
     feature_id: "teacher.question_paper.generate_questions",
     route_class: "content_generation",

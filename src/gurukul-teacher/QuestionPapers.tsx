@@ -272,8 +272,8 @@ export default function QuestionPapers() {
 
   const fill = (section: QuestionPaperSectionRow) =>
     run("Fill from bank", async () => {
-      if (!ctx || !openId) return;
-      const result = await QuestionPaperService.fillSectionFromBank(ctx, section.id);
+      if (!ctx || !openId || !openPaper) return;
+      const result = await QuestionPaperService.fillSectionFromBank(ctx, openPaper, section);
       setFills((prev) => ({ ...prev, [section.id]: result }));
       await loadDetail(openId);
     });
@@ -568,7 +568,17 @@ export default function QuestionPapers() {
                               )}
                             >
                               Added {toCountLabel(f.inserted)} from {toCountLabel(f.pool_size)}{" "}
-                              matching in the bank.
+                              matching in the bank
+                              {f.strategy === "semantic"
+                                ? `, ranked by meaning across ${f.ranked_candidates} candidates`
+                                : ""}
+                              .
+                              {/* Why the ranking did not apply, when it did
+                                  not. A structured fill dressed as a semantic
+                                  one would be a claim nobody made. */}
+                              {f.semantic_note
+                                ? ` Ranked by chapter instead: ${f.semantic_note}.`
+                                : ""}
                               {f.shortfall > 0
                                 ? ` ${f.shortfall} still missing — the bank has nothing more that matches, and nothing here generates questions.`
                                 : ""}

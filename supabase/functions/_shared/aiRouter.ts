@@ -2326,6 +2326,125 @@ export async function routeAiRequest(
         };
         break;
       }
+      case "teacher.question_paper.match_questions": {
+        // The semantic half of §5's bank-first fill. It returns RANKED BANK IDS
+        // and nothing else — no question text, no answer keys.
+        //
+        // WHY IDS. `match_question_bank` is called here with the SERVICE ROLE,
+        // which bypasses RLS; the function re-states the board test in its own
+        // body precisely because of that. Handing the caller rows would make
+        // this endpoint a service-role read of the question bank. Handing it
+        // ids makes it a suggestion, and
+        // `rpc_fill_paper_section_from_bank(_section_id, _bank_ids)` then
+        // re-applies every one of the section's filters AS THE CALLER before
+        // any of them reaches a paper. A ranking can reorder what a teacher may
+        // retrieve; it cannot widen it.
+        //
+        // WHAT match_question_bank DOES NOT FILTER, measured from its body:
+        // chapter, and anything already on the paper. So these are candidates,
+        // not answers, and the caller asks for a multiple of what it needs.
+        const structured = req.input_structured ?? {};
+        const subject = String(structured.subject ?? "").trim();
+        const classLevel = Number(structured.class_level ?? 0);
+        const wanted = Math.min(50, Math.max(1, Number(structured.count ?? 5) || 5));
+
+        // Deliberately broad. The threshold that matters is the section's own
+        // filters, applied later and as the caller; a high bar here would throw
+        // away candidates the structured filters would have accepted and make
+        // the semantic path strictly worse than the one it is widening.
+        // `ai-gateway`'s doubt-solve path uses 0.65 because it is looking for
+        // ONE question that answers another; this is looking for a pool.
+        const MATCH_THRESHOLD = 0.35;
+        const CANDIDATE_MULTIPLE = 4;
+
+        const emptyMatch = (reason: string | null) => ({
+          capability_id: "teacher.question_paper.match_questions",
+          bank_ids: [] as string[],
+          top_similarity: null as number | null,
+          requested: wanted,
+          degraded_reason: reason,
+          session_memory: sessionForContext,
+          workflow_id: "teacher.question_paper.match_questions.v1",
+        });
+
+        if (!subject || !Number.isFinite(classLevel) || classLevel <= 0) {
+          data = emptyMatch("no_subject_or_class_level");
+          decision = "answered_capability_unavailable";
+          provenance = { completeness: 0 };
+          break;
+        }
+
+        const blueprint = [
+          subject,
+          `class ${classLevel}`,
+          structured.chapter != null ? String(structured.chapter) : "",
+          structured.title != null ? String(structured.title) : "",
+          structured.difficulty != null ? `${String(structured.difficulty)} difficulty` : "",
+          "multiple choice questions",
+        ]
+          .filter(Boolean)
+          .join(" — ");
+
+        const queryEmbedding = await resolveQueryEmbedding(blueprint);
+        if (!queryEmbedding) {
+          // No embedding provider, or it failed. The caller falls back to the
+          // structured fill and SAYS which path it used — a semantic fill that
+          // silently becomes a structured one has told the teacher something
+          // false about their own paper.
+          data = emptyMatch("embedding_unavailable");
+          decision = "degraded";
+          provenance = { completeness: 0 };
+          break;
+        }
+
+        const matchRes = await admin.rpc("match_question_bank", {
+          p_query_embedding: queryEmbedding,
+          p_class_level: classLevel,
+          p_school_id: req.actor.schoolId,
+          p_subjects: [subject],
+          p_match_threshold: MATCH_THRESHOLD,
+          p_match_count: wanted * CANDIDATE_MULTIPLE,
+        });
+
+        if (matchRes.error) {
+          // G10 — an error here used to be indistinguishable from "no similar
+          // question", and that is how match_question_bank threw 42703 for
+          // weeks with nobody noticing semantic lookup had stopped. It is named
+          // rather than flattened into an empty list.
+          console.error(
+            "match_question_bank failed for a paper section — semantic fill degraded:",
+            JSON.stringify(matchRes.error),
+          );
+          data = emptyMatch("match_question_bank_failed");
+          decision = "degraded";
+          provenance = { completeness: 0 };
+          break;
+        }
+
+        const matched = (matchRes.data ?? []) as { id?: string; similarity?: number }[];
+        const bankIds = matched
+          .map((m) => (typeof m.id === "string" ? m.id : null))
+          .filter((v): v is string => v !== null);
+
+        data = {
+          capability_id: "teacher.question_paper.match_questions",
+          bank_ids: bankIds,
+          top_similarity: matched.length ? (matched[0]?.similarity ?? null) : null,
+          requested: wanted,
+          // An empty list is a real answer here — the bank genuinely has
+          // nothing similar enough — and is NOT a degradation. The caller can
+          // tell the two apart because `degraded_reason` is null.
+          degraded_reason: null,
+          session_memory: sessionForContext,
+          workflow_id: "teacher.question_paper.match_questions.v1",
+        };
+        decision = "answered_retrieval";
+        provenance = {
+          completeness: bankIds.length ? Math.min(1, bankIds.length / wanted) : 0,
+          match_count: bankIds.length,
+        };
+        break;
+      }
       case "teacher.question_paper.generate_questions": {
         // The capability §5 needed and did not have. `plan`, `generate_outline`
         // and `marking_scheme` all declare `generates_full_paper: false`; none

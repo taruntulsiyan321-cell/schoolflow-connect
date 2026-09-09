@@ -9318,6 +9318,7 @@ export type Database = {
       }
       ai_session_memory_read: { Args: { p_session_id: string }; Returns: Json }
       bump_ai_answer_cache_hit: { Args: { p_id: string }; Returns: undefined }
+      can_author_bank_question: { Args: never; Returns: boolean }
       can_author_question_paper: { Args: never; Returns: boolean }
       can_create_test: {
         Args: {
@@ -9952,7 +9953,7 @@ export type Database = {
         }
       }
       rpc_fill_paper_section_from_bank: {
-        Args: { _section_id: string }
+        Args: { _bank_ids?: string[]; _section_id: string }
         Returns: Json
       }
       rpc_finish_battle: {
