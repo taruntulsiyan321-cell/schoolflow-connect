@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, TestService, resolveStudentServiceContext } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Target, Timer } from "lucide-react";
+import { ArrowLeft, Download, Target, Timer } from "lucide-react";
 import { ScoreRing } from "@/components/student/ScoreRing";
 import { QuestionRenderer, TestQuestionShape } from "@/components/student/QuestionRenderer";
 import { PageHeader } from "@/components/ui-bits";
@@ -14,6 +14,13 @@ import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryRepor
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicPresentation";
 import { toDisplayText, toErrorMessage } from "@/lib/presentation";
+import type { TestStudentReport } from "@/academic/services/testService";
+import {
+  studentReportCsvRows,
+  wrongAnswersByTopic,
+} from "@/academic/services/testReportSheets";
+import { exportCSV } from "@/lib/exportCsv";
+import { answerToText } from "@/academic/services/answerText";
 
 
 /**
@@ -36,6 +43,12 @@ export default function TestResult() {
   const [answers, setAnswers] = useState<Record<string, Record<string, unknown>>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // §10.25's report, which is not the same thing as the question review below.
+  // The review walks the paper; the report says which TOPICS the wrong answers
+  // fell in, and is the half a student can act on. It is fetched through
+  // `rpc_test_student_report`, the fenced path, rather than assembled here.
+  const [report, setReport] = useState<TestStudentReport | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const resolveCtx = async () => {
     if (ctx && academicReady) return ctx;
@@ -63,6 +76,25 @@ export default function TestResult() {
         setAnswers(m);
       } else {
         setAnswers({});
+      }
+      // Only once there is a submitted attempt: `rpc_test_student_report`
+      // refuses a test this student has not sat, which is what stops it from
+      // handing out the answer key before the exam (20260916020000). Asking
+      // anyway would turn that correct refusal into an error message on a page
+      // that is working perfectly.
+      if (a?.submitted_at && serviceCtx.studentId) {
+        try {
+          setReport(await TestService.studentReport(serviceCtx, id, serviceCtx.studentId));
+          setReportError(null);
+        } catch (e) {
+          // Not fatal to the page — but not silent either. A swallowed failure
+          // here would render as "no topics to revise", which is a claim.
+          setReport(null);
+          setReportError(toErrorMessage(e, "Could not load your topic summary"));
+        }
+      } else {
+        setReport(null);
+        setReportError(null);
       }
     } catch (e) {
       setLoadError(toErrorMessage(e, "Could not load results"));
@@ -199,6 +231,52 @@ export default function TestResult() {
         </div>
       </Card>
 
+      {/* ── §10.25 · THE REPORT, WHICH IS NOT THE QUESTION REVIEW ───────────
+          "Their actual wrong answers, with the topic on each." The review
+          further down walks the paper one item at a time; this collapses the
+          same wrong answers onto the topics they fell in, which is the half a
+          student can act on before the next test, and it is what the Download
+          hands over. Both halves come from `rpc_test_student_report` — the
+          client never decides who may read a report, and never assembles one
+          out of table reads of its own. */}
+      {reportError && (
+        <Card className="p-4 mb-6 text-sm text-muted-foreground">{reportError}</Card>
+      )}
+      {report && report.submitted && (
+        <Card className="p-4 mb-6">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h3 className="font-semibold text-sm">Topics to revise</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={report.wrong_answers.length === 0}
+              onClick={() =>
+                exportCSV(`my-test-report-${report.test_id}`, studentReportCsvRows(report))
+              }
+            >
+              <Download className="w-4 h-4" /> Download
+            </Button>
+          </div>
+          {report.wrong_answers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nothing went wrong on this test, so there is no topic to revise from it.
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {wrongAnswersByTopic(report).map((row) => (
+                <li
+                  key={row.topic}
+                  className="flex items-center justify-between gap-2 text-sm"
+                >
+                  <span className="truncate">{row.topic}</span>
+                  <span className="text-muted-foreground shrink-0">{row.wrong} wrong</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
+
       {/* ── RULE 27: A MISSING-DATA RENDER MUST NOT READ AS A DATA-BEARING ONE ──
           The attempt row records a score; the per-question responses are a
           separate table. `test_answers` is written only by `rpc_test_submit`,
@@ -253,14 +331,14 @@ export default function TestResult() {
               ? (q.correct as { correct_index: number }).correct_index
               : null;
           const selectedIdx = Array.isArray(resp.indexes) ? resp.indexes[0] ?? null : null;
-          // `q.correct` is untyped jsonb, so both branches go through the
-          // presentation boundary rather than String(), which would render an
-          // unexpected object shape as "[object Object]".
-          const correctText =
-            toDisplayText(q.correct?.text, { fallback: "", allowEmpty: true }) ||
-            toDisplayText(q.correct?.value, { fallback: "", allowEmpty: true });
-          const selectedText =
-            resp.text ?? (resp.value !== undefined ? String(resp.value) : "");
+          // `q.correct` and the response are untyped jsonb, and for every
+          // auto-marked format they hold a POSITION rather than a word. One
+          // decoder handles all four shapes and is shared with the teacher's
+          // report, so the two screens cannot start disagreeing about what an
+          // answer payload says; it returns null rather than a guess, which is
+          // why neither branch can produce "[object Object]".
+          const correctText = answerToText(q.correct, opts) ?? "";
+          const selectedText = answerToText(resp, opts) ?? "";
           const qTopic = displayTopic(String((q as { topic?: string }).topic ?? "")) || "";
           return (
             <Card key={q.id} className="p-5">

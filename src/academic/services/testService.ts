@@ -322,6 +322,97 @@ export function isPublishedFlag(row: Record<string, unknown>): boolean {
   return row.status === "published";
 }
 
+/* ── The test report (§10.25) ──────────────────────────────────────────────
+ *
+ * These shapes mirror the jsonb that `rpc_test_class_report` and
+ * `rpc_test_student_report` build (20260916000000, corrected by
+ * 20260916010000). They are hand-written because the RPCs return `jsonb`, so
+ * the generated types can only say `Json` — there is nothing to derive from.
+ *
+ * Every numeric field is nullable on purpose. `class_average` is NULL when
+ * nobody has submitted, and a student who never sat the test carries a NULL
+ * `mark`. "Not measured" and "scored zero" are different facts and the UI must
+ * not be able to conflate them by reading a 0 that the database never wrote.
+ */
+
+/** One row of the class list: every student in the section, submitted or not. */
+export interface TestReportStudentRow {
+  student_id: string;
+  full_name: string | null;
+  roll_number: string | number | null;
+  /** NULL when this student did not submit — never 0. */
+  mark: number | null;
+  correct_count: number | null;
+  total_count: number | null;
+  submitted_at: string | null;
+  submitted: boolean;
+}
+
+/** One ranked weakness. Only topics with at least one wrong answer appear. */
+export interface TestReportTopicRow {
+  topic: string;
+  asked: number;
+  wrong: number;
+  wrong_pct: number | null;
+}
+
+export interface TestClassReport {
+  test_id: string;
+  title: string | null;
+  max_mark: number | null;
+  subject: string | null;
+  submitted_count: number;
+  /** NULL when nobody has submitted yet. */
+  class_average: number | null;
+  average_seconds_per_question: number | null;
+  weakest_topics: TestReportTopicRow[];
+  students: TestReportStudentRow[];
+}
+
+/** One question this student did not get right, with the topic on it. */
+export interface TestReportWrongAnswer {
+  question_id: string;
+  order_index: number | null;
+  question: string;
+  topic: string;
+  marks: number | null;
+  question_format: string | null;
+  /**
+   * The choice list. `their_answer` and `correct_answer` are POSITIONS
+   * (`{"indexes":[1]}`), not text, so without this there is nothing a screen
+   * can render but raw jsonb. Added by `20260916020000`.
+   */
+  options: unknown;
+  their_answer: unknown;
+  correct_answer: unknown;
+  explanation: string | null;
+  /** False when they left it blank, which is not the same as answering wrong. */
+  answered: boolean;
+}
+
+export interface TestStudentReport {
+  test_id: string;
+  student_id: string;
+  full_name: string | null;
+  mark: number | null;
+  max_mark: number | null;
+  correct_count: number | null;
+  total_count: number | null;
+  submitted_at: string | null;
+  /**
+   * Whether there is a submitted attempt at all.
+   *
+   * `wrong_answers` is empty in two completely different situations — they sat
+   * it and got everything right, and they never sat it — and a screen that
+   * renders both as "no wrong answers" states something false about the second
+   * (G4). Added by `20260916020000`, which is also where the empty array for a
+   * non-sitter comes from: before it, a student who had sat nothing received
+   * every question of the paper with its correct answer.
+   */
+  submitted: boolean;
+  wrong_answers: TestReportWrongAnswer[];
+}
+
 /** `tests` columns that describe when the test was created, for reuse below. */
 const TEST_WITH_ANCHOR = "*, section_subjects(section_id, curriculum_subjects(name))";
 
@@ -840,6 +931,51 @@ export const TestService = {
       counts[row.test_id] = (counts[row.test_id] ?? 0) + 1;
     }
     return counts;
+  },
+
+  /**
+   * The class's test report (§10.25) — class average, weakest topics ranked,
+   * average time per question, and the full student list with marks.
+   *
+   * ── WHY THERE IS NO ROLE CHECK IN THIS FUNCTION ─────────────────────────
+   *
+   * `rpc_test_class_report` calls `can_read_test_report`, which is the ONLY
+   * place in the system that decides who may read a report. Restating the rule
+   * here would put the same fact in two homes (G9), and the two would disagree
+   * the moment one is widened — which is not hypothetical: the role set here is
+   * contested against locked-decisions §10.25 and is expected to change.
+   * Widening is meant to be one edit to that SQL function and nothing else.
+   *
+   * A caller who may not read gets 42501 from Postgres, screened into a
+   * sentence by `throwIfError` + the page's `toErrorMessage`.
+   */
+  async classReport(ctx: ServiceContext, testId: string): Promise<TestClassReport | null> {
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_test_class_report", {
+      _test_id: testId,
+    });
+    throwIfError(error, "Failed to load this test's class report");
+    return (data ?? null) as TestClassReport | null;
+  },
+
+  /**
+   * One student's part of the same report: their mark, and the questions they
+   * did not get right with the topic on each.
+   *
+   * Fenced by `can_read_test_student_report` — the staff who may read the class
+   * report, or that student themselves. Same reasoning as `classReport`: the
+   * rule is not repeated here.
+   */
+  async studentReport(
+    ctx: ServiceContext,
+    testId: string,
+    studentId: string,
+  ): Promise<TestStudentReport | null> {
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_test_student_report", {
+      _test_id: testId,
+      _student_id: studentId,
+    });
+    throwIfError(error, "Failed to load this student's test report");
+    return (data ?? null) as TestStudentReport | null;
   },
 
   /** Empty library framework — content added later. */

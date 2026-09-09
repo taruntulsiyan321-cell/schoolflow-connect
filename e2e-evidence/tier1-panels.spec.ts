@@ -157,6 +157,58 @@ test.describe('Tier1-P · teacher · the panels behind the redirects', () => {
       'the panel confirms the test was published',
     ).toBeVisible({ timeout: 20000 })
   })
+
+  /**
+   * §10.25. The class report — a surface that did not exist at all until
+   * 20260916000000, and whose fence has already been wrong once: the student
+   * half handed out another school's answer key (20260916020000, probe38
+   * claims 11-14).
+   *
+   * probe38 proves the fence in SQL. This proves the round trip: that the
+   * teacher's own browser reaches it, and that the RPC does not come back 42501
+   * at the one caller that is supposed to be admitted. A 403 here shows up as a
+   * supabase bad response, which is exactly what `supaErrors` collects.
+   *
+   * Runs after the create test above so there is a test in the class to report
+   * on. If the class has none it FAILS rather than skips — an unreported
+   * surface is what this file exists to stop recording as green.
+   */
+  test('a teacher opens the class report for a test', async ({ page, signals }, testInfo) => {
+    await openClassTab(page, /^Tests$/)
+
+    const reportButtons = page.getByRole('button', { name: /^Report$/ })
+    const count = await reportButtons.count()
+    expect(
+      count,
+      'the Tests panel offers a Report control on at least one test — with none, ' +
+        '§10.25 is unproven from the browser however green probe38 is',
+    ).toBeGreaterThan(0)
+
+    await reportButtons.first().click()
+    await page.waitForTimeout(3000)
+
+    const body = await page.evaluate(() => document.body?.innerText ?? '')
+    const supa = supaErrors(signals)
+    const reportCalls = supa.filter((r) => /rpc_test_(class|student)_report/.test(r.url))
+    await evidence(testInfo, 'teacher class report', page, {
+      bodySample: body.replace(/\s+/g, ' ').slice(0, 500),
+      supabase: supa,
+      reportRpcFailures: reportCalls,
+    })
+
+    expect(reportCalls, 'the report RPC refused the teacher it is built for').toEqual([])
+    expect(body, 'the report reported a failure').not.toMatch(
+      /could not load the report|not your class/i,
+    )
+    await expect(
+      page.getByText(/class list/i).first(),
+      'the report renders its class list',
+    ).toBeVisible({ timeout: 20000 })
+    await expect(
+      page.getByText(/class average/i).first(),
+      'the report renders the class aggregate §10.25 asks for first',
+    ).toBeVisible({ timeout: 20000 })
+  })
 })
 
 test.describe('Tier1-P · student · the attempt and result routes', () => {
@@ -239,5 +291,20 @@ test.describe('Tier1-P · student · the attempt and result routes', () => {
     expect(resultBody, 'the result screen is not an error state').not.toMatch(
       /could not|failed to|not found/i,
     )
+
+    // §10.25's report, on the student's own side. This student has just
+    // submitted, so `rpc_test_student_report` must admit them — the fence added
+    // in 20260916020000 refuses a test they have NOT sat, and getting that
+    // backwards would lock a student out of their own result while looking like
+    // a correct denial. The card is the positive control for that fence in the
+    // browser.
+    await expect(
+      page.getByText(/topics to revise/i).first(),
+      'the result screen carries the report, not only the score',
+    ).toBeVisible({ timeout: 20000 })
+    expect(
+      resultBody,
+      'the report did not refuse the student their own result',
+    ).not.toMatch(/not your test report|could not load your topic summary/i)
   })
 })

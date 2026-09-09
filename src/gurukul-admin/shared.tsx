@@ -2,7 +2,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
-import { toDisplayText } from "@/lib/presentation";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -202,20 +201,13 @@ export function useUndoDelete<T extends { id: string }>(
   return { toast, closeToast, softDelete };
 }
 
-// Export helpers
-export function exportCSV(filename: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) {
-    toast.error("Nothing to export — this report has no rows.");
-    return;
-  }
-  const headers = Object.keys(rows[0]);
-  const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => JSON.stringify(toDisplayText(r[h], { allowEmpty: true, fallback: "" }))).join(","))].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `${filename}.csv`; a.click();
-  URL.revokeObjectURL(url);
-}
+// Export helpers.
+//
+// `exportCSV` moved to `@/lib/exportCsv` when the teacher's test report and the
+// student's own report — neither of them admin screens — also had to be
+// downloadable (§10.25). Re-exported here so every existing admin import site
+// keeps working and there is still only one implementation.
+export { exportCSV } from "@/lib/exportCsv";
 
 export function printSection(title: string, content: string) {
   const win = window.open("", "_blank");

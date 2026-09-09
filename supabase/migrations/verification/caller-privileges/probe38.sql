@@ -19,9 +19,22 @@
 --   8. ...and it lists only what they got WRONG.                   <- §10.25
 --   9. a student is refused ANOTHER student's drill-down.          <- the fence
 --  10. anon is refused outright.                                   <- the grant
+--  11. a student is refused a test they NEVER SAT.                 <- 20260916020000
+--  12. ...including one in ANOTHER SCHOOL.                         <- 20260916020000
+--  13. a non-sitter's report is empty and says so, not the paper.  <- 20260916020000
+--  14. a wrong answer carries its options, so it can be read.  (POSITIVE CONTROL)
 --
 -- 2, 3 and 7 are what make the refusals mean anything. A report that returns
 -- nothing to everybody satisfies every denial here while being useless.
+--
+-- CLAIMS 11-13 EXIST BECAUSE THE FIRST BUILD FAILED THEM, LIVE. The student
+-- branch of `can_read_test_student_report` checked only "is this my student
+-- row" and never what the test id had to do with that student, and the body
+-- built `wrong_answers` from a LEFT JOIN that matches EVERY question when
+-- there is no attempt. Measured 2026-09-09: a school-A student read all 8
+-- questions of a school-B test WITH their correct answers, while the same
+-- student's direct SELECT on `tests` and on `test_questions` each returned 0
+-- rows. Closed by `20260916020000`.
 --
 -- The fixture is built inside the transaction because all 72 seeded tests
 -- belong to the other school, so this teacher's sections have none.
@@ -75,6 +88,8 @@ DECLARE
   ss12      uuid;
   t_id      uuid;
   t12       uuid;   -- a test on 12-A, which Priya teaches and Rajesh does not
+  t_unsat   uuid;   -- a published test on 10-A that nobody attempts
+  t_foreign uuid;   -- a real test in the OTHER school, read, never written
   q1        uuid;
   q2        uuid;
   stu_a     uuid;   -- a 10-A student, the one who sits the test
@@ -168,6 +183,32 @@ BEGIN
                             max_mark, total_marks, status, test_kind, duration_sec, published_at)
   VALUES (sch_a, ss12, teacher, 'probe38 other-class fixture', 1, 1, 'published', 'class_test', 600, now())
   RETURNING id INTO t12;
+
+  -- fixture 3: a PUBLISHED test on this student's own class that nobody sits.
+  -- Same class, same subject, same teacher — the ONLY difference from t_id is
+  -- that there is no attempt, so claim 11 cannot pass for a second reason.
+  INSERT INTO public.tests (school_id, section_subject_id, created_by, title,
+                            max_mark, total_marks, status, test_kind, duration_sec, published_at)
+  VALUES (sch_a, ss, teacher, 'probe38 never-sat fixture', 1, 1, 'published', 'class_test', 600, now())
+  RETURNING id INTO t_unsat;
+
+  INSERT INTO public.test_questions (test_id, school_id, order_index, question,
+                                     options, correct, marks, question_format, concept)
+  VALUES (t_unsat, sch_a, 0, 'probe38 unsat Q1 — 5+5?', '["10","11"]'::jsonb, '{"indexes":[0]}'::jsonb, 1, 'mcq', 'Addition');
+
+  -- fixture 4 is not written: a test in the other school already exists, and
+  -- reading one is the honest fixture for "another tenant's paper".
+  SELECT t.id INTO t_foreign
+    FROM public.tests t
+   WHERE t.school_id <> sch_a
+     AND t.deleted_at IS NULL
+     AND EXISTS (SELECT 1 FROM public.test_questions q WHERE q.test_id = t.id)
+   ORDER BY t.id LIMIT 1;
+
+  IF t_foreign IS NULL THEN
+    RAISE EXCEPTION 'probe38: no foreign-school test with questions — claim 12 cannot run, '
+                    'and a check that cannot run is not a check that passed';
+  END IF;
 
   -- ── 1. the sessions are real ────────────────────────────────────────────
   r := pg_temp.as_user(teacher, 'SELECT public.get_my_role()::text');
@@ -269,6 +310,66 @@ BEGIN
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('class report','anon (the browser-bundle key)','ERROR: permission denied', r,
      CASE WHEN r LIKE 'ERROR:%permission denied%' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 11. a test they never sat — the answer key BEFORE the exam ──────────
+  --
+  -- The positive control for 11 and 12 is claim 7 above: the SAME student, on
+  -- the test they DID submit, reads their own report. So a refusal here is
+  -- about this test, not about the student being locked out of everything.
+  r := pg_temp.as_user(stu_a_uid, format(
+        $q$SELECT jsonb_array_length(public.rpc_test_student_report(%L,%L) -> 'wrong_answers')::text$q$,
+        t_unsat, stu_a));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('own report on a published test they NEVER SAT','student in that class','ERROR: Not your test report', r,
+     CASE WHEN r LIKE 'ERROR:%Not your test report%' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 12. ...and a test belonging to another school entirely ──────────────
+  r := pg_temp.as_user(stu_a_uid, format(
+        $q$SELECT (public.rpc_test_student_report(%L,%L) -> 'wrong_answers' -> 0 ->> 'correct_answer')$q$,
+        t_foreign, stu_a));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('another SCHOOL''s paper, asked for with their own student id','student of school A','ERROR: Not your test report', r,
+     CASE WHEN r LIKE 'ERROR:%Not your test report%' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 13. staff reach a non-sitter, and get an empty report that SAYS so ──
+  --
+  -- The teacher is legitimately admitted here; the defect this catches is not
+  -- disclosure but misrepresentation. Before 20260916020000 this returned
+  -- every question of the test as "what they got wrong", for a student who
+  -- sat nothing. stu_b has no attempt on t_id.
+  r := pg_temp.as_user(teacher, format(
+        $q$SELECT jsonb_array_length(public.rpc_test_student_report(%L,%L) -> 'wrong_answers')::text$q$,
+        t_id, stu_b));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('a student who did not sit it has NO wrong answers','teacher','OK: 0', r,
+     CASE WHEN r = 'OK: 0' THEN 'PASS' ELSE 'FAIL' END);
+
+  r := pg_temp.as_user(teacher, format(
+        $q$SELECT (public.rpc_test_student_report(%L,%L) ->> 'submitted')$q$, t_id, stu_b));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('...and the report says they did not sit it, not "nothing wrong"','teacher','OK: false', r,
+     CASE WHEN r = 'OK: false' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ...while the sitter's own report still says submitted (positive control):
+  -- otherwise `submitted` could be hard-false and claim 13 would pass on a
+  -- field that never says anything else.
+  r := pg_temp.as_user(teacher, format(
+        $q$SELECT (public.rpc_test_student_report(%L,%L) ->> 'submitted')$q$, t_id, stu_a));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('...and true for the one who did (positive control)','teacher','OK: true', r,
+     CASE WHEN r = 'OK: true' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 14. a wrong answer carries the options it was chosen from ───────────
+  --
+  -- `their_answer` and `correct_answer` are POSITIONS ({"indexes":[i]}), not
+  -- text. Without the option list beside them a screen has nothing to render
+  -- but raw jsonb. Q2's options are ["6","9"] and the key is index 1.
+  r := pg_temp.as_user(stu_a_uid, format(
+        $q$SELECT (public.rpc_test_student_report(%L,%L) -> 'wrong_answers' -> 0 -> 'options' ->> 1)$q$,
+        t_id, stu_a));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('the wrong answer carries its options (positive control)','student','OK: 9', r,
+     CASE WHEN r = 'OK: 9' THEN 'PASS' ELSE 'FAIL' END);
 END $probe$;
 
 SELECT area, role_tested, expected, observed, verdict FROM probe ORDER BY n;

@@ -9314,6 +9314,14 @@ export type Database = {
       }
       ai_session_memory_read: { Args: { p_session_id: string }; Returns: Json }
       bump_ai_answer_cache_hit: { Args: { p_id: string }; Returns: undefined }
+      can_create_test: {
+        Args: {
+          _created_by: string
+          _school_id: string
+          _section_subject_id: string
+        }
+        Returns: boolean
+      }
       can_manage_exam: { Args: { _exam_id: string }; Returns: boolean }
       can_manage_homework: { Args: { _homework_id: string }; Returns: boolean }
       can_manage_test: { Args: { _test_id: string }; Returns: boolean }
@@ -9336,6 +9344,11 @@ export type Database = {
         Returns: boolean
       }
       can_read_test: { Args: { _test_id: string }; Returns: boolean }
+      can_read_test_report: { Args: { _test_id: string }; Returns: boolean }
+      can_read_test_student_report: {
+        Args: { _student_id: string; _test_id: string }
+        Returns: boolean
+      }
       can_upload_exam_marks: {
         Args: { _exam_subject_id: string }
         Returns: boolean
@@ -10508,6 +10521,7 @@ export type Database = {
         Returns: Json
       }
       rpc_teacher_doubt_dashboard: { Args: never; Returns: Json }
+      rpc_test_class_report: { Args: { _test_id: string }; Returns: Json }
       rpc_test_questions_for_attempt: {
         Args: { _attempt_id: string }
         Returns: {
@@ -10523,6 +10537,10 @@ export type Database = {
         }[]
       }
       rpc_test_start: { Args: { _test_id: string }; Returns: string }
+      rpc_test_student_report: {
+        Args: { _student_id: string; _test_id: string }
+        Returns: Json
+      }
       rpc_test_submit: {
         Args: { _answers: Json; _attempt_id: string }
         Returns: Json

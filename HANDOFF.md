@@ -1,6 +1,7 @@
 # Gurukul — session handoff
 
-Written 2026-09-09. Read this top to bottom before touching anything.
+Written 2026-09-09, updated the same day after §4's UI landed. Read this top to
+bottom before touching anything.
 
 ---
 
@@ -10,7 +11,7 @@ Written 2026-09-09. Read this top to bottom before touching anything.
 |---|---|
 | Worktree | `.claude/worktrees/gurukul-tier1-e2e-fixes-c0b3c3` |
 | Branch | `claude/gurukul-tier1-e2e-fixes-c0b3c3` |
-| Local HEAD | `f9187a6` — **NOT PUSHED** (see §1) |
+| Local HEAD | `006e606` + the §4 UI commit — **THREE COMMITS NOT PUSHED** (see §1) |
 | Last pushed | `9daf600` |
 | Supabase project | `psqxykzqfvxgsvkmgurn` |
 
@@ -157,13 +158,13 @@ there is nothing to attempt, deliberately.
 
 ---
 
-## 4. Gate state as of `f9187a6`
+## 4. Gate state after the §4 UI commit
 
 ```
-verify:caller-privileges .. 340 assertions   PASS   (was 333; probe37 new)
+verify:caller-privileges .. 361 assertions   PASS   (was 355; probe38 claims 11-14)
 db:verify-integrity ....... All checks passed
 verify:chunk-files ........ 32 files, 32 clean, 0 rotted
-npm test .................. 636 passed / 57 files
+npm test .................. 646 passed / 58 files   (was 636/57; answerText new)
 npm run typecheck ......... clean   (tsc -b --force)
 npm run build ............. clean
 10 lint/check gates ....... all PASS
@@ -182,7 +183,7 @@ npx eslint . .............. 120 errors, 71 warnings   ← PRE-EXISTING, see §6
 
 ```bash
 git push origin claude/gurukul-tier1-e2e-fixes-c0b3c3
-git ls-remote origin claude/gurukul-tier1-e2e-fixes-c0b3c3   # must show f9187a6
+git ls-remote origin claude/gurukul-tier1-e2e-fixes-c0b3c3   # must show local HEAD
 ```
 
 Then run the E2E suite. **Start your own Vite** — never trust a dev server you
@@ -194,10 +195,12 @@ curl -s http://localhost:8181/src/main.tsx | head -3   # confirm it is THIS tree
 PLAYWRIGHT_BASE_URL=http://localhost:8181 npm run test:e2e:evidence
 ```
 
-Expect 68 pre-existing tests + 5 new `tier1-panels` ones. The five have never
-run; treat their first result as a finding, not a regression.
+Expect 68 pre-existing tests + **7** new `tier1-panels` ones (5, plus the two
+added with the report UI: the teacher opening a class report, and the student's
+"Topics to revise" card on their own result). **None of the seven has ever
+run** — treat their first result as a finding, not a regression.
 
-### 5.2 §4 — Teacher test report (IN PROGRESS, see §6 below)
+### 5.2 §4 — Teacher test report (DONE — database and UI, see §9)
 
 ### 5.3 §5 — Question paper generation UI
 
@@ -365,8 +368,9 @@ npm run test:e2e:evidence         # needs IPv4 + your own Vite
 |---|---|
 | `20260916000000_a_teacher_can_finally_see_how_the_class_did.sql` | `can_read_test_report`, `can_read_test_student_report`, `rpc_test_class_report`, `rpc_test_student_report` |
 | `20260916010000_the_class_list_reads_the_roll_number_where_it_lives.sql` | corrective — `roll_number` is on `students_current`, not `students` |
+| `20260916020000_the_answer_key_walked_around_its_own_grant.sql` | **security** — the student branch of the fence, and the empty-attempt payload |
 
-`probe38.sql` — 13 assertions, all green. **Suite is 355/355.**
+`probe38.sql` — 19 assertions, all green. **Suite is 361/361.**
 
 ### TWO FIXTURE TRAPS THIS COST ME — do not repeat them
 
@@ -382,21 +386,48 @@ npm run test:e2e:evidence         # needs IPv4 + your own Vite
    Priya teaches it, Rajesh does not (probe9 uses the same split). 12-A holds
    only ONE student, so student-vs-student claims must stay on 10-A.
 
-### What is NOT done — the UI. Nothing is wired.
+### The UI — DONE, and the disclosure found while wiring it
 
-1. `TestService.classReport(ctx, testId)` / `TestService.studentReport(ctx,
-   testId, studentId)` — thin wrappers over the two RPCs, beside
-   `countQuestions`. The RPCs fence themselves; the service must NOT restate
-   the rule (that is how two-homes defects keep returning).
-2. Teacher screen: a **Report** control per row in `LiveTestsTab`
-   (`src/gurukul-teacher/LiveClassPanels.tsx`, near the `qCount`/`canPublish`
-   block). Class aggregate first, student names clickable into the drill-down.
-3. Student screen: drill-down belongs on `src/pages/student/TestResult.tsx`,
-   which already loads the attempt.
-4. **Downloadable** — required by the brief, nothing exists yet.
-   `src/gurukul-admin/Reports.tsx` is the closest export precedent.
-5. Extend `e2e-evidence/tier1-panels.spec.ts` with the report path once IPv4
-   is back.
+1. `TestService.classReport` / `TestService.studentReport` — thin wrappers over
+   the two RPCs, beside `countQuestions`. **No role check in either**, and the
+   comment says why: `can_read_test_report` is the only home for that rule and
+   it is expected to change (see below).
+2. Teacher: a **Report** control per row in `LiveTestsTab`. Class average,
+   submitted count, average seconds per question, weakest topics ranked, then
+   the full class list with every student clickable into their drill-down.
+3. Student: a **Topics to revise** card on `TestResult.tsx`, from the same RPC.
+   Deliberately NOT a second per-question renderer — the review below it
+   already walks the paper; the report is those wrong answers collapsed onto
+   the topics they fell in, which is the half a student can act on.
+4. **Downloadable** — CSV on both, via `@/lib/exportCsv`. That function used to
+   live in `gurukul-admin/shared` and is now one implementation for every
+   portal, re-exported there so no admin import site moved. Row shaping is in
+   `src/academic/services/testReportSheets.ts`, shared by both screens.
+5. `e2e-evidence/tier1-panels.spec.ts` extended with two more probes. **Written,
+   never run** — IPv4.
+
+**THE DEFECT THIS WORK FOUND, and it was live.** Wiring the drill-down meant
+asking what `their_answer` renders as, and the answer was: for a student who
+had not sat the test, the whole paper. `can_read_test_student_report`'s student
+branch checked only "is this MY student row" and never what `_test_id` had to
+do with that student, and `wrong_answers` came from a LEFT JOIN that matches
+EVERY question when there is no attempt. Measured as the caller:
+
+* a school-A student read all **8 questions of a school-B test with their
+  correct answers**, while the same student's direct `SELECT` on `tests` and on
+  `test_questions` each returned **0 rows** — a SECURITY DEFINER function
+  walking around both the tenancy fence and the G14 grant;
+* and on their own class's published test, the full key before sitting it.
+
+Closed by `20260916020000` in two places on purpose — the fence now requires a
+submitted attempt of their own, and the body returns `[]` plus a new
+`submitted` boolean rather than the paper. probe38 claims 11-14 hold both ends,
+with the sitter's own report as the positive control.
+
+`answerToText` (`src/academic/services/answerText.ts`, 10 unit tests) is the one
+decoder for "what does this answer payload say" — an answer is a POSITION and
+needs its option list, which is why `options` now travels with each wrong
+answer. `TestResult` uses it too, so the two screens cannot drift apart.
 
 ### Unresolved — needs a human ruling
 
