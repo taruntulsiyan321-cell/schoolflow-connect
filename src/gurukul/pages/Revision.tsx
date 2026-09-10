@@ -10,10 +10,10 @@ import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { REVISION_PASS_THRESHOLD } from "@/academic/recovery/constants";
 import {
-  RotateCcw, Brain, CheckCircle2, AlertCircle,
+  RotateCcw, CheckCircle2, AlertCircle,
   ChevronRight, Flame, History, Bookmark,
-  Play, Layers, RefreshCw, Calendar,
-  Zap, FileText, BookOpen,
+  Play, RefreshCw,
+  Zap, BookOpen,
 } from "lucide-react";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -62,14 +62,6 @@ function RevItemCard({
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-bold hover:bg-violet-500/30 transition-all">
           <Play className="w-3 h-3"/> Practice topic
         </button>
-        <Link to="/student/aicoach"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted border border-border text-violet-500 text-xs font-semibold hover:bg-secondary transition-all">
-          <Brain className="w-3 h-3"/> Ask Nova
-        </Link>
-        <Link to="/student/recovery"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 transition-all">
-          <RefreshCw className="w-3 h-3"/> Recovery
-        </Link>
         <button onClick={onComplete} disabled={completing}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/20 transition-all disabled:opacity-50">
           <CheckCircle2 className="w-3 h-3"/> {completing ? "Saving…" : "Mark done"}
@@ -177,14 +169,6 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   const [completingId, setCompletingId] = useState<string | null>(null);
 
   const { items: REVISION_ITEMS, v2Error } = useRevisionItems(ctx, academicReady, snapshot);
-  const AI_SCHEDULE = useMemo(
-    () => [
-      { time: "Now", items: REVISION_ITEMS.filter((r) => r.dueIn === "Now") },
-      { time: "Later today", items: REVISION_ITEMS.filter((r) => r.dueIn === "Today") },
-      { time: "Tomorrow", items: REVISION_ITEMS.filter((r) => r.dueIn === "Tomorrow") },
-    ],
-    [REVISION_ITEMS],
-  );
   // Study streak SSOT: Progression via shell (same as Home) — not raw snapshot xp.
   const streak = student.streak;
 
@@ -269,7 +253,6 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   });
 
   const dueNow = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today").length;
-  const upcoming = REVISION_ITEMS.length - dueNow;
 
   return (
     <div className="space-y-6">
@@ -286,32 +269,9 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label:"Due Now",   value:dueNow,     color:"#cc5069", icon:<Zap className="w-4 h-4"/> },
-          { label:"Upcoming",  value:upcoming,   color:"#c08a3a", icon:<Calendar className="w-4 h-4"/> },
-          { label:"In Queue",  value:REVISION_ITEMS.length, color:"#6882e8", icon:<Layers className="w-4 h-4"/> },
-        ].map(s => (
-          <GlassCard key={s.label} className="p-4">
-            <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
-            </div>
-            <div className="text-2xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-          </GlassCard>
-        ))}
-      </div>
-
-      {/* Quick actions */}
-      <div className="grid sm:grid-cols-3 gap-3">
-        <div
-          className="p-4 rounded-2xl border border-border/70 bg-muted/30 text-left opacity-60"
-          title="Flashcards — coming soon"
-        >
-          <Layers className="w-5 h-5 text-muted-foreground mb-2"/>
-          <div className="text-sm font-bold text-foreground">Flashcards</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Coming soon</div>
-        </div>
+      {/* Quick actions — Flashcards and My Notes were "Coming soon"
+          placeholders and came off, so this is a single tile now. */}
+      <div className="grid gap-3">
         <button
           type="button"
           disabled={dueNow === 0}
@@ -329,47 +289,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
               : "No items due"}
           </div>
         </button>
-        <div
-          className="p-4 rounded-2xl border border-border/70 bg-muted/30 text-left opacity-60"
-          title="Revision notes — coming soon"
-        >
-          <FileText className="w-5 h-5 text-muted-foreground mb-2"/>
-          <div className="text-sm font-bold text-foreground">My Notes</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Coming soon</div>
-        </div>
       </div>
-
-      {/* AI Schedule */}
-      <GlassCard className="p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
-            <Brain className="w-4 h-4 text-violet-400"/>
-          </div>
-          <div>
-            <div className="text-sm font-bold text-foreground">AI Revision Schedule</div>
-            <div className="text-[11px] text-muted-foreground">From your live revision queue</div>
-          </div>
-        </div>
-        <div className="space-y-4">
-          {AI_SCHEDULE.filter(s => s.items.length > 0).length === 0 ? (
-            <p className="text-xs text-muted-foreground">No items due — your revision queue is empty.</p>
-          ) : (
-            AI_SCHEDULE.filter(s => s.items.length > 0).map(slot => (
-            <div key={slot.time}>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{slot.time}</div>
-              <div className="flex flex-wrap gap-2">
-                {slot.items.map(item => (
-                  <button key={item.id} onClick={() => openPractice(item)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-semibold hover:bg-violet-500/20 transition-all">
-                    <RotateCcw className="w-3 h-3"/> {displayConcept(item.concept)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))
-          )}
-        </div>
-      </GlassCard>
 
       {/* Filter tabs */}
       <div>

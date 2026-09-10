@@ -11,6 +11,9 @@ export type NovaQuestionHandoff = {
   subject?: string;
   chapter?: string;
   topic?: string;
+  /** What the student answered — a mistake cannot be explained without it. */
+  studentAnswer?: string | null;
+  studentAnswerIndex?: number | null;
 };
 
 const KEY = "gurukul.nova.question_context.v1";

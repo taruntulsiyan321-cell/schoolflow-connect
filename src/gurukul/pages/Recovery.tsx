@@ -13,7 +13,7 @@ import { GlassCard, SubjectBadge, ProgressBar, cn } from "@/gurukul/components/s
 import { urgencyBand, type Urgency } from "@/academic/metrics/bands";
 import {
   RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2,
-  Brain, BookOpen, Clock, Target, Search, Filter,
+  Brain, BookOpen, Clock, Target, Search,
   RotateCcw, TrendingUp, History, Play, SkipForward,
 } from "lucide-react";
 import { pluralise } from "@/lib/plural";
@@ -150,17 +150,6 @@ function sourceFromType(sourceType: string | null | undefined): string {
   return "practice";
 }
 
-function PriorityTag({ p }: { p: Priority }) {
-  const m = PRIORITY_META[p];
-  return (
-    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-      style={{color:m.color,background:m.bg}}>
-      {p === "high" && <AlertCircle className="w-2.5 h-2.5"/>}
-      {m.label}
-    </span>
-  );
-}
-
 function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart: () => void; starting?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const m = PRIORITY_META[topic.priority];
@@ -170,7 +159,6 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
-              <PriorityTag p={topic.priority}/>
               <SubjectBadge subject={topic.subject}/>
               {topic.teacherAssigned && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
@@ -282,8 +270,6 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
   );
 
   const [search, setSearch] = useState("");
-  const [priority, setPriority] = useState<Priority | "all">("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
   const [showHistory, setShowHistory] = useState(false);
   const [stream, setStream] = useState<AcademicStream | null>(null);
   const [classLevel, setClassLevel] = useState<number | null>(null);
@@ -451,10 +437,9 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
 
 
   const filtered = TOPICS.filter(t => {
-    const matchSearch = !search || t.concept.toLowerCase().includes(search.toLowerCase()) || t.subject.toLowerCase().includes(search.toLowerCase());
-    const matchPriority = priority === "all" || t.priority === priority;
-    const matchSource = sourceFilter === "all" || t.source === sourceFilter;
-    return matchSearch && matchPriority && matchSource;
+    return !search
+      || t.concept.toLowerCase().includes(search.toLowerCase())
+      || t.subject.toLowerCase().includes(search.toLowerCase());
   });
 
   const highCount = TOPICS.filter(t => t.priority === "high").length;
@@ -566,25 +551,6 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search topics..."
             className="w-full pl-8 pr-3 py-2 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-rose-500/40"/>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Filter className="w-3.5 h-3.5 text-muted-foreground"/>
-          {(["all","high","medium","low"] as const).map(p => (
-            <button key={p} onClick={() => setPriority(p)}
-              className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                priority === p ? "bg-rose-500/20 border border-rose-500/40 text-rose-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
-              {p === "all" ? "All" : p}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5">
-          {(["all","practice","tests","battleground"] as const).map(src => (
-            <button key={src} onClick={() => setSourceFilter(src)}
-              className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                sourceFilter === src ? "bg-secondary border border-border text-foreground" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
-              {src === "all" ? "All Sources" : SOURCE_LABELS[src]}
-            </button>
-          ))}
         </div>
       </div>
 

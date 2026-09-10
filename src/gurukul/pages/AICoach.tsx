@@ -17,7 +17,7 @@ import {
   askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue,
   type NovaRecentTurn, type NovaQuestionContext,
 } from "@/academic/ai/gatewayClient";
-import { buildNovaUiChips, dedupeSubjects, isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
+import { dedupeSubjects, isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
 import { consumeNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import {
   processAttachmentFile, AttachmentError,
@@ -85,16 +85,19 @@ function genId(prefix: string): string {
 }
 
 const SUGGESTIONS = [
-  { icon:<HelpCircle className="w-4 h-4"/>,    text:"What is my attendance this month?",     color:"#3b5bdb" },
-  { icon:<Layers className="w-4 h-4"/>,         text:"Which homework is due soon?",           color:"#4b9fd4" },
-  { icon:<BookOpen className="w-4 h-4"/>,       text:"Show my marks summary",                 color:"#6882e8" },
-  { icon:<CalendarDays className="w-4 h-4"/>,   text:"Any upcoming school events or holidays?", color:"#4aa87a" },
-  { icon:<Sparkles className="w-4 h-4"/>,       text:"What should I revise? Show mastery",    color:"#c08a3a" },
-  { icon:<MessageSquare className="w-4 h-4"/>,  text:"Explain my performance from school records", color:"#cc5069" },
-  { icon:<Globe className="w-4 h-4"/>,          text:"Summarise my weak concepts",            color:"#4b9fd4" },
-  { icon:<AlertCircle className="w-4 h-4"/>,    text:"How am I doing in attendance and marks?",color:"#c08a3a" },
+  // Nova teaches; it is not a records lookup. The six administrative prompts
+  // that used to sit here — attendance this month, homework due, marks
+  // summary, school events, performance from school records, how am I doing —
+  // asked a tutor to read the office noticeboard. Those answers live on the
+  // Class page. Measured before deleting: the array held eight, of which six
+  // were administrative and two were already about learning.
+  { icon:<Sparkles className="w-4 h-4"/>,      text:"Explain my weak topics",                 color:"#c08a3a" },
+  { icon:<AlertCircle className="w-4 h-4"/>,   text:"Which are my weakest topics?",           color:"#cc5069" },
+  { icon:<HelpCircle className="w-4 h-4"/>,    text:"What should I do to improve them?",      color:"#3b5bdb" },
+  { icon:<BookOpen className="w-4 h-4"/>,      text:"Explain this concept to me",             color:"#4b9fd4" },
+  { icon:<MessageSquare className="w-4 h-4"/>, text:"I got this question wrong — why?",       color:"#6882e8" },
+  { icon:<Layers className="w-4 h-4"/>,        text:"What should I revise next?",             color:"#4aa87a" },
 ];
-
 function loadStoredConvos(key: string | null): Conversation[] {
   if (!key) return EMPTY_CONVOS;
   try {
@@ -242,17 +245,40 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
 }
 
 // ── Context pill ──────────────────────────────────────────────────────────────
-function ContextPill({ contextLine }: { contextLine: string }) {
+// ── The question Nova was opened with ────────────────────────────────────────
+//
+// Nova is opened from three places holding a specific question: a wrong answer
+// on a test result, a mistake in the Mistake Book, and a question during
+// practice. Showing it means the student never has to describe the question
+// they got wrong — which was the old cost of asking.
+function QuestionContextCard({ ctx }: { ctx: NovaQuestionContext }) {
+  const correct =
+    typeof ctx.correctIndex === "number" && ctx.options?.[ctx.correctIndex] != null
+      ? ctx.options[ctx.correctIndex]
+      : null;
   return (
-    <div className="flex justify-center py-3">
-      <div
-        className="group flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/70 bg-muted"
-      >
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
-        <span className="text-[11px] text-muted-foreground">
-          Nova knows your context{contextLine ? ` · ${contextLine}` : ""}
-        </span>
-        <Brain className="w-3 h-3 text-muted-foreground"/>
+    <div className="mx-auto w-full max-w-3xl px-4 pt-4">
+      <div className="rounded-2xl border border-border/70 bg-muted/40 p-4">
+        <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-2">
+          The question you asked about
+        </div>
+        <div className="text-sm text-foreground leading-snug">{ctx.question}</div>
+        {(ctx.studentAnswer || correct) && (
+          <div className="mt-3 space-y-1">
+            {ctx.studentAnswer && (
+              <div className="text-xs">
+                <span className="text-muted-foreground">You answered: </span>
+                <span className="text-rose-400 font-semibold">{ctx.studentAnswer}</span>
+              </div>
+            )}
+            {correct && (
+              <div className="text-xs">
+                <span className="text-muted-foreground">Correct answer: </span>
+                <span className="text-emerald-400 font-semibold">{correct}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -261,22 +287,11 @@ function ContextPill({ contextLine }: { contextLine: string }) {
 // ── Suggestions (empty state) ─────────────────────────────────────────────────
 function SuggestionGrid({
   onSelect,
-  onNavigate,
   firstName,
-  chips,
 }: {
   onSelect: (text: string) => void;
-  onNavigate?: (page: PageKey) => void;
   firstName: string;
-  chips: { id: string; label: string; color: string }[];
 }) {
-  const jumpLinks: { page: PageKey; label: string; color: string }[] = [
-    { page: "practice", label: "Practice", color: "#3b5bdb" },
-    { page: "recovery", label: "Recovery", color: "#cc5069" },
-    { page: "battleground", label: "Battleground", color: "#c08a3a" },
-    { page: "doubtportal", label: "Doubts", color: "#4aa87a" },
-  ];
-
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
       {/* Nova orb */}
@@ -285,23 +300,12 @@ function SuggestionGrid({
         <Brain className="w-9 h-9 text-foreground"/>
       </div>
       <h2 className="text-2xl font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>
-        Hi {firstName && !isPlaceholderLabel(firstName) ? firstName : "there"} 💋
+        Hi {firstName && !isPlaceholderLabel(firstName) ? firstName : "there"}
       </h2>
       <p className="text-muted-foreground text-sm mb-8 text-center max-w-xs">
-        I'm Nova — your personal academic tutor. Ask about attendance, homework, marks, school events, or revision.
+        I'm Nova, your tutor. Bring me a concept you don't follow or a question
+        you got wrong — I'll explain it, then ask you questions back until it's clear.
       </p>
-
-      {/* Academic context mini-card — live chips only, no placeholders / duplicates */}
-      {chips.length > 0 && (
-        <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-          {chips.map((item) => (
-            <span key={item.id} className="text-[11px] px-2.5 py-1 rounded-full border font-medium"
-              style={{ color:item.color, borderColor:`${item.color}25`, background:`${item.color}10` }}>
-              {item.label}
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* Suggestions */}
       <div className="w-full max-w-lg grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -317,22 +321,6 @@ function SuggestionGrid({
         ))}
       </div>
 
-      {onNavigate && (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <span className="text-[11px] text-muted-foreground w-full text-center mb-1">Jump to</span>
-          {jumpLinks.map((j) => (
-            <button
-              key={j.page}
-              type="button"
-              onClick={() => onNavigate(j.page)}
-              className="text-[11px] px-3 py-1.5 rounded-xl border font-semibold hover:opacity-90 transition-opacity"
-              style={{ color: j.color, borderColor: `${j.color}40`, background: `${j.color}12` }}
-            >
-              {j.label}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -652,7 +640,7 @@ function InputBar({
         </button>
       </div>
       <div className="text-center mt-1.5">
-        <span className="text-[10px] text-muted-foreground/50">Press âŽ to send · ⇧âŽ for new line · Answers use your live school records</span>
+        <span className="text-[10px] text-muted-foreground/50">Press Enter to send · Shift + Enter for a new line</span>
       </div>
     </div>
   );
@@ -689,51 +677,6 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         3,
       ),
     [masteryItems],
-  );
-
-  const novaChips = useMemo(
-    () =>
-      buildNovaUiChips({
-        classLabel: student.class || null,
-        section: student.section || null,
-        subjects: subjectNames,
-        homeworkPending: snapshot?.homework?.pending ?? null,
-        attendancePct:
-          student.attendance > 0
-            ? student.attendance
-            : snapshot?.exam_readiness?.attendance_pct ?? null,
-        practiceSessions:
-          snapshot?.self_practice?.sessions_completed ??
-          student.sessionsThisWeek ??
-          null,
-        mistakeCount: snapshot?.mistake_count ?? null,
-        recoveryPending:
-          snapshot?.recovery_pending ?? recoveryZone?.pending_count ?? null,
-        xp: student.xp,
-        level: student.level,
-        studyStreak: student.streak,
-        weakConcepts: weakConceptLabels,
-        goal: student.goal || null,
-      }),
-    [
-      student.class,
-      student.section,
-      student.attendance,
-      student.sessionsThisWeek,
-      student.xp,
-      student.level,
-      student.streak,
-      student.goal,
-      subjectNames,
-      snapshot,
-      recoveryZone?.pending_count,
-      weakConceptLabels,
-    ],
-  );
-
-  const contextLine = useMemo(
-    () => novaChips.map((c) => c.label).join(" · "),
-    [novaChips],
   );
 
   const convoStorageKey = novaConversationsKey({ userId: user?.id, schoolId: schoolId ?? undefined });
@@ -789,6 +732,15 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     activeIdRef.current = id;
     setConvos((cs) => [newConvo, ...cs]);
     setActiveId(id);
+    // The student pressed Explain — they have already asked. Making them type
+    // "explain this" as well is the cost this handoff exists to remove.
+    void replyViaGateway(
+      id,
+      ctx.studentAnswer
+        ? "I got this question wrong. Explain why my answer is wrong and walk me through the right one."
+        : "Explain this question to me, step by step.",
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1172,13 +1124,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           {msgs.length === 0 ? (
             <SuggestionGrid
               onSelect={handleSuggestion}
-              onNavigate={setPage}
               firstName={student.firstName}
-              chips={novaChips}
             />
           ) : (
             <div className="px-4 py-4 space-y-5 max-w-3xl mx-auto w-full">
-              <ContextPill contextLine={contextLine} />
+              {active?.questionContext && <QuestionContextCard ctx={active.questionContext} />}
               {msgs.map((m, i) => (
                 <MessageBubble key={m.id} msg={m}
                   onBookmark={bookmarkMsg}

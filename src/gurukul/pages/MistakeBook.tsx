@@ -1,11 +1,11 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { mistakeBookmarksKey } from "@/lib/clientStorage";
 import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
-import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import { displayChapter, displayTopic, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
 import { GlassCard, SubjectBadge, DifficultyBadge, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
@@ -17,6 +17,7 @@ import {
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
 import { pluralise } from "@/lib/plural";
+import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 
 type MBView = "list" | "practice" | "results";
 
@@ -175,13 +176,12 @@ function FreqBadge({ freq }: { freq: number }) {
 }
 
 function MistakeCard({
-  mistake, onRetry, onAddRecovery, onToggleBookmark, addingRecovery,
+  mistake, onRetry, onExplain, onToggleBookmark,
 }: {
   mistake: Mistake;
   onRetry: () => void;
-  onAddRecovery: () => void;
+  onExplain: () => void;
   onToggleBookmark: (id: string) => void;
-  addingRecovery?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -221,12 +221,10 @@ function MistakeCard({
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-violet-300 text-xs font-bold hover:bg-violet-500/25 transition-all">
             <RotateCcw className="w-3 h-3"/> Retry
           </button>
-          {!mistake.resolved && (
-            <button onClick={onAddRecovery} disabled={addingRecovery}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/25 text-rose-300 text-xs font-bold hover:bg-rose-500/25 transition-all disabled:opacity-50">
-              <RefreshCw className="w-3 h-3"/> {addingRecovery ? "Adding…" : "Add to Recovery"}
-            </button>
-          )}
+          <button onClick={onExplain}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/25 text-sky-300 text-xs font-bold hover:bg-sky-500/25 transition-all">
+            <Brain className="w-3 h-3"/> Explain
+          </button>
         </div>
 
         {expanded && (
@@ -445,6 +443,7 @@ function MistakePractice({
   );
 }
 export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => void }) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { ctx, ready: academicReady } = useAcademicContext();
   const bookmarksKey = mistakeBookmarksKey({ userId: user?.id, schoolId: ctx?.schoolId ?? undefined });
@@ -462,7 +461,6 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [sourceFilter, setSourceFilter] = useState("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [toastMsg, setToast] = useState<string|null>(null);
-  const [recoveringId, setRecoveringId] = useState<string | null>(null);
   const [stream, setStream] = useState<AcademicStream | null>(null);
   const [classLevel, setClassLevel] = useState<number | null>(null);
   const liveVersion = useAcademicLive(["profile", "xp"]);
@@ -580,37 +578,23 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     });
   }
 
-  async function addToRecovery(id: string) {
-    if (!academicReady || !ctx) {
-      showToast("Academic context is still loading");
-      return;
-    }
-    if (recoveringId) return;
-    const m = mistakes.find(x => x.id === id);
-    if (!m) return;
-    setRecoveringId(id);
-    try {
-      const assignmentId = await assignRecoveryOnMistake({
-        subject: m.subject,
-        chapter: m.chapterRaw,
-        concept: m.conceptRaw || m.chapterRaw,
-        sourceType: "student_mistake",
-        sourceId: m.id,
-      });
-      setToast(
-        assignmentId
-          ? `"${m.topic || m.chapter}" queued for Recovery`
-          : `Could not create recovery for "${m.topic || m.chapter}" — try Practice`,
-      );
-      setTimeout(() => {
-        if (assignmentId) setPage?.("recovery");
-        else setPage?.("practice");
-      }, 800);
-    } catch (e) {
-      setToast(toErrorMessage(e, "Could not add to Recovery"));
-    } finally {
-      setRecoveringId(null);
-    }
+  /**
+   * Hand this mistake to Nova with the question, what the student answered and
+   * what was correct. Identical to the practice-result and test-result paths —
+   * a mistake is a mistake wherever the student meets it.
+   */
+  function askNova(m: Mistake) {
+    setNovaQuestionContext({
+      question: m.question,
+      options: m.options,
+      correctIndex: m.correct,
+      subject: m.subject,
+      chapter: m.chapterRaw ?? undefined,
+      topic: m.conceptRaw ?? undefined,
+      studentAnswer: m.chosen != null ? m.options[m.chosen] ?? null : null,
+      studentAnswerIndex: m.chosen,
+    });
+    navigate("/student/aicoach");
   }
 
   async function finishMistakePractice(payload: {
@@ -719,8 +703,6 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     );
 
   const unresolved = mistakes.filter(m => !m.resolved).length;
-  const bookmarked = mistakes.filter(m => m.bookmarked).length;
-  const repeated = mistakes.filter(m => m.frequency >= 3).length;
 
   const subjectBreakdown = subjects.filter(s => s !== "all").map(s => ({
     subject: s,
@@ -758,22 +740,6 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label:"Total Mistakes",  value:mistakes.length, color:"#cc5069", icon:<AlertCircle className="w-4 h-4"/> },
-          { label:"Unresolved",      value:unresolved,      color:"#c08a3a", icon:<XCircle className="w-4 h-4"/> },
-          { label:"Saved here",      value:bookmarked,      color:"#c08a3a", icon:<Bookmark className="w-4 h-4 fill-amber-400"/> },
-          { label:"Repeated ×3+",   value:repeated,        color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/> },
-        ].map(s => (
-          <GlassCard key={s.label} className="p-4">
-            <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
-            </div>
-            <div className="text-2xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-          </GlassCard>
-        ))}
-      </div>
 
       {/* Subject breakdown */}
       <GlassCard className="p-5">
@@ -867,9 +833,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           filtered.map(m => (
             <MistakeCard key={m.id} mistake={m}
               onRetry={() => { setPracticeIds([m.id]); setView("practice"); }}
-              onAddRecovery={() => addToRecovery(m.id)}
-              onToggleBookmark={toggleBookmark}
-              addingRecovery={recoveringId === m.id}/>
+              onExplain={() => askNova(m)}
+              onToggleBookmark={toggleBookmark}/>
           ))
         )}
       </div>

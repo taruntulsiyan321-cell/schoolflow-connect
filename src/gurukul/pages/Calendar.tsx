@@ -22,6 +22,9 @@ interface CalendarEvent {
   color: string;
 }
 
+/** The only two entry types an admin can create (v2 redesign, Screen 14). */
+const LEGEND_TYPES: EventType[] = ["event", "holiday"];
+
 const TYPE_META: Record<EventType, { label: string; color: string; icon: React.ReactNode }> = {
   test: { label: "Test", color: "#3b5bdb", icon: <BookOpen className="w-3 h-3" /> },
   deadline: { label: "Deadline", color: "#c08a3a", icon: <ClipboardList className="w-3 h-3" /> },
@@ -229,21 +232,36 @@ export default function Calendar() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-              Class Calendar
+              School Calendar
             </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Tests, exams, events & deadlines</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Events and holidays</p>
           </div>
           <div className="flex items-center gap-2">
-            {(Object.entries(TYPE_META) as [EventType, (typeof TYPE_META)[EventType]][]).slice(0, 4).map(([type, meta]) => (
-              <div
-                key={type}
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-semibold"
-                style={{ borderColor: `${meta.color}30`, color: meta.color, background: `${meta.color}12` }}
-              >
-                {meta.icon}
-                {meta.label}
-              </div>
-            ))}
+            {/*
+              The legend shows the two entry types an admin can actually create:
+              a date, free text, and Event or Holiday. Test and Deadline chips
+              came off in the v2 redesign.
+
+              NOT SETTLED, and deliberately left rather than guessed: this page
+              ALSO overlays tests, exams and homework due-dates pulled from
+              TestService / MarksService / HomeworkService, so those still plot
+              on the grid without a legend key. Removing them would take a
+              student's view of upcoming tests away, which the redesign does not
+              ask for. Someone has to rule on whether the calendar carries them.
+            */}
+            {LEGEND_TYPES.map((type) => {
+              const meta = TYPE_META[type];
+              return (
+                <div
+                  key={type}
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-semibold"
+                  style={{ borderColor: `${meta.color}30`, color: meta.color, background: `${meta.color}12` }}
+                >
+                  {meta.icon}
+                  {meta.label}
+                </div>
+              );
+            })}
           </div>
         </div>
       </GlassCard>

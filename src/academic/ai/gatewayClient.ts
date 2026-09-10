@@ -431,6 +431,13 @@ export type NovaQuestionContext = {
   subject?: string;
   chapter?: string;
   topic?: string;
+  /**
+   * What the student actually answered. Without this Nova can explain the
+   * question but not the mistake, which is the whole reason the student
+   * pressed Explain.
+   */
+  studentAnswer?: string | null;
+  studentAnswerIndex?: number | null;
 };
 
 const MAX_HISTORY_TURNS = 6;
@@ -500,6 +507,8 @@ export async function askAiCoach(input: {
         question: input.questionContext.question.slice(0, 1000),
         options: input.questionContext.options?.slice(0, 8).map((o) => o.slice(0, 300)),
         correct_index: input.questionContext.correctIndex ?? null,
+        student_answer: input.questionContext.studentAnswer?.slice(0, 300) ?? null,
+        student_answer_index: input.questionContext.studentAnswerIndex ?? null,
         subject: input.questionContext.subject,
         chapter: input.questionContext.chapter,
         topic: input.questionContext.topic,

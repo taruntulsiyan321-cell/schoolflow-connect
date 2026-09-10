@@ -541,6 +541,8 @@ export default function PracticeSessionResult() {
                     correctIndex: correctIdx,
                     subject: subjectRaw,
                     chapter: chapterRaw,
+                    studentAnswer: selectedText,
+                    studentAnswerIndex: selectedIdx,
                   });
                   navigate("/student/aicoach");
                 }}

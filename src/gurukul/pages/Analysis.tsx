@@ -179,7 +179,6 @@ export default function Analysis() {
       streak: student.streak,
       rank: analysis?.class_rank ?? student.rank ?? 0,
       totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
-      examReadiness: snapshot?.exam_readiness?.score ?? 0,
     };
   }, [analysis, snapshot, student.accuracy, student.streak, student.rank, student.totalStudents]);
 
@@ -711,7 +710,11 @@ export default function Analysis() {
               // Analysis figure any more (rule 11); the student reads them on
               // their marks surface.
               { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "hsl(var(--info))" },
-              { label: "Exam readiness",     value: `${overview.examReadiness}%`,             color: "hsl(var(--primary))" },
+              // "Exam readiness" was removed in the v2 redesign: a composite of
+              // four measures collapsed into one number, which is the
+              // no-blended-score rule and cannot be explained to a student.
+              // `exam_readiness.attendance_pct` is still read below — that is
+              // attendance, a measured figure, not the composite.
             ].map((s) => (
               <Metric key={s.label} label={s.label} value={s.value} color={s.color} />
             ))}
