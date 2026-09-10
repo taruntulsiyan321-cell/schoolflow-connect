@@ -2415,37 +2415,64 @@ recorded `answers_saved = 0` while reporting green. It now waits for the option
 to be visible, so "no options" and "no options YET" are no longer the same
 answer.
 
-## 44. The practice timer records nothing, so "study hours" is always 0
+## 44. ~~The practice timer records nothing~~ — WRONG DIAGNOSIS, corrected 2026-09-11
 
-**Found 2026-09-10 while chasing the v2 redesign's Screen 6 note: "Study hours
-total: 0h alongside 2 active days and 27 questions solved. Either the timer is
-not recording or the field is wrong."**
+**I wrote this entry on 2026-09-10 and the conclusion was wrong. The counts in
+it were right; what I inferred from them was not.**
 
-It is the timer. Measured live:
+What I said: "258 of 262 practice sessions finish with no elapsed time — the
+timer is not recording." What is actually true: **only four practice sessions
+have ever been completed through the app**, and the timer recorded all four
+perfectly.
+
+THE MEASUREMENT THAT SETTLED IT
+
+`rpc_finish_practice_session` rolls a session up from `question_attempts`:
+
+```sql
+COALESCE(sum(time_taken_ms), 0)::int INTO ... _time_ms
+FROM public.question_attempts WHERE session_id = _session_id AND user_id = auth.uid();
+...
+total_time_ms = NULLIF(_time_ms, 0),
+```
+
+Every session where that ran is internally consistent — all four of them:
 
 ```
-practice_sessions                262 rows, 4 with total_time_ms   total 1 minute
-academic_daily_activity          9 rows, 9 with practice_minutes  total 18 minutes
+correct_count = att_correct  AND  total_time_ms = att_ms     4 of 4
 ```
 
-258 of 262 practice sessions finish with no elapsed time at all, and
-`academic_daily_activity` holds nine rows for a platform with 223 students. So
-`Math.round(18 / 60)` is 0, and the tile was reporting a measurement nobody had
-taken.
+The other 240 finished sessions with attempts are seeded. Their signature is
+unmistakable once you look for it:
 
-**What was done now:** the tile renders an em dash instead of `0h` when no time
-was recorded. That is the existing null contract — missing renders `—`, never
-`0` — and it stops the screen telling a student they studied for zero hours.
+```
+question_count matches the attempt count      240 of 240
+correct_count matches the attempts' correct     0 of 240
+```
 
-**What was NOT done, and why:** making the timer record means changing the
-practice session finish path. That is the screen students use most, and it could
-not be verified in a browser while IPv4 was down (see HANDOFF.md §1). Changing
-the practice engine blind is how it breaks. The display no longer lies; the
-measurement still is not taken.
+A sample: the session says 20 questions, 13 correct, 65% accuracy. Its twenty
+attempt rows say **zero** correct. The session aggregates were written directly;
+the attempt rows were generated separately; the finish RPC never ran on either.
 
-**Where to start:** `practice_sessions.total_time_ms` is the column, and the four
-rows that DO carry it are worth reading first — something writes it sometimes,
-and finding which path does is faster than reading the whole finish flow.
+WHY THERE IS NO BACKFILL
+
+The attempts carry 121,680,000 ms — 33.8 hours — and rolling that onto the
+sessions would be inventing a figure no student spent. It would also write
+`correct_count = 0` over 240 sessions that currently claim 13, 9, 11 correct.
+Making seeded data internally consistent is not the same as making it true, and
+"do not fix an empty surface by inventing data" applies exactly here.
+
+WHAT REMAINS TRUE
+
+The Analysis tile now renders an em dash instead of `0h`, and that was the right
+change for the right reason — 18 recorded minutes across the platform rounds to
+zero hours, and reporting `0h` claims a measurement rather than admitting the
+absence of one. That stays.
+
+**The lesson worth keeping:** "258 of 262 rows lack a column" reads as a broken
+writer. It was a quiet product fact — almost nobody has finished a practice
+session. Four consistent rows disproved the writer theory in one query, and I
+should have run it before writing the entry rather than after.
 
 ## 45. Revision "due now" equals "in queue" — NOT a scheduling bug
 

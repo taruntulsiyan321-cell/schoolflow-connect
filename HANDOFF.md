@@ -696,9 +696,11 @@ the overlap. Fixed in `20260918000000`, probe39, 5 claims.
 ### Still open, and why
 
 * **G4 blank icons** — every stated cause disproved; needs a browser.
-* **The practice timer records nothing** (KNOWN_ISSUES 44). 4 of 262 sessions
-  carry `total_time_ms`. The display no longer lies; the measurement is still
-  not taken. Fixing it means changing the practice finish path.
+* ~~The practice timer records nothing~~ — **that diagnosis was wrong and is
+  corrected in KNOWN_ISSUES 44.** The finish RPC works: all four sessions it ran
+  on are internally consistent. Only four practice sessions have ever been
+  completed through the app; the other 258 are seeded. No fix needed, and
+  deliberately no backfill — see the entry for why.
 * **`config.resumeSessionId` is dead** — ~110 unreachable lines in the practice
   engine. Documented at the field. Wants a browser to remove safely.
 * **Screen 1 header cluster** — the document says the reduction "is not yet
