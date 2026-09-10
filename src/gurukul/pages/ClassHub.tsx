@@ -51,7 +51,6 @@ export default function ClassHub({ setPage }: Props) {
   const [attPct, setAttPct] = useState(0);
   const [examAvg, setExamAvg] = useState(0);
   const [hwPending, setHwPending] = useState(0);
-  const [hwTotal, setHwTotal] = useState(0);
   const [hwPct, setHwPct] = useState(0);
   const [loading, setLoading] = useState(true);
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId]);
@@ -61,7 +60,6 @@ export default function ClassHub({ setPage }: Props) {
       setAttPct(0);
       setExamAvg(0);
       setHwPending(0);
-      setHwTotal(0);
       setHwPct(0);
       endLoading(setLoading);
       return;
@@ -82,7 +80,11 @@ export default function ClassHub({ setPage }: Props) {
         setAttPct(Math.round(profile?.attendancePct ?? analytics?.attendance.pct ?? 0));
         setExamAvg(Math.round(analytics?.exams.averagePct ?? 0));
         setHwPct(Math.round(analytics?.homework.pct ?? 0));
-        setHwTotal(hw.length);
+        // The disputed figure, settled: this counts the student's OWN homework
+        // rows with no submission, or one still pending or returned. The bottom
+        // widget said "0 / 10 pending", which was the same number phrased as a
+        // ratio against every homework ever set — arithmetically fine, and it
+        // read as a different claim. The widget is gone; this is the figure.
         setHwPending(
           hw.filter((r) => !r.submission || ["pending", "returned"].includes(r.submission.status)).length,
         );
@@ -98,7 +100,6 @@ export default function ClassHub({ setPage }: Props) {
           setAttPct(0);
           setExamAvg(0);
           setHwPending(0);
-          setHwTotal(0);
           setHwPct(0);
           toast({
             title: "Could not load class stats",
