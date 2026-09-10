@@ -632,8 +632,14 @@ where there is a submitted attempt, because the RPC correctly refuses the rest.
 ## 10. THE v2 STUDENT PANEL REDESIGN — 2026-09-10 session
 
 Source document: `C:\Users\Tarun\Downloads\student-panel-redesign-v2.md`.
-Nine commits, `3679d9b` .. the tip. Everything below is done unless it says
+Ten commits, `3679d9b` .. `3d2836f`. Everything below is done unless it says
 otherwise.
+
+**None of them are pushed.** github.com was unreachable for the whole session —
+IPv4 down at the router, IPv6 healthy, which is why every database gate could
+still run against `api.supabase.com`. `scripts/push-when-online.sh` is retrying
+and lands them the moment the line returns. Confirm with `git ls-remote` before
+believing it.
 
 ### Done
 
@@ -661,6 +667,8 @@ otherwise.
 | Screen 14 Calendar | legend + header; **data fixed** (3 demo rows, Gandhi Jayanti) |
 | Screen 15 Doubts | timestamps fixed |
 | Screen 16 Attempt | save state, submit confirmation, **no app chrome during a paper** |
+| Screen 10 HW figure | the disputed "0 Pending HW" vs "0 / 10" settled — the stat is right |
+| Resources empty state | already honest; no change needed |
 
 ### Five places the DOCUMENT was wrong, all measured
 
