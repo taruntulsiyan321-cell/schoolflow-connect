@@ -194,28 +194,6 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         </div>
       </GlassCard>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Attendance", value: `${attPct}%`, color: "#4aa87a", icon: <Trophy className="w-4 h-4" /> },
-          { label: "Exam avg", value: `${examAvg}%`, color: "#6882e8", icon: <Target className="w-4 h-4" /> },
-          { label: "Homework", value: `${hwPct}%`, color: "#c08a3a", icon: <Medal className="w-4 h-4" /> },
-          { label: "Tests avg", value: `${testsAvg}%`, color: "#4b9fd4", icon: <Target className="w-4 h-4" /> },
-        ].map((s) => (
-          <div key={s.label} className="p-4 rounded-2xl border border-border/70 bg-surface/70">
-            <div className="flex items-center gap-2 mb-1" style={{ color: s.color }}>
-              {s.icon}
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
-            </div>
-            <div
-              className="text-xl font-black tabular-nums"
-              style={{ color: s.color, fontFamily: "var(--font-display)" }}
-            >
-              {s.value}
-            </div>
-          </div>
-        ))}
-      </div>
-
       <GlassCard className="p-5">
         <div className="flex items-center gap-2 mb-3">
           <SectionLabel>Rankings</SectionLabel>

@@ -72,7 +72,7 @@ function MiniRing({ pct, color }: { pct: number; color: string }) {
 }
 
 /**
- * Class Hub — Academic Engine for attendance / homework / exams / tests.
+ * Class Hub â€” Academic Engine for attendance / homework / exams / tests.
  * Navigation chrome only for non-academic modules (timetable, resources, etc.).
  */
 export default function ClassHub({ setPage }: Props) {
@@ -85,7 +85,7 @@ export default function ClassHub({ setPage }: Props) {
   const [hwTotal, setHwTotal] = useState(0);
   const [hwPct, setHwPct] = useState(0);
   const [loading, setLoading] = useState(true);
-  const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId]);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
@@ -169,7 +169,7 @@ export default function ClassHub({ setPage }: Props) {
       kind: "page",
       key: "attendance",
       label: "Attendance",
-      sub: "Track your presence via Academic Engine",
+      sub: "Track your attendance",
       icon: <CalendarDays className="w-6 h-6" />,
       color: "#4aa87a",
       badge: `${attPct}% overall`,
@@ -178,7 +178,7 @@ export default function ClassHub({ setPage }: Props) {
       kind: "page",
       key: "assignments",
       label: "Homework",
-      sub: "Assignments from HomeworkService",
+      sub: "View and submit assignments",
       icon: <ClipboardList className="w-6 h-6" />,
       color: "#c08a3a",
       badge: `${hwPending} pending`,
@@ -187,7 +187,7 @@ export default function ClassHub({ setPage }: Props) {
       kind: "page",
       key: "tests",
       label: "Tests",
-      sub: "Exam averages from AnalyticsService",
+      sub: "View your test scores",
       icon: <FlaskConical className="w-6 h-6" />,
       color: "#6882e8",
       badge: `${examAvg}% exam avg`,
@@ -223,19 +223,10 @@ export default function ClassHub({ setPage }: Props) {
       kind: "page",
       key: "leaderboard",
       label: "Rankings",
-      sub: "Class XP from Progression Engine",
+      sub: "See class rankings",
       icon: <Trophy className="w-6 h-6" />,
       color: "#c08a3a",
       badge: "Live rankings",
-    },
-    {
-      kind: "page",
-      key: "achievements",
-      label: "Achievements",
-      sub: "Milestones unlocked through learning",
-      icon: <Medal className="w-6 h-6" />,
-      color: "#c08a3a",
-      badge: "View",
     },
     {
       kind: "page",
@@ -251,7 +242,7 @@ export default function ClassHub({ setPage }: Props) {
   if (showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading class hub…
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading class hubâ€¦
       </div>
     );
   }
@@ -272,7 +263,7 @@ export default function ClassHub({ setPage }: Props) {
           Class
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Academic stats from the Academic Engine — schedule & resources are navigation only.
+          Academic stats from the Academic Engine â€” schedule & resources are navigation only.
         </p>
       </div>
 
@@ -320,46 +311,6 @@ export default function ClassHub({ setPage }: Props) {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 rounded-full bg-[#4aa87a]" />
-            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Attendance</span>
-            <button
-              onClick={() => setPage("attendance")}
-              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-primary transition-colors"
-            >
-              View →
-            </button>
-          </div>
-          <div className="flex items-center gap-3 mb-4">
-            <MiniRing pct={attPct} color="#4aa87a" />
-            <div>
-              <div className="text-xl font-black text-foreground">{attPct}%</div>
-              <div className="text-[11px] text-muted-foreground">AcademicProfileService</div>
-            </div>
-          </div>
-          <ProgressBar value={attPct} color="#4aa87a" height="h-1.5" />
-        </GlassCard>
-
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 rounded-full bg-[#c08a3a]" />
-            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Homework</span>
-            <button
-              onClick={() => setPage("assignments")}
-              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-primary transition-colors"
-            >
-              View →
-            </button>
-          </div>
-          <div className={cn("text-xl font-black text-foreground mb-1")}>
-            {hwPending} / {hwTotal} pending
-          </div>
-          <div className="text-[11px] text-muted-foreground mb-3">HomeworkService · {hwPct}% completion</div>
-          <ProgressBar value={hwPct} color="#c08a3a" height="h-1.5" />
-        </GlassCard>
       </div>
-    </div>
   );
 }

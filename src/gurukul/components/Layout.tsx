@@ -33,33 +33,11 @@ const sidebarNav: NavEntry[] = [
   { type:"link", key:"aicoach",      label:"AI Coach",     icon:<Brain className="w-4 h-4"/> },
   { type:"link", key:"battleground", label:"Battleground", icon:<Swords className="w-4 h-4"/> },
   { type:"link", key:"chat",         label:"Chat",         icon:<MessageCircle className="w-4 h-4"/> },
-
-  {
-    type:"group", hubKey:"learninghub", label:"Learning", color:"hsl(var(--primary))",
-    icon:<GraduationCap className="w-4 h-4"/>,
-    items:[
-      { key:"analysis",       label:"Analysis",     icon:<BarChart2 className="w-3.5 h-3.5"/> },
-      { key:"recovery",       label:"Recovery",     icon:<RefreshCw className="w-3.5 h-3.5"/> },
-      { key:"revision",       label:"Revision",     icon:<RotateCcw className="w-3.5 h-3.5"/> },
-      { key:"mistakebook",    label:"Mistake Book", icon:<AlertCircle className="w-3.5 h-3.5"/> },
-    ],
-  },
-
-  {
-    type:"group", hubKey:"classhub", label:"Class", color:"hsl(var(--success))",
-    icon:<FlaskConical className="w-4 h-4"/>,
-    items:[
-      { key:"timetable",   label:"Timetable",   icon:<Clock className="w-3.5 h-3.5"/> },
-      { key:"calendar",    label:"Calendar",    icon:<Calendar className="w-3.5 h-3.5"/> },
-      { key:"attendance",  label:"Attendance",  icon:<CalendarDays className="w-3.5 h-3.5"/> },
-      { key:"assignments", label:"Homework",    icon:<ClipboardList className="w-3.5 h-3.5"/> },
-      { key:"tests",       label:"Tests",       icon:<FlaskConical className="w-3.5 h-3.5"/> },
-      { key:"doubtportal", label:"Doubts",      icon:<MessageCircle className="w-3.5 h-3.5"/> },
-      { key:"leaderboard", label:"Rankings",    icon:<Trophy className="w-3.5 h-3.5"/> },
-      { key:"achievements",label:"Achievements",icon:<Medal className="w-3.5 h-3.5"/> },
-      { key:"resources",   label:"Resources",   icon:<Library className="w-3.5 h-3.5"/> },
-    ],
-  },
+  { type:"link", key:"learninghub",  label:"Learning",     icon:<GraduationCap className="w-4 h-4"/> },
+  { type:"link", key:"classhub",     label:"Class",        icon:<FlaskConical className="w-4 h-4"/> },
+  { type:"link", key:"tests",        label:"Tests",        icon:<FlaskConical className="w-4 h-4"/> },
+  { type:"link", key:"assignments",  label:"Homework",     icon:<ClipboardList className="w-4 h-4"/> },
+  { type:"link", key:"leaderboard",  label:"Rankings",     icon:<Trophy className="w-4 h-4"/> },
 ];
 
 // ── Mobile bottom nav — 4 tabs, no Profile ────────────────────────────────────
@@ -88,9 +66,6 @@ const pageTitle: Record<PageKey, string> = {
 // ── Profile dropdown menu items ───────────────────────────────────────────────
 const profileMenuItems = [
   { label:"My Profile",    icon:<User className="w-3.5 h-3.5"/>,     key:"profile"      as PageKey },
-  { label:"Achievements",  icon:<Medal className="w-3.5 h-3.5"/>,    key:"achievements" as PageKey },
-  { label:"Leaderboard",   icon:<Trophy className="w-3.5 h-3.5"/>,   key:"leaderboard"  as PageKey },
-  { label:"Analysis",      icon:<BarChart className="w-3.5 h-3.5"/>, key:"analysis"     as PageKey },
 ];
 
 const profileExtraLinks = [
@@ -117,7 +92,7 @@ export default function Layout({
   /** When false, XP/level chrome shows a neutral placeholder (not Level 1 as truth). */
   progressionReady?: boolean;
 }) {
-  const { signOut } = useAuth();
+  const { signOut, school } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { unread } = useNotifications();
@@ -353,8 +328,7 @@ export default function Layout({
         </div>
         {!collapsed && (
           <div>
-            <div className="text-sm font-black text-foreground leading-none" style={{fontFamily:"var(--font-display)"}}>Wisdom</div>
-            <div className="text-[10px] text-muted-foreground leading-none mt-0.5">Campus</div>
+            <div className="text-sm font-black text-foreground leading-none truncate" style={{fontFamily:"var(--font-display)"}}>{school?.name ?? "Gurukul"}</div>
           </div>
         )}
       </div>
