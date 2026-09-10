@@ -763,6 +763,41 @@ export const TestService = {
     return data;
   },
 
+  /**
+   * A student's own recent test marks, newest first — the profile shows the
+   * MARKS, not an average of them (v2 Screen 12).
+   *
+   * No extra fence is written here on purpose. `test_marks_read` already admits
+   * `student_id IN my_own_or_children_student_ids()`, so a student reaches
+   * their own row and a parent their child's, and staff reach the tests they
+   * can read or manage. Re-stating that rule in the service is how the two
+   * copies drift (G9); the policy is the one place it lives.
+   */
+  async listMarksForStudent(
+    ctx: ServiceContext,
+    studentId: string,
+    limit = 10,
+  ): Promise<{ testId: string; title: string; mark: number | null; maxMark: number | null; takenAt: string | null }[]> {
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("test_marks")
+      .select("test_id, mark, created_at, tests(title, max_mark)")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    throwIfError(error, "Failed to load test marks");
+    return ((data ?? []) as Record<string, unknown>[]).map((row) => {
+      const t = row.tests as { title?: string; max_mark?: number } | null;
+      return {
+        testId: String(row.test_id ?? ""),
+        title: t?.title ?? "Test",
+        // NULL mark means not marked. It is never 0 (§7).
+        mark: row.mark == null ? null : Number(row.mark),
+        maxMark: t?.max_mark == null ? null : Number(t.max_mark),
+        takenAt: row.created_at ? String(row.created_at) : null,
+      };
+    });
+  },
+
   async archive(ctx: ServiceContext, testId: string) {
     assertCanOwn(ctx, "test");
     const existing = await this.get(ctx, testId);

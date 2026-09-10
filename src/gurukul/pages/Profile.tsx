@@ -1,8 +1,12 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { GlassCard, SectionLabel, XPBar, cn } from "@/gurukul/components/shared";
-import { Trophy, Target, Medal, Loader2, ArrowRight } from "lucide-react";
-import { AcademicProfileService, AnalyticsService, ProgressionService, useAcademicLive } from "@/academic";
+import { Loader2, ArrowRight } from "lucide-react";
+import {
+  ProgressionService,
+  TestService, MarksService, HomeworkService, RemarksService,
+  useAcademicLive,
+} from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,10 +35,18 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
   const { earned, loading: badgesLoading } = useStudentBadges(user?.id);
   const [name, setName] = useState("Student");
   const [classLabel, setClassLabel] = useState("");
-  const [attPct, setAttPct] = useState(0);
-  const [examAvg, setExamAvg] = useState(0);
-  const [hwPct, setHwPct] = useState(0);
-  const [testsAvg, setTestsAvg] = useState(0);
+  const [rollNumber, setRollNumber] = useState<string | null>(null);
+  const [parentName, setParentName] = useState<string | null>(null);
+  const [parentPhone, setParentPhone] = useState<string | null>(null);
+  const [testMarks, setTestMarks] = useState<
+    { testId: string; title: string; mark: number | null; maxMark: number | null; takenAt: string | null }[]
+  >([]);
+  const [examMarks, setExamMarks] = useState<
+    { id: string; label: string; obtained: number | null; max: number | null }[]
+  >([]);
+  const [hwDone, setHwDone] = useState(0);
+  const [hwMissing, setHwMissing] = useState(0);
+  const [remarks, setRemarks] = useState<{ id: string; text: string; author: string; at: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [level, setLevel] = useState(1);
   const [xp, setXp] = useState(0);
@@ -73,11 +85,9 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
       const settled = await Promise.allSettled([
         supabase
           .from("students_current")
-          .select("full_name, roll_number, classes(name, section)")
+          .select("full_name, roll_number, parent_name, parent_mobile, classes(name, section)")
           .eq("id", studentId)
           .maybeSingle(),
-        AcademicProfileService.get(ctx, studentId),
-        AnalyticsService.forStudent(ctx, studentId),
         ProgressionService.getSnapshot(ctx, user?.id ?? undefined),
         ProgressionService.leaderboard(ctx, {
           scope: "class",
@@ -85,22 +95,73 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           metric: "xp",
           limit: 200,
         }),
+        TestService.listMarksForStudent(ctx, studentId, 10),
+        MarksService.listForStudent(ctx, studentId, { limit: 50 }),
+        HomeworkService.listForStudent(ctx, studentId),
+        RemarksService.listForStudent(ctx, studentId),
       ]);
       const sRes = settled[0].status === "fulfilled" ? settled[0].value : null;
       const s = sRes?.data;
-      const profile = settled[1].status === "fulfilled" ? settled[1].value : null;
-      const analytics = settled[2].status === "fulfilled" ? settled[2].value : null;
-      const prog = settled[3].status === "fulfilled" ? settled[3].value : null;
-      const lb = settled[4].status === "fulfilled" ? settled[4].value : null;
+      const prog = settled[1].status === "fulfilled" ? settled[1].value : null;
+      const lb = settled[2].status === "fulfilled" ? settled[2].value : null;
       setName(s?.full_name ?? "Student");
       const cls = s?.classes as { name?: string; section?: string } | null;
-      setClassLabel(
-        cls ? `${cls.name ?? ""} ${cls.section ?? ""} · Roll ${s?.roll_number ?? "—"}` : "",
+      setClassLabel(cls ? `${cls.name ?? ""} ${cls.section ?? ""}`.trim() : "");
+      setRollNumber(s?.roll_number != null ? String(s.roll_number) : null);
+      setParentName(s?.parent_name ? String(s.parent_name) : null);
+      setParentPhone(s?.parent_mobile ? String(s.parent_mobile) : null);
+
+      const tm = settled[3].status === "fulfilled" ? settled[3].value : [];
+      setTestMarks(Array.isArray(tm) ? tm : []);
+
+      // MarksRecord carries examId and nothing readable, so the exam's own name
+      // and maximum are resolved here. `exams_read` already fences this to the
+      // student's own school.
+      const em = settled[4].status === "fulfilled" ? settled[4].value : [];
+      const emRows = Array.isArray(em) ? em : [];
+      const examIds = [...new Set(emRows.map((m) => m.examId).filter(Boolean))];
+      const examMeta = new Map<string, { name: string; max: number | null }>();
+      if (examIds.length) {
+        const { data: exRows, error: exErr } = await supabase
+          .from("exams")
+          .select("id, name, subject, max_marks")
+          .in("id", examIds);
+        if (exErr) console.warn("[profile] exam names:", exErr.message);
+        for (const e of (exRows ?? []) as Record<string, unknown>[]) {
+          examMeta.set(String(e.id), {
+            name: String(e.subject ?? e.name ?? "Exam"),
+            max: e.max_marks == null ? null : Number(e.max_marks),
+          });
+        }
+      }
+      setExamMarks(
+        emRows.map((m) => ({
+          id: m.id,
+          label: examMeta.get(m.examId)?.name ?? "Exam",
+          // NULL is "not marked" and is never 0 (§7).
+          obtained: m.marksObtained == null ? null : Number(m.marksObtained),
+          max: examMeta.get(m.examId)?.max ?? null,
+        })),
       );
-      setAttPct(Math.round(profile?.attendancePct ?? analytics?.attendance.pct ?? 0));
-      setExamAvg(Math.round(analytics?.exams.averagePct ?? 0));
-      setHwPct(Math.round(analytics?.homework.pct ?? 0));
-      setTestsAvg(Math.round(analytics?.tests.averagePct ?? 0));
+
+      // Counts, not a percentage (v2 Screen 12). `displayStatus` is the
+      // service's own derived state — recomputing it here would be a second
+      // home for the same rule (G9).
+      const hw = settled[5].status === "fulfilled" ? settled[5].value : [];
+      const hwRows = Array.isArray(hw) ? hw : [];
+      const handedIn = (st: string) => st === "Submitted" || st === "Reviewed" || st === "Graded";
+      setHwDone(hwRows.filter((h) => handedIn(h.displayStatus)).length);
+      setHwMissing(hwRows.filter((h) => !handedIn(h.displayStatus)).length);
+
+      const rm = settled[6].status === "fulfilled" ? settled[6].value : [];
+      setRemarks(
+        (Array.isArray(rm) ? rm : []).map((r) => ({
+          id: r.id,
+          text: r.body,
+          author: r.remarkType || "Remark",
+          at: r.createdAt ?? null,
+        })),
+      );
       if (prog) {
         const derived = progressionLevelProgress(prog.xp, prog.level);
         setLevel(prog.level);
@@ -167,13 +228,35 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             >
               {name}
             </h2>
-            <div className="text-sm text-muted-foreground">{classLabel}</div>
+            <div className="text-sm text-muted-foreground">
+              {classLabel}
+              {rollNumber ? ` · Roll ${rollNumber}` : ""}
+            </div>
+            {/*
+              "Rep 8" was unexplained and had never been specced. Measured before
+              touching it: it is COMMUNITY reputation, earned in the Doubt Portal
+              — answers x20, upvotes x5, accepted answers x80, computed by
+              `_community_refresh_reputation` and written by three RPCs. It is
+              live and earned (nine students at 10, one at 24, one at 130), so it
+              stays. It just says what it is now.
+            */}
             <div className="text-xs text-primary mt-0.5">
               Level {level}
               {league ? ` · ${league}` : ""}
-              {` · ${xp} XP · Streak ${streak}d · Rep ${reputation}`}
-              {classRank != null ? ` · Rank #${classRank}` : ""}
+              {` · ${xp} XP · Streak ${streak}d`}
+              {reputation > 0 ? ` · ${reputation} helper points` : ""}
+              {classRank != null ? ` · Class rank #${classRank}` : ""}
             </div>
+            {/*
+              Parent contact. Present for 10 of 223 students today, so it is
+              rendered on presence rather than as a permanently blank field.
+            */}
+            {(parentName || parentPhone) && (
+              <div className="text-xs text-muted-foreground mt-1">
+                Parent: {parentName ?? "—"}
+                {parentPhone ? ` · ${parentPhone}` : ""}
+              </div>
+            )}
             <div className="mt-3">
               <XPBar
                 xp={xp}
@@ -194,27 +277,84 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         </div>
       </GlassCard>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Attendance", value: `${attPct}%`, color: "#4aa87a", icon: <Trophy className="w-4 h-4" /> },
-          { label: "Exam avg", value: `${examAvg}%`, color: "#6882e8", icon: <Target className="w-4 h-4" /> },
-          { label: "Homework", value: `${hwPct}%`, color: "#c08a3a", icon: <Medal className="w-4 h-4" /> },
-          { label: "Tests avg", value: `${testsAvg}%`, color: "#4b9fd4", icon: <Target className="w-4 h-4" /> },
-        ].map((s) => (
-          <div key={s.label} className="p-4 rounded-2xl border border-border/70 bg-surface/70">
-            <div className="flex items-center gap-2 mb-1" style={{ color: s.color }}>
-              {s.icon}
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
-            </div>
-            <div
-              className="text-xl font-black tabular-nums"
-              style={{ color: s.color, fontFamily: "var(--font-display)" }}
-            >
-              {s.value}
-            </div>
-          </div>
-        ))}
+      {/*
+        THE FOUR AVERAGES ARE GONE (v2 Screen 12): Attendance 100%, Exam avg 80%,
+        Homework 90%, Tests avg 0%. The last one is the reason the rule exists —
+        the student had taken no tests, and "0%" claims they took them and scored
+        nothing. Averages are banned product-wide; the profile shows the actual
+        marks and honest counts instead.
+      */}
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="p-4 rounded-2xl border border-border/70 bg-surface/70">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Homework handed in</div>
+          <div className="text-2xl font-black tabular-nums text-foreground">{hwDone}</div>
+        </div>
+        <div className="p-4 rounded-2xl border border-border/70 bg-surface/70">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Not submitted</div>
+          <div className="text-2xl font-black tabular-nums text-foreground">{hwMissing}</div>
+        </div>
       </div>
+
+      <GlassCard className="p-5">
+        <SectionLabel>Last 10 test marks</SectionLabel>
+        {testMarks.length === 0 ? (
+          <div className="text-xs text-muted-foreground">No tests marked yet.</div>
+        ) : (
+          <div className="space-y-2">
+            {testMarks.map((t) => (
+              <div key={t.testId} className="flex items-center gap-3 text-sm">
+                <span className="flex-1 min-w-0 truncate text-foreground">{t.title}</span>
+                <span className="tabular-nums font-bold text-foreground shrink-0">
+                  {t.mark == null ? "—" : `${t.mark}${t.maxMark != null ? ` / ${t.maxMark}` : ""}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
+
+      <GlassCard className="p-5">
+        <SectionLabel>Exam marks</SectionLabel>
+        {examMarks.length === 0 ? (
+          <div className="text-xs text-muted-foreground">No exam marks published yet.</div>
+        ) : (
+          <div className="space-y-2">
+            {examMarks.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 text-sm">
+                <span className="flex-1 min-w-0 truncate text-foreground">{m.label}</span>
+                <span className="tabular-nums font-bold text-foreground shrink-0">
+                  {m.obtained == null ? "—" : `${m.obtained}${m.max != null ? ` / ${m.max}` : ""}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
+
+      {/*
+        TEACHER REMARKS. Rendered only when there are some.
+
+        `teacher_remarks` holds ZERO rows platform-wide and no teacher-facing
+        screen writes to it, so an always-visible panel would be permanently
+        blank for every student at every school — which reads as a broken app,
+        not an empty one. Rendering on presence means it appears by itself the
+        day a teacher can write one, with no second change needed here.
+      */}
+      {remarks.length > 0 && (
+        <GlassCard className="p-5">
+          <SectionLabel>Teacher remarks</SectionLabel>
+          <div className="space-y-3">
+            {remarks.map((r) => (
+              <div key={r.id} className="p-3 rounded-xl border border-border/70 bg-surface/60">
+                <div className="text-sm text-foreground">{r.text}</div>
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  {r.author}{r.at ? ` · ${formatEarnedDate(r.at)}` : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
 
       <GlassCard className="p-5">
         <div className="flex items-center gap-2 mb-3">
