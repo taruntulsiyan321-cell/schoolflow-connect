@@ -338,65 +338,67 @@ nobody has written.
 at all — `options` and `correct_index` are NOT NULL, so that is a schema
 decision about a 21,696-row shared table, not a code change.
 
-### 5.5 THE DEPLOY — RECONCILED 2026-09-09, one decision left
+### 5.5 THE DEPLOY — DONE 2026-09-10, ai-gateway v27 -> v28
 
-`ai-gateway` was 9 files adrift from the repo and nobody had established what
-was in them. It has now been downloaded and read, file by file. **Most of the
-"drift" was Windows line endings** — `imageDoubtSolve`, `questionPaperOutline`
-and `questionPaperMarkingScheme` showed every line differing on identical line
-counts. Ignoring CR, the real picture:
+Deployed on the user's explicit instruction, after the cost consequence was put
+to them twice. `npm run functions:deploy-gateway`.
 
-| file | who is ahead |
-|---|---|
-| `index.ts` | **BOTH** — now merged, see below |
-| `_shared/embeddingWorker.ts` | repo (adds the S-04 `school_id` match) |
-| `_shared/imageDoubtSolve.ts` | repo (same cap plus `system_template`) |
-| `_shared/modelRouter.ts` | repo — **and this one costs money, see below** |
-| `_shared/parentNarrative.ts` | repo (removes a LIVE §10.8 violation) |
-| `_shared/promptLibrary.ts` | neither — identical prompts, reformatted |
-| `_shared/questionPaperMarkingScheme.ts` | repo (`system_template`) |
-| `_shared/questionPaperOutline.ts` | repo (`system_template`) |
-| `_shared/responseValidator.ts` | repo (superset: has both prod-only lines) |
+**WHAT SHIPPED.** The repo was ahead of production on every file that mattered,
+so this closed four real gaps at once:
 
-**WHAT WAS MERGED IN.** Production's `resolveActor` read `memberships`
-directly and had a `user_roles` legacy fallback; the repo had neither, and
-instead asked `has_role` through the CALLER's client. Both fix the same
-defect — the service-role `has_role` loop that 403'd every request from
-2026-08-25 — and only production's has ever run. The repo now does
-`has_role` (right question: the membership the caller is ACTING IN) **then**
-memberships (proven, needs no session) **then** `user_roles`. Strictly better
-than either, and 403-for-everyone cannot return through that door.
-
-The repo keeps its S-05 parent fix, which production does not have at all: a
-parent's school resolved from the NAMED child, verified through both linkage
-tables, and REFUSED rather than falling through to an unrelated child's
-school.
-
-**DEPLOYING IS NOW A NET IMPROVEMENT**, not a gamble. It ships:
-
-* the §10.8 fix — production still emits `"Stronger areas: …"` to parents,
-  which the spec forbids anywhere in the app;
-* the S-04 tenancy fix in `embeddingWorker` — production can clear a claim
-  belonging to another school;
-* the S-05 parent-school fix;
+* the **§10.8 fix** — production had been emitting `"Stronger areas: …"` to
+  parents, which the spec forbids anywhere in the app. `parentNarrative.ts` is
+  reached only through `aiRouter`, which only `ai-gateway` bundles, so this is
+  now gone from production entirely;
+* the **S-04 tenancy fix** in `embeddingWorker` — production could clear an
+  embedding claim belonging to another school. `embeddingWorker` is imported by
+  `ai-gateway` alone, so likewise fully closed;
+* the **S-05 parent-school fix** — a parent's school now resolves from the NAMED
+  child through both linkage tables, and is refused rather than falling through
+  to an unrelated child's school;
 * `teacher.question_paper.generate_questions` and `.match_questions`, without
-  which §5's generation and semantic fill do not run at all.
+  which §5's generation and semantic fill did not run at all.
 
-**THE ONE THING THAT CHANGES FOR THE WORSE, AND IT IS A RULING NOT A BUG.**
-Production's `modelRouter` routes to **Nemotron 3 Ultra 550B (free)** first
-and falls back to Qwen 3.7 Flash (paid). The repo has ONE model, Qwen — and
-its header says why: *"ruled 2026-09-07, keep one model, Qwen 3.7 Flash"*.
+**VERIFIED AS THE CALLER, with a negative control.**
 
-So the ruling is already made and the repo implements it. But note the repo's
-claim that the two-model version "was never deployed to the seven AI
-functions" is WRONG for ai-gateway — it is deployed there right now.
-**Deploying will therefore stop ai-gateway using the free tier**, and every
-request starts costing. That is the ruling being applied, not a regression,
-and it is the one thing to confirm before pressing the button.
+| check | result |
+|---|---|
+| function version | 27 -> **28**, ACTIVE |
+| unauthenticated POST (negative control) | `401 {"error":"Not authenticated"}` — a boot/import failure would be a 500 here |
+| deterministic capability (`student.homework.due`) | `200 answered_deterministic`, `used_model:false` |
+| generative capability (`student.nova.chat`) | `200 answered_model`, `used_model:true`, `model_id qwen/qwen3.7-flash`, and a correct answer about why ice floats |
+| `check:edge-drift` | ai-gateway findings 11 -> **0**; baseline lowered 17 -> 6 |
 
-Command: `npm run functions:deploy-gateway`. Afterwards re-run
-`npm run check:edge-drift` — the drift resolves and the baseline needs
-lowering with `--update`.
+**THE COST CHANGE, AND THE LEVER THAT UNDOES IT.** Production had been routing
+to free Nemotron first with Qwen as the paid fallback. The repo implements the
+2026-09-07 one-model ruling, so ai-gateway now bills Qwen on every generative
+call. That is the ruling being applied, not a regression.
+
+It is **not** a code change to reverse. `modelRouter` reads both models from the
+environment and runs its two-stage path whenever they differ
+(`hasDistinctFallback()`), so setting two function secrets restores free-first
+with a paid fallback, with no redeploy:
+
+```
+OPENROUTER_PRIMARY_MODEL = nvidia/nemotron-3-ultra-550b-a55b:free
+OPENROUTER_MODEL         = qwen/qwen3.7-flash
+```
+
+Left unset, both resolve to `qwen/qwen3.7-flash` and the second stage is skipped
+rather than calling the same model twice and billing for it.
+
+**WHAT IS STILL ADRIFT, and it is not nothing.** Six accepted findings remain,
+in functions this deploy did not touch:
+
+* `ai-expand-questions` — 5 shared modules, including **the OLD two-model
+  `modelRouter`**. That function therefore still uses the free Nemotron tier
+  while ai-gateway no longer does. Deploying it would move it onto paid Qwen too;
+* `dpp-generate-questions/index.ts`.
+
+Because `_shared` is snapshotted per function at deploy time, every function
+carries its own copy — see the `shared-modules-are-per-function-snapshots` note.
+Deploying one never updates another.
+
 ---
 
 ## 6. §4 — SPEC CONFLICT, AND THE DECISION TAKEN
