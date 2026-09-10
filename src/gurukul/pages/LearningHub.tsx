@@ -1,6 +1,6 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
-import { GlassCard, ProgressBar, cn } from "@/gurukul/components/shared";
+import { GlassCard, cn } from "@/gurukul/components/shared";
 import {
   BarChart2, RefreshCw, RotateCcw, AlertCircle,
   ArrowRight, TrendingUp, CheckCircle2, Loader2,
@@ -11,23 +11,6 @@ import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 
 type Props = { setPage: (p: PageKey) => void };
-
-const SUBJECT_COLORS: Record<string, string> = {
-  Mathematics: "#3b5bdb",
-  Math: "#3b5bdb",
-  Physics: "#4b9fd4",
-  Chemistry: "#6882e8",
-  Biology: "#4aa87a",
-  English: "#c08a3a",
-  Hindi: "#cc5069",
-  Science: "#4b9fd4",
-  "Social Science": "#c08a3a",
-};
-const FALLBACK_COLORS = ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"];
-
-function subjectColor(name: string, index: number) {
-  return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
-}
 
 export default function LearningHub({ setPage }: Props) {
   const student = useGurukulStudent();
@@ -41,41 +24,8 @@ export default function LearningHub({ setPage }: Props) {
   const dueRevision = snapshot?.revision_queue?.length ?? 0;
   const unresolvedErrors = snapshot?.mistake_count ?? 0;
 
-  const chartSubjects = charts?.subjects ?? [];
   // Same SSOT as Home/Practice/Analysis/Nova/Battleground — shell profile (snapshot accuracy).
   const overallAccuracy = Math.round(student.accuracy);
-
-  const accuracyTrend = useMemo(() => {
-    const trend = charts?.practice_trend ?? [];
-    if (trend.length > 0) {
-      return trend.map((p) => ({
-        week: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        score: Math.round(p.score_pct),
-      }));
-    }
-    // No practice_trend — do not invent a flat overall-accuracy line on activity days.
-    return [] as { week: string; score: number }[];
-  }, [charts?.practice_trend]);
-
-  const trendDelta = accuracyTrend.length >= 2
-    ? accuracyTrend[accuracyTrend.length - 1].score - accuracyTrend[0].score
-    : 0;
-  const latestScore = accuracyTrend.length > 0
-    ? accuracyTrend[accuracyTrend.length - 1].score
-    : overallAccuracy;
-
-  const subjects = useMemo(
-    () =>
-      chartSubjects.map((s, i) => ({
-        id: s.name,
-        name: s.name,
-        color: subjectColor(s.name, i),
-        icon: s.name.charAt(0).toUpperCase(),
-        trend: 0,
-        accuracy: Math.round(s.accuracy),
-      })),
-    [chartSubjects],
-  );
 
   const features = useMemo(
     () => [
@@ -216,77 +166,6 @@ export default function LearningHub({ setPage }: Props) {
             </div>
           </button>
         ))}
-      </div>
-
-      {/* Accuracy trend + subject breakdown side by side */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        {/* Trend */}
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-1 h-4 rounded-full bg-[#4b9fd4]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Accuracy Trend</span>
-          </div>
-          <div className="flex items-baseline gap-2 mb-4">
-            <span className="text-2xl font-black text-foreground">{latestScore}%</span>
-            {accuracyTrend.length >= 2 && (
-              <span className={cn(
-                "flex items-center gap-1 text-xs font-semibold",
-                trendDelta >= 0 ? "text-emerald-400" : "text-destructive",
-              )}>
-                <TrendingUp className={cn("w-3.5 h-3.5", trendDelta < 0 && "rotate-180")}/>
-                {trendDelta >= 0 ? "+" : ""}{trendDelta}% since start
-              </span>
-            )}
-          </div>
-          {accuracyTrend.length > 0 ? (
-            <div className="h-32">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={accuracyTrend}>
-                  <XAxis dataKey="week" tick={{fill:"hsl(var(--muted-foreground))",fontSize:10}} axisLine={false} tickLine={false}/>
-                  <Tooltip contentStyle={{background:"#131316",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,fontSize:12}}/>
-                  <Line type="monotone" dataKey="score" name="Accuracy" stroke="#4b9fd4" strokeWidth={2.5}
-                    isAnimationActive={false} dot={{r:3,fill:"#4b9fd4",strokeWidth:0}} activeDot={{r:5}}/>
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">No trend data yet — practice to build your chart.</p>
-          )}
-        </GlassCard>
-
-        {/* Subject mastery rings */}
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 rounded-full bg-[#3b5bdb]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Subject Accuracy</span>
-          </div>
-          {subjects.length > 0 ? (
-            <div className="space-y-3">
-              {subjects.map(s => (
-                <div key={s.id} className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{background:`${s.color}15`,color:s.color}}>{s.icon}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-xs font-semibold text-foreground">{s.name}</span>
-                      <span className="text-xs font-black tabular-nums" style={{color:s.color}}>{s.accuracy}%</span>
-                    </div>
-                    <ProgressBar value={s.accuracy} color={s.color} height="h-1.5"/>
-                  </div>
-                  {s.trend !== 0 && (
-                    <div className="flex items-center gap-1 text-[10px] shrink-0"
-                      style={{color:s.trend>=0?"#4aa87a":"#cc5069"}}>
-                      <TrendingUp className={cn("w-3 h-3", s.trend<0&&"rotate-180")}/>
-                      {s.trend>0?"+":""}{s.trend}%
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">No subject data yet.</p>
-          )}
-        </GlassCard>
       </div>
 
       {/* Learning loop reminder */}

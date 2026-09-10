@@ -270,10 +270,8 @@ function Hub({
   onMode,
   history,
   saved,
-  incomplete,
   streak,
   onOpenSession,
-  onResumeSession,
   onSaveLatest,
   savingLatest,
   historyFilters,
@@ -283,10 +281,8 @@ function Hub({
   onMode: (key: ModeKey) => void;
   history: HistoryRow[];
   saved: HistoryRow[];
-  incomplete: HistoryRow[];
   streak: number;
   onOpenSession: (id: string) => void;
-  onResumeSession: (id: string) => void;
   onSaveLatest: () => void;
   savingLatest: boolean;
   historyFilters: { search: string; subject: string; practiceType: string; date: string };
@@ -338,38 +334,6 @@ function Hub({
           </div>
         )}
       </div>
-
-      {incomplete.length > 0 && (
-        <GlassCard className="p-4 border-warning/25">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-1 h-4 rounded-full bg-warning"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Resume session</span>
-          </div>
-          <div className="space-y-2">
-            {incomplete.slice(0, 3).map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => onResumeSession(s.id)}
-                className="group w-full flex items-center gap-3 p-3 rounded-xl border border-border/70 hover:border-warning/35 hover:bg-muted transition-all text-left"
-              >
-                <div className="w-8 h-8 rounded-lg bg-warning/15 flex items-center justify-center shrink-0 text-warning">
-                  <RotateCcw className="w-3.5 h-3.5"/>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-foreground truncate">{s.subject} · {s.chapter !== "—" ? s.chapter : s.practiceType}</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">
-                    {s.practiceType} · {s.attempted}/{s.qs || "?"} answered · {s.date}
-                  </div>
-                </div>
-                <span className="text-[11px] font-semibold text-warning flex items-center gap-1 shrink-0">
-                  Continue <ChevronRight className="w-3 h-3"/>
-                </span>
-              </button>
-            ))}
-          </div>
-        </GlassCard>
-      )}
 
       {hot.length > 0 && (
         <div>
@@ -1126,6 +1090,17 @@ interface SessionConfig {
   /** Previous Year Questions only — restricts to one exam year. */
   pyqYear?: number | null;
   /** When set, continue an unfinished practice_sessions row instead of starting new. */
+  /**
+   * DEAD SINCE THE v2 REDESIGN. The Resume Session band was the only thing that
+   * ever set this, and it was removed (Screen 2: "the feature goes"). Every
+   * branch below that reads it is therefore unreachable.
+   *
+   * Left in place deliberately rather than cut blind: the branches are ~110
+   * lines threaded through the question loader, the timer and the finish path,
+   * and this is the screen students use most. Removing them wants the app
+   * running in a browser to verify, which needs Supabase. Tracked in
+   * KNOWN_ISSUES so it is not mistaken for live code.
+   */
   resumeSessionId?: string | null;
 }
 
@@ -2055,7 +2030,6 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const { ctx, ready: academicReady } = useAcademicContext();
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [saved, setSaved] = useState<HistoryRow[]>([]);
-  const [incomplete, setIncomplete] = useState<HistoryRow[]>([]);
   const [historyTick, setHistoryTick] = useState(0);
   const [subjects, setSubjects] = useState<PracticeSubject[]>([]);
   const [curriculumScope, setCurriculumScope] = useState<CurriculumScope | null>(null);
@@ -2125,14 +2099,13 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       if (!user) {
         setHistory([]);
         setSaved([]);
-        setIncomplete([]);
       }
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const [hist, savedRows, openRows] = await Promise.all([
+        const [hist, savedRows] = await Promise.all([
           PracticeService.listHistory(ctx, {
             limit: 100,
             subject: historyFilters.subject || null,
@@ -2143,34 +2116,14 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
             search: null,
           }),
           PracticeService.listSavedSessions(ctx, 40),
-          PracticeService.listIncompleteSessions(ctx, 8),
         ]);
         if (cancelled) return;
         setHistory((hist ?? []).map(mapSessionToHistoryRow));
         setSaved((savedRows ?? []).map(mapSessionToHistoryRow));
-        const openMapped = await Promise.all(
-          (openRows ?? []).map(async (row) => {
-            const mapped = mapSessionToHistoryRow(row);
-            try {
-              const attempts = await PracticeService.listSessionAttempts(ctx, row.id);
-              const answered = attempts.length;
-              return {
-                ...mapped,
-                attempted: answered,
-                qs: row.question_count || answered,
-                status: "incomplete" as const,
-              };
-            } catch {
-              return { ...mapped, status: "incomplete" as const };
-            }
-          }),
-        );
-        setIncomplete(openMapped);
       } catch (e) {
         if (!cancelled) {
           setHistory([]);
           setSaved([]);
-          setIncomplete([]);
           toast.error(toErrorMessage(e, "Could not load practice history"));
         }
       }
@@ -2274,46 +2227,6 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     navigate(`/student/practice/session/${sessionId}/result`);
   }
 
-  async function resumeSession(sessionId: string) {
-    if (!ctx) return;
-    try {
-      const row = await PracticeService.getSession(ctx, sessionId);
-      if (!row || row.finished_at) {
-        toast.message("Session already finished — opening analysis");
-        openSessionAnalysis(sessionId);
-        return;
-      }
-      const modeKeyResume = (MODES.some((m) => m.key === row.practice_mode)
-        ? row.practice_mode
-        : "subject") as ModeKey;
-      const mode = MODES.find((m) => m.key === modeKeyResume) ?? MODES[1];
-      const snap = (row.analysis_snapshot ?? null) as { time_limit_sec?: number } | null;
-      const persistedLimit =
-        typeof row.time_limit_sec === "number" && row.time_limit_sec > 0
-          ? row.time_limit_sec
-          : typeof snap?.time_limit_sec === "number" && snap.time_limit_sec > 0
-            ? snap.time_limit_sec
-            : null;
-      // Never invent a 15-minute clock — timed resume without a stored limit stays untimed.
-      setModeKey(modeKeyResume);
-      setConfig({
-        mode: modeKeyResume,
-        label: mode.label,
-        subject: row.subject || "Mixed",
-        chapter:
-          row.chapter && !isPlaceholderAcademicLabel(row.chapter) ? row.chapter : null,
-        topic: null,
-        difficulty: row.difficulty || "mixed",
-        qCount: row.question_count || 20,
-        timeLimitSec: persistedLimit,
-        resumeSessionId: sessionId,
-      });
-      setPhase("session");
-    } catch (e) {
-      toast.error(toErrorMessage(e, "Could not resume session"));
-    }
-  }
-
   async function saveLatestSession() {
     if (!ctx) {
       toast.message("Complete a practice session first");
@@ -2391,10 +2304,8 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           onMode={handleMode}
           history={history}
           saved={saved}
-          incomplete={incomplete}
           streak={streak}
           onOpenSession={openSessionAnalysis}
-          onResumeSession={(id) => void resumeSession(id)}
           onSaveLatest={() => void saveLatestSession()}
           savingLatest={savingLatest}
           historyFilters={historyFilters}
