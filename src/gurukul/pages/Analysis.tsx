@@ -52,6 +52,7 @@ import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { toErrorMessage } from "@/lib/presentation";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { pluralise } from "@/lib/plural";
+import { accuracyWhenMeaningful, mayBeJudged } from "@/academic/metrics/thresholds";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "hsl(var(--primary))",
@@ -270,7 +271,11 @@ export default function Analysis() {
             ),
           };
         })
-        .filter((t): t is NonNullable<typeof t> => t != null),
+        .filter((t): t is NonNullable<typeof t> => t != null)
+        // G7: "needs your attention" is a JUDGEMENT about the student, and it
+        // does not get made on one attempt. A topic below the bar still appears
+        // on the tab — it just reports attempts instead of being flagged.
+        .filter((t) => mayBeJudged(t.practiceCount)),
       improving: deriveImprovingTopics(
         charts?.practice_trend ?? [],
         analysis?.recent_sessions ?? [],
@@ -947,17 +952,36 @@ export default function Analysis() {
               <SLabel>Topics that need your attention</SLabel>
               <div className="space-y-2">
                 {topicGroups.needs_attention.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No weak topics flagged</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    Nothing flagged yet — a topic needs a few attempts behind it
+                    before we call it weak.
+                  </p>
                 ) : topicGroups.needs_attention.map((t) => (
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-warning/12 bg-warning/5 hover:border-warning/25 transition-colors cursor-pointer">
                     <AlertCircle className="w-4 h-4 text-warning shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}{t.practiceCount > 0 ? ` · ${pluralise(t.practiceCount, "question")} done` : ""}</div>
+                      {/* G7: the row always reports what the student DID.
+                          Accuracy only appears above MIN_ATTEMPTS_FOR_ACCURACY —
+                          62% of topic groups hold one question, and one attempt
+                          makes accuracy 0% or 100%, which is noise dressed as a
+                          measurement. */}
+                      <div className="text-[11px] text-muted-foreground">
+                        {displaySubject(t.subject)} · {pluralise(t.practiceCount ?? 0, "attempt")}
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-sm font-black text-warning">{t.score}%</div>
-                      <div className="text-[10px] text-muted-foreground">accuracy</div>
+                      {accuracyWhenMeaningful(t.practiceCount ?? 0, t.score) === null ? (
+                        <>
+                          <div className="text-sm font-black text-muted-foreground">—</div>
+                          <div className="text-[10px] text-muted-foreground">not enough yet</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm font-black text-warning">{t.score}%</div>
+                          <div className="text-[10px] text-muted-foreground">accuracy</div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

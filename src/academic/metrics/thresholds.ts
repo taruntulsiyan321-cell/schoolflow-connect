@@ -211,3 +211,43 @@ export function belowPass(
       : `${scored} against a pass mark of ${passingMarks}`;
   return ok(scored < passingMarks, basis);
 }
+
+/**
+ * Attempts. Below this, a row reports WHAT THE STUDENT DID and refuses to
+ * report accuracy — and is never labelled weak, strong or mastered.
+ *
+ * WHY IT EXISTS. Measured in the bank on 2026-09-10: 10,273 topic groups, a
+ * median of 1.0 question each, and 62% holding exactly one. One attempt makes
+ * accuracy either 0% or 100%, and both are noise dressed as a measurement. A
+ * student told "Tangent Length — 0% accuracy" off a single wrong answer has
+ * been given a judgement about themselves that the data cannot support.
+ *
+ * WHY FIVE. It is the smallest count where the figure moves in steps a student
+ * can read as a proportion rather than a verdict — 1 in 5 is "one wrong", not
+ * "you are bad at this". It is deliberately conservative and it is expected to
+ * MOVE: the topic-grouping pass is relabelling the bank, and as groups grow
+ * this number should rise. That is the whole reason it is here and not written
+ * into a screen — when it moves, nothing else has to.
+ *
+ * Attempts, not questions: two attempts at the same question are two pieces of
+ * evidence about the same student, which is what accuracy is measuring.
+ */
+export const MIN_ATTEMPTS_FOR_ACCURACY = 5;
+
+/**
+ * The accuracy of a row, or null when there is not enough behind it to say.
+ * Callers render null as an em dash — never as 0, and never as a label.
+ */
+export function accuracyWhenMeaningful(
+  attempts: number,
+  accuracyPct: number | null | undefined,
+): number | null {
+  if (accuracyPct == null || !Number.isFinite(accuracyPct)) return null;
+  if (!Number.isFinite(attempts) || attempts < MIN_ATTEMPTS_FOR_ACCURACY) return null;
+  return accuracyPct;
+}
+
+/** True when a row has enough behind it to carry a weak/strong judgement. */
+export function mayBeJudged(attempts: number): boolean {
+  return Number.isFinite(attempts) && attempts >= MIN_ATTEMPTS_FOR_ACCURACY;
+}

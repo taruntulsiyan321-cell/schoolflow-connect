@@ -4,12 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, TestService, resolveStudentServiceContext } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Send, Timer } from "lucide-react";
+import { ArrowLeft, ArrowRight, Send, Timer, Check } from "lucide-react";
 import { QuestionRenderer, TestQuestionShape, Response } from "@/components/student/QuestionRenderer";
 import { toast } from "sonner";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { displaySubject } from "@/lib/academicPresentation";
 import { toErrorMessage } from "@/lib/presentation";
+import { pluralise } from "@/lib/plural";
 
 
 /**
@@ -59,6 +60,18 @@ export default function TestAttempt() {
   const locallyEditedRef = useRef<Set<string>>(new Set());
 
   const [loadError, setLoadError] = useState<string | null>(null);
+  /**
+   * Per question: has the server got this answer yet?
+   *
+   * Answering is instant and saving is a round trip. Without this the screen
+   * says nothing about the difference, which is how a failed save looked
+   * exactly like a successful one — the student sees their choice highlighted
+   * either way and finds out at marking time.
+   *
+   * "saved" is not tracked as a separate colour for long: it is the normal
+   * state and does not need announcing. "saving" and "failed" do.
+   */
+  const [saveState, setSaveState] = useState<Record<string, "saving" | "saved" | "failed">>({});
 
   const resolveCtx = async () => {
     if (ctx && academicReady) return ctx;
@@ -182,7 +195,10 @@ export default function TestAttempt() {
     // Marked BEFORE the save is queued, so a load already in flight cannot
     // resolve into the gap and overwrite this answer.
     locallyEditedRef.current.add(qid);
+    // The choice shows as chosen immediately — the round trip is reported
+    // separately and never delays or reverts what the student clicked.
     setResponses((prev) => ({ ...prev, [qid]: r }));
+    setSaveState((prev) => ({ ...prev, [qid]: "saving" }));
     const seq = (saveSeqRef.current[qid] ?? 0) + 1;
     saveSeqRef.current[qid] = seq;
     const prevChain = saveChainRef.current[qid] ?? Promise.resolve();
@@ -198,11 +214,41 @@ export default function TestAttempt() {
           questionId: qid,
           response: r as Record<string, unknown>,
         });
+        if (saveSeqRef.current[qid] === seq) {
+          setSaveState((prev) => ({ ...prev, [qid]: "saved" }));
+        }
       } catch (e) {
-        toast.error(toErrorMessage(e, "Could not save answer"));
+        // Stays visibly unsaved. The answer is NOT reverted — the student
+        // chose it, and taking it back on screen would be a second failure
+        // on top of the first.
+        if (saveSeqRef.current[qid] === seq) {
+          setSaveState((prev) => ({ ...prev, [qid]: "failed" }));
+        }
+        toast.error(toErrorMessage(e, "Could not save answer — it is marked unsaved"));
       }
     });
     saveChainRef.current[qid] = chained;
+  };
+
+  /**
+   * Submit confirms once, naming what is unanswered — "Submit with 3
+   * unanswered?" — because that is the fact the student needs and the paper
+   * cannot be reopened. `auto` skips it: the timer running out is not a
+   * decision anyone is making.
+   */
+  const confirmThenSubmit = () => {
+    const blank = questions.filter(
+      (qq) => !responses[qq.id] || Object.keys(responses[qq.id]).length === 0,
+    ).length;
+    const unsaved = questions.filter((qq) => saveState[qq.id] === "failed").length;
+    const parts: string[] = [];
+    if (blank > 0) parts.push(`${pluralise(blank, "question")} unanswered`);
+    if (unsaved > 0) parts.push(`${pluralise(unsaved, "answer")} not saved`);
+    const message = parts.length
+      ? `Submit with ${parts.join(" and ")}? You cannot reopen this paper.`
+      : "Submit your paper? You cannot reopen it.";
+    if (!window.confirm(message)) return;
+    void submit();
   };
 
   const submit = async () => {
@@ -249,7 +295,27 @@ export default function TestAttempt() {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-3">
-        <Button variant="ghost" size="sm" asChild><Link to="/student/tests"><ArrowLeft className="w-4 h-4" /> Tests</Link></Button>
+        {/*
+          The one way out of a paper in progress, and it asks first. The screen
+          renders without the sidebar, bottom nav, bell or avatar precisely so a
+          student cannot leave by accident — but leaving with NO exit at all is
+          the other failure: a student who opened the wrong test would be stuck
+          with a started attempt and no way back.
+
+          Answers already saved stay saved; this leaves the attempt open, it
+          does not submit it.
+        */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (window.confirm("Leave this test? Your saved answers are kept and the paper stays open.")) {
+              nav("/student/tests");
+            }
+          }}
+        >
+          <ArrowLeft className="w-4 h-4" /> Leave
+        </Button>
         {timedTest && mins !== null && secs !== null && (
           <div className="flex items-center gap-2 text-sm font-mono px-3 py-1 rounded-lg bg-muted">
             <Timer className="w-4 h-4" /> {mins}:{secs}
@@ -265,10 +331,26 @@ export default function TestAttempt() {
         <div className="flex gap-1 flex-wrap">
           {questions.map((qq, i) => {
             const ans = responses[qq.id] && Object.keys(responses[qq.id]).length > 0;
+            const unsaved = saveState[qq.id] === "failed";
             return (
               <button key={qq.id} onClick={() => setIdx(i)}
-                className={`w-7 h-7 rounded-md text-xs font-medium border ${i === idx ? "bg-primary text-primary-foreground border-primary" : ans ? "bg-accent/15 text-accent border-accent/30" : "bg-background"}`}>
+                title={unsaved ? `Question ${i + 1} — not saved` : undefined}
+                // An unanswered question is OUTLINED, never red. Red means
+                // wrong, and nothing is wrong until it is marked. The only
+                // red here is a failed SAVE, which is a real problem now.
+                className={`relative w-7 h-7 rounded-md text-xs font-medium border ${
+                  i === idx
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : unsaved
+                      ? "bg-destructive/10 text-destructive border-destructive/40"
+                      : ans
+                        ? "bg-accent/15 text-accent border-accent/30"
+                        : "bg-background"
+                }`}>
                 {i + 1}
+                {unsaved && (
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-destructive" />
+                )}
               </button>
             );
           })}
@@ -283,6 +365,26 @@ export default function TestAttempt() {
           value={responses[q.id] ?? {}}
           onChange={(r) => persist(q.id, r)}
         />
+        {saveState[q.id] === "saving" && (
+          <div className="mt-3 text-[11px] text-muted-foreground">Saving…</div>
+        )}
+        {saveState[q.id] === "saved" && (
+          <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1">
+            <Check className="w-3 h-3" /> Saved
+          </div>
+        )}
+        {saveState[q.id] === "failed" && (
+          <div className="mt-3 flex items-center gap-2 text-[11px] text-destructive">
+            <span>Not saved.</span>
+            <button
+              type="button"
+              className="underline font-semibold"
+              onClick={() => persist(q.id, responses[q.id] ?? {})}
+            >
+              Try again
+            </button>
+          </div>
+        )}
       </Card>
 
       <div className="flex items-center justify-between gap-2">
@@ -293,7 +395,7 @@ export default function TestAttempt() {
         {idx < questions.length - 1 && !(timedTest && remaining === 0) ? (
           <Button onClick={() => setIdx((i) => i + 1)}>Next <ArrowRight className="w-4 h-4" /></Button>
         ) : (
-          <Button onClick={() => void submit()} disabled={submitting}><Send className="w-4 h-4" /> {submitting ? "Submitting…" : "Submit"}</Button>
+          <Button onClick={confirmThenSubmit} disabled={submitting}><Send className="w-4 h-4" /> {submitting ? "Submitting…" : "Submit"}</Button>
         )}
       </div>
     </div>

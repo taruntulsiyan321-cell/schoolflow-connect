@@ -263,6 +263,9 @@ export default function StudentDashboard() {
     [studentId, schoolId, classId, classLabel],
   );
 
+  /** `/student/test/<id>/attempt` and nothing else. */
+  const isSittingATest = /^\/student\/test\/[^/]+\/attempt\/?$/.test(location.pathname);
+
   const mergedStudent = useMemo(
     () => ({
       ...EMPTY_STUDENT,
@@ -272,6 +275,22 @@ export default function StudentDashboard() {
     }),
     [profile, classLabel],
   );
+
+  // A student sitting a test gets NO app chrome. Every other student route
+  // renders inside <Layout>; this one deliberately does not, because the
+  // sidebar, the bottom nav, the notification bell and the avatar menu are
+  // four ways to leave a paper by accident and the attempt cannot be reopened.
+  if (isSittingATest) {
+    return (
+      <div className="gurukul-student min-h-screen p-4 sm:p-6">
+        <GurukulStudentProvider value={mergedStudent} identity={academicIdentity} shellReady={shellReady}>
+          <Routes>
+            <Route path="test/:id/attempt" element={<TestAttempt />} />
+          </Routes>
+        </GurukulStudentProvider>
+      </div>
+    );
+  }
 
   return (
     <div className="gurukul-student min-h-screen">
