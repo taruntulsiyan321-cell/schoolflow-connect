@@ -222,3 +222,52 @@ export function isIdentifierLike(value: unknown): boolean {
   const s = value.trim();
   return UUID_RE.test(s) || (UUID_FRAGMENT_RE.test(s) && s.length >= 8);
 }
+
+/**
+ * A measured percentage, or the not-available dash when it was not measured.
+ *
+ * CHUNK 10.7. This existed twice — identically — as a local `pctOrDash` in
+ * `PrincipalLiveAcademic.tsx` and `LiveClassPanels.tsx`, and turning on
+ * strictNullChecks was about to require it in six more files. Two homes for one
+ * rendering is G9's shape; eight would have guaranteed that some screen
+ * eventually rendered the absent case differently from the rest.
+ *
+ * WHY THIS IS A PRESENTATION CONCERN AND NOT ARITHMETIC
+ *
+ * `Math.round(null)` is 0, and `${null}%` is "null%". Both are what happens when
+ * a nullable metric reaches a template without passing through here — the first
+ * silently, which is worse. The null contract only holds if "not measured" has
+ * exactly ONE rendering, and this is it.
+ *
+ * NaN and Infinity are treated as not-measured rather than printed: a figure
+ * that came out of a division by zero is not a measurement either.
+ */
+export function toPercentLabel(
+  value: number | null | undefined,
+  options: { digits?: number; fallback?: string } = {},
+): string {
+  const { digits = 0, fallback = NOT_AVAILABLE } = options;
+  if (value === null || value === undefined) return fallback;
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  // `Math.round` at 0 digits, deliberately: that is what both of the local
+  // copies this replaces did, and `toFixed(0)` is not identical to it on every
+  // input. Converging two renderings must not quietly become a third.
+  return digits === 0 ? `${Math.round(value)}%` : `${value.toFixed(digits)}%`;
+}
+
+/**
+ * A measured number, or the dash. The same contract as `toPercentLabel` without
+ * the unit — for counts that can be genuinely absent, such as "marks pending"
+ * on a teacher who has no exam to enter marks for.
+ *
+ * Note the difference from a measured zero: a count that IS zero passes through
+ * as "0". Only null, undefined and non-finite values become the dash.
+ */
+export function toCountLabel(
+  value: number | null | undefined,
+  fallback = NOT_AVAILABLE,
+): string {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return String(value);
+}

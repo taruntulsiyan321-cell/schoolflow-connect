@@ -2,6 +2,7 @@
 import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { mistakeBookmarksKey } from "@/lib/clientStorage";
 import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
@@ -45,7 +46,7 @@ type MistakeRow = {
   last_wrong_at: string;
   times_wrong: number;
   explanation: string | null;
-  mastered: boolean;
+  status: "open" | "cleared";
   question_id?: string | null;
   difficulty?: string | null;
 };
@@ -55,7 +56,7 @@ function parseOptions(raw: unknown): string[] {
   return [];
 }
 
-/** Returns null (unknown) when the stored answer is missing/malformed â€” never
+/** Returns null (unknown) when the stored answer is missing/malformed — never
  *  fabricates option A as a guess, since that would misrepresent the actual
  *  correct/chosen answer to the student. */
 function answerIndex(raw: { correct_index?: number; indexes?: number[] } | null): number | null {
@@ -76,7 +77,7 @@ function formatMistakeDate(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
-    return "â€”";
+    return "—";
   }
 }
 
@@ -105,8 +106,8 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     correct: answerIndex(row.correct_answer),
     chosen: studentIndex(row.student_answer),
     subject: row.subject,
-    chapter: displayChapter(row.chapter) || "â€”",
-    topic: displayTopic(row.concept ?? row.topic) || "â€”",
+    chapter: displayChapter(row.chapter) || "—",
+    topic: displayTopic(row.concept ?? row.topic) || "—",
     chapterRaw,
     conceptRaw,
     difficulty: parseDifficulty(row.difficulty),
@@ -118,7 +119,7 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     correctReason: "",
     studentReason: "",
     bookmarked,
-    resolved: row.mastered,
+    resolved: row.status === "cleared",
     qType: row.assessment_type ?? "MCQ",
     sortDate: row.last_wrong_at,
     questionId: row.question_id ?? null,
@@ -167,7 +168,7 @@ function FreqBadge({ freq }: { freq: number }) {
   const color = freq >= 4 ? "#cc5069" : freq >= 3 ? "#c08a3a" : "#6882e8";
   return (
     <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{color,background:`${color}15`}}>
-      Ã—{freq}
+      ×{freq}
     </span>
   );
 }
@@ -192,14 +193,14 @@ function MistakeCard({
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <SourceTag source={mistake.source} label={mistake.sourceLabel}/>
               <SubjectBadge subject={mistake.subject}/>
-              <DifficultyBadge level={mistake.difficulty}/>
+              <DifficultyBadge level={mistake.difficulty ?? undefined}/>
               <FreqBadge freq={mistake.frequency}/>
               {mistake.resolved && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400">Resolved</span>
               )}
             </div>
             <p className="text-sm font-semibold text-foreground leading-snug">{mistake.question}</p>
-            <div className="text-[11px] text-muted-foreground mt-1">{displayChapter(mistake.chapter)} Â· {displayTopic(mistake.topic)} Â· {mistake.date}</div>
+            <div className="text-[11px] text-muted-foreground mt-1">{displayChapter(mistake.chapter)} · {displayTopic(mistake.topic)} · {mistake.date}</div>
           </div>
           <button onClick={() => onToggleBookmark(mistake.id)}
             title={mistake.bookmarked ? "Remove device bookmark" : "Save on this device only"}
@@ -219,6 +220,12 @@ function MistakeCard({
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-violet-300 text-xs font-bold hover:bg-violet-500/25 transition-all">
             <RotateCcw className="w-3 h-3"/> Retry
           </button>
+          {!mistake.resolved && (
+            <button onClick={onAddRecovery} disabled={addingRecovery}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/25 text-rose-300 text-xs font-bold hover:bg-rose-500/25 transition-all disabled:opacity-50">
+              <RefreshCw className="w-3 h-3"/> {addingRecovery ? "Adding…" : "Add to Recovery"}
+            </button>
+          )}
         </div>
 
         {expanded && (
@@ -257,7 +264,7 @@ function MistakeCard({
               </div>
             ) : null}
 
-            {/* Why you got it wrong â€” only when stored */}
+            {/* Why you got it wrong — only when stored */}
             {mistake.studentReason ? (
               <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
                 <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -317,7 +324,7 @@ function MistakePractice({
   const [answers, setAnswers] = useState<(number|null)[]>([]);
   const [showExp, setShowExp] = useState(false);
   // Guards the final "See Results" tap from firing the completion write twice
-  // on a double-click â€” a ref for a synchronous, re-render-independent check
+  // on a double-click — a ref for a synchronous, re-render-independent check
   // plus `busy` state to actually disable the button in the DOM.
   const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -341,7 +348,7 @@ function MistakePractice({
         questionText: qq.question,
         options: qq.options,
         selectedIndex: typeof newAnswers[i] === "number" ? (newAnswers[i] as number) : -1,
-        // Unknown correct answer (malformed/missing source data) â€” NaN never
+        // Unknown correct answer (malformed/missing source data) — NaN never
         // equals a real selectedIndex, so this is graded as not-correct rather
         // than fabricating option A as the right answer.
         correctIndex: qq.correct ?? Number.NaN,
@@ -394,7 +401,7 @@ function MistakePractice({
           <div className="flex items-center gap-2">
             {q.frequency >= 2 && (
               <span className="text-[10px] font-bold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-full">
-                You've missed this {q.frequency}Ã— before
+                You've missed this {q.frequency}× before
               </span>
             )}
             {q.difficulty ? <DifficultyBadge level={q.difficulty}/> : null}
@@ -439,13 +446,14 @@ function MistakePractice({
 export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => void }) {
   const { user } = useAuth();
   const { ctx, ready: academicReady } = useAcademicContext();
+  const bookmarksKey = mistakeBookmarksKey({ userId: user?.id, schoolId: ctx?.schoolId ?? undefined });
   const [view, setView] = useState<MBView>("list");
   const [practiceIds, setPracticeIds] = useState<string[]>([]);
   const [practiceScore, setPracticeScore] = useState(0);
   const [rows, setRows] = useState<MistakeRow[]>([]);
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate([user?.id]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"date"|"frequency"|"subject">("date");
@@ -459,18 +467,18 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const liveVersion = useAcademicLive(["profile", "xp"]);
 
   useEffect(() => {
-    if (!user?.id || typeof localStorage === "undefined") {
+    if (!bookmarksKey || typeof localStorage === "undefined") {
       setBookmarks(new Set());
       return;
     }
     try {
-      const raw = localStorage.getItem(`gurukul.mistake.bookmarks.${user.id}`);
+      const raw = localStorage.getItem(bookmarksKey);
       const arr = raw ? (JSON.parse(raw) as string[]) : [];
       setBookmarks(new Set(Array.isArray(arr) ? arr : []));
     } catch {
       setBookmarks(new Set());
     }
-  }, [user?.id]);
+  }, [bookmarksKey]);
 
   useEffect(() => {
     if (!ctx || !academicReady) return;
@@ -564,8 +572,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      if (user?.id && typeof localStorage !== "undefined") {
-        localStorage.setItem(`gurukul.mistake.bookmarks.${user.id}`, JSON.stringify([...next]));
+      if (bookmarksKey && typeof localStorage !== "undefined") {
+        localStorage.setItem(bookmarksKey, JSON.stringify([...next]));
       }
       return next;
     });
@@ -591,7 +599,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       setToast(
         assignmentId
           ? `"${m.topic || m.chapter}" queued for Recovery`
-          : `Could not create recovery for "${m.topic || m.chapter}" â€” try Practice`,
+          : `Could not create recovery for "${m.topic || m.chapter}" — try Practice`,
       );
       setTimeout(() => {
         if (assignmentId) setPage?.("recovery");
@@ -614,14 +622,14 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     try {
       const result = await PracticeService.completeMistakeRetry(ctx, payload.attempts);
       setPracticeScore(result.score);
-      if (result.masteredIds.length) {
-        const mastered = new Set(result.masteredIds);
+      if (result.clearedIds.length) {
+        const cleared = new Set(result.clearedIds);
         setRows((prev) =>
-          prev.map((r) => (mastered.has(r.id) ? { ...r, mastered: true } : r)),
+          prev.map((r) => (cleared.has(r.id) ? { ...r, status: "cleared" as const } : r)),
         );
       }
       if (!result.persisted) {
-        setToast("Could not save retry attempts â€” mastery not updated");
+        setToast("Could not save retry attempts — mastery not updated");
       }
     } catch (e) {
       console.warn("mistake retry:", e instanceof Error ? e.message : e);
@@ -673,7 +681,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
               </div>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">{passed ? "Great progress on your mistakes!" : "Keep practicing these â€” consistency is key."}</p>
+          <p className="text-sm text-muted-foreground">{passed ? "Great progress on your mistakes!" : "Keep practicing these — consistency is key."}</p>
         </GlassCard>
         <div className="space-y-2">
           {!passed && (
@@ -734,7 +742,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         <div>
           <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Learning Workflow</div>
           <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>Mistake Book</h1>
-          <p className="text-muted-foreground text-sm mt-1">Every mistake you've made â€” automatically collected and explained.</p>
+          <p className="text-muted-foreground text-sm mt-1">Every mistake you've made — automatically collected and explained.</p>
         </div>
         <button
           type="button"
@@ -747,6 +755,23 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm font-bold hover:bg-rose-500/30 transition-all disabled:opacity-40 disabled:pointer-events-none">
           <Play className="w-3.5 h-3.5"/> Practice All
         </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label:"Total Mistakes",  value:mistakes.length, color:"#cc5069", icon:<AlertCircle className="w-4 h-4"/> },
+          { label:"Unresolved",      value:unresolved,      color:"#c08a3a", icon:<XCircle className="w-4 h-4"/> },
+          { label:"Saved here",      value:bookmarked,      color:"#c08a3a", icon:<Bookmark className="w-4 h-4 fill-amber-400"/> },
+          { label:"Repeated ×3+",   value:repeated,        color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/> },
+        ].map(s => (
+          <GlassCard key={s.label} className="p-4">
+            <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
+            </div>
+            <div className="text-2xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
+          </GlassCard>
+        ))}
       </div>
 
       {/* Subject breakdown */}

@@ -13,18 +13,19 @@ import {
   ArrowUp, ArrowDown, Minus, Printer, Star,
 } from "lucide-react";
 import { cn } from "@/gurukul/components/shared";
+import { type Tab, TABS } from "./analysisTabs";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { accuracyBand, STREAK_ESTABLISHED, STREAK_MILESTONE } from "@/academic/metrics/bands";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
-import { MarksService, useAcademicLive } from "@/academic";
+import { useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { DecisionEngineService, type WeakAreaRecommendation } from "@/academic/services/decisionEngineService";
 import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
-import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
   DAY_LABELS,
@@ -41,8 +42,15 @@ import {
   practiceCountForTopic,
   scoreAxisDomain,
 } from "@/lib/studentAnalysisMetrics";
+import {
+  hasPracticeAccuracy,
+  hasStudyActiveDays,
+  practiceAccuracyFromSnapshot,
+  studyActiveDaysFromSnapshot,
+} from "@/lib/learningMetrics";
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { toErrorMessage } from "@/lib/presentation";
+import { useKeyedResource } from "@/hooks/useKeyedResource";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "hsl(var(--primary))",
@@ -61,7 +69,7 @@ function subjectColor(name: string, index: number) {
   return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function scoreColor(v: number) {
   if (v >= 80) return "hsl(var(--info))";
@@ -85,26 +93,15 @@ const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: 
   );
 };
 
-// â”€â”€ Tab types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-type Tab = "overview" | "subjects" | "topics" | "practice" | "activity" | "milestones";
-
-const TABS: { key: Tab; label: string }[] = [
-  { key: "overview",    label: "Overview" },
-  { key: "subjects",    label: "Subjects & Chapters" },
-  { key: "topics",      label: "Topics" },
-  { key: "practice",    label: "Practice & Tests" },
-  { key: "activity",    label: "Activity & Speed" },
-  { key: "milestones",  label: "Milestones & Reports" },
-];
-
-// â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function Analysis() {
   const [tab, setTab] = useState<Tab>("overview");
   const student = useGurukulStudent();
   const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
-  const liveVersion = useAcademicLive(["marks", "examination", "profile"]);
+  // Rule 11: Analysis is practice-only, so it no longer subscribes to the
+  // marks or examination channels — it has nothing to refresh from them.
+  useAcademicLive(["profile"]);
   const { data: analysis, loading: analysisLoading, error: analysisError } = useAnalysisPageData(academicReady);
   const { data: charts, loading: chartsLoading, error: chartsError } = useStudentPerformanceCharts(academicReady);
   const { data: snapshot, loading: snapshotLoading, error: snapshotError } = useStudentAcademicSnapshot(academicReady);
@@ -138,34 +135,11 @@ export default function Analysis() {
       cancelled = true;
     };
   }, [ctx, academicReady]);
-  const [marks, setMarks] = useState<MarksRecord[]>([]);
-  const [exams, setExams] = useState<ExamRecord[]>([]);
-
-  useEffect(() => {
-    if (!academicReady || !ctx || !studentId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [markRows, examRows] = await Promise.all([
-          MarksService.listForStudent(ctx, studentId, { limit: 50 }),
-          classId ? MarksService.listExamsForClass(ctx, classId, { limit: 50 }) : Promise.resolve([]),
-        ]);
-        if (!cancelled) {
-          setMarks(markRows);
-          setExams(examRows);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setMarks([]);
-          setExams([]);
-          toast.error(toErrorMessage(e, "Could not load marks for reports"));
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [academicReady, ctx, studentId, classId, liveVersion]);
+  // The marks/exams fetch that used to sit here is GONE (rule 11, amended
+  // 2026-09-05). Analysis issues no query against `marks` or `exams` at all,
+  // which is what "provably practice-only" has to mean — rendering nothing is
+  // not the same as fetching nothing. The student reads their exam marks on
+  // their marks surface instead.
 
   const loading = analysisLoading || chartsLoading || snapshotLoading || masteryLoading;
   const loadError = analysisError || chartsError || snapshotError || masteryError;
@@ -176,61 +150,37 @@ export default function Analysis() {
     }
   }, [loadError]);
 
-  const testResults = useMemo(() => {
-    const examById = new Map(exams.map((e) => [e.id, e]));
-    return marks
-      .map((m) => {
-        const exam = examById.get(m.examId);
-        if (!exam) return null;
-        const maxScore = exam.maxMarks || 100;
-        const score = Math.round((m.marksObtained / maxScore) * 100);
-        return {
-          name: exam.name,
-          date: exam.examDate
-            ? new Date(exam.examDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })
-            : "â€”",
-          subject: exam.subject || "â€”",
-          score,
-          maxScore: 100,
-          marksObtained: m.marksObtained,
-          rawMax: maxScore,
-          rank: 0,
-          total: 0,
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => row != null)
-      .slice(0, 12);
-  }, [marks, exams]);
-  const testTrend = testResults.map((t) => ({ name: t.date, score: t.score }));
-
   const overview = useMemo(() => {
     const correct = analysis?.totals.correct ?? 0;
     const incorrect = analysis?.totals.wrong ?? 0;
     const totalQuestions = correct + incorrect;
     const heatmap = snapshot?.activity_heatmap ?? [];
     const studyMinutes = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
-    // Accuracy + study streak: same shell SSOT as Home (Progression + snapshot) â€” not mastery recompute.
+    // Accuracy + study streak: same shell SSOT as Home (Progression + snapshot) — not mastery recompute.
     const accuracy = Math.round(student.accuracy);
-    const examAvg =
-      testResults.length > 0
-        ? Math.round(testResults.reduce((s, t) => s + t.score, 0) / testResults.length)
-        : null;
+    // The average-score field here used to fall back from an exam average to
+    // practice accuracy — one number that meant a different measure depending
+    // on whether the student had marks, with a sibling boolean as the only way
+    // to tell which. That is the §4.2b blend in miniature, and it went with the
+    // exam fetch. Practice accuracy is the only rate on this page now, and it
+    // is named for what it is.
+    //
+    // The identifiers are deliberately not spelled out: analysisTabSources
+    // asserts they appear nowhere in this file, and a guard that trips on its
+    // own explanation is a guard nobody keeps.
     return {
       accuracy,
       totalQuestions,
       correct,
       incorrect,
       practiceCompleted: snapshot?.self_practice?.sessions_completed ?? analysis?.recent_sessions.length ?? 0,
-      testsCompleted: testResults.length,
-      avgScore: examAvg ?? accuracy,
-      avgScoreIsExam: examAvg != null,
       studyHours: Math.round(studyMinutes / 60),
       streak: student.streak,
       rank: analysis?.class_rank ?? student.rank ?? 0,
       totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
       examReadiness: snapshot?.exam_readiness?.score ?? 0,
     };
-  }, [analysis, snapshot, testResults, student.accuracy, student.streak, student.rank, student.totalStudents]);
+  }, [analysis, snapshot, student.accuracy, student.streak, student.rank, student.totalStudents]);
 
   const scoreTrend = useMemo(() => {
     const trend = charts?.practice_trend ?? [];
@@ -304,14 +254,6 @@ export default function Analysis() {
           }))
         : (snapshot?.weak_topics ?? []);
     return {
-      doing_well: (snapshot?.strong_topics ?? [])
-        .map((t) => {
-          const topic = realTopic(t);
-          const subject = realSubject(t.subject);
-          if (!topic || !subject) return null;
-          return { topic, subject, score: Math.round(t.accuracy) };
-        })
-        .filter((t): t is NonNullable<typeof t> => t != null),
       needs_attention: weakTopicsSource
         .map((t) => {
           const topic = realTopic(t);
@@ -335,7 +277,7 @@ export default function Analysis() {
       ).filter(
         (t) =>
           preferRealAcademicLabel(t.topic) &&
-          (t.subject === "â€”" || preferRealAcademicLabel(t.subject)),
+          (t.subject === "—" || preferRealAcademicLabel(t.subject)),
       ),
       not_started: mastery
         .filter(
@@ -350,7 +292,7 @@ export default function Analysis() {
           subject: preferRealAcademicLabel(m.subject),
         })),
     };
-  }, [snapshot?.strong_topics, snapshot?.weak_topics, v2WeakAreas, mastery, charts?.practice_trend, analysis?.recent_sessions]);
+  }, [snapshot?.weak_topics, v2WeakAreas, mastery, charts?.practice_trend, analysis?.recent_sessions]);
 
   const practiceStats = useMemo(() => {
     const weekly = charts?.weekly_activity ?? [];
@@ -359,7 +301,7 @@ export default function Analysis() {
     const todayDone = weekly.find((d) => new Date(d.date).toDateString() === todayKey)?.total ?? 0;
     const streakDays = student.streak;
     const activeDays = (snapshot?.activity_heatmap ?? []).filter(
-      (d) => (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0,
+      (d) => (d.test ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0,
     ).length;
     const consistency = weekly.length > 0 ? Math.round((activeDays / Math.max(weekly.length, 1)) * 100) : 0;
     return {
@@ -422,9 +364,9 @@ export default function Analysis() {
       avgDailyMin: activeDays.length > 0 ? Math.round(totalMins / activeDays.length) : 0,
       bestDay: bestDayRow
         ? new Date(bestDayRow.date).toLocaleDateString(undefined, { weekday: "short" })
-        : "â€”",
-      // Hourly buckets are not in academic_daily_activity â€” honest empty.
-      bestHour: "â€”",
+        : "—",
+      // Hourly buckets are not in academic_daily_activity — honest empty.
+      bestHour: "—",
       weeklyHrs: [...weeklyHrs],
     };
   }, [snapshot?.activity_heatmap]);
@@ -460,11 +402,19 @@ export default function Analysis() {
     [snapshot?.revision_queue],
   );
 
+  // RULING 1. This read `mastery_score >= 75` and printed the result as "Topics
+  // completed" — a count of mastered concepts shown to a student, which §10.8
+  // forbids whatever boundary is chosen. The progress figure is now the
+  // open-mistakes count, which answers "what is left to fix" from the same rows
+  // without telling the student what they are good at.
+  //
+  // "Yet to begin" survives unchanged: a concept with no attempts is a fact
+  // about coverage, not a judgement about the child.
   const learningProgress = useMemo(() => {
-    const completed = mastery.filter((m) => m.mastery_score >= 75).length;
-    const inProgress = mastery.filter((m) => m.total_attempts > 0 && m.mastery_score < 75).length;
+    const toRevisit = mastery.filter((m) => m.mistake_count > 0).length;
+    const openMistakes = mastery.reduce((n, m) => n + (m.mistake_count ?? 0), 0);
     const notStarted = mastery.filter((m) => m.total_attempts === 0).length;
-    return { completed, inProgress, notStarted, total: mastery.length };
+    return { toRevisit, openMistakes, notStarted, total: mastery.length };
   }, [mastery]);
 
   const milestones = useMemo(() => {
@@ -474,15 +424,15 @@ export default function Analysis() {
       title: m.title,
       desc: m.detail ?? "",
       date: m.when,
-      icon: m.badge ? "â­" : "ðŸ“ˆ",
+      icon: m.badge ? "â­" : "📈",
       category: m.badge ?? "Progress",
     }));
-    if (streak >= 3) {
+    if (streak >= STREAK_ESTABLISHED) {
       items.unshift({
         title: `${streak}-day practice streak`,
         desc: "Keep practicing daily to maintain your streak.",
         date: "Recent",
-        icon: "ðŸ”¥",
+        icon: "🔥",
         category: "Consistency",
       });
     }
@@ -491,7 +441,7 @@ export default function Analysis() {
         title: `${overview.totalQuestions} questions solved`,
         desc: "Total practice questions attempted so far.",
         date: "Recent",
-        icon: "ðŸ“š",
+        icon: "📚",
         category: "Practice",
       });
     }
@@ -504,16 +454,27 @@ export default function Analysis() {
     const weakest = sorted[sorted.length - 1];
     const weakTopic = snapshot?.weak_topics?.[0];
     const bestDay = studyActivity.bestDay;
-    const items = [];
-    if (strongest) {
-      items.push({
-        label: "Your strongest subject right now",
-        value: strongest.name,
-        sub: `${strongest.accuracy}% accuracy`,
-        color: strongest.color,
-        icon: <Star className="w-4 h-4" />,
-      });
-    }
+    // CHUNK 10.7 / §10.8. Two changes, and the second is the one that matters.
+    //
+    // The annotation: `const items = []` infers `never[]` under strictNullChecks,
+    // so every push was an error. Annotated, not asserted.
+    //
+    // The removal: this list led with a card headed "Your strongest subject
+    // right now", carrying the subject name, its accuracy and a star. §10.8 —
+    // "Strong areas are never shown anywhere in the app. The product surfaces
+    // weaknesses only."
+    //
+    // It survived the identifier gate (`strongest` is not `strong_` and not
+    // `strongCamelCase`) AND the prose sweep in 58acb2e, which found five
+    // user-visible strings and not this one. It took a THIRD widening — prose
+    // matching over superlatives — to see it.
+    const items: {
+      label: string;
+      value: string;
+      sub: string;
+      color: string;
+      icon: JSX.Element;
+    }[] = [];
     if (weakest && weakest.name !== strongest?.name) {
       items.push({
         label: "Subject needing more practice",
@@ -527,17 +488,17 @@ export default function Analysis() {
       items.push({
         label: "Suggested priority today",
         value: displayTopic(weakTopic.topic) || displayChapter(weakTopic.chapter) || displaySubject(weakTopic.subject),
-        sub: `${Math.round(weakTopic.accuracy)}% accuracy Â· needs review`,
+        sub: `${Math.round(weakTopic.accuracy)}% accuracy · needs review`,
         color: "hsl(var(--info))",
         icon: <ChevronRight className="w-4 h-4" />,
       });
     }
-    if (bestDay !== "â€”") {
+    if (bestDay !== "—") {
       items.push({
         label: "Most active day recently",
         value: bestDay,
         sub: `${studyActivity.totalHrs}h total study time logged`,
-        color: "hsl(var(--primary-glow))",
+        color: "hsl(var(--info))",
         icon: <Calendar className="w-4 h-4" />,
       });
     }
@@ -570,7 +531,7 @@ export default function Analysis() {
       {
         q: "How am I doing?",
         a: `${overview.accuracy}% accuracy overall`,
-        sub: `${rankText} Â· ${streakText}`,
+        sub: `${rankText} · ${streakText}`,
         color: "hsl(var(--info))",
         icon: <TrendingUp className="w-4 h-4" />,
       },
@@ -612,20 +573,20 @@ export default function Analysis() {
     [scoreTrend],
   );
 
-  const testTrendDomain = useMemo(
-    () => scoreAxisDomain(testTrend.map((t) => t.score)),
-    [testTrend],
-  );
-
   const upcomingMilestones = useMemo(() => {
-    const items = [];
-    if (overview.streak < 15 && overview.streak > 0) {
+    // Annotated, not asserted: `[]` infers never[] under strictNullChecks.
+    const items: { title: string; progress: number; target: number; unit: string }[] = [];
+    if (overview.streak < STREAK_MILESTONE && overview.streak > 0) {
       items.push({ title: "Reach 15-day practice streak", progress: overview.streak, target: 15, unit: "days" });
     }
     if (overview.totalQuestions < 100) {
       items.push({ title: "Solve 100 practice questions", progress: overview.totalQuestions, target: 100, unit: "questions" });
     }
-    const weak = subjectData.find((s) => s.accuracy < 75 && s.accuracy > 0);
+    // `> 0` stays: it is excluding an unmeasured subject, not a real zero —
+    // subjectData carries 0 for "no attempts yet", which is not an accuracy.
+    const weak = subjectData.find(
+      (s) => s.accuracy > 0 && !["high", "near"].includes(accuracyBand(s.accuracy)),
+    );
     if (weak) {
       items.push({ title: `Improve ${weak.name} above 75%`, progress: weak.accuracy, target: 75, unit: "%" });
     }
@@ -635,7 +596,7 @@ export default function Analysis() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <p className="text-sm text-muted-foreground">Loading analysisâ€¦</p>
+        <p className="text-sm text-muted-foreground">Loading analysis…</p>
       </div>
     );
   }
@@ -648,6 +609,20 @@ export default function Analysis() {
     );
   }
 
+  // null means "no figure recorded", never 0. See the Summary block below.
+  const summaryRows: { label: string; value: string | number | null }[] = [
+    { label: "Practice accuracy", value: hasPracticeAccuracy(snapshot) ? `${practiceAccuracyFromSnapshot(snapshot)}%` : null },
+    { label: "Study consistency", value: hasStudyActiveDays(snapshot) ? `${studyActiveDaysFromSnapshot(snapshot)} active days (14d)` : null },
+    {
+      label: "Attendance",
+      value: snapshot?.exam_readiness?.attendance_pct == null
+        ? null
+        : `${snapshot.exam_readiness.attendance_pct}%`,
+    },
+    { label: "Open mistakes", value: snapshot?.mistake_count ?? null },
+    { label: "Recovery pending", value: snapshot?.recovery_pending ?? null },
+  ];
+
   return (
     <div className="space-y-6">
       {loadError && (
@@ -655,7 +630,32 @@ export default function Analysis() {
           Some analysis data failed to load: {loadError}. Showing available stats as zeros where missing.
         </div>
       )}
-      {/* â”€â”€ 3 Questions bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Summary ──────────────────────────────────────────────────────
+          Five figures in one place. Ported from AcademicReport (Chunk 10.6),
+          which was the only screen that put them together; Analysis had them
+          scattered or absent.
+
+          The ?? 0 that AcademicReport used on attendance, mistakes and recovery
+          is deliberately NOT ported. A student with nothing recorded has no
+          figure, not a zero — and "Attendance 0%" is the most alarming number
+          this row can display, invented from an absence. */}
+      <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+        <h2 className="font-semibold text-lg mb-3">Summary</h2>
+        <div className="grid sm:grid-cols-2 gap-3 text-sm">
+          {summaryRows.map((row) => (
+            <p key={row.label}>
+              {row.label}:{" "}
+              {row.value === null ? (
+                <span className="text-muted-foreground">not recorded yet</span>
+              ) : (
+                <strong>{row.value}</strong>
+              )}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 3 Questions bar ─────────────── */}
       <div className="grid sm:grid-cols-3 gap-3">
         {questionCards.map((item) => (
           <div
@@ -673,7 +673,7 @@ export default function Analysis() {
         ))}
       </div>
 
-      {/* â”€â”€ Tab bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Tab bar ─────────────────────── */}
       <div className="flex gap-0 overflow-x-auto border-b border-border/70 -mx-1 px-1">
         {TABS.map((t) => (
           <button
@@ -691,7 +691,7 @@ export default function Analysis() {
         ))}
       </div>
 
-      {/* â”€â”€ Tab: Overview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Tab: Overview ───────────────── */}
       {tab === "overview" && (
         <div className="space-y-6">
           {/* Stats */}
@@ -700,10 +700,17 @@ export default function Analysis() {
               { label: "Questions solved",   value: overview.totalQuestions.toLocaleString(), color: "hsl(var(--foreground))" },
               { label: "Correct answers",    value: overview.correct.toLocaleString(),        color: "hsl(var(--info))" },
               { label: "Incorrect answers",  value: overview.incorrect.toLocaleString(),      color: "hsl(var(--destructive))" },
-              { label: overview.avgScoreIsExam ? "Average score" : "Accuracy", value: `${overview.avgScore}%`, color: "hsl(var(--warning))" },
+              // Was a tile whose LABEL changed between "Average score" and
+              // "Accuracy" depending on whether the student had exam marks —
+              // two different measures wearing one slot. It is practice
+              // accuracy now, always, and named that way.
+              { label: "Accuracy",           value: `${overview.accuracy}%`,                  color: "hsl(var(--warning))" },
               { label: "Practice sessions",  value: overview.practiceCompleted,               color: "hsl(var(--foreground))" },
-              { label: "Marks recorded",     value: overview.testsCompleted,                  color: "hsl(var(--foreground))" },
-              { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "hsl(var(--primary-glow))" },
+              // "Marks recorded" was a count of exam marks. Marks are not an
+              // Analysis figure any more (rule 11); the student reads them on
+              // their marks surface.
+              { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "hsl(var(--info))" },
+              { label: "Exam readiness",     value: `${overview.examReadiness}%`,             color: "hsl(var(--primary))" },
             ].map((s) => (
               <Metric key={s.label} label={s.label} value={s.value} color={s.color} />
             ))}
@@ -750,7 +757,7 @@ export default function Analysis() {
           </Card>
 
           {/* This week vs last week */}
-          <Card label="This week vs last week â€” questions done">
+          <Card label="This week vs last week — questions done">
             {weekComparison.some((d) => d.thisWeek > 0 || d.lastWeek > 0) ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -794,7 +801,7 @@ export default function Analysis() {
         </div>
       )}
 
-      {/* â”€â”€ Tab: Subjects & Chapters â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Tab: Subjects & Chapters ────── */}
       {tab === "subjects" && (
         <div className="space-y-6">
           {/* Subject radar */}
@@ -826,10 +833,13 @@ export default function Analysis() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-foreground">{displaySubject(s.name) || s.name}</span>
-                      {s.status === "best" && <span className="text-[9px] uppercase tracking-wider text-success bg-success/10 px-1.5 py-0.5 rounded-full">Best subject</span>}
+                      {/* The "Best subject" badge that stood here was §10.8's
+                          exact prohibition — a list filtered to the highest.
+                          The accuracy figure beside it is unchanged and still
+                          shown for every subject, high and low alike. */}
                       {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{s.questions} questions{s.timeHrs > 0 ? ` Â· ${s.timeHrs}h study time` : ""}{s.rankInClass > 0 ? ` Â· Rank #${s.rankInClass}` : ""}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{s.questions} questions{s.timeHrs > 0 ? ` · ${s.timeHrs}h study time` : ""}{s.rankInClass > 0 ? ` · Rank #${s.rankInClass}` : ""}</div>
                     <div className="h-1 rounded-full bg-muted mt-2 overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
                     </div>
@@ -842,7 +852,7 @@ export default function Analysis() {
                       {Math.abs(s.trend)}%
                     </div>
                     ) : (
-                      <div className="text-[11px] text-muted-foreground">â€”</div>
+                      <div className="text-[11px] text-muted-foreground">—</div>
                     )}
                   </div>
                 </div>
@@ -891,7 +901,7 @@ export default function Analysis() {
                           {Math.abs(c.trend)}%
                         </div>
                         ) : (
-                          <div className="text-sm font-black tabular-nums text-muted-foreground">â€”</div>
+                          <div className="text-sm font-black tabular-nums text-muted-foreground">—</div>
                         )}
                         <div className="text-[9px] text-muted-foreground">Change</div>
                       </div>
@@ -908,15 +918,15 @@ export default function Analysis() {
         </div>
       )}
 
-      {/* â”€â”€ Tab: Topics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Tab: Topics ─────────────────── */}
       {tab === "topics" && (
         <div className="space-y-6">
           {/* Learning journey overview */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Topics completed",   value: learningProgress.completed,  color: "hsl(var(--success))", icon: <CheckCircle2 className="w-5 h-5" /> },
-              { label: "Topics in progress", value: learningProgress.inProgress, color: "hsl(var(--primary))", icon: <BookOpen className="w-5 h-5" /> },
-              { label: "Yet to begin",        value: learningProgress.notStarted, color: "hsl(var(--muted-foreground))", icon: <Minus className="w-5 h-5" /> },
+              { label: "Open mistakes",    value: learningProgress.openMistakes, color: "hsl(var(--destructive))", icon: <AlertCircle className="w-5 h-5" /> },
+              { label: "Topics to revisit", value: learningProgress.toRevisit,   color: "hsl(var(--warning))", icon: <BookOpen className="w-5 h-5" /> },
+              { label: "Yet to begin",      value: learningProgress.notStarted,  color: "hsl(var(--muted-foreground))", icon: <Minus className="w-5 h-5" /> },
             ].map((item) => (
               <div key={item.label} className="p-4 rounded-xl border border-border/70 bg-surface/60 text-center">
                 <div className="flex justify-center mb-2" style={{ color: item.color }}>{item.icon}</div>
@@ -926,26 +936,8 @@ export default function Analysis() {
             ))}
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-6">
-            {/* Doing well */}
-            <div>
-              <SLabel>Topics you're doing well in</SLabel>
-              <div className="space-y-2">
-                {topicGroups.doing_well.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No strong topics yet</p>
-                ) : topicGroups.doing_well.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-success/12 bg-success/5 hover:border-success/25 transition-colors">
-                    <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
-                    </div>
-                    <span className="text-sm font-black text-success shrink-0">{t.score}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+          <div className="grid gap-6">
+            {/* Doing well removed — §10.8 */}
             {/* Needs attention */}
             <div>
               <SLabel>Topics that need your attention</SLabel>
@@ -957,7 +949,7 @@ export default function Analysis() {
                     <AlertCircle className="w-4 h-4 text-warning shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}{t.practiceCount > 0 ? ` Â· ${t.practiceCount} questions done` : ""}</div>
+                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}{t.practiceCount > 0 ? ` · ${t.practiceCount} questions done` : ""}</div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-black text-warning">{t.score}%</div>
@@ -1078,7 +1070,7 @@ export default function Analysis() {
         </div>
       )}
 
-      {/* â”€â”€ Tab: Practice & Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Tab: Practice & Tests ────────── */}
       {tab === "practice" && (
         <div className="space-y-6">
           {/* Practice stats */}
@@ -1117,58 +1109,11 @@ export default function Analysis() {
             )}
           </Card>
 
-          {/* Test results */}
-          <div>
-            <SLabel>Recent tests</SLabel>
-            {testResults.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No test results yet</p>
-            ) : (
-            <div className="space-y-2">
-              {testResults.map((t) => {
-                const col = scoreColor(t.score);
-                return (
-                  <div key={t.name} className="flex items-center gap-4 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-black" style={{ background: `${withAlpha(col, 0.08)}`, color: col }}>
-                      {t.score}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground">{t.name}</div>
-                      <div className="text-[11px] text-muted-foreground">{t.subject} Â· {t.date}</div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-black tabular-nums" style={{ color: col }}>{t.marksObtained}/{t.rawMax}</div>
-                      <div className="text-[11px] text-muted-foreground">{t.score}%</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            )}
-          </div>
-
-          {/* Score trend */}
-          {testTrend.length > 0 && (
-          <Card label="How your test scores changed">
-            <div className="h-40 mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={testTrend}>
-                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={testTrendDomain} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Line type="monotone" dataKey="score" name="Score" stroke="hsl(var(--info))" strokeWidth={2.5}
-                    isAnimationActive={false} dot={{ r: 5, fill: "hsl(var(--info))", strokeWidth: 0 }} activeDot={{ r: 7, stroke: "hsl(var(--card))", strokeWidth: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-          )}
-
           {/* Speed */}
           <div>
             <SLabel>How fast you solve questions</SLabel>
             <div className="grid sm:grid-cols-3 gap-3 mb-4">
-              <Metric label="Average per question"  value={speedStats.avgSec > 0 ? `${speedStats.avgSec}s` : "â€”"}    color="hsl(var(--foreground))" />
+              <Metric label="Average per question"  value={speedStats.avgSec > 0 ? `${speedStats.avgSec}s` : "—"}    color="hsl(var(--foreground))" />
               <Metric label="Fastest subject"        value={speedStats.fastestSubject}  color="hsl(var(--success))" sub={speedStats.avgSec > 0 ? `${speedStats.fastestSec}s avg` : undefined} />
               <Metric label="Takes most time"        value={speedStats.slowestSubject}  color="hsl(var(--warning))" sub={speedStats.avgSec > 0 ? `${speedStats.slowestSec}s avg` : undefined} />
             </div>
@@ -1195,11 +1140,10 @@ export default function Analysis() {
         </div>
       )}
 
-      {/* â”€â”€ Tab: Activity & Speed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {tab === "activity" && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Metric label="Total study time"    value={`${studyActivity.totalHrs}h`}       color="hsl(var(--primary-glow))" />
+            <Metric label="Total study time"    value={`${studyActivity.totalHrs}h`}       color="hsl(var(--info))" />
             <Metric label="Average per day"     value={`${studyActivity.avgDailyMin} min`} color="hsl(var(--foreground))" />
             <Metric label="Most active day"     value={studyActivity.bestDay}              color="hsl(var(--warning))" />
             <Metric label="Most productive hour" value={studyActivity.bestHour}            color="hsl(var(--info))" />
@@ -1228,7 +1172,7 @@ export default function Analysis() {
           </Card>
 
           {/* 4-week heatmap */}
-          <Card label="Practice activity â€” last 4 weeks">
+          <Card label="Practice activity — last 4 weeks">
             <div className="mt-4 overflow-x-auto">
               <div className="min-w-[380px]">
                 <div className="flex gap-1 mb-2 ml-9">
@@ -1276,7 +1220,7 @@ export default function Analysis() {
                     {row.lastM > 0 && (
                     <div className={cn("flex items-center gap-1 justify-center mt-1 text-xs font-semibold", up ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground")}>
                       {diff !== 0 && (up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
-                      {diff !== 0 ? `${up ? "+" : ""}${pct}%` : "â€”"}
+                      {diff !== 0 ? `${up ? "+" : ""}${pct}%` : "—"}
                     </div>
                     )}
                   </div>
@@ -1287,13 +1231,13 @@ export default function Analysis() {
         </div>
       )}
 
-      {/* â”€â”€ Tab: Milestones & Reports â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Tab: Milestones & Reports ────── */}
       {tab === "milestones" && (
         <div className="space-y-6">
           <div>
             <SLabel>Your progress milestones</SLabel>
             {milestones.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No milestones yet â€” keep practicing!</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">No milestones yet — keep practicing!</p>
             ) : (
             <div className="space-y-3">
               {milestones.map((m) => (
@@ -1344,8 +1288,8 @@ export default function Analysis() {
             <SLabel>Download & share your report</SLabel>
             <div className="grid sm:grid-cols-2 gap-3">
               {[
-                { label: "Print / Save as PDF", icon: <Download className="w-4 h-4" />,  color: "hsl(var(--primary))",  desc: "Opens browser print â†’ Save as PDF", action: "pdf" as const },
-                { label: "Copy summary",        icon: <Share2 className="w-4 h-4" />,    color: "hsl(var(--success))",  desc: "Copy text to paste yourself â€” teacher/parent send is coming soon", action: "share" as const },
+                { label: "Print / Save as PDF", icon: <Download className="w-4 h-4" />,  color: "hsl(var(--primary))",  desc: "Opens browser print → Save as PDF", action: "pdf" as const },
+                { label: "Copy summary",        icon: <Share2 className="w-4 h-4" />,    color: "hsl(var(--success))",  desc: "Copy text to paste yourself — teacher/parent send is coming soon", action: "share" as const },
                 { label: "Print report",        icon: <Printer className="w-4 h-4" />,   color: "hsl(var(--warning))",  desc: "Print a physical copy", action: "print" as const },
               ].map((r) => (
                 <button
@@ -1357,7 +1301,7 @@ export default function Analysis() {
                       return;
                     }
                     if (r.action === "pdf") {
-                      toast.info("Use your browser Print dialog â†’ Save as PDF.");
+                      toast.info("Use your browser Print dialog → Save as PDF.");
                       window.print();
                       return;
                     }
@@ -1370,14 +1314,14 @@ export default function Analysis() {
                     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
                       void navigator.share({ title: "Gurukul Analysis", text: summary }).catch(() => {
                         void navigator.clipboard?.writeText(summary).then(
-                          () => toast.success("Summary copied â€” paste to share."),
+                          () => toast.success("Summary copied — paste to share."),
                           () => toast.info("Sharing is not available on this device."),
                         );
                       });
                       return;
                     }
                     void navigator.clipboard?.writeText(summary).then(
-                      () => toast.success("Summary copied â€” paste to share."),
+                      () => toast.success("Summary copied — paste to share."),
                       () => toast.info("Sharing is not available on this device."),
                     );
                   }}
@@ -1401,7 +1345,7 @@ export default function Analysis() {
   );
 }
 
-// â”€â”€ Shared sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shared sub-components ────────────────────────────────────────────────────
 
 function Card({ label, children }: { label: string; children: React.ReactNode }) {
   return (
