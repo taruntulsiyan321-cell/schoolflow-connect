@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useRecoveryZone, type RecoveryZoneData, type WeakConcept } from "@/hooks/useRecoveryZone";
@@ -41,7 +41,7 @@ function formatRelativeDate(iso: string): string {
     if (diffDays < 7) return `${diffDays} days ago`;
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
-    return "—";
+    return "â€”";
   }
 }
 
@@ -61,7 +61,7 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
     seen.add(key);
     const weak = weakMap.get(key);
     const chapter =
-      a.chapter && !isPlaceholderAcademicLabel(a.chapter) ? a.chapter : "—";
+      a.chapter && !isPlaceholderAcademicLabel(a.chapter) ? a.chapter : "â€”";
     topics.push({
       id: a.id,
       assignmentId: a.id,
@@ -75,7 +75,7 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
       pendingQs: Math.max(0, (a.question_count ?? 0) - (a.questions_completed ?? 0)),
       lastAttempt: formatRelativeDate(a.created_at),
       aiReason: weak
-        ? `Mastery ${Math.round(weak.mastery_score)}% on ${displayConcept(a.concept)} — recovery drill queued from recent mistakes.`
+        ? `Mastery ${Math.round(weak.mastery_score)}% on ${displayConcept(a.concept)} â€” recovery drill queued from recent mistakes.`
         : `Recovery assignment for ${displayConcept(a.concept)} from your mistake pattern.`,
       teacherAssigned: false,
     });
@@ -86,7 +86,7 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
     const key = `${w.subject}:${w.concept}`;
     if (seen.has(key)) continue;
     const chapter =
-      w.chapter && !isPlaceholderAcademicLabel(w.chapter) ? w.chapter : "—";
+      w.chapter && !isPlaceholderAcademicLabel(w.chapter) ? w.chapter : "â€”";
     topics.push({
       id: key,
       concept: w.concept,
@@ -97,8 +97,8 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
       attempts: w.mistake_count ?? 0,
       source: "practice",
       pendingQs: 0,
-      lastAttempt: "—",
-      aiReason: `Weak concept detected at ${Math.round(w.mastery_score)}% mastery — start practice or open Nova for a targeted review.`,
+      lastAttempt: "â€”",
+      aiReason: `Weak concept detected at ${Math.round(w.mastery_score)}% mastery â€” start practice or open Nova for a targeted review.`,
       teacherAssigned: false,
     });
   }
@@ -119,11 +119,11 @@ const SOURCE_LABELS: Record<string,string> = {
   homework:"Homework", pyq:"PYQ", qbank:"Question Bank",
 };
 
-/** Map recovery_assignments.source_type → UI filter keys. */
+/** Map recovery_assignments.source_type â†’ UI filter keys. */
 function sourceFromType(sourceType: string | null | undefined): string {
   const s = (sourceType ?? "").toLowerCase();
   if (s.includes("battle")) return "battleground";
-  if (s.includes("test") || s.includes("test") || s.includes("exam") || s.includes("marks")) return "tests";
+  if (s.includes("dpp") || s.includes("test") || s.includes("exam") || s.includes("marks")) return "tests";
   if (s.includes("homework") || s.includes("assignment")) return "homework";
   if (s.includes("pyq")) return "pyq";
   if (s.includes("qbank") || s.includes("question_bank")) return "qbank";
@@ -150,7 +150,6 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
-              <PriorityTag p={topic.priority}/>
               <SubjectBadge subject={topic.subject}/>
               {topic.teacherAssigned && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
@@ -159,21 +158,21 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
               )}
             </div>
             <div className="text-sm font-bold text-foreground">{displayConcept(topic.concept)}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{displayChapter(topic.chapter)} · {SOURCE_LABELS[topic.source]} · {topic.lastAttempt}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{displayChapter(topic.chapter)} Â· {SOURCE_LABELS[topic.source]} Â· {topic.lastAttempt}</div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="text-right">
-              <div className="text-lg font-black tabular-nums" style={{color:m.color}}>{topic.mastery}%</div>
-              <div className="text-[10px] text-muted-foreground">{topic.attempts} mistakes</div>
+              <div className="text-lg font-black tabular-nums" style={{color:m.color}}>{topic.attempts}</div>
+              <div className="text-[10px] text-muted-foreground">open mistakes</div>
             </div>
           </div>
         </div>
 
         <div className="mt-3">
           <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-            <span>Accuracy</span><span>{topic.mastery}%</span>
+            <span>Mistakes remaining</span><span>{topic.attempts}</span>
           </div>
-          <ProgressBar value={topic.mastery} color={m.color} height="h-1.5"/>
+          <ProgressBar value={Math.max(0, 100 - topic.attempts * 15)} color={m.color} height="h-1.5"/>
         </div>
 
         <div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -231,7 +230,7 @@ function RecoverySession({ topic, onBack }: { topic: RecoveryTopic; onBack: () =
             </Link>
           ) : (
             <Link
-              to={`/student/practice?chapter=${encodeURIComponent(topic.chapter !== "—" ? topic.chapter : topic.concept)}&subject=${encodeURIComponent(topic.subject)}`}
+              to={`/student/practice?chapter=${encodeURIComponent(topic.chapter !== "â€”" ? topic.chapter : topic.concept)}&subject=${encodeURIComponent(topic.subject)}`}
               className="px-4 py-2 rounded-xl bg-[#3b5bdb]/20 border border-[#3b5bdb]/30 text-[#4b9fd4] text-sm font-semibold hover:bg-[#3b5bdb]/30 transition-all"
             >
               Go to Practice
@@ -262,7 +261,7 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
     try {
       await assignRecoveryOnMistake({
         subject: topic.subject,
-        chapter: topic.chapter !== "—" ? topic.chapter : null,
+        chapter: topic.chapter !== "â€”" ? topic.chapter : null,
         concept: topic.concept,
         sourceType: "recovery_followup",
         sourceId: topic.assignmentId ?? topic.id,
@@ -298,7 +297,7 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
           {displayConcept(topic.concept)}
         </div>
         <p className="text-sm text-muted-foreground">
-          {passed ? "Great improvement! Topic is recovering well." : "Keep going — a few more sessions will strengthen this."}
+          {passed ? "Great improvement! Topic is recovering well." : "Keep going â€” a few more sessions will strengthen this."}
         </p>
 
         <div className="grid grid-cols-3 gap-3 mt-5">
@@ -319,7 +318,7 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
         {!passed && (
           <button onClick={addToRevision} disabled={addingRevision}
             className="w-full py-3 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-300 text-sm font-bold flex items-center justify-center gap-2 hover:bg-violet-500/25 transition-all disabled:opacity-50">
-            <RotateCcw className="w-4 h-4"/> {addingRevision ? "Adding…" : "Add to Revision Schedule"}
+            <RotateCcw className="w-4 h-4"/> {addingRevision ? "Addingâ€¦" : "Add to Revision Schedule"}
           </button>
         )}
         <button onClick={onBack}
@@ -427,7 +426,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
         .map((t) => ({
           task: `Complete ${displayConcept(t.concept)} recovery (${t.pendingQs || 0} questions)`,
           subject: t.subject,
-          time: t.pendingQs > 0 ? `${Math.max(10, t.pendingQs * 2)} min` : "—",
+          time: t.pendingQs > 0 ? `${Math.max(10, t.pendingQs * 2)} min` : "â€”",
           priority: t.priority as Priority,
           topic: t,
         })),
@@ -505,7 +504,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     try {
       const assignmentId = await assignRecoveryOnMistake({
         subject: topic.subject,
-        chapter: topic.chapter !== "—" ? topic.chapter : null,
+        chapter: topic.chapter !== "â€”" ? topic.chapter : null,
         concept: topic.concept,
         sourceType: "weak_concept",
         sourceId: topic.id,
@@ -515,9 +514,9 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
         navigate(`/student/recovery/${assignmentId}`);
         return;
       }
-      // No bank questions for this concept — open practice for the chapter.
+      // No bank questions for this concept â€” open practice for the chapter.
       navigate(
-        `/student/practice?chapter=${encodeURIComponent(topic.chapter !== "—" ? topic.chapter : topic.concept)}&subject=${encodeURIComponent(topic.subject)}`,
+        `/student/practice?chapter=${encodeURIComponent(topic.chapter !== "â€”" ? topic.chapter : topic.concept)}&subject=${encodeURIComponent(topic.subject)}`,
       );
       void reload();
     } finally {
@@ -608,7 +607,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
         ))}
       </div>
 
-      {/* Recovery Plan (from live weak concepts — not an LLM call) */}
+      {/* Recovery Plan (from live weak concepts â€” not an LLM call) */}
       <GlassCard className="p-5">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
@@ -621,7 +620,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
         </div>
         <div className="grid sm:grid-cols-3 gap-3">
           {AI_PLAN.length === 0 ? (
-            <p className="text-xs text-muted-foreground col-span-full">No recovery plan yet — weak areas will appear here as you practice.</p>
+            <p className="text-xs text-muted-foreground col-span-full">No recovery plan yet â€” weak areas will appear here as you practice.</p>
           ) : (
             AI_PLAN.map((item, i) => {
             const m = PRIORITY_META[item.priority];
@@ -665,7 +664,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-foreground">{t.title}</div>
-                  <div className="text-[11px] text-muted-foreground">{t.teacher} · Due {t.due} · {t.qs} questions</div>
+                  <div className="text-[11px] text-muted-foreground">{t.teacher} Â· Due {t.due} Â· {t.qs} questions</div>
                 </div>
                 <button className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs font-bold transition-all">
                   <Play className="w-3 h-3"/> Start
@@ -675,34 +674,6 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
           </div>
         </GlassCard>
       )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[180px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search topics..."
-            className="w-full pl-8 pr-3 py-2 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-rose-500/40"/>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Filter className="w-3.5 h-3.5 text-muted-foreground"/>
-          {(["all","high","medium","low"] as const).map(p => (
-            <button key={p} onClick={() => setPriority(p)}
-              className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                priority === p ? "bg-rose-500/20 border border-rose-500/40 text-rose-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
-              {p === "all" ? "All" : p}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5">
-          {(["all","practice","tests","battleground"] as const).map(src => (
-            <button key={src} onClick={() => setSourceFilter(src)}
-              className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                sourceFilter === src ? "bg-secondary border border-border text-foreground" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
-              {src === "all" ? "All Sources" : SOURCE_LABELS[src]}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Topic list */}
       <div className="space-y-3">
@@ -744,7 +715,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-foreground">{displayConcept(h.concept)}</div>
-                  <div className="text-[11px] text-muted-foreground">{h.subject} · {h.date}</div>
+                  <div className="text-[11px] text-muted-foreground">{h.subject} Â· {h.date}</div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-lg font-black tabular-nums" style={{color:h.improved?"#4aa87a":"#c08a3a"}}>{h.score}%</span>
@@ -763,7 +734,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                         id: `retry:${h.id}`,
                         concept: h.concept,
                         subject: h.subject,
-                        chapter: "—",
+                        chapter: "â€”",
                         priority: "medium",
                         mastery: 0,
                         attempts: 0,

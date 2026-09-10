@@ -48,7 +48,7 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
             <GraduationCap className="w-[18px] h-[18px] text-primary-foreground" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="font-semibold leading-tight tracking-tight">Vidyalaya</div>
+            <div className="font-semibold leading-tight tracking-tight">Gurukul</div>
             <div className="text-[11px] text-sidebar-foreground/55 uppercase tracking-wider font-medium">{title}</div>
           </div>
           <NotificationBell className="text-sidebar-foreground hover:bg-sidebar-accent" />
@@ -90,7 +90,7 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
                 <GraduationCap className="w-[18px] h-[18px] text-primary-foreground" />
               </div>
               <div className="min-w-0 text-left">
-                <SheetTitle className="text-sidebar-foreground text-base leading-tight">Vidyalaya</SheetTitle>
+                <SheetTitle className="text-sidebar-foreground text-base leading-tight">Gurukul</SheetTitle>
                 <div className="text-[11px] text-sidebar-foreground/60 uppercase tracking-wider font-medium">{title}</div>
               </div>
             </SheetHeader>
@@ -123,7 +123,7 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
             <GraduationCap className="w-4 h-4 text-primary-foreground" />
           </div>
           <div className="min-w-0">
-            <div className="font-semibold text-sm leading-none truncate">Vidyalaya</div>
+            <div className="font-semibold text-sm leading-none truncate">Gurukul</div>
             <div className="text-[10px] text-sidebar-foreground/55 uppercase tracking-wider mt-0.5 truncate">{title}</div>
           </div>
         </div>

@@ -410,68 +410,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         )}
       </GlassCard>
 
-      {/* Subjects - premium stagger */}
-      <div className="animate-premium-enter" style={{animationDelay: "0.20s"}}>
-        <SectionLabel>Subject Performance</SectionLabel>
-        {subjects.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-premium-stagger">
-            {subjects.map((s, idx) => (
-              <GlassCard key={s.id} className="p-4 premium-card group hover:border-primary/30 cursor-pointer" onClick={() => setPage("practice")} style={{ animationDelay: `${idx * 0.04}s` }}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold shrink-0" style={{ background: `hsl(${s.color} / 0.1)`, color: `hsl(${s.color})` }}>{s.icon}</div>
-                    <span className="text-sm font-semibold text-foreground">{s.name}</span>
-                  </div>
-                  {s.trend !== 0 && (
-                    <div className="flex items-center gap-1 text-xs" style={{ color: s.trend >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))" }}>
-                      <TrendingUp className={cn("w-3 h-3", s.trend < 0 && "rotate-180")} />
-                      {s.trend > 0 ? "+" : ""}{s.trend}%
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-muted-foreground">{s.attempts} attempts</span>
-                  <span className="text-sm font-black tabular-nums" style={{ color: `hsl(${s.color})` }}>{s.accuracy}%</span>
-                </div>
-                <ProgressBar value={s.accuracy} color={s.color} />
-              </GlassCard>
-            ))}
-          </div>
-        ) : (
-          <div className="premium-empty py-10">
-            <div className="premium-empty-icon"><BarChart2 className="w-6 h-6" /></div>
-            <p className="text-sm font-medium text-foreground">No subject data yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Complete practice to see performance</p>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom row */}
-      <div className="grid sm:grid-cols-2 gap-4">
-        <GlassCard glow="amber" className="p-5">
-          <SectionLabel>Recent Achievements</SectionLabel>
-          <div className="space-y-3">
-            {recentAch.length > 0 ? recentAch.map((a) => (
-              <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl bg-amber-400/5 border border-amber-400/10">
-                <div className="w-9 h-9 rounded-lg bg-amber-400/10 flex items-center justify-center shrink-0 text-amber-400">
-                  {a.Icon ? <a.Icon className="w-5 h-5" /> : <Star className="w-5 h-5" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground">{a.title}</div>
-                  <div className="text-xs text-muted-foreground">{a.desc}</div>
-                </div>
-                <div className="flex items-center gap-1 text-amber-400"><span className="text-xs font-bold">{toEnumLabel(a.tier, "badge_tier")}</span></div>
-              </div>
-            )) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No badges earned yet - keep practicing!</p>
-            )}
-            <button onClick={() => setPage("achievements")} className="w-full text-center text-xs text-primary hover:text-primary/80 transition-colors">
-              View all achievements {"→"}
-            </button>
-          </div>
-        </GlassCard>
-
-        <GlassCard glow="purple" className="p-5">
+      {/* Class Leaderboard */}
+      <GlassCard glow="purple" className="p-5">
           <SectionLabel>Class Leaderboard</SectionLabel>
           <div className="flex flex-col items-center gap-2 py-2">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(var(--warning) / 0.2), hsl(var(--warning) / 0.05))", border: "1px solid hsl(var(--warning) / 0.3)" }}>
@@ -497,7 +437,6 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             </button>
           </div>
         </GlassCard>
-      </div>
     </div>
   );
 }

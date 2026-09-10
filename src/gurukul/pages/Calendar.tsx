@@ -234,7 +234,10 @@ export default function Calendar() {
             <p className="text-sm text-muted-foreground mt-0.5">Tests, exams, events & deadlines</p>
           </div>
           <div className="flex items-center gap-2">
-            {(Object.entries(TYPE_META) as [EventType, (typeof TYPE_META)[EventType]][]).slice(0, 4).map(([type, meta]) => (
+            {(Object.entries(TYPE_META) as [EventType, (typeof TYPE_META)[EventType]][])
+              .filter(([type]) => type !== "test" && type !== "deadline")
+              .slice(0, 3)
+              .map(([type, meta]) => (
               <div
                 key={type}
                 className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-semibold"

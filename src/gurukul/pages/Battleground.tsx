@@ -16,7 +16,6 @@ import {
   createBattleFromDesign,
   joinBattleByCode,
   joinBattleById,
-  ensureFeatured,
   acceptBattleInvite,
   loadLeaderboardEntries,
   type DesignBattleCard,
@@ -35,7 +34,6 @@ import { displayChapter, displaySubject, humanizeAcademicLabel } from "@/lib/aca
 import { PracticeService, useAcademicContext } from "@/academic";
 import { withAlpha } from "@/lib/colorAlpha";
 import "./battleground-design.css";
-import { toErrorMessage } from "@/lib/presentation";
 
 /** Fallback subject labels when stream/class cannot be resolved. */
 const SUBJECT_OPTIONS = [
@@ -67,7 +65,6 @@ type BattleStatus = "waiting" | "active" | "won" | "lost" | "completed";
 type CreateStep = 1 | 2 | 3;
 type BattleType = "1v1" | "team" | "class";
 type Phase = "home" | "create";
-type FeaturedKind = "daily" | "weekly" | "ncert" | "beat_topper" | "teacher";
 
 const LEAGUE_COLOR: Record<LeagueName, string> = {
   Bronze: "hsl(var(--league-bronze))",
@@ -99,85 +96,6 @@ function cardStatus(c: DesignBattleCard): BattleStatus {
   return "completed";
 }
 
-const FEATURED_META: {
-  kind: FeaturedKind;
-  title: string;
-  icon: string;
-  subject: string;
-  chapter: string;
-  difficulty: "Easy" | "Medium" | "Hard";
-  gradient: string;
-  border: string;
-}[] = [
-  {
-    kind: "daily",
-    title: "Daily Challenge",
-    icon: "🔥",
-    subject: "Mathematics",
-    chapter: "Today's mixed set",
-    difficulty: "Medium",
-    gradient: "hsl(var(--accent))",
-    border: withAlpha("hsl(var(--accent))", 0.25),
-  },
-  {
-    kind: "ncert",
-    title: "NCERT Challenge",
-    icon: "📚",
-    subject: "Science",
-    chapter: "NCERT sprint",
-    difficulty: "Hard",
-    gradient: "hsl(var(--primary))",
-    border: withAlpha("hsl(var(--primary))", 0.25),
-  },
-  {
-    kind: "teacher",
-    title: "Teacher Challenge",
-    icon: "🏆",
-    subject: "Class focus",
-    chapter: "Assigned challenge",
-    difficulty: "Easy",
-    gradient: "hsl(var(--info))",
-    border: withAlpha("hsl(var(--info))", 0.25),
-  },
-  {
-    kind: "beat_topper",
-    title: "Beat the Topper",
-    icon: "⚡",
-    subject: "Physics",
-    chapter: "Climb the ranks",
-    difficulty: "Hard",
-    gradient: "hsl(var(--warning))",
-    border: withAlpha("hsl(var(--warning))", 0.25),
-  },
-  {
-    kind: "weekly",
-    title: "Weekly Championship",
-    icon: "👑",
-    subject: "All Subjects",
-    chapter: "Mixed — weekly",
-    difficulty: "Hard",
-    gradient: "hsl(var(--success))",
-    border: withAlpha("hsl(var(--success))", 0.25),
-  },
-];
-
-function guessFeaturedKind(c: DesignBattleCard): FeaturedKind | null {
-  const src = (c.source || "").toLowerCase();
-  if (src.startsWith("featured_")) {
-    const kind = src.slice("featured_".length) as FeaturedKind;
-    if (kind === "daily" || kind === "weekly" || kind === "ncert" || kind === "beat_topper" || kind === "teacher") {
-      return kind;
-    }
-  }
-  const hay = `${c.title || ""} ${c.id || ""}`.toLowerCase();
-  if (hay.includes("daily")) return "daily";
-  if (hay.includes("ncert")) return "ncert";
-  if (hay.includes("teacher")) return "teacher";
-  if (hay.includes("topper") || hay.includes("beat")) return "beat_topper";
-  if (hay.includes("week") || hay.includes("champ")) return "weekly";
-  if (c.featured) return "daily";
-  return null;
-}
 
 // ── Small UI atoms ────────────────────────────────────────────────────────────
 
@@ -379,16 +297,13 @@ type MeInfo = {
   motivationMessage: string;
   xpRemaining: number;
   nextLeague: string;
-  dailyXpLabel: string;
 };
 
 function HeroSection({
   me,
-  onPlayDaily,
   busy,
 }: {
   me: MeInfo;
-  onPlayDaily: () => void;
   busy: boolean;
 }) {
   // Level progress SSOT from Progression (not absolute XP / next-league min).
@@ -620,47 +535,6 @@ function HeroSection({
           </div>
         </div>
 
-        <div
-          style={{
-            borderRadius: "14px",
-            padding: "0.85rem 1.25rem",
-            background: "rgba(16,185,129,0.1)",
-            border: "1px solid rgba(16,185,129,0.22)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "1.1rem" }}>🎯</span>
-            <div>
-              <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 700, fontSize: "0.82rem", color: C.text }}>
-                Daily Challenge
-              </div>
-              <div style={{ color: C.text3, fontSize: "0.67rem", fontFamily: "Inter, sans-serif" }}>{me.dailyXpLabel}</div>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={busy}
-            onClick={onPlayDaily}
-            style={{
-              background: C.green,
-              border: "none",
-              borderRadius: "8px",
-              padding: "5px 14px",
-              color: "hsl(var(--primary-foreground))",
-              fontFamily: "Outfit, sans-serif",
-              fontWeight: 700,
-              fontSize: "0.75rem",
-              cursor: busy ? "wait" : "pointer",
-              opacity: busy ? 0.7 : 1,
-            }}
-          >
-            Play
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -671,17 +545,11 @@ function HeroSection({
 function QuickActions({
   onCreate,
   onJoin,
-  onDaily,
-  onWeekly,
   busy,
-  dailyXpLabel,
 }: {
   onCreate: () => void;
   onJoin: () => void;
-  onDaily: () => void;
-  onWeekly: () => void;
   busy: boolean;
-  dailyXpLabel: string;
 }) {
   const actions = [
     {
@@ -702,30 +570,12 @@ function QuickActions({
       border: "rgba(139,92,246,0.3)",
       onClick: onJoin,
     },
-    {
-      icon: "🔥",
-      label: "Daily Challenge",
-      desc: `Today's challenge — ${dailyXpLabel}`,
-      color: C.orange,
-      grad: `${withAlpha(C.orange, 0.13)}`,
-      border: "rgba(249,115,22,0.3)",
-      onClick: onDaily,
-    },
-    {
-      icon: "👑",
-      label: "Championship",
-      desc: "Weekly top tournament",
-      color: C.gold,
-      grad: `${withAlpha(C.gold, 0.13)}`,
-      border: "rgba(245,158,11,0.3)",
-      onClick: onWeekly,
-    },
   ];
 
   return (
     <div style={{ marginBottom: "1.75rem" }}>
       <SectionHeader title="Quick Actions" subtitle="Start your next challenge" />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.85rem" }} className="sm-one-col">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.85rem" }} className="sm-one-col">
         {actions.map(({ icon, label, desc, color, grad, border, onClick }) => (
           <button
             key={label}
@@ -889,126 +739,6 @@ function JoinCodeModal({
             {joining ? "Joining…" : "Join Battle"}
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Featured ──────────────────────────────────────────────────────────────────
-
-function FeaturedBattles({
-  liveFeatured,
-  onLaunch,
-  busy,
-}: {
-  liveFeatured: DesignBattleCard[];
-  onLaunch: (kind: FeaturedKind, battleId?: string) => void;
-  busy: boolean;
-}) {
-  const cards = FEATURED_META.map((meta) => {
-    const live =
-      liveFeatured.find((b) => guessFeaturedKind(b) === meta.kind) ||
-      liveFeatured.find((b) => b.featured && b.title.toLowerCase().includes(meta.title.split(" ")[0].toLowerCase()));
-    return { meta, live };
-  });
-
-  return (
-    <div style={{ marginBottom: "1.75rem" }}>
-      <SectionHeader title="Featured Battles" subtitle="Open challenges for everyone" />
-      <div style={{ display: "flex", gap: "0.85rem", overflowX: "auto", paddingBottom: "0.5rem", scrollSnapType: "x mandatory" }}>
-        {cards.map(({ meta, live }) => (
-          <div
-            key={meta.kind}
-            className="battle-card"
-            style={{
-              minWidth: "240px",
-              maxWidth: "240px",
-              borderRadius: "16px",
-              overflow: "hidden",
-              border: `1px solid ${meta.border}`,
-              scrollSnapAlign: "start",
-              background: C.surface,
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ background: meta.gradient, padding: "1rem 1.1rem 0.85rem", position: "relative" }}>
-              <div style={{ fontSize: "1.4rem", marginBottom: "0.35rem" }}>{meta.icon}</div>
-              <div
-                style={{
-                  fontFamily: "Outfit, sans-serif",
-                  fontWeight: 800,
-                  fontSize: "0.95rem",
-                  color: "hsl(var(--primary-foreground))",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {live?.title || meta.title}
-              </div>
-              <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.72rem", marginTop: "1px", fontFamily: "Inter, sans-serif" }}>
-                {live?.chapter ? displayChapter(live.chapter) : live ? "—" : "Open challenge"}
-              </div>
-            </div>
-            <div style={{ padding: "0.85rem 1.1rem" }}>
-              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginBottom: "0.7rem", alignItems: "center" }}>
-                <span
-                  style={{
-                    background: "rgba(255,255,255,0.07)",
-                    color: C.text2,
-                    borderRadius: "4px",
-                    padding: "2px 7px",
-                    fontSize: "0.68rem",
-                    fontFamily: "Inter, sans-serif",
-                  }}
-                >
-                  {live?.subject ? displaySubject(live.subject) || "—" : "—"}
-                </span>
-                {live ? (
-                  <DiffBadge level={difficultyBadgeLevel(live.difficulty)} />
-                ) : (
-                  <span style={{ color: C.text3, fontSize: "0.68rem", fontFamily: "Inter, sans-serif" }}>Tap to open</span>
-                )}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem", marginBottom: "0.85rem" }}>
-                <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "6px", padding: "0.4rem 0.5rem" }}>
-                  <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", color: C.gold }}>
-                    {live?.xpReward ? `${live.xpReward} pts` : "—"}
-                  </div>
-                  <div style={{ color: C.text3, fontSize: "0.6rem" }}>Score</div>
-                </div>
-                <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "6px", padding: "0.4rem 0.5rem" }}>
-                  <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", color: C.blue }}>
-                    {live?.players ?? "—"}
-                  </div>
-                  <div style={{ color: C.text3, fontSize: "0.6rem" }}>Players</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ color: C.text3, fontSize: "0.68rem", fontFamily: "DM Mono, monospace" }}>
-                  {live?.timeLeft || live?.startsIn || "Open"}
-                </span>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  disabled={busy}
-                  onClick={() => onLaunch(meta.kind, live?.id)}
-                  style={{
-                    background: meta.gradient,
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "5px 14px",
-                    color: "hsl(var(--primary-foreground))",
-                    fontFamily: "Outfit, sans-serif",
-                    fontWeight: 700,
-                    fontSize: "0.75rem",
-                    cursor: busy ? "wait" : "pointer",
-                  }}
-                >
-                  Join
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -2252,45 +1982,6 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         : "Student";
   const ini = initials(displayName);
 
-  const featuredLive = useMemo(
-    () =>
-      data.battles.filter((b) => {
-        if (!b.featured) return false;
-        const src = (b.source || "").toLowerCase();
-        if (src === "featured_teacher" || src === "manual") return b.status === "live" || b.status === "upcoming";
-        if (src === "featured_beat_topper") return false;
-        if (b.startsAt) {
-          // Keep strip on current day/week only
-          const start = new Date(b.startsAt);
-          if (Number.isNaN(start.getTime())) return false;
-          const now = new Date();
-          if (src === "featured_daily" || src === "featured_ncert") {
-            return (
-              start.getFullYear() === now.getFullYear() &&
-              start.getMonth() === now.getMonth() &&
-              start.getDate() === now.getDate() &&
-              b.status !== "completed"
-            );
-          }
-          if (src === "featured_weekly") {
-            const day = (d: Date) => {
-              const x = (d.getDay() + 6) % 7;
-              return new Date(d.getFullYear(), d.getMonth(), d.getDate() - x).getTime();
-            };
-            return day(start) === day(now) && b.status !== "completed";
-          }
-        }
-        return b.status !== "completed";
-      }),
-    [data.battles],
-  );
-  const dailyLive = useMemo(
-    () =>
-      featuredLive.find((b) => guessFeaturedKind(b) === "daily") ||
-      data.battles.find((b) => (b.title || "").toLowerCase().includes("daily") && b.status !== "completed"),
-    [featuredLive, data.battles],
-  );
-
   const me: MeInfo = useMemo(() => {
     // Shared chrome SSOT: shell profile (ProgressionService) when ready —
     // same XP / study streak / league label as Home + Profile.
@@ -2357,9 +2048,8 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       motivationMessage: data.motivation.message,
       xpRemaining: next?.remaining ?? 0,
       nextLeague: next?.nextName || "Champion",
-      dailyXpLabel: dailyLive?.xpReward ? `+${dailyLive.xpReward} pts` : "Earn pts",
     };
-  }, [data, displayName, ini, dailyLive, profile, shellReady]);
+  }, [data, displayName, ini, profile, shellReady]);
 
   useEffect(() => {
     if (!academicReady) return;
@@ -2375,7 +2065,9 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
           toast({
             title: "Could not load leaderboard",
             description:
-              toErrorMessage(err, "Try again in a moment"),
+              err && typeof err === "object" && "message" in err
+                ? String((err as { message: string }).message)
+                : "Try again in a moment",
             variant: "destructive",
           });
         }
@@ -2417,7 +2109,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       goBattle(id);
     } catch (e: unknown) {
       const msg =
-        toErrorMessage(e, "Could not join");
+        e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not join";
       toast({ title: msg, variant: "destructive" });
     } finally {
       setBusy(false);
@@ -2461,7 +2153,9 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       return { id, battleCode };
     } catch (e: unknown) {
       const msg =
-        toErrorMessage(e, "Could not create battle");
+        e && typeof e === "object" && "message" in e
+          ? String((e as { message: string }).message)
+          : "Could not create battle";
       toast({ title: msg, variant: "destructive" });
       throw e;
     } finally {
@@ -2484,7 +2178,9 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         goBattle(id);
       } catch (e: unknown) {
         const msg =
-          toErrorMessage(e, "Could not accept");
+          e && typeof e === "object" && "message" in e
+            ? String((e as { message: string }).message)
+            : "Could not accept";
         toast({ title: msg, variant: "destructive" });
       } finally {
         setBusy(false);
@@ -2500,7 +2196,9 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         goBattle(id);
       } catch (e: unknown) {
         const msg =
-          toErrorMessage(e, "Could not join battle");
+          e && typeof e === "object" && "message" in e
+            ? String((e as { message: string }).message)
+            : "Could not join battle";
         toast({ title: msg, variant: "destructive" });
       } finally {
         setBusy(false);
@@ -2508,48 +2206,6 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       return;
     }
     goBattle(id);
-  }
-
-  async function handleFeatured(kind: FeaturedKind, battleId?: string) {
-    if (!academicReady) {
-      toast({ title: "Academic context is still loading", variant: "destructive" });
-      return;
-    }
-    setBusy(true);
-    try {
-      // Period-scoped + beat_topper: always ensure current instance.
-      // Never trust a stale card battleId (yesterday/last-week still live).
-      if (kind === "daily" || kind === "weekly" || kind === "ncert" || kind === "beat_topper") {
-        const id = await ensureFeatured(kind);
-        void data.reload();
-        goBattle(id);
-        return;
-      }
-      // Teacher: prefer listed live battle when already joined / joinable
-      if (battleId && data.battles.find((b) => b.id === battleId)?.participantId) {
-        goBattle(battleId);
-        return;
-      }
-      if (battleId) {
-        try {
-          await joinBattleById(battleId);
-          void data.reload();
-          goBattle(battleId);
-          return;
-        } catch {
-          /* fall through to ensureFeatured */
-        }
-      }
-      const id = await ensureFeatured(kind);
-      void data.reload();
-      goBattle(id);
-    } catch (e: unknown) {
-      const msg =
-        toErrorMessage(e, "Featured battle unavailable");
-      toast({ title: msg, variant: "destructive" });
-    } finally {
-      setBusy(false);
-    }
   }
 
   const classLabel =
@@ -2567,10 +2223,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          // Was a hardcoded dark-navy bar left over from the pre-light-theme design.
-          // The portal's light-theme rules colour this header's text dark, so the
-          // navy left "Battleground" and its icons at ~1.2:1 against their own bar.
-          background: "hsl(var(--card) / 0.85)",
+          background: "rgba(11,15,26,0.85)",
           backdropFilter: "blur(12px)",
         }}
       >
@@ -2666,16 +2319,12 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
             />
           ) : (
             <>
-              <HeroSection me={me} onPlayDaily={() => void handleFeatured("daily")} busy={busy} />
+              <HeroSection me={me} busy={busy} />
               <QuickActions
                 onCreate={() => setPhase("create")}
                 onJoin={() => setShowJoin(true)}
-                onDaily={() => void handleFeatured("daily")}
-                onWeekly={() => void handleFeatured("weekly")}
                 busy={busy}
-                dailyXpLabel={me.dailyXpLabel}
               />
-              <FeaturedBattles liveFeatured={featuredLive} onLaunch={(k, id) => void handleFeatured(k, id)} busy={busy} />
 
               <div
                 style={{

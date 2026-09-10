@@ -61,17 +61,9 @@ function RevItemCard({
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-bold hover:bg-violet-500/30 transition-all">
           <Play className="w-3 h-3"/> Practice topic
         </button>
-        <Link to="/student/aicoach"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted border border-border text-violet-500 text-xs font-semibold hover:bg-secondary transition-all">
-          <Brain className="w-3 h-3"/> Ask Nova
-        </Link>
-        <Link to="/student/recovery"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 transition-all">
-          <RefreshCw className="w-3 h-3"/> Recovery
-        </Link>
         <button onClick={onComplete} disabled={completing}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/20 transition-all disabled:opacity-50">
-          <CheckCircle2 className="w-3 h-3"/> {completing ? "Saving…" : "Mark done"}
+          <CheckCircle2 className="w-3 h-3"/> {completing ? "Savingâ€¦" : "Mark done"}
         </button>
       </div>
     </GlassCard>
@@ -79,9 +71,9 @@ function RevItemCard({
 }
 
 function RevisionSession({ item, onBack }: { item: RevItem; onBack: () => void }) {
-  const chapter = item.chapter !== "—" ? item.chapter : item.concept;
+  const chapter = item.chapter !== "â€”" ? item.chapter : item.concept;
   const practiceQs = new URLSearchParams();
-  if (chapter && chapter !== "—") practiceQs.set("chapter", chapter);
+  if (chapter && chapter !== "â€”") practiceQs.set("chapter", chapter);
   if (item.subject) practiceQs.set("subject", item.subject);
   return (
     <div className="space-y-5">
@@ -89,7 +81,7 @@ function RevisionSession({ item, onBack }: { item: RevItem; onBack: () => void }
         <RotateCcw className="w-8 h-8 text-violet-400 mx-auto mb-3"/>
         <p className="text-sm font-semibold text-foreground mb-1">Revise {displayConcept(item.concept)}</p>
         <p className="text-xs text-muted-foreground mb-4">
-          Revision uses live Practice, Recovery, or Nova — there is no separate question bank for this hub.
+          Revision uses live Practice, Recovery, or Nova â€” there is no separate question bank for this hub.
         </p>
         <div className="flex flex-wrap justify-center gap-2">
           <Link
@@ -97,18 +89,6 @@ function RevisionSession({ item, onBack }: { item: RevItem; onBack: () => void }
             className="px-4 py-2 rounded-xl bg-violet-500/20 border border-violet-500/30 text-violet-300 text-sm font-semibold hover:bg-violet-500/30 transition-all"
           >
             <BookOpen className="w-3.5 h-3.5 inline mr-1.5"/> Practice
-          </Link>
-          <Link
-            to="/student/recovery"
-            className="px-4 py-2 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-300 text-sm font-semibold"
-          >
-            Recovery
-          </Link>
-          <Link
-            to="/student/aicoach"
-            className="px-4 py-2 rounded-xl bg-muted border border-border text-violet-500 text-sm font-semibold"
-          >
-            Ask Nova
           </Link>
           <button onClick={onBack}
             className="px-4 py-2 rounded-xl bg-muted border border-border text-muted-foreground text-sm font-semibold hover:bg-secondary transition-all">
@@ -141,7 +121,7 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
           </div>
         </div>
         <div className="text-lg font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>{displayConcept(item.concept)}</div>
-        <p className="text-sm text-muted-foreground">{passed ? "Solid revision — this concept is strengthening." : "Need more practice. Consider a recovery session."}</p>
+        <p className="text-sm text-muted-foreground">{passed ? "Solid revision â€” this concept is strengthening." : "Need more practice. Consider a recovery session."}</p>
       </GlassCard>
       <div className="space-y-2">
         {!passed && (
@@ -180,7 +160,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
     ],
     [REVISION_ITEMS],
   );
-  // Study streak SSOT: Progression via shell (same as Home) — not raw snapshot xp.
+  // Study streak SSOT: Progression via shell (same as Home) â€” not raw snapshot xp.
   const streak = student.streak;
 
   async function markComplete(item: RevItem) {
@@ -200,9 +180,9 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   }
 
   function openPractice(item: RevItem) {
-    const chapter = item.chapter !== "—" ? item.chapter : item.concept;
+    const chapter = item.chapter !== "â€”" ? item.chapter : item.concept;
     const qs = new URLSearchParams();
-    if (chapter && chapter !== "—") qs.set("chapter", chapter);
+    if (chapter && chapter !== "â€”") qs.set("chapter", chapter);
     if (item.subject) qs.set("subject", item.subject);
     navigate(`/student/practice?${qs.toString()}`);
   }
@@ -281,91 +261,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label:"Due Now",   value:dueNow,     color:"#cc5069", icon:<Zap className="w-4 h-4"/> },
-          { label:"Upcoming",  value:upcoming,   color:"#c08a3a", icon:<Calendar className="w-4 h-4"/> },
-          { label:"In Queue",  value:REVISION_ITEMS.length, color:"#6882e8", icon:<Layers className="w-4 h-4"/> },
-        ].map(s => (
-          <GlassCard key={s.label} className="p-4">
-            <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
-            </div>
-            <div className="text-2xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-          </GlassCard>
-        ))}
-      </div>
-
-      {/* Quick actions */}
-      <div className="grid sm:grid-cols-3 gap-3">
-        <div
-          className="p-4 rounded-2xl border border-border/70 bg-muted/30 text-left opacity-60"
-          title="Flashcards — coming soon"
-        >
-          <Layers className="w-5 h-5 text-muted-foreground mb-2"/>
-          <div className="text-sm font-bold text-foreground">Flashcards</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Coming soon</div>
-        </div>
-        <button
-          type="button"
-          disabled={dueNow === 0}
-          onClick={() => {
-          const due = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today")[0];
-          if (due) openPractice(due);
-          else toast.message("No items due — open any queue card to practice.");
-        }}
-          className="p-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 transition-all text-left group disabled:opacity-50 disabled:pointer-events-none">
-          <Zap className="w-5 h-5 text-violet-400 mb-2 group-hover:scale-110 transition-transform"/>
-          <div className="text-sm font-bold text-foreground">Quick Revision</div>
-          <div className="text-xs text-muted-foreground mt-0.5">
-            {dueNow > 0
-              ? `Opens first of ${dueNow} due item${dueNow === 1 ? "" : "s"} in Practice`
-              : "No items due"}
-          </div>
-        </button>
-        <div
-          className="p-4 rounded-2xl border border-border/70 bg-muted/30 text-left opacity-60"
-          title="Revision notes — coming soon"
-        >
-          <FileText className="w-5 h-5 text-muted-foreground mb-2"/>
-          <div className="text-sm font-bold text-foreground">My Notes</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Coming soon</div>
-        </div>
-      </div>
-
-      {/* AI Schedule */}
-      <GlassCard className="p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
-            <Brain className="w-4 h-4 text-violet-400"/>
-          </div>
-          <div>
-            <div className="text-sm font-bold text-foreground">AI Revision Schedule</div>
-            <div className="text-[11px] text-muted-foreground">From your live revision queue</div>
-          </div>
-        </div>
-        <div className="space-y-4">
-          {AI_SCHEDULE.filter(s => s.items.length > 0).length === 0 ? (
-            <p className="text-xs text-muted-foreground">No items due — your revision queue is empty.</p>
-          ) : (
-            AI_SCHEDULE.filter(s => s.items.length > 0).map(slot => (
-            <div key={slot.time}>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{slot.time}</div>
-              <div className="flex flex-wrap gap-2">
-                {slot.items.map(item => (
-                  <button key={item.id} onClick={() => openPractice(item)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-semibold hover:bg-violet-500/20 transition-all">
-                    <RotateCcw className="w-3 h-3"/> {displayConcept(item.concept)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))
-          )}
-        </div>
-      </GlassCard>
-
+      
       {/* Filter tabs */}
       <div>
         <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -416,7 +312,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
             </div>
             <div className="text-xs text-muted-foreground mb-2">
               {streak > 0
-                ? "From your XP profile — keep practicing and revising to maintain it."
+                ? "From your XP profile â€” keep practicing and revising to maintain it."
                 : "Revise items from your queue to build a streak."}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -433,7 +329,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           Revision History
         </div>
         <GlassCard className="p-6 text-center">
-          <p className="text-xs text-muted-foreground">Revision history is not stored yet — completed items leave the queue above.</p>
+          <p className="text-xs text-muted-foreground">Revision history is not stored yet â€” completed items leave the queue above.</p>
         </GlassCard>
       </div>
     </div>

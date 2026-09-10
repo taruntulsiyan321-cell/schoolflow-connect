@@ -42,7 +42,7 @@ export default function LearningHub({ setPage }: Props) {
   const unresolvedErrors = snapshot?.mistake_count ?? 0;
 
   const chartSubjects = charts?.subjects ?? [];
-  // Same SSOT as Home/Practice/Analysis/Nova/Battleground — shell profile (snapshot accuracy).
+  // Same SSOT as Home/Practice/Analysis/Nova/Battleground â€” shell profile (snapshot accuracy).
   const overallAccuracy = Math.round(student.accuracy);
 
   const accuracyTrend = useMemo(() => {
@@ -53,7 +53,7 @@ export default function LearningHub({ setPage }: Props) {
         score: Math.round(p.score_pct),
       }));
     }
-    // No practice_trend — do not invent a flat overall-accuracy line on activity days.
+    // No practice_trend â€” do not invent a flat overall-accuracy line on activity days.
     return [] as { week: string; score: number }[];
   }, [charts?.practice_trend]);
 
@@ -112,7 +112,7 @@ export default function LearningHub({ setPage }: Props) {
       {
         key: "mistakebook" as PageKey,
         label: "Mistake Book",
-        sub: "A log of every error — your growth blueprint",
+        sub: "A log of every error â€” your growth blueprint",
         icon: <AlertCircle className="w-6 h-6"/>,
         color: "#c08a3a",
         glow: "shadow-[0_0_32px_rgba(245,158,11,0.07)]",
@@ -146,7 +146,7 @@ export default function LearningHub({ setPage }: Props) {
   if (loading && !snapshot && !charts) {
     return (
       <div className="flex items-center justify-center py-24 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading learning hub…
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading learning hubâ€¦
       </div>
     );
   }
@@ -173,7 +173,7 @@ export default function LearningHub({ setPage }: Props) {
           Learning
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Practice → Analyse → Recover → Revise. Your complete growth loop.
+          Practice â†’ Analyse â†’ Recover â†’ Revise. Your complete growth loop.
         </p>
       </div>
 
@@ -218,77 +218,6 @@ export default function LearningHub({ setPage }: Props) {
         ))}
       </div>
 
-      {/* Accuracy trend + subject breakdown side by side */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        {/* Trend */}
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-1 h-4 rounded-full bg-[#4b9fd4]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Accuracy Trend</span>
-          </div>
-          <div className="flex items-baseline gap-2 mb-4">
-            <span className="text-2xl font-black text-foreground">{latestScore}%</span>
-            {accuracyTrend.length >= 2 && (
-              <span className={cn(
-                "flex items-center gap-1 text-xs font-semibold",
-                trendDelta >= 0 ? "text-emerald-400" : "text-destructive",
-              )}>
-                <TrendingUp className={cn("w-3.5 h-3.5", trendDelta < 0 && "rotate-180")}/>
-                {trendDelta >= 0 ? "+" : ""}{trendDelta}% since start
-              </span>
-            )}
-          </div>
-          {accuracyTrend.length > 0 ? (
-            <div className="h-32">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={accuracyTrend}>
-                  <XAxis dataKey="week" tick={{fill:"hsl(var(--muted-foreground))",fontSize:10}} axisLine={false} tickLine={false}/>
-                  <Tooltip contentStyle={{background:"#131316",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,fontSize:12}}/>
-                  <Line type="monotone" dataKey="score" name="Accuracy" stroke="#4b9fd4" strokeWidth={2.5}
-                    isAnimationActive={false} dot={{r:3,fill:"#4b9fd4",strokeWidth:0}} activeDot={{r:5}}/>
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">No trend data yet — practice to build your chart.</p>
-          )}
-        </GlassCard>
-
-        {/* Subject mastery rings */}
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 rounded-full bg-[#3b5bdb]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Subject Accuracy</span>
-          </div>
-          {subjects.length > 0 ? (
-            <div className="space-y-3">
-              {subjects.map(s => (
-                <div key={s.id} className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{background:`${s.color}15`,color:s.color}}>{s.icon}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-xs font-semibold text-foreground">{s.name}</span>
-                      <span className="text-xs font-black tabular-nums" style={{color:s.color}}>{s.accuracy}%</span>
-                    </div>
-                    <ProgressBar value={s.accuracy} color={s.color} height="h-1.5"/>
-                  </div>
-                  {s.trend !== 0 && (
-                    <div className="flex items-center gap-1 text-[10px] shrink-0"
-                      style={{color:s.trend>=0?"#4aa87a":"#cc5069"}}>
-                      <TrendingUp className={cn("w-3 h-3", s.trend<0&&"rotate-180")}/>
-                      {s.trend>0?"+":""}{s.trend}%
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">No subject data yet.</p>
-          )}
-        </GlassCard>
-      </div>
-
       {/* Learning loop reminder */}
       <GlassCard className="p-5 border-dashed border-border">
         <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
@@ -306,7 +235,7 @@ export default function LearningHub({ setPage }: Props) {
                 {step.active && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{background:step.color}}/>}
                 {step.label}
               </span>
-              {i < arr.length-1 && <span className="text-muted-foreground/30">→</span>}
+              {i < arr.length-1 && <span className="text-muted-foreground/30">â†’</span>}
             </span>
           ))}
         </div>
