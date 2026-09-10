@@ -2414,3 +2414,37 @@ click was silently skipped and the paper submitted empty. That is how a run
 recorded `answers_saved = 0` while reporting green. It now waits for the option
 to be visible, so "no options" and "no options YET" are no longer the same
 answer.
+
+---
+
+## Edge function deploy pipeline is broken
+
+**Found:** 2026-09-10
+
+The GitHub Actions workflow `deploy-edge-functions.yml` has failed on the last
+3 runs (#61, #62, #63), most recently on 2026-09-06. CI-based edge function
+deploys do not work; every function currently in production was deployed
+manually via `supabase functions deploy`.
+
+Not being fixed now — noted for awareness.
+
+---
+
+## Main is a deploy branch — no agent pushes
+
+**Found:** 2026-09-10
+
+Main deploys Supabase edge functions on push when `supabase/functions/**`
+changes (`.github/workflows/deploy-edge-functions.yml`). This makes it
+production infrastructure.
+
+- Main forked from the live branch at `2b0cd6b`
+- Live branch: `claude/gurukul-tier1-e2e-fixes-c0b3c3`, tip `3fdc65b`
+- Main tip: `6947db5`
+
+V2 student panel work was cherry-picked from main onto the live branch on
+2026-09-10 (6 commits). Main is not the source of truth for app code.
+
+**Rule:** No agent pushes to main. Merges to main are deliberate releases,
+ruled on each time. Pushing a stale tree to main can roll back production
+edge functions.
