@@ -51,6 +51,7 @@ import {
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { toErrorMessage } from "@/lib/presentation";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
+import { pluralise } from "@/lib/plural";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "hsl(var(--primary))",
@@ -438,7 +439,7 @@ export default function Analysis() {
     }
     if (overview.totalQuestions >= 100) {
       items.push({
-        title: `${overview.totalQuestions} questions solved`,
+        title: `${pluralise(overview.totalQuestions, "question")} solved`,
         desc: "Total practice questions attempted so far.",
         date: "Recent",
         icon: "📚",
@@ -839,7 +840,7 @@ export default function Analysis() {
                           shown for every subject, high and low alike. */}
                       {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{s.questions} questions{s.timeHrs > 0 ? ` · ${s.timeHrs}h study time` : ""}{s.rankInClass > 0 ? ` · Rank #${s.rankInClass}` : ""}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{pluralise(s.questions, "question")}{s.timeHrs > 0 ? ` · ${s.timeHrs}h study time` : ""}{s.rankInClass > 0 ? ` · Rank #${s.rankInClass}` : ""}</div>
                     <div className="h-1 rounded-full bg-muted mt-2 overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
                     </div>
@@ -949,7 +950,7 @@ export default function Analysis() {
                     <AlertCircle className="w-4 h-4 text-warning shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}{t.practiceCount > 0 ? ` · ${t.practiceCount} questions done` : ""}</div>
+                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}{t.practiceCount > 0 ? ` · ${pluralise(t.practiceCount, "question")} done` : ""}</div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-black text-warning">{t.score}%</div>
@@ -1080,7 +1081,7 @@ export default function Analysis() {
               {[
                 { label: "Done today",        value: practiceStats.todayTarget > 0 ? `${practiceStats.todayDone}/${practiceStats.todayTarget}` : `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
                 { label: "Done this week",    value: practiceStats.weekTarget > 0 ? `${practiceStats.weekDone}/${practiceStats.weekTarget}` : `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
-                { label: "Practice streak",   value: `${practiceStats.streakDays} days`,                        color: "hsl(var(--warning))" },
+                { label: "Practice streak",   value: pluralise(practiceStats.streakDays, "day"),                        color: "hsl(var(--warning))" },
                 { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "hsl(var(--success))" },
               ].map((s) => <Metric key={s.label} label={s.label} value={s.value} color={s.color} />)}
             </div>
@@ -1187,7 +1188,7 @@ export default function Analysis() {
                       const intensity = cell.value / 50;
                       const bg = cell.value === 0 ? "hsl(var(--muted))" : withAlpha("hsl(var(--primary))", 0.08 + intensity * 0.92);
                       return (
-                        <div key={cell.day} title={`${cell.value} questions`}
+                        <div key={cell.day} title={pluralise(cell.value, "question")}
                           className="flex-1 h-8 rounded-lg transition-all hover:scale-110 cursor-default"
                           style={{ background: bg }} />
                       );

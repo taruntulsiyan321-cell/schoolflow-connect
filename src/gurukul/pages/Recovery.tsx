@@ -16,6 +16,7 @@ import {
   Brain, BookOpen, Clock, Target, Search, Filter,
   RotateCcw, TrendingUp, History, Play, SkipForward,
 } from "lucide-react";
+import { pluralise } from "@/lib/plural";
 
 type Priority = "high" | "medium" | "low";
 
@@ -51,7 +52,7 @@ function formatRelativeDate(iso: string): string {
     const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
     if (diffDays <= 0) return "Today";
     if (diffDays === 1) return "1 day ago";
-    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 7) return `${pluralise(diffDays, "day")} ago`;
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
     return "—";
@@ -183,7 +184,7 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
           <div className="flex items-center gap-2 shrink-0">
             <div className="text-right">
               <div className="text-lg font-black tabular-nums" style={{color:m.color}}>{topic.accuracyPct}%</div>
-              <div className="text-[10px] text-muted-foreground">{topic.attempts} mistakes</div>
+              <div className="text-[10px] text-muted-foreground">{pluralise(topic.attempts, "mistake")}</div>
             </div>
           </div>
         </div>
@@ -322,7 +323,7 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
       TOPICS.filter((t) => t.priority === "high")
         .slice(0, 3)
         .map((t) => ({
-          task: `Complete ${displayConcept(t.concept)} recovery (${t.pendingQs || 0} questions)`,
+          task: `Complete ${displayConcept(t.concept)} recovery (${pluralise(t.pendingQs || 0, "question")})`,
           subject: t.subject,
           time: t.pendingQs > 0 ? `${Math.max(10, t.pendingQs * 2)} min` : "—",
           priority: t.priority as Priority,
@@ -548,7 +549,7 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-foreground">{t.title}</div>
-                  <div className="text-[11px] text-muted-foreground">{t.teacher} · Due {t.due} · {t.qs} questions</div>
+                  <div className="text-[11px] text-muted-foreground">{t.teacher} · Due {t.due} · {pluralise(t.qs, "question")}</div>
                 </div>
                 <button className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs font-bold transition-all">
                   <Play className="w-3 h-3"/> Start

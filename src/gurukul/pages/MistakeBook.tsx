@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
+import { pluralise } from "@/lib/plural";
 
 type MBView = "list" | "practice" | "results";
 
@@ -385,7 +386,7 @@ function MistakePractice({
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-[0.15em] text-rose-400">Mistake Practice</div>
-          <div className="text-sm font-bold text-foreground">{questions.length} mistakes to work through</div>
+          <div className="text-sm font-bold text-foreground">{pluralise(questions.length, "mistake")} to work through</div>
         </div>
       </div>
 

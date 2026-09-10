@@ -145,7 +145,7 @@ export default function Leaderboard() {
       </div>
 
       <GlassCard className="p-5">
-        <SectionLabel>Class XP · Progression Engine</SectionLabel>
+        <SectionLabel>Class XP</SectionLabel>
         {ranked.length === 0 && (
           <div className="text-xs text-muted-foreground py-8 text-center">
             No class XP rankings yet. Earn XP from practice, homework, and battles to appear here.

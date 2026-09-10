@@ -142,7 +142,7 @@ export default function Calendar() {
         if (settled.every((s) => s.status === "rejected")) {
           toast({
             title: "Could not load calendar",
-            description: "Showing an empty calendar until Academic Engine responds.",
+            description: "Showing an empty calendar until your school data loads.",
             variant: "destructive",
           });
         }

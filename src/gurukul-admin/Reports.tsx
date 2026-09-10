@@ -34,8 +34,8 @@ interface ReportDef {
 }
 
 const REPORTS: ReportDef[] = [
-  { key: "school-attendance", label: "Overall School Attendance", description: "From AnalyticsService / AcademicProfileService", category: "academic", icon: <Globe className="w-4 h-4" />, color: "#3b5bdb" },
-  { key: "class-attendance", label: "Class-wise Attendance", description: "Day summary via AttendanceService", category: "academic", icon: <GraduationCap className="w-4 h-4" />, color: "#4b9fd4" },
+  { key: "school-attendance", label: "Overall School Attendance", description: "Attendance across the whole school", category: "academic", icon: <Globe className="w-4 h-4" />, color: "#3b5bdb" },
+  { key: "class-attendance", label: "Class-wise Attendance", description: "Attendance for one class on one day", category: "academic", icon: <GraduationCap className="w-4 h-4" />, color: "#4b9fd4" },
   { key: "student-attendance", label: "Student Attendance", description: "Per-student profile attendance %", category: "academic", icon: <Users className="w-4 h-4" />, color: "#6882e8" },
   { key: "teacher-attendance", label: "Teacher Attendance", description: "Account directory (non-academic)", category: "academic", icon: <UserCheck className="w-4 h-4" />, color: "#4aa87a" },
   { key: "students-no-account", label: "Students Without Login Accounts", description: "Students who have not been assigned login credentials", category: "account", icon: <XCircle className="w-4 h-4" />, color: "#cc5069" },

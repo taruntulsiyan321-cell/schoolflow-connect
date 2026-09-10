@@ -157,7 +157,7 @@ export function PrincipalSchoolOverview({ onDrillDown }: { onDrillDown?: (metric
     });
   }, [school, ctx?.schoolId]);
 
-  if (loading) return <Loading label="Loading school overview (Academic Engine)…" />;
+  if (loading) return <Loading label="Loading school overview…" />;
   if (error) return <ErrorNote message={error} />;
   if (!school) return <Empty message="No school analytics available yet." />;
 

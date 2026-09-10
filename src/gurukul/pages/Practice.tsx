@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toErrorMessage } from "@/lib/presentation";
 import { ACCURACY_PROCEDURAL, ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
+import { pluralise } from "@/lib/plural";
 
 const CLASS_UNRESOLVED_MSG =
   "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
@@ -791,7 +792,7 @@ function ConfigView({
                       qCount === n ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                     )}
                     style={qCount === n ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {}}>
-                    {n} questions
+                    {pluralise(n, "question")}
                   </button>
                 ))}
               </div>

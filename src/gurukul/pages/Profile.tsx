@@ -230,7 +230,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         </div>
         <div className="text-xs text-muted-foreground">
           {classRank != null
-            ? `Your class XP rank is #${classRank} (Progression Engine).`
+            ? `Your class XP rank is #${classRank}.`
             : "Class XP rankings load from ProgressionService on the Rankings page."}
         </div>
       </GlassCard>

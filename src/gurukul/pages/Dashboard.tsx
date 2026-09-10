@@ -17,6 +17,7 @@ import { getBadge } from "@/lib/badges";
 import { dedupeSubjectChartPoints } from "@/lib/qualityGuards";
 import { displaySubject } from "@/lib/academicDisplay";
 import { toEnumLabel } from "@/lib/presentation";
+import { pluralise } from "@/lib/plural";
 
 const SUBJECT_COLOR_VARS: Record<string, string> = {
   Mathematics: "var(--primary)",
@@ -430,7 +431,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                   )}
                 </div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-muted-foreground">{s.attempts} attempts</span>
+                  <span className="text-xs text-muted-foreground">{pluralise(s.attempts, "attempt")}</span>
                   <span className="text-sm font-black tabular-nums" style={{ color: `hsl(${s.color})` }}>{s.accuracy}%</span>
                 </div>
                 <ProgressBar value={s.accuracy} color={s.color} />

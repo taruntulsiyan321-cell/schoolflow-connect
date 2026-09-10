@@ -1,10 +1,10 @@
 ﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
-import { GlassCard, ProgressBar, cn } from "@/gurukul/components/shared";
+import { GlassCard, cn } from "@/gurukul/components/shared";
 import {
   Clock, Calendar, CalendarDays, ClipboardList, FlaskConical,
-  MessageCircle, Trophy, Medal, ArrowRight, Library, Loader2,
+  MessageCircle, Trophy, ArrowRight, Library, Loader2,
   Bell, MessageSquare,
 } from "lucide-react";
 import {
@@ -39,37 +39,6 @@ type HubTile =
       color: string;
       badge: string;
     };
-
-function MiniRing({ pct, color }: { pct: number; color: string }) {
-  const size = 52;
-  const stroke = 5;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c - (pct / 100) * c;
-  return (
-    <div className="relative inline-flex" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[11px] font-black tabular-nums" style={{ color }}>
-          {pct}%
-        </span>
-      </div>
-    </div>
-  );
-}
 
 /**
  * Class Hub — Academic Engine for attendance / homework / exams / tests.
@@ -120,7 +89,7 @@ export default function ClassHub({ setPage }: Props) {
         if (settled.every((s) => s.status === "rejected")) {
           toast({
             title: "Could not load class stats",
-            description: "Showing zeros until Academic Engine responds.",
+            description: "Showing zeros until your class data loads.",
             variant: "destructive",
           });
         }
@@ -169,7 +138,7 @@ export default function ClassHub({ setPage }: Props) {
       kind: "page",
       key: "attendance",
       label: "Attendance",
-      sub: "Track your presence via Academic Engine",
+      sub: "Your day-by-day attendance record",
       icon: <CalendarDays className="w-6 h-6" />,
       color: "#4aa87a",
       badge: `${attPct}% overall`,
@@ -178,7 +147,7 @@ export default function ClassHub({ setPage }: Props) {
       kind: "page",
       key: "assignments",
       label: "Homework",
-      sub: "Assignments from HomeworkService",
+      sub: "Homework your teachers have set",
       icon: <ClipboardList className="w-6 h-6" />,
       color: "#c08a3a",
       badge: `${hwPending} pending`,
@@ -187,7 +156,7 @@ export default function ClassHub({ setPage }: Props) {
       kind: "page",
       key: "tests",
       label: "Tests",
-      sub: "Exam averages from AnalyticsService",
+      sub: "Your marks from class tests and exams",
       icon: <FlaskConical className="w-6 h-6" />,
       color: "#6882e8",
       badge: `${examAvg}% exam avg`,
@@ -223,19 +192,10 @@ export default function ClassHub({ setPage }: Props) {
       kind: "page",
       key: "leaderboard",
       label: "Rankings",
-      sub: "Class XP from Progression Engine",
+      sub: "Where you stand in your class",
       icon: <Trophy className="w-6 h-6" />,
       color: "#c08a3a",
       badge: "Live rankings",
-    },
-    {
-      kind: "page",
-      key: "achievements",
-      label: "Achievements",
-      sub: "Milestones unlocked through learning",
-      icon: <Medal className="w-6 h-6" />,
-      color: "#c08a3a",
-      badge: "View",
     },
     {
       kind: "page",
@@ -272,7 +232,7 @@ export default function ClassHub({ setPage }: Props) {
           Class
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Academic stats from the Academic Engine — schedule & resources are navigation only.
+          Your attendance, homework and marks, and everything your class shares.
         </p>
       </div>
 
@@ -318,47 +278,6 @@ export default function ClassHub({ setPage }: Props) {
             </div>
           </button>
         ))}
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4">
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 rounded-full bg-[#4aa87a]" />
-            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Attendance</span>
-            <button
-              onClick={() => setPage("attendance")}
-              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-primary transition-colors"
-            >
-              View →
-            </button>
-          </div>
-          <div className="flex items-center gap-3 mb-4">
-            <MiniRing pct={attPct} color="#4aa87a" />
-            <div>
-              <div className="text-xl font-black text-foreground">{attPct}%</div>
-              <div className="text-[11px] text-muted-foreground">AcademicProfileService</div>
-            </div>
-          </div>
-          <ProgressBar value={attPct} color="#4aa87a" height="h-1.5" />
-        </GlassCard>
-
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 rounded-full bg-[#c08a3a]" />
-            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Homework</span>
-            <button
-              onClick={() => setPage("assignments")}
-              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-primary transition-colors"
-            >
-              View →
-            </button>
-          </div>
-          <div className={cn("text-xl font-black text-foreground mb-1")}>
-            {hwPending} / {hwTotal} pending
-          </div>
-          <div className="text-[11px] text-muted-foreground mb-3">HomeworkService · {hwPct}% completion</div>
-          <ProgressBar value={hwPct} color="#c08a3a" height="h-1.5" />
-        </GlassCard>
       </div>
     </div>
   );

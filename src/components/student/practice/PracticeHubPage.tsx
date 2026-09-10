@@ -32,6 +32,7 @@ import { useAcademicContext, PracticeService, WEAK_CONCEPT_THRESHOLD } from "@/a
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import { resolvePracticeSessionStats } from "@/lib/practiceSessionStats";
 import { toDisplayText } from "@/lib/presentation";
+import { pluralise } from "@/lib/plural";
 
 /* Mode chrome only — not academic stats */
 const PRACTICE_MODES = [
@@ -667,7 +668,7 @@ function TopicCard({
             {mastery}% mastery
           </span>
           {questions > 0 && (
-            <span className="text-muted-foreground">{questions} attempts tracked</span>
+            <span className="text-muted-foreground">{pluralise(questions, "attempt")} tracked</span>
           )}
         </div>
       </div>

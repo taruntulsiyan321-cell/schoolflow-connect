@@ -12,6 +12,7 @@ import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/s
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds";
 import { ATTENDANCE_COMFORTABLE } from "@/academic/metrics/bands";
+import { pluralise } from "@/lib/plural";
 
 /**
  * How many calendar months the "Recent attendance" card shows, newest first.
@@ -154,7 +155,7 @@ export default function Attendance() {
             {pct}%
           </div>
           <div className="text-xs text-muted-foreground mt-1">
-            {present} present-equivalent · {total} days marked
+            {present} present-equivalent · {pluralise(total, "day")} marked
           </div>
         </div>
       </GlassCard>

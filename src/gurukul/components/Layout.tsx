@@ -10,63 +10,39 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { MessageService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn, XPBar, EASE_OUT, springSnappy, springSoft } from "./shared";
-import { withAlpha } from "@/lib/colorAlpha";
 import {
-  Home, BookOpen, Brain, Swords, Library,
-  BarChart2, RefreshCw, RotateCcw, AlertCircle,
-  Trophy, Medal, MessageCircle, ClipboardList, CalendarDays,
-  ChevronLeft, ChevronRight, ChevronDown, Flame, Zap, Bell, Menu, X,
-  FlaskConical, Calendar, Clock, GraduationCap, Settings, LogOut,
-  User, BarChart, Wallet, Megaphone,
+  Home, BookOpen, Brain, Swords,
+  ChevronLeft, ChevronRight, Flame, Zap, Bell, Menu, X,
+  FlaskConical, GraduationCap, Settings, LogOut,
+  User, Wallet, Megaphone,
 } from "lucide-react";
 import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 
 type NavItem  = { key: PageKey; label: string; icon: ReactNode };
-type NavEntry =
-  | { type: "link";  key: PageKey; label: string; icon: ReactNode }
-  | { type: "group"; hubKey: PageKey; label: string; icon: ReactNode; color: string; items: NavItem[] };
+type NavEntry = { key: PageKey; label: string; icon: ReactNode };
 
-// ── Sidebar nav — no Profile, no Resources as standalone ─────────────────────
+// ── Sidebar nav — a FLAT list. No expanding submenus (v2 redesign, G3) ───────
+//
+// Learning and Class used to expand a submenu of four and nine children. Both
+// hub pages already render every one of those destinations as a card, so the
+// submenu duplicated the page it linked to and made the sidebar the tallest
+// thing on screen. Clicking a nav item now opens its page, and nothing else.
+//
+// Chat is cut from v1. Its route still exists — this removes the way in, not
+// the screen.
 const sidebarNav: NavEntry[] = [
-  { type:"link", key:"dashboard",    label:"Home",         icon:<Home className="w-4 h-4"/> },
-  { type:"link", key:"practice",     label:"Practice",     icon:<BookOpen className="w-4 h-4"/> },
-  { type:"link", key:"aicoach",      label:"AI Coach",     icon:<Brain className="w-4 h-4"/> },
-  { type:"link", key:"battleground", label:"Battleground", icon:<Swords className="w-4 h-4"/> },
-  { type:"link", key:"chat",         label:"Chat",         icon:<MessageCircle className="w-4 h-4"/> },
-
-  {
-    type:"group", hubKey:"learninghub", label:"Learning", color:"hsl(var(--primary))",
-    icon:<GraduationCap className="w-4 h-4"/>,
-    items:[
-      { key:"analysis",       label:"Analysis",     icon:<BarChart2 className="w-3.5 h-3.5"/> },
-      { key:"recovery",       label:"Recovery",     icon:<RefreshCw className="w-3.5 h-3.5"/> },
-      { key:"revision",       label:"Revision",     icon:<RotateCcw className="w-3.5 h-3.5"/> },
-      { key:"mistakebook",    label:"Mistake Book", icon:<AlertCircle className="w-3.5 h-3.5"/> },
-    ],
-  },
-
-  {
-    type:"group", hubKey:"classhub", label:"Class", color:"hsl(var(--success))",
-    icon:<FlaskConical className="w-4 h-4"/>,
-    items:[
-      { key:"timetable",   label:"Timetable",   icon:<Clock className="w-3.5 h-3.5"/> },
-      { key:"calendar",    label:"Calendar",    icon:<Calendar className="w-3.5 h-3.5"/> },
-      { key:"attendance",  label:"Attendance",  icon:<CalendarDays className="w-3.5 h-3.5"/> },
-      { key:"assignments", label:"Homework",    icon:<ClipboardList className="w-3.5 h-3.5"/> },
-      { key:"tests",       label:"Tests",       icon:<FlaskConical className="w-3.5 h-3.5"/> },
-      { key:"doubtportal", label:"Doubts",      icon:<MessageCircle className="w-3.5 h-3.5"/> },
-      { key:"leaderboard", label:"Rankings",    icon:<Trophy className="w-3.5 h-3.5"/> },
-      { key:"achievements",label:"Achievements",icon:<Medal className="w-3.5 h-3.5"/> },
-      { key:"resources",   label:"Resources",   icon:<Library className="w-3.5 h-3.5"/> },
-    ],
-  },
+  { key:"dashboard",    label:"Home",         icon:<Home className="w-4 h-4"/> },
+  { key:"practice",     label:"Practice",     icon:<BookOpen className="w-4 h-4"/> },
+  { key:"aicoach",      label:"AI Coach",     icon:<Brain className="w-4 h-4"/> },
+  { key:"battleground", label:"Battleground", icon:<Swords className="w-4 h-4"/> },
+  { key:"learninghub",  label:"Learning",     icon:<GraduationCap className="w-4 h-4"/> },
+  { key:"classhub",     label:"Class",        icon:<FlaskConical className="w-4 h-4"/> },
 ];
 
-// ── Mobile bottom nav — 4 tabs, no Profile ────────────────────────────────────
+// ── Mobile bottom nav — 4 tabs ───────────────────────────────────────────────
 const bottomNav: NavItem[] = [
   { key:"dashboard",   label:"Home",     icon:<Home className="w-5 h-5"/> },
   { key:"practice",    label:"Practice", icon:<BookOpen className="w-5 h-5"/> },
-  { key:"chat",        label:"Chat",     icon:<MessageCircle className="w-5 h-5"/> },
   { key:"learninghub", label:"Learning", icon:<GraduationCap className="w-5 h-5"/> },
   { key:"classhub",    label:"Class",    icon:<FlaskConical className="w-5 h-5"/> },
 ];
@@ -86,11 +62,12 @@ const pageTitle: Record<PageKey, string> = {
 };
 
 // ── Profile dropdown menu items ───────────────────────────────────────────────
+// Leaderboard and Analysis came off because each already has a home — Rankings
+// on the Class page, Analysis under Learning — and a second door to the same
+// screen is a second thing to keep in step. Achievements came off because it
+// now lives in exactly one place, the profile (v2 redesign, Screen 13).
 const profileMenuItems = [
   { label:"My Profile",    icon:<User className="w-3.5 h-3.5"/>,     key:"profile"      as PageKey },
-  { label:"Achievements",  icon:<Medal className="w-3.5 h-3.5"/>,    key:"achievements" as PageKey },
-  { label:"Leaderboard",   icon:<Trophy className="w-3.5 h-3.5"/>,   key:"leaderboard"  as PageKey },
-  { label:"Analysis",      icon:<BarChart className="w-3.5 h-3.5"/>, key:"analysis"     as PageKey },
 ];
 
 const profileExtraLinks = [
@@ -164,20 +141,6 @@ export default function Layout({
     navigate("/auth");
   };
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    learninghub: LEARNING_KEYS.includes(page),
-    classhub: CLASS_KEYS.includes(page),
-  });
-
-  // Keep hub groups expanded when deep-linking into a child page.
-  useEffect(() => {
-    setOpenGroups((g) => ({
-      ...g,
-      ...(LEARNING_KEYS.includes(page) ? { learninghub: true } : {}),
-      ...(CLASS_KEYS.includes(page) ? { classhub: true } : {}),
-    }));
-  }, [page]);
-
   // Close profile dropdown on outside click (menu is portaled to body)
   useEffect(() => {
     if (!profileOpen) return;
@@ -197,47 +160,18 @@ export default function Layout({
     };
   }, [profileOpen]);
 
-  function toggleGroup(key: string) {
-    setOpenGroups(g => ({ ...g, [key]: !g[key] }));
-  }
-
   function isBottomActive(key: PageKey) {
     if (key === "learninghub") return LEARNING_KEYS.includes(page);
     if (key === "classhub")    return CLASS_KEYS.includes(page);
     return page === key;
   }
 
-  // ── Sub-item ────────────────────────────────────────────────────────────────
-  const SubLink = ({ item, color }: { item: NavItem; color: string }) => {
-    const active = page === item.key;
-    return (
-      <motion.button
-        onClick={() => { setPage(item.key); setMobileOpen(false); }}
-        whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-        className={cn(
-          "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-all duration-150 border border-transparent",
-          !active && "text-muted-foreground hover:text-foreground hover:bg-muted"
-        )}
-        style={active ? { background:`${withAlpha(color, 0.09)}`, borderColor:`${withAlpha(color, 0.19)}`, color } : undefined}
-        title={collapsed ? item.label : undefined}>
-        <span className="shrink-0" style={active ? {color} : undefined}>{item.icon}</span>
-        {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-        {active && !collapsed && (
-          <motion.span
-            layoutId="subNavDot"
-            transition={springSnappy}
-            className="w-1.5 h-1.5 rounded-full ml-auto shrink-0"
-            style={{background:color}}
-          />
-        )}
-      </motion.button>
-    );
-  };
-
   // ── Top-level link ──────────────────────────────────────────────────────────
-  const TopLink = ({ entry }: { entry: Extract<NavEntry, {type:"link"}> }) => {
-    const active = page === entry.key;
-    const showChatBadge = entry.key === "chat" && unreadMsg > 0;
+  const TopLink = ({ entry }: { entry: NavEntry }) => {
+    // A hub stays lit while the student is on one of the pages it leads to,
+    // which is what the expanded submenu used to signal.
+    const active = isBottomActive(entry.key);
+    const showChatBadge = false; // Chat is not in the sidebar (v1)
     return (
       <motion.button
         onClick={() => { setPage(entry.key); setMobileOpen(false); }}
@@ -270,76 +204,6 @@ export default function Layout({
           </span>
         )}
       </motion.button>
-    );
-  };
-
-  // ── Group entry ─────────────────────────────────────────────────────────────
-  const GroupEntry = ({ entry }: { entry: Extract<NavEntry, {type:"group"}> }) => {
-    const isOpen      = !!openGroups[entry.hubKey];
-    const isActive    = entry.items.some(i => i.key === page) || page === entry.hubKey;
-    const isHubActive = page === entry.hubKey;
-
-    return (
-      <div>
-        <div className={cn(
-          "relative flex items-center rounded-xl transition-colors duration-150",
-          collapsed && "justify-center"
-        )}>
-          {isHubActive && (
-            <motion.div
-              layoutId="sidebarActivePill"
-              transition={reduceMotion ? { duration: 0 } : springSnappy}
-              className="absolute inset-0 rounded-xl bg-primary shadow-lg shadow-primary/15"
-            />
-          )}
-          <motion.button
-            onClick={() => { setPage(entry.hubKey); setMobileOpen(false); }}
-            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-            className={cn(
-              "relative z-10 flex-1 flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium transition-all",
-              isHubActive ? "text-foreground" : isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-              collapsed && "justify-center"
-            )}
-            style={isActive && !isHubActive ? { color: entry.color } : undefined}
-            title={collapsed ? entry.label : undefined}>
-            <span className="shrink-0" style={isActive && !isHubActive ? {color:entry.color} : undefined}>
-              {entry.icon}
-            </span>
-            {!collapsed && <span className="truncate">{entry.label}</span>}
-          </motion.button>
-          {!collapsed && (
-            <button
-              onClick={() => toggleGroup(entry.hubKey)}
-              className={cn("relative z-10 px-2 py-2.5 shrink-0 transition-colors",
-                isHubActive ? "text-foreground/70 hover:text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}>
-              <motion.span
-                animate={{ rotate: isOpen ? 180 : 0 }}
-                transition={reduceMotion ? { duration: 0 } : springSnappy}
-                className="block">
-                <ChevronDown className="w-3.5 h-3.5"/>
-              </motion.span>
-            </button>
-          )}
-        </div>
-
-        <AnimatePresence initial={false}>
-          {isOpen && (
-            <motion.div
-              key={collapsed ? "collapsed" : "expanded"}
-              initial={reduceMotion ? undefined : { height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: EASE_OUT }}
-              className="overflow-hidden">
-              <div className={collapsed ? "space-y-0.5 mt-0.5" : "ml-3 pl-3 border-l mt-0.5 mb-1 space-y-0.5"}
-                style={collapsed ? undefined : {borderColor:`${withAlpha(entry.color, 0.15)}`}}>
-                {entry.items.map(item => <SubLink key={item.key} item={item} color={entry.color}/>)}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
     );
   };
 
@@ -390,11 +254,7 @@ export default function Layout({
 
       {/* Nav items */}
       <nav className="px-2 py-3 space-y-0.5 overflow-y-auto flex-1 min-h-0 scrollbar-none">
-        {sidebarNav.map(entry =>
-          entry.type === "link"
-            ? <TopLink key={entry.key} entry={entry}/>
-            : <GroupEntry key={entry.hubKey} entry={entry}/>
-        )}
+        {sidebarNav.map(entry => <TopLink key={entry.key} entry={entry}/>)}
       </nav>
 
       {/* Collapse */}

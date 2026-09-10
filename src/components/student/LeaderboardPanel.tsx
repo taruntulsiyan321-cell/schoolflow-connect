@@ -14,6 +14,7 @@ import { getNcertSubjects } from "@/lib/ncertSyllabus";
 import { PracticeService, ProgressionService, useAcademicContext } from "@/academic";
 import { toast } from "sonner";
 import { toErrorMessage } from "@/lib/presentation";
+import { pluralise } from "@/lib/plural";
 
 type Scope = "class" | "school";
 type Category =
@@ -131,7 +132,7 @@ export function LeaderboardPanel({ embedded = false }: Props) {
             score: Number(r.value) || 0,
             label:
               metric === "streak"
-                ? `${Number(r.value)} days`
+                ? pluralise(Number(r.value), "day")
                 : `${Number(r.value)} XP`,
           }));
           const ids = ranked.map((r) => r.userId).filter(Boolean) as string[];

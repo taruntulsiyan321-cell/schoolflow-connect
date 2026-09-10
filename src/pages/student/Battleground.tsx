@@ -24,6 +24,7 @@ import { StudentAnalyticsSkeleton, StudentDashboardSkeleton, StudentSessionSkele
 import { MathText } from "@/components/MathText";
 import { displaySubject, displayTopic } from "@/lib/academicDisplay";
 import { toErrorMessage } from "@/lib/presentation";
+import { pluralise } from "@/lib/plural";
 
 const BG_BASE = "/student/battleground";
 
@@ -625,7 +626,7 @@ export function BattleRoom() {
           )}>
             {readyCount === 0 ? "FIGHT!" : readyCount}
           </div>
-          <p className="text-sm text-muted-foreground mt-4">{displaySubject(battle.subject) || "—"} · {questions.length} questions</p>
+          <p className="text-sm text-muted-foreground mt-4">{displaySubject(battle.subject) || "—"} · {pluralise(questions.length, "question")}</p>
         </div>
       </div>
     );
