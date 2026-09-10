@@ -85,13 +85,67 @@ These are the product owner's, given directly. They override any inference from 
 
 ## Added 2026-09-06
 
-31. **Topic is not a selection or analysis unit; chapter and subject are.** The bank holds 11,917 distinct topic strings over 21,696 questions — about 1.8 each — inconsistent in both naming and granularity, so the same teachable topic appears under several labels. Student-facing analysis is delivered at chapter and subject level, and that is sufficient.
+31. **Topic is not an ANALYSIS unit; chapter and subject are. It is now a
+    SELECTION filter, where a teacher supplies one.** Updated 2026-09-10, when
+    the batch job this rule deferred was actually run.
 
-    Unification into a canonical per-chapter taxonomy is **deferred until the bank has grown through write-back**. It is a batch data job, not app work: cluster each chapter's questions on the embeddings they already carry, name the clusters, then assign new questions by nearest-cluster similarity with a threshold, flagging anything below it rather than inventing a topic. At current volume a viable taxonomy — 15–20 questions per topic, or one bad day reads as a weakness — would yield roughly 1,000–1,500 topics against 523 existing chapters, which is not meaningfully finer. The payoff scales with bank size, not with effort spent now.
+    **What was deferred, and is now done.** This rule said unification into a
+    canonical per-chapter taxonomy was "a batch data job, not app work:
+    cluster each chapter's questions on the embeddings they already carry,
+    name the clusters, then assign new questions by nearest-cluster similarity
+    with a threshold, flagging anything below it rather than inventing a
+    topic." That is `scripts/classify-question-topics.mjs`, and
+    `question_bank.topic_group` is its output (`20260916130000`). `topic`
+    itself is untouched, so this is additive and reversible.
 
-    Until then, generated questions carry `chapter` and leave `topic` NULL. Never a guessed topic string.
+    **The prediction in the old text was optimistic, and the measurement says
+    so.** It estimated a viable taxonomy would land at "roughly 1,000-1,500
+    topics against 523 existing chapters". Measured after the real run:
 
-    *(Counts re-measured live 2026-09-06 and all three confirmed: 21,696 rows, 11,917 distinct topics, 523 distinct chapters. Note the tension to be aware of rather than resolved here: §10.9 lists topic among the tags that "keep content appropriate" and says a student sees "nothing outside their class, subject, chapter or topic". This rule does not remove topic as a stored tag or as a filter where one is already supplied — it rules that nothing may **invent** one, and that selection and analysis surfaces key on chapter and subject.)*
+    | | |
+    |---|---|
+    | topic groups | **10,273** |
+    | questions per group, median | **1.0** |
+    | questions per group, mean | 2.1 |
+    | groups holding 15 or more | 86 |
+    | singletons | 6,379 (62% of groups) |
+    | questions sitting in a group of 15+ | 10.9% |
+
+    Merging fixed CONSISTENCY — `taddhit_pratyay` now gathers 30 spellings
+    across 51 questions instead of scattering them — but it did not produce
+    DENSITY, because the source labels were written per question, not per
+    topic. Against this rule's own bar of 15-20 questions per topic, "or one
+    bad day reads as a weakness", the bank is nowhere near it.
+
+    **So the conclusion is unchanged and now better evidenced: no
+    student-facing analysis moves to topic level.** Weakness, mastery,
+    recovery and reporting stay at chapter and subject.
+
+    **What changes is selection.** A teacher may narrow a question paper
+    section to topics they choose: `question_paper_sections.topics`, honoured
+    by `rpc_fill_paper_section_from_bank` (`20260916150000`), offered in the
+    UI as chips carrying each topic's question count — chosen from the
+    vocabulary, never typed, because guessing which of thirty spellings the
+    bank stored is the problem this solved. Empty means the whole chapter set,
+    never "no topics". This was always permitted: the original parenthetical
+    said the rule "does not remove topic as a stored tag or as a filter where
+    one is already supplied".
+
+    **Generated questions still carry `chapter` and leave `topic` NULL. Never
+    a guessed topic string.** That has not moved. What is now possible is the
+    second half of the prescription: once the embedding worker has embedded a
+    new row, `--incremental` files it into the nearest EXISTING group in its
+    own (subject, chapter), and only if it is closer than the threshold.
+    Below it, the row stays NULL — that is the flag, and the question is still
+    findable by chapter. It never creates or names a group; naming is the full
+    run's job, which has the whole chapter in front of it. First run: of 11
+    rows with a candidate, 1 was within 0.15 and 10 were left alone.
+
+    *(§10.9 lists topic among the tags that "keep content appropriate" and says
+    a student sees "nothing outside their class, subject, chapter or topic".
+    The tension this rule used to note is now resolved in the direction §10.9
+    wanted: topic is a real, consistent tag that a filter can key on, while
+    remaining too thin to carry analysis.)*
 
 32. **Work is not landed until `git ls-remote` shows it.** Committing is half the guarantee; a commit on one machine is one disk failure from gone. A deploy whose source is unpushed is the same defect as a deploy whose source was never committed — `ai-expand-questions` and `mcp` reached production that way, and six sessions of schema, migration and edge-function work sat local-only for weeks the same way. Every session ends by pushing and confirming from the remote. Preflight fails if `HEAD` is **ahead** of `origin`, not only behind.
 

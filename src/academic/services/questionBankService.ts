@@ -248,6 +248,49 @@ export const QuestionBankService = {
       .sort((a, b) => b.count - a.count);
   },
 
+  /**
+   * The canonical topics available for a subject/class, optionally narrowed to
+   * chapters — with how many APPROVED, ACTIVE questions each one actually has.
+   *
+   * The count is the point, not decoration. A topic carrying two questions
+   * cannot fill a ten-question section, and rule 31's objection to topic as a
+   * unit is exactly that the bank's topics are thin: measured 2026-09-10, the
+   * median group holds ONE question and 62% hold exactly one. A teacher
+   * choosing blind would pick a topic and get a shortfall with no idea why.
+   *
+   * Reads `topic_group`, never `topic`: the raw column carries 11,917 spellings
+   * of the same teachable ideas, which is what made topic unusable as a filter
+   * in the first place (see `20260916130000`).
+   */
+  async listTopics(
+    ctx: ServiceContext,
+    input: { subject: string; classLevel: number; chapters?: string[] },
+  ): Promise<{ topic: string; count: number }[]> {
+    assertCanConsume(ctx, "question");
+    let query = getClient(toRepoContext(ctx))
+      .from("question_bank")
+      .select("topic_group")
+      .eq("subject", input.subject)
+      .eq("class_level", input.classLevel)
+      .eq("is_active", true)
+      .eq("is_approved", true)
+      .not("topic_group", "is", null);
+    if (input.chapters?.length) query = query.in("chapter", input.chapters);
+
+    const { data, error } = await query;
+    throwIfError(error, "Failed to load topics");
+
+    const map: Record<string, number> = {};
+    for (const r of data ?? []) {
+      const t = String((r as { topic_group?: string }).topic_group ?? "").trim();
+      if (!t) continue;
+      map[t] = (map[t] ?? 0) + 1;
+    }
+    return Object.entries(map)
+      .map(([topic, count]) => ({ topic, count }))
+      .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic));
+  },
+
   async insert(
     ctx: ServiceContext,
     rows: QuestionBankInsertRow[],

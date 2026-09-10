@@ -93,6 +93,9 @@ export interface QuestionPaperSectionRow {
   target_count: number;
   difficulty: PaperDifficulty | null;
   chapters: string[];
+  /** Canonical topics (`question_bank.topic_group`). EMPTY MEANS THE WHOLE
+   *  CHAPTER SET, never "no topics" — the same convention `chapters` uses. */
+  topics: string[];
 }
 
 export interface QuestionPaperQuestionRow {
@@ -151,6 +154,8 @@ export interface CreateSectionInput {
   targetCount: number;
   difficulty?: PaperDifficulty | null;
   chapters?: string[];
+  /** Canonical topics to narrow to. Omitted or empty = the whole chapter set. */
+  topics?: string[];
 }
 
 /**
@@ -252,6 +257,7 @@ export const QuestionPaperService = {
         target_count: input.targetCount,
         difficulty: input.difficulty ?? null,
         chapters: input.chapters ?? [],
+        topics: input.topics ?? [],
       })
       .select("*")
       .single();
@@ -643,6 +649,14 @@ export const QuestionPaperService = {
         // Rule 31 — a generated question carries its chapter and leaves `topic`
         // NULL. A guessed topic string is worse than none: it becomes a facet
         // nobody can filter on correctly.
+        //
+        // This is still true AFTER the taxonomy landed (20260916130000). The
+        // canonical topic is not knowable here: it is decided by the row's
+        // EMBEDDING against its chapter's existing clusters, and the row has no
+        // embedding until the worker reaches it. `classify-question-topics.mjs
+        // --incremental` files it then, and only if it is within threshold —
+        // otherwise it stays NULL, which is the flag rule 31 asks for rather
+        // than a topic invented to fill the column.
         topic: null,
         difficulty: section.difficulty ?? "medium",
         question: String(q.question ?? "").trim(),

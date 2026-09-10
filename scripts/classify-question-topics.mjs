@@ -40,6 +40,8 @@
  *   node scripts/classify-question-topics.mjs --self-test   prove the rules
  *   node scripts/classify-question-topics.mjs               dry run + report
  *   node scripts/classify-question-topics.mjs --apply       write topic_group
+ *   node scripts/classify-question-topics.mjs --incremental file NEW questions into
+ *                                                          existing topics (rule 31)
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -229,8 +231,16 @@ export function groupChapterTopics(topics, semanticPairs = [], opts = {}) {
       const all = exact ? [...ids, exact] : ids;
       let anchor = all[0];
       for (const m of all) if (union(anchor, m)) anchor = find(anchor);
-      // Longest prefix wins: k counts down, so only record what is not set.
-      for (const m of all) if (!prefixOfMember.has(m)) prefixOfMember.set(m, p);
+      // Record the prefix UNSTEMMED, per member. `p` is a join of STEMS, and a
+      // stem is not a word: naming a cluster after it put "Chemic Property",
+      // "Magnet Field Axi" and "Corro Preven" in front of teachers. The stems
+      // decide what groups together; the words the teacher wrote decide what it
+      // is called. Longest prefix wins, and k counts down, so only fill blanks.
+      for (const m of all) {
+        if (prefixOfMember.has(m)) continue;
+        const words = contentTokens(m).slice(0, k).join("_");
+        if (words) prefixOfMember.set(m, words);
+      }
     }
   }
 
@@ -252,10 +262,23 @@ export function groupChapterTopics(topics, semanticPairs = [], opts = {}) {
   const clusters = new Map();
   for (const name of names) (clusters.get(find(name)) ?? clusters.set(find(name), []).get(find(name))).push(name);
 
-  // The cluster's prefix is the longest prefix any of its members carries.
+  // The cluster's name is the prefix MOST of its members actually spell that
+  // way -- members can disagree ("chemical_properties" vs "chemical_property"),
+  // and the majority spelling is the one a teacher will recognise. Ties go to
+  // the longer prefix, which is the more specific one.
   const prefixOfCluster = (members) => {
-    const found = members.map((m) => prefixOfMember.get(m)).filter(Boolean);
-    return found.sort((a, b) => b.split("_").length - a.split("_").length || b.length - a.length)[0];
+    const tally = new Map();
+    for (const m of members) {
+      const w = prefixOfMember.get(m);
+      if (w) tally.set(w, (tally.get(w) ?? 0) + 1);
+    }
+    if (tally.size === 0) return undefined;
+    return [...tally.entries()].sort(
+      (a, b) =>
+        b[1] - a[1] ||
+        b[0].split("_").length - a[0].split("_").length ||
+        b[0].length - a[0].length,
+    )[0][0];
   };
 
   const labelOf = new Map();
@@ -295,7 +318,8 @@ export function groupChapterTopics(topics, semanticPairs = [], opts = {}) {
 /** Fewest exercise verbs, then most used, then shortest, then alphabetical. */
 export function pickCanonicalLabel(members, nOf, prefix) {
   if (prefix) {
-    const exact = members.find((t) => contentTokens(t).map(stemToken).join("_") === prefix);
+    // Prefer a real label the teacher already wrote over the assembled prefix.
+    const exact = members.find((t) => contentTokens(t).join("_") === prefix);
     if (exact) return exact;
     return prefix;
   }
@@ -338,6 +362,12 @@ function selfTest() {
   ]), ["anusvara_sandhi"]);
   // The guard that keeps a chapter filterable: rolling up on the chapter's own
   // word would put every question in one bucket.
+  // A stem is not a word. Naming a rollup after the stem join produced
+  // "Chemic Property", "Magnet Field Axi" and "Corro Preven" in the teacher's
+  // topic picker, which is where this was caught.
+  check("a rollup is named in words, never in stems", groupOf([
+    "chemical_properties_acids", "chemical_properties_bases", "chemical_properties_salts",
+  ]), ["chemical_properties"]);
   check("a one-token prefix does NOT roll up", groupOf([
     "probability_leap_year_sunday", "probability_bayes_machines", "probability_card_face",
   ]).length, 3);
@@ -525,5 +555,103 @@ async function main() {
   console.log("\nDone.");
 }
 
+
+// ── incremental: classify what arrived since the last full run ─────────────
+
+/**
+ * Rule 31's own prescription, implemented: "assign new questions by
+ * nearest-cluster similarity with a threshold, flagging anything below it
+ * rather than inventing a topic."
+ *
+ * A question generated into the bank carries `chapter` and no topic (that is
+ * the rule, and questionPaperService still obeys it at insert time). Once the
+ * embedding worker has embedded it, this assigns it the nearest EXISTING
+ * topic_group inside its own (subject, chapter) — and only if it is closer
+ * than --threshold. Below that it stays NULL, which is the flag: the question
+ * is still findable by chapter, and no topic was invented for it.
+ *
+ * It never creates a new group. Naming a cluster is the full run's job, which
+ * has the whole chapter in front of it; this one only files a new question
+ * into a group that already exists.
+ */
+async function incremental() {
+  const apply = process.argv.includes("--apply");
+  const thrArg = process.argv.find((a) => a.startsWith("--threshold="));
+  const threshold = thrArg ? Number(thrArg.split("=")[1]) : 0.15;
+
+  console.log(`Project: ${PROJECT_REF}`);
+  console.log(`Incremental. Threshold ${threshold}. Mode: ${apply ? "APPLY" : "dry run"}
+`);
+
+  const [counts] = await runSql(`
+    SELECT count(*) FILTER (WHERE topic_group IS NULL)::int                            AS ungrouped,
+           count(*) FILTER (WHERE topic_group IS NULL AND embedding IS NOT NULL)::int  AS classifiable,
+           count(*) FILTER (WHERE topic_group IS NULL AND embedding IS NULL)::int      AS awaiting_embedding
+      FROM public.question_bank`);
+  console.log(`ungrouped rows        : ${counts.ungrouped}`);
+  console.log(`  with an embedding   : ${counts.classifiable}   <- these can be filed now`);
+  console.log(`  awaiting embedding  : ${counts.awaiting_embedding}   <- the embedding worker has not reached them
+`);
+
+  if (counts.classifiable === 0) {
+    console.log("Nothing to file. Done.");
+    return;
+  }
+
+  // One statement: nearest existing centroid inside the same (subject, chapter).
+  const preview = await runSql(`
+    WITH cent AS (
+      SELECT subject, chapter, topic_group, avg(embedding) AS c
+        FROM public.question_bank
+       WHERE topic_group IS NOT NULL AND embedding IS NOT NULL
+       GROUP BY 1,2,3
+    ), best AS (
+      SELECT u.id, c.topic_group, (u.embedding <=> c.c) AS d,
+             row_number() OVER (PARTITION BY u.id ORDER BY (u.embedding <=> c.c)) AS rn
+        FROM public.question_bank u
+        JOIN cent c ON c.subject = u.subject AND c.chapter = u.chapter
+       WHERE u.topic_group IS NULL AND u.embedding IS NOT NULL
+    )
+    SELECT count(*) FILTER (WHERE rn = 1)::int                              AS had_a_candidate,
+           count(*) FILTER (WHERE rn = 1 AND d < ${threshold})::int         AS within_threshold,
+           round(min(d) FILTER (WHERE rn = 1)::numeric, 4)::float8          AS closest,
+           round(avg(d) FILTER (WHERE rn = 1)::numeric, 4)::float8          AS mean_distance
+      FROM best`);
+  const p0 = preview[0] ?? {};
+  console.log(`rows with any candidate in their chapter : ${p0.had_a_candidate ?? 0}`);
+  console.log(`  within ${threshold}                            : ${p0.within_threshold ?? 0}`);
+  console.log(`  closest / mean distance                : ${p0.closest ?? "n/a"} / ${p0.mean_distance ?? "n/a"}`);
+  console.log(`  left NULL (flagged, not invented)      : ${(p0.had_a_candidate ?? 0) - (p0.within_threshold ?? 0)}
+`);
+
+  if (!apply) {
+    console.log("Dry run. Nothing was written. Re-run with --apply.");
+    return;
+  }
+
+  const updated = await runSql(`
+    WITH cent AS (
+      SELECT subject, chapter, topic_group, avg(embedding) AS c
+        FROM public.question_bank
+       WHERE topic_group IS NOT NULL AND embedding IS NOT NULL
+       GROUP BY 1,2,3
+    ), best AS (
+      SELECT u.id, c.topic_group, (u.embedding <=> c.c) AS d,
+             row_number() OVER (PARTITION BY u.id ORDER BY (u.embedding <=> c.c)) AS rn
+        FROM public.question_bank u
+        JOIN cent c ON c.subject = u.subject AND c.chapter = u.chapter
+       WHERE u.topic_group IS NULL AND u.embedding IS NOT NULL
+    )
+    UPDATE public.question_bank qb
+       SET topic_group = b.topic_group
+      FROM best b
+     WHERE b.id = qb.id AND b.rn = 1 AND b.d < ${threshold}
+    RETURNING 1`);
+  console.log(`filed into an existing topic: ${Array.isArray(updated) ? updated.length : 0}`);
+  console.log("Done.");
+}
+
 if (process.argv.includes("--self-test")) selfTest();
+else if (process.argv.includes("--incremental"))
+  incremental().catch((e) => { console.error(e.message); process.exit(1); });
 else main().catch((e) => { console.error(e.message); process.exit(1); });

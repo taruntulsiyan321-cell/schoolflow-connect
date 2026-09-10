@@ -5765,6 +5765,7 @@ export type Database = {
           school_id: string
           target_count: number
           title: string
+          topics: string[]
         }
         Insert: {
           chapters?: string[]
@@ -5778,6 +5779,7 @@ export type Database = {
           school_id: string
           target_count: number
           title: string
+          topics?: string[]
         }
         Update: {
           chapters?: string[]
@@ -5791,6 +5793,7 @@ export type Database = {
           school_id?: string
           target_count?: number
           title?: string
+          topics?: string[]
         }
         Relationships: [
           {

@@ -39,6 +39,7 @@ import {
 import { cn } from "./shared";
 import {
   CurriculumService,
+  QuestionBankService,
   QuestionPaperService,
   useAcademicLive,
   type QuestionPaperRow,
@@ -110,6 +111,7 @@ const emptySectionForm = () => ({
   targetCount: "5",
   difficulty: "" as PaperDifficulty | "",
   chapters: "",
+  topics: [] as string[],
 });
 
 type ClassSubjectPair = Awaited<ReturnType<typeof listTeacherClassSubjectPairs>>[number];
@@ -133,6 +135,12 @@ export default function QuestionPapers() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [sectionForm, setSectionForm] = useState(emptySectionForm);
   const [addingSection, setAddingSection] = useState(false);
+  /** The canonical topics this paper's subject/class actually has questions
+   *  for, with counts. Loaded from the bank rather than typed from memory —
+   *  the whole reason topic was unusable before is that nobody could guess
+   *  which of thirty spellings the bank stored. */
+  const [topicOptions, setTopicOptions] = useState<{ topic: string; count: number }[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(false);
   const [fills, setFills] = useState<Record<string, SectionFillResult>>({});
   const [generated, setGenerated] = useState<Record<string, GenerationOutcome>>({});
   const [showKey, setShowKey] = useState(false);
@@ -256,6 +264,55 @@ export default function QuestionPapers() {
       await open(row.id);
     });
 
+  /**
+   * Load the topic vocabulary whenever the section form is open and its
+   * chapters change. Chapters are read from the form, so narrowing the
+   * chapters narrows the topics offered — which is what makes the list short
+   * enough to read.
+   *
+   * Failure is silent BY DESIGN: topics are a narrowing, so an empty list
+   * costs the teacher nothing (the section still draws on the whole chapter
+   * set). Raising an error toast here would turn an optional refinement into
+   * a blocking one.
+   */
+  useEffect(() => {
+    if (!addingSection || !ctx || !openPaper?.subject || openPaper.class_level == null) {
+      setTopicOptions([]);
+      return;
+    }
+    const chapters = sectionForm.chapters
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+    let cancelled = false;
+    setTopicsLoading(true);
+    void QuestionBankService.listTopics(ctx, {
+      subject: openPaper.subject,
+      classLevel: openPaper.class_level,
+      chapters,
+    })
+      .then((rows) => {
+        if (!cancelled) setTopicOptions(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setTopicOptions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTopicsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [addingSection, ctx, openPaper?.subject, openPaper?.class_level, sectionForm.chapters]);
+
+  const toggleTopic = (topic: string) =>
+    setSectionForm((f) => ({
+      ...f,
+      topics: f.topics.includes(topic)
+        ? f.topics.filter((t) => t !== topic)
+        : [...f.topics, topic],
+    }));
+
   const addSection = () =>
     run("Add section", async () => {
       if (!ctx || !openId) return;
@@ -272,6 +329,7 @@ export default function QuestionPapers() {
             .split(",")
             .map((c) => c.trim())
             .filter(Boolean),
+          topics: sectionForm.topics,
         },
         sections.length,
       );
@@ -751,6 +809,65 @@ export default function QuestionPapers() {
                           placeholder="Chapters, comma separated (blank = the whole subject)"
                           className="w-full bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
                         />
+
+                        {/* The topic narrowing. Chosen from what the bank
+                            actually holds, never typed: the raw `topic` column
+                            carries 11,917 spellings of the same ideas, so a
+                            free-text box would ask the teacher to guess. The
+                            count on each chip is load-bearing — the median
+                            topic holds ONE question, so a topic that cannot
+                            fill the section says so before it is picked. */}
+                        {topicsLoading && (
+                          <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Loading topics…
+                          </div>
+                        )}
+                        {!topicsLoading && topicOptions.length > 0 && (
+                          <div className="space-y-1.5">
+                            <div className="text-[10px] text-muted-foreground">
+                              Topics{" "}
+                              {sectionForm.topics.length > 0
+                                ? `· ${sectionForm.topics.length} chosen`
+                                : "· optional, blank draws on every topic in these chapters"}
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                              {topicOptions.map((t) => {
+                                const on = sectionForm.topics.includes(t.topic);
+                                return (
+                                  <button
+                                    key={t.topic}
+                                    type="button"
+                                    onClick={() => toggleTopic(t.topic)}
+                                    aria-pressed={on}
+                                    className={cn(
+                                      "px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors",
+                                      on
+                                        ? "bg-[#3b5bdb]/15 border-[#3b5bdb]/40 text-[#3b5bdb]"
+                                        : "bg-muted border-border/70 text-muted-foreground hover:text-foreground",
+                                    )}
+                                  >
+                                    {displayChapter(t.topic) || t.topic}
+                                    <span className="ml-1 opacity-60">{t.count}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {sectionForm.topics.length > 0 && (
+                              <div className="text-[10px] text-muted-foreground">
+                                {(() => {
+                                  const available = topicOptions
+                                    .filter((t) => sectionForm.topics.includes(t.topic))
+                                    .reduce((n, t) => n + t.count, 0);
+                                  const want = Number(sectionForm.targetCount) || 0;
+                                  return available < want
+                                    ? `These topics hold ${available} question(s) — short of the ${want} this section asks for. Generation covers the rest.`
+                                    : `These topics hold ${available} question(s).`;
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <button
                           type="button"
                           disabled={busy || !sectionForm.title.trim()}

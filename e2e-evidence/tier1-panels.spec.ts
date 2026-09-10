@@ -297,6 +297,46 @@ test.describe('Tier1-P · teacher · the panels behind the redirects', () => {
 
     await page.getByRole('button', { name: /add section/i }).first().click()
     await page.getByPlaceholder('Section title *').fill('Section A')
+
+    // ── the topic picker (rule 31, 20260916150000) ────────────────────────
+    //
+    // This paper is Science / Class 10, which carries 480 classified topics
+    // across 637 approved questions — so an empty picker here is a defect, not
+    // a thin bank. Chips come from `question_bank.topic_group`; the raw `topic`
+    // column has 11,917 spellings of the same ideas, which is why the teacher
+    // picks from a list instead of typing.
+    const topicChips = page.locator('button[aria-pressed]')
+    await expect(
+      topicChips.first(),
+      'the section form offers topics from the bank, not a free-text box',
+    ).toBeVisible({ timeout: 20000 })
+
+    // The control: nothing is chosen, so no count line is claimed yet.
+    await expect(
+      page.getByText(/These topics hold \d+ question/i),
+      'control: no topic total is shown before a topic is chosen',
+    ).toHaveCount(0)
+
+    const chipLabel = ((await topicChips.first().textContent()) ?? '').trim()
+    await topicChips.first().click()
+
+    // The count is read back off the bank, so this proves the chip carries a
+    // real topic and not just a label.
+    await expect(
+      page.getByText(/These topics hold \d+ question/i).first(),
+      'choosing a topic reports how many questions it actually holds',
+    ).toBeVisible({ timeout: 10000 })
+    await expect(topicChips.first(), 'the chosen topic reads as chosen').toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
+    await evidence(testInfo, 'teacher picks a topic', page, {
+      chip: chipLabel,
+      chipCount: await topicChips.count(),
+      supabase: supaErrors(signals),
+    })
+
     await page.getByRole('button', { name: /^Add section$/ }).click()
     await page.waitForTimeout(3000)
 
