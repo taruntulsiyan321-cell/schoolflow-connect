@@ -626,3 +626,89 @@ probe38 claims 15-19 hold all three, each with its positive control. Suite
 UI: the rank is on `TestResult`; the parent's copy is a Report control per test
 in `ParentLiveExams` (`src/gurukul-parent/ParentLiveAcademic.tsx`), offered only
 where there is a submitted attempt, because the RPC correctly refuses the rest.
+
+---
+
+## 10. THE v2 STUDENT PANEL REDESIGN — 2026-09-10 session
+
+Source document: `C:\Users\Tarun\Downloads\student-panel-redesign-v2.md`.
+Nine commits, `3679d9b` .. the tip. Everything below is done unless it says
+otherwise.
+
+### Done
+
+| Item | What landed |
+|---|---|
+| G1 service names | 11 sites, incl. 3 the document had not found (admin reports, principal loading label) |
+| G2 branding | Practice eyebrow + `capacitor.config.ts` (previous session) |
+| G3 flat sidebar | Six links, no submenus, Chat cut from nav (route survives) |
+| G6 "1 mistakes" | `src/lib/plural.ts`, 14 sites across 9 files, 5 unit tests |
+| G7 thin data | `MIN_ATTEMPTS_FOR_ACCURACY = 5` + 2 helpers + 7 tests; applied to the Topics tab |
+| G5 accuracy | ONE source — derived from the counts shown beside it. 3 guard assertions |
+| Screen 1 Home | Subject Performance + Recent Achievements out, with 8 dead imports behind them |
+| Screen 2 Practice | Resume Session band out (see the caveat below) |
+| Screen 3 Nova | chips, Jump-to, 6 admin prompts, ContextPill out; intro + prompts rewritten; mojibake and 💋 fixed; **question context now shown and auto-asked** |
+| Screen 4 Battleground | Featured Battles + Daily + Championship out |
+| Screen 5 Learning | bottom charts out |
+| Screen 6 Analysis | exam readiness out; accuracy fixed; study hours → em dash |
+| Screen 7 Recovery | both filter rows + priority badges out |
+| Screen 8 Revision | all six removals |
+| Screen 9 Mistake Book | 4 stat boxes + Add to Recovery out; **Explain** added; 3 chip rows → 1 |
+| Screen 10 Class | bottom widgets + Achievements card out; subtitle rewritten |
+| Screen 11 Notifications | **duplicate EMISSION found and fixed** — see below |
+| Screen 12 Profile | rebuilt: 4 averages out, real marks/counts in, Rep explained |
+| Screen 13 Dropdown | Leaderboard, Analysis, Achievements out |
+| Screen 14 Calendar | legend + header; **data fixed** (3 demo rows, Gandhi Jayanti) |
+| Screen 15 Doubts | timestamps fixed |
+| Screen 16 Attempt | save state, submit confirmation, **no app chrome during a paper** |
+
+### Five places the DOCUMENT was wrong, all measured
+
+1. **G4 blank icons.** Not "two missing imports". All five sites use one symbol,
+   `BarChart2`, and it is fine: the ESM barrel resolves it, it renders 370
+   characters of valid SVG through react-dom/server, and no CSS hides it.
+   `--color-physics` IS defined (theme.css:57). **Not reproducible without a
+   browser — still open.**
+2. **Screen 16 question palette** — "does not exist and is the single most
+   important missing element". It exists; it landed in 52ed420.
+3. **Screen 15 teacher marker** — "add a visual marker". It is already there.
+4. **Screen 12 parent phone** — "zero phone numbers in the database". 10 of 223
+   students have one.
+5. **Screen 3 prompt count** — "says eight, lists six". Both halves right: the
+   array held 8, six were administrative, two were already learning prompts.
+
+### The notification find — the biggest thing in this session
+
+`_notify_student_parents` notified the parent down BOTH the legacy
+`students.parent_user_id` column AND the `parent_students` join table. 933 of
+2,867 rows surplus (33%), still happening the day before this session, every
+alert type doubled, all to a parent account. `db:verify-integrity` GUARANTEES
+the overlap. Fixed in `20260918000000`, probe39, 5 claims.
+
+### Still open, and why
+
+* **G4 blank icons** — every stated cause disproved; needs a browser.
+* **The practice timer records nothing** (KNOWN_ISSUES 44). 4 of 262 sessions
+  carry `total_time_ms`. The display no longer lies; the measurement is still
+  not taken. Fixing it means changing the practice finish path.
+* **`config.resumeSessionId` is dead** — ~110 unreachable lines in the practice
+  engine. Documented at the field. Wants a browser to remove safely.
+* **Screen 1 header cluster** — the document says the reduction "is not yet
+  decided".
+* **Learning-loop canonical sequence** — Home and Learning name it differently.
+  Blocked on a ruling; both left as they were.
+* **Recovery sources** — Practice only, or also Tests and Battleground?
+* **Fees** — never ruled on.
+* **The 13 undesigned screens** — the document itself calls this a separate pass.
+* **`useBattlegroundData` still blends** test+practice accuracy. The 10 Sept
+  ruling is scoped to Analysis; widening it is a product decision.
+
+### Rule correction the document asks for, NOT yet made
+
+> Rule 13 currently reads that a student sees their own data only, never the
+> class's. The test leaderboard ruling makes that too broad. The rule should now
+> read: **marks and rank are shared within the class; per-question detail is
+> private to each student.** Correct this in `docs/gurukul-spec-rules.md`.
+
+I have not edited the rules file — changing a spec rule is the product owner's
+call, not a build session's. It is flagged here so it is not lost.

@@ -9,10 +9,10 @@ import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumS
 import { displayChapter, displayTopic, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
 import { GlassCard, SubjectBadge, DifficultyBadge, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
-  AlertCircle, Brain, Search, Filter, Bookmark, BookmarkCheck,
+  AlertCircle, Brain, Search, Bookmark, BookmarkCheck,
   ChevronDown, ChevronRight, CheckCircle2, XCircle, ArrowRight,
   RotateCcw, RefreshCw, Zap, Star, TrendingUp, Clock,
-  Play, History, BarChart2, SortAsc, Eye,
+  Play, History, BarChart2, Eye,
 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -456,9 +456,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate([user?.id]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<"date"|"frequency"|"subject">("date");
   const [filterResolved, setFilterResolved] = useState<"all"|"unresolved"|"resolved"|"bookmarked">("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [toastMsg, setToast] = useState<string|null>(null);
   const [stream, setStream] = useState<AcademicStream | null>(null);
@@ -685,22 +683,18 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   }
 
   const subjects = ["all", ...Array.from(new Set(mistakes.map((m) => m.subject)))];
-  const sources = ["all", ...Array.from(new Set(mistakes.map((m) => m.source)))];
 
   const filtered = mistakes
     .filter(m => {
       const q = search.toLowerCase();
       const matchSearch = !search || m.question.toLowerCase().includes(q) || m.subject.toLowerCase().includes(q) || m.chapter.toLowerCase().includes(q) || m.topic.toLowerCase().includes(q);
       const matchRes = filterResolved === "all" ? true : filterResolved === "unresolved" ? !m.resolved : filterResolved === "resolved" ? m.resolved : m.bookmarked;
-      const matchSrc = sourceFilter === "all" || m.source === sourceFilter;
       const matchSub = subjectFilter === "all" || m.subject === subjectFilter;
-      return matchSearch && matchRes && matchSrc && matchSub;
+      return matchSearch && matchRes && matchSub;
     })
-    .sort((a, b) =>
-      sort === "frequency" ? b.frequency - a.frequency :
-      sort === "subject" ? a.subject.localeCompare(b.subject) :
-      new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime()
-    );
+    // Newest first, always. The sort chips came off: a mistake book is read for
+    // what is still wrong, not for a different ordering of everything.
+    .sort((a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime());
 
   const unresolved = mistakes.filter(m => !m.resolved).length;
 
@@ -767,44 +761,38 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search questions, topics, chapters..."
             className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-rose-500/40"/>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <SortAsc className="w-3.5 h-3.5 text-muted-foreground"/>
-            {(["date","frequency","subject"] as const).map(s => (
-              <button key={s} onClick={() => setSort(s)}
-                className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                  sort === s ? "bg-secondary border border-border text-foreground" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
-                {s}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-muted-foreground"/>
-            {(["all","unresolved","resolved","bookmarked"] as const).map(f => (
-              <button key={f} onClick={() => setFilterResolved(f)}
-                className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                  filterResolved === f ? "bg-rose-500/20 border border-rose-500/40 text-rose-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {sources.map(src => (
-            <button key={src} onClick={() => setSourceFilter(src)}
+        {/*
+          THREE ROWS OF CHIPS BECAME ONE (v2 Screen 9).
+
+          Removed: the sort row (date / frequency / subject) and the source row
+          (All Sources / Practice). Sort answered a question nobody asked of a
+          mistake book — the student wants the ones they have not fixed, not a
+          different ordering of all of them. Source had exactly one real value
+          besides "all", so it filtered nothing.
+
+          Kept: what still needs work, and the subject filter, which does
+          separate a real list once a student has mistakes in more than one.
+        */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(["all","unresolved","resolved","bookmarked"] as const).map(f => (
+            <button key={f} onClick={() => setFilterResolved(f)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                sourceFilter === src ? "bg-secondary border border-border text-foreground" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
-              {src === "all" ? "All Sources" : src.charAt(0).toUpperCase() + src.slice(1)}
-            </button>
-          ))}
-          {subjects.map(s => (
-            <button key={s} onClick={() => setSubjectFilter(s)}
-              className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
-                subjectFilter === s ? "bg-violet-500/20 border border-violet-500/40 text-violet-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
-              {s === "all" ? "All Subjects" : s}
+                filterResolved === f ? "bg-rose-500/20 border border-rose-500/40 text-rose-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
+              {f}
             </button>
           ))}
         </div>
+        {subjects.length > 2 && (
+          <div className="flex flex-wrap gap-1.5">
+            {subjects.map(sub => (
+              <button key={sub} onClick={() => setSubjectFilter(sub)}
+                className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
+                  subjectFilter === sub ? "bg-violet-500/20 border border-violet-500/40 text-violet-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
+                {sub === "all" ? "All Subjects" : sub}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Practice filtered mistakes */}
