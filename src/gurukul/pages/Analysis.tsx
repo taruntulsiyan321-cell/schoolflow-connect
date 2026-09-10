@@ -158,8 +158,18 @@ export default function Analysis() {
     const totalQuestions = correct + incorrect;
     const heatmap = snapshot?.activity_heatmap ?? [];
     const studyMinutes = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
-    // Accuracy + study streak: same shell SSOT as Home (Progression + snapshot) — not mastery recompute.
-    const accuracy = Math.round(student.accuracy);
+    // ACCURACY COMES FROM THE COUNTS RENDERED BESIDE IT (G5).
+    //
+    // This read `student.accuracy` — the shell figure — while `correct` and
+    // `incorrect` on the same row came from `analysis.totals`. Two sources, one
+    // screen: the tiles said "13 correct · 14 incorrect · 46% accuracy" and the
+    // arithmetic on display gave 48%.
+    //
+    // `analysis.totals.accuracy_pct` is now derived from these same two counts,
+    // so the row is internally consistent by construction rather than by
+    // coincidence. Null means nothing attempted — rendered as an em dash, never
+    // as 0%.
+    const accuracy = analysis?.totals.accuracy_pct ?? null;
     // The average-score field here used to fall back from an exam average to
     // practice accuracy — one number that meant a different measure depending
     // on whether the student had marks, with a sibling boolean as the only way
@@ -181,7 +191,7 @@ export default function Analysis() {
       rank: analysis?.class_rank ?? student.rank ?? 0,
       totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
     };
-  }, [analysis, snapshot, student.accuracy, student.streak, student.rank, student.totalStudents]);
+  }, [analysis, snapshot, student.streak, student.rank, student.totalStudents]);
 
   const scoreTrend = useMemo(() => {
     const trend = charts?.practice_trend ?? [];
@@ -535,7 +545,9 @@ export default function Analysis() {
     return [
       {
         q: "How am I doing?",
-        a: `${overview.accuracy}% accuracy overall`,
+        a: overview.accuracy == null
+          ? "No practice yet"
+          : `${overview.accuracy}% accuracy overall`,
         sub: `${rankText} · ${streakText}`,
         color: "hsl(var(--info))",
         icon: <TrendingUp className="w-4 h-4" />,
@@ -709,7 +721,7 @@ export default function Analysis() {
               // "Accuracy" depending on whether the student had exam marks —
               // two different measures wearing one slot. It is practice
               // accuracy now, always, and named that way.
-              { label: "Accuracy",           value: `${overview.accuracy}%`,                  color: "hsl(var(--warning))" },
+              { label: "Accuracy",           value: overview.accuracy == null ? "—" : `${overview.accuracy}%`, color: "hsl(var(--warning))" },
               { label: "Practice sessions",  value: overview.practiceCompleted,               color: "hsl(var(--foreground))" },
               // "Marks recorded" was a count of exam marks. Marks are not an
               // Analysis figure any more (rule 11); the student reads them on
@@ -1335,7 +1347,7 @@ export default function Analysis() {
                     }
                     const summary = [
                       "Gurukul performance summary",
-                      `Accuracy: ${overview.accuracy}%`,
+                      `Accuracy: ${overview.accuracy == null ? "not enough practice yet" : `${overview.accuracy}%`}`,
                       `Questions: ${overview.totalQuestions}`,
                       `Practice sessions: ${overview.practiceCompleted}`,
                     ].join("\n");

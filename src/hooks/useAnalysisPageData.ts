@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ProgressionService, resolveStudentServiceContext, useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
-import { overallAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -47,7 +46,9 @@ export type AnalysisPageData = {
   totals: {
     correct: number;
     wrong: number;
-    accuracy_pct: number;
+    /** NULL when nothing has been attempted — never 0, which would read as
+     *  "got everything wrong" for a student who has not started. */
+    accuracy_pct: number | null;
     avg_sec_per_question: number | null;
     last_session_minutes: number | null;
   };
@@ -192,11 +193,28 @@ export function useAnalysisPageData(enabled = true) {
       }
 
       const wrong = Math.max(0, totalAttempts - correct);
-      // Overall accuracy SSOT: academic snapshot exam_readiness.accuracy_pct (the
-      // Test + practice blend), not the practice-only figure.
-      const accuracy_pct = overallAccuracyFromSnapshot(
-        (snapRes.error ? null : snapRes.data) as AcademicSnapshot | null,
-      );
+
+      // ACCURACY IS DERIVED FROM THE COUNTS SHOWN BESIDE IT (G5).
+      //
+      // This was `overallAccuracyFromSnapshot`, described in its own comment as
+      // "the Test + practice blend". The Overview tab renders correct and
+      // incorrect from `totalAttempts` — practice attempts — and then rendered
+      // that blend next to them, so the tiles read "13 correct · 14 incorrect ·
+      // 46% accuracy" and a student who divides gets 48%. Three sources for one
+      // quantity on one screen, and the arithmetic on display disagreed with
+      // the figure on display.
+      //
+      // The 10 September ruling settles which one is right: practice supplies
+      // the detail, tests supply marks only, and "the two are NEVER combined
+      // into one figure. No average, no composite, no single performance score
+      // across both." A blend cannot be shown here whatever it is called.
+      //
+      // So it is computed from `correct` and `wrong` — the same two numbers the
+      // tab prints. Null when nothing has been attempted: 0% would claim a
+      // student who has never practised got everything wrong.
+      const accuracy_pct = totalAttempts > 0
+        ? Math.round((100 * correct) / totalAttempts)
+        : null;
 
       // Average pace across recent timed sessions (not only the latest).
       const timed = sessions.filter((s) => s.question_count > 0 && s.duration_minutes > 0);
@@ -245,7 +263,7 @@ export function useAnalysisPageData(enabled = true) {
         totals: {
           correct: 0,
           wrong: 0,
-          accuracy_pct: 0,
+          accuracy_pct: null,
           avg_sec_per_question: null,
           last_session_minutes: null,
         },

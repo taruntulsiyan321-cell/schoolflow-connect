@@ -109,3 +109,43 @@ describe("the tab list itself", () => {
     expect(TABS.map((t) => t.key)).toEqual(expected);
   });
 });
+
+/**
+ * G5 — one accuracy, derived from the counts shown beside it.
+ *
+ * The Overview tab rendered "13 correct · 14 incorrect · 46% accuracy" and the
+ * arithmetic on display gave 48%. Three sources for one quantity on one screen:
+ * `analysis.totals` for the counts, `student.accuracy` for the rate, and
+ * `overallAccuracyFromSnapshot` — "the Test + practice blend" — inside the hook
+ * that produced `totals.accuracy_pct`.
+ *
+ * The 10 September ruling settles it: practice supplies the detail, tests
+ * supply marks only, and "the two are NEVER combined into one figure. No
+ * average, no composite, no single performance score across both."
+ *
+ * These two assertions are the guard. Both can fail: putting the shell figure
+ * back in the page breaks the first, and restoring the blend in the hook
+ * breaks the second.
+ */
+describe("G5 — accuracy has one source", () => {
+  const HOOK = stripComments(
+    readFileSync(join(__dirname, "..", "..", "hooks", "useAnalysisPageData.ts"), "utf8"),
+  );
+
+  it("does not read the shell accuracy next to its own counts", () => {
+    // `student.accuracy` is the Home/Progression figure. Rendered beside
+    // `analysis.totals.correct` it disagrees with the division a student can do
+    // in their head.
+    expect(SOURCE).not.toContain("student.accuracy");
+  });
+
+  it("does not blend test marks into the Analysis accuracy", () => {
+    expect(HOOK).not.toContain("overallAccuracyFromSnapshot");
+  });
+
+  it("derives it from correct and the attempt total instead", () => {
+    // The positive half: asserting only the absences above would pass if the
+    // figure stopped being computed at all.
+    expect(HOOK).toContain("(100 * correct) / totalAttempts");
+  });
+});
