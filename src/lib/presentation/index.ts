@@ -32,6 +32,7 @@ export {
   toDisplayText,
   isDisplaySafe,
   isIdentifierLike,
+  toPercentLabel,
   type DisplayKind,
   type DisplayTextOptions,
   type DisplayTextResult,

@@ -222,3 +222,12 @@ export function isIdentifierLike(value: unknown): boolean {
   const s = value.trim();
   return UUID_RE.test(s) || (UUID_FRAGMENT_RE.test(s) && s.length >= 8);
 }
+
+/**
+ * Format a number as a percentage label for display.
+ * Returns "—" for null/undefined/NaN, otherwise rounds to nearest integer with % suffix.
+ */
+export function toPercentLabel(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return NOT_AVAILABLE;
+  return `${Math.round(value)}%`;
+}
