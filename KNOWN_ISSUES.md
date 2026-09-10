@@ -2414,3 +2414,58 @@ click was silently skipped and the paper submitted empty. That is how a run
 recorded `answers_saved = 0` while reporting green. It now waits for the option
 to be visible, so "no options" and "no options YET" are no longer the same
 answer.
+
+## 44. The practice timer records nothing, so "study hours" is always 0
+
+**Found 2026-09-10 while chasing the v2 redesign's Screen 6 note: "Study hours
+total: 0h alongside 2 active days and 27 questions solved. Either the timer is
+not recording or the field is wrong."**
+
+It is the timer. Measured live:
+
+```
+practice_sessions                262 rows, 4 with total_time_ms   total 1 minute
+academic_daily_activity          9 rows, 9 with practice_minutes  total 18 minutes
+```
+
+258 of 262 practice sessions finish with no elapsed time at all, and
+`academic_daily_activity` holds nine rows for a platform with 223 students. So
+`Math.round(18 / 60)` is 0, and the tile was reporting a measurement nobody had
+taken.
+
+**What was done now:** the tile renders an em dash instead of `0h` when no time
+was recorded. That is the existing null contract — missing renders `—`, never
+`0` — and it stops the screen telling a student they studied for zero hours.
+
+**What was NOT done, and why:** making the timer record means changing the
+practice session finish path. That is the screen students use most, and it could
+not be verified in a browser while IPv4 was down (see HANDOFF.md §1). Changing
+the practice engine blind is how it breaks. The display no longer lies; the
+measurement still is not taken.
+
+**Where to start:** `practice_sessions.total_time_ms` is the column, and the four
+rows that DO carry it are worth reading first — something writes it sometimes,
+and finding which path does is faster than reading the whole finish flow.
+
+## 45. Revision "due now" equals "in queue" — NOT a scheduling bug
+
+**Investigated 2026-09-10, at the v2 document's request: "Due now (16) equals
+In queue (16), and Upcoming is 0 — everything is due at once. This may be a
+genuine scheduling bug or a first-run state."**
+
+**It is neither. The spacing is real and the queue is simply unattended.**
+
+```
+revision_queue    223 rows · 223 due · 0 upcoming
+                  earliest 2026-08-09 · latest 2026-09-07
+distinct due dates spread across a month, clustered 40 / 51 / 40
+```
+
+Items were scheduled across many different dates, which is what spaced
+repetition looks like. Every one has since matured, because the latest due date
+is 7 September and today is the 10th. Nothing has been revised, so everything is
+due.
+
+The counts were removed from the screen by the redesign anyway. Recorded here so
+the next reader does not spend an afternoon looking for a scheduler defect that
+is not there.

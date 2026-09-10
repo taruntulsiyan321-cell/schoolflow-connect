@@ -186,7 +186,18 @@ export default function Analysis() {
       correct,
       incorrect,
       practiceCompleted: snapshot?.self_practice?.sessions_completed ?? analysis?.recent_sessions.length ?? 0,
-      studyHours: Math.round(studyMinutes / 60),
+      // NULL, not 0, when no time was recorded.
+      //
+      // Measured 2026-09-10: only 4 of 262 practice sessions carry
+      // `total_time_ms`, and `academic_daily_activity.practice_minutes` totals
+      // 18 minutes across the whole platform. So "0h" beside "27 questions
+      // solved" was correct arithmetic on a number nothing had written — the
+      // screen was reporting a measurement that was never taken.
+      //
+      // The timer not recording is the real defect and it lives in the practice
+      // finish path, not here. This stops the screen claiming a student studied
+      // for zero hours in the meantime. KNOWN_ISSUES 44.
+      studyHours: studyMinutes > 0 ? Math.round(studyMinutes / 60) : null,
       streak: student.streak,
       rank: analysis?.class_rank ?? student.rank ?? 0,
       totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
@@ -726,7 +737,7 @@ export default function Analysis() {
               // "Marks recorded" was a count of exam marks. Marks are not an
               // Analysis figure any more (rule 11); the student reads them on
               // their marks surface.
-              { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "hsl(var(--info))" },
+              { label: "Study hours total",  value: overview.studyHours == null ? "—" : `${overview.studyHours}h`, color: "hsl(var(--info))" },
               // "Exam readiness" was removed in the v2 redesign: a composite of
               // four measures collapsed into one number, which is the
               // no-blended-score rule and cannot be explained to a student.

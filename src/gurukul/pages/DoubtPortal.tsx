@@ -80,12 +80,25 @@ function initials(name: string) {
   );
 }
 
+/**
+ * `full` was `d.toLocaleString("en-IN")`, which renders "7/8/2026, 2:12:33 am".
+ *
+ * Three problems in one string: 7/8 is ambiguous between 7 August and 7 July to
+ * anyone who does not already know the locale; the seconds are noise on a
+ * message board; and it sat next to a list that said "7 Aug", so the same
+ * moment was written two ways on two screens.
+ *
+ * A named month cannot be misread. The device's own timezone is kept —
+ * `toLocaleString` already converts from the stored UTC, so this is a
+ * formatting fix, not a timezone one. (The app holds no school timezone to
+ * convert to; if one is added, this is the single place it applies.)
+ */
 function formatWhen(iso: string) {
   const d = new Date(iso);
   return {
-    date: d.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+    date: d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
     time: d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
-    full: d.toLocaleString("en-IN"),
+    full: `${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}, ${d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}`,
   };
 }
 
