@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
-import { hasOverallAccuracy } from "@/lib/learningMetrics";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { pluralise } from "@/lib/plural";
 
@@ -205,16 +204,13 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             </h1>
             <p className="text-muted-foreground text-sm mt-1">{student.class || (shellReady ? "—" : "…")}{goalLine}</p>
             <div className="grid grid-cols-3 gap-3 mt-4">
-              {/* "Overall", not "Practice". `student.accuracy` is
-                  exam_readiness.accuracy_pct, which _exam_readiness() computes
-                  as (test_acc + practice_acc) / 2 — so this tile said
-                  "Practice accuracy" over a number the student never scored in
-                  practice. LearningHub renders the SAME value and has always
-                  called it Overall Accuracy; the practice-only figure lives on
-                  Analysis via practiceAccuracyFromSnapshot. */}
+              {/* This tile is PRACTICE accuracy and always was — StudentDashboard
+                  fills the profile from practiceAccuracyFromSnapshot. The field
+                  is named `practiceAccuracy` now so the label cannot drift from
+                  the value again. null when nothing has been attempted. */}
               <StatTile
-                label="Overall accuracy"
-                value={shellReady && hasOverallAccuracy(snapshot) ? `${student.accuracy}%` : "—"}
+                label="Practice accuracy"
+                value={shellReady && student.practiceAccuracy != null ? `${student.practiceAccuracy}%` : "—"}
                 color="hsl(var(--info))"
               />
               <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "—"} color="hsl(var(--warning))"/>

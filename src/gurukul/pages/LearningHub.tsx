@@ -8,7 +8,6 @@ import { LineChart, Line, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useMemo } from "react";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
-import { hasOverallAccuracy } from "@/lib/learningMetrics";
 
 type Props = { setPage: (p: PageKey) => void };
 
@@ -24,10 +23,11 @@ export default function LearningHub({ setPage }: Props) {
   const dueRevision = snapshot?.revision_queue?.length ?? 0;
   const unresolvedErrors = snapshot?.mistake_count ?? 0;
 
-  // Same SSOT as Home/Practice/Analysis/Nova/Battleground — shell profile (snapshot accuracy).
-  // null, not 0, when the snapshot carries no accuracy at all: ruling 8, and
-  // `overallAccuracyFromSnapshot` collapses absence to 0 before it gets here.
-  const overallAccuracy = hasOverallAccuracy(snapshot) ? Math.round(student.accuracy) : null;
+  // PRACTICE accuracy — the shell profile carries nothing else. This was
+  // labelled "Overall Accuracy" over the identical value Home called "Practice
+  // accuracy"; the profile field is named for what it holds now, which is what
+  // settled it. null when nothing has been attempted (ruling 8).
+  const practiceAccuracy = student.practiceAccuracy;
 
   const features = useMemo(
     () => [
@@ -38,8 +38,8 @@ export default function LearningHub({ setPage }: Props) {
         icon: <BarChart2 className="w-6 h-6"/>,
         color: "#4b9fd4",
         glow: "shadow-[0_0_32px_rgba(34,211,238,0.07)]",
-        stat: overallAccuracy == null ? "No accuracy yet" : `${overallAccuracy}% accuracy`,
-        statSub: "overall",
+        stat: practiceAccuracy == null ? "No practice yet" : `${practiceAccuracy}% accuracy`,
+        statSub: "practice",
       },
       {
         key: "recovery" as PageKey,
@@ -72,7 +72,7 @@ export default function LearningHub({ setPage }: Props) {
         statSub: "mistakes",
       },
     ],
-    [overallAccuracy, pendingRecovery, dueRevision, unresolvedErrors],
+    [practiceAccuracy, pendingRecovery, dueRevision, unresolvedErrors],
   );
 
 
@@ -113,7 +113,7 @@ export default function LearningHub({ setPage }: Props) {
       {/* Quick stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label:"Overall Accuracy", value:overallAccuracy == null ? "—" : `${overallAccuracy}%`, color:"#4b9fd4" },
+          { label:"Practice Accuracy", value:practiceAccuracy == null ? "—" : `${practiceAccuracy}%`, color:"#4b9fd4" },
           { label:"To Recover",       value:pendingRecovery,        color:"#cc5069" },
           { label:"Due for Revision", value:dueRevision,            color:"#6882e8" },
           { label:"Unresolved",       value:unresolvedErrors,       color:"#c08a3a" },

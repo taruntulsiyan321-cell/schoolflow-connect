@@ -312,9 +312,8 @@ type MeInfo = {
   wins: number;
   losses: number;
   draws: number;
-  accuracy: number;
-  /** False when the snapshot carries no accuracy — ruling 8, render "—". */
-  hasAccuracy: boolean;
+  /** PRACTICE accuracy from the shell profile; null when nothing attempted. */
+  practiceAccuracy: number | null;
   motivationTitle: string;
   motivationMessage: string;
   xpRemaining: number;
@@ -1456,13 +1455,14 @@ function StatisticsPanel({ me }: { me: MeInfo }) {
     { label: "Study Streak", value: String(me.studyStreak), icon: "🔥", color: C.orange, sub: `Win streak: ${me.streak} (best ${me.bestStreak})` },
     { label: "XP", value: me.xp.toLocaleString(), icon: "⚡", color: C.purple, sub: me.league },
     {
-      // "Overall", not "Practice". Both branches of `me.accuracy` resolve to
-      // exam_readiness.accuracy_pct, which _exam_readiness() computes as
-      // (test_acc + practice_acc) / 2 — so this tile put the word "Practice"
-      // over a number the student never scored in practice. The practice-only
-      // figure is on Analysis via practiceAccuracyFromSnapshot.
-      label: "Overall Accuracy",
-      value: me.hasAccuracy ? `${me.accuracy}%` : "—",
+      // PRACTICE accuracy, from the same shell profile Home reads. This used to
+      // be `shellReady ? profile.accuracy : data.stats.accuracy` — the practice
+      // figure while the shell was ready and the test+practice BLEND while it
+      // was not, so one tile showed two different metrics depending on a
+      // loading flag. It reads one field now, and that field is named for what
+      // it holds.
+      label: "Practice Accuracy",
+      value: me.practiceAccuracy == null ? "—" : `${me.practiceAccuracy}%`,
       icon: "🎯",
       color: C.gold,
       sub: "Same as Home",
@@ -2164,8 +2164,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       wins,
       losses: data.stats.losses,
       draws: data.stats.draws,
-      accuracy: shellReady ? profile.accuracy : data.stats.accuracy || 0,
-      hasAccuracy: data.hasAccuracy,
+      practiceAccuracy: profile.practiceAccuracy,
       motivationTitle: data.motivation.title,
       motivationMessage: data.motivation.message,
       xpRemaining: next?.remaining ?? 0,
@@ -2365,10 +2364,13 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
     }
   }
 
-  const classLabel =
-    profile?.class?.includes("-") || profile?.class?.includes("—")
-      ? profile.class
-      : [profile?.class, profile?.section].filter(Boolean).join("-") || "Your class";
+  // `profile.class` is the AcademicContext class label ("10-A") — StudentDashboard
+  // sets it from the same SSOT Practice uses. This used to fall back to
+  // `[class, section].join("-")`, but nothing ever set `profile.section`: it
+  // stayed "" from EMPTY_STUDENT, `.filter(Boolean)` dropped it every time, and
+  // the branch could only ever produce the class on its own. The field is gone
+  // and so is the dead half of the expression.
+  const classLabel = profile?.class || "Your class";
 
   return (
     <div className="bg-design" style={{ minHeight: "100%", borderRadius: "16px", margin: "-0.25rem", overflow: "hidden" }}>

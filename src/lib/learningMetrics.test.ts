@@ -68,6 +68,14 @@ describe("hasOverallAccuracy — ruling 8", () => {
   });
 });
 
+/**
+ * Strip comments before scanning. Every fix here carries a doc comment that
+ * quotes the old wrong label on purpose, and the removal notes name the deleted
+ * fields — so an uncommented scan matches the explanation, not the code.
+ */
+const stripComments = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+
 /** Every .tsx under a directory, so the guard cannot miss a new screen. */
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -85,23 +93,16 @@ describe("no student screen labels the blend as practice accuracy", () => {
     expect(files.length).toBeGreaterThan(20);
   });
 
-  /**
-   * Strip comments before scanning. The fixes carry doc comments that quote the
-   * old wrong label on purpose, and the removal notes name it too.
-   */
-  const stripComments = (src: string) =>
-    src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
-
   it('a "practice accuracy" label is never fed from the blended value', () => {
-    // The blend reaches screens as `student.accuracy` / `profile.accuracy` /
-    // `me.accuracy` / `stats.accuracy` — all of them exam_readiness.accuracy_pct.
-    // The practice figure only ever comes from practiceAccuracyFromSnapshot.
+    // The blend now reaches a screen ONLY as overallAccuracyFromSnapshot or as
+    // the hook's `stats.accuracy`. The shell profile carries `practiceAccuracy`,
+    // which is named for what it holds and cannot be mistaken for the blend.
     //
     // Scanned over a WINDOW, not per line. The first draft of this guard
     // required the label and the value on one line, so it went green against
     // the very defect it was written for the moment the JSX wrapped onto
     // several lines — which is exactly how it is written on Home.
-    const BLEND = /\b(?:student|profile|me|overview|stats)\.accuracy\b/;
+    const BLEND = /overallAccuracyFromSnapshot|\bstats\??\.accuracy\b/;
     const WINDOW = 320;
     const offenders: string[] = [];
     for (const file of files) {
@@ -115,13 +116,13 @@ describe("no student screen labels the blend as practice accuracy", () => {
         );
         if (BLEND.test(around)) {
           const line = src.slice(0, m.index).split("\n").length;
-          offenders.push(`${file}:${line}  ${m[0]} sits within ${WINDOW} chars of a blended .accuracy`);
+          offenders.push(`${file}:${line}  ${m[0]} sits within ${WINDOW} chars of a blended accuracy`);
         }
       }
     }
     expect(
       offenders,
-      `these label the blended accuracy_pct as practice — either say "Overall accuracy" or read practiceAccuracyFromSnapshot:\n${offenders.join("\n")}`,
+      `these label a blended accuracy as practice — say "Overall accuracy", or read profile.practiceAccuracy:\n${offenders.join("\n")}`,
     ).toEqual([]);
   });
 
@@ -129,8 +130,48 @@ describe("no student screen labels the blend as practice accuracy", () => {
     // Without this, a stripComments bug that emptied every file would leave the
     // assertion above passing on nothing at all.
     const withAccuracy = files.filter((f) =>
-      /\b(?:student|profile|me|overview|stats)\.accuracy\b/.test(stripComments(readFileSync(f, "utf8"))),
+      /\b(?:student|profile|me)\??\.practiceAccuracy\b|overallAccuracyFromSnapshot/.test(
+        stripComments(readFileSync(f, "utf8")),
+      ),
     );
     expect(withAccuracy.length).toBeGreaterThan(2);
+  });
+});
+
+/**
+ * The shape itself, because this defect lived in a TYPE, not in a screen.
+ *
+ * A field called `accuracy` said nothing about WHICH accuracy, so the docstring
+ * claimed the blend, the code set practice, and three screens each guessed
+ * differently. Renaming it was the fix; these stop it being undone.
+ */
+describe("the shell profile cannot go ambiguous again", () => {
+  const emptyStudent = stripComments(
+    readFileSync(join(process.cwd(), "src", "gurukul", "emptyStudent.ts"), "utf8"),
+  );
+
+  it("names the field for the metric it holds", () => {
+    expect(emptyStudent).toMatch(/practiceAccuracy: number \| null/);
+  });
+
+  it("has no bare `accuracy` field for a screen to guess at", () => {
+    // `practiceAccuracy:` must not match, hence the word boundary.
+    expect(emptyStudent).not.toMatch(/\baccuracy\s*:/);
+  });
+
+  it("defaults absence to null, not 0 (ruling 8)", () => {
+    expect(emptyStudent).toMatch(/practiceAccuracy: null/);
+  });
+
+  it("and the merge that fills it does not strip a genuine null", () => {
+    // The root cause: StudentDashboard filtered null out of the real profile,
+    // so EMPTY_STUDENT's default won and every absent metric arrived at every
+    // screen as 0 — ruling 8 broken before any screen could honour it.
+    const dash = readFileSync(
+      join(process.cwd(), "src", "pages", "StudentDashboard.tsx"),
+      "utf8",
+    );
+    expect(dash).toContain('v !== undefined && v !== ""');
+    expect(dash).not.toContain("v !== undefined && v !== null");
   });
 });

@@ -53,7 +53,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLatestEffect } from "@/hooks/useLatestEffect";
 import { useAcademicContext, useAcademicLive } from "@/academic";
 import { studentShellReady } from "@/academic/services/assertStudentContext";
-import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import { hasPracticeAccuracy, practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 
 export default function StudentDashboard() {
@@ -75,11 +75,10 @@ export default function StudentDashboard() {
     xpIntoLevel?: number;
     levelProgressPct?: number;
     league?: string;
-    reputation?: number;
     streak?: number;
     rank?: number;
-    accuracy?: number;
-    attendance?: number;
+    /** PRACTICE accuracy; null when nothing has been attempted. */
+    practiceAccuracy?: number | null;
     sessionsThisWeek?: number;
     totalStudents?: number;
   }>({});
@@ -174,12 +173,13 @@ export default function StudentDashboard() {
     const snapshot = snap as AcademicSnapshot | null;
     const chartData = charts as ChartRow | null;
 
-    const accuracy = practiceAccuracyFromSnapshot(snapshot);
-
-    const attendance =
-      snapshot?.exam_readiness?.attendance_pct != null
-        ? Math.round(snapshot.exam_readiness.attendance_pct)
-        : 0;
+    // PRACTICE accuracy, and null rather than 0 when there is nothing to
+    // compute it from — ruling 8. `hasPracticeAccuracy` is what separates "no
+    // attempts" from "attempted and got none right", which both used to arrive
+    // at every screen as a bare 0.
+    const practiceAccuracy = hasPracticeAccuracy(snapshot)
+      ? practiceAccuracyFromSnapshot(snapshot)
+      : null;
 
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
@@ -224,11 +224,9 @@ export default function StudentDashboard() {
       xpIntoLevel,
       levelProgressPct,
       league: prog?.league?.label ?? prog?.league?.code ?? "",
-      reputation: prog?.reputation ?? 0,
       streak: prog?.study_streak ?? 0,
       rank: rank ?? 0,
-      accuracy,
-      attendance,
+      practiceAccuracy,
       sessionsThisWeek,
       totalStudents,
     });
@@ -269,7 +267,11 @@ export default function StudentDashboard() {
   const mergedStudent = useMemo(
     () => ({
       ...EMPTY_STUDENT,
-      ...Object.fromEntries(Object.entries(profile).filter(([, v]) => v !== undefined && v !== null && v !== "")),
+      // `undefined` means the loader has not filled this key yet, so the
+      // EMPTY_STUDENT default stands. `null` is an ANSWER — "there is no
+      // practice accuracy" — and must survive the merge. Stripping it here is
+      // what turned every absent metric into a 0 before any screen saw it.
+      ...Object.fromEntries(Object.entries(profile).filter(([, v]) => v !== undefined && v !== "")),
       // Class label SSOT from AcademicContext (same as Practice curriculum scope).
       ...(classLabel ? { class: classLabel } : {}),
     }),

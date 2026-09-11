@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { useAcademicContext, useAcademicLive } from "@/academic";
 import { useLatestEffect } from "@/hooks/useLatestEffect";
-import { hasOverallAccuracy, overallAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import { overallAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import {
   accuracyFromXp,
@@ -273,13 +273,7 @@ export function useBattlegroundData(enabled = true) {
     next_league_label: string | null;
   } | null>(null);
   const [productAccuracy, setProductAccuracy] = useState(0);
-  /**
-   * Whether the snapshot carries an accuracy AT ALL. Ruling 8: the value above
-   * collapses absence to 0, and GurukulStudentProfile.accuracy is a plain
-   * `number`, so by the time a screen reads it "never attempted anything" and
-   * "got everything wrong" are the same 0.
-   */
-  const [hasAccuracy, setHasAccuracy] = useState(false);
+
   const [classRank, setClassRank] = useState<number | null>(null);
   const [schoolRank, setSchoolRank] = useState<number | null>(null);
   const [battles, setBattles] = useState<DesignBattleCard[]>([]);
@@ -410,9 +404,11 @@ export function useBattlegroundData(enabled = true) {
       const x = xpData;
       const mates = matesRes.data;
 
-      const snapForAccuracy = (snapRes.error ? null : snapRes.data) as AcademicSnapshot | null;
-      setProductAccuracy(overallAccuracyFromSnapshot(snapForAccuracy));
-      setHasAccuracy(hasOverallAccuracy(snapForAccuracy));
+      setProductAccuracy(
+        overallAccuracyFromSnapshot(
+          (snapRes.error ? null : snapRes.data) as AcademicSnapshot | null,
+        ),
+      );
 
       // Class scope comes from the shared Academic identity, the same source as Home.
       setClassId(academicClassId);
@@ -1021,8 +1017,6 @@ export function useBattlegroundData(enabled = true) {
     heroStats,
     motivation,
     accuracy,
-    /** False when the snapshot carries no accuracy — render "—", not 0%. */
-    hasAccuracy,
     /** Flat stats for hero / statistics panels */
     stats: record,
     totalBattles: record.totalBattles,
