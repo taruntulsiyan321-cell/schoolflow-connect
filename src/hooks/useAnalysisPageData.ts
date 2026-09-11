@@ -113,7 +113,7 @@ export function useAnalysisPageData(enabled = true) {
     setError(null);
 
     try {
-      const [sessionsRes, rankRes, masteryRes, classRes, snapRes] = await Promise.all([
+      const [sessionsRes, rankRes, classRes, snapRes, attemptsRes, correctRes] = await Promise.all([
         supabase
           .from("practice_sessions")
           .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at, accuracy, wrong_count, skipped_count, total_time_ms")
@@ -134,13 +134,30 @@ export function useAnalysisPageData(enabled = true) {
             return { rows: [] as { user_id: string; name: string; value: number }[] };
           }
         })(),
-        supabase.rpc("rpc_student_concept_mastery"),
         supabase
           .from("students")
           .select("class_id, classes(name, section)")
           .eq("user_id", user.id)
           .maybeSingle(),
         supabase.rpc("rpc_student_academic_snapshot"),
+        // THE ONE POPULATION ACCURACY IS COUNTED OVER (G5).
+        //
+        // `question_attempts` is the durable per-attempt record, and it is what
+        // `_exam_readiness` counts for `practice_accuracy_pct` — the figure Home
+        // shows. Counting the same rows here is what makes the two screens
+        // agree; counting anything else is what made them disagree.
+        //
+        // `question attempts select self` is `user_id = auth.uid()`, so a
+        // student counts their own and nobody else's.
+        supabase
+          .from("question_attempts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id),
+        supabase
+          .from("question_attempts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_correct", true),
       ]);
 
       const sessions = sessionsRes.error
@@ -180,17 +197,29 @@ export function useAnalysisPageData(enabled = true) {
         student_class = `Class ${classRow.classes.name}-${classRow.classes.section}`;
       }
 
-      const masteryItems =
-        ((masteryRes.data as { items?: { correct_attempts: number; total_attempts: number }[] })
-          ?.items as { correct_attempts: number; total_attempts: number }[]) ?? [];
-
-      let correct = masteryItems.reduce((s, m) => s + (m.correct_attempts ?? 0), 0);
-      let totalAttempts = masteryItems.reduce((s, m) => s + (m.total_attempts ?? 0), 0);
-
-      if (totalAttempts === 0 && sessions.length > 0) {
-        correct = sessions.reduce((s, x) => s + x.correct_count, 0);
-        totalAttempts = sessions.reduce((s, x) => s + x.question_count, 0);
-      }
+      // COUNTED FROM `question_attempts`, THE SAME ROWS HOME COUNTS (G5).
+      //
+      // These came from `concept_mastery` — summed `total_attempts` and
+      // `correct_attempts` across concepts — and that table has DRIFTED from
+      // the attempt record it is derived from. Measured 2026-09-11 on a student
+      // with 120 real attempts:
+      //
+      //     question_attempts   120 attempts,  20 correct  ->  17%   (Home)
+      //     concept_mastery     200 attempts, 125 correct  ->  63%   (Analysis)
+      //
+      // Not a subset, not a window: MORE attempts than exist, and a rate 46
+      // points apart for one student on two screens. That is the defect G5
+      // names — "the same student's accuracy renders as 46%, 48%, 40% and 80%
+      // across two screens" — and making the Overview tab internally
+      // consistent with `concept_mastery` would only have made it consistently
+      // wrong against Home.
+      //
+      // The session fallback is gone with it: `practice_sessions.correct_count`
+      // is seeded on 240 of 244 rows and disagrees with its own attempts
+      // (KNOWN_ISSUES 44), so falling back to it reintroduces the same class of
+      // error by another route.
+      const correct = correctRes.count ?? 0;
+      const totalAttempts = attemptsRes.count ?? 0;
 
       const wrong = Math.max(0, totalAttempts - correct);
 

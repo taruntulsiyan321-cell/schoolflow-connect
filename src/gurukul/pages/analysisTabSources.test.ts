@@ -148,4 +148,22 @@ describe("G5 — accuracy has one source", () => {
     // figure stopped being computed at all.
     expect(HOOK).toContain("(100 * correct) / totalAttempts");
   });
+
+  it("counts the SAME rows Home counts, not concept_mastery", () => {
+    // Home's figure is `_exam_readiness.practice_accuracy_pct`, which is
+    // `100 * correct / count` over `question_attempts`. Analysis used to sum
+    // `concept_mastery`, which has drifted from the attempt record it derives
+    // from — measured on one student: 120 real attempts / 20 correct = 17%,
+    // against concept_mastery's 200 / 125 = 63%. Not a subset. Not a window.
+    // A 46-point disagreement about one child on two screens.
+    expect(HOOK).toContain('from("question_attempts")');
+    expect(HOOK).not.toContain("rpc_student_concept_mastery");
+  });
+
+  it("does not fall back to practice_sessions.correct_count", () => {
+    // That column is seeded on 240 of 244 rows and disagrees with its own
+    // attempts (KNOWN_ISSUES 44), so a fallback to it reintroduces the same
+    // class of error by another route.
+    expect(HOOK).not.toContain("s + x.correct_count");
+  });
 });
