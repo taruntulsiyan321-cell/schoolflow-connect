@@ -12,7 +12,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn, XPBar, EASE_OUT, springSnappy, springSoft } from "./shared";
 import {
   Home, BookOpen, Brain, Swords,
-  ChevronLeft, ChevronRight, Flame, Zap, Bell, Menu, X,
+  ChevronLeft, ChevronRight, Bell, Menu, X,
   FlaskConical, GraduationCap, Settings, LogOut,
   User, Wallet, Megaphone,
 } from "lucide-react";
@@ -342,42 +342,15 @@ export default function Layout({
             {/* Right badges */}
             <div className="flex items-center gap-2">
               <MembershipSwitcher className="shrink-0" />
-              {/* Streak */}
-              <div className="hidden sm:flex items-center gap-1.5 bg-warning/10 border border-warning/20 rounded-full px-2.5 py-1">
-                <Flame className="w-3 h-3 text-warning"/>
-                <span className="text-xs font-bold text-warning">
-                  {showXpChrome ? `${student.streak}d` : "—"}
-                </span>
-              </div>
-              {/* XP */}
-              <div className="hidden sm:flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-2.5 py-1">
-                <Zap className="w-3 h-3 text-info"/>
-                <span className="text-xs font-bold text-info">
-                  {showXpChrome ? student.xp.toLocaleString() : "—"}
-                </span>
-              </div>
-              {/* Bell -> Notifications (live inbox) */}
-              <motion.button
-                whileHover={reduceMotion ? undefined : { scale: 1.06 }}
-                whileTap={reduceMotion ? undefined : { scale: 0.92 }}
-                onClick={() => navigate("/student/notifications")}
-                className="relative w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                title="Notifications"
-              >
-                <Bell className="w-4 h-4"/>
-                <AnimatePresence>
-                  {unread > 0 && (
-                    <motion.span
-                      initial={reduceMotion ? undefined : { scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={reduceMotion ? undefined : { scale: 0, opacity: 0 }}
-                      transition={springSnappy}
-                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
-                      {unread > 9 ? "9+" : unread}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.button>
+              {/* Ruling 4: the header is back + title + at most one screen-specific
+                  action. A streak pill, an XP pill and a notification bell stood
+                  here on EVERY screen. Streak and XP belong on Home, where the
+                  student is looking at their progress on purpose; carried in the
+                  chrome they followed them into the middle of a test.
+
+                  The bell went with them. Notifications is reached from the
+                  profile menu, and the unread count moved onto that link — the
+                  signal survives, the chrome does not. */}
 
               {/* Admin Panel shortcut */}
               {onOpenAdmin && (
@@ -474,7 +447,16 @@ export default function Layout({
                           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                         >
                           <span className="text-muted-foreground">{item.icon}</span>
-                          {item.label}
+                          <span className="flex-1">{item.label}</span>
+                          {/* The unread count the header bell used to carry. It moved
+                              here with the link rather than being deleted — ruling 4
+                              removes the bell from the chrome, not the student's
+                              ability to know something is waiting. */}
+                          {item.path === "/student/notifications" && unread > 0 && (
+                            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                              {unread > 9 ? "9+" : unread}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
