@@ -16,7 +16,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
-import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, SectionLabel, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { toErrorMessage } from "@/lib/presentation";
 
 /**
@@ -127,11 +127,7 @@ export default function Tests() {
   }
 
   if (!studentId) {
-    return (
-      <div className="text-center text-sm text-muted-foreground py-16">
-        No student profile linked to this account.
-      </div>
-    );
+    return <NoStudentProfile />;
   }
 
   if (error) {

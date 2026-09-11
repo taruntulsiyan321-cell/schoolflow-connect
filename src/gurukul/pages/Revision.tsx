@@ -7,7 +7,7 @@ import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useRevisionItems, type RevItem } from "./useRevisionQueueV2";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
-import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { REVISION_PASS_THRESHOLD } from "@/academic/recovery/constants";
 import {
   RotateCcw, CheckCircle2, AlertCircle,
@@ -205,11 +205,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   }
 
   if (!academicReady) {
-    return (
-      <GlassCard className="p-8 text-center">
-        <p className="text-sm text-muted-foreground">No student profile linked to this account.</p>
-      </GlassCard>
-    );
+    return <NoStudentProfile />;
   }
 
   if (error || v2Error) {

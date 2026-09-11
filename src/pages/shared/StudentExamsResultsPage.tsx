@@ -12,6 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { displaySubject } from "@/lib/academicPresentation";
 import { belowPass } from "@/academic/metrics/thresholds";
+// Reached only from StudentClassesPage, which only StudentDashboard renders,
+// and that renders inside the `.gurukul-student` theme wrapper — so the
+// student panel's shared component is at home here despite the shared/ path.
+import { NoStudentProfile } from "@/gurukul/components/shared";
 import { isOk, type Metric } from "@/academic/metrics/types";
 import { examScoreBand, type ExamScoreBand } from "@/academic/metrics/bands";
 import {
@@ -175,8 +179,8 @@ export default function StudentExamsResultsPage() {
 
   if (!studentId) {
     return (
-      <div className="sd-dashboard max-w-4xl mx-auto py-12 text-center text-sm text-muted-foreground">
-        No student profile linked to this account.
+      <div className="sd-dashboard max-w-4xl mx-auto">
+        <NoStudentProfile />
       </div>
     );
   }

@@ -9,7 +9,7 @@ import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
-import { GlassCard, SubjectBadge, ProgressBar, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { urgencyBand, type Urgency } from "@/academic/metrics/bands";
 import {
   RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2,
@@ -418,11 +418,7 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
   }
 
   if (!academicReady) {
-    return (
-      <GlassCard className="p-8 text-center">
-        <p className="text-sm text-muted-foreground">No student profile linked to this account.</p>
-      </GlassCard>
-    );
+    return <NoStudentProfile />;
   }
 
   if (error) {

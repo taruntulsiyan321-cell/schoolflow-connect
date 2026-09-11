@@ -12,7 +12,7 @@ import {
   Zap, Target, Calendar, ChevronRight,
   ArrowUp, ArrowDown, Minus, Printer, Star,
 } from "lucide-react";
-import { cn } from "@/gurukul/components/shared";
+import { NoStudentProfile, cn } from "@/gurukul/components/shared";
 import { type Tab, TABS } from "./analysisTabs";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
@@ -630,11 +630,7 @@ export default function Analysis() {
   }
 
   if (!academicReady) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <p className="text-sm text-muted-foreground">No student profile linked to this account.</p>
-      </div>
-    );
+    return <NoStudentProfile />;
   }
 
   // null means "no figure recorded", never 0. See the Summary block below.

@@ -3,7 +3,7 @@ import { HomeworkService, MarksService, TestService, CalendarEventsService, useA
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
-import { GlassCard, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
 import { ChevronLeft, ChevronRight, CalendarDays, BookOpen, ClipboardList, AlertCircle, Star, Loader2 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -218,11 +218,7 @@ export default function Calendar() {
   }
 
   if (ready && !studentId) {
-    return (
-      <div className="text-center text-sm text-muted-foreground py-16">
-        No student profile linked to this account.
-      </div>
-    );
+    return <NoStudentProfile />;
   }
 
   return (

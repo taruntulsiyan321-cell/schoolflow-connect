@@ -5,7 +5,7 @@ import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
-import { GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/AttachmentUI";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -127,11 +127,7 @@ export default function Assignments() {
   }
 
   if (!studentId) {
-    return (
-      <div className="text-center text-sm text-muted-foreground py-16">
-        No student profile linked to this account.
-      </div>
-    );
+    return <NoStudentProfile />;
   }
 
   if (loadError) {

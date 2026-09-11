@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
-import { GlassCard, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile } from "@/gurukul/components/shared";
 import {
   Clock, Calendar, CalendarDays, ClipboardList, FlaskConical,
   MessageCircle, Trophy, ArrowRight, Library, Loader2,
@@ -218,11 +218,7 @@ export default function ClassHub({ setPage }: Props) {
   }
 
   if (ready && !studentId) {
-    return (
-      <div className="text-center text-sm text-muted-foreground py-16">
-        No student profile linked to this account.
-      </div>
-    );
+    return <NoStudentProfile />;
   }
 
   return (

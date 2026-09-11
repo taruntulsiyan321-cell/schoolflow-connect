@@ -8,7 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
-import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds";
 import { ATTENDANCE_COMFORTABLE } from "@/academic/metrics/bands";
@@ -138,11 +138,7 @@ export default function Attendance() {
   }
 
   if (!studentId) {
-    return (
-      <div className="text-center text-sm text-muted-foreground py-16">
-        No student profile linked to this account.
-      </div>
-    );
+    return <NoStudentProfile />;
   }
 
   return (

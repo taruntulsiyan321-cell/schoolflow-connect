@@ -4,6 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
 import { riskBand, type Band } from "@/academic/metrics/bands";
+import { UserRound } from "lucide-react";
 
 /**
  * COLOUR CONTRACT FOR THIS FILE, and for everything that calls it.
@@ -542,5 +543,30 @@ export function PageHeader({ title, subtitle, badge, icon, action }: {
         </motion.div>
       )}
     </motion.div>
+  );
+}
+
+/**
+ * "Your account isn't linked to a student record."
+ *
+ * Eight student screens each guarded against a missing student id and then
+ * rendered this state in FOUR different ways — a bare centred div at `py-16`,
+ * a bare div at `py-24`, a `<GlassCard className="p-8">`, and a `<p>` inside a
+ * flex box — every one of them the same grey sentence, no icon, no way
+ * forward. Same state, four designs, nine copies of the string.
+ *
+ * It is also not a "nothing here yet" state. Every other empty surface in this
+ * panel is the student having done nothing yet; this one is the student being
+ * unable to do anything, and it is the school office that has to fix it. The
+ * copy says so now, because "No student profile linked to this account" tells
+ * a stuck fifteen-year-old exactly nothing about what to do next.
+ */
+export function NoStudentProfile() {
+  return (
+    <EmptyState
+      icon={<UserRound className="w-6 h-6" />}
+      title="Your account isn't linked to a student record yet"
+      sub="Ask your class teacher or the school office to link your login to your student profile. Once they do, this page fills in on its own."
+    />
   );
 }
