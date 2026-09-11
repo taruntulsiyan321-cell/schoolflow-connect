@@ -81,17 +81,35 @@ describe("Attendance page", () => {
 
   it("shows an honest empty state when there are no records", async () => {
     const academic = await import("@/academic");
-    vi.mocked(academic.AttendanceService.listForStudent).mockResolvedValueOnce([]);
-    render(<Attendance />);
+    const listForStudent = vi.mocked(academic.AttendanceService.listForStudent);
+    const withRecords = listForStudent.getMockImplementation();
+
+    // NOT mockResolvedValueOnce. The load effect can run more than once per
+    // mount (it is keyed on ctx/liveVersion), so a one-shot mock covers the
+    // first call and the SECOND one hands back the four-record default — the
+    // component renders the empty state, then silently replaces it with data.
+    // The assertion below still passed on the brief empty frame, which is how
+    // this went unnoticed until a render-timing change made the frame shorter.
+    listForStudent.mockResolvedValue([]);
+    try {
+      render(<Attendance />);
     // The card renders the shared EmptyState now, so the sentence arrived as a
     // title plus a separate line of guidance rather than one bare <div>. The
     // assertion that matters is unchanged: an empty register says it is empty
     // and invents nothing to fill itself.
-    await waitFor(() =>
-      expect(screen.getByText("No attendance recorded yet")).toBeTruthy(),
-    );
-    expect(
-      screen.getByText("Days appear here once your teacher starts marking the register."),
-    ).toBeTruthy();
+      await waitFor(() =>
+        expect(screen.getByText("No attendance recorded yet")).toBeTruthy(),
+      );
+      expect(
+        screen.getByText("Days appear here once your teacher starts marking the register."),
+      ).toBeTruthy();
+
+      // And it must STAY empty — a later resolve must not quietly replace the
+      // empty state with data. This is the half the one-shot mock could not see.
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.queryByText("August 2026")).toBeNull();
+    } finally {
+      if (withRecords) listForStudent.mockImplementation(withRecords);
+    }
   });
 });

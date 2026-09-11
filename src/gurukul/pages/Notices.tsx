@@ -8,7 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
-import { EmptyState, GlassCard, LoadingState, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, PageHeader, cn } from "@/gurukul/components/shared";
 import { toast } from "sonner";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -99,18 +99,19 @@ export default function Notices() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1
-          className="text-3xl font-black text-foreground"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Notices
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          AnnouncementService · {rows.length} published
-        </p>
-        {error && <p className="text-[10px] text-destructive mt-1">{error}</p>}
-      </div>
+      {/* The subtitle read "AnnouncementService · N published" — the service
+          class name, on screen, to a student. Same defect as KNOWN_ISSUES 24,
+          which was fixed for the parent panel and left here. */}
+      <PageHeader
+        eyebrow="Class"
+        title="Notices"
+        subtitle={
+          rows.length === 0
+            ? "Announcements from your school and your class."
+            : `${rows.length} ${rows.length === 1 ? "notice" : "notices"} from your school and your class.`
+        }
+      />
+      {error && <p className="text-[10px] text-destructive -mt-3">{error}</p>}
 
       {rows.length === 0 ? (
         <GlassCard className="p-4">

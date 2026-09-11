@@ -3,7 +3,7 @@ import { HomeworkService, MarksService, TestService, CalendarEventsService, useA
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
-import { GlassCard, LoadingState, NoStudentProfile, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
+import { GlassCard, LoadingState, NoStudentProfile, PageHeader, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
 import { ChevronLeft, ChevronRight, CalendarDays, BookOpen, ClipboardList, AlertCircle, Star } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -220,7 +220,11 @@ export default function Calendar() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      <PageHeader
+        eyebrow="Class"
+        title="Calendar"
+        subtitle="Tests, exams, events and submission deadlines for your class."
+      />
       <GlassCard glow="cyan" className="p-6">
         <div className="flex items-center justify-between">
           <div>

@@ -3,7 +3,7 @@ import {
   Bell, Award, Swords, Trophy, Wallet, NotebookPen, Sparkles,
   CheckCheck, Trash2, MessageSquare
 } from "lucide-react";
-import { EmptyState, GlassCard, LoadingState, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, PageHeader, cn } from "@/gurukul/components/shared";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -47,26 +47,22 @@ export default function Notifications() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-            Notifications
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {unread > 0 ? `${unread} unread` : "You're all caught up"}
-          </p>
-          {error && <p className="text-[10px] text-destructive mt-1">{error}</p>}
-        </div>
-        {unread > 0 && (
-          <button
-            type="button"
-            onClick={() => void markAllRead()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs font-bold text-muted-foreground hover:bg-black/10 transition-all"
-          >
-            <CheckCheck className="w-3.5 h-3.5" /> Mark all read
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Notifications"
+        subtitle={unread > 0 ? `${unread} unread` : "You're all caught up"}
+        action={
+          unread > 0 ? (
+            <button
+              type="button"
+              onClick={() => void markAllRead()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs font-bold text-muted-foreground hover:bg-black/10 transition-all"
+            >
+              <CheckCheck className="w-3.5 h-3.5" /> Mark all read
+            </button>
+          ) : undefined
+        }
+      />
+      {error && <p className="text-[10px] text-destructive -mt-2">{error}</p>}
 
       {items.length === 0 ? (
         <GlassCard className="p-4">

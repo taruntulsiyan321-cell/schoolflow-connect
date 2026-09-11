@@ -16,7 +16,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
-import { GlassCard, LoadingState, NoStudentProfile, SectionLabel, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
+import { GlassCard, LoadingState, NoStudentProfile, PageHeader, SectionLabel, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { toErrorMessage } from "@/lib/presentation";
 import { StudentErrorState } from "@/components/student/StudentPanelStates";
 
@@ -152,6 +152,11 @@ export default function Tests() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        eyebrow="Class"
+        title="Tests"
+        subtitle="Your marks from class tests and exams, newest first."
+      />
       <div className="grid grid-cols-3 gap-3">
         <GlassCard className="p-4 text-center">
           <div className="text-2xl font-black text-foreground">{avgPct}%</div>

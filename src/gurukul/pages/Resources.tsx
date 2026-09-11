@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { EmptyState, GlassCard, LoadingState, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, PageHeader, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { FileText, Video, Download, Search, ExternalLink } from "lucide-react";
 import { ResourceService, type LearningResourceRow } from "@/academic";
 import { academicFileUrl } from "@/academic/storage/academicFileUpload";
@@ -103,6 +103,11 @@ export default function Resources() {
 
   return (
     <div className="space-y-5">
+      <PageHeader
+        eyebrow="Class"
+        title="Resources"
+        subtitle="Notes, videos and past papers your teachers share with your class."
+      />
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input

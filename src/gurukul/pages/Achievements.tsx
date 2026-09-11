@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
-import { EmptyState, GlassCard, LoadingState, SectionLabel, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, PageHeader, SectionLabel, cn } from "@/gurukul/components/shared";
 import { Lock, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
@@ -105,6 +105,11 @@ export default function Achievements() {
 
   return (
     <div className="space-y-5">
+      <PageHeader
+        eyebrow="Class"
+        title="Achievements"
+        subtitle="Milestones you have reached, and the ones still ahead."
+      />
       <div className="grid grid-cols-2 gap-3">
         <div className="p-4 rounded-2xl border border-border/70 bg-surface/70 text-center">
           <div className="text-2xl font-black text-amber-400" style={{ fontFamily: "var(--font-display)" }}>

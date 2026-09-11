@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
-import { GlassCard, LoadingState, NoStudentProfile } from "@/gurukul/components/shared";
+import { GlassCard, LoadingState, NoStudentProfile, PageHeader } from "@/gurukul/components/shared";
 import {
   Clock, Calendar, CalendarDays, ClipboardList, FlaskConical,
   MessageCircle, Trophy, ArrowRight, Library, Bell, MessageSquare
@@ -220,15 +220,10 @@ export default function ClassHub({ setPage }: Props) {
 
   return (
     <div className="space-y-8">
-      <div>
-        <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Student Panel</div>
-        <h1 className="text-3xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-          Class
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Your attendance, homework and marks, and everything your class shares.
-        </p>
-      </div>
+      <PageHeader
+        title="Class"
+        subtitle="Your attendance, homework and marks, and everything your class shares."
+      />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[

@@ -461,14 +461,14 @@
 }
 
 /* Premium button variants */
-.gurukul-student button[class*="bg-[#3b5bdb]"],
+.gurukul-student button[class*="bg-[#3b5bdb]"]:not([class*="bg-[#3b5bdb]/"]),
 .gurukul-student button[class*="bg-primary"]:not([class*="bg-primary/"]) {
   background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.9) 100%);
   box-shadow: 0 2px 8px hsl(var(--primary) / 0.25), 0 1px 2px rgba(0, 0, 0, 0.1);
   border: 1px solid hsl(var(--primary) / 0.8);
 }
 
-.gurukul-student button[class*="bg-[#3b5bdb]"]:hover,
+.gurukul-student button[class*="bg-[#3b5bdb]"]:not([class*="bg-[#3b5bdb]/"]):hover,
 .gurukul-student button[class*="bg-primary"]:not([class*="bg-primary/"]):hover {
   background: linear-gradient(135deg, hsl(var(--primary) / 0.95) 0%, hsl(var(--primary) / 0.85) 100%);
   box-shadow: 0 4px 16px hsl(var(--primary) / 0.35), 0 2px 4px rgba(0, 0, 0, 0.12);
@@ -873,7 +873,7 @@
  * Removed rather than qualified: qualifying it on `button` would have made it a
  * duplicate of the line above.
  */
-.gurukul-student button[class*="bg-[#3b5bdb]"],
+.gurukul-student button[class*="bg-[#3b5bdb]"]:not([class*="bg-[#3b5bdb]/"]),
 .gurukul-student button[class*="bg-primary"]:not([class*="bg-primary/"]) {
   background: linear-gradient(135deg, 
     hsl(var(--primary)) 0%, 
@@ -884,7 +884,7 @@
   border: 1px solid hsl(var(--primary) / 0.8);
 }
 
-.gurukul-student button[class*="bg-[#3b5bdb]"]:hover {
+.gurukul-student button[class*="bg-[#3b5bdb]"]:not([class*="bg-[#3b5bdb]/"]):hover {
   background: linear-gradient(135deg, 
     hsl(var(--primary) / 1.05) 0%, 
     hsl(var(--primary)) 100%) !important;

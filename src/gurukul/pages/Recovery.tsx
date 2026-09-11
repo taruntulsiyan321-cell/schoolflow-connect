@@ -9,7 +9,7 @@ import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
-import { GlassCard, NoStudentProfile, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { urgencyBand, type Urgency } from "@/academic/metrics/bands";
 import {
   RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2,
@@ -444,17 +444,17 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Learning Workflow</div>
-          <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>Recovery</h1>
-          <p className="text-muted-foreground text-sm mt-1">Targeted practice for topics where you need the most help.</p>
-        </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
-          <AlertCircle className="w-3.5 h-3.5 text-rose-400"/>
-          <span className="text-xs font-bold text-rose-400">{highCount} urgent</span>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Learning"
+        title="Recovery"
+        subtitle="Targeted practice for topics where you need the most help."
+        action={
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+            <AlertCircle className="w-3.5 h-3.5 text-rose-400"/>
+            <span className="text-xs font-bold text-rose-400">{highCount} urgent</span>
+          </div>
+        }
+      />
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

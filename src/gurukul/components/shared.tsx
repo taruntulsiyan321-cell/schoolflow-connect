@@ -511,63 +511,54 @@ export function ListItem({ icon, title, subtitle, value, valueColor, onClick, cl
   );
 }
 
-// Premium page header with animated elements
-export function PageHeader({ title, subtitle, badge, icon, action }: {
-  title: string; subtitle?: string; badge?: string; icon?: ReactNode; action?: ReactNode;
+/**
+ * The page header, and the ONLY one.
+ *
+ * Every screen wrote its own, or wrote none. Four — Homework, Attendance,
+ * Rankings, Resources — had no title on the page at all, and the eighteen that
+ * did used four different eyebrow vocabularies ("Student Panel", "Learning
+ * Workflow", "Gurukul", the time-of-day greeting) across two title sizes.
+ * Meanwhile this component sat exported and unused, in a shape (icon tile,
+ * text-2xl, badge) that not one screen had ever adopted.
+ *
+ * So it is rewritten as the pattern the best screens already used — eyebrow,
+ * large display title, subtitle, optional action — rather than asking
+ * twenty-two screens to adopt a shape none of them chose.
+ *
+ * `eyebrow` is the sidebar section the screen lives under (`pageSection` in
+ * nav.ts), not a slogan. The six top-level screens pass none: their title is
+ * already the whole hierarchy.
+ *
+ * The Layout's top bar keeps its own small title — that one survives scrolling
+ * and says where you are. This one is the page's opening line.
+ */
+export function PageHeader({ eyebrow, title, subtitle, action }: {
+  eyebrow?: string; title: string; subtitle?: string; action?: ReactNode;
 }) {
   return (
     <motion.div
-      className="flex items-start gap-4 mb-6"
-      initial={{ opacity: 0, y: -10 }}
+      className="flex items-start justify-between gap-4 mb-6"
+      initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: EASE_OUT }}
     >
-      {icon && (
-        <motion.div
-          className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/20 flex items-center justify-center text-primary shrink-0"
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1, ...springSnappy }}
+      <div className="min-w-0">
+        {eyebrow && (
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">
+            {eyebrow}
+          </div>
+        )}
+        <h1
+          className="text-3xl font-black text-foreground leading-tight"
+          style={{ fontFamily: "var(--font-display)" }}
         >
-          {icon}
-        </motion.div>
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h1 className="text-2xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-            {title}
-          </h1>
-          {badge && (
-            <motion.span
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2, ...springSnappy }}
-            >
-              {badge}
-            </motion.span>
-          )}
-        </div>
+          {title}
+        </h1>
         {subtitle && (
-          <motion.p
-            className="text-sm text-muted-foreground mt-1"
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.3 }}
-          >
-            {subtitle}
-          </motion.p>
+          <p className="text-muted-foreground text-sm mt-1 max-w-2xl">{subtitle}</p>
         )}
       </div>
-      {action && (
-        <motion.div
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2, duration: 0.3 }}
-        >
-          {action}
-        </motion.div>
-      )}
+      {action && <div className="shrink-0">{action}</div>}
     </motion.div>
   );
 }

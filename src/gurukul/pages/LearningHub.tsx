@@ -1,6 +1,6 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
-import { GlassCard, LoadingState, cn } from "@/gurukul/components/shared";
+import { GlassCard, LoadingState, PageHeader, cn } from "@/gurukul/components/shared";
 import {
   BarChart2, RefreshCw, RotateCcw, AlertCircle, ArrowRight
 } from "lucide-react";
@@ -97,18 +97,12 @@ export default function LearningHub({ setPage }: Props) {
       {loadError && (
         <div className="rounded-xl border border-[#c08a3a]/30 bg-[#c08a3a]/10 px-4 py-2 text-xs text-[#c08a3a]">Some live stats failed to refresh: {loadError}</div>
       )}
-      {/* Header */}
-      <div>
-        <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Student Panel</div>
-        <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>
-          Learning
-        </h1>
-        {/* The subtitle recited the loop — "Practice → Analyse → Recover →
-            Revise. Your complete growth loop." That is the marketing line for
-            how the product works, not something a student needs read back to
-            them on the page that already contains the four things. Removed
-            2026-09-11 with the loop strip below it. */}
-      </div>
+      {/* No subtitle: it recited the loop — "Practice → Analyse → Recover →
+          Revise. Your complete growth loop." That is the marketing line for how
+          the product works, not something a student needs read back to them on
+          the page that already contains the four things. Removed 2026-09-11
+          with the loop strip below it. */}
+      <PageHeader title="Learning" />
 
       {/* Quick stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

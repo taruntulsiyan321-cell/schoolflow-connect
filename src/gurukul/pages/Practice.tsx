@@ -17,7 +17,7 @@ import {
 } from "@/lib/academicPresentation";
 import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
 import type { AcademicTermRef } from "@/academic/services/practiceService";
-import { DifficultyBadge, EmptyState, GlassCard, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
 import {
@@ -313,23 +313,18 @@ function Hub({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-        <div className="flex-1">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Gurukul</div>
-          <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>
-            Practice
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {MODES.length} practice modes · Pick how you want to learn today
-          </p>
-        </div>
-        {streak > 0 && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
-            <Flame className="w-4 h-4 text-warning"/>
-            <span className="text-xs font-bold text-warning">{streak}-day streak</span>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="Practice"
+        subtitle={`${MODES.length} practice modes · Pick how you want to learn today`}
+        action={
+          streak > 0 ? (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
+              <Flame className="w-4 h-4 text-warning"/>
+              <span className="text-xs font-bold text-warning">{streak}-day streak</span>
+            </div>
+          ) : undefined
+        }
+      />
 
       {hot.length > 0 && (
         <div>

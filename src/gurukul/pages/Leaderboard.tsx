@@ -3,7 +3,7 @@ import { Trophy, Zap } from "lucide-react";
 import { ProgressionService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useAuth } from "@/hooks/useAuth";
-import { EmptyState, GlassCard, LoadingState, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, PageHeader, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
 import { toErrorMessage, toPersonName } from "@/lib/presentation";
 import { StudentErrorState } from "@/components/student/StudentPanelStates";
 
@@ -133,6 +133,11 @@ export default function Leaderboard() {
 
   return (
     <div className="space-y-5">
+      <PageHeader
+        eyebrow="Class"
+        title="Rankings"
+        subtitle="Where you stand in your class on XP earned."
+      />
       <div className="flex gap-2">
         {(
           [

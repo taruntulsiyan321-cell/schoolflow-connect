@@ -8,7 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
-import { EmptyState, GlassCard, LoadingState, NoStudentProfile, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, NoStudentProfile, PageHeader, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds";
 import { ATTENDANCE_COMFORTABLE } from "@/academic/metrics/bands";
@@ -20,6 +20,9 @@ import { pluralise } from "@/lib/plural";
  * record the student had ever accumulated.
  */
 const RECENT_MONTHS = 3;
+
+/** Monday-first, so the weekend sits at the end of the row. */
+const WEEKDAY_INITIALS = ["M", "T", "W", "T", "F", "S", "S"];
 
 /**
  * Student Attendance — AcademicProfileService + AttendanceService only.
@@ -141,6 +144,11 @@ export default function Attendance() {
 
   return (
     <div className="space-y-5">
+      <PageHeader
+        eyebrow="Class"
+        title="Attendance"
+        subtitle="Your day-by-day record, as your teachers marked it."
+      />
       <GlassCard glow={pct >= ATTENDANCE_COMFORTABLE ? "green" : "amber"} className="p-6 flex items-center gap-6">
         <OverallRing pct={pct} col={col} />
         <div>
@@ -170,9 +178,25 @@ export default function Attendance() {
               <div className="text-xs font-semibold text-muted-foreground mb-1.5">
                 {group.label}
               </div>
-              <div className="grid grid-cols-7 gap-1">
+              {/* A real month grid. `grid-cols-7` alone stretched each marked
+                  day across a seventh of a 934px card — four days in September
+                  rendered as four 130px pills — and filled the columns in
+                  sequence, so nothing on screen said which weekday a day was.
+                  Cells are now fixed squares placed in their real weekday
+                  column, under weekday initials. */}
+              <div className="grid grid-cols-7 gap-1.5 max-w-md">
+                {WEEKDAY_INITIALS.map((w, i) => (
+                  <div
+                    key={`${group.month}-wd-${i}`}
+                    className="text-[10px] font-semibold text-muted-foreground text-center pb-0.5"
+                  >
+                    {w}
+                  </div>
+                ))}
                 {group.days.map((day) => {
                   const d = parseInt(day.date.split("-")[2] ?? "0", 10);
+                  // Monday-first column, so the weekend sits at the end.
+                  const weekday = (new Date(`${day.date}T00:00:00`).getDay() + 6) % 7;
                   const bg =
                     day.status === "present"
                       ? "bg-emerald-400/20 text-emerald-400"
@@ -185,8 +209,9 @@ export default function Attendance() {
                     <div
                       key={`${day.date}-${day.id}`}
                       title={`${day.date}: ${toEnumLabel(day.status, "attendance_status")}`}
+                      style={{ gridColumnStart: weekday + 1 }}
                       className={cn(
-                        "h-8 rounded-lg flex items-center justify-center text-xs font-semibold",
+                        "aspect-square rounded-lg flex items-center justify-center text-xs font-semibold",
                         bg,
                       )}
                     >

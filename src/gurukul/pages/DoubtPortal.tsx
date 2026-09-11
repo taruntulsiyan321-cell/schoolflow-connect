@@ -12,7 +12,7 @@ import {
   type DoubtStatus,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import { EmptyState, GlassCard, LoadingState, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, PageHeader, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { getNcertChapters, parseClassGrade } from "@/lib/ncertSyllabus";
 import {
   COMING_SOON_LABEL,
@@ -820,24 +820,22 @@ export default function DoubtPortal() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-lg font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-            Doubts
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Class feed — ask questions and help classmates. First answer marks a doubt solved.
-          </p>
-          {error && <p className="text-[10px] text-destructive mt-1">{error}</p>}
-        </div>
-        <button
-          type="button"
-          onClick={() => setView("ask")}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold px-3.5 py-2.5"
-        >
-          <Plus className="w-3.5 h-3.5" /> Ask a doubt
-        </button>
-      </div>
+      {/* This title was `text-lg` where every other screen used `text-3xl`. */}
+      <PageHeader
+        eyebrow="Class"
+        title="Doubts"
+        subtitle="Ask your class a question, or help a classmate. The first answer marks a doubt solved."
+        action={
+          <button
+            type="button"
+            onClick={() => setView("ask")}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold px-3.5 py-2.5"
+          >
+            <Plus className="w-3.5 h-3.5" /> Ask a doubt
+          </button>
+        }
+      />
+      {error && <p className="text-[10px] text-destructive -mt-2">{error}</p>}
 
       {loading ? (
         <LoadingState label="Loading doubts…" />

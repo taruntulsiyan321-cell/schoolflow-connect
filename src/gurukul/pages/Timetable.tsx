@@ -2,7 +2,7 @@
 import { TimetableService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
-import { EmptyState, GlassCard, LoadingState, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, PageHeader, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
 import { Clock, MapPin, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -161,7 +161,11 @@ export default function Timetable() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      <PageHeader
+        eyebrow="Class"
+        title="Timetable"
+        subtitle="Your weekly class schedule — periods, teachers and rooms."
+      />
       <GlassCard glow="blue" className="p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

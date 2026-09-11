@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
-import { GlassCard, LoadingState, SectionLabel, XPBar, cn } from "@/gurukul/components/shared";
+import { GlassCard, LoadingState, PageHeader, SectionLabel, XPBar, cn } from "@/gurukul/components/shared";
 import { ArrowRight } from "lucide-react";
 import {
   ProgressionService,
@@ -207,6 +207,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
 
   return (
     <div className="space-y-5">
+      <PageHeader title="Profile" subtitle="Your record, your marks and your milestones." />
       <GlassCard glow="blue" className="p-6">
         <div className="flex items-start gap-4">
           <div
@@ -367,9 +368,11 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           )}
         </div>
         <div className="text-xs text-muted-foreground">
+          {/* The fallback named ProgressionService to the student. Same defect
+              as KNOWN_ISSUES 24, which was fixed for the parent panel. */}
           {classRank != null
             ? `Your class XP rank is #${classRank}.`
-            : "Class XP rankings load from ProgressionService on the Rankings page."}
+            : "You'll get a class rank once you've earned some XP. See where you stand on Rankings."}
         </div>
       </GlassCard>
 

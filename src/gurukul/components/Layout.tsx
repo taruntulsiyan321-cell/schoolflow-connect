@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { PageKey } from "@/gurukul/nav";
+import { PAGE_TITLE, LEARNING as LEARNING_KEYS, CLASS as CLASS_KEYS } from "@/gurukul/nav";
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -47,19 +48,10 @@ const bottomNav: NavItem[] = [
   { key:"classhub",    label:"Class",    icon:<FlaskConical className="w-5 h-5"/> },
 ];
 
-const LEARNING_KEYS: PageKey[] = ["learninghub","analysis","recovery","revision","mistakebook"];
-const CLASS_KEYS:    PageKey[] = ["classhub","timetable","calendar","attendance","assignments","tests","doubtportal","leaderboard","achievements","resources"];
 
-const pageTitle: Record<PageKey, string> = {
-  dashboard:"Home",         practice:"Practice",       aicoach:"AI Coach",
-  analysis:"Analysis",      recovery:"Recovery",       revision:"Revision",
-  mistakebook:"Mistake Book",
-  battleground:"Battleground", chat:"Chat",            leaderboard:"Rankings",
-  achievements:"Achievements", resources:"Resources",
-  doubtportal:"Doubts",     assignments:"Homework",    attendance:"Attendance",
-  profile:"Profile",        timetable:"Timetable",     calendar:"Calendar",
-  tests:"Tests",            learninghub:"Learning",    classhub:"Class",
-};
+// The screen-name map lived here AND in nav.ts, identical, while nav.ts's
+// exported copy was imported by nobody. One home now: nav.ts's PAGE_TITLE,
+// which PageHeader reads for the same names.
 
 // ── Profile dropdown menu items ───────────────────────────────────────────────
 // Leaderboard and Analysis came off because each already has a home — Rankings
@@ -129,7 +121,7 @@ export default function Layout({
     : location.pathname.startsWith("/student/notices") ? "Notices"
     : location.pathname.startsWith("/student/fees") ? "Fees"
     : location.pathname.startsWith("/student/chat") ? "Chat"
-    : pageTitle[page];
+    : PAGE_TITLE[page];
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);

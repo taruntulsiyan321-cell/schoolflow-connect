@@ -7,7 +7,7 @@ import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useRevisionItems, type RevItem } from "./useRevisionQueueV2";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
-import { GlassCard, NoStudentProfile, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, PageHeader, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { REVISION_PASS_THRESHOLD } from "@/academic/recovery/constants";
 import {
   RotateCcw, CheckCircle2, AlertCircle, Flame, History, Bookmark,
@@ -251,17 +251,17 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Learning Workflow</div>
-          <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>Revision</h1>
-          <p className="text-muted-foreground text-sm mt-1">Spaced-repetition review to move concepts into long-term memory.</p>
-        </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-          <Flame className="w-3.5 h-3.5 text-amber-400"/>
-          <span className="text-xs font-bold text-amber-400">{streak > 0 ? `${streak}-day streak` : "No streak yet"}</span>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Learning"
+        title="Revision"
+        subtitle="Spaced-repetition review to move concepts into long-term memory."
+        action={
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <Flame className="w-3.5 h-3.5 text-amber-400"/>
+            <span className="text-xs font-bold text-amber-400">{streak > 0 ? `${streak}-day streak` : "No streak yet"}</span>
+          </div>
+        }
+      />
 
       {/* Quick actions — Flashcards and My Notes were "Coming soon"
           placeholders and came off, so this is a single tile now. */}

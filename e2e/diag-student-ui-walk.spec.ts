@@ -41,7 +41,7 @@ test("walk every student screen", async ({ page }) => {
     // successful walk.
     await expect(page, `${url} bounced to sign-in — storage state is not authenticated`)
       .toHaveURL(/\/student/, { timeout: 15000 });
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(11000);
     await page.screenshot({ path: `${OUT}/${name}-desktop.png`, fullPage: true });
 
     const text = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim();

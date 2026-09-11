@@ -5,7 +5,7 @@ import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
-import { EmptyState, GlassCard, LoadingState, NoStudentProfile, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, NoStudentProfile, PageHeader, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/AttachmentUI";
 import { toErrorMessage } from "@/lib/presentation";
 import { StudentErrorState } from "@/components/student/StudentPanelStates";
@@ -149,7 +149,11 @@ export default function Assignments() {
 
   return (
     <div className="space-y-4">
-      <SectionLabel>My Homework</SectionLabel>
+      <PageHeader
+        eyebrow="Class"
+        title="Homework"
+        subtitle="Everything your teachers have set, and what you have handed in."
+      />
       {actionError && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {actionError}

@@ -7,7 +7,7 @@ import { mistakeBookmarksKey } from "@/lib/clientStorage";
 import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayTopic, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
-import { DifficultyBadge, EmptyState, GlassCard, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Bookmark, BookmarkCheck,
   ChevronDown, ChevronRight, CheckCircle2, XCircle, ArrowRight,
@@ -713,25 +713,24 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Learning Workflow</div>
-          <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>Mistake Book</h1>
-          <p className="text-muted-foreground text-sm mt-1">Every mistake you've made — automatically collected and explained.</p>
-        </div>
-        <button
-          type="button"
-          disabled={unresolved === 0}
-          onClick={() => {
-            if (unresolved === 0) return;
-            setPracticeIds(mistakes.filter(m => !m.resolved).map(m => m.id));
-            setView("practice");
-          }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm font-bold hover:bg-rose-500/30 transition-all disabled:opacity-40 disabled:pointer-events-none">
-          <Play className="w-3.5 h-3.5"/> Practice All
-        </button>
-      </div>
+      <PageHeader
+        eyebrow="Learning"
+        title="Mistake Book"
+        subtitle="Every mistake you've made — automatically collected and explained."
+        action={
+          <button
+            type="button"
+            disabled={unresolved === 0}
+            onClick={() => {
+              if (unresolved === 0) return;
+              setPracticeIds(mistakes.filter(m => !m.resolved).map(m => m.id));
+              setView("practice");
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm font-bold hover:bg-rose-500/30 transition-all disabled:opacity-40 disabled:pointer-events-none">
+            <Play className="w-3.5 h-3.5"/> Practice All
+          </button>
+        }
+      />
 
 
       {/* Subject breakdown */}
