@@ -989,13 +989,34 @@
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.04));
 }
 
-.gurukul-student [class*="chart"],
-.gurukul-student [class*="graph"] {
-  background: linear-gradient(135deg, white 0%, hsl(var(--muted) / 0.2) 100%);
-  border-radius: 12px;
-  padding: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-}
+/*
+ * `.gurukul-student [class*="chart"], [class*="graph"]` stood here, giving a
+ * white gradient, 12px radius, 1rem padding and a shadow to anything whose
+ * class CONTAINED "chart". Removed 2026-09-11.
+ *
+ * `[class*=…]` is a SUBSTRING match on the whole class attribute, so it never
+ * hit a chart container. Measured in the browser across five student screens:
+ * 112 elements matched, and EVERY ONE was collateral —
+ *
+ *     lucide icons   lucide-chart-column, lucide-chart-no-axes-column
+ *                    (BarChart2) on Home, Learning and Practice
+ *     recharts       24 internals on Home, 85 on Analysis — recharts-wrapper,
+ *                    recharts-surface, recharts-layer … all contain "chart"
+ *     intended       0
+ *
+ * What it did to a 24px icon: `padding: 1rem` is 32px of horizontal padding,
+ * and under border-box that floors the used width at 32px and collapses the
+ * CONTENT box to 0x0. The svg is handed a zero viewport, so it draws nothing —
+ * and the pale rounded square left in its place was this rule's own white
+ * gradient. Four student screens shipped a blank icon because of it.
+ *
+ * No replacement: every chart in the panel already sits inside a GlassCard,
+ * which is where the card look actually comes from. `.recharts-wrapper` keeps
+ * its own deliberate styling above.
+ *
+ * This is the second time a `[class*=…]` selector has done this here — see the
+ * note on `[class*="bg-primary"]` around line 856. Prefer a real class.
+ */
 
 /* ══════════════════════════════════════════════════════════════════════════════
    MAXIMUM READABILITY - Student panel high contrast

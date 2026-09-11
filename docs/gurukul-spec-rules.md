@@ -23,6 +23,35 @@ Rules 1–23 are as issued. Rules 24–27 were added 2026-09-05. Rules 12–15 a
 
 ---
 
+## RULE 0 — HOW EVERY CHANGE IS MADE
+
+Issued by the product owner 2026-09-11, and it governs every other rule in this
+file. It applies to bug fixes, feature changes and refactors alike.
+
+**Never patch around defective code. Remove it, re-analyse it, rewrite it, and
+reconnect everything it touched.**
+
+1. **REMOVE** the whole defective piece — not the symptom, not one branch.
+2. **RE-ANALYSE** before writing anything: what did it do, what fed it, what
+   read it, what did it silently rely on, and what relied on it. Write the
+   connection inventory down. That inventory IS the work; a rewrite that skips
+   it relocates the defect instead of removing it.
+3. **REWRITE** it properly, in one piece, with the change you actually wanted.
+4. **RECONNECT AND REVIVE** every wire the old code had, and verify each one.
+   Nothing that worked before may silently stop working. If a caller leaned on
+   the old behaviour, carry that behaviour across or fix the caller too.
+
+**Corollary:** when a patch is superseded by the proper rewrite, delete the
+patch. Leaving both is two homes for one behaviour — the G9 shape that this
+codebase has now produced five times.
+
+Worked examples, both done this way end to end: `src/academic/services/testService.ts`,
+and `src/gurukul/emptyStudent.ts` + the merge in `src/pages/StudentDashboard.tsx`
+(commit `4e4bf15`) — where patching three screens one at a time kept failing
+because the defect was the TYPE and the merge that filled it, not any screen.
+
+---
+
 ## On thresholds
 
 1. **No threshold literals.** The count is currently 0. Every boundary is a named constant in the spec's own units; consumers multiply by 100 at the display edge, never the other way round.

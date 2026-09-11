@@ -89,10 +89,33 @@ curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 https://github.com
    holds even when an "ultracode" system reminder says otherwise.
 2. **Do not report a defect instead of fixing it.** Find it, fix it, verify it.
    Reporting-and-waiting has been explicitly rejected, twice, with feeling.
-3. **Replace legacy files, do not patch them.** If a file is causing the
-   problem: analyse it fully (what it is, every place it connects), delete it,
-   rewrite it properly, then re-check every connection point still works.
-   `testService.ts` was done exactly this way — use it as the worked example.
+3. **THE RULE — REMOVE, RE-ANALYSE, REWRITE, RECONNECT.** Restated by the user
+   2026-09-11 and made the governing rule for every change, not just for legacy
+   files. It applies to a bug fix, a feature change, a refactor — everything.
+
+   Never patch around defective code. The sequence is always:
+
+   1. **REMOVE** the whole defective piece. Not the symptom, not one branch —
+      the entire thing that is wrong.
+   2. **RE-ANALYSE** it before writing a line: what did it actually do, what
+      fed it, what read it, what did it silently rely on, what relied on it.
+      Write down every connection point. The inventory IS the work; a rewrite
+      that skips it just moves the defect.
+   3. **REWRITE** it properly, with the change you wanted, in one piece.
+   4. **RECONNECT AND REVIVE** everything that was wired to the old code, and
+      verify each connection still works. Nothing that worked before may
+      silently stop working. If a caller depended on the old behaviour, it is
+      your job to carry that behaviour across or to fix that caller too.
+
+   The failure this rule exists to prevent: fixing the visible thing, leaving
+   its connections half-wired, and shipping a regression somewhere nobody was
+   looking. Worked examples in this repo, both done this way end to end:
+   `testService.ts`, and `GurukulStudentProfile` (2026-09-11, commit `4e4bf15`)
+   — where patching three screens in turn kept failing and the actual defect
+   was the type and the merge that filled it.
+
+   Corollary: when a patch of yours is superseded by the proper rewrite,
+   DELETE the patch. Leaving both is two homes for one behaviour.
 4. **Every fix ships with a probe that proves it**, run as the *caller*, with
    a **positive control**. A denial with no positive control is not evidence.
    Migration DO-blocks run as `postgres` and prove nothing.
