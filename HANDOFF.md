@@ -632,7 +632,7 @@ where there is a submitted attempt, because the RPC correctly refuses the rest.
 ## 10. THE v2 STUDENT PANEL REDESIGN — 2026-09-10 session
 
 Source document: `C:\Users\Tarun\Downloads\student-panel-redesign-v2.md`.
-Ten commits, `3679d9b` .. `3d2836f`. Everything below is done unless it says
+Sixteen commits, `3679d9b` .. `d4c6296`. Everything below is done unless it says
 otherwise.
 
 **None of them are pushed.** github.com was unreachable for the whole session —
@@ -650,7 +650,7 @@ believing it.
 | G3 flat sidebar | Six links, no submenus, Chat cut from nav (route survives) |
 | G6 "1 mistakes" | `src/lib/plural.ts`, 14 sites across 9 files, 5 unit tests |
 | G7 thin data | `MIN_ATTEMPTS_FOR_ACCURACY = 5` + 2 helpers + 7 tests; applied to the Topics tab |
-| G5 accuracy | ONE source — derived from the counts shown beside it. 3 guard assertions |
+| G5 accuracy | ONE source. Fixed TWICE — the second time is the real one: Home and Analysis were counting different populations (`question_attempts` vs `concept_mastery`, 17% vs 63% for one student). Both now count `question_attempts`. 5 guard assertions |
 | Screen 1 Home | Subject Performance + Recent Achievements out, with 8 dead imports behind them |
 | Screen 2 Practice | Resume Session band out (see the caveat below) |
 | Screen 3 Nova | chips, Jump-to, 6 admin prompts, ContextPill out; intro + prompts rewritten; mojibake and 💋 fixed; **question context now shown and auto-asked** |
