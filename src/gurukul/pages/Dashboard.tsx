@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { hasOverallAccuracy } from "@/lib/learningMetrics";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { pluralise } from "@/lib/plural";
 
@@ -204,7 +205,18 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             </h1>
             <p className="text-muted-foreground text-sm mt-1">{student.class || (shellReady ? "—" : "…")}{goalLine}</p>
             <div className="grid grid-cols-3 gap-3 mt-4">
-              <StatTile label="Practice accuracy" value={shellReady ? `${student.accuracy}%` : "—"} color="hsl(var(--info))"/>
+              {/* "Overall", not "Practice". `student.accuracy` is
+                  exam_readiness.accuracy_pct, which _exam_readiness() computes
+                  as (test_acc + practice_acc) / 2 — so this tile said
+                  "Practice accuracy" over a number the student never scored in
+                  practice. LearningHub renders the SAME value and has always
+                  called it Overall Accuracy; the practice-only figure lives on
+                  Analysis via practiceAccuracyFromSnapshot. */}
+              <StatTile
+                label="Overall accuracy"
+                value={shellReady && hasOverallAccuracy(snapshot) ? `${student.accuracy}%` : "—"}
+                color="hsl(var(--info))"
+              />
               <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "—"} color="hsl(var(--warning))"/>
               <StatTile label="Level" value={levelLabel} color="var(--color-chemistry)"/>
             </div>

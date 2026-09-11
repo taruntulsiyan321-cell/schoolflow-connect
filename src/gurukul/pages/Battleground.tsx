@@ -313,6 +313,8 @@ type MeInfo = {
   losses: number;
   draws: number;
   accuracy: number;
+  /** False when the snapshot carries no accuracy — ruling 8, render "—". */
+  hasAccuracy: boolean;
   motivationTitle: string;
   motivationMessage: string;
   xpRemaining: number;
@@ -1453,7 +1455,18 @@ function StatisticsPanel({ me }: { me: MeInfo }) {
     { label: "Battles Won", value: String(me.wins), icon: "🏆", color: C.green, sub: `${winRate}% win rate` },
     { label: "Study Streak", value: String(me.studyStreak), icon: "🔥", color: C.orange, sub: `Win streak: ${me.streak} (best ${me.bestStreak})` },
     { label: "XP", value: me.xp.toLocaleString(), icon: "⚡", color: C.purple, sub: me.league },
-    { label: "Practice Accuracy", value: `${me.accuracy}%`, icon: "🎯", color: C.gold, sub: "Same as Home" },
+    {
+      // "Overall", not "Practice". Both branches of `me.accuracy` resolve to
+      // exam_readiness.accuracy_pct, which _exam_readiness() computes as
+      // (test_acc + practice_acc) / 2 — so this tile put the word "Practice"
+      // over a number the student never scored in practice. The practice-only
+      // figure is on Analysis via practiceAccuracyFromSnapshot.
+      label: "Overall Accuracy",
+      value: me.hasAccuracy ? `${me.accuracy}%` : "—",
+      icon: "🎯",
+      color: C.gold,
+      sub: "Same as Home",
+    },
     {
       label: "Battles Lost",
       value: String(me.losses),
@@ -2152,6 +2165,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       losses: data.stats.losses,
       draws: data.stats.draws,
       accuracy: shellReady ? profile.accuracy : data.stats.accuracy || 0,
+      hasAccuracy: data.hasAccuracy,
       motivationTitle: data.motivation.title,
       motivationMessage: data.motivation.message,
       xpRemaining: next?.remaining ?? 0,

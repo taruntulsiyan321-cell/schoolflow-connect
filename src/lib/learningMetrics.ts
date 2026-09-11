@@ -77,6 +77,19 @@ export function overallAccuracyFromSnapshot(snap: AcademicSnapshot | null | unde
   return Math.round(Number(raw));
 }
 
+/**
+ * Does the snapshot actually carry a blended accuracy?
+ *
+ * The sibling of `hasPracticeAccuracy`, and it exists for the same reason:
+ * `overallAccuracyFromSnapshot` returns 0 when the value is null, so a student
+ * who has never attempted anything reads as a student who got everything
+ * wrong. Ruling 8 — absent data is an em dash, never a zero.
+ */
+export function hasOverallAccuracy(snap: AcademicSnapshot | null | undefined): boolean {
+  const raw = snap?.exam_readiness?.accuracy_pct;
+  return raw != null && !Number.isNaN(Number(raw));
+}
+
 /** Active study days in the last 14 days. */
 export function studyActiveDaysFromSnapshot(snap: AcademicSnapshot | null | undefined): number {
   return snap?.exam_readiness?.active_days_14d ?? 0;
