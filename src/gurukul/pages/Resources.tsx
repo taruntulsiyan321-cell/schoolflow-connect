@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { EmptyState, GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
-import { FileText, Video, Download, Search, Loader2, ExternalLink } from "lucide-react";
+import { EmptyState, GlassCard, LoadingState, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
+import { FileText, Video, Download, Search, ExternalLink } from "lucide-react";
 import { ResourceService, type LearningResourceRow } from "@/academic";
 import { academicFileUrl } from "@/academic/storage/academicFileUpload";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -116,9 +116,7 @@ export default function Resources() {
       <GlassCard className="p-5">
         <SectionLabel>Study materials</SectionLabel>
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" /> Loading resources…
-          </div>
+          <LoadingState label="Loading resources…" variant="section" />
         ) : (
           <div className="space-y-2">
             {filtered.map((r) => {

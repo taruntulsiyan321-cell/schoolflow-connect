@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Trophy, BarChart2, Play } from "lucide-react";
+import { Trophy, BarChart2, Play } from "lucide-react";
 import {
   AnalyticsService,
   EXAM_TYPE_LABELS,
@@ -16,7 +16,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
-import { GlassCard, NoStudentProfile, SectionLabel, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
+import { GlassCard, LoadingState, NoStudentProfile, SectionLabel, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { toErrorMessage } from "@/lib/presentation";
 
 /**
@@ -120,9 +120,7 @@ export default function Tests() {
 
   if (!ready || showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading tests…
-      </div>
+      <LoadingState label="Loading tests…" />
     );
   }
 

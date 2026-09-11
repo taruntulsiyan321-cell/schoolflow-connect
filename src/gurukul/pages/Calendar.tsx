@@ -3,8 +3,8 @@ import { HomeworkService, MarksService, TestService, CalendarEventsService, useA
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
-import { GlassCard, NoStudentProfile, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
-import { ChevronLeft, ChevronRight, CalendarDays, BookOpen, ClipboardList, AlertCircle, Star, Loader2 } from "lucide-react";
+import { GlassCard, LoadingState, NoStudentProfile, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
+import { ChevronLeft, ChevronRight, CalendarDays, BookOpen, ClipboardList, AlertCircle, Star } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -210,10 +210,7 @@ export default function Calendar() {
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground">
-        <Loader2 className="w-6 h-6 animate-spin mr-2" />
-        Loading calendar…
-      </div>
+      <LoadingState label="Loading calendar…" />
     );
   }
 

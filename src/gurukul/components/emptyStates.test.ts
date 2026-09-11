@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -27,6 +27,9 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 const files = walk(join(process.cwd(), "src"));
+
+/** `src/gurukul/` — the student panel, NOT the `gurukul-*` sibling panels. */
+const STUDENT_PANEL = join("src", "gurukul") + sep;
 
 describe("the no-student-profile state has exactly one design", () => {
   it("scans a real, non-empty set of files (control)", () => {
@@ -117,6 +120,51 @@ describe("the deleted empty-state conventions stay deleted", () => {
       if (/(const|function)\s+PremiumEmpty\b/.test(src)) offenders.push(file);
     }
     expect(offenders, `use EmptyState:\n${offenders.join("\n")}`).toEqual([]);
+  });
+
+  it("no screen hand-rolls a spinner-and-label loading block", () => {
+    // Eighteen screens each wrote their own: three spinner sizes, four
+    // paddings, two text sizes, two spacing mechanisms, and not one of them
+    // announced itself to a screen reader.
+    const offenders: string[] = [];
+    for (const file of files) {
+      // The STUDENT panel only. `gurukul-admin`, `gurukul-parent`,
+      // `gurukul-principal` and `gurukul-teacher` carry the identical defect
+      // — 20+ hand-rolled spinner blocks between them — but they are a
+      // separate pass, and widening this guard would fail the build on work
+      // that has not been done yet.
+      if (!file.includes(STUDENT_PANEL)) continue;
+      const src = readFileSync(file, "utf8");
+      src.split("\n").forEach((line, i) => {
+        const code = line.trim();
+        if (code.startsWith("*") || code.startsWith("//")) return;
+        // A spinner sitting directly beside a "Loading …" label is the shape
+        // LoadingState replaced. An inline spinner inside a button (Saving…,
+        // Signing in…) is a different thing and stays allowed.
+        if (/animate-spin/.test(code) && /Loading\s/.test(code)) {
+          offenders.push(`${file}:${i + 1}  ${code.slice(0, 90)}`);
+        }
+      });
+    }
+    expect(
+      offenders,
+      `use <LoadingState label="…" /> from components/shared:\n${offenders.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("and LoadingState still announces itself to a screen reader", () => {
+    // The reason the component exists at all beyond consistency. If this
+    // regresses, 19 screens go silent again at once.
+    const shared = readFileSync(
+      join(process.cwd(), "src", "gurukul", "components", "shared.tsx"),
+      "utf8",
+    );
+    const body = shared.slice(shared.indexOf("export function LoadingState"));
+    expect(body).toContain('role="status"');
+    expect(body).toContain('aria-live="polite"');
+
+    const callers = files.filter((f) => readFileSync(f, "utf8").includes("<LoadingState"));
+    expect(callers.length, "every screen that had a loading block should use it").toBeGreaterThan(12);
   });
 
   it("and EmptyState carries both variants the panel now depends on", () => {

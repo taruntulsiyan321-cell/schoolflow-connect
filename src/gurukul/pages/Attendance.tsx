@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Loader2 } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import {
   AcademicProfileService,
   AttendanceService,
@@ -8,7 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
-import { EmptyState, GlassCard, NoStudentProfile, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, NoStudentProfile, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds";
 import { ATTENDANCE_COMFORTABLE } from "@/academic/metrics/bands";
@@ -131,9 +131,7 @@ export default function Attendance() {
 
   if (!ready || loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading attendance…
-      </div>
+      <LoadingState label="Loading attendance…" />
     );
   }
 

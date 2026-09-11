@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
-import { EmptyState, GlassCard, SectionLabel, cn } from "@/gurukul/components/shared";
-import { Lock, Loader2, Star } from "lucide-react";
+import { EmptyState, GlassCard, LoadingState, SectionLabel, cn } from "@/gurukul/components/shared";
+import { Lock, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
 import { BADGES, getBadge, TIER_CLASS } from "@/lib/badges";
@@ -99,9 +99,7 @@ export default function Achievements() {
 
   if (loading || progLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading milestones…
-      </div>
+      <LoadingState label="Loading milestones…" />
     );
   }
 

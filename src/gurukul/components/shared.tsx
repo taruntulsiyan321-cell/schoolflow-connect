@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
 import { riskBand, type Band } from "@/academic/metrics/bands";
-import { UserRound } from "lucide-react";
+import { Loader2, UserRound } from "lucide-react";
 
 /**
  * COLOUR CONTRACT FOR THIS FILE, and for everything that calls it.
@@ -569,6 +569,38 @@ export function PageHeader({ title, subtitle, badge, icon, action }: {
         </motion.div>
       )}
     </motion.div>
+  );
+}
+
+/**
+ * The panel's ONE loading state — the same two sizes as EmptyState.
+ *
+ * Eighteen screens each wrote their own. Between them they used three spinner
+ * sizes (none at all on Analysis, w-4 on twelve screens, w-6 on Calendar and
+ * Timetable), four paddings (py-10 / py-16 / py-20 / py-24), two text sizes,
+ * and two different ways of spacing the spinner from its label (`gap-2` on
+ * most, `mr-2` on the w-6 pair). Nothing chose between them; each screen just
+ * chose again.
+ *
+ * It also announces itself. Not one of the eighteen had `role="status"`, so a
+ * screen reader said nothing at all while a screen loaded — it simply went
+ * quiet and then, some seconds later, had different content.
+ */
+export function LoadingState({ label, variant = "page" }: {
+  label: string; variant?: "page" | "section";
+}) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn(
+        "flex items-center justify-center gap-2 text-muted-foreground",
+        variant === "section" ? "py-10 text-xs" : "py-16 text-sm",
+      )}
+    >
+      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+      {label}
+    </div>
   );
 }
 

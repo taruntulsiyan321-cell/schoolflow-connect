@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import {
   Bell, Award, Swords, Trophy, Wallet, NotebookPen, Sparkles,
-  CheckCheck, Trash2, Loader2, MessageSquare,
+  CheckCheck, Trash2, MessageSquare
 } from "lucide-react";
-import { EmptyState, GlassCard, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, cn } from "@/gurukul/components/shared";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -41,9 +41,7 @@ export default function Notifications() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading notifications…
-      </div>
+      <LoadingState label="Loading notifications…" />
     );
   }
 

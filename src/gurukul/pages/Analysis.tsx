@@ -7,12 +7,11 @@ import {
   Cell,
 } from "recharts";
 import {
-  TrendingUp, TrendingDown, Download, Share2,
-  CheckCircle2, AlertCircle, Clock, BookOpen,
-  Zap, Target, Calendar, ChevronRight,
-  ArrowUp, ArrowDown, Minus, Printer, Star,
+  TrendingUp, Download, Share2, CheckCircle2, AlertCircle, Clock,
+  BookOpen, Target, Calendar, ChevronRight, ArrowUp, ArrowDown,
+  Minus, Printer
 } from "lucide-react";
-import { NoStudentProfile, cn } from "@/gurukul/components/shared";
+import { LoadingState, NoStudentProfile, cn } from "@/gurukul/components/shared";
 import { type Tab, TABS } from "./analysisTabs";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
@@ -623,9 +622,7 @@ export default function Analysis() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <p className="text-sm text-muted-foreground">Loading analysis…</p>
-      </div>
+      <LoadingState label="Loading analysis…" />
     );
   }
 

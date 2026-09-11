@@ -30,12 +30,10 @@ import { novaConversationsKey } from "@/lib/clientStorage";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import {
-  Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3,
-  MoreHorizontal, ChevronLeft, Paperclip, Copy, Bookmark,
-  RotateCcw, X, Loader2, ImageIcon,
-  BookOpen, HelpCircle, Brain, Sparkles,
-  MessageSquare, Check, AlertCircle, Globe, Layers,
-  ThumbsUp, ThumbsDown, CalendarDays,
+  Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3, MoreHorizontal,
+  ChevronLeft, Paperclip, Copy, Bookmark, RotateCcw, X, Loader2,
+  ImageIcon, BookOpen, HelpCircle, Brain, Sparkles, MessageSquare,
+  Check, AlertCircle, Layers, ThumbsUp, ThumbsDown
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────

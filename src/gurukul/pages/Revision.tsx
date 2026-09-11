@@ -10,10 +10,8 @@ import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { GlassCard, NoStudentProfile, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { REVISION_PASS_THRESHOLD } from "@/academic/recovery/constants";
 import {
-  RotateCcw, CheckCircle2, AlertCircle,
-  ChevronRight, Flame, History, Bookmark,
-  Play, RefreshCw,
-  Zap, BookOpen,
+  RotateCcw, CheckCircle2, AlertCircle, Flame, History, Bookmark,
+  Play, RefreshCw, Zap, BookOpen
 } from "lucide-react";
 import { toErrorMessage } from "@/lib/presentation";
 

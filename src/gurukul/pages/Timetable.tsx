@@ -2,8 +2,8 @@
 import { TimetableService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
-import { EmptyState, GlassCard, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
-import { Clock, MapPin, User, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { EmptyState, GlassCard, LoadingState, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
+import { Clock, MapPin, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -135,10 +135,7 @@ export default function Timetable() {
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground">
-        <Loader2 className="w-6 h-6 animate-spin mr-2" />
-        Loading timetable…
-      </div>
+      <LoadingState label="Loading timetable…" />
     );
   }
 

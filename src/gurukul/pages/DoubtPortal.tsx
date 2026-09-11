@@ -12,7 +12,7 @@ import {
   type DoubtStatus,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import { EmptyState, GlassCard, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { getNcertChapters, parseClassGrade } from "@/lib/ncertSyllabus";
 import {
   COMING_SOON_LABEL,
@@ -478,9 +478,7 @@ export default function DoubtPortal() {
 
   if (!ready) {
     return (
-      <div className="flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading doubts…
-      </div>
+      <LoadingState label="Loading doubts…" />
     );
   }
 
@@ -666,9 +664,7 @@ export default function DoubtPortal() {
         </button>
 
         {detailLoading || !detail ? (
-          <div className="flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> Loading doubt…
-          </div>
+          <LoadingState label="Loading doubt…" />
         ) : (
           <>
             <GlassCard className="p-5 space-y-4">
@@ -844,9 +840,7 @@ export default function DoubtPortal() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading doubts…
-        </div>
+        <LoadingState label="Loading doubts…" />
       ) : (
       <>
       <div className="flex flex-wrap gap-2">

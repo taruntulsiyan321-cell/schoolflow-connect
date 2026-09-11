@@ -1,9 +1,8 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
-import { GlassCard, cn } from "@/gurukul/components/shared";
+import { GlassCard, LoadingState, cn } from "@/gurukul/components/shared";
 import {
-  BarChart2, RefreshCw, RotateCcw, AlertCircle,
-  ArrowRight, Loader2,
+  BarChart2, RefreshCw, RotateCcw, AlertCircle, ArrowRight
 } from "lucide-react";
 import { LineChart, Line, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useMemo } from "react";
@@ -76,9 +75,7 @@ export default function LearningHub({ setPage }: Props) {
 
   if (loading && !snapshot && !charts) {
     return (
-      <div className="flex items-center justify-center py-24 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading learning hub…
-      </div>
+      <LoadingState label="Loading learning hub…" />
     );
   }
 

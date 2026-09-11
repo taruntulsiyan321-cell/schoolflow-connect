@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
-import { GlassCard, SectionLabel, XPBar, cn } from "@/gurukul/components/shared";
-import { Loader2, ArrowRight } from "lucide-react";
+import { GlassCard, LoadingState, SectionLabel, XPBar, cn } from "@/gurukul/components/shared";
+import { ArrowRight } from "lucide-react";
 import {
   ProgressionService,
   TestService, MarksService, HomeworkService, RemarksService,
@@ -201,9 +201,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading profile…
-      </div>
+      <LoadingState label="Loading profile…" />
     );
   }
 
@@ -378,9 +376,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
       <GlassCard className="p-5">
         <SectionLabel>Recent milestones</SectionLabel>
         {badgesLoading ? (
-          <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
-            <Loader2 className="w-3 h-3 animate-spin" /> Loading badges…
-          </div>
+          <LoadingState label="Loading badges…" variant="section" />
         ) : recentMilestones.length === 0 ? (
           <div className="text-xs text-muted-foreground">No badges earned yet.</div>
         ) : (

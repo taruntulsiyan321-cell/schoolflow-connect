@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { Loader2, Megaphone, Paperclip } from "lucide-react";
+import { Megaphone, Paperclip } from "lucide-react";
 import {
   AnnouncementService,
   useAcademicLive,
@@ -8,7 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
-import { EmptyState, GlassCard, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, cn } from "@/gurukul/components/shared";
 import { toast } from "sonner";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -93,9 +93,7 @@ export default function Notices() {
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading notices…
-      </div>
+      <LoadingState label="Loading notices…" />
     );
   }
 

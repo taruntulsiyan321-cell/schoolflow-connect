@@ -5,7 +5,7 @@ import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
-import { EmptyState, GlassCard, NoStudentProfile, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, NoStudentProfile, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/AttachmentUI";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -120,9 +120,7 @@ export default function Assignments() {
 
   if (!ready || loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading assignments…
-      </div>
+      <LoadingState label="Loading assignments…" />
     );
   }
 

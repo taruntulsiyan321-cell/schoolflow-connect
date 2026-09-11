@@ -1,10 +1,9 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent, useGurukulShellReady } from "@/gurukul/StudentContext";
-import { EmptyState, GlassCard, ProgressBar, SectionLabel, StatTile, XPBar } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, ProgressBar, SectionLabel, StatTile, XPBar } from "@/gurukul/components/shared";
 import {
-  ArrowRight, Flame, BookOpen, Brain,
-  RefreshCw, RotateCcw, BarChart2, Trophy,
-  Swords, Star, Loader2,
+  ArrowRight, Flame, BookOpen, Brain, RefreshCw, RotateCcw,
+  BarChart2, Trophy, Swords, Star
 } from "lucide-react";
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useEffect, useMemo, useRef } from "react";
@@ -163,9 +162,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
 
   if (initialLoading) {
     return (
-      <div className="flex items-center justify-center py-24 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading home…
-      </div>
+      <LoadingState label="Loading home…" />
     );
   }
 

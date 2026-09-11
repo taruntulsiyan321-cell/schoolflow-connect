@@ -1,9 +1,9 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Trophy, Zap } from "lucide-react";
+import { Trophy, Zap } from "lucide-react";
 import { ProgressionService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useAuth } from "@/hooks/useAuth";
-import { EmptyState, GlassCard, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, LoadingState, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
 import { toErrorMessage, toPersonName } from "@/lib/presentation";
 
 type LbRow = {
@@ -108,9 +108,7 @@ export default function Leaderboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading rankings…
-      </div>
+      <LoadingState label="Loading rankings…" />
     );
   }
 

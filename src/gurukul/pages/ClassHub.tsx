@@ -1,11 +1,10 @@
 ﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
-import { GlassCard, NoStudentProfile } from "@/gurukul/components/shared";
+import { GlassCard, LoadingState, NoStudentProfile } from "@/gurukul/components/shared";
 import {
   Clock, Calendar, CalendarDays, ClipboardList, FlaskConical,
-  MessageCircle, Trophy, ArrowRight, Library, Loader2,
-  Bell, MessageSquare,
+  MessageCircle, Trophy, ArrowRight, Library, Bell, MessageSquare
 } from "lucide-react";
 import {
   AcademicProfileService,
@@ -211,9 +210,7 @@ export default function ClassHub({ setPage }: Props) {
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading class hub…
-      </div>
+      <LoadingState label="Loading class hub…" />
     );
   }
 
