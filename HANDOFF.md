@@ -695,7 +695,37 @@ the overlap. Fixed in `20260918000000`, probe39, 5 claims.
 
 ### Still open, and why
 
-* **G4 blank icons** — every stated cause disproved; needs a browser.
+* ~~**G4 blank icons**~~ — **FIXED 2026-09-11, commit `225dc6e`.** Every cause
+  disproved here was true and beside the point. The icons were never blank: they
+  were stroked in INHERITED near-black on chips whose background had silently
+  gone transparent, under `opacity-40`.
+
+  The theme carries two token shapes that are indistinguishable as strings —
+  `--primary: 193 68% 28%` (a triplet, needs `hsl()`) and
+  `--color-physics: hsl(197 70% 40%)` (already a colour). The render layer built
+  `hsl(${color})` for both, and `hsl(hsl(197 70% 40%))` is not a colour, so the
+  declaration is dropped and the property inherits.
+
+  Measured in the browser **inside `.gurukul-student`** — the tokens are scoped
+  there, not on `:root`, which is why a first probe on the sign-in page proved
+  nothing and was thrown away:
+
+  | built | computed |
+  |---|---|
+  | `hsl(var(--primary))` | `rgb(23,99,120)` correct |
+  | `hsl(var(--color-physics))` | `rgb(14,30,37)` = inherited |
+  | `hsl(var(--color-physics) / 0.1)` | `rgba(0,0,0,0)` transparent |
+  | `var(--color-physics)` | `rgb(31,133,173)` correct |
+
+  Fixed by making every stored colour a COMPLETE CSS colour and removing all 30
+  wrap sites; `withAlpha` now uses `color-mix`, having previously returned a
+  `var(--color-x)` string unchanged and silently dropped the alpha. Guarded by
+  `src/lib/colorAlpha.test.ts` (8 assertions incl. a structural scan), verified
+  to fail when a wrap is reintroduced.
+
+  Worst case found: Dashboard's session ring picked its colour by band and
+  wrapped all three — it drew correctly at and above target and vanished below
+  it, the one case a student needs to see.
 * ~~The practice timer records nothing~~ — **that diagnosis was wrong and is
   corrected in KNOWN_ISSUES 44.** The finish RPC works: all four sessions it ran
   on are internally consistent. Only four practice sessions have ever been
@@ -707,8 +737,30 @@ the overlap. Fixed in `20260918000000`, probe39, 5 claims.
   decided".
 * **Learning-loop canonical sequence** — Home and Learning name it differently.
   Blocked on a ruling; both left as they were.
-* **Recovery sources** — Practice only, or also Tests and Battleground?
-* **Fees** — never ruled on.
+* ~~**Recovery sources**~~ — **RULED 2026-09-11: practice attempts only.**
+  **No code change was needed, and adding the obvious filter would have broken
+  it.** Measured before touching anything:
+  * `rpc_student_recovery_zone` reads `concept_mastery` and
+    `recovery_assignments`, and has no source filter in its body.
+  * `concept_mastery` is practice-fed: it is written only by
+    `_upsert_concept_mastery` and `_recompute_concept_confidence_for_session`,
+    `rpc_test_submit` never touches it, and there are no triggers on
+    `test_answers` or `question_attempts`.
+  * `recovery_assignments.source_type` is **not** a practice/test/battle
+    discriminator. The app writes `deep_link`, `weak_concept` and
+    `practice_session` — all three practice-derived. The `practice=17` rows in
+    the table are seed data using a fourth spelling.
+  * There is **no writer anywhere** that creates a recovery assignment from a
+    test or a battle. The rule holds structurally, by absence.
+
+  So a `WHERE source_type = 'practice'` filter — the obvious way to "enforce"
+  this — would drop `deep_link` and `weak_concept` and empty the screen. **Do
+  not add one.** If tests or battles are ever admitted, that is a new writer,
+  not a loosened filter.
+* ~~**Fees**~~ — **RULED 2026-09-11: the student sees it**, full payment history
+  including outstanding and overdue. Not yet built: there is no `/student/fees`
+  route. Needs a service read, an RLS probe with a positive control (a student
+  sees their own fees and not another family's), and a screen.
 * **Screen 17 "After expiry" — NOT BUILT, and should not be built as written.**
   The document says the test report is ephemeral, that after the window closes
   the screen shows marks only, and that the question list AND the leaderboard go
@@ -724,12 +776,27 @@ the overlap. Fixed in `20260918000000`, probe39, 5 claims.
 * **`useBattlegroundData` still blends** test+practice accuracy. The 10 Sept
   ruling is scoped to Analysis; widening it is a product decision.
 
-### Rule correction the document asks for, NOT yet made
+### Rule correction — MADE 2026-09-11, on the product owner's ruling
 
-> Rule 13 currently reads that a student sees their own data only, never the
-> class's. The test leaderboard ruling makes that too broad. The rule should now
-> read: **marks and rank are shared within the class; per-question detail is
-> private to each student.** Correct this in `docs/gurukul-spec-rules.md`.
+Rule 13 in `docs/gurukul-spec-rules.md` now reads: **marks and rank are shared
+within the class; per-question detail is private to each student.** The old
+wording ("their own data only … never the class's") predated the test
+leaderboard and was too broad — a rank is a position among classmates and cannot
+be shown without comparing to them. `rpc_test_student_report` already implements
+exactly the corrected rule: it returns `rank` and `class_size` as positions and
+no other student's name or mark.
 
-I have not edited the rules file — changing a spec rule is the product owner's
-call, not a build session's. It is flagged here so it is not lost.
+**Rule 14 is WITHDRAWN in the same edit** — the Screen 17 expiry, ruled against
+after it was measured. See below.
+
+### Screen 17 "after expiry" — RULED 2026-09-11: do not build it
+
+The design document's ephemeral-report clause is withdrawn rather than
+implemented. The spec already says the opposite (§10.23 makes test answers
+durable school data, §10.25 needs the wrong answers on tap), nothing expires a
+test report today, and building it is the far more complex path: an `expires_at`
+column, a purge function, a cron entry, a guarantee that marks reach the profile
+BEFORE deletion runs, a marks-only fallback on two panels, and probes for each —
+against zero new code for leaving it durable. The product owner ruled on exactly
+that trade. `docs/gurukul-spec-rules.md` rules 12–15 are updated and the section
+is unparked.

@@ -46,9 +46,9 @@ These are the product owner's, given directly. They override any inference from 
 11. **The student's Analysis tab is fed by practice, and by nothing else.** It is a week-wise topic analysis wired directly to practice. Neither test data nor **exam/marks data** feeds it. *(Amended 2026-09-05: `Analysis.tsx:142–178` currently fetches marks and exams and computes against `exam.maxMarks`. That is the defect. Removing it will leave Analysis near-empty for a student who does not practise — that is correct and honest. The student's exam marks live on their marks surface.)*
 
 12. *Parked — see Parked section.*
-13. *Parked — see Parked section.*
-14. *Parked — see Parked section.*
-15. *Parked — see Parked section.*
+13. *See "The test report" below — binding, and corrected 2026-09-11.*
+14. *Withdrawn 2026-09-11 — see "The test report" below.*
+15. *See "The test report" below — binding.*
 
 16. **Do not "reconcile" the student's practice-derived Analysis against §10.15.** §10.15's "tests and exams only, never practice" governs the parent-facing weak-concept alerts, which do not exist. The Analysis tab is a different surface with a deliberately different source. §4.2b still stands independently: practice and test/exam rates are never blended into one figure — separate sources feeding separate surfaces is not blending.
 
@@ -155,16 +155,19 @@ These are the product owner's, given directly. They override any inference from 
 
 ---
 
-## Parked — the ephemeral test report
+## The test report — UNPARKED 2026-09-11, and the expiry is ruled out
 
-**No code exists for any of this.** There is no `test_reports` table (143 tables checked), no generation function, no expiry logic. `rpc_test_submit` contains no expiry match. Test reports are outside the frozen v1 scope. These rules are retained as product intent and are **not binding on any session** until the feature is scheduled.
+This section used to open "**No code exists for any of this**" and describe an
+ephemeral report. Both halves are now out of date: the report is built (Screen 17
+of the v2 student panel pass), and the expiry was ruled against on 2026-09-11
+after it was measured. Rules 12, 13 and 15 are binding. **Rule 14 is withdrawn.**
 
 12. The test report is a separate, self-contained artifact — not an input to anything. Generated the moment the test ends, downloadable. It feeds no weak-topic surface, no Analysis tab, and no parent surface.
-13. **Student** — their own data only: which questions they got wrong, which took longest. Never another student's, never the class's. **Teacher** — the class aggregate is the primary view; clicking a student's name opens that student's report, scoped via `teacher_teaches_class`. **Principal** — nothing.
-14. Deliberately ephemeral. A dynamic tab opens on the teacher's panel for 24 hours; after that the page is not openable. A PDF downloaded within the window is theirs; otherwise it is gone, by design.
-15. Only the marks persist, on the student profile. One-time analysis, deliberately not stored. No caching, regeneration, or archive.
+13. **Marks and rank are shared within the class; per-question detail is private to each student.** The earlier wording — "their own data only … never the class's" — predated the test leaderboard and was too broad: a rank is a position among classmates and cannot be shown without comparing to them. What stays private is the per-question detail: which questions a student got wrong and which took longest is theirs alone, never another student's. **Teacher** — the class aggregate is the primary view; clicking a student's name opens that student's report, scoped via `teacher_teaches_class`. **Principal** — nothing. *(Corrected 2026-09-11 on the product owner's ruling; `rpc_test_student_report` already implements exactly this — it returns `rank` and `class_size` as positions and no other student's name or mark.)*
+14. ~~Deliberately ephemeral — a 24-hour tab, then gone.~~ **WITHDRAWN 2026-09-11.** Measured first: there is no `expires_at` on any test table and no purge function for test answers, so nothing expires today, and the spec requires that it does not. §10.23 makes test answers school data that persists — "a teacher set them and a mark is the point" — and §10.25 requires "their actual wrong answers, with the topic on each" on tap, which needs them kept. Building the expiry would delete school data the spec preserves and empty the §10.25 drill-down. It would also be the more complex path by a wide margin: an `expires_at` column, a purge function, a cron entry, a guarantee that marks reach the profile *before* deletion runs, a marks-only fallback on two panels, and probes for each — against zero new code for leaving it durable. Ruled by the product owner on exactly that trade.
+15. Only the marks persist **on the student profile** as the durable summary — the profile shows marks, not the report. This is unchanged: it is about what the *profile* carries, not about deleting the report.
 
-**Existing precedent, and an existing defect:** `battle_reports` implements the same pattern and implements it wrong — `expires_at` with a UI gate at `BattleReportView.tsx:151` and **no collector**. One row expired 2026-08-07 is still present. Fix that before reusing the pattern.
+**A real defect this section still names:** `battle_reports` has `expires_at` and a UI gate at `BattleReportView.tsx:151`. It now also has a collector — `purge-expired-battle-reports`, cron `20 * * * *`. Battles are practice under §10.8, so an expiring battle report is correct and is **not** a precedent for tests.
 
 ---
 
