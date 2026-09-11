@@ -709,6 +709,17 @@ the overlap. Fixed in `20260918000000`, probe39, 5 claims.
   Blocked on a ruling; both left as they were.
 * **Recovery sources** — Practice only, or also Tests and Battleground?
 * **Fees** — never ruled on.
+* **Screen 17 "After expiry" — NOT BUILT, and should not be built as written.**
+  The document says the test report is ephemeral, that after the window closes
+  the screen shows marks only, and that the question list AND the leaderboard go
+  with it. Measured: there is no `expires_at` on any test table and no purge
+  function for test answers — `battle_reports.expires_at` is the battle one,
+  which is practice under §10.8. And the spec says the opposite for tests:
+  §10.23 makes test answers school data that persists ("a teacher set them and a
+  mark is the point"), and §10.25 requires "their actual wrong answers, with the
+  topic on each" on tap, which needs them kept. Building the expiry would delete
+  school data the spec preserves and empty the drill-down §10.25 requires.
+  **This needs a ruling, not code.**
 * **The 13 undesigned screens** — the document itself calls this a separate pass.
 * **`useBattlegroundData` still blends** test+practice accuracy. The 10 Sept
   ruling is scoped to Analysis; widening it is a product decision.
