@@ -74,13 +74,21 @@ export function battleRatingFromXp(xp: number, wins: number, battles: number): n
 }
 
 /** Accuracy % from a student_xp row's lifetime correct/answered counters. */
+/**
+ * Battle Q&A accuracy, or `null` when there is nothing to compute it from.
+ *
+ * Ruling 8: no zeroes for absent data. This returned `0` when `answered` was 0,
+ * and the leaderboard rendered "0%" against every student who had never played
+ * a battle — a mark, not an absence, and the same defect
+ * `academic/metrics/practice.ts` was written to remove for practice sessions.
+ */
 export function accuracyFromXp(row: {
   total_correct?: number | null;
   total_answered?: number | null;
-}): number {
+}): number | null {
   const correct = row.total_correct ?? 0;
   const answered = row.total_answered ?? 0;
-  if (!answered) return 0;
+  if (!answered) return null;
   return Math.round((correct / answered) * 100);
 }
 

@@ -80,7 +80,8 @@ export type DesignLbEntry = {
   color: string;
   xp: number;
   streak: number;
-  accuracy: number;
+  /** `null` when the student has never answered a battle question — ruling 8. */
+  accuracy: number | null;
   you?: boolean;
 };
 
@@ -1147,7 +1148,9 @@ export async function loadLeaderboardEntries(
 
   // Battle Q&A accuracy only (not XP/level/streak/league) — optional Acc column.
   const uids = lb.rows.map((r) => r.user_id).filter(Boolean);
-  const accMap: Record<string, number> = {};
+  // `null`, not 0, for a student with no battle answers — and for one with no
+  // student_xp row at all, which `?? null` below covers (ruling 8).
+  const accMap: Record<string, number | null> = {};
   if (uids.length) {
     const { data: xpRows } = await supabase
       .from("student_xp")
@@ -1168,7 +1171,7 @@ export async function loadLeaderboardEntries(
       color: colorFor(uid),
       xp: Number(r.value) || 0,
       streak: 0,
-      accuracy: accMap[uid] ?? 0,
+      accuracy: accMap[uid] ?? null,
       you: !!myUserId && r.user_id === myUserId,
     };
   });

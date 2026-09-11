@@ -1155,7 +1155,12 @@ function LeaderboardPanel({ entries, classLabel }: { entries: DesignLbEntry[]; c
                   </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                  <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.72rem", color: C.text2 }}>{s.accuracy}%</span>
+                  {/* An em dash, not 0% — a student who has never answered a
+                      battle question has no accuracy, and "0%" reads as a mark
+                      they scored (ruling 8). */}
+                  <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.72rem", color: C.text2 }}>
+                    {s.accuracy == null ? "—" : `${s.accuracy}%`}
+                  </span>
                 </div>
               </div>
             );
