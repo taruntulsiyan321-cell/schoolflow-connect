@@ -5,11 +5,31 @@ import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
 import { riskBand, type Band } from "@/academic/metrics/bands";
 
+/**
+ * COLOUR CONTRACT FOR THIS FILE, and for everything that calls it.
+ *
+ * Every colour value here is a COMPLETE CSS COLOUR — `hsl(var(--triplet))`,
+ * `var(--color-x)`, `#hex`. Never a bare triplet token, and never wrapped in
+ * `hsl()` at the point of use.
+ *
+ * The theme carries two token shapes and they are indistinguishable as strings:
+ *
+ *     --primary:        193 68% 28%        needs hsl() around it
+ *     --color-physics:  hsl(197 70% 40%)   already a colour
+ *
+ * This file used to build `hsl(${color})` at ~20 sites, which is correct for the
+ * first and produces `hsl(hsl(197 70% 40%))` for the second — not a colour, so
+ * the declaration is dropped and the property inherits. That was G4: subject-
+ * coloured icons stroked in inherited near-black on chips whose background had
+ * silently gone transparent. Measured in the browser, 2026-09-11.
+ *
+ * Alpha goes through `withAlpha`, which works on any complete colour.
+ */
 const RING_COLOR: Record<Band, string> = {
-  unknown: "var(--muted-foreground)",
-  low: "var(--destructive)",
-  middle: "var(--warning)",
-  high: "var(--info)",
+  unknown: "hsl(var(--muted-foreground))",
+  low: "hsl(var(--destructive))",
+  middle: "hsl(var(--warning))",
+  high: "hsl(var(--info))",
 };
 
 export function cn(...inputs: ClassValue[]) {
@@ -82,8 +102,18 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
 }
 
 import { displaySubject } from "@/lib/academicPresentation";
+import { withAlpha } from "@/lib/colorAlpha";
 
-const SUBJECT_COLOR_MAP: Record<string, string> = {
+/**
+ * Subject → colour. These values are COMPLETE colours: the `--color-*` tokens
+ * are declared `hsl(...)` in theme.css. Never wrap one in `hsl()`.
+ *
+ * This map existed TWICE in this file, byte for byte — here as
+ * `SUBJECT_COLOR_MAP` and again below as the exported `subjectColor`. Two homes
+ * for one fact, and only one of them was reachable from outside. The exported
+ * name is the one six pages already import, so that is the one that survives.
+ */
+export const subjectColor: Record<string, string> = {
   Mathematics: "var(--color-math)",
   Physics: "var(--color-physics)",
   Chemistry: "var(--color-chemistry)",
@@ -99,7 +129,7 @@ const SUBJECT_COLOR_MAP: Record<string, string> = {
 
 function getSubjectColorVar(subject: string): string {
   const label = displaySubject(subject) || subject;
-  return SUBJECT_COLOR_MAP[label] ?? SUBJECT_COLOR_MAP[subject] ?? "var(--color-muted-foreground)";
+  return subjectColor[label] ?? subjectColor[subject] ?? "var(--color-muted-foreground)";
 }
 
 export function SubjectBadge({ subject, color }: { subject: string; color?: string }) {
@@ -108,39 +138,43 @@ export function SubjectBadge({ subject, color }: { subject: string; color?: stri
   const colorVar = color ?? getSubjectColorVar(subject);
   return (
     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
-      style={{ color: `hsl(${colorVar})`, borderColor: `hsl(${colorVar} / 0.3)`, background: `hsl(${colorVar} / 0.07)` }}>
+      style={{ color: colorVar, borderColor: withAlpha(colorVar, 0.3), background: withAlpha(colorVar, 0.07) }}>
       {label}
     </span>
   );
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; color: string; bg: string }> = {
-    "in-recovery":  { label: "In Recovery",  color: "var(--warning)", bg: "var(--warning) / 0.1" },
+  // One colour per status; the background is DERIVED from it. It used to be a
+  // second stored string — `"var(--warning)"` beside `"var(--warning) / 0.1"` —
+  // which is the same fact written twice and one more place for the two token
+  // shapes to drift apart.
+  const map: Record<string, { label: string; color: string }> = {
+    "in-recovery":  { label: "In Recovery",  color: "hsl(var(--warning))" },
     // §10.8: the status a RECOVERY item reaches when it is finished. "Mastered"
     // told the student they are good at the concept; "Recovered" says the work
     // is done, which is the fact the badge is actually reporting.
-    "mastered":     { label: "Recovered",    color: "var(--success)", bg: "var(--success) / 0.1" },
-    "pending":      { label: "Pending",      color: "var(--destructive)", bg: "var(--destructive) / 0.1" },
-    "active":       { label: "Active",       color: "var(--info)", bg: "var(--info) / 0.1" },
-    "won":          { label: "Won",          color: "var(--success)", bg: "var(--success) / 0.1" },
-    "lost":         { label: "Lost",         color: "var(--destructive)", bg: "var(--destructive) / 0.1" },
-    "answered":     { label: "Answered",     color: "var(--success)", bg: "var(--success) / 0.1" },
-    "submitted":    { label: "Submitted",    color: "var(--primary)", bg: "var(--primary) / 0.1" },
-    "graded":       { label: "Graded",       color: "var(--info)", bg: "var(--info) / 0.1" },
-    "in-progress":  { label: "In Progress",  color: "var(--warning)", bg: "var(--warning) / 0.1" },
-    "not-started":  { label: "Not Started",  color: "var(--muted-foreground)", bg: "var(--muted-foreground) / 0.1" },
+    "mastered":     { label: "Recovered",    color: "hsl(var(--success))" },
+    "pending":      { label: "Pending",      color: "hsl(var(--destructive))" },
+    "active":       { label: "Active",       color: "hsl(var(--info))" },
+    "won":          { label: "Won",          color: "hsl(var(--success))" },
+    "lost":         { label: "Lost",         color: "hsl(var(--destructive))" },
+    "answered":     { label: "Answered",     color: "hsl(var(--success))" },
+    "submitted":    { label: "Submitted",    color: "hsl(var(--primary))" },
+    "graded":       { label: "Graded",       color: "hsl(var(--info))" },
+    "in-progress":  { label: "In Progress",  color: "hsl(var(--warning))" },
+    "not-started":  { label: "Not Started",  color: "hsl(var(--muted-foreground))" },
   };
-  const s = map[status] ?? { label: status, color: "var(--muted-foreground)", bg: "var(--muted-foreground) / 0.1" };
-  return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: `hsl(${s.color})`, background: `hsl(${s.bg})` }}>{s.label}</span>;
+  const s = map[status] ?? { label: status, color: "hsl(var(--muted-foreground))" };
+  return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: s.color, background: withAlpha(s.color, 0.1) }}>{s.label}</span>;
 }
 
 export function Avatar({ initials, color, size="md" }: { initials:string; color?:string; size?:"sm"|"md"|"lg" }) {
   const sizes = { sm: "w-7 h-7 text-[10px]", md: "w-9 h-9 text-xs", lg: "w-12 h-12 text-sm" };
-  const colorVar = color ?? "var(--primary)";
+  const colorVar = color ?? "hsl(var(--primary))";
   return (
     <motion.div className={cn("rounded-full flex items-center justify-center font-black text-foreground shrink-0", sizes[size])}
-      style={{ background: `linear-gradient(135deg, hsl(${colorVar}), hsl(${colorVar} / 0.6))` }}
+      style={{ background: `linear-gradient(135deg, ${colorVar}, ${withAlpha(colorVar, 0.6)})` }}
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       whileHover={{ scale: 1.08 }}
@@ -165,15 +199,15 @@ export function ProgressRing({ score, size=80, color }: { score:number; size?:nu
     <div className="relative inline-flex" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={stroke} />
-        <motion.circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`hsl(${colorVar})`} strokeWidth={stroke}
+        <motion.circle cx={size/2} cy={size/2} r={r} fill="none" stroke={colorVar} strokeWidth={stroke}
           strokeDasharray={c} strokeLinecap="round"
-          style={{ filter: `drop-shadow(0 0 6px hsl(${colorVar}))` }}
+          style={{ filter: `drop-shadow(0 0 6px ${colorVar})` }}
           initial={reduceMotion ? undefined : { strokeDashoffset: c }}
           animate={{ strokeDashoffset: offset }}
           transition={{ duration: 1.1, ease: EASE_OUT }} />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <motion.span className="font-black tabular-nums" style={{ color: `hsl(${colorVar})`, fontSize: size * 0.22 }}
+        <motion.span className="font-black tabular-nums" style={{ color: colorVar, fontSize: size * 0.22 }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.4 }}>
           {score}%
         </motion.span>
@@ -182,14 +216,14 @@ export function ProgressRing({ score, size=80, color }: { score:number; size?:nu
   );
 }
 
-export function ProgressBar({ value, max=100, color="var(--primary)", height="h-2" }: {
+export function ProgressBar({ value, max=100, color="hsl(var(--primary))", height="h-2" }: {
   value:number; max?:number; color?:string; height?:string;
 }) {
   const pct = Math.min(100, (value/max)*100);
   return (
     <div className={cn("w-full rounded-full bg-muted overflow-hidden", height)}>
       <motion.div className="h-full rounded-full"
-        style={{ background: `hsl(${color})` }}
+        style={{ background: color }}
         initial={{ width: 0 }}
         animate={{ width: `${pct}%` }}
         transition={springSoft} />
@@ -212,7 +246,7 @@ export function StatTile({ label, value, color, sub }: { label:string; value:str
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
         className="mt-0.5 text-xl font-black tabular-nums"
-        style={{ color: color ? `hsl(${color})` : "hsl(var(--foreground))" }}>{value}</motion.div>
+        style={{ color: color ?? "hsl(var(--foreground))" }}>{value}</motion.div>
       {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
     </motion.div>
   );
@@ -304,10 +338,10 @@ export function EmptyState({ icon, title, sub, action, actionLabel }: {
   );
 }
 
-export function Chip({ children, color = "var(--muted-foreground)" }: { children:ReactNode; color?:string }) {
+export function Chip({ children, color = "hsl(var(--muted-foreground))" }: { children:ReactNode; color?:string }) {
   return (
     <motion.span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full border"
-      style={{ color: `hsl(${color})`, borderColor: `hsl(${color} / 0.3)`, background: `hsl(${color} / 0.1)` }}
+      style={{ color, borderColor: withAlpha(color, 0.3), background: withAlpha(color, 0.1) }}
       initial={{ opacity: 0, scale: 0.85 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={springSnappy}
@@ -322,30 +356,16 @@ export function Chip({ children, color = "var(--muted-foreground)" }: { children
 export function DifficultyBadge({ level }: { level:"easy"|"medium"|"hard"|string|undefined|null }) {
   if (!level) return null;
   const map: Record<string, string> = {
-    easy: "var(--success)",
-    medium: "var(--warning)",
-    hard: "var(--destructive)",
+    easy: "hsl(var(--success))",
+    medium: "hsl(var(--warning))",
+    hard: "hsl(var(--destructive))",
   };
-  const colorVar = map[level] ?? "var(--muted-foreground)";
+  const colorVar = map[level] ?? "hsl(var(--muted-foreground))";
   return <Chip color={colorVar}>{level.charAt(0).toUpperCase() + level.slice(1)}</Chip>;
 }
 
-export const subjectColor: Record<string, string> = {
-  Mathematics: "var(--color-math)",
-  Physics: "var(--color-physics)",
-  Chemistry: "var(--color-chemistry)",
-  Biology: "var(--color-biology)",
-  English: "var(--color-english)",
-  Accountancy: "var(--color-biology)",
-  "Business Studies": "var(--color-chemistry)",
-  Economics: "var(--color-english)",
-  Hindi: "var(--color-hindi)",
-  Science: "var(--color-physics)",
-  "Social Science": "var(--color-social)",
-};
-
 // Premium hover card with glow effect
-export function HoverCard({ children, className, color = "var(--primary)", onClick }: {
+export function HoverCard({ children, className, color = "hsl(var(--primary))", onClick }: {
   children: ReactNode; className?: string; color?: string; onClick?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
@@ -360,8 +380,8 @@ export function HoverCard({ children, className, color = "var(--primary)", onCli
       animate={{ opacity: 1, y: 0 }}
       whileHover={reduceMotion ? undefined : {
         y: -3,
-        boxShadow: `0 8px 25px -5px hsl(${color} / 0.15), 0 0 0 1px hsl(${color} / 0.12)`,
-        borderColor: `hsl(${color} / 0.3)`,
+        boxShadow: `0 8px 25px -5px ${withAlpha(color, 0.15)}, 0 0 0 1px ${withAlpha(color, 0.12)}`,
+        borderColor: withAlpha(color, 0.3),
       }}
       whileTap={reduceMotion ? undefined : { scale: 0.985, y: -1 }}
       transition={{ duration: 0.2, ease: EASE_OUT }}
@@ -370,7 +390,7 @@ export function HoverCard({ children, className, color = "var(--primary)", onCli
 }
 
 // Animated icon wrapper
-export function AnimatedIcon({ icon, color = "var(--primary)", size = "md", pulse = false }: {
+export function AnimatedIcon({ icon, color = "hsl(var(--primary))", size = "md", pulse = false }: {
   icon: ReactNode; color?: string; size?: "sm" | "md" | "lg"; pulse?: boolean;
 }) {
   const sizes = { sm: "w-8 h-8", md: "w-10 h-10", lg: "w-12 h-12" };
@@ -382,9 +402,9 @@ export function AnimatedIcon({ icon, color = "var(--primary)", size = "md", puls
         pulse && "animate-pulse"
       )}
       style={{
-        background: `linear-gradient(135deg, hsl(${color} / 0.15), hsl(${color} / 0.05))`,
-        border: `1px solid hsl(${color} / 0.2)`,
-        color: `hsl(${color})`,
+        background: `linear-gradient(135deg, ${withAlpha(color, 0.15)}, ${withAlpha(color, 0.05)})`,
+        border: `1px solid ${withAlpha(color, 0.2)}`,
+        color,
       }}
       whileHover={{ scale: 1.08, rotate: 3 }}
       transition={springSnappy}
@@ -395,7 +415,7 @@ export function AnimatedIcon({ icon, color = "var(--primary)", size = "md", puls
 }
 
 // Animated badge/tag with icon
-export function TagWithIcon({ icon, label, color = "var(--muted-foreground)", onClick }: {
+export function TagWithIcon({ icon, label, color = "hsl(var(--muted-foreground))", onClick }: {
   icon: ReactNode; label: string; color?: string; onClick?: () => void;
 }) {
   return (
@@ -406,11 +426,11 @@ export function TagWithIcon({ icon, label, color = "var(--muted-foreground)", on
         onClick && "cursor-pointer"
       )}
       style={{
-        color: `hsl(${color})`,
-        borderColor: `hsl(${color} / 0.25)`,
-        background: `hsl(${color} / 0.08)`,
+        color,
+        borderColor: withAlpha(color, 0.25),
+        background: withAlpha(color, 0.08),
       }}
-      whileHover={onClick ? { scale: 1.03, background: `hsl(${color} / 0.12)` } : undefined}
+      whileHover={onClick ? { scale: 1.03, background: withAlpha(color, 0.12) } : undefined}
       whileTap={onClick ? { scale: 0.97 } : undefined}
       transition={springSnappy}
     >

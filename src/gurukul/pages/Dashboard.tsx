@@ -10,6 +10,7 @@ import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { withAlpha } from "@/lib/colorAlpha";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { pluralise } from "@/lib/plural";
@@ -105,17 +106,21 @@ function WeeklyRing({ sessions }: { sessions: number }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c - pct * c;
-  const colorVar = pct >= 0.85 ? "var(--info)" : pct >= 0.57 ? "var(--warning)" : "var(--color-chemistry)";
+  // Complete colours, all three rungs. This ternary was the whole G4 bug in one
+  // line: two triplet tokens and one `--color-*` (already `hsl(...)`), then
+  // `hsl()` wrapped around every branch. The ring drew correctly at and above
+  // target and vanished below it — the one case the student needs to see.
+  const colorVar = pct >= 0.85 ? "hsl(var(--info))" : pct >= 0.57 ? "hsl(var(--warning))" : "var(--color-chemistry)";
   return (
     <div className="relative inline-flex" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={stroke} />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`hsl(${colorVar})`} strokeWidth={stroke}
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={colorVar} strokeWidth={stroke}
           strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ filter: `drop-shadow(0 0 8px hsl(${colorVar}))`, transition: "stroke-dashoffset 1s ease" }} />
+          style={{ filter: `drop-shadow(0 0 8px ${colorVar})`, transition: "stroke-dashoffset 1s ease" }} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-black tabular-nums" style={{ color: `hsl(${colorVar})` }}>{sessions}</span>
+        <span className="text-2xl font-black tabular-nums" style={{ color: colorVar }}>{sessions}</span>
         <span className="text-[10px] text-muted-foreground">/ {goal}</span>
       </div>
     </div>
@@ -156,12 +161,15 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
     const activeKey = mission.nextAction.page === "assignments" ? "practice" : mission.nextAction.page;
 
     const steps = [
-      { key: "practice", label: "Practice", icon: <BookOpen className="w-3.5 h-3.5" />, color: "var(--primary)", done: practiceDone },
+      // Complete colours (see the contract on shared.tsx's RING_COLOR). The two
+      // `--color-*` entries are already `hsl(...)`; the rest need the wrap here,
+      // once, rather than at every style that reads them.
+      { key: "practice", label: "Practice", icon: <BookOpen className="w-3.5 h-3.5" />, color: "hsl(var(--primary))", done: practiceDone },
       { key: "analysis", label: "Analyse", icon: <BarChart2 className="w-3.5 h-3.5" />, color: "var(--color-physics)", done: analysisDone },
-      { key: "mistakebook", label: "Weakness", icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "var(--warning)", done: mistakebookDone },
-      { key: "recovery", label: "Recover", icon: <RefreshCw className="w-3.5 h-3.5" />, color: "var(--accent)", done: recoveryDone },
+      { key: "mistakebook", label: "Weakness", icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "hsl(var(--warning))", done: mistakebookDone },
+      { key: "recovery", label: "Recover", icon: <RefreshCw className="w-3.5 h-3.5" />, color: "hsl(var(--accent))", done: recoveryDone },
       { key: "revision", label: "Revise", icon: <RotateCcw className="w-3.5 h-3.5" />, color: "var(--color-chemistry)", done: revisionDone },
-      { key: "aicoach", label: "Coach", icon: <Brain className="w-3.5 h-3.5" />, color: "var(--success)", done: false },
+      { key: "aicoach", label: "Coach", icon: <Brain className="w-3.5 h-3.5" />, color: "hsl(var(--success))", done: false },
     ];
 
     return steps.map((step) => ({
@@ -225,8 +233,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             </h1>
             <p className="text-muted-foreground text-sm mt-1">{student.class || (shellReady ? "—" : "…")}{goalLine}</p>
             <div className="grid grid-cols-3 gap-3 mt-4">
-              <StatTile label="Practice accuracy" value={shellReady ? `${student.accuracy}%` : "—"} color="var(--info)"/>
-              <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "—"} color="var(--warning)"/>
+              <StatTile label="Practice accuracy" value={shellReady ? `${student.accuracy}%` : "—"} color="hsl(var(--info))"/>
+              <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "—"} color="hsl(var(--warning))"/>
               <StatTile label="Level" value={levelLabel} color="var(--color-chemistry)"/>
             </div>
             <div className="mt-3">
@@ -272,12 +280,12 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 step.active ? "scale-105" : step.done ? "opacity-80" : "opacity-40"
               )}
               style={step.done || step.active
-                ? { borderColor: `hsl(${step.color} / 0.4)`, background: `hsl(${step.color} / 0.1)`, color: step.active ? `hsl(${step.color})` : "hsl(var(--muted-foreground))" }
+                ? { borderColor: withAlpha(step.color, 0.4), background: withAlpha(step.color, 0.1), color: step.active ? step.color : "hsl(var(--muted-foreground))" }
                 : { borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-              <span style={{ color: step.active ? `hsl(${step.color})` : step.done ? `hsl(${step.color})` : "hsl(var(--muted-foreground))" }}>{step.icon}</span>
+              <span style={{ color: step.active || step.done ? step.color : "hsl(var(--muted-foreground))" }}>{step.icon}</span>
               {step.label}
-              {step.done && !step.active && <CheckCircle2 className="w-3 h-3" style={{ color: `hsl(${step.color})` }} />}
-              {step.active && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: `hsl(${step.color})` }} />}
+              {step.done && !step.active && <CheckCircle2 className="w-3 h-3" style={{ color: step.color }} />}
+              {step.active && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: step.color }} />}
               {i < loopSteps.length - 1 && <ArrowRight className="w-3 h-3 text-muted-foreground/30 -mr-1"/>}
             </button>
           ))}
@@ -289,16 +297,16 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         <SectionLabel>{"Today's Mission"}</SectionLabel>
         <div className="grid sm:grid-cols-3 gap-4 animate-premium-stagger">
           {[
-            { label: "Practice", done: mission.practiceDone, target: mission.practiceTarget, color: "var(--primary)", icon: <BookOpen className="w-4 h-4"/>, page: "practice" as PageKey },
-            { label: "Recovery", done: mission.recoveryDone, target: mission.recoveryTarget, color: "var(--accent)", icon: <RefreshCw className="w-4 h-4"/>, page: "recovery" as PageKey },
+            { label: "Practice", done: mission.practiceDone, target: mission.practiceTarget, color: "hsl(var(--primary))", icon: <BookOpen className="w-4 h-4"/>, page: "practice" as PageKey },
+            { label: "Recovery", done: mission.recoveryDone, target: mission.recoveryTarget, color: "hsl(var(--accent))", icon: <RefreshCw className="w-4 h-4"/>, page: "recovery" as PageKey },
             { label: "Revision", done: mission.revisionDone, target: mission.revisionTarget, color: "var(--color-chemistry)", icon: <RotateCcw className="w-4 h-4"/>, page: "revision" as PageKey },
           ].map((m) => (
             <GlassCard key={m.label} className="p-4 cursor-pointer hover:border-border" onClick={() => setPage(m.page)}>
               <div className="flex items-center gap-2 mb-2">
-                <span style={{ color: `hsl(${m.color})` }}>{m.icon}</span>
+                <span style={{ color: m.color }}>{m.icon}</span>
                 <span className="text-xs font-semibold text-foreground">{m.label}</span>
               </div>
-              <div className="text-2xl font-black tabular-nums mb-1" style={{ color: `hsl(${m.color})` }}>
+              <div className="text-2xl font-black tabular-nums mb-1" style={{ color: m.color }}>
                 {m.done}<span className="text-sm text-muted-foreground font-normal">/{m.target}</span>
               </div>
               <ProgressBar value={m.done} max={m.target} color={m.color}/>
@@ -312,13 +320,13 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         <SectionLabel>Quick Actions</SectionLabel>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-premium-stagger">
           {[
-            { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "var(--primary)", page: "practice" as PageKey },
+            { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "hsl(var(--primary))", page: "practice" as PageKey },
             { label: "AI Coach", sub: "Chat with Nova", icon: <Brain className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "aicoach" as PageKey },
-            { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "var(--warning)", page: "battleground" as PageKey },
+            { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "hsl(var(--warning))", page: "battleground" as PageKey },
             { label: "Analysis", sub: "View insights", icon: <BarChart2 className="w-5 h-5"/>, color: "var(--color-physics)", page: "analysis" as PageKey },
           ].map((a) => (
             <GlassCard key={a.label} className="p-4 cursor-pointer hover:border-border group" onClick={() => setPage(a.page)}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{ background: `hsl(${a.color} / 0.1)`, color: `hsl(${a.color})` }}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{ background: withAlpha(a.color, 0.1), color: a.color }}>
                 {a.icon}
               </div>
               <div className="text-sm font-semibold text-foreground">{a.label}</div>
