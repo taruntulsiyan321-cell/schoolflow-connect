@@ -55,7 +55,7 @@ export default function Notifications() {
           <p className="text-muted-foreground text-sm mt-1">
             {unread > 0 ? `${unread} unread` : "You're all caught up"}
           </p>
-          {error && <p className="text-[10px] text-[#cc5069] mt-1">{error}</p>}
+          {error && <p className="text-[10px] text-destructive mt-1">{error}</p>}
         </div>
         {unread > 0 && (
           <button

@@ -8,6 +8,7 @@ import { displaySubject, presentAcademicLabel } from "@/lib/academicPresentation
 import { EmptyState, GlassCard, LoadingState, NoStudentProfile, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/AttachmentUI";
 import { toErrorMessage } from "@/lib/presentation";
+import { StudentErrorState } from "@/components/student/StudentPanelStates";
 
 function subjectAccent(raw: string): string {
   const label = displaySubject(raw) || raw;
@@ -24,6 +25,8 @@ export default function Assignments() {
   const [rows, setRows] = useState<StudentHomeworkRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  /** Bumped by the error state's Try again, so the load effect re-runs. */
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "pending" | "done">("all");
   const [search, setSearch] = useState("");
@@ -63,7 +66,7 @@ export default function Assignments() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx, studentId, liveVersion]);
+  }, [ready, ctx, studentId, liveVersion, reloadNonce]);
 
   const pending = useMemo(
     () => rows.filter((r) => !r.submission || ["pending", "returned"].includes(r.submission.status)),
@@ -130,7 +133,17 @@ export default function Assignments() {
 
   if (loadError) {
     return (
-      <div className="text-center text-sm text-destructive py-16">{loadError}</div>
+      <StudentErrorState
+        title="Could not load your homework"
+        message={loadError}
+        onRetry={() => {
+          // Clear first: useInitialLoadGate suppresses the spinner on a
+          // same-subject refetch, so without this the student presses Try
+          // again and the unchanged error screen just sits there.
+          setLoadError(null);
+          setReloadNonce((n) => n + 1);
+        }}
+      />
     );
   }
 

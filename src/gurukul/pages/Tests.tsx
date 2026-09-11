@@ -18,6 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
 import { GlassCard, LoadingState, NoStudentProfile, SectionLabel, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { toErrorMessage } from "@/lib/presentation";
+import { StudentErrorState } from "@/components/student/StudentPanelStates";
 
 /**
  * Student Tests — MarksService + TestService + AnalyticsService (no mock catalogs).
@@ -36,6 +37,8 @@ export default function Tests() {
   const [loading, setLoading] = useState(true);
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId, classId]);
   const [error, setError] = useState<string | null>(null);
+  /** Bumped by the error state's Try again, so the load effect re-runs. */
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
@@ -97,7 +100,7 @@ export default function Tests() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId, classId, liveVersion]);
+  }, [ready, ctx, studentId, classId, liveVersion, reloadNonce]);
 
   const examById = useMemo(() => new Map(exams.map((e) => [e.id, e])), [exams]);
 
@@ -129,7 +132,19 @@ export default function Tests() {
   }
 
   if (error) {
-    return <div className="text-center text-sm text-destructive py-16">{error}</div>;
+    return (
+      <StudentErrorState
+        title="Could not load your tests"
+        message={error}
+        onRetry={() => {
+          // Clear first: useInitialLoadGate suppresses the spinner on a
+          // same-subject refetch, so without this the student presses Try
+          // again and the unchanged error screen just sits there.
+          setError(null);
+          setReloadNonce((n) => n + 1);
+        }}
+      />
+    );
   }
 
   const showGraded = filter === "all" || filter === "graded";

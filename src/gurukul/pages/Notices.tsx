@@ -109,7 +109,7 @@ export default function Notices() {
         <p className="text-muted-foreground text-sm mt-1">
           AnnouncementService · {rows.length} published
         </p>
-        {error && <p className="text-[10px] text-[#cc5069] mt-1">{error}</p>}
+        {error && <p className="text-[10px] text-destructive mt-1">{error}</p>}
       </div>
 
       {rows.length === 0 ? (

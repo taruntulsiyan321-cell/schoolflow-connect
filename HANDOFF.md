@@ -849,3 +849,89 @@ BEFORE deletion runs, a marks-only fallback on two panels, and probes for each �
 against zero new code for leaving it durable. The product owner ruled on exactly
 that trade. `docs/gurukul-spec-rules.md` rules 12–15 are updated and the section
 is unparked.
+
+---
+
+## 11. STUDENT PANEL UI — 2026-09-11 session
+
+Five commits. Everything below was measured, not assumed.
+
+### What shipped
+
+| commit | what |
+|---|---|
+| `e5ad6ab` | never-played students show `—`, not `0%` accuracy (ruling 8) |
+| `40c2fe7` | `NoStudentProfile` — one design for 9 copies across 4 treatments |
+| `c0cfc45` | `EmptyState` page/section variants — 13 sites, 5 conventions collapsed to 1 |
+| `1fd33a5` | `LoadingState` — 19 sites, 18 hand-rolled blocks, now with `role="status"` |
+| (last) | `StudentErrorState` + a retry that actually re-fetches, on 3 screens |
+
+### THE BIG ONE — the student panel is TWO HALVES, built to different standards
+
+This is the real answer to "the design isn't finished", and it is NOT fixed.
+
+    src/gurukul/pages/            22 screens   spinner + label, no skeletons,
+                                               no shared error state until today
+    src/pages/student/ + shared/  13 screens   real skeletons (StudentPanelStates),
+                                               aria-busy, error state with retry
+
+BOTH are routed from `src/pages/StudentDashboard.tsx` and both render inside the
+same `.gurukul-student` wrapper, so a student crosses between them constantly —
+Practice is a spinner, PracticeSessionResult is a skeleton.
+
+`src/components/student/StudentPanelStates.tsx` is the better library and has
+been there all along: `StudentDashboardSkeleton`, `StudentListSkeleton`,
+`StudentAnalyticsSkeleton`, `StudentSessionSkeleton`, `StudentErrorState`. Used
+by 13 files. The gurukul half used NONE of it until this session.
+
+**Decision needed from the owner**: adopt skeletons across the gurukul 22, or
+accept the spinner there. Do NOT do it mechanically — a generic skeleton is
+barely better than a spinner; each one has to match its screen's real layout,
+which is 16 bespoke pieces of work and cannot be verified without a browser.
+
+### THE SHADOW PALETTE — measured, deliberately NOT fixed
+
+`src/gurukul/pages/` + `components/` carry **155 raw hex colour literals across
+17 distinct colours**, alongside a complete `--color-*` token set in theme.css.
+
+    #3b5bdb  57    #cc5069  23    #c08a3a  23    #4aa87a  15
+    #6882e8  11    #4b9fd4   7    then a tail of 10 colours, 14 uses total
+
+The hexes are NOT equivalents of the tokens — they are systematically lighter:
+
+    --destructive: 1 37% 48%   = #A84F4D   vs the hex #cc5069
+    --success:   161 46% 33%   = #2D7B62   vs the hex #4aa87a
+    --warning:    35 68% 36%   = #9A661D   vs the hex #c08a3a
+
+So a bulk swap would visibly change the panel. **Do not do it blind.** G4 was
+exactly this shape. The two provable sites were fixed this session: Notices and
+Notifications rendered their error line in `#cc5069` while four sibling screens
+used `text-destructive` — same semantic element, different colour.
+
+### Dead exports in `gurukul/components/shared.tsx`
+
+Confirmed unused ANYWHERE in `src/`: `AnimatedIcon`, `HoverCard`, `TagWithIcon`,
+`ListItem`, `ProgressRing`, `StatusBadge`. Also `PageHeader` and `Skeleton` —
+these two are dead *in this file*; all 17 `<PageHeader` uses import from
+`@/components/ui-bits` and the only `<Skeleton` user imports shadcn's. Note
+`shared.tsx`'s `PageHeader` is dead for a GOOD reason: `Layout.tsx` renders the
+page title itself (`headerTitle`), so screens correctly do not repeat it.
+
+### Browser verification is OWED
+
+Nothing in this session was seen in a browser. `psqxykzqfvxgsvkmgurn.supabase.co`
+does not resolve (DNS times out), so the app cannot sign in, and
+`api.supabase.com` only survives on a cached entry. 1.1.1.1 and 8.8.8.8 are
+unreachable by IP too, so this is not just DNS. A Playwright walk of all 22
+screens was written, run, and **deleted** — it captured 22 screenshots of the
+login form, and its assertion (`report.length === SCREENS.length`) passed
+anyway, which is the check-that-cannot-fail shape. When the network returns:
+walk the panel and LOOK at it.
+
+### The other four panels have the identical defects
+
+While scoping the loading guard it failed on 20+ hand-rolled spinner blocks in
+`gurukul-admin`, `gurukul-parent`, `gurukul-principal`, `gurukul-teacher`. The
+guard in `emptyStates.test.ts` is deliberately scoped to `src/gurukul/` — a
+guard that fails the build on work nobody has done yet is not a guard. Widen it
+when those panels get the same pass.
