@@ -12,7 +12,7 @@ import {
   type DoubtStatus,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import { GlassCard, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { getNcertChapters, parseClassGrade } from "@/lib/ncertSyllabus";
 import {
   COMING_SOON_LABEL,
@@ -901,14 +901,16 @@ export default function DoubtPortal() {
       )}
 
       {filtered.length === 0 ? (
-        <GlassCard className="p-10 text-center space-y-2">
-          <MessageCircle className="w-6 h-6 text-muted-foreground mx-auto" />
-          <p className="text-sm text-foreground font-semibold">No doubts yet</p>
-          <p className="text-xs text-muted-foreground">
-            {error
-              ? "Could not load the class feed. Try again shortly."
-              : "When you or a classmate posts a doubt, it will show up here."}
-          </p>
+        <GlassCard className="p-4">
+          <EmptyState
+            icon={<MessageCircle className="w-6 h-6" />}
+            title="No doubts yet"
+            sub={
+              error
+                ? "Could not load the class feed. Try again shortly."
+                : "When you or a classmate posts a doubt, it will show up here."
+            }
+          />
         </GlassCard>
       ) : (
         <div className="space-y-3">

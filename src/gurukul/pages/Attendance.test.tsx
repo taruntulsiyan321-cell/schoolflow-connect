@@ -83,8 +83,15 @@ describe("Attendance page", () => {
     const academic = await import("@/academic");
     vi.mocked(academic.AttendanceService.listForStudent).mockResolvedValueOnce([]);
     render(<Attendance />);
+    // The card renders the shared EmptyState now, so the sentence arrived as a
+    // title plus a separate line of guidance rather than one bare <div>. The
+    // assertion that matters is unchanged: an empty register says it is empty
+    // and invents nothing to fill itself.
     await waitFor(() =>
-      expect(screen.getByText("No attendance recorded yet.")).toBeTruthy(),
+      expect(screen.getByText("No attendance recorded yet")).toBeTruthy(),
     );
+    expect(
+      screen.getByText("Days appear here once your teacher starts marking the register."),
+    ).toBeTruthy();
   });
 });

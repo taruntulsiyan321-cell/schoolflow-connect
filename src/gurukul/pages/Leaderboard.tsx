@@ -3,7 +3,7 @@ import { Loader2, Trophy, Zap } from "lucide-react";
 import { ProgressionService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useAuth } from "@/hooks/useAuth";
-import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
 import { toErrorMessage, toPersonName } from "@/lib/presentation";
 
 type LbRow = {
@@ -147,9 +147,12 @@ export default function Leaderboard() {
       <GlassCard className="p-5">
         <SectionLabel>Class XP</SectionLabel>
         {ranked.length === 0 && (
-          <div className="text-xs text-muted-foreground py-8 text-center">
-            No class XP rankings yet. Earn XP from practice, homework, and battles to appear here.
-          </div>
+          <EmptyState
+            variant="section"
+            icon={<Trophy className="w-5 h-5" />}
+            title="No class rankings yet"
+            sub="Earn XP from practice, homework and battles to appear here."
+          />
         )}
         <div className="space-y-2">
           {ranked.map((p) => (

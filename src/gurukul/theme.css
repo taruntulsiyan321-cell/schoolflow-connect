@@ -301,23 +301,14 @@
   border-color: hsl(var(--border)) !important;
 }
 
-/* Empty state styling */
-.gurukul-student .premium-empty {
-  background: hsl(var(--muted) / 0.5);
-  border-radius: 1rem;
-}
+/* `.premium-empty` / `.premium-empty-icon` stood here. This was the FIRST of
+   two definitions in this same file — the second, ~240 lines below, replaced
+   the background and added a dashed border, and between them they also
+   overrode index.css's primary-tinted icon to plain grey. One state, three
+   cascading definitions, and the winner was whichever came last.
 
-.gurukul-student .premium-empty-icon {
-  background: hsl(var(--muted));
-  color: hsl(var(--muted-foreground));
-  width: 3rem;
-  height: 3rem;
-  border-radius: 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 0.75rem;
-}
+   Removed 2026-09-11 along with both other copies. Empty states are the
+   EmptyState component in components/shared.tsx. */
 
 /* Fix rose/red colored text readability */
 .gurukul-student .text-rose-200,
@@ -548,17 +539,8 @@
   border-radius: 0.5rem;
 }
 
-/* Enhanced empty states */
-.gurukul-student .premium-empty {
-  background: linear-gradient(135deg, hsl(var(--muted) / 0.5) 0%, hsl(var(--muted) / 0.2) 100%);
-  border: 1px dashed hsl(var(--border));
-}
-
-.gurukul-student .premium-empty-icon {
-  background: hsl(var(--card));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid hsl(var(--border));
-}
+/* The second `.premium-empty` / `.premium-empty-icon` block stood here — see
+   the note at the first one, ~240 lines above. Removed 2026-09-11. */
 
 /* Smooth page transitions */
 .gurukul-student > main {

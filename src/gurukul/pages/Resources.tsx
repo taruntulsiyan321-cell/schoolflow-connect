@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { FileText, Video, Download, Search, Loader2, ExternalLink } from "lucide-react";
 import { ResourceService, type LearningResourceRow } from "@/academic";
 import { academicFileUrl } from "@/academic/storage/academicFileUpload";
@@ -157,11 +157,16 @@ export default function Resources() {
               );
             })}
             {filtered.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                {q
-                  ? "No resources found."
-                  : "No study materials uploaded for your class yet."}
-              </div>
+              <EmptyState
+                variant="section"
+                icon={q ? <Search className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                title={q ? "No resources match your search" : "No study materials yet"}
+                sub={
+                  q
+                    ? "Try a shorter search, or clear it to see everything for your class."
+                    : "Notes, videos and papers your teachers upload for your class appear here."
+                }
+              />
             )}
           </div>
         )}

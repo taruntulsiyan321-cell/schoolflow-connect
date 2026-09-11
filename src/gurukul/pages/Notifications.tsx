@@ -3,7 +3,7 @@ import {
   Bell, Award, Swords, Trophy, Wallet, NotebookPen, Sparkles,
   CheckCheck, Trash2, Loader2, MessageSquare,
 } from "lucide-react";
-import { GlassCard, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, cn } from "@/gurukul/components/shared";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -71,11 +71,12 @@ export default function Notifications() {
       </div>
 
       {items.length === 0 ? (
-        <GlassCard className="p-10 text-center">
-          <Bell className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            No notifications yet. Homework, battles, and badges will show up here.
-          </p>
+        <GlassCard className="p-4">
+          <EmptyState
+            icon={<Bell className="w-6 h-6" />}
+            title="No notifications yet"
+            sub="Homework, battles, and badges will show up here."
+          />
         </GlassCard>
       ) : (
         <div className="space-y-2">

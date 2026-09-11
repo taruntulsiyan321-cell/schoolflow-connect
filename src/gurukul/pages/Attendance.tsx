@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CalendarDays, Loader2 } from "lucide-react";
 import {
   AcademicProfileService,
   AttendanceService,
@@ -8,7 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
-import { GlassCard, NoStudentProfile, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, NoStudentProfile, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds";
 import { ATTENDANCE_COMFORTABLE } from "@/academic/metrics/bands";
@@ -159,9 +159,12 @@ export default function Attendance() {
       <GlassCard className="p-5">
         <SectionLabel>Recent attendance</SectionLabel>
         {monthGroups.length === 0 && (
-          <div className="text-center text-xs text-muted-foreground py-8">
-            No attendance recorded yet.
-          </div>
+          <EmptyState
+            variant="section"
+            icon={<CalendarDays className="w-5 h-5" />}
+            title="No attendance recorded yet"
+            sub="Days appear here once your teacher starts marking the register."
+          />
         )}
         <div className="space-y-4">
           {monthGroups.map((group) => (

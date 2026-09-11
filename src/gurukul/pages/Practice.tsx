@@ -17,7 +17,7 @@ import {
 } from "@/lib/academicPresentation";
 import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
 import type { AcademicTermRef } from "@/academic/services/practiceService";
-import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
+import { DifficultyBadge, EmptyState, GlassCard, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
 import {
@@ -35,14 +35,10 @@ import { pluralise } from "@/lib/plural";
 const CLASS_UNRESOLVED_MSG =
   "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
 
-/* Premium empty state - reusable */
-const PremiumEmpty = ({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) => (
-  <div className="premium-empty py-10">
-    <div className="premium-empty-icon">{icon}</div>
-    <p className="text-sm font-medium text-foreground">{title}</p>
-    <p className="text-xs text-muted-foreground mt-1">{description}</p>
-  </div>
-);
+/* A `PremiumEmpty` component stood here — the fourth of five ways this panel
+   drew an empty state, and it was never called once. Removed 2026-09-11 with
+   the `.premium-empty` CSS it was the last reason to keep. Use EmptyState from
+   components/shared. */
 const CLASS_LEVEL_UNRESOLVED_MSG =
   "Your class is assigned, but its name or category does not identify a class level. Ask your school admin to use a label such as Class 10, Std 9, XI, or 12-A.";
 
@@ -437,9 +433,12 @@ function Hub({
           </div>
           <div className="space-y-2.5">
             {saved.length === 0 ? (
-              <div className="py-8 text-center text-xs text-muted-foreground">
-                No saved sessions yet. Finish practice, open analysis, then Save Session — or bookmark your latest finished result here.
-              </div>
+              <EmptyState
+                variant="section"
+                icon={<Bookmark className="w-5 h-5" />}
+                title="No saved sessions yet"
+                sub="Finish practice, open analysis, then Save Session — or bookmark your latest finished result here."
+              />
             ) : saved.map(s => (
               <button
                 key={s.id}
@@ -524,9 +523,16 @@ function Hub({
 
           <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
             {filteredHistory.length === 0 ? (
-              <div className="py-8 text-center text-xs text-muted-foreground">
-                {history.length === 0 ? "No practice history yet" : "No sessions match these filters"}
-              </div>
+              <EmptyState
+                variant="section"
+                icon={history.length === 0 ? <Clock className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
+                title={history.length === 0 ? "No practice history yet" : "No sessions match these filters"}
+                sub={
+                  history.length === 0
+                    ? "Every practice session you finish is listed here."
+                    : "Clear a filter to see the rest of your sessions."
+                }
+              />
             ) : filteredHistory.map(h => (
               <button
                 key={h.id}

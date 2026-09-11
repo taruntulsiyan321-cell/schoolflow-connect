@@ -1,6 +1,6 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent, useGurukulShellReady } from "@/gurukul/StudentContext";
-import { GlassCard, SectionLabel, StatTile, XPBar, ProgressBar } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, ProgressBar, SectionLabel, StatTile, XPBar } from "@/gurukul/components/shared";
 import {
   ArrowRight, Flame, BookOpen, Brain,
   RefreshCw, RotateCcw, BarChart2, Trophy,
@@ -314,11 +314,12 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             </ResponsiveContainer>
           </div>
         ) : (
-          <div className="premium-empty py-10">
-            <div className="premium-empty-icon"><BarChart2 className="w-6 h-6" /></div>
-            <p className="text-sm font-medium text-foreground">No activity yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Complete practice to see your weekly trend</p>
-          </div>
+          <EmptyState
+            variant="section"
+            icon={<BarChart2 className="w-5 h-5" />}
+            title="No activity yet"
+            sub="Complete practice to see your weekly trend."
+          />
         )}
       </GlassCard>
 

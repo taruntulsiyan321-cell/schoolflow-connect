@@ -2,7 +2,7 @@
 import { TimetableService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
-import { GlassCard, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
 import { Clock, MapPin, User, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -151,8 +151,12 @@ export default function Timetable() {
           </h2>
           {classLabel && <p className="text-sm text-muted-foreground mt-0.5">{classLabel}</p>}
         </GlassCard>
-        <GlassCard className="p-8 text-center">
-          <p className="text-sm text-muted-foreground">No timetable set up for your class yet.</p>
+        <GlassCard className="p-4">
+          <EmptyState
+            icon={<Clock className="w-6 h-6" />}
+            title="No timetable yet"
+            sub="Your class timetable appears here once the school sets it up."
+          />
         </GlassCard>
       </div>
     );

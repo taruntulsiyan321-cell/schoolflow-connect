@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { Bell, Loader2, Megaphone, Paperclip } from "lucide-react";
+import { Loader2, Megaphone, Paperclip } from "lucide-react";
 import {
   AnnouncementService,
   useAcademicLive,
@@ -8,7 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
-import { GlassCard, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, cn } from "@/gurukul/components/shared";
 import { toast } from "sonner";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -115,11 +115,12 @@ export default function Notices() {
       </div>
 
       {rows.length === 0 ? (
-        <GlassCard className="p-10 text-center">
-          <Bell className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            No published notices yet. Your school will post class and school announcements here.
-          </p>
+        <GlassCard className="p-4">
+          <EmptyState
+            icon={<Megaphone className="w-6 h-6" />}
+            title="No notices yet"
+            sub="Your school will post class and school announcements here."
+          />
         </GlassCard>
       ) : (
         <div className={cn("grid gap-4", detail ? "grid-cols-1 lg:grid-cols-5" : "grid-cols-1")}>

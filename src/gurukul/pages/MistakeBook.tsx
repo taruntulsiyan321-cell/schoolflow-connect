@@ -7,12 +7,11 @@ import { mistakeBookmarksKey } from "@/lib/clientStorage";
 import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayTopic, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
-import { GlassCard, SubjectBadge, DifficultyBadge, ProgressBar, cn } from "@/gurukul/components/shared";
+import { DifficultyBadge, EmptyState, GlassCard, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Bookmark, BookmarkCheck,
   ChevronDown, ChevronRight, CheckCircle2, XCircle, ArrowRight,
-  RotateCcw, RefreshCw, Zap, Star, TrendingUp, Clock,
-  Play, History, BarChart2, Eye,
+  RotateCcw, RefreshCw, Play, Eye,
 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -809,13 +808,20 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           <span className="text-xs text-muted-foreground">{filtered.length} mistake{filtered.length !== 1 ? "s" : ""}</span>
         </div>
         {filtered.length === 0 ? (
-          <GlassCard className="p-8 text-center">
-            <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
-            <p className="text-muted-foreground text-sm">
-              {mistakes.length === 0
-                ? "No mistakes saved yet. Wrong answers from practice and tests appear here automatically."
-                : "No mistakes match your filters"}
-            </p>
+          <GlassCard className="p-4">
+            {mistakes.length === 0 ? (
+              <EmptyState
+                icon={<AlertCircle className="w-6 h-6" />}
+                title="No mistakes saved yet"
+                sub="Wrong answers from practice and tests appear here automatically."
+              />
+            ) : (
+              <EmptyState
+                icon={<Search className="w-6 h-6" />}
+                title="No mistakes match your filters"
+                sub="Clear a filter to see the rest of your mistake book."
+              />
+            )}
           </GlassCard>
         ) : (
           filtered.map(m => (

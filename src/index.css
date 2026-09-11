@@ -380,15 +380,11 @@
     box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08);
     border-color: hsl(var(--primary) / 0.3);
   }
-  .premium-empty {
-    @apply bg-card border border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center;
-    background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.3) 100%);
-  }
-  .premium-empty-icon {
-    @apply w-12 h-12 rounded-xl flex items-center justify-center mb-3;
-    background: hsl(var(--primary) / 0.08);
-    color: hsl(var(--primary));
-  }
+  /* `.premium-empty` / `.premium-empty-icon` stood here — the base that
+     gurukul/theme.css then overrode TWICE, so the primary-tinted icon below
+     never actually rendered in the student panel. Only two files ever used
+     the class and one of those uses was dead code. Removed 2026-09-11;
+     empty states are the EmptyState component in gurukul/components/shared. */
   .premium-skeleton {
     @apply bg-muted rounded;
     background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted) / 0.6) 50%, hsl(var(--muted)) 75%);

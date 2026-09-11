@@ -296,16 +296,42 @@ export function XPBar({
   );
 }
 
-export function EmptyState({ icon, title, sub, action, actionLabel }: {
+/**
+ * The panel's ONE empty state. Two sizes, no third convention.
+ *
+ *   variant="page"     the whole screen, or a card that is nothing but this
+ *                      state — Notices with no notices, Notifications, Doubts
+ *   variant="section"  a section inside a card that has other content too —
+ *                      "Recent attendance" under a summary, "Milestones
+ *                      reached" under a stat row, a chart with no data
+ *
+ * Before this, the same state was written five different ways: this component
+ * (exported since the panel was written, used by nothing), a `.premium-empty`
+ * CSS class defined THREE times across two files with each definition
+ * overriding the last one's background, a `PremiumEmpty` component in
+ * Practice.tsx that was never called, a hand-rolled `GlassCard p-10` with an
+ * icon, and a bare `<div className="text-center py-8 text-xs">`. Padding ran
+ * py-4 / py-6 / py-8 / py-10 / py-12 and text ran text-xs / text-sm with no
+ * rule behind which went where.
+ *
+ * Anything that needs a different size wants one of these two variants, not a
+ * sixth convention.
+ */
+export function EmptyState({ icon, title, sub, action, actionLabel, variant = "page" }: {
   icon:ReactNode; title:string; sub?:string; action?: () => void; actionLabel?: string;
+  variant?: "page" | "section";
 }) {
+  const section = variant === "section";
   return (
-    <motion.div className="flex flex-col items-center gap-3 py-12 text-center"
+    <motion.div className={cn("flex flex-col items-center text-center", section ? "gap-2 py-8" : "gap-3 py-12")}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: EASE_OUT }}
     >
-      <motion.div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center text-muted-foreground border border-border/50 shadow-sm"
+      <motion.div className={cn(
+          "rounded-2xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center text-muted-foreground border border-border/50 shadow-sm",
+          section ? "w-11 h-11" : "w-14 h-14",
+        )}
         initial={{ scale: 0.7, opacity: 0, rotate: -5 }}
         animate={{ scale: 1, opacity: 1, rotate: 0 }}
         transition={{ ...springSnappy, delay: 0.05 }}

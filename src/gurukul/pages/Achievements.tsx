@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
-import { GlassCard, SectionLabel, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, SectionLabel, cn } from "@/gurukul/components/shared";
 import { Lock, Loader2, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
@@ -164,7 +164,12 @@ export default function Achievements() {
       <GlassCard glow="amber" className="p-5">
         <SectionLabel>Milestones reached</SectionLabel>
         {unlocked.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">No milestones reached yet. Keep learning and battling to earn badges.</div>
+          <EmptyState
+            variant="section"
+            icon={<Star className="w-5 h-5" />}
+            title="No milestones reached yet"
+            sub="Keep learning and battling to earn badges."
+          />
         ) : (
           <>
             <p className="text-[11px] text-muted-foreground mb-3">

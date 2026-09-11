@@ -68,3 +68,64 @@ describe("the no-student-profile state has exactly one design", () => {
     expect(callers.length, "every screen that had this state should render the component").toBe(9);
   });
 });
+
+/**
+ * The panel drew empty states five ways: the EmptyState component (used by
+ * nothing), a `.premium-empty` CSS class defined three times across two files,
+ * a `PremiumEmpty` component in Practice.tsx that was never called, hand-rolled
+ * `GlassCard p-10` blocks, and bare `<div className="text-center py-8">`s.
+ *
+ * These pin the two that were deleted outright, so neither can come back as a
+ * sixth way of doing the same thing.
+ */
+describe("the deleted empty-state conventions stay deleted", () => {
+  const cssFiles = [
+    join(process.cwd(), "src", "index.css"),
+    join(process.cwd(), "src", "gurukul", "theme.css"),
+  ];
+
+  it("no CSS rule defines .premium-empty again", () => {
+    const offenders: string[] = [];
+    for (const file of cssFiles) {
+      readFileSync(file, "utf8")
+        .split("\n")
+        .forEach((line, i) => {
+          // The removal notes name the class on purpose; a rule declares it.
+          if (/^\s*[^/*]*\.premium-empty(-icon)?\s*(,|\{)/.test(line)) {
+            offenders.push(`${file}:${i + 1}  ${line.trim().slice(0, 80)}`);
+          }
+        });
+    }
+    expect(
+      offenders,
+      `empty states are the EmptyState component, not a CSS class:\n${offenders.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("reads CSS files that really do contain rules (control)", () => {
+    // Without this, a bad path would make the assertion above vacuous.
+    const declarations = cssFiles
+      .map((f) => (readFileSync(f, "utf8").match(/\{/g) ?? []).length)
+      .reduce((a, b) => a + b, 0);
+    expect(declarations).toBeGreaterThan(100);
+  });
+
+  it("no component re-implements EmptyState under another name", () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      const src = readFileSync(file, "utf8");
+      if (/(const|function)\s+PremiumEmpty\b/.test(src)) offenders.push(file);
+    }
+    expect(offenders, `use EmptyState:\n${offenders.join("\n")}`).toEqual([]);
+  });
+
+  it("and EmptyState carries both variants the panel now depends on", () => {
+    const shared = readFileSync(
+      join(process.cwd(), "src", "gurukul", "components", "shared.tsx"),
+      "utf8",
+    );
+    expect(shared).toMatch(/variant\?: "page" \| "section"/);
+    const sectionUses = files.filter((f) => readFileSync(f, "utf8").includes('variant="section"'));
+    expect(sectionUses.length, "section-level empty states should use the variant").toBeGreaterThan(5);
+  });
+});

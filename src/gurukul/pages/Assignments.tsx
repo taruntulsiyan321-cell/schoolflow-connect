@@ -5,7 +5,7 @@ import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
-import { GlassCard, NoStudentProfile, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, NoStudentProfile, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/AttachmentUI";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -170,11 +170,20 @@ export default function Assignments() {
 
         <div className="space-y-3">
           {visible.length === 0 && (
-            <div className="text-center py-10 text-xs text-muted-foreground">
-              {filter !== "all" || search.trim()
-                ? "No assignments match this filter."
-                : "No homework assigned yet."}
-            </div>
+            <EmptyState
+              variant="section"
+              icon={<ClipboardList className="w-5 h-5" />}
+              title={
+                filter !== "all" || search.trim()
+                  ? "No assignments match this filter"
+                  : "No homework assigned yet"
+              }
+              sub={
+                filter !== "all" || search.trim()
+                  ? "Clear the filter or search to see everything set for your class."
+                  : "Homework your teachers set for your class shows up here."
+              }
+            />
           )}
           {visible.map(({ homework: a, submission: s, displayStatus }) => {
             const col = subjectAccent(a.subject);
