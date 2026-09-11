@@ -670,6 +670,44 @@ believing it.
 | Screen 10 HW figure | the disputed "0 Pending HW" vs "0 / 10" settled — the stat is right |
 | Resources empty state | already honest; no change needed |
 
+### `is_my_student_record` needs an ACTIVE MEMBERSHIP — measured, and NOT a defect
+
+Found 2026-09-11 while writing probe42, by a positive control failing.
+
+```sql
+is_my_student_record(_id) =
+  _id IS NOT NULL
+  AND active_membership_role() = 'student'
+  AND _id = active_local_person_id()
+```
+
+No membership → NULL → **every policy keyed on it denies**. It gates five
+surfaces: `fees`, `homework_answers`, `homework_completions`,
+`homework_submissions`, and the function `can_read_test`.
+
+Coverage, measured:
+
+| | |
+|---|---|
+| students with a sign-in account | 52 |
+| …holding an active student membership for their own row | **12** |
+| …without one | **40** |
+| of those 40: have ever signed in | **0** |
+| of those 40: have a legacy `user_roles` row | **0** |
+| of the 12: have signed in | 7 |
+
+**So the 40 are seeded fixtures with accounts nobody has ever used, not live
+students locked out of their own homework.** Memberships are granted by
+invitation (`_grant_membership`, `rpc_invite_member`,
+`rpc_respond_to_invitation`) — there is no trigger on `students` that makes one
+— and all 12 were created on 2026-08-25 in one pass. Backfilling the other 40
+would grant access to dormant accounts and bypass the invitation flow the design
+routes membership through. **Do not backfill** (rule 9).
+
+What this DOES mean for any future probe: a probe that picks a student with
+`ORDER BY s.id LIMIT 1` will usually pick one of the 40, and then every refusal
+it asserts passes vacuously. Select on the membership, as probe42 now does.
+
 ### Five places the DOCUMENT was wrong, all measured
 
 1. **G4 blank icons.** Not "two missing imports". All five sites use one symbol,
@@ -758,9 +796,20 @@ the overlap. Fixed in `20260918000000`, probe39, 5 claims.
   not add one.** If tests or battles are ever admitted, that is a new writer,
   not a loosened filter.
 * ~~**Fees**~~ — **RULED 2026-09-11: the student sees it**, full payment history
-  including outstanding and overdue. Not yet built: there is no `/student/fees`
-  route. Needs a service read, an RLS probe with a positive control (a student
-  sees their own fees and not another family's), and a screen.
+  including outstanding and overdue. **It was already built** — I first wrote
+  "no route" here and that was wrong: `StudentDashboard.tsx:357` routes `fees`
+  to `src/pages/shared/MyFeesPage.tsx`, which reads `public.fees` directly and
+  already renders history ordered by month, an outstanding total, and an overdue
+  count derived as `status <> 'paid' AND due_date < now()`. I missed it because
+  I read a truncated route listing — the exact mistake §0 warns about. The
+  `fees` table has 14 columns, correct RLS, a status trigger, and **zero rows**,
+  so the screen renders an honest empty state (rule 9).
+
+  What was genuinely missing is now added: **probe42**, 6 claims, because the
+  RLS had never been probed and one of the five policies (`fees teacher read`)
+  is granted to `public` rather than `authenticated` — the shape that has
+  produced anon holes here before. It inserts its own fixtures and rolls them
+  back, since a zero-row table would satisfy every refusal vacuously.
 * **Screen 17 "After expiry" — NOT BUILT, and should not be built as written.**
   The document says the test report is ephemeral, that after the window closes
   the screen shows marks only, and that the question list AND the leaderboard go
