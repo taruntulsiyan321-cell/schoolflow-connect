@@ -1,10 +1,10 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent, useGurukulShellReady } from "@/gurukul/StudentContext";
-import { GlassCard, SectionLabel, StatTile, XPBar, ProgressBar, cn } from "@/gurukul/components/shared";
+import { GlassCard, SectionLabel, StatTile, XPBar, ProgressBar } from "@/gurukul/components/shared";
 import {
   ArrowRight, Flame, BookOpen, Brain,
-  RefreshCw, RotateCcw, BarChart2, Trophy, CheckCircle2,
-  AlertTriangle, Swords, Star, Loader2,
+  RefreshCw, RotateCcw, BarChart2, Trophy,
+  Swords, Star, Loader2,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useEffect, useMemo, useRef } from "react";
@@ -152,32 +152,6 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
 
   const mission = useMemo(() => buildMission(snapshot), [snapshot]);
 
-  const loopSteps = useMemo(() => {
-    const practiceDone = mission.practiceSessions > 0;
-    const analysisDone = practiceDone;
-    const mistakebookDone = mission.mistakesLogged > 0;
-    const recoveryDone = mission.recoveryPending === 0 && mistakebookDone;
-    const revisionDone = mission.revisionPending === 0 && recoveryDone;
-    const activeKey = mission.nextAction.page === "assignments" ? "practice" : mission.nextAction.page;
-
-    const steps = [
-      // Complete colours (see the contract on shared.tsx's RING_COLOR). The two
-      // `--color-*` entries are already `hsl(...)`; the rest need the wrap here,
-      // once, rather than at every style that reads them.
-      { key: "practice", label: "Practice", icon: <BookOpen className="w-3.5 h-3.5" />, color: "hsl(var(--primary))", done: practiceDone },
-      { key: "analysis", label: "Analyse", icon: <BarChart2 className="w-3.5 h-3.5" />, color: "var(--color-physics)", done: analysisDone },
-      { key: "mistakebook", label: "Weakness", icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "hsl(var(--warning))", done: mistakebookDone },
-      { key: "recovery", label: "Recover", icon: <RefreshCw className="w-3.5 h-3.5" />, color: "hsl(var(--accent))", done: recoveryDone },
-      { key: "revision", label: "Revise", icon: <RotateCcw className="w-3.5 h-3.5" />, color: "var(--color-chemistry)", done: revisionDone },
-      { key: "aicoach", label: "Coach", icon: <Brain className="w-3.5 h-3.5" />, color: "hsl(var(--success))", done: false },
-    ];
-
-    return steps.map((step) => ({
-      ...step,
-      active: step.key === activeKey && !step.done,
-    }));
-  }, [mission]);
-
   const weeklyActivity = useMemo(
     () => mapWeeklyActivity(charts?.weekly_activity ?? []),
     [charts?.weekly_activity],
@@ -269,28 +243,11 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         </div>
       </GlassCard>
 
-      {/* Learning Loop - premium */}
-      <GlassCard className="p-5 premium-card animate-premium-enter" style={{animationDelay: "0.12s"}}>
-        <SectionLabel>Your Learning Loop</SectionLabel>
-        <div className="flex flex-wrap gap-2">
-          {loopSteps.map((step, i) => (
-            <button key={step.key} onClick={() => setPage(step.key as PageKey)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all duration-200",
-                step.active ? "scale-105" : step.done ? "opacity-80" : "opacity-40"
-              )}
-              style={step.done || step.active
-                ? { borderColor: withAlpha(step.color, 0.4), background: withAlpha(step.color, 0.1), color: step.active ? step.color : "hsl(var(--muted-foreground))" }
-                : { borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-              <span style={{ color: step.active || step.done ? step.color : "hsl(var(--muted-foreground))" }}>{step.icon}</span>
-              {step.label}
-              {step.done && !step.active && <CheckCircle2 className="w-3 h-3" style={{ color: step.color }} />}
-              {step.active && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: step.color }} />}
-              {i < loopSteps.length - 1 && <ArrowRight className="w-3 h-3 text-muted-foreground/30 -mr-1"/>}
-            </button>
-          ))}
-        </div>
-      </GlassCard>
+      {/* A "Your Learning Loop" card stood here. Removed 2026-09-11 on the
+          product owner's ruling: the loop is MARKETING and reference material —
+          it explains why and how the product operates — and is not a student
+          surface. A student is shown what to do next, not a diagram of the
+          method. Today's Mission below is that. */}
 
       {/* Today's Mission - premium stagger */}
       <div className="animate-premium-enter" style={{animationDelay: "0.08s"}}>

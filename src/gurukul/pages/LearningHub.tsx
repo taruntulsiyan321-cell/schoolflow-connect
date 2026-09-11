@@ -3,7 +3,7 @@ import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { GlassCard, cn } from "@/gurukul/components/shared";
 import {
   BarChart2, RefreshCw, RotateCcw, AlertCircle,
-  ArrowRight, TrendingUp, CheckCircle2, Loader2,
+  ArrowRight, Loader2,
 } from "lucide-react";
 import { LineChart, Line, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useMemo } from "react";
@@ -73,25 +73,6 @@ export default function LearningHub({ setPage }: Props) {
     [overallAccuracy, pendingRecovery, dueRevision, unresolvedErrors],
   );
 
-  const loopSteps = useMemo(() => {
-    const recoveryPending = pendingRecovery;
-    const revisionPending = dueRevision;
-    const mistakesLogged = unresolvedErrors > 0;
-    const practiceDone = (snapshot?.self_practice?.sessions_completed ?? 0) > 0;
-    const analysisDone = practiceDone;
-    const mistakebookDone = mistakesLogged;
-    const recoveryDone = recoveryPending === 0 && mistakebookDone;
-    const revisionActive = recoveryDone && revisionPending > 0;
-    const recoveryActive = recoveryPending > 0;
-
-    return [
-      { label: "Practice", color: "#3b5bdb", done: practiceDone, active: false },
-      { label: "Analyse", color: "#4b9fd4", done: analysisDone, active: false },
-      { label: "Mistake Book", color: "#c08a3a", done: mistakebookDone, active: false },
-      { label: "Recover", color: "#cc5069", done: recoveryDone, active: recoveryActive },
-      { label: "Revise", color: "#6882e8", done: revisionPending === 0 && recoveryDone, active: revisionActive },
-    ];
-  }, [pendingRecovery, dueRevision, unresolvedErrors, snapshot?.self_practice?.sessions_completed]);
 
   if (loading && !snapshot && !charts) {
     return (
@@ -122,9 +103,11 @@ export default function LearningHub({ setPage }: Props) {
         <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>
           Learning
         </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Practice → Analyse → Recover → Revise. Your complete growth loop.
-        </p>
+        {/* The subtitle recited the loop — "Practice → Analyse → Recover →
+            Revise. Your complete growth loop." That is the marketing line for
+            how the product works, not something a student needs read back to
+            them on the page that already contains the four things. Removed
+            2026-09-11 with the loop strip below it. */}
       </div>
 
       {/* Quick stats row */}
@@ -168,28 +151,11 @@ export default function LearningHub({ setPage }: Props) {
         ))}
       </div>
 
-      {/* Learning loop reminder */}
-      <GlassCard className="p-5 border-dashed border-border">
-        <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-          {loopSteps.map((step, i, arr) => (
-            <span key={step.label} className="flex items-center gap-2">
-              <span className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-semibold transition-all",
-                step.active ? "scale-105" : ""
-              )} style={{
-                borderColor:`${step.color}${step.done||step.active?"40":"18"}`,
-                background:`${step.color}${step.done||step.active?"12":"06"}`,
-                color:step.done||step.active?step.color:"#46465a",
-              }}>
-                {step.done && <CheckCircle2 className="w-3 h-3"/>}
-                {step.active && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{background:step.color}}/>}
-                {step.label}
-              </span>
-              {i < arr.length-1 && <span className="text-muted-foreground/30">→</span>}
-            </span>
-          ))}
-        </div>
-      </GlassCard>
+      {/* A "Learning loop reminder" strip stood here — five chips ending in
+          Mistake Book, with its colours as raw hex literals. Removed
+          2026-09-11: the loop is marketing and reference material, not a
+          student surface. The four cards above ARE the loop; restating it
+          underneath told the student nothing they could act on. */}
     </div>
   );
 }
