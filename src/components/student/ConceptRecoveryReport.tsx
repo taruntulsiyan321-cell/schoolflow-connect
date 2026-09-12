@@ -199,12 +199,29 @@ export function ConceptRecoveryReport({
           <h4 className="text-sm font-medium flex items-center gap-1 mb-2 text-warning">
             <AlertTriangle className="w-3.5 h-3.5" /> Weak concepts
           </h4>
+          {/* A chip needs a name. `concept` is nullable — a question that was
+              never tagged produces a weak row with nothing to call it — and
+              `displayConcept(null)` returns an empty string, so these rendered
+              as a bare "· 0%" pill with no label in front of the dot. The
+              subject is the next-best name; a row with neither is counted
+              below rather than shown as an anonymous chip. */}
           <div className="flex flex-wrap gap-2">
-            {weak.map((w, i) => (
-              <Badge key={i} variant="outline" className="rounded-full bg-warning/10 border-warning/30">
-                {displayConcept(w.concept)} · {w.accuracy}%
-              </Badge>
-            ))}
+            {weak.map((w, i) => {
+              const label = displayConcept(w.concept) || w.subject?.trim() || "";
+              if (!label) return null;
+              return (
+                <Badge key={i} variant="outline" className="rounded-full bg-warning/10 border-warning/30">
+                  {label} · {w.accuracy}%
+                </Badge>
+              );
+            })}
+            {weak.every((w) => !displayConcept(w.concept) && !w.subject?.trim()) && (
+              <span className="text-xs text-muted-foreground">
+                {weak.length === 1
+                  ? "1 weak area — not tagged to a concept yet"
+                  : `${weak.length} weak areas — not tagged to a concept yet`}
+              </span>
+            )}
           </div>
         </div>
       )}
