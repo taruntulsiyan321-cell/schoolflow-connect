@@ -194,7 +194,7 @@ function MistakeCard({
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <SourceTag source={mistake.source} label={mistake.sourceLabel}/>
               <SubjectBadge subject={mistake.subject}/>
-              <DifficultyBadge level={mistake.difficulty}/>
+              <DifficultyBadge level={mistake.difficulty ?? undefined}/>
               <FreqBadge freq={mistake.frequency}/>
               {mistake.resolved && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400">Resolved</span>
