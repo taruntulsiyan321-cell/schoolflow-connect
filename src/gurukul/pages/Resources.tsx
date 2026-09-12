@@ -44,7 +44,9 @@ export default function Resources() {
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate([classId]);
 
   useEffect(() => {
-    if (!ready || !ctx) {
+    // Still resolving is not loaded — see the long note in ClassHub.tsx.
+    if (!ready) return;
+    if (!ctx) {
       endLoading(setLoading);
       setRows([]);
       return;

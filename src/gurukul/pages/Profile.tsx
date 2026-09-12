@@ -82,7 +82,9 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId, user?.id]);
 
   const loadProfile = useCallback(async () => {
-    if (!ready || !ctx || !studentId) {
+    // Still resolving is not loaded — see the long note in ClassHub.tsx.
+    if (!ready) return;
+    if (!ctx || !studentId) {
       endLoading(setLoading);
       return;
     }

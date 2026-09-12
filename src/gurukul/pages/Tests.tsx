@@ -51,7 +51,9 @@ export default function Tests() {
   const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
-    if (!ready || !ctx || !studentId) {
+    // Still resolving is not loaded — see the long note in ClassHub.tsx.
+    if (!ready) return;
+    if (!ctx || !studentId) {
       endLoading(setLoading);
       return;
     }

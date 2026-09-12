@@ -55,7 +55,12 @@ export default function Calendar() {
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId, classId]);
 
   useEffect(() => {
-    if (!ready || !ctx || !studentId) {
+    // Still resolving is not loaded — see the long note in ClassHub.tsx.
+    // `endLoading` marks the gate satisfied, so calling it while `ready` is
+    // false paints the page before there is anything to paint and puts the
+    // loading state AFTER the content.
+    if (!ready) return;
+    if (!ctx || !studentId) {
       setCalendarEvents([]);
       endLoading(setLoading);
       return;

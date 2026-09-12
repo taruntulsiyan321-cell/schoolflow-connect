@@ -75,7 +75,9 @@ export default function Timetable() {
   const [hasTimetable, setHasTimetable] = useState(false);
 
   useEffect(() => {
-    if (!ready || !ctx) {
+    // Still resolving is not loaded — see the long note in ClassHub.tsx.
+    if (!ready) return;
+    if (!ctx) {
       endLoading(setLoading);
       return;
     }

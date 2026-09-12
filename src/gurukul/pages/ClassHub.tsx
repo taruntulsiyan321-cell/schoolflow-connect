@@ -55,7 +55,27 @@ export default function ClassHub({ setPage }: Props) {
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId]);
 
   useEffect(() => {
-    if (!ready || !ctx || !studentId) {
+    // STILL RESOLVING IS NOT LOADED.
+    //
+    // This branch used to include `!ready`, and `endLoading` both sets
+    // `loadedRef` and drops `loading` to false. So while the academic context
+    // was still resolving, the screen declared itself finished and painted its
+    // entire layout with zeros — "Attendance 0%", "Exam avg 0%". Then
+    // `studentId` arrived, the gate's identity key changed, the gate reopened,
+    // and the skeleton appeared AFTER the content.
+    //
+    // Measured before this fix: /student/class went 794 chars of content →
+    // 182 (loading) → 838, with the zeroed content on screen for ~750ms.
+    // Content, then a loading state, then content is the most jarring sequence
+    // there is, and it is precisely what skeletons exist to prevent — swapping
+    // the spinner for a skeleton without fixing this would have made a
+    // better-looking flash.
+    //
+    // `ready` false means "wait", and waiting is what the loading state is for.
+    // Only `ready` WITH no student is genuinely settled, and that is the state
+    // NoStudentProfile renders.
+    if (!ready) return;
+    if (!ctx || !studentId) {
       setAttPct(0);
       setExamAvg(0);
       setHwPending(0);
@@ -216,7 +236,10 @@ export default function ClassHub({ setPage }: Props) {
     />
   );
 
-  if (showLoading(loading)) {
+  // `!ready` here as well as in the effect: the effect is what stops the gate
+  // being marked loaded too early, this is what keeps the very first commit —
+  // before any effect has run — out of the content branch.
+  if (!ready || showLoading(loading)) {
     return (
       <div className="space-y-8">
         {header}

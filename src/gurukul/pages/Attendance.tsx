@@ -39,7 +39,11 @@ export default function Attendance() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!ready || !ctx || !studentId) {
+    // Still resolving is not loaded — see the long note in ClassHub.tsx.
+    // Same shape here without the gate: `setLoading(false)` while `ready` is
+    // false hands the screen a settled zero state it then has to take back.
+    if (!ready) return;
+    if (!ctx || !studentId) {
       setRecords([]);
       setPct(0);
       setPresent(0);
