@@ -278,3 +278,13 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+
+-- ── realtime publication ─────────────────────────────────────────────────────
+-- Supabase projects carry `supabase_realtime`; a bare cluster does not, and a
+-- migration that adds a table to it would otherwise be unverifiable here.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    CREATE PUBLICATION supabase_realtime;
+  END IF;
+END $$;

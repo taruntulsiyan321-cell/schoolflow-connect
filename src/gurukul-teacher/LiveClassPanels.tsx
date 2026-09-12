@@ -937,6 +937,21 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   const [editId, setEditId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editInstructions, setEditInstructions] = useState("");
+  /**
+   * Editing the QUESTIONS of a test that already exists.
+   *
+   * Until now the only editable things were the title and the instructions, so
+   * a typo in a question — or a key on the wrong option — could not be fixed:
+   * the teacher had to delete the test and rebuild it, and a test cannot be
+   * deleted once anyone has attempted it. The builder is reused rather than
+   * reimplemented, so every rule it enforces (MCQ only, a key that names a real
+   * option, whole marks) applies to an edit as well.
+   *
+   * `setQuestions` refuses outright once an attempt exists — replacing a
+   * question would delete the answers given to it — so this is offered only
+   * while nobody has handed in, and says so when they have.
+   */
+  const [editQuestionsFor, setEditQuestionsFor] = useState<string | null>(null);
   // §10.25 — the report. Held per test id, so opening a second one closes the
   // first rather than leaving two panels claiming to be "the" report.
   const [reportTestId, setReportTestId] = useState<string | null>(null);
@@ -1109,6 +1124,9 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   const resetBuilder = () => {
     setBuilderOpen(false);
     setStep("basics");
+    // Cleared FIRST in spirit: leaving it set would make the next new test's
+    // save overwrite the paper that was being edited.
+    setEditQuestionsFor(null);
     setBasics(emptyBasics());
     setSource(null);
     setQuestions([]);
@@ -1120,6 +1138,75 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     setBankDifficulty("");
     setBankSearch("");
     setBankError(null);
+  };
+
+  /**
+   * Open the builder on a test that already exists, with its questions in it.
+   * Saving replaces the paper through the same `setQuestions` the create path
+   * uses — one writer, one set of rules.
+   */
+  const openQuestionEditor = async (t: TestListRow) => {
+    if (!ctx) return;
+    if ((t.submitted_count ?? 0) > 0) {
+      setError(
+        "Students have already handed this test in, so its questions cannot be changed — " +
+          "replacing a question would delete the answers given to it. Create a new test instead.",
+      );
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+    setSaving(true);
+    try {
+      const existing = await TestService.listQuestionsForEditing(ctx, t.id);
+      setQuestions(existing.map((q) => ({ ...q, localId: newLocalId() })));
+      setBasics((f) => ({
+        ...f,
+        title: String(t.title ?? ""),
+        testKind: (t.test_kind as TestKind) ?? "class_test",
+        durationMin: t.duration_sec ? String(Math.round(t.duration_sec / 60)) : f.durationMin,
+        chapter: String(t.chapter ?? ""),
+        topic: String(t.topic ?? ""),
+      }));
+      setEditQuestionsFor(t.id);
+      setSource("manual");
+      setBuilderOpen(true);
+      setStep("manual");
+    } catch (e) {
+      setError(errMsg(e, "Could not load this test's questions"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Save an edited paper back onto the test it came from. */
+  const saveEditedQuestions = async () => {
+    if (!ctx || !editQuestionsFor) return;
+    if (questions.length === 0) {
+      setError("A test needs at least one question. Delete the test instead if that is the intent.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await TestService.setQuestions(
+        ctx,
+        editQuestionsFor,
+        questions.map(({ question, options, correctIndex, marks, explanation, chapter, topic }) => ({
+          question, options, correctIndex, marks, explanation, chapter, topic,
+        })),
+      );
+      if (basics.title.trim()) {
+        await TestService.update(ctx, editQuestionsFor, { title: basics.title.trim() });
+      }
+      setSuccess(`Questions updated — ${questions.length} question(s), ${questionMarksTotal} marks`);
+      resetBuilder();
+      await reload();
+    } catch (e) {
+      setError(errMsg(e, "Could not save the questions"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openBuilder = () => {
@@ -1336,7 +1423,16 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   if (loading) return <Loading label="Loading tests…" />;
 
   if (builderOpen) {
-    const stepLabel: Record<BuilderStep, string> = {
+    const stepLabel: Record<BuilderStep, string> = editQuestionsFor
+      ? {
+          basics: "Editing · Basics",
+          source: "Editing · Source",
+          library: "Editing · Question bank",
+          manual: "Editing the questions",
+          upload: "Editing · Upload",
+          review: "Editing · Review",
+        }
+      : {
       basics: "A · Basics",
       source: "B · Source",
       library: "C · Library",
@@ -1916,20 +2012,32 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (questions.length === 0) {
-                  setError("Add at least one question before review");
-                  return;
-                }
-                setError(null);
-                setStep("review");
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
-            >
-              Next: Review <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            {editQuestionsFor ? (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void saveEditedQuestions()}
+                className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                Save questions
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (questions.length === 0) {
+                    setError("Add at least one question before review");
+                    return;
+                  }
+                  setError(null);
+                  setStep("review");
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
+              >
+                Next: Review <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         )}
 
@@ -2167,6 +2275,21 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-muted-foreground disabled:opacity-50"
                   >
                     Edit
+                  </button>
+                )}
+                {ctx && status !== "archived" && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void openQuestionEditor(t)}
+                    title={
+                      (t.submitted_count ?? 0) > 0
+                        ? "Students have handed this in — its questions are fixed now"
+                        : "Add, remove or correct the questions"
+                    }
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-muted-foreground disabled:opacity-50"
+                  >
+                    Edit questions
                   </button>
                 )}
                 {ctx && status !== "archived" && (

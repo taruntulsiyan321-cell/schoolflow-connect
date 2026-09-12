@@ -132,6 +132,31 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         { event: "*", schema: "public", table: "tests", filter: `school_id=eq.${schoolId}` },
         onTable(["test", "profile"]),
       )
+      /**
+       * A submission, as it happens (20260920080000).
+       *
+       * `tests` above catches a teacher publishing one. It does NOT catch a
+       * student handing one in, which writes `test_attempts` and `test_marks`
+       * — so the class leaderboard and the teacher's "7 of 32 handed in" only
+       * moved when their own poll came round.
+       *
+       * Realtime applies RLS per subscriber, and that decides who is woken
+       * rather than this filter: a classmate who has submitted may read
+       * `test_marks` for that test (20260920060000) and is woken; one who has
+       * not may not, and is not — which is the same answer the leaderboard
+       * itself gives them. A teacher is woken for attempts on the tests they
+       * own, through `test_attempts_staff_read`.
+       */
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "test_attempts", filter: `school_id=eq.${schoolId}` },
+        onTable(["test", "profile"]),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "test_marks", filter: `school_id=eq.${schoolId}` },
+        onTable(["test", "marks", "profile"]),
+      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notices", filter: `school_id=eq.${schoolId}` },

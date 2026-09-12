@@ -21,6 +21,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
  */
 const createWithQuestions = vi.fn();
 const listForClassDetailed = vi.fn();
+const listQuestionsForEditing = vi.fn();
+const setQuestions = vi.fn();
+const update = vi.fn();
 
 vi.mock("@/academic", () => ({
   AttendanceService: {},
@@ -33,6 +36,9 @@ vi.mock("@/academic", () => ({
   TestService: {
     listForClassDetailed: (...a: unknown[]) => listForClassDetailed(...a),
     createWithQuestions: (...a: unknown[]) => createWithQuestions(...a),
+    listQuestionsForEditing: (...a: unknown[]) => listQuestionsForEditing(...a),
+    setQuestions: (...a: unknown[]) => setQuestions(...a),
+    update: (...a: unknown[]) => update(...a),
     searchQuestionBank: vi.fn().mockResolvedValue([]),
     listBankChapters: vi.fn().mockResolvedValue([]),
     classReport: vi.fn(),
@@ -77,6 +83,14 @@ describe("the teacher's test builder", () => {
   beforeEach(() => {
     createWithQuestions.mockReset().mockResolvedValue({ id: "t1" });
     listForClassDetailed.mockReset().mockResolvedValue([]);
+    listQuestionsForEditing.mockReset().mockResolvedValue([
+      {
+        id: "q1", question: "What is the HCF of 12 and 18?", options: ["2", "4", "6", "12"],
+        correctIndex: 2, marks: 1, explanation: null, chapter: "Real Numbers", topic: "HCF and LCM",
+      },
+    ]);
+    setQuestions.mockReset().mockResolvedValue([]);
+    update.mockReset().mockResolvedValue({});
   });
 
   it("refuses a question with no correct option marked", async () => {
@@ -144,5 +158,66 @@ describe("the teacher's test builder", () => {
     render(<LiveTestsTab classId="class-1" subject="Mathematics" />);
     expect(await screen.findByText(/7 of 32 handed in/)).toBeInTheDocument();
     expect(screen.getByText(/3 Q/)).toBeInTheDocument();
+  });
+
+  /**
+   * A typo in a question used to be unfixable: only the title and instructions
+   * were editable, and a test cannot be deleted once anyone has attempted it.
+   * The builder is reused for the edit, so every rule it enforces applies.
+   */
+  describe("editing an existing paper", () => {
+    const published = (submitted: number) => ({
+      id: "t9", title: "Unit Test 9", status: "published", test_kind: "unit_test",
+      max_mark: 3, total_marks: 3, duration_sec: 1800, instructions: null,
+      created_at: "2026-09-12T10:00:00Z", published_at: "2026-09-12T10:00:00Z",
+      scheduled_publish_at: null, chapter: "Real Numbers", topic: "HCF and LCM",
+      subject: "Mathematics", question_count: 3, submitted_count: submitted, roll_count: 32,
+      my_status: null, my_mark: null, my_submitted_at: null,
+    });
+
+    it("loads the paper into the builder with the key on the right option", async () => {
+      listForClassDetailed.mockResolvedValue([published(0)]);
+      render(<LiveTestsTab classId="class-1" subject="Mathematics" />);
+
+      fireEvent.click(await screen.findByRole("button", { name: /Edit questions/ }));
+
+      await waitFor(() => expect(listQuestionsForEditing).toHaveBeenCalledWith(expect.anything(), "t9"));
+      // The existing question is on the paper, with its key shown as the option
+      // it names — not as index 0, which is what a lost key would look like.
+      expect(await screen.findByText(/Correct: C\. 6/)).toBeInTheDocument();
+      expect(screen.getByText(/Editing the questions/)).toBeInTheDocument();
+    });
+
+    it("saves through setQuestions rather than creating a second test", async () => {
+      listForClassDetailed.mockResolvedValue([published(0)]);
+      render(<LiveTestsTab classId="class-1" subject="Mathematics" />);
+      fireEvent.click(await screen.findByRole("button", { name: /Edit questions/ }));
+      await screen.findByText(/Correct: C\. 6/);
+
+      fireEvent.click(screen.getByRole("button", { name: /Save questions/ }));
+
+      await waitFor(() => expect(setQuestions).toHaveBeenCalledTimes(1));
+      const [, testId, rows] = setQuestions.mock.calls[0];
+      expect(testId).toBe("t9");
+      expect(rows[0]).toMatchObject({ correctIndex: 2, marks: 1 });
+      // The edit must not go down the create path.
+      expect(createWithQuestions).not.toHaveBeenCalled();
+    });
+
+    /**
+     * `setQuestions` refuses this at the service too. The screen refuses it
+     * FIRST so the teacher is told why rather than being shown a constraint.
+     */
+    it("refuses once students have handed in, and says why", async () => {
+      listForClassDetailed.mockResolvedValue([published(7)]);
+      render(<LiveTestsTab classId="class-1" subject="Mathematics" />);
+
+      fireEvent.click(await screen.findByRole("button", { name: /Edit questions/ }));
+
+      expect(
+        await screen.findByText(/already handed this test in, so its questions cannot be changed/),
+      ).toBeInTheDocument();
+      expect(listQuestionsForEditing).not.toHaveBeenCalled();
+    });
   });
 });

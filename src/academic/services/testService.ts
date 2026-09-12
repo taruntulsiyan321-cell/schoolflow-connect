@@ -683,6 +683,46 @@ export const TestService = {
     return data ?? [];
   },
 
+  /**
+   * The paper as the teacher built it, for editing.
+   *
+   * `listQuestions` above serves two audiences and shapes itself by role, which
+   * is right for reading a paper and wrong for editing one: it returns raw
+   * `test_questions` rows, where the key is jsonb (`{"indexes":[2]}`) and the
+   * topic lives in `concept`. The builder speaks `correctIndex` and `topic`, so
+   * one of the two has to translate — and doing it here, beside `toQuestionRow`
+   * which translates the other way, keeps the pair in one file where they can
+   * be read against each other.
+   */
+  async listQuestionsForEditing(
+    ctx: ServiceContext,
+    testId: string,
+  ): Promise<(ManualQuestionInput & { id: string })[]> {
+    assertCanOwn(ctx, "test");
+    if (ctx.role === "student" || ctx.role === "parent") {
+      throw new ForbiddenError("The answer key is staff-only");
+    }
+    const rows = (await this.listQuestions(ctx, testId)) as Record<string, unknown>[];
+    return rows.map((r) => {
+      const options = Array.isArray(r.options) ? (r.options as unknown[]).map((o) => String(o ?? "")) : [];
+      const indexes = (r.correct as { indexes?: unknown } | null)?.indexes;
+      // -1 rather than 0 when the key names nothing: a question whose key could
+      // not be read must show as unanswered in the builder so the teacher fixes
+      // it, not silently as option A.
+      const correctIndex = Array.isArray(indexes) && typeof indexes[0] === "number" ? (indexes[0] as number) : -1;
+      return {
+        id: String(r.id ?? ""),
+        question: String(r.question ?? ""),
+        options,
+        correctIndex,
+        marks: Number(r.marks ?? 1),
+        explanation: r.explanation == null ? null : String(r.explanation),
+        chapter: r.chapter == null ? null : String(r.chapter),
+        topic: r.concept == null ? null : String(r.concept),
+      };
+    });
+  },
+
   async create(ctx: ServiceContext, input: CreateTestInput) {
     assertCanOwn(ctx, "test");
     await assertTeacherCanWriteTest(ctx, input.classId);

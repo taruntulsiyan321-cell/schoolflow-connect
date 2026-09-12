@@ -8,8 +8,16 @@ import type { TestLeaderboard as TestLeaderboardPayload } from "@/academic/servi
 import { toErrorMessage, toPersonName } from "@/lib/presentation";
 import { cn } from "@/lib/utils";
 
-/** How often the board re-reads itself while it is on screen. */
-const POLL_MS = 15_000;
+/**
+ * The floor, not the mechanism.
+ *
+ * `test_attempts` and `test_marks` publish to realtime (20260920080000), so a
+ * classmate handing in wakes this board through `useAcademicLive` within a
+ * second. This timer exists for when that does not arrive — a dropped socket,
+ * a project with realtime off — because a leaderboard that silently stops
+ * moving is worse than one that is a few seconds late.
+ */
+const POLL_MS = 30_000;
 
 /**
  * The per-test leaderboard, and it moves while you watch it.
@@ -25,16 +33,17 @@ const POLL_MS = 15_000;
  *                           It refreshes the tab that did the writing and
  *                           reaches no other browser, so it moves the board for
  *                           the student who just submitted and for nobody else.
- *   supabase realtime       `AcademicLiveProvider` subscribes to
- *                           `postgres_changes` on `tests` — NOT on
- *                           `test_attempts`, which is the table a submission
- *                           writes. A classmate submitting therefore emits
- *                           nothing this client is listening for.
+ *   supabase realtime       `AcademicLiveProvider` subscribed to
+ *                           `postgres_changes` on `tests` and NOT on
+ *                           `test_attempts` or `test_marks`, which are the two
+ *                           tables a submission writes — so a classmate
+ *                           handing in emitted nothing any other browser was
+ *                           listening for. Both now publish
+ *                           (20260920080000) and the provider subscribes, so
+ *                           `liveVersion` below moves when the class does.
  *
- * So the board asks again on a timer. It is a small, fenced read
- * (`rpc_test_leaderboard`), it stops when the component unmounts, and the
- * live-bus version is still honoured so the submitting student's own board
- * updates instantly rather than up to fifteen seconds later.
+ * Both are used. Realtime makes it immediate; the timer is the floor for when
+ * realtime does not arrive.
  */
 export function TestLeaderboard({
   ctx,
