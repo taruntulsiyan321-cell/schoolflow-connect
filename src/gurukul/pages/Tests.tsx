@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Trophy, BarChart2, Play } from "lucide-react";
+import { Trophy, BarChart2, Play, CheckCircle2, FileText } from "lucide-react";
 import {
   AnalyticsService,
   EXAM_TYPE_LABELS,
@@ -11,7 +11,7 @@ import {
   useAcademicLive,
 } from "@/academic";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
-import { isPublishedFlag } from "@/academic/services/testService";
+import type { TestListRow } from "@/academic/services/testService";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toast } from "@/hooks/use-toast";
@@ -28,9 +28,18 @@ export default function Tests() {
   const liveVersion = useAcademicLive(["test", "marks", "examination", "profile"]);
   const [marks, setMarks] = useState<MarksRecord[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
-  const [upcoming, setUpcoming] = useState<
-    { id: string; title: string; subject: string; testKind: string; published: boolean }[]
-  >([]);
+  /**
+   * The class's tests, from `rpc_test_list_for_class`.
+   *
+   * This was a hand-mapped shape over `TestService.listForClass`, and three of
+   * its four fields could not be filled: `subject` read `t.subject` off a table
+   * that has no subject column (§10.22) so every card's subject line was
+   * blank, `published` re-derived a status the query had already filtered on,
+   * and nothing said whether this student had sat the test — so a submitted
+   * test still offered "Attempt" and sent them back into a paper they had
+   * handed in, where every answer save is refused.
+   */
+  const [classTests, setClassTests] = useState<TestListRow[]>([]);
   /**
    * null means "no figure recorded", never 0 — ruling 8.
    *
@@ -66,7 +75,7 @@ export default function Tests() {
           MarksService.listForStudent(ctx, studentId, { limit: 100 }),
           AnalyticsService.forStudent(ctx, studentId),
           classId ? MarksService.listExamsForClass(ctx, classId, { limit: 50 }) : Promise.resolve([]),
-          classId ? TestService.listForClass(ctx, classId) : Promise.resolve([]),
+          classId ? TestService.listForClassDetailed(ctx, classId) : Promise.resolve([]),
         ]);
         if (cancelled) return;
         const markRows = settled[0].status === "fulfilled" ? settled[0].value : [];
@@ -77,23 +86,7 @@ export default function Tests() {
         setExams(examRows);
         setAvgPct(analytics && analytics.exams.count > 0 ? Math.round(analytics.exams.averagePct) : null);
         setTestsAvg(analytics && analytics.tests.count > 0 ? Math.round(analytics.tests.averagePct) : null);
-        setUpcoming(
-          (
-            tests as {
-              id: string;
-              title: string;
-              subject?: string;
-              test_kind?: string;
-              status?: string;
-            }[]
-          ).map((t) => ({
-            id: t.id,
-            title: t.title,
-            subject: t.subject ?? "",
-            testKind: t.test_kind ?? "class_test",
-            published: isPublishedFlag(t as Record<string, unknown>),
-          })),
-        );
+        setClassTests(tests as TestListRow[]);
         const rejected = settled.filter((s) => s.status === "rejected").length;
         if (rejected > 0) {
           toast({
@@ -272,33 +265,75 @@ export default function Tests() {
         <GlassCard className="p-5">
           <SectionLabel>Class tests</SectionLabel>
           <div className="space-y-3">
-            {upcoming.length === 0 && (
-              <div className="text-xs text-muted-foreground py-6 text-center">No class tests scheduled.</div>
+            {classTests.length === 0 && (
+              <div className="text-xs text-muted-foreground py-6 text-center">
+                Your teachers have not published a test yet.
+              </div>
             )}
-            {upcoming.map((t) => {
+            {classTests.map((t) => {
               const kindLabel =
-                TEST_KIND_LABELS[t.testKind as keyof typeof TEST_KIND_LABELS] ?? t.testKind;
+                TEST_KIND_LABELS[t.test_kind as keyof typeof TEST_KIND_LABELS] ?? t.test_kind;
+              const submitted = t.my_status === "submitted";
+              const inProgress = t.my_status === "in_progress";
+              // 0 questions is an uploaded paper: the teacher attaches it and
+              // enters the marks from the written answers. There is nothing to
+              // sit online, so no Attempt control is offered — it used to be,
+              // and `rpc_test_start` then refused it with "test has no
+              // questions" after the student had already tapped through.
+              const attemptable = t.question_count > 0;
               return (
                 <div
                   key={t.id}
                   className="p-4 rounded-xl border border-border/70 bg-muted/30 flex items-center gap-3"
                 >
-                  <Trophy className="w-4 h-4 text-warning shrink-0" />
+                  {submitted ? (
+                    <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                  ) : attemptable ? (
+                    <Trophy className="w-4 h-4 text-warning shrink-0" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-foreground truncate">{t.title}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {[displaySubject(t.subject), kindLabel].filter(Boolean).join(" · ")}
+                      {[
+                        t.subject ? displaySubject(t.subject) : null,
+                        kindLabel,
+                        attemptable ? `${t.question_count} questions` : "Written paper",
+                        t.duration_sec ? `${Math.round(t.duration_sec / 60)} min` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </div>
+                    {/* The mark, where the student looks for it. NULL is not 0
+                        (§7): a submitted test with no mark recorded says so
+                        rather than claiming a zero. */}
+                    {submitted && (
+                      <div className="text-[11px] font-bold text-success mt-0.5">
+                        {t.my_mark == null
+                          ? "Submitted — mark not recorded"
+                          : `Scored ${t.my_mark}${t.max_mark != null ? ` / ${t.max_mark}` : ""}`}
+                      </div>
+                    )}
                   </div>
-                  {t.published ? (
+                  {submitted ? (
+                    <Link
+                      to={`/student/test/${t.id}/result`}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-success/15 text-success border border-success/25 hover:bg-success/25 transition-colors shrink-0"
+                    >
+                      <BarChart2 className="w-3 h-3" /> Report
+                    </Link>
+                  ) : attemptable ? (
                     <Link
                       to={`/student/test/${t.id}/attempt`}
                       className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-primary/15 text-primary border border-primary/25 hover:bg-primary/25 transition-colors shrink-0"
                     >
-                      <Play className="w-3 h-3" /> Attempt
+                      <Play className="w-3 h-3" /> {inProgress ? "Resume" : "Attempt"}
                     </Link>
                   ) : (
-                    <span className="text-[10px] text-muted-foreground shrink-0">Not published</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0 text-right max-w-[120px]">
+                      Sat in class — your teacher enters the marks
+                    </span>
                   )}
                 </div>
               );

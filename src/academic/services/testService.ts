@@ -88,14 +88,6 @@ function afterTestWrite(
   });
 }
 
-export type ManualQuestionKind =
-  | "mcq"
-  | "true_false"
-  | "fill"
-  | "short"
-  | "long"
-  | "numerical";
-
 export interface CreateTestInput {
   classId: string;
   title: string;
@@ -117,100 +109,129 @@ export interface CreateTestInput {
 
 export type UpdateTestInput = Partial<CreateTestInput>;
 
+/**
+ * One question on an online test: an MCQ, and only an MCQ.
+ *
+ * ── WHY THERE IS NO `kind` ANY MORE ──────────────────────────────────────
+ *
+ * This used to be `{ kind: ManualQuestionKind; correct?: string | string[] |
+ * number | boolean }` over six kinds — mcq, true_false, fill, short, long,
+ * numerical — mapped onto four `question_format` values. Three of the four
+ * could not be marked by the only marker that exists (`rpc_test_submit`
+ * compares `a.response = q.correct` as jsonb):
+ *
+ *   short, long   `correct` is NULL by constraint, so every written answer
+ *                 scored zero, silently, and the class report then ranked its
+ *                 topic 100% wrong. No screen in the product can mark them —
+ *                 a teacher never marks an online test, that is the point.
+ *   numerical     marks only on exact jsonb equality of a typed number, with
+ *                 no tolerance expressible.
+ *
+ * Ruled 2026-09-12: "for the online test, only MCQ questions can be given …
+ * the test automatically gets marked." `20260920020000` makes that structural
+ * with a trigger on `test_questions`, so this type is the client agreeing with
+ * the table rather than the only thing enforcing it.
+ *
+ * ── WHY `correctIndex` AND NOT `correct` ─────────────────────────────────
+ *
+ * The old shape accepted the correct answer as the option's TEXT, typed by
+ * hand into a separate field ("Correct option text *"). A typo produced
+ * `{indexes: []}` — a key naming no option — and every student's answer then
+ * marked wrong with nothing on screen to show why. `20260914110000` refuses
+ * that key at the database now, which turns a silent wrong-marking into a
+ * refusal, but the right fix is to make the mistake unrepresentable: the
+ * builder picks the correct option, and what travels is its index.
+ */
 export interface ManualQuestionInput {
-  kind: ManualQuestionKind;
   question: string;
-  options?: string[];
-  correct?: string | string[] | number | boolean;
+  /** At least two, each non-empty. True/False is just two options. */
+  options: string[];
+  /** Index into `options`. The only shape `rpc_test_submit` can mark. */
+  correctIndex: number;
+  /** Whole numbers only — `tests.max_mark` and `test_marks.mark` are integers. */
   marks?: number;
   explanation?: string | null;
+  chapter?: string | null;
+  /** The topic this question tests (§10.22: tests carry topic per question). */
+  topic?: string | null;
 }
 
 /**
- * The builder's kind -> `test_questions.question_format`.
+ * Validate one question and shape it for `test_questions`.
  *
- * THE COLUMN IS `question_format`, NOT `kind`. This mapper existed and its
- * result was written to a `kind` column that `public.test_questions` does not
- * have, behind an `.insert(rows as never)` cast — so PostgREST rejected every
- * manual test's questions with `PGRST204` and no manually-built test ever saved
- * one. Same shape as KNOWN_ISSUES 11's `school_id`, in a different table.
- *
- * `long` is no longer collapsed into `short`: the column carries it, and a long
- * answer is budgeted and printed differently from a short one.
- *
- * `fill` maps to `short` because a fill-in-the-blank is prose a person reads —
- * §10.24 auto-marks only structured answers, and jsonb equality on free text is
- * a lottery, not marking.
+ * Every refusal here is a refusal the database would make anyway — the shape
+ * CHECK, the answer-key trigger, the markable-MCQ trigger — restated where the
+ * question was written so the teacher is told which question and why, rather
+ * than being handed a constraint name for a paper of twenty.
  */
-function mapKindToFormat(kind: ManualQuestionKind): "mcq" | "numerical" | "short" | "long" {
-  if (kind === "mcq" || kind === "true_false") return "mcq";
-  if (kind === "numerical") return "numerical";
-  if (kind === "long") return "long";
-  return "short";
-}
-
-/** True when the format is auto-marked by `rpc_test_submit`'s jsonb equality. */
-function isAutoMarked(format: string): boolean {
-  return format === "mcq" || format === "multi" || format === "numerical";
-}
-
-function toOptions(kind: ManualQuestionKind, options?: string[]): Json {
-  if (kind === "true_false") return ["True", "False"];
-  return options ?? [];
-}
-
-function toCorrect(
-  kind: ManualQuestionKind,
-  correct?: ManualQuestionInput["correct"],
-  options?: string[],
-): Json {
-  // Grader (rpc_test_submit) expects: MCQ/TF → {indexes:[i]}, numerical → {value}, short → {text}
-  if (kind === "true_false") {
-    const opts = toOptions(kind, options) as string[];
-    const isTrue = correct === true || correct === "True" || correct === "true" || correct === 0 || correct === "0";
-    const idx = isTrue ? 0 : 1;
-    // Prefer matching option text if provided
-    if (typeof correct === "string") {
-      const found = opts.findIndex((o) => o.toLowerCase() === correct.toLowerCase());
-      if (found >= 0) return { indexes: [found] };
-    }
-    return { indexes: [idx] };
+function toQuestionRow(
+  q: ManualQuestionInput,
+  index: number,
+  testId: string,
+  schoolId: string,
+): Record<string, unknown> {
+  const human = index + 1;
+  const question = (q.question ?? "").trim();
+  if (!question) {
+    throw new ValidationFailedError([
+      { field: `questions.${index}.question`, code: "required", message: `Question ${human} has no text.` },
+    ]);
   }
-  if (kind === "mcq") {
-    if (typeof correct === "number" && Number.isFinite(correct)) return { indexes: [correct] };
-    if (typeof correct === "boolean") return { indexes: [correct ? 0 : 1] };
-    if (typeof correct === "string" && options?.length) {
-      const found = options.findIndex((o) => o === correct || o.toLowerCase() === correct.toLowerCase());
-      if (found >= 0) return { indexes: [found] };
-      const asNum = Number(correct);
-      if (Number.isInteger(asNum) && asNum >= 0 && asNum < options.length) return { indexes: [asNum] };
-    }
-    if (Array.isArray(correct)) {
-      const idxs = correct
-        .map((c) => {
-          if (typeof c === "number") return c;
-          if (typeof c === "string" && options?.length) {
-            const found = options.findIndex((o) => o === c || o.toLowerCase() === c.toLowerCase());
-            return found >= 0 ? found : Number(c);
-          }
-          return NaN;
-        })
-        .filter((n) => Number.isInteger(n) && n >= 0);
-      if (idxs.length) return { indexes: idxs };
-    }
-    return { indexes: [] };
+
+  const options = (q.options ?? []).map((o) => String(o ?? "").trim());
+  if (options.length < 2 || options.some((o) => o === "")) {
+    throw new ValidationFailedError([
+      {
+        field: `questions.${index}.options`,
+        code: "invalid",
+        message: `Question ${human} needs at least two options, and none of them may be blank.`,
+      },
+    ]);
   }
-  if (kind === "numerical") {
-    if (typeof correct === "number") return { value: correct };
-    if (typeof correct === "string" && correct.trim() !== "" && !Number.isNaN(Number(correct))) {
-      return { value: Number(correct) };
-    }
-    return { value: 0 };
+
+  const correctIndex = Number(q.correctIndex);
+  if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= options.length) {
+    throw new ValidationFailedError([
+      {
+        field: `questions.${index}.correctIndex`,
+        code: "invalid",
+        message:
+          `Question ${human} has no correct option marked. Pick which option is right — ` +
+          `without it nothing could ever be marked correct.`,
+      },
+    ]);
   }
-  // short / long / fill
-  if (Array.isArray(correct)) return { text: String(correct[0] ?? "") };
-  if (correct == null) return { text: "" };
-  return { text: String(correct) };
+
+  const marks = q.marks == null ? 1 : Number(q.marks);
+  if (!Number.isInteger(marks) || marks < 1) {
+    throw new ValidationFailedError([
+      {
+        field: `questions.${index}.marks`,
+        code: "invalid",
+        message:
+          `Question ${human} is worth ${q.marks} marks. Marks must be whole numbers of at least 1 — ` +
+          `a fraction is rounded away by the integer mark columns every marks screen reads.`,
+      },
+    ]);
+  }
+
+  return {
+    test_id: testId,
+    school_id: schoolId,
+    order_index: index,
+    question_format: "mcq",
+    question,
+    options: options as unknown as Json,
+    // A POSITION, never a label: this is what rpc_test_submit compares against.
+    correct: { indexes: [correctIndex] } as unknown as Json,
+    // NULL, by the shape constraint: `answer` is for written questions, and
+    // there are none.
+    answer: null,
+    marks,
+    explanation: q.explanation?.trim() || null,
+    chapter: q.chapter?.trim() || null,
+    concept: q.topic?.trim() || null,
+  };
 }
 
 /**
@@ -426,6 +447,132 @@ export interface TestStudentReport {
   wrong_answers: TestReportWrongAnswer[];
 }
 
+/* ── The tests list (20260920070000) ───────────────────────────────────────
+ *
+ * One row of `rpc_test_list_for_class`. Hand-written for the same reason as the
+ * report shapes: the RPC returns `jsonb`, so the generated types can only say
+ * `Json`.
+ *
+ * The role-dependent halves are nullable ON PURPOSE and are NOT interchangeable
+ * with zero: `submitted_count` is null for a student because they are not told
+ * how many classmates have handed in, and `my_status` is null for staff because
+ * they are not sitting it. A screen that reads `submitted_count ?? 0` would
+ * print "0 submitted" to a student as though nobody had.
+ */
+export interface TestListRow {
+  id: string;
+  title: string | null;
+  status: string;
+  test_kind: string | null;
+  max_mark: number | null;
+  total_marks: number | null;
+  duration_sec: number | null;
+  instructions: string | null;
+  created_at: string;
+  published_at: string | null;
+  scheduled_publish_at: string | null;
+  chapter: string | null;
+  topic: string | null;
+  /** From the section-subject anchor — `tests` has no subject column (§10.22). */
+  subject: string | null;
+  /** 0 means there is nothing to attempt: an uploaded paper, or an unwritten draft. */
+  question_count: number;
+  /** Staff only; null for a student. */
+  submitted_count: number | null;
+  /** Staff only; null for a student. */
+  roll_count: number | null;
+  /** Student only; null for staff. `'not_started' | 'in_progress' | 'submitted'`. */
+  my_status: string | null;
+  /** Student only. NULL until they submit — never 0 (§7). */
+  my_mark: number | null;
+  my_submitted_at: string | null;
+}
+
+/** One ranked entry on a test's leaderboard (20260920030000). */
+export interface TestLeaderboardEntry {
+  student_id: string;
+  full_name: string | null;
+  roll_number: string | number | null;
+  mark: number | null;
+  correct_count: number | null;
+  total_count: number | null;
+  submitted_at: string | null;
+  /** Ties share a rank — the same definition as the student report's `rank`. */
+  rank: number;
+  is_me: boolean;
+}
+
+export interface TestLeaderboard {
+  test_id: string;
+  title: string | null;
+  max_mark: number | null;
+  subject: string | null;
+  submitted_count: number;
+  /** How many are on the section's roll, so "7 of 32" can be said. */
+  roll_count: number;
+  entries: TestLeaderboardEntry[];
+}
+
+/** One question of a student's own submitted paper (20260920050000). */
+export interface TestAnswerSheetQuestion {
+  question_id: string;
+  order_index: number | null;
+  question: string;
+  options: unknown;
+  question_format: string | null;
+  marks: number | null;
+  topic: string;
+  their_answer: unknown;
+  correct_answer: unknown;
+  explanation: string | null;
+  marks_awarded: number | null;
+  /** False when they left it blank, which is not the same as answering wrong. */
+  answered: boolean;
+  is_correct: boolean;
+  time_ms: number | null;
+}
+
+export interface TestAnswerSheet {
+  test_id: string;
+  student_id: string;
+  title: string | null;
+  max_mark: number | null;
+  mark: number | null;
+  correct_count: number | null;
+  total_count: number | null;
+  submitted_at: string | null;
+  time_spent_sec: number | null;
+  submitted: boolean;
+  /** Empty until the paper is handed in — the key never travels before that. */
+  questions: TestAnswerSheetQuestion[];
+}
+
+/** What each student of the section scored (20260920040000). */
+export interface TestClassMarks {
+  test_id: string;
+  title: string | null;
+  max_mark: number | null;
+  subject: string | null;
+  class_id: string;
+  submitted_count: number;
+  class_average: number | null;
+  students: TestReportStudentRow[];
+}
+
+/** One MCQ from the shared question bank, ready to put on a paper. */
+export interface BankQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string | null;
+  classLevel: number | null;
+  subject: string | null;
+  chapter: string | null;
+  topic: string | null;
+  difficulty: string | null;
+}
+
 /** `tests` columns that describe when the test was created, for reuse below. */
 const TEST_WITH_ANCHOR = "*, section_subjects(section_id, curriculum_subjects(name))";
 
@@ -447,7 +594,10 @@ export const TestService = {
     // not by a post-filter that a forgotten call site could skip.
     let q = getClient(repo)
       .from("tests")
-      .select("*, section_subjects!inner(section_id)")
+      // The subject rides along from the anchor. It used to be left out, and
+      // four callers then read `row.subject` off a table that has no such
+      // column (§10.22) — so every one of them rendered an empty subject.
+      .select("*, section_subjects!inner(section_id, curriculum_subjects(name))")
       .eq("section_subjects.section_id", classId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
@@ -620,17 +770,52 @@ export const TestService = {
     return data;
   },
 
-  /** Replace all questions for a test (manual builder). */
+  /**
+   * Replace all questions for a test, and keep the mark totals honest.
+   *
+   * `tests.max_mark` is the denominator every mark on this test is scored
+   * against, and it is written here as well as at create time: a paper whose
+   * questions changed after it was created had a stale denominator, so a
+   * student scoring 3 of 3 could be shown as 3 of 5. Both columns are set from
+   * the same sum, which is the only figure that can be right.
+   */
   async setQuestions(ctx: ServiceContext, testId: string, questions: ManualQuestionInput[]) {
     assertCanOwn(ctx, "test");
     const repo = toRepoContext(ctx);
     const test = await this.get(ctx, testId);
     const classId = sectionIdOfTest(test);
     await assertTeacherCanWriteTest(ctx, classId);
+    if (!ctx.schoolId) {
+      throw new ForbiddenError("No institution in context — cannot save questions");
+    }
+
+    // Validate the WHOLE paper before deleting anything. Deleting first and
+    // failing on question 7 of 10 would leave the test with no questions at
+    // all — and a published test with no questions is one a student is offered
+    // and then refused by `rpc_test_start`.
+    const rows = questions.map((q, i) => toQuestionRow(q, i, testId, ctx.schoolId));
+
+    // A student may already have an attempt in flight. Replacing the paper
+    // under them would make their saved answers point at deleted questions
+    // (ON DELETE CASCADE removes those answers with them), so this refuses
+    // rather than quietly discarding somebody's work.
+    const { count: attemptCount, error: attemptErr } = await getClient(repo)
+      .from("test_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("test_id", testId);
+    throwIfError(attemptErr, "Failed to check whether this test has been attempted");
+    if ((attemptCount ?? 0) > 0) {
+      throw new AcademicRepositoryError(
+        "test_has_attempts",
+        `This test's questions cannot be changed: ${attemptCount} student attempt(s) are already recorded ` +
+          `against it, and replacing a question would delete the answers given to it. ` +
+          `Create a new test instead.`,
+      );
+    }
 
     await getClient(repo).from("test_questions").delete().eq("test_id", testId);
 
-    if (questions.length === 0) {
+    if (rows.length === 0) {
       // `question_count` was written here and does not exist on `tests`. The
       // count is derivable from test_questions and storing it would be the
       // same fact twice (G9), so it is simply not stored.
@@ -638,48 +823,81 @@ export const TestService = {
         .from("tests")
         .update({ total_marks: 0, updated_at: new Date().toISOString() } as never)
         .eq("id", testId);
+      afterTestWrite(ctx, { classId, source: "TestService.setQuestions" });
       return [];
     }
 
-    const rows = questions.map((q, i) => {
-      const question_format = mapKindToFormat(q.kind);
-      const auto = isAutoMarked(question_format);
-      // `test_questions_shape_matches_format` (20260914050000) refuses a row
-      // that carries both, and refuses a written question with no `answer`.
-      // The two branches are the constraint, restated where the row is built.
-      const key = toCorrect(q.kind, q.correct, q.options);
-      return {
-        test_id: testId,
-        order_index: i,
-        question_format,
-        question: q.question.trim(),
-        options: toOptions(q.kind, q.options),
-        correct: auto ? key : null,
-        answer: auto
-          ? null
-          // A written question's model answer is TEXT, not jsonb. `toCorrect`
-          // returns `{text}` for these kinds, so the string comes out of there.
-          : String((key as { text?: unknown })?.text ?? "").trim() || "(no model answer given)",
-        marks: q.marks ?? 1,
-        explanation: q.explanation ?? null,
-        school_id: ctx.schoolId,
-      };
-    });
-
     const { data, error } = await getClient(repo)
       .from("test_questions")
-      .insert(rows)
+      .insert(rows as never)
       .select("*");
     throwIfError(error, "Failed to save questions");
 
     const total = rows.reduce((s, r) => s + Number(r.marks), 0);
     await getClient(repo)
       .from("tests")
-      .update({ total_marks: total, updated_at: new Date().toISOString() } as never)
+      .update({
+        total_marks: total,
+        max_mark: total,
+        updated_at: new Date().toISOString(),
+      } as never)
       .eq("id", testId);
 
     afterTestWrite(ctx, { classId, source: "TestService.setQuestions" });
     return data ?? [];
+  },
+
+  /**
+   * Build a whole test in the only order that is safe: DRAFT, then questions,
+   * then publish or schedule.
+   *
+   * ── WHAT THIS REPLACES, AND WHY IT WAS WRONG ────────────────────────────
+   *
+   * The builder called `create` with `status: 'published'` and THEN wrote the
+   * questions:
+   *
+   *     const created = await TestService.create(ctx, { ..., status: 'published' })
+   *     if (questions.length) await TestService.setQuestions(ctx, created.id, ...)
+   *
+   * Between those two awaits the test was published with NO QUESTIONS. A
+   * student refreshing their Tests screen in that window was offered a paper
+   * `rpc_test_start` then refused with "test has no questions" — and if the
+   * second call failed at all (one bad question is enough), the test STAYED
+   * published and empty, permanently, with nothing on the teacher's screen to
+   * say so.
+   *
+   * Publishing last also means a validation failure costs the teacher nothing:
+   * the test exists as a draft with their questions in it, and they can fix the
+   * one question that was refused instead of rebuilding the paper.
+   */
+  async createWithQuestions(
+    ctx: ServiceContext,
+    input: CreateTestInput,
+    questions: ManualQuestionInput[],
+    publish: { mode: "draft" } | { mode: "now" } | { mode: "schedule"; at: string },
+  ) {
+    // Validate the paper first, before a row exists. `toQuestionRow` needs a
+    // test id it cannot have yet, so it is called with a placeholder purely to
+    // run the checks — the real rows are built inside setQuestions.
+    questions.forEach((q, i) => toQuestionRow(q, i, "00000000-0000-0000-0000-000000000000", ctx.schoolId ?? ""));
+
+    const total = questions.reduce((s, q) => s + Number(q.marks ?? 1), 0);
+    const created = (await this.create(ctx, {
+      ...input,
+      // The paper decides the denominator when there is one; the form's own
+      // figure is only used for an uploaded paper with no questions here.
+      maxMarks: questions.length > 0 ? total : (input.maxMarks ?? null),
+      status: "draft",
+      scheduledPublishAt: null,
+    })) as { id: string };
+
+    if (questions.length > 0) {
+      await this.setQuestions(ctx, created.id, questions);
+    }
+
+    if (publish.mode === "now") return await this.publish(ctx, created.id);
+    if (publish.mode === "schedule") return await this.schedule(ctx, created.id, publish.at);
+    return await this.get(ctx, created.id);
   },
 
   async update(ctx: ServiceContext, testId: string, patch: UpdateTestInput) {
@@ -761,6 +979,88 @@ export const TestService = {
     }).catch(() => undefined);
     afterTestWrite(ctx, { classId, source: "TestService.publish" });
     return data;
+  },
+
+  /**
+   * The tests this teacher has set, for their own profile.
+   *
+   * The teacher's profile showed their name, subjects and linked accounts and
+   * nothing about their work. "Check that the teacher's profile is updated with
+   * the test they have given" (2026-09-12) is this: how many tests they have
+   * set, how many are live, and how the class answered the recent ones.
+   *
+   * Both reads are the author's own rows — `can_read_test_row` admits
+   * `_created_by = auth.uid()` and `test_attempts_staff_read` admits attempts
+   * on tests they created — so this adds no fence and needs none.
+   */
+  async summaryForTeacher(
+    ctx: ServiceContext,
+    opts?: { limit?: number },
+  ): Promise<{
+    total: number;
+    published: number;
+    drafts: number;
+    submissions: number;
+    recent: {
+      id: string;
+      title: string;
+      subject: string | null;
+      status: string;
+      createdAt: string | null;
+      submittedCount: number;
+    }[];
+  }> {
+    assertCanConsume(ctx, "test");
+    if (!ctx.userId) {
+      throw new ForbiddenError("No signed-in user — cannot list the tests you have set");
+    }
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client
+      .from("tests")
+      .select("id, title, status, created_at, section_subjects(curriculum_subjects(name))")
+      .eq("created_by", ctx.userId)
+      .eq("school_id", ctx.schoolId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    throwIfError(error, "Failed to load the tests you have set");
+
+    const rows = (data ?? []) as Record<string, unknown>[];
+    const ids = rows.map((r) => String(r.id));
+
+    // One request for every attempt across those tests, counted here rather
+    // than asked for per test.
+    const counts = new Map<string, number>();
+    let submissions = 0;
+    if (ids.length > 0) {
+      const { data: attempts, error: attErr } = await client
+        .from("test_attempts")
+        .select("test_id, status")
+        .in("test_id", ids)
+        .eq("status", "submitted")
+        .limit(5000);
+      throwIfError(attErr, "Failed to count submissions on your tests");
+      for (const a of (attempts ?? []) as { test_id: string }[]) {
+        counts.set(a.test_id, (counts.get(a.test_id) ?? 0) + 1);
+        submissions += 1;
+      }
+    }
+
+    const statusOf = (r: Record<string, unknown>) => String(r.status ?? "draft");
+    return {
+      total: rows.length,
+      published: rows.filter((r) => statusOf(r) === "published").length,
+      drafts: rows.filter((r) => statusOf(r) === "draft" || statusOf(r) === "scheduled").length,
+      submissions,
+      recent: rows.slice(0, opts?.limit ?? 5).map((r) => ({
+        id: String(r.id),
+        title: String(r.title ?? "Test"),
+        subject: subjectOfTest(r) ?? null,
+        status: statusOf(r),
+        createdAt: r.created_at ? String(r.created_at) : null,
+        submittedCount: counts.get(String(r.id)) ?? 0,
+      })),
+    };
   },
 
   /**
@@ -947,38 +1247,45 @@ export const TestService = {
   },
 
   /**
-   * How many questions each of these tests carries — staff only.
+   * The tests of a class, with everything the two list screens need — through
+   * `rpc_test_list_for_class` (20260920070000).
    *
-   * The teacher's list used to read `question_count` off the test row. That
-   * column does not exist on `tests`, so `t.question_count ?? 0` rendered
-   * "0 Q" against every test ever built. The count is not stored, deliberately
-   * (it would be the same fact as `test_questions` twice, G9), so it is
-   * counted here instead.
+   * ── WHY THIS EXISTS BESIDE `listForClass` ───────────────────────────────
    *
-   * NOT folded into `listForClass`: `test_questions` is not SELECT-able by
-   * students at all — the answer key fence is the GRANT (G14) — so embedding
-   * a count in the shared list query would break the student's own test list.
+   * `listForClass` is a table read: the `tests` rows of a section, as rows.
+   * Four callers want exactly that (the teacher's dashboard counts, the
+   * insights tab, the student's calendar, the parent panel) and are served by
+   * it unchanged.
+   *
+   * The two LIST SCREENS need three things no client can compute:
+   *
+   *   subject          `tests` has no subject column (§10.22) — it comes from
+   *                    the section-subject anchor
+   *   question_count   `test_questions` is closed to students (G14), so a
+   *                    student's screen cannot tell an attemptable test from
+   *                    an uploaded paper
+   *   own state / how many submitted
+   *                    `test_attempts` is the caller's own rows for a student
+   *                    and the author's tests for staff, so neither side can
+   *                    count what it needs
+   *
+   * The RPC shapes its payload by who asks: a student gets published tests and
+   * their OWN attempt state; staff get every live test and the submitted
+   * count. That asymmetry is the fence, not a convenience — see the migration.
    */
-  async countQuestions(
+  async listForClassDetailed(
     ctx: ServiceContext,
-    testIds: string[],
-  ): Promise<Record<string, number>> {
+    classId: string,
+  ): Promise<TestListRow[]> {
     assertCanConsume(ctx, "test");
-    if (ctx.role === "student" || ctx.role === "parent") {
-      throw new ForbiddenError("Question counts are staff-only");
-    }
-    if (!testIds.length) return {};
-    const { data, error } = await getClient(toRepoContext(ctx))
-      .from("test_questions")
-      .select("test_id")
-      .in("test_id", testIds);
-    throwIfError(error, "Failed to count test questions");
-    const counts: Record<string, number> = {};
-    for (const id of testIds) counts[id] = 0;
-    for (const row of (data ?? []) as { test_id: string }[]) {
-      counts[row.test_id] = (counts[row.test_id] ?? 0) + 1;
-    }
-    return counts;
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_test_list_for_class", {
+      _class_id: classId,
+    } as never);
+    throwIfError(error, "Failed to load this class's tests");
+    // The RPC returns `jsonb`, which the generated types can only describe as
+    // `Json` — hence the hop through `unknown`. The shape is asserted by the
+    // migration's own proof block, not by this cast.
+    return ((data ?? []) as unknown as TestListRow[]) ?? [];
   },
 
   /**
@@ -1026,33 +1333,194 @@ export const TestService = {
     return (data ?? null) as TestStudentReport | null;
   },
 
-  /** Empty library framework — content added later. */
-  async listQuestionLibrary(
-    _ctx: ServiceContext,
-    _filters: {
-      board?: string;
-      classLevel?: string;
-      subject?: string;
-      book?: string;
-      chapter?: string;
-      topic?: string;
-      kind?: string;
-      difficulty?: string;
+  /**
+   * The question bank a teacher picks from — "choose from the questions".
+   *
+   * ── WHAT THIS REPLACES ──────────────────────────────────────────────────
+   *
+   * `listQuestionLibrary` returned `[]`, unconditionally, with the comment
+   * "Framework only — no content yet" and a screen reading "Library coming
+   * soon — NCERT content will be added later." Measured: `public.question_bank`
+   * holds 21,696 rows, 21,681 of them approved and active, every one an MCQ,
+   * every one carrying a chapter and a difficulty, across 516 chapters. The
+   * content was there the whole time; the function was a stub.
+   *
+   * ── THE FOUR FILTERS THAT ARE NOT OPTIONAL ──────────────────────────────
+   *
+   *   is_approved   §10.20 makes approval a super-admin act and
+   *                 `trg_question_bank_approval_is_super_admin_only` enforces
+   *                 it. An unapproved row is a contribution nobody has vetted;
+   *                 putting one on a test would publish it to a class and walk
+   *                 straight around that rule.
+   *   is_active     a retired or replaced question (15 rows) is not a question
+   *                 to set.
+   *   question_format = 'mcq'
+   *                 an online test holds nothing else (20260920020000), and the
+   *                 bank's own columns only ever held MCQs — `options` and
+   *                 `correct_index` are NOT NULL.
+   *   board         the same test `rpc_fill_paper_section_from_bank` applies:
+   *                 this school's board, or a question marked 'both'. A CBSE
+   *                 class is not set an RBSE paper because the filter was left
+   *                 off.
+   *
+   * `correct_index` comes back as the INDEX it is. The builder hands it to
+   * `setQuestions` as `correctIndex` and nothing converts a label anywhere.
+   */
+  async searchQuestionBank(
+    ctx: ServiceContext,
+    filters: {
+      classLevel?: number | null;
+      subject?: string | null;
+      chapter?: string | null;
+      topic?: string | null;
+      difficulty?: string | null;
+      search?: string | null;
+      limit?: number;
     },
-  ) {
-    assertCanConsume(_ctx, "test");
-    // Framework only — no content yet
-    return [] as {
-      id: string;
-      question: string;
-      kind: string;
-      options: string[];
-      correct: unknown;
-      marks: number;
-      difficulty: string;
-      chapter: string;
-      topic: string;
-    }[];
+  ): Promise<BankQuestion[]> {
+    assertCanOwn(ctx, "test");
+    if (ctx.role === "student" || ctx.role === "parent") {
+      throw new ForbiddenError("The question bank is staff-only");
+    }
+    const client = getClient(toRepoContext(ctx));
+
+    // The school's board decides which questions are its own. Read once per
+    // call rather than cached: a wrong board is a wrong paper.
+    let board: string | null = null;
+    if (ctx.schoolId) {
+      const { data: school } = await client
+        .from("schools")
+        .select("board")
+        .eq("id", ctx.schoolId)
+        .maybeSingle();
+      board = (school as { board?: string | null } | null)?.board ?? null;
+    }
+
+    let q = client
+      .from("question_bank")
+      // `question_bank` carries no marks column — what a question is worth is
+      // the teacher's decision on their own paper, not the bank's.
+      .select(
+        "id, question, options, correct_index, explanation, class_level, subject, chapter, topic, concept, difficulty, board",
+      )
+      .eq("is_approved", true)
+      .eq("is_active", true)
+      .eq("question_format", "mcq")
+      .limit(Math.min(Math.max(filters.limit ?? 40, 1), 100));
+
+    if (board) q = q.or(`board.eq.${board},board.eq.both`);
+    if (filters.classLevel != null) q = q.eq("class_level", filters.classLevel);
+    if (filters.subject) q = q.eq("subject", filters.subject);
+    if (filters.chapter) q = q.eq("chapter", filters.chapter);
+    if (filters.topic) q = q.eq("topic", filters.topic);
+    if (filters.difficulty) q = q.eq("difficulty", filters.difficulty);
+    if (filters.search?.trim()) q = q.ilike("question", `%${filters.search.trim()}%`);
+
+    const { data, error } = await q;
+    throwIfError(error, "Failed to search the question bank");
+
+    return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+      id: String(row.id ?? ""),
+      question: String(row.question ?? ""),
+      options: Array.isArray(row.options) ? (row.options as unknown[]).map((o) => String(o ?? "")) : [],
+      correctIndex: Number(row.correct_index ?? 0),
+      explanation: row.explanation == null ? null : String(row.explanation),
+      classLevel: row.class_level == null ? null : Number(row.class_level),
+      subject: row.subject == null ? null : String(row.subject),
+      chapter: row.chapter == null ? null : String(row.chapter),
+      topic:
+        row.topic == null || String(row.topic).trim() === ""
+          ? row.concept == null
+            ? null
+            : String(row.concept)
+          : String(row.topic),
+      difficulty: row.difficulty == null ? null : String(row.difficulty),
+    }));
+  },
+
+  /**
+   * The chapters this class's bank actually has questions for, with how many.
+   *
+   * A chapter filter that offers a chapter with nothing behind it is worse than
+   * no filter: the teacher picks it, sees an empty list, and cannot tell
+   * whether the bank is empty or their filter is wrong.
+   */
+  async listBankChapters(
+    ctx: ServiceContext,
+    args: { classLevel: number; subject: string },
+  ): Promise<{ chapter: string; count: number }[]> {
+    assertCanOwn(ctx, "test");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("question_bank")
+      .select("chapter")
+      .eq("is_approved", true)
+      .eq("is_active", true)
+      .eq("question_format", "mcq")
+      .eq("class_level", args.classLevel)
+      .eq("subject", args.subject)
+      .limit(5000);
+    throwIfError(error, "Failed to list the bank's chapters");
+    const counts = new Map<string, number>();
+    for (const row of (data ?? []) as { chapter: string | null }[]) {
+      const name = (row.chapter ?? "").trim();
+      if (!name) continue;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([chapter, count]) => ({ chapter, count }))
+      .sort((a, b) => a.chapter.localeCompare(b.chapter));
+  },
+
+  /**
+   * The per-test leaderboard (rule 13, 2026-09-12 ruling) — ranked, and
+   * ordered so the first student to finish leads on equal marks.
+   *
+   * No role check here and none in the RPC's caller: `can_read_test_leaderboard`
+   * is the only home for that rule (see 20260920030000). A caller who may not
+   * read gets 42501, screened into a sentence by `throwIfError`.
+   */
+  async leaderboard(ctx: ServiceContext, testId: string): Promise<TestLeaderboard | null> {
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_test_leaderboard", {
+      _test_id: testId,
+    } as never);
+    throwIfError(error, "Failed to load this test's leaderboard");
+    return (data ?? null) as TestLeaderboard | null;
+  },
+
+  /**
+   * One student's submitted paper, for review: every question with their own
+   * answer, the key, the explanation and the time taken.
+   *
+   * Refused outright until the paper is handed in — that condition lives in
+   * `can_read_test_student_report` and is the fence that stopped a student
+   * reading the answer key before sitting (20260916020000).
+   */
+  async answerSheet(
+    ctx: ServiceContext,
+    testId: string,
+    studentId: string,
+  ): Promise<TestAnswerSheet | null> {
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_test_answer_sheet", {
+      _test_id: testId,
+      _student_id: studentId,
+    } as never);
+    throwIfError(error, "Failed to load this test paper");
+    return (data ?? null) as TestAnswerSheet | null;
+  },
+
+  /**
+   * What each student of the section scored — the principal's class tab, and
+   * the one definition of that list (`rpc_test_class_report` composes it).
+   *
+   * Fenced by `can_read_test_marks`: the teachers of the section, or the
+   * principal of that school. Not the admin, whose stated need is counts.
+   */
+  async classMarks(ctx: ServiceContext, testId: string): Promise<TestClassMarks | null> {
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_test_class_marks", {
+      _test_id: testId,
+    } as never);
+    throwIfError(error, "Failed to load this test's marks");
+    return (data ?? null) as TestClassMarks | null;
   },
 
   /** Latest attempt for the current user on a Test/test (submitted preferred). */
@@ -1138,13 +1606,21 @@ export const TestService = {
     return data;
   },
 
-  /** Persist one mid-attempt answer — UI must not raw-upsert `test_answers`. */
+  /**
+   * Persist one mid-attempt answer — UI must not raw-upsert `test_answers`.
+   *
+   * `timeMs` is how long the student spent on THIS question. It is the only
+   * source for §10.25's "average time per question", which the teacher's report
+   * has always displayed and which was structurally NULL for every test ever
+   * taken: the column existed and nothing ever wrote it.
+   */
   async saveAnswer(
     ctx: ServiceContext,
     args: {
       attemptId: string;
       questionId: string;
       response: Record<string, unknown>;
+      timeMs?: number | null;
     },
   ): Promise<void> {
     assertCanOwn(ctx, "student_test_attempt");
@@ -1173,12 +1649,18 @@ export const TestService = {
     if (!ctx.schoolId) {
       throw new ForbiddenError("No institution in context — cannot save an answer");
     }
+    const timeMs =
+      args.timeMs == null || !Number.isFinite(args.timeMs) || args.timeMs < 0
+        ? null
+        : Math.min(Math.round(args.timeMs), 86_400_000);
+
     const { error } = await client.from("test_answers").upsert(
       {
         attempt_id: args.attemptId,
         question_id: args.questionId,
         school_id: ctx.schoolId,
         response: args.response as never,
+        ...(timeMs == null ? {} : { time_ms: timeMs }),
       },
       { onConflict: "attempt_id,question_id" },
     );
@@ -1195,6 +1677,20 @@ export const TestService = {
     return data ?? [];
   },
 
+  /**
+   * Hand the paper in, and grade it.
+   *
+   * `answers` is what the SCREEN is holding, and passing it is belt and braces
+   * rather than the main path: each answer is already saved as it is chosen.
+   * It matters for the one case the incremental saves cannot cover — an answer
+   * whose own save failed (the attempt screen marks those "Not saved") still
+   * reaches the marking, because `rpc_test_submit` upserts what it is given
+   * before grading.
+   *
+   * Each entry is `{ question_id, response, time_ms? }`; `time_ms` is carried
+   * through so a per-question timing that never made it to the server still
+   * lands.
+   */
   async submitAttempt(ctx: ServiceContext, attemptId: string, answers?: unknown) {
     assertCanOwn(ctx, "student_test_attempt");
     const client = getClient(toRepoContext(ctx));

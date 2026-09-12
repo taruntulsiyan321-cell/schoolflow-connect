@@ -1,6 +1,14 @@
 import React, { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { toEnumLabel } from "@/lib/presentation"
+// The portal's own design language, moved to one file so the live test screens
+// can use exactly the same primitives (see ../primitives.tsx).
+import {
+  SectionHeading, Label, Mono, Pill, BackButton, EmptyState, LoadingRow,
+} from "../primitives"
+// The one screen in this portal that is NOT a design: real classes, real
+// tests, real marks (2026-09-12 ruling). See ../PrincipalTests.tsx.
+import PrincipalTests from "../PrincipalTests"
 import {
   appData, fmtRupees, fmtPct, getClassSubjectMarks, getAbsentsForDate, getClassPresentForDate,
   getClassTests, getExamTotals,
@@ -31,12 +39,14 @@ type Screen =
   | { id: "class-test"; classId: ClassId; testKey: string }
   | { id: "exam"; classId: ClassId; examId: ExamId }
   | { id: "exam-subject"; classId: ClassId; examId: ExamId; subjectId: string }
+  | { id: "tests" }
   | { id: "settings" }
 
 function screenSection(s: Screen): string {
   if (s.id === "teachers" || s.id === "teacher") return "teachers"
   if (s.id === "students" || s.id === "student") return "students"
   if (s.id === "classes" || s.id === "class" || s.id === "class-homework" || s.id === "class-test" || s.id === "exam" || s.id === "exam-subject") return "classes"
+  if (s.id === "tests") return "tests"
   if (s.id === "settings") return "settings"
   return "dashboard"
 }
@@ -66,6 +76,7 @@ function screenLabel(s: Screen): string {
     case "class-test": return getClassTests(s.classId).find(t => t.key === s.testKey)?.title ?? "Test"
     case "exam": return d.classes[s.classId]?.exams.find(e => e.id === s.examId)?.name ?? "Exam"
     case "exam-subject": return d.classes[s.classId]?.exams.find(e => e.id === s.examId)?.subjects.find(sub => sub.id === s.subjectId)?.name ?? "Subject"
+    case "tests": return "Tests"
     case "settings": return "Settings"
   }
 }
@@ -135,6 +146,7 @@ function Sidebar({
     { id: "teachers",  label: "Teachers",  screen: { id: "teachers" } },
     { id: "students",  label: "Students",  screen: { id: "students" } },
     { id: "classes",   label: "Classes",   screen: { id: "classes" } },
+    { id: "tests",     label: "Tests",     screen: { id: "tests" } },
   ]
   const initials = name.trim().split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "P"
   return (
@@ -222,63 +234,6 @@ function Header({
 }
 
 // ─── Shared UI components ─────────────────────────────────────────────────────
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <h1 className="font-display text-2xl font-medium text-foreground mb-1">{children}</h1>
-}
-
-function Label({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span className={`text-[10px] font-medium tracking-widest uppercase text-muted-foreground ${className}`}>
-      {children}
-    </span>
-  )
-}
-
-function Mono({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <span className={`font-mono ${className}`}>{children}</span>
-}
-
-function Pill({ children, variant = "default" }: { children: React.ReactNode; variant?: "default" | "muted" | "outline" }) {
-  const cls = {
-    default: "bg-secondary text-secondary-foreground",
-    muted: "bg-muted text-muted-foreground",
-    outline: "border border-border text-foreground",
-  }[variant]
-  return (
-    <span className={`inline-block text-[10px] font-mono px-1.5 py-0.5 rounded-[2px] ${cls}`}>
-      {children}
-    </span>
-  )
-}
-
-function BackButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 mb-4"
-    >
-      ← Back
-    </button>
-  )
-}
-
-function EmptyState({ title, detail }: { title: string; detail?: string }) {
-  return (
-    <div className="py-16 text-center">
-      <div className="text-sm text-muted-foreground">{title}</div>
-      {detail && <div className="text-xs text-muted-foreground mt-1">{detail}</div>}
-    </div>
-  )
-}
-
-function LoadingRow() {
-  return (
-    <div className="h-10 flex items-center px-4">
-      <div className="h-2 w-32 bg-muted rounded-[2px] animate-pulse" />
-    </div>
-  )
-}
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
@@ -2335,6 +2290,8 @@ export default function App() {
         return <ClassDetailView classId={s.classId} tab={s.tab} navigate={nav.navigate} goBack={nav.goBack} />
       case "class-homework":
         return <HomeworkDetailView classId={s.classId} homeworkId={s.homeworkId} goBack={nav.goBack} />
+      case "tests":
+        return <PrincipalTests />
       case "class-test":
         return <ClassTestView classId={s.classId} testKey={s.testKey} goBack={nav.goBack} />
       case "exam":

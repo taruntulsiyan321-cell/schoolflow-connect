@@ -19,7 +19,8 @@ import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryRepor
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicPresentation";
 import { toDisplayText, toErrorMessage } from "@/lib/presentation";
-import type { TestStudentReport } from "@/academic/services/testService";
+import type { TestAnswerSheet, TestStudentReport } from "@/academic/services/testService";
+import { TestLeaderboard } from "@/components/student/TestLeaderboard";
 import {
   studentReportCsvRows,
   wrongAnswersByTopic,
@@ -44,8 +45,22 @@ export default function TestResult() {
   const { ctx, ready: academicReady } = useAcademicContext();
   const [test, setTest] = useState<Record<string, unknown> | null>(null);
   const [attempt, setAttempt] = useState<Record<string, unknown> | null>(null);
-  const [questions, setQuestions] = useState<TestQuestionShape[]>([]);
-  const [answers, setAnswers] = useState<Record<string, Record<string, unknown>>>({});
+  /**
+   * The paper as this student answered it — question, their choice, the key,
+   * the explanation — from `rpc_test_answer_sheet` (20260920050000).
+   *
+   * This screen used to assemble the review from two client reads that could
+   * not carry it: `listQuestions` goes through
+   * `rpc_test_questions_for_attempt`, which omits `correct` and `explanation`
+   * on purpose (it is the paper, not the key), and `listAnswers` read
+   * `test_answers` — a table `rpc_test_submit` deleted at submit time until
+   * 20260920000000. So the review had no right answer to show and no student
+   * answer to show it against, and rule 27's honest empty state ("your
+   * individual answers were not recorded") was what every student saw after
+   * every test.
+   */
+  const [sheet, setSheet] = useState<TestAnswerSheet | null>(null);
+  const [sheetError, setSheetError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // §10.25's report, which is not the same thing as the question review below.
@@ -68,19 +83,23 @@ export default function TestResult() {
       const serviceCtx = await resolveCtx();
       const d = (await TestService.get(serviceCtx, id)) as Record<string, unknown>;
       setTest(d);
-      const qs = await TestService.listQuestions(serviceCtx, id);
-      setQuestions((qs ?? []) as TestQuestionShape[]);
       const a = await TestService.getMyAttempt(serviceCtx, id);
       setAttempt(a);
-      if (a?.id) {
-        const ans = await TestService.listAnswers(serviceCtx, String(a.id));
-        const m: Record<string, Record<string, unknown>> = {};
-        (ans ?? []).forEach((x) => {
-          m[String((x as { question_id: string }).question_id)] = x as Record<string, unknown>;
-        });
-        setAnswers(m);
+      // The answer sheet and the topic report are both fenced on a SUBMITTED
+      // attempt, so neither is asked for before there is one — asking anyway
+      // would turn a correct refusal into an error message on a page that is
+      // working perfectly.
+      if (a?.submitted_at && serviceCtx.studentId) {
+        try {
+          setSheet(await TestService.answerSheet(serviceCtx, id, serviceCtx.studentId));
+          setSheetError(null);
+        } catch (e) {
+          setSheet(null);
+          setSheetError(toErrorMessage(e, "Could not load your answers for this test"));
+        }
       } else {
-        setAnswers({});
+        setSheet(null);
+        setSheetError(null);
       }
       // Only once there is a submitted attempt: `rpc_test_student_report`
       // refuses a test this student has not sat, which is what stops it from
@@ -167,12 +186,22 @@ export default function TestResult() {
   const totalCount = Number(attempt.total_count ?? 0);
   const correctCount = Number(attempt.correct_count ?? 0);
   const accuracy = totalCount ? Math.round((correctCount / totalCount) * 100) : 0;
-  // Rule 27. The per-question responses live in `test_answers`, which is a
-  // different table from the attempt that carries the score — so "we have a
-  // score" does not imply "we have the answers". Keyed off the map this page
-  // actually renders from, not off the attempt's status.
-  const hasResponses = Object.keys(answers).length > 0;
-  const mins = Math.round(Number(attempt.time_spent_sec ?? 0) / 60);
+  // Rule 27, still keyed off the thing this page actually renders from rather
+  // than off the attempt's status: a score on the attempt does not prove the
+  // per-question rows exist. It now normally does — the submit stopped deleting
+  // them (20260920000000) — and where they are absent this still says so.
+  const reviewQuestions = sheet?.questions ?? [];
+  const hasResponses = reviewQuestions.length > 0;
+  // `time_spent_sec` is written at submit (20260920000000). Before that it was
+  // never written by anything, so this read `Math.round(null / 60)` and every
+  // result screen ever rendered said "0m".
+  const spentSec = Number(attempt.time_spent_sec ?? sheet?.time_spent_sec ?? 0);
+  const timeLabel =
+    spentSec > 0
+      ? spentSec < 60
+        ? `${spentSec}s`
+        : `${Math.round(spentSec / 60)}m`
+      : "—";
   const subjectLabel = displaySubject(testSubject(test)) || "—";
   const chapterRaw = test.chapter ? String(test.chapter) : "";
   const topicRaw = test.topic ? String(test.topic) : "";
@@ -218,7 +247,7 @@ export default function TestResult() {
             <Timer className="w-5 h-5 text-primary" />
             <div>
               <div className="text-xs text-muted-foreground">Time</div>
-              <div className="font-bold text-lg">{mins}m</div>
+              <div className="font-bold text-lg">{timeLabel}</div>
             </div>
           </div>
           <div>
@@ -247,11 +276,24 @@ export default function TestResult() {
       {reportError && (
         <Card className="p-4 mb-6 text-sm text-muted-foreground">{reportError}</Card>
       )}
+      {/* ── THE LEADERBOARD ─────────────────────────────────────────────────
+          Named, ranked, and it moves as the rest of the class hands in
+          (20260920030000, ruled 2026-09-12). Rule 13 as corrected on
+          2026-09-11 is what allows the names: "marks and rank are shared
+          within the class; per-question detail is private to each student."
+          The per-question half above and below is this student's alone.
+
+          It is fenced on having submitted, so it is only asked for once there
+          is a submitted attempt — which is exactly when this screen renders. */}
+      {attempt?.submitted_at && ctx && (
+        <TestLeaderboard ctx={ctx} testId={String(id)} className="mb-6" />
+      )}
+
       {report && report.submitted && (
         <Card className="p-4 mb-6">
-          {/* The leaderboard the ruling asked for, as a position. The names and
-              marks of the other children are not in this payload and are not
-              meant to be — a student still never sees the class list. */}
+          {/* The student's own position, from the report rather than the board:
+              one definition of `rank`, computed in the database, so the number
+              here and the number in the board's own list cannot disagree. */}
           {report.rank != null && report.class_size != null && (
             <div className="flex items-center gap-2 mb-3 pb-3 border-b">
               <Trophy className="w-5 h-5 text-accent shrink-0" />
@@ -328,6 +370,7 @@ export default function TestResult() {
       )}
 
       <h3 className="font-semibold mb-3">Question review</h3>
+      {sheetError && <Card className="p-4 mb-4 text-sm text-muted-foreground">{sheetError}</Card>}
       {!hasResponses ? (
         <Card className="p-4 text-sm text-muted-foreground">
           Your individual answers for this test were not recorded, so there is
@@ -335,54 +378,85 @@ export default function TestResult() {
           — it is stored on the attempt itself.
         </Card>
       ) : (
-      <div className="space-y-4">
-        {questions.map((q, i) => {
-          const a = answers[q.id];
-          const resp = ((a?.response as Record<string, unknown>) ?? {}) as {
-            indexes?: number[];
-            text?: string;
-            value?: number;
-          };
-          const opts: string[] = Array.isArray(q.options) ? q.options : [];
-          const correctIdx = Array.isArray(q.correct?.indexes)
-            ? q.correct.indexes[0] ?? null
-            : typeof (q.correct as { correct_index?: number })?.correct_index === "number"
-              ? (q.correct as { correct_index: number }).correct_index
+        <div className="space-y-4">
+          {reviewQuestions.map((row, i) => {
+            const opts: string[] = Array.isArray(row.options)
+              ? (row.options as unknown[]).map((o) => String(o ?? ""))
+              : [];
+            // Both payloads are untyped jsonb holding a POSITION, not a word.
+            // `answerToText` is the one decoder for that, shared with the
+            // teacher's report so the two screens cannot drift; it returns null
+            // rather than a guess, which is why neither can print
+            // "[object Object]".
+            const theirs = answerToText(row.their_answer, opts);
+            const right = answerToText(row.correct_answer, opts);
+            const correctIdx = Array.isArray(
+              (row.correct_answer as { indexes?: unknown })?.indexes,
+            )
+              ? Number(((row.correct_answer as { indexes: unknown[] }).indexes ?? [])[0] ?? -1)
               : null;
-          const selectedIdx = Array.isArray(resp.indexes) ? resp.indexes[0] ?? null : null;
-          // `q.correct` and the response are untyped jsonb, and for every
-          // auto-marked format they hold a POSITION rather than a word. One
-          // decoder handles all four shapes and is shared with the teacher's
-          // report, so the two screens cannot start disagreeing about what an
-          // answer payload says; it returns null rather than a guess, which is
-          // why neither branch can produce "[object Object]".
-          const correctText = answerToText(q.correct, opts) ?? "";
-          const selectedText = answerToText(resp, opts) ?? "";
-          const qTopic = displayTopic(String((q as { topic?: string }).topic ?? "")) || "";
-          return (
-            <Card key={q.id} className="p-5">
-              <div className="text-xs text-muted-foreground mb-2">Q{i + 1}</div>
-              <QuestionRenderer
-                question={q}
-                mode="review"
-                value={resp}
-                isCorrect={(a?.is_correct as boolean | null | undefined) ?? null}
-              />
-              <ExplainPanel
-                question={q.question}
-                options={opts}
-                correctIndex={correctIdx}
-                selectedIndex={selectedIdx}
-                correctText={correctText}
-                selectedText={selectedText}
-                subject={testSubject(test)}
-                topic={qTopic}
-                wasCorrect={(a?.is_correct as boolean | null | undefined) ?? null}
-              />
-            </Card>
-          );
-        })}
-      </div>
+            const selectedIdx = Array.isArray((row.their_answer as { indexes?: unknown })?.indexes)
+              ? Number(((row.their_answer as { indexes: unknown[] }).indexes ?? [])[0] ?? -1)
+              : null;
+            const shape: TestQuestionShape = {
+              id: row.question_id,
+              order_index: row.order_index ?? i,
+              question_format: (row.question_format as TestQuestionShape["question_format"]) ?? "mcq",
+              question: row.question,
+              options: opts,
+              correct: (row.correct_answer as TestQuestionShape["correct"]) ?? null,
+              marks: Number(row.marks ?? 1),
+              explanation: row.explanation,
+            };
+            return (
+              <Card key={row.question_id} className="p-5">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="text-xs text-muted-foreground">Q{i + 1}</div>
+                  {/* Three states, and they must not render the same: right,
+                      wrong, and never answered. "Blank" said as "wrong" is a
+                      claim about what the student did (G4). */}
+                  <div
+                    className={
+                      row.is_correct
+                        ? "text-[11px] font-bold text-success"
+                        : row.answered
+                          ? "text-[11px] font-bold text-destructive"
+                          : "text-[11px] font-bold text-muted-foreground"
+                    }
+                  >
+                    {row.is_correct
+                      ? `Correct · +${row.marks_awarded ?? row.marks ?? 0}`
+                      : row.answered
+                        ? "Wrong · 0"
+                        : "Left blank · 0"}
+                  </div>
+                </div>
+                <QuestionRenderer
+                  question={shape}
+                  mode="review"
+                  value={(row.their_answer as { indexes?: number[] }) ?? {}}
+                  isCorrect={row.is_correct}
+                />
+                {!row.answered && (
+                  <div className="mt-2 text-[11px] text-muted-foreground">
+                    You did not answer this one.
+                  </div>
+                )}
+                <ExplainPanel
+                  question={row.question}
+                  options={opts}
+                  correctIndex={correctIdx != null && correctIdx >= 0 ? correctIdx : null}
+                  selectedIndex={selectedIdx != null && selectedIdx >= 0 ? selectedIdx : null}
+                  correctText={right ?? ""}
+                  selectedText={theirs ?? ""}
+                  subject={testSubject(test)}
+                  topic={displayTopic(row.topic) || row.topic}
+                  wasCorrect={row.is_correct}
+                />
+              </Card>
+            );
+          })}
+        </div>
       )}
     </>
   );

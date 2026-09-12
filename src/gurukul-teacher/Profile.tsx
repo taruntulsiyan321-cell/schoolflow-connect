@@ -2,11 +2,15 @@
 import {
   User, Mail, Lock, Link2,
   Edit2, Save, X, Check, Smartphone, Shield, Briefcase, Loader2, LogOut,
+  ClipboardList,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
+import { TestService, useAcademicLive } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { displaySubject } from "@/lib/presentation";
 import type { TeacherProfile } from "./data";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -62,6 +66,99 @@ function Field({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * What this teacher has set, on their own profile.
+ *
+ * The profile carried their name, subjects, linked accounts and a password
+ * form, and said nothing about their work. Both reads are their own rows —
+ * `can_read_test_row` admits the author, `test_attempts_staff_read` admits
+ * attempts on tests they created — so there is no fence here to get wrong.
+ */
+function TestsSetSection() {
+  const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["test", "profile"]);
+  const [summary, setSummary] = useState<Awaited<
+    ReturnType<typeof TestService.summaryForTeacher>
+  > | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const next = await TestService.summaryForTeacher(ctx, { limit: 5 });
+        if (!cancelled) {
+          setSummary(next);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) setError(toErrorMessage(e, "Could not load the tests you have set"));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, liveVersion]);
+
+  return (
+    <Section title="Tests You Have Set" icon={<ClipboardList className="w-4 h-4" />}>
+      {error ? (
+        <div className="text-xs text-muted-foreground">{error}</div>
+      ) : !summary ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading your tests…
+        </div>
+      ) : summary.total === 0 ? (
+        <div className="text-xs text-muted-foreground">
+          You have not set a test yet. Open a class and use Create Test.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Tests set", value: summary.total },
+              { label: "Live now", value: summary.published },
+              { label: "Papers handed in", value: summary.submissions },
+            ].map((s) => (
+              <div key={s.label} className="rounded-[2px] bg-muted/60 px-3 py-2">
+                <div className="text-lg font-black tabular-nums text-foreground">{s.value}</div>
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                  {s.label}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-1.5">
+            {summary.recent.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center justify-between gap-2 rounded-[2px] bg-muted/40 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <div className="text-xs text-foreground truncate">{t.title}</div>
+                  <div className="text-[9px] text-muted-foreground">
+                    {[t.subject ? displaySubject(t.subject) : null, t.status]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                </div>
+                <div className="text-[10px] text-muted-foreground shrink-0">
+                  {t.status === "published"
+                    ? `${t.submittedCount} handed in`
+                    : t.status === "draft"
+                      ? "not published"
+                      : t.status}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Section>
   );
 }
 
@@ -318,6 +415,8 @@ export default function TeacherProfile() {
           </div>
         </div>
       </Section>
+
+      <TestsSetSection />
 
       <Section title="Linked Accounts" icon={<Link2 className="w-4 h-4" />}>
         <div className="space-y-3">

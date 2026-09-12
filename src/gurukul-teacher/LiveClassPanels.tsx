@@ -41,9 +41,10 @@ import {
   type TeacherProgressionInsights,
 } from "@/academic";
 import type {
+  BankQuestion,
   ManualQuestionInput,
-  ManualQuestionKind,
   TestClassReport,
+  TestListRow,
   TestStudentReport,
 } from "@/academic/services/testService";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -51,6 +52,7 @@ import type { ExamRecord, MarksRecord } from "@/academic/repository/marksReposit
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
 import {
+  displaySubject,
   displayTopic,
   toCountLabel,
   toDisplayText,
@@ -91,13 +93,23 @@ type LiveStudent = ClassStudentRow & {
   testsAvgPct: number | null;
 };
 
-const MANUAL_QUESTION_KINDS: { value: ManualQuestionKind; label: string }[] = [
-  { value: "mcq", label: "MCQ" },
-  { value: "true_false", label: "True / False" },
-  { value: "fill", label: "Fill in the blank" },
-  { value: "short", label: "Short answer" },
-  { value: "long", label: "Long answer" },
-  { value: "numerical", label: "Numerical" },
+/**
+ * The two presets the builder offers, and they are both MCQs.
+ *
+ * This list was six kinds — MCQ, True/False, fill, short, long, numerical — and
+ * three of them produced questions nothing could mark: `rpc_test_submit` marks
+ * by jsonb equality against the answer key, `correct` is NULL by constraint for
+ * a written question, and no screen in the product marks an online test by
+ * hand. A student's written answer therefore scored zero in silence and the
+ * class report then ranked its topic 100% wrong.
+ *
+ * Ruled 2026-09-12 — "for the online test, only MCQ questions can be given" —
+ * and made structural by `20260920020000`. True/False survives as what it
+ * always was underneath: a two-option MCQ.
+ */
+const QUESTION_PRESETS = [
+  { value: "mcq" as const, label: "Multiple choice", options: ["", "", "", ""] },
+  { value: "true_false" as const, label: "True / False", options: ["True", "False"] },
 ];
 
 /**
@@ -148,7 +160,7 @@ type TestRow = {
   created_at?: string | null;
 };
 
-function resolveTestStatus(t: TestRow): string {
+function resolveTestStatus(t: { status?: string | null }): string {
   // `status` is NOT NULL on `tests`, so the old `is_published` fallback below
   // this line was unreachable as well as addressed to a missing column.
   return t.status ? String(t.status) : "draft";
@@ -818,11 +830,27 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
 
 type BuilderStep = "basics" | "source" | "library" | "manual" | "upload" | "review";
 type QuestionSource = "library" | "manual" | "upload";
-type DraftQuestion = ManualQuestionInput & { localId: string };
+/** A question on the paper being built, with where it came from. */
+type DraftQuestion = ManualQuestionInput & { localId: string; bankId?: string | null };
 type PaperAttachment = HomeworkAttachmentMeta;
 
 function newLocalId() {
   return `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** One bank question, as a draft question on this paper. Marks default to 1. */
+function fromBank(b: BankQuestion): DraftQuestion {
+  return {
+    localId: newLocalId(),
+    bankId: b.id,
+    question: b.question,
+    options: b.options,
+    correctIndex: b.correctIndex,
+    marks: 1,
+    explanation: b.explanation,
+    chapter: b.chapter,
+    topic: b.topic,
+  };
 }
 
 const emptyBasics = () => ({
@@ -831,40 +859,52 @@ const emptyBasics = () => ({
   durationMin: "30",
   maxMarks: "",
   instructions: "",
+  /**
+   * Chapter and topic, and they are not decoration: §10.22 requires a test to
+   * carry its topic PER QUESTION, and `rpc_test_class_report` ranks weakest
+   * topics off `test_questions.concept` falling back to `.chapter`. A paper
+   * written without either ranks everything under "Unlabelled", which is a
+   * report that cannot be acted on. Questions taken from the bank bring their
+   * own; hand-written ones take these.
+   */
+  chapter: "",
+  topic: "",
   publishMode: "draft" as "draft" | "now" | "schedule",
   scheduledAt: "",
 });
 
+/**
+ * The question form, MCQ-shaped.
+ *
+ * `correct` was a free-text field the teacher typed the correct option's TEXT
+ * into ("Correct option text *"). A typo, a trailing space or a changed option
+ * produced an answer key naming no option — `{indexes: []}` — and then every
+ * student's answer marked wrong with nothing on screen to explain it. The
+ * correct option is now PICKED, so the mistake cannot be expressed: what
+ * travels is its index.
+ */
 const emptyQuestionForm = () => ({
-  kind: "mcq" as ManualQuestionKind,
+  preset: "mcq" as (typeof QUESTION_PRESETS)[number]["value"],
   question: "",
-  optionA: "",
-  optionB: "",
-  optionC: "",
-  optionD: "",
-  optionsCsv: "",
-  useCsv: false,
-  correct: "",
+  options: ["", "", "", ""] as string[],
+  correctIndex: null as number | null,
   marks: "1",
+  explanation: "",
 });
 
-const LIBRARY_FILTER_KEYS = [
-  "board",
-  "classLevel",
-  "subject",
-  "book",
-  "chapter",
-  "topic",
-  "kind",
-  "difficulty",
-] as const;
+const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 
 export function LiveTestsTab({ classId, subject }: { classId: string; subject: string }) {
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["test", "profile"]);
-  const [tests, setTests] = useState<TestRow[]>([]);
-  /** Counted from `test_questions`; `tests` carries no question_count column. */
-  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
+  /**
+   * One row per test, from `rpc_test_list_for_class`, carrying what this screen
+   * cannot compute: the question count (`test_questions` is closed to students,
+   * so it is read through a definer) and how many of the class have handed in.
+   * Both used to be absent — the list read `question_count` off the test row,
+   * which is not a column there, and printed "0 Q" against every test.
+   */
+  const [tests, setTests] = useState<TestListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
@@ -877,17 +917,21 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   const [questions, setQuestions] = useState<DraftQuestion[]>([]);
   const [qForm, setQForm] = useState(emptyQuestionForm);
   const [attachments, setAttachments] = useState<PaperAttachment[]>([]);
-  const [libFilters, setLibFilters] = useState<Record<(typeof LIBRARY_FILTER_KEYS)[number], string>>(
-    () =>
-      Object.fromEntries(LIBRARY_FILTER_KEYS.map((k) => [k, ""])) as Record<
-        (typeof LIBRARY_FILTER_KEYS)[number],
-        string
-      >,
-  );
-  const [libItems, setLibItems] = useState<
-    Awaited<ReturnType<typeof TestService.listQuestionLibrary>>
-  >([]);
-  const [libLoading, setLibLoading] = useState(false);
+  /**
+   * The question-bank picker. The filters are the four the bank is actually
+   * organised by — class level, subject, chapter, difficulty — plus a text
+   * search. The eight-field grid this replaces included `board` (decided by the
+   * school, not the teacher), `book` (no such column) and `kind` (every bank
+   * row is an MCQ), and fed a service call that returned `[]` unconditionally.
+   */
+  const [bankClassLevel, setBankClassLevel] = useState<string>("");
+  const [bankChapter, setBankChapter] = useState<string>("");
+  const [bankDifficulty, setBankDifficulty] = useState<string>("");
+  const [bankSearch, setBankSearch] = useState<string>("");
+  const [bankChapters, setBankChapters] = useState<{ chapter: string; count: number }[]>([]);
+  const [bankItems, setBankItems] = useState<BankQuestion[]>([]);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankError, setBankError] = useState<string | null>(null);
   const [scheduleDraftId, setScheduleDraftId] = useState<string | null>(null);
   const [scheduleAt, setScheduleAt] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
@@ -963,14 +1007,10 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     if (!quiet) setLoading(true);
     try {
       await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
-      const t = await TestService.listForClass(ctx, classId);
-      const rows = (t ?? []) as TestRow[];
-      setTests(rows);
-      // Counting is a second request on purpose: test_questions is closed to
-      // students (G14), so it cannot ride along in the shared list query.
-      setQuestionCounts(
-        await TestService.countQuestions(ctx, rows.map((r) => r.id)).catch(() => ({})),
-      );
+      // ONE call. This was two — the list, then a separate question count —
+      // and neither could say how many students had handed in, which is the
+      // fact a teacher opens a published test to find out.
+      setTests(await TestService.listForClassDetailed(ctx, classId));
       setError(null);
       loadedRef.current = true;
     } catch (err) {
@@ -996,36 +1036,75 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveVersion]);
 
+  /**
+   * The chapters the bank actually has questions for, at this class level and
+   * subject. Offering a chapter with nothing behind it is worse than offering
+   * none: the teacher picks it, sees an empty list, and cannot tell whether the
+   * bank is empty or their filter is wrong. The count is on every option.
+   */
   useEffect(() => {
     if (!ready || !ctx || step !== "library") return;
+    const level = Number(bankClassLevel);
+    if (!Number.isFinite(level) || level <= 0 || !subject) {
+      setBankChapters([]);
+      return;
+    }
     let cancelled = false;
     (async () => {
-      setLibLoading(true);
       try {
-        const items = await TestService.listQuestionLibrary(ctx, {
-          board: libFilters.board || undefined,
-          classLevel: libFilters.classLevel || undefined,
-          subject: libFilters.subject || undefined,
-          book: libFilters.book || undefined,
-          chapter: libFilters.chapter || undefined,
-          topic: libFilters.topic || undefined,
-          kind: libFilters.kind || undefined,
-          difficulty: libFilters.difficulty || undefined,
-        });
-        if (!cancelled) setLibItems(items);
-      } catch (e) {
-        if (!cancelled) {
-          setLibItems([]);
-          setError(errMsg(e, "Failed to load question library"));
-        }
-      } finally {
-        if (!cancelled) setLibLoading(false);
+        const rows = await TestService.listBankChapters(ctx, { classLevel: level, subject });
+        if (!cancelled) setBankChapters(rows);
+      } catch {
+        if (!cancelled) setBankChapters([]);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, step, libFilters]);
+  }, [ready, ctx, step, bankClassLevel, subject]);
+
+  useEffect(() => {
+    if (!ready || !ctx || step !== "library") return;
+    const level = Number(bankClassLevel);
+    if (!Number.isFinite(level) || level <= 0) {
+      setBankItems([]);
+      setBankError(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        setBankLoading(true);
+        setBankError(null);
+        try {
+          const items = await TestService.searchQuestionBank(ctx, {
+            classLevel: level,
+            // The subject is the section-subject this tab is already scoped to
+            // (§10.22). A teacher picking Physics questions for a Maths test
+            // would file the test under the wrong subject's analysis for the
+            // rest of the year, so it is not offered as a filter.
+            subject,
+            chapter: bankChapter || null,
+            difficulty: bankDifficulty || null,
+            search: bankSearch || null,
+            limit: 40,
+          });
+          if (!cancelled) setBankItems(items);
+        } catch (e) {
+          if (!cancelled) {
+            setBankItems([]);
+            setBankError(toErrorMessage(e, "Could not search the question bank"));
+          }
+        } finally {
+          if (!cancelled) setBankLoading(false);
+        }
+      })();
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [ready, ctx, step, bankClassLevel, subject, bankChapter, bankDifficulty, bankSearch]);
 
   const resetBuilder = () => {
     setBuilderOpen(false);
@@ -1035,13 +1114,12 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     setQuestions([]);
     setQForm(emptyQuestionForm());
     setAttachments([]);
-    setLibItems([]);
-    setLibFilters(
-      Object.fromEntries(LIBRARY_FILTER_KEYS.map((k) => [k, ""])) as Record<
-        (typeof LIBRARY_FILTER_KEYS)[number],
-        string
-      >,
-    );
+    setBankItems([]);
+    setBankChapters([]);
+    setBankChapter("");
+    setBankDifficulty("");
+    setBankSearch("");
+    setBankError(null);
   };
 
   const openBuilder = () => {
@@ -1070,60 +1148,67 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     }
   };
 
+  /**
+   * Add the question on the form to the paper.
+   *
+   * Every refusal below names what is missing. The marks floor is 1 and whole:
+   * this was `Math.max(0.5, ...)`, and a half mark cannot be represented by
+   * `tests.max_mark` or `test_marks.mark` — both integer columns — so it was
+   * silently rounded into the mark a parent and a principal read.
+   */
   const addManualQuestion = () => {
-    if (!qForm.question.trim()) {
+    const question = qForm.question.trim();
+    if (!question) {
       setError("Question text is required");
       return;
     }
-    let options: string[] | undefined;
-    let correct: ManualQuestionInput["correct"] = qForm.correct.trim() || undefined;
-
-    if (qForm.kind === "mcq") {
-      if (qForm.useCsv) {
-        options = qForm.optionsCsv
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
-      } else {
-        options = [qForm.optionA, qForm.optionB, qForm.optionC, qForm.optionD]
-          .map((s) => s.trim())
-          .filter(Boolean);
-      }
-      if (options.length < 2) {
-        setError("MCQ needs at least 2 options");
-        return;
-      }
-      if (!correct) {
-        setError("Correct answer is required for MCQ");
-        return;
-      }
-    } else if (qForm.kind === "true_false") {
-      options = ["True", "False"];
-      if (!correct) {
-        setError("Select True or False as the correct answer");
-        return;
-      }
-    } else if (qForm.kind === "numerical") {
-      const n = Number(qForm.correct);
-      if (qForm.correct.trim() === "" || Number.isNaN(n)) {
-        setError("Numerical questions need a numeric correct answer");
-        return;
-      }
-      correct = n;
+    const options = qForm.options.map((o) => o.trim());
+    const filled = options.filter(Boolean);
+    if (filled.length < 2) {
+      setError("A question needs at least two options");
+      return;
+    }
+    if (options.some((o, i) => o === "" && i < options.length && options.slice(i + 1).some(Boolean))) {
+      setError("Fill the options in order — there is a blank one above a filled one");
+      return;
+    }
+    if (qForm.correctIndex == null || !filled[qForm.correctIndex]) {
+      setError("Mark which option is the correct answer");
+      return;
+    }
+    const marks = Number(qForm.marks);
+    if (!Number.isInteger(marks) || marks < 1) {
+      setError("Marks must be a whole number of at least 1");
+      return;
     }
 
     setQuestions((prev) => [
       ...prev,
       {
         localId: newLocalId(),
-        kind: qForm.kind,
-        question: qForm.question.trim(),
-        options,
-        correct,
-        marks: Math.max(0.5, Number(qForm.marks) || 1),
+        question,
+        options: filled,
+        correctIndex: qForm.correctIndex as number,
+        marks,
+        explanation: qForm.explanation.trim() || null,
+        // The chapter and topic this tab is already scoped to. §10.22: a test
+        // carries its topic PER QUESTION, and the class report ranks weak
+        // topics off exactly this field — a question with none lands under
+        // "Unlabelled".
+        chapter: basics.chapter.trim() || null,
+        topic: basics.topic.trim() || null,
       },
     ]);
     setQForm(emptyQuestionForm());
+    setError(null);
+  };
+
+  const addBankQuestion = (b: BankQuestion) => {
+    if (questions.some((q) => q.bankId === b.id)) {
+      setError("That question is already on this paper");
+      return;
+    }
+    setQuestions((prev) => [...prev, fromBank(b)]);
     setError(null);
   };
 
@@ -1156,6 +1241,21 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     setStep(s);
   };
 
+  /**
+   * Save the paper.
+   *
+   * ── THE ORDERING, AND WHY IT CHANGED ────────────────────────────────────
+   *
+   * This used to create the test with `status: 'published'` and write the
+   * questions AFTER. Between those two awaits the test was published with no
+   * questions: a student refreshing their Tests screen was offered a paper
+   * `rpc_test_start` then refused with "test has no questions" — and if the
+   * question write failed at all, the test stayed published and empty for good.
+   *
+   * `TestService.createWithQuestions` does it in the only safe order — draft,
+   * questions, then publish or schedule — and validates the whole paper before
+   * a row exists, so a refused question costs the teacher nothing.
+   */
   const submitBuilder = async (mode: "draft" | "now" | "schedule") => {
     if (!ctx) return;
     if (!basics.title.trim()) {
@@ -1164,11 +1264,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
       return;
     }
     if ((source === "manual" || source === "library") && questions.length === 0) {
-      setError(
-        source === "library"
-          ? "Question library has no content yet — pick Manual or Upload, or add questions once the library is filled"
-          : "Add at least one question, or switch source",
-      );
+      setError("Add at least one question, or switch source");
       setStep(source);
       return;
     }
@@ -1182,6 +1278,17 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
       setStep("basics");
       return;
     }
+    if (source === "upload" && mode !== "draft") {
+      // An uploaded paper has no questions, so there is nothing online to sit.
+      // Publishing it puts a card on every student's screen with no way in.
+      // It is still a real thing to keep — the teacher enters the marks from
+      // the written paper — so it saves as a draft and says why.
+      setError(
+        "An uploaded paper has no online questions, so students cannot sit it. " +
+          "Save it as a draft and enter the marks from the written paper, or build the questions here.",
+      );
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -1189,47 +1296,42 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     try {
       const durationSec = Math.max(60, Math.round(durationMin * 60));
       const maxMarksFromForm = basics.maxMarks ? Number(basics.maxMarks) : null;
-      const maxMarks =
-        source === "manual" || source === "library"
-          ? questionMarksTotal || maxMarksFromForm
-          : maxMarksFromForm;
 
-      const created = (await TestService.create(ctx, {
-        classId,
-        title: basics.title.trim(),
-        subject,
-        testKind: basics.testKind,
-        duration_sec: durationSec,
-        maxMarks: maxMarks ?? null,
-        instructions: basics.instructions.trim() || null,
-        status: mode === "now" ? "published" : mode === "schedule" ? "scheduled" : "draft",
-        scheduledPublishAt:
-          mode === "schedule" ? new Date(basics.scheduledAt).toISOString() : undefined,
-        paperAttachments: source === "upload" ? attachments : undefined,
-      })) as { id: string };
-
-      if ((source === "manual" || source === "library") && questions.length > 0) {
-        await TestService.setQuestions(
-          ctx,
-          created.id,
-          questions.map(({ kind, question, options, correct, marks, explanation }) => ({
-            kind,
-            question,
-            options,
-            correct,
-            marks,
-            explanation,
-          })),
-        );
-      }
-
-      if (mode === "schedule") {
-        await TestService.schedule(ctx, created.id, new Date(basics.scheduledAt).toISOString());
-      }
+      await TestService.createWithQuestions(
+        ctx,
+        {
+          classId,
+          title: basics.title.trim(),
+          subject,
+          testKind: basics.testKind,
+          duration_sec: durationSec,
+          maxMarks: maxMarksFromForm,
+          instructions: basics.instructions.trim() || null,
+          chapters: basics.chapter.trim() ? [basics.chapter.trim()] : undefined,
+          topics: basics.topic.trim() ? [basics.topic.trim()] : undefined,
+          paperAttachments: source === "upload" ? attachments : undefined,
+        },
+        source === "upload"
+          ? []
+          : questions.map(({ question, options, correctIndex, marks, explanation, chapter, topic }) => ({
+              question,
+              options,
+              correctIndex,
+              marks,
+              explanation,
+              chapter,
+              topic,
+            })),
+        mode === "now"
+          ? { mode: "now" }
+          : mode === "schedule"
+            ? { mode: "schedule", at: new Date(basics.scheduledAt).toISOString() }
+            : { mode: "draft" },
+      );
 
       setSuccess(
         mode === "now"
-          ? "Test published successfully"
+          ? `Published to this class — ${questions.length} question(s), ${questionMarksTotal} marks`
           : mode === "schedule"
             ? "Test scheduled successfully"
             : "Draft saved successfully",
@@ -1323,6 +1425,35 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground w-24"
               />
             </div>
+            {/* The denominator every mark on this test is scored against. For a
+                built paper it is the sum of the question marks and this field
+                is ignored — saying so beats letting a teacher type 20 over a
+                10-mark paper and watch every mark come out of 20. */}
+            <div className="text-[10px] text-muted-foreground">
+              Max marks is taken from the questions you add. This field is only used for an
+              uploaded paper.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={basics.chapter}
+                onChange={(e) => setBasics((f) => ({ ...f, chapter: e.target.value }))}
+                placeholder="Chapter"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground flex-1 min-w-[140px]"
+              />
+              <input
+                value={basics.topic}
+                onChange={(e) => setBasics((f) => ({ ...f, topic: e.target.value }))}
+                placeholder="Topic"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground flex-1 min-w-[140px]"
+              />
+            </div>
+            {/* §10.22: a test carries its topic per question, and the report
+                ranks weak topics off it. Questions from the bank bring their
+                own; hand-written ones take these two. */}
+            <div className="text-[10px] text-muted-foreground">
+              The chapter and topic are what the class report ranks weak topics by. Questions taken
+              from the bank bring their own.
+            </div>
             <textarea
               value={basics.instructions}
               onChange={(e) => setBasics((f) => ({ ...f, instructions: e.target.value }))}
@@ -1377,20 +1508,20 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 {
                   key: "library" as const,
                   icon: BookOpen,
-                  title: "Gurukul Question Library",
-                  desc: "Filter NCERT / board questions (coming soon)",
+                  title: "Pick from the question bank",
+                  desc: "21,000+ board MCQs, by chapter and difficulty — answers already keyed",
                 },
                 {
                   key: "manual" as const,
                   icon: PenLine,
-                  title: "Write questions manually",
-                  desc: "MCQ, T/F, fill, short, long, numerical",
+                  title: "Write the questions yourself",
+                  desc: "Multiple choice or True / False, marked automatically",
                 },
                 {
                   key: "upload" as const,
                   icon: Upload,
-                  title: "Upload question paper",
-                  desc: "Attach PDF / image URLs (metadata only)",
+                  title: "Upload a written paper",
+                  desc: "Attach a PDF for a paper sat in class — saves as a draft, no online attempt",
                 },
               ] as const
             ).map((card) => (
@@ -1412,45 +1543,178 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
         {step === "library" && (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              {LIBRARY_FILTER_KEYS.map((key) => (
-                <input
-                  key={key}
-                  value={libFilters[key]}
-                  onChange={(e) =>
-                    setLibFilters((f) => ({ ...f, [key]: e.target.value }))
-                  }
-                  placeholder={key.replace(/([A-Z])/g, " $1")}
-                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground capitalize"
-                />
-              ))}
+            <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+              <span>
+                On this paper: <strong className="text-foreground">{questions.length}</strong>
+              </span>
+              <span>
+                Marks: <strong className="text-foreground">{questionMarksTotal}</strong>
+              </span>
+              <span>
+                Subject: <strong className="text-foreground">{subject || "—"}</strong>
+              </span>
             </div>
-            {libLoading ? (
-              <Loading label="Loading library…" />
-            ) : libItems.length > 0 ? (
+
+            <div className="bg-surface border border-border rounded-[2px] p-3 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={bankClassLevel}
+                  onChange={(e) => {
+                    setBankClassLevel(e.target.value);
+                    setBankChapter("");
+                  }}
+                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
+                >
+                  <option value="">Class level *</option>
+                  {[5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                    <option key={n} value={String(n)}>
+                      Class {n}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={bankChapter}
+                  onChange={(e) => setBankChapter(e.target.value)}
+                  disabled={bankChapters.length === 0}
+                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground disabled:opacity-50 max-w-[220px]"
+                >
+                  <option value="">All chapters</option>
+                  {bankChapters.map((c) => (
+                    <option key={c.chapter} value={c.chapter}>
+                      {c.chapter} ({c.count})
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={bankDifficulty}
+                  onChange={(e) => setBankDifficulty(e.target.value)}
+                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground capitalize"
+                >
+                  <option value="">Any difficulty</option>
+                  {DIFFICULTIES.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <input
+                  value={bankSearch}
+                  onChange={(e) => setBankSearch(e.target.value)}
+                  placeholder="Search the question text"
+                  className="flex-1 bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
+                />
+              </div>
+              {/* The class level is required, not defaulted: guessing it would
+                  serve a Class 6 paper to a Class 10 section, and the bank
+                  holds every level. */}
+              {!bankClassLevel && (
+                <div className="text-[10px] text-muted-foreground">
+                  Choose the class level to search. The subject is this class&apos;s own
+                  {subject ? ` (${subject})` : ""}.
+                </div>
+              )}
+            </div>
+
+            {bankError && (
+              <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+                {bankError}
+              </div>
+            )}
+
+            {bankLoading ? (
+              <Loading label="Searching the question bank…" />
+            ) : bankItems.length > 0 ? (
               <div className="space-y-2">
-                {libItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-surface border border-border/70 rounded-[2px] text-xs text-foreground"
-                  >
-                    {item.question}
-                  </div>
-                ))}
+                {bankItems.map((item) => {
+                  const already = questions.some((q) => q.bankId === item.id);
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3 bg-surface border border-border/70 rounded-[2px] space-y-2"
+                    >
+                      <div className="text-xs text-foreground">{item.question}</div>
+                      <div className="grid grid-cols-2 gap-1">
+                        {item.options.map((opt, i) => (
+                          <div
+                            key={i}
+                            className={cn(
+                              "text-[10px] px-2 py-1 rounded-[2px] border",
+                              i === item.correctIndex
+                                ? "border-success/40 bg-success/10 text-success"
+                                : "border-border/60 text-muted-foreground",
+                            )}
+                          >
+                            {String.fromCharCode(65 + i)}. {opt}
+                            {i === item.correctIndex ? " ✓" : ""}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[9px] text-muted-foreground truncate">
+                          {[item.chapter, item.topic ? displayTopic(item.topic) || item.topic : null, item.difficulty]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={already}
+                          onClick={() => addBankQuestion(item)}
+                          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/20 text-primary disabled:opacity-40 shrink-0"
+                        >
+                          {already ? "On the paper" : "Add"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
-              <div className="bg-surface border border-dashed border-border rounded-[2px] p-6 text-center space-y-3">
+              <div className="bg-surface border border-dashed border-border rounded-[2px] p-6 text-center space-y-2">
                 <BookOpen className="w-8 h-8 text-muted-foreground mx-auto" />
                 <div className="text-xs text-muted-foreground">
-                  Library coming soon — NCERT content will be added later. Use Manual or Upload for
-                  now.
+                  {!bankClassLevel
+                    ? "Choose a class level to see the bank's questions for this subject."
+                    : "No approved questions match those filters for this subject and class."}
                 </div>
+              </div>
+            )}
+
+            {questions.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-border/60">
+                <div className="text-[10px] font-bold text-foreground">
+                  On this paper ({questions.length})
+                </div>
+                {questions.map((q, i) => (
+                  <div
+                    key={q.localId}
+                    className="p-2 bg-muted/40 border border-border/60 rounded-[2px] flex items-center gap-2"
+                  >
+                    <span className="text-[9px] text-muted-foreground shrink-0">{i + 1}.</span>
+                    <span className="text-[11px] text-foreground flex-1 min-w-0 truncate">
+                      {q.question}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground shrink-0">
+                      {q.marks ?? 1} mark{(q.marks ?? 1) === 1 ? "" : "s"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setQuestions((prev) => prev.filter((x) => x.localId !== q.localId))}
+                      className="p-1 rounded bg-destructive/15 text-destructive shrink-0"
+                      aria-label={`Remove question ${i + 1}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
                 <button
                   type="button"
-                  onClick={() => pickSource("manual")}
-                  className="px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary/20 text-primary"
+                  onClick={() => setStep("review")}
+                  className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
                 >
-                  Switch to manual
+                  Next: Review <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
@@ -1474,96 +1738,125 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
             </div>
 
             <div className="bg-surface border border-border rounded-[2px] p-4 space-y-2">
-              <select
-                value={qForm.kind}
-                onChange={(e) =>
-                  setQForm((f) => ({ ...f, kind: e.target.value as ManualQuestionKind }))
-                }
-                className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
-              >
-                {MANUAL_QUESTION_KINDS.map((k) => (
-                  <option key={k.value} value={k.value}>
-                    {k.label}
-                  </option>
+              {/* Two presets, and both are MCQs: an online test is marked by
+                  comparing the answer to its key, and nothing in the product
+                  marks prose. A written question belongs on a printed paper
+                  (/teacher/question-papers). */}
+              <div className="flex gap-1">
+                {QUESTION_PRESETS.map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() =>
+                      setQForm((f) => ({
+                        ...f,
+                        preset: preset.value,
+                        options: [...preset.options],
+                        correctIndex: null,
+                      }))
+                    }
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg text-[10px] font-bold",
+                      qForm.preset === preset.value
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {preset.label}
+                  </button>
                 ))}
-              </select>
+              </div>
+
               <textarea
                 value={qForm.question}
                 onChange={(e) => setQForm((f) => ({ ...f, question: e.target.value }))}
                 placeholder="Question text *"
                 className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground min-h-[50px]"
               />
-              {qForm.kind === "mcq" && (
-                <div className="space-y-2">
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setQForm((f) => ({ ...f, useCsv: false }))}
-                      className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        !qForm.useCsv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      4 options
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setQForm((f) => ({ ...f, useCsv: true }))}
-                      className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        qForm.useCsv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      Comma-separated
-                    </button>
-                  </div>
-                  {qForm.useCsv ? (
-                    <input
-                      value={qForm.optionsCsv}
-                      onChange={(e) => setQForm((f) => ({ ...f, optionsCsv: e.target.value }))}
-                      placeholder="Options, comma-separated"
-                      className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
-                    />
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {(["optionA", "optionB", "optionC", "optionD"] as const).map((key, i) => (
-                        <input
-                          key={key}
-                          value={qForm[key]}
-                          onChange={(e) => setQForm((f) => ({ ...f, [key]: e.target.value }))}
-                          placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                          className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
-                        />
-                      ))}
-                    </div>
-                  )}
+
+              {/* The correct answer is PICKED, never typed. It used to be a
+                  free-text "Correct option text" field: a typo produced an
+                  answer key naming no option, and then every student's answer
+                  marked wrong with nothing on screen to explain it. */}
+              <div className="space-y-1.5">
+                <div className="text-[10px] text-muted-foreground">
+                  Options — tap the circle to mark the correct one
                 </div>
-              )}
-              {qForm.kind === "true_false" ? (
-                <select
-                  value={qForm.correct}
-                  onChange={(e) => setQForm((f) => ({ ...f, correct: e.target.value }))}
-                  className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
-                >
-                  <option value="">Correct answer *</option>
-                  <option value="True">True</option>
-                  <option value="False">False</option>
-                </select>
-              ) : (
-                <input
-                  value={qForm.correct}
-                  onChange={(e) => setQForm((f) => ({ ...f, correct: e.target.value }))}
-                  placeholder={
-                    qForm.kind === "numerical"
-                      ? "Correct number *"
-                      : qForm.kind === "mcq"
-                        ? "Correct option text *"
-                        : "Correct / model answer"
-                  }
-                  className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
-                />
-              )}
+                {qForm.options.map((opt, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQForm((f) => ({ ...f, correctIndex: i }))}
+                      aria-label={`Mark option ${String.fromCharCode(65 + i)} correct`}
+                      aria-pressed={qForm.correctIndex === i}
+                      className={cn(
+                        "w-6 h-6 rounded-full border text-[10px] font-bold shrink-0 flex items-center justify-center",
+                        qForm.correctIndex === i
+                          ? "border-success bg-success/20 text-success"
+                          : "border-border text-muted-foreground",
+                      )}
+                    >
+                      {String.fromCharCode(65 + i)}
+                    </button>
+                    <input
+                      value={opt}
+                      onChange={(e) =>
+                        setQForm((f) => ({
+                          ...f,
+                          options: f.options.map((o, j) => (j === i ? e.target.value : o)),
+                        }))
+                      }
+                      disabled={qForm.preset === "true_false"}
+                      placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                      className="flex-1 bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground disabled:opacity-70"
+                    />
+                    {qForm.preset === "mcq" && qForm.options.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setQForm((f) => ({
+                            ...f,
+                            options: f.options.filter((_, j) => j !== i),
+                            correctIndex:
+                              f.correctIndex == null
+                                ? null
+                                : f.correctIndex === i
+                                  ? null
+                                  : f.correctIndex > i
+                                    ? f.correctIndex - 1
+                                    : f.correctIndex,
+                          }))
+                        }
+                        className="p-1 rounded bg-destructive/15 text-destructive shrink-0"
+                        aria-label={`Remove option ${String.fromCharCode(65 + i)}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {qForm.preset === "mcq" && qForm.options.length < 6 && (
+                  <button
+                    type="button"
+                    onClick={() => setQForm((f) => ({ ...f, options: [...f.options, ""] }))}
+                    className="text-[10px] font-bold text-primary"
+                  >
+                    + Add another option
+                  </button>
+                )}
+              </div>
+
+              <input
+                value={qForm.explanation}
+                onChange={(e) => setQForm((f) => ({ ...f, explanation: e.target.value }))}
+                placeholder="Explanation (shown to the student with their result)"
+                className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
+              />
+
               <div className="flex gap-2">
                 <input
                   value={qForm.marks}
+                  inputMode="numeric"
                   onChange={(e) => setQForm((f) => ({ ...f, marks: e.target.value }))}
                   placeholder="Marks"
                   className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground w-24"
@@ -1586,9 +1879,15 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-[9px] text-primary font-bold uppercase">
-                      {q.kind} · {q.marks ?? 1} marks
+                      {q.marks ?? 1} mark{(q.marks ?? 1) === 1 ? "" : "s"}
+                      {q.bankId ? " · from the bank" : ""}
                     </div>
                     <div className="text-xs text-foreground mt-0.5 line-clamp-2">{q.question}</div>
+                    {/* The key, on screen, as the option it names. This is the
+                        only place a teacher can check it before publishing. */}
+                    <div className="text-[9px] text-success mt-0.5 truncate">
+                      Correct: {String.fromCharCode(65 + q.correctIndex)}. {q.options[q.correctIndex]}
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1">
                     <button
@@ -1596,6 +1895,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       disabled={i === 0}
                       onClick={() => moveQuestion(i, -1)}
                       className="p-1 rounded bg-muted text-muted-foreground disabled:opacity-30"
+                      aria-label="Move up"
                     >
                       <ArrowUp className="w-3 h-3" />
                     </button>
@@ -1604,6 +1904,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       disabled={i === questions.length - 1}
                       onClick={() => moveQuestion(i, 1)}
                       className="p-1 rounded bg-muted text-muted-foreground disabled:opacity-30"
+                      aria-label="Move down"
                     >
                       <ArrowDown className="w-3 h-3" />
                     </button>
@@ -1613,6 +1914,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                         setQuestions((prev) => prev.filter((x) => x.localId !== q.localId))
                       }
                       className="p-1 rounded bg-destructive/15 text-destructive"
+                      aria-label="Remove question"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -1763,9 +2065,14 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
       <div className="space-y-2">
         {tests.map((t) => {
           const status = resolveTestStatus(t);
-          const marks = t.total_marks;
-          const qCount = questionCounts[t.id] ?? 0;
+          const marks = t.max_mark ?? t.total_marks;
+          const qCount = t.question_count;
           const canPublish = status !== "published" && status !== "archived";
+          // A published test with no questions is one a student is offered and
+          // then refused by `rpc_test_start`. The builder can no longer create
+          // one, but a test built before this could exist, so the list says so
+          // where the teacher can act on it.
+          const publishedEmpty = status === "published" && qCount === 0;
           return (
             <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-[2px] space-y-2">
               <div className="flex justify-between gap-2">
@@ -1775,7 +2082,21 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     {TEST_KIND_LABELS[(t.test_kind as TestKind) ?? "class_test"] ?? t.test_kind} ·{" "}
                     {qCount} Q · {marks != null ? `${marks} marks` : "— marks"}
                     {t.duration_sec ? ` · ${Math.round(t.duration_sec / 60)} min` : ""}
+                    {t.subject ? ` · ${displaySubject(t.subject)}` : ""}
                   </div>
+                  {/* How many have handed in — the fact a teacher opens a
+                      published test to find out, and one this list could not
+                      state at all before `rpc_test_list_for_class`. */}
+                  {status === "published" && t.submitted_count != null && (
+                    <div className="text-[10px] text-primary font-bold mt-0.5">
+                      {t.submitted_count} of {t.roll_count ?? "—"} handed in
+                    </div>
+                  )}
+                  {publishedEmpty && (
+                    <div className="text-[10px] text-destructive mt-0.5">
+                      Published with no questions — students cannot sit it. Add questions or archive it.
+                    </div>
+                  )}
                 </div>
                 <span
                   className={cn(

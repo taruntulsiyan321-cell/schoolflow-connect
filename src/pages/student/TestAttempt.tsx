@@ -73,6 +73,39 @@ export default function TestAttempt() {
    */
   const [saveState, setSaveState] = useState<Record<string, "saving" | "saved" | "failed">>({});
 
+  /**
+   * How long this student has spent on each question, in milliseconds.
+   *
+   * `test_answers.time_ms` is the only source for §10.25's "average time per
+   * question", which the teacher's report has always displayed and which was
+   * structurally NULL for every test ever taken in this product: the column
+   * existed and nothing ever wrote it. The screen that knows the answer is this
+   * one, so it is measured here — accumulated per question, so flipping back
+   * and forth adds up rather than overwriting.
+   *
+   * Refs, not state: a re-render per tick would re-run the whole paper's
+   * render for a number nothing displays.
+   */
+  const timeSpentRef = useRef<Record<string, number>>({});
+  const enteredAtRef = useRef<{ qid: string | null; at: number }>({ qid: null, at: Date.now() });
+
+  /** Bank the time spent on the question being left, and start the next one. */
+  const switchQuestionClock = (nextQid: string | null) => {
+    const { qid, at } = enteredAtRef.current;
+    if (qid) {
+      const spent = Math.max(0, Date.now() - at);
+      timeSpentRef.current[qid] = (timeSpentRef.current[qid] ?? 0) + spent;
+    }
+    enteredAtRef.current = { qid: nextQid, at: Date.now() };
+  };
+
+  /** The time to report for a question, including the stretch in progress. */
+  const timeFor = (qid: string): number => {
+    const banked = timeSpentRef.current[qid] ?? 0;
+    const live = enteredAtRef.current.qid === qid ? Math.max(0, Date.now() - enteredAtRef.current.at) : 0;
+    return banked + live;
+  };
+
   const resolveCtx = async () => {
     if (ctx && academicReady) return ctx;
     return resolveStudentServiceContext();
@@ -165,6 +198,19 @@ export default function TestAttempt() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user, ctx, academicReady]);
 
+  /**
+   * Start the clock on the question actually on screen, once the paper is
+   * loaded. Without this the first question is the one question with no
+   * timing — the clock would only start on the first navigation.
+   */
+  useEffect(() => {
+    const current = questions[idx];
+    if (!current) return;
+    if (enteredAtRef.current.qid !== current.id) {
+      switchQuestionClock(current.id);
+    }
+  }, [questions, idx]);
+
   const timedTest = ((test?.duration_sec as number | undefined) ?? 0) > 0;
   const remaining = useMemo(
     () => (timedTest ? Math.max(0, (test!.duration_sec as number) - seconds) : null),
@@ -213,6 +259,7 @@ export default function TestAttempt() {
           attemptId,
           questionId: qid,
           response: r as Record<string, unknown>,
+          timeMs: timeFor(qid),
         });
         if (saveSeqRef.current[qid] === seq) {
           setSaveState((prev) => ({ ...prev, [qid]: "saved" }));
@@ -254,9 +301,24 @@ export default function TestAttempt() {
   const submit = async () => {
     if (!attemptId || submitting) return;
     setSubmitting(true);
+    // Bank the time on the question they are looking at, so the last one
+    // counted is not the only one with no timing.
+    switchQuestionClock(null);
     try {
       const serviceCtx = await resolveCtx();
-      await TestService.submitAttempt(serviceCtx, attemptId);
+      // Hand over what THIS SCREEN is holding as well as relying on the
+      // incremental saves. It matters for exactly one case, and it is the case
+      // that loses marks: an answer whose own save failed (shown as "Not
+      // saved") still reaches the marking, because rpc_test_submit upserts
+      // what it is given before grading.
+      const payload = questions
+        .map((qq) => ({
+          question_id: qq.id,
+          response: responses[qq.id] ?? null,
+          time_ms: Math.round(timeSpentRef.current[qq.id] ?? 0),
+        }))
+        .filter((a) => a.response && Object.keys(a.response).length > 0);
+      await TestService.submitAttempt(serviceCtx, attemptId, payload);
       nav(`/student/test/${id}/result`);
     } catch (e) {
       toast.error(toErrorMessage(e, "Could not submit test"));
@@ -289,6 +351,14 @@ export default function TestAttempt() {
 
   const q = questions[idx];
   const answeredCount = Object.values(responses).filter((r) => r && Object.keys(r).length > 0).length;
+
+  /** Move the per-question clock whenever the visible question changes. */
+  const showQuestion = (next: number) => {
+    const target = questions[next];
+    if (!target) return;
+    switchQuestionClock(target.id);
+    setIdx(next);
+  };
   const mins = timedTest && remaining !== null ? Math.floor(remaining / 60).toString().padStart(2, "0") : null;
   const secs = timedTest && remaining !== null ? (remaining % 60).toString().padStart(2, "0") : null;
 
@@ -333,7 +403,7 @@ export default function TestAttempt() {
             const ans = responses[qq.id] && Object.keys(responses[qq.id]).length > 0;
             const unsaved = saveState[qq.id] === "failed";
             return (
-              <button key={qq.id} onClick={() => setIdx(i)}
+              <button key={qq.id} onClick={() => showQuestion(i)}
                 title={unsaved ? `Question ${i + 1} — not saved` : undefined}
                 // An unanswered question is OUTLINED, never red. Red means
                 // wrong, and nothing is wrong until it is marked. The only
@@ -388,12 +458,12 @@ export default function TestAttempt() {
       </Card>
 
       <div className="flex items-center justify-between gap-2">
-        <Button variant="outline" disabled={idx === 0} onClick={() => setIdx((i) => i - 1)}>
+        <Button variant="outline" disabled={idx === 0} onClick={() => showQuestion(idx - 1)}>
           <ArrowLeft className="w-4 h-4" /> Prev
         </Button>
         <div className="text-xs text-muted-foreground">{answeredCount}/{questions.length} answered</div>
         {idx < questions.length - 1 && !(timedTest && remaining === 0) ? (
-          <Button onClick={() => setIdx((i) => i + 1)}>Next <ArrowRight className="w-4 h-4" /></Button>
+          <Button onClick={() => showQuestion(idx + 1)}>Next <ArrowRight className="w-4 h-4" /></Button>
         ) : (
           <Button onClick={confirmThenSubmit} disabled={submitting}><Send className="w-4 h-4" /> {submitting ? "Submitting…" : "Submit"}</Button>
         )}

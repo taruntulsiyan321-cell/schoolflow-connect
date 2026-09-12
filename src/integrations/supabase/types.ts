@@ -9360,6 +9360,11 @@ export type Database = {
       }
       can_read_test: { Args: { _test_id: string }; Returns: boolean }
       can_read_test_report: { Args: { _test_id: string }; Returns: boolean }
+      can_read_test_leaderboard: {
+        Args: { _test_id: string }
+        Returns: boolean
+      }
+      can_read_test_marks: { Args: { _test_id: string }; Returns: boolean }
       can_read_test_row: {
         Args: {
           _created_by: string
@@ -10557,7 +10562,14 @@ export type Database = {
         Returns: Json
       }
       rpc_teacher_doubt_dashboard: { Args: never; Returns: Json }
+      rpc_test_answer_sheet: {
+        Args: { _student_id: string; _test_id: string }
+        Returns: Json
+      }
+      rpc_test_class_marks: { Args: { _test_id: string }; Returns: Json }
       rpc_test_class_report: { Args: { _test_id: string }; Returns: Json }
+      rpc_test_leaderboard: { Args: { _test_id: string }; Returns: Json }
+      rpc_test_list_for_class: { Args: { _class_id: string }; Returns: Json }
       rpc_test_questions_for_attempt: {
         Args: { _attempt_id: string }
         Returns: {
