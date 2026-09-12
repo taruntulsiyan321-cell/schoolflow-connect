@@ -1034,6 +1034,14 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
 
   return (
     <div className="flex h-[calc(100vh-80px)] -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden">
+      {/* AI Coach is a full-height chat and deliberately has no PageHeader —
+          a title bar above it would cost the thread a line of height on a
+          phone for a word the top bar already shows. But a document still
+          needs a heading: with the Layout's chrome <h1> removed (it was a
+          second h1 on every screen at 14px), this was the one screen left
+          with none at all. Visually hidden, so the layout is unchanged and a
+          screen reader still knows what it landed on. */}
+      <h1 className="sr-only">AI Coach</h1>
 
       {/* ── Sidebar (desktop always visible, mobile overlay) ── */}
       <div className={cn(
