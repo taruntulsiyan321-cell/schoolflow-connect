@@ -8,7 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
-import { EmptyState, GlassCard, LoadingState, PageHeader, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, PageHeader, PageSkeleton, SkeletonList, cn } from "@/gurukul/components/shared";
 import { toast } from "sonner";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -91,26 +91,39 @@ export default function Notices() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  // The title needs no network, so it no longer waits for one. The subtitle
+  // carries a count, and while loading `rows` is empty — which is exactly the
+  // generic sentence, so the line is honest in both states rather than
+  // announcing "0 notices" at something still being fetched.
+  const header = (
+    // The subtitle read "AnnouncementService · N published" — the service
+    // class name, on screen, to a student. Same defect as KNOWN_ISSUES 24,
+    // which was fixed for the parent panel and left here.
+    <PageHeader
+      eyebrow="Class"
+      title="Notices"
+      subtitle={
+        rows.length === 0
+          ? "Announcements from your school and your class."
+          : `${rows.length} ${rows.length === 1 ? "notice" : "notices"} from your school and your class.`
+      }
+    />
+  );
+
   if (showLoading(loading)) {
     return (
-      <LoadingState label="Loading notices…" />
+      <div className="space-y-5">
+        {header}
+        <PageSkeleton label="Loading notices">
+          <SkeletonList rows={4} />
+        </PageSkeleton>
+      </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      {/* The subtitle read "AnnouncementService · N published" — the service
-          class name, on screen, to a student. Same defect as KNOWN_ISSUES 24,
-          which was fixed for the parent panel and left here. */}
-      <PageHeader
-        eyebrow="Class"
-        title="Notices"
-        subtitle={
-          rows.length === 0
-            ? "Announcements from your school and your class."
-            : `${rows.length} ${rows.length === 1 ? "notice" : "notices"} from your school and your class.`
-        }
-      />
+      {header}
       {error && <p className="text-[10px] text-destructive -mt-3">{error}</p>}
 
       {rows.length === 0 ? (

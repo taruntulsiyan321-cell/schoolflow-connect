@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { EmptyState, GlassCard, LoadingState, PageHeader, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { FileText, Video, Download, Search, ExternalLink } from "lucide-react";
 import { ResourceService, type LearningResourceRow } from "@/academic";
 import { academicFileUrl } from "@/academic/storage/academicFileUpload";
@@ -108,20 +108,39 @@ export default function Resources() {
         title="Resources"
         subtitle="Notes, videos and past papers your teachers share with your class."
       />
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search resources…"
-          className="w-full bg-muted border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50 transition-colors"
-        />
-      </div>
+      {/* A search box only while there is something to search.
+          It rendered unconditionally before — above a spinner during the load,
+          and above "No study materials yet" when the class had none. Offering
+          a student a box to search an empty shelf is a control that cannot do
+          anything: whatever they type, the answer is the same empty state. It
+          appears once resources exist, and stays while a search narrows them
+          to nothing so they can clear it. */}
+      {(rows.length > 0 || q) && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search resources…"
+            className="w-full bg-muted border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50 transition-colors"
+          />
+        </div>
+      )}
 
       <GlassCard className="p-5">
         <SectionLabel>Study materials</SectionLabel>
         {loading ? (
-          <LoadingState label="Loading resources…" variant="section" />
+          <PageSkeleton label="Loading resources" className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i} className="p-4 flex items-center gap-3 bg-muted/30 shadow-none">
+                <Skeleton className="w-9 h-9 rounded-xl shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </SkeletonCard>
+            ))}
+          </PageSkeleton>
         ) : (
           <div className="space-y-2">
             {filtered.map((r) => {

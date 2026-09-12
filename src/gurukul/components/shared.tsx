@@ -467,14 +467,102 @@ export function TagWithIcon({ icon, label, color = "hsl(var(--muted-foreground))
   );
 }
 
-// Shimmer loading skeleton
-export function Skeleton({ className, animate = true }: { className?: string; animate?: boolean }) {
+/**
+ * THE SKELETON KIT — what a gurukul screen shows while its data loads.
+ *
+ * The panel had TWO skeleton implementations before this and used NEITHER.
+ * This export (a shimmer gradient) had zero callers, and `.skeleton-shimmer`
+ * in theme.css — a hand-written 200%-background keyframe animation — had zero
+ * callers too. Meanwhile sixteen screens rendered a centred spinner and a
+ * student waited 5-10 seconds looking at it. The capability was built twice
+ * and wired up nowhere.
+ *
+ * WHAT A SKELETON IS FOR, and why the spinner was worse than slow.
+ *
+ * A spinner says "something is happening". A skeleton says "THIS is what is
+ * arriving, and here is where each piece will sit". The second is only true if
+ * the skeleton matches the real layout, so these primitives are built from the
+ * same vocabulary the pages are — `SkeletonCard` reuses GlassCard's exact
+ * surface classes — and each screen composes its own shape rather than sharing
+ * one generic blob. A skeleton that mispredicts the layout is worse than a
+ * spinner: it promises a shape and then reflows away from it.
+ *
+ * AND THE HEADER IS NOT PART OF IT.
+ *
+ * Every one of those sixteen screens returned the spinner INSTEAD of the page
+ * — so the page title, which is a hard-coded string that needs no network at
+ * all, was hidden behind the network. A student who tapped "Attendance" could
+ * not see the word Attendance for five seconds. Screens now render their
+ * PageHeader immediately and skeletonise only what is genuinely being fetched.
+ * That is why these are used *inside* a page rather than returned in place of
+ * one.
+ */
+export function Skeleton({ className }: { className?: string }) {
+  return <div aria-hidden="true" className={cn("animate-pulse rounded-lg bg-muted", className)} />;
+}
+
+/**
+ * A loading surface that IS a card. The border, radius, background and shadow
+ * are static — they cost nothing to draw — so only the contents are grey.
+ * Classes match GlassCard's, minus the entrance animation (a skeleton that
+ * animates in and then animates out again on swap reads as a flicker).
+ */
+export function SkeletonCard({ className, children }: { className?: string; children?: ReactNode }) {
   return (
-    <div className={cn(
-      "bg-gradient-to-r from-muted via-muted/60 to-muted rounded-lg",
-      animate && "animate-pulse",
-      className
-    )} />
+    <div className={cn("rounded-2xl border border-border/70 bg-card/95 shadow-card backdrop-blur-sm", className)}>
+      {children}
+    </div>
+  );
+}
+
+/** The stat-tile row that seven screens open with. */
+export function SkeletonStats({ count = 4, className }: { count?: number; className?: string }) {
+  return (
+    <div className={cn("grid grid-cols-2 sm:grid-cols-4 gap-3", className)}>
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonCard key={i} className="p-4 space-y-2">
+          <Skeleton className="h-3 w-14" />
+          <Skeleton className="h-6 w-12" />
+        </SkeletonCard>
+      ))}
+    </div>
+  );
+}
+
+/** The card list that every list-shaped screen renders. */
+export function SkeletonList({ rows = 4, className }: { rows?: number; className?: string }) {
+  return (
+    <div className={cn("space-y-2", className)}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <SkeletonCard key={i} className="p-4 flex items-center gap-3">
+          <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+          <div className="flex-1 min-w-0 space-y-2">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-3/4" />
+          </div>
+        </SkeletonCard>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Wraps a screen's skeleton so it announces itself.
+ *
+ * `LoadingState` added `role="status"` because not one of the eighteen
+ * hand-written spinners had it — a screen reader went silent for the whole
+ * load and then, seconds later, simply had different content. Replacing that
+ * spinner with silent grey boxes would have handed the regression straight
+ * back, so the announcement moves here with it: the bars are `aria-hidden`
+ * and this container carries the label.
+ */
+export function PageSkeleton({ label, className, children }: {
+  label: string; className?: string; children: ReactNode;
+}) {
+  return (
+    <div role="status" aria-busy="true" aria-label={label} className={cn("space-y-5", className)}>
+      {children}
+    </div>
   );
 }
 
@@ -576,6 +664,15 @@ export function PageHeader({ eyebrow, title, subtitle, action }: {
  * It also announces itself. Not one of the eighteen had `role="status"`, so a
  * screen reader said nothing at all while a screen loaded — it simply went
  * quiet and then, some seconds later, had different content.
+ *
+ * WHEN TO USE THIS INSTEAD OF A SKELETON (`PageSkeleton` and friends above).
+ *
+ * A skeleton earns its complexity when it can predict the shape that is
+ * arriving: a list, a stat row, a card grid. Use one for anything that fills a
+ * page. A spinner is the right answer for the cases where nothing is
+ * predictable — a small panel inside an already-rendered page, or a surface
+ * whose contents vary so much that a drawn shape would lie. Those are the only
+ * callers left.
  */
 export function LoadingState({ label, variant = "page" }: {
   label: string; variant?: "page" | "section";

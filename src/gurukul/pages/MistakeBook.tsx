@@ -7,7 +7,7 @@ import { mistakeBookmarksKey } from "@/lib/clientStorage";
 import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayTopic, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
-import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { DifficultyBadge, EmptyState, GlassCard, PageHeader, PageSkeleton, ProgressBar, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Bookmark, BookmarkCheck,
   ChevronDown, ChevronRight, CheckCircle2, XCircle, ArrowRight,
@@ -619,10 +619,37 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     }
   }
 
+  // This screen's loading state was a spinning AlertCircle — the ERROR icon,
+  // rotating, in the error colour, with no label at all. The guard in
+  // emptyStates.test.ts missed it because it looked for a spinner sitting
+  // beside the word "Loading"; a spinner with no words at all slipped straight
+  // through. Three screens had this shape. The guard has been widened.
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <AlertCircle className="w-6 h-6 text-rose-400 animate-spin"/>
+      <div className="space-y-6">
+        {/* No `action` yet: "Practice All" needs a count of unresolved
+            mistakes, so offering the button before that number exists would
+            put a control on screen that cannot know whether it is allowed to
+            do anything. The title and subtitle are static and render now. */}
+        <PageHeader
+          eyebrow="Learning"
+          title="Mistake Book"
+          subtitle="Every mistake you've made — automatically collected and explained."
+        />
+        <PageSkeleton label="Loading mistake book">
+          <SkeletonCard className="p-5 space-y-3">
+            <Skeleton className="h-3 w-40" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="h-4 w-24 shrink-0" />
+                <Skeleton className="h-2 flex-1" />
+                <Skeleton className="h-4 w-16 shrink-0" />
+              </div>
+            ))}
+          </SkeletonCard>
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <SkeletonList rows={4} />
+        </PageSkeleton>
       </div>
     );
   }

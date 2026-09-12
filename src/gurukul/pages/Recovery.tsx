@@ -9,7 +9,7 @@ import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
-import { GlassCard, NoStudentProfile, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, ProgressBar, Skeleton, SkeletonCard, SkeletonList, SkeletonStats, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { urgencyBand, type Urgency } from "@/academic/metrics/bands";
 import {
   RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2,
@@ -409,16 +409,43 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
     }
   }
 
+  // Was a bare spinning RefreshCw with no label — the same unlabelled-spinner
+  // shape as MistakeBook and Revision, which the emptyStates guard could not
+  // see because it only matched a spinner beside the word "Loading".
+  //
+  // No `action` while loading: the header's badge is a count of pending
+  // topics, and there is no count yet.
+  const header = (
+    <PageHeader
+      eyebrow="Learning"
+      title="Recovery"
+      subtitle="Targeted practice for topics where you need the most help."
+    />
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <RefreshCw className="w-6 h-6 text-rose-400 animate-spin"/>
+      <div className="space-y-6">
+        {header}
+        <PageSkeleton label="Loading recovery" className="space-y-6">
+          <SkeletonStats count={4} />
+          <SkeletonCard className="p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Skeleton className="w-7 h-7 rounded-lg" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-56" />
+              </div>
+            </div>
+            <SkeletonList rows={3} />
+          </SkeletonCard>
+        </PageSkeleton>
       </div>
     );
   }
 
   if (!academicReady) {
-    return <NoStudentProfile />;
+    return <div className="space-y-6">{header}<NoStudentProfile /></div>;
   }
 
   if (error) {

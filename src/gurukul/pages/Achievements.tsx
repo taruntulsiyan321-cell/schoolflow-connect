@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
-import { EmptyState, GlassCard, LoadingState, PageHeader, SectionLabel, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, SkeletonList, SkeletonStats, cn } from "@/gurukul/components/shared";
 import { Lock, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
@@ -97,19 +97,41 @@ export default function Achievements() {
     }
   };
 
+  // The title needs no network, so it no longer waits for one.
+  const header = (
+    <PageHeader
+      eyebrow="Class"
+      title="Achievements"
+      subtitle="Milestones you have reached, and the ones still ahead."
+    />
+  );
+
   if (loading || progLoading) {
     return (
-      <LoadingState label="Loading milestones…" />
+      <div className="space-y-5">
+        {header}
+        <PageSkeleton label="Loading milestones">
+          <SkeletonStats count={2} className="sm:grid-cols-2" />
+          <SkeletonCard className="p-5 space-y-4">
+            <Skeleton className="h-3 w-32" />
+            <SkeletonList rows={3} />
+          </SkeletonCard>
+          <SkeletonCard className="p-5 space-y-4">
+            <Skeleton className="h-3 w-40" />
+            <div className="grid sm:grid-cols-2 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-16" />
+              ))}
+            </div>
+          </SkeletonCard>
+        </PageSkeleton>
+      </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        eyebrow="Class"
-        title="Achievements"
-        subtitle="Milestones you have reached, and the ones still ahead."
-      />
+      {header}
       <div className="grid grid-cols-2 gap-3">
         <div className="p-4 rounded-2xl border border-border/70 bg-surface/70 text-center">
           <div className="text-2xl font-black text-amber-400" style={{ fontFamily: "var(--font-display)" }}>

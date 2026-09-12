@@ -1,6 +1,6 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent, useGurukulShellReady } from "@/gurukul/StudentContext";
-import { EmptyState, GlassCard, LoadingState, ProgressBar, SectionLabel, StatTile, XPBar } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, PageSkeleton, ProgressBar, SectionLabel, Skeleton, SkeletonCard, SkeletonStats, StatTile, XPBar } from "@/gurukul/components/shared";
 import {
   ArrowRight, Flame, BookOpen, Brain, RefreshCw, RotateCcw,
   BarChart2, Trophy, Swords, Star
@@ -160,9 +160,45 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   const levelLabel = shellReady ? `Lv.${student.level}` : "—";
   const streakLabel = shellReady ? `${student.streak}-day streak` : "…";
 
+  // Home is the one screen with no static title to hoist — its header IS the
+  // data (the greeting carries the student's name, level and streak), so the
+  // whole page is skeletonised. Everywhere else the title renders immediately
+  // and only the fetched half below it waits.
   if (initialLoading) {
     return (
-      <LoadingState label="Loading home…" />
+      <PageSkeleton label="Loading home" className="space-y-6">
+        <SkeletonCard className="p-6 sm:p-8 space-y-4">
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="h-9 w-64" />
+          <Skeleton className="h-3 w-56" />
+          <div className="grid grid-cols-3 gap-3 pt-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-14" />
+            ))}
+          </div>
+        </SkeletonCard>
+        <SkeletonCard className="p-5 flex items-center gap-4">
+          <Skeleton className="w-12 h-12 rounded-xl shrink-0" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-64" />
+          </div>
+        </SkeletonCard>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonCard key={i} className="p-4 space-y-2">
+              <Skeleton className="w-8 h-8 rounded-lg" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-32" />
+            </SkeletonCard>
+          ))}
+        </div>
+        <SkeletonStats count={4} />
+        <div className="grid lg:grid-cols-2 gap-4">
+          <SkeletonCard className="h-56" />
+          <SkeletonCard className="h-56" />
+        </div>
+      </PageSkeleton>
     );
   }
 

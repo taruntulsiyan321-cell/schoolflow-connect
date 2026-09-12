@@ -5,7 +5,7 @@ import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
-import { EmptyState, GlassCard, LoadingState, NoStudentProfile, PageHeader, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, NoStudentProfile, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/AttachmentUI";
 import { toErrorMessage } from "@/lib/presentation";
 import { StudentErrorState } from "@/components/student/StudentPanelStates";
@@ -121,39 +121,60 @@ export default function Assignments() {
     }
   };
 
+  // The title needs no network, so it no longer waits for one — it renders
+  // above every state, including the error and the not-linked ones, which used
+  // to arrive as unlabelled boxes with no way of telling which screen you were
+  // even on.
+  const header = (
+    <PageHeader
+      eyebrow="Class"
+      title="Homework"
+      subtitle="Everything your teachers have set, and what you have handed in."
+    />
+  );
+
   if (!ready || loading) {
     return (
-      <LoadingState label="Loading assignments…" />
+      <div className="space-y-4">
+        {header}
+        <PageSkeleton label="Loading homework">
+          <SkeletonCard className="p-4 flex gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-7 w-20 rounded-full" />
+            ))}
+          </SkeletonCard>
+          <SkeletonList rows={4} />
+        </PageSkeleton>
+      </div>
     );
   }
 
   if (!studentId) {
-    return <NoStudentProfile />;
+    return <div className="space-y-4">{header}<NoStudentProfile /></div>;
   }
 
   if (loadError) {
     return (
-      <StudentErrorState
-        title="Could not load your homework"
-        message={loadError}
-        onRetry={() => {
-          // Clear first: useInitialLoadGate suppresses the spinner on a
-          // same-subject refetch, so without this the student presses Try
-          // again and the unchanged error screen just sits there.
-          setLoadError(null);
-          setReloadNonce((n) => n + 1);
-        }}
-      />
+      <div className="space-y-4">
+        {header}
+        <StudentErrorState
+          title="Could not load your homework"
+          message={loadError}
+          onRetry={() => {
+            // Clear first: useInitialLoadGate suppresses the spinner on a
+            // same-subject refetch, so without this the student presses Try
+            // again and the unchanged error screen just sits there.
+            setLoadError(null);
+            setReloadNonce((n) => n + 1);
+          }}
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        eyebrow="Class"
-        title="Homework"
-        subtitle="Everything your teachers have set, and what you have handed in."
-      />
+      {header}
       {actionError && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {actionError}

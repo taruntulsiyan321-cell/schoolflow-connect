@@ -2,7 +2,7 @@
 import { TimetableService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
-import { EmptyState, GlassCard, LoadingState, PageHeader, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, cn, subjectColor } from "@/gurukul/components/shared";
 import { Clock, MapPin, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -133,21 +133,76 @@ export default function Timetable() {
   }
   const currentPeriodIdx = getCurrentPeriod();
 
+  // ONE title for this screen, not two.
+  //
+  // The page header said "Timetable" and the card immediately below it said
+  // "Class Timetable" in a near-identical display face — the card's heading
+  // predates the page header and nothing removed it when the header arrived,
+  // so the screen opened by naming itself twice. The class label was the only
+  // fact that heading carried, and it belongs in the subtitle; the card is a
+  // day switcher and now looks like one.
+  const header = (
+    <PageHeader
+      eyebrow="Class"
+      title="Timetable"
+      subtitle={
+        // `classLabel` already contains an em dash ("10 — Section A"), so
+        // joining with another one gave the line three dash-separated clauses.
+        classLabel
+          ? `${classLabel} · periods, teachers and rooms.`
+          : "Your weekly class schedule — periods, teachers and rooms."
+      }
+    />
+  );
+
   if (showLoading(loading)) {
     return (
-      <LoadingState label="Loading timetable…" />
+      <div className="space-y-6">
+        {header}
+        <PageSkeleton label="Loading timetable" className="space-y-6">
+          {/* `p-2.5` and the same control sizes as the real switcher below, so
+              the card does not change height when the data lands. A skeleton
+              that is the wrong size is a layout shift with extra steps. */}
+          <SkeletonCard className="p-2.5 flex items-center justify-center gap-2">
+            <Skeleton className="w-8 h-8 rounded-xl" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-[30px] w-14 rounded-lg" />
+            ))}
+            <Skeleton className="w-8 h-8 rounded-xl" />
+          </SkeletonCard>
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-7 w-24 rounded-full" />
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-24" />
+            {/* A period row is a time rail, a subject, a teacher and a room.
+                Empty cards of the right HEIGHT are not a skeleton — they
+                predict a box, not a layout, and the page visibly rearranges
+                itself inside them when the data lands. */}
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonCard key={i} className="p-4 flex items-stretch gap-4">
+                <div className="w-16 shrink-0 space-y-1.5">
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-3 w-10" />
+                </div>
+                <div className="flex-1 min-w-0 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+              </SkeletonCard>
+            ))}
+          </div>
+        </PageSkeleton>
+      </div>
     );
   }
 
   if (!hasTimetable) {
     return (
       <div className="space-y-6">
-        <GlassCard glow="blue" className="p-6">
-          <h2 className="text-2xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-            Class Timetable
-          </h2>
-          {classLabel && <p className="text-sm text-muted-foreground mt-0.5">{classLabel}</p>}
-        </GlassCard>
+        {header}
         <GlassCard className="p-4">
           <EmptyState
             icon={<Clock className="w-6 h-6" />}
@@ -161,20 +216,9 @@ export default function Timetable() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="Class"
-        title="Timetable"
-        subtitle="Your weekly class schedule — periods, teachers and rooms."
-      />
-      <GlassCard glow="blue" className="p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-              Class Timetable
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">{classLabel || "Your class schedule"}</p>
-          </div>
-          <div className="flex items-center gap-2">
+      {header}
+      <GlassCard glow="blue" className="p-2.5">
+        <div className="flex items-center justify-center gap-2">
             <button
               onClick={() => setDayIdx((i) => Math.max(0, i - 1))}
               className="w-8 h-8 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-all disabled:opacity-30"
@@ -205,7 +249,6 @@ export default function Timetable() {
             >
               <ChevronRight className="w-4 h-4" />
             </button>
-          </div>
         </div>
       </GlassCard>
 

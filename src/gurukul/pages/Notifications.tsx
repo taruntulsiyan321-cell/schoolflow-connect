@@ -1,25 +1,81 @@
 import { useNavigate } from "react-router-dom";
 import {
-  Bell, Award, Swords, Trophy, Wallet, NotebookPen, Sparkles,
-  CheckCheck, Trash2, MessageSquare
+  Bell, Award, Swords, Trophy, Wallet, NotebookPen,
+  CheckCheck, Trash2, MessageSquare, AlertTriangle, BookOpen,
+  CalendarDays, CalendarCheck, CheckCircle2, ClipboardCheck, Inbox, Megaphone,
 } from "lucide-react";
-import { EmptyState, GlassCard, LoadingState, PageHeader, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, PageHeader, PageSkeleton, SkeletonList, cn } from "@/gurukul/components/shared";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 
-const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+/**
+ * THIS MAP WAS KEYED ON NAMES NOTHING WRITES.
+ *
+ * Measured against the live table, 2026-09-12: of 2,866 notifications, the old
+ * map matched 35. Everything else — all 1,222 homework, 462 results, 435 exams,
+ * 327 announcements, 318 attendance rows — fell through to the generic sparkle,
+ * so the icon column was decoration that decorated nothing and every row in the
+ * list looked identical.
+ *
+ * The cause is that it mixed two vocabularies in one object. `notifications.icon`
+ * stores LUCIDE names in kebab-case ("book-open", "clipboard-check",
+ * "calendar-check"); `notifications.type` stores DOMAIN names ("homework",
+ * "result", "announcement"). The lookup was `ICONS[n.icon ?? n.type]`, so the
+ * icon column was tried first against a map that mostly held domain keys —
+ * "award" and "swords" happened to be in both vocabularies, which is precisely
+ * the 35 that worked.
+ *
+ * Two maps now, tried in that order, each keyed on what its column actually
+ * contains. The values below are the distinct values in the live table plus the
+ * ones the notification writers can emit.
+ */
+const ICON_BY_STORED_NAME: Record<string, React.ComponentType<{ className?: string }>> = {
+  "alert-triangle": AlertTriangle,
   award: Award,
-  badge: Award,
-  swords: Swords,
-  invite: Swords,
-  trophy: Trophy,
-  leaderboard: Trophy,
-  fee: Wallet,
-  homework: NotebookPen,
-  general: Sparkles,
-  message: MessageSquare,
+  bell: Bell,
+  book: BookOpen,
+  "book-open": BookOpen,
+  calendar: CalendarDays,
+  "calendar-check": CalendarCheck,
+  "check-circle": CheckCircle2,
+  "clipboard-check": ClipboardCheck,
+  inbox: Inbox,
+  megaphone: Megaphone,
   "message-square": MessageSquare,
-  chat: MessageSquare,
+  swords: Swords,
+  trophy: Trophy,
+  wallet: Wallet,
 };
+
+const ICON_BY_TYPE: Record<string, React.ComponentType<{ className?: string }>> = {
+  announcement: Megaphone,
+  attendance: CalendarCheck,
+  badge: Award,
+  chat: MessageSquare,
+  exam: CalendarDays,
+  fee: Wallet,
+  general: Bell,
+  homework: NotebookPen,
+  inquiry: Inbox,
+  invite: Swords,
+  leaderboard: Trophy,
+  leave: CalendarDays,
+  message: MessageSquare,
+  notice: Megaphone,
+  result: ClipboardCheck,
+  trophy: Trophy,
+};
+
+/**
+ * Types are dotted for sub-events ("homework.risk_alert", "attendance.risk_alert"),
+ * and an exact-match lookup can never resolve one. A risk alert keeps its own
+ * warning icon; anything else dotted falls back to its domain prefix.
+ */
+function iconFor(icon: string | null | undefined, type: string) {
+  const stored = icon ? ICON_BY_STORED_NAME[icon] : undefined;
+  if (stored) return stored;
+  if (type.endsWith(".risk_alert")) return AlertTriangle;
+  return ICON_BY_TYPE[type] ?? ICON_BY_TYPE[type.split(".")[0]] ?? Bell;
+}
 
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -39,29 +95,41 @@ export default function Notifications() {
     if (n.link) navigate(n.link);
   };
 
+  // The title needs no network, so it no longer waits for one. "You're all
+  // caught up" is not claimed while loading — that would be a statement about
+  // data nobody has yet.
+  const header = (
+    <PageHeader
+      title="Notifications"
+      subtitle={loading ? undefined : unread > 0 ? `${unread} unread` : "You're all caught up"}
+      action={
+        !loading && unread > 0 ? (
+          <button
+            type="button"
+            onClick={() => void markAllRead()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs font-bold text-muted-foreground hover:bg-black/10 transition-all"
+          >
+            <CheckCheck className="w-3.5 h-3.5" /> Mark all read
+          </button>
+        ) : undefined
+      }
+    />
+  );
+
   if (loading) {
     return (
-      <LoadingState label="Loading notifications…" />
+      <div className="space-y-5">
+        {header}
+        <PageSkeleton label="Loading notifications">
+          <SkeletonList rows={5} />
+        </PageSkeleton>
+      </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Notifications"
-        subtitle={unread > 0 ? `${unread} unread` : "You're all caught up"}
-        action={
-          unread > 0 ? (
-            <button
-              type="button"
-              onClick={() => void markAllRead()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs font-bold text-muted-foreground hover:bg-black/10 transition-all"
-            >
-              <CheckCheck className="w-3.5 h-3.5" /> Mark all read
-            </button>
-          ) : undefined
-        }
-      />
+      {header}
       {error && <p className="text-[10px] text-destructive -mt-2">{error}</p>}
 
       {items.length === 0 ? (
@@ -75,7 +143,7 @@ export default function Notifications() {
       ) : (
         <div className="space-y-2">
           {items.map((n) => {
-            const Icon = ICONS[n.icon ?? n.type] ?? Sparkles;
+            const Icon = iconFor(n.icon, n.type);
             return (
               <GlassCard
                 key={n.id}

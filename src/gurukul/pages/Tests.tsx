@@ -16,7 +16,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
-import { GlassCard, LoadingState, NoStudentProfile, PageHeader, SectionLabel, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, SkeletonList, SkeletonStats, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { toErrorMessage } from "@/lib/presentation";
 import { StudentErrorState } from "@/components/student/StudentPanelStates";
 
@@ -31,8 +31,18 @@ export default function Tests() {
   const [upcoming, setUpcoming] = useState<
     { id: string; title: string; subject: string; testKind: string; published: boolean }[]
   >([]);
-  const [avgPct, setAvgPct] = useState(0);
-  const [testsAvg, setTestsAvg] = useState(0);
+  /**
+   * null means "no figure recorded", never 0 — ruling 8.
+   *
+   * Both of these were `useState(0)` filled from `analytics.exams.averagePct`,
+   * and the repository returns `{ count: 0, averagePct: 0 }` for a student with
+   * nothing marked. So a student who has never sat a test was shown a hard
+   * "Tests avg 0%" in the panel's largest numeral — a failing grade, invented
+   * from an absence, on the screen they open to find out how they are doing.
+   * `count` is what tells the two apart and it was already on the bundle.
+   */
+  const [avgPct, setAvgPct] = useState<number | null>(null);
+  const [testsAvg, setTestsAvg] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "graded" | "upcoming">("all");
   const [loading, setLoading] = useState(true);
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId, classId]);
@@ -63,8 +73,8 @@ export default function Tests() {
         const tests = settled[3].status === "fulfilled" ? settled[3].value : [];
         setMarks(markRows);
         setExams(examRows);
-        setAvgPct(Math.round(analytics?.exams.averagePct ?? 0));
-        setTestsAvg(Math.round(analytics?.tests.averagePct ?? 0));
+        setAvgPct(analytics && analytics.exams.count > 0 ? Math.round(analytics.exams.averagePct) : null);
+        setTestsAvg(analytics && analytics.tests.count > 0 ? Math.round(analytics.tests.averagePct) : null);
         setUpcoming(
           (
             tests as {
@@ -121,29 +131,54 @@ export default function Tests() {
     }));
   }, [marks, examById]);
 
+  // The title needs no network, so it no longer waits for one.
+  const header = (
+    <PageHeader
+      eyebrow="Class"
+      title="Tests"
+      subtitle="Your marks from class tests and exams, newest first."
+    />
+  );
+
   if (!ready || showLoading(loading)) {
     return (
-      <LoadingState label="Loading tests…" />
+      <div className="space-y-6">
+        {header}
+        <PageSkeleton label="Loading tests" className="space-y-6">
+          <SkeletonStats count={3} className="grid-cols-3 sm:grid-cols-3" />
+          <SkeletonCard className="p-5 space-y-4">
+            <Skeleton className="h-3 w-28" />
+            <SkeletonList rows={3} />
+          </SkeletonCard>
+          <SkeletonCard className="p-5 space-y-4">
+            <Skeleton className="h-3 w-36" />
+            <SkeletonList rows={2} />
+          </SkeletonCard>
+        </PageSkeleton>
+      </div>
     );
   }
 
   if (!studentId) {
-    return <NoStudentProfile />;
+    return <div className="space-y-6">{header}<NoStudentProfile /></div>;
   }
 
   if (error) {
     return (
-      <StudentErrorState
-        title="Could not load your tests"
-        message={error}
-        onRetry={() => {
-          // Clear first: useInitialLoadGate suppresses the spinner on a
-          // same-subject refetch, so without this the student presses Try
-          // again and the unchanged error screen just sits there.
-          setError(null);
-          setReloadNonce((n) => n + 1);
-        }}
-      />
+      <div className="space-y-6">
+        {header}
+        <StudentErrorState
+          title="Could not load your tests"
+          message={error}
+          onRetry={() => {
+            // Clear first: useInitialLoadGate suppresses the spinner on a
+            // same-subject refetch, so without this the student presses Try
+            // again and the unchanged error screen just sits there.
+            setError(null);
+            setReloadNonce((n) => n + 1);
+          }}
+        />
+      </div>
     );
   }
 
@@ -152,18 +187,18 @@ export default function Tests() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="Class"
-        title="Tests"
-        subtitle="Your marks from class tests and exams, newest first."
-      />
+      {header}
       <div className="grid grid-cols-3 gap-3">
         <GlassCard className="p-4 text-center">
-          <div className="text-2xl font-black text-foreground">{avgPct}%</div>
+          <div className="text-2xl font-black text-foreground">
+            {avgPct == null ? <span className="text-muted-foreground">—</span> : `${avgPct}%`}
+          </div>
           <div className="text-[10px] text-muted-foreground">Exam avg</div>
         </GlassCard>
         <GlassCard className="p-4 text-center">
-          <div className="text-2xl font-black text-primary">{testsAvg}%</div>
+          <div className="text-2xl font-black text-primary">
+            {testsAvg == null ? <span className="text-muted-foreground">—</span> : `${testsAvg}%`}
+          </div>
           <div className="text-[10px] text-muted-foreground">Tests avg</div>
         </GlassCard>
         <GlassCard className="p-4 text-center">

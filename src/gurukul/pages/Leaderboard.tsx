@@ -3,7 +3,7 @@ import { Trophy, Zap } from "lucide-react";
 import { ProgressionService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useAuth } from "@/hooks/useAuth";
-import { EmptyState, GlassCard, LoadingState, PageHeader, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, PageHeader, PageSkeleton, ProgressBar, SectionLabel, Skeleton, SkeletonCard, SkeletonList, cn } from "@/gurukul/components/shared";
 import { toErrorMessage, toPersonName } from "@/lib/presentation";
 import { StudentErrorState } from "@/components/student/StudentPanelStates";
 
@@ -109,35 +109,64 @@ export default function Leaderboard() {
   const ranked = useMemo(() => rows.map((r, i) => ({ ...r, rank: i + 1 })), [rows]);
   const maxXp = useMemo(() => Math.max(1, ...ranked.map((r) => r.value)), [ranked]);
 
+  // The title needs no network, so it no longer waits for one.
+  const header = (
+    <PageHeader
+      eyebrow="Class"
+      title="Rankings"
+      subtitle="Where you stand in your class on XP earned."
+    />
+  );
+
   if (loading) {
     return (
-      <LoadingState label="Loading rankings…" />
+      <div className="space-y-5">
+        {header}
+        <PageSkeleton label="Loading rankings">
+          <div className="flex gap-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-24 rounded-xl" />
+            ))}
+          </div>
+          <SkeletonCard className="p-5 space-y-4">
+            <Skeleton className="h-3 w-32" />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="h-5 w-5 shrink-0" />
+                <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+                <Skeleton className="h-4 flex-1 max-w-[180px]" />
+                <Skeleton className="h-2 flex-1" />
+                <Skeleton className="h-4 w-12 shrink-0" />
+              </div>
+            ))}
+          </SkeletonCard>
+        </PageSkeleton>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <StudentErrorState
-        title="Could not load the rankings"
-        message={error}
-        onRetry={() => {
-          // Clear first: useInitialLoadGate suppresses the spinner on a
-          // same-subject refetch, so without this the student presses Try
-          // again and the unchanged error screen just sits there.
-          setError(null);
-          setReloadNonce((n) => n + 1);
-        }}
-      />
+      <div className="space-y-5">
+        {header}
+        <StudentErrorState
+          title="Could not load the rankings"
+          message={error}
+          onRetry={() => {
+            // Clear first: useInitialLoadGate suppresses the spinner on a
+            // same-subject refetch, so without this the student presses Try
+            // again and the unchanged error screen just sits there.
+            setError(null);
+            setReloadNonce((n) => n + 1);
+          }}
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        eyebrow="Class"
-        title="Rankings"
-        subtitle="Where you stand in your class on XP earned."
-      />
+      {header}
       <div className="flex gap-2">
         {(
           [

@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
-import { GlassCard, LoadingState, PageHeader, SectionLabel, XPBar, cn } from "@/gurukul/components/shared";
+import { GlassCard, LoadingState, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, XPBar, cn } from "@/gurukul/components/shared";
 import { ArrowRight } from "lucide-react";
 import {
   ProgressionService,
@@ -16,7 +16,13 @@ import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
-function formatEarnedDate(iso: string) {
+/**
+ * One date format for this screen. Named for what it renders rather than for
+ * the first thing that happened to call it — it was `formatEarnedDate`, badge
+ * language, which is why the test-marks list below wrote no date at all rather
+ * than reach for a function that sounded like it belonged to something else.
+ */
+function formatDayMonthYear(iso: string) {
   try {
     return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   } catch {
@@ -199,15 +205,52 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
     return () => window.removeEventListener("student-xp-updated", onXp);
   }, [loadProfile]);
 
+  // The title needs no network, so it no longer waits for one.
+  const header = (
+    <PageHeader title="Profile" subtitle="Your record, your marks and your milestones." />
+  );
+
   if (showLoading(loading)) {
     return (
-      <LoadingState label="Loading profile…" />
+      <div className="space-y-5">
+        {header}
+        <PageSkeleton label="Loading profile">
+          <SkeletonCard className="p-6 space-y-4">
+            <div className="flex items-start gap-4">
+              <Skeleton className="w-16 h-16 rounded-2xl shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-3 w-36" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+            </div>
+            <Skeleton className="h-2 w-full" />
+          </SkeletonCard>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i} className="p-4 space-y-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-5 w-16" />
+              </SkeletonCard>
+            ))}
+          </div>
+          <SkeletonCard className="p-5 space-y-3">
+            <Skeleton className="h-3 w-40" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between gap-3">
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-4 w-14" />
+              </div>
+            ))}
+          </SkeletonCard>
+        </PageSkeleton>
+      </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Profile" subtitle="Your record, your marks and your milestones." />
+      {header}
       <GlassCard glow="blue" className="p-6">
         <div className="flex items-start gap-4">
           <div
@@ -300,9 +343,20 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           <div className="text-xs text-muted-foreground">No tests marked yet.</div>
         ) : (
           <div className="space-y-2">
+            {/* The date was fetched and thrown away.
+                `takenAt` came back on every row and nothing rendered it, so ten
+                tests were ten identical-looking lines of title-plus-number with
+                no way to tell which was recent, and two tests a teacher named
+                similarly were indistinguishable. A mark means nothing without
+                when it was taken. */}
             {testMarks.map((t) => (
               <div key={t.testId} className="flex items-center gap-3 text-sm">
-                <span className="flex-1 min-w-0 truncate text-foreground">{t.title}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="truncate text-foreground">{t.title}</div>
+                  {t.takenAt && (
+                    <div className="text-[11px] text-muted-foreground">{formatDayMonthYear(t.takenAt)}</div>
+                  )}
+                </div>
                 <span className="tabular-nums font-bold text-foreground shrink-0">
                   {t.mark == null ? "—" : `${t.mark}${t.maxMark != null ? ` / ${t.maxMark}` : ""}`}
                 </span>
@@ -347,7 +401,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
               <div key={r.id} className="p-3 rounded-xl border border-border/70 bg-surface/60">
                 <div className="text-sm text-foreground">{r.text}</div>
                 <div className="text-[10px] text-muted-foreground mt-1">
-                  {r.author}{r.at ? ` · ${formatEarnedDate(r.at)}` : ""}
+                  {r.author}{r.at ? ` · ${formatDayMonthYear(r.at)}` : ""}
                 </div>
               </div>
             ))}
@@ -398,7 +452,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
                   </div>
                   <div>
                     <div className="text-xs font-semibold text-foreground">{a.label}</div>
-                    <div className="text-[10px] text-muted-foreground">{formatEarnedDate(a.earned_at)}</div>
+                    <div className="text-[10px] text-muted-foreground">{formatDayMonthYear(a.earned_at)}</div>
                   </div>
                 </div>
               );

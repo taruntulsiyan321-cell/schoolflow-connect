@@ -12,7 +12,7 @@ import {
   type DoubtStatus,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import { EmptyState, GlassCard, LoadingState, PageHeader, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { getNcertChapters, parseClassGrade } from "@/lib/ncertSyllabus";
 import {
   COMING_SOON_LABEL,
@@ -478,7 +478,19 @@ export default function DoubtPortal() {
 
   if (!ready) {
     return (
-      <LoadingState label="Loading doubts…" />
+      <div className="space-y-4">
+        {/* Title first, feed second — it is a static string and does not need
+            the academic context to resolve before it can be drawn. */}
+        <PageHeader
+          eyebrow="Class"
+          title="Doubts"
+          subtitle="Ask your class a question, or help a classmate. The first answer marks a doubt solved."
+        />
+        <PageSkeleton label="Loading doubts">
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <SkeletonList rows={4} />
+        </PageSkeleton>
+      </div>
     );
   }
 
@@ -664,7 +676,18 @@ export default function DoubtPortal() {
         </button>
 
         {detailLoading || !detail ? (
-          <LoadingState label="Loading doubt…" />
+          <PageSkeleton label="Loading doubt" className="space-y-4">
+            <SkeletonCard className="p-5 space-y-3">
+              <div className="flex gap-2">
+                <Skeleton className="h-5 w-20 rounded-full" />
+                <Skeleton className="h-5 w-28 rounded-full" />
+              </div>
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+            </SkeletonCard>
+            <SkeletonList rows={2} />
+          </PageSkeleton>
         ) : (
           <>
             <GlassCard className="p-5 space-y-4">
@@ -838,7 +861,10 @@ export default function DoubtPortal() {
       {error && <p className="text-[10px] text-destructive -mt-2">{error}</p>}
 
       {loading ? (
-        <LoadingState label="Loading doubts…" />
+        <PageSkeleton label="Loading doubts" className="space-y-4">
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <SkeletonList rows={4} />
+        </PageSkeleton>
       ) : (
       <>
       <div className="flex flex-wrap gap-2">

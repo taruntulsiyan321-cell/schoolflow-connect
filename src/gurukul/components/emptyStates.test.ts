@@ -152,19 +152,134 @@ describe("the deleted empty-state conventions stay deleted", () => {
     ).toEqual([]);
   });
 
-  it("and LoadingState still announces itself to a screen reader", () => {
-    // The reason the component exists at all beyond consistency. If this
-    // regresses, 19 screens go silent again at once.
+  /**
+   * The guard above could not fail on the worst case it was written for.
+   *
+   * It required `animate-spin` and the word "Loading" ON THE SAME LINE, so it
+   * found every spinner that had a label — and was blind to a spinner with no
+   * label at all. Three screens had exactly that: MistakeBook returned a
+   * spinning `AlertCircle` (the ERROR icon, rotating, in the error colour),
+   * Recovery a spinning `RefreshCw`, Revision a spinning `RotateCcw`. No text,
+   * nothing for a screen reader, and on MistakeBook a rotating warning icon as
+   * the way a student is told their page is loading. All three sat there while
+   * the guard reported the panel clean.
+   *
+   * The rule that catches them: a spinner in a component's RETURN is a loading
+   * *state* and belongs to the design system. A spinner inside a button
+   * ("Saving…", "Signing in…") is a different thing and stays allowed — those
+   * never sit within a few lines of a `return (`.
+   */
+  const LOADING_RETURN_LOOKBACK = 6;
+
+  function spinnerReturns(src: string): number[] {
+    const lines = src.split("\n");
+    const hits: number[] = [];
+    lines.forEach((line, i) => {
+      const code = line.trim();
+      if (code.startsWith("*") || code.startsWith("//")) return;
+      if (!/animate-spin/.test(code)) return;
+      for (let back = 1; back <= LOADING_RETURN_LOOKBACK && i - back >= 0; back++) {
+        if (/\breturn\s*\(/.test(lines[i - back])) {
+          hits.push(i + 1);
+          return;
+        }
+      }
+    });
+    return hits;
+  }
+
+  it("catches a BARE spinner too — the shape the label rule could not see", () => {
+    // Positive control FIRST. A guard that reports nothing is only evidence if
+    // it is shown able to report something, and this exact detector replaced
+    // one that silently passed over three live defects.
+    const known_bad = [
+      "  if (loading) {",
+      "    return (",
+      '      <div className="flex items-center justify-center py-24">',
+      '        <AlertCircle className="w-6 h-6 text-rose-400 animate-spin"/>',
+      "      </div>",
+      "    );",
+      "  }",
+    ].join("\n");
+    expect(
+      spinnerReturns(known_bad),
+      "the detector must flag the unlabelled-spinner shape it exists to catch",
+    ).toEqual([4]);
+
+    // And it must NOT flag an in-button spinner, or it would be unusable.
+    const known_good = [
+      "        <button type=\"button\" disabled={saving}>",
+      '          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}',
+      "        </button>",
+    ].join("\n");
+    expect(spinnerReturns(known_good), "an in-button spinner is not a page state").toEqual([]);
+
+    const offenders: string[] = [];
+    for (const file of files) {
+      if (!file.includes(STUDENT_PANEL)) continue;
+      // shared.tsx is where LoadingState legitimately lives.
+      if (file.endsWith(join("components", "shared.tsx"))) continue;
+      for (const lineNo of spinnerReturns(readFileSync(file, "utf8"))) {
+        offenders.push(`${file}:${lineNo}`);
+      }
+    }
+    expect(
+      offenders,
+      `a spinner returned as a screen's loading state must be <LoadingState /> or a skeleton:\n${offenders.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("and every loading state still announces itself to a screen reader", () => {
+    // The reason these components exist at all beyond consistency. A spinner
+    // that says nothing and a grey box that says nothing are the same silence:
+    // the screen goes quiet, and some seconds later simply has different
+    // content. Both announce.
     const shared = readFileSync(
       join(process.cwd(), "src", "gurukul", "components", "shared.tsx"),
       "utf8",
     );
-    const body = shared.slice(shared.indexOf("export function LoadingState"));
-    expect(body).toContain('role="status"');
-    expect(body).toContain('aria-live="polite"');
 
-    const callers = files.filter((f) => readFileSync(f, "utf8").includes("<LoadingState"));
-    expect(callers.length, "every screen that had a loading block should use it").toBeGreaterThan(12);
+    const spinner = shared.slice(shared.indexOf("export function LoadingState"));
+    expect(spinner).toContain('role="status"');
+    expect(spinner).toContain('aria-live="polite"');
+
+    const skeleton = shared.slice(shared.indexOf("export function PageSkeleton"));
+    expect(skeleton).toContain('role="status"');
+    expect(skeleton).toContain('aria-busy="true"');
+    expect(skeleton, "the label is what a screen reader reads out").toContain("aria-label={label}");
+
+    // And the bars themselves must stay hidden — without this a skeleton reads
+    // out as a run of empty elements over the top of its own label.
+    const bar = shared.slice(shared.indexOf("export function Skeleton"));
+    expect(bar.slice(0, 300)).toContain('aria-hidden="true"');
+  });
+
+  it("and the skeletons are actually adopted, not another unused primitive", () => {
+    // Both of the panel's previous skeleton implementations had ZERO callers
+    // while sixteen screens rendered a spinner — an unused `Skeleton` export
+    // and a `.skeleton-shimmer` CSS class. This is the assertion that would
+    // have caught that, so it is the one worth keeping.
+    const adopters = files.filter(
+      (f) => f.includes(STUDENT_PANEL) && readFileSync(f, "utf8").includes("<PageSkeleton"),
+    );
+    expect(
+      adopters.length,
+      "screens that used to spin should now draw the shape that is arriving",
+    ).toBeGreaterThan(15);
+
+    const theme = readFileSync(
+      join(process.cwd(), "src", "gurukul", "theme.css"),
+      "utf8",
+    );
+    // Match the RULE, not the name: the removal record in theme.css names the
+    // class on purpose, and a guard that trips on its own deletion note is a
+    // guard nobody can keep.
+    expect(
+      theme.match(/\.skeleton-shimmer\s*\{|@keyframes\s+skeleton-shimmer/g) ?? [],
+      "the dead shimmer class must not come back",
+    ).toEqual([]);
+    // Control: the same matcher does find a rule that IS there.
+    expect(theme.match(/@keyframes\s+\w+/g)?.length ?? 0).toBeGreaterThan(0);
   });
 
   it("and EmptyState carries both variants the panel now depends on", () => {

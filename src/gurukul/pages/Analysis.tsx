@@ -11,7 +11,7 @@ import {
   BookOpen, Target, Calendar, ChevronRight, ArrowUp, ArrowDown,
   Minus, Printer
 } from "lucide-react";
-import { LoadingState, NoStudentProfile, cn } from "@/gurukul/components/shared";
+import { NoStudentProfile, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonStats, cn } from "@/gurukul/components/shared";
 import { type Tab, TABS } from "./analysisTabs";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
@@ -76,6 +76,21 @@ function scoreColor(v: number) {
   if (v >= 80) return "hsl(var(--info))";
   if (v >= 65) return "hsl(var(--warning))";
   return "hsl(var(--destructive))";
+}
+
+/**
+ * Study time in the largest unit that does not round the figure away.
+ *
+ * Under an hour it stays in minutes: the tile used to divide by 60 and round,
+ * so every real total below thirty minutes printed as "0h" — the same "you did
+ * nothing" claim the null-when-unmeasured guard exists to prevent, made about
+ * time the student actually spent.
+ */
+function formatStudyTime(minutes: number | null): string {
+  if (minutes == null) return "—";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = minutes / 60;
+  return `${hours < 10 ? Math.round(hours * 10) / 10 : Math.round(hours)}h`;
 }
 
 const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) => {
@@ -196,7 +211,13 @@ export default function Analysis() {
       // The timer not recording is the real defect and it lives in the practice
       // finish path, not here. This stops the screen claiming a student studied
       // for zero hours in the meantime. KNOWN_ISSUES 44.
-      studyHours: studyMinutes > 0 ? Math.round(studyMinutes / 60) : null,
+      //
+      // ROUNDING DEFEATED THAT GUARD. `Math.round(minutes / 60)` turns every
+      // real figure under half an hour back into 0, and the tile then printed
+      // "0h" — the exact claim the null above exists to prevent, now made about
+      // time the student DID spend. Eighteen recorded minutes rendered as zero
+      // hours. Minutes are the honest unit below an hour, so the tile uses them.
+      studyMinutes: studyMinutes > 0 ? studyMinutes : null,
       streak: student.streak,
       rank: analysis?.class_rank ?? student.rank ?? 0,
       totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
@@ -620,14 +641,63 @@ export default function Analysis() {
     return items;
   }, [overview, subjectData]);
 
+  // Analysis had NO page title at all.
+  //
+  // Nineteen screens took the shared PageHeader; this one was missed, so the
+  // deepest analytical screen in the panel opened on a card labelled "Summary"
+  // with nothing naming the screen or saying which section it belonged to. The
+  // three screens that legitimately have no header are Home (its greeting is
+  // the header), Battleground (its own visual language) and AI Coach (no page
+  // body to title) — Analysis was never one of them.
+  //
+  // The title needs no network either, so it no longer waits for one.
+  const header = (
+    <PageHeader
+      eyebrow="Learning"
+      title="Analysis"
+      subtitle="What your practice, tests and mistakes add up to."
+    />
+  );
+
   if (loading) {
     return (
-      <LoadingState label="Loading analysis…" />
+      <div className="space-y-6">
+        {header}
+        <PageSkeleton label="Loading analysis" className="space-y-6">
+          <SkeletonCard className="p-5 space-y-3">
+            <Skeleton className="h-5 w-24" />
+            <div className="grid sm:grid-cols-2 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-4 w-48" />
+              ))}
+            </div>
+          </SkeletonCard>
+          <div className="grid sm:grid-cols-3 gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonCard key={i} className="p-4 space-y-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+              </SkeletonCard>
+            ))}
+          </div>
+          <div className="flex gap-4 border-b border-border/70 pb-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-4 w-20" />
+            ))}
+          </div>
+          <SkeletonStats count={4} />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <SkeletonCard className="h-40" />
+            <SkeletonCard className="h-40" />
+          </div>
+        </PageSkeleton>
+      </div>
     );
   }
 
   if (!academicReady) {
-    return <NoStudentProfile />;
+    return <div className="space-y-6">{header}<NoStudentProfile /></div>;
   }
 
   // null means "no figure recorded", never 0. See the Summary block below.
@@ -646,6 +716,7 @@ export default function Analysis() {
 
   return (
     <div className="space-y-6">
+      {header}
       {loadError && (
         <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning">
           Some analysis data failed to load: {loadError}. Showing available stats as zeros where missing.
@@ -730,7 +801,7 @@ export default function Analysis() {
               // "Marks recorded" was a count of exam marks. Marks are not an
               // Analysis figure any more (rule 11); the student reads them on
               // their marks surface.
-              { label: "Study hours total",  value: overview.studyHours == null ? "—" : `${overview.studyHours}h`, color: "hsl(var(--info))" },
+              { label: "Study time total",  value: formatStudyTime(overview.studyMinutes), color: "hsl(var(--info))" },
               // "Exam readiness" was removed in the v2 redesign: a composite of
               // four measures collapsed into one number, which is the
               // no-blended-score rule and cannot be explained to a student.

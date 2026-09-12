@@ -7,7 +7,7 @@ import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useRevisionItems, type RevItem } from "./useRevisionQueueV2";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
-import { GlassCard, NoStudentProfile, PageHeader, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { REVISION_PASS_THRESHOLD } from "@/academic/recovery/constants";
 import {
   RotateCcw, CheckCircle2, AlertCircle, Flame, History, Bookmark,
@@ -39,6 +39,8 @@ function RevItemCard({
   onComplete: () => void;
   completing?: boolean;
 }) {
+  const conceptLabel = displayConcept(item.concept);
+  const chapterLabel = displayChapter(item.chapter);
   return (
     <GlassCard className="p-4 hover:border-border transition-all">
       <div className="flex items-start gap-3">
@@ -51,8 +53,16 @@ function RevItemCard({
             )}
             {item.bookmarked && <Bookmark className="w-3.5 h-3.5 text-amber-400 fill-amber-400"/>}
           </div>
-          <div className="text-sm font-bold text-foreground">{displayConcept(item.concept)}</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">{displayChapter(item.chapter)}</div>
+          {/* The chapter line only when it says something the title does not.
+              `concept` and `chapter` are frequently the same string for a
+              revision item — "Areas Related to Circles" printed in bold and
+              then again in grey directly beneath it — and when no chapter is
+              recorded `displayChapter` returns "—", so the card rendered a
+              lone dash as its subtitle. Neither is information. */}
+          <div className="text-sm font-bold text-foreground">{conceptLabel}</div>
+          {chapterLabel && chapterLabel !== "—" && chapterLabel !== conceptLabel && (
+            <div className="text-[11px] text-muted-foreground mt-0.5">{chapterLabel}</div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -194,16 +204,41 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
     navigate(`/student/practice?${qs.toString()}`);
   }
 
+  // Was a bare spinning RotateCcw with no label — the third of the three
+  // unlabelled-spinner screens the emptyStates guard could not see.
+  //
+  // No `action` while loading: the header's badge is a streak count.
+  const header = (
+    <PageHeader
+      eyebrow="Learning"
+      title="Revision"
+      subtitle="Spaced-repetition review to move concepts into long-term memory."
+    />
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <RotateCcw className="w-6 h-6 text-violet-400 animate-spin"/>
+      <div className="space-y-6">
+        {header}
+        <PageSkeleton label="Loading revision" className="space-y-6">
+          <SkeletonCard className="p-4 space-y-2">
+            <Skeleton className="w-5 h-5 rounded" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </SkeletonCard>
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-24 rounded-xl" />
+            ))}
+          </div>
+          <SkeletonList rows={4} />
+        </PageSkeleton>
       </div>
     );
   }
 
   if (!academicReady) {
-    return <NoStudentProfile />;
+    return <div className="space-y-6">{header}<NoStudentProfile /></div>;
   }
 
   if (error || v2Error) {

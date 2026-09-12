@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
-import { GlassCard, LoadingState, NoStudentProfile, PageHeader } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonStats } from "@/gurukul/components/shared";
 import {
   Clock, Calendar, CalendarDays, ClipboardList, FlaskConical,
   MessageCircle, Trophy, ArrowRight, Library, Bell, MessageSquare
@@ -208,22 +208,41 @@ export default function ClassHub({ setPage }: Props) {
     },
   ];
 
+  // The title needs no network, so it no longer waits for one.
+  const header = (
+    <PageHeader
+      title="Class"
+      subtitle="Your attendance, homework and marks, and everything your class shares."
+    />
+  );
+
   if (showLoading(loading)) {
     return (
-      <LoadingState label="Loading class hub…" />
+      <div className="space-y-8">
+        {header}
+        <PageSkeleton label="Loading class hub" className="space-y-8">
+          <SkeletonStats count={4} />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCard key={i} className="p-5 space-y-3">
+                <Skeleton className="w-10 h-10 rounded-xl" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-full" />
+              </SkeletonCard>
+            ))}
+          </div>
+        </PageSkeleton>
+      </div>
     );
   }
 
   if (ready && !studentId) {
-    return <NoStudentProfile />;
+    return <div className="space-y-8">{header}<NoStudentProfile /></div>;
   }
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Class"
-        subtitle="Your attendance, homework and marks, and everything your class shares."
-      />
+      {header}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[

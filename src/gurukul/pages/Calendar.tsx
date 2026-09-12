@@ -3,7 +3,7 @@ import { HomeworkService, MarksService, TestService, CalendarEventsService, useA
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
-import { GlassCard, LoadingState, NoStudentProfile, PageHeader, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, cn, subjectColor } from "@/gurukul/components/shared";
 import { ChevronLeft, ChevronRight, CalendarDays, BookOpen, ClipboardList, AlertCircle, Star } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -21,9 +21,6 @@ interface CalendarEvent {
   type: EventType;
   color: string;
 }
-
-/** The only two entry types an admin can create (v2 redesign, Screen 14). */
-const LEGEND_TYPES: EventType[] = ["event", "holiday"];
 
 const TYPE_META: Record<EventType, { label: string; color: string; icon: React.ReactNode }> = {
   test: { label: "Test", color: "#3b5bdb", icon: <BookOpen className="w-3 h-3" /> },
@@ -208,61 +205,79 @@ export default function Calendar() {
     [calendarEvents],
   );
 
+  // ONE title for this screen, not two.
+  //
+  // The page header said "Calendar" and the card immediately below it said
+  // "School Calendar" in a near-identical display face, subtitled "Events and
+  // holidays" directly under a subtitle that already said what the page shows.
+  // The card's heading predates the page header; nothing removed it when the
+  // header arrived. What the card actually carries is the legend, so that is
+  // all it carries now.
+  //
+  // The title needs no network either, so it no longer waits for one.
+  const header = (
+    <PageHeader
+      eyebrow="Class"
+      title="Calendar"
+      subtitle="Tests, exams, events and submission deadlines for your class."
+    />
+  );
+
   if (showLoading(loading)) {
     return (
-      <LoadingState label="Loading calendar…" />
+      <div className="space-y-6">
+        {header}
+        <PageSkeleton label="Loading calendar" className="space-y-6">
+          <div className="grid lg:grid-cols-[1fr_320px] gap-4">
+            <SkeletonCard className="p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-36" />
+                <Skeleton className="h-7 w-20" />
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {Array.from({ length: 35 }).map((_, i) => (
+                  <Skeleton key={i} className="aspect-square" />
+                ))}
+              </div>
+            </SkeletonCard>
+            <div className="space-y-4">
+              <SkeletonCard className="p-5 space-y-3">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </SkeletonCard>
+              <SkeletonCard className="p-5 space-y-3">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </SkeletonCard>
+            </div>
+          </div>
+        </PageSkeleton>
+      </div>
     );
   }
 
   if (ready && !studentId) {
-    return <NoStudentProfile />;
+    return <div className="space-y-6">{header}<NoStudentProfile /></div>;
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="Class"
-        title="Calendar"
-        subtitle="Tests, exams, events and submission deadlines for your class."
-      />
-      <GlassCard glow="cyan" className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-              School Calendar
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Events and holidays</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {/*
-              The legend shows the two entry types an admin can actually create:
-              a date, free text, and Event or Holiday. Test and Deadline chips
-              came off in the v2 redesign.
+      {header}
+      {/* TWO LEGENDS, and the incomplete one was the loud one.
+          A full-width card sat here holding two small chips (Event, Holiday)
+          pushed to its right edge, while the sidebar's Legend card below
+          already keys ALL FIVE types that plot on this grid — Test, Deadline,
+          Event, Holiday, Exam — in the colour-dot language the grid itself
+          uses. So the student got two legends, in two visual languages, and
+          the one given the most space listed the fewest entries.
 
-              NOT SETTLED, and deliberately left rather than guessed: this page
-              ALSO overlays tests, exams and homework due-dates pulled from
-              TestService / MarksService / HomeworkService, so those still plot
-              on the grid without a legend key. Removing them would take a
-              student's view of upcoming tests away, which the redesign does not
-              ask for. Someone has to rule on whether the calendar carries them.
-            */}
-            {LEGEND_TYPES.map((type) => {
-              const meta = TYPE_META[type];
-              return (
-                <div
-                  key={type}
-                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-semibold"
-                  style={{ borderColor: `${meta.color}30`, color: meta.color, background: `${meta.color}12` }}
-                >
-                  {meta.icon}
-                  {meta.label}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </GlassCard>
-
+          That also settles the open note this card carried: it worried that
+          tests, exams and homework due-dates plot with no legend key. They
+          have one. It is the sidebar card, which reads from TYPE_META
+          directly and therefore cannot fall behind the types being drawn —
+          which is exactly how this hand-listed pair fell behind. */}
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
         {/* Calendar grid */}
         <GlassCard className="p-5">

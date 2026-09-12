@@ -1,6 +1,6 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
-import { GlassCard, LoadingState, PageHeader, cn } from "@/gurukul/components/shared";
+import { GlassCard, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonStats, cn } from "@/gurukul/components/shared";
 import {
   BarChart2, RefreshCw, RotateCcw, AlertCircle, ArrowRight
 } from "lucide-react";
@@ -76,18 +76,43 @@ export default function LearningHub({ setPage }: Props) {
   );
 
 
+  // The title needs no network, so it no longer waits for one.
+  //
+  // No subtitle: it recited the loop — "Practice → Analyse → Recover → Revise.
+  // Your complete growth loop." That is the marketing line for how the product
+  // works, not something a student needs read back to them on the page that
+  // already contains the four things. Removed 2026-09-11 with the loop strip.
+  const header = <PageHeader title="Learning" />;
+
   if (loading && !snapshot && !charts) {
     return (
-      <LoadingState label="Loading learning hub…" />
+      <div className="space-y-8">
+        {header}
+        <PageSkeleton label="Loading learning hub" className="space-y-8">
+          <SkeletonStats count={4} />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCard key={i} className="p-5 space-y-3">
+                <Skeleton className="w-10 h-10 rounded-xl" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-full" />
+              </SkeletonCard>
+            ))}
+          </div>
+        </PageSkeleton>
+      </div>
     );
   }
 
   if (loadError && !snapshot && !charts) {
     return (
-      <div className="rounded-2xl border border-[#cc5069]/25 bg-[#cc5069]/08 p-6 text-center space-y-3">
-        <p className="text-sm font-semibold text-foreground">Could not load learning data</p>
-        <p className="text-xs text-muted-foreground">{loadError}</p>
-        <button type="button" onClick={() => { void reloadSnap(); void reloadCharts(); }} className="text-xs font-bold text-[#3b5bdb] hover:underline">Try again</button>
+      <div className="space-y-8">
+        {header}
+        <div className="rounded-2xl border border-[#cc5069]/25 bg-[#cc5069]/08 p-6 text-center space-y-3">
+          <p className="text-sm font-semibold text-foreground">Could not load learning data</p>
+          <p className="text-xs text-muted-foreground">{loadError}</p>
+          <button type="button" onClick={() => { void reloadSnap(); void reloadCharts(); }} className="text-xs font-bold text-[#3b5bdb] hover:underline">Try again</button>
+        </div>
       </div>
     );
   }
@@ -97,12 +122,7 @@ export default function LearningHub({ setPage }: Props) {
       {loadError && (
         <div className="rounded-xl border border-[#c08a3a]/30 bg-[#c08a3a]/10 px-4 py-2 text-xs text-[#c08a3a]">Some live stats failed to refresh: {loadError}</div>
       )}
-      {/* No subtitle: it recited the loop — "Practice → Analyse → Recover →
-          Revise. Your complete growth loop." That is the marketing line for how
-          the product works, not something a student needs read back to them on
-          the page that already contains the four things. Removed 2026-09-11
-          with the loop strip below it. */}
-      <PageHeader title="Learning" />
+      {header}
 
       {/* Quick stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

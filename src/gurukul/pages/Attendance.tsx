@@ -8,7 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
-import { EmptyState, GlassCard, LoadingState, NoStudentProfile, PageHeader, ProgressBar, SectionLabel, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, NoStudentProfile, PageHeader, PageSkeleton, ProgressBar, SectionLabel, Skeleton, SkeletonCard, cn } from "@/gurukul/components/shared";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds";
 import { ATTENDANCE_COMFORTABLE } from "@/academic/metrics/bands";
@@ -132,23 +132,30 @@ export default function Attendance() {
       }));
   }, [records]);
 
+  // The header is three hard-coded strings. It needs no network, so it no
+  // longer waits for one — it renders in every state, and only the fetched half
+  // below it is skeletonised. This screen used to return a bare spinner INSTEAD
+  // of the page, so a student who tapped "Attendance" could not see the word
+  // Attendance until the request came back.
+  const header = (
+    <PageHeader
+      eyebrow="Class"
+      title="Attendance"
+      subtitle="Your day-by-day record, as your teachers marked it."
+    />
+  );
+
   if (!ready || loading) {
-    return (
-      <LoadingState label="Loading attendance…" />
-    );
+    return <div className="space-y-5">{header}<AttendanceSkeleton /></div>;
   }
 
   if (!studentId) {
-    return <NoStudentProfile />;
+    return <div className="space-y-5">{header}<NoStudentProfile /></div>;
   }
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        eyebrow="Class"
-        title="Attendance"
-        subtitle="Your day-by-day record, as your teachers marked it."
-      />
+      {header}
       <GlassCard glow={pct >= ATTENDANCE_COMFORTABLE ? "green" : "amber"} className="p-6 flex items-center gap-6">
         <OverallRing pct={pct} col={col} />
         <div>
@@ -283,5 +290,45 @@ function OverallRing({ pct, col }: { pct: number; col: string }) {
         </span>
       </div>
     </div>
+  );
+}
+
+/**
+ * The shape this screen is about to be: the overall ring, a month grid, and the
+ * status breakdown. Two weeks of cells is enough to read as a calendar without
+ * promising a specific number of marked days.
+ */
+function AttendanceSkeleton() {
+  return (
+    <PageSkeleton label="Loading attendance">
+      <SkeletonCard className="p-6 flex items-center gap-6">
+        <Skeleton className="w-[100px] h-[100px] rounded-full shrink-0" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-9 w-24" />
+          <Skeleton className="h-3 w-48" />
+        </div>
+      </SkeletonCard>
+
+      <SkeletonCard className="p-5 space-y-4">
+        <Skeleton className="h-3 w-40" />
+        <div className="grid grid-cols-7 gap-1.5 max-w-md">
+          {Array.from({ length: 14 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-square" />
+          ))}
+        </div>
+      </SkeletonCard>
+
+      <SkeletonCard className="p-5 space-y-4">
+        <Skeleton className="h-3 w-36" />
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className="h-4 w-28 shrink-0" />
+            <Skeleton className="h-2 flex-1" />
+            <Skeleton className="h-4 w-8 shrink-0" />
+          </div>
+        ))}
+      </SkeletonCard>
+    </PageSkeleton>
   );
 }
