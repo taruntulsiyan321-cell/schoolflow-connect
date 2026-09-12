@@ -64,7 +64,25 @@
   --shadow: none;
   --shadow-lg: 0 8px 24px rgba(23, 19, 15, 0.08);
 
-  height: 100%;
+  /* THE VIEWPORT, NOT A PERCENTAGE OF AN AUTO-HEIGHT PARENT.
+   *
+   * This was `height: 100%`, and a percentage height only resolves when the
+   * ancestor it refers to has a definite one. `body` and `html` here do not, so
+   * the whole chain collapsed to content height: the shell fell back to
+   * `min-height`, `.flex.h-full` inside it resolved to auto, and the sidebar's
+   * own `h-full` resolved to auto as well.
+   *
+   * Measured at 1280x800 before the fix: the sidebar rendered 332px tall — the
+   * height of its four nav items — so its dark panel stopped a third of the way
+   * down the screen and the cream page showed beneath it. The document also
+   * grew to 1005px inside an `overflow-hidden` shell, which is the same cause
+   * from the other end: this design scrolls INSIDE its panels (`.scroll-y`),
+   * and that only works when the shell is pinned to the viewport.
+   *
+   * `100dvh` follows mobile browser chrome as it collapses; `100vh` above it is
+   * the fallback for engines without dvh. */
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
   background: hsl(var(--background));
   color: hsl(var(--foreground));

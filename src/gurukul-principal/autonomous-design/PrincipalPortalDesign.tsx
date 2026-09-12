@@ -80,6 +80,20 @@ function useNav() {
 
 // ─── Layout primitives ───────────────────────────────────────────────────────
 
+/**
+ * `rounded-[2px]`, not `rounded-sm`.
+ *
+ * This project's Tailwind scale derives from `--radius`:
+ * `sm: calc(var(--radius) - 4px)`. That is built for the other panels, where
+ * `--radius` is 14px. This design sets `--radius: 2px`, so `rounded-sm`
+ * evaluated to `calc(2px - 4px)` — a negative radius, clamped to 0 — and every
+ * corner the design drew at 2px rendered perfectly square. Measured on the
+ * sidebar nav items: `border-radius: 0px`.
+ *
+ * The token stays 2px because 2px is the truth about this design; the three
+ * call sites say 2px outright rather than routing it through a scale that
+ * cannot express it.
+ */
 function Sidebar({ section, onNav }: { section: string; onNav: (s: Screen) => void }) {
   const items: { id: string; label: string; screen: Screen }[] = [
     { id: "dashboard", label: "Dashboard", screen: { id: "dashboard" } },
@@ -98,7 +112,7 @@ function Sidebar({ section, onNav }: { section: string; onNav: (s: Screen) => vo
           <button
             key={item.id}
             onClick={() => onNav(item.screen)}
-            className={`w-full text-left px-3 py-2.5 rounded-sm text-sm mb-0.5 transition-colors ${
+            className={`w-full text-left px-3 py-2.5 rounded-[2px] text-sm mb-0.5 transition-colors ${
               section === item.id
                 ? "bg-sidebar-accent text-white font-medium"
                 : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-white/5"
@@ -182,7 +196,7 @@ function Pill({ children, variant = "default" }: { children: React.ReactNode; va
     outline: "border border-border text-foreground",
   }[variant]
   return (
-    <span className={`inline-block text-[10px] font-mono px-1.5 py-0.5 rounded-sm ${cls}`}>
+    <span className={`inline-block text-[10px] font-mono px-1.5 py-0.5 rounded-[2px] ${cls}`}>
       {children}
     </span>
   )
@@ -211,7 +225,7 @@ function EmptyState({ title, detail }: { title: string; detail?: string }) {
 function LoadingRow() {
   return (
     <div className="h-10 flex items-center px-4">
-      <div className="h-2 w-32 bg-muted rounded-sm animate-pulse" />
+      <div className="h-2 w-32 bg-muted rounded-[2px] animate-pulse" />
     </div>
   )
 }

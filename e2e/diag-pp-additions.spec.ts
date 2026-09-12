@@ -18,6 +18,31 @@ test("the three principal additions", async ({ page }) => {
   await page.waitForURL(/\/principal/, { timeout: 30000 });
   await page.waitForTimeout(4000);
 
+  // ── 0. The shell is pinned to the viewport ──
+  // `.gurukul-principal` used `height: 100%`, which only resolves when an
+  // ancestor has a definite height — html/body here do not. The whole chain
+  // fell back to content height: the sidebar rendered 332px tall in an 800px
+  // viewport, its dark panel stopping a third of the way down, and the document
+  // grew past an `overflow-hidden` shell so the panels' own `.scroll-y` never
+  // engaged. This design scrolls INSIDE its panels; that needs the shell pinned.
+  const shell = await page.evaluate(() => {
+    const aside = document.querySelector("aside") as HTMLElement | null;
+    const nav = document.querySelector("aside nav button") as HTMLElement | null;
+    return {
+      viewportHeight: window.innerHeight,
+      asideHeight: aside ? Math.round(aside.getBoundingClientRect().height) : 0,
+      documentHeight: document.documentElement.scrollHeight,
+      navRadius: nav ? getComputedStyle(nav).borderRadius : null,
+    };
+  });
+  console.log("shell:", JSON.stringify(shell));
+  expect(shell.asideHeight, "the sidebar fills the viewport").toBe(shell.viewportHeight);
+  expect(shell.documentHeight, "the page itself does not scroll").toBeLessThanOrEqual(shell.viewportHeight);
+  // `rounded-sm` is `calc(var(--radius) - 4px)` in this project's scale, and
+  // this design sets `--radius: 2px` — so it clamped to 0 and every 2px corner
+  // rendered square.
+  expect(shell.navRadius, "nav items keep the design's 2px corner").toBe("2px");
+
   // ── 1. Attendance ranking: Dashboard → Attendance → a class → Cumulative ──
   await page.getByRole("button", { name: "Attendance", exact: true }).first().click();
   await page.waitForTimeout(1200);

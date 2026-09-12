@@ -23,26 +23,86 @@ import {
   CLASS_FLAGGED_ON_MARKS,
   THRESHOLDS as SOURCE,
 } from "./thresholds";
-import { THRESHOLDS as PRINCIPAL } from "@/gurukul-principal/analysis/thresholds";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+
+/**
+ * This file used to import `THRESHOLDS` from
+ * `src/gurukul-principal/analysis/thresholds.ts` and assert the two agreed.
+ *
+ * That module was a re-export left behind after Chunk 10 converged four homes
+ * into one, and the principal panel it served was replaced by the Autonomous
+ * Design — so it had no screens left and was deleted along with them. Comparing
+ * two copies is no longer possible, and the invariant it stood for is better
+ * stated directly: these numbers are DECLARED in exactly one module.
+ *
+ * A scan is also the stronger guard. The old assertion could only catch the ONE
+ * second home it knew the name of; this catches the next one wherever it opens.
+ */
+const THRESHOLD_NAMES = [
+  "ATTENDANCE_LOW",
+  "CONSECUTIVE_ABSENCE",
+  "HOMEWORK_LOW",
+  "HOMEWORK_WINDOW",
+  "MARKS_OVERDUE",
+  "CLASS_FLAGGED_ON_MARKS",
+  "SUBJECT_AVERAGE_LOW",
+];
+
+function walk(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) walk(full, out);
+    else if (/\.tsx?$/.test(full) && !/\.test\.tsx?$/.test(full)) out.push(full);
+  }
+  return out;
+}
+
+const SOURCE_FILE = join("src", "academic", "metrics", "thresholds.ts");
 
 describe("one threshold module, and the value reaches the screens", () => {
-  it("the principal module carries the source values, not copies of them", () => {
-    // Compared against the imported constants, never against literals. A test
-    // written as `toBe(80)` would pass just as happily on two hardcoded 80s.
-    expect(PRINCIPAL.attendance.low).toBe(ATTENDANCE_LOW);
-    expect(PRINCIPAL.attendance.consecutive).toBe(CONSECUTIVE_ABSENCE);
-    expect(PRINCIPAL.homework.completion).toBe(HOMEWORK_LOW);
-    expect(PRINCIPAL.homework.window).toBe(HOMEWORK_WINDOW);
-    expect(PRINCIPAL.marks.classFlag).toBe(CLASS_FLAGGED_ON_MARKS);
-    expect(PRINCIPAL.upload.overdue).toBe(MARKS_OVERDUE);
-    expect(PRINCIPAL.ATTENDANCE_LOW).toBe(ATTENDANCE_LOW);
-    expect(PRINCIPAL.HOMEWORK_LOW).toBe(HOMEWORK_LOW);
+  it("no file outside the metrics module declares a threshold of its own", () => {
+    const offenders: string[] = [];
+    for (const file of walk(join(process.cwd(), "src"))) {
+      if (file.endsWith(SOURCE_FILE)) continue;
+      const src = readFileSync(file, "utf8");
+      src.split("\n").forEach((line, i) => {
+        const code = line.trim();
+        if (code.startsWith("*") || code.startsWith("//") || code.startsWith("/*")) return;
+        for (const name of THRESHOLD_NAMES) {
+          // A DECLARATION — `const X = 80` — not an import or a re-export.
+          if (new RegExp(`\\b(const|let|var)\\s+${name}\\s*=`).test(code)) {
+            offenders.push(`${file}:${i + 1}  ${code.slice(0, 80)}`);
+          }
+        }
+      });
+    }
+    expect(
+      offenders,
+      `thresholds are declared in ${SOURCE_FILE} and nowhere else:\n${offenders.join("\n")}`,
+    ).toEqual([]);
   });
 
-  it("chronic absence is the attendance threshold, not a second number", () => {
-    // The ruling: 80 over the year and 80 over the reporting window — which,
-    // since terms were dropped, IS the year — is one threshold with two names.
-    expect(PRINCIPAL.attendance.chronic).toBe(ATTENDANCE_LOW);
+  it("POSITIVE CONTROL: the scan does find the real declarations in the source", () => {
+    // Without this, a typo in a name or a broken walk makes the check above
+    // pass because it reads nothing, not because the codebase is clean.
+    const src = readFileSync(join(process.cwd(), SOURCE_FILE), "utf8");
+    const found = THRESHOLD_NAMES.filter((n) =>
+      new RegExp(`\\b(const|let|var)\\s+${n}\\s*=`).test(src),
+    );
+    expect(found, "every threshold should be declared in the source module").toEqual(THRESHOLD_NAMES);
+  });
+
+  it("the THRESHOLDS bag and the named exports are the same values", () => {
+    // Values, not literals: `toBe(80)` would pass just as happily on a copy.
+    // The bag is flat — the nested `attendance.low` shape belonged to the
+    // principal re-export that has been deleted.
+    expect(SOURCE.ATTENDANCE_LOW).toBe(ATTENDANCE_LOW);
+    expect(SOURCE.CONSECUTIVE_ABSENCE).toBe(CONSECUTIVE_ABSENCE);
+    expect(SOURCE.HOMEWORK_LOW).toBe(HOMEWORK_LOW);
+    expect(SOURCE.HOMEWORK_WINDOW).toBe(HOMEWORK_WINDOW);
+    expect(SOURCE.CLASS_FLAGGED_ON_MARKS).toBe(CLASS_FLAGGED_ON_MARKS);
+    expect(SOURCE.MARKS_OVERDUE).toBe(MARKS_OVERDUE);
   });
 
   it("the source module does not export a chronic threshold at all", async () => {
