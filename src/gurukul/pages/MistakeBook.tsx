@@ -8,7 +8,7 @@ import { mistakeBookmarksKey } from "@/lib/clientStorage";
 import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayTopic, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
-import { DifficultyBadge, EmptyState, GlassCard, PageHeader, PageSkeleton, ProgressBar, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { DifficultyBadge, EmptyState, GlassCard, PageHeader, PageSkeleton, ProgressBar, ProgressRing, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Bookmark, BookmarkCheck,
   ChevronDown, ChevronRight, CheckCircle2, XCircle, ArrowRight,
@@ -671,25 +671,19 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   }
 
   if (view === "results") {
-    const size = 110, stroke = 9, r = (size - stroke) / 2, c = 2 * Math.PI * r;
     const passed = practiceScore >= 70;
     const color = passed ? "hsl(var(--success))" : "hsl(var(--warning))";
-    const offset = c - (practiceScore / 100) * c;
     return (
       <div className="space-y-6">
         <GlassCard className="p-6 text-center">
           <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-4">Mistake Practice Complete</div>
           <div className="flex justify-center mb-4">
-            <div className="relative inline-flex" style={{width:size,height:size}}>
-              <svg width={size} height={size} className="-rotate-90">
-                <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke}/>
-                <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-                  strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" style={{filter:`drop-shadow(0 0 10px ${color})`}}/>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-black" style={{color}}>{practiceScore}%</span>
-              </div>
-            </div>
+            {/* The shared ring. This one had BOTH defects: a 10px drop-shadow
+                glow, and a track drawn in `rgba(255,255,255,0.06)` — invisible
+                on a white card, so the arc had nothing to sit against. */}
+            <ProgressRing value={practiceScore} size={110} color={color} label={`${practiceScore}% on this practice`}>
+              <span className="text-2xl font-black" style={{ color }}>{practiceScore}%</span>
+            </ProgressRing>
           </div>
           <p className="text-sm text-muted-foreground">{passed ? "Great progress on your mistakes!" : "Keep practicing these — consistency is key."}</p>
         </GlassCard>

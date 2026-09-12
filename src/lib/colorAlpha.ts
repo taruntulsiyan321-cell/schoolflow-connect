@@ -38,3 +38,23 @@ export function withAlpha(color: string, alpha: number): string {
   const pct = Math.max(0, Math.min(1, alpha)) * 100;
   return `color-mix(in srgb, ${c} ${pct}%, transparent)`;
 }
+
+/**
+ * A LIGHTER version of a colour — mixed toward the surface it sits on, not
+ * made transparent.
+ *
+ * `withAlpha` is the wrong tool when something is already painted underneath.
+ * A progress ring draws its track first and its arc on top at the same radius,
+ * so a translucent arc lets the grey track show through and the result is
+ * muddy. Mixing toward the card keeps the arc opaque and still lets a gradient
+ * run from pale to full.
+ *
+ * `amount` is how much of the ORIGINAL colour survives: 0.5 is a half-strength
+ * tint, 1 is the colour untouched.
+ */
+export function withTint(color: string, amount: number, surface = "hsl(var(--card))"): string {
+  const c = String(color ?? "").trim();
+  if (!c) return c;
+  const pct = Math.max(0, Math.min(1, amount)) * 100;
+  return `color-mix(in srgb, ${c} ${pct}%, ${surface})`;
+}

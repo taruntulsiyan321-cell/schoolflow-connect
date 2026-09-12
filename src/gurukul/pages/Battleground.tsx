@@ -182,7 +182,7 @@ function DiffBadge({ level }: { level: "Easy" | "Medium" | "Hard" | null }) {
     return (
       <span
         style={{
-          background: "rgba(255,255,255,0.06)",
+          background: "hsl(var(--muted) / 0.7)",
           color: C.text3,
           border: `1px solid ${C.border}`,
           borderRadius: "4px",
@@ -425,7 +425,7 @@ function HeroSection({
                 <div
                   key={label}
                   style={{
-                    background: "rgba(255,255,255,0.04)",
+                    background: "hsl(var(--muted) / 0.6)",
                     border: `1px solid ${C.border}`,
                     borderRadius: "10px",
                     padding: "0.6rem 0.75rem",
@@ -449,7 +449,11 @@ function HeroSection({
                 </span>
                 <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.72rem", color: C.purple }}>{xpPct}%</span>
               </div>
-              <div style={{ height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "100px", overflow: "hidden" }}>
+              {/* The unfilled half of the XP bar — a TRACK, so it takes the
+                  same colour the progress rings use. It was
+                  `rgba(255,255,255,0.06)`: white at 6% on a white card, which
+                  is white. The bar had no visible remainder to fill. */}
+              <div style={{ height: "8px", background: "hsl(var(--border))", borderRadius: "100px", overflow: "hidden" }}>
                 <div
                   className="xp-bar-fill"
                   style={
@@ -551,7 +555,7 @@ function HeroSection({
                       width: "8px",
                       height: "8px",
                       borderRadius: "2px",
-                      background: i <= me.streak ? C.orange : "rgba(255,255,255,0.08)",
+                      background: i <= me.streak ? C.orange : "hsl(var(--border))",
                     }}
                   />
                 ))}
@@ -755,7 +759,7 @@ function JoinCodeModal({
           autoFocus
           style={{
             width: "100%",
-            background: "rgba(255,255,255,0.04)",
+            background: "hsl(var(--muted) / 0.6)",
             border: `1px solid ${C.border}`,
             borderRadius: "10px",
             padding: "0.75rem 1rem",
@@ -903,7 +907,7 @@ function MyBattlesPanel({
               {count > 0 && (
                 <span
                   style={{
-                    background: tab === key ? `${withAlpha(C.blue, 0.13)}` : "rgba(255,255,255,0.06)",
+                    background: tab === key ? `${withAlpha(C.blue, 0.13)}` : "hsl(var(--muted) / 0.7)",
                     color: tab === key ? C.blue : C.text3,
                     borderRadius: "100px",
                     padding: "0px 6px",
@@ -943,7 +947,7 @@ function MyBattlesPanel({
                 key={b.id + (b.inviteId || "")}
                 className="battle-card"
                 style={{
-                  background: isActive ? "rgba(59,130,246,0.06)" : "rgba(255,255,255,0.03)",
+                  background: isActive ? "rgba(59,130,246,0.06)" : "hsl(var(--muted) / 0.5)",
                   border: `1px solid ${isActive ? "rgba(59,130,246,0.2)" : C.border}`,
                   borderRadius: "12px",
                   padding: "0.9rem 1rem",
@@ -998,7 +1002,7 @@ function MyBattlesPanel({
                       className="btn-primary"
                       onClick={() => onOpen(b.id)}
                       style={{
-                        background: status === "active" || b.status === "pending" ? C.blue : "rgba(255,255,255,0.08)",
+                        background: status === "active" || b.status === "pending" ? C.blue : "hsl(var(--border))",
                         border: "none",
                         borderRadius: "7px",
                         padding: "4px 12px",
@@ -1215,7 +1219,7 @@ function BattleHistoryPanel({
                   alignItems: "center",
                   gap: "0.85rem",
                   padding: "0.75rem 1rem",
-                  background: "rgba(255,255,255,0.03)",
+                  background: "hsl(var(--muted) / 0.5)",
                   border: `1px solid ${C.border}`,
                   borderRadius: "10px",
                   cursor: "pointer",
@@ -1240,7 +1244,7 @@ function BattleHistoryPanel({
                     width: "36px",
                     height: "36px",
                     borderRadius: "8px",
-                    background: won ? `${withAlpha(C.green, 0.09)}` : lost ? `${withAlpha(C.red, 0.09)}` : "rgba(255,255,255,0.06)",
+                    background: won ? `${withAlpha(C.green, 0.09)}` : lost ? `${withAlpha(C.red, 0.09)}` : "hsl(var(--muted) / 0.7)",
                     border: `1px solid ${withAlpha(won ? C.green : lost ? C.red : C.border, 0.2)}`,
                     display: "flex",
                     alignItems: "center",
@@ -1398,7 +1402,7 @@ function AchievementsPanel({ onSeeAll }: { onSeeAll?: () => void }) {
               key={a.id}
               className="badge-card"
               style={{
-                background: a.unlocked ? `${withAlpha(rc, 0.07)}` : "rgba(255,255,255,0.03)",
+                background: a.unlocked ? `${withAlpha(rc, 0.07)}` : "hsl(var(--muted) / 0.5)",
                 border: `1px solid ${a.unlocked ? `${withAlpha(rc, 0.2)}` : C.border}`,
                 borderRadius: "12px",
                 padding: "0.9rem",
@@ -1645,7 +1649,7 @@ function CreateBattleWizard({
 
   const inputStyle: CSSProperties = {
     width: "100%",
-    background: "rgba(255,255,255,0.04)",
+    background: "hsl(var(--muted) / 0.6)",
     border: `1px solid ${C.border}`,
     borderRadius: "10px",
     padding: "0.65rem 0.85rem",
@@ -1689,7 +1693,7 @@ function CreateBattleWizard({
                 fontSize: "0.75rem",
                 fontWeight: 800,
                 fontFamily: "Outfit, sans-serif",
-                background: step === s ? C.blue : step > s ? C.green : "rgba(255,255,255,0.08)",
+                background: step === s ? C.blue : step > s ? C.green : "hsl(var(--border))",
                 color: "hsl(var(--primary-foreground))",
               }}
             >
@@ -1701,7 +1705,7 @@ function CreateBattleWizard({
                   flex: 1,
                   height: "2px",
                   borderRadius: "2px",
-                  background: step > s ? C.green : "rgba(255,255,255,0.1)",
+                  background: step > s ? C.green : "hsl(var(--border))",
                 }}
               />
             )}
@@ -1736,7 +1740,7 @@ function CreateBattleWizard({
                   padding: "0.9rem 1rem",
                   borderRadius: "12px",
                   border: `1px solid ${type === t.key ? `${withAlpha(t.color, 0.33)}` : C.border}`,
-                  background: type === t.key ? `${withAlpha(t.color, 0.08)}` : "rgba(255,255,255,0.03)",
+                  background: type === t.key ? `${withAlpha(t.color, 0.08)}` : "hsl(var(--muted) / 0.5)",
                   cursor: "pointer",
                   textAlign: "left",
                 }}

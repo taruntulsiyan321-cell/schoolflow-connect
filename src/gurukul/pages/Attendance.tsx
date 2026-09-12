@@ -8,7 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
-import { EmptyState, GlassCard, NoStudentProfile, PageHeader, PageSkeleton, ProgressBar, SectionLabel, Skeleton, SkeletonCard, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, NoStudentProfile, PageHeader, PageSkeleton, ProgressBar, ProgressRing, SectionLabel, Skeleton, SkeletonCard, cn } from "@/gurukul/components/shared";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds";
 import { ATTENDANCE_COMFORTABLE } from "@/academic/metrics/bands";
@@ -266,34 +266,20 @@ export default function Attendance() {
   );
 }
 
+/**
+ * The shared ring. This screen drew its own, and its track was
+ * `rgba(255,255,255,0.06)` — white at 6% on a white card, so there was no
+ * track at all. A 75% arc had nothing to be 75% OF: it read as a stub floating
+ * on the card rather than three quarters of a circle. A dark-theme leftover
+ * that only shows up once the panel is light.
+ */
 function OverallRing({ pct, col }: { pct: number; col: string }) {
-  const size = 100;
-  const stroke = 8;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c - (pct / 100) * c;
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={col}
-          strokeWidth={stroke}
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-black" style={{ color: col }}>
-          {pct}%
-        </span>
-      </div>
-    </div>
+    <ProgressRing value={pct} size={100} color={col} label={`${pct}% attendance`}>
+      <span className="text-sm font-black" style={{ color: col }}>
+        {pct}%
+      </span>
+    </ProgressRing>
   );
 }
 

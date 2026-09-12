@@ -1,6 +1,6 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent, useGurukulShellReady } from "@/gurukul/StudentContext";
-import { EmptyState, GlassCard, PageSkeleton, ProgressBar, SectionLabel, Skeleton, SkeletonCard, SkeletonStats, StatTile, XPBar } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, PageSkeleton, ProgressBar, ProgressRing, SectionLabel, Skeleton, SkeletonCard, SkeletonStats, StatTile, XPBar } from "@/gurukul/components/shared";
 import {
   ArrowRight, Flame, BookOpen, Brain, RefreshCw, RotateCcw,
   BarChart2, Trophy, Swords, Star
@@ -100,29 +100,26 @@ const PRACTICE_TARGET = 1;
 function WeeklyRing({ sessions }: { sessions: number }) {
   const goal = 7;
   const pct = Math.min(sessions / goal, 1);
-  const size = 120;
-  const stroke = 9;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c - pct * c;
   // Complete colours, all three rungs. This ternary was the whole G4 bug in one
   // line: two triplet tokens and one `--color-*` (already `hsl(...)`), then
   // `hsl()` wrapped around every branch. The ring drew correctly at and above
   // target and vanished below it — the one case the student needs to see.
   const colorVar = pct >= 0.85 ? "hsl(var(--info))" : pct >= 0.57 ? "hsl(var(--warning))" : "var(--color-chemistry)";
+  // The shared ring. This screen used to draw its own, with
+  // `drop-shadow(0 0 8px <the arc colour>)` around the stroke — a dark-theme
+  // glow on a light card, which blurs a deep ochre outward over white and
+  // reads as a brown smudge rather than a glow. The arc carries a gradient
+  // now and nothing bleeds off it.
   return (
-    <div className="relative inline-flex" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={stroke} />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={colorVar} strokeWidth={stroke}
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ filter: `drop-shadow(0 0 8px ${colorVar})`, transition: "stroke-dashoffset 1s ease" }} />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-black tabular-nums" style={{ color: colorVar }}>{sessions}</span>
-        <span className="text-[10px] text-muted-foreground">/ {goal}</span>
-      </div>
-    </div>
+    <ProgressRing
+      value={pct * 100}
+      size={120}
+      color={colorVar}
+      label={`${sessions} of ${goal} practice sessions this week`}
+    >
+      <span className="text-2xl font-black tabular-nums" style={{ color: colorVar }}>{sessions}</span>
+      <span className="text-[10px] text-muted-foreground mt-0.5">/ {goal}</span>
+    </ProgressRing>
   );
 }
 

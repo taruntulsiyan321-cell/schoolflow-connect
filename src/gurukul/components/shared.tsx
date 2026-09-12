@@ -1,4 +1,4 @@
-﻿import type { CSSProperties, ReactNode } from "react";
+﻿import { useId, type CSSProperties, type ReactNode } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
@@ -103,7 +103,7 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
 }
 
 import { displaySubject } from "@/lib/academicPresentation";
-import { withAlpha } from "@/lib/colorAlpha";
+import { withAlpha, withTint } from "@/lib/colorAlpha";
 
 /**
  * Subject → colour. These values are COMPLETE colours: the `--color-*` tokens
@@ -186,32 +186,120 @@ export function Avatar({ initials, color, size="md" }: { initials:string; color?
   );
 }
 
-export function ProgressRing({ score, size=80, color }: { score:number; size?:number; color?:string }) {
+/**
+ * THE PANEL'S PROGRESS RING — one of them, for the first time.
+ *
+ * There were FIVE hand-rolled copies and they agreed on nothing:
+ *
+ *     where                      size  stroke  track                    glow
+ *     shared.tsx (no callers)      80       7  --border                  6px
+ *     Dashboard  WeeklyRing       120       9  --border                  8px
+ *     Attendance OverallRing      100       8  rgba(255,255,255,0.06)    none
+ *     MistakeBook                 110       9  rgba(255,255,255,0.06)   10px
+ *     Revision                    110       9  --border                 10px
+ *
+ * TWO DEFECTS CAME OUT OF THAT TABLE.
+ *
+ * 1. THE SHADOW. Four of them wrapped the arc in
+ *    `filter: drop-shadow(0 0 Npx <the arc's own colour>)` at full opacity.
+ *    That is a glow borrowed from a dark theme, and the panel is light: blurring
+ *    a DARK colour outward over white does not glow, it smudges. `--warning` is
+ *    a deep ochre, so the weekly-sessions ring on Home shipped with a muddy
+ *    brown halo bleeding off the arc. Measured at three different blur radii,
+ *    because each copy picked its own.
+ *
+ *    A ring reads as smooth because of the arc itself, not a haze around it. So
+ *    the glow is gone and the stroke carries a real gradient — pale at the
+ *    start, full strength at the end — which is what gives it depth.
+ *
+ * 2. THE INVISIBLE TRACK. Attendance and MistakeBook drew theirs in
+ *    `rgba(255,255,255,0.06)` — white at 6% on a white card. The track simply
+ *    was not there, so a 75% ring had no remaining arc to be 75% OF; it read as
+ *    a floating stub. Another dark-theme leftover nobody saw on a light screen.
+ *
+ * The gradient is mixed toward the CARD rather than made transparent, because
+ * the track is painted underneath at the same radius — a translucent arc would
+ * pick the grey up and go muddy, which is the problem this replaces.
+ */
+export function ProgressRing({
+  value, size = 80, stroke, color, label, children,
+}: {
+  value: number;
+  size?: number;
+  stroke?: number;
+  /** A COMPLETE CSS colour. See the colour contract at the top of this file. */
+  color?: string;
+  /** What a screen reader says. Defaults to the percentage. */
+  label?: string;
+  /** Centre content. Defaults to `{value}%`. */
+  children?: ReactNode;
+}) {
   const reduceMotion = useReducedMotion();
-  const stroke = 7;
-  const r = (size - stroke) / 2;
+  // `useId` yields ":r0:" and a colon is legal in an XML id but reads badly in
+  // `url(#…)`; strip it rather than rely on every engine being forgiving.
+  const gradientId = `ring-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const pct = Math.min(100, Math.max(0, value));
+  // Stroke scales with the ring instead of each caller picking a number.
+  const width = stroke ?? Math.max(6, Math.round(size * 0.08));
+  const r = (size - width) / 2;
   const c = 2 * Math.PI * r;
-  const offset = c - (Math.min(100, Math.max(0, score)) / 100) * c;
-  // Converged from 60/80 onto the one risk ladder. This component has no
-  // callers, so the two boundaries it contributed to the `score` survey existed
-  // only here — the disagreement was never on a screen.
-  const colorVar = color ?? RING_COLOR[riskBand(score)];
+  const offset = c - (pct / 100) * c;
+  const colorVar = color ?? RING_COLOR[riskBand(pct)];
   return (
-    <div className="relative inline-flex" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={stroke} />
-        <motion.circle cx={size/2} cy={size/2} r={r} fill="none" stroke={colorVar} strokeWidth={stroke}
-          strokeDasharray={c} strokeLinecap="round"
-          style={{ filter: `drop-shadow(0 0 6px ${colorVar})` }}
+    <div
+      className="relative inline-flex shrink-0"
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={label ?? `${pct}%`}
+    >
+      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+        <defs>
+          {/* Runs corner to corner in the SVG's own space, which the -90°
+              rotation carries with it — so the pale end is always where the arc
+              begins, whatever the value. */}
+          <linearGradient
+            id={gradientId}
+            gradientUnits="userSpaceOnUse"
+            x1={width / 2}
+            y1={width / 2}
+            x2={size - width / 2}
+            y2={size - width / 2}
+          >
+            <stop offset="0%" stopColor={withTint(colorVar, 0.45)} />
+            <stop offset="100%" stopColor={colorVar} />
+          </linearGradient>
+        </defs>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="hsl(var(--border))"
+          strokeWidth={width}
+        />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={`url(#${gradientId})`}
+          strokeWidth={width}
+          strokeDasharray={c}
+          strokeLinecap="round"
           initial={reduceMotion ? undefined : { strokeDashoffset: c }}
           animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.1, ease: EASE_OUT }} />
+          transition={{ duration: reduceMotion ? 0 : 1.1, ease: EASE_OUT }}
+        />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <motion.span className="font-black tabular-nums" style={{ color: colorVar, fontSize: size * 0.22 }}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.4 }}>
-          {score}%
-        </motion.span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+        {children ?? (
+          <span
+            className="font-black tabular-nums"
+            style={{ color: colorVar, fontSize: size * 0.22 }}
+          >
+            {pct}%
+          </span>
+        )}
       </div>
     </div>
   );

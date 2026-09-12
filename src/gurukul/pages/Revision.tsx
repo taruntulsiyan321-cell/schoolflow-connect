@@ -7,7 +7,7 @@ import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useRevisionItems, type RevItem } from "./useRevisionQueueV2";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
-import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, ProgressRing, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { REVISION_PASS_THRESHOLD } from "@/academic/recovery/constants";
 import {
   RotateCcw, CheckCircle2, AlertCircle, Flame, History, Bookmark,
@@ -128,22 +128,15 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
   // passed was the one home nothing was checking.
   const passed = score >= REVISION_PASS_THRESHOLD * 100;
   const color = passed ? "hsl(var(--success))" : "hsl(var(--warning))";
-  const size = 110, stroke = 9, r = (size - stroke) / 2, c = 2 * Math.PI * r, offset = c - (score / 100) * c;
   return (
     <div className="space-y-6">
       <GlassCard className="p-6 text-center">
         <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-4">Revision Complete</div>
         <div className="flex justify-center mb-4">
-          <div className="relative inline-flex" style={{width:size,height:size}}>
-            <svg width={size} height={size} className="-rotate-90">
-              <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={stroke}/>
-              <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-                strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" style={{filter:`drop-shadow(0 0 10px ${color})`}}/>
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-black" style={{color}}>{score}%</span>
-            </div>
-          </div>
+          {/* The shared ring — this drew its own with a 10px drop-shadow glow. */}
+          <ProgressRing value={score} size={110} color={color} label={`${score}% on this revision`}>
+            <span className="text-2xl font-black" style={{ color }}>{score}%</span>
+          </ProgressRing>
         </div>
         <div className="text-lg font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>{displayConcept(item.concept)}</div>
         <p className="text-sm text-muted-foreground">{passed ? "Solid revision — this concept is strengthening." : "Need more practice. Consider a recovery session."}</p>
