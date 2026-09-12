@@ -182,26 +182,6 @@
   border-radius: 2px;
 }
 
-.gurukul-principal .scroll-x,
-.gurukul-teacher .scroll-x,
-.gurukul-parent .scroll-x {
-  overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #cac5bb transparent;
-}
-.gurukul-principal .scroll-x::-webkit-scrollbar,
-.gurukul-teacher .scroll-x::-webkit-scrollbar,
-.gurukul-parent .scroll-x::-webkit-scrollbar {
-  display: block;
-  height: 4px;
-}
-.gurukul-principal .scroll-x::-webkit-scrollbar-thumb,
-.gurukul-teacher .scroll-x::-webkit-scrollbar-thumb,
-.gurukul-parent .scroll-x::-webkit-scrollbar-thumb {
-  background: #cac5bb;
-  border-radius: 2px;
-}
-
 /* Headings are the display serif, at the weight the design draws them —
    `font-medium`. No `font-weight: 800 !important` here: the panels this
    replaced forced weight from the theme, so no component's own choice ever

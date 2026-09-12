@@ -54,46 +54,6 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function ConfirmModal({
-  open,
-  title,
-  description,
-  confirmLabel = "Confirm",
-  danger = false,
-  onConfirm,
-  onCancel,
-}: {
-  open: boolean;
-  title: string;
-  description: string;
-  confirmLabel?: string;
-  danger?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative z-10 bg-surface border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-        <div className="text-foreground font-bold text-base mb-2">{title}</div>
-        <div className="text-muted-foreground text-sm mb-6">{description}</div>
-        <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 transition-all">
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className={cn("px-4 py-2 rounded-xl text-sm font-semibold text-foreground transition-all", danger ? "bg-[#cc5069] hover:bg-[#b84460]" : "bg-[#3b5bdb] hover:bg-[#2f4fc4]")}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Undo-delete toast ────────────────────────────────────────────────────────
 
 interface UndoToastState {
@@ -152,53 +112,6 @@ export function Toast({
   onClose: () => void;
 }) {
   return <UndoToast state={{ message, type }} onClose={onClose} />;
-}
-
-// Hook for undo-delete pattern — 5s window before permanent
-export function useUndoDelete<T extends { id: string }>(
-  setItems: React.Dispatch<React.SetStateAction<T[]>>
-) {
-  const [toast, setToast] = useState<UndoToastState | null>(null);
-  const pendingRef = useRef<{ items: T[]; timer: ReturnType<typeof setTimeout> } | null>(null);
-
-  const closeToast = useCallback(() => setToast(null), []);
-
-  // Soft-delete: remove from UI immediately, schedule permanent deletion
-  const softDelete = useCallback(
-    (toRemove: T[], label: string, onPermanent?: () => void) => {
-      // Cancel any previous pending delete
-      if (pendingRef.current) clearTimeout(pendingRef.current.timer);
-
-      // Remove from state immediately
-      setItems((prev) => prev.filter((x) => !toRemove.find((r) => r.id === x.id)));
-
-      const expiresAt = Date.now() + 5000;
-      const timer = setTimeout(() => {
-        pendingRef.current = null;
-        setToast(null);
-        onPermanent?.();
-      }, 5000);
-
-      pendingRef.current = { items: toRemove, timer };
-
-      setToast({
-        message: label,
-        type: "success",
-        expiresAt,
-        onUndo: () => {
-          if (pendingRef.current) {
-            clearTimeout(pendingRef.current.timer);
-            const restored = pendingRef.current.items;
-            setItems((prev) => [...restored, ...prev]);
-            pendingRef.current = null;
-          }
-        },
-      });
-    },
-    [setItems]
-  );
-
-  return { toast, closeToast, softDelete };
 }
 
 // Export helpers.

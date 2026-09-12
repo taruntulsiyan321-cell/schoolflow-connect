@@ -60,12 +60,6 @@ export const XPRing = ({
   );
 };
 
-export const StreakFlame = ({ streak }: { streak: number }) => (
-  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-warning/10 text-warning font-semibold text-sm">
-    <Flame className="w-4 h-4 fill-current" /> {streak} day streak
-  </div>
-);
-
 export const Countdown = ({ to, onEnd }: { to: string | Date; onEnd?: () => void }) => {
   const target = new Date(to).getTime();
   const [now, setNow] = useState(Date.now());

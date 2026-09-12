@@ -47,17 +47,6 @@ export const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
 export const springSnappy = { type: "spring" as const, stiffness: 420, damping: 34, mass: 0.6 };
 export const springSoft = { type: "spring" as const, stiffness: 220, damping: 26, mass: 0.8 };
 
-export const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 14 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: EASE_OUT } },
-};
-
-/** Wrap a list's container with this + give each child `variants={fadeUp}` for a cascading entrance. */
-export const staggerContainer: Variants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.045, delayChildren: 0.02 } },
-};
-
 export function GlassCard({ children, className, glow, onClick, style }: {
   children: ReactNode; className?: string;
   glow?: "blue"|"cyan"|"amber"|"purple"|"green"|"rose";
@@ -479,82 +468,6 @@ export function DifficultyBadge({ level }: { level:"easy"|"medium"|"hard"|string
   return <Chip color={colorVar}>{level.charAt(0).toUpperCase() + level.slice(1)}</Chip>;
 }
 
-// Premium hover card with glow effect
-export function HoverCard({ children, className, color = "hsl(var(--primary))", onClick }: {
-  children: ReactNode; className?: string; color?: string; onClick?: () => void;
-}) {
-  const reduceMotion = useReducedMotion();
-  return (
-    <motion.div
-      onClick={onClick}
-      className={cn(
-        "rounded-2xl border border-border/70 bg-card/95 p-4 cursor-pointer transition-shadow",
-        className
-      )}
-      initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={reduceMotion ? undefined : {
-        y: -3,
-        boxShadow: `0 8px 25px -5px ${withAlpha(color, 0.15)}, 0 0 0 1px ${withAlpha(color, 0.12)}`,
-        borderColor: withAlpha(color, 0.3),
-      }}
-      whileTap={reduceMotion ? undefined : { scale: 0.985, y: -1 }}
-      transition={{ duration: 0.2, ease: EASE_OUT }}
-    >{children}</motion.div>
-  );
-}
-
-// Animated icon wrapper
-export function AnimatedIcon({ icon, color = "hsl(var(--primary))", size = "md", pulse = false }: {
-  icon: ReactNode; color?: string; size?: "sm" | "md" | "lg"; pulse?: boolean;
-}) {
-  const sizes = { sm: "w-8 h-8", md: "w-10 h-10", lg: "w-12 h-12" };
-  return (
-    <motion.div
-      className={cn(
-        "rounded-xl flex items-center justify-center shrink-0",
-        sizes[size],
-        pulse && "animate-pulse"
-      )}
-      style={{
-        background: `linear-gradient(135deg, ${withAlpha(color, 0.15)}, ${withAlpha(color, 0.05)})`,
-        border: `1px solid ${withAlpha(color, 0.2)}`,
-        color,
-      }}
-      whileHover={{ scale: 1.08, rotate: 3 }}
-      transition={springSnappy}
-    >
-      {icon}
-    </motion.div>
-  );
-}
-
-// Animated badge/tag with icon
-export function TagWithIcon({ icon, label, color = "hsl(var(--muted-foreground))", onClick }: {
-  icon: ReactNode; label: string; color?: string; onClick?: () => void;
-}) {
-  return (
-    <motion.span
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full border",
-        onClick && "cursor-pointer"
-      )}
-      style={{
-        color,
-        borderColor: withAlpha(color, 0.25),
-        background: withAlpha(color, 0.08),
-      }}
-      whileHover={onClick ? { scale: 1.03, background: withAlpha(color, 0.12) } : undefined}
-      whileTap={onClick ? { scale: 0.97 } : undefined}
-      transition={springSnappy}
-    >
-      {icon}
-      {label}
-    </motion.span>
-  );
-}
-
 /**
  * THE SKELETON KIT — what a gurukul screen shows while its data loads.
  *
@@ -651,39 +564,6 @@ export function PageSkeleton({ label, className, children }: {
     <div role="status" aria-busy="true" aria-label={label} className={cn("space-y-5", className)}>
       {children}
     </div>
-  );
-}
-
-// List item with hover animation
-export function ListItem({ icon, title, subtitle, value, valueColor, onClick, className }: {
-  icon: ReactNode; title: string; subtitle?: string; value?: string | number;
-  valueColor?: string; onClick?: () => void; className?: string;
-}) {
-  return (
-    <motion.div
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-card/50",
-        onClick && "cursor-pointer hover:border-border hover:bg-muted/50",
-        className
-      )}
-      whileHover={onClick ? { x: 4, borderColor: "hsl(var(--primary) / 0.3)" } : undefined}
-      whileTap={onClick ? { scale: 0.99 } : undefined}
-      transition={{ duration: 0.15, ease: EASE_OUT }}
-    >
-      <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0 text-muted-foreground">
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-foreground truncate">{title}</div>
-        {subtitle && <div className="text-[11px] text-muted-foreground truncate">{subtitle}</div>}
-      </div>
-      {value !== undefined && (
-        <div className="text-sm font-bold tabular-nums shrink-0" style={{ color: valueColor || "hsl(var(--foreground))" }}>
-          {value}
-        </div>
-      )}
-    </motion.div>
   );
 }
 

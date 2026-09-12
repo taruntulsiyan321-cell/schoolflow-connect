@@ -42,18 +42,6 @@ export function GradeChip({ grade }: { grade: string }) {
   );
 }
 
-export function ScoreBar({ value, max, color = ACCENT }: { value: number; max: number; color?: string }) {
-  const pct = Math.round((value / max) * 100);
-  return (
-    <div className="flex items-center gap-2 w-full">
-      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      <span className="text-[10px] font-bold tabular-nums shrink-0" style={{ color }}>{pct}%</span>
-    </div>
-  );
-}
-
 export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={cn("bg-surface border border-border/70 rounded-[2px]", className)}>

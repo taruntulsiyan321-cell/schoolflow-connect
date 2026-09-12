@@ -26,12 +26,6 @@ import { accuracyBand, ACCURACY_LABEL, ACCURACY_CONCEPTUAL, STREAK_ESTABLISHED }
 // from the side the product is allowed to look at: `mistake_count` per concept,
 // already on every ConceptMasteryItem.
 
-export function shortLabel(text: string, max = 8): string {
-  const words = text.trim().split(/\s+/);
-  if (words.length === 1) return text.length > max ? `${text.slice(0, max - 1)}…` : text;
-  return words.map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 4);
-}
-
 export type MistakeBucket = {
   key: string;
   label: string;
@@ -65,74 +59,6 @@ export function classifyMistakes(aggregates: MistakeTopicAggregate[]): MistakeBu
     .filter((b) => b.count > 0)
     .map((b) => ({ ...b, pct: Math.round((100 * b.count) / total) }))
     .sort((a, b) => b.count - a.count);
-}
-
-export function subjectVulnerability(aggregates: MistakeTopicAggregate[]): { subject: string; count: number; pct: number }[] {
-  const bySubject = new Map<string, number>();
-  for (const a of aggregates) {
-    const label = (a.subject ?? "").trim();
-    if (!label || /^(subject|topic|daily|general|mixed|concept|chapter)$/i.test(label)) continue;
-    bySubject.set(label, (bySubject.get(label) ?? 0) + a.mistake_count);
-  }
-  if (bySubject.size === 0) return [];
-  const max = Math.max(1, ...bySubject.values());
-  return [...bySubject.entries()]
-    .map(([subject, count]) => ({ subject, count, pct: Math.round((100 * count) / max) }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-}
-
-export type PersonalBest = {
-  kind: string;
-  title: string;
-  icon: "target" | "timer" | "flame";
-};
-
-export function buildPersonalBests(
-  data: AcademicSnapshot,
-  sessions: PracticeSessionSummary[],
-  accuracy: number,
-): PersonalBest[] {
-  const items: PersonalBest[] = [];
-  const bestSession = [...sessions].sort((a, b) => b.accuracy_pct - a.accuracy_pct)[0];
-  if (bestSession && bestSession.accuracy_pct >= ACCURACY_CONCEPTUAL) {
-    items.push({
-      kind: "RECORD",
-      title: `${bestSession.accuracy_pct}% in ${displayChapter(bestSession.chapter) || displaySubject(bestSession.subject) || "practice"}`,
-      icon: "target",
-    });
-  }
-  const fastest = [...sessions]
-    .filter((s) => s.question_count >= 5)
-    .sort((a, b) => a.duration_minutes - b.duration_minutes)[0];
-  if (fastest) {
-    items.push({
-      kind: "PACE",
-      title: `Fastest session: ${fastest.duration_minutes} min (${fastest.correct_count}/${fastest.question_count})`,
-      icon: "timer",
-    });
-  }
-  const streak = data.xp?.study_streak ?? 0;
-  if (streak >= STREAK_ESTABLISHED) {
-    items.push({
-      kind: "STREAK",
-      title: `${streak}-day practice streak`,
-      icon: "flame",
-    });
-  }
-  // RULING 2 — the accuracy milestone is REMOVED, and it is the celebration the
-  // ruling went looking for. The three `accuracy < 100` sites turned out to be
-  // suppression gates for corrective advice, not perfect-score praise; this was
-  // the real thing, one boundary lower. A milestone that appears only when the
-  // figure is high, titled with the figure, is "presenting a figure as an
-  // achievement" and "filtering a list to the best of them" at once — both
-  // sides of the §10.8 table.
-  //
-  // The number itself is not forbidden and has not gone anywhere: overall
-  // accuracy is still shown, for every subject, high and low alike, banded by
-  // `accuracyBand`. What is gone is the version that only appears when it
-  // flatters.
-  return items.slice(0, 3);
 }
 
 /** Labels from the student's own subject accuracy only — never invent peer percentile from XP rank. */
@@ -208,12 +134,4 @@ export function consistencyGrid(heatmap: AcademicSnapshot["activity_heatmap"]) {
     return { date: d.date, total, minutes: d.minutes ?? 0 };
   });
   return cells;
-}
-
-export function consistencyLevel(total: number): number {
-  if (total === 0) return 0;
-  if (total >= 8) return 4;
-  if (total >= 5) return 3;
-  if (total >= 2) return 2;
-  return 1;
 }

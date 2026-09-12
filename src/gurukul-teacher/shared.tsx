@@ -39,14 +39,6 @@ export function GradeChip({ grade }: { grade: string | null }) {
   );
 }
 
-export function StatusDot({ status }: { status: string }) {
-  const color =
-    status === "present" ? "hsl(var(--success))" :
-    status === "absent" ? "hsl(var(--destructive))" :
-    status === "late" ? "hsl(var(--warning))" : "hsl(var(--muted-foreground))";
-  return <div className="w-2 h-2 rounded-full" style={{ background: color }} />;
-}
-
 export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={cn("bg-surface border border-border/70 rounded-[2px]", className)}>
@@ -63,15 +55,6 @@ export function SectionHead({ title, subtitle, action }: { title: string; subtit
         {subtitle && <div className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</div>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
-    </div>
-  );
-}
-
-export function StatBox({ label, value, color }: { label: string; value: string | number; color?: string }) {
-  return (
-    <div className="bg-surface border border-border/70 rounded-[2px] p-4 text-center">
-      <div className="text-xl font-black tabular-nums" style={{ color: color ?? "#fff" }}>{value}</div>
-      <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
     </div>
   );
 }

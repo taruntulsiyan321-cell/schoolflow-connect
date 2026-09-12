@@ -139,39 +139,6 @@ export interface Doubt {
   replies: { from: "teacher" | "student"; text: string; timestamp: string; hasAttachment?: boolean }[];
 }
 
-export interface TeacherMessage {
-  id: string;
-  threadId: string;
-  participantName: string;
-  participantRole: "student" | "parent" | "admin" | "principal";
-  subject: string;
-  lastMessage: string;
-  lastTimestamp: string;
-  unreadCount: number;
-  messages: {
-    id: string;
-    from: string;
-    fromRole: string;
-    body: string;
-    timestamp: string;
-    hasAttachment: boolean;
-    attachmentName?: string;
-  }[];
-}
-
-export interface TeacherAnnouncement {
-  id: string;
-  title: string;
-  body: string;
-  targetClass: string;
-  targetSection: string;
-  status: "draft" | "published" | "scheduled";
-  scheduledFor?: string;
-  publishedAt?: string;
-  hasAttachment: boolean;
-  attachmentName?: string;
-  priority: "normal" | "important" | "urgent";
-}
 
 export interface LeaveRequest {
   id: string;
@@ -187,15 +154,4 @@ export interface LeaveRequest {
 
 /** @deprecated Empty stubs — product panels use Academic Engine / live hooks. */
 export const assignedClasses: ClassInfo[] = [];
-export const studentsByClass: Record<string, Student[]> = {};
-export const todayAttendance: Record<
-  string,
-  { submitted: boolean; approved: boolean; records: AttendanceRecord[] }
-> = {};
-export const homeworkByClass: Record<string, HomeworkItem[]> = {};
-export const assignmentsByClass: Record<string, Assignment[]> = {};
-export const testsByClass: Record<string, Test[]> = {};
-export const teacherDoubts: Doubt[] = [];
-export const teacherMessages: TeacherMessage[] = [];
-export const teacherAnnouncements: TeacherAnnouncement[] = [];
 export const leaveRequests: LeaveRequest[] = [];

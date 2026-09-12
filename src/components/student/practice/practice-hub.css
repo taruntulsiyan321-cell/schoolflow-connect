@@ -54,9 +54,3 @@
 .practice-hub .ph-illustration {
   background: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--warning) / 0.16));
 }
-
-.practice-hub .ph-subject-active {
-  ring: 2px;
-  border-color: hsl(var(--primary) / 0.3);
-  box-shadow: var(--shadow-card);
-}

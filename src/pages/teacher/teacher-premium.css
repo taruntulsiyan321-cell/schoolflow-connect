@@ -108,42 +108,11 @@
   color: var(--tp-muted);
 }
 
-.teacher-premium .tp-action {
-  border-radius: 1.3rem;
-  border: 1px solid var(--tp-line);
-  background: var(--tp-surface);
-  padding: 1rem;
-  box-shadow: 0 12px 34px -28px rgba(20, 37, 45, 0.35);
-}
-
-.teacher-premium .tp-chip {
-  border-radius: 999px;
-  padding: 0.35rem 0.7rem;
-  background: var(--tp-mint);
-  color: var(--tp-emerald);
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
 .teacher-premium .tp-row {
   border-radius: 1rem;
   border: 1px solid #d5e0e2;
   background: #f8fbfb;
   padding: 0.8rem 0.95rem;
-}
-
-.teacher-premium .tp-progress {
-  height: 0.55rem;
-  border-radius: 999px;
-  background: #e8eff0;
-  overflow: hidden;
-}
-
-.teacher-premium .tp-progress > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--tp-emerald);
 }
 
 .teacher-premium .tp-gold-card {

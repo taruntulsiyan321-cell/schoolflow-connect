@@ -25,19 +25,6 @@
   background: rgba(232, 196, 104, 0.28);
 }
 
-.sd-hero-orb {
-  background: rgba(178, 240, 212, 0.22);
-}
-
-.sd-ring-track {
-  stroke: rgba(255, 255, 255, 0.15);
-}
-
-.sd-ring-fill {
-  stroke: #0d5c44;
-  filter: drop-shadow(0 0 8px rgba(178, 240, 212, 0.45));
-}
-
 .sd-card {
   background: #ffff;
   border: 1px solid rgba(0, 51, 36, 0.08);
@@ -49,53 +36,4 @@
   transform: translateY(-2px);
   box-shadow: 0 12px 32px -8px rgba(0, 51, 36, 0.14);
   border-color: rgba(151, 211, 184, 0.45);
-}
-
-.sd-metric-card {
-  background: #ffff;
-}
-
-.sd-mission-card {
-  background: #ffff;
-}
-
-.sd-recovery {
-  background: #defa;
-  border: 2px solid rgba(151, 211, 184, 0.5);
-  box-shadow:
-    0 16px 40px -10px rgba(0, 51, 36, 0.18),
-    0 0 0 1px rgba(232, 196, 104, 0.15) inset;
-}
-
-.sd-battle-card {
-  background: #e8eff0;
-  color: #14252d;
-  box-shadow: 0 12px 32px -8px rgba(0, 51, 36, 0.4);
-}
-
-.sd-battle-card:hover {
-  transform: translateY(-3px) scale(1.01);
-  box-shadow: 0 20px 40px -10px rgba(0, 51, 36, 0.5);
-}
-
-.sd-achievement {
-  background: #fffe;
-  border: 1px solid rgba(232, 196, 104, 0.25);
-}
-
-.sd-radar-center {
-  background: rgba(178, 240, 212, 0.35);
-}
-
-.sd-section-title {
-  font-family: "Sora", ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: -0.02em;
-}
-
-.sd-trend-chart .recharts-cartesian-grid-horizontal line {
-  stroke: rgba(0, 51, 36, 0.06);
-}
-
-.sd-trend-chart .recharts-area {
-  filter: drop-shadow(0 4px 12px rgba(0, 51, 36, 0.12));
 }

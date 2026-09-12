@@ -86,15 +86,6 @@ export const PageHeader = ({
   </div>
 );
 
-export const SectionTitle = ({ title, count, action }: { title: string; count?: number; action?: ReactNode }) => (
-  <div className="flex items-center justify-between mb-3">
-    <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-      {title}{typeof count === "number" && <span className="ml-2 text-foreground/70 font-mono">{count}</span>}
-    </h2>
-    {action}
-  </div>
-);
-
 export const EmptyState = ({
   icon, title, description, action,
 }: { icon?: ReactNode; title: string; description?: string; action?: ReactNode }) => (
