@@ -61,7 +61,7 @@
 --
 -- Rollback: supabase/migrations/rollback/
 --           20260920040000_the_principal_sees_the_marks_not_the_paper.rollback.sql
--- Assertion: supabase/migrations/verification/caller-privileges/probe43.sql
+-- Assertion: supabase/migrations/verification/caller-privileges/probe44.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.can_read_test_marks(_test_id uuid)

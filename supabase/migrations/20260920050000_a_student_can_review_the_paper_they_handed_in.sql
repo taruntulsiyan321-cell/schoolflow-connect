@@ -48,7 +48,7 @@
 --
 -- Rollback: supabase/migrations/rollback/
 --           20260920050000_a_student_can_review_the_paper_they_handed_in.rollback.sql
--- Assertion: supabase/migrations/verification/caller-privileges/probe43.sql
+-- Assertion: supabase/migrations/verification/caller-privileges/probe44.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.rpc_test_answer_sheet(_test_id uuid, _student_id uuid)

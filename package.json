@@ -68,7 +68,8 @@
     "classify:topics": "node scripts/classify-question-topics.mjs",
     "classify:topics:apply": "node scripts/classify-question-topics.mjs --apply",
     "classify:topics:incremental": "node scripts/classify-question-topics.mjs --incremental --apply",
-    "classify:topics:self-test": "node scripts/classify-question-topics.mjs --self-test"
+    "classify:topics:self-test": "node scripts/classify-question-topics.mjs --self-test",
+    "verify:test-flow": "bash scripts/local-replica/run.sh"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

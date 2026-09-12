@@ -57,7 +57,7 @@
 --
 -- Rollback: supabase/migrations/rollback/
 --           20260920030000_the_class_sees_the_test_leaderboard.rollback.sql
--- Assertion: supabase/migrations/verification/caller-privileges/probe43.sql
+-- Assertion: supabase/migrations/verification/caller-privileges/probe44.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.can_read_test_leaderboard(_test_id uuid)

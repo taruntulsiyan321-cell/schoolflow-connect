@@ -2530,3 +2530,139 @@ V2 student panel work was cherry-picked from main onto the live branch on
 **Rule:** No agent pushes to main. Merges to main are deliberate releases,
 ruled on each time. Pushing a stale tree to main can roll back production
 edge functions.
+
+---
+
+## 46. ~~Every test report was wrong, because the submit deleted the answers it reads~~ — FIXED
+
+**Found and fixed:** 2026-09-12. `20260920000000`.
+
+Driven end to end as the real callers — a teacher created a test, published it,
+three students sat it and submitted, each under their own session — the grading
+was right and everything built on top of it was wrong:
+
+```
+student A answered 2 of 3 correctly
+  attempt.score ...................... 2      correct
+  test_marks.mark .................... 2      correct
+  test_answers rows left ............. 0      <- the defect
+  report.wrong_answers ............... 3      the whole paper
+  report.wrong_answers[].their_answer  null   on questions they answered
+  report.wrong_answers[].answered .... false  on questions they answered
+  class report weakest_topics ........ "HCF and LCM 6 of 6 wrong, 100%",
+                                       "Irrational numbers 3 of 3, 100%"
+                                       for a class that averaged 2 of 3
+  class report avg seconds/question .. null
+```
+
+The last statement of `rpc_test_submit` was `DELETE FROM public.test_answers
+WHERE attempt_id = _attempt_id` — Chunk 7.5a's §10.8 transient rule. Both
+report RPCs LEFT JOIN that table and read `COALESCE(ans.is_correct,false) =
+false` as "wrong", so once the rows were gone every question of every paper
+reported wrong, with the correct answer attached and the student's own answer
+shown blank. Three surfaces: the student's result screen (this is also
+KNOWN_ISSUES rule 27's cause), the teacher's per-student drill-down, and the
+teacher's weakest-topics ranking — the primary view.
+
+§10.23, §10.25 and the 2026-09-11 withdrawal of rule 14 all require those rows
+kept. The purge is gone; nothing else in the schema expires a test answer.
+
+**Also fixed in the same function, all measured:** `test_attempts.time_spent_sec`
+was never written by anything (so every result screen said "0m" and the activity
+bump read 0 minutes); `test_marks.uploaded_at` was never stamped, and
+`_parent_weekly_digest` windows the parent's weekly test marks on
+`COALESCE(uploaded_at, created_at)`.
+
+---
+
+## 47. ~~`_bump_academic_activity` exists twice, so every five-argument call raised 42725~~ — FIXED
+
+**Found and fixed:** 2026-09-12. `20260920010000`.
+
+```
+20260606000000   (_uid uuid, _test int, _hw int, _battle int, _mins int)
+20260614000000   (_uid uuid, _test int, _hw int, _battle int, _mins int,
+                  _self_practice int DEFAULT 0)
+
+SELECT public._bump_academic_activity(<uuid>, 0, 0, 0, 5);
+ERROR:  function public._bump_academic_activity(uuid, integer, integer,
+        integer, integer) is not unique                          (42725)
+```
+
+Three callers pass five positional arguments:
+
+| caller | consequence, measured |
+|---|---|
+| `rpc_test_submit` | wrapped — WARNING, swallowed. A submitted test recorded **no daily activity row at all**, and the student's weekly activity chart showed no tests. |
+| `rpc_finish_battle` | wrapped — same silent loss. |
+| `rpc_complete_revision` | **NOT wrapped.** The exception aborts the function after its own UPDATE, so the transaction rolls back and **marking a revision item complete failed outright, every time.** |
+
+The five-argument body is a strict subset of the six-argument one, so it was
+dropped rather than the callers being patched: one home, and all three callers
+are repaired without being edited.
+
+---
+
+## 48. ~~A student could read every classmate's mark for a test they had not sat~~ — FIXED
+
+**Found and fixed:** 2026-09-12. `20260920060000`.
+
+Signed in as a student of 10-A who had sat NEITHER test in her own class:
+
+```
+select count(*) from public.test_marks;      ->  6      every classmate's mark
+select count(*) from public.test_attempts;   ->  0      correctly fenced
+```
+
+`test_marks_read` keyed on `my_readable_test_ids()` — "a test of my section" —
+rather than on having sat it. Rule 13 does share marks within the class, which
+is what the new leaderboard shows by name; what it does not do is share them
+with someone who has not yet written the paper. The policy now calls
+`can_read_test_leaderboard`, so the table and the board state the same rule.
+
+---
+
+## 49. ~~Three of the five question formats could never be marked~~ — FIXED
+
+**Found and fixed:** 2026-09-12. `20260920020000`, ruled the same day.
+
+`rpc_test_submit` marks by one rule — `a.response = q.correct` as jsonb. Against
+the five formats `test_questions_question_format_check` admitted:
+
+| format | what happened |
+|---|---|
+| `mcq` | works. |
+| `numerical` | works only on exact typed equality; no tolerance expressible. |
+| `multi` | **cannot work.** The renderer appends indexes in CLICK ORDER, so `{"indexes":[1,0]}` never equals a key of `{"indexes":[0,1]}`: a correct answer marks wrong. Nothing writes this format, which is why it had not bitten. |
+| `short`, `long` | **cannot work by design.** `correct` is NULL for them by constraint, so the comparison is NULL and every written answer scores zero — silently — and the class report then ranks its topic 100% wrong. No screen in the product can mark them: a teacher never marks an online test. |
+
+The teacher's builder offered all of them. It now offers MCQ and True/False
+(a two-option MCQ), and `trg_test_question_is_a_markable_mcq` refuses the rest
+at the table, so the builder is not the only fence. Half-marks are refused with
+them: `tests.max_mark` and `test_marks.mark` are integers and a fraction was
+being rounded into the mark a parent and a principal read.
+
+---
+
+## 50. The live database has not received the 2026-09-20 migrations — OPEN, environment-blocked
+
+**Found:** 2026-09-12.
+
+Eight migrations (`20260920000000`–`20260920070000`) are written, each with a
+rollback and an in-migration proof block, and **all eight applied cleanly with
+their proofs green against a local replica of the same schema**. None has been
+applied to `psqxykzqfvxgsvkmgurn`, because this session's environment refuses
+both routes:
+
+```
+https://psqxykzqfvxgsvkmgurn.supabase.co/rest/v1/   403
+  Host not in allowlist: psqxykzqfvxgsvkmgurn.supabase.co
+https://api.supabase.com/v1/projects                403
+```
+
+So the app code on this branch calls four RPCs the live database does not have
+yet (`rpc_test_leaderboard`, `rpc_test_answer_sheet`, `rpc_test_class_marks`,
+`rpc_test_list_for_class`). **Apply the eight migrations before deploying the
+branch**, in filename order, with `node scripts/apply-one-migration.mjs`. Each
+one refuses to commit if its own proof does not hold, so a failure is
+informative rather than silent.

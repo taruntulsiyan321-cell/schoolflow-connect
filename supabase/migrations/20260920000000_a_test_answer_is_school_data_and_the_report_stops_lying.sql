@@ -275,7 +275,7 @@ COMMENT ON FUNCTION public.rpc_test_submit(uuid, jsonb) IS
 -- asserts on the rows afterwards — then removes every row it created. A
 -- DO block runs as `postgres`, which proves nothing about permissions, so it
 -- proves BEHAVIOUR only: what the grading wrote, and what survived it. The
--- permission half is probe43.
+-- permission half is probe44.
 DO $verify$
 DECLARE
   _school uuid; _ss uuid; _teacher uuid; _stu_user uuid; _stu uuid;

@@ -5,6 +5,96 @@ bottom before touching anything.
 
 ---
 
+## THE TEST FLOW — 2026-09-12 session. READ THIS FIRST IF YOU TOUCH TESTS.
+
+**Branch:** `claude/tender-goodall-kalj38` (not the branch §0 below names — that
+one is from an earlier session and the worktree note with it is stale).
+
+**The brief, in the product owner's words:** "the test flows shall be proper.
+The teacher shall be properly able to give the test … the student of the
+particular class shall be able to see it and submit it. As soon as they submit,
+they shall see a test report … the leaderboard shall also be dynamic … the
+principal shall be able to see the test and the marks each student has got …
+for the admins, all the numbers of tests given in the school."
+
+### What was found, by running it rather than reading it
+
+The flow was built and had never been driven end to end as the real signed-in
+people. Doing that — teacher creates, publishes; three students sit it and
+submit, each under their own session — found the grading right and **every
+report built on top of it wrong**, because `rpc_test_submit` deleted
+`test_answers` as its last statement. Full measurements in KNOWN_ISSUES 46-49.
+The short version:
+
+| | |
+|---|---|
+| the student's own report | listed the WHOLE PAPER as wrong, their answer shown blank |
+| the teacher's weakest topics | 100% wrong on every topic, for a class averaging 2 of 3 |
+| the result screen's review | "your answers were not recorded", for every student, every test |
+| avg seconds per question | NULL always — `time_ms` was never written by anything |
+| time on the result screen | "0m" always — `time_spent_sec` was never written by anything |
+| daily activity on submit | no row at all — a 42725 ambiguity, swallowed as a warning |
+| a classmate's marks | readable by a student who had not sat the test |
+| 3 of 5 question formats | unmarkable by the only marker that exists |
+
+### What is now true, and where it is proven
+
+Eight migrations, `20260920000000`–`20260920070000`, each with a rollback and an
+in-migration proof block that refuses to commit if it cannot demonstrate its own
+effect. Plus `probe44.sql` — the test journey as each caller, 25 claims, the
+same shape as probe43's homework journey.
+
+**NONE OF THEM IS APPLIED TO THE LIVE PROJECT.** This environment's network
+policy refuses `psqxykzqfvxgsvkmgurn.supabase.co` AND `api.supabase.com` (403,
+"Host not in allowlist"), so neither the app nor the Management API is
+reachable. See KNOWN_ISSUES 50. **Apply them in filename order before deploying
+this branch** — the app calls four RPCs the live database does not have yet.
+
+### How the database work was verified without the database
+
+`npm run verify:test-flow` (`scripts/local-replica/`) builds a throwaway
+postgres, applies every migration in `supabase/migrations` to it — the repo's
+own migrations seed a complete demo tenant, so there are real classes, teachers,
+students, memberships and 21,696 bank questions to work with — and then drives
+the whole journey through it as each role under RLS: **90 claims, every refusal
+paired with a positive control.** It proves the SQL; it says nothing about what
+the live project currently holds. 59 of 433 migrations do not apply to a bare
+cluster (pgvector, pg_cron, and self-proof blocks that need live data); none of
+them is on the test path, and the report tells you which they are.
+
+### The one instruction not built, and why
+
+"It automatically gets removed after 24 hours." The MARKS half is done and
+verified (`rpc_test_submit` writes `test_marks` in the same transaction as the
+grading, before any report exists, and the student profile reads it). The
+DELETION half is rule 14, which this product owner withdrew on 2026-09-11 after
+measuring it — and the 2026-09-12 work depends on exactly those rows: deleting
+them at 24 hours would empty the student's review, the teacher's drill-down and
+the weakest-topic ranking a day after every test, re-opening the defect
+`20260920000000` closed. It needs a fresh ruling that also says what replaces
+those three surfaces. See `docs/gurukul-spec-rules.md`, "The test flow — RULED
+2026-09-12".
+
+### Still open on this feature
+
+* **The principal portal is still the fixture design** everywhere except the new
+  Tests section (`src/gurukul-principal/PrincipalTests.tsx`, real data). Its own
+  header says so. Wiring the rest is a separate pass.
+* **Cross-client liveness of the leaderboard is a poll**, every 15s while the
+  panel is open. `AcademicLiveProvider` subscribes to `postgres_changes` on
+  `tests` but not on `test_attempts`, so a classmate submitting emits nothing
+  the other browsers listen for, and `broadcastAcademicWrite` is in-process
+  only. Adding `test_attempts` to the `supabase_realtime` publication would make
+  it push instead of poll — it was not done here because the publication cannot
+  be inspected or changed from this environment.
+* **No browser run.** Everything above is database measurement, unit tests,
+  typecheck and build. The app cannot reach Supabase from here, so no screen was
+  seen rendering. Walk the five surfaces when the network allows: the teacher's
+  builder (bank picker + MCQ form), the student's list, attempt, result
+  (leaderboard + review), the principal's Tests tab, the admin dashboard card.
+
+---
+
 ## 0. Where you are
 
 | | |

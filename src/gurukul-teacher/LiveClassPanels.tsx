@@ -1278,18 +1278,6 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
       setStep("basics");
       return;
     }
-    if (source === "upload" && mode !== "draft") {
-      // An uploaded paper has no questions, so there is nothing online to sit.
-      // Publishing it puts a card on every student's screen with no way in.
-      // It is still a real thing to keep — the teacher enters the marks from
-      // the written paper — so it saves as a draft and says why.
-      setError(
-        "An uploaded paper has no online questions, so students cannot sit it. " +
-          "Save it as a draft and enter the marks from the written paper, or build the questions here.",
-      );
-      return;
-    }
-
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -2003,6 +1991,12 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               {source === "upload" && attachments.length > 0 && (
                 <AttachmentList items={attachments} dense />
               )}
+              {source === "upload" && (
+                <div className="text-[10px] text-warning">
+                  This paper has no online questions, so students will see it as a written paper and
+                  cannot sit it in the app. Enter their marks yourself once it is written.
+                </div>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -2068,11 +2062,18 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
           const marks = t.max_mark ?? t.total_marks;
           const qCount = t.question_count;
           const canPublish = status !== "published" && status !== "archived";
-          // A published test with no questions is one a student is offered and
-          // then refused by `rpc_test_start`. The builder can no longer create
-          // one, but a test built before this could exist, so the list says so
-          // where the teacher can act on it.
-          const publishedEmpty = status === "published" && qCount === 0;
+          // A published test with no questions is one a student would be
+          // offered and then refused by `rpc_test_start` — EXCEPT when it is an
+          // uploaded written paper, which has no online questions by design and
+          // whose card tells the student exactly that.
+          //
+          // The attachment marker is read out of `instructions` because that is
+          // where `TestService.create` puts it ("[Paper attachments]"), and a
+          // sniff of the real storage beats a second column holding the same
+          // fact (G9). If attachments ever get their own column, this reads it
+          // instead and nothing else moves.
+          const isPaperUpload = String(t.instructions ?? "").includes("[Paper attachments]");
+          const publishedEmpty = status === "published" && qCount === 0 && !isPaperUpload;
           return (
             <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-[2px] space-y-2">
               <div className="flex justify-between gap-2">

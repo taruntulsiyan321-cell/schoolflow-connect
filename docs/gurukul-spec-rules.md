@@ -104,7 +104,7 @@ These are the product owner's, given directly. They override any inference from 
 
 26. **Production is the source of truth for edge functions until a hash says otherwise.** 1 of 17 deployed functions had a known relationship to its repo source; two (`ai-expand-questions`, `mcp`) had no source on any branch. Date heuristics were wrong in both directions — only a content hash settles it. The verbatim production snapshot lives on `claude/edge-function-provenance`; it is a recovery artifact and is **not merged to main**, because the repo side contains work that may never have been deployed. A deploy-time hash gate is required before any function ships.
 
-27. **A missing-data render must not read as a data-bearing render.** `TestResult.tsx` renders every question with the correct answer and a blank student response, under copy stating wrong answers were saved to the Mistake Book. It looks functional and misrepresents. Where data is absent, say it is absent.
+27. **A missing-data render must not read as a data-bearing render.** `TestResult.tsx` rendered every question with the correct answer and a blank student response, under copy stating wrong answers were saved to the Mistake Book. It looked functional and misrepresented. Where data is absent, say it is absent. *(FIXED 2026-09-12. The honest empty state landed first, and then the CAUSE was found and removed: `rpc_test_submit` deleted `test_answers` at submit, so the responses were absent for every student after every test. The screen now reviews the real paper through `rpc_test_answer_sheet` and keeps the empty state for the case where the rows genuinely are not there — a pre-20260920000000 attempt.)*
 
 28. **`has_role/2` asks whether the caller is acting in a role; `has_role/3` asks whether an account holds one.** They can disagree about the same person at the same school, deliberately. Choose by the question, not by argument count. *(Because `memberships` is UNIQUE on `(account_id, school_id, role)`, one account can hold several roles at one institution; collapsing the two forms would blend them regardless of which is active. All 111 live policies use the two-argument form, which is correct — a policy always has a session. The three-argument form exists for callers that have none and know which institution they mean.)*
 
@@ -192,9 +192,69 @@ of the v2 student panel pass), and the expiry was ruled against on 2026-09-11
 after it was measured. Rules 12, 13 and 15 are binding. **Rule 14 is withdrawn.**
 
 12. The test report is a separate, self-contained artifact — not an input to anything. Generated the moment the test ends, downloadable. It feeds no weak-topic surface, no Analysis tab, and no parent surface.
-13. **Marks and rank are shared within the class; per-question detail is private to each student.** The earlier wording — "their own data only … never the class's" — predated the test leaderboard and was too broad: a rank is a position among classmates and cannot be shown without comparing to them. What stays private is the per-question detail: which questions a student got wrong and which took longest is theirs alone, never another student's. **Teacher** — the class aggregate is the primary view; clicking a student's name opens that student's report, scoped via `teacher_teaches_class`. **Principal** — nothing. *(Corrected 2026-09-11 on the product owner's ruling; `rpc_test_student_report` already implements exactly this — it returns `rank` and `class_size` as positions and no other student's name or mark.)*
+13. **Marks and rank are shared within the class; per-question detail is private to each student.** The earlier wording — "their own data only … never the class's" — predated the test leaderboard and was too broad: a rank is a position among classmates and cannot be shown without comparing to them. What stays private is the per-question detail: which questions a student got wrong and which took longest is theirs alone, never another student's. **Teacher** — the class aggregate is the primary view; clicking a student's name opens that student's report, scoped via `teacher_teaches_class`. **Principal** — ~~nothing~~ **the MARKS, corrected 2026-09-12** (see the ruling below): the test and what each student scored, on the class tab. Still not the per-question detail and still not the weakest-topic report. *(Corrected 2026-09-11 on the product owner's ruling; `rpc_test_student_report` implements the private half — it returns `rank` and `class_size` as positions and no other student's name or mark — and `rpc_test_class_marks` implements the principal's half, fenced separately by `can_read_test_marks`.)*
 14. ~~Deliberately ephemeral — a 24-hour tab, then gone.~~ **WITHDRAWN 2026-09-11.** Measured first: there is no `expires_at` on any test table and no purge function for test answers, so nothing expires today, and the spec requires that it does not. §10.23 makes test answers school data that persists — "a teacher set them and a mark is the point" — and §10.25 requires "their actual wrong answers, with the topic on each" on tap, which needs them kept. Building the expiry would delete school data the spec preserves and empty the §10.25 drill-down. It would also be the more complex path by a wide margin: an `expires_at` column, a purge function, a cron entry, a guarantee that marks reach the profile *before* deletion runs, a marks-only fallback on two panels, and probes for each — against zero new code for leaving it durable. Ruled by the product owner on exactly that trade.
 15. Only the marks persist **on the student profile** as the durable summary — the profile shows marks, not the report. This is unchanged: it is about what the *profile* carries, not about deleting the report.
+
+## The test flow — RULED 2026-09-12, and built
+
+Four rulings, in the product owner's own words, and what each one settled. They
+supersede where they conflict, and the conflicts are named rather than quietly
+resolved.
+
+18. **"For the online test, only MCQ questions can be given … the test
+    automatically gets marked."** No human marks an online test, ever. Measured
+    before building: of the five formats `test_questions` admitted, only `mcq`
+    could actually be marked — `short` and `long` carry `correct IS NULL` by
+    constraint so every written answer scored zero in silence, `multi` marks a
+    correct answer wrong whenever the student's click order differs from the
+    key's, and `numerical` has no tolerance. Enforced by
+    `trg_test_question_is_a_markable_mcq` (20260920020000), not by the builder
+    alone. Question marks are whole numbers for the same reason: `tests.max_mark`
+    and `test_marks.mark` are integer columns and a half mark was being rounded
+    into what a parent and a principal read.
+
+19. **"The leaderboard shall also be dynamic: … the first student to complete the
+    test is already shown at the top. As soon as all the students start
+    submitting, the leaderboard gets updated."** This is the NAMED leaderboard
+    that 20260916030000 declined to build without a ruling. Built as
+    `rpc_test_leaderboard` (20260920030000): every submitted attempt, ranked by
+    mark, ordered so that on equal marks whoever finished FIRST is above — and
+    ties share a rank, computed identically to `rpc_test_student_report.rank` so
+    the two surfaces can never disagree. Readable by the teachers of the section,
+    the principal, and a student **who has already handed their own paper in**;
+    before that a student would be reading the class's marks for a paper they
+    have not written.
+
+20. **"For the principal … on the class tab, the principal shall be able to see
+    the test and the marks each student has got."** SUPERSEDES the 2026-09-09
+    "Admin and Principal sees nothing" ruling, for marks only. The principal
+    reads `rpc_test_class_marks` and is still refused `rpc_test_class_report`
+    (weakest topics, timing) and `rpc_test_student_report` (which questions a
+    named child got wrong) — rule 13's private half is unchanged.
+
+21. **"For the admins, we have to build all the numbers of tests given in the
+    school."** Counts, not marks: the admin dashboard's "Tests Given" card reads
+    totals over `tests` and `test_attempts`, both of which their existing
+    policies already admit. `can_read_test_marks` refuses them one class's named
+    marks, deliberately.
+
+**One instruction in that session was NOT built, and this says so rather than
+leaving it implied.** The same message asked that the report "automatically gets
+removed after 24 hours and gets added to the student's profile." The marks half
+is done and verified — `rpc_test_submit` writes `test_marks` in the same
+transaction as the grading, before any report exists, and the student profile
+reads it. The DELETION half is rule 14, which this product owner withdrew on
+2026-09-11 after it was measured, for reasons that have not changed: §10.23
+makes test answers durable school data, §10.25 needs "their actual wrong
+answers, with the topic on each" on tap, and the 2026-09-12 session's own work
+depends on those rows surviving — deleting them at 24 hours would empty the
+student's review, the teacher's drill-down and the weakest-topic ranking a day
+after every test. Building it would re-open the defect 20260920000000 closed.
+**If the expiry is wanted anyway, it needs a fresh ruling that also says what
+replaces those three surfaces afterwards.**
+
+---
 
 **A real defect this section still names:** `battle_reports` has `expires_at` and a UI gate at `BattleReportView.tsx:151`. It now also has a collector — `purge-expired-battle-reports`, cron `20 * * * *`. Battles are practice under §10.8, so an expiring battle report is correct and is **not** a precedent for tests.
 

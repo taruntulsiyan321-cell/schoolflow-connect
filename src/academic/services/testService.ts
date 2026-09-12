@@ -159,12 +159,16 @@ export interface ManualQuestionInput {
 /**
  * Validate one question and shape it for `test_questions`.
  *
+ * Exported for `testService.questions.test.ts`, which holds each refusal to the
+ * database constraint it mirrors — a rule stated in two places is a rule that
+ * drifts unless something compares them.
+ *
  * Every refusal here is a refusal the database would make anyway — the shape
  * CHECK, the answer-key trigger, the markable-MCQ trigger — restated where the
  * question was written so the teacher is told which question and why, rather
  * than being handed a constraint name for a paper of twenty.
  */
-function toQuestionRow(
+export function toQuestionRow(
   q: ManualQuestionInput,
   index: number,
   testId: string,
@@ -1408,7 +1412,12 @@ export const TestService = {
       .eq("question_format", "mcq")
       .limit(Math.min(Math.max(filters.limit ?? 40, 1), 100));
 
-    if (board) q = q.or(`board.eq.${board},board.eq.both`);
+    // `schools.board` is CHECK-constrained to rbse|cbse|icse|other|both, so this
+    // can only ever be one of five words — and it is still filtered before it
+    // reaches a PostgREST `or`, because a value interpolated into a filter
+    // string is the shape that breaks the day the constraint is widened.
+    const safeBoard = board && /^[a-z_]+$/i.test(board) ? board : null;
+    if (safeBoard) q = q.or(`board.eq.${safeBoard},board.eq.both`);
     if (filters.classLevel != null) q = q.eq("class_level", filters.classLevel);
     if (filters.subject) q = q.eq("subject", filters.subject);
     if (filters.chapter) q = q.eq("chapter", filters.chapter);
