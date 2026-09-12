@@ -141,6 +141,12 @@ const LABELS: Record<EnumDomain, LabelMap> = {
     graded: "Graded",
     returned: "Returned",
     late: "Submitted late",
+    // A teacher's verdict on a submission, and the absence of one. The
+    // principal panel's per-student homework list renders all four; they were
+    // reaching the screen as the raw lowercase keys.
+    missing: "Missing",
+    accepted: "Accepted",
+    rejected: "Rejected",
   },
   announcement_status: {
     draft: "Draft",

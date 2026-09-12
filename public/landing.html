@@ -75,9 +75,9 @@
         radial-gradient(ellipse 680px 560px at 82% 22%, rgba(234,88,12,0.13), transparent 58%),
         radial-gradient(ellipse 720px 520px at 18% 84%, rgba(5,150,105,0.11), transparent 58%),
         radial-gradient(ellipse 560px 560px at 78% 88%, rgba(2,132,199,0.10), transparent 58%);
-      filter: blur(22px);
-      animation: meshPan 26s ease-in-out infinite alternate;
-      will-change: transform;
+      filter: blur(14px);
+      animation: meshPan 40s ease-in-out infinite alternate;
+      will-change: auto;
     }
     @keyframes meshPan { 0%{ transform: translate3d(0,0,0) scale(1)} 50%{ transform: translate3d(3%, -2%,0) scale(1.04)} 100%{ transform: translate3d(-2.5%, 2.5%,0) scale(1.02)} }
     /* shimmer band that sweeps */}
@@ -330,8 +330,8 @@
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.5);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
       z-index: 10000;
       display: flex;
       align-items: center;
@@ -524,6 +524,53 @@
 
     @keyframes pulseDot { 0%,100%{ opacity:1; transform: scale(1)} 50%{ opacity:0.55; transform: scale(0.85)} }
 
+
+
+    /* ─── Performance mode ─── */
+    .section-white, .section-subtle {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      background: rgba(255,255,255,0.92) !important;
+    }
+    .section-subtle { background: rgba(249,250,251,0.96) !important; }
+    .tilt-card, .tilt-card:hover {
+      transform-style: flat !important;
+      will-change: auto !important;
+      transform: none !important;
+    }
+    @media (hover:hover) and (pointer:fine) {
+      .tilt-card:hover {
+        transform: translateY(-4px) !important;
+        box-shadow: 0 14px 28px rgba(17,24,39,0.08) !important;
+      }
+    }
+    .glow-border::before { animation: none !important; opacity: 0.55; }
+    .reveal-up, .bg-dot-accent, .hero-logo, .magnetic-btn, .rocket-svg-wrap {
+      will-change: auto !important;
+    }
+    .rocket-overlay {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      background: rgba(8,10,24,0.72) !important;
+    }
+    .site-nav {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    @media (max-width: 900px), (prefers-reduced-motion: reduce) {
+      .bg-canvas, .bg-mesh, .bg-aurora, .bg-shimmer, .bg-halo, .bg-beam,
+      .bg-orb, .bg-noise, .bg-dot-accent, .mouse-glow, .hero-orbit { display: none !important; }
+      .bg-grid, .background { animation: none !important; }
+      .meshPan, .bg-mesh { animation: none !important; filter: none !important; }
+      .float-chip { animation: none !important; }
+      .scroll-col-up, .scroll-col-down { animation: none !important; }
+      .btn::after { display: none !important; }
+      .section-title-accent { animation: none !important; }
+      .hero-logo-wrap, .logo-ring, .shimmer-text { animation: none !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .page-curtain { display: none !important; }
+    }
 
     /* ─── Dynamic motion system ─── */
     html { scroll-behavior: smooth; }
@@ -791,7 +838,7 @@
           className="page-curtain"
           initial={{ opacity: 1 }}
           animate={{ opacity: 0 }}
-          transition={{ duration: 0.7, delay: 0.85, ease: [0.16,1,0.3,1] }}
+          transition={{ duration: 0.45, delay: 0.35, ease: [0.16,1,0.3,1] }}
           onAnimationComplete={onDone}
         >
           <motion.img
@@ -850,120 +897,119 @@
       return <motion.div className="scroll-progress" style={{ scaleX }} />;
     }
     function MouseGlow(){
-      const [pos, setPos] = useState({ x: -400, y: -400 });
+      const ref = useRef(null);
       useEffect(() => {
-        const handle = (e) => {
-          const x = e.touches ? e.touches[0].clientX : e.clientX;
-          const y = e.touches ? e.touches[0].clientY : e.clientY;
-          setPos({ x, y });
-          const nx = (x / window.innerWidth - 0.5);
-          const ny = (y / window.innerHeight - 0.5);
-          const dot = document.querySelector('.bg-dot-accent');
-          if(dot) dot.style.transform = `translate(${nx*22}px, ${ny*16}px)`;
-          const bg = document.querySelector('.background');
-          if(bg) bg.style.transform = `translate(${nx*18}px, ${ny*14}px)`;
-          const logo = document.querySelector('.hero-logo');
-          if(logo) logo.style.transform = `translate(${nx*10}px, ${ny*8}px)`;
-          const grid = document.querySelector('.bg-grid');
-          if(grid) grid.style.transform = `translate(${nx*8}px, ${ny*6}px)`;
-          const canvas = document.querySelector('.bg-canvas');
-          if(canvas) canvas.style.transform = `translate(${nx*10}px, ${ny*7}px)`;
-          document.querySelectorAll('.hero-orbit').forEach((el,i) => {
-            const m = [1.2, -1.0, 0.9][i] || 1;
-            el.style.transform = `translate(${nx*14*m}px, ${ny*10*m}px)`;
-          });
-          document.querySelectorAll('.bg-orb').forEach((el,i) => {
-            const m = [0.6, 0.5, 0.7, 0.45][i] || 0.5;
-            const base = el.classList.contains('orb-1') ? 'translateX(-50%) ' : '';
-            el.style.transform = base + `translate(${nx*14*m}px, ${ny*12*m}px)`;
-          });
+        const fine = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!fine || reduce || window.innerWidth < 900) return undefined;
+        let mx = -400, my = -400, raf = 0, dirty = false;
+        const glow = ref.current;
+        const logo = document.querySelector('.hero-logo');
+        const flush = () => {
+          dirty = false;
+          raf = 0;
+          if (glow) {
+            glow.style.left = mx + 'px';
+            glow.style.top = my + 'px';
+          }
+          if (logo) {
+            const nx = mx / window.innerWidth - 0.5;
+            const ny = my / window.innerHeight - 0.5;
+            logo.style.transform = `translate(${nx*8}px, ${ny*6}px)`;
+          }
         };
-        window.addEventListener('mousemove', handle);
-        window.addEventListener('touchmove', handle, { passive: true });
-        window.addEventListener('touchstart', handle, { passive: true });
+        const handle = (e) => {
+          mx = e.clientX; my = e.clientY;
+          if (!dirty) {
+            dirty = true;
+            raf = requestAnimationFrame(flush);
+          }
+        };
+        window.addEventListener('mousemove', handle, { passive: true });
         return () => {
           window.removeEventListener('mousemove', handle);
-          window.removeEventListener('touchmove', handle);
-          window.removeEventListener('touchstart', handle);
+          if (raf) cancelAnimationFrame(raf);
         };
       }, []);
-      return <div className="mouse-glow" style={{ left: pos.x, top: pos.y }} />;
+      return <div ref={ref} className="mouse-glow" style={{ left: -400, top: -400 }} />;
     }
     function BgCanvasFX(){
       useEffect(() => {
         const c = document.querySelector('.bg-canvas');
-        if(!c) return;
-        const ctx = c.getContext('2d');
-        let w,h,dpr, raf;
-        let mx=0, my=0;
+        if(!c) return undefined;
+        const fine = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!fine || reduce || window.innerWidth < 900) {
+          c.style.display = 'none';
+          return undefined;
+        }
+        const ctx = c.getContext('2d', { alpha: true });
+        let w, h, dpr, raf = 0, running = true;
+        let mx = 0, my = 0, cx = 0, cy = 0;
         const dots = [];
+        const STEP = 48;
         const init = () => {
-          dpr = window.devicePixelRatio || 1;
+          dpr = Math.min(window.devicePixelRatio || 1, 1.5);
           w = c.clientWidth; h = c.clientHeight;
-          c.width = w*dpr; c.height = h*dpr;
-          ctx.setTransform(dpr,0,0,dpr,0,0);
+          c.width = Math.floor(w * dpr);
+          c.height = Math.floor(h * dpr);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           dots.length = 0;
-          const cols = Math.ceil(w/26)+2, rows = Math.ceil(h/26)+2;
-          for(let y=-1;y<rows;y++) for(let x=-1;x<cols;x++){
-            dots.push({ ox: x*26+13, oy: y*26+13, a: Math.random()*Math.PI*2, s: 0.005+Math.random()*0.01, r: 1.25+Math.random()*0.75, z: 0.62+Math.random()*0.44 });
+          const cols = Math.ceil(w / STEP) + 1;
+          const rows = Math.ceil(h / STEP) + 1;
+          for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+            if ((x + y) % 2 === 0) continue;
+            dots.push({
+              ox: x * STEP + STEP / 2,
+              oy: y * STEP + STEP / 2,
+              a: Math.random() * Math.PI * 2,
+              s: 0.004 + Math.random() * 0.006,
+              r: 1.1 + Math.random() * 0.5
+            });
           }
+          cx = w / 2; cy = h / 2;
         };
-        let cx=w/2, cy=h/2;
         const onMove = (e) => {
-          const x = e.touches ? e.touches[0].clientX : e.clientX;
-          const y = e.touches ? e.touches[0].clientY : e.clientY;
-          cx = x; cy = y;
-          mx = (x/w -0.5)*2; my = (y/h -0.5)*2;
+          cx = e.clientX; cy = e.clientY;
+          mx = (e.clientX / w - 0.5) * 2;
+          my = (e.clientY / h - 0.5) * 2;
         };
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('touchmove', onMove, { passive: true });
-        window.addEventListener('touchstart', onMove, { passive: true });
-        init();
-        window.addEventListener('resize', init);
-        const draw = () => {
-          ctx.clearRect(0,0,w,h);
-          dots.forEach(d => {
+        const onVis = () => { running = document.visibilityState === 'visible'; if (running && !raf) raf = requestAnimationFrame(draw); };
+        let last = 0;
+        const draw = (t) => {
+          raf = 0;
+          if (!running) return;
+          if (t - last < 32) { raf = requestAnimationFrame(draw); return; }
+          last = t;
+          ctx.clearRect(0, 0, w, h);
+          for (let i = 0; i < dots.length; i++) {
+            const d = dots[i];
             d.a += d.s;
-            const driftX = Math.sin(d.a)*1.15;
-            const driftY = Math.cos(d.a*0.68)*0.95;
-            const parX = mx*8*d.z;
-            const parY = my*6*d.z;
-            const baseX = d.ox + driftX + parX;
-            const baseY = d.oy + driftY + parY;
-            const dx = baseX - cx;
-            const dy = baseY - cy;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            const R = 118;
-            let r = d.r * (0.9 + d.z*0.18);
-            let addA = 0;
-            let px = 0, py = 0;
-            if(dist < R){
-              const t = 1 - dist/R;
-              r = r * (1 + t*1.6);
-              addA = t*0.5;
-              px = (dx/dist)* t*7;
-              py = (dy/dist)* t*7;
-            }
-            const x = baseX + px;
-            const y = baseY + py;
-            const isAccent = (Math.floor(d.ox/26)+Math.floor(d.oy/26)) % 9 === 0;
+            const x = d.ox + Math.sin(d.a) * 1.0 + mx * 5;
+            const y = d.oy + Math.cos(d.a * 0.7) * 0.8 + my * 4;
+            const dx = x - cx, dy = y - cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const near = dist < 90;
+            const r = near ? d.r * 1.7 : d.r;
             ctx.beginPath();
-            ctx.arc(x,y,r,0,Math.PI*2);
-            if(isAccent){
-              ctx.fillStyle = `rgba(124,58,237,${0.44 + addA*0.48})`;
-              ctx.shadowColor = dist < R ? 'rgba(124,58,237,0.28)' : 'transparent';
-              ctx.shadowBlur = dist < R ? 6 : 0;
-            } else {
-              ctx.fillStyle = `rgba(17,24,39,${0.19 + addA*0.24})`;
-              ctx.shadowBlur = 0;
-            }
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = near ? 'rgba(124,58,237,0.35)' : 'rgba(17,24,39,0.16)';
             ctx.fill();
-            ctx.shadowBlur = 0;
-          });
+          }
           raf = requestAnimationFrame(draw);
         };
+        init();
+        window.addEventListener('mousemove', onMove, { passive: true });
+        window.addEventListener('resize', init);
+        document.addEventListener('visibilitychange', onVis);
         raf = requestAnimationFrame(draw);
-        return () => { cancelAnimationFrame(raf); window.removeEventListener('mousemove', onMove); window.removeEventListener('touchmove', onMove); window.removeEventListener('resize', init); };
+        return () => {
+          running = false;
+          if (raf) cancelAnimationFrame(raf);
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('resize', init);
+          document.removeEventListener('visibilitychange', onVis);
+        };
       }, []);
       return null;
     }
@@ -1929,8 +1975,16 @@
       const [scrolled, setScrolled] = useState(false);
 
       useEffect(() => {
-        const handleScroll = () => setScrolled(window.scrollY > 50);
-        window.addEventListener('scroll', handleScroll);
+        let ticking = false;
+        const handleScroll = () => {
+          if (ticking) return;
+          ticking = true;
+          requestAnimationFrame(() => {
+            setScrolled(window.scrollY > 50);
+            ticking = false;
+          });
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
       }, []);
 
@@ -1947,10 +2001,11 @@
             right: 0,
             zIndex: 100,
             padding: '12px 48px',
-            background: scrolled ? 'rgba(255,255,255,0.84)' : 'transparent',
-            backdropFilter: scrolled ? 'blur(14px) saturate(1.2)' : 'none',
+            background: scrolled ? 'rgba(255,255,255,0.96)' : 'transparent',
+            backdropFilter: 'none',
+            WebkitBackdropFilter: 'none',
             borderBottom: scrolled ? '1px solid var(--border)' : 'none',
-            transition: 'all 0.2s'
+            transition: 'background 0.2s, border-color 0.2s'
           }}
         >
           <div className="site-nav-inner" style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -2193,7 +2248,7 @@
                   onBlur={handleHoverLeave}
                   onClick={() => setSelectedFeature(feature)}
                   tabIndex={0}
-                  whileHover={{ y: -8, scale: 1.03, rotateX: 2, rotateY: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 24 }}
+                  whileHover={{ y: -4, scale: 1.015 }} whileTap={{ scale: 0.99 }} transition={{ duration: 0.2 }}
                   style={{
                     padding: 22,
                     cursor: 'pointer',

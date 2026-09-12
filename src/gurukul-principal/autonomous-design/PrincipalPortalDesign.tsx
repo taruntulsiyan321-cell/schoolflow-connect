@@ -1,5 +1,6 @@
 import React, { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
+import { toEnumLabel } from "@/lib/presentation"
 import {
   appData, fmtRupees, fmtPct, getClassSubjectMarks, getAbsentsForDate, getClassPresentForDate,
   getClassTests, getExamTotals,
@@ -1487,7 +1488,7 @@ function StudentRecordView({ studentId, goBack }: { studentId: StudentId; goBack
                   <div className="w-20 font-mono text-xs text-muted-foreground">{hw.dueDate.slice(5)}</div>
                   <div className="w-20 text-right">
                     <span className={`text-xs ${hw.status === "missing" ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                      {hw.status}
+                      {toEnumLabel(hw.status, "submission_status")}
                     </span>
                   </div>
                 </div>
