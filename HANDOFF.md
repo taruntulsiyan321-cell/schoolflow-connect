@@ -958,3 +958,61 @@ While scoping the loading guard it failed on 20+ hand-rolled spinner blocks in
 guard in `emptyStates.test.ts` is deliberately scoped to `src/gurukul/` — a
 guard that fails the build on work nobody has done yet is not a guard. Widen it
 when those panels get the same pass.
+
+---
+
+## 12. STUDENT PANEL DESIGN — 2026-09-12 session
+
+Six commits. Everything below was measured in a running browser, not read
+off the source.
+
+| commit | what |
+|---|---|
+| `ccc00fb` | skeletons for 19 screens; the page title stops waiting for the network |
+| `33f4732` | "still resolving is not loaded" — the skeleton appeared AFTER the content |
+| `d6ec600` | the 155-colour shadow palette, and text a student could not read |
+| `090033b` | the word "null" in a student's test report |
+| `2e826dd` | the whole panel, desktop + mobile, checked as a set |
+
+### The two-halves split is closed
+
+`components/ui-bits` exported a THIRD `PageHeader` — same props, different
+design (`text-[28px]`, a bottom rule, a primary eyebrow) — and six
+student-reachable screens imported it while nineteen imported the gurukul one.
+That single import was the split. All six now use the panel's own header.
+
+### What is now guarded, and where
+
+| guard | what it would catch |
+|---|---|
+| `e2e/diag-panel-review.spec.ts` | 26 screens x 2 viewports: one h1 each, no sideways scroll, no `null`/`undefined`/`NaN` on screen, no blank screen |
+| `e2e/diag-loading-states.spec.ts` | the page title must be on screen AT THE SAME INSTANT as the skeleton |
+| `e2e/diag-loading-flashback.spec.ts` | a loading state must never appear after content |
+| `e2e/diag-contrast.spec.ts` | computed WCAG contrast below 3:1 on 14 screens |
+| `src/gurukul/palette.test.ts` | the 15 shadow-palette hexes, and `${colour}NN` concatenation |
+| `src/gurukul/components/emptyStates.test.ts` | a spinner returned as a screen's loading state, labelled or not |
+| `src/lib/conceptReportFallback.test.ts` | a placeholder reaching student-facing copy |
+| `src/gurukul/pages/notificationIcons.test.ts` | icon-map keys drifting from what the DB writes |
+
+Every one of them carries a positive control. Three of them were WRONG on
+their first run and the controls are why that was noticed rather than shipped:
+the contrast probe reported legible buttons as unreadable (a CSS gradient
+zeroes `background-color`), then went half-blind (bailing on any ancestor
+gradient), then swallowed 31 real findings behind its own coverage assertion.
+
+### Still open
+
+* **`hero-panel` is a class with no CSS.** Used in `pages/student/Battleground.tsx`
+  and `pages/teacher/BattleMonitor.tsx`; defined nowhere. Those "hero" cards
+  were meant to look different from a plain Card and do not.
+* **The other four panels** (`gurukul-admin`, `-parent`, `-principal`,
+  `-teacher`) have every defect this session fixed: hand-rolled spinners, the
+  shadow palette, the size-as-colour rules. The guards are scoped to
+  `src/gurukul/` on purpose — widen them when those panels get the pass.
+* **Practice shows its four quick-start modes twice** — once in QUICK START and
+  again in the All Modes grid below. Left alone deliberately: shortcuts above a
+  full catalogue is a defensible pattern and this is an IA call, not a defect.
+* **The `[class*="…"]` remapping rules in theme.css are now mostly dead.** The
+  hexes they were rewriting are gone from `src/gurukul`. Removing them is safe
+  in principle and unverified in practice — do it with the contrast probe and
+  the panel review running.
