@@ -23,6 +23,7 @@ const PASSWORD = process.env.E2E_PRINCIPAL_PASSWORD || "DemoPass123!";
 
 const SCREENS = [
   "/principal",
+  "/principal",
   "/principal/teachers",
   "/principal/students",
   "/principal/classes",
