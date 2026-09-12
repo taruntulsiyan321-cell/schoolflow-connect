@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import {
   User, Mail, Lock, Link2,
-  Edit2, Save, X, Check, Smartphone, Shield, Briefcase, Loader2,
+  Edit2, Save, X, Check, Smartphone, Shield, Briefcase, Loader2, LogOut,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,9 +12,9 @@ import { toErrorMessage } from "@/lib/presentation";
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-surface border border-border/70 rounded-2xl overflow-hidden">
+    <div className="bg-surface border border-border/70 rounded-[2px] overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-border/70">
-        <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
+        <div className="w-8 h-8 rounded-[2px] bg-primary/15 flex items-center justify-center text-primary">{icon}</div>
         <div className="text-sm font-bold text-foreground">{title}</div>
       </div>
       <div className="p-5">{children}</div>
@@ -51,13 +51,13 @@ function Field({
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="bg-muted border border-[#3b5bdb]/30 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-[#3b5bdb]/60 transition-all"
+          className="bg-muted border border-primary/30 rounded-[2px] px-3 py-2 text-sm text-foreground outline-none focus:border-primary/60 transition-all"
         />
       ) : (
         <div className="text-sm text-foreground px-0.5" title={editing && disabled ? disabledHint : undefined}>
           {value || <span className="text-muted-foreground">Not set</span>}
           {editing && disabled && disabledHint && (
-            <span className="block text-[9px] text-[#f59e0b] mt-0.5 font-normal normal-case">{disabledHint}</span>
+            <span className="block text-[9px] text-warning mt-0.5 font-normal normal-case">{disabledHint}</span>
           )}
         </div>
       )}
@@ -66,7 +66,7 @@ function Field({
 }
 
 export default function TeacherProfile() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const identity = useTeacherIdentity();
   const [profile, setProfile] = useState<TeacherProfile | null>(null);
   const [editing, setEditing] = useState(false);
@@ -189,20 +189,20 @@ export default function TeacherProfile() {
   return (
     <div className="space-y-5 max-w-2xl">
       {flash && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#10b981]/15 border border-[#10b981]/25 text-[#10b981] text-xs font-semibold">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-[2px] bg-success/15 border border-success/25 text-success text-xs font-semibold">
           <Check className="w-3.5 h-3.5" /> {flash}
         </div>
       )}
 
       {!identity.linked && (
-        <div className="px-4 py-3 rounded-xl bg-[#f59e0b]/10 border border-[#f59e0b]/25 text-[#f59e0b] text-xs">
+        <div className="px-4 py-3 rounded-[2px] bg-warning/10 border border-warning/25 text-warning text-xs">
           Your account isn&apos;t linked to a teacher record yet. Ask admin to link {user?.email ?? "your account"}.
         </div>
       )}
 
-      <div className="bg-surface border border-border/70 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <span className="text-xl font-black text-black">{initials}</span>
+      <div className="bg-surface border border-border/70 rounded-[2px] p-5 flex items-center gap-4">
+        <div className="w-16 h-16 rounded-[2px] bg-primary flex items-center justify-center shrink-0">
+          <span className="text-xl font-black text-primary-foreground">{initials}</span>
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-base font-black text-foreground">{profile.name}</div>
@@ -213,7 +213,7 @@ export default function TeacherProfile() {
             {profile.employeeId} · {profile.department}
           </div>
           {profile.isClassTeacher && (
-            <span className="inline-block mt-1 text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-2 py-0.5 rounded-full">
+            <span className="inline-block mt-1 text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
               Class Teacher — {profile.classTeacherOf?.className} {profile.classTeacherOf?.section}
             </span>
           )}
@@ -225,7 +225,7 @@ export default function TeacherProfile() {
               setDraft(profile);
               setEditing(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all shrink-0"
+            className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-semibold text-primary-foreground bg-primary hover:opacity-80 transition-all shrink-0"
           >
             <Edit2 className="w-3.5 h-3.5" /> Edit Profile
           </button>
@@ -237,7 +237,7 @@ export default function TeacherProfile() {
                 setDraft(profile);
                 setEditing(false);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80 transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold text-secondary-foreground bg-secondary hover:bg-secondary/80 transition-all"
             >
               <X className="w-3.5 h-3.5" /> Cancel
             </button>
@@ -245,7 +245,7 @@ export default function TeacherProfile() {
               type="button"
               onClick={() => void saveProfile()}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold text-primary-foreground bg-primary hover:opacity-80 transition-all disabled:opacity-40"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
             </button>
@@ -306,7 +306,7 @@ export default function TeacherProfile() {
               {profile.isClassTeacher ? (
                 <span>
                   Class Teacher of{" "}
-                  <span className="text-[#3b5bdb]">
+                  <span className="text-primary">
                     {profile.classTeacherOf?.className} {profile.classTeacherOf?.section}
                   </span>
                   , Subject Teacher for all assigned classes
@@ -321,9 +321,9 @@ export default function TeacherProfile() {
 
       <Section title="Linked Accounts" icon={<Link2 className="w-4 h-4" />}>
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted">
-            <div className="w-8 h-8 rounded-lg bg-[#ea4335]/15 flex items-center justify-center">
-              <Mail className="w-4 h-4 text-[#ea4335]" />
+          <div className="flex items-center gap-3 p-3 rounded-[2px] bg-card border border-border">
+            <div className="w-8 h-8 rounded-lg bg-destructive/15 flex items-center justify-center">
+              <Mail className="w-4 h-4 text-destructive" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-foreground">Google Account</div>
@@ -332,49 +332,69 @@ export default function TeacherProfile() {
               </div>
             </div>
             {profile.googleLinked ? (
-              <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">Linked</span>
+              <span className="text-[9px] font-bold text-success bg-success/15 px-2 py-0.5 rounded-full">Linked</span>
             ) : (
-              <span className="text-[9px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Not linked</span>
+              <span className="text-[9px] font-bold text-muted-foreground border border-border px-2 py-0.5 rounded-full">Not linked</span>
             )}
           </div>
 
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted">
-            <div className="w-8 h-8 rounded-lg bg-[#10b981]/15 flex items-center justify-center">
-              <Smartphone className="w-4 h-4 text-[#10b981]" />
+          <div className="flex items-center gap-3 p-3 rounded-[2px] bg-card border border-border">
+            <div className="w-8 h-8 rounded-lg bg-success/15 flex items-center justify-center">
+              <Smartphone className="w-4 h-4 text-success" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-foreground">Mobile Number</div>
               <div className="text-[10px] text-muted-foreground">{profile.phone || "Not set"}</div>
             </div>
             {profile.mobileLinked ? (
-              <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">On file</span>
+              <span className="text-[9px] font-bold text-success bg-success/15 px-2 py-0.5 rounded-full">On file</span>
             ) : (
-              <span className="text-[9px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Not set</span>
+              <span className="text-[9px] font-bold text-muted-foreground border border-border px-2 py-0.5 rounded-full">Not set</span>
             )}
           </div>
         </div>
       </Section>
 
       <Section title="Security" icon={<Shield className="w-4 h-4" />}>
-        <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
-          <div>
-            <div className="text-xs font-semibold text-foreground">Password</div>
-            <div className="text-[10px] text-muted-foreground">Update your sign-in password</div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 rounded-[2px] bg-card border border-border">
+            <div>
+              <div className="text-xs font-semibold text-foreground">Password</div>
+              <div className="text-[10px] text-muted-foreground">Update your sign-in password</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChangePwdOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
+            >
+              <Lock className="w-3.5 h-3.5" /> Change
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setChangePwdOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#3b5bdb] bg-[#3b5bdb]/10 hover:bg-[#3b5bdb]/15 transition-all"
-          >
-            <Lock className="w-3.5 h-3.5" /> Change
-          </button>
+
+          {/* Sign out belongs here as well as on the rail. The rail's copy is
+              the only one that existed, and Profile is where someone looks for
+              it — the same reason it sits under Security rather than in a
+              section of its own: it ends a session. */}
+          <div className="flex items-center justify-between p-3 rounded-[2px] bg-card border border-border">
+            <div>
+              <div className="text-xs font-semibold text-foreground">Sign out</div>
+              <div className="text-[10px] text-muted-foreground">End this session on this device</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold text-destructive bg-destructive/10 hover:bg-destructive/15 transition-all"
+            >
+              <LogOut className="w-3.5 h-3.5" /> Sign out
+            </button>
+          </div>
         </div>
       </Section>
 
       {changePwdOpen && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setChangePwdOpen(false)} />
-          <div className="relative z-10 bg-surface border border-border rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
+          <div className="relative z-10 bg-surface border border-border rounded-[2px] w-full max-w-sm p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-sm font-bold text-foreground">Change Password</div>
               <button type="button" onClick={() => setChangePwdOpen(false)} className="text-muted-foreground hover:text-foreground">
@@ -391,18 +411,18 @@ export default function TeacherProfile() {
                   type="password"
                   value={pwdForm[f.key]}
                   onChange={(e) => setPwdForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                  className="bg-muted border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-[#3b5bdb]/40"
+                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-sm text-foreground outline-none focus:border-primary/40"
                 />
               </div>
             ))}
             {pwdForm.next && pwdForm.confirm && pwdForm.next !== pwdForm.confirm && (
-              <div className="text-[10px] text-[#cc5069]">Passwords do not match</div>
+              <div className="text-[10px] text-destructive">Passwords do not match</div>
             )}
             <div className="flex gap-3 justify-end">
               <button
                 type="button"
                 onClick={() => setChangePwdOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted"
+                className="px-4 py-2 rounded-[2px] text-xs font-semibold text-secondary-foreground bg-secondary"
               >
                 Cancel
               </button>
@@ -410,7 +430,7 @@ export default function TeacherProfile() {
                 type="button"
                 onClick={() => void changePassword()}
                 disabled={!pwdForm.next || pwdForm.next !== pwdForm.confirm || pwdSaving}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all"
+                className="px-4 py-2 rounded-[2px] text-xs font-semibold text-primary-foreground bg-primary hover:opacity-80 disabled:opacity-40 transition-all"
               >
                 {pwdSaving ? "Saving…" : "Change Password"}
               </button>

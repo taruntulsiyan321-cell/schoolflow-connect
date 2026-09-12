@@ -2,6 +2,7 @@
   UserCheck, BookOpen, ClipboardList, Bell,
   ChevronRight, TrendingUp, Loader2,
 } from "lucide-react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { cn } from "./shared";
 import type { ParentPageKey } from "./nav";
 import {
@@ -31,7 +32,7 @@ function QuickStat({
 }) {
   const body = (
     <>
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}18`, color }}>
+      <div className="w-10 h-10 rounded-[2px] flex items-center justify-center shrink-0" style={{ background: `${withAlpha(color, 0.09)}`, color }}>
         {icon}
       </div>
       <div className="min-w-0">
@@ -46,14 +47,14 @@ function QuickStat({
       <button
         type="button"
         onClick={onClick}
-        className="bg-surface border border-border/70 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-border transition-all w-full"
+        className="bg-surface border border-border/70 rounded-[2px] p-4 flex items-center gap-3 text-left hover:border-border transition-all w-full"
       >
         {body}
       </button>
     );
   }
   return (
-    <div className="bg-surface border border-border/70 rounded-2xl p-4 flex items-center gap-3">
+    <div className="bg-surface border border-border/70 rounded-[2px] p-4 flex items-center gap-3">
       {body}
     </div>
   );
@@ -121,7 +122,7 @@ export default function ParentDashboard({
 
   if (childrenError) {
     return (
-      <div className="text-sm text-[#cc5069] py-16 text-center">
+      <div className="text-sm text-destructive py-16 text-center">
         Failed to load children: {childrenError}
       </div>
     );
@@ -145,9 +146,9 @@ export default function ParentDashboard({
               type="button"
               onClick={() => setActiveChildId(c.id)}
               className={cn(
-                "flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
+                "flex items-center gap-3 px-4 py-2.5 rounded-[2px] border transition-all",
                 activeChildId === c.id || liveChild.id === c.id
-                  ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
+                  ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-surface border-border/70 text-muted-foreground",
               )}
             >
@@ -158,14 +159,21 @@ export default function ParentDashboard({
         </div>
       )}
 
-      <div className="bg-gradient-to-br from-[#131316] to-[#0d1a14] border border-[#3b5bdb]/15 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <span className="text-lg font-black text-foreground">
+      {/* This hero was `bg-gradient-to-br from-[#131316] to-[#0d1a14]` — a
+          near-black card left from the dark theme — with `text-foreground`
+          inside it. On the warm-paper palette `--foreground` is a near-black
+          brown, so the child's own name was dark ink on a near-black ground.
+          The card is a surface from the token set now, and the initials chip
+          takes the accent, which is the one place in this design colour is
+          used for identity rather than status. */}
+      <div className="bg-card border border-border rounded-[2px] p-5 flex items-center gap-4">
+        <div className="w-14 h-14 rounded-full bg-accent flex items-center justify-center shrink-0">
+          <span className="text-lg font-display font-medium text-accent-foreground">
             {liveChild.fullName.split(" ").map((w) => w[0]).slice(0, 2).join("")}
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-base font-black text-foreground">{liveChild.fullName}</div>
+          <div className="font-display text-lg font-medium text-foreground">{liveChild.fullName}</div>
           <div className="text-xs text-muted-foreground mt-0.5">
             {liveChild.classLabel} · Roll {liveChild.rollNumber ?? "—"}
           </div>
@@ -173,13 +181,13 @@ export default function ParentDashboard({
         <div className="text-right shrink-0">
           <div
             className={cn(
-              "text-xs font-bold px-3 py-1.5 rounded-xl capitalize",
+              "text-xs font-bold px-3 py-1.5 rounded-[2px] capitalize",
               attendanceLoading || attendanceUnavailable
                 ? "bg-muted/80 text-muted-foreground"
                 : todayStatus === "present" || todayStatus === "late"
-                  ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
+                  ? "bg-primary/15 text-primary"
                   : todayStatus === "absent"
-                    ? "bg-[#cc5069]/15 text-[#cc5069]"
+                    ? "bg-destructive/15 text-destructive"
                     : "bg-muted/80 text-muted-foreground",
             )}
           >
@@ -205,36 +213,36 @@ export default function ParentDashboard({
                 ? "Unavailable — try again later"
                 : `${presentDays}/${schoolDays} days`
           }
-          color="#3b5bdb"
+          color="hsl(var(--primary))"
           icon={<UserCheck className="w-5 h-5" />}
         />
         <QuickStat
           label="Pending Homework"
           value={pendingHw}
           sub="not yet submitted"
-          color={pendingHw > 0 ? "#c08a3a" : "#3b5bdb"}
+          color={pendingHw > 0 ? "hsl(var(--warning))" : "hsl(var(--primary))"}
           icon={<BookOpen className="w-5 h-5" />}
         />
         <QuickStat
           label="Notifications"
           value={unreadNotifications}
           sub="unread — tap to open"
-          color={unreadNotifications > 0 ? "#cc5069" : "#78788c"}
+          color={unreadNotifications > 0 ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))"}
           icon={<Bell className="w-5 h-5" />}
           onClick={() => setPage("notifications")}
         />
         <QuickActionCard setPage={setPage} />
       </div>
 
-      <div className="bg-surface border border-border/70 rounded-2xl p-5">
+      <div className="bg-surface border border-border/70 rounded-[2px] p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm font-bold text-foreground flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-[#3b5bdb]" /> Academic Performance
+            <TrendingUp className="w-4 h-4 text-primary" /> Academic Performance
           </div>
           <button
             type="button"
             onClick={() => setPage("academic_insights")}
-            className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1"
+            className="text-[10px] text-primary hover:underline flex items-center gap-1"
           >
             Full insights <ChevronRight className="w-3 h-3" />
           </button>
@@ -246,18 +254,18 @@ export default function ParentDashboard({
         <button
           type="button"
           onClick={() => setPage("children")}
-          className="p-4 rounded-2xl border border-border/70 bg-surface text-left"
+          className="p-4 rounded-[2px] border border-border/70 bg-surface text-left"
         >
-          <ClipboardList className="w-4 h-4 text-[#6366f1] mb-2" />
+          <ClipboardList className="w-4 h-4 text-primary mb-2" />
           <div className="text-xs font-bold text-foreground">My Children</div>
           <div className="text-[10px] text-muted-foreground">Attendance · Homework · Exams</div>
         </button>
         <button
           type="button"
           onClick={() => setPage("test_results")}
-          className="p-4 rounded-2xl border border-border/70 bg-surface text-left"
+          className="p-4 rounded-[2px] border border-border/70 bg-surface text-left"
         >
-          <BookOpen className="w-4 h-4 text-[#3b5bdb] mb-2" />
+          <BookOpen className="w-4 h-4 text-primary mb-2" />
           <div className="text-xs font-bold text-foreground">Test Results</div>
           <div className="text-[10px] text-muted-foreground">Exams and tests</div>
         </button>
@@ -271,9 +279,9 @@ function QuickActionCard({ setPage }: { setPage: (p: ParentPageKey) => void }) {
     <button
       type="button"
       onClick={() => setPage("children")}
-      className="bg-surface border border-border/70 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-[#3b5bdb]/40"
+      className="bg-surface border border-border/70 rounded-[2px] p-4 flex items-center gap-3 text-left hover:border-primary/40"
     >
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#3b5bdb]/15 text-[#3b5bdb]">
+      <div className="w-10 h-10 rounded-[2px] flex items-center justify-center shrink-0 bg-primary/15 text-primary">
         <ClipboardList className="w-5 h-5" />
       </div>
       <div>

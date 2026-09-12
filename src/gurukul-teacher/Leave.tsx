@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { Plus, Calendar, Check, Clock, X, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { LeaveService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
-const statusColor = { pending: "#f59e0b", approved: "#10b981", rejected: "#cc5069" };
+const statusColor = { pending: "hsl(var(--warning))", approved: "hsl(var(--success))", rejected: "hsl(var(--destructive))" };
 const statusIcon = {
   pending: <Clock className="w-3.5 h-3.5" />,
   approved: <CheckCircle className="w-3.5 h-3.5" />,
@@ -150,24 +151,24 @@ export default function Leave() {
   return (
     <div className="space-y-5 max-w-2xl">
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
-          <div className="text-xl font-black text-[#10b981]">{approved}</div>
+        <div className="bg-surface border border-border/70 rounded-[2px] p-4 text-center">
+          <div className="text-xl font-black text-success">{approved}</div>
           <div className="text-[10px] text-muted-foreground mt-0.5">Days Approved</div>
         </div>
-        <div className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
-          <div className="text-xl font-black text-[#3b5bdb]">{pending}</div>
+        <div className="bg-surface border border-border/70 rounded-[2px] p-4 text-center">
+          <div className="text-xl font-black text-primary">{pending}</div>
           <div className="text-[10px] text-muted-foreground mt-0.5">Pending Requests</div>
         </div>
-        <div className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
+        <div className="bg-surface border border-border/70 rounded-[2px] p-4 text-center">
           <div className="text-xl font-black text-foreground">{requests.length}</div>
           <div className="text-[10px] text-muted-foreground mt-0.5">Total Applications</div>
         </div>
       </div>
 
-      {error && <div className="text-xs text-[#cc5069]">{error}</div>}
+      {error && <div className="text-xs text-destructive">{error}</div>}
 
       {flash && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#10b981]/15 border border-[#10b981]/25 text-[#10b981] text-xs font-semibold">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-[2px] bg-success/15 border border-success/25 text-success text-xs font-semibold">
           <Check className="w-3.5 h-3.5" /> {flash}
         </div>
       )}
@@ -176,14 +177,14 @@ export default function Leave() {
         <button
           type="button"
           onClick={() => setApplying(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary hover:opacity-80 transition-all"
         >
           <Plus className="w-4 h-4" /> Apply for Leave
         </button>
       )}
 
       {applying && (
-        <div className="bg-surface border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
+        <div className="bg-surface border border-primary/20 rounded-[2px] p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-foreground">Apply for Leave</div>
             <button type="button" onClick={() => setApplying(false)}>
@@ -198,7 +199,7 @@ export default function Leave() {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, leaveType: e.target.value as (typeof leaveTypes)[number] }))
                 }
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none"
               >
                 {leaveTypes.map((t) => (
                   <option key={t} value={t}>
@@ -214,7 +215,7 @@ export default function Leave() {
                 type="date"
                 value={form.fromDate}
                 onChange={(e) => setForm((p) => ({ ...p, fromDate: e.target.value }))}
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none focus:border-primary/40"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -224,7 +225,7 @@ export default function Leave() {
                 value={form.toDate}
                 min={form.fromDate}
                 onChange={(e) => setForm((p) => ({ ...p, toDate: e.target.value }))}
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none focus:border-primary/40"
               />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
@@ -233,7 +234,7 @@ export default function Leave() {
                 value={form.reason}
                 onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))}
                 rows={3}
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none focus:border-primary/40 resize-none"
               />
             </div>
           </div>
@@ -241,7 +242,7 @@ export default function Leave() {
             <button
               type="button"
               onClick={() => setApplying(false)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80"
+              className="px-4 py-2 rounded-[2px] text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80"
             >
               Cancel
             </button>
@@ -249,7 +250,7 @@ export default function Leave() {
               type="button"
               onClick={() => void applyLeave()}
               disabled={!form.fromDate || !form.toDate || !form.reason || saving}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary hover:opacity-80 disabled:opacity-40 transition-all"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Submit
               Application
@@ -262,11 +263,11 @@ export default function Leave() {
         <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Leave History</div>
         <div className="space-y-3">
           {requests.map((r) => (
-            <div key={r.id} className="bg-surface border border-border/70 rounded-2xl p-4 flex items-start gap-3">
+            <div key={r.id} className="bg-surface border border-border/70 rounded-[2px] p-4 flex items-start gap-3">
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                className="w-9 h-9 rounded-[2px] flex items-center justify-center shrink-0"
                 style={{
-                  background: `${statusColor[r.statuses[0]]}18`,
+                  background: `${withAlpha(statusColor[r.statuses[0]], 0.09)}`,
                   color: statusColor[r.statuses[0]],
                 }}
               >
@@ -279,7 +280,7 @@ export default function Leave() {
                     <span
                       key={`${st}-${i}`}
                       className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                      style={{ background: `${statusColor[st]}18`, color: statusColor[st] }}
+                      style={{ background: `${withAlpha(statusColor[st], 0.09)}`, color: statusColor[st] }}
                     >
                       {toEnumLabel(st, "leave_status")}
                     </span>
@@ -293,7 +294,7 @@ export default function Leave() {
                     {r.days} day{r.days !== 1 ? "s" : ""}
                   </span>
                 </div>
-                <div className="text-[10px] text-[#b0b0c0] mt-1.5 leading-relaxed">{r.reason}</div>
+                <div className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">{r.reason}</div>
               </div>
               <div className="text-[9px] text-muted-foreground shrink-0">Applied: {r.appliedAt}</div>
             </div>

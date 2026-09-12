@@ -1,4 +1,5 @@
 import React, { useState } from "react"
+import { useAuth } from "@/hooks/useAuth"
 import {
   appData, fmtRupees, fmtPct, getClassSubjectMarks, getAbsentsForDate, getClassPresentForDate,
   getClassTests, getExamTotals,
@@ -94,36 +95,84 @@ function useNav() {
  * call sites say 2px outright rather than routing it through a scale that
  * cannot express it.
  */
-function Sidebar({ section, onNav }: { section: string; onNav: (s: Screen) => void }) {
+/**
+ * The rail.
+ *
+ * Rewritten, not adjusted. What it was: four labels at the top, then roughly
+ * 450px of empty dark column, then a hard-coded "Sep 11, 2026" sitting alone
+ * inside a bordered footer — already the wrong date, labelled as nothing, next
+ * to an Attendance card on the same screen that states the date properly. The
+ * void plus the orphaned string is what made the column read as unfinished.
+ *
+ * Deliberately still typographic. The content area of this design carries no
+ * icons, so the rail does not get icons either; what it gets is a reason for its
+ * bottom half to exist — who is signed in, and the way out.
+ *
+ * Three smaller corrections, all measured:
+ *  - Labels now start at 20px, the same left edge as the wordmark. `px-3` on the
+ *    nav plus `px-3` on each item put them at 24px, four short of it.
+ *  - Selection was `bg-sidebar-accent` alone: 15.3% lightness against the rail's
+ *    8.2%, a full-width block barely distinguishable from its background. It
+ *    keeps that fill and gains a 2px cream edge. Every item carries the border
+ *    as transparent so nothing shifts when selection moves.
+ *  - The subtitle was `/50` and the footer `/40` on near-black: 4.05:1 and
+ *    3.05:1. `/60` and `/70` measure 5.4:1 and 6.8:1.
+ */
+function Sidebar({
+  section,
+  onNav,
+  name,
+  onSignOut,
+}: {
+  section: string
+  onNav: (s: Screen) => void
+  name: string
+  onSignOut: () => void
+}) {
   const items: { id: string; label: string; screen: Screen }[] = [
     { id: "dashboard", label: "Dashboard", screen: { id: "dashboard" } },
     { id: "teachers",  label: "Teachers",  screen: { id: "teachers" } },
     { id: "students",  label: "Students",  screen: { id: "students" } },
     { id: "classes",   label: "Classes",   screen: { id: "classes" } },
   ]
+  const initials = name.trim().split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "P"
   return (
     <aside className="w-52 flex-none flex flex-col bg-sidebar text-sidebar-foreground h-full">
       <div className="px-5 pt-6 pb-5 border-b border-white/10">
         <div className="font-display text-lg font-medium text-white tracking-tight leading-none">Gurukul</div>
-        <div className="text-xs text-sidebar-foreground/50 mt-1 font-mono">Principal Portal</div>
+        <div className="text-xs text-sidebar-foreground/60 mt-1 font-mono">Principal Portal</div>
       </div>
-      <nav className="flex-1 py-4 px-3">
+      <nav className="flex-1 py-4 px-2">
         {items.map(item => (
           <button
             key={item.id}
             onClick={() => onNav(item.screen)}
-            className={`w-full text-left px-3 py-2.5 rounded-[2px] text-sm mb-0.5 transition-colors ${
+            className={`w-full text-left px-3 py-2.5 rounded-[2px] text-sm mb-0.5 border-l-2 transition-colors ${
               section === item.id
-                ? "bg-sidebar-accent text-white font-medium"
-                : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-white/5"
+                ? "bg-sidebar-accent text-white font-medium border-sidebar-primary"
+                : "text-sidebar-foreground/70 border-transparent hover:text-sidebar-foreground hover:bg-white/5"
             }`}
           >
             {item.label}
           </button>
         ))}
       </nav>
-      <div className="px-5 py-4 border-t border-white/10">
-        <div className="text-xs text-sidebar-foreground/40 font-mono">Sep 11, 2026</div>
+      <div className="px-4 py-4 border-t border-white/10 space-y-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-[2px] bg-sidebar-accent flex items-center justify-center shrink-0">
+            <span className="font-display text-[11px] font-medium text-white">{initials}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm text-sidebar-foreground truncate leading-tight">{name}</div>
+            <div className="text-xs text-sidebar-foreground/70 font-mono">Principal</div>
+          </div>
+        </div>
+        <button
+          onClick={onSignOut}
+          className="w-full text-left px-2.5 py-2 rounded-[2px] text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-white/5 transition-colors"
+        >
+          Sign out
+        </button>
       </div>
     </aside>
   )
@@ -2230,6 +2279,16 @@ export default function App() {
   const nav = useNav()
   const s = nav.current
   const section = screenSection(s)
+  /**
+   * The one thing in this file that is not fixture data.
+   *
+   * The screens are still design-only, on `data.ts` fixtures, but there was no
+   * way to leave the panel at all: no sign-out anywhere in the principal portal,
+   * while the teacher and parent rails and the student layout each have one. A
+   * portal a user cannot sign out of is broken regardless of what its screens
+   * are wired to, so the identity and the sign-out are real.
+   */
+  const { profile, signOut } = useAuth()
 
   function handleSidebarNav(screen: Screen) {
     nav.resetTo(screen)
@@ -2299,7 +2358,12 @@ export default function App() {
   // makes the design render in the face it was drawn in.
   return (
     <div className="flex h-full bg-background">
-      <Sidebar section={section} onNav={handleSidebarNav} />
+      <Sidebar
+        section={section}
+        onNav={handleSidebarNav}
+        name={profile?.fullName?.trim() || "Principal"}
+        onSignOut={() => void signOut()}
+      />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header history={nav.history} jumpTo={nav.jumpTo} onSettings={handleSettings} />
         <main className="flex-1 overflow-hidden">

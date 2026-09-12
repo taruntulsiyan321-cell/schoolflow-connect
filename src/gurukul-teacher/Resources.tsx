@@ -91,7 +91,7 @@ function ResourceForm({
     form.title.trim() !== "" && form.classId !== "" && form.resourceType !== "" && hasBody;
 
   return (
-    <div className="bg-surface border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
+    <div className="bg-surface border border-primary/20 rounded-[2px] p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm font-bold text-foreground">New Resource</div>
         <button onClick={onCancel} type="button">
@@ -107,7 +107,7 @@ function ResourceForm({
           <input
             value={form.title}
             onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-            className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40"
+            className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none focus:border-primary/40"
           />
         </div>
 
@@ -118,7 +118,7 @@ function ResourceForm({
           <select
             value={form.classId}
             onChange={(e) => setForm((p) => ({ ...p, classId: e.target.value }))}
-            className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none"
+            className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none"
           >
             {classes.length === 0 && <option value="">No assigned classes</option>}
             {classes.map((c) => (
@@ -146,7 +146,7 @@ function ResourceForm({
                 file: null,
               }))
             }
-            className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none"
+            className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none"
           >
             <option value="">Choose a type…</option>
             {RESOURCE_KINDS.map((k) => (
@@ -164,7 +164,7 @@ function ResourceForm({
           <input
             value={form.subject}
             onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
-            className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40"
+            className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none focus:border-primary/40"
           />
         </div>
 
@@ -177,7 +177,7 @@ function ResourceForm({
               value={form.url}
               onChange={(e) => setForm((p) => ({ ...p, url: e.target.value }))}
               placeholder="https://…"
-              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40"
+              className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none focus:border-primary/40"
             />
           ) : (
             <>
@@ -192,7 +192,7 @@ function ResourceForm({
                 type="button"
                 disabled={form.resourceType === ""}
                 onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-muted hover:bg-muted/80 disabled:opacity-40"
+                className="flex items-center gap-2 px-3 py-2 rounded-[2px] text-xs font-semibold text-foreground bg-muted hover:bg-muted/80 disabled:opacity-40"
               >
                 <FileUp className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">{form.file?.name ?? "Choose a file"}</span>
@@ -209,7 +209,7 @@ function ResourceForm({
             value={form.description}
             onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
             rows={3}
-            className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
+            className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none focus:border-primary/40 resize-none"
           />
         </div>
 
@@ -224,7 +224,7 @@ function ResourceForm({
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80"
+          className="px-4 py-2 rounded-[2px] text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80"
         >
           Cancel
         </button>
@@ -232,7 +232,7 @@ function ResourceForm({
           type="button"
           onClick={() => onSave(form)}
           disabled={!canSave || saving}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary hover:opacity-80 disabled:opacity-40 transition-all"
         >
           <Save className="w-3.5 h-3.5" /> {saving ? "Publishing…" : "Publish"}
         </button>
@@ -406,7 +406,7 @@ export default function Resources() {
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
               aria-label="Filter by class"
-              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none"
+              className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none"
             >
               <option value="">All classes</option>
               {classes.map((c) => (
@@ -421,7 +421,7 @@ export default function Resources() {
               type="button"
               onClick={() => setCreating(true)}
               disabled={classes.length === 0}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary hover:opacity-80 disabled:opacity-40 transition-all"
             >
               <Plus className="w-3.5 h-3.5" /> New Resource
             </button>
@@ -430,12 +430,12 @@ export default function Resources() {
       </div>
 
       {flash && (
-        <div className="px-3 py-2 rounded-xl bg-[#10b981]/10 text-[#10b981] text-[11px] font-semibold">
+        <div className="px-3 py-2 rounded-[2px] bg-success/10 text-success text-[11px] font-semibold">
           {flash}
         </div>
       )}
       {error && (
-        <div className="px-3 py-2 rounded-xl bg-[#cc5069]/10 text-[#cc5069] text-[11px] font-semibold">
+        <div className="px-3 py-2 rounded-[2px] bg-destructive/10 text-destructive text-[11px] font-semibold">
           {error}
         </div>
       )}
@@ -464,7 +464,7 @@ export default function Resources() {
           {items.map((r) => (
             <div
               key={r.id}
-              className="bg-surface border border-border rounded-2xl p-4 flex items-start justify-between gap-3"
+              className="bg-surface border border-border rounded-[2px] p-4 flex items-start justify-between gap-3"
             >
               <button
                 type="button"
@@ -500,7 +500,7 @@ export default function Resources() {
                 type="button"
                 onClick={() => deleteItem(r.id)}
                 title="Delete permanently"
-                className="p-2 rounded-xl text-[#cc5069] hover:bg-[#cc5069]/10 shrink-0"
+                className="p-2 rounded-[2px] text-destructive hover:bg-destructive/10 shrink-0"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

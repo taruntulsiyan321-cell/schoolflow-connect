@@ -25,12 +25,15 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+/* Same tokens, same mapping, as the role chips in pages/shared/ChatPage — see
+ * the note there. These were 400- and 300-level Tailwind inks plus one #818cf8
+ * literal, all chosen for a dark panel that no longer exists. */
 const roleTone: Record<string, string> = {
-  admin: "text-emerald-400",
-  principal: "text-rose-400",
-  teacher: "text-[#818cf8]",
-  student: "text-indigo-300",
-  parent: "text-amber-400",
+  admin: "text-success",
+  principal: "text-destructive",
+  teacher: "text-primary",
+  student: "text-accent",
+  parent: "text-warning",
 };
 
 type NewChatSheetProps = {
@@ -39,15 +42,34 @@ type NewChatSheetProps = {
   contacts: ChatContact[];
   onSelect: (contact: ChatContact) => void | Promise<void>;
   busy?: boolean;
+  /**
+   * The panel scope class of whoever opened the sheet — see `panelScopeOf` in
+   * pages/shared/ChatPage. Required, because every colour and font in here is a
+   * semantic token and a portal to `document.body` resolves those against
+   * `index.css` rather than against the panel on screen.
+   */
+  scopeClassName: string;
 };
 
-/** Searchable DM contact picker (Gurukul dark). Portaled + z-modal to clear shell stacking traps. */
+/**
+ * Searchable DM contact picker. Portaled + z-modal to clear shell stacking traps.
+ *
+ * The portal target stays `document.body` — that is what clears the stacking
+ * traps — but the portaled tree now carries the opening panel's scope class.
+ * Without it this sheet left the panel's subtree and picked up the `:root`
+ * tokens in index.css instead: measured on the parent panel it rendered in Plus
+ * Jakarta Sans on rgb(243, 246, 246), which is index.css's `--background`, while
+ * the panel behind it was Work Sans on warm cream. The description here used to
+ * read "(Gurukul dark)", which is the palette all of this was written for and
+ * which no panel has used for some time.
+ */
 export function NewChatSheet({
   open,
   onClose,
   contacts,
   onSelect,
   busy = false,
+  scopeClassName,
 }: NewChatSheetProps) {
   const [query, setQuery] = useState("");
   const [pickingId, setPickingId] = useState<string | null>(null);
@@ -77,7 +99,7 @@ export function NewChatSheet({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-modal flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className={cn(scopeClassName, "fixed inset-0 z-modal flex items-end sm:items-center justify-center p-0 sm:p-4")}>
       <button
         type="button"
         aria-label="Close new chat"
@@ -89,7 +111,7 @@ export function NewChatSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-chat-title"
-        className="relative z-10 w-full sm:max-w-md flex flex-col shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[85vh] sm:max-h-[70vh] bg-surface border border-border"
+        className="relative z-10 w-full sm:max-w-md flex flex-col shadow-2xl rounded-t-lg sm:rounded-lg max-h-[85vh] sm:max-h-[70vh] bg-surface border border-border"
       >
         <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-border/70 shrink-0">
           <div>
@@ -104,21 +126,21 @@ export function NewChatSheet({
             type="button"
             onClick={onClose}
             disabled={busy || Boolean(pickingId)}
-            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-border text-muted-foreground hover:text-foreground"
+            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-background border border-border text-muted-foreground hover:text-foreground"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="px-3 py-2.5 border-b border-border/70 shrink-0">
-          <div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-white/5 border border-border">
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2 bg-background border border-border">
             <Search className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
             <input
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search name or role…"
-              className="flex-1 bg-transparent text-xs outline-none text-white placeholder:text-muted-foreground"
+              className="flex-1 bg-transparent text-xs outline-none text-foreground placeholder:text-muted-foreground"
             />
           </div>
         </div>
@@ -146,12 +168,12 @@ export function NewChatSheet({
                   setPickingId(c.userId);
                   void Promise.resolve(onSelect(c)).finally(() => setPickingId(null));
                 }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors disabled:opacity-50 hover:bg-white/[0.04]"
+                className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors disabled:opacity-50 hover:bg-muted"
               >
                 {c.avatarUrl ? (
-                  <img src={c.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                  <img src={c.avatarUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                 ) : (
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black shrink-0 bg-primary/20 text-primary">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 bg-primary/20 text-primary">
                     {initials(c.name)}
                   </div>
                 )}

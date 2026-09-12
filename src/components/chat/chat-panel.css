@@ -1,97 +1,75 @@
-/* Gurukul / Wisdom Campus chat — Chalkboard Signal light surfaces */
-.chat-panel {
-  --chat-primary: #17657a;
-  --chat-primary-soft: #80cbd0;
-  --chat-surface: #ffffff;
-  --chat-surface-2: #f3f6f6;
-  --chat-surface-3: #e8eff0;
-  --chat-muted: #52646c;
-  --chat-faint: #7b898f;
-  --chat-border: #d5e0e2;
-  --chat-border-strong: #c3d2d5;
-  --chat-text: #14252d;
-  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-}
+/* Gurukul chat — surfaces read from whichever panel mounts the component.
+ *
+ * The previous file carried a palette of its own ("Chalkboard Signal light
+ * surfaces"): #17657a teal on #ffffff / #f3f6f6 / #e8eff0 with a #d5e0e2
+ * hairline, eleven `--chat-*` custom properties, "Plus Jakarta Sans", an 8px
+ * backdrop blur, an elevated shadow and a 1rem corner.
+ *
+ * Two panels render `pages/shared/ChatPage` — the student panel and the parent
+ * panel — and that palette belonged to neither. The parent panel is warm paper
+ * with a near-black primary; the student panel's own theme maps its indigo
+ * aliases onto a deep teal `--primary`. Surveyed, `/parent/messages` came back
+ * in a different font from the six screens around it, on white instead of cream,
+ * with 12px and 16px corners against 2px everywhere else — one panel reading
+ * as two applications.
+ *
+ * Rewritten to read semantic tokens, so each panel dresses the chat in its own
+ * design and nothing needs overriding per panel. Deliberately dropped rather
+ * than carried across: the `--chat-*` indirection (no component ever read one,
+ * and three — `--chat-primary-soft`, `--chat-muted`, `--chat-faint` — were read
+ * by no rule either), the font-family (the panel's own body font inherits), the
+ * backdrop blur (invisible behind an opaque surface), and `.chat-new-fab`, whose
+ * twelve declarations styled a button no component renders.
+ */
 
 .chat-panel .chat-shell {
-  background: var(--chat-surface);
-  border: 1px solid var(--chat-border);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   box-shadow: var(--shadow-elevated);
-  backdrop-filter: blur(8px);
 }
 
 .chat-panel .chat-sidebar {
-  background: var(--chat-surface-2);
-  border-right: 1px solid var(--chat-border);
+  background: hsl(var(--background));
+  border-right: 1px solid hsl(var(--border));
 }
 
+/* The selected conversation. A recessed fill plus a primary-tinted edge — the
+ * design marks selection with primary, not with a darker grey. */
 .chat-panel .chat-contact-active {
-  background: var(--chat-surface-3);
-  border-color: var(--chat-border-strong);
-  box-shadow: none;
+  background: hsl(var(--muted));
+  border-color: hsl(var(--primary) / 0.25);
 }
 
 .chat-panel .chat-bubble-mine {
-  background: var(--chat-primary);
-  color: #ffffff;
-  box-shadow: none;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
 }
 
 .chat-panel .chat-bubble-theirs {
-  background: var(--chat-surface-3);
-  border: 1px solid var(--chat-border);
-  color: var(--chat-text);
-  box-shadow: none;
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
 }
 
 .chat-panel .chat-composer {
-  background: var(--chat-surface);
-  border-top: 1px solid var(--chat-border);
-  box-shadow: none;
+  background: hsl(var(--card));
+  border-top: 1px solid hsl(var(--border));
 }
 
 .chat-panel .chat-avatar {
-  background: var(--chat-primary);
-  color: #ffffff;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
 }
 
 .chat-panel .chat-empty-state {
-  background: var(--chat-surface-3);
+  background: hsl(var(--muted));
 }
 
 .chat-panel .chat-search {
-  background: var(--chat-surface-3);
-  border: 1px solid var(--chat-border);
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
 }
 
 .chat-panel .chat-thread-bg {
-  background: var(--chat-surface-2);
-}
-
-.chat-panel .chat-new-fab {
-  position: absolute;
-  right: 1rem;
-  bottom: 1rem;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--chat-primary);
-  color: #fff;
-  border: none;
-  box-shadow: var(--shadow-elevated);
-  z-index: 5;
-  transition: transform 0.15s ease, filter 0.15s ease;
-}
-
-.chat-panel .chat-new-fab:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-
-.chat-panel .chat-new-fab:disabled {
-  opacity: 0.5;
-  transform: none;
+  background: hsl(var(--background));
 }

@@ -412,7 +412,7 @@ export default function QuestionPapers() {
         <button
           type="button"
           onClick={() => setCreating((v) => !v)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary/15 text-primary"
         >
           {creating ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}{" "}
           {creating ? "Cancel" : "New paper"}
@@ -420,35 +420,35 @@ export default function QuestionPapers() {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+        <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {error}
         </div>
       )}
       {success && (
-        <div className="rounded-xl border border-[#4aa87a]/30 bg-[#4aa87a]/10 px-3 py-2 text-xs text-[#4aa87a]">
+        <div className="rounded-[2px] border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
           {success}
         </div>
       )}
 
       {creating && (
-        <div className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
+        <div className="p-3 bg-surface border border-border/70 rounded-[2px] space-y-2">
           <input
             value={paperForm.title}
             onChange={(e) => setPaperForm({ ...paperForm, title: e.target.value })}
             placeholder="Paper title *"
-            className="w-full bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
+            className="w-full bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground"
           />
           <div className="grid grid-cols-3 gap-2">
             <input
               value={paperForm.subject}
               onChange={(e) => setPaperForm({ ...paperForm, subject: e.target.value })}
               placeholder="Subject *"
-              className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
+              className="bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground"
             />
             <select
               value={paperForm.classLevel}
               onChange={(e) => setPaperForm({ ...paperForm, classLevel: e.target.value })}
-              className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
+              className="bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground"
             >
               {classLevels.map((c) => (
                 <option key={c} value={c}>
@@ -460,14 +460,14 @@ export default function QuestionPapers() {
               value={paperForm.durationMinutes}
               onChange={(e) => setPaperForm({ ...paperForm, durationMinutes: e.target.value })}
               placeholder="Minutes"
-              className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
+              className="bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground"
             />
           </div>
           <button
             type="button"
             disabled={busy || !paperForm.title.trim() || !paperForm.subject.trim()}
             onClick={() => void createPaper()}
-            className="px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-foreground disabled:opacity-50"
+            className="px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary text-primary-foreground disabled:opacity-50"
           >
             Create paper
           </button>
@@ -485,7 +485,7 @@ export default function QuestionPapers() {
 
       <div className="space-y-2">
         {papers.map((p) => (
-          <div key={p.id} className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
+          <div key={p.id} className="p-3 bg-surface border border-border/70 rounded-[2px] space-y-2">
             <div className="flex justify-between gap-2">
               <button
                 type="button"
@@ -507,8 +507,8 @@ export default function QuestionPapers() {
                   className={cn(
                     "text-[9px] font-bold px-2 py-1 rounded-lg h-fit",
                     p.status === "final"
-                      ? "bg-[#4aa87a]/15 text-[#4aa87a]"
-                      : "bg-muted/80 text-[#a0a0b0]",
+                      ? "bg-success/15 text-success"
+                      : "bg-muted/80 text-muted-foreground",
                   )}
                 >
                   {toEnumLabel(p.status, "question_paper_status")}
@@ -525,7 +525,7 @@ export default function QuestionPapers() {
                       await loadPapers();
                     });
                   }}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#cc5069]/15 text-[#cc5069] disabled:opacity-50"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-destructive/15 text-destructive disabled:opacity-50"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
@@ -542,7 +542,7 @@ export default function QuestionPapers() {
                       const inSection = questions.filter((q) => q.section_id === s.id);
                       const f = fills[s.id];
                       return (
-                        <div key={s.id} className="rounded-xl bg-muted/30 px-2 py-2 space-y-2">
+                        <div key={s.id} className="rounded-[2px] bg-muted/30 px-2 py-2 space-y-2">
                           <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0">
                               <div className="text-[11px] font-bold text-foreground truncate">
@@ -566,7 +566,7 @@ export default function QuestionPapers() {
                                   type="button"
                                   disabled={busy}
                                   onClick={() => void fill(s)}
-                                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#4b9fd4]/20 text-[#4b9fd4] disabled:opacity-50"
+                                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-info/20 text-info disabled:opacity-50"
                                 >
                                   Fill from bank
                                 </button>
@@ -576,7 +576,7 @@ export default function QuestionPapers() {
                                   type="button"
                                   disabled={busy || inSection.length >= s.target_count}
                                   onClick={() => void generate(s)}
-                                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#6882e8]/20 text-[#6882e8] flex items-center gap-1 disabled:opacity-50"
+                                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/20 text-primary flex items-center gap-1 disabled:opacity-50"
                                 >
                                   <Sparkles className="w-3 h-3" /> Generate
                                 </button>
@@ -613,8 +613,8 @@ export default function QuestionPapers() {
                               className={cn(
                                 "text-[9px] rounded-lg px-2 py-1",
                                 generated[s.id].degradedReason
-                                  ? "bg-[#cc5069]/10 text-[#cc5069]"
-                                  : "bg-[#6882e8]/10 text-[#6882e8]",
+                                  ? "bg-destructive/10 text-destructive"
+                                  : "bg-primary/10 text-primary",
                               )}
                             >
                               {/* "Generated nothing" and "generated 3" are
@@ -645,8 +645,8 @@ export default function QuestionPapers() {
                               className={cn(
                                 "text-[9px] rounded-lg px-2 py-1",
                                 f.shortfall > 0
-                                  ? "bg-[#c08a3a]/15 text-[#c08a3a]"
-                                  : "bg-[#4aa87a]/10 text-[#4aa87a]",
+                                  ? "bg-warning/15 text-warning"
+                                  : "bg-success/10 text-success",
                               )}
                             >
                               Added {toCountLabel(f.inserted)} from {toCountLabel(f.pool_size)}{" "}
@@ -703,7 +703,7 @@ export default function QuestionPapers() {
                                 </div>
                               )}
                               {showKey && (
-                                <div className="text-[9px] text-[#4aa87a] mt-0.5">
+                                <div className="text-[9px] text-success mt-0.5">
                                   Answer:{" "}
                                   {q.correct_index != null
                                     ? (answerToText({ indexes: [q.correct_index] }, q.options) ??
@@ -739,14 +739,14 @@ export default function QuestionPapers() {
                     )}
 
                     {addingSection && (
-                      <div className="rounded-xl bg-muted/30 px-2 py-2 space-y-2">
+                      <div className="rounded-[2px] bg-muted/30 px-2 py-2 space-y-2">
                         <input
                           value={sectionForm.title}
                           onChange={(e) =>
                             setSectionForm({ ...sectionForm, title: e.target.value })
                           }
                           placeholder="Section title *"
-                          className="w-full bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
+                          className="w-full bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground"
                         />
                         <div className="grid grid-cols-4 gap-2">
                           <select
@@ -757,7 +757,7 @@ export default function QuestionPapers() {
                                 format: e.target.value as PaperSectionFormat,
                               })
                             }
-                            className="bg-muted border border-border rounded-xl px-2 py-1.5 text-[10px] text-foreground"
+                            className="bg-muted border border-border rounded-[2px] px-2 py-1.5 text-[10px] text-foreground"
                           >
                             {FORMATS.map((f) => (
                               <option key={f.value} value={f.value}>
@@ -771,7 +771,7 @@ export default function QuestionPapers() {
                               setSectionForm({ ...sectionForm, targetCount: e.target.value })
                             }
                             placeholder="How many"
-                            className="bg-muted border border-border rounded-xl px-2 py-1.5 text-[10px] text-foreground"
+                            className="bg-muted border border-border rounded-[2px] px-2 py-1.5 text-[10px] text-foreground"
                           />
                           <input
                             value={sectionForm.marksPerQuestion}
@@ -782,7 +782,7 @@ export default function QuestionPapers() {
                               })
                             }
                             placeholder="Marks each"
-                            className="bg-muted border border-border rounded-xl px-2 py-1.5 text-[10px] text-foreground"
+                            className="bg-muted border border-border rounded-[2px] px-2 py-1.5 text-[10px] text-foreground"
                           />
                           <select
                             value={sectionForm.difficulty}
@@ -792,7 +792,7 @@ export default function QuestionPapers() {
                                 difficulty: e.target.value as PaperDifficulty | "",
                               })
                             }
-                            className="bg-muted border border-border rounded-xl px-2 py-1.5 text-[10px] text-foreground"
+                            className="bg-muted border border-border rounded-[2px] px-2 py-1.5 text-[10px] text-foreground"
                           >
                             {DIFFICULTIES.map((d) => (
                               <option key={d.value} value={d.value}>
@@ -807,7 +807,7 @@ export default function QuestionPapers() {
                             setSectionForm({ ...sectionForm, chapters: e.target.value })
                           }
                           placeholder="Chapters, comma separated (blank = the whole subject)"
-                          className="w-full bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
+                          className="w-full bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground"
                         />
 
                         {/* The topic narrowing. Chosen from what the bank
@@ -842,7 +842,7 @@ export default function QuestionPapers() {
                                     className={cn(
                                       "px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors",
                                       on
-                                        ? "bg-[#3b5bdb]/15 border-[#3b5bdb]/40 text-[#3b5bdb]"
+                                        ? "bg-primary/15 border-primary/40 text-primary"
                                         : "bg-muted border-border/70 text-muted-foreground hover:text-foreground",
                                     )}
                                   >
@@ -872,7 +872,7 @@ export default function QuestionPapers() {
                           type="button"
                           disabled={busy || !sectionForm.title.trim()}
                           onClick={() => void addSection()}
-                          className="px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-foreground disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary text-primary-foreground disabled:opacity-50"
                         >
                           Add section
                         </button>
@@ -886,8 +886,8 @@ export default function QuestionPapers() {
                         className={cn(
                           "px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1",
                           showKey
-                            ? "bg-[#4aa87a] text-foreground"
-                            : "bg-[#4aa87a]/15 text-[#4aa87a]",
+                            ? "bg-success text-primary-foreground"
+                            : "bg-success/15 text-success",
                         )}
                       >
                         <BarChart3 className="w-3 h-3" />{" "}
@@ -920,7 +920,7 @@ export default function QuestionPapers() {
                       <select
                         value={pushTarget}
                         onChange={(e) => setPushTarget(e.target.value)}
-                        className="bg-muted border border-border rounded-xl px-2 py-1.5 text-[10px] text-foreground"
+                        className="bg-muted border border-border rounded-[2px] px-2 py-1.5 text-[10px] text-foreground"
                       >
                         <option value="">Class and subject for the online test…</option>
                         {pairs.map((pair) => (
@@ -936,7 +936,7 @@ export default function QuestionPapers() {
                         type="button"
                         disabled={busy || !pushTarget || questions.length === 0}
                         onClick={() => void pushAsTest()}
-                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb] flex items-center gap-1 disabled:opacity-50"
+                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/20 text-primary flex items-center gap-1 disabled:opacity-50"
                       >
                         <Send className="w-3 h-3" /> Create online test
                       </button>

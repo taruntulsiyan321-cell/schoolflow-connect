@@ -36,7 +36,7 @@ function formatDayMonthYear(iso: string) {
  * Milestones from live student_badges + featured badges from progression snapshot.
  */
 export default function Profile({ setPage }: { setPage?: (p: PageKey) => void }) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { ctx, ready, studentId } = useAcademicContext();
   const { earned, loading: badgesLoading } = useStudentBadges(user?.id);
   const [name, setName] = useState("Student");
@@ -461,6 +461,28 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             })}
           </div>
         )}
+      </GlassCard>
+
+      {/*
+        SIGN OUT.
+
+        The only way out of this panel was the account menu in the shell's
+        header. Profile is where people look for it, and it was the one screen
+        that could not do it. Last card on the page, because it ends the session
+        rather than telling you anything about yourself.
+      */}
+      <GlassCard className="p-5">
+        <SectionLabel>Account</SectionLabel>
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">End this session on this device.</div>
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="shrink-0 px-4 py-2 rounded-xl text-xs font-semibold text-destructive bg-destructive/10 hover:bg-destructive/20 border border-destructive/25 transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
       </GlassCard>
     </div>
   );

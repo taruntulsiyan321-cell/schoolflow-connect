@@ -26,7 +26,7 @@ export default function TestResults({
 
   if (error) {
     return (
-      <div className="text-sm text-[#cc5069] py-16 text-center">
+      <div className="text-sm text-destructive py-16 text-center">
         Failed to load children: {error}
       </div>
     );
@@ -50,9 +50,9 @@ export default function TestResults({
               type="button"
               onClick={() => setActiveChildId(c.id)}
               className={cn(
-                "px-4 py-2 rounded-xl border text-xs font-semibold",
+                "px-4 py-2 rounded-[2px] border text-xs font-semibold",
                 c.id === child.id
-                  ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
+                  ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-surface border-border/70 text-muted-foreground",
               )}
             >

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { Loader2 } from "lucide-react";
 import {
   AcademicProfileService,
@@ -96,11 +97,11 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
   const loading = attendance.isLoading && !(settled && (!ready || !ctx));
 
   const statusColor: Record<string, string> = {
-    present: "#3b5bdb",
-    absent: "#cc5069",
-    late: "#f59e0b",
-    half_day: "#6366f1",
-    leave: "#c08a3a",
+    present: "hsl(var(--primary))",
+    absent: "hsl(var(--destructive))",
+    late: "hsl(var(--warning))",
+    half_day: "hsl(var(--primary))",
+    leave: "hsl(var(--warning))",
   };
 
   const calendarDays = useMemo(
@@ -117,36 +118,36 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
   }
 
   if (error) {
-    return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
+    return <div className="text-xs text-destructive py-6 text-center">{error}</div>;
   }
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-xl p-3 text-center">
-          <div className="text-lg font-black text-[#3b5bdb]">{unavailable ? "—" : present}</div>
-          <div className="text-[9px] text-[#3b5bdb] uppercase tracking-wide font-bold">Present equiv.</div>
+        <div className="bg-primary/10 border border-primary/20 rounded-[2px] p-3 text-center">
+          <div className="text-lg font-black text-primary">{unavailable ? "—" : present}</div>
+          <div className="text-[9px] text-primary uppercase tracking-wide font-bold">Present equiv.</div>
         </div>
-        <div className="bg-black/5 border border-black/10 rounded-xl p-3 text-center">
+        <div className="bg-black/5 border border-black/10 rounded-[2px] p-3 text-center">
           <div className="text-lg font-black text-foreground">{unavailable ? "—" : total}</div>
           <div className="text-[9px] text-muted-foreground uppercase tracking-wide font-bold">Days marked</div>
         </div>
-        <div className="bg-black/5 border border-black/10 rounded-xl p-3 text-center">
+        <div className="bg-black/5 border border-black/10 rounded-[2px] p-3 text-center">
           <div className="text-lg font-black text-foreground">{unavailable ? "—" : `${pct}%`}</div>
           <div className="text-[9px] text-muted-foreground uppercase tracking-wide font-bold">Engine rate</div>
         </div>
       </div>
 
       {unavailable && (
-        <div className="flex items-center gap-2 bg-[#cc5069]/10 border border-[#cc5069]/20 rounded-xl px-3 py-2.5">
-          <span className="text-[11px] text-[#cc5069]">
+        <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-[2px] px-3 py-2.5">
+          <span className="text-[11px] text-destructive">
             Attendance data unavailable — try again later.
           </span>
         </div>
       )}
 
       {risk && risk.band !== "low" && (
-        <div className="flex items-center gap-2 bg-black/5 border border-black/10 rounded-xl px-3 py-2.5">
+        <div className="flex items-center gap-2 bg-black/5 border border-black/10 rounded-[2px] px-3 py-2.5">
           <RiskBadge band={risk.band} />
           <span className="text-[11px] text-muted-foreground">{riskReasonText(risk.reason_codes)}</span>
         </div>
@@ -155,7 +156,7 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
       <div className="flex flex-wrap gap-3">
         {Object.entries(statusColor).map(([k, c]) => (
           <div key={k} className="flex items-center gap-1.5 text-[10px] text-muted-foreground capitalize">
-            <div className="w-2.5 h-2.5 rounded-sm" style={{ background: c }} />
+            <div className="w-2.5 h-2.5 rounded-[2px]" style={{ background: c }} />
             {k.replace("_", " ")}
           </div>
         ))}
@@ -169,13 +170,13 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
         )}
         {calendarDays.map((day) => {
           const d = parseInt(day.date.split("-")[2] ?? "0", 10);
-          const color = statusColor[day.status] ?? "#78788c";
+          const color = statusColor[day.status] ?? "hsl(var(--muted-foreground))";
           return (
             <div
               key={`${day.date}-${day.id}`}
               title={`${day.date}: ${toEnumLabel(day.status, "attendance_status")}`}
-              className="aspect-square rounded-md flex items-center justify-center text-[9px] font-bold"
-              style={{ background: `${color}30`, color }}
+              className="aspect-square rounded-[2px] flex items-center justify-center text-[9px] font-bold"
+              style={{ background: `${withAlpha(color, 0.19)}`, color }}
             >
               {d}
             </div>

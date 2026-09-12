@@ -128,15 +128,14 @@
 }
 
 @layer utilities {
-  /* Keep admin/parent/teacher portal shells on the shared visual contract.
-     Principal is DELIBERATELY not in these lists: it runs the Autonomous
-     Design tokens from gurukul-principal/theme.css, which is a warm-paper
-     palette with a DARK sidebar. The `aside` rule below forces
-     `background: hsl(var(--card)) !important`, so leaving the principal in it
-     repainted that sidebar light and no component could override it. */
-  .gurukul-admin,
-  .gurukul-parent,
-  .gurukul-teacher {
+  /* ADMIN ONLY now.
+     Principal, teacher and parent run the Autonomous Design tokens from
+     src/autonomous-design.css — a warm-paper palette with a DARK sidebar. The
+     `aside` rule below forces `background: hsl(var(--card)) !important`, so a
+     panel left in these lists has its rail repainted light with no way for a
+     component to disagree. Admin has not adopted the design yet and still
+     wants the shared contract. */
+  .gurukul-admin {
     --portal-surface: hsl(var(--card));
     --portal-surface-muted: hsl(var(--muted));
     --portal-border: hsl(var(--border));
@@ -150,29 +149,21 @@
     --sidebar-border: hsl(var(--border));
   }
 
-  .gurukul-admin main,
-  .gurukul-parent main,
-  .gurukul-teacher main {
+  .gurukul-admin main {
     background-color: hsl(var(--background));
   }
 
-  .gurukul-admin aside,
-  .gurukul-parent aside,
-  .gurukul-teacher aside {
+  .gurukul-admin aside {
     background: hsl(var(--card)) !important;
     color: hsl(var(--foreground));
     border-color: hsl(var(--border)) !important;
   }
 
-  .gurukul-admin [style*="background: var(--navy)"],
-  .gurukul-parent [style*="background: var(--navy)"],
-  .gurukul-teacher [style*="background: var(--navy)"] {
+  .gurukul-admin [style*="background: var(--navy)"] {
     background: hsl(var(--card)) !important;
   }
 
-  .gurukul-admin [style*="borderRadius"],
-  .gurukul-parent [style*="borderRadius"],
-  .gurukul-teacher [style*="borderRadius"] {
+  .gurukul-admin [style*="borderRadius"] {
     transition: box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
   }
 

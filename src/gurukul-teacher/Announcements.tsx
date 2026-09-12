@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import {
   Megaphone, Plus, Edit2, Trash2, X, Save, Clock, Check, Paperclip, Calendar,
 } from "lucide-react";
@@ -14,8 +15,8 @@ import {
 } from "@/academic";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
-const priorityColor = { normal: "#78788c", important: "#f59e0b", urgent: "#cc5069" };
-const statusColor = { draft: "#46465a", published: "#10b981", scheduled: "#6366f1" };
+const priorityColor = { normal: "hsl(var(--muted-foreground))", important: "hsl(var(--warning))", urgent: "hsl(var(--destructive))" };
+const statusColor = { draft: "hsl(var(--muted-foreground))", published: "hsl(var(--success))", scheduled: "hsl(var(--primary))" };
 
 type FormState = {
   title: string;
@@ -49,7 +50,7 @@ function AnnouncementForm({
   });
 
   return (
-    <div className="bg-surface border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
+    <div className="bg-surface border border-primary/20 rounded-[2px] p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm font-bold text-foreground">{initial?.id ? "Edit Announcement" : "New Announcement"}</div>
         <button onClick={onCancel} type="button"><X className="w-4 h-4 text-muted-foreground" /></button>
@@ -59,20 +60,20 @@ function AnnouncementForm({
         <div className="col-span-2 flex flex-col gap-1">
           <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Title *</label>
           <input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-            className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40" />
+            className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none focus:border-primary/40" />
         </div>
 
         <div className="col-span-2 flex flex-col gap-1">
           <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Message Body *</label>
           <textarea value={form.body} onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))} rows={4}
-            className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40 resize-none" />
+            className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none focus:border-primary/40 resize-none" />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Target Class *</label>
           <select value={form.classId}
             onChange={(e) => setForm((p) => ({ ...p, classId: e.target.value }))}
-            className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none">
+            className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none">
             {classes.length === 0 && <option value="">No assigned classes</option>}
             {classes.map((c) => (
               <option key={c.id} value={c.id}>{c.name} {c.section}</option>
@@ -83,7 +84,7 @@ function AnnouncementForm({
         <div className="flex flex-col gap-1">
           <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Priority</label>
           <select value={form.priority} onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value as AnnouncementPriority }))}
-            className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none">
+            className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none">
             <option value="normal">Normal</option>
             <option value="important">Important</option>
             <option value="urgent">Urgent</option>
@@ -93,7 +94,7 @@ function AnnouncementForm({
         <div className="flex flex-col gap-1">
           <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Publish</label>
           <select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value as AnnouncementStatus }))}
-            className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none">
+            className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none">
             <option value="draft">Save as Draft</option>
             <option value="published">Publish Now</option>
             <option value="scheduled" disabled>Schedule (coming soon)</option>
@@ -101,23 +102,23 @@ function AnnouncementForm({
         </div>
 
         {form.status === "scheduled" && (
-          <div className="col-span-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-[#f59e0b]/10 text-[#f59e0b] text-[10px] font-semibold">
+          <div className="col-span-2 flex items-center gap-2 px-3 py-2 rounded-[2px] bg-warning/10 text-warning text-[10px] font-semibold">
             <Clock className="w-3.5 h-3.5 shrink-0" />
             Scheduled publishing isn&apos;t available yet — this was saved before the feature existed and will stay as-is until you change it. Switch to Draft or Publish Now to update it.
           </div>
         )}
 
         <div className="col-span-2">
-          <button type="button" disabled className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-semibold text-muted-foreground bg-muted cursor-not-allowed">
+          <button type="button" disabled className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-[10px] font-semibold text-muted-foreground bg-muted cursor-not-allowed">
             <Paperclip className="w-3.5 h-3.5" /> Attachments coming soon
           </button>
         </div>
       </div>
 
       <div className="flex gap-3 justify-end pt-2">
-        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80">Cancel</button>
+        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-[2px] text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80">Cancel</button>
         <button type="button" onClick={() => onSave(form)} disabled={!form.title || !form.body || !form.classId || saving}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all">
+          className="flex items-center gap-2 px-5 py-2.5 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary hover:opacity-80 disabled:opacity-40 transition-all">
           <Save className="w-3.5 h-3.5" /> {saving ? "Saving…" : form.status === "draft" ? "Save Draft" : form.status === "scheduled" ? "Schedule" : "Publish"}
         </button>
       </div>
@@ -242,19 +243,19 @@ export default function Announcements() {
           <div className="text-[10px] text-muted-foreground mt-0.5">Only for your assigned classes — not school-wide</div>
         </div>
         <button type="button" onClick={() => setCreating(true)} disabled={!classes.length}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all">
+          className="flex items-center gap-2 px-4 py-2.5 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary hover:opacity-80 disabled:opacity-40 transition-all">
           <Plus className="w-3.5 h-3.5" /> New Announcement
         </button>
       </div>
 
       {flash && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#10b981]/15 border border-[#10b981]/25 text-[#10b981] text-xs font-semibold">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-[2px] bg-success/15 border border-success/25 text-success text-xs font-semibold">
           <Check className="w-3.5 h-3.5" /> {flash}
         </div>
       )}
 
       {error && (
-        <div className="px-4 py-3 rounded-xl bg-[#cc5069]/15 border border-[#cc5069]/25 text-[#cc5069] text-xs font-semibold">
+        <div className="px-4 py-3 rounded-[2px] bg-destructive/15 border border-destructive/25 text-destructive text-xs font-semibold">
           {error}
         </div>
       )}
@@ -272,22 +273,22 @@ export default function Announcements() {
               {editingId === a.id ? (
                 <AnnouncementForm classes={classes} initial={a} onSave={(form) => handleEdit(a.id, form)} onCancel={() => setEditingId(null)} saving={saving} />
               ) : (
-                <div className="bg-surface border border-border/70 rounded-2xl p-5">
+                <div className="bg-surface border border-border/70 rounded-[2px] p-5">
                   <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${priorityColor[a.priority]}18`, color: priorityColor[a.priority] }}>
+                    <div className="w-9 h-9 rounded-[2px] flex items-center justify-center shrink-0" style={{ background: `${withAlpha(priorityColor[a.priority], 0.09)}`, color: priorityColor[a.priority] }}>
                       <Megaphone className="w-4 h-4" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="text-sm font-bold text-foreground">{a.title}</div>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{ background: `${statusColor[a.status]}18`, color: statusColor[a.status] }}>{toEnumLabel(a.status, "announcement_status")}</span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{ background: `${priorityColor[a.priority]}18`, color: priorityColor[a.priority] }}>{toEnumLabel(a.priority, "announcement_priority")}</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{ background: `${withAlpha(statusColor[a.status], 0.09)}`, color: statusColor[a.status] }}>{toEnumLabel(a.status, "announcement_status")}</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{ background: `${withAlpha(priorityColor[a.priority], 0.09)}`, color: priorityColor[a.priority] }}>{toEnumLabel(a.priority, "announcement_priority")}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
                         <span>{a.targetClass} {a.targetSection}</span>
                         {a.publishedAt && <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5" /> {a.publishedAt}</span>}
                         {a.scheduledFor && <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" /> Scheduled: {a.scheduledFor}</span>}
-                        {a.hasAttachment && <span className="flex items-center gap-0.5 text-[#6366f1]"><Paperclip className="w-2.5 h-2.5" /> {a.attachmentName}</span>}
+                        {a.hasAttachment && <span className="flex items-center gap-0.5 text-primary"><Paperclip className="w-2.5 h-2.5" /> {a.attachmentName}</span>}
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 leading-relaxed">{a.body}</div>
                     </div>
@@ -297,7 +298,7 @@ export default function Announcements() {
                         <Edit2 className="w-3 h-3" />
                       </button>
                       <button type="button" onClick={() => void deleteItem(a.id)}
-                        className="w-7 h-7 rounded-lg bg-[#cc5069]/10 text-[#cc5069] flex items-center justify-center hover:bg-[#cc5069]/20 transition-all">
+                        className="w-7 h-7 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-all">
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>

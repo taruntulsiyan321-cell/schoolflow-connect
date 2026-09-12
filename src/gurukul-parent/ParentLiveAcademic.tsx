@@ -53,18 +53,18 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
   const loading = homework.isLoading && !(settled && (!ready || !ctx));
 
   if (loading) return <Loading label="Loading homework…" />;
-  if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
+  if (error) return <div className="text-xs text-destructive py-6 text-center">{error}</div>;
 
   return (
     <div className="space-y-3">
       <div className="text-[9px] text-muted-foreground">HomeworkService · {rows.length} items</div>
       {rows.map(({ homework: h, submission: s, displayStatus }) => (
-        <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-2xl">
+        <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-[2px]">
           <div className="flex justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="text-xs font-bold text-foreground">{h.title}</div>
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-primary/15 text-primary">
                   {WORK_KIND_LABELS[normalizeWorkKind(h.workKind)]}
                 </span>
               </div>
@@ -77,12 +77,12 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
               className={cn(
                 "text-[9px] font-bold px-2 py-1 rounded-lg h-fit capitalize",
                 displayStatus === "Completed" || displayStatus === "Reviewed"
-                  ? "bg-[#6366f1]/15 text-[#6366f1]"
+                  ? "bg-primary/15 text-primary"
                   : displayStatus === "Submitted"
-                    ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
+                    ? "bg-primary/15 text-primary"
                     : displayStatus === "Late"
-                      ? "bg-[#cc5069]/15 text-[#cc5069]"
-                      : "bg-[#c08a3a]/15 text-[#c08a3a]",
+                      ? "bg-destructive/15 text-destructive"
+                      : "bg-warning/15 text-warning",
               )}
             >
               {displayStatus}
@@ -92,7 +92,7 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
             <div className="text-[10px] text-foreground mt-2">Grade: {s.grade}</div>
           )}
           {s?.teacherRemarks && (
-            <div className="text-[10px] text-[#4aa87a] mt-1">Remarks: {s.teacherRemarks}</div>
+            <div className="text-[10px] text-success mt-1">Remarks: {s.teacherRemarks}</div>
           )}
         </div>
       ))}
@@ -152,7 +152,7 @@ function ParentTestReport({ studentId, testId }: { studentId: string; testId: st
         aria-expanded={open}
         className={cn(
           "px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1",
-          open ? "bg-[#4b9fd4] text-foreground" : "bg-[#4b9fd4]/20 text-[#4b9fd4]",
+          open ? "bg-info text-foreground" : "bg-info/20 text-info",
         )}
       >
         <BarChart3 className="w-3 h-3" /> Report
@@ -160,7 +160,7 @@ function ParentTestReport({ studentId, testId }: { studentId: string; testId: st
       {open && (
         <div className="mt-2 space-y-2">
           {loading && <Loading label="Loading report" />}
-          {error && <div className="text-[10px] text-[#cc5069]">{error}</div>}
+          {error && <div className="text-[10px] text-destructive">{error}</div>}
           {report && !report.submitted && (
             <div className="text-[10px] text-muted-foreground">
               This test was not submitted, so there is nothing to review.
@@ -198,7 +198,7 @@ function ParentTestReport({ studentId, testId }: { studentId: string; testId: st
                     {wrongAnswersByTopic(report).map((row) => (
                       <span
                         key={row.topic}
-                        className="px-2 py-0.5 rounded-lg bg-[#cc5069]/10 text-[#cc5069] text-[9px]"
+                        className="px-2 py-0.5 rounded-lg bg-destructive/10 text-destructive text-[9px]"
                       >
                         {row.topic} · {row.wrong}
                       </span>
@@ -219,7 +219,7 @@ function ParentTestReport({ studentId, testId }: { studentId: string; testId: st
                           {displayTopic(w.topic) || w.topic}
                         </div>
                         <div className="text-[9px]">
-                          <span className="text-[#cc5069]">
+                          <span className="text-destructive">
                             {!w.answered
                               ? "Left blank"
                               : theirs != null
@@ -227,7 +227,7 @@ function ParentTestReport({ studentId, testId }: { studentId: string; testId: st
                                 : "Their answer was recorded in a form this screen cannot read"}
                           </span>
                           {right != null && (
-                            <span className="text-[#4aa87a]"> · Correct: {right}</span>
+                            <span className="text-success"> · Correct: {right}</span>
                           )}
                         </div>
                       </div>
@@ -285,7 +285,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
   const loading = examData.isLoading && !(settled && (!ready || !ctx));
 
   if (loading) return <Loading label="Loading exams & tests…" />;
-  if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
+  if (error) return <div className="text-xs text-destructive py-6 text-center">{error}</div>;
 
   const examById = new Map(exams.map((e) => [e.id, e]));
 
@@ -301,7 +301,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
             const max = exam?.maxMarks ?? null;
             const pct = max ? Math.round((m.marksObtained / max) * 100) : null;
             return (
-              <div key={m.id} className="p-3 bg-surface border border-border/70 rounded-xl flex justify-between">
+              <div key={m.id} className="p-3 bg-surface border border-border/70 rounded-[2px] flex justify-between">
                 <div>
                   <div className="text-xs font-bold text-foreground">{toDisplayText(exam?.name, { kind: "label", fallback: "Exam" })}</div>
                   <div className="text-[10px] text-muted-foreground">{exam?.subject ?? "—"}</div>
@@ -341,7 +341,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
               scoreLabel = "In progress";
             }
             return (
-              <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl">
+              <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-[2px]">
                 <div className="flex justify-between gap-3">
                 <div>
                   <div className="text-xs font-bold text-foreground">{t.title}</div>
@@ -440,7 +440,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
   const loading = perf.isLoading && !(settled && (!ready || !ctx));
 
   if (loading) return <Loading label="Loading performance…" />;
-  if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
+  if (error) return <div className="text-xs text-destructive py-6 text-center">{error}</div>;
 
   const att = analytics?.attendance.pct ?? profile?.attendancePct ?? 0;
   const hw = analytics?.homework.pct ?? profile?.homeworkCompletionPct ?? 0;
@@ -456,7 +456,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
           { label: "Exams", value: `${Math.round(exams)}%` },
           { label: "Tests", value: `${Math.round(tests)}%` },
         ].map((s) => (
-          <div key={s.label} className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
+          <div key={s.label} className="bg-surface border border-border/70 rounded-[2px] p-4 text-center">
             <div className="text-lg font-black text-foreground">{s.value}</div>
             <div className="text-[10px] text-muted-foreground">{s.label}</div>
           </div>
@@ -470,7 +470,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
             { label: "League", value: progression.league },
             { label: "Streak / Badges", value: `${progression.studyStreak} / ${progression.badges}` },
           ].map((s) => (
-            <div key={s.label} className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
+            <div key={s.label} className="bg-surface border border-border/70 rounded-[2px] p-4 text-center">
               <div className="text-sm font-black text-foreground truncate">{s.value}</div>
               <div className="text-[10px] text-muted-foreground">{s.label}</div>
             </div>
@@ -478,7 +478,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
         </div>
       )}
       {narrative && (
-        <div className="p-4 rounded-2xl bg-muted text-xs text-muted-foreground leading-relaxed space-y-2">
+        <div className="p-4 rounded-[2px] bg-muted text-xs text-muted-foreground leading-relaxed space-y-2">
           <div className="text-[10px] font-bold text-foreground">Progress Summary</div>
           <p>{narrative.narrative}</p>
           {narrative.bullets.length > 0 && (

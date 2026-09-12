@@ -94,25 +94,28 @@ function Sidebar({
   unreadMsg?: number;
 }) {
   return (
+    /* The design's dark rail against the cream canvas. Every colour inside it
+       reads from the `sidebar-*` tokens rather than the page ones — `bg-card`
+       and `text-foreground` are the LIGHT surface, and on a near-black rail
+       they are the dark-on-dark trap this codebase has hit four times. */
     <aside className={cn(
-      "flex flex-col h-full bg-card border-r border-border transition-all duration-300 shrink-0",
+      "flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-white/10 transition-all duration-300 shrink-0",
       mobile ? "w-64" : collapsed ? "w-16" : "w-60",
     )}>
-      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-border/70 min-h-[72px]", collapsed && !mobile && "justify-center px-2")}>
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <GraduationCap className="w-4 h-4 text-black" />
-        </div>
-        {(!collapsed || mobile) && (
+      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-white/10 min-h-[72px]", collapsed && !mobile && "justify-center px-2")}>
+        {collapsed && !mobile ? (
+          <GraduationCap className="w-4 h-4 text-sidebar-foreground/70 shrink-0" />
+        ) : (
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-black text-foreground leading-none">Gurukul</div>
-            <div className="text-[9px] text-[#3b5bdb] font-semibold mt-0.5">Teacher Panel</div>
+            <div className="font-display text-lg font-medium text-white tracking-tight leading-none">Gurukul</div>
+            <div className="text-xs text-sidebar-foreground/60 mt-1 font-mono">Teacher Panel</div>
           </div>
         )}
         {!mobile && (
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
-            className="w-6 h-6 rounded-lg bg-muted text-muted-foreground flex items-center justify-center hover:bg-muted/80 hover:text-foreground transition-all shrink-0"
+            className="w-6 h-6 rounded-[2px] bg-white/5 text-sidebar-foreground/70 flex items-center justify-center hover:bg-white/10 hover:text-sidebar-foreground transition-all shrink-0"
           >
             {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
           </button>
@@ -131,26 +134,25 @@ function Sidebar({
                 onClose?.();
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left group",
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-[2px] transition-colors text-left group",
                 collapsed && !mobile && "justify-center px-2",
                 active
-                  ? "bg-[#3b5bdb]/10 text-[#3b5bdb]"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ? "bg-sidebar-accent text-white font-medium"
+                  : "text-sidebar-foreground/70 hover:bg-white/5 hover:text-sidebar-foreground",
               )}
               title={collapsed && !mobile ? item.label : undefined}
             >
-              <div className={cn("shrink-0 transition-all", active ? "text-[#3b5bdb]" : "text-muted-foreground group-hover:text-foreground")}>
+              <div className={cn("shrink-0 transition-colors", active ? "text-white" : "text-sidebar-foreground/60 group-hover:text-sidebar-foreground")}>
                 {item.icon}
               </div>
               {(!collapsed || mobile) && (
                 <>
-                  <span className="text-xs font-semibold truncate flex-1">{item.label}</span>
+                  <span className="text-sm truncate flex-1">{item.label}</span>
                   {item.key === "communication" && unreadMsg > 0 && (
-                    <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#f43f5e] text-foreground text-[8px] font-black flex items-center justify-center">
+                    <span className="min-w-[16px] h-4 px-1 rounded-full bg-destructive text-white text-[8px] font-mono flex items-center justify-center">
                       {unreadMsg > 9 ? "9+" : unreadMsg}
                     </span>
                   )}
-                  {active && unreadMsg === 0 && <div className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb] ml-auto shrink-0" />}
                 </>
               )}
             </button>
@@ -159,21 +161,21 @@ function Sidebar({
       </nav>
 
       {(!collapsed || mobile) && (
-        <div className="p-3 border-t border-border/70 space-y-2">
+        <div className="p-3 border-t border-white/10 space-y-2">
           <div className="flex items-center gap-2 px-1">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-              <span className="text-[11px] font-black text-black">{initials}</span>
+            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0">
+              <span className="text-[11px] font-display font-medium text-accent-foreground">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-foreground truncate">{displayName || "Teacher"}</div>
-              <div className="text-[9px] text-muted-foreground truncate">{employeeId || "—"}</div>
+              <div className="text-sm text-sidebar-foreground truncate">{displayName || "Teacher"}</div>
+              <div className="text-xs text-sidebar-foreground/60 truncate font-mono">{employeeId || "—"}</div>
             </div>
           </div>
           {onSignOut && (
             <button
               type="button"
               onClick={onSignOut}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted text-xs font-medium transition-all"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-[2px] text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-white/5 text-xs transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sign out
@@ -282,9 +284,9 @@ export default function TeacherApp() {
           <button
             type="button"
             onClick={() => setPage("profile")}
-            className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0"
+            className="w-8 h-8 rounded-[2px] bg-primary flex items-center justify-center shrink-0"
           >
-            <span className="text-xs font-black text-black">{initials}</span>
+            <span className="text-xs font-black text-primary-foreground">{initials}</span>
           </button>
         </header>
 

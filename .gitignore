@@ -18,6 +18,7 @@ supabase/.temp
 /e2e-evidence/.auth/
 /playwright-report/
 /test-results/
+/test-results-*/
 /blob-report/
 
 # Generated question-bank content cache (intermediate; compiled migration is the real artifact)

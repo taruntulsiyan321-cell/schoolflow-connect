@@ -1,15 +1,15 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import {
-  User, Lock, Link2, Edit2, Save, X, Check, Smartphone, Shield, Loader2,
+  User, Lock, Link2, Edit2, Save, X, Check, Smartphone, Shield, Loader2, LogOut,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-surface border border-border/70 rounded-2xl overflow-hidden">
+    <div className="bg-surface border border-border/70 rounded-[2px] overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-border/70">
-        <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
+        <div className="w-8 h-8 rounded-[2px] bg-primary/15 flex items-center justify-center text-primary">{icon}</div>
         <div className="text-sm font-bold text-foreground">{title}</div>
       </div>
       <div className="p-5">{children}</div>
@@ -40,7 +40,7 @@ function EditableField({
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="bg-muted border border-[#3b5bdb]/30 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-[#3b5bdb]/60 transition-all"
+          className="bg-muted border border-primary/30 rounded-[2px] px-3 py-2 text-sm text-foreground outline-none focus:border-primary/60 transition-all"
         />
       ) : (
         <div className="text-sm text-foreground px-0.5">
@@ -63,7 +63,7 @@ type ParentRow = {
  * No fake Google/link success toasts.
  */
 export default function ParentProfile() {
-  const { profile, user, updatePassword, refreshAuth } = useAuth();
+  const { profile, user, updatePassword, refreshAuth, signOut } = useAuth();
   const [parentRow, setParentRow] = useState<ParentRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -236,24 +236,24 @@ export default function ParentProfile() {
   return (
     <div className="space-y-5 max-w-2xl">
       {flash && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#3b5bdb]/15 border border-[#3b5bdb]/25 text-[#3b5bdb] text-xs font-semibold">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-[2px] bg-primary/15 border border-primary/25 text-primary text-xs font-semibold">
           <Check className="w-3.5 h-3.5" /> {flash}
         </div>
       )}
       {flashError && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#cc5069]/15 border border-[#cc5069]/25 text-[#cc5069] text-xs font-semibold">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-[2px] bg-destructive/15 border border-destructive/25 text-destructive text-xs font-semibold">
           {flashError}
         </div>
       )}
       {loadError && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#cc5069]/15 border border-[#cc5069]/25 text-[#cc5069] text-xs font-semibold">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-[2px] bg-destructive/15 border border-destructive/25 text-destructive text-xs font-semibold">
           Failed to load parent profile: {loadError}
         </div>
       )}
 
-      <div className="bg-surface border border-border/70 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <span className="text-xl font-black text-foreground">{initials}</span>
+      <div className="bg-surface border border-border/70 rounded-[2px] p-5 flex items-center gap-4">
+        <div className="w-16 h-16 rounded-[2px] bg-primary flex items-center justify-center shrink-0">
+          <span className="text-xl font-black text-primary-foreground">{initials}</span>
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-base font-black text-foreground">{displayName || "Parent"}</div>
@@ -264,7 +264,7 @@ export default function ParentProfile() {
             type="button"
             onClick={startEdit}
             disabled={!parentRow}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#6882e8] transition-all shrink-0 disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary transition-all shrink-0 disabled:opacity-40"
           >
             <Edit2 className="w-3.5 h-3.5" /> Edit Profile
           </button>
@@ -273,7 +273,7 @@ export default function ParentProfile() {
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80 transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80 transition-all"
             >
               <X className="w-3.5 h-3.5" /> Cancel
             </button>
@@ -281,7 +281,7 @@ export default function ParentProfile() {
               type="button"
               onClick={() => void saveEdit()}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#6882e8] transition-all disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary transition-all disabled:opacity-40"
             >
               <Save className="w-3.5 h-3.5" /> {saving ? "Saving…" : "Save"}
             </button>
@@ -315,7 +315,7 @@ export default function ParentProfile() {
           />
         </div>
         {!parentRow && (
-          <p className="text-[10px] text-[#c08a3a] mt-3">
+          <p className="text-[10px] text-warning mt-3">
             No parent record linked to this account — contact the school admin to link your profile.
           </p>
         )}
@@ -323,15 +323,15 @@ export default function ParentProfile() {
 
       <Section title="Account" icon={<Link2 className="w-4 h-4" />}>
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted">
-            <div className="w-8 h-8 rounded-lg bg-[#3b5bdb]/15 flex items-center justify-center">
-              <Smartphone className="w-4 h-4 text-[#3b5bdb]" />
+          <div className="flex items-center gap-3 p-3 rounded-[2px] bg-card border border-border">
+            <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+              <Smartphone className="w-4 h-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-foreground">Signed-in account</div>
               <div className="text-[10px] text-muted-foreground">{email || "—"}</div>
             </div>
-            <span className="text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/15 px-2 py-0.5 rounded-full">
+            <span className="text-[9px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-full">
               Active
             </span>
           </div>
@@ -339,18 +339,36 @@ export default function ParentProfile() {
       </Section>
 
       <Section title="Security" icon={<Shield className="w-4 h-4" />}>
-        <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
-          <div>
-            <div className="text-xs font-semibold text-foreground">Password</div>
-            <div className="text-[10px] text-muted-foreground">Update via Supabase Auth</div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 rounded-[2px] bg-card border border-border">
+            <div>
+              <div className="text-xs font-semibold text-foreground">Password</div>
+              <div className="text-[10px] text-muted-foreground">Update via Supabase Auth</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChangePwdOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold text-warning bg-warning/10 hover:bg-warning/15 transition-all"
+            >
+              <Lock className="w-3.5 h-3.5" /> Change
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setChangePwdOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#c08a3a] bg-[#c08a3a]/10 hover:bg-[#c08a3a]/15 transition-all"
-          >
-            <Lock className="w-3.5 h-3.5" /> Change
-          </button>
+
+          {/* Sign out belongs here as well as on the rail. The rail's copy was
+              the only one, and Profile is where someone looks for it. */}
+          <div className="flex items-center justify-between p-3 rounded-[2px] bg-card border border-border">
+            <div>
+              <div className="text-xs font-semibold text-foreground">Sign out</div>
+              <div className="text-[10px] text-muted-foreground">End this session on this device</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold text-destructive bg-destructive/10 hover:bg-destructive/15 transition-all"
+            >
+              <LogOut className="w-3.5 h-3.5" /> Sign out
+            </button>
+          </div>
         </div>
       </Section>
 
@@ -362,7 +380,7 @@ export default function ParentProfile() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="change-pwd-title"
-            className="relative z-10 bg-surface border border-border rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4"
+            className="relative z-10 bg-surface border border-border rounded-[2px] w-full max-w-sm p-5 shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between">
               <div id="change-pwd-title" className="text-sm font-bold text-foreground">Change Password</div>
@@ -380,18 +398,18 @@ export default function ParentProfile() {
                   type="password"
                   value={pwdForm[f.key]}
                   onChange={(e) => setPwdForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                  className="bg-muted border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-[#3b5bdb]/40"
+                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-sm text-foreground outline-none focus:border-primary/40"
                 />
               </div>
             ))}
             {pwdForm.next && pwdForm.confirm && pwdForm.next !== pwdForm.confirm && (
-              <div className="text-[10px] text-[#cc5069]">Passwords do not match</div>
+              <div className="text-[10px] text-destructive">Passwords do not match</div>
             )}
             <div className="flex gap-3 justify-end">
               <button
                 type="button"
                 onClick={() => setChangePwdOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80 transition-all"
+                className="px-4 py-2 rounded-[2px] text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80 transition-all"
               >
                 Cancel
               </button>
@@ -399,7 +417,7 @@ export default function ParentProfile() {
                 type="button"
                 onClick={() => void handleChangePwd()}
                 disabled={pwdSaving || !pwdForm.next || pwdForm.next !== pwdForm.confirm}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#6882e8] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="px-4 py-2 rounded-[2px] text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 {pwdSaving ? "Updating…" : "Change Password"}
               </button>

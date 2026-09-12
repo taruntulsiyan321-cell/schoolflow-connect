@@ -32,30 +32,36 @@ import { NewChatSheet } from "@/components/chat/NewChatSheet";
 import { CHAT_FILE_ACCEPT } from "@/academic/storage/chatFileUpload";
 import "@/components/chat/chat-panel.css";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
+import { panelScopeOf } from "@/lib/panelScope";
 
 /**
- * Role chip colours.
+ * Role chip colours, from the mounting panel's semantic tokens.
  *
- * The comment here used to say "Gurukul DARK surfaces" and the values matched
- * it — 400-level and 300-level text, which are foreground colours chosen to sit
- * on a near-black panel. The panel is light now and these were never revisited,
- * so each chip painted a pale colour on a 15%-tint of the same hue. Measured in
- * the browser: "Student" 1.65:1, "Class group" 1.62:1, "Principal" 2.21:1,
- * "Teacher" 2.42:1 — every one of them below the 3:1 floor, in a list of eleven
- * contacts where the chip is the only thing distinguishing a teacher from a
- * classmate.
+ * These were Tailwind palette literals twice over. First as 400- and 300-level
+ * inks, which are foreground colours for a near-black panel: both panels that
+ * render this component are light, so each chip painted a pale colour on a
+ * 15%-tint of its own hue — "Student" 1.65:1, "Class group" 1.62:1,
+ * "Principal" 2.21:1, "Teacher" 2.42:1, in the one list where the chip is all
+ * that distinguishes a teacher from a classmate. That was corrected by moving
+ * the ink to the 700 level, which made it legible while leaving the chips
+ * outside the design entirely — emerald, rose, indigo, amber and teal appear in
+ * no panel's palette.
  *
- * The tint stays (it is what makes them read as chips); the ink moves to the
- * 700 level, which is the same hue dark enough to read on it.
+ * Now each role names a token, so the chip is drawn in the design of whichever
+ * panel mounted it. The hues follow the alias each theme already declares —
+ * teal to `--info`, indigo to `--accent`, amber to `--warning`, emerald to
+ * `--success`, rose to `--destructive` — so the chips keep the hue relationships
+ * they had. `parent` and `teacher_group` shared amber before and share
+ * `--warning` now.
  */
 const roleColors: Record<string, string> = {
-  admin: "bg-emerald-500/15 text-emerald-700 border-emerald-600/30",
-  principal: "bg-rose-500/15 text-rose-700 border-rose-600/30",
-  teacher: "bg-[#3b5bdb]/15 text-indigo-700 border-[#3b5bdb]/30",
-  student: "bg-indigo-500/15 text-indigo-700 border-indigo-600/30",
-  parent: "bg-amber-500/15 text-amber-700 border-amber-600/30",
-  class_group: "bg-teal-500/15 text-teal-700 border-teal-600/30",
-  teacher_group: "bg-amber-500/15 text-amber-700 border-amber-600/30",
+  admin: "bg-success/15 text-success border-success/30",
+  principal: "bg-destructive/15 text-destructive border-destructive/30",
+  teacher: "bg-primary/15 text-primary border-primary/30",
+  student: "bg-accent/15 text-accent border-accent/30",
+  parent: "bg-warning/15 text-warning border-warning/30",
+  class_group: "bg-info/15 text-info border-info/30",
+  teacher_group: "bg-warning/15 text-warning border-warning/30",
 };
 
 const EMOJI_QUICK = [
@@ -78,7 +84,7 @@ function isImageMime(mime?: string | null, name?: string) {
 }
 
 function Avatar({ name, url, size = "md" }: { name: string; url?: string | null; size?: "sm" | "md" }) {
-  const dim = size === "sm" ? "w-9 h-9 rounded-xl text-[10px]" : "w-10 h-10 rounded-xl text-xs";
+  const dim = size === "sm" ? "w-9 h-9 rounded-lg text-[10px]" : "w-10 h-10 rounded-lg text-xs";
   if (url) {
     return <img src={url} alt="" className={cn("chat-avatar object-cover shrink-0", dim)} />;
   }
@@ -94,7 +100,7 @@ function RoleChip({ role }: { role: string }) {
     <span
       className={cn(
         "inline-flex mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border capitalize",
-        roleColors[role] || "bg-white/5 text-muted-foreground border-border",
+        roleColors[role] || "bg-muted text-muted-foreground border-border",
       )}
     >
       {toEnumLabel(role, "app_role")}
@@ -153,11 +159,21 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   const [canCreateGroup, setCanCreateGroup] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
+  /** Read from the DOM after mount — the scope lives on an ancestor this component does not own. */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [panelScope, setPanelScope] = useState("");
   const [startingChat, setStartingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** True after the first contacts fetch settles — live/realtime refreshes must not flip loading. */
   const contactsLoadedRef = useRef(false);
+
+  // The panel scope is on an ancestor, so it can only be read once this
+  // component is in the document. Re-read when the loading branch swaps for the
+  // real one, since that is a different root element.
+  useEffect(() => {
+    setPanelScope(panelScopeOf(rootRef.current));
+  }, [loading]);
 
   const reloadContacts = async () => {
     if (!ctx) return [] as ChatContact[];
@@ -458,7 +474,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   }
 
   return (
-    <div className="chat-panel space-y-4 pb-2">
+    <div ref={rootRef} className="chat-panel space-y-4 pb-2">
       {/* The shared header, not a fifth hand-rolled one. This was `text-lg`
           with an `text-xs` subtitle — the same defect Doubts had, where one
           screen picked its own title size and every other screen in the panel
@@ -483,9 +499,9 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               type="button"
               disabled={creatingGroup}
               onClick={() => void onCreateClassGroup()}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card hover:bg-muted text-foreground text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
             >
-              <Users className="w-3.5 h-3.5 text-teal-400" />
+              <Users className="w-3.5 h-3.5 text-info" />
               {creatingGroup ? "Creating…" : "Class Group"}
             </button>
             {(userRole === "teacher" || userRole === "principal" || userRole === "admin") && (
@@ -493,9 +509,9 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                 type="button"
                 disabled={creatingGroup}
                 onClick={() => void onCreateTeacherGroup()}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card hover:bg-muted text-foreground text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
               >
-                <Users className="w-3.5 h-3.5 text-amber-400" />
+                <Users className="w-3.5 h-3.5 text-warning" />
                 Teacher Group
               </button>
             )}
@@ -519,7 +535,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
           a short viewport, and `dvh` follows mobile browser chrome as it
           collapses rather than being measured once against a bar that is about
           to disappear. */}
-      <div className="chat-shell rounded-2xl overflow-hidden flex flex-col md:flex-row h-[calc(100dvh-12rem)] min-h-[26rem]">
+      <div className="chat-shell rounded-lg overflow-hidden flex flex-col md:flex-row h-[calc(100dvh-12rem)] min-h-[26rem]">
         <aside
           className={cn(
             "chat-sidebar w-full md:w-[320px] shrink-0 flex flex-col relative",
@@ -528,20 +544,20 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/70">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-[#3b5bdb]" />
+              <MessageSquare className="w-4 h-4 text-primary" />
               <div className="text-sm font-bold text-foreground">Chats</div>
             </div>
             <button
               type="button"
               onClick={() => setShowNewChat(true)}
               title="New chat"
-              className="w-7 h-7 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb] flex items-center justify-center hover:bg-[#3b5bdb]/25 transition-all"
+              className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center hover:bg-primary/25 transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="p-3 border-b border-border/70">
-            <div className="chat-search flex items-center gap-2 rounded-xl px-3 py-2">
+            <div className="chat-search flex items-center gap-2 rounded-lg px-3 py-2">
               <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <input
                 placeholder="Search chats…"
@@ -565,12 +581,12 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                   }}
                   className={cn(
                     "w-full text-left px-4 py-3 transition-all hover:bg-muted",
-                    active && "chat-contact-active border-r-2 border-[#3b5bdb]",
+                    active && "chat-contact-active border-r-2 border-primary",
                   )}
                 >
                   <div className="flex items-start gap-3">
                     {c.kind === "class_group" || c.kind === "teacher_group" ? (
-                      <div className="chat-avatar w-10 h-10 rounded-xl flex items-center justify-center shrink-0">
+                      <div className="chat-avatar w-10 h-10 rounded-lg flex items-center justify-center shrink-0">
                         <Users className="w-4 h-4" />
                       </div>
                     ) : (
@@ -592,7 +608,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                           <span className="text-[10px] text-muted-foreground italic">No messages yet</span>
                         )}
                         {c.unread > 0 && (
-                          <span className="shrink-0 min-w-[1.1rem] h-4 px-1 rounded-full bg-[#3b5bdb] text-white text-[9px] flex items-center justify-center font-black">
+                          <span className="shrink-0 min-w-[1.1rem] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-black">
                             {c.unread > 9 ? "9+" : c.unread}
                           </span>
                         )}
@@ -614,7 +630,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                 <button
                   type="button"
                   onClick={() => setShowNewChat(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#3b5bdb]/15 text-[#818cf8] hover:bg-[#3b5bdb]/25 text-[11px] font-bold px-3 py-2 transition-all"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 text-[11px] font-bold px-3 py-2 transition-all"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   New chat
@@ -630,13 +646,13 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               <div className="flex items-center gap-3 px-4 py-3 border-b border-border/70 bg-surface/80">
                 <button
                   type="button"
-                  className="md:hidden shrink-0 w-8 h-8 rounded-xl bg-white/5 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  className="md:hidden shrink-0 w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground"
                   onClick={() => setSelectedContact(null)}
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </button>
                 {selectedContact.kind === "class_group" || selectedContact.kind === "teacher_group" ? (
-                  <div className="chat-avatar w-9 h-9 rounded-xl flex items-center justify-center">
+                  <div className="chat-avatar w-9 h-9 rounded-lg flex items-center justify-center">
                     <Users className="w-4 h-4" />
                   </div>
                 ) : (
@@ -651,7 +667,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
                 {messages.length === 0 && (
                   <div className="chat-empty-state flex flex-col items-center justify-center h-full py-16 text-center">
-                    <MessageSquare className="w-10 h-10 text-[#3b5bdb]/40 mb-3" />
+                    <MessageSquare className="w-10 h-10 text-primary/40 mb-3" />
                     <p className="font-bold text-sm text-foreground">Start the conversation</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Send a message to {selectedContact.name}
@@ -667,9 +683,9 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                       <div className="relative max-w-[80%] sm:max-w-[70%]">
                         <div
                           className={cn(
-                            "rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed",
+                            "rounded-lg px-3.5 py-2.5 text-xs leading-relaxed",
                             deleted
-                              ? "bg-white/5 text-muted-foreground italic"
+                              ? "bg-muted text-muted-foreground italic"
                               : isMine
                                 ? "chat-bubble-mine rounded-br-md"
                                 : "chat-bubble-theirs rounded-bl-md",
@@ -680,8 +696,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                               className={cn(
                                 "mb-2 rounded-lg px-2.5 py-1.5 text-[10px] border-l-2",
                                 isMine
-                                  ? "bg-white/10 border-white/40 text-foreground/80"
-                                  : "bg-black/20 border-[#3b5bdb]/50 text-muted-foreground",
+                                  ? "bg-white/10 border-white/40 text-primary-foreground/80"
+                                  : "bg-foreground/5 border-primary/50 text-muted-foreground",
                               )}
                             >
                               {m.replyPreview || "Reply"}
@@ -698,7 +714,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                                       <img
                                         src={att.url}
                                         alt={att.name}
-                                        className="max-h-48 rounded-xl object-contain border border-border"
+                                        className="max-h-48 rounded-lg object-contain border border-border"
                                       />
                                     </a>
                                   ) : (
@@ -707,8 +723,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                                       target="_blank"
                                       rel="noreferrer"
                                       className={cn(
-                                        "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-medium",
-                                        isMine ? "bg-white/15" : "bg-white/5 border border-border",
+                                        "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-medium",
+                                        isMine ? "bg-white/15" : "bg-card border border-border",
                                       )}
                                     >
                                       <FileText className="w-3.5 h-3.5" />
@@ -773,13 +789,13 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
 
               {replyTo && (
                 <div className="px-4 pt-3 flex items-center gap-2 border-t border-border/70 bg-surface/90">
-                  <div className="flex-1 rounded-xl bg-white/5 border border-border px-3 py-2 text-[10px] text-muted-foreground truncate">
+                  <div className="flex-1 rounded-lg bg-background border border-border px-3 py-2 text-[10px] text-muted-foreground truncate">
                     <span className="font-bold text-foreground">Replying · </span>
                     {previewOf(replyTo).slice(0, 100) || "Message"}
                   </div>
                   <button
                     type="button"
-                    className="w-8 h-8 rounded-xl bg-white/5 border border-border flex items-center justify-center text-muted-foreground hover:text-white shrink-0"
+                    className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground shrink-0"
                     onClick={() => setReplyTo(null)}
                   >
                     <X className="w-3.5 h-3.5" />
@@ -818,7 +834,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                   disabled={sending}
                   onClick={() => setShowEmoji((v) => !v)}
                   title="Emoji"
-                  className="w-10 h-10 rounded-xl bg-white/5 border border-border flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-40 shrink-0"
+                  className="w-10 h-10 rounded-lg bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40 shrink-0"
                 >
                   <Smile className="w-4 h-4" />
                 </button>
@@ -827,11 +843,11 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                   disabled={sending}
                   onClick={() => fileInputRef.current?.click()}
                   title="Attach image or document"
-                  className="w-10 h-10 rounded-xl bg-white/5 border border-border flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-40 shrink-0"
+                  className="w-10 h-10 rounded-lg bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40 shrink-0"
                 >
                   <Paperclip className="w-4 h-4" />
                 </button>
-                <div className="flex-1 flex items-end gap-2 bg-white/5 border border-border rounded-2xl px-3 py-2 focus-within:border-[#3b5bdb]/40 transition-all">
+                <div className="flex-1 flex items-end gap-2 bg-background border border-border rounded-lg px-3 py-2 focus-within:border-primary/40 transition-all">
                   <input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
@@ -842,13 +858,13 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                       }
                     }}
                     placeholder="Type a message…"
-                    className="flex-1 bg-transparent text-sm text-white placeholder:text-muted-foreground outline-none min-h-[24px] py-1"
+                    className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-h-[24px] py-1"
                   />
                   <button
                     type="button"
                     onClick={() => void sendText()}
                     disabled={sending || !newMessage.trim()}
-                    className="w-9 h-9 rounded-xl bg-[#3b5bdb] text-white flex items-center justify-center disabled:opacity-40 shrink-0 hover:bg-[#6882e8] transition-colors"
+                    className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 shrink-0 hover:opacity-80 transition-colors"
                   >
                     <Send className="w-4 h-4" />
                   </button>
@@ -857,8 +873,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
             </>
           ) : (
             <div className="chat-empty-state flex-1 flex flex-col items-center justify-center p-8 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-[#3b5bdb]/15 border border-[#3b5bdb]/25 flex items-center justify-center mb-4">
-                <MessageSquare className="w-7 h-7 text-[#818cf8]" />
+              <div className="w-14 h-14 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center mb-4">
+                <MessageSquare className="w-7 h-7 text-primary" />
               </div>
               <p className="font-bold text-base text-foreground">Select a conversation</p>
               <p className="text-xs text-muted-foreground mt-2 max-w-xs">
@@ -867,7 +883,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               <button
                 type="button"
                 onClick={() => setShowNewChat(true)}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#3b5bdb] hover:bg-[#6882e8] text-white text-xs font-bold px-4 py-2.5 transition-colors"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary hover:opacity-80 text-primary-foreground text-xs font-bold px-4 py-2.5 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 New chat
@@ -885,6 +901,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         contacts={contacts}
         busy={startingChat}
         onSelect={(peer) => void openNewChatWith(peer)}
+        scopeClassName={panelScope}
       />
     </div>
   );

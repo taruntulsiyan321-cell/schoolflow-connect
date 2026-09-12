@@ -28,7 +28,7 @@ export default function AcademicInsights({
 
   if (error) {
     return (
-      <div className="text-sm text-[#cc5069] py-16 text-center">
+      <div className="text-sm text-destructive py-16 text-center">
         Failed to load children: {error}
       </div>
     );
@@ -52,9 +52,9 @@ export default function AcademicInsights({
               type="button"
               onClick={() => setActiveChildId(c.id)}
               className={cn(
-                "px-4 py-2 rounded-xl border text-xs font-semibold",
+                "px-4 py-2 rounded-[2px] border text-xs font-semibold",
                 c.id === child.id
-                  ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
+                  ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-surface border-border/70 text-muted-foreground",
               )}
             >
@@ -72,8 +72,8 @@ export default function AcademicInsights({
           type="button"
           onClick={() => setTab("performance")}
           className={cn(
-            "text-[10px] font-semibold px-3 py-1.5 rounded-xl",
-            tab === "performance" ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-muted-foreground",
+            "text-[10px] font-semibold px-3 py-1.5 rounded-[2px]",
+            tab === "performance" ? "bg-primary/15 text-primary" : "text-muted-foreground",
           )}
         >
           Performance
@@ -82,8 +82,8 @@ export default function AcademicInsights({
           type="button"
           onClick={() => setTab("exams")}
           className={cn(
-            "text-[10px] font-semibold px-3 py-1.5 rounded-xl",
-            tab === "exams" ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-muted-foreground",
+            "text-[10px] font-semibold px-3 py-1.5 rounded-[2px]",
+            tab === "exams" ? "bg-primary/15 text-primary" : "text-muted-foreground",
           )}
         >
           Exams & Tests

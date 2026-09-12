@@ -28,19 +28,19 @@ function KindIcon({ kind }: { kind: ReturnType<typeof fileKindFromName> }) {
   const cls = "w-4 h-4 shrink-0";
   switch (kind) {
     case "pdf":
-      return <FileText className={cls} style={{ color: "#cc5069" }} />;
+      return <FileText className={cls} style={{ color: "hsl(var(--destructive))" }} />;
     case "image":
-      return <FileImage className={cls} style={{ color: "#3b5bdb" }} />;
+      return <FileImage className={cls} style={{ color: "hsl(var(--primary))" }} />;
     case "sheet":
-      return <FileSpreadsheet className={cls} style={{ color: "#10b981" }} />;
+      return <FileSpreadsheet className={cls} style={{ color: "hsl(var(--success))" }} />;
     case "slides":
-      return <Presentation className={cls} style={{ color: "#f59e0b" }} />;
+      return <Presentation className={cls} style={{ color: "hsl(var(--warning))" }} />;
     case "link":
-      return <Link2 className={cls} style={{ color: "#6366f1" }} />;
+      return <Link2 className={cls} style={{ color: "hsl(var(--primary))" }} />;
     case "doc":
-      return <FileText className={cls} style={{ color: "#3b5bdb" }} />;
+      return <FileText className={cls} style={{ color: "hsl(var(--primary))" }} />;
     default:
-      return <File className={cls} style={{ color: "#78788c" }} />;
+      return <File className={cls} style={{ color: "hsl(var(--muted-foreground))" }} />;
   }
 }
 
@@ -97,7 +97,7 @@ export function AttachmentList({
         return (
           <div
             key={`${a.url}-${i}`}
-            className="flex items-center gap-2 p-2 rounded-xl bg-muted border border-border"
+            className="flex items-center gap-2 p-2 rounded-[2px] bg-muted border border-border"
           >
             {isImage ? (
               <a href={href} target="_blank" rel="noreferrer" className="shrink-0">
@@ -206,7 +206,7 @@ export function AttachmentComposer({
           type="button"
           disabled={disabled || uploading}
           onClick={() => inputRef.current?.click()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb] disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary/15 text-primary disabled:opacity-50"
         >
           {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Paperclip className="w-3 h-3" />}
           {uploading ? "Uploading…" : "Upload files"}
@@ -230,20 +230,20 @@ export function AttachmentComposer({
           onChange={(e) => setLinkName(e.target.value)}
           disabled={disabled}
           placeholder="Link label (optional)"
-          className="flex-1 min-w-[120px] bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+          className="flex-1 min-w-[120px] bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
         />
         <input
           value={linkUrl}
           onChange={(e) => setLinkUrl(e.target.value)}
           disabled={disabled}
           placeholder="https://… paste a link"
-          className="flex-[2] min-w-[160px] bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+          className="flex-[2] min-w-[160px] bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
         />
         <button
           type="button"
           disabled={disabled || !linkUrl.trim()}
           onClick={addLink}
-          className="flex items-center gap-1 px-3 py-2 rounded-xl text-[10px] font-bold bg-muted text-muted-foreground disabled:opacity-40"
+          className="flex items-center gap-1 px-3 py-2 rounded-[2px] text-[10px] font-bold bg-muted text-muted-foreground disabled:opacity-40"
         >
           <Plus className="w-3 h-3" /> Add link
         </button>

@@ -1,4 +1,5 @@
 ﻿import { useEffect, useRef, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import {
   BookOpen,
   ClipboardList,
@@ -59,11 +60,11 @@ function QuickAction({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-border/70 bg-surface hover:border-border hover:bg-muted transition-all group text-center"
+      className="flex flex-col items-center gap-2 p-4 rounded-[2px] border border-border/70 bg-surface hover:border-border hover:bg-muted transition-all group text-center"
     >
       <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110"
-        style={{ background: `${color}18`, color }}
+        className="w-10 h-10 rounded-[2px] flex items-center justify-center transition-all group-hover:scale-110"
+        style={{ background: `${withAlpha(color, 0.09)}`, color }}
       >
         {icon}
       </div>
@@ -95,13 +96,13 @@ function AttentionCard({
       onClick={onClick}
       disabled={!onClick}
       className={cn(
-        "bg-surface border border-border/70 rounded-2xl p-4 flex items-start gap-3 text-left w-full",
+        "bg-surface border border-border/70 rounded-[2px] p-4 flex items-start gap-3 text-left w-full",
         onClick && "hover:border-border hover:bg-muted transition-all cursor-pointer",
       )}
     >
       <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: `${color}18`, color }}
+        className="w-10 h-10 rounded-[2px] flex items-center justify-center shrink-0"
+        style={{ background: `${withAlpha(color, 0.09)}`, color }}
       >
         {icon}
       </div>
@@ -312,7 +313,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-[#3b5bdb]/10 to-[#f59e0b]/5 border border-[#3b5bdb]/20 rounded-2xl p-5">
+      <div className="bg-gradient-to-r from-primary/10 to-warning/5 border border-primary/20 rounded-[2px] p-5">
         <div className="text-sm font-black text-foreground">Good to go — here is your day</div>
         <div className="text-xs text-muted-foreground mt-0.5">
           {classCount} class{classCount === 1 ? "" : "es"}
@@ -332,55 +333,55 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           <QuickAction
             icon={<Users className="w-5 h-5" />}
             label="Mark Attendance"
-            color="#f59e0b"
+            color="hsl(var(--warning))"
             onClick={() => openTab("attendance")}
           />
           <QuickAction
             icon={<BookOpen className="w-5 h-5" />}
             label="Create Homework"
-            color="#10b981"
+            color="hsl(var(--success))"
             onClick={() => openTab("homework")}
           />
           <QuickAction
             icon={<ClipboardList className="w-5 h-5" />}
             label="Create Test"
-            color="#6366f1"
+            color="hsl(var(--primary))"
             onClick={() => openTab("tests")}
           />
           <QuickAction
             icon={<PenLine className="w-5 h-5" />}
             label="Enter Marks"
-            color="#3b5bdb"
+            color="hsl(var(--primary))"
             onClick={() => openTab("exams-marks")}
           />
           <QuickAction
             icon={<CheckSquare className="w-5 h-5" />}
             label="Review Homework"
-            color="#c08a3a"
+            color="hsl(var(--warning))"
             onClick={() => openTab("homework")}
           />
           <QuickAction
             icon={<HelpCircle className="w-5 h-5" />}
             label="Student Doubts"
-            color="#cc5069"
+            color="hsl(var(--destructive))"
             onClick={() => setPage("doubts")}
           />
           <QuickAction
             icon={<Megaphone className="w-5 h-5" />}
             label="Announcements"
-            color="#78788c"
+            color="hsl(var(--muted-foreground))"
             onClick={() => setPage("announcements")}
           />
           <QuickAction
             icon={<MessageCircle className="w-5 h-5" />}
             label="Communication"
-            color="#6366f1"
+            color="hsl(var(--primary))"
             onClick={() => setPage("communication")}
           />
           <QuickAction
             icon={<FileText className="w-5 h-5" />}
             label="Apply Leave"
-            color="#46465a"
+            color="hsl(var(--muted-foreground))"
             onClick={() => setPage("leave")}
           />
         </div>
@@ -395,7 +396,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             icon={<Users className="w-5 h-5" />}
             label="Attendance pending today"
             value={attendancePending}
-            color="#f59e0b"
+            color="hsl(var(--warning))"
             hint={ctClasses ? "Class teacher classes without marks today" : "No class-teacher classes"}
             onClick={() => openTab("attendance")}
           />
@@ -403,7 +404,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             icon={<BookOpen className="w-5 h-5" />}
             label="Work awaiting review"
             value={academicWorkAwaitingReview}
-            color="#c08a3a"
+            color="hsl(var(--warning))"
             hint="Submitted / late queue"
             onClick={() => openTab("homework")}
           />
@@ -411,7 +412,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             icon={<ClipboardList className="w-5 h-5" />}
             label="Tests to publish"
             value={testsCount}
-            color="#6366f1"
+            color="hsl(var(--primary))"
             hint="Draft or scheduled tests"
             onClick={() => openTab("tests")}
           />
@@ -419,7 +420,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             icon={<Calendar className="w-5 h-5" />}
             label="Upcoming exams"
             value={upcomingExams}
-            color="#3b5bdb"
+            color="hsl(var(--primary))"
             hint="Not yet published"
             onClick={() => openTab("exams-marks")}
           />
@@ -427,7 +428,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             icon={<AlertTriangle className="w-5 h-5" />}
             label="Students at risk"
             value={atRiskStudents}
-            color="#cc5069"
+            color="hsl(var(--destructive))"
             hint="Elevated/high attendance or homework risk (EIE)"
             onClick={() => openTab("insights")}
           />
@@ -435,7 +436,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             icon={<PenLine className="w-5 h-5" />}
             label="Marks pending entry"
             value={pendingMarksEntry}
-            color="#10b981"
+            color="hsl(var(--success))"
             hint="Subjects not locked yet"
             onClick={() => openTab("exams-marks")}
           />
@@ -443,7 +444,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             icon={<HelpCircle className="w-5 h-5" />}
             label="Open student doubts"
             value={doubtsOpen}
-            color="#cc5069"
+            color="hsl(var(--destructive))"
             onClick={() => setPage("doubts")}
           />
         </div>
@@ -453,11 +454,11 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         type="button"
         onClick={() => openTab("students")}
         className={cn(
-          "w-full p-4 rounded-2xl border border-border/70 bg-surface text-left hover:border-[#3b5bdb]/40",
+          "w-full p-4 rounded-[2px] border border-border/70 bg-surface text-left hover:border-primary/40",
         )}
       >
         <div className="text-xs font-bold text-foreground flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-[#3b5bdb]" /> Open My Classes
+          <Calendar className="w-4 h-4 text-primary" /> Open My Classes
         </div>
         <div className="text-[10px] text-muted-foreground mt-1">
           Students · Attendance · Homework · Tests · Exams & Marks · Insights

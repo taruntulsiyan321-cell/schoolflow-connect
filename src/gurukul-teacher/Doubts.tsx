@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import {
   Search,
   Check,
@@ -81,7 +82,7 @@ function AttachmentChips({ rows }: { rows: DoubtAttachmentRow[] }) {
           target="_blank"
           rel="noreferrer"
           className={cn(
-            "inline-flex items-center gap-1 text-[9px] px-2 py-1 rounded-lg bg-[#6366f1]/10 text-[#818cf8]",
+            "inline-flex items-center gap-1 text-[9px] px-2 py-1 rounded-lg bg-primary/10 text-primary",
             !urls[a.id] && "opacity-50 pointer-events-none",
           )}
         >
@@ -344,13 +345,13 @@ export default function Doubts() {
           <div className="text-[10px] text-muted-foreground mt-0.5">
             {openCount} open · only your assigned class + subject
           </div>
-          {error && <div className="text-[10px] text-[#cc5069] mt-1">{error}</div>}
+          {error && <div className="text-[10px] text-destructive mt-1">{error}</div>}
         </div>
       </div>
 
       {triage.length > 0 && (
-        <div className="rounded-2xl border border-[#cc5069]/20 bg-[#cc5069]/5 p-4">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#f0a1b0] mb-3">
+        <div className="rounded-[2px] border border-destructive/20 bg-destructive/5 p-4">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-destructive mb-3">
             <Flame className="w-3.5 h-3.5" /> Needs attention — oldest / most-viewed unanswered first
           </div>
           <div className="space-y-2">
@@ -359,7 +360,7 @@ export default function Doubts() {
                 key={row.id}
                 type="button"
                 onClick={() => jumpToDoubt(row.id)}
-                className="w-full flex items-center gap-3 rounded-xl bg-surface border border-border/70 hover:border-border px-3 py-2.5 text-left transition-all"
+                className="w-full flex items-center gap-3 rounded-[2px] bg-surface border border-border/70 hover:border-border px-3 py-2.5 text-left transition-all"
               >
                 <RiskBadge band={urgency.band} size="sm" />
                 <div className="min-w-0 flex-1">
@@ -376,7 +377,7 @@ export default function Doubts() {
       )}
 
       {assignments.length === 0 && (
-        <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-2.5 text-[11px] text-amber-200">
+        <div className="flex items-start gap-2 rounded-[2px] border border-amber-500/20 bg-amber-500/8 px-3 py-2.5 text-[11px] text-amber-200">
           <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           No class–subject assignments found on your teacher profile. Doubts will stay empty until
           you are mapped in teacher classes.
@@ -384,7 +385,7 @@ export default function Doubts() {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2 flex-1 min-w-48">
+        <div className="flex items-center gap-2 bg-muted border border-border rounded-[2px] px-3 py-2 flex-1 min-w-48">
           <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <input
             value={search}
@@ -393,7 +394,7 @@ export default function Doubts() {
             className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
-        <div className="flex items-center gap-1.5 bg-muted border border-border rounded-xl px-2 py-1.5">
+        <div className="flex items-center gap-1.5 bg-muted border border-border rounded-[2px] px-2 py-1.5">
           <Filter className="w-3 h-3 text-muted-foreground" />
           <select
             value={statusFilter}
@@ -408,7 +409,7 @@ export default function Doubts() {
         <select
           value={assignmentFilter}
           onChange={(e) => setAssignmentFilter(e.target.value)}
-          className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none max-w-[220px]"
+          className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none max-w-[220px]"
         >
           <option value="all">All assignments</option>
           {assignments.map((a) => (
@@ -438,8 +439,8 @@ export default function Doubts() {
             <div
               key={row.id}
               className={cn(
-                "bg-surface border rounded-2xl overflow-hidden transition-all",
-                status === "open" ? "border-[#3b5bdb]/20" : "border-border/70",
+                "bg-surface border rounded-[2px] overflow-hidden transition-all",
+                status === "open" ? "border-primary/20" : "border-border/70",
               )}
             >
               <button
@@ -449,7 +450,7 @@ export default function Doubts() {
               >
                 <InitialsAvatar
                   name={row.student_name || "Student"}
-                  color={status === "open" ? "#f59e0b" : "#46465a"}
+                  color={status === "open" ? "hsl(var(--warning))" : "hsl(var(--muted-foreground))"}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -458,8 +459,8 @@ export default function Doubts() {
                       className={cn(
                         "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
                         status === "open"
-                          ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
-                          : "bg-[#10b981]/15 text-[#10b981]",
+                          ? "bg-primary/15 text-primary"
+                          : "bg-success/15 text-success",
                       )}
                     >
                       {status}
@@ -468,13 +469,13 @@ export default function Doubts() {
                       {className} {section} · {row.subject || "—"}
                     </span>
                   </div>
-                  <div className="text-[10px] text-[#b0b0c0] mt-1 line-clamp-2 leading-relaxed">
+                  <div className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
                     {row.body || row.title}
                   </div>
                   <div className="flex items-center gap-3 mt-1.5 text-[9px] text-muted-foreground">
                     <span>{new Date(row.created_at).toLocaleString("en-IN")}</span>
                     {hasAttachment && (
-                      <span className="flex items-center gap-0.5 text-[#6366f1]">
+                      <span className="flex items-center gap-0.5 text-primary">
                         <Paperclip className="w-2.5 h-2.5" /> Attachment
                       </span>
                     )}
@@ -485,7 +486,7 @@ export default function Doubts() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {status === "open" && (
-                    <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#10b981]/10 text-[#10b981] text-[9px] font-bold">
+                    <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-success/10 text-success text-[9px] font-bold">
                       <Check className="w-3 h-3" /> Needs reply
                     </span>
                   )}
@@ -500,7 +501,7 @@ export default function Doubts() {
 
               {expandedId === row.id && (
                 <div className="border-t border-border/70 px-4 pb-4 space-y-3 pt-4">
-                  <div className="p-3 rounded-xl bg-muted text-xs text-[#b0b0c0] leading-relaxed whitespace-pre-wrap">
+                  <div className="p-3 rounded-[2px] bg-muted text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
                     {row.body || row.title}
                   </div>
                   <AttachmentChips rows={attachments} />
@@ -509,7 +510,7 @@ export default function Doubts() {
                       href={row.image_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[9px] text-[#818cf8]"
+                      className="inline-flex items-center gap-1 text-[9px] text-primary"
                     >
                       <Paperclip className="w-2.5 h-2.5" /> Legacy image
                     </a>
@@ -523,10 +524,10 @@ export default function Doubts() {
                     return (
                       <div key={r.id} className={cn("flex gap-3", fromTeacher && "flex-row-reverse")}>
                         <div
-                          className="w-7 h-7 rounded-xl flex items-center justify-center text-[8px] font-black shrink-0"
+                          className="w-7 h-7 rounded-[2px] flex items-center justify-center text-[8px] font-black shrink-0"
                           style={{
-                            background: fromTeacher ? "#f59e0b20" : "#6366f120",
-                            color: fromTeacher ? "#f59e0b" : "#6366f1",
+                            background: fromTeacher ? withAlpha("hsl(var(--warning))", 0.13) : withAlpha("hsl(var(--primary))", 0.13),
+                            color: fromTeacher ? "hsl(var(--warning))" : "hsl(var(--primary))",
                           }}
                         >
                           {fromTeacher
@@ -540,10 +541,10 @@ export default function Doubts() {
                         <div className={cn("flex-1 max-w-[80%]", fromTeacher && "text-right")}>
                           <div
                             className={cn(
-                              "inline-block px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap text-left",
+                              "inline-block px-3 py-2 rounded-[2px] text-xs leading-relaxed whitespace-pre-wrap text-left",
                               fromTeacher
-                                ? "bg-[#3b5bdb]/10 text-[#fcd34d]"
-                                : "bg-muted text-[#b0b0c0]",
+                                ? "bg-primary/10 text-warning"
+                                : "bg-muted text-muted-foreground",
                             )}
                           >
                             {r.body}
@@ -567,10 +568,10 @@ export default function Doubts() {
                         }
                         rows={2}
                         placeholder="Type your reply… (allowed even after solved)"
-                        className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
+                        className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/40 resize-none transition-all"
                       />
                       <div className="flex flex-wrap items-center gap-2">
-                        <label className="inline-flex items-center gap-1 text-[10px] text-[#818cf8] cursor-pointer">
+                        <label className="inline-flex items-center gap-1 text-[10px] text-primary cursor-pointer">
                           <Paperclip className="w-3 h-3" />
                           Attach
                           <input
@@ -584,7 +585,7 @@ export default function Doubts() {
                         {(replyFiles[row.id] ?? []).map((f, i) => (
                           <span
                             key={`${f.name}-${i}`}
-                            className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-lg bg-muted text-[#a0a0b0]"
+                            className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-lg bg-muted text-muted-foreground"
                           >
                             {f.name}
                             <button
@@ -606,7 +607,7 @@ export default function Doubts() {
                       type="button"
                       onClick={() => void sendReply(row.id)}
                       disabled={!replyText[row.id]?.trim() || busyIds.has(row.id)}
-                      className="w-9 h-9 rounded-xl bg-[#3b5bdb] text-black flex items-center justify-center hover:bg-[#d97706] disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
+                      className="w-9 h-9 rounded-[2px] bg-primary text-primary-foreground flex items-center justify-center hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
                     >
                       {busyIds.has(row.id) ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

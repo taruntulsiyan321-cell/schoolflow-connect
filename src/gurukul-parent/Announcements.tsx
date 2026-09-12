@@ -74,7 +74,7 @@ export default function ParentAnnouncements() {
   }
 
   if (error) {
-    return <div className="text-xs text-[#cc5069] py-10 text-center">{error}</div>;
+    return <div className="text-xs text-destructive py-10 text-center">{error}</div>;
   }
 
   return (
@@ -87,7 +87,7 @@ export default function ParentAnnouncements() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2 flex-1 min-w-40">
+        <div className="flex items-center gap-2 bg-muted border border-border rounded-[2px] px-3 py-2 flex-1 min-w-40">
           <Search className="w-3.5 h-3.5 text-muted-foreground" />
           <input
             value={search}
@@ -99,7 +99,7 @@ export default function ParentAnnouncements() {
         <select
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value as typeof priorityFilter)}
-          className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none"
+          className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground outline-none"
         >
           <option value="all">All Priorities</option>
           <option value="normal">Normal</option>
@@ -123,9 +123,9 @@ export default function ParentAnnouncements() {
                 type="button"
                 onClick={() => setSelected(a.id)}
                 className={cn(
-                  "w-full text-left p-4 rounded-2xl border transition-all",
+                  "w-full text-left p-4 rounded-[2px] border transition-all",
                   selected === a.id
-                    ? "bg-[#3b5bdb]/8 border-[#3b5bdb]/25"
+                    ? "bg-primary/8 border-primary/25"
                     : "bg-surface border-border/70 hover:border-border",
                 )}
               >
@@ -133,7 +133,7 @@ export default function ParentAnnouncements() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <PriorityBadge priority={a.priority} />
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#3b5bdb]/15 text-[#3b5bdb]">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
                         {classLabel}
                       </span>
                       {a.hasAttachment && <Paperclip className="w-3 h-3 text-muted-foreground" />}
@@ -151,7 +151,7 @@ export default function ParentAnnouncements() {
         </div>
 
         {detail && (
-          <div className="lg:col-span-3 bg-surface border border-border/70 rounded-2xl p-5 space-y-4">
+          <div className="lg:col-span-3 bg-surface border border-border/70 rounded-[2px] p-5 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <PriorityBadge priority={detail.priority} />
               <button
@@ -170,9 +170,9 @@ export default function ParentAnnouncements() {
                 {detail.publishedAt ?? "—"}
               </div>
             </div>
-            <div className="text-sm text-[#b0b0c0] leading-relaxed whitespace-pre-wrap">{detail.body}</div>
+            <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{detail.body}</div>
             {detail.hasAttachment && (
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20 text-xs font-semibold text-[#a5b4fc]">
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-[2px] bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
                 <Paperclip className="w-3.5 h-3.5" /> {detail.attachmentName ?? "Attachment"}
                 <Download className="w-3 h-3 ml-auto opacity-40" />
               </div>

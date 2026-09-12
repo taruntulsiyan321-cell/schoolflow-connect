@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { Loader2 } from "lucide-react";
 import { cn } from "./shared";
 import { type ClassInfo } from "./data";
@@ -80,13 +81,13 @@ function TabBtn({
       className={cn(
         "relative px-4 py-2.5 text-xs font-semibold transition-all whitespace-nowrap border-b-2",
         active
-          ? "border-[#3b5bdb] text-[#3b5bdb]"
+          ? "border-primary text-primary"
           : "border-transparent text-muted-foreground hover:text-foreground",
       )}
     >
       {label}
       {badge != null && badge > 0 && (
-        <span className="ml-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#cc5069]/20 text-[#cc5069]">
+        <span className="ml-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-destructive/20 text-destructive">
           {badge}
         </span>
       )}
@@ -117,24 +118,24 @@ function ClassSelector({
           key={c.id}
           onClick={() => onSelect(c)}
           className={cn(
-            "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all",
+            "flex items-center gap-2 px-4 py-2.5 rounded-[2px] border text-xs font-semibold transition-all",
             selected?.id === c.id
-              ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
+              ? "bg-primary/10 border-primary/30 text-primary"
               : "bg-surface border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
           )}
         >
           <div
             className="w-6 h-6 rounded-lg flex items-center justify-center text-[8px] font-black"
             style={{
-              background: selected?.id === c.id ? "#f59e0b20" : "#ffffff12",
-              color: selected?.id === c.id ? "#f59e0b" : "#78788c",
+              background: selected?.id === c.id ? withAlpha("hsl(var(--warning))", 0.13) : "hsl(var(--muted))",
+              color: selected?.id === c.id ? "hsl(var(--warning))" : "hsl(var(--muted-foreground))",
             }}
           >
             {c.section}
           </div>
           {c.className} {c.section} · {c.subject}
           {c.isClassTeacher && (
-            <span className="text-[8px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-1 py-0.5 rounded-full">
+            <span className="text-[8px] font-bold text-primary bg-primary/10 px-1 py-0.5 rounded-full">
               CT
             </span>
           )}

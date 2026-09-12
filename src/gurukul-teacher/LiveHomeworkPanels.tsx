@@ -239,14 +239,14 @@ export function LiveAcademicWorkTab({
         <button
           type="button"
           onClick={() => setReviewHw(null)}
-          className="text-[10px] font-bold text-[#3b5bdb]"
+          className="text-[10px] font-bold text-primary"
         >
           â† Back to list
         </button>
-        {error && <div className="text-xs text-[#cc5069]">{error}</div>}
+        {error && <div className="text-xs text-destructive">{error}</div>}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="text-sm font-bold text-foreground">{reviewHw.title}</div>
-          <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-primary/15 text-primary">
             {WORK_KIND_LABELS[reviewHw.workKind ?? "homework"]}
           </span>
         </div>
@@ -261,7 +261,7 @@ export function LiveAcademicWorkTab({
         </div>
         <div className="space-y-2">
           {subs.map((s) => (
-            <div key={s.id} className="p-3 rounded-2xl border border-border bg-surface space-y-2">
+            <div key={s.id} className="p-3 rounded-[2px] border border-border bg-surface space-y-2">
               <div className="flex justify-between gap-2">
                 <div className="text-xs font-semibold text-foreground">
                   {toPersonName(nameById.get(s.studentId), { kind: "student" })}
@@ -271,7 +271,7 @@ export function LiveAcademicWorkTab({
                 </div>
               </div>
               {s.content?.trim() && (
-                <div className="text-[11px] text-[#a0a0b0] whitespace-pre-wrap">{s.content}</div>
+                <div className="text-[11px] text-muted-foreground whitespace-pre-wrap">{s.content}</div>
               )}
               {(s.attachments?.length ?? 0) > 0 && (
                 <AttachmentList items={s.attachments ?? []} dense />
@@ -280,7 +280,7 @@ export function LiveAcademicWorkTab({
                 <div className="text-[11px] text-muted-foreground">No text or files submitted</div>
               )}
               {s.teacherRemarks && (
-                <div className="text-[10px] text-[#4aa87a]">Remarks: {s.teacherRemarks}</div>
+                <div className="text-[10px] text-success">Remarks: {s.teacherRemarks}</div>
               )}
               <div className="flex flex-wrap gap-2">
                 <input
@@ -309,7 +309,7 @@ export function LiveAcademicWorkTab({
                   type="button"
                   disabled={!!reviewingId}
                   onClick={() => void review(s.id, "grade")}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#4aa87a]/20 text-[#4aa87a] flex items-center gap-1 disabled:opacity-50"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-success/20 text-success flex items-center gap-1 disabled:opacity-50"
                 >
                   <CheckCircle2 className="w-3 h-3" />
                   {reviewingId === s.id ? "…" : "Grade"}
@@ -318,7 +318,7 @@ export function LiveAcademicWorkTab({
                   type="button"
                   disabled={!!reviewingId}
                   onClick={() => void review(s.id, "return")}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#c08a3a]/20 text-[#c08a3a] flex items-center gap-1 disabled:opacity-50"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-warning/20 text-warning flex items-center gap-1 disabled:opacity-50"
                 >
                   <RotateCcw className="w-3 h-3" /> Return
                 </button>
@@ -336,7 +336,7 @@ export function LiveAcademicWorkTab({
   return (
     <div className="space-y-4">
       <div className="text-sm font-bold text-foreground">Homework</div>
-      {error && <div className="text-xs text-[#cc5069]">{error}</div>}
+      {error && <div className="text-xs text-destructive">{error}</div>}
 
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <div className="flex flex-wrap gap-1">
@@ -358,12 +358,12 @@ export function LiveAcademicWorkTab({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search…"
-            className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground w-36"
+            className="bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground w-36"
           />
           <button
             type="button"
             onClick={() => setCreating((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary/15 text-primary"
           >
             <Plus className="w-3 h-3" /> New Homework
           </button>
@@ -371,23 +371,23 @@ export function LiveAcademicWorkTab({
       </div>
 
       {creating && (
-        <div className="bg-surface border border-border rounded-2xl p-4 space-y-2">
+        <div className="bg-surface border border-border rounded-[2px] p-4 space-y-2">
           <input
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             placeholder="Title *"
-            className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+            className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
           />
           <textarea
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             placeholder="Instructions"
-            className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[60px]"
+            className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground min-h-[60px]"
           />
           <select
             value={form.workKind}
             onChange={(e) => setForm((f) => ({ ...f, workKind: e.target.value as WorkKind }))}
-            className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+            className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
           >
             {WORK_KINDS.map((k) => (
               <option key={k} value={k}>
@@ -400,18 +400,18 @@ export function LiveAcademicWorkTab({
               type="date"
               value={form.dueDate}
               onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
-              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+              className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
             />
             <input
               type="time"
               value={form.dueTime}
               onChange={(e) => setForm((f) => ({ ...f, dueTime: e.target.value }))}
-              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+              className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
             />
             <select
               value={form.priority}
               onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
-              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+              className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
             >
               <option value="low">Low</option>
               <option value="normal">Normal</option>
@@ -422,7 +422,7 @@ export function LiveAcademicWorkTab({
               value={form.maxMarks}
               onChange={(e) => setForm((f) => ({ ...f, maxMarks: e.target.value }))}
               placeholder="Max marks"
-              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground w-24"
+              className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground w-24"
             />
           </div>
           <div className="space-y-1">
@@ -446,7 +446,7 @@ export function LiveAcademicWorkTab({
                 type="button"
                 onClick={() => setPublishMode(m.key)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-                  publishMode === m.key ? "bg-[#3b5bdb] text-foreground" : "bg-muted text-muted-foreground"
+                  publishMode === m.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {m.label}
@@ -458,7 +458,7 @@ export function LiveAcademicWorkTab({
               type="datetime-local"
               value={form.scheduledPublishAt}
               onChange={(e) => setForm((f) => ({ ...f, scheduledPublishAt: e.target.value }))}
-              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+              className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
             />
           )}
           <div className="flex gap-2">
@@ -466,7 +466,7 @@ export function LiveAcademicWorkTab({
               type="button"
               disabled={saving}
               onClick={() => void create()}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb]"
+              className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
             >
               {saving ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -490,12 +490,12 @@ export function LiveAcademicWorkTab({
       <div className="text-[10px] text-muted-foreground">{filtered.length} homework items</div>
       <div className="space-y-2">
         {filtered.map((h) => (
-          <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-2xl space-y-2">
+          <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-[2px] space-y-2">
             <div className="flex justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="text-xs font-bold text-foreground">{h.title}</div>
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-primary/15 text-primary">
                     {WORK_KIND_LABELS[h.workKind ?? "homework"]}
                   </span>
                 </div>
@@ -524,7 +524,7 @@ export function LiveAcademicWorkTab({
               <button
                 type="button"
                 onClick={() => void openReview(h)}
-                className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-[#a0a0b0] flex items-center gap-1"
+                className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-muted-foreground flex items-center gap-1"
               >
                 <Eye className="w-3 h-3" /> Submissions
               </button>
@@ -533,7 +533,7 @@ export function LiveAcademicWorkTab({
                   type="button"
                   disabled={saving}
                   onClick={() => void runHwAction("Publish", () => HomeworkService.publish(ctx, h.id))}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb] flex items-center gap-1"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/20 text-primary flex items-center gap-1"
                 >
                   <Send className="w-3 h-3" /> Publish
                 </button>
@@ -555,7 +555,7 @@ export function LiveAcademicWorkTab({
                   type="button"
                   disabled={saving}
                   onClick={() => void runHwAction("Archive", () => HomeworkService.archive(ctx, h.id))}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-[#c08a3a] flex items-center gap-1"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-warning flex items-center gap-1"
                 >
                   <Archive className="w-3 h-3" /> Archive
                 </button>

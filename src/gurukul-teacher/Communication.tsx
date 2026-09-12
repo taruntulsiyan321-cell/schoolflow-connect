@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import {
   Search, Send, MessageCircle, Users, Loader2, Paperclip, Reply, Trash2, Plus,
 } from "lucide-react";
@@ -18,15 +19,16 @@ import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
 import { toast } from "sonner";
 import { NewChatSheet } from "@/components/chat/NewChatSheet";
 import { toErrorMessage } from "@/lib/presentation";
+import { panelScopeOf } from "@/lib/panelScope";
 
 const roleColor: Record<string, string> = {
-  student: "#6366f1",
-  parent: "#f59e0b",
-  principal: "#cc5069",
-  admin: "#10b981",
-  teacher: "#3b5bdb",
-  class_group: "#0ea5a0",
-  teacher_group: "#f59e0b",
+  student: "hsl(var(--primary))",
+  parent: "hsl(var(--warning))",
+  principal: "hsl(var(--destructive))",
+  admin: "hsl(var(--success))",
+  teacher: "hsl(var(--primary))",
+  class_group: "hsl(var(--info))",
+  teacher_group: "hsl(var(--warning))",
 };
 
 function formatTime(iso?: string) {
@@ -59,7 +61,7 @@ function ThreadList({
   return (
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-border/70">
-        <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2">
+        <div className="flex items-center gap-2 bg-muted border border-border rounded-[2px] px-3 py-2">
           <Search className="w-3 h-3 text-muted-foreground shrink-0" />
           <input
             value={search}
@@ -75,7 +77,7 @@ function ThreadList({
         )}
         {filtered.map((t) => {
           const key = t.conversationId || t.userId;
-          const color = roleColor[t.role] ?? roleColor[t.kind ?? ""] ?? "#78788c";
+          const color = roleColor[t.role] ?? roleColor[t.kind ?? ""] ?? "hsl(var(--muted-foreground))";
           return (
             <button
               key={key}
@@ -83,12 +85,12 @@ function ThreadList({
               onClick={() => onSelect(key)}
               className={cn(
                 "w-full flex items-start gap-3 px-4 py-3 hover:bg-muted transition-all text-left",
-                selectedId === key && "bg-[#3b5bdb]/5 border-r-2 border-[#3b5bdb]",
+                selectedId === key && "bg-primary/5 border-r-2 border-primary",
               )}
             >
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-[9px] font-black shrink-0"
-                style={{ background: `${color}18`, color }}
+                className="w-9 h-9 rounded-[2px] flex items-center justify-center text-[9px] font-black shrink-0"
+                style={{ background: `${withAlpha(color, 0.09)}`, color }}
               >
                 {isGroup(t) ? <Users className="w-3.5 h-3.5" /> : teacherInitials(t.name, "?")}
               </div>
@@ -96,7 +98,7 @@ function ThreadList({
                 <div className="flex items-center gap-2">
                   <div className="text-xs font-bold text-foreground truncate">{t.name}</div>
                   {t.unread > 0 && (
-                    <div className="w-4 h-4 rounded-full bg-[#3b5bdb] text-foreground text-[8px] font-black flex items-center justify-center shrink-0">
+                    <div className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[8px] font-black flex items-center justify-center shrink-0">
                       {t.unread > 9 ? "9+" : t.unread}
                     </div>
                   )}
@@ -144,7 +146,7 @@ function ChatView({
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const myInitials = teacherInitials(myName, "T");
-  const color = roleColor[contact.role] ?? roleColor[contact.kind ?? ""] ?? "#78788c";
+  const color = roleColor[contact.role] ?? roleColor[contact.kind ?? ""] ?? "hsl(var(--muted-foreground))";
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -180,8 +182,8 @@ function ChatView({
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-border/70">
         <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-[9px] font-black shrink-0"
-          style={{ background: `${color}18`, color }}
+          className="w-9 h-9 rounded-[2px] flex items-center justify-center text-[9px] font-black shrink-0"
+          style={{ background: `${withAlpha(color, 0.09)}`, color }}
         >
           {isGroup(contact) ? <Users className="w-4 h-4" /> : teacherInitials(contact.name, "?")}
         </div>
@@ -207,10 +209,10 @@ function ChatView({
           return (
             <div key={m.id} className={cn("flex gap-3 group", isMe && "flex-row-reverse")}>
               <div
-                className="w-7 h-7 rounded-xl flex items-center justify-center text-[8px] font-black shrink-0"
+                className="w-7 h-7 rounded-[2px] flex items-center justify-center text-[8px] font-black shrink-0"
                 style={{
-                  background: isMe ? "#f59e0b20" : `${color}18`,
-                  color: isMe ? "#f59e0b" : color,
+                  background: isMe ? withAlpha("hsl(var(--warning))", 0.13) : `${withAlpha(color, 0.09)}`,
+                  color: isMe ? "hsl(var(--warning))" : color,
                 }}
               >
                 {isMe ? myInitials : teacherInitials(contact.name, "?")}
@@ -223,12 +225,12 @@ function ChatView({
                 )}
                 <div
                   className={cn(
-                    "px-3 py-2 rounded-2xl text-xs leading-relaxed",
+                    "px-3 py-2 rounded-[2px] text-xs leading-relaxed",
                     deleted
                       ? "bg-muted text-muted-foreground italic"
                       : isMe
-                        ? "bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] text-foreground"
-                        : "bg-muted text-[#d0d8f0] border border-border",
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground border border-border",
                   )}
                 >
                   {deleted ? "Message deleted" : m.content}
@@ -262,7 +264,7 @@ function ChatView({
                           type="button"
                           title="Delete"
                           onClick={() => void onDelete(m.id)}
-                          className="text-muted-foreground hover:text-[#f43f5e]"
+                          className="text-muted-foreground hover:text-destructive"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -300,7 +302,7 @@ function ChatView({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={sending || uploading}
-            className="w-9 h-9 rounded-xl bg-muted text-muted-foreground flex items-center justify-center hover:text-foreground hover:bg-muted/80 disabled:opacity-40"
+            className="w-9 h-9 rounded-[2px] bg-muted text-muted-foreground flex items-center justify-center hover:text-foreground hover:bg-muted/80 disabled:opacity-40"
             title="Attach image or PDF"
           >
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
@@ -316,13 +318,13 @@ function ChatView({
             }}
             rows={2}
             placeholder="Type a message… (Enter to send)"
-            className="flex-1 bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
+            className="flex-1 bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/40 resize-none transition-all"
           />
           <button
             type="button"
             onClick={() => void send()}
             disabled={!input.trim() || sending}
-            className="w-9 h-9 rounded-xl bg-[#3b5bdb] text-foreground flex items-center justify-center hover:bg-[#6882e8] disabled:opacity-40 transition-all"
+            className="w-9 h-9 rounded-[2px] bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary disabled:opacity-40 transition-all"
           >
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
@@ -335,6 +337,16 @@ function ChatView({
 export default function Communication() {
   const { ctx, ready, settled } = useAcademicContext();
   const identity = useTeacherIdentity();
+  /**
+   * The new-chat sheet portals to `document.body`, which takes it out of
+   * `.gurukul-teacher` and therefore out of the panel's token scope. Read the
+   * scope here and hand it back to the sheet. See lib/panelScope.
+   */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [panelScope, setPanelScope] = useState("");
+  useEffect(() => {
+    setPanelScope(panelScopeOf(rootRef.current));
+  }, []);
   const liveTick = useAcademicLive("message");
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
   const [contacts, setContacts] = useState<ChatContact[]>([]);
@@ -635,11 +647,11 @@ export default function Communication() {
   }
 
   return (
-    <div className="h-[calc(100vh-200px)] min-h-[600px] flex rounded-2xl overflow-hidden border border-border bg-background">
+    <div ref={rootRef} className="h-[calc(100vh-200px)] min-h-[600px] flex rounded-[2px] overflow-hidden border border-border bg-background">
       <div className="w-72 shrink-0 bg-surface border-r border-border/70 flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/70">
           <div className="flex items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-[#3b5bdb]" />
+            <MessageCircle className="w-4 h-4 text-primary" />
             <div className="text-sm font-bold text-foreground">Messages</div>
           </div>
           <div className="flex items-center gap-1">
@@ -647,7 +659,7 @@ export default function Communication() {
               type="button"
               onClick={() => setShowCreate(true)}
               title="Create group"
-              className="w-7 h-7 rounded-lg bg-[#0ea5a0]/15 text-[#0ea5a0] flex items-center justify-center hover:bg-[#0ea5a0]/25 transition-all"
+              className="w-7 h-7 rounded-lg bg-info/15 text-info flex items-center justify-center hover:bg-info/25 transition-all"
             >
               <Users className="w-3.5 h-3.5" />
             </button>
@@ -655,7 +667,7 @@ export default function Communication() {
               type="button"
               onClick={() => setShowNewDm(true)}
               title="New chat"
-              className="w-7 h-7 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb] flex items-center justify-center hover:bg-[#3b5bdb]/25 transition-all"
+              className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center hover:bg-primary/25 transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -692,7 +704,7 @@ export default function Communication() {
       {showCreate && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
-          <div className="relative z-10 bg-surface border border-border rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
+          <div className="relative z-10 bg-surface border border-border rounded-[2px] w-full max-w-sm p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-sm font-bold text-foreground">Create Group</div>
               <button type="button" onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground text-lg">
@@ -704,9 +716,9 @@ export default function Communication() {
               type="button"
               disabled={createBusy}
               onClick={() => void createTeacherGroup()}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-muted hover:bg-muted/80 text-left"
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-[2px] bg-muted hover:bg-muted/80 text-left"
             >
-              <Users className="w-4 h-4 text-[#f59e0b]" />
+              <Users className="w-4 h-4 text-warning" />
               <div>
                 <div className="text-xs font-bold text-foreground">Teacher Group</div>
                 <div className="text-[10px] text-muted-foreground">All teachers + principal</div>
@@ -723,9 +735,9 @@ export default function Communication() {
                   type="button"
                   disabled={createBusy}
                   onClick={() => void createClassGroup(c.id)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-muted"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-[2px] text-left hover:bg-muted"
                 >
-                  <Users className="w-3.5 h-3.5 text-[#0ea5a0]" />
+                  <Users className="w-3.5 h-3.5 text-info" />
                   <span className="text-[11px] text-foreground">
                     {c.name}
                     {c.section ? `-${c.section}` : ""} {c.subject ? `· ${c.subject}` : ""}
@@ -745,6 +757,7 @@ export default function Communication() {
         contacts={contacts}
         busy={startingChat}
         onSelect={(peer) => void openNewChatWith(peer)}
+        scopeClassName={panelScope}
       />
     </div>
   );

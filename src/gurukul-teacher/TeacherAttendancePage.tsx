@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Search,
@@ -27,8 +28,8 @@ const STATUS_OPTIONS: {
   short: string;
   color: string;
 }[] = [
-  { value: "present", label: "Present", short: "P", color: "#10b981" },
-  { value: "absent", label: "Absent", short: "A", color: "#cc5069" },
+  { value: "present", label: "Present", short: "P", color: "hsl(var(--success))" },
+  { value: "absent", label: "Absent", short: "A", color: "hsl(var(--destructive))" },
 ];
 
 type SortKey = "roll" | "name" | "status";
@@ -297,7 +298,7 @@ export function TeacherAttendanceWorkspace({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-black text-foreground">Attendance</h2>
             {!canMark && (
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg bg-muted/80 text-[#a0a0b0]">
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg bg-muted/80 text-muted-foreground">
                 <Eye className="w-3 h-3" /> Read Only
               </span>
             )}
@@ -312,17 +313,17 @@ export function TeacherAttendanceWorkspace({
           type="date"
           value={date}
           onChange={(e) => changeDate(e.target.value)}
-          className="bg-surface border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+          className="bg-surface border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
         />
       </div>
 
       {flash && (
-        <div className="px-4 py-2.5 rounded-xl bg-[#10b981]/15 text-[#10b981] text-xs font-semibold flex items-center gap-2">
+        <div className="px-4 py-2.5 rounded-[2px] bg-success/15 text-success text-xs font-semibold flex items-center gap-2">
           <Check className="w-3.5 h-3.5" /> {flash}
         </div>
       )}
       {error && (
-        <div className="px-4 py-2.5 rounded-xl bg-[#cc5069]/15 text-[#cc5069] text-xs font-semibold flex items-center gap-2">
+        <div className="px-4 py-2.5 rounded-[2px] bg-destructive/15 text-destructive text-xs font-semibold flex items-center gap-2">
           <AlertCircle className="w-3.5 h-3.5" /> {error}
         </div>
       )}
@@ -335,9 +336,9 @@ export function TeacherAttendanceWorkspace({
               type="button"
               onClick={() => changeClass(c.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all",
+                "flex items-center gap-2 px-4 py-2.5 rounded-[2px] border text-xs font-semibold transition-all",
                 classId === c.id
-                  ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
+                  ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-surface border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
               )}
             >
@@ -345,7 +346,7 @@ export function TeacherAttendanceWorkspace({
               {c.name} {c.section}
               {c.subject ? ` · ${c.subject}` : ""}
               {c.isClassTeacher && (
-                <span className="text-[8px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-1 py-0.5 rounded-full">
+                <span className="text-[8px] font-bold text-primary bg-primary/10 px-1 py-0.5 rounded-full">
                   CT
                 </span>
               )}
@@ -366,7 +367,7 @@ export function TeacherAttendanceWorkspace({
               <div
                 key={s.value}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold"
-                style={{ background: `${s.color}15`, color: s.color }}
+                style={{ background: `${withAlpha(s.color, 0.08)}`, color: s.color }}
               >
                 {counts[s.value] ?? 0} {s.label}
               </div>
@@ -374,10 +375,10 @@ export function TeacherAttendanceWorkspace({
             <span
               className={cn(
                 "text-[10px] font-bold px-2.5 py-1 rounded-lg",
-                saveState === "unsaved" && "bg-[#f59e0b]/20 text-[#f59e0b]",
-                saveState === "draft" && "bg-muted/80 text-[#a0a0b0]",
-                saveState === "submitted" && "bg-[#10b981]/15 text-[#10b981]",
-                saveState === "readonly" && "bg-muted/80 text-[#a0a0b0]",
+                saveState === "unsaved" && "bg-warning/20 text-warning",
+                saveState === "draft" && "bg-muted/80 text-muted-foreground",
+                saveState === "submitted" && "bg-success/15 text-success",
+                saveState === "readonly" && "bg-muted/80 text-muted-foreground",
               )}
             >
               {saveState === "unsaved" && "Unsaved Changes"}
@@ -391,7 +392,7 @@ export function TeacherAttendanceWorkspace({
               <button
                 type="button"
                 onClick={markAllPresent}
-                className="px-3 py-2 rounded-xl text-[10px] font-bold bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                className="px-3 py-2 rounded-[2px] text-[10px] font-bold bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
               >
                 All Present
               </button>
@@ -401,11 +402,11 @@ export function TeacherAttendanceWorkspace({
               onClick={() => void save()}
               disabled={!canMark || saving || students.length === 0}
               className={cn(
-                "flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold disabled:cursor-not-allowed",
+                "flex items-center gap-2 px-5 py-2 rounded-[2px] text-xs font-bold disabled:cursor-not-allowed",
                 canMark
                   ? dirty
-                    ? "text-black bg-[#3b5bdb] hover:bg-[#6882e8]"
-                    : "text-foreground bg-[#3b5bdb]/40"
+                    ? "text-primary-foreground bg-primary hover:bg-primary"
+                    : "text-foreground bg-primary/40"
                   : "text-muted-foreground bg-muted opacity-60",
               )}
               title={
@@ -426,7 +427,7 @@ export function TeacherAttendanceWorkspace({
       )}
 
       <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2 flex-1 min-w-[180px]">
+        <div className="flex items-center gap-2 bg-muted border border-border rounded-[2px] px-3 py-2 flex-1 min-w-[180px]">
           <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <input
             value={search}
@@ -438,7 +439,7 @@ export function TeacherAttendanceWorkspace({
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
-          className="bg-surface border border-border rounded-xl px-3 py-2 text-xs text-muted-foreground"
+          className="bg-surface border border-border rounded-[2px] px-3 py-2 text-xs text-muted-foreground"
         >
           <option value="roll">Sort: Roll</option>
           <option value="name">Sort: Name</option>
@@ -461,16 +462,16 @@ export function TeacherAttendanceWorkspace({
               <div
                 key={s.id}
                 className={cn(
-                  "flex items-center gap-3 p-3 rounded-xl border transition-colors",
+                  "flex items-center gap-3 p-3 rounded-[2px] border transition-colors",
                   isAbsent
-                    ? "bg-[#cc5069]/10 border-[#cc5069]/30"
+                    ? "bg-destructive/10 border-destructive/30"
                     : isPresent
-                      ? "bg-[#10b981]/8 border-[#10b981]/20"
+                      ? "bg-success/8 border-success/20"
                       : "bg-surface border-border/70",
                 )}
               >
                 {s.photoUrl ? (
-                  <img src={s.photoUrl} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0" />
+                  <img src={s.photoUrl} alt="" className="w-9 h-9 rounded-[2px] object-cover shrink-0" />
                 ) : (
                   <InitialsAvatar name={s.fullName} size="sm" />
                 )}
@@ -490,8 +491,8 @@ export function TeacherAttendanceWorkspace({
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-[10px] font-bold min-w-[72px]",
                         isAbsent
-                          ? "bg-[#cc5069] text-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-[#cc5069]/20 hover:text-[#cc5069]",
+                          ? "bg-destructive text-destructive-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-destructive/20 hover:text-destructive",
                       )}
                     >
                       {isAbsent ? "Absent" : "Mark Absent"}
@@ -509,7 +510,7 @@ export function TeacherAttendanceWorkspace({
                           )}
                           style={
                             status === opt.value
-                              ? { background: `${opt.color}35`, color: opt.color }
+                              ? { background: `${withAlpha(opt.color, 0.21)}`, color: opt.color }
                               : undefined
                           }
                         >
@@ -523,7 +524,7 @@ export function TeacherAttendanceWorkspace({
                     className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
                     style={{
                       color: STATUS_OPTIONS.find((o) => o.value === status)?.color,
-                      background: `${STATUS_OPTIONS.find((o) => o.value === status)?.color ?? "#78788c"}18`,
+                      background: `${STATUS_OPTIONS.find((o) => o.value === status)?.color ?? "hsl(var(--muted-foreground))"}18`,
                     }}
                   >
                     {STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}

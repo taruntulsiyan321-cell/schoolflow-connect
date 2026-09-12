@@ -1,0 +1,250 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AUTONOMOUS DESIGN — the staff-facing design system
+   ═══════════════════════════════════════════════════════════════════════════
+
+   One home for the tokens the principal, teacher and parent panels share.
+
+   It was the principal panel's theme alone. Applying it to the other two by
+   copying the block would have made three homes for one design system, which
+   is the defect shape this codebase has paid for more than any other — the
+   student panel had a 155-colour shadow copy of its own tokens, and the old
+   principal panel had THREE palettes that disagreed on every value. A design
+   system that exists in three files is three design systems that happen to
+   match today.
+
+   WHAT THIS DESIGN IS
+
+   Warm paper, set like a document rather than an interface.
+
+     ground    a warm cream, not white
+     ink       a near-black brown, not grey
+     display   Fraunces — a serif, at font-medium, never bold
+     body      Work Sans
+     data      DM Mono, and EVERY figure is set in it
+     radius    2px. Corners are square; this is an archive, not a card UI
+     shadow    none. Surfaces are separated by hairline borders
+     sidebar   near-black against the cream canvas
+
+   Colour carries meaning and nothing else. There is no decorative accent: a
+   status is stated in words and figures, and the palette stays out of the way.
+
+   PANEL-SPECIFIC RULES DO NOT BELONG HERE. Anything that is true of one panel
+   only belongs in that panel's own theme.css. */
+
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300;1,9..144,400&family=Work+Sans:wght@300;400;500;600;700&display=swap");
+
+.gurukul-principal,
+.gurukul-teacher,
+.gurukul-parent {
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Work Sans", system-ui, sans-serif;
+  --font-mono: "DM Mono", "Courier New", monospace;
+
+  /* Design tokens (HSL channels for Tailwind hsl(var(--*))) */
+  --background: 48 20.8% 90.6%;
+  --foreground: 30 21.1% 7.5%;
+
+  --card: 45 26.7% 94.1%;
+  --card-foreground: 30 21.1% 7.5%;
+
+  --popover: 45 26.7% 94.1%;
+  --popover-foreground: 30 21.1% 7.5%;
+
+  --primary: 30 23.8% 8.2%;
+  --primary-foreground: 40 33.3% 91.2%;
+  --primary-glow: 40 20% 70%;
+
+  --secondary: 38.6 19.4% 85.9%;
+  --secondary-foreground: 30 7.2% 27.1%;
+
+  --muted: 40 16.1% 81.8%;
+  /*
+   * 34%, not the exported 46.7%.
+   *
+   * `--muted-foreground` and `--muted` are adjacent steps on the same warm
+   * ramp, so the pairing the design itself sanctions — `Pill variant="muted"`
+   * is `bg-muted text-muted-foreground` — measured 2.93:1, and the teacher and
+   * parent panels lean on that pairing 60 times (chips, filter pills, secondary
+   * buttons, status tags). At 46.7% even muted ink on the cream ground was only
+   * 3.64:1, under AA.
+   *
+   * Fixed here rather than at the 60 call sites: one token relationship is the
+   * defect, and only the token reaches the screen states a survey never opens
+   * (dialogs, editing modes, disabled filters). 34% is the darkest-ground
+   * minimum that clears AA — 4.8:1 on `--muted`, 6.0:1 on `--background`,
+   * 6.3:1 on `--card` — and it still sits 2.6:1 clear of `--foreground`, so
+   * the primary/secondary text hierarchy survives.
+   */
+  --muted-foreground: 34.3 5.9% 34%;
+
+  --accent: 26.5 29.8% 22.4%;
+  --accent-foreground: 40 33.3% 91.2%;
+
+  --warning: 47.7 100% 21%;
+  --warning-foreground: 40 33.3% 91.2%;
+
+  --destructive: 1 37% 48%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 40 12.4% 76.3%;
+  --input: 40 12.4% 76.3%;
+  --ring: 26.5 29.8% 22.4%;
+  --radius: 2px;
+
+  --success: 112.9 39.5% 25.3%;
+  --info: 192 52% 34%;
+
+  --sidebar-background: 30 23.8% 8.2%;
+  --sidebar-foreground: 38.6 17.1% 83.9%;
+  --sidebar-primary: 40 33.3% 91.2%;
+  --sidebar-primary-foreground: 30 23.8% 8.2%;
+  --sidebar-accent: 34.3 17.9% 15.3%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 100% / 0.1;
+  --sidebar-ring: 26.5 29.8% 22.4%;
+
+  /* Legacy aliases. The panels predate the token names above and still read
+     these in places; they resolve to the same values so a screen cannot end up
+     half in one palette and half in the other. */
+  --bg: hsl(var(--background));
+  --surface: hsl(var(--card));
+  --surface-2: hsl(var(--muted));
+  --border-subtle: hsl(var(--border));
+  --text-primary: hsl(var(--foreground));
+  --text-secondary: hsl(var(--muted-foreground));
+  --text-muted: hsl(var(--muted-foreground));
+  --navy: hsl(var(--card));
+  --navy-mid: hsl(var(--muted));
+  --indigo: hsl(var(--accent));
+  --indigo-light: hsl(var(--secondary));
+  --indigo-mid: hsl(var(--muted));
+  --teal: hsl(var(--info));
+  --amber: hsl(var(--warning));
+  --rose: hsl(var(--destructive));
+  --emerald: hsl(var(--success));
+  --coral: hsl(var(--accent));
+  --violet: hsl(var(--accent));
+  --sky: hsl(var(--info));
+  --radius-sm: 2px;
+  --radius-lg: 2px;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-card: none;
+  --shadow-elevated: none;
+  --shadow-lg: 0 8px 24px rgba(23, 19, 15, 0.08);
+
+  /* The viewport, not a percentage of an auto-height parent. `height: 100%`
+     only resolves against an ancestor with a definite height, and html/body
+     have none — the principal sidebar rendered 332px tall in an 800px viewport
+     because of it, and the panels' internal `.scroll-y` never engaged. */
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars are off by default and opted into per scrolling region, so a
+   fixed shell does not show a track it never uses. */
+.gurukul-principal,
+.gurukul-principal *,
+.gurukul-teacher,
+.gurukul-teacher *,
+.gurukul-parent,
+.gurukul-parent * {
+  scrollbar-width: none;
+}
+.gurukul-principal *::-webkit-scrollbar,
+.gurukul-teacher *::-webkit-scrollbar,
+.gurukul-parent *::-webkit-scrollbar {
+  display: none;
+}
+
+.gurukul-principal .scroll-y,
+.gurukul-teacher .scroll-y,
+.gurukul-parent .scroll-y {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cac5bb transparent;
+}
+.gurukul-principal .scroll-y::-webkit-scrollbar,
+.gurukul-teacher .scroll-y::-webkit-scrollbar,
+.gurukul-parent .scroll-y::-webkit-scrollbar {
+  display: block;
+  width: 4px;
+}
+.gurukul-principal .scroll-y::-webkit-scrollbar-thumb,
+.gurukul-teacher .scroll-y::-webkit-scrollbar-thumb,
+.gurukul-parent .scroll-y::-webkit-scrollbar-thumb {
+  background: #cac5bb;
+  border-radius: 2px;
+}
+
+.gurukul-principal .scroll-x,
+.gurukul-teacher .scroll-x,
+.gurukul-parent .scroll-x {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cac5bb transparent;
+}
+.gurukul-principal .scroll-x::-webkit-scrollbar,
+.gurukul-teacher .scroll-x::-webkit-scrollbar,
+.gurukul-parent .scroll-x::-webkit-scrollbar {
+  display: block;
+  height: 4px;
+}
+.gurukul-principal .scroll-x::-webkit-scrollbar-thumb,
+.gurukul-teacher .scroll-x::-webkit-scrollbar-thumb,
+.gurukul-parent .scroll-x::-webkit-scrollbar-thumb {
+  background: #cac5bb;
+  border-radius: 2px;
+}
+
+/* Headings are the display serif, at the weight the design draws them —
+   `font-medium`. No `font-weight: 800 !important` here: the panels this
+   replaced forced weight from the theme, so no component's own choice ever
+   had any effect. */
+.gurukul-principal h1,
+.gurukul-principal h2,
+.gurukul-principal h3,
+.gurukul-principal h4,
+.gurukul-principal .font-display,
+.gurukul-teacher h1,
+.gurukul-teacher h2,
+.gurukul-teacher h3,
+.gurukul-teacher h4,
+.gurukul-teacher .font-display,
+.gurukul-parent h1,
+.gurukul-parent h2,
+.gurukul-parent h3,
+.gurukul-parent h4,
+.gurukul-parent .font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.gurukul-principal .font-mono,
+.gurukul-principal .font-mono-data,
+.gurukul-teacher .font-mono,
+.gurukul-teacher .font-mono-data,
+.gurukul-parent .font-mono,
+.gurukul-parent .font-mono-data {
+  font-family: var(--font-mono);
+}
+
+.gurukul-principal button,
+.gurukul-principal input,
+.gurukul-principal select,
+.gurukul-principal textarea,
+.gurukul-teacher button,
+.gurukul-teacher input,
+.gurukul-teacher select,
+.gurukul-teacher textarea,
+.gurukul-parent button,
+.gurukul-parent input,
+.gurukul-parent select,
+.gurukul-parent textarea {
+  font-family: inherit;
+}

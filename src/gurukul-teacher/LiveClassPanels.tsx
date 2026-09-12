@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import {
   Search,
   ChevronRight,
@@ -348,7 +349,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     if (!selected) {
       return {
         verdict: "Insufficient data",
-        color: "#78788c",
+        color: "hsl(var(--muted-foreground))",
         answers: [] as string[],
         actions: [] as string[],
         intervention: false,
@@ -419,29 +420,29 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     }
 
     let verdict = "Insufficient data";
-    let color = "#78788c";
+    let color = "hsl(var(--muted-foreground))";
     let intervention = false;
     if (measured.length >= 2) {
       if (below.length === 0 && pendingHomework.length <= 1 && !attendanceConcern) {
         verdict = "No measure below its threshold";
-        color = "#10b981";
+        color = "hsl(var(--success))";
       } else if (below.length === 0) {
         verdict = "Stable — watch closely";
-        color = "#3b5bdb";
+        color = "hsl(var(--primary))";
       } else if (below.length === 1) {
         verdict = `Needs support — ${worst.label}`;
-        color = "#f59e0b";
+        color = "hsl(var(--warning))";
         intervention = true;
         actions.push(`Plan a short check-in about ${worst.label} this week`);
       } else {
         verdict = `At risk — intervene (${worst.label} lowest)`;
-        color = "#cc5069";
+        color = "hsl(var(--destructive))";
         intervention = true;
         actions.push("Escalate with class teacher / parent meeting");
       }
     } else if (attendanceConcern || pendingHomework.length >= 2) {
       verdict = "Needs support";
-      color = "#f59e0b";
+      color = "hsl(var(--warning))";
       intervention = true;
     }
 
@@ -460,7 +461,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
 
   if (loading) return <Loading label="Loading roster…" />;
   if (error && rows.length === 0) {
-    return <div className="text-xs text-[#cc5069] py-8 text-center">{error}</div>;
+    return <div className="text-xs text-destructive py-8 text-center">{error}</div>;
   }
 
   if (selected) {
@@ -477,10 +478,10 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
           <ChevronRight className="w-3 h-3 rotate-180" /> Back to Students
         </button>
 
-        <div className="bg-surface border border-border/70 rounded-2xl p-5 space-y-4">
+        <div className="bg-surface border border-border/70 rounded-[2px] p-5 space-y-4">
           <div className="flex items-center gap-4">
             {selected.photoUrl ? (
-              <img src={selected.photoUrl} alt="" className="w-14 h-14 rounded-2xl object-cover" />
+              <img src={selected.photoUrl} alt="" className="w-14 h-14 rounded-[2px] object-cover" />
             ) : (
               <InitialsAvatar name={selected.fullName} size="lg" />
             )}
@@ -493,13 +494,13 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             </div>
           </div>
           <div
-            className="rounded-xl px-4 py-3 border"
-            style={{ background: `${report.color}18`, borderColor: `${report.color}40` }}
+            className="rounded-[2px] px-4 py-3 border"
+            style={{ background: `${withAlpha(report.color, 0.09)}`, borderColor: `${withAlpha(report.color, 0.25)}` }}
           >
             <div className="text-sm font-black" style={{ color: report.color }}>
               {report.verdict}
             </div>
-            <div className="text-[11px] text-[#a0a0b0] mt-1">
+            <div className="text-[11px] text-muted-foreground mt-1">
               {report.intervention
                 ? "Teacher intervention is recommended."
                 : "No urgent intervention required."}
@@ -508,7 +509,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         </div>
 
         {detailError && (
-          <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+          <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {detailError}
           </div>
         )}
@@ -517,7 +518,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
           <Loading label="Building academic report…" />
         ) : (
           <>
-            <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
+            <div className="bg-surface border border-border/70 rounded-[2px] p-4 space-y-2">
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 What you should know
               </div>
@@ -528,12 +529,12 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               ))}
             </div>
 
-            <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
+            <div className="bg-surface border border-border/70 rounded-[2px] p-4 space-y-2">
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Suggested actions
               </div>
               {report.actions.map((line) => (
-                <div key={line} className="text-[12px] text-[#f59e0b] leading-snug">
+                <div key={line} className="text-[12px] text-warning leading-snug">
                   → {line}
                 </div>
               ))}
@@ -574,11 +575,11 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               ].map((m) => (
                 <div
                   key={m.label}
-                  className="bg-surface border border-border/70 rounded-xl p-3 text-center"
+                  className="bg-surface border border-border/70 rounded-[2px] p-3 text-center"
                 >
                   <div
                     className="text-sm font-black tabular-nums"
-                    style={{ color: m.warn ? "#cc5069" : "#fff" }}
+                    style={{ color: m.warn ? "hsl(var(--destructive))" : "#fff" }}
                   >
                     {m.value}
                   </div>
@@ -588,7 +589,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
+              <div className="bg-surface border border-border/70 rounded-[2px] p-4 space-y-2">
                 <div className="text-xs font-bold text-foreground">Pending homework</div>
                 {pendingHomework.length === 0 ? (
                   <div className="text-[10px] text-muted-foreground">Caught up — nothing pending</div>
@@ -599,7 +600,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                       className="flex justify-between gap-2 text-[11px]"
                     >
                       <span className="text-foreground truncate">{r.homework.title}</span>
-                      <span className="text-[9px] text-[#f59e0b] shrink-0">{r.displayStatus}</span>
+                      <span className="text-[9px] text-warning shrink-0">{r.displayStatus}</span>
                     </div>
                   ))
                 )}
@@ -607,7 +608,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                   Submitted recently: {submittedHomework.length}
                 </div>
               </div>
-              <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
+              <div className="bg-surface border border-border/70 rounded-[2px] p-4 space-y-2">
                 <div className="text-xs font-bold text-foreground">Recent attendance</div>
                 {attendanceHistory.length === 0 ? (
                   <div className="text-[10px] text-muted-foreground">No records yet</div>
@@ -619,7 +620,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                         className={cn(
                           "capitalize font-semibold",
                           a.status === "absent"
-                            ? "text-[#cc5069]"
+                            ? "text-destructive"
                             : "text-foreground",
                         )}
                       >
@@ -632,7 +633,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             </div>
 
             {(weakSubjects.length > 0 || remarks.length > 0) && (
-              <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-3">
+              <div className="bg-surface border border-border/70 rounded-[2px] p-4 space-y-3">
                 <div className="text-xs font-bold text-foreground">Teacher context</div>
                 {weakSubjects.length > 0 && (
                   <div className="flex flex-wrap gap-1 items-center">
@@ -640,7 +641,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     {weakSubjects.map((s) => (
                       <span
                         key={s}
-                        className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#cc5069]/15 text-[#cc5069]"
+                        className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-destructive/15 text-destructive"
                       >
                         {s}
                       </span>
@@ -648,7 +649,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                   </div>
                 )}
                 {remarks.slice(0, 4).map((r) => (
-                  <div key={r.id} className="text-[11px] text-[#a0a0b0]">
+                  <div key={r.id} className="text-[11px] text-muted-foreground">
                     “{r.body}”
                   </div>
                 ))}
@@ -658,7 +659,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     onChange={(e) => setRemarkDraft(e.target.value)}
                     rows={2}
                     placeholder="Add a remark for this student…"
-                    className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
+                    className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/40 resize-none"
                   />
                   <button
                     type="button"
@@ -682,7 +683,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                         }
                       })();
                     }}
-                    className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-[#3b5bdb] text-black disabled:opacity-40"
+                    className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-40"
                   >
                     {remarkSaving ? "Saving…" : "Save remark"}
                   </button>
@@ -691,7 +692,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             )}
 
             {!(weakSubjects.length > 0 || remarks.length > 0) && (
-              <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
+              <div className="bg-surface border border-border/70 rounded-[2px] p-4 space-y-2">
                 <div className="text-xs font-bold text-foreground">Teacher remark</div>
                 <div className="pt-2 space-y-2 border-t border-border">
                   <textarea
@@ -699,7 +700,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     onChange={(e) => setRemarkDraft(e.target.value)}
                     rows={2}
                     placeholder="Add a remark for this student…"
-                    className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
+                    className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/40 resize-none"
                   />
                   <button
                     type="button"
@@ -723,7 +724,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                         }
                       })();
                     }}
-                    className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-[#3b5bdb] text-black disabled:opacity-40"
+                    className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-40"
                   >
                     {remarkSaving ? "Saving…" : "Save remark"}
                   </button>
@@ -732,11 +733,11 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             )}
 
             {recentMarks.length > 0 && (
-              <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
+              <div className="bg-surface border border-border/70 rounded-[2px] p-4 space-y-2">
                 <div className="text-xs font-bold text-foreground">Latest published marks</div>
                 {recentMarks.slice(0, 5).map((m) => (
                   <div key={m.id} className="flex justify-between gap-2 text-[11px]">
-                    <span className="text-[#a0a0b0] truncate">
+                    <span className="text-muted-foreground truncate">
                       {m.remarks?.trim() || "Result"}
                     </span>
                     <span className="tabular-nums font-bold text-foreground">{m.marksObtained}</span>
@@ -753,14 +754,14 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="text-xs text-[#f59e0b] px-3 py-2 rounded-xl bg-[#f59e0b]/10 border border-[#f59e0b]/20">
+        <div className="text-xs text-warning px-3 py-2 rounded-[2px] bg-warning/10 border border-warning/20">
           {error}
         </div>
       )}
       <div className="text-[10px] text-muted-foreground">
         Open a student for an academic report — who needs help, and why.
       </div>
-      <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2">
+      <div className="flex items-center gap-2 bg-muted border border-border rounded-[2px] px-3 py-2">
         <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <input
           value={search}
@@ -781,10 +782,10 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               key={s.id}
               type="button"
               onClick={() => setSelected(s)}
-              className="w-full flex items-center gap-3 p-3 bg-surface border border-border/70 rounded-2xl hover:border-border hover:bg-muted transition-all text-left group"
+              className="w-full flex items-center gap-3 p-3 bg-surface border border-border/70 rounded-[2px] hover:border-border hover:bg-muted transition-all text-left group"
             >
               {s.photoUrl ? (
-                <img src={s.photoUrl} alt="" className="w-9 h-9 rounded-xl object-cover" />
+                <img src={s.photoUrl} alt="" className="w-9 h-9 rounded-[2px] object-cover" />
               ) : (
                 <InitialsAvatar name={s.fullName} />
               )}
@@ -792,7 +793,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                 <div className="text-xs font-bold text-foreground flex items-center gap-2">
                   {s.fullName}
                   {flag && (
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[#cc5069]/20 text-[#cc5069]">
+                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-destructive/20 text-destructive">
                       Needs attention
                     </span>
                   )}
@@ -1270,7 +1271,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
             <ChevronLeft className="w-3 h-3" />
             {step === "basics" ? "Cancel" : "Back"}
           </button>
-          <div className="text-[10px] font-bold text-[#3b5bdb]">{stepLabel[step]}</div>
+          <div className="text-[10px] font-bold text-primary">{stepLabel[step]}</div>
           <button
             type="button"
             onClick={resetBuilder}
@@ -1281,19 +1282,19 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
         </div>
 
         {error && (
-          <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+          <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {error}
           </div>
         )}
 
         {step === "basics" && (
-          <div className="bg-surface border border-border rounded-2xl p-4 space-y-3">
+          <div className="bg-surface border border-border rounded-[2px] p-4 space-y-3">
             <div className="text-sm font-bold text-foreground">Test basics</div>
             <input
               value={basics.title}
               onChange={(e) => setBasics((f) => ({ ...f, title: e.target.value }))}
               placeholder="Title *"
-              className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+              className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
             />
             <div className="flex flex-wrap gap-2">
               <select
@@ -1301,7 +1302,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 onChange={(e) =>
                   setBasics((f) => ({ ...f, testKind: e.target.value as TestKind }))
                 }
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
               >
                 {TEST_KINDS.map((k) => (
                   <option key={k} value={k}>
@@ -1313,20 +1314,20 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 value={basics.durationMin}
                 onChange={(e) => setBasics((f) => ({ ...f, durationMin: e.target.value }))}
                 placeholder="Duration (min)"
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground w-28"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground w-28"
               />
               <input
                 value={basics.maxMarks}
                 onChange={(e) => setBasics((f) => ({ ...f, maxMarks: e.target.value }))}
                 placeholder="Max marks"
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground w-24"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground w-24"
               />
             </div>
             <textarea
               value={basics.instructions}
               onChange={(e) => setBasics((f) => ({ ...f, instructions: e.target.value }))}
               placeholder="Instructions"
-              className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[60px]"
+              className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground min-h-[60px]"
             />
             <div className="flex flex-wrap gap-1">
               {(
@@ -1342,7 +1343,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   onClick={() => setBasics((f) => ({ ...f, publishMode: m.key }))}
                   className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
                     basics.publishMode === m.key
-                      ? "bg-[#3b5bdb] text-foreground"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground"
                   }`}
                 >
@@ -1355,13 +1356,13 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 type="datetime-local"
                 value={basics.scheduledAt}
                 onChange={(e) => setBasics((f) => ({ ...f, scheduledAt: e.target.value }))}
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
               />
             )}
             <button
               type="button"
               onClick={goFromBasics}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-foreground bg-[#3b5bdb]"
+              className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
             >
               Next: Choose source <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -1397,9 +1398,9 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 key={card.key}
                 type="button"
                 onClick={() => pickSource(card.key)}
-                className="w-full text-left p-4 bg-surface border border-border rounded-2xl hover:border-[#3b5bdb]/50 transition-all flex gap-3"
+                className="w-full text-left p-4 bg-surface border border-border rounded-[2px] hover:border-primary/50 transition-all flex gap-3"
               >
-                <card.icon className="w-5 h-5 text-[#3b5bdb] shrink-0 mt-0.5" />
+                <card.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <div>
                   <div className="text-xs font-bold text-foreground">{card.title}</div>
                   <div className="text-[10px] text-muted-foreground mt-0.5">{card.desc}</div>
@@ -1420,7 +1421,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     setLibFilters((f) => ({ ...f, [key]: e.target.value }))
                   }
                   placeholder={key.replace(/([A-Z])/g, " $1")}
-                  className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground capitalize"
+                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground capitalize"
                 />
               ))}
             </div>
@@ -1431,23 +1432,23 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 {libItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3 bg-surface border border-border/70 rounded-xl text-xs text-foreground"
+                    className="p-3 bg-surface border border-border/70 rounded-[2px] text-xs text-foreground"
                   >
                     {item.question}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="bg-surface border border-dashed border-border rounded-2xl p-6 text-center space-y-3">
+              <div className="bg-surface border border-dashed border-border rounded-[2px] p-6 text-center space-y-3">
                 <BookOpen className="w-8 h-8 text-muted-foreground mx-auto" />
-                <div className="text-xs text-[#a0a0b0]">
+                <div className="text-xs text-muted-foreground">
                   Library coming soon — NCERT content will be added later. Use Manual or Upload for
                   now.
                 </div>
                 <button
                   type="button"
                   onClick={() => pickSource("manual")}
-                  className="px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb]"
+                  className="px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary/20 text-primary"
                 >
                   Switch to manual
                 </button>
@@ -1472,13 +1473,13 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               </span>
             </div>
 
-            <div className="bg-surface border border-border rounded-2xl p-4 space-y-2">
+            <div className="bg-surface border border-border rounded-[2px] p-4 space-y-2">
               <select
                 value={qForm.kind}
                 onChange={(e) =>
                   setQForm((f) => ({ ...f, kind: e.target.value as ManualQuestionKind }))
                 }
-                className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
               >
                 {MANUAL_QUESTION_KINDS.map((k) => (
                   <option key={k.value} value={k.value}>
@@ -1490,7 +1491,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 value={qForm.question}
                 onChange={(e) => setQForm((f) => ({ ...f, question: e.target.value }))}
                 placeholder="Question text *"
-                className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[50px]"
+                className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground min-h-[50px]"
               />
               {qForm.kind === "mcq" && (
                 <div className="space-y-2">
@@ -1499,7 +1500,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       type="button"
                       onClick={() => setQForm((f) => ({ ...f, useCsv: false }))}
                       className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        !qForm.useCsv ? "bg-[#3b5bdb] text-foreground" : "bg-muted text-muted-foreground"
+                        !qForm.useCsv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                       }`}
                     >
                       4 options
@@ -1508,7 +1509,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       type="button"
                       onClick={() => setQForm((f) => ({ ...f, useCsv: true }))}
                       className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        qForm.useCsv ? "bg-[#3b5bdb] text-foreground" : "bg-muted text-muted-foreground"
+                        qForm.useCsv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                       }`}
                     >
                       Comma-separated
@@ -1519,7 +1520,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       value={qForm.optionsCsv}
                       onChange={(e) => setQForm((f) => ({ ...f, optionsCsv: e.target.value }))}
                       placeholder="Options, comma-separated"
-                      className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                      className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
                     />
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
@@ -1529,7 +1530,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                           value={qForm[key]}
                           onChange={(e) => setQForm((f) => ({ ...f, [key]: e.target.value }))}
                           placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                          className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                          className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
                         />
                       ))}
                     </div>
@@ -1540,7 +1541,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 <select
                   value={qForm.correct}
                   onChange={(e) => setQForm((f) => ({ ...f, correct: e.target.value }))}
-                  className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                  className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
                 >
                   <option value="">Correct answer *</option>
                   <option value="True">True</option>
@@ -1557,7 +1558,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                         ? "Correct option text *"
                         : "Correct / model answer"
                   }
-                  className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                  className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
                 />
               )}
               <div className="flex gap-2">
@@ -1565,12 +1566,12 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   value={qForm.marks}
                   onChange={(e) => setQForm((f) => ({ ...f, marks: e.target.value }))}
                   placeholder="Marks"
-                  className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground w-24"
+                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground w-24"
                 />
                 <button
                   type="button"
                   onClick={addManualQuestion}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb]"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-[10px] font-bold bg-primary/20 text-primary"
                 >
                   <Plus className="w-3 h-3" /> Add question
                 </button>
@@ -1581,10 +1582,10 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               {questions.map((q, i) => (
                 <div
                   key={q.localId}
-                  className="p-3 bg-surface border border-border/70 rounded-xl flex gap-2"
+                  className="p-3 bg-surface border border-border/70 rounded-[2px] flex gap-2"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-[9px] text-[#3b5bdb] font-bold uppercase">
+                    <div className="text-[9px] text-primary font-bold uppercase">
                       {q.kind} · {q.marks ?? 1} marks
                     </div>
                     <div className="text-xs text-foreground mt-0.5 line-clamp-2">{q.question}</div>
@@ -1611,7 +1612,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       onClick={() =>
                         setQuestions((prev) => prev.filter((x) => x.localId !== q.localId))
                       }
-                      className="p-1 rounded bg-[#cc5069]/15 text-[#cc5069]"
+                      className="p-1 rounded bg-destructive/15 text-destructive"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -1635,7 +1636,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 setError(null);
                 setStep("review");
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-foreground bg-[#3b5bdb]"
+              className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
             >
               Next: Review <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -1644,7 +1645,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
         {step === "upload" && (
           <div className="space-y-3">
-            <div className="bg-surface border border-border rounded-2xl p-4 space-y-2">
+            <div className="bg-surface border border-border rounded-[2px] p-4 space-y-2">
               <div className="text-[10px] font-bold text-foreground">Upload question paper</div>
               <div className="text-[10px] text-muted-foreground">
                 PDF, images, Word, Excel, PowerPoint, or links — same upload experience as Homework.
@@ -1661,7 +1662,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 setError(null);
                 setStep("review");
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-foreground bg-[#3b5bdb]"
+              className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
             >
               Next: Review <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -1670,7 +1671,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
         {step === "review" && (
           <div className="space-y-4">
-            <div className="bg-surface border border-border rounded-2xl p-4 space-y-2 text-xs">
+            <div className="bg-surface border border-border rounded-[2px] p-4 space-y-2 text-xs">
               <div className="text-sm font-bold text-foreground">{basics.title || "Untitled"}</div>
               <div className="text-muted-foreground">
                 {TEST_KIND_LABELS[basics.testKind]} · {durationMin} min
@@ -1679,7 +1680,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 {source === "upload" ? ` · ${attachments.length} attachment(s)` : ""}
               </div>
               {basics.instructions && (
-                <div className="text-[10px] text-[#a0a0b0] pt-1 border-t border-border">
+                <div className="text-[10px] text-muted-foreground pt-1 border-t border-border">
                   {basics.instructions}
                 </div>
               )}
@@ -1706,7 +1707,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 type="button"
                 disabled={saving}
                 onClick={() => void submitBuilder("draft")}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-muted/80 text-foreground disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[2px] text-xs font-bold bg-muted/80 text-foreground disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                 Save draft
@@ -1715,7 +1716,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 type="button"
                 disabled={saving}
                 onClick={() => void submitBuilder("schedule")}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#6366f1]/25 text-[#6366f1] disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[2px] text-xs font-bold bg-primary/25 text-primary disabled:opacity-50"
               >
                 Schedule
               </button>
@@ -1723,7 +1724,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 type="button"
                 disabled={saving}
                 onClick={() => void submitBuilder("now")}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#3b5bdb] text-foreground disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[2px] text-xs font-bold bg-primary text-primary-foreground disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 Publish
@@ -1742,18 +1743,18 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
         <button
           type="button"
           onClick={openBuilder}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary/15 text-primary"
         >
           <Plus className="w-3 h-3" /> Create Test
         </button>
       </div>
       {error && (
-        <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+        <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {error}
         </div>
       )}
       {success && (
-        <div className="rounded-xl border border-[#4aa87a]/30 bg-[#4aa87a]/10 px-3 py-2 text-xs text-[#4aa87a]">
+        <div className="rounded-[2px] border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
           {success}
         </div>
       )}
@@ -1766,7 +1767,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
           const qCount = questionCounts[t.id] ?? 0;
           const canPublish = status !== "published" && status !== "archived";
           return (
-            <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
+            <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-[2px] space-y-2">
               <div className="flex justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-foreground truncate">{t.title}</div>
@@ -1780,12 +1781,12 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   className={cn(
                     "text-[9px] font-bold px-2 py-1 rounded-lg h-fit capitalize shrink-0",
                     status === "published"
-                      ? "bg-[#4aa87a]/15 text-[#4aa87a]"
+                      ? "bg-success/15 text-success"
                       : status === "scheduled"
-                        ? "bg-[#6366f1]/15 text-[#6366f1]"
+                        ? "bg-primary/15 text-primary"
                         : status === "archived"
-                          ? "bg-[#46465a]/40 text-muted-foreground"
-                          : "bg-muted/80 text-[#a0a0b0]",
+                          ? "bg-secondary text-secondary-foreground"
+                          : "bg-muted/80 text-muted-foreground",
                   )}
                 >
                   {status}
@@ -1800,8 +1801,8 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     className={cn(
                       "px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1",
                       reportTestId === t.id
-                        ? "bg-[#4b9fd4] text-foreground"
-                        : "bg-[#4b9fd4]/20 text-[#4b9fd4]",
+                        ? "bg-info text-foreground"
+                        : "bg-info/20 text-info",
                     )}
                   >
                     <BarChart3 className="w-3 h-3" /> Report
@@ -1812,7 +1813,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     type="button"
                     disabled={saving}
                     onClick={() => void runAction("Publish", () => TestService.publish(ctx, t.id))}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb] flex items-center gap-1 disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/20 text-primary flex items-center gap-1 disabled:opacity-50"
                   >
                     <Send className="w-3 h-3" /> Publish
                   </button>
@@ -1826,7 +1827,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       setScheduleAt("");
                       setError(null);
                     }}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#6366f1]/20 text-[#6366f1] disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/20 text-primary disabled:opacity-50"
                   >
                     Schedule
                   </button>
@@ -1841,7 +1842,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       setEditInstructions("");
                       setError(null);
                     }}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-[#a0a0b0] disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-muted-foreground disabled:opacity-50"
                   >
                     Edit
                   </button>
@@ -1851,7 +1852,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     type="button"
                     disabled={saving}
                     onClick={() => void runAction("Archive", () => TestService.archive(ctx, t.id))}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-[#c08a3a] flex items-center gap-1 disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-warning flex items-center gap-1 disabled:opacity-50"
                   >
                     <Archive className="w-3 h-3" /> Archive
                   </button>
@@ -1864,7 +1865,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       if (!window.confirm(`Delete “${t.title ?? "this test"}”?`)) return;
                       void runAction("Delete", () => TestService.remove(ctx, t.id));
                     }}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#cc5069]/15 text-[#cc5069] flex items-center gap-1 disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-destructive/15 text-destructive flex items-center gap-1 disabled:opacity-50"
                   >
                     <Trash2 className="w-3 h-3" /> Delete
                   </button>
@@ -1876,7 +1877,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     type="datetime-local"
                     value={scheduleAt}
                     onChange={(e) => setScheduleAt(e.target.value)}
-                    className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
+                    className="bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground"
                   />
                   <button
                     type="button"
@@ -1887,7 +1888,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                         setScheduleDraftId(null);
                       })
                     }
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#6366f1] text-foreground disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary text-primary-foreground disabled:opacity-50"
                   >
                     Confirm schedule
                   </button>
@@ -1906,13 +1907,13 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     placeholder="Title"
-                    className="w-full bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
+                    className="w-full bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground"
                   />
                   <textarea
                     value={editInstructions}
                     onChange={(e) => setEditInstructions(e.target.value)}
                     placeholder="Update instructions (optional)"
-                    className="w-full bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground min-h-[50px]"
+                    className="w-full bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground min-h-[50px]"
                   />
                   <div className="flex gap-2">
                     <button
@@ -1929,7 +1930,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                           setEditId(null);
                         })
                       }
-                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb] text-foreground disabled:opacity-50"
+                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary text-primary-foreground disabled:opacity-50"
                     >
                       Save changes
                     </button>
@@ -1947,21 +1948,21 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 <div className="pt-2 mt-1 border-t border-border/60 space-y-3">
                   {reportLoading && <Loading label="Loading report" />}
                   {reportError && (
-                    <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-[11px] text-[#cc5069]">
+                    <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
                       {reportError}
                     </div>
                   )}
                   {report && (
                     <>
                       <div className="grid grid-cols-3 gap-2">
-                        <div className="rounded-xl bg-muted/60 px-2 py-1.5">
+                        <div className="rounded-[2px] bg-muted/60 px-2 py-1.5">
                           <div className="text-[9px] text-muted-foreground">Submitted</div>
                           <div className="text-xs font-bold text-foreground">
                             {toCountLabel(report.submitted_count)} of{" "}
                             {report.students.length}
                           </div>
                         </div>
-                        <div className="rounded-xl bg-muted/60 px-2 py-1.5">
+                        <div className="rounded-[2px] bg-muted/60 px-2 py-1.5">
                           <div className="text-[9px] text-muted-foreground">Class average</div>
                           {/* NULL, not 0, when nobody has sat it — the database
                               is deliberate about that and the screen must be
@@ -1974,7 +1975,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                               : ""}
                           </div>
                         </div>
-                        <div className="rounded-xl bg-muted/60 px-2 py-1.5">
+                        <div className="rounded-[2px] bg-muted/60 px-2 py-1.5">
                           <div className="text-[9px] text-muted-foreground">Avg per question</div>
                           <div className="text-xs font-bold text-foreground">
                             {report.average_seconds_per_question == null
@@ -2004,7 +2005,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                               <span className="text-[10px] text-foreground truncate">
                                 {displayTopic(w.topic) || w.topic}
                               </span>
-                              <span className="text-[9px] text-[#cc5069] shrink-0">
+                              <span className="text-[9px] text-destructive shrink-0">
                                 {w.wrong} of {w.asked} wrong · {toPercentLabel(w.wrong_pct)}
                               </span>
                             </div>
@@ -2045,10 +2046,10 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                               </span>
                             </button>
                             {drillStudentId === s.student_id && (
-                              <div className="mt-1 ml-2 rounded-xl border border-border/60 bg-muted/20 px-2 py-2 space-y-2">
+                              <div className="mt-1 ml-2 rounded-[2px] border border-border/60 bg-muted/20 px-2 py-2 space-y-2">
                                 {drillLoading && <Loading label="Loading" />}
                                 {drillError && (
-                                  <div className="text-[10px] text-[#cc5069]">{drillError}</div>
+                                  <div className="text-[10px] text-destructive">{drillError}</div>
                                 )}
                                 {/* Three different empty states, because they
                                     are three different facts. Rendering them
@@ -2100,7 +2101,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                                             {w.marks != null ? ` · ${w.marks} marks` : ""}
                                           </div>
                                           <div className="text-[9px]">
-                                            <span className="text-[#cc5069]">
+                                            <span className="text-destructive">
                                               {!w.answered
                                                 ? "Left blank"
                                                 : theirs != null
@@ -2108,7 +2109,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                                                   : "Their answer was recorded in a form this screen cannot read"}
                                             </span>
                                             {right != null && (
-                                              <span className="text-[#4aa87a]">
+                                              <span className="text-success">
                                                 {" "}
                                                 · Correct: {right}
                                               </span>
@@ -2416,17 +2417,17 @@ export function LiveExamsMarksTab({
         <button
           type="button"
           onClick={() => setActiveSubject(null)}
-          className="text-[10px] font-bold text-[#3b5bdb]"
+          className="text-[10px] font-bold text-primary"
         >
           â† Back to exams
         </button>
         {error && (
-          <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+          <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {error}
           </div>
         )}
         {flash && (
-          <div className="rounded-xl bg-[#10b981]/15 text-[#10b981] px-3 py-2 text-xs font-semibold">
+          <div className="rounded-[2px] bg-success/15 text-success px-3 py-2 text-xs font-semibold">
             {flash}
           </div>
         )}
@@ -2435,17 +2436,17 @@ export function LiveExamsMarksTab({
             {activeExam.name} · {activeSubject.subject.subject}
           </div>
           {!canEditActive && (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-muted/80 text-[#a0a0b0]">
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-muted/80 text-muted-foreground">
               Read Only
             </span>
           )}
           {activeExam.marksLocked && (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#c08a3a]/20 text-[#c08a3a] flex items-center gap-1">
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-warning/20 text-warning flex items-center gap-1">
               <Lock className="w-3 h-3" /> Locked
             </span>
           )}
           {activeExam.resultsPublishedAt && (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#4aa87a]/20 text-[#4aa87a]">
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-success/20 text-success">
               Results published
             </span>
           )}
@@ -2462,7 +2463,7 @@ export function LiveExamsMarksTab({
             {roster.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between gap-3 p-3 bg-surface border border-border/70 rounded-xl"
+                className="flex items-center justify-between gap-3 p-3 bg-surface border border-border/70 rounded-[2px]"
               >
                 <div className="text-xs text-foreground min-w-0 truncate">
                   {s.rollNumber ? `#${s.rollNumber} · ` : ""}
@@ -2490,7 +2491,7 @@ export function LiveExamsMarksTab({
             type="button"
             disabled={saving}
             onClick={() => void saveMarks()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-foreground disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-[10px] font-bold bg-primary text-primary-foreground disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
             Save marks
@@ -2506,17 +2507,17 @@ export function LiveExamsMarksTab({
         <button
           type="button"
           onClick={() => setActiveSitting(null)}
-          className="text-[10px] font-bold text-[#3b5bdb]"
+          className="text-[10px] font-bold text-primary"
         >
           â† Back to exams
         </button>
         {error && (
-          <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+          <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {error}
           </div>
         )}
         {flash && (
-          <div className="rounded-xl bg-[#10b981]/15 text-[#10b981] px-3 py-2 text-xs font-semibold">
+          <div className="rounded-[2px] bg-success/15 text-success px-3 py-2 text-xs font-semibold">
             {flash}
           </div>
         )}
@@ -2532,7 +2533,7 @@ export function LiveExamsMarksTab({
           {activeSitting.subjects.map((s) => (
             <div
               key={s.examSubjectId}
-              className="flex items-center justify-between gap-2 p-3 bg-surface border border-border/70 rounded-xl"
+              className="flex items-center justify-between gap-2 p-3 bg-surface border border-border/70 rounded-[2px]"
             >
               <div className="text-xs text-foreground font-semibold">{s.subject}</div>
               <div className="text-[10px] text-muted-foreground">
@@ -2552,7 +2553,7 @@ export function LiveExamsMarksTab({
               type="button"
               disabled={saving || activeSitting.marksLocked}
               onClick={() => void finalizeSitting(activeSitting.examId)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#c08a3a]/20 text-[#c08a3a] disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-[10px] font-bold bg-warning/20 text-warning disabled:opacity-50"
             >
               <Lock className="w-3 h-3" /> Finalize all subjects
             </button>
@@ -2560,14 +2561,14 @@ export function LiveExamsMarksTab({
               type="button"
               disabled={saving || !activeSitting.marksLocked}
               onClick={() => void publishSitting(activeSitting.examId)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#4aa87a]/20 text-[#4aa87a] disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-[10px] font-bold bg-success/20 text-success disabled:opacity-50"
             >
               <Unlock className="w-3 h-3" /> Publish Results
             </button>
           </div>
         )}
         {activeSitting.resultsPublishedAt && (
-          <div className="text-[10px] text-[#4aa87a] font-bold">Results published</div>
+          <div className="text-[10px] text-success font-bold">Results published</div>
         )}
       </div>
     );
@@ -2586,30 +2587,30 @@ export function LiveExamsMarksTab({
           <button
             type="button"
             onClick={() => setCreating((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary/15 text-primary"
           >
             <Plus className="w-3 h-3" /> New class exam
           </button>
         )}
       </div>
       {error && (
-        <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+        <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {error}
         </div>
       )}
       {flash && (
-        <div className="rounded-xl bg-[#10b981]/15 text-[#10b981] px-3 py-2 text-xs font-semibold">
+        <div className="rounded-[2px] bg-success/15 text-success px-3 py-2 text-xs font-semibold">
           {flash}
         </div>
       )}
 
       {creating && isClassTeacher && (
-        <div className="bg-surface border border-border rounded-2xl p-4 space-y-2">
+        <div className="bg-surface border border-border rounded-[2px] p-4 space-y-2">
           <input
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="Exam name * e.g. Unit Test 1"
-            className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+            className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
           />
           <div className="flex flex-wrap gap-2">
             <label className="text-[10px] text-muted-foreground flex flex-col gap-1">
@@ -2618,7 +2619,7 @@ export function LiveExamsMarksTab({
                 type="date"
                 value={form.startDate}
                 onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
               />
             </label>
             <label className="text-[10px] text-muted-foreground flex flex-col gap-1">
@@ -2627,7 +2628,7 @@ export function LiveExamsMarksTab({
                 type="date"
                 value={form.endDate}
                 onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
               />
             </label>
             <label className="text-[10px] text-muted-foreground flex flex-col gap-1">
@@ -2635,7 +2636,7 @@ export function LiveExamsMarksTab({
               <input
                 value={form.defaultMaxMarks}
                 onChange={(e) => setForm((f) => ({ ...f, defaultMaxMarks: e.target.value }))}
-                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground w-24"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground w-24"
               />
             </label>
           </div>
@@ -2643,7 +2644,7 @@ export function LiveExamsMarksTab({
             value={form.instructions}
             onChange={(e) => setForm((f) => ({ ...f, instructions: e.target.value }))}
             placeholder="Optional instructions"
-            className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[50px]"
+            className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground min-h-[50px]"
           />
           <p className="text-[9px] text-muted-foreground">
             Subjects are loaded automatically from Teacher–Class–Subject mapping.
@@ -2652,7 +2653,7 @@ export function LiveExamsMarksTab({
             type="button"
             disabled={saving}
             onClick={() => void createClassExam()}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb]"
+            className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
             Create exam
@@ -2666,7 +2667,7 @@ export function LiveExamsMarksTab({
           {pending.map((p) => (
             <div
               key={p.subject.examSubjectId}
-              className="flex items-center justify-between gap-2 p-3 bg-[#3b5bdb]/10 border border-[#3b5bdb]/25 rounded-xl"
+              className="flex items-center justify-between gap-2 p-3 bg-primary/10 border border-primary/25 rounded-[2px]"
             >
               <div>
                 <div className="text-xs font-bold text-foreground">{p.exam.name}</div>
@@ -2677,7 +2678,7 @@ export function LiveExamsMarksTab({
               <button
                 type="button"
                 onClick={() => void openMarks(p, true)}
-                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-[#3b5bdb] text-foreground"
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-primary text-primary-foreground"
               >
                 Enter marks
               </button>
@@ -2695,7 +2696,7 @@ export function LiveExamsMarksTab({
               (subject && s.subject.toLowerCase() === subject.toLowerCase()),
           );
           return (
-            <div key={g.examId} className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
+            <div key={g.examId} className="p-3 bg-surface border border-border/70 rounded-[2px] space-y-2">
               <div className="flex justify-between gap-2">
                 <div>
                   <div className="text-xs font-bold text-foreground">{g.name}</div>
@@ -2707,12 +2708,12 @@ export function LiveExamsMarksTab({
                 </div>
                 <div className="flex flex-col gap-1 items-end">
                   {g.marksLocked && (
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#c08a3a]/20 text-[#c08a3a]">
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-warning/20 text-warning">
                       Locked
                     </span>
                   )}
                   {g.resultsPublishedAt && (
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#4aa87a]/20 text-[#4aa87a]">
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-success/20 text-success">
                       Published
                     </span>
                   )}
@@ -2731,7 +2732,7 @@ export function LiveExamsMarksTab({
                       onClick={() =>
                         known && void openMarks(known, !g.marksLocked && !g.resultsPublishedAt)
                       }
-                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb] disabled:opacity-50"
+                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/15 text-primary disabled:opacity-50"
                     >
                       {s.subject} marks
                     </button>
@@ -2741,7 +2742,7 @@ export function LiveExamsMarksTab({
                   <button
                     type="button"
                     onClick={() => openSittingReview(g)}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-[#a0a0b0]"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-muted-foreground"
                   >
                     Review / publish
                   </button>
@@ -2751,7 +2752,7 @@ export function LiveExamsMarksTab({
                     type="button"
                     disabled={saving}
                     onClick={() => void deleteSitting(g.examId, g.name, g.subjects.length)}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#cc5069]/15 text-[#cc5069] flex items-center gap-1 disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-destructive/15 text-destructive flex items-center gap-1 disabled:opacity-50"
                   >
                     <Trash2 className="w-3 h-3" /> Delete
                   </button>
@@ -2787,7 +2788,7 @@ function DecisionSection({
   question,
   rows,
   empty,
-  metricClass = "text-[#cc5069]",
+  metricClass = "text-destructive",
 }: {
   title: string;
   question: string;
@@ -2796,7 +2797,7 @@ function DecisionSection({
   metricClass?: string;
 }) {
   return (
-    <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
+    <div className="bg-surface border border-border/70 rounded-[2px] p-4 space-y-2">
       <div>
         <div className="text-xs font-bold text-foreground">{title}</div>
         <div className="text-[10px] text-muted-foreground mt-0.5">{question}</div>
@@ -3199,7 +3200,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   if (loading) return <Loading label="Loading decision dashboard…" />;
   if (!analytics && profiles.length === 0) {
     return (
-      <div className="text-xs text-[#cc5069] py-8 text-center">
+      <div className="text-xs text-destructive py-8 text-center">
         {error ?? "No insights available"}
       </div>
     );
@@ -3208,7 +3209,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+        <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {error}
         </div>
       )}
@@ -3223,7 +3224,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       </div>
 
       {analytics && (
-        <div className="bg-surface border border-border/70 rounded-2xl px-3 py-2.5 overflow-x-auto">
+        <div className="bg-surface border border-border/70 rounded-[2px] px-3 py-2.5 overflow-x-auto">
           <div className="flex items-center gap-4 sm:gap-5 min-w-max text-[10px]">
             <div>
               <span className="text-muted-foreground">Attendance </span>
@@ -3332,7 +3333,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         question="Which homework, tests, or exams need my action?"
         rows={workProblemRows}
         empty="None — work pipeline looks clear"
-        metricClass="text-[#f59e0b]"
+        metricClass="text-warning"
       />
 
       {/*

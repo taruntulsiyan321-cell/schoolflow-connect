@@ -56,9 +56,9 @@ export default function TeacherAICoach() {
         subtitle="Per-student diagnostic insights for classroom intervention"
       />
 
-      <Card className="p-4 flex items-start gap-3 border-[#3b5bdb]/30 bg-[#3b5bdb]/5">
-        <Sparkles className="w-4 h-4 text-[#3b5bdb] shrink-0 mt-0.5" />
-        <div className="text-xs text-[#a5b0d8] leading-relaxed">
+      <Card className="p-4 flex items-start gap-3 border-primary/30 bg-primary/5">
+        <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+        <div className="text-xs text-muted-foreground leading-relaxed">
           <span className="font-bold text-foreground">Coming soon.</span> This will generate the same
           kind of AI coaching report students already see for themselves — diagnosis, focus
           areas, recommendations — but built from your class&apos;s student-panel data so you can
@@ -81,7 +81,7 @@ export default function TeacherAICoach() {
               id="ai-coach-class"
               value={classId}
               onChange={(e) => setClassId(e.target.value)}
-              className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50"
+              className="bg-card border border-border rounded-[2px] px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50"
             >
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -99,7 +99,7 @@ export default function TeacherAICoach() {
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
               disabled={students.length === 0}
-              className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50 disabled:opacity-50"
+              className="bg-card border border-border rounded-[2px] px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50 disabled:opacity-50"
             >
               {students.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -113,7 +113,7 @@ export default function TeacherAICoach() {
             type="button"
             disabled
             title="Coming soon — requires the student-panel insight pipeline to be connected first"
-            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted border border-border cursor-not-allowed"
+            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-[2px] text-xs font-semibold text-muted-foreground bg-muted border border-border cursor-not-allowed"
           >
             <Lock className="w-3.5 h-3.5" /> Generate Coaching Report
           </button>
@@ -123,8 +123,8 @@ export default function TeacherAICoach() {
       {/* Preview of the eventual report shape — explicitly labeled as an example */}
       <Card className="p-5 sm:p-6 opacity-60">
         <div className="flex items-center gap-2 mb-4">
-          <span className="w-7 h-7 rounded-full bg-[#3b5bdb]/15 flex items-center justify-center">
-            <Brain className="w-3.5 h-3.5 text-[#3b5bdb]" />
+          <span className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center">
+            <Brain className="w-3.5 h-3.5 text-primary" />
           </span>
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
             Example preview{selectedStudent ? ` — ${selectedStudent.fullName}` : ""}
@@ -134,20 +134,20 @@ export default function TeacherAICoach() {
           <p className="text-sm font-bold text-foreground">
             Strong grasp of algebra, needs focused work on trigonometric identities
           </p>
-          <div className="flex items-start gap-2 text-xs text-[#c8c8d4]">
-            <Lightbulb className="w-3.5 h-3.5 text-[#3b5bdb] shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Lightbulb className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
             Consistently accurate on linear equations; accuracy drops sharply on identity-proof
             questions — likely a formula-recall gap, not a conceptual one.
           </div>
           <div className="flex flex-wrap gap-1.5">
             {["Trigonometric identities", "Formula recall"].map((f) => (
-              <span key={f} className="text-[10px] px-2 py-1 rounded-full bg-[#c08a3a]/15 text-[#c08a3a] font-medium">
+              <span key={f} className="text-[10px] px-2 py-1 rounded-full bg-warning/15 text-warning font-medium">
                 {f}
               </span>
             ))}
           </div>
-          <div className="flex items-start gap-2 text-xs text-[#c8c8d4] border-t border-border/70 pt-3">
-            <Target className="w-3.5 h-3.5 text-[#4aa87a] shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 text-xs text-muted-foreground border-t border-border/70 pt-3">
+            <Target className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
             Assign a short identity-drill Test before the next trigonometry class.
           </div>
         </div>
