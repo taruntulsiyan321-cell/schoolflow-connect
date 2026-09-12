@@ -61,6 +61,17 @@ export default function TestResult() {
    */
   const [sheet, setSheet] = useState<TestAnswerSheet | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
+  /**
+   * The context every read on this page was made with.
+   *
+   * NOT `ctx` from the hook: that is null until the academic context resolves,
+   * which is exactly why `resolveCtx()` exists and why every service call here
+   * goes through it. Gating the leaderboard on the hook's `ctx` instead meant
+   * the board silently did not render on a fresh navigation — the rest of the
+   * screen loaded, and one card was missing with nothing to say why. Caught by
+   * `TestResult.test.tsx`, which renders with the hook deliberately unresolved.
+   */
+  const [loadedCtx, setLoadedCtx] = useState<Awaited<ReturnType<typeof resolveCtx>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // §10.25's report, which is not the same thing as the question review below.
@@ -81,6 +92,7 @@ export default function TestResult() {
     setLoadError(null);
     try {
       const serviceCtx = await resolveCtx();
+      setLoadedCtx(serviceCtx);
       const d = (await TestService.get(serviceCtx, id)) as Record<string, unknown>;
       setTest(d);
       const a = await TestService.getMyAttempt(serviceCtx, id);
@@ -285,8 +297,8 @@ export default function TestResult() {
 
           It is fenced on having submitted, so it is only asked for once there
           is a submitted attempt — which is exactly when this screen renders. */}
-      {attempt?.submitted_at && ctx && (
-        <TestLeaderboard ctx={ctx} testId={String(id)} className="mb-6" />
+      {attempt?.submitted_at && loadedCtx && (
+        <TestLeaderboard ctx={loadedCtx} testId={String(id)} className="mb-6" />
       )}
 
       {report && report.submitted && (
