@@ -1,63 +1,125 @@
-/* Gurukul Principal — Chalkboard Signal light executive theme */
+/* Gurukul Principal — Autonomous Design Implementation (Figma Make) */
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300;1,9..144,400&family=Work+Sans:wght@300;400;500;600;700&display=swap");
+
 .gurukul-principal {
-  --font-display: "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", "Courier New", monospace;
-  --background: 180 14% 96%;
-  --foreground: 199 45% 8%;
-  --card: 0 0% 100%;
-  --card-foreground: 199 38% 13%;
-  --primary: 193 68% 28%;
-  --primary-foreground: 0 0% 100%;
-  --muted: 188 21% 93%;
-  --muted-foreground: 198 15% 30%;
-  --accent: 9 52% 54%;
-  --warning: 35 68% 36%;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Work Sans", system-ui, sans-serif;
+  --font-mono: "DM Mono", "Courier New", monospace;
+
+  /* Design tokens (HSL channels for Tailwind hsl(var(--*))) */
+  --background: 48 20.8% 90.6%;
+  --foreground: 30 21.1% 7.5%;
+
+  --card: 45 26.7% 94.1%;
+  --card-foreground: 30 21.1% 7.5%;
+
+  --popover: 45 26.7% 94.1%;
+  --popover-foreground: 30 21.1% 7.5%;
+
+  --primary: 30 23.8% 8.2%;
+  --primary-foreground: 40 33.3% 91.2%;
+  --primary-glow: 40 20% 70%;
+
+  --secondary: 38.6 19.4% 85.9%;
+  --secondary-foreground: 30 7.2% 27.1%;
+
+  --muted: 40 16.1% 81.8%;
+  --muted-foreground: 34.3 5.9% 46.7%;
+
+  --accent: 26.5 29.8% 22.4%;
+  --accent-foreground: 40 33.3% 91.2%;
+
+  --warning: 47.7 100% 21%;
+  --warning-foreground: 40 33.3% 91.2%;
+
   --destructive: 1 37% 48%;
-  --success: 161 46% 33%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 40 12.4% 76.3%;
+  --input: 40 12.4% 76.3%;
+  --ring: 26.5 29.8% 22.4%;
+  --radius: 2px;
+
+  --success: 112.9 39.5% 25.3%;
   --info: 192 52% 34%;
-  --ring: 193 68% 28%;
+
+  --sidebar-background: 30 23.8% 8.2%;
+  --sidebar-foreground: 38.6 17.1% 83.9%;
+  --sidebar-primary: 40 33.3% 91.2%;
+  --sidebar-primary-foreground: 30 23.8% 8.2%;
+  --sidebar-accent: 34.3 17.9% 15.3%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 100% / 0.1;
+  --sidebar-ring: 26.5 29.8% 22.4%;
 
   --bg: hsl(var(--background));
   --surface: hsl(var(--card));
   --surface-2: hsl(var(--muted));
-  --border: 189 18% 86%;
   --border-subtle: hsl(var(--border));
-  --navy: hsl(var(--card));
-  --navy-mid: hsl(var(--muted));
-  --indigo: hsl(var(--primary));
-  --indigo-light: hsl(var(--secondary));
-  --indigo-mid: hsl(var(--primary-glow));
-  --teal: hsl(var(--info));
-  --amber: hsl(var(--warning));
-  --rose: hsl(var(--destructive));
-  --emerald: hsl(var(--success));
-  --coral: hsl(var(--accent));
-  --violet: hsl(var(--info));
-  --sky: hsl(var(--primary-glow));
   --text-primary: hsl(var(--foreground));
   --text-secondary: hsl(var(--muted-foreground));
   --text-muted: hsl(var(--muted-foreground));
-  --radius-sm: 0.5rem;
-  --radius: 0.875rem;
-  --radius-lg: 1rem;
-  --shadow-sm: var(--shadow-card);
-  --shadow: var(--shadow-elevated);
-  --shadow-lg: var(--shadow-elevated);
+  --indigo: hsl(var(--accent));
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-lg: 0 8px 24px rgba(23, 19, 15, 0.08);
 
+  height: 100%;
   min-height: 100vh;
-  background: var(--bg);
-  color: var(--text-primary);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+}
+
+.gurukul-principal,
+.gurukul-principal * {
+  scrollbar-width: none;
+}
+.gurukul-principal *::-webkit-scrollbar {
+  display: none;
+}
+
+.gurukul-principal .scroll-y {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cac5bb transparent;
+}
+.gurukul-principal .scroll-y::-webkit-scrollbar {
+  display: block;
+  width: 4px;
+}
+.gurukul-principal .scroll-y::-webkit-scrollbar-thumb {
+  background: #cac5bb;
+  border-radius: 2px;
+}
+
+.gurukul-principal .scroll-x {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cac5bb transparent;
+}
+.gurukul-principal .scroll-x::-webkit-scrollbar {
+  display: block;
+  height: 4px;
+}
+.gurukul-principal .scroll-x::-webkit-scrollbar-thumb {
+  background: #cac5bb;
+  border-radius: 2px;
 }
 
 .gurukul-principal h1,
 .gurukul-principal h2,
 .gurukul-principal h3,
-.gurukul-principal h4 {
+.gurukul-principal h4,
+.gurukul-principal .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
+}
+
+.gurukul-principal .font-mono,
+.gurukul-principal .font-mono-data {
+  font-family: var(--font-mono);
 }
 
 .gurukul-principal button,
@@ -66,203 +128,3 @@
 .gurukul-principal textarea {
   font-family: inherit;
 }
-
-.gurukul-principal .font-display {
-  font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
-}
-
-.gurukul-principal .font-mono-data {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-}
-
-.gurukul-principal ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-.gurukul-principal ::-webkit-scrollbar-track {
-  background: transparent;
-}
-.gurukul-principal ::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 2px;
-}
-.gurukul-principal ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
-/* ══════════════════════════════════════════════════════════════════════════════
-   PREMIUM REFINEMENTS - Enhanced principal panel polish
-   ══════════════════════════════════════════════════════════════════════════════ */
-
-.gurukul-principal [class*="cursor-pointer"]:hover,
-.gurukul-principal button:not(:disabled):hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(20, 37, 45, 0.08), 0 2px 8px rgba(20, 37, 45, 0.05);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gurukul-principal button {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gurukul-principal button:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.gurukul-principal *:focus-visible {
-  outline: 2px solid hsl(var(--primary));
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
-}
-
-.gurukul-principal input:focus,
-.gurukul-principal textarea:focus,
-.gurukul-principal select:focus {
-  border-color: hsl(var(--primary) / 0.5) !important;
-  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08);
-  outline: none;
-}
-
-.gurukul-principal h1 { font-weight: 800; letter-spacing: -0.025em; line-height: 1.1; }
-.gurukul-principal h2 { font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
-.gurukul-principal h3, .gurukul-principal h4 { font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; }
-
-.gurukul-principal > main {
-  animation: page-fade-in 0.35s ease-out;
-}
-
-@keyframes page-fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.gurukul-principal button svg,
-.gurukul-principal a svg {
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gurukul-principal button:not(:disabled):hover svg,
-.gurukul-principal a:hover svg {
-  transform: scale(1.08);
-}
-
-/* Professional Animations */
-@keyframes slide-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-@keyframes shake { 0%, 100% { transform: translateX(0); } 25%, 75% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
-
-.gurukul-principal [role="dialog"] { animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-.gurukul-principal [role="tooltip"] { animation: scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
-.gurukul-principal .notification { animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-.gurukul-principal .stagger > * { animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
-.gurukul-principal .stagger > *:nth-child(2) { animation-delay: 0.05s; }
-.gurukul-principal .stagger > *:nth-child(3) { animation-delay: 0.1s; }
-.gurukul-principal .stagger > *:nth-child(4) { animation-delay: 0.15s; }
-.gurukul-principal .spinner { animation: spin 1s linear infinite; }
-.gurukul-principal .pulse { animation: pulse 2s ease-in-out infinite; }
-.gurukul-principal .error { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
-
-@media (prefers-reduced-motion: reduce) {
-  .gurukul-principal * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-}
-
-/* Enhanced Visibility & Vibrant Design */
-.gurukul-principal * { color: hsl(var(--foreground)); }
-.gurukul-principal [class*="text-muted"] { color: hsl(var(--muted-foreground)) !important; }
-.gurukul-principal { background: linear-gradient(to bottom, #f8fafb 0%, #f3f6f7 100%); }
-.gurukul-principal [class*="bg-surface"], .gurukul-principal [class*="rounded-2xl"]:not(button) {
-  background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%) !important;
-  border: 1px solid rgba(59, 91, 219, 0.08);
-  box-shadow: 0 1px 3px rgba(20, 37, 45, 0.04), 0 8px 16px rgba(20, 37, 45, 0.02);
-}
-.gurukul-principal button[class*="bg-[#3b5bdb]"]:not([class*="bg-[#3b5bdb]/"]) {
-  background: linear-gradient(135deg, #4c6ef5 0%, #3b5bdb 100%) !important;
-  color: white !important;
-  box-shadow: 0 2px 8px rgba(59, 91, 219, 0.25);
-}
-.gurukul-principal table { background: white; }
-.gurukul-principal th {
-  background: linear-gradient(to bottom, #f8fafb, #f3f6f7);
-  color: hsl(var(--foreground)) !important;
-  font-weight: 700;
-  border-bottom: 2px solid hsl(var(--primary) / 0.15);
-}
-.gurukul-principal td { color: hsl(var(--foreground)) !important; border-bottom: 1px solid hsl(var(--border)); }
-.gurukul-principal tr:hover td { background: hsl(var(--primary) / 0.03); }
-.gurukul-principal input, .gurukul-principal textarea, .gurukul-principal select {
-  background: white !important;
-  border: 1.5px solid hsl(var(--border)) !important;
-  color: hsl(var(--foreground)) !important;
-  font-weight: 500;
-}
-.gurukul-principal input:focus, .gurukul-principal textarea:focus, .gurukul-principal select:focus {
-  border-color: hsl(var(--primary)) !important;
-  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
-}
-.gurukul-principal button { font-weight: 600 !important; }
-.gurukul-principal button:not([class*="bg-[#3b5bdb]"]) { color: hsl(var(--foreground)) !important; }
-
-/* ══════════════════════════════════════════════════════════════════════════════
-   MAXIMUM READABILITY - No more washed out text!
-   ══════════════════════════════════════════════════════════════════════════════ */
-
-/* All text defaults to very dark */
-.gurukul-principal { color: hsl(199 45% 10%) !important; }
-
-/* Headings are extremely bold and dark */
-.gurukul-principal h1, .gurukul-principal h2, .gurukul-principal h3, .gurukul-principal h4, .gurukul-principal h5, .gurukul-principal h6 {
-  color: hsl(199 50% 5%) !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.02em;
-}
-
-/* Stat numbers are massive and bold */
-.gurukul-principal [class*="text-xl"], .gurukul-principal [class*="text-2xl"],
-.gurukul-principal [class*="text-3xl"], .gurukul-principal [class*="text-4xl"] {
-  color: hsl(199 50% 5%) !important;
-  font-weight: 900 !important;
-}
-
-/* Small text/labels are dark gray, not light */
-.gurukul-principal [class*="text-xs"]:not([class*="-foreground"]):not([class*="text-white"]), .gurukul-principal [class*="text-sm"]:not([class*="-foreground"]):not([class*="text-white"]),
-.gurukul-principal label {
-  color: hsl(199 30% 20%) !important;
-  font-weight: 600 !important;
-}
-
-/* Muted text is DARK gray, not washed out */
-.gurukul-principal [class*="text-muted"], .gurukul-principal .text-muted-foreground {
-  color: hsl(199 20% 35%) !important;
-  font-weight: 500 !important;
-}
-
-/* Table text is bold and dark */
-.gurukul-principal td { color: hsl(199 40% 12%) !important; font-weight: 500 !important; }
-.gurukul-principal th { color: hsl(199 50% 5%) !important; font-weight: 800 !important; }
-
-/* Buttons have strong text */
-.gurukul-principal button { font-weight: 700 !important; }
-
-/* Inputs are very readable */
-.gurukul-principal input, .gurukul-principal textarea, .gurukul-principal select {
-  color: hsl(199 45% 8%) !important;
-  font-weight: 500 !important;
-}
-
-.gurukul-principal input::placeholder, .gurukul-principal textarea::placeholder {
-  color: hsl(199 15% 40%) !important;
-}
-
-/* Override inline pale colors */
-.gurukul-principal [class*="text-gray"], .gurukul-principal [class*="text-slate"] {
-  color: hsl(199 30% 20%) !important;
-}
-
-/* Ensure nothing is washed out */
-.gurukul-principal * {
-  text-shadow: none !important;
-}
-
-
