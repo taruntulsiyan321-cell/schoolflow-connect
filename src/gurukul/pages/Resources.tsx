@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { EmptyState, GlassCard, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { FileText, Video, Download, Search, ExternalLink } from "lucide-react";
 import { ResourceService, type LearningResourceRow } from "@/academic";
@@ -124,7 +125,7 @@ export default function Resources() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search resources…"
-            className="w-full bg-muted border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50 transition-colors"
+            className="w-full bg-muted border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
           />
         </div>
       )}
@@ -146,7 +147,7 @@ export default function Resources() {
         ) : (
           <div className="space-y-2">
             {filtered.map((r) => {
-              const col = subjectColor[r.subject] ?? "#78788c";
+              const col = subjectColor[r.subject] ?? "hsl(var(--muted-foreground))";
               const hasLink = Boolean(resourceRef(r));
               return (
                 <button
@@ -157,7 +158,7 @@ export default function Resources() {
                 >
                   <div
                     className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: `${col}15`, color: col }}
+                    style={{ background: `${withAlpha(col, 0.08)}`, color: col }}
                   >
                     {r.type === "Video" ? <Video className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                   </div>

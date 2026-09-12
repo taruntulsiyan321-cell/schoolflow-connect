@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { HomeworkService, MarksService, TestService, CalendarEventsService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
@@ -23,11 +24,11 @@ interface CalendarEvent {
 }
 
 const TYPE_META: Record<EventType, { label: string; color: string; icon: React.ReactNode }> = {
-  test: { label: "Test", color: "#3b5bdb", icon: <BookOpen className="w-3 h-3" /> },
-  deadline: { label: "Deadline", color: "#c08a3a", icon: <ClipboardList className="w-3 h-3" /> },
-  event: { label: "Event", color: "#4aa87a", icon: <Star className="w-3 h-3" /> },
-  holiday: { label: "Holiday", color: "#78788c", icon: <CalendarDays className="w-3 h-3" /> },
-  exam: { label: "Exam", color: "#cc5069", icon: <AlertCircle className="w-3 h-3" /> },
+  test: { label: "Test", color: "hsl(var(--primary))", icon: <BookOpen className="w-3 h-3" /> },
+  deadline: { label: "Deadline", color: "hsl(var(--warning))", icon: <ClipboardList className="w-3 h-3" /> },
+  event: { label: "Event", color: "hsl(var(--success))", icon: <Star className="w-3 h-3" /> },
+  holiday: { label: "Holiday", color: "hsl(var(--muted-foreground))", icon: <CalendarDays className="w-3 h-3" /> },
+  exam: { label: "Exam", color: "hsl(var(--destructive))", icon: <AlertCircle className="w-3 h-3" /> },
 };
 
 function toDateKey(iso: string | null | undefined): string | null {
@@ -37,10 +38,10 @@ function toDateKey(iso: string | null | undefined): string | null {
 }
 
 function colorForSubject(subject: string, type: EventType): string {
-  if (type === "exam") return "#cc5069";
+  if (type === "exam") return "hsl(var(--destructive))";
   const key = displaySubject(subject) || subject;
-  if (type === "deadline") return subjectColor[key] ?? subjectColor[subject] ?? "#c08a3a";
-  return subjectColor[key] ?? subjectColor[subject] ?? "#3b5bdb";
+  if (type === "deadline") return subjectColor[key] ?? subjectColor[subject] ?? "hsl(var(--warning))";
+  return subjectColor[key] ?? subjectColor[subject] ?? "hsl(var(--primary))";
 }
 
 export default function Calendar() {
@@ -334,9 +335,9 @@ export default function Calendar() {
                   className={cn(
                     "aspect-square flex flex-col items-center justify-between rounded-xl p-1 transition-all duration-150 text-xs font-semibold relative",
                     isSelected
-                      ? "bg-[#3b5bdb] text-foreground"
+                      ? "bg-primary text-foreground"
                       : isToday
-                        ? "bg-[#3b5bdb]/15 text-blue-400 border border-[#3b5bdb]/30"
+                        ? "bg-primary/15 text-blue-400 border border-primary/30"
                         : isHoliday
                           ? "opacity-40 text-muted-foreground"
                           : "text-muted-foreground hover:bg-black/5 hover:text-foreground",
@@ -345,10 +346,10 @@ export default function Calendar() {
                   <span className="mt-1">{day}</span>
                   {events.length > 0 && (
                     <div className="flex gap-0.5 mb-1 flex-wrap justify-center">
-                      {hasExam && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#cc5069" }} />}
-                      {hasTest && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#3b5bdb" }} />}
-                      {hasDeadline && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#c08a3a" }} />}
-                      {hasEvent && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#4aa87a" }} />}
+                      {hasExam && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "hsl(var(--destructive))" }} />}
+                      {hasTest && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "hsl(var(--primary))" }} />}
+                      {hasDeadline && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "hsl(var(--warning))" }} />}
+                      {hasEvent && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "hsl(var(--success))" }} />}
                     </div>
                   )}
                 </button>
@@ -372,7 +373,7 @@ export default function Calendar() {
                   <div
                     key={e.id}
                     className="flex items-center gap-3 p-3 rounded-xl border"
-                    style={{ borderColor: `${e.color}25`, background: `${e.color}08` }}
+                    style={{ borderColor: `${withAlpha(e.color, 0.15)}`, background: `${withAlpha(e.color, 0.03)}` }}
                   >
                     <span style={{ color: e.color }}>{meta.icon}</span>
                     <div className="flex-1 min-w-0">
@@ -381,7 +382,7 @@ export default function Calendar() {
                     </div>
                     <span
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
-                      style={{ color: e.color, background: `${e.color}15` }}
+                      style={{ color: e.color, background: `${withAlpha(e.color, 0.08)}` }}
                     >
                       {meta.label}
                     </span>
@@ -413,7 +414,7 @@ export default function Calendar() {
                     >
                       <div
                         className="flex flex-col items-center justify-center w-10 h-10 rounded-xl shrink-0"
-                        style={{ background: `${e.color}15`, color: e.color }}
+                        style={{ background: `${withAlpha(e.color, 0.08)}`, color: e.color }}
                       >
                         <span className="text-xs font-black leading-none">{d.getDate()}</span>
                         <span className="text-[9px] leading-none mt-0.5 opacity-70">{weekday}</span>

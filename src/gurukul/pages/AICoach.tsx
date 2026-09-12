@@ -1,4 +1,5 @@
 ﻿import { useState, useRef, useEffect, useMemo } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { createPortal } from "react-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
@@ -89,12 +90,12 @@ const SUGGESTIONS = [
   // asked a tutor to read the office noticeboard. Those answers live on the
   // Class page. Measured before deleting: the array held eight, of which six
   // were administrative and two were already about learning.
-  { icon:<Sparkles className="w-4 h-4"/>,      text:"Explain my weak topics",                 color:"#c08a3a" },
-  { icon:<AlertCircle className="w-4 h-4"/>,   text:"Which are my weakest topics?",           color:"#cc5069" },
-  { icon:<HelpCircle className="w-4 h-4"/>,    text:"What should I do to improve them?",      color:"#3b5bdb" },
-  { icon:<BookOpen className="w-4 h-4"/>,      text:"Explain this concept to me",             color:"#4b9fd4" },
-  { icon:<MessageSquare className="w-4 h-4"/>, text:"I got this question wrong — why?",       color:"#6882e8" },
-  { icon:<Layers className="w-4 h-4"/>,        text:"What should I revise next?",             color:"#4aa87a" },
+  { icon:<Sparkles className="w-4 h-4"/>,      text:"Explain my weak topics",                 color:"hsl(var(--warning))" },
+  { icon:<AlertCircle className="w-4 h-4"/>,   text:"Which are my weakest topics?",           color:"hsl(var(--destructive))" },
+  { icon:<HelpCircle className="w-4 h-4"/>,    text:"What should I do to improve them?",      color:"hsl(var(--primary))" },
+  { icon:<BookOpen className="w-4 h-4"/>,      text:"Explain this concept to me",             color:"hsl(var(--info))" },
+  { icon:<MessageSquare className="w-4 h-4"/>, text:"I got this question wrong — why?",       color:"hsl(var(--primary))" },
+  { icon:<Layers className="w-4 h-4"/>,        text:"What should I revise next?",             color:"hsl(var(--success))" },
 ];
 function loadStoredConvos(key: string | null): Conversation[] {
   if (!key) return EMPTY_CONVOS;
@@ -154,7 +155,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
       {/* Avatar */}
       {isNova && (
         <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center mt-1"
-          style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb)", boxShadow:"0 0 12px rgba(59,130,246,0.4)" }}>
+          style={{ background:"radial-gradient(circle at 35% 35%, hsl(var(--info)), hsl(var(--primary)))", boxShadow:"0 0 12px hsl(var(--primary) / 0.4)" }}>
           <Brain className="w-4 h-4 text-foreground"/>
         </div>
       )}
@@ -170,7 +171,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
               : "bg-surface border border-border/70 text-foreground"
             : "text-foreground"
         )}
-        style={!isNova ? { background:"linear-gradient(135deg,#3b5bdb,#2563eb)", boxShadow:"0 4px 16px rgba(59,130,246,0.25)" } : {}}>
+        style={!isNova ? { background:"linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8))", boxShadow:"0 4px 16px hsl(var(--primary) / 0.25)" } : {}}>
           {msg.isError && (
             <div className="flex items-center gap-1.5 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
               <AlertCircle className="w-3 h-3"/> Connection issue — not a live answer
@@ -294,7 +295,7 @@ function SuggestionGrid({
     <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
       {/* Nova orb */}
       <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-5"
-        style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb, #4338ca)", boxShadow:"0 0 40px rgba(59,130,246,0.4)" }}>
+        style={{ background:"radial-gradient(circle at 35% 35%, hsl(var(--info)), hsl(var(--primary)), hsl(var(--primary) / 0.75))", boxShadow:"0 0 40px hsl(var(--primary) / 0.4)" }}>
         <Brain className="w-9 h-9 text-foreground"/>
       </div>
       <h2 className="text-2xl font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>
@@ -311,7 +312,7 @@ function SuggestionGrid({
           <button key={i} onClick={() => onSelect(s.text)}
             className="group flex items-center gap-3 p-3.5 rounded-2xl border border-border/70 bg-surface/60 hover:border-border hover:bg-surface transition-all text-left">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
-              style={{ background:`${s.color}15`, color:s.color }}>
+              style={{ background:`${withAlpha(s.color, 0.08)}`, color:s.color }}>
               {s.icon}
             </div>
             <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors leading-snug">{s.text}</span>
@@ -368,7 +369,7 @@ function Sidebar({
     return (
       <div className={cn(
         "group relative flex items-start gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all",
-        isActive ? "bg-[#3b5bdb]/12 border border-[#3b5bdb]/20" : "hover:bg-muted"
+        isActive ? "bg-primary/12 border border-primary/20" : "hover:bg-muted"
       )} onClick={() => onSelect(c.id)}>
         <div className="flex-1 min-w-0 pt-0.5">
           <div className="flex items-center gap-1.5 mb-0.5">
@@ -410,7 +411,7 @@ function Sidebar({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background:"radial-gradient(circle, #3b5bdb, #4338ca)" }}>
+              style={{ background:"radial-gradient(circle, hsl(var(--primary)), hsl(var(--primary) / 0.75))" }}>
               <Brain className="w-3.5 h-3.5 text-foreground"/>
             </div>
             <span className="text-sm font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>Nova</span>
@@ -433,7 +434,7 @@ function Sidebar({
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground"/>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search conversations…"
-            className="w-full bg-muted border border-border rounded-lg pl-7 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/30 transition-colors"/>
+            className="w-full bg-muted border border-border rounded-lg pl-7 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/30 transition-colors"/>
         </div>
       </div>
 
@@ -570,7 +571,7 @@ function InputBar({
           ))}
         </div>
       )}
-      <div className="flex items-end gap-2 bg-surface border border-border rounded-2xl p-2 focus-within:border-[#3b5bdb]/30 transition-all">
+      <div className="flex items-end gap-2 bg-surface border border-border rounded-2xl p-2 focus-within:border-primary/30 transition-all">
         {attachPresentation !== "hidden" && (
           <>
             <input
@@ -631,7 +632,7 @@ function InputBar({
           className={cn(
             "w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5",
             (text.trim() || pendingImages.length > 0) && !disabled && !processing
-              ? "bg-[#3b5bdb] text-foreground hover:bg-blue-500"
+              ? "bg-primary text-foreground hover:bg-blue-500"
               : "text-muted-foreground/40 cursor-not-allowed"
           )}>
           <Send className="w-4 h-4"/>
@@ -1071,11 +1072,18 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
             <ChevronLeft className="w-4 h-4"/>
           </button>
 
-          {/* Rename input / title */}
-          {renaming === activeId ? (
+          {/* Rename input / title.
+              `renaming === activeId` is TRUE when both are null — which is a
+              student's first visit, before any conversation exists. So AI Coach
+              opened with an empty rename field stretched across the top of the
+              thread pane, offering to rename a conversation that was not there.
+              Measured: a 712x24 input at the top of the pane with no value and
+              no conversation behind it. Requiring an id makes "nothing is being
+              renamed" and "nothing is selected" different states again. */}
+          {activeId && renaming === activeId ? (
             <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
               onBlur={commitRename} onKeyDown={e => e.key==="Enter" && commitRename()}
-              className="flex-1 bg-transparent text-sm font-semibold text-foreground outline-none border-b border-[#3b5bdb]/40 pb-0.5"/>
+              className="flex-1 bg-transparent text-sm font-semibold text-foreground outline-none border-b border-primary/40 pb-0.5"/>
           ) : (
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-foreground truncate">
@@ -1138,12 +1146,12 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
               {isTyping && (
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb)" }}>
+                    style={{ background:"radial-gradient(circle at 35% 35%, hsl(var(--info)), hsl(var(--primary)))" }}>
                     <Brain className="w-4 h-4 text-foreground"/>
                   </div>
                   <div className="px-4 py-3 rounded-2xl bg-surface border border-border/70 flex items-center gap-1.5">
                     {[0,1,2].map(i => (
-                      <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb] animate-bounce"
+                      <div key={i} className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
                         style={{ animationDelay:`${i*0.15}s` }}/>
                     ))}
                   </div>

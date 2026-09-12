@@ -234,7 +234,7 @@ export default function Leaderboard() {
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-1">
-                  <ProgressBar value={Math.round((p.value / maxXp) * 100)} color="#6882e8" height="h-1" />
+                  <ProgressBar value={Math.round((p.value / maxXp) * 100)} color="hsl(var(--primary))" height="h-1" />
                   <span className="text-[11px] text-muted-foreground shrink-0 capitalize">
                     Lv.{p.level} · {p.league}
                   </span>

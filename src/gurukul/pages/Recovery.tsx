@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useRecoveryZone, type RecoveryZoneData, type WeakConcept } from "@/hooks/useRecoveryZone";
@@ -129,9 +130,9 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
 }
 
 const PRIORITY_META: Record<Priority,{color:string;label:string;bg:string}> = {
-  high:   { color:"#cc5069", label:"High",   bg:"rgba(244,63,94,0.1)" },
-  medium: { color:"#c08a3a", label:"Medium", bg:"rgba(245,158,11,0.1)" },
-  low:    { color:"#4aa87a", label:"Low",    bg:"rgba(52,211,153,0.1)" },
+  high:   { color:"hsl(var(--destructive))", label:"High",   bg:"rgba(244,63,94,0.1)" },
+  medium: { color:"hsl(var(--warning))", label:"Medium", bg:"rgba(245,158,11,0.1)" },
+  low:    { color:"hsl(var(--success))", label:"Low",    bg:"rgba(52,211,153,0.1)" },
 };
 
 const SOURCE_LABELS: Record<string,string> = {
@@ -486,10 +487,10 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label:"Topics Pending",   value:TOPICS.length,   color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/> },
-          { label:"Questions Queued", value:totalPending,    color:"#c08a3a", icon:<BookOpen className="w-4 h-4"/> },
-          { label:"High Priority",    value:highCount,       color:"#cc5069", icon:<AlertCircle className="w-4 h-4"/> },
-          { label:"Sessions Done",    value:sessionsDone,    color:"#4aa87a", icon:<CheckCircle2 className="w-4 h-4"/> },
+          { label:"Topics Pending",   value:TOPICS.length,   color:"hsl(var(--destructive))", icon:<RefreshCw className="w-4 h-4"/> },
+          { label:"Questions Queued", value:totalPending,    color:"hsl(var(--warning))", icon:<BookOpen className="w-4 h-4"/> },
+          { label:"High Priority",    value:highCount,       color:"hsl(var(--destructive))", icon:<AlertCircle className="w-4 h-4"/> },
+          { label:"Sessions Done",    value:sessionsDone,    color:"hsl(var(--success))", icon:<CheckCircle2 className="w-4 h-4"/> },
         ].map(s => (
           <GlassCard key={s.label} className="p-4">
             <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
@@ -524,7 +525,7 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
                 onClick={() => startSession(item.topic)}
                 disabled={startingId === item.topic.id}
                 className="p-3 rounded-xl border bg-muted/30 hover:bg-muted transition-all text-left group disabled:opacity-50"
-                style={{borderColor:`${m.color}25`}}
+                style={{borderColor:`${withAlpha(m.color, 0.15)}`}}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black text-foreground"
@@ -620,7 +621,7 @@ export default function Recovery(_: { setPage?: (p: PageKey) => void }) {
                   <div className="text-[11px] text-muted-foreground">{h.subject} · {h.date}</div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-lg font-black tabular-nums" style={{color:h.improved?"#4aa87a":"#c08a3a"}}>{h.score}%</span>
+                  <span className="text-lg font-black tabular-nums" style={{color:h.improved?"hsl(var(--success))":"hsl(var(--warning))"}}>{h.score}%</span>
                   <button
                     type="button"
                     title="Retry this concept"

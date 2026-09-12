@@ -2,8 +2,13 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui-bits";
-import { Bell, AlertCircle, CheckCircle2, CreditCard, ReceiptText, Wallet } from "lucide-react";
+// The STUDENT panel header, not ui-bits'. Both export a `PageHeader` with the
+// same props and different designs — text-3xl display face with a 0.2em eyebrow
+// here, text-[28px] with a bottom rule and a primary eyebrow there — so a
+// student crossing from a gurukul screen into this one saw the page title
+// change size, weight and typeface. That is the two-halves split in one import.
+import { EmptyState, GlassCard, PageHeader } from "@/gurukul/components/shared";
+import { AlertCircle, CheckCircle2, CreditCard, ReceiptText, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
@@ -105,33 +110,54 @@ export default function MyFeesPage({ asParent = false, embedded = false }: { asP
 
       {!loading && (
         <div className="space-y-4">
-          <Card className="overflow-hidden border-primary/20 bg-[#083f2b] p-0 text-white shadow-elevated">
-            <div className="p-5 sm:p-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/70">Fee wallet</p>
-                  <h2 className="mt-1 text-2xl font-black">{pendingAmount > 0 ? `₹${pendingAmount}` : "All clear"}</h2>
-                  <p className="mt-1 text-sm text-foreground/75">
-                    {pendingAmount > 0 ? "Pending school fee balance" : "No pending dues right now"}
-                  </p>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-2xl border border-border bg-white/10 px-3 py-2">
-                    <p className="text-lg font-black">₹{totalAmount}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-foreground/65">Total</p>
+          {/* DARK TEXT ON A DARK CARD — the hero was unreadable.
+              It hard-coded `bg-[#083f2b]` (near-black green) and then set every
+              line inside it with `text-foreground/70`, `/75` and `/65`. The
+              student theme's `--foreground` is `199 38% 13%`, a near-black
+              navy: the eyebrow, the headline and the caption were all dark ink
+              on a dark ground. A bulk swap from hard-coded `text-white/xx` to
+              theme tokens did this — on a surface that hard-codes its own
+              background, the theme's foreground is the wrong end of the scale
+              by definition.
+
+              Rather than re-pin white text onto a one-off dark card, the hero
+              now uses the surface every other student screen uses. Both the
+              ground and the ink come from the same token set, so it cannot
+              drift apart again, and the figure carries the meaning through
+              colour the way Attendance's does. */}
+          <GlassCard glow={pendingAmount > 0 ? "amber" : "green"} className="p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Fee wallet
+                </p>
+                <h2
+                  className="mt-1 text-3xl font-black"
+                  style={{
+                    color: pendingAmount > 0 ? "hsl(var(--warning))" : "hsl(var(--success))",
+                    fontFamily: "var(--font-display)",
+                  }}
+                >
+                  {pendingAmount > 0 ? `₹${pendingAmount}` : "All clear"}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {pendingAmount > 0 ? "Pending school fee balance" : "No pending dues right now"}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {[
+                  { value: `₹${totalAmount}`, label: "Total" },
+                  { value: `₹${paidAmount}`, label: "Paid" },
+                  { value: `${paidCount}/${rows.length}`, label: "Cleared" },
+                ].map((tile) => (
+                  <div key={tile.label} className="rounded-2xl border border-border/70 bg-muted/40 px-3 py-2">
+                    <p className="text-lg font-black text-foreground tabular-nums">{tile.value}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{tile.label}</p>
                   </div>
-                  <div className="rounded-2xl border border-border bg-white/10 px-3 py-2">
-                    <p className="text-lg font-black">₹{paidAmount}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-foreground/65">Paid</p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-white/10 px-3 py-2">
-                    <p className="text-lg font-black">{paidCount}/{rows.length}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-foreground/65">Cleared</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
-          </Card>
+          </GlassCard>
 
           {overdue.length > 0 && (
             <Card className="p-4 border-destructive/30 bg-destructive/5 flex items-start gap-3">
@@ -209,13 +235,23 @@ export default function MyFeesPage({ asParent = false, embedded = false }: { asP
             })}
           </div>
 
+          {/* The shared empty state, and one icon rather than two contradictory
+              ones — this drew a faded wallet AND a bell on the same line, the
+              bell being the notifications icon with nothing to do with fees.
+              "No fee records yet." also ended the conversation; an empty
+              surface should say what fills it. */}
           {rows.length === 0 && (
-            <Card className="p-8 text-center text-muted-foreground">
-              <Wallet className="w-10 h-10 mx-auto mb-2 opacity-40" />
-              <p className="flex items-center justify-center gap-2">
-                <Bell className="w-4 h-4" /> No fee records yet.
-              </p>
-            </Card>
+            <GlassCard className="p-4">
+              <EmptyState
+                icon={<Wallet className="w-6 h-6" />}
+                title="No fee records yet"
+                sub={
+                  asParent
+                    ? "Invoices appear here once the school raises them for your child."
+                    : "Invoices appear here once your school raises them. Nothing is due from you right now."
+                }
+              />
+            </GlassCard>
           )}
         </div>
       )}

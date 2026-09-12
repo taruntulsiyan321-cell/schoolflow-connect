@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
@@ -147,16 +148,16 @@ function dedupeMistakes(list: Mistake[]): Mistake[] {
 }
 
 const SOURCE_COLORS: Record<string, { color: string; bg: string }> = {
-  practice:    { color:"#3b5bdb", bg:"rgba(59,130,246,0.12)" },
-  tests:       { color:"#4b9fd4", bg:"rgba(34,211,238,0.12)" },
-  battleground:{ color:"#cc5069", bg:"rgba(244,63,94,0.12)" },
-  homework:    { color:"#6882e8", bg:"rgba(167,139,250,0.12)" },
-  pyq:         { color:"#c08a3a", bg:"rgba(245,158,11,0.12)" },
-  qbank:       { color:"#4aa87a", bg:"rgba(52,211,153,0.12)" },
+  practice:    { color:"hsl(var(--primary))", bg:"rgba(59,130,246,0.12)" },
+  tests:       { color:"hsl(var(--info))", bg:"rgba(34,211,238,0.12)" },
+  battleground:{ color:"hsl(var(--destructive))", bg:"rgba(244,63,94,0.12)" },
+  homework:    { color:"hsl(var(--primary))", bg:"rgba(167,139,250,0.12)" },
+  pyq:         { color:"hsl(var(--warning))", bg:"rgba(245,158,11,0.12)" },
+  qbank:       { color:"hsl(var(--success))", bg:"rgba(52,211,153,0.12)" },
 };
 
 function SourceTag({ source, label }: { source: string; label: string }) {
-  const c = SOURCE_COLORS[source] ?? { color:"#78788c", bg:"rgba(107,122,153,0.12)" };
+  const c = SOURCE_COLORS[source] ?? { color:"hsl(var(--muted-foreground))", bg:"rgba(107,122,153,0.12)" };
   return (
     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{color:c.color,background:c.bg}}>
       {label}
@@ -166,9 +167,9 @@ function SourceTag({ source, label }: { source: string; label: string }) {
 
 function FreqBadge({ freq }: { freq: number }) {
   if (freq < 2) return null;
-  const color = freq >= 4 ? "#cc5069" : freq >= 3 ? "#c08a3a" : "#6882e8";
+  const color = freq >= 4 ? "hsl(var(--destructive))" : freq >= 3 ? "hsl(var(--warning))" : "hsl(var(--primary))";
   return (
-    <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{color,background:`${color}15`}}>
+    <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{color,background:`${withAlpha(color, 0.08)}`}}>
       ×{freq}
     </span>
   );
@@ -672,7 +673,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   if (view === "results") {
     const size = 110, stroke = 9, r = (size - stroke) / 2, c = 2 * Math.PI * r;
     const passed = practiceScore >= 70;
-    const color = passed ? "#4aa87a" : "#c08a3a";
+    const color = passed ? "hsl(var(--success))" : "hsl(var(--warning))";
     const offset = c - (practiceScore / 100) * c;
     return (
       <div className="space-y-6">
@@ -763,7 +764,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       {/* Subject breakdown */}
       <GlassCard className="p-5">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-1 h-4 rounded-full bg-[#cc5069]"/>
+          <div className="w-1 h-4 rounded-full bg-destructive"/>
           <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Subject Breakdown</span>
         </div>
         <div className="space-y-3">
@@ -771,7 +772,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             <div key={s.subject} className="flex items-center gap-3">
               <span className="text-xs text-foreground font-semibold w-24 shrink-0">{s.subject}</span>
               <div className="flex-1">
-                <ProgressBar value={s.count} max={mistakes.length} color="#cc5069"/>
+                <ProgressBar value={s.count} max={mistakes.length} color="hsl(var(--destructive))"/>
               </div>
               <span className="text-xs font-bold tabular-nums text-rose-400 w-12 text-right">{s.count} ({s.unresolved} open)</span>
             </div>

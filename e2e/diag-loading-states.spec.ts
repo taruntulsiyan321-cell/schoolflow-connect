@@ -66,6 +66,7 @@ test("every screen shows its title while its data is still loading", async ({ pa
   // budget is for a single interaction, not a walk.
   test.setTimeout(300_000);
   const samples: Sample[] = [];
+  const extraHeadings: string[] = [];
 
   for (const screen of SCREENS) {
     await page.goto(screen.path, { waitUntil: "commit" });
@@ -91,11 +92,23 @@ test("every screen shows its title while its data is still loading", async ({ pa
     // Let it finish so "the title never appears" can be told from "the title
     // appeared after the skeleton", which is the regression this replaces.
     await page.waitForTimeout(6000);
-    const settledTitle = await page.evaluate(
-      (wanted) =>
-        [...document.querySelectorAll("h1")].some((h) => (h.textContent ?? "").trim() === wanted),
+    const settled = await page.evaluate(
+      (wanted) => {
+        const h1s = [...document.querySelectorAll("h1")];
+        return {
+          hasTitle: h1s.some((h) => (h.textContent ?? "").trim() === wanted),
+          h1Texts: h1s.map((h) => (h.textContent ?? "").trim().slice(0, 40)),
+        };
+      },
       screen.title,
     );
+    const settledTitle = settled.hasTitle;
+    // ONE h1 per page. The Layout's top bar used to render the page name as a
+    // second <h1> at 14px, so every screen shipped two — and a screen reader
+    // navigating by heading landed on the chrome label before the page title.
+    if (settled.h1Texts.length !== 1) {
+      extraHeadings.push(`${screen.path}: ${settled.h1Texts.length} h1 elements — ${JSON.stringify(settled.h1Texts)}`);
+    }
 
     samples.push({
       path: screen.path,
@@ -115,6 +128,8 @@ test("every screen shows its title while its data is still loading", async ({ pa
     samples.filter((s) => s.noTitle).map((s) => `${s.path} (expected h1 "${s.title}")`),
     "every screen must render its own h1",
   ).toEqual([]);
+
+  expect(extraHeadings, `each page has exactly one h1:\n${extraHeadings.join("\n")}`).toEqual([]);
 
   const observable = samples.filter((s) => !s.tooFast);
   const failures = observable.filter((s) => !s.titleWithSkeleton);

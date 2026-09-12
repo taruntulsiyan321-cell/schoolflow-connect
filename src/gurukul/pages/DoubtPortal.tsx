@@ -592,7 +592,7 @@ export default function DoubtPortal() {
               onChange={(e) => setAskBody(e.target.value)}
               rows={6}
               placeholder="Describe what you’re stuck on…"
-              className="mt-1 w-full bg-black/5 border border-black/10 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none focus:border-[#3b5bdb]/40"
+              className="mt-1 w-full bg-black/5 border border-black/10 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none focus:border-primary/40"
             />
           </div>
           <div className="space-y-2">
@@ -620,7 +620,7 @@ export default function DoubtPortal() {
                       "inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all",
                       soon
                         ? "border-black/10 text-muted-foreground/70 hover:bg-black/5"
-                        : "border-[#3b5bdb]/35 text-muted-foreground hover:bg-[#3b5bdb]/10 hover:text-foreground",
+                        : "border-primary/35 text-muted-foreground hover:bg-primary/10 hover:text-foreground",
                     )}
                   >
                     {DOUBT_ATTACH_ICONS[a.id]}
@@ -636,7 +636,7 @@ export default function DoubtPortal() {
               <button
                 type="button"
                 onClick={() => openAskAttach()}
-                className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-[#3b5bdb]/35 text-muted-foreground hover:bg-[#3b5bdb]/10 hover:text-foreground"
+                className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-primary/35 text-muted-foreground hover:bg-primary/10 hover:text-foreground"
               >
                 <Paperclip className="w-3.5 h-3.5" />
                 Files
@@ -714,7 +714,7 @@ export default function DoubtPortal() {
                 <div
                   className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-foreground"
                   style={{
-                    background: `${subjectColor[detail.subject] || "#3b5bdb"}`,
+                    background: `${subjectColor[detail.subject] || "hsl(var(--primary))"}`,
                   }}
                 >
                   {initials(detail.student_name)}
@@ -781,7 +781,7 @@ export default function DoubtPortal() {
                 onChange={(e) => setReplyText(e.target.value)}
                 rows={3}
                 placeholder="Write an answer… (you can still answer after it’s solved)"
-                className="w-full bg-black/5 border border-black/10 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none focus:border-[#3b5bdb]/40"
+                className="w-full bg-black/5 border border-black/10 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none focus:border-primary/40"
               />
               <div className="flex flex-wrap items-center gap-3">
                 <input
@@ -944,7 +944,7 @@ export default function DoubtPortal() {
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black text-foreground shrink-0"
                     style={{
-                      background: `${subjectColor[d.subject] || "#3b5bdb"}`,
+                      background: `${subjectColor[d.subject] || "hsl(var(--primary))"}`,
                     }}
                   >
                     {initials(d.student_name)}

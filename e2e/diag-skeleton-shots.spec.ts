@@ -11,7 +11,7 @@ import { test } from "@playwright/test";
  * Retarget SHOTS at whatever is being reviewed — this is a camera, not a gate.
  * `diag-loading-states.spec.ts` is the gate.
  */
-const SHOTS = ["/student/notifications", "/student/revision", "/student/timetable"];
+const SHOTS = ["/student/aicoach", "/student/profile", "/student/chat", "/student/fees"];
 
 test("capture each screen's loading frame", async ({ page }) => {
   test.setTimeout(300_000);

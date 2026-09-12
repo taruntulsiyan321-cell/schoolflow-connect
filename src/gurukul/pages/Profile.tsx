@@ -257,7 +257,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         <div className="flex items-start gap-4">
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black text-foreground shrink-0"
-            style={{ background: "linear-gradient(135deg,#3b5bdb,#6882e8)" }}
+            style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8))" }}
           >
             {name
               .split(" ")

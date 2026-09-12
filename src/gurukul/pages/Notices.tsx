@@ -17,8 +17,8 @@ const PRIORITY_STYLES: Record<
   { label: string; color: string; bg: string }
 > = {
   normal: { label: "Normal", color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted))" },
-  important: { label: "Important", color: "#f59e0b", bg: "rgba(245,158,11,0.15)" },
-  urgent: { label: "Urgent", color: "#cc5069", bg: "rgba(204,80,105,0.15)" },
+  important: { label: "Important", color: "hsl(var(--warning))", bg: "rgba(245,158,11,0.15)" },
+  urgent: { label: "Urgent", color: "hsl(var(--destructive))", bg: "rgba(204,80,105,0.15)" },
 };
 
 function PriorityChip({ priority }: { priority: AnnouncementPriority }) {
@@ -151,7 +151,7 @@ export default function Notices() {
                   className={cn(
                     "w-full text-left rounded-2xl border transition-all",
                     selected === notice.id
-                      ? "bg-[#3b5bdb]/8 border-[#3b5bdb]/25"
+                      ? "bg-primary/8 border-primary/25"
                       : "bg-surface/80 border-border/70 hover:border-border",
                   )}
                 >
@@ -169,7 +169,7 @@ export default function Notices() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <PriorityChip priority={notice.priority} />
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#3b5bdb]/15 text-[#3b5bdb]">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
                             {classLabel}
                           </span>
                           {notice.hasAttachment && (
@@ -212,7 +212,7 @@ export default function Notices() {
                   {detail.publishedAt ?? "—"}
                 </div>
               </div>
-              <div className="text-sm text-[#b0b0c0] leading-relaxed whitespace-pre-wrap">
+              <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                 {detail.body}
               </div>
               {detail.hasAttachment && (
@@ -225,7 +225,7 @@ export default function Notices() {
                       ? "Open attachment"
                       : "Attachment link is missing"
                   }
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20 text-xs font-semibold text-[#a5b4fc] hover:bg-[#6366f1]/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-xs font-semibold text-[#a5b4fc] hover:bg-primary/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <Paperclip className="w-3.5 h-3.5" />
                   {detail.attachmentName ?? "Attachment"}

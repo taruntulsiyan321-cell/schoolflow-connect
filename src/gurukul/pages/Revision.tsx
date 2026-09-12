@@ -19,11 +19,11 @@ type RevView = "overview" | "session" | "results";
 
 function DueTag({ dueIn }: { dueIn: string }) {
   const cfg =
-    dueIn === "Now" ? { color:"#cc5069", bg:"rgba(244,63,94,0.12)", label:"Now" } :
-    dueIn === "Today" ? { color:"#c08a3a", bg:"rgba(245,158,11,0.12)", label:"Today" } :
-    dueIn === "Tomorrow" ? { color:"#fb923c", bg:"rgba(251,146,60,0.12)", label:"Tomorrow" } :
-    dueIn === "Done" ? { color:"#4aa87a", bg:"rgba(52,211,153,0.12)", label:"Done" } :
-    { color:"#6882e8", bg:"rgba(167,139,250,0.12)", label:dueIn };
+    dueIn === "Now" ? { color:"hsl(var(--destructive))", bg:"rgba(244,63,94,0.12)", label:"Now" } :
+    dueIn === "Today" ? { color:"hsl(var(--warning))", bg:"rgba(245,158,11,0.12)", label:"Today" } :
+    dueIn === "Tomorrow" ? { color:"hsl(var(--warning))", bg:"rgba(251,146,60,0.12)", label:"Tomorrow" } :
+    dueIn === "Done" ? { color:"hsl(var(--success))", bg:"rgba(52,211,153,0.12)", label:"Done" } :
+    { color:"hsl(var(--primary))", bg:"rgba(167,139,250,0.12)", label:dueIn };
   return (
     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{color:cfg.color,background:cfg.bg}}>
       {cfg.label}
@@ -127,7 +127,7 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
   // proving those two agree. The screen that tells the student whether they
   // passed was the one home nothing was checking.
   const passed = score >= REVISION_PASS_THRESHOLD * 100;
-  const color = passed ? "#4aa87a" : "#c08a3a";
+  const color = passed ? "hsl(var(--success))" : "hsl(var(--warning))";
   const size = 110, stroke = 9, r = (size - stroke) / 2, c = 2 * Math.PI * r, offset = c - (score / 100) * c;
   return (
     <div className="space-y-6">

@@ -217,7 +217,7 @@ export default function Tests() {
             className={cn(
               "text-[10px] font-bold px-3 py-1.5 rounded-xl capitalize",
               filter === f
-                ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
+                ? "bg-primary/15 text-primary border border-primary/25"
                 : "text-muted-foreground border border-border/70",
             )}
           >
@@ -283,7 +283,7 @@ export default function Tests() {
                   key={t.id}
                   className="p-4 rounded-xl border border-border/70 bg-muted/30 flex items-center gap-3"
                 >
-                  <Trophy className="w-4 h-4 text-[#c08a3a] shrink-0" />
+                  <Trophy className="w-4 h-4 text-warning shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-foreground truncate">{t.title}</div>
                     <div className="text-[11px] text-muted-foreground">
@@ -293,7 +293,7 @@ export default function Tests() {
                   {t.published ? (
                     <Link
                       to={`/student/test/${t.id}/attempt`}
-                      className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#3b5bdb]/15 text-[#818cf8] border border-[#3b5bdb]/25 hover:bg-[#3b5bdb]/25 transition-colors shrink-0"
+                      className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-primary/15 text-primary border border-primary/25 hover:bg-primary/25 transition-colors shrink-0"
                     >
                       <Play className="w-3 h-3" /> Attempt
                     </Link>
@@ -317,7 +317,7 @@ export default function Tests() {
           <div className="space-y-2">
             {bySubject.map((s) => (
               <div key={s.subject} className="flex items-center justify-between text-sm">
-                <span className="text-[#a0aec0]">{displaySubject(s.subject) || s.subject}</span>
+                <span className="text-muted-foreground">{displaySubject(s.subject) || s.subject}</span>
                 <span className="font-black text-foreground">{s.score}%</span>
               </div>
             ))}

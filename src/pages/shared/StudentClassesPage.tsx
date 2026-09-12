@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader, StatCard } from "@/components/ui-bits";
+// The STUDENT panel header, not ui-bits'. See the note in TestResult.tsx.
+import { PageHeader } from "@/gurukul/components/shared";
+import { StatCard } from "@/components/ui-bits";
 import { BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, NotebookPen, Users, User, Trophy, MessageCircle } from "lucide-react";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { LeaderboardPanel } from "@/components/student/LeaderboardPanel";

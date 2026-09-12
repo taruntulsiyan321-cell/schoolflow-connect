@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonStats } from "@/gurukul/components/shared";
@@ -142,7 +143,7 @@ export default function ClassHub({ setPage }: Props) {
       label: "Timetable",
       sub: "Daily class schedule with periods, teachers & rooms",
       icon: <Clock className="w-6 h-6" />,
-      color: "#3b5bdb",
+      color: "hsl(var(--primary))",
       badge: "Schedule",
     },
     {
@@ -151,7 +152,7 @@ export default function ClassHub({ setPage }: Props) {
       label: "Calendar",
       sub: "Tests, exams, events and submission deadlines",
       icon: <Calendar className="w-6 h-6" />,
-      color: "#4b9fd4",
+      color: "hsl(var(--info))",
       badge: "Events",
     },
     {
@@ -160,7 +161,7 @@ export default function ClassHub({ setPage }: Props) {
       label: "Attendance",
       sub: "Your day-by-day attendance record",
       icon: <CalendarDays className="w-6 h-6" />,
-      color: "#4aa87a",
+      color: "hsl(var(--success))",
       badge: `${attPct}% overall`,
     },
     {
@@ -169,7 +170,7 @@ export default function ClassHub({ setPage }: Props) {
       label: "Homework",
       sub: "Homework your teachers have set",
       icon: <ClipboardList className="w-6 h-6" />,
-      color: "#c08a3a",
+      color: "hsl(var(--warning))",
       badge: `${hwPending} pending`,
     },
     {
@@ -178,7 +179,7 @@ export default function ClassHub({ setPage }: Props) {
       label: "Tests",
       sub: "Your marks from class tests and exams",
       icon: <FlaskConical className="w-6 h-6" />,
-      color: "#6882e8",
+      color: "hsl(var(--primary))",
       badge: `${examAvg}% exam avg`,
     },
     {
@@ -187,7 +188,7 @@ export default function ClassHub({ setPage }: Props) {
       label: "Doubts",
       sub: "Ask questions, get teacher answers",
       icon: <MessageCircle className="w-6 h-6" />,
-      color: "#cc5069",
+      color: "hsl(var(--destructive))",
       badge: "Open portal",
     },
     {
@@ -196,7 +197,7 @@ export default function ClassHub({ setPage }: Props) {
       label: "Notices",
       sub: "School and class announcements",
       icon: <Bell className="w-6 h-6" />,
-      color: "#6882e8",
+      color: "hsl(var(--primary))",
       badge: "Announcements",
     },
     {
@@ -205,7 +206,7 @@ export default function ClassHub({ setPage }: Props) {
       label: "Messages",
       sub: "Direct messages with teachers",
       icon: <MessageSquare className="w-6 h-6" />,
-      color: "#4aa87a",
+      color: "hsl(var(--success))",
       badge: "Inbox",
     },
     {
@@ -214,7 +215,7 @@ export default function ClassHub({ setPage }: Props) {
       label: "Rankings",
       sub: "Where you stand in your class",
       icon: <Trophy className="w-6 h-6" />,
-      color: "#c08a3a",
+      color: "hsl(var(--warning))",
       badge: "Live rankings",
     },
     {
@@ -223,7 +224,7 @@ export default function ClassHub({ setPage }: Props) {
       label: "Resources",
       sub: "Notes, PDFs and videos shared by your teachers",
       icon: <Library className="w-6 h-6" />,
-      color: "#4b9fd4",
+      color: "hsl(var(--info))",
       badge: "Library",
     },
   ];
@@ -269,10 +270,10 @@ export default function ClassHub({ setPage }: Props) {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Attendance", value: `${attPct}%`, color: "#4aa87a" },
-          { label: "Exam avg", value: `${examAvg}%`, color: "#6882e8" },
-          { label: "Pending HW", value: hwPending, color: "#c08a3a" },
-          { label: "HW completion", value: `${hwPct}%`, color: "#4b9fd4" },
+          { label: "Attendance", value: `${attPct}%`, color: "hsl(var(--success))" },
+          { label: "Exam avg", value: `${examAvg}%`, color: "hsl(var(--primary))" },
+          { label: "Pending HW", value: hwPending, color: "hsl(var(--warning))" },
+          { label: "HW completion", value: `${hwPct}%`, color: "hsl(var(--info))" },
         ].map((s) => (
           <GlassCard key={s.label} className="p-4 text-center">
             <div className="text-2xl font-black tabular-nums" style={{ color: s.color }}>
@@ -293,7 +294,7 @@ export default function ClassHub({ setPage }: Props) {
             <div className="flex items-start justify-between mb-4">
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110"
-                style={{ background: `${f.color}15`, color: f.color }}
+                style={{ background: `${withAlpha(f.color, 0.08)}`, color: f.color }}
               >
                 {f.icon}
               </div>
@@ -303,7 +304,7 @@ export default function ClassHub({ setPage }: Props) {
             <div className="text-[11px] text-muted-foreground leading-relaxed mb-3">{f.sub}</div>
             <div
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold"
-              style={{ color: f.color, background: `${f.color}12`, border: `1px solid ${f.color}25` }}
+              style={{ color: f.color, background: `${withAlpha(f.color, 0.07)}`, border: `1px solid ${withAlpha(f.color, 0.15)}` }}
             >
               {f.badge}
             </div>

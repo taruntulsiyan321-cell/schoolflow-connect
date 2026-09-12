@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { TimetableService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
@@ -260,7 +261,7 @@ export default function Timetable() {
           <div
             key={i}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold"
-            style={{ borderColor: `${p.color}30`, background: `${p.color}10`, color: p.color }}
+            style={{ borderColor: `${withAlpha(p.color, 0.19)}`, background: `${withAlpha(p.color, 0.06)}`, color: p.color }}
           >
             {p.subject}
           </div>
@@ -279,7 +280,7 @@ export default function Timetable() {
               className={cn(
                 "flex items-stretch gap-4 rounded-2xl border transition-all duration-200",
                 isCurrent
-                  ? "border-[#3b5bdb]/40 bg-[#3b5bdb]/8 shadow-[0_0_24px_rgba(59,130,246,0.12)]"
+                  ? "border-primary/40 bg-primary/8 shadow-[0_0_24px_rgba(59,130,246,0.12)]"
                   : "border-border bg-surface/70",
                 isBreak && "opacity-50",
               )}
@@ -294,8 +295,8 @@ export default function Timetable() {
                         {period.subject}
                       </span>
                       {isCurrent && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#3b5bdb]/20 text-[#3b5bdb]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb] animate-pulse" />
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                           NOW
                         </span>
                       )}
@@ -322,7 +323,7 @@ export default function Timetable() {
                   {!isBreak && (
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
-                      style={{ background: `${period.color}15` }}
+                      style={{ background: `${withAlpha(period.color, 0.08)}` }}
                     >
                       {SUBJECT_ICONS[period.subject] ?? "📖"}
                     </div>
@@ -344,7 +345,7 @@ export default function Timetable() {
                 <div
                   className={cn(
                     "text-center text-xs font-bold mb-2 py-1.5 rounded-lg",
-                    di === dayIdx ? "bg-[#3b5bdb]/20 text-[#3b5bdb]" : "text-muted-foreground",
+                    di === dayIdx ? "bg-primary/20 text-primary" : "text-muted-foreground",
                   )}
                 >
                   {d.day.slice(0, 3)}
@@ -362,7 +363,7 @@ export default function Timetable() {
                       <div
                         key={pi}
                         className="px-2 py-1.5 rounded-lg text-[10px] font-semibold truncate"
-                        style={{ background: `${p.color}15`, color: p.color }}
+                        style={{ background: `${withAlpha(p.color, 0.08)}`, color: p.color }}
                       >
                         {p.subject.replace(" Lab", "")}
                       </div>

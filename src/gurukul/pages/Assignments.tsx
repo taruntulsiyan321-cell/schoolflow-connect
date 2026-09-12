@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { withAlpha } from "@/lib/colorAlpha";
 import { ClipboardList, Loader2, Send } from "lucide-react";
 import { HomeworkService, WORK_KIND_LABELS, normalizeWorkKind, useAcademicLive } from "@/academic";
 import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
@@ -12,7 +13,7 @@ import { StudentErrorState } from "@/components/student/StudentPanelStates";
 
 function subjectAccent(raw: string): string {
   const label = displaySubject(raw) || raw;
-  return subjectColor[label] ?? subjectColor[raw] ?? "#78788c";
+  return subjectColor[label] ?? subjectColor[raw] ?? "hsl(var(--muted-foreground))";
 }
 
 /**
@@ -237,14 +238,14 @@ export default function Assignments() {
                 <div className="flex items-start gap-3">
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ background: `${col}15`, color: col }}
+                    style={{ background: `${withAlpha(col, 0.08)}`, color: col }}
                   >
                     <ClipboardList className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       <span className="text-sm font-semibold text-foreground">{title}</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-primary/15 text-primary">
                         {WORK_KIND_LABELS[normalizeWorkKind(a.workKind)]}
                       </span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-400">
@@ -319,7 +320,7 @@ export default function Assignments() {
                             type="button"
                             disabled={saving}
                             onClick={() => void submit(a.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-foreground"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-primary text-foreground"
                           >
                             {saving ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
@@ -349,7 +350,7 @@ export default function Assignments() {
                           setContent(s?.content ?? "");
                           setAttachments(s?.attachments ?? []);
                         }}
-                        className="text-[10px] font-bold text-[#3b5bdb]"
+                        className="text-[10px] font-bold text-primary"
                       >
                         {isReturned
                           ? "Resubmit correction"

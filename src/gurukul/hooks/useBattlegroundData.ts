@@ -92,7 +92,7 @@ export type ClassmateOption = {
   color: string;
 };
 
-const AVATAR_COLORS = ["#c08a3a", "#4b9fd4", "#4aa87a", "#6882e8", "#cc5069", "#3b5bdb"];
+const AVATAR_COLORS = ["hsl(var(--warning))", "hsl(var(--info))", "hsl(var(--success))", "hsl(var(--primary))", "hsl(var(--destructive))", "hsl(var(--primary))"];
 
 function initials(name: string): string {
   const parts = (name || "S").trim().split(/\s+/);
@@ -948,10 +948,10 @@ export function useBattlegroundData(enabled = true) {
     const total = xp?.total_battles ?? 0;
     const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
     return [
-      { label: "Battles Won", value: String(wins), color: "#4aa87a" },
-      { label: "Win Rate", value: `${winRate}%`, color: "#3b5bdb" },
-      { label: "Class Rank", value: classRank ? `#${classRank}` : "—", color: "#c08a3a" },
-      { label: "XP", value: (xp?.xp ?? 0).toLocaleString(), color: "#6882e8" },
+      { label: "Battles Won", value: String(wins), color: "hsl(var(--success))" },
+      { label: "Win Rate", value: `${winRate}%`, color: "hsl(var(--primary))" },
+      { label: "Class Rank", value: classRank ? `#${classRank}` : "—", color: "hsl(var(--warning))" },
+      { label: "XP", value: (xp?.xp ?? 0).toLocaleString(), color: "hsl(var(--primary))" },
     ];
   }, [xp, classRank]);
 

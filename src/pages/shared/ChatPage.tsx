@@ -27,20 +27,35 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/gurukul/components/shared";
 import { NewChatSheet } from "@/components/chat/NewChatSheet";
 import { CHAT_FILE_ACCEPT } from "@/academic/storage/chatFileUpload";
 import "@/components/chat/chat-panel.css";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
-/** Role chip colors — Gurukul dark surfaces (same palette as teacher Communication). */
+/**
+ * Role chip colours.
+ *
+ * The comment here used to say "Gurukul DARK surfaces" and the values matched
+ * it — 400-level and 300-level text, which are foreground colours chosen to sit
+ * on a near-black panel. The panel is light now and these were never revisited,
+ * so each chip painted a pale colour on a 15%-tint of the same hue. Measured in
+ * the browser: "Student" 1.65:1, "Class group" 1.62:1, "Principal" 2.21:1,
+ * "Teacher" 2.42:1 — every one of them below the 3:1 floor, in a list of eleven
+ * contacts where the chip is the only thing distinguishing a teacher from a
+ * classmate.
+ *
+ * The tint stays (it is what makes them read as chips); the ink moves to the
+ * 700 level, which is the same hue dark enough to read on it.
+ */
 const roleColors: Record<string, string> = {
-  admin: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
-  principal: "bg-rose-500/15 text-rose-400 border-rose-500/25",
-  teacher: "bg-[#3b5bdb]/15 text-[#818cf8] border-[#3b5bdb]/30",
-  student: "bg-indigo-500/15 text-indigo-300 border-indigo-500/25",
-  parent: "bg-amber-500/15 text-amber-400 border-amber-500/25",
-  class_group: "bg-teal-500/15 text-teal-400 border-teal-500/25",
-  teacher_group: "bg-amber-500/15 text-amber-400 border-amber-500/25",
+  admin: "bg-emerald-500/15 text-emerald-700 border-emerald-600/30",
+  principal: "bg-rose-500/15 text-rose-700 border-rose-600/30",
+  teacher: "bg-[#3b5bdb]/15 text-indigo-700 border-[#3b5bdb]/30",
+  student: "bg-indigo-500/15 text-indigo-700 border-indigo-600/30",
+  parent: "bg-amber-500/15 text-amber-700 border-amber-600/30",
+  class_group: "bg-teal-500/15 text-teal-700 border-teal-600/30",
+  teacher_group: "bg-amber-500/15 text-amber-700 border-amber-600/30",
 };
 
 const EMOJI_QUICK = [
@@ -444,18 +459,23 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
 
   return (
     <div className="chat-panel space-y-4 pb-2">
+      {/* The shared header, not a fifth hand-rolled one. This was `text-lg`
+          with an `text-xs` subtitle — the same defect Doubts had, where one
+          screen picked its own title size and every other screen in the panel
+          used `text-3xl`. A student moving between them watched the page title
+          shrink by half. */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-            {userRole === "teacher" ? "Class Messages" : userRole === "principal" ? "School Messages" : "Chat"}
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {userRole === "teacher"
-              ? "Share announcements, practice links, recovery reminders, and quick guidance with students and families."
-              : userRole === "parent"
-                ? "Message teachers and school staff about your child."
-                : "Connect with teachers, classmates, and school staff."}
-          </p>
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            title={userRole === "teacher" ? "Class Messages" : userRole === "principal" ? "School Messages" : "Chat"}
+            subtitle={
+              userRole === "teacher"
+                ? "Share announcements, practice links, recovery reminders, and quick guidance with students and families."
+                : userRole === "parent"
+                  ? "Message teachers and school staff about your child."
+                  : "Connect with teachers, classmates, and school staff."
+            }
+          />
         </div>
         {canCreateGroup && (
           <div className="flex flex-wrap gap-2">
@@ -483,7 +503,23 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         )}
       </div>
 
-      <div className="chat-shell rounded-2xl overflow-hidden flex flex-col md:flex-row min-h-[calc(100vh-14rem)] md:min-h-[32rem]">
+      {/* A BOUNDED height, not a minimum.
+          The conversation list already carries `flex-1 overflow-y-auto`, which
+          is the right intent and could never fire: `overflow-y-auto` on a flex
+          child only scrolls when an ancestor's height is actually constrained,
+          and this was `min-h-[calc(100vh-14rem)] md:min-h-[32rem]` — a FLOOR.
+          So the shell grew to fit every conversation instead of scrolling
+          them. Measured at 1280x720 with eleven contacts: the shell rendered
+          1622px tall in a 720px viewport, which pushed the right-hand pane's
+          "Select a conversation" message to y≈916 — a full screen below the
+          fold. The student saw an empty grey rectangle and no instruction.
+          With a chat open it is the composer that ends up off-screen.
+
+          `h-` bounds it so the list scrolls inside, `min-h-` keeps it usable on
+          a short viewport, and `dvh` follows mobile browser chrome as it
+          collapses rather than being measured once against a bar that is about
+          to disappear. */}
+      <div className="chat-shell rounded-2xl overflow-hidden flex flex-col md:flex-row h-[calc(100dvh-12rem)] min-h-[26rem]">
         <aside
           className={cn(
             "chat-sidebar w-full md:w-[320px] shrink-0 flex flex-col relative",

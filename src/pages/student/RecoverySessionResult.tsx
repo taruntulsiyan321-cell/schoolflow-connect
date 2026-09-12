@@ -7,7 +7,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, Target, Timer, Wrench, X } from "lucide-react";
 import { ScoreRing } from "@/components/student/ScoreRing";
-import { PageHeader } from "@/components/ui-bits";
+// The STUDENT panel header, not ui-bits'. Both export a `PageHeader` with the
+// same props and different designs — text-3xl display face with a 0.2em eyebrow
+// here, text-[28px] with a bottom rule and a primary eyebrow there — so a
+// student crossing from a gurukul screen into this one saw the page title
+// change size, weight and typeface. That is the two-halves split in one import.
+import { PageHeader } from "@/gurukul/components/shared";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";

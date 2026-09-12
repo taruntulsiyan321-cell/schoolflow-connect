@@ -1030,17 +1030,40 @@
   font-weight: 800 !important;
 }
 
-.gurukul-student [class*="text-xl"], .gurukul-student [class*="text-2xl"],
-.gurukul-student [class*="text-3xl"], .gurukul-student [class*="text-4xl"] {
-  color: hsl(199 50% 5%) !important;
-  font-weight: 900 !important;
-}
-
-.gurukul-student [class*="text-xs"]:not([class*="-foreground"]):not([class*="text-white"]), .gurukul-student [class*="text-sm"]:not([class*="-foreground"]):not([class*="text-white"]),
-.gurukul-student label {
-  color: hsl(199 30% 20%) !important;
-  font-weight: 600 !important;
-}
+/* REMOVED 2026-09-12 — colour and font-weight forced BY FONT SIZE.
+ *
+ * Two rules used to live here:
+ *
+ *     [class*="text-xl|2xl|3xl|4xl"]  → color: hsl(199 50% 5%);  font-weight: 900
+ *     [class*="text-xs|sm"]           → color: hsl(199 30% 20%); font-weight: 600
+ *
+ * `text-xs` and `text-3xl` are FONT SIZE utilities. They say nothing about what
+ * an element sits on, and these rules used them to decide its colour — with
+ * `!important`, so no component could ever disagree.
+ *
+ * MEASURED CONSEQUENCE: every letter avatar in Chat. `.chat-avatar` sets
+ * `color: #ffffff` on a dark teal ground, and the avatar also carries `text-xs`
+ * for its initial — so this rule repainted the initial dark navy on dark teal,
+ * 1.83:1, in eleven rows of the conversation list. The group avatar beside them
+ * was correct, because its content is an <svg> rather than text. The cascade
+ * was confirmed in the browser rather than guessed: `.matches()` against every
+ * loaded rule reported this selector winning over `.chat-panel .chat-avatar`.
+ *
+ * The `:not([class*="text-white"])` escape already in the selector was the
+ * first patch for exactly this, and it could not work — the element had no
+ * `text-white` class, its colour came from a stylesheet.
+ *
+ * They also forced WEIGHT by size: every small label in the panel was pinned to
+ * 600 and every large one to 900, which is why the panel read as uniformly
+ * bold and why no component's own `font-medium` or `font-semibold` ever had
+ * any effect.
+ *
+ * NO REPLACEMENT IS NEEDED. `.gurukul-student` below already sets a dark body
+ * colour, which every element inherits unless it says otherwise — which is the
+ * behaviour these rules were trying to force, minus the ability to override it
+ * where the background demands. Headings keep their own rule; `text-muted*`
+ * keeps its own rule; components that set a colour now get the colour they set.
+ */
 
 .gurukul-student [class*="text-muted"], .gurukul-student .text-muted-foreground {
   color: hsl(199 20% 35%) !important;

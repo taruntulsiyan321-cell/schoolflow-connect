@@ -108,7 +108,7 @@ export default function Attendance() {
   }, [records]);
 
   const col =
-    pct >= ATTENDANCE_COMFORTABLE ? "#4aa87a" : pct >= ATTENDANCE_LOW ? "#c08a3a" : "#cc5069";
+    pct >= ATTENDANCE_COMFORTABLE ? "hsl(var(--success))" : pct >= ATTENDANCE_LOW ? "hsl(var(--warning))" : "hsl(var(--destructive))";
   // Group by calendar month, newest month first. A flat day-number grid was
   // ambiguous the moment records spanned a month boundary: only the day-of-month
   // was rendered, so a 2020-01-02 row sat next to 2026-08-06/07 as "2 6 7" with
@@ -242,7 +242,7 @@ export default function Attendance() {
           {Object.entries(byStatus).map(([status, count]) => {
             const share = total ? Math.round((count / Math.max(records.length, 1)) * 100) : 0;
             const statusCol =
-              status === "present" ? "#4aa87a" : status === "absent" ? "#cc5069" : "#c08a3a";
+              status === "present" ? "hsl(var(--success))" : status === "absent" ? "hsl(var(--destructive))" : "hsl(var(--warning))";
             return (
               <div key={status} className="flex items-center gap-3">
                 <div className="w-28 text-sm text-muted-foreground shrink-0 capitalize">

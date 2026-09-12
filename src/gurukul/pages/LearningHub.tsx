@@ -1,4 +1,5 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
+import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { GlassCard, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonStats, cn } from "@/gurukul/components/shared";
 import {
@@ -36,7 +37,7 @@ export default function LearningHub({ setPage }: Props) {
         label: "Analysis",
         sub: "See how you're doing across all subjects",
         icon: <BarChart2 className="w-6 h-6"/>,
-        color: "#4b9fd4",
+        color: "hsl(var(--info))",
         glow: "shadow-[0_0_32px_rgba(34,211,238,0.07)]",
         stat: practiceAccuracy == null ? "No practice yet" : `${practiceAccuracy}% accuracy`,
         statSub: "practice",
@@ -46,7 +47,7 @@ export default function LearningHub({ setPage }: Props) {
         label: "Recovery",
         sub: "Fix mistakes from past practice sessions",
         icon: <RefreshCw className="w-6 h-6"/>,
-        color: "#cc5069",
+        color: "hsl(var(--destructive))",
         glow: "shadow-[0_0_32px_rgba(244,63,94,0.07)]",
         stat: `${pendingRecovery} pending`,
         statSub: "to recover",
@@ -56,7 +57,7 @@ export default function LearningHub({ setPage }: Props) {
         label: "Revision",
         sub: "Spaced-repetition review for long-term memory",
         icon: <RotateCcw className="w-6 h-6"/>,
-        color: "#6882e8",
+        color: "hsl(var(--primary))",
         glow: "shadow-[0_0_32px_rgba(167,139,250,0.07)]",
         stat: `${dueRevision} in queue`,
         statSub: "items",
@@ -66,7 +67,7 @@ export default function LearningHub({ setPage }: Props) {
         label: "Mistake Book",
         sub: "A log of every error — your growth blueprint",
         icon: <AlertCircle className="w-6 h-6"/>,
-        color: "#c08a3a",
+        color: "hsl(var(--warning))",
         glow: "shadow-[0_0_32px_rgba(245,158,11,0.07)]",
         stat: `${unresolvedErrors} logged`,
         statSub: "mistakes",
@@ -108,10 +109,10 @@ export default function LearningHub({ setPage }: Props) {
     return (
       <div className="space-y-8">
         {header}
-        <div className="rounded-2xl border border-[#cc5069]/25 bg-[#cc5069]/08 p-6 text-center space-y-3">
+        <div className="rounded-2xl border border-destructive/25 bg-destructive/08 p-6 text-center space-y-3">
           <p className="text-sm font-semibold text-foreground">Could not load learning data</p>
           <p className="text-xs text-muted-foreground">{loadError}</p>
-          <button type="button" onClick={() => { void reloadSnap(); void reloadCharts(); }} className="text-xs font-bold text-[#3b5bdb] hover:underline">Try again</button>
+          <button type="button" onClick={() => { void reloadSnap(); void reloadCharts(); }} className="text-xs font-bold text-primary hover:underline">Try again</button>
         </div>
       </div>
     );
@@ -120,17 +121,17 @@ export default function LearningHub({ setPage }: Props) {
   return (
     <div className="space-y-8">
       {loadError && (
-        <div className="rounded-xl border border-[#c08a3a]/30 bg-[#c08a3a]/10 px-4 py-2 text-xs text-[#c08a3a]">Some live stats failed to refresh: {loadError}</div>
+        <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning">Some live stats failed to refresh: {loadError}</div>
       )}
       {header}
 
       {/* Quick stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label:"Practice Accuracy", value:practiceAccuracy == null ? "—" : `${practiceAccuracy}%`, color:"#4b9fd4" },
-          { label:"To Recover",       value:pendingRecovery,        color:"#cc5069" },
-          { label:"Due for Revision", value:dueRevision,            color:"#6882e8" },
-          { label:"Unresolved",       value:unresolvedErrors,       color:"#c08a3a" },
+          { label:"Practice Accuracy", value:practiceAccuracy == null ? "—" : `${practiceAccuracy}%`, color:"hsl(var(--info))" },
+          { label:"To Recover",       value:pendingRecovery,        color:"hsl(var(--destructive))" },
+          { label:"Due for Revision", value:dueRevision,            color:"hsl(var(--primary))" },
+          { label:"Unresolved",       value:unresolvedErrors,       color:"hsl(var(--warning))" },
         ].map(s => (
           <GlassCard key={s.label} className="p-4 text-center">
             <div className="text-2xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
@@ -150,7 +151,7 @@ export default function LearningHub({ setPage }: Props) {
             )}>
             <div className="flex items-start justify-between mb-4">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110"
-                style={{background:`${f.color}15`,color:f.color}}>
+                style={{background:`${withAlpha(f.color, 0.08)}`,color:f.color}}>
                 {f.icon}
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all"/>

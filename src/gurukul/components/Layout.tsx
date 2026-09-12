@@ -318,17 +318,24 @@ export default function Layout({
               <Menu className="w-5 h-5"/>
             </motion.button>
 
-            {/* Page title */}
+            {/* The top bar's label, NOT the page's heading.
+                This was an <h1> at `text-sm`, so every screen shipped two h1
+                elements — this one and the real page title below it — and a
+                screen reader jumping by heading landed first on a 14px chrome
+                label. A page has one h1 and it is the one PageHeader renders.
+                `aria-hidden` because it only repeats that title; announcing it
+                twice is worse than not announcing it at all. */}
             <AnimatePresence mode="wait" initial={false}>
-              <motion.h1
+              <motion.div
                 key={headerTitle}
+                aria-hidden="true"
                 initial={reduceMotion ? undefined : { opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={reduceMotion ? undefined : { opacity: 0, y: 4 }}
                 transition={{ duration: 0.15, ease: EASE_OUT }}
                 className="text-sm font-bold text-foreground flex-1 tracking-tight" style={{fontFamily:"var(--font-display)"}}>
                 {headerTitle}
-              </motion.h1>
+              </motion.div>
             </AnimatePresence>
 
             {/* Right badges */}

@@ -149,13 +149,13 @@ export default function Notifications() {
                 key={n.id}
                 className={cn(
                   "p-3.5 flex items-center gap-3",
-                  !n.read && "border-[#3b5bdb]/30 bg-[#3b5bdb]/5",
+                  !n.read && "border-primary/30 bg-primary/5",
                 )}
               >
                 <div
                   className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-                    n.read ? "bg-black/5 text-muted-foreground" : "bg-[#3b5bdb]/15 text-muted-foreground",
+                    n.read ? "bg-black/5 text-muted-foreground" : "bg-primary/15 text-muted-foreground",
                   )}
                 >
                   <Icon className="w-5 h-5" />
@@ -165,11 +165,11 @@ export default function Notifications() {
                   {n.body && <div className="text-xs text-muted-foreground line-clamp-2">{n.body}</div>}
                   <div className="text-[10px] text-muted-foreground mt-0.5">{timeAgo(n.created_at)}</div>
                 </button>
-                {!n.read && <span className="w-2 h-2 rounded-full bg-[#3b5bdb] shrink-0" />}
+                {!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
                 <button
                   type="button"
                   onClick={() => void remove(n.id)}
-                  className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground hover:text-[#cc5069] hover:bg-black/5 transition-all"
+                  className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-black/5 transition-all"
                   aria-label="Delete"
                 >
                   <Trash2 className="w-4 h-4" />
