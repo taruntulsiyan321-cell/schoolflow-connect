@@ -4,12 +4,13 @@ import {
   AcademicProfileService,
   AnalyticsService,
   AiSummaryService,
+  HOMEWORK_STANDING_LABELS,
   HomeworkService,
   MarksService,
   ProgressionService,
   TestService,
   WORK_KIND_LABELS,
-  normalizeWorkKind,
+  homeworkStanding,
   useAcademicLive,
   buildParentScheduledNarrative,
   type StudentAcademicProfile,
@@ -57,45 +58,41 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="text-[9px] text-muted-foreground">HomeworkService · {rows.length} items</div>
-      {rows.map(({ homework: h, submission: s, displayStatus }) => (
-        <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-[2px]">
-          <div className="flex justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="text-xs font-bold text-foreground">{h.title}</div>
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-primary/15 text-primary">
-                  {WORK_KIND_LABELS[normalizeWorkKind(h.workKind)]}
-                </span>
+      <div className="text-[9px] text-muted-foreground">{rows.length} homework</div>
+      {rows.map(({ homework: h, standing, submission: s }) => {
+        const state = homeworkStanding(standing);
+        return (
+          <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-[2px]">
+            <div className="flex justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="text-xs font-bold text-foreground">{h.title}</div>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-primary/15 text-primary">
+                    {WORK_KIND_LABELS[h.workKind]}
+                  </span>
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {h.subject} · Deadline{" "}
+                  {new Date(h.closesAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                  {s?.submittedAt ? ` · Handed in ${new Date(s.submittedAt).toLocaleString("en-IN")}` : ""}
+                </div>
               </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {h.subject} · Due {h.dueDate ?? "—"}
-                {s?.submittedAt ? ` · Submitted ${new Date(s.submittedAt).toLocaleString()}` : ""}
-              </div>
-            </div>
-            <div
-              className={cn(
-                "text-[9px] font-bold px-2 py-1 rounded-lg h-fit capitalize",
-                displayStatus === "Completed" || displayStatus === "Reviewed"
-                  ? "bg-primary/15 text-primary"
-                  : displayStatus === "Submitted"
+              <div
+                className={cn(
+                  "text-[9px] font-bold px-2 py-1 rounded-lg h-fit",
+                  state === "accepted" || state === "handed_in"
                     ? "bg-primary/15 text-primary"
-                    : displayStatus === "Late"
+                    : state === "rejected" || state === "not_handed_in"
                       ? "bg-destructive/15 text-destructive"
                       : "bg-warning/15 text-warning",
-              )}
-            >
-              {displayStatus}
+                )}
+              >
+                {HOMEWORK_STANDING_LABELS[state]}
+              </div>
             </div>
           </div>
-          {s?.grade && (
-            <div className="text-[10px] text-foreground mt-2">Grade: {s.grade}</div>
-          )}
-          {s?.teacherRemarks && (
-            <div className="text-[10px] text-success mt-1">Remarks: {s.teacherRemarks}</div>
-          )}
-        </div>
-      ))}
+        );
+      })}
       {rows.length === 0 && (
         <div className="text-center py-10 text-xs text-muted-foreground">No homework assigned yet.</div>
       )}

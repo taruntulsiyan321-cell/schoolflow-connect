@@ -18,6 +18,7 @@ import { getClient, throwIfError, type RepoContext } from "./base";
 
 export type CurriculumSubjectRow = { id: string; name: string };
 export type CurriculumChapterRow = { id: string; name: string; sequence: number | null };
+export type CurriculumTopicRow = { id: string; name: string };
 
 /**
  * Class levels the curriculum actually covers, ascending.
@@ -91,4 +92,54 @@ export async function listCurriculumChapters(
     .order("name");
   throwIfError(error, "Failed to load chapters");
   return (data ?? []).map((r) => r as CurriculumChapterRow);
+}
+
+/**
+ * The topics teachers have named inside one chapter (§10.22: "topic is picked
+ * from that chapter's topics, or added"). `topics` is global reference data
+ * like the rest of the tree — readable by any signed-in user.
+ */
+export async function listChapterTopics(
+  ctx: RepoContext,
+  chapterId: string,
+): Promise<CurriculumTopicRow[]> {
+  const { data, error } = await getClient(ctx)
+    .from("topics")
+    .select("id, name")
+    .eq("chapter_id", chapterId)
+    .order("name");
+  throwIfError(error, "Failed to load topics");
+  return (data ?? []).map((r) => r as CurriculumTopicRow);
+}
+
+/**
+ * Add a topic to a chapter, or return the one already there by that name —
+ * `topics_chapter_name_key` makes a name unique within its chapter, so a
+ * second teacher adding the same topic reuses it rather than failing.
+ * `topics_insert_staff` lets a teacher or admin insert.
+ */
+export async function addChapterTopic(
+  ctx: RepoContext,
+  chapterId: string,
+  name: string,
+): Promise<CurriculumTopicRow> {
+  const client = getClient(ctx);
+  const trimmed = name.trim();
+  const { data, error } = await client
+    .from("topics")
+    .insert({ chapter_id: chapterId, name: trimmed, created_by: ctx.userId ?? null })
+    .select("id, name")
+    .single();
+  if (error?.code === "23505") {
+    const { data: existing, error: readErr } = await client
+      .from("topics")
+      .select("id, name")
+      .eq("chapter_id", chapterId)
+      .eq("name", trimmed)
+      .single();
+    throwIfError(readErr, "Failed to load the existing topic");
+    return existing as CurriculumTopicRow;
+  }
+  throwIfError(error, "Failed to add the topic");
+  return data as CurriculumTopicRow;
 }

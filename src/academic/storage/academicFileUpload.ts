@@ -1,5 +1,25 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { HomeworkAttachmentMeta } from "../repository/homeworkRepository";
+
+/** A file or link as the attachment lists show it: a durable ref in `url`. */
+export interface AcademicAttachment {
+  name: string;
+  url: string;
+  mimeType?: string;
+  sizeBytes?: number;
+}
+
+/**
+ * ONE uploaded file as a column holds it — `homework.question_file` and
+ * `homework_submissions.file`: the bucket-relative path, not a URL. What such a
+ * file may be is decided in the database (`homework_question_file_ok`,
+ * `homework_hand_in_ok`).
+ */
+export interface AcademicFile {
+  path: string;
+  name: string;
+  mime: string;
+  size: number | null;
+}
 
 const BUCKET = "academic-files";
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -59,14 +79,12 @@ function safeFileName(name: string): string {
 /**
  * Returns the attachment meta plus the bucket-relative object path.
  *
- * `storagePath` is additive: every existing caller destructures
- * HomeworkAttachmentMeta and is unaffected. It exists because
- * learning_resources stores `storage_path` and resolves it back through
- * publicAcademicFileUrl, so that caller needs the path, not just the URL.
+ * `storagePath` is what learning_resources stores as `storage_path`, and what
+ * `toAcademicFile` turns into the one-file shape homework columns hold.
  */
 export async function uploadAcademicFile(
   file: File,
-): Promise<HomeworkAttachmentMeta & { storagePath: string }> {
+): Promise<AcademicAttachment & { storagePath: string }> {
   if (file.size > MAX_BYTES) {
     throw new Error(`"${file.name}" is larger than 20 MB`);
   }
@@ -96,9 +114,9 @@ export async function uploadAcademicFile(
     throw new Error(msg);
   }
 
-  // A DURABLE REF, NOT A URL. `url` is persisted into `homework.attachments`
-  // and `homework_submissions.attachments` and read back months later; a public
-  // URL baked into a row is a permanent decision that the bucket stays public.
+  // A DURABLE REF, NOT A URL. `url` is persisted into rows and read back
+  // months later; a public URL baked into a row is a permanent decision that
+  // the bucket stays public.
   // This stores what the object IS and lets the reader decide how to reach it,
   // and is the prerequisite for KNOWN_ISSUES 7's fence, which cannot land while rows hold
   // URLs that stop working the moment the bucket turns private.
@@ -119,6 +137,9 @@ function guessMime(ext: string): string | undefined {
     jpeg: "image/jpeg",
     gif: "image/gif",
     webp: "image/webp",
+    // Phones hand a HEIC over with an empty `file.type`; without this the
+    // upload succeeds and the hand-in is refused for having no type.
+    heic: "image/heic",
     doc: "application/msword",
     docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     xls: "application/vnd.ms-excel",
@@ -203,7 +224,27 @@ export async function academicFileUrl(stored: string | null | undefined): Promis
   return data.signedUrl;
 }
 
-export function attachmentFromLink(url: string, name?: string): HomeworkAttachmentMeta {
+/** The one-file shape of an upload, as `homework.question_file` / `homework_submissions.file` hold it. */
+export function toAcademicFile(uploaded: AcademicAttachment & { storagePath: string }): AcademicFile {
+  return {
+    path: uploaded.storagePath,
+    name: uploaded.name,
+    mime: (uploaded.mimeType ?? "").toLowerCase(),
+    size: uploaded.sizeBytes ?? null,
+  };
+}
+
+/** A stored one-file value, shaped for the attachment list. */
+export function attachmentOfFile(file: AcademicFile): AcademicAttachment {
+  return {
+    name: file.name,
+    url: toDurableAcademicFileRef(file.path),
+    mimeType: file.mime,
+    sizeBytes: file.size ?? undefined,
+  };
+}
+
+export function attachmentFromLink(url: string, name?: string): AcademicAttachment {
   const trimmed = url.trim();
   if (!/^https?:\/\//i.test(trimmed)) {
     throw new Error("Link must start with http:// or https://");

@@ -5,7 +5,7 @@
 
 import type { ServiceContext } from "../services/context";
 import { AttendanceService } from "../services/attendanceService";
-import { HomeworkService } from "../services/homeworkService";
+import { HOMEWORK_STANDING_LABELS, HomeworkService, homeworkStanding } from "../services/homeworkService";
 import { MarksService } from "../services/marksService";
 import { AcademicProfileService } from "../services/academicProfileService";
 import { buildStudentAiSummary } from "./dataLayer";
@@ -48,7 +48,7 @@ export interface HomeworkDueProjection extends ProjectionMeta {
     title: string;
     subject: string;
     due_date: string | null;
-    due_time: string | null;
+    closes_at: string | null;
     display_status: string;
   }[];
   pending_count: number;
@@ -156,23 +156,22 @@ export async function projectHomeworkDue(
 ): Promise<HomeworkDueProjection> {
   await assertMayAccessStudent(ctx, studentId);
   const rows = await HomeworkService.listForStudent(ctx, studentId);
-  const pendingStatuses = new Set(["pending", "not_submitted", "assigned", "returned"]);
+  // Still open and not given (to do, or rejected) against missed at the
+  // deadline — the same reading ai-gateway's projection makes of the view.
   const due_soon = rows
-    .filter((r) => {
-      const st = r.displayStatus.toLowerCase();
-      return pendingStatuses.has(st) || st.includes("pending") || st.includes("due") || !r.submission;
-    })
+    .filter((r) => !r.standing.given && !r.standing.closed)
+    .sort((a, b) => a.homework.closesAt.localeCompare(b.homework.closesAt))
     .slice(0, 20)
     .map((r) => ({
       id: r.homework.id,
       title: r.homework.title,
       subject: r.homework.subject,
       due_date: r.homework.dueDate,
-      due_time: r.homework.dueTime,
-      display_status: r.displayStatus,
+      closes_at: r.homework.closesAt,
+      display_status: HOMEWORK_STANDING_LABELS[homeworkStanding(r.standing)],
     }));
 
-  const overdue_count = rows.filter((r) => r.displayStatus.toLowerCase().includes("overdue") || r.displayStatus.toLowerCase().includes("late")).length;
+  const overdue_count = rows.filter((r) => !r.standing.given && r.standing.closed).length;
   const latestDue = due_soon.map((d) => d.due_date).filter(Boolean).sort().at(-1) ?? null;
 
   return {

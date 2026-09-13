@@ -79,7 +79,7 @@ export const AnalyticsService = {
     return AnalyticsFoundation.getTeacherPerformance(toRepoContext(ctx), teacherId);
   },
 
-  /** School homework completion / late / teacher activity — from HomeworkService. */
+  /** School homework: counts by status and how much has been handed in — from HomeworkService. */
   async homeworkSchool(ctx: ServiceContext) {
     assertCanConsume(ctx, "analytics");
     if (ctx.role === "student" || ctx.role === "parent" || ctx.role === "teacher") {

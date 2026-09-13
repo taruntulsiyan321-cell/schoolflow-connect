@@ -1,838 +1,289 @@
 import {
-  assertCanOwn,
   assertCanConsume,
-  toRepoContext,
-  ForbiddenError,
-  isSchoolOperator,
+  assertCanOwn,
   canReadSchoolWide,
+  ForbiddenError,
+  toRepoContext,
   type ServiceContext,
 } from "./context";
 import {
+  countHomeworkByStatus,
+  createHomework,
+  decideSubmission,
+  deleteHomework,
   getHomework,
+  listCompletion,
+  listHomeworkByIds,
   listHomeworkForClass,
   listHomeworkForSchool,
-  createHomework,
-  updateHomework,
-  publishHomework,
-  unpublishHomework,
-  archiveHomework,
-  duplicateHomework,
-  deleteHomework,
+  listStandingsForHomework,
+  listStandingsForStudent,
   listSubmissionsForHomework,
-  listSubmissionsForHomeworkIds,
-  upsertHomeworkSubmission,
-  reviewHomeworkSubmission,
-  gradeHomeworkSubmission,
+  listSubmissionsForStudent,
+  submitHomeworkFile,
+  updateHomework,
+  type HomeworkCompletionRow,
+  type HomeworkDecision,
+  type HomeworkInput,
   type HomeworkRecord,
+  type HomeworkStandingRow,
   type HomeworkSubmissionRecord,
-  type CreateHomeworkInput,
-  type UpdateHomeworkInput,
-  type HomeworkListFilters,
-  type SubmitHomeworkInput,
-  type ReviewHomeworkInput,
+  type SubmissionStatus,
 } from "../repository/homeworkRepository";
-import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
-import { teacherAssignedToClassSubject } from "../repository/teacherAssignmentRepository";
-import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
+import type { AcademicFile } from "../storage/academicFileUpload";
 import { assertMayAccessStudent } from "./parentAccess";
-import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
+import { assertTeacherMayManageAcademicWork } from "./workLifecycle";
 import { broadcastAcademicWrite } from "../live";
 
-function afterHomeworkWrite(
-  ctx: ServiceContext,
-  meta?: {
-    classId?: string | null;
-    studentId?: string | null;
-    source?: string;
-    domains?: Array<"homework" | "test" | "profile" | "xp">;
-  },
-) {
-  broadcastAcademicWrite(ctx.schoolId, meta?.domains ?? ["homework", "profile"], {
-    classId: meta?.classId,
-    studentId: meta?.studentId ?? ctx.studentId,
-    source: meta?.source ?? "HomeworkService",
+function afterHomeworkWrite(ctx: ServiceContext, meta: { classId?: string | null; studentId?: string | null; source: string }) {
+  broadcastAcademicWrite(ctx.schoolId, ["homework", "profile"], {
+    classId: meta.classId,
+    studentId: meta.studentId ?? ctx.studentId,
+    source: meta.source,
   });
+}
+
+/**
+ * Where a student stands on one homework, for every screen that shows it.
+ *
+ * Derived from the two facts `homework_student_status` decides — `given`
+ * (submitted or accepted; rejected is NOT given) and `closed` (the deadline
+ * has passed) — plus the submission status. No screen re-derives it.
+ */
+export type HomeworkStanding = "to_do" | "handed_in" | "accepted" | "rejected" | "not_handed_in";
+
+export function homeworkStanding(row: { status: SubmissionStatus; given: boolean; closed: boolean }): HomeworkStanding {
+  if (row.status === "accepted") return "accepted";
+  if (row.given) return "handed_in";
+  if (row.closed) return "not_handed_in";
+  return row.status === "rejected" ? "rejected" : "to_do";
+}
+
+export const HOMEWORK_STANDING_LABELS: Record<HomeworkStanding, string> = {
+  to_do: "To do",
+  handed_in: "Handed in — awaiting review",
+  accepted: "Accepted",
+  rejected: "Rejected — hand in again",
+  not_handed_in: "Not handed in",
+};
+
+/**
+ * What the two file pickers offer. They steer the browser's picker only; the
+ * database decides what a file may be (`homework_question_file_ok`,
+ * `homework_hand_in_ok`) and refuses anything else.
+ */
+export const HOMEWORK_QUESTION_FILE_PICKER = {
+  accept: ".pdf,.png,.jpg,.jpeg,.gif,.webp,.heic,.doc,.docx,image/*,application/pdf",
+  kinds: ["pdf", "image", "doc"],
+  label: "an image, a Word document or a PDF",
+} as const;
+
+export const HOMEWORK_HAND_IN_FILE_PICKER = {
+  accept: ".pdf,.png,.jpg,.jpeg,.gif,.webp,.heic,image/*,application/pdf",
+  kinds: ["pdf", "image"],
+  label: "an image or a PDF",
+} as const;
+
+/** A student may hand in (or replace) while the deadline is open and the teacher has not accepted. */
+export function canHandIn(row: { status: SubmissionStatus; closed: boolean }): boolean {
+  return !row.closed && row.status !== "accepted";
 }
 
 export interface StudentHomeworkRow {
   homework: HomeworkRecord;
+  standing: HomeworkStandingRow;
   submission: HomeworkSubmissionRecord | null;
-  /** Derived display status for panels — computed in service, not React. */
-  displayStatus: string;
 }
 
-export interface HomeworkClassStatsRow extends HomeworkRecord {
-  submitted: number;
-  graded: number;
-  pending: number;
-  awaitingReview: number;
-  returned: number;
-  late: number;
-  totalStudents: number;
-  completionPct: number;
+export interface ReviewRow {
+  studentId: string;
+  standing: HomeworkStandingRow;
+  submission: HomeworkSubmissionRecord | null;
+}
+
+export interface ClassHomeworkRow extends HomeworkRecord {
+  /** `homework_completion` for this homework; null for work not published. */
+  completion: HomeworkCompletionRow | null;
 }
 
 export interface SchoolHomeworkSummary {
-  totalAssigned: number;
-  totalPublished: number;
-  totalDrafts: number;
-  totalArchived: number;
-  submissionCount: number;
-  lateSubmissionCount: number;
-  gradedCount: number;
-  schoolCompletionPct: number;
-  latePct: number;
-  /** Published homework counts keyed by work_kind. */
-  byKind: Record<string, number>;
-  classes: {
-    classId: string;
-    // CHUNK 10.7 — nullable in Postgres; see ClassDateAttendanceSummary.
-    className: string | null;
-    section: string | null;
-    homeworkCount: number;
-    completionPct: number;
-    latePct: number;
-  }[];
-  teacherActivity: {
-    teacherUserId: string;
-    homeworkCount: number;
-  }[];
-}
-
-async function assertTeacherMayManageClass(
-  ctx: ServiceContext,
-  classId: string,
-  subject?: string | null,
-): Promise<void> {
-  if (isSchoolOperator(ctx.role)) return;
-  if (ctx.role !== "teacher") {
-    throw new ForbiddenError("Only teachers may manage homework for a class");
-  }
-  await assertTeacherOwnsClass(toRepoContext(ctx), ctx.userId, classId);
-  const subj = subject?.trim();
-  if (subj && subj.toLowerCase() !== "general") {
-    const ok = await teacherAssignedToClassSubject(toRepoContext(ctx), {
-      teacherUserId: ctx.userId,
-      classId,
-      subject: subj,
-    });
-    if (!ok) {
-      throw new ForbiddenError(
-        "Teachers may only manage homework for subjects assigned to their class",
-      );
-    }
-  }
-}
-
-/** Resolve submission → homework → assert teacher owns that class/subject. */
-async function assertTeacherMayManageSubmission(
-  ctx: ServiceContext,
-  submissionId: string,
-): Promise<{ homeworkId: string; studentId: string }> {
-  const repo = toRepoContext(ctx);
-  const { data, error } = await getClient(repo)
-    .from("homework_submissions")
-    .select("id, homework_id, student_id, school_id")
-    .eq("id", submissionId)
-    .eq("school_id", schoolIdOf(repo))
-    .maybeSingle();
-  throwIfError(error, "Failed to load submission for authorization");
-  if (!data) throw new ForbiddenError("Submission not found");
-  const hw = await getHomework(repo, data.homework_id);
-  await assertTeacherMayManageClass(ctx, hw.classId, hw.subject);
-  const { data: student, error: sErr } = await getClient(repo)
-    .from("students")
-    .select("id, class_id")
-    .eq("id", data.student_id)
-    .eq("school_id", schoolIdOf(repo))
-    .maybeSingle();
-  throwIfError(sErr, "Failed to verify student for submission");
-  if (!student || student.class_id !== hw.classId) {
-    throw new ForbiddenError("Submission student is not in the homework class");
-  }
-  return { homeworkId: data.homework_id, studentId: data.student_id };
-}
-
-async function assertStudentInHomeworkClass(
-  ctx: ServiceContext,
-  homeworkId: string,
-  studentId: string,
-): Promise<HomeworkRecord> {
-  const repo = toRepoContext(ctx);
-  const hw = await getHomework(repo, homeworkId);
-  const { data: student, error } = await getClient(repo)
-    .from("students")
-    .select("id, class_id, school_id")
-    .eq("id", studentId)
-    .eq("school_id", schoolIdOf(repo))
-    .maybeSingle();
-  throwIfError(error, "Failed to verify student class");
-  if (!student || student.class_id !== hw.classId) {
-    throw new ForbiddenError("Student does not belong to this homework class");
-  }
-  return hw;
-}
-
-function isPastDue(hw: HomeworkRecord, now = new Date()): boolean {
-  if (!hw.dueDate) return false;
-  return now.getTime() > new Date(`${hw.dueDate}T${hw.dueTime ?? "23:59:59"}`).getTime();
-}
-
-/** Statuses that count toward completion (returned still needs resubmit). */
-const COMPLETE_SUBMISSION_STATUSES = [
-  "submitted",
-  "late",
-  "reviewed",
-  "graded",
-  "completed",
-] as const;
-
-function studentDisplayStatus(
-  hw: HomeworkRecord,
-  sub: HomeworkSubmissionRecord | null,
-): string {
-  if (!sub) {
-    if (isPastDue(hw)) return "Late";
-    return "Assigned";
-  }
-  switch (sub.status) {
-    case "submitted":
-      return sub.isLate ? "Late" : "Submitted";
-    case "late":
-      return "Late";
-    case "reviewed":
-      return "Reviewed";
-    case "returned":
-      return "Returned";
-    case "graded":
-    case "completed":
-      return "Completed";
-    default:
-      return "Assigned";
-  }
+  published: number;
+  scheduled: number;
+  drafts: number;
+  archived: number;
+  /** Across every published homework: set to, given, awaiting review, rejected. */
+  students: number;
+  given: number;
+  awaitingReview: number;
+  rejected: number;
+  completionPct: number;
 }
 
 /**
- * HomeworkService — Homework + Assignment product language.
- * Teacher owns writes (class-scoped); Student submits; Parent/Principal/Admin consume.
- * All panel mutations must go through here (never direct Supabase from UI).
+ * HomeworkService — the teacher sets and decides; the student hands in; the
+ * parent, principal and admin read. Every panel goes through here.
  */
 export const HomeworkService = {
-  async get(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
+  /** A class's homework with its completion — the teacher's list and the class insights. */
+  async listForClass(ctx: ServiceContext, classId: string, page?: PageParams): Promise<ClassHomeworkRow[]> {
     assertCanConsume(ctx, "homework");
-    const hw = await getHomework(toRepoContext(ctx), homeworkId);
-    if (ctx.role === "teacher") {
-      await assertTeacherMayManageClass(ctx, hw.classId, hw.subject);
-    }
-    return hw;
-  },
-
-  async listForClass(
-    ctx: ServiceContext,
-    classId: string,
-    page?: PageParams,
-    filters?: HomeworkListFilters,
-  ): Promise<HomeworkRecord[]> {
-    assertCanConsume(ctx, "homework");
-    if (ctx.role === "teacher") {
-      await assertTeacherMayManageClass(ctx, classId);
-    }
-    return listHomeworkForClass(toRepoContext(ctx), classId, page, filters);
+    if (ctx.role === "teacher") await assertTeacherMayManageAcademicWork(ctx, classId);
+    const repo = toRepoContext(ctx);
+    const items = await listHomeworkForClass(repo, classId, page);
+    const completion = await listCompletion(
+      repo,
+      items.filter((h) => h.status === "published").map((h) => h.id),
+    );
+    const byId = new Map(completion.map((c) => [c.homeworkId, c]));
+    return items.map((h) => ({ ...h, completion: byId.get(h.id) ?? null }));
   },
 
   /** School-wide list — principal/admin monitoring. */
-  async listForSchool(
-    ctx: ServiceContext,
-    page?: PageParams,
-    filters?: HomeworkListFilters,
-  ): Promise<HomeworkRecord[]> {
+  async listForSchool(ctx: ServiceContext, page?: PageParams): Promise<HomeworkRecord[]> {
     assertCanConsume(ctx, "homework");
-    if (!canReadSchoolWide(ctx.role)) {
-      throw new ForbiddenError("School homework list is admin/principal-only");
-    }
-    return listHomeworkForSchool(toRepoContext(ctx), page, filters);
+    if (!canReadSchoolWide(ctx.role)) throw new ForbiddenError("School homework list is admin/principal-only");
+    return listHomeworkForSchool(toRepoContext(ctx), page);
   },
 
-  /** Class homework + submission counts (batched — no N+1). */
-  async listForClassWithStats(
-    ctx: ServiceContext,
-    classId: string,
-    page?: PageParams,
-    filters?: HomeworkListFilters,
-  ): Promise<HomeworkClassStatsRow[]> {
-    assertCanConsume(ctx, "homework");
-    if (ctx.role === "teacher") {
-      await assertTeacherMayManageClass(ctx, classId);
-    }
-    const repo = toRepoContext(ctx);
-    const items = await listHomeworkForClass(repo, classId, page, filters);
-    const { count, error } = await getClient(repo)
-      .from("students")
-      .select("id", { count: "exact", head: true })
-      .eq("school_id", schoolIdOf(repo))
-      .eq("class_id", classId);
-    throwIfError(error, "Failed to count students");
-    const totalStudents = count ?? 0;
-
-    const subs = await listSubmissionsForHomeworkIds(
-      repo,
-      items.map((h) => h.id),
-    );
-    const byHw = new Map<string, typeof subs>();
-    for (const s of subs) {
-      const arr = byHw.get(s.homeworkId) ?? [];
-      arr.push(s);
-      byHw.set(s.homeworkId, arr);
-    }
-
-    return items.map((hw) => {
-      const list = byHw.get(hw.id) ?? [];
-      const submitted = list.filter((s) =>
-        (COMPLETE_SUBMISSION_STATUSES as readonly string[]).includes(s.status),
-      ).length;
-      const graded = list.filter((s) =>
-        ["graded", "reviewed", "completed"].includes(s.status),
-      ).length;
-      const late = list.filter((s) => s.isLate || s.status === "late").length;
-      const awaitingReview = list.filter((s) =>
-        ["submitted", "late"].includes(s.status),
-      ).length;
-      const returned = list.filter((s) => s.status === "returned").length;
-      const turnedIn = list.filter(
-        (s) => s.status && s.status !== "pending",
-      ).length;
-      const completionPct = totalStudents
-        ? Math.round((Math.min(submitted, totalStudents) / totalStudents) * 1000) / 10
-        : 0;
-      return {
-        ...hw,
-        submitted,
-        graded,
-        late,
-        awaitingReview,
-        returned,
-        pending: Math.max(0, totalStudents - turnedIn),
-        totalStudents,
-        completionPct,
-      };
-    });
-  },
-
-  async listForStudent(
-    ctx: ServiceContext,
-    studentId: string,
-  ): Promise<StudentHomeworkRow[]> {
+  /** Everything set to one student — for the student, their parent, and staff. */
+  async listForStudent(ctx: ServiceContext, studentId: string): Promise<StudentHomeworkRow[]> {
     assertCanConsume(ctx, "homework");
     await assertMayAccessStudent(ctx, studentId);
     const repo = toRepoContext(ctx);
-    const { data: student, error } = await getClient(repo)
-      .from("students")
-      .select("id, class_id")
-      .eq("id", studentId)
-      .eq("school_id", schoolIdOf(repo))
-      .maybeSingle();
-    throwIfError(error, "Failed to load student");
-    if (!student?.class_id) return [];
-
-    const homework = await listHomeworkForClass(repo, student.class_id, { limit: 100 }, {
-      status: "active",
-    });
-    const subs = await listSubmissionsForHomeworkIds(
-      repo,
-      homework.map((h) => h.id),
-    );
-    return homework.map((hw) => {
-      const submission = subs.find((s) => s.studentId === studentId && s.homeworkId === hw.id) ?? null;
-      return {
-        homework: hw,
-        submission,
-        displayStatus: studentDisplayStatus(hw, submission),
-      };
+    const standings = await listStandingsForStudent(repo, studentId);
+    const ids = standings.map((s) => s.homeworkId);
+    const [homework, submissions] = await Promise.all([
+      listHomeworkByIds(repo, ids),
+      listSubmissionsForStudent(repo, studentId, ids),
+    ]);
+    const hwById = new Map(homework.map((h) => [h.id, h]));
+    const subByHw = new Map(submissions.map((s) => [s.homeworkId, s]));
+    return standings.flatMap((standing) => {
+      const hw = hwById.get(standing.homeworkId);
+      return hw ? [{ homework: hw, standing, submission: subByHw.get(standing.homeworkId) ?? null }] : [];
     });
   },
 
-  async assign(ctx: ServiceContext, input: CreateHomeworkInput): Promise<HomeworkRecord> {
+  /** Every student a homework is set to, with what they handed in — the teacher's review. */
+  async listForReview(ctx: ServiceContext, homeworkId: string): Promise<ReviewRow[]> {
+    assertCanConsume(ctx, "homework_submission");
+    if (ctx.role === "student" || ctx.role === "parent") {
+      throw new ForbiddenError("Students and parents may not list a class's submissions");
+    }
+    const repo = toRepoContext(ctx);
+    const hw = await getHomework(repo, homeworkId);
+    if (ctx.role === "teacher") await assertTeacherMayManageAcademicWork(ctx, hw.classId, hw.subject);
+    const [standings, submissions] = await Promise.all([
+      listStandingsForHomework(repo, homeworkId),
+      listSubmissionsForHomework(repo, homeworkId),
+    ]);
+    const subById = new Map(submissions.map((s) => [s.id, s]));
+    return standings.map((standing) => ({
+      studentId: standing.studentId,
+      standing,
+      submission: standing.submissionId ? subById.get(standing.submissionId) ?? null : null,
+    }));
+  },
+
+  /** Set homework: published now, scheduled, or kept as a draft (`input.status`). */
+  async create(ctx: ServiceContext, input: HomeworkInput): Promise<HomeworkRecord> {
     assertCanOwn(ctx, "homework");
-    await assertTeacherMayManageClass(ctx, input.classId, input.subject);
-    const row = await createHomework(toRepoContext(ctx), {
-      ...input,
-      status: input.status ?? "published",
-    });
-    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.assign" });
+    await assertTeacherMayManageAcademicWork(ctx, input.classId, input.subject);
+    const row = await createHomework(toRepoContext(ctx), input);
+    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.create" });
     return row;
   },
 
-  async createDraft(ctx: ServiceContext, input: CreateHomeworkInput): Promise<HomeworkRecord> {
-    assertCanOwn(ctx, "homework");
-    await assertTeacherMayManageClass(ctx, input.classId, input.subject);
-    const row = await createHomework(toRepoContext(ctx), { ...input, status: "draft" });
-    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.createDraft" });
-    return row;
-  },
-
-  async update(
-    ctx: ServiceContext,
-    homeworkId: string,
-    input: UpdateHomeworkInput,
-  ): Promise<HomeworkRecord> {
+  /**
+   * Edit homework that has not closed. The database refuses what may not
+   * change: a closed homework's deadline, class or release, and releasing work
+   * whose deadline has passed (`tg_homework_lifecycle`).
+   */
+  async update(ctx: ServiceContext, homeworkId: string, input: HomeworkInput): Promise<HomeworkRecord> {
     assertCanOwn(ctx, "homework");
     const existing = await getHomework(toRepoContext(ctx), homeworkId);
-    await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
-    if (input.classId && input.classId !== existing.classId) {
-      await assertTeacherMayManageClass(ctx, input.classId, input.subject ?? existing.subject);
-    }
-    const row = await updateHomework(toRepoContext(ctx), homeworkId, input);
+    await assertTeacherMayManageAcademicWork(ctx, existing.classId, input.subject);
+    const row = await updateHomework(toRepoContext(ctx), homeworkId, { ...input, classId: existing.classId });
     afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.update" });
     return row;
   },
 
   async publish(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
-    assertCanOwn(ctx, "homework");
-    const existing = await getHomework(toRepoContext(ctx), homeworkId);
-    await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
-    const row = await publishHomework(toRepoContext(ctx), homeworkId);
-    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.publish" });
-    return row;
-  },
-
-  /**
-   * Schedule publish: status=scheduled + scheduledPublishAt.
-   * Immediate publish uses publish() (published today).
-   */
-  async schedule(
-    ctx: ServiceContext,
-    homeworkId: string,
-    at: string,
-  ): Promise<HomeworkRecord> {
-    assertCanOwn(ctx, "homework");
-    const existing = await getHomework(toRepoContext(ctx), homeworkId);
-    await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
-    const updated = await updateHomework(toRepoContext(ctx), homeworkId, {
-      status: "scheduled",
-      scheduledPublishAt: at,
-    });
-    await emitEvent(toRepoContext(ctx), {
-      eventType: "homework.scheduled",
-      entityType: "homework",
-      entityId: homeworkId,
-      classId: existing.classId,
-      payload: {
-        title: existing.title,
-        workKind: existing.workKind,
-        scheduledPublishAt: at,
-      },
-    }).catch(() => undefined);
-    afterHomeworkWrite(ctx, { classId: existing.classId, source: "HomeworkService.schedule" });
-    return updated;
-  },
-
-  /**
-   * Publish homework/tests whose scheduled_publish_at is due.
-   * Prefers RPC `publish_due_scheduled_homework(_school_id)`; falls back to direct update.
-   * Callable by any homework consumer (students included) so due work appears without cron.
-   */
-  async publishDueScheduled(ctx: ServiceContext): Promise<number> {
-    assertCanConsume(ctx, "homework");
-    const repo = toRepoContext(ctx);
-    const schoolId = schoolIdOf(repo);
-    const client = getClient(repo);
-
-    const { data: rpcData, error: rpcError } = await (client.rpc as any)(
-      "publish_due_scheduled_homework",
-      { _school_id: schoolId },
-    );
-    if (!rpcError) {
-      const n = typeof rpcData === "number" ? rpcData : Number(rpcData ?? 0);
-      if (n > 0) {
-        afterHomeworkWrite(ctx, {
-          domains: ["homework", "test", "profile"],
-          source: "HomeworkService.publishDueScheduled",
-        });
-      }
-      return n;
-    }
-
-    const now = new Date().toISOString();
-    const { data: dueHw, error: listErr } = await client
-      .from("homework")
-      .select("id")
-      .eq("school_id", schoolId)
-      .eq("status", "scheduled")
-      .lte("scheduled_publish_at", now);
-    throwIfError(listErr, "Failed to list due scheduled homework");
-
-    const hwIds = (dueHw ?? []).map((r) => String(r.id));
-    if (hwIds.length > 0) {
-      const { error: updErr } = await client
-        .from("homework")
-        .update({
-          status: "published",
-          published_at: now,
-          updated_at: now,
-        } as never)
-        .eq("school_id", schoolId)
-        .in("id", hwIds);
-      throwIfError(updErr, "Failed to publish due scheduled homework");
-    }
-
-    const { data: dueTests, error: testListErr } = await client
-      .from("tests")
-      .select("id")
-      .eq("school_id", schoolId)
-      .eq("status", "scheduled")
-      .lte("scheduled_publish_at", now);
-    // Optional column/school_id may be missing on older schemas — ignore list failures.
-    let testIds: string[] = [];
-    if (!testListErr) {
-      testIds = (dueTests ?? []).map((r) => String(r.id));
-      if (testIds.length > 0) {
-        // `is_published` was removed here. 7.5 dropped that boolean from
-        // `tests` deliberately — it was the same fact as `status` twice and
-        // drifts the moment one is written without the other (G9,
-        // `isPublishedFlag` in testService.ts). `tests` has no such column, so
-        // this write was naming one that does not exist.
-        const { error: testUpdErr } = await client
-          .from("tests")
-          .update({
-            status: "published",
-            published_at: now,
-            updated_at: now,
-          } as never)
-          .eq("school_id", schoolId)
-          .in("id", testIds);
-        // This used to be an unchecked `await`. A failure here meant scheduled
-        // TESTS silently never published while homework did, and the caller was
-        // told the whole sweep had succeeded.
-        throwIfError(testUpdErr, "Failed to publish due scheduled tests");
-      }
-    }
-
-    const n = hwIds.length + testIds.length;
-    if (n > 0) {
-      afterHomeworkWrite(ctx, {
-        domains: ["homework", "test", "profile"],
-        source: "HomeworkService.publishDueScheduled",
-      });
-    }
-    return n;
+    return setStatus(ctx, homeworkId, { status: "published", scheduled_publish_at: null }, "HomeworkService.publish");
   },
 
   async unpublish(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
-    assertCanOwn(ctx, "homework");
-    const existing = await getHomework(toRepoContext(ctx), homeworkId);
-    await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
-    const row = await unpublishHomework(toRepoContext(ctx), homeworkId);
-    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.unpublish" });
-    return row;
+    return setStatus(ctx, homeworkId, { status: "draft", scheduled_publish_at: null }, "HomeworkService.unpublish");
   },
 
   async archive(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
-    assertCanOwn(ctx, "homework");
-    const existing = await getHomework(toRepoContext(ctx), homeworkId);
-    await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
-    const row = await archiveHomework(toRepoContext(ctx), homeworkId);
-    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.archive" });
-    return row;
+    return setStatus(ctx, homeworkId, { status: "archived", scheduled_publish_at: null }, "HomeworkService.archive");
   },
 
-  async duplicate(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
-    assertCanOwn(ctx, "homework");
-    const existing = await getHomework(toRepoContext(ctx), homeworkId);
-    await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
-    const row = await duplicateHomework(toRepoContext(ctx), homeworkId);
-    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.duplicate" });
-    return row;
-  },
-
-  async listSubmissions(
-    ctx: ServiceContext,
-    homeworkId: string,
-  ): Promise<HomeworkSubmissionRecord[]> {
-    assertCanConsume(ctx, "homework_submission");
-    const hw = await getHomework(toRepoContext(ctx), homeworkId);
-    if (ctx.role === "teacher") {
-      await assertTeacherMayManageClass(ctx, hw.classId, hw.subject);
-    } else if (ctx.role === "student" || ctx.role === "parent") {
-      throw new ForbiddenError("Students and parents may not list all class submissions");
-    }
-    return listSubmissionsForHomework(toRepoContext(ctx), homeworkId);
-  },
-
-  async submit(
-    ctx: ServiceContext,
-    input: SubmitHomeworkInput,
-  ): Promise<HomeworkSubmissionRecord> {
-    assertCanOwn(ctx, "homework_submission");
-    if (ctx.role === "student") {
-      if (ctx.studentId && ctx.studentId !== input.studentId) {
-        throw new ForbiddenError("Students may only submit their own homework");
-      }
-      if (!ctx.studentId) {
-        await assertMayAccessStudent(ctx, input.studentId);
-      }
-    } else if (ctx.role === "teacher") {
-      // Teachers may not forge submissions for arbitrary students
-      throw new ForbiddenError("Teachers cannot submit homework on behalf of students");
-    } else if (!isSchoolOperator(ctx.role)) {
-      throw new ForbiddenError("Not authorized to submit homework");
-    }
-    const hwGate = await assertStudentInHomeworkClass(ctx, input.homeworkId, input.studentId);
-    const row = await upsertHomeworkSubmission(toRepoContext(ctx), input);
-    await emitEventBestEffort(toRepoContext(ctx), {
-      eventType: row.status === "resubmitted" ? "homework.resubmitted" : "homework.submitted",
-      entityType: "homework_submission",
-      entityId: row.id,
-      studentId: input.studentId,
-      classId: hwGate.classId,
-      payload: { homeworkId: input.homeworkId, status: row.status },
-    });
-    afterHomeworkWrite(ctx, {
-      classId: hwGate.classId,
-      studentId: input.studentId,
-      source: "HomeworkService.submit",
-      domains: ["homework", "profile", "xp"],
-    });
-
-    // Progression Engine — homework submit (+ before-deadline bonus when due is set)
-    try {
-      const repo = toRepoContext(ctx);
-      const client = getClient(repo);
-      const { data: stu } = await client
-        .from("students")
-        .select("user_id")
-        .eq("id", input.studentId)
-        .eq("school_id", schoolIdOf(repo))
-        .maybeSingle();
-      const targetUserId = stu?.user_id ? String(stu.user_id) : null;
-
-      const { ProgressionService } = await import("./progressionService");
-      await ProgressionService.awardSafe(ctx, {
-        ruleCode: "homework.submit",
-        sourceType: "homework_submission",
-        sourceId: row.id,
-        idempotencyKey: `homework.submit:${row.id}`,
-        meta: { homework_id: input.homeworkId },
-        targetUserId,
-      });
-      if (hwGate.dueDate) {
-        const due = new Date(`${hwGate.dueDate}T${hwGate.dueTime || "23:59:59"}`);
-        if (!Number.isNaN(due.getTime()) && Date.now() <= due.getTime()) {
-          await ProgressionService.awardSafe(ctx, {
-            ruleCode: "homework.before_deadline",
-            sourceType: "homework_submission",
-            sourceId: row.id,
-            idempotencyKey: `homework.before:${row.id}`,
-            targetUserId,
-          });
-        }
-      }
-      // homework_submitted_count is bumped by Progression SSOT
-      // (trg_progression_homework_count on homework.submit history insert).
-    } catch {
-      /* progression optional if migration not applied yet */
-    }
-
-    return row;
-  },
-
+  /** To the trash: out of every student's count at once. */
   async remove(ctx: ServiceContext, homeworkId: string): Promise<void> {
     assertCanOwn(ctx, "homework");
     const existing = await getHomework(toRepoContext(ctx), homeworkId);
-    await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
+    await assertTeacherMayManageAcademicWork(ctx, existing.classId, existing.subject);
     await deleteHomework(toRepoContext(ctx), homeworkId);
     afterHomeworkWrite(ctx, { classId: existing.classId, source: "HomeworkService.remove" });
   },
 
-  async grade(
-    ctx: ServiceContext,
-    input: { submissionId: string; grade: string; remarks?: string | null },
-  ): Promise<HomeworkSubmissionRecord> {
-    assertCanOwn(ctx, "homework");
-    const gate = await assertTeacherMayManageSubmission(ctx, input.submissionId);
-    const row = await gradeHomeworkSubmission(toRepoContext(ctx), input);
-    const hw = await getHomework(toRepoContext(ctx), gate.homeworkId);
-    await emitEventBestEffort(toRepoContext(ctx), {
-      eventType: "homework.graded",
-      entityType: "homework_submission",
-      entityId: input.submissionId,
-      studentId: row.studentId,
-      classId: hw.classId,
-      payload: { homeworkId: gate.homeworkId, title: hw.title, grade: input.grade },
-    });
-    afterHomeworkWrite(ctx, {
-      classId: hw.classId,
-      studentId: row.studentId,
-      source: "HomeworkService.grade",
-    });
+  /** The student hands in their one image or PDF. The database decides whether it may. */
+  async submit(ctx: ServiceContext, homeworkId: string, file: AcademicFile): Promise<HomeworkSubmissionRecord> {
+    assertCanOwn(ctx, "homework_submission");
+    if (ctx.role !== "student") throw new ForbiddenError("Only a student hands in homework");
+    const row = await submitHomeworkFile(toRepoContext(ctx), homeworkId, file);
+    afterHomeworkWrite(ctx, { studentId: row.studentId, source: "HomeworkService.submit" });
     return row;
   },
 
-  async review(
-    ctx: ServiceContext,
-    input: ReviewHomeworkInput,
-  ): Promise<HomeworkSubmissionRecord> {
+  /** The teacher's two actions. */
+  async decide(ctx: ServiceContext, submissionId: string, decision: HomeworkDecision): Promise<HomeworkSubmissionRecord> {
     assertCanOwn(ctx, "homework");
-    const gate = await assertTeacherMayManageSubmission(ctx, input.submissionId);
-    const row = await reviewHomeworkSubmission(toRepoContext(ctx), input);
-    const hw = await getHomework(toRepoContext(ctx), gate.homeworkId);
-    
-    const eventType =
-      input.action === "return" || input.action === "reject" ? "homework.returned"
-      : input.action === "grade" ? "homework.graded"
-      : "homework.reviewed";
-
-    await emitEventBestEffort(toRepoContext(ctx), {
-      eventType,
-      entityType: "homework_submission",
-      entityId: input.submissionId,
-      studentId: row.studentId,
-      classId: hw.classId,
-      payload: { homeworkId: gate.homeworkId, title: hw.title, action: input.action },
-    });
-
-    afterHomeworkWrite(ctx, {
-      classId: hw.classId,
-      studentId: row.studentId,
-      source: "HomeworkService.review",
-    });
+    const row = await decideSubmission(toRepoContext(ctx), submissionId, decision);
+    afterHomeworkWrite(ctx, { studentId: row.studentId, source: "HomeworkService.decide" });
     return row;
   },
 
-  /**
-   * School homework analytics for Principal/Admin — computed in engine.
-   * UI must display these values, never recalculate.
-   */
+  /** School homework for the principal and admin, from `homework_completion`. */
   async summarizeSchool(ctx: ServiceContext): Promise<SchoolHomeworkSummary> {
     assertCanConsume(ctx, "homework");
-    if (!canReadSchoolWide(ctx.role)) {
-      throw new ForbiddenError("School homework summary is admin/principal-only");
-    }
+    if (!canReadSchoolWide(ctx.role)) throw new ForbiddenError("School homework summary is admin/principal-only");
     const repo = toRepoContext(ctx);
-    const schoolId = schoolIdOf(repo);
-    const client = getClient(repo);
-
-    const [{ data: classes, error: cErr }, { data: hw, error: hErr }, { data: subs, error: sErr }] =
-      await Promise.all([
-        client.from("classes").select("id, name, section").eq("school_id", schoolId),
-        (client as any)
-          .from("homework")
-          .select("id, class_id, status, created_by, work_kind")
-          .eq("school_id", schoolId),
-        client
-          .from("homework_submissions")
-          .select("id, homework_id, status, is_late")
-          .eq("school_id", schoolId),
-      ]);
-    throwIfError(cErr, "Failed to list classes");
-    throwIfError(hErr, "Failed to list homework");
-    throwIfError(sErr, "Failed to list submissions");
-
-    const homework = hw ?? [];
-    const submissions = subs ?? [];
-    const published = homework.filter((h) =>
-      ["published", "active"].includes(String(h.status ?? "")),
-    );
-    const drafts = homework.filter((h) => h.status === "draft");
-    const archived = homework.filter((h) => h.status === "archived");
-    const gradedCount = submissions.filter((s) =>
-      ["graded", "reviewed", "completed"].includes(String(s.status)),
-    ).length;
-
-    const hwByClass = new Map<string, typeof homework>();
-    for (const h of homework) {
-      const arr = hwByClass.get(h.class_id) ?? [];
-      arr.push(h);
-      hwByClass.set(h.class_id, arr);
-    }
-    const subByHw = new Map<string, typeof submissions>();
-    for (const s of submissions) {
-      const arr = subByHw.get(s.homework_id) ?? [];
-      arr.push(s);
-      subByHw.set(s.homework_id, arr);
-    }
-
-    const { data: classStudentCounts } = await client
-      .from("students")
-      .select("class_id")
-      .eq("school_id", schoolId);
-    const countByClass = new Map<string, number>();
-    for (const s of classStudentCounts ?? []) {
-      if (!s.class_id) continue;
-      countByClass.set(s.class_id, (countByClass.get(s.class_id) ?? 0) + 1);
-    }
-
-    let expectedTotal = 0;
-    let submittedTotal = 0;
-    let lateTotal = 0;
-
-    const classRows = (classes ?? []).map((c) => {
-      const list = hwByClass.get(c.id) ?? [];
-      const pub = list.filter((h) => ["published", "active"].includes(String(h.status)));
-      let submitted = 0;
-      let late = 0;
-      for (const h of pub) {
-        const ss = subByHw.get(h.id) ?? [];
-        submitted += ss.filter((x) =>
-          (COMPLETE_SUBMISSION_STATUSES as readonly string[]).includes(String(x.status)),
-        ).length;
-        late += ss.filter((x) => x.is_late || x.status === "late").length;
-      }
-      const students = countByClass.get(c.id) ?? 0;
-      const expectedClass = students * pub.length;
-      expectedTotal += expectedClass;
-      submittedTotal += submitted;
-      lateTotal += late;
-      return {
-        classId: c.id,
-        className: c.name,
-        section: c.section ?? "",
-        homeworkCount: pub.length,
-        completionPct: expectedClass
-          ? Math.round((Math.min(submitted, expectedClass) / expectedClass) * 1000) / 10
-          : 0,
-        latePct: submitted ? Math.round((late / submitted) * 1000) / 10 : 0,
-      };
-    });
-
-    const schoolCompletionPct = expectedTotal
-      ? Math.round((Math.min(submittedTotal, expectedTotal) / expectedTotal) * 1000) / 10
-      : 0;
-    const latePct = submittedTotal
-      ? Math.round((lateTotal / submittedTotal) * 1000) / 10
-      : 0;
-
-    const teacherMap = new Map<string, number>();
-    for (const h of homework) {
-      if (!h.created_by) continue;
-      teacherMap.set(h.created_by, (teacherMap.get(h.created_by) ?? 0) + 1);
-    }
-
-    const byKind: Record<string, number> = {};
-    for (const h of published) {
-      const kind = String((h as { work_kind?: string }).work_kind ?? "homework");
-      byKind[kind] = (byKind[kind] ?? 0) + 1;
-    }
-
+    const [counts, completion] = await Promise.all([countHomeworkByStatus(repo), listCompletion(repo)]);
+    const sum = (key: "students" | "given" | "awaitingReview" | "rejected") =>
+      completion.reduce((n, c) => n + c[key], 0);
+    const students = sum("students");
+    const given = sum("given");
     return {
-      totalAssigned: published.length,
-      totalPublished: published.length,
-      totalDrafts: drafts.length,
-      totalArchived: archived.length,
-      submissionCount: submittedTotal,
-      lateSubmissionCount: lateTotal,
-      gradedCount,
-      schoolCompletionPct,
-      latePct,
-      byKind,
-      classes: classRows.sort((a, b) => b.completionPct - a.completionPct),
-      teacherActivity: [...teacherMap.entries()].map(([teacherUserId, homeworkCount]) => ({
-        teacherUserId,
-        homeworkCount,
-      })),
+      published: counts.published,
+      scheduled: counts.scheduled,
+      drafts: counts.draft,
+      archived: counts.archived,
+      students,
+      given,
+      awaitingReview: sum("awaitingReview"),
+      rejected: sum("rejected"),
+      completionPct: students ? Math.round((1000 * given) / students) / 10 : 0,
     };
   },
 };
+
+async function setStatus(
+  ctx: ServiceContext,
+  homeworkId: string,
+  patch: { status: HomeworkRecord["status"]; scheduled_publish_at: null },
+  source: string,
+): Promise<HomeworkRecord> {
+  assertCanOwn(ctx, "homework");
+  const existing = await getHomework(toRepoContext(ctx), homeworkId);
+  await assertTeacherMayManageAcademicWork(ctx, existing.classId, existing.subject);
+  const row = await updateHomework(toRepoContext(ctx), homeworkId, patch);
+  afterHomeworkWrite(ctx, { classId: row.classId, source });
+  return row;
+}
 
 /** Product alias — Assignment is Homework. */
 export const AssignmentService = HomeworkService;

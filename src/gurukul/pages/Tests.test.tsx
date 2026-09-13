@@ -23,7 +23,6 @@ const listForClassDetailed = vi.fn();
 
 vi.mock("@/academic", () => ({
   AnalyticsService: { forStudent: vi.fn().mockResolvedValue(null) },
-  HomeworkService: { publishDueScheduled: vi.fn().mockResolvedValue(0) },
   MarksService: {
     listForStudent: vi.fn().mockResolvedValue([]),
     listExamsForClass: vi.fn().mockResolvedValue([]),

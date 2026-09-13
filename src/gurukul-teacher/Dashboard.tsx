@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { withAlpha } from "@/lib/colorAlpha";
 import {
   BookOpen,
@@ -179,7 +179,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
                 c.isClassTeacher
                   ? AttendanceService.listForClassDate(ctx, c.id, todayDate)
                   : Promise.resolve(null),
-                HomeworkService.listForClassWithStats(ctx, c.id, { limit: 100 }),
+                HomeworkService.listForClass(ctx, c.id, { limit: 100 }),
                 TestService.listForClass(ctx, c.id) as Promise<{ status?: string }[]>,
                 MarksService.listExamsForClass(ctx, c.id, { limit: 100 }),
                 AcademicProfileService.listForClass(ctx, c.id),
@@ -202,7 +202,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
               }
 
               if (hwRes.status === "fulfilled") {
-                for (const h of hwRes.value) awReviewHere += h.awaitingReview;
+                for (const h of hwRes.value) awReviewHere += h.completion?.awaitingReview ?? 0;
               } else {
                 errors.push("homework");
               }

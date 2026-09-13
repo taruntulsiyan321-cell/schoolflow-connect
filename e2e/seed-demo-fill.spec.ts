@@ -63,9 +63,7 @@ test("fill demo data", async ({ page }) => {
         await get(`students?select=id,full_name,class_id,user_id&class_id=eq.${CLASS_10A}&order=roll_number`);
       const exams: Array<{ id: string; name: string; max_marks: number; class_id: string }> =
         await get(`exams?select=id,name,max_marks,class_id&class_id=eq.${CLASS_10A}`);
-      const homework: Array<{ id: string; title: string }> =
-        await get(`homework?select=id,title&class_id=eq.${CLASS_10A}`);
-      log.push(`refs: ${students.length} students, ${exams.length} exams, ${homework.length} homework`);
+      log.push(`refs: ${students.length} students, ${exams.length} exams`);
 
       // ---- marks: every 10-A student in every 10-A exam -------------------
       const existingMarks: Array<{ exam_id: string; student_id: string }> =
@@ -96,31 +94,9 @@ test("fill demo data", async ({ page }) => {
       });
       await post("marks", newMarks);
 
-      // ---- homework submissions: mix of submitted / graded ----------------
-      const existingSubs: Array<{ homework_id: string; student_id: string }> =
-        await get("homework_submissions?select=homework_id,student_id");
-      const haveSub = new Set(existingSubs.map((s) => `${s.homework_id}|${s.student_id}`));
-      const GRADES = ["A+", "A", "B+", "B", "A", "B+"];
-      const newSubs: unknown[] = [];
-      homework.slice(0, 3).forEach((hw, hi) => {
-        students.forEach((s, i) => {
-          if (haveSub.has(`${hw.id}|${s.id}`)) return;
-          const graded = (i + hi) % 3 !== 0;
-          newSubs.push({
-            homework_id: hw.id,
-            student_id: s.id,
-            content: graded ? "Completed all questions with working shown." : "Submitted — pending review",
-            status: graded ? "graded" : "submitted",
-            grade: graded ? GRADES[i % GRADES.length] : null,
-            teacher_remarks: graded ? "Well presented. Check step 3 in Q4." : null,
-            submitted_at: new Date(Date.now() - (i + 1) * 36e5).toISOString(),
-            graded_at: graded ? new Date(Date.now() - i * 18e5).toISOString() : null,
-            is_late: i % 5 === 0,
-            school_id: SCHOOL,
-          });
-        });
-      });
-      await post("homework_submissions", newSubs);
+      // No homework submissions: a hand-in is one file the student uploads and
+      // hands in through rpc_homework_submit (20260925110000). No session
+      // writes a submission row directly, so there is nothing here to fake.
 
       // ---- principal: Inquiries & Complaints ------------------------------
       const inqCount = (await get("admission_enquiries?select=id")).length;

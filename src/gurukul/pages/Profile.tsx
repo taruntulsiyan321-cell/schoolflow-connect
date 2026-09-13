@@ -152,14 +152,13 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         })),
       );
 
-      // Counts, not a percentage (v2 Screen 12). `displayStatus` is the
-      // service's own derived state — recomputing it here would be a second
-      // home for the same rule (G9).
+      // Counts, not a percentage (v2 Screen 12). `given` comes from
+      // homework_student_status — deciding it here would be a second home for
+      // the same rule (G9). A rejected hand-in is not given.
       const hw = settled[5].status === "fulfilled" ? settled[5].value : [];
       const hwRows = Array.isArray(hw) ? hw : [];
-      const handedIn = (st: string) => st === "Submitted" || st === "Reviewed" || st === "Graded";
-      setHwDone(hwRows.filter((h) => handedIn(h.displayStatus)).length);
-      setHwMissing(hwRows.filter((h) => !handedIn(h.displayStatus)).length);
+      setHwDone(hwRows.filter((h) => h.standing.given).length);
+      setHwMissing(hwRows.filter((h) => !h.standing.given).length);
 
       const rm = settled[6].status === "fulfilled" ? settled[6].value : [];
       setRemarks(

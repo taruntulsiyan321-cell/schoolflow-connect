@@ -1442,7 +1442,7 @@ function StudentRecordView({ studentId, goBack }: { studentId: StudentId; goBack
                   <div className="w-28 text-xs text-muted-foreground">{hw.subject}</div>
                   <div className="w-20 font-mono text-xs text-muted-foreground">{hw.dueDate.slice(5)}</div>
                   <div className="w-20 text-right">
-                    <span className={`text-xs ${hw.status === "missing" ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                    <span className={`text-xs ${hw.status === "not_submitted" ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                       {toEnumLabel(hw.status, "submission_status")}
                     </span>
                   </div>
@@ -1861,7 +1861,7 @@ function HomeworkDetailView({ classId, homeworkId, goBack }: { classId: ClassId;
   const students = cls.studentIds.map(sid => appData.students[sid]).filter(Boolean)
   const studentStatuses = students.map(s => {
     const item = s.homework.find(h => h.subject === hw.subject)
-    return { s, status: item?.status ?? "missing" }
+    return { s, status: item?.status ?? "not_submitted" }
   })
 
   return (
@@ -1872,11 +1872,11 @@ function HomeworkDetailView({ classId, homeworkId, goBack }: { classId: ClassId;
       <div className="text-sm text-muted-foreground mb-6">{hw.subject} · Due {hw.dueDate}</div>
 
       <div className="flex gap-3 mb-6">
-        {["submitted","accepted","rejected","missing"].map(status => {
+        {["submitted","accepted","rejected","not_submitted"].map(status => {
           const count = studentStatuses.filter(r => r.status === status).length
           return (
             <div key={status} className="bg-card border border-border px-3 py-2.5">
-              <Label className="block mb-1">{status}</Label>
+              <Label className="block mb-1">{toEnumLabel(status, "submission_status")}</Label>
               <div className="font-mono text-xl">{count}</div>
             </div>
           )
@@ -1891,8 +1891,8 @@ function HomeworkDetailView({ classId, homeworkId, goBack }: { classId: ClassId;
         {studentStatuses.map(({ s, status }) => (
           <div key={s.id} className="flex items-center px-4 py-2.5 border-b border-border last:border-b-0">
             <div className="flex-1 text-sm">{s.name}</div>
-            <div className={`w-24 text-right text-xs ${status === "missing" ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-              {status}
+            <div className={`w-24 text-right text-xs ${status === "not_submitted" ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+              {toEnumLabel(status, "submission_status")}
             </div>
           </div>
         ))}

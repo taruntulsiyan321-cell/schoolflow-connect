@@ -63,11 +63,12 @@ BEGIN
   -- Not "did I remove the column I was thinking of" but "does any table
   -- anywhere still record, per question, that a student was right".
   -- A table qualifies as per-question if it carries a question id column.
-  -- homework_answers is deliberately NOT excluded by name below; it is
-  -- excluded by the doc's own separation rule. "Test and homework answers are
-  -- school data; practice answers are private." A teacher-set assessment is
-  -- allowed to record who got what right — that is the mark. The storage rule
-  -- constrains PRACTICE.
+  -- test_answers is excluded by the doc's own separation rule: "Test and
+  -- homework answers are school data; practice answers are private." A
+  -- teacher-set assessment is allowed to record who got what right — that is
+  -- the mark. The storage rule constrains PRACTICE. (homework_answers used to
+  -- be excluded beside it; 20260925110000 dropped the table — a hand-in is one
+  -- file now, with nothing per question to record.)
   --
   -- This sweep found six columns on first run when the author expected two.
   -- The four practice-side ones are listed explicitly as the declared gap, so
@@ -83,7 +84,7 @@ BEGIN
           AND q.column_name IN ('question_id','bank_question_id')
      )
      -- school data, per the separation rule — not practice, not in scope
-     AND c.table_name NOT IN ('homework_answers','test_answers');
+     AND c.table_name <> 'test_answers';
 
   _r2 := 'practice-side per-question correctness still stored: ' || COALESCE(_bad_cols,'(none)')
       || CASE WHEN _bad_cols IS NULL THEN ' (PASS)'

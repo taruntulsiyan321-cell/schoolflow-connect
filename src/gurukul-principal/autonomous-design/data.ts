@@ -33,7 +33,7 @@ export interface Student {
     subject: string
     title: string
     dueDate: string
-    status: "submitted" | "missing" | "accepted" | "rejected"
+    status: "not_submitted" | "submitted" | "accepted" | "rejected"
   }[]
   examMarks: { examId: string; subject: string; marks: number; outOf: number }[]
   testMarks: { subject: string; title: string; date: string; marks: number; outOf: number }[]
@@ -217,7 +217,7 @@ function makeStudents(classId: string, prefix: string, count: number): Student[]
         subject: sub,
         title: hwBatch[si] ?? `Exercise ${si + 1}`,
         dueDate: `2026-09-${String(3 + si).padStart(2,"0")}`,
-        status: (statusR < 0.1 ? "missing" : statusR < 0.55 ? "submitted" : statusR < 0.8 ? "accepted" : "rejected") as "submitted"|"missing"|"accepted"|"rejected",
+        status: (statusR < 0.1 ? "not_submitted" : statusR < 0.55 ? "submitted" : statusR < 0.8 ? "accepted" : "rejected") as "not_submitted"|"submitted"|"accepted"|"rejected",
       }
     })
 

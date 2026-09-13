@@ -101,7 +101,7 @@ export default function ParentDashboard({
       try {
         const rows = await HomeworkService.listForStudent(ctx, attendanceId);
         if (!cancelled) {
-          setPendingHw(rows.filter((r) => !r.submission || ["pending", "returned"].includes(r.submission.status)).length);
+          setPendingHw(rows.filter((r) => !r.standing.given && !r.standing.closed).length);
         }
       } catch {
         if (!cancelled) setPendingHw(0);
@@ -219,7 +219,7 @@ export default function ParentDashboard({
         <QuickStat
           label="Pending Homework"
           value={pendingHw}
-          sub="not yet submitted"
+          sub="still open, not handed in"
           color={pendingHw > 0 ? "hsl(var(--warning))" : "hsl(var(--primary))"}
           icon={<BookOpen className="w-5 h-5" />}
         />

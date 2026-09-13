@@ -64,6 +64,27 @@ describe("academic engine — events", () => {
     expect(syncTargetsFor("examination.deleted")).toContain("student_academic_profile");
     expect(syncTargetsFor("examination.deleted")).toContain("audit");
   });
+
+  it("plans profile + notifications for attendance, tests, and results", () => {
+    expect(syncTargetsFor("attendance.marked")).toEqual(
+      expect.arrayContaining(["student_academic_profile", "notifications", "analytics"]),
+    );
+    expect(syncTargetsFor("test.attempt.completed")).toEqual(
+      expect.arrayContaining(["student_academic_profile", "notifications", "analytics"]),
+    );
+    expect(syncTargetsFor("marks.results_published")).toEqual(
+      expect.arrayContaining(["student_academic_profile", "notifications"]),
+    );
+  });
+
+  it("carries the two homework decisions, and no grade", () => {
+    expect(syncTargetsFor("homework.submitted")).toEqual(
+      expect.arrayContaining(["student_academic_profile", "notifications"]),
+    );
+    expect(syncTargetsFor("homework.reviewed")).toContain("notifications");
+    expect(syncTargetsFor("homework.returned")).toContain("notifications");
+    expect(ACADEMIC_EVENT_TYPES).not.toContain("homework.graded");
+  });
 });
 
 describe("academic engine — validation", () => {

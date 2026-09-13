@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build a LOCAL replica of the Gurukul schema and drive the whole test flow
-# through it as the real signed-in roles.
+# Build a LOCAL replica of the Gurukul schema and drive the test and homework
+# flows through it as the real signed-in roles.
 #
 # WHY THIS EXISTS
 #   The database gates this repo relies on — verify:caller-privileges,
@@ -10,13 +10,18 @@
 #   migration would otherwise ship on inspection alone.
 #
 #   This builds the same schema from the repo's own migrations against a
-#   throwaway postgres, and runs `flow.mjs` — 90 claims covering the test
-#   journey end to end, each driven under RLS as the role that would make the
-#   call, each refusal paired with a positive control.
+#   throwaway postgres, and runs `flow.mjs` — the test journey and the homework
+#   journey end to end, each claim driven under RLS as the role that would make
+#   the call, each refusal paired with a positive control.
 #
 #   It is NOT a substitute for applying the migrations to the project. It
 #   proves the SQL is right; it says nothing about what the live database
 #   currently holds.
+#
+#   Everything talks to the server through the `pg` client (apply.mjs, flow.mjs),
+#   so the only thing needed is a reachable server — no psql. The block below
+#   starts one only when none answers, and only where the Linux cluster tools
+#   exist; anywhere else, start postgres on $GK_PORT yourself first.
 #
 # USAGE
 #   scripts/local-replica/run.sh            build, apply, probe
@@ -28,7 +33,12 @@ PGDATA="${GK_PGDATA:-/var/lib/postgresql/gurukul-replica}"
 PGBIN="${GK_PGBIN:-/usr/lib/postgresql/16/bin}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if ! "$PGBIN/pg_isready" -h 127.0.0.1 -p "$PORT" >/dev/null 2>&1; then
+if ! GK_PORT="$PORT" node "$HERE/apply.mjs" --ready; then
+  if [ ! -x "$PGBIN/pg_ctl" ]; then
+    echo "no postgres answers on 127.0.0.1:$PORT, and $PGBIN/pg_ctl does not exist to start one." >&2
+    echo "Start a postgres 16 server on that port (user postgres, trust auth), or set GK_PGBIN." >&2
+    exit 2
+  fi
   echo "── starting a throwaway postgres on :$PORT"
   if [ ! -f "$PGDATA/PG_VERSION" ]; then
     mkdir -p "$PGDATA" && chown -R postgres:postgres "$PGDATA"
@@ -38,14 +48,8 @@ if ! "$PGBIN/pg_isready" -h 127.0.0.1 -p "$PORT" >/dev/null 2>&1; then
     -o '-c listen_addresses=127.0.0.1 -p $PORT -c unix_socket_directories=/tmp -c fsync=off' start" >/dev/null
 fi
 
-PSQL="psql -h 127.0.0.1 -p $PORT -U postgres -X -q"
+echo "── rebuilding the replica and applying every migration in supabase/migrations"
+GK_PORT="$PORT" node "$HERE/apply.mjs" | tail -4
 
-echo "── rebuilding the replica"
-$PSQL -d postgres -c "DROP DATABASE IF EXISTS gurukul WITH (FORCE);" -c "CREATE DATABASE gurukul;"
-$PSQL -d gurukul -v ON_ERROR_STOP=1 -f "$HERE/prelude.sql" >/dev/null
-
-echo "── applying every migration in supabase/migrations"
-GK_PORT="$PORT" node "$HERE/apply.mjs" | tail -3
-
-echo "── driving the test flow as the real callers"
+echo "── driving the flows as the real callers"
 GK_PORT="$PORT" node "$HERE/flow.mjs"

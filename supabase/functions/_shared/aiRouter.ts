@@ -469,61 +469,54 @@ async function fetchAttendance(admin: SupabaseClient, schoolId: string, studentI
   };
 }
 
+/**
+ * The student's homework standing, from `homework_student_status` — the one
+ * place "handed in" and "deadline passed" are decided (20260925130000). This
+ * client is the service role and reads the view unfenced, so every query names
+ * the student and the school.
+ *
+ * due_soon: not given and still open — to do, or rejected and able to be
+ * handed in again. overdue_count: not given and closed.
+ */
 async function fetchHomeworkDue(admin: SupabaseClient, schoolId: string, studentId: string) {
-  const { data: student } = await admin
-    .from("students")
-    .select("class_id")
-    .eq("id", studentId)
-    .eq("school_id", schoolId)
-    .maybeSingle();
-  if (!student?.class_id) {
-    return {
-      projection: "StudentHomeworkDue",
-      version: 1,
-      studentId,
-      schoolId,
-      due_soon: [],
-      pending_count: 0,
-      overdue_count: 0,
-      source_as_of: null,
-      data_version: `hw:${studentId}:0`,
-      completeness: 0,
-    };
-  }
+  const [{ data: open }, { count: overdue }] = await Promise.all([
+    admin
+      .from("homework_student_status")
+      .select("homework_id, status, closes_at, due_date")
+      .eq("school_id", schoolId)
+      .eq("student_id", studentId)
+      .eq("given", false)
+      .eq("closed", false)
+      .order("closes_at", { ascending: true })
+      .limit(20),
+    admin
+      .from("homework_student_status")
+      .select("homework_id", { count: "exact", head: true })
+      .eq("school_id", schoolId)
+      .eq("student_id", studentId)
+      .eq("given", false)
+      .eq("closed", true),
+  ]);
 
-  const { data: homework } = await admin
-    .from("homework")
-    .select("id, title, subject, due_date, due_time, status")
-    .eq("school_id", schoolId)
-    .eq("class_id", student.class_id)
-    .in("status", ["published", "active"])
-    .order("due_date", { ascending: true })
-    .limit(50);
+  const ids = (open ?? []).map((r) => String(r.homework_id));
+  const { data: homework } = ids.length
+    ? await admin.from("homework").select("id, title, subject").eq("school_id", schoolId).in("id", ids)
+    : { data: [] as { id: string; title: string; subject: string }[] };
+  const byId = new Map((homework ?? []).map((h) => [String(h.id), h]));
 
-  const hwIds = (homework ?? []).map((h) => h.id);
-  const { data: subs } = hwIds.length
-    ? await admin
-        .from("homework_submissions")
-        .select("homework_id, status")
-        .eq("student_id", studentId)
-        .in("homework_id", hwIds)
-    : { data: [] as { homework_id: string; status: string }[] };
-
-  const subMap = new Map((subs ?? []).map((s) => [String(s.homework_id), String(s.status)]));
-  const due_soon = (homework ?? [])
-    .filter((h) => {
-      const st = subMap.get(String(h.id));
-      return !st || ["pending", "returned", "draft"].includes(st);
-    })
-    .slice(0, 20)
-    .map((h) => ({
-      id: String(h.id),
-      title: String(h.title),
-      subject: String(h.subject),
-      due_date: h.due_date ? String(h.due_date) : null,
-      due_time: h.due_time ? String(h.due_time) : null,
-      display_status: subMap.get(String(h.id)) ?? "pending",
-    }));
+  const due_soon = (open ?? []).flatMap((r) => {
+    const h = byId.get(String(r.homework_id));
+    return h
+      ? [{
+          id: String(h.id),
+          title: String(h.title),
+          subject: String(h.subject),
+          due_date: r.due_date ? String(r.due_date) : null,
+          closes_at: r.closes_at ? String(r.closes_at) : null,
+          display_status: r.status === "rejected" ? "rejected — hand in again" : "to do",
+        }]
+      : [];
+  });
 
   return {
     projection: "StudentHomeworkDue",
@@ -532,10 +525,10 @@ async function fetchHomeworkDue(admin: SupabaseClient, schoolId: string, student
     schoolId,
     due_soon,
     pending_count: due_soon.length,
-    overdue_count: 0,
+    overdue_count: overdue ?? 0,
     source_as_of: due_soon[0]?.due_date ?? null,
-    data_version: `hw:${studentId}:${due_soon.length}`,
-    completeness: (homework ?? []).length > 0 ? 1 : 0.2,
+    data_version: `hw:${studentId}:${due_soon.length}:${overdue ?? 0}`,
+    completeness: 1,
   };
 }
 
@@ -1284,29 +1277,15 @@ async function probeAttendance(admin: SupabaseClient, schoolId: string, studentI
 }
 
 async function probeHomework(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
-  const { data: student } = await admin
-    .from("students")
-    .select("class_id")
-    .eq("id", studentId)
+  // The standing is what the projection reports, so its rows are what change it.
+  const { data } = await admin
+    .from("homework_student_status")
+    .select("homework_id, status, closed, closes_at")
     .eq("school_id", schoolId)
-    .maybeSingle();
-  if (!student?.class_id) return "hw:noclass";
-  const [{ data: hw }, { data: subs }] = await Promise.all([
-    admin
-      .from("homework")
-      .select("id, title, subject, due_date, due_time, status")
-      .eq("school_id", schoolId)
-      .eq("class_id", student.class_id)
-      .in("status", ["published", "active"])
-      .order("due_date", { ascending: true })
-      .limit(50),
-    admin
-      .from("homework_submissions")
-      .select("homework_id, status")
-      .eq("student_id", studentId)
-      .limit(200),
-  ]);
-  return `hw:${await hashRows(hw)}:${await hashRows(subs)}`;
+    .eq("student_id", studentId)
+    .order("closes_at", { ascending: true })
+    .limit(200);
+  return `hw:${await hashRows(data)}`;
 }
 
 async function probeMarks(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {

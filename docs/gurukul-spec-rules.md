@@ -376,6 +376,100 @@ test.
 
 ---
 
+## Homework — RULED 2026-09-13, built, NOT APPLIED
+
+**The specification, in the owner's words.** The teacher sets homework with "a heading/title
+and the usual fields"; the question is typed text OR one uploaded file (image, document or
+PDF); the teacher chooses the CLASS, sets a DEADLINE, and may SCHEDULE it. For the student,
+"THERE IS NO DIGITAL/TYPED SUBMISSION": ONE FILE, an image or a PDF. The deadline closes it
+automatically and every student is resolved to submitted or not submitted; nothing after it.
+The teacher has EXACTLY TWO ACTIONS, accept or reject — no marks, grades or remarks — and a
+REJECTED submission counts as NOT GIVEN.
+
+**Built as five migrations, `20260925100000`–`20260925140000`, each with a rollback and a
+proof block that rolls itself back if it cannot demonstrate its own effect. None is applied
+to the live project** — see HANDOFF.md.
+
+33. **The deadline is one instant: `homework.closes_at`, timestamptz, NOT NULL.** The brief
+    offered "delete `closes_at`/`submission_mode`, or implement `closes_at` as the deadline".
+    `closes_at` IS the deadline: a deadline is an instant, and it was already the column that
+    meant "when this closes". `due_date` is now GENERATED from it — the school-local date,
+    decided once in `school_local_date()` — so the routines and screens that group by date keep
+    reading the column they read; `due_time` is folded in and dropped; `submission_mode` is
+    dropped. (Measured before: `closes_at` had been backfilled as `(due_date + 1)` in the UTC
+    session zone, so homework "due 15 Sep" closed at 05:30 IST on the 16th and `due_time` was
+    ignored.)
+34. **The question is typed text OR one file**, never both (`homework_question_is_text_or_file`;
+    a draft may have neither yet). The question file is an image, a Word document or a PDF
+    (`homework_question_file_ok`). §10.22 stands unchanged: the chapter is picked from the
+    class's curriculum, the topic picked from that chapter or added, and a free-text label only
+    where no chapter fits.
+35. **Release.** Published now, scheduled, or kept as a draft. Scheduled work is released by
+    pg_cron job `publish-due-scheduled-work` every minute (`publish_due_scheduled_work()`), not
+    by page loads; students and parents read a homework only once it is published and while it
+    is not deleted. **Nobody signed in can publish or schedule homework whose deadline has
+    passed**, and a closed homework cannot go back to draft or scheduled — republishing would
+    tell the class "New homework" about work nobody can hand in. It can be archived.
+36. **The hand-in is ONE image or PDF**, through `rpc_homework_submit` only — no session writes
+    a submission row. `homework_submissions.file` is a single jsonb object, so a second file
+    cannot be stored (`homework_hand_in_ok`); the file must exist in `academic-files` under the
+    student's own folder. **A handed-in file cannot be overwritten or deleted** through storage
+    afterwards (`homework_file_is_fixed`, 20260925140000) — before this, a student could swap
+    the bytes behind an accepted hand-in.
+37. **The deadline closes it for everyone.** Nothing is handed in at or after `closes_at`.
+    pg_cron job `resolve-closed-homework`, every minute, writes a `not_submitted` row for each
+    current student of a closed homework's class and stamps `resolved_at`, once: resolution
+    freezes the roster, so a student who joins later is not counted as having missed work set
+    before they arrived.
+38. **The teacher's two actions: accept or reject** (`rpc_homework_decide`), on a hand-in
+    awaiting review, by a teacher of the class or an admin of the school. No marks, no grade,
+    no remark exist anywhere in the model any more.
+39. **Four statuses:** `not_submitted`, `submitted`, `accepted`, `rejected`, and
+    `homework_submissions_state` makes each mean one thing. Lateness is not stored: nothing can
+    be late. `is_late`, `grade`, `marks_obtained`, `teacher_remarks`, the typed `content` and the
+    resubmission `version` are gone, and so is the second digital path (`homework_questions`,
+    `homework_answers`, `homework_completions`, `rpc_close_homework`) — all three tables empty.
+40. **Counting has one home.** `homework_student_status` decides a student's standing — `given`
+    is submitted or accepted, `closed` is the deadline having passed — and `homework_completion`
+    is its per-homework aggregate. Only published, undeleted homework counts, and a deleted
+    student counts for nobody. **Completion is measured at the deadline** (§10.12): the profile,
+    the leaderboard, the student snapshot and the parent digest divide by closed homework, so a
+    student is not behind on work they still have time to hand in. Archived homework leaves the
+    students' view and every count, as unpublished homework always has.
+41. **Delete is a soft delete to the trash** (`rpc_homework_delete`), drafts and published work
+    alike, by a teacher of the class or an admin; the trash restores and purges it. Everything
+    read live drops at once; the stored profiles recount through the academic event queue,
+    which pg_cron job `process-pending-academic-events` now drains every minute — the browser
+    no longer does, and no signed-in or anonymous session may drain it or replay an event.
+
+**Assumptions proceeded on, as the brief allowed — they are not rulings.**
+* A student may replace their file, or hand in again after a rejection, only before the
+  deadline. An ACCEPTED hand-in is final.
+* XP for homework is awarded when the teacher ACCEPTS, not at hand-in, so rejected work earns
+  nothing — exactly like work never handed in.
+* "Duplicate" opens the form as new homework with no deadline, for the teacher to set one.
+
+**What the legacy rows become (measured on live 2026-09-13).** 51 homework — 19 published, 32
+archived, none scheduled, none deleted — all keep their typed question. 145 submissions — 108
+submitted, 28 graded, 9 late — and **not one carries a file**, so all 145 become
+`not_submitted`: typed submissions do not exist in this specification. Their content, grade and
+remark are copied first into `homework_submissions_pre_20260925110000` (and every homework row
+into `homework_pre_20260925110000`), which is what the rollback restores from. Decision D1 in
+`docs/decisions.md` is superseded accordingly.
+
+**Not built, and said so.**
+* **Missing homework costs no XP.** The progression engine defines a rule `homework.missed`
+  ("Past due without submission", −5 XP), and nothing has ever applied it — before this work
+  or after. The closure job resolves a student to `not_submitted` and deducts nothing. Whether
+  missed homework should cost XP is a **ruling request**, not something to switch on quietly.
+* **The notification wording predates the ruling.** Accepting emits `homework.reviewed` and
+  rejecting `homework.returned`, the event names the live router (`process_academic_event`)
+  already routes, so the student and parents read "Work reviewed" and "Work returned" (measured
+  on live). Renaming them means replacing that router, whose live body differs from anything a
+  replica built from the migrations can hold, so it was not replaced on inspection alone.
+
+---
+
 ## Parked — year-end rollover
 
 Not started. The model is being decided at product level and will arrive as its own spec. Build nothing from inference. When it arrives: write the definition first (what promotes, archives, resets, carries forward), get it ruled on, map every academic table against it, build it idempotent and dry-runnable, and test against a copy of production rather than a fixture.

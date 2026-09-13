@@ -5,15 +5,14 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 /**
- * Admin Homework monitor — HomeworkService + AnalyticsService only.
- * No mock data; no direct table writes. Live-refreshes with teacher HW writes.
+ * Admin homework monitor. Completion comes from `homework_completion`: every
+ * current student a published homework is set to, and how many have given it —
+ * a rejected hand-in counts as not given.
  */
 export default function HomeworkAdmin() {
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["homework", "profile"]);
-  const [summary, setSummary] = useState<Awaited<
-    ReturnType<typeof AnalyticsService.homeworkSchool>
-  > | null>(null);
+  const [summary, setSummary] = useState<Awaited<ReturnType<typeof AnalyticsService.homeworkSchool>> | null>(null);
   const [items, setItems] = useState<Awaited<ReturnType<typeof HomeworkService.listForSchool>>>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -48,10 +47,7 @@ export default function HomeworkAdmin() {
     const q = search.trim().toLowerCase();
     if (!q) return items;
     return items.filter(
-      (h) =>
-        h.title.toLowerCase().includes(q) ||
-        h.subject.toLowerCase().includes(q) ||
-        String(h.status ?? "").toLowerCase().includes(q),
+      (h) => h.title.toLowerCase().includes(q) || h.subject.toLowerCase().includes(q) || h.status.includes(q),
     );
   }, [items, search]);
 
@@ -68,7 +64,7 @@ export default function HomeworkAdmin() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-muted-foreground">Homework</h1>
-          <p className="text-xs text-muted-foreground">HomeworkService · AnalyticsService — school monitor</p>
+          <p className="text-xs text-muted-foreground">Every class's homework, and how much of it has been handed in</p>
         </div>
         <input
           value={search}
@@ -83,12 +79,12 @@ export default function HomeworkAdmin() {
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: "Published", value: summary.totalPublished },
-            { label: "Drafts", value: summary.totalDrafts },
-            { label: "Completion %", value: summary.schoolCompletionPct },
-            { label: "Late %", value: summary.latePct },
-            { label: "Submissions", value: summary.submissionCount },
-            { label: "Graded", value: summary.gradedCount },
+            { label: "Published", value: summary.published },
+            { label: "Scheduled", value: summary.scheduled },
+            { label: "Drafts", value: summary.drafts },
+            { label: "Handed in %", value: summary.completionPct },
+            { label: "Awaiting review", value: summary.awaitingReview },
+            { label: "Rejected", value: summary.rejected },
           ].map((k) => (
             <div key={k.label} className="rounded-2xl border border-[#e5e7eb] bg-card p-4">
               <div className="text-xl font-bold tabular-nums">{k.value}</div>
@@ -105,7 +101,7 @@ export default function HomeworkAdmin() {
               <th className="p-3">Title</th>
               <th className="p-3">Subject</th>
               <th className="p-3">Status</th>
-              <th className="p-3">Due</th>
+              <th className="p-3">Deadline</th>
               <th className="p-3">Priority</th>
             </tr>
           </thead>
@@ -115,7 +111,9 @@ export default function HomeworkAdmin() {
                 <td className="p-3 font-medium">{h.title}</td>
                 <td className="p-3 text-muted-foreground">{h.subject}</td>
                 <td className="p-3">{toEnumLabel(h.status, "homework_status")}</td>
-                <td className="p-3 tabular-nums">{h.dueDate ?? "—"}</td>
+                <td className="p-3 tabular-nums">
+                  {new Date(h.closesAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                </td>
                 <td className="p-3">{toEnumLabel(h.priority, "homework_priority")}</td>
               </tr>
             ))}

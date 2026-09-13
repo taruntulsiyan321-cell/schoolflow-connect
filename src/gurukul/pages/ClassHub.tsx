@@ -100,14 +100,9 @@ export default function ClassHub({ setPage }: Props) {
         setAttPct(Math.round(profile?.attendancePct ?? analytics?.attendance.pct ?? 0));
         setExamAvg(Math.round(analytics?.exams.averagePct ?? 0));
         setHwPct(Math.round(analytics?.homework.pct ?? 0));
-        // The disputed figure, settled: this counts the student's OWN homework
-        // rows with no submission, or one still pending or returned. The bottom
-        // widget said "0 / 10 pending", which was the same number phrased as a
-        // ratio against every homework ever set — arithmetically fine, and it
-        // read as a different claim. The widget is gone; this is the figure.
-        setHwPending(
-          hw.filter((r) => !r.submission || ["pending", "returned"].includes(r.submission.status)).length,
-        );
+        // The student's OWN homework that is still open and not given: to do,
+        // or rejected and able to be handed in again.
+        setHwPending(hw.filter((r) => !r.standing.given && !r.standing.closed).length);
         if (settled.every((s) => s.status === "rejected")) {
           toast({
             title: "Could not load class stats",

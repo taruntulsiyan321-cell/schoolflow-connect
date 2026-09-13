@@ -96,11 +96,6 @@ export async function assertTeacherMayManageAcademicWork(
   }
 }
 
-export function isPastDue(dueDate: string | null | undefined, dueTime?: string | null): boolean {
-  if (!dueDate) return false;
-  return new Date().getTime() > new Date(`${dueDate}T${dueTime ?? "23:59:59"}`).getTime();
-}
-
 export function normalizeWorkKind(v: string | null | undefined): WorkKind {
   if (v && (WORK_KINDS as string[]).includes(v)) return v as WorkKind;
   return "homework";

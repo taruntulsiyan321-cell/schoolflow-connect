@@ -119,7 +119,6 @@ export {
   TEST_KIND_LABELS,
   EXAM_TYPE_LABELS,
   assertTeacherMayManageAcademicWork,
-  isPastDue,
   normalizeWorkKind,
   type WorkKind,
   type TestKind,
@@ -127,4 +126,4 @@ export {
 } from "./workLifecycle";
 
 export type { StudentContextReadiness } from "./assertStudentContext";
-export type { CurriculumSubject, CurriculumChapter } from "./curriculumService";
+export type { CurriculumSubject, CurriculumChapter, CurriculumTopic } from "./curriculumService";

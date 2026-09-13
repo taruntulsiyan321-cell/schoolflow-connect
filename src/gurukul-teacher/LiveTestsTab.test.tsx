@@ -29,7 +29,7 @@ vi.mock("@/academic", () => ({
   AttendanceService: {},
   AcademicProfileService: { listForClass: vi.fn().mockResolvedValue([]) },
   AnalyticsService: {},
-  HomeworkService: { publishDueScheduled: vi.fn().mockResolvedValue(0) },
+  HomeworkService: {},
   MarksService: {},
   RemarksService: {},
   ProgressionService: {},

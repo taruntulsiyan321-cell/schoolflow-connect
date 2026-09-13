@@ -79,10 +79,8 @@ test("fill demo data via admin session", async ({ page }) => {
 
     type Cls = { id: string; name: string; section: string };
     type Stu = { id: string; class_id: string | null; full_name: string; user_id: string | null };
-    type Tch = { id: string; full_name: string; user_id: string | null };
     const clsList = classes.rows as Cls[];
     const stuList = students.rows as Stu[];
-    const tchList = teachers.rows as Tch[];
 
     const day = (offset: number) => {
       const d = new Date();
@@ -129,18 +127,19 @@ test("fill demo data via admin session", async ({ page }) => {
     log.push(`attendance: posted ${attRows.length} rows → HTTP ${attRes.status} ${attRes.text}`);
 
     // ---- 2. HOMEWORK per class ---------------------------------------------
+    // closes_at is the deadline (20260925110000); due_date is generated from it,
+    // and created_by is the server's — it records whoever is signed in.
     const subjects = ["Mathematics", "English", "Science", "Social Studies"];
-    const hwRows = clsList.flatMap((c, ci) =>
+    const hwRows = clsList.flatMap((c) =>
       subjects.slice(0, 3).map((subject, si) => ({
         school_id: schoolId,
         class_id: c.id,
         title: `${subject}: practice set ${si + 1}`,
-        description: `Complete the assigned exercises for ${subject}. Submit before the due date.`,
+        description: `Complete the assigned exercises for ${subject}. Hand in one photo or PDF of your work before the deadline.`,
         subject,
-        due_date: day(-(si + 2)),
+        closes_at: new Date(Date.now() + (si + 2) * 86400000).toISOString(),
         status: "published",
         priority: si === 0 ? "high" : "normal",
-        created_by: tchList[ci % Math.max(1, tchList.length)]?.user_id ?? null,
       })),
     );
     const hwRes = await post("homework", hwRows);
@@ -202,8 +201,11 @@ test("fill demo data via admin session", async ({ page }) => {
     // BATCH 1c: the first two stay pending by carrying no decision row; the
     // third and fourth get one, which is what approved/rejected now means.
     const seeded = await get("leave_requests?select=id,school_id&order=created_at.desc&limit=" + leaveRows.length);
+    // `get` returns { status, rows, raw }: the rows are `.rows`. Indexing the
+    // wrapper itself found nothing, so no decision was ever seeded.
+    const seededRows = seeded.rows as { id: string; school_id: string }[];
     const decisions = [2, 3]
-      .map((i) => ({ verdict: i === 2 ? "approved" : "rejected", req: seeded[leaveRows.length - 1 - i] }))
+      .map((i) => ({ verdict: i === 2 ? "approved" : "rejected", req: seededRows[leaveRows.length - 1 - i] }))
       .filter((x) => x.req)
       .map((x) => ({
         leave_request_id: x.req.id,
@@ -260,34 +262,10 @@ test("fill demo data via admin session", async ({ page }) => {
     const cmpRes = await post("school_complaints", cmpRows);
     log.push(`school_complaints: posted ${cmpRows.length} rows → HTTP ${cmpRes.status} ${cmpRes.text}`);
 
-    // ---- 5b. HOMEWORK SUBMISSIONS (lifts the completion metric) ------------
-    const hwAll = await get(`homework?select=id,class_id,subject&school_id=eq.${schoolId}`);
-    type Hw = { id: string; class_id: string | null; subject: string | null };
-    const subRows: unknown[] = [];
-    for (const hw of hwAll.rows as Hw[]) {
-      const inClass = stuList.filter((st) => st.class_id && st.class_id === hw.class_id);
-      for (const st of inClass) {
-        const tail = parseInt(st.id.slice(-2), 16) || 0;
-        // ~85% submit; of those most are graded, a few still pending review.
-        if (tail % 100 >= 85) continue;
-        const graded = tail % 3 !== 0;
-        subRows.push({
-          school_id: schoolId,
-          homework_id: hw.id,
-          student_id: st.id,
-          status: graded ? 'graded' : 'submitted',
-          submitted_at: new Date(Date.now() - (tail % 5 + 1) * 86400000).toISOString(),
-          is_late: tail % 11 === 0,
-          marks_obtained: graded ? 12 + (tail % 9) : null,
-          grade: graded ? ['A+', 'A', 'B+', 'B'][tail % 4] : null,
-          graded_at: graded ? new Date().toISOString() : null,
-          teacher_remarks: graded ? ['Well presented.', 'Good effort — check step 3.', 'Neat work.', 'Revise the last section.'][tail % 4] : null,
-          content: 'Submitted through the student portal.',
-        });
-      }
-    }
-    const subRes = await post('homework_submissions', subRows, 'homework_id,student_id');
-    log.push(`homework_submissions: posted ${subRows.length} rows → HTTP ${subRes.status} ${subRes.text}`);
+    // No homework submissions are seeded. A hand-in is ONE image or PDF the
+    // student uploads and hands in through rpc_homework_submit
+    // (20260925110000); no session can write a submission row directly, and
+    // an admin cannot hand work in for a student.
 
     // ---- 6. AFTER counts ----------------------------------------------------
     const after = {

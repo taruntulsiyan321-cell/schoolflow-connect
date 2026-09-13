@@ -11,7 +11,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/auth";
-import { SyncEngine } from "@/academic/sync/engine";
 import {
   domainsFromNotificationType,
   notifyAcademicChange,
@@ -48,7 +47,13 @@ const ACADEMIC_NOTIF_TYPES = new Set([
 ]);
 /**
  * Mount once under AuthProvider. Subscribes to school academic tables + bus,
- * drains pending sync events, and bumps a shared version so every portal refetches.
+ * and bumps a shared version so every portal refetches.
+ *
+ * It no longer drains the academic event queue. That drain ran from every
+ * signed-in browser, for every school, and was the only thing that ran it —
+ * the pg_cron job `process-pending-academic-events` (20260925120000) does it
+ * now, whoever is signed in. A recount it applies reaches this provider through
+ * the `student_academic_profiles` subscription below.
  */
 export function AcademicLiveProvider({ children }: { children: ReactNode }) {
   const { user, schoolId, isAuthenticated, role } = useAuth();
@@ -85,8 +90,6 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id || !schoolId) return;
-
-    void SyncEngine.processPendingEvents(schoolId, 80).catch(() => undefined);
 
     const onTable =
       (domains: AcademicDomain[]) =>
@@ -322,25 +325,8 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
 
-    // Focus / poll: drain SyncEngine only. Do NOT bump(["all"]) — that rematches
-    // every filtered useAcademicLive consumer and was resetting panels to loading.
-    // Domain-specific realtime handlers above still bump the right surfaces.
-    const onVisible = () => {
-      if (document.visibilityState !== "visible") return;
-      void SyncEngine.processPendingEvents(schoolId, 50).catch(() => undefined);
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
-
-    const poll = window.setInterval(() => {
-      void SyncEngine.processPendingEvents(schoolId, 30).catch(() => undefined);
-    }, 90_000);
-
     return () => {
       supabase.removeChannel(channel);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
-      window.clearInterval(poll);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [bump, isAuthenticated, schoolId, user?.id, role]);

@@ -735,6 +735,240 @@ const main = async () => {
   );
   claim("submitting a test records the student's daily activity", activity.length, 1);
 
+  // ── 12. HOMEWORK ──────────────────────────────────────────────────────────
+  // docs/gurukul-spec-rules.md, "Homework — RULED 2026-09-13": the teacher sets
+  // it (text or one file, a deadline, now or on a schedule); the student hands
+  // in ONE image or PDF before the deadline; the teacher accepts or rejects,
+  // and rejected is not given; the deadline closes it for everyone; deleting it
+  // takes it out of every count.
+  console.log("\n══ 12. homework: set, hand in, decide, close, delete ═══════════════");
+  const studentIdOf = async (uid) =>
+    (await as(null, async (q) => await q(`select id from public.students where user_id=$1`, [uid])))[0].id;
+  const studentIdB = await studentIdOf(ID.stuB);
+  const roll10a = (
+    await as(null, async (q) =>
+      await q(`select count(*)::int as n from public.students where class_id=$1 and deleted_at is null`, [ID.class10a]),
+    )
+  )[0].n;
+  const setHomework = (uid, title, { status, closesIn = "2 days", releasedAgo = null }) =>
+    as(uid, async (q) =>
+      (
+        await q(
+          `insert into public.homework (school_id, class_id, subject, title, description, closes_at, status, scheduled_publish_at)
+           values ($1, $2, 'Mathematics', $3, 'Solve the exercise and upload your working.', now() + $4::interval, $5,
+                   case when $6::interval is null then null else now() - $6::interval end)
+           returning id, status, created_by, due_date`,
+          [ID.school, ID.class10a, title, closesIn, status, releasedAgo],
+        )
+      )[0],
+    );
+  const visibleTo = async (uid, homeworkId) =>
+    (await as(uid, async (q) => await q(`select id from public.homework where id=$1`, [homeworkId]))).length;
+  const standingOf = async (uid, homeworkId, studentId) =>
+    (
+      await as(uid, async (q) =>
+        await q(`select status, given, closed from public.homework_student_status where homework_id=$1 and student_id=$2`, [
+          homeworkId,
+          studentId,
+        ]),
+      )
+    )[0] ?? null;
+
+  // A draft reaches nobody but staff.
+  const draft = await setHomework(ID.priya, "Flow homework — draft", { status: "draft" });
+  claim("the server stamps who set the homework", draft.created_by, ID.priya);
+  claim("POSITIVE CONTROL the teacher reads their draft", await visibleTo(ID.priya, draft.id), 1);
+  claim("FENCE a student does not read a draft", await visibleTo(ID.stuA, draft.id), 0);
+
+  // Scheduled homework goes out when the scheduler runs, not when a page loads.
+  const scheduled = await setHomework(ID.priya, "Flow homework — scheduled", { status: "scheduled", releasedAgo: "1 minute" });
+  claim("FENCE a student does not read scheduled homework before it is released", await visibleTo(ID.stuA, scheduled.id), 0);
+  const studentPublishes = await refusal(ID.stuA, async (q) => await q(`select public.publish_due_scheduled_work()`));
+  claim("FENCE a student cannot run the scheduled publisher", studentPublishes?.code, "42501");
+  const released = await as(null, async (q) => (await q(`select public.publish_due_scheduled_work() as n`))[0].n);
+  claim("the scheduler releases the due homework", Number(released) >= 1, true);
+  claim("once released, the student reads it", await visibleTo(ID.stuA, scheduled.id), 1);
+
+  // Nothing is released after its deadline, by a person.
+  const lateRelease = await refusal(ID.priya, async (q) =>
+    await q(
+      `insert into public.homework (school_id, class_id, subject, title, description, closes_at, status)
+       values ($1, $2, 'Mathematics', 'Flow homework — too late', 'q', now() - interval '1 minute', 'published')`,
+      [ID.school, ID.class10a],
+    ),
+  );
+  claim("FENCE a teacher cannot publish homework whose deadline has passed", lateRelease?.code, "55000");
+
+  // Published now, with a typed question.
+  const hw = await setHomework(ID.priya, "Flow homework — published", { status: "published" });
+  claim("the teacher publishes homework", hw.status, "published");
+  claim("the student of the class reads it", await visibleTo(ID.stuA, hw.id), 1);
+  claim("FENCE a student of another section does not", await visibleTo(ID.stuOutsider, hw.id), 0);
+  claim("the student's standing starts as not submitted and open", await standingOf(ID.stuA, hw.id, studentIdA), {
+    status: "not_submitted",
+    given: false,
+    closed: false,
+  });
+
+  // The student hands in ONE file of their own — nothing else gets in.
+  const fileA1 = `${ID.stuA}/flow-homework-1.pdf`;
+  const fileA2 = `${ID.stuA}/flow-homework-2.pdf`;
+  const fileB = `${ID.stuB}/flow-homework.png`;
+  await as(null, async (q) => {
+    await q(`insert into storage.objects (bucket_id, name) values ('academic-files',$1),('academic-files',$2),('academic-files',$3)`, [
+      fileA1,
+      fileA2,
+      fileB,
+    ]);
+  });
+  const pdf = (path) => JSON.stringify({ path, name: path.split("/")[1], mime: "application/pdf", size: 1024 });
+  const directWrite = await refusal(ID.stuA, async (q) =>
+    await q(
+      `insert into public.homework_submissions (homework_id, student_id, school_id, status, file, submitted_at, decided_at)
+       values ($1, $2, $3, 'accepted', $4::jsonb, now(), now())`,
+      [hw.id, studentIdA, ID.school, pdf(fileA1)],
+    ),
+  );
+  claim("FENCE a student cannot write their own submission row", directWrite?.code, "42501");
+  const twoFiles = await refusal(ID.stuA, async (q) =>
+    await q(`select public.rpc_homework_submit($1, $2::jsonb)`, [hw.id, JSON.stringify([JSON.parse(pdf(fileA1)), JSON.parse(pdf(fileA2))])]),
+  );
+  claim("FENCE two files are not a hand-in", twoFiles?.code, "22023");
+  const classmatesFile = await refusal(ID.stuA, async (q) =>
+    await q(`select public.rpc_homework_submit($1, $2::jsonb)`, [hw.id, JSON.stringify({ path: fileB, name: "b.png", mime: "image/png" })]),
+  );
+  claim("FENCE a student cannot hand in a classmate's file", classmatesFile?.code, "42501");
+  const handedA = await as(ID.stuA, async (q) =>
+    (await q(`select public.rpc_homework_submit($1, $2::jsonb) as r`, [hw.id, pdf(fileA1)]))[0].r,
+  );
+  claim("the student hands in one PDF", handedA.status, "submitted");
+  claim("…and it is given", (await standingOf(ID.stuA, hw.id, studentIdA))?.given, true);
+
+  // The teacher's two actions. Reject first: rejected is not given.
+  const studentDecides = await refusal(ID.stuA, async (q) => await q(`select public.rpc_homework_decide($1, 'accepted')`, [handedA.id]));
+  claim("FENCE a student cannot decide on their own hand-in", studentDecides?.code, "42501");
+  const thirdDecision = await refusal(ID.priya, async (q) => await q(`select public.rpc_homework_decide($1, 'graded')`, [handedA.id]));
+  claim("FENCE there is no third decision", thirdDecision?.code, "22023");
+  const rejected = await as(ID.priya, async (q) =>
+    (await q(`select public.rpc_homework_decide($1, 'rejected') as r`, [handedA.id]))[0].r,
+  );
+  claim("the teacher rejects it", rejected.status, "rejected");
+  claim("a rejected hand-in is not given", await standingOf(ID.stuA, hw.id, studentIdA), {
+    status: "rejected",
+    given: false,
+    closed: false,
+  });
+  const completionAfterReject = await as(ID.priya, async (q) =>
+    (await q(`select students, given, rejected, not_given from public.homework_completion where homework_id=$1`, [hw.id]))[0],
+  );
+  claim("the teacher's completion counts the rejection as not given", completionAfterReject, {
+    students: roll10a,
+    given: 0,
+    rejected: 1,
+    not_given: roll10a,
+  });
+
+  // Handed in again before the deadline; the replaced file is released, the new one is fixed.
+  await as(ID.stuA, async (q) => await q(`select public.rpc_homework_submit($1, $2::jsonb)`, [hw.id, pdf(fileA2)]));
+  const deleteFile = (uid, name) =>
+    as(uid, async (q) => {
+      await q(`select set_config('storage.allow_delete_query', 'true', true)`);
+      return (await q(`delete from storage.objects where bucket_id='academic-files' and name=$1 returning name`, [name])).length;
+    });
+  claim("FENCE the student cannot delete the file they handed in", await deleteFile(ID.stuA, fileA2), 0);
+  claim("POSITIVE CONTROL the file they replaced is theirs to delete again", await deleteFile(ID.stuA, fileA1), 1);
+
+  const accepted = await as(ID.priya, async (q) =>
+    (await q(`select public.rpc_homework_decide($1, 'accepted') as r`, [handedA.id]))[0].r,
+  );
+  claim("the teacher accepts the hand-in", accepted.status, "accepted");
+  const replaceAccepted = await refusal(ID.stuA, async (q) =>
+    await q(`select public.rpc_homework_submit($1, $2::jsonb)`, [hw.id, pdf(fileA2)]),
+  );
+  claim("FENCE an accepted hand-in is final", replaceAccepted?.code, "55000");
+
+  // B hands in and is never decided on; everyone else hands in nothing.
+  await as(ID.stuB, async (q) =>
+    await q(`select public.rpc_homework_submit($1, $2::jsonb)`, [hw.id, JSON.stringify({ path: fileB, name: "b.png", mime: "image/png" })]),
+  );
+
+  // The deadline passes. The closure job resolves every student, once.
+  await as(null, async (q) => await q(`update public.homework set closes_at = now() - interval '1 second' where id=$1`, [hw.id]));
+  const lateHandIn = await refusal(ID.stuB, async (q) =>
+    await q(`select public.rpc_homework_submit($1, $2::jsonb)`, [hw.id, JSON.stringify({ path: fileB, name: "b.png", mime: "image/png" })]),
+  );
+  claim("FENCE nothing is handed in after the deadline", lateHandIn?.code, "55000");
+  const studentCloses = await refusal(ID.stuA, async (q) => await q(`select public.resolve_closed_homework()`));
+  claim("FENCE a student cannot run the closure job", studentCloses?.code, "42501");
+  await as(null, async (q) => await q(`select public.resolve_closed_homework()`));
+  const resolved = await as(null, async (q) =>
+    (
+      await q(
+        `select (select count(*)::int from public.homework_submissions where homework_id=$1 and status='not_submitted') as not_submitted,
+                (select resolved_at is not null from public.homework where id=$1) as resolved`,
+        [hw.id],
+      )
+    )[0],
+  );
+  claim("the closure resolves everyone who handed nothing in", resolved, { not_submitted: roll10a - 2, resolved: true });
+  await as(null, async (q) => await q(`select public.resolve_closed_homework()`));
+  const resolvedAgain = await as(null, async (q) =>
+    (await q(`select count(*)::int as n from public.homework_submissions where homework_id=$1`, [hw.id]))[0].n,
+  );
+  claim("a second closure run writes nothing", resolvedAgain, roll10a);
+  const completionClosed = await as(ID.priya, async (q) =>
+    (await q(`select students, given, accepted, awaiting_review, not_given from public.homework_completion where homework_id=$1`, [hw.id]))[0],
+  );
+  claim("at the deadline: A accepted and B awaiting review are given, the rest are not", completionClosed, {
+    students: roll10a,
+    given: 2,
+    accepted: 1,
+    awaiting_review: 1,
+    not_given: roll10a - 2,
+  });
+  const unpublishClosed = await refusal(ID.priya, async (q) =>
+    await q(`update public.homework set status='draft' where id=$1`, [hw.id]),
+  );
+  claim("FENCE closed homework cannot go back to draft", unpublishClosed?.code, "55000");
+
+  // The event queue is the scheduler's to drain; the stored profile recounts through it.
+  const studentDrains = await refusal(ID.stuA, async (q) => await q(`select public.process_pending_academic_events(500)`));
+  claim("FENCE a student cannot drain the event queue", studentDrains?.code, "42501");
+  const drain = async () => {
+    for (let i = 0; i < 50; i++) {
+      const n = await as(null, async (q) => (await q(`select public.process_pending_academic_events(500) as n`))[0].n);
+      if (Number(n) === 0) return;
+    }
+  };
+  const profileOf = async (studentId) =>
+    (
+      await as(null, async (q) =>
+        await q(`select homework_assigned, homework_submitted from public.student_academic_profiles where student_id=$1`, [studentId]),
+      )
+    )[0];
+  await drain();
+  const profileBefore = { a: await profileOf(studentIdA), b: await profileOf(studentIdB) };
+
+  // Delete: out of every count together.
+  const studentDeletes = await refusal(ID.stuA, async (q) => await q(`select public.rpc_homework_delete($1)`, [hw.id]));
+  claim("FENCE a student cannot delete homework", studentDeletes?.code, "42501");
+  await as(ID.priya, async (q) => await q(`select public.rpc_homework_delete($1)`, [hw.id]));
+  claim("deleted homework leaves the student's standing", await standingOf(ID.stuA, hw.id, studentIdA), null);
+  claim(
+    "deleted homework leaves the teacher's completion",
+    (await as(ID.priya, async (q) => await q(`select 1 from public.homework_completion where homework_id=$1`, [hw.id]))).length,
+    0,
+  );
+  claim("deleted homework no longer reaches the student", await visibleTo(ID.stuA, hw.id), 0);
+  await drain();
+  const profileAfter = { a: await profileOf(studentIdA), b: await profileOf(studentIdB) };
+  const dropped = (who) => ({
+    assigned: profileBefore[who].homework_assigned - profileAfter[who].homework_assigned,
+    given: profileBefore[who].homework_submitted - profileAfter[who].homework_submitted,
+  });
+  claim("A's stored profile recounts without it once the queue drains (accepted: one given)", dropped("a"), { assigned: 1, given: 1 });
+  claim("B's drops with it (awaiting review: one given)", dropped("b"), { assigned: 1, given: 1 });
+
   // ── teardown ──────────────────────────────────────────────────────────────
   await as(null, async (q) => {
     await q(`update public.students set class_id=$1 where id=$2`, [ID.class10a, ID.stuOutsiderPerson]);

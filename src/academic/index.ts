@@ -104,7 +104,6 @@ export {
   TEST_KIND_LABELS,
   EXAM_TYPE_LABELS,
   assertTeacherMayManageAcademicWork,
-  isPastDue,
   normalizeWorkKind,
   loadStudentAcademicIdentity,
   identityToServiceContext,
@@ -147,7 +146,7 @@ export type {
   CreateSectionInput,
 } from "./services/questionPaperService";
 export { assertQuestionRowsAreKeyed, REVIEW_PAGE_SIZE } from "./services/questionBankService";
-export type { CurriculumSubject, CurriculumChapter } from "./services/curriculumService";
+export type { CurriculumSubject, CurriculumChapter, CurriculumTopic } from "./services/curriculumService";
 export type {
   TeacherAnnouncementRow,
   UpsertAnnouncementInput,
@@ -174,7 +173,20 @@ export type {
   ParentChildRow,
 } from "./services/attendanceService";
 
-export type { StudentHomeworkRow, SchoolHomeworkSummary, HomeworkClassStatsRow } from "./services/homeworkService";
+export type {
+  StudentHomeworkRow,
+  ReviewRow,
+  ClassHomeworkRow,
+  SchoolHomeworkSummary,
+  HomeworkStanding,
+} from "./services/homeworkService";
+export {
+  homeworkStanding,
+  canHandIn,
+  HOMEWORK_STANDING_LABELS,
+  HOMEWORK_QUESTION_FILE_PICKER,
+  HOMEWORK_HAND_IN_FILE_PICKER,
+} from "./services/homeworkService";
 export type { ClassTimetableSnapshot } from "./services/timetableService";
 export type { CalendarEvent, CalendarEventType, CalendarEventAudience } from "./services/calendarEventsService";
 export type { LearningResourceRow, ResourceKind } from "./services/resourceService";
@@ -190,14 +202,6 @@ export { AnalyticsService, AiSummaryService, AuditReadService } from "./services
 
 export { useAcademicContext } from "./hooks/useAcademicContext";
 
-export {
-  SyncEngine,
-  processPendingEvents,
-  processEvent,
-  refreshStudentProfile,
-  plannedTargets,
-  type SyncRunResult,
-} from "./sync";
 
 export {
   AnalyticsFoundation,

@@ -169,37 +169,76 @@ async function main() {
     (r) => (r[0]?.args ?? "").includes("p_school_id"),
   );
 
-  // --- Server-side is_late enforcement ---
+  // --- Homework: one file, two decisions, one deadline (docs/gurukul-spec-rules.md,
+  // "Homework — RULED 2026-09-13"; 20260925100000–20260925130000). These fail
+  // against a database those migrations have not reached, which is the truth. ---
   await check(
-    // Chunk 5 / docs/decisions.md D1: submission locks at the due date, so
-    // is_late can never again become true and the trigger that computed it is
-    // gone. What replaces this check is that the lock itself is enforced
-    // server-side, and that the 9 historical late rows were not rewritten.
-    "homework submission locks at the due date, server-side (there is no late submission)",
-    "SELECT count(*) FROM pg_trigger WHERE tgname='trg_homework_submission_lock' AND NOT tgisinternal",
-    (r) => count(r) === 1,
+    "the deadline is one instant: homework.closes_at is required and due_date is generated from it",
+    `SELECT column_name, is_nullable, is_generated FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='homework' AND column_name IN ('closes_at','due_date','due_time')`,
+    (r) =>
+      r.length === 2 &&
+      r.some((c) => c.column_name === "closes_at" && c.is_nullable === "NO") &&
+      r.some((c) => c.column_name === "due_date" && c.is_generated === "ALWAYS"),
   );
   await check(
-    "the is_late trigger no longer fires (it could only ever write false now)",
-    "SELECT count(*) FROM pg_trigger WHERE tgname='trg_homework_is_late' AND NOT tgisinternal",
-    (r) => count(r) === 0,
+    "nothing is handed in at or after the deadline — refused server-side by rpc_homework_submit",
+    "SELECT prosrc FROM pg_proc WHERE proname = 'rpc_homework_submit'",
+    (r) => (r[0]?.prosrc ?? "").includes("now() >= _hw.closes_at"),
   );
   await check(
-    "the 9 historical late submissions are preserved, not rewritten (D1)",
-    "SELECT count(*) FROM public.homework_submissions WHERE is_late",
-    (r) => count(r) === 9,
+    "a hand-in is ONE image or PDF: homework_submissions_file_shape is homework_hand_in_ok()",
+    "SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'homework_submissions_file_shape'",
+    (r) => (r[0]?.def ?? "").includes("homework_hand_in_ok"),
   );
   await check(
-    "homework_answers.is_correct stays NULL when nothing is gradeable (G4: never false-by-default)",
-    `SELECT column_default, is_nullable FROM information_schema.columns
-      WHERE table_schema='public' AND table_name='homework_answers' AND column_name='is_correct'`,
-    (r) => r[0]?.is_nullable === "YES" && !r[0]?.column_default,
+    "a submission has exactly four statuses — no graded, returned, late or pending",
+    "SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'homework_submissions_status_check'",
+    (r) => {
+      const def = r[0]?.def ?? "";
+      return ["not_submitted", "submitted", "accepted", "rejected"].every((s) => def.includes(`'${s}'`)) &&
+        !/'(graded|returned|late|pending|reviewed|completed)'/.test(def);
+    },
   );
   await check(
-    "not_yet_due is not a stored homework completion status (it is derived from due_date)",
-    `SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
-      WHERE t.typname = 'homework_completion_status' AND e.enumlabel = 'not_yet_due'`,
+    "no grade, marks, remark, typed content or is_late column survives on homework_submissions",
+    `SELECT column_name FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='homework_submissions'
+        AND column_name IN ('grade','marks_obtained','teacher_remarks','content','is_late','version','attachments')`,
     (r) => r.length === 0,
+  );
+  await check(
+    "no signed-in session writes a submission row directly — only the two functions do",
+    `SELECT has_table_privilege('authenticated', 'public.homework_submissions', 'INSERT, UPDATE, DELETE, TRUNCATE') AS writes`,
+    (r) => r[0]?.writes === false,
+  );
+  await check(
+    "the dead homework paths are gone: homework_answers, homework_questions, homework_completions, rpc_close_homework",
+    `SELECT to_regclass('public.homework_answers') AS a, to_regclass('public.homework_questions') AS q,
+            to_regclass('public.homework_completions') AS c, to_regprocedure('public.rpc_close_homework(uuid,boolean)') AS r`,
+    (r) => r[0] && r[0].a === null && r[0].q === null && r[0].c === null && r[0].r === null,
+  );
+  await check(
+    "the event queue is the scheduler's: no signed-in or anonymous session can drain it or replay an event (20260925120000)",
+    `SELECT has_function_privilege('authenticated', 'public.process_pending_academic_events(integer)', 'EXECUTE')
+         OR has_function_privilege('anon', 'public.process_pending_academic_events(integer)', 'EXECUTE')
+         OR has_function_privilege('authenticated', 'public.process_academic_event(uuid)', 'EXECUTE')
+         OR has_function_privilege('anon', 'public.process_academic_event(uuid)', 'EXECUTE') AS open,
+            EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'process-pending-academic-events') AS scheduled`,
+    (r) => r[0]?.open === false && r[0]?.scheduled === true,
+  );
+  await check(
+    "a handed-in or question file cannot be overwritten or deleted through storage (20260925140000)",
+    `SELECT count(*) FROM pg_policies
+      WHERE schemaname = 'storage' AND tablename = 'objects'
+        AND policyname IN ('academic files update own', 'academic files delete own')
+        AND qual LIKE '%homework_file_is_fixed%'`,
+    (r) => count(r) === 2,
+  );
+  await check(
+    "a student's standing is decided in one view, and a rejected hand-in is not given",
+    "SELECT pg_get_viewdef('public.homework_student_status'::regclass) AS def",
+    (r) => /status\s*=\s*ANY\s*\(ARRAY\['submitted'::text, 'accepted'::text\]\)/.test(r[0]?.def ?? ""),
   );
 
   // --- 2026-08-22 code-trace fixes ---
@@ -309,20 +348,10 @@ async function main() {
     (r) => r.length === 4,
   );
 
-  // --- Phase 2 audit (2026-08-22): homework late-detection forgery + IST
-  // timezone fix, mastery-score volatility fix
-  // (20260822160000_phase2_homework_late_forgery_and_tz.sql,
-  // 20260822170000_phase2_mastery_score_volatility_fix.sql) ---
-  await check(
-    "tg_homework_compute_is_late forces submitted_at server-side (no longer trusts client input)",
-    "SELECT prosrc FROM pg_proc WHERE proname = 'tg_homework_compute_is_late'",
-    (r) => (r[0]?.prosrc ?? "").includes("NEW.submitted_at := now()"),
-  );
-  await check(
-    "tg_homework_compute_is_late compares against IST wall-clock, not an implicit UTC session cast",
-    "SELECT prosrc FROM pg_proc WHERE proname = 'tg_homework_compute_is_late'",
-    (r) => (r[0]?.prosrc ?? "").includes("Asia/Kolkata"),
-  );
+  // --- Phase 2 audit (2026-08-22): mastery-score volatility fix
+  // (20260822170000_phase2_mastery_score_volatility_fix.sql). Its homework
+  // late-detection half is gone with is_late itself (20260925110000); the
+  // deadline and school-zone checks above replace it. ---
   await check(
     "_compute_mastery_score is STABLE, not mislabeled IMMUTABLE (it reads now())",
     "SELECT provolatile FROM pg_proc WHERE proname = '_compute_mastery_score'",

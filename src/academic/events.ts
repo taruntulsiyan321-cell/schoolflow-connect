@@ -1,6 +1,9 @@
 /**
  * Academic event catalog — every academic action emits one of these.
- * Sync engine fans out to profile / notifications / analytics / AI / audit.
+ * The database fans each out to profile / notifications / analytics / AI /
+ * audit: `process_academic_event`, drained every minute by the
+ * `process-pending-academic-events` job (20260925120000). `EVENT_SYNC_TARGETS`
+ * documents that fan-out; nothing in the client runs it.
  *
  * REMOVED 2026-09-06: `homework.assigned`, `homework.submission.created` and
  * `homework.submission.graded`. They were never emitted by anything, because
@@ -15,6 +18,11 @@
  * would have emitted a SECOND event per action and doubled every homework
  * notification, analytics row and audit entry. Removed so the gap stops
  * looking like work. See KNOWN_ISSUES 10.
+ *
+ * REMOVED 2026-09-13: `homework.graded`. Homework has two decisions and no
+ * grade (20260925110000): accepting emits `homework.reviewed` and rejecting
+ * `homework.returned`, the names the notification router already routes.
+ * Nothing emits `homework.graded` any more.
  */
 
 export const ACADEMIC_EVENT_TYPES = [
@@ -32,7 +40,6 @@ export const ACADEMIC_EVENT_TYPES = [
   "homework.resubmitted",
   "homework.reviewed",
   "homework.returned",
-  "homework.graded",
   "student.profile.refresh_requested",
   "test.scheduled",
   "test.published",
@@ -136,7 +143,6 @@ export const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]
     "activity_feed",
     "audit",
   ],
-  "homework.graded": HW_FULL,
   "student.profile.refresh_requested": ["student_academic_profile"],
   "test.scheduled": ["notifications", "activity_feed"],
   "test.published": ["notifications", "activity_feed"],

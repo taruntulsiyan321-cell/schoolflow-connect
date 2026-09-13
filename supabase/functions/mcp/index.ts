@@ -233,7 +233,7 @@ var list_homework_default = defineTool6({
   handler: async ({ class_id, subject, limit }, ctx) => {
     if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
     const supabase = supabaseForUser(ctx);
-    let query = supabase.from("homework").select("id, title, description, subject, class_id, due_date, due_time, priority, status, created_at").order("due_date", { ascending: false, nullsFirst: false }).limit(Math.min(Math.max(limit ?? 25, 1), 100));
+    let query = supabase.from("homework").select("id, title, description, subject, class_id, due_date, closes_at, priority, status, created_at").order("due_date", { ascending: false, nullsFirst: false }).limit(Math.min(Math.max(limit ?? 25, 1), 100));
     if (class_id) query = query.eq("class_id", class_id);
     if (subject) query = query.ilike("subject", `%${subject}%`);
     const { data, error } = await query;

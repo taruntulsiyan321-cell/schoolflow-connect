@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { withAlpha } from "@/lib/colorAlpha";
 import {
   Search,
@@ -25,15 +25,18 @@ import {
   AttendanceService,
   AcademicProfileService,
   AnalyticsService,
+  HOMEWORK_STANDING_LABELS,
   HomeworkService,
   MarksService,
   RemarksService,
   TestService,
   ProgressionService,
   TEST_KIND_LABELS,
+  homeworkStanding,
   useAcademicLive,
   type ClassStudentRow,
   type StudentAcademicProfile,
+  type ClassHomeworkRow,
   type StudentHomeworkRow,
   type TeacherRemark,
   type TestKind,
@@ -46,7 +49,7 @@ import type {
 } from "@/academic/services/testService";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
-import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
+import type { AcademicAttachment } from "@/academic/storage/academicFileUpload";
 import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
 import {
   displaySubject,
@@ -71,12 +74,6 @@ import {
   HOMEWORK_HABIT_REGULAR,
   HOMEWORK_HABIT_INCONSISTENT,
 } from "@/academic/metrics/bands";
-
-export {
-  LiveHomeworkTab,
-  LiveAssignmentsTab,
-  LiveAcademicWorkTab,
-} from "./LiveHomeworkPanels";
 
 type LiveStudent = ClassStudentRow & {
   attendancePct: number | null;
@@ -311,21 +308,17 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     );
   }, [rows, search]);
 
+  // Not given — still to do, rejected, or missed at the deadline — against
+  // given. `homeworkStanding` is the one reading of the view's two facts.
   const pendingHomework = useMemo(
     () =>
-      homeworkRows.filter(
-        (r) => r.displayStatus === "Assigned" || r.displayStatus === "Late",
-      ),
+      homeworkRows
+        .map((r) => ({ ...r, state: homeworkStanding(r.standing) }))
+        .filter((r) => !r.standing.given),
     [homeworkRows],
   );
 
-  const submittedHomework = useMemo(
-    () =>
-      homeworkRows.filter((r) =>
-        ["Submitted", "Late", "Graded", "Reviewed", "Completed"].includes(r.displayStatus),
-      ),
-    [homeworkRows],
-  );
+  const submittedHomework = useMemo(() => homeworkRows.filter((r) => r.standing.given), [homeworkRows]);
 
   const weakSubjects = useMemo(() => {
     const m = profile?.metrics ?? {};
@@ -605,12 +598,12 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                       className="flex justify-between gap-2 text-[11px]"
                     >
                       <span className="text-foreground truncate">{r.homework.title}</span>
-                      <span className="text-[9px] text-warning shrink-0">{r.displayStatus}</span>
+                      <span className="text-[9px] text-warning shrink-0">{HOMEWORK_STANDING_LABELS[r.state]}</span>
                     </div>
                   ))
                 )}
                 <div className="text-[9px] text-muted-foreground pt-1">
-                  Submitted recently: {submittedHomework.length}
+                  Handed in: {submittedHomework.length}
                 </div>
               </div>
               <div className="bg-surface border border-border/70 rounded-[2px] p-4 space-y-2">
@@ -825,7 +818,7 @@ type BuilderStep = "basics" | "source" | "library" | "manual" | "upload" | "revi
 type QuestionSource = "library" | "manual" | "upload";
 /** A question on the paper being built, with where it came from. */
 type DraftQuestion = ManualQuestionInput & { localId: string; bankId?: string | null };
-type PaperAttachment = HomeworkAttachmentMeta;
+type PaperAttachment = AcademicAttachment;
 
 function newLocalId() {
   return `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -959,7 +952,6 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     const quiet = loadedRef.current;
     if (!quiet) setLoading(true);
     try {
-      await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
       // ONE call. This was two — the list, then a separate question count —
       // and neither could say how many students had handed in, which is the
       // fact a teacher opens a published test to find out.
@@ -2967,7 +2959,7 @@ export function LiveExamsMarksTab({
   );
 }
 
-type InsightHwRow = Awaited<ReturnType<typeof HomeworkService.listForClassWithStats>>[number];
+type InsightHwRow = ClassHomeworkRow;
 type InsightTestRow = {
   id: string;
   title?: string;
@@ -3061,7 +3053,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           AnalyticsService.forClass(ctx, classId),
           AcademicProfileService.listForClass(ctx, classId, { limit: 200 }),
           AttendanceService.listClassStudents(ctx, classId),
-          HomeworkService.listForClassWithStats(ctx, classId, { limit: 100 }),
+          HomeworkService.listForClass(ctx, classId, { limit: 100 }),
           TestService.listForClass(ctx, classId),
           MarksService.listExamsForClass(ctx, classId, { limit: 100 }),
           MarksService.listMyPendingSubjectExams(ctx, classId),
@@ -3121,15 +3113,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
-  const activeHomework = useMemo(
-    () =>
-      homework.filter((h) => {
-        if (h.archivedAt) return false;
-        const st = String(h.status ?? "").toLowerCase();
-        return st === "published" || st === "active";
-      }),
-    [homework],
-  );
+  const activeHomework = useMemo(() => homework.filter((h) => h.status === "published"), [homework]);
 
   const activeTests = useMemo(
     () =>
@@ -3171,20 +3155,22 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     return [...byId.values()];
   }, [exams, pendingExams]);
 
+  // Completion and review backlog both come from `homework_completion`, where a
+  // rejected hand-in is not given and a deleted student is not counted.
   const lowCompletionHw = useMemo(
     () =>
-      [...activeHomework]
-        .sort((a, b) => a.completionPct - b.completionPct)
-        .filter((h) => h.totalStudents > 0)
+      activeHomework
+        .flatMap((h) => (h.completion && h.completion.students > 0 ? [{ ...h, completion: h.completion }] : []))
+        .sort((a, b) => a.completion.completionPct - b.completion.completionPct)
         .slice(0, 5),
     [activeHomework],
   );
 
-  const lateHomework = useMemo(
+  const reviewBacklogHw = useMemo(
     () =>
-      [...activeHomework]
-        .filter((h) => (h.late ?? 0) > 0)
-        .sort((a, b) => (b.late ?? 0) - (a.late ?? 0))
+      activeHomework
+        .flatMap((h) => (h.completion && h.completion.awaitingReview > 0 ? [{ ...h, completion: h.completion }] : []))
+        .sort((a, b) => b.completion.awaitingReview - a.completion.awaitingReview)
         .slice(0, 5),
     [activeHomework],
   );
@@ -3263,7 +3249,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         p,
         `${Math.round(p.homeworkCompletionPct)}% HW`,
         missing > 0
-          ? `${missing} homework missing/pending`
+          ? `${missing} homework not handed in by the deadline`
           : "Low homework completion",
       );
     }
@@ -3284,17 +3270,17 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       rows.push({
         id: `hw-low-${h.id}`,
         name: h.title || "Homework",
-        metric: `${Math.round(h.completionPct)}%`,
-        why: `${h.pending} pending · ${h.submitted}/${h.totalStudents} submitted`,
+        metric: `${Math.round(h.completion.completionPct)}%`,
+        why: `${h.completion.notGiven} not given · ${h.completion.given}/${h.completion.students} handed in`,
       });
     }
-    for (const h of lateHomework) {
+    for (const h of reviewBacklogHw) {
       if (rows.some((r) => r.id === `hw-low-${h.id}`)) continue;
       rows.push({
-        id: `hw-late-${h.id}`,
+        id: `hw-review-${h.id}`,
         name: h.title || "Homework",
-        metric: `${h.late} late`,
-        why: "Late submissions need follow-up",
+        metric: `${h.completion.awaitingReview} to review`,
+        why: "Hand-ins waiting to be accepted or rejected",
       });
     }
     for (const t of testsNeedingPublish.slice(0, 5)) {
@@ -3314,7 +3300,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       });
     }
     return rows.slice(0, 12);
-  }, [lowCompletionHw, lateHomework, testsNeedingPublish, examsAwaitingMarks]);
+  }, [lowCompletionHw, reviewBacklogHw, testsNeedingPublish, examsAwaitingMarks]);
 
   // doingWellRows removed (§10.8). It ranked the class by exam+test average and
   // took the top five — a peer-model list, which is a strength ranking of named
@@ -3374,8 +3360,8 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       ...interventionRows.filter((r) => r.metric.includes("concerns")).map((r) => r.id),
     ]);
     const itemAction =
-      lowCompletionHw.filter((h) => h.completionPct < HOMEWORK_ITEM_NEEDS_ACTION).length +
-      lateHomework.length +
+      lowCompletionHw.filter((h) => h.completion.completionPct < HOMEWORK_ITEM_NEEDS_ACTION).length +
+      reviewBacklogHw.length +
       testsNeedingPublish.length +
       examsAwaitingMarks.length;
     return {
@@ -3386,7 +3372,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     needsAttentionRows,
     interventionRows,
     lowCompletionHw,
-    lateHomework,
+    reviewBacklogHw,
     testsNeedingPublish,
     examsAwaitingMarks,
   ]);

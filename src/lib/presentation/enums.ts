@@ -135,18 +135,13 @@ const LABELS: Record<EnumDomain, LabelMap> = {
     high: "High",
     urgent: "Urgent",
   },
+  // homework_submissions.status (20260925110000): four states, and a rejected
+  // hand-in counts as not given.
   submission_status: {
-    pending: "Not submitted",
-    submitted: "Submitted",
-    graded: "Graded",
-    returned: "Returned",
-    late: "Submitted late",
-    // A teacher's verdict on a submission, and the absence of one. The
-    // principal panel's per-student homework list renders all four; they were
-    // reaching the screen as the raw lowercase keys.
-    missing: "Missing",
+    not_submitted: "Not handed in",
+    submitted: "Handed in",
     accepted: "Accepted",
-    rejected: "Rejected",
+    rejected: "Rejected — not given",
   },
   announcement_status: {
     draft: "Draft",

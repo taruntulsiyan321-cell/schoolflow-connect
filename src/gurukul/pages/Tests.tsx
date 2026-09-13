@@ -4,7 +4,6 @@ import { Trophy, BarChart2, Play, CheckCircle2, FileText } from "lucide-react";
 import {
   AnalyticsService,
   EXAM_TYPE_LABELS,
-  HomeworkService,
   MarksService,
   TEST_KIND_LABELS,
   TestService,
@@ -70,7 +69,6 @@ export default function Tests() {
     (async () => {
       beginLoading(setLoading);
       try {
-        await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
         const settled = await Promise.allSettled([
           MarksService.listForStudent(ctx, studentId, { limit: 100 }),
           AnalyticsService.forStudent(ctx, studentId),
