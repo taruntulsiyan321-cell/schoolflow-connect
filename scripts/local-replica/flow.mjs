@@ -293,9 +293,14 @@ const main = async () => {
   // B answers everything right.
   const attemptB = await as(ID.stuB, async (q) => (await q(`select public.rpc_test_start($1) as id`, [testId]))[0].id);
   await as(ID.stuB, async (q) => {
+    // WITH A CLOCK PER QUESTION, which is what TestAttempt sends. The middle
+    // question is deliberately the expensive one for both B and C, so the
+    // per-question breakdown below has something real to rank. Student A above
+    // submitted without times at all, so the untimed branch is exercised too.
     const answers = questionIds.map((qid, i) => ({
       question_id: qid,
       response: { indexes: [i === 0 ? 2 : i === 1 ? 0 : 1] },
+      time_ms: i === 1 ? 120000 : i === 0 ? 3000 : 5000,
     }));
     await q(`select public.rpc_test_submit($1,$2::jsonb) as r`, [attemptB, JSON.stringify(answers)]);
   });
@@ -305,6 +310,7 @@ const main = async () => {
     const answers = questionIds.map((qid, i) => ({
       question_id: qid,
       response: { indexes: [i === 0 ? 2 : 3] },
+      time_ms: i === 1 ? 90000 : i === 0 ? 4000 : 6000,
     }));
     await q(`select public.rpc_test_submit($1,$2::jsonb) as r`, [attemptC, JSON.stringify(answers)]);
   });
@@ -511,6 +517,102 @@ const main = async () => {
     (await q(`select public.rpc_test_student_report($1,$2) as r`, [testId, studentIdA]))[0].r,
   );
   claim("teacher drill-down reads that student's wrong answers", (drill.wrong_answers || []).length, 1);
+
+  // ── 6b. WHERE THE TIME WENT, QUESTION BY QUESTION ────────────────────────
+  console.log("\n══ 6b. the per-question breakdown ══════════════════════════════════");
+  const bd = await as(ID.priya, async (q) =>
+    (await q(`select public.rpc_test_question_breakdown($1) as r`, [testId]))[0].r,
+  );
+  const bq = bd.questions || [];
+  claim("breakdown: one row per question of the paper", bq.length, 3);
+  claim(
+    "breakdown: in paper order",
+    bq.every((x, i) => Number(x.order_index) === i),
+    true,
+  );
+  claim(
+    "breakdown: the four outcome states are counted apart",
+    bq.every(
+      (x) =>
+        Number(x.correct_count) + Number(x.wrong_count) === Number(x.answered_count) &&
+        Number(x.blank_count) >= 0,
+    ),
+    true,
+  );
+  claim(
+    "breakdown: answered + blank is everyone who handed in",
+    bq.every(
+      (x) => Number(x.answered_count) + Number(x.blank_count) === Number(bd.submitted_count),
+    ),
+    true,
+  );
+  // THE POINT OF THE WHOLE THING: the questions do not share one timing. The
+  // paper mean this replaces could not tell these two apart.
+  const timed = bq.filter((x) => x.avg_time_ms != null).map((x) => Number(x.avg_time_ms));
+  claim("breakdown: the questions carry their own times", timed.length > 0, true);
+  claim(
+    "breakdown: and those times differ from one another",
+    new Set(timed).size > 1,
+    true,
+  );
+  // The costliest question by name, not by position: this is the number that
+  // makes the report actionable, and a paper-wide mean cannot produce it.
+  const costliest = bq.reduce((a, x) =>
+    x.avg_time_ms != null && (a == null || Number(x.avg_time_ms) > Number(a.avg_time_ms)) ? x : a,
+  null);
+  claim("breakdown: names the question that cost the class most", Number(costliest.order_index), 1);
+  claim("breakdown: its average is the middle question's, not the paper's", Number(costliest.avg_time_ms), 105000);
+  claim("breakdown: and names who it cost most, by name", typeof costliest.slowest_student_name, "string");
+  claim("breakdown: with that student's own time", Number(costliest.slowest_time_ms), 120000);
+  claim(
+    "breakdown: says how much of the class was timed at all",
+    Number(costliest.timed_count) === 2 && Number(costliest.answered_count) === 3,
+    true,
+  );
+  claim(
+    "breakdown: an untimed answer is never averaged as zero",
+    bq.every((x) => x.avg_time_ms === null || Number(x.timed_count) > 0),
+    true,
+  );
+  claim(
+    "breakdown: the slowest student is named whole, or not at all",
+    bq.every(
+      (x) =>
+        (x.slowest_student_id === null &&
+          x.slowest_student_name === null &&
+          x.slowest_time_ms === null) ||
+        (x.slowest_student_id !== null &&
+          x.slowest_student_name !== null &&
+          x.slowest_time_ms !== null),
+    ),
+    true,
+  );
+  console.log(
+    "   per-question ms:",
+    JSON.stringify(bq.map((x) => ({ i: x.order_index, avg: x.avg_time_ms, who: x.slowest_student_name }))),
+  );
+  const bdUnsat = await as(ID.priya, async (q) =>
+    (await q(`select public.rpc_test_question_breakdown($1) as r`, [notYetTestId]))[0].r,
+  );
+  claim(
+    "breakdown: a test nobody has sat reports no time rather than zero",
+    (bdUnsat.questions || []).every(
+      (x) => x.avg_time_ms === null && Number(x.answered_count) === 0,
+    ),
+    true,
+  );
+  const bdStudent = await refusal(ID.stuA, async (q) =>
+    await q(`select public.rpc_test_question_breakdown($1) as r`, [testId]),
+  );
+  claim("FENCE a student cannot read the class's per-question breakdown", bdStudent?.code, "42501");
+  const bdPrincipal = await refusal(ID.principal, async (q) =>
+    await q(`select public.rpc_test_question_breakdown($1) as r`, [testId]),
+  );
+  claim(
+    "FENCE the principal is refused it, exactly as they are refused the report",
+    bdPrincipal?.code,
+    "42501",
+  );
 
   // ── 7. FENCES on the report ───────────────────────────────────────────────
   console.log("\n══ 7. report fences ════════════════════════════════════════════════");

@@ -39,7 +39,7 @@ The short version:
 
 ### What is now true, and where it is proven
 
-Eight migrations, `20260920000000`–`20260920070000`, each with a rollback and an
+Ten migrations, `20260920000000`–`20260921000000`, each with a rollback and an
 in-migration proof block that refuses to commit if it cannot demonstrate its own
 effect. Plus `probe44.sql` — the test journey as each caller, 25 claims, the
 same shape as probe43's homework journey.
@@ -56,7 +56,7 @@ this branch** — the app calls four RPCs the live database does not have yet.
 postgres, applies every migration in `supabase/migrations` to it — the repo's
 own migrations seed a complete demo tenant, so there are real classes, teachers,
 students, memberships and 21,696 bank questions to work with — and then drives
-the whole journey through it as each role under RLS: **90 claims, every refusal
+the whole journey through it as each role under RLS: **106 claims, every refusal
 paired with a positive control.** It proves the SQL; it says nothing about what
 the live project currently holds. 59 of 433 migrations do not apply to a bare
 cluster (pgvector, pg_cron, and self-proof blocks that need live data); none of
@@ -75,18 +75,39 @@ the weakest-topic ranking a day after every test, re-opening the defect
 those three surfaces. See `docs/gurukul-spec-rules.md`, "The test flow — RULED
 2026-09-12".
 
+### 2026-09-13 — the removals and the report
+
+Three more things the owner asked for, after seeing the panel:
+
+* **Chat is gone from the whole product** and the teacher's **Question Bank**
+  screen with it; `TeacherAICoach`, which rendered a fabricated example report,
+  is deleted and `/teacher/ai-coach` redirects to Question Papers — the whole of
+  the teachers' AI. See `docs/gurukul-spec-rules.md`, "Chat and the teacher's
+  Question Bank are removed", and `src/gurukul-teacher/removedSurfaces.test.ts`,
+  which measures it.
+* **The teacher's test report was rebuilt** into
+  `src/gurukul-teacher/TestReportPanel.tsx`: a leaderboard ranked by mark, a
+  per-question timing breakdown (`rpc_test_question_breakdown`, migration
+  `20260921000000` — the tenth, also unapplied), and a drill-down that is now
+  the student's WHOLE paper with their own time on each question rather than
+  their wrong answers only. Ruled in the same file under "The teacher's test
+  report — what it must answer".
+* **`npx tsc --noEmit` is a NO-OP in this repo.** `tsconfig.json` is
+  solution-style (`files: []` + references), so that command checks nothing and
+  exits 0 on code that does not compile. The typecheck is `npm run typecheck`
+  (`tsc -b --force`). A session earlier in this branch reported "typecheck
+  clean" from the no-op form.
+
 ### Still open on this feature
 
 * **The principal portal is still the fixture design** everywhere except the new
   Tests section (`src/gurukul-principal/PrincipalTests.tsx`, real data). Its own
   header says so. Wiring the rest is a separate pass.
-* **Cross-client liveness of the leaderboard is a poll**, every 15s while the
-  panel is open. `AcademicLiveProvider` subscribes to `postgres_changes` on
-  `tests` but not on `test_attempts`, so a classmate submitting emits nothing
-  the other browsers listen for, and `broadcastAcademicWrite` is in-process
-  only. Adding `test_attempts` to the `supabase_realtime` publication would make
-  it push instead of poll — it was not done here because the publication cannot
-  be inspected or changed from this environment.
+* **Cross-client liveness of the leaderboard** is now a push plus a 30s floor:
+  `20260920080000` adds `test_attempts` and `test_marks` to the
+  `supabase_realtime` publication and `AcademicLiveProvider` subscribes to both.
+  Until that migration is applied the push half does nothing and the floor is
+  all there is.
 * **No browser run.** Everything above is database measurement, unit tests,
   typecheck and build. The app cannot reach Supabase from here, so no screen was
   seen rendering. Walk the five surfaces when the network allows: the teacher's

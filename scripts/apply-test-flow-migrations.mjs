@@ -1,10 +1,10 @@
-// Applies the eight 2026-09-20 test-flow migrations to the live project, in
+// Applies the ten test-flow migrations to the live project, in
 // order, stopping at the first one that does not hold.
 //
 // WHY A RUNNER AND NOT EIGHT COMMANDS
 //   The order matters — 20260920040000 redefines a function 20260920000000
 //   installed, and 20260920060000's policy calls a function 20260920030000
-//   creates — and a human applying eight files by hand at 1am will eventually
+//   creates — and a human applying ten files by hand at 1am will eventually
 //   skip one. Every file is still applied by `apply-one-migration.mjs`: this
 //   loops that, it does not reimplement it (one applier, one ledger writer).
 //
@@ -43,6 +43,8 @@ const FILES = [
   "20260920050000_a_student_can_review_the_paper_they_handed_in.sql",
   "20260920060000_a_classmates_mark_is_readable_once_you_have_sat_the_test.sql",
   "20260920070000_the_tests_list_knows_what_it_is_showing.sql",
+  "20260920080000_a_submitted_paper_reaches_the_other_screens.sql",
+  "20260921000000_the_report_says_which_question_cost_the_class_its_time.sql",
 ];
 
 function fail(msg) {
@@ -88,7 +90,7 @@ const applied = new Set(
 );
 
 console.log(`project ${PROJECT_REF}`);
-console.log(`already in the ledger: ${applied.size ? [...applied].join(", ") : "none of the eight"}\n`);
+console.log(`already in the ledger: ${applied.size ? [...applied].join(", ") : "none of the ten"}\n`);
 
 if (CHECK_ONLY) {
   console.log("--check: preconditions hold. Re-run without --check to apply.");
@@ -118,7 +120,7 @@ for (const file of FILES) {
 }
 
 console.log(
-  "\nAll eight applied. Now run, in this order:\n" +
+  "\nAll ten applied. Now run, in this order:\n" +
     "  npm run db:check-migrations        # the ledger agrees with the files\n" +
     "  npm run verify:caller-privileges   # probe44 is the test journey, 25 claims\n" +
     "  npm run db:verify-integrity",

@@ -563,6 +563,38 @@ export interface TestClassMarks {
   students: TestReportStudentRow[];
 }
 
+/** One question of a test, as the whole class answered it (20260921000000). */
+export interface TestQuestionBreakdownRow {
+  question_id: string;
+  order_index: number | null;
+  question: string;
+  question_format: string | null;
+  marks: number | null;
+  topic: string;
+  answered_count: number;
+  correct_count: number;
+  wrong_count: number;
+  /** Submitted attempts that never reached it — not the same as wrong. */
+  blank_count: number;
+  /** How many of those answers carry a clock at all. */
+  timed_count: number;
+  /** NULL when nothing on this question was timed. Never 0 (§7). */
+  avg_time_ms: number | null;
+  max_time_ms: number | null;
+  /** All three NULL together, or all three set. */
+  slowest_student_id: string | null;
+  slowest_student_name: string | null;
+  slowest_time_ms: number | null;
+}
+
+export interface TestQuestionBreakdown {
+  test_id: string;
+  title: string | null;
+  max_mark: number | null;
+  submitted_count: number;
+  questions: TestQuestionBreakdownRow[];
+}
+
 /** One MCQ from the shared question bank, ready to put on a paper. */
 export interface BankQuestion {
   id: string;
@@ -1555,6 +1587,28 @@ export const TestService = {
     } as never);
     throwIfError(error, "Failed to load this test paper");
     return (data ?? null) as TestAnswerSheet | null;
+  },
+
+  /**
+   * Every question of one test with what it cost the class: the four outcome
+   * counts kept apart, the average and longest time ON THAT QUESTION, and the
+   * student it cost the most, by name.
+   *
+   * This is what replaces a single `average_seconds_per_question` for a
+   * teacher: the paper mean cannot name the question to re-teach and this can.
+   * Fenced by `can_read_test_report` — the same readers as the class report,
+   * and no second copy of that rule here (20260921000000).
+   */
+  async questionBreakdown(
+    ctx: ServiceContext,
+    testId: string,
+  ): Promise<TestQuestionBreakdown | null> {
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_test_question_breakdown",
+      { _test_id: testId } as never,
+    );
+    throwIfError(error, "Failed to load this test's per-question timing");
+    return (data ?? null) as TestQuestionBreakdown | null;
   },
 
   /**

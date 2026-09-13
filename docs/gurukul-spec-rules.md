@@ -260,6 +260,47 @@ replaces those three surfaces afterwards.**
 
 ---
 
+## The teacher's test report — what it must answer, RULED 2026-09-13
+
+Four questions, and the report had honest answers to one of them.
+
+| The teacher asks | Before | Now |
+|---|---|---|
+| Where does the class stand? | a list in ROLL order with marks beside it | `rpc_test_leaderboard` — ranked by mark, ties shared, the same order and rank the students read on their own result |
+| Which question do I re-teach? | `average_seconds_per_question` — the paper's mean over its length | `rpc_test_question_breakdown` — every question with its own average and longest time, the four outcome states apart, and the student it cost the most, by name |
+| What did the class get wrong? | weakest topics | unchanged |
+| How did THIS child do? | their WRONG answers only | `rpc_test_answer_sheet` — the whole paper: every question, their answer against the key, marks awarded, and their own time on each, with their slowest marked |
+
+**Why the paper mean had to go rather than be kept alongside.** It cannot
+distinguish nineteen ten-second questions and one twelve-minute one from twenty
+forty-second ones, and only the first names something to do. Keeping it as well
+would leave two timings on one screen disagreeing about what "per question"
+means (G9). It is deleted from the teacher's report; `rpc_test_class_report`
+still returns the field and the student-facing surfaces still use it.
+
+**Why the drill-down had to change.** "Wrong answers only" is not a
+performance. A student who scored full marks opened an empty panel, and nothing
+anywhere said how long any question took them.
+
+**NULL is not zero, on every timing.** An answer written before the
+per-question clock existed carries `time_ms IS NULL`. Averaged as zero it makes
+a paper look faster the older it is, so: the average covers only the timed
+rows, `timed_count` says how many that is, and the slowest student's id, name
+and time are all NULL together or all set — a name with no time is not a fact
+(§7, G4).
+
+**The fences are unchanged and unduplicated.** The breakdown is fenced by
+`can_read_test_report`, the same function as the class report, so the principal
+is refused here exactly as they are refused there and the argument about §10.25
+stays in one place. The board is `can_read_test_leaderboard`, the drill-down
+`can_read_test_student_report`. No role check was added in any component or
+service.
+
+**Where it lives.** `src/gurukul-teacher/TestReportPanel.tsx` — its own file.
+It was inside `LiveTestsTab`, which is the test LIST and its builder.
+
+---
+
 ## Chat and the teacher's Question Bank are removed — RULED 2026-09-13
 
 **The instruction, in the owner's words:** "Question Bank and communication have to

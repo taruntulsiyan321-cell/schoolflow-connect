@@ -10,7 +10,6 @@ import {
   Send,
   Archive,
   BarChart3,
-  Download,
   Trash2,
   Lock,
   Unlock,
@@ -43,9 +42,7 @@ import {
 import type {
   BankQuestion,
   ManualQuestionInput,
-  TestClassReport,
   TestListRow,
-  TestStudentReport,
 } from "@/academic/services/testService";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
@@ -55,19 +52,14 @@ import {
   displaySubject,
   displayTopic,
   toCountLabel,
-  toDisplayText,
   toEnumLabel,
   toErrorMessage,
   toPercentLabel,
   toPersonName,
 } from "@/lib/presentation";
 import { exportCSV } from "@/lib/exportCsv";
-import { answerToText } from "@/academic/services/answerText";
-import {
-  classReportCsvRows,
-  studentReportCsvRows,
-} from "@/academic/services/testReportSheets";
 import { useResetOnIdentityChange } from "@/hooks/useInitialLoadGate";
+import { TestReportPanel } from "./TestReportPanel";
 import {
   ATTENDANCE_LOW,
   HOMEWORK_LOW,
@@ -138,6 +130,7 @@ function Loading({ label }: { label: string }) {
 }
 
 const TEST_KINDS = Object.keys(TEST_KIND_LABELS) as TestKind[];
+
 
 /**
  * A row of `public.tests`, and nothing else.
@@ -952,69 +945,14 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
    * while nobody has handed in, and says so when they have.
    */
   const [editQuestionsFor, setEditQuestionsFor] = useState<string | null>(null);
-  // §10.25 — the report. Held per test id, so opening a second one closes the
-  // first rather than leaving two panels claiming to be "the" report.
+  // §10.25 — WHICH report is open, and nothing else. Everything the report
+  // itself holds — the aggregate, the board, the per-question timing, the open
+  // student — lives in TestReportPanel, which is the screen that uses it. This
+  // component is the test LIST.
   const [reportTestId, setReportTestId] = useState<string | null>(null);
-  const [report, setReport] = useState<TestClassReport | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
-  const [reportError, setReportError] = useState<string | null>(null);
-  const [drillStudentId, setDrillStudentId] = useState<string | null>(null);
-  const [drill, setDrill] = useState<TestStudentReport | null>(null);
-  const [drillLoading, setDrillLoading] = useState(false);
-  const [drillError, setDrillError] = useState<string | null>(null);
-
-  const closeReport = () => {
-    setReportTestId(null);
-    setReport(null);
-    setReportError(null);
-    setDrillStudentId(null);
-    setDrill(null);
-    setDrillError(null);
-  };
-
-  /**
-   * Load the class report. No role check here and none in the service: the
-   * whole rule lives in `can_read_test_report` (see 20260916000000). A teacher
-   * who does not teach this section gets 42501 and reads it as a sentence.
-   */
-  const openReport = async (testId: string) => {
-    if (!ctx) return;
-    if (reportTestId === testId) {
-      closeReport();
-      return;
-    }
-    closeReport();
-    setReportTestId(testId);
-    setReportLoading(true);
-    try {
-      setReport(await TestService.classReport(ctx, testId));
-    } catch (e) {
-      setReportError(toErrorMessage(e, "Could not load the report for this test"));
-    } finally {
-      setReportLoading(false);
-    }
-  };
-
-  const openDrill = async (testId: string, studentId: string) => {
-    if (!ctx) return;
-    if (drillStudentId === studentId) {
-      setDrillStudentId(null);
-      setDrill(null);
-      setDrillError(null);
-      return;
-    }
-    setDrillStudentId(studentId);
-    setDrill(null);
-    setDrillError(null);
-    setDrillLoading(true);
-    try {
-      setDrill(await TestService.studentReport(ctx, testId, studentId));
-    } catch (e) {
-      setDrillError(toErrorMessage(e, "Could not load this student's report"));
-    } finally {
-      setDrillLoading(false);
-    }
-  };
+  const closeReport = () => setReportTestId(null);
+  const openReport = (testId: string) =>
+    setReportTestId((cur) => (cur === testId ? null : testId));
 
   const reload = async () => {
     if (!ctx) return;
@@ -2226,7 +2164,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 {ctx && (
                   <button
                     type="button"
-                    onClick={() => void openReport(t.id)}
+                    onClick={() => openReport(t.id)}
                     aria-expanded={reportTestId === t.id}
                     className={cn(
                       "px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1",
@@ -2389,196 +2327,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   </div>
                 </div>
               )}
-              {reportTestId === t.id && (
-                <div className="pt-2 mt-1 border-t border-border/60 space-y-3">
-                  {reportLoading && <Loading label="Loading report" />}
-                  {reportError && (
-                    <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
-                      {reportError}
-                    </div>
-                  )}
-                  {report && (
-                    <>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="rounded-[2px] bg-muted/60 px-2 py-1.5">
-                          <div className="text-[9px] text-muted-foreground">Submitted</div>
-                          <div className="text-xs font-bold text-foreground">
-                            {toCountLabel(report.submitted_count)} of{" "}
-                            {report.students.length}
-                          </div>
-                        </div>
-                        <div className="rounded-[2px] bg-muted/60 px-2 py-1.5">
-                          <div className="text-[9px] text-muted-foreground">Class average</div>
-                          {/* NULL, not 0, when nobody has sat it — the database
-                              is deliberate about that and the screen must be
-                              too: a real class average of 0 is a different
-                              fact from an unsat test. */}
-                          <div className="text-xs font-bold text-foreground">
-                            {toCountLabel(report.class_average)}
-                            {report.class_average != null && report.max_mark != null
-                              ? ` / ${report.max_mark}`
-                              : ""}
-                          </div>
-                        </div>
-                        <div className="rounded-[2px] bg-muted/60 px-2 py-1.5">
-                          <div className="text-[9px] text-muted-foreground">Avg per question</div>
-                          <div className="text-xs font-bold text-foreground">
-                            {report.average_seconds_per_question == null
-                              ? toCountLabel(null)
-                              : `${report.average_seconds_per_question}s`}
-                          </div>
-                        </div>
-                      </div>
-
-                      {report.submitted_count === 0 && (
-                        <div className="text-[10px] text-muted-foreground">
-                          Nobody has submitted this test yet, so there is no average and no
-                          topic ranking to show.
-                        </div>
-                      )}
-
-                      {report.weakest_topics.length > 0 && (
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-bold text-foreground">
-                            Weakest topics
-                          </div>
-                          {report.weakest_topics.map((w) => (
-                            <div
-                              key={w.topic}
-                              className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2 py-1"
-                            >
-                              <span className="text-[10px] text-foreground truncate">
-                                {displayTopic(w.topic) || w.topic}
-                              </span>
-                              <span className="text-[9px] text-destructive shrink-0">
-                                {w.wrong} of {w.asked} wrong · {toPercentLabel(w.wrong_pct)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-[10px] font-bold text-foreground">Class list</div>
-                        <button
-                          type="button"
-                          onClick={() => exportCSV(`test-report-${report.test_id}`, classReportCsvRows(report))}
-                          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-muted-foreground flex items-center gap-1"
-                        >
-                          <Download className="w-3 h-3" /> CSV
-                        </button>
-                      </div>
-
-                      <div className="space-y-1">
-                        {report.students.map((s) => (
-                          <div key={s.student_id}>
-                            <button
-                              type="button"
-                              onClick={() => void openDrill(t.id, s.student_id)}
-                              aria-expanded={drillStudentId === s.student_id}
-                              className="w-full flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2 py-1 text-left"
-                            >
-                              <span className="text-[10px] text-foreground truncate">
-                                {s.roll_number != null && s.roll_number !== ""
-                                  ? `${s.roll_number}. `
-                                  : ""}
-                                {toPersonName(s.full_name, { kind: "student" })}
-                              </span>
-                              <span className="text-[9px] text-muted-foreground shrink-0">
-                                {s.submitted
-                                  ? `${toCountLabel(s.mark)}${report.max_mark != null ? ` / ${report.max_mark}` : ""}`
-                                  : "Not submitted"}
-                              </span>
-                            </button>
-                            {drillStudentId === s.student_id && (
-                              <div className="mt-1 ml-2 rounded-[2px] border border-border/60 bg-muted/20 px-2 py-2 space-y-2">
-                                {drillLoading && <Loading label="Loading" />}
-                                {drillError && (
-                                  <div className="text-[10px] text-destructive">{drillError}</div>
-                                )}
-                                {/* Three different empty states, because they
-                                    are three different facts. Rendering them
-                                    the same is the defect this whole report
-                                    was almost shipped with. */}
-                                {drill && !drill.submitted && (
-                                  <div className="text-[10px] text-muted-foreground">
-                                    This student did not sit the test, so there is nothing to
-                                    review.
-                                  </div>
-                                )}
-                                {drill && drill.submitted && drill.wrong_answers.length === 0 && (
-                                  <div className="text-[10px] text-muted-foreground">
-                                    Nothing went wrong — every question was correct.
-                                  </div>
-                                )}
-                                {drill && drill.submitted && drill.wrong_answers.length > 0 && (
-                                  <>
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="text-[10px] font-bold text-foreground">
-                                        {drill.wrong_answers.length} to review
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          exportCSV(
-                                            `test-report-${drill.test_id}-${drill.student_id}`,
-                                            studentReportCsvRows(drill),
-                                          )
-                                        }
-                                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-muted-foreground flex items-center gap-1"
-                                      >
-                                        <Download className="w-3 h-3" /> CSV
-                                      </button>
-                                    </div>
-                                    {drill.wrong_answers.map((w) => {
-                                      const theirs = answerToText(w.their_answer, w.options);
-                                      const right = answerToText(w.correct_answer, w.options);
-                                      return (
-                                        <div
-                                          key={w.question_id}
-                                          className="rounded-lg bg-surface border border-border/60 px-2 py-1.5 space-y-0.5"
-                                        >
-                                          <div className="text-[10px] text-foreground">
-                                            {toDisplayText(w.question, { fallback: "Question" })}
-                                          </div>
-                                          <div className="text-[9px] text-muted-foreground">
-                                            {displayTopic(w.topic) || w.topic}
-                                            {w.marks != null ? ` · ${w.marks} marks` : ""}
-                                          </div>
-                                          <div className="text-[9px]">
-                                            <span className="text-destructive">
-                                              {!w.answered
-                                                ? "Left blank"
-                                                : theirs != null
-                                                  ? `Answered: ${theirs}`
-                                                  : "Their answer was recorded in a form this screen cannot read"}
-                                            </span>
-                                            {right != null && (
-                                              <span className="text-success">
-                                                {" "}
-                                                · Correct: {right}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        {report.students.length === 0 && (
-                          <div className="text-[10px] text-muted-foreground">
-                            This class has no students on roll.
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+              {reportTestId === t.id && <TestReportPanel testId={t.id} />}
             </div>
           );
         })}

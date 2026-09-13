@@ -10570,6 +10570,7 @@ export type Database = {
       rpc_test_class_report: { Args: { _test_id: string }; Returns: Json }
       rpc_test_leaderboard: { Args: { _test_id: string }; Returns: Json }
       rpc_test_list_for_class: { Args: { _class_id: string }; Returns: Json }
+      rpc_test_question_breakdown: { Args: { _test_id: string }; Returns: Json }
       rpc_test_questions_for_attempt: {
         Args: { _attempt_id: string }
         Returns: {
