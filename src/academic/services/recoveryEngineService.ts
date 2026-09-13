@@ -69,6 +69,31 @@ export type ChapterStateRow = {
   open_mistakes: number;
 };
 
+/**
+ * One row of the Recovery screen: a chapter the student has open mistakes in.
+ *
+ * Sourced from the mistake book with chapter_state LEFT JOINed, not the other
+ * way round — a chapter below RECOVERY_TRIGGER_COUNT has no chapter_state row
+ * at all, and those are most of them. Measured live: one chapter cleared the
+ * trigger, seven had open mistakes.
+ */
+export type RecoveryQueueRow = {
+  chapter_id: string;
+  chapter: string | null;
+  subject: string | null;
+  open_mistakes: number;
+  /** RECOVERY_TRIGGER_COUNT, returned as data so no screen holds a copy. */
+  trigger_count: number;
+  /** open_mistakes >= trigger_count, decided server-side. */
+  ready: boolean;
+  state: ChapterStateRow["state"];
+  in_recovery: boolean;
+  last_recovery_readiness: number | null;
+  recovered_at: string | null;
+  /** Recovery sessions already taken on this chapter (§4.6 rounds). */
+  rounds_taken: number;
+};
+
 export type RecoverySessionStart =
   | { started: false; reason: string }
   | {
@@ -80,6 +105,14 @@ export type RecoverySessionStart =
       /** How many questions short of the full ladder. */
       shortfall: number;
       session_size: number;
+      /**
+       * bank question id -> tier, flattened from the plan.
+       *
+       * Derived here so no screen has to read the plan's internal shape. The
+       * runner needs it because recovery is scored PER TIER (§4.2b) and a bare
+       * list of question ids cannot say which rate an answer belongs to.
+       */
+      tierByQuestionId: Record<string, 0 | 1 | 2 | 3>;
     };
 
 export type RecoverySessionOutcome = {
@@ -127,6 +160,24 @@ export const RecoveryEngineService = {
   },
 
   /**
+   * Every chapter the student has an open mistake in, readiest first.
+   *
+   * Includes chapters BELOW the trigger, each carrying how close it is, so the
+   * screen can say "3 of 5" rather than showing nothing until the moment
+   * recovery unlocks. `ready` and `trigger_count` are both decided server-side
+   * against recovery_constants; recomputing either here would be a second home
+   * for the number the state machine turns on (§10 item 7).
+   */
+  async getRecoveryQueue(ctx: ServiceContext): Promise<RecoveryQueueRow[]> {
+    assertCanConsume(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_student_recovery_queue" as never,
+    );
+    throwIfError(error, "Failed to load recovery queue");
+    return (data ?? []) as unknown as RecoveryQueueRow[];
+  },
+
+  /**
    * Open a recovery session for one chapter.
    *
    * Returns `started: false` with a reason rather than throwing when the
@@ -143,7 +194,32 @@ export const RecoveryEngineService = {
       { _chapter_id: chapterId } as never,
     );
     throwIfError(error, "Failed to start recovery session");
-    return data as unknown as RecoverySessionStart;
+    const raw = data as unknown as
+      | { started: false; reason: string }
+      | (Omit<Extract<RecoverySessionStart, { started: true }>, "tierByQuestionId"> & {
+          plan?: { tiers?: Record<string, { from_bank?: unknown }> };
+        });
+
+    if (!raw || raw.started !== true) {
+      return raw as Extract<RecoverySessionStart, { started: false }>;
+    }
+    const started = raw;
+
+    // Flatten plan.tiers[n].from_bank into one id -> tier map. Tier order is
+    // preserved by inserting 0,1,2,3 in sequence: the runner asks the
+    // questions in key order, and §4.2 is a LADDER — the student's own wrong
+    // question first, the transfer question last.
+    const tierByQuestionId: Record<string, 0 | 1 | 2 | 3> = {};
+    for (const tier of [0, 1, 2, 3] as const) {
+      const fromBank = started.plan?.tiers?.[String(tier)]?.from_bank;
+      if (!Array.isArray(fromBank)) continue;
+      for (const id of fromBank) {
+        if (typeof id === "string" && id && !(id in tierByQuestionId)) {
+          tierByQuestionId[id] = tier;
+        }
+      }
+    }
+    return { ...started, tierByQuestionId } as RecoverySessionStart;
   },
 
   /**

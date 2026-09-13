@@ -138,6 +138,7 @@ export type { CurriculumScope } from "./services/practiceService";
 export type { PracticeSessionRow } from "./services/practiceService";
 export type {
   ChapterStateRow,
+  RecoveryQueueRow,
   RecoverySessionStart,
   RecoverySessionOutcome,
   RevisionSessionOutcome,
