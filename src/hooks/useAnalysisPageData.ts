@@ -59,6 +59,26 @@ export type AnalysisPageData = {
   };
 };
 
+/**
+ * Did the student actually attempt anything in this session?
+ *
+ * correct + wrong + skipped IS the attempt count. `question_count` is not: for
+ * a session the loader could not fill, rpc_finish_practice_session leaves it at
+ * the REQUESTED count (it only overwrites when the attempt total is above
+ * zero), so a shell reads as a full 20-question session scored 0%.
+ *
+ * Exported and tested rather than inlined, because "a session with no attempts
+ * is not a session scored zero" is a rule every consumer of these rows needs to
+ * apply the same way — the defect was one screen not applying it at all.
+ */
+export function sessionWasAttempted(row: {
+  correct_count?: number | null;
+  wrong_count?: number | null;
+  skipped_count?: number | null;
+}): boolean {
+  return (row.correct_count ?? 0) + (row.wrong_count ?? 0) + (row.skipped_count ?? 0) > 0;
+}
+
 function sessionSummary(row: {
   id: string;
   subject: string;
@@ -164,6 +184,30 @@ export function useAnalysisPageData(enabled = true) {
         ? []
         : (sessionsRes.data ?? [])
             .filter((r): r is typeof r & { finished_at: string } => r.finished_at !== null)
+            // A SESSION WITH NO ATTEMPTS IS NOT A SESSION SCORED ZERO.
+            //
+            // src/academic/metrics/practice.ts states this for the accuracy
+            // helper, and Analysis was breaking it wholesale: a session where
+            // the loader returned no questions is auto-finished (so Resume is
+            // not polluted with shells), which stores correct_count 0 and
+            // accuracy 0 while question_count keeps the REQUESTED count,
+            // because rpc_finish_practice_session only overwrites it when the
+            // attempt total is above zero. Analysis then averaged those zeros.
+            //
+            // Measured on production: the busiest student had 16 finished
+            // sessions, 14 of them 0-attempt 'weak' shells left by the
+            // weak-area loader returning nothing. Their Analysis was built
+            // almost entirely out of sessions they never answered a question
+            // in — 0% accuracy, no subject, no chapter.
+            //
+            // The loader bug is fixed separately (the weak filter is pushed to
+            // the database now). This is the other half: even once shells are
+            // rare, one is still not a result, and the rows already on
+            // production have to stop counting.
+            //
+            // correct + wrong + skipped is the attempt count; question_count
+            // is not, and is what made the shells look like full sessions.
+            .filter(sessionWasAttempted)
             .map(sessionSummary);
       const latest = sessions[0];
       const previous = sessions[1];

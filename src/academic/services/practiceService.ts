@@ -1273,6 +1273,41 @@ export const PracticeService = {
       if (opts.difficulty && opts.difficulty !== "mixed") {
         query = query.eq("difficulty", opts.difficulty);
       }
+      // ── WEAK AREAS: the filter must reach the DATABASE ──────────────────
+      //
+      // weakTargets used to be matched ONLY client-side, over whatever this
+      // query happened to return. With no chapter or concept predicate the
+      // query is "every approved active question for this class and board",
+      // capped at 400 of 21,681 — an arbitrary window that almost never
+      // contained the handful of questions matching a given student's weak
+      // concepts. The mode then loaded nothing.
+      //
+      // Measured on production before this fix: the busiest student had 16
+      // finished sessions, 14 of them practice_mode 'weak' with ZERO attempts
+      // — 20-question shells auto-finished at 0% because the loader came back
+      // empty. Those zeros were then averaged into Analysis.
+      //
+      // So the targets are pushed down as an OR of exact chapter/concept
+      // matches. The client-side pass below still runs and is still the
+      // precision filter (it handles display-cleaned and mojibake labels);
+      // this only guarantees the window it filters actually contains
+      // candidates.
+      if (opts.weakTargets && opts.weakTargets.length > 0) {
+        const quote = (v: string) => `"${v.replace(/["\\]/g, "")}"`;
+        const concepts = Array.from(
+          new Set(opts.weakTargets.map((w) => w.concept).filter((c): c is string => Boolean(c))),
+        );
+        const chapters = Array.from(
+          new Set(opts.weakTargets.map((w) => w.chapter).filter((c): c is string => Boolean(c))),
+        );
+        const clauses: string[] = [];
+        if (concepts.length) {
+          clauses.push(`concept.in.(${concepts.map(quote).join(",")})`);
+          clauses.push(`topic.in.(${concepts.map(quote).join(",")})`);
+        }
+        if (chapters.length) clauses.push(`chapter.in.(${chapters.map(quote).join(",")})`);
+        if (clauses.length) query = query.or(clauses.join(","));
+      }
       if (opts.pyqOnly) {
         query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
       }
