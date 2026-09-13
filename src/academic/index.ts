@@ -71,6 +71,7 @@ export {
   AcademicProfileService,
   TestService,
   PracticeService,
+  RecoveryEngineService,
   DoubtService,
   XpService,
   BadgeService,
@@ -135,6 +136,12 @@ export type {
 export type { BattleCreateOpts } from "./services/battleExperienceService";
 export type { CurriculumScope } from "./services/practiceService";
 export type { PracticeSessionRow } from "./services/practiceService";
+export type {
+  ChapterStateRow,
+  RecoverySessionStart,
+  RecoverySessionOutcome,
+  RevisionSessionOutcome,
+} from "./services/recoveryEngineService";
 export type { QuestionBankInsertRow, QuestionReviewRow } from "./services/questionBankService";
 export type {
   QuestionPaperRow,

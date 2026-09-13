@@ -307,7 +307,7 @@ export default function StudentDashboard() {
           <Route path="analytics" element={<Navigate to="/student/analysis" replace />} />
           <Route path="report" element={<Navigate to="/student/analysis" replace />} />
           <Route path="recovery" element={<Recovery setPage={setPage} />} />
-          <Route path="revision" element={<Revision setPage={setPage} />} />
+          <Route path="revision" element={<Revision />} />
           <Route path="plans" element={<Navigate to="/student/revision" replace />} />
           <Route path="mistakes" element={<MistakeBook setPage={setPage} />} />
           <Route path="battleground/battle/:id" element={<LiveBattleRoom />} />

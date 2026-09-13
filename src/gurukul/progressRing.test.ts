@@ -100,11 +100,21 @@ describe("the panel has one progress ring and it does not glow", () => {
 
   it("every screen that shows a ring uses the shared one", () => {
     // POSITIVE CONTROL first: this only means something if rings are actually
-    // in use. Four screens render one.
+    // in use.
+    //
+    // The floor was 4 and is now 3. Revision.tsx was the fourth, in a
+    // RevResults component that rendered a ring for a revision score — and
+    // that component was unreachable: nothing ever set the page's view to
+    // "results", so `activeItem` was never non-null. It came out with the
+    // rest of the dead view machinery when Revision moved onto the 7C engine.
+    //
+    // Three is still a real control: it proves the shared ring has multiple
+    // live consumers, which is what stops the "nobody hand-rolls one" half
+    // below from passing vacuously over a component nothing renders.
     const users = files.filter(
       (f) => !f.endsWith(join("components", "shared.tsx")) && readFileSync(f, "utf8").includes("<ProgressRing"),
     );
-    expect(users.length, "screens rendering the shared ring").toBeGreaterThan(3);
+    expect(users.length, "screens rendering the shared ring").toBeGreaterThanOrEqual(3);
 
     // And nobody hand-rolls a new one. A stroke-dasharray circle IS a ring.
     const offenders: string[] = [];

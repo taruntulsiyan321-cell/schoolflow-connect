@@ -11,6 +11,7 @@ import { RemarksService } from "./remarksService";
 import { AcademicProfileService } from "./academicProfileService";
 import { TestService } from "./testService";
 import { PracticeService } from "./practiceService";
+import { RecoveryEngineService } from "./recoveryEngineService";
 import { DoubtService } from "./doubtService";
 import { XpService } from "./xpService";
 import { BadgeService } from "./badgeService";
@@ -78,6 +79,7 @@ export {
   AcademicProfileService,
   TestService,
   PracticeService,
+  RecoveryEngineService,
   DoubtService,
   XpService,
   BadgeService,

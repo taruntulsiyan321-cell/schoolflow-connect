@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicContext, PracticeService, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
+import { useAcademicContext, PracticeService, RecoveryEngineService, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
 import type { PracticeSessionRow } from "@/academic";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toErrorMessage } from "@/lib/presentation";
 import { ACCURACY_PROCEDURAL, ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
+import { REVISION_COUNT } from "@/academic/recovery/constants";
 import { pluralise } from "@/lib/plural";
 
 const CLASS_UNRESOLVED_MSG =
@@ -1103,6 +1104,20 @@ interface SessionConfig {
    * KNOWN_ISSUES so it is not mistaken for live code.
    */
   resumeSessionId?: string | null;
+  /**
+   * §5.4 — set when this session IS a revision check for that chapter.
+   *
+   * A revision check is not a separate kind of question-runner; it is a
+   * practice session with a purpose, so it reuses this one rather than
+   * standing up a second screen that would drift from it. What makes it a
+   * check is where the score goes at the end: rpc_submit_revision_session,
+   * which walks the 7/21/60 ladder and decides pass or fail server-side
+   * against REVISION_PASS_THRESHOLD.
+   *
+   * The chapter UUID, never a chapter name — §2, and the reason the old
+   * revision_queue filled with rows pointing at 'Chapter 3'.
+   */
+  revisionChapterId?: string | null;
 }
 
 // ── Session (question-solving) ───────────────────────────────────────────────
@@ -1531,6 +1546,35 @@ function Session({
         if (typeof serverStats.correctCount === "number") results.correct = serverStats.correctCount;
         if (typeof serverStats.questionCount === "number") results.total = serverStats.questionCount;
         if (typeof serverStats.skippedCount === "number") results.skipped = serverStats.skippedCount;
+
+        // §5.4/§5.5 — a revision check reports its score to the engine, which
+        // decides pass or fail against REVISION_PASS_THRESHOLD and moves the
+        // chapter along the 7/21/60 ladder. Neither judgement is made here:
+        // both constants live in recovery_constants and a copy on this side
+        // would be a second home for them.
+        //
+        // Deliberately NOT inside the try above that owns the finish call. The
+        // session is already saved by this point; a revision submit that fails
+        // must not make the student look as though their practice was lost,
+        // which is what `finishFailed` renders. It is surfaced as its own
+        // error, and the chapter simply stays due — the honest outcome, since
+        // an unrecorded check is a check that did not happen.
+        if (config.revisionChapterId && ctx) {
+          const total = results.total ?? 0;
+          if (total > 0) {
+            try {
+              const outcome = await RecoveryEngineService.submitRevisionSession(
+                ctx,
+                config.revisionChapterId,
+                results.correct ?? 0,
+                total,
+              );
+              results.revision = outcome;
+            } catch (e) {
+              toast.error(toErrorMessage(e, "Practice saved, but the revision check was not recorded"));
+            }
+          }
+        }
       } catch (e) {
         toast.error(toErrorMessage(e, "Could not save practice session"));
         results.serverStats = null;
@@ -1936,6 +1980,13 @@ interface SessionResults {
   attempts: PracticeAttemptSnapshot[];
   startedAt?: string;
   finishFailed?: boolean;
+  /**
+   * Present only when this session was a §5.4 revision check. Carries the
+   * engine's verdict — passed, which rung of the ladder, and whether the
+   * chapter is now solid — so the result screen reports what actually
+   * happened rather than re-deciding it from the raw score.
+   */
+  revision?: import("@/academic").RevisionSessionOutcome;
   serverStats?: {
     questionCount?: number;
     correctCount?: number;
@@ -2167,6 +2218,13 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     const chapterRaw = searchParams.get("chapter");
     const subjectRaw = searchParams.get("subject");
     const topicRaw = searchParams.get("topic");
+    // Revision.tsx sends the chapter UUID here to turn this session into a
+    // §5.4 check. Validated as a UUID rather than trusted: a malformed value
+    // would otherwise reach rpc_submit_revision_session and raise there,
+    // losing the student's whole session to a bad link.
+    const revisionRaw = searchParams.get("revision");
+    const revisionChapterId =
+      revisionRaw && /^[0-9a-f-]{36}$/i.test(revisionRaw) ? revisionRaw : null;
     if (!chapterRaw && !subjectRaw && !topicRaw) return;
 
     const chapter =
@@ -2194,8 +2252,10 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       chapter: chapter || topic,
       topic,
       difficulty: "mixed",
-      qCount: 20,
+      // §5.4 fixes the length of a revision check; ordinary practice does not.
+      qCount: revisionChapterId ? REVISION_COUNT : 20,
       timeLimitSec: null,
+      revisionChapterId,
     });
     setPhase("session");
   }, [searchParams, setSearchParams, phase]);
