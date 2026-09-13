@@ -19,6 +19,11 @@ import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { accuracyBand, STREAK_ESTABLISHED, STREAK_MILESTONE } from "@/academic/metrics/bands";
+import {
+  TREND_DELTA_POINTS,
+  TREND_MIN_SESSIONS,
+  type TrendState,
+} from "@/academic/recovery/constants";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
 import { useAcademicLive } from "@/academic";
@@ -274,6 +279,7 @@ export default function Analysis() {
       questions: c.questions,
       accuracy: c.accuracy,
       trend: c.trend,
+      trendState: c.trendState,
       status: c.status,
     }));
   }, [mastery, analysis?.recent_sessions, snapshot]);
@@ -942,14 +948,7 @@ export default function Analysis() {
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-lg font-black tabular-nums" style={{ color: s.color }}>{s.score}%</div>
-                    {s.trend != null ? (
-                    <div className={cn("flex items-center gap-0.5 text-[11px] font-medium justify-end", s.trend >= 0 ? "text-success" : "text-destructive")}>
-                      {s.trend >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                      {Math.abs(s.trend)}%
-                    </div>
-                    ) : (
-                      <div className="text-[11px] text-muted-foreground">—</div>
-                    )}
+                    <TrendCell state={s.trendState} deltaPoints={s.trend} size="xs" />
                   </div>
                 </div>
               ))}
@@ -991,14 +990,7 @@ export default function Analysis() {
                         <div className="text-[9px] text-muted-foreground">Accuracy</div>
                       </div>
                       <div className="text-center">
-                        {c.trend != null ? (
-                        <div className={cn("text-sm font-black tabular-nums flex items-center justify-center gap-0.5", c.trend >= 0 ? "text-success" : "text-destructive")}>
-                          {c.trend >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                          {Math.abs(c.trend)}%
-                        </div>
-                        ) : (
-                          <div className="text-sm font-black tabular-nums text-muted-foreground">—</div>
-                        )}
+                        <TrendCell state={c.trendState} deltaPoints={c.trend} />
                         <div className="text-[9px] text-muted-foreground">Change</div>
                       </div>
                     </div>
@@ -1461,6 +1453,54 @@ export default function Analysis() {
 }
 
 // ── Shared sub-components ────────────────────────────────────────────────────
+
+/**
+ * The §6.4 trend cell — ONE definition, both the subject list and the chapter
+ * grid.
+ *
+ * Three states, three different things on screen. Before this, both call sites
+ * rendered `trend != null ? arrow+% : "—"`, which collapsed "steady" and "not
+ * enough data" into the same dash, and — because the delta was computed from
+ * as few as two sessions — drew a green up-arrow on noise. The dash is now
+ * reserved for the one case where the app genuinely has nothing to say.
+ */
+function TrendCell({
+  state,
+  deltaPoints,
+  size = "sm",
+}: {
+  state: TrendState;
+  deltaPoints: number | null;
+  size?: "xs" | "sm";
+}) {
+  const text = size === "xs" ? "text-[11px] font-medium" : "text-sm font-black tabular-nums";
+  const justify = size === "xs" ? "justify-end" : "justify-center";
+
+  if (state === "not_enough_data" || deltaPoints == null) {
+    return (
+      <div className={cn(text, "text-muted-foreground", size === "xs" ? "text-right" : "text-center")}
+        title={`Needs ${TREND_MIN_SESSIONS} sessions before a trend means anything`}>
+        —
+      </div>
+    );
+  }
+  if (state === "stuck") {
+    return (
+      <div className={cn("flex items-center gap-0.5", justify, text, "text-muted-foreground")}
+        title={`Moved ${Math.abs(deltaPoints)} points — under the ${TREND_DELTA_POINTS}-point threshold`}>
+        <Minus className="w-3 h-3" />
+        Steady
+      </div>
+    );
+  }
+  const up = state === "improving";
+  return (
+    <div className={cn("flex items-center gap-0.5", justify, text, up ? "text-success" : "text-destructive")}>
+      {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+      {Math.abs(deltaPoints)}%
+    </div>
+  );
+}
 
 function Card({ label, children }: { label: string; children: React.ReactNode }) {
   return (

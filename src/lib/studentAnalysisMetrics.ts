@@ -13,6 +13,11 @@ import type {
 } from "@/hooks/useStudentPerformanceCharts";
 import { normalizeSubjectName } from "@/lib/curriculumScope";
 import { accuracyBand } from "@/academic/metrics/bands";
+import {
+  TREND_DELTA_POINTS,
+  TREND_MIN_SESSIONS,
+  type TrendState,
+} from "@/academic/recovery/constants";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
   buildSubjectRadarPoints,
@@ -57,15 +62,54 @@ function sessionSecPerQuestion(session: PracticeSessionSummary): number | null {
   return Math.round(sec);
 }
 
-/** Average accuracy of the first half vs second half of chronologically ordered sessions. */
+/**
+ * Average accuracy of the first half vs second half of chronologically
+ * ordered sessions, in accuracy points.
+ *
+ * §6.4 / TREND_MIN_SESSIONS: "Declaring a trend from two sessions is noise
+ * dressed as insight." This used to compute a delta from as few as TWO
+ * sessions and hand it straight to the screen, which drew a green up-arrow
+ * and a percentage off one session against one other. Below the floor there
+ * is no trend to report and this returns null — the NOT_ENOUGH_DATA state,
+ * which `trendState` names and the screen renders distinctly from "steady".
+ */
 export function halfWindowTrend(accuracies: number[]): number | null {
-  if (accuracies.length < 2) return null;
+  if (accuracies.length < TREND_MIN_SESSIONS) return null;
   const mid = Math.floor(accuracies.length / 2);
   const early = accuracies.slice(0, mid);
   const late = accuracies.slice(mid);
   if (early.length === 0 || late.length === 0) return null;
   const avg = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
   return Math.round((avg(late) - avg(early)) * 10) / 10;
+}
+
+/**
+ * The §6.4 trend state for a run of session accuracies.
+ *
+ * Three facts the screen has to tell apart, and a nullable number cannot:
+ *
+ *   not_enough_data  fewer than TREND_MIN_SESSIONS sessions — nothing to say
+ *   stuck            enough sessions, movement under TREND_DELTA_POINTS
+ *   improving /      enough sessions, movement at or over the threshold
+ *   worsening
+ *
+ * "stuck" is the honest answer for a student who has practised eight times
+ * and moved two points, and it is NOT the same answer as "you have not
+ * practised enough for me to tell". Rendering both as a dash — which is what
+ * a bare `number | null` forced — told the second student nothing and the
+ * first student something false.
+ *
+ * `deltaPoints` is null only for not_enough_data; a stuck chapter still
+ * carries its (small) real movement for anything that wants to show it.
+ */
+export function trendState(accuracies: number[]): {
+  state: TrendState;
+  deltaPoints: number | null;
+} {
+  const delta = halfWindowTrend(accuracies);
+  if (delta == null) return { state: "not_enough_data", deltaPoints: null };
+  if (Math.abs(delta) < TREND_DELTA_POINTS) return { state: "stuck", deltaPoints: delta };
+  return { state: delta > 0 ? "improving" : "worsening", deltaPoints: delta };
 }
 
 /** This week vs previous week activity totals by weekday (Mon–Sun). */
@@ -102,7 +146,10 @@ export type DerivedSubjectRow = {
   accuracy: number;
   questions: number;
   timeHrs: number;
+  /** Movement in accuracy points. Null unless the §6.4 floor is met. */
   trend: number | null;
+  /** §6.4. Distinguishes "steady" from "not enough data"; trend alone cannot. */
+  trendState: TrendState;
   /**
    * §10.8 — the "best" rung is GONE, not renamed. It drove a "Best subject"
    * badge on the Analysis screen: a list filtered to the highest and a figure
@@ -133,13 +180,14 @@ export function deriveSubjectRows(
     const accuracy = Math.round(s.accuracy);
     const sess = bySubject.get(s.name.toLowerCase()) ?? [];
     const timeMins = sess.reduce((sum, x) => sum + x.duration_minutes, 0);
-    const trend = halfWindowTrend(sess.map(accuracyOf));
+    const { state: subjectTrendState, deltaPoints } = trendState(sess.map(accuracyOf));
     return {
       name: s.name,
       accuracy,
       questions: s.attempts,
       timeHrs: Math.round((timeMins / 60) * 10) / 10,
-      trend,
+      trend: deltaPoints,
+      trendState: subjectTrendState,
       // Converged onto the one accuracy ladder: this asked "< 65", which was a
       // boundary no other screen used and the ruling does not carry.
       status: ["low", "weak"].includes(accuracyBand(accuracy)) ? "needs-attention" : "steady",
@@ -154,7 +202,10 @@ export type DerivedChapterRow = {
   practiceDepth: number;
   accuracy: number;
   questions: number;
+  /** Movement in accuracy points. Null unless the §6.4 floor is met. */
   trend: number | null;
+  /** §6.4. Distinguishes "steady" from "not enough data"; trend alone cannot. */
+  trendState: TrendState;
   status: "ready" | "practice-more" | "needs-work";
 };
 
@@ -194,14 +245,15 @@ export function deriveChapterRows(
           : Math.round(m.mastery_score);
       const key = `${subject.toLowerCase()}::${chapter.toLowerCase()}`;
       const sessList = byChapter.get(key) ?? [];
-      const trend = halfWindowTrend(sessList.map(accuracyOf));
+      const { state: chapterTrendState, deltaPoints } = trendState(sessList.map(accuracyOf));
       return {
         chapter,
         subject,
         practiceDepth: Math.min(100, Math.round((attempts / 5) * 100)),
         accuracy,
         questions: attempts,
-        trend,
+        trend: deltaPoints,
+        trendState: chapterTrendState,
         // Converged: 75/55 were this file's own boundaries for the same figure
         // the subject rows above band at 40/60/70/80.
         status: (["high", "near"].includes(accuracyBand(accuracy))
@@ -242,7 +294,10 @@ export function deriveChapterRows(
         practiceDepth: 0,
         accuracy: acc,
         questions: 0,
+        // No session list reaches this fallback, so there is nothing to
+        // derive a trend from — not_enough_data, never a silent "steady".
         trend: null as number | null,
+        trendState: "not_enough_data" as TrendState,
         status: (acc >= 75 ? "ready" : acc >= 55 ? "practice-more" : "needs-work") as DerivedChapterRow["status"],
       };
     })
@@ -298,8 +353,13 @@ export function deriveImprovingTopics(
   const merged = [...byKey.entries(), ...byChapterSessions.entries()];
   const out: { topic: string; subject: string; improvement: number }[] = [];
   for (const [key, { subject, scores }] of merged) {
-    const trend = halfWindowTrend(scores);
-    if (trend == null || trend < 5) continue;
+    // Converged onto the one §6.4 ladder. This carried its own `< 5`, a
+    // third threshold for the same judgement the subject rows and chapter
+    // rows make at TREND_DELTA_POINTS — so a chapter could be "improving"
+    // in this list and "steady" in the grid beside it, off the same numbers.
+    const { state, deltaPoints } = trendState(scores);
+    if (state !== "improving" || deltaPoints == null) continue;
+    const trend = deltaPoints;
     const realSubject = preferRealAcademicLabel(subject);
     if (!realSubject) continue;
     const topic =

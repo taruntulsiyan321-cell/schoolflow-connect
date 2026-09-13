@@ -42,6 +42,24 @@ import { valueOr } from "../metrics/types";
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
 
+/**
+ * First occurrence wins, order preserved.
+ *
+ * Needed wherever a newest-first PostgREST result is deduped by id: PostgREST
+ * has no DISTINCT ON, so the collapse happens here, and it must keep the
+ * newest row rather than an arbitrary one.
+ */
+export function dedupePreservingOrder(ids: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 export type PracticeSessionRow = {
   id: string;
   subject: string;
@@ -961,10 +979,34 @@ export const PracticeService = {
    * and now none can: the storage rule is enforced by the type, not by a
    * convention someone has to remember.
    *
-   * Wrong lives in student_mistakes (the nominated mistake book), skipped in
-   * practice_skipped. The Mistake Book is still self-clearing — a question
-   * leaves it when the mistake is cleared, which is the same behaviour
-   * current_status gave, without recording correctness to get it.
+   * Wrong lives in student_mistakes (the nominated mistake book). The Mistake
+   * Book is still self-clearing — a question leaves it when the mistake is
+   * cleared, which is the same behaviour current_status gave, without
+   * recording correctness to get it.
+   *
+   * ── SKIPPED READS question_attempts, NOT practice_skipped ─────────────────
+   *
+   * 7B batch 1 created practice_skipped, carried the historical rows across
+   * from question_records, and in the same migration stripped the
+   * `PERFORM public._upsert_question_record(...)` call out of
+   * rpc_record_question_attempt and dropped the function. That call was the
+   * only thing that had ever written a skip. practice_skipped was left with
+   * one reader (this function) and NO writer, so "Skipped Questions" could
+   * only ever return skips made before 2026-08-28 — the mode was dead for
+   * every skip since.
+   *
+   * question_attempts is where a skip actually lands, and always has:
+   * rpc_record_question_attempt forces `skipped = true` (with is_correct
+   * false and score 0) for a skip or a timeout, on both the bank and the
+   * template path. It is the authority, and practice_skipped was a second
+   * home for the same fact that never got filled. So the reader moves to the
+   * authority rather than a writer being added to the duplicate — see the
+   * migration that drops practice_skipped.
+   *
+   * Reading `skipped = true` surfaces no correctness, so §10.8 is untouched.
+   * Rows are deduped newest-first here rather than in SQL: PostgREST has no
+   * DISTINCT ON, and a student who skips the same question in three sessions
+   * has three rows.
    */
   async listQuestionIdsByStatus(
     ctx: ServiceContext,
@@ -985,15 +1027,24 @@ export const PracticeService = {
             .order("last_wrong_at", { ascending: false })
             .limit(limit)
         : await client
-            .from("practice_skipped")
-            .select("question_id, created_at")
+            .from("question_attempts")
+            .select("bank_question_id, created_at")
             .eq("user_id", ctx.userId)
+            .eq("skipped", true)
+            .not("bank_question_id", "is", null)
             .order("created_at", { ascending: false })
-            .limit(limit);
+            // Over-fetch: the limit applies to rows, and duplicates collapse
+            // below, so limiting to `limit` rows would under-fill the mode for
+            // a student who re-skips the same questions.
+            .limit(Math.min(400, limit * 4));
     throwIfError(error, `Failed to load ${status} questions`);
-    return (data ?? [])
-      .map((r) => (r as { question_id: string }).question_id)
-      .filter(Boolean);
+    const ids = (data ?? [])
+      .map((r) => {
+        const row = r as { question_id?: string | null; bank_question_id?: string | null };
+        return status === "wrong" ? row.question_id : row.bank_question_id;
+      })
+      .filter((id): id is string => Boolean(id));
+    return dedupePreservingOrder(ids).slice(0, limit);
   },
 
   /** Wrong questions as practice-ready bank rows (honest empty if none). */
