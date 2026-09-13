@@ -260,6 +260,41 @@ replaces those three surfaces afterwards.**
 
 ---
 
+## The test feature — the owner's decisions, RECORDED 2026-09-13
+
+Not yet built. Recorded here so the next session builds THIS and not its own idea of it.
+
+**A test is a delivery of a question paper, not a copy of one.** One paper, one answer
+shape, and `tests` holds only: which paper, which class, which mode, when it goes live.
+
+**The mode the student answers in is chosen FIRST**, because it decides everything after.
+Online means the student is shown MCQs with their options and simply chooses — nothing
+else appears on a phone, and it must feel effortless.
+
+**Three ways to put questions on a paper. Not four.**
+
+1. **The question bank** — proper filtering, and it must feel like **drag and drop**: the
+   teacher filters, then drags questions onto the paper.
+2. **The AI** — customised so it generates questions properly, **produces the answer key
+   with them**, and the result is uploadable into the app as a test.
+3. **The teacher types it** — types the question, enters the four options, chooses which
+   one is correct.
+
+**PDF / photo EXTRACTION IS CUT.** Ruled out on 2026-09-13. We do not read questions out
+of an uploaded paper. The obstacle was never the OCR: a question paper carries no answer
+key, so extraction can never produce an auto-markable online test on its own, and
+`src/academic/ai/multimodalPipeline.ts` is a stub in any case ("Live vendor extraction
+deferred"). Do not rebuild this without a fresh ruling.
+
+**Also ruled earlier in the same discussion and still standing:** a test that has been sat
+must be deletable and the count must drop everywhere; students are neither shown nor told
+about a test until `goes_live_at`, which is what makes that deletion window real.
+
+**Sequenced after homework.** The owner's instruction on 2026-09-13: finish the homework
+feature first.
+
+---
+
 ## The teacher's test report — what it must answer, RULED 2026-09-13
 
 Four questions, and the report had honest answers to one of them.
