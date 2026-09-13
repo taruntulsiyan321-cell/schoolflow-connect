@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -1118,6 +1118,33 @@ interface SessionConfig {
    * revision_queue filled with rows pointing at 'Chapter 3'.
    */
   revisionChapterId?: string | null;
+  /**
+   * §4.2 — set when this session IS a recovery session.
+   *
+   * Recovery differs from every other mode in one way that matters: it is
+   * scored per TIER, never as one total. tier 0 is the student's own wrong
+   * questions, 1 the same question with different values, 2 the same concept
+   * reframed, 3 the topic applied elsewhere — and §4.2b reads tiers 0+1 as
+   * "can they run the procedure" against 2+3's "do they understand it". Two
+   * rates, never blended. So the runner has to know which tier each question
+   * came from, which `tierByQuestionId` carries.
+   *
+   * The ids come from rpc_start_recovery_session, which builds the ladder
+   * bank-first. They are passed through router state rather than the URL: the
+   * plan is not persisted server-side (recovery_sessions stores the tier
+   * TOTALS, not which questions filled them), so re-deriving it here could
+   * drift from what the session was opened against and score the student
+   * against questions they were never asked.
+   */
+  recovery?: {
+    sessionId: string;
+    chapterId: string;
+    /** bank question id -> tier. Order of the keys is the order asked. */
+    tierByQuestionId: Record<string, 0 | 1 | 2 | 3>;
+    /** False when generation could not fill every tier — the screen says so. */
+    complete: boolean;
+    shortfall: number;
+  } | null;
 }
 
 // ── Session (question-solving) ───────────────────────────────────────────────
@@ -1333,7 +1360,24 @@ function Session({
         let rows: Awaited<ReturnType<typeof PracticeService.listBankQuestions>> = [];
         const bankOpts = { excludeIds: excludeIds.length ? excludeIds : undefined };
 
-        if (config.mode === "incorrect") {
+        if (config.recovery) {
+          // §4.2 — the ladder is already built. Load exactly the questions
+          // rpc_start_recovery_session chose, in tier order, and nothing else:
+          // topping the session up from the bank would put questions into it
+          // that no tier accounts for, and the per-tier score would then be
+          // taken over a different set than the totals recorded at start.
+          const ladderIds = Object.keys(config.recovery.tierByQuestionId);
+          const tierOf = config.recovery.tierByQuestionId;
+          const fetched = await PracticeService.listBankQuestions(ctx, {
+            ids: ladderIds,
+            limit: ladderIds.length,
+          });
+          const byId = new Map(fetched.map((r) => [r.id, r]));
+          rows = ladderIds
+            .map((id) => byId.get(id))
+            .filter((r): r is NonNullable<typeof r> => r != null)
+            .sort((a, b) => (tierOf[a.id] ?? 0) - (tierOf[b.id] ?? 0));
+        } else if (config.mode === "incorrect") {
           rows = await PracticeService.listMistakeQuestions(ctx, { limit: remainingCount });
           if (excludeIds.length) {
             const skip = new Set(excludeIds);
@@ -1559,6 +1603,35 @@ function Session({
         // which is what `finishFailed` renders. It is surfaced as its own
         // error, and the chapter simply stays due — the honest outcome, since
         // an unrecorded check is a check that did not happen.
+        // §4.2b — recovery is scored per tier and the four counts stay
+        // separate all the way to the server, which applies the two
+        // thresholds independently. Counting them up here into one number is
+        // exactly what the section forbids.
+        //
+        // Counted from attemptLog, not from the running `correct` tally: the
+        // tally has no idea which tier a question belonged to. A skipped
+        // question counts as not-correct for its tier, which is right — it
+        // was asked and not answered.
+        if (config.recovery && ctx) {
+          const tierOf = config.recovery.tierByQuestionId;
+          const byTier = [0, 0, 0, 0];
+          for (const a of attemptLog.current) {
+            const id = a.bankQuestionId;
+            if (!id || !(id in tierOf)) continue;
+            if (a.isCorrect && !a.skipped) byTier[tierOf[id]] += 1;
+          }
+          try {
+            const outcome = await RecoveryEngineService.submitRecoverySession(
+              ctx,
+              config.recovery.sessionId,
+              { tier0: byTier[0], tier1: byTier[1], tier2: byTier[2], tier3: byTier[3] },
+            );
+            results.recovery = outcome;
+          } catch (e) {
+            toast.error(toErrorMessage(e, "Practice saved, but the recovery result was not recorded"));
+          }
+        }
+
         if (config.revisionChapterId && ctx) {
           const total = results.total ?? 0;
           if (total > 0) {
@@ -1987,6 +2060,13 @@ interface SessionResults {
    * happened rather than re-deciding it from the raw score.
    */
   revision?: import("@/academic").RevisionSessionOutcome;
+  /**
+   * Present only when this session was a §4.2 recovery session. Carries the
+   * engine's verdict — the two rates SEPARATELY, and which of them failed —
+   * so the result screen can say "you can do the steps but the idea isn't
+   * solid yet" rather than a bare percentage.
+   */
+  recovery?: import("@/academic").RecoverySessionOutcome;
   serverStats?: {
     questionCount?: number;
     correctCount?: number;
@@ -2197,6 +2277,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const [config,  setConfig]  = useState<SessionConfig | null>(null);
   const [results, setResults] = useState<SessionResults | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const deepLinkHandled = useRef(false);
 
   /** Instant modes skip config and load with mode-specific filters. */
@@ -2205,6 +2286,35 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   /** Honor Revision/Recovery CTAs: /student/practice?chapter=&subject=&topic= */
   useEffect(() => {
     if (deepLinkHandled.current || phase !== "hub") return;
+
+    // A recovery session arrives through router state, not the URL: its tier
+    // ladder is a map of question ids that is not persisted server-side, so it
+    // cannot be re-derived from a link. Checked before the query params
+    // because a recovery hand-off carries chapter/subject too, and the
+    // ordinary chapter-practice branch below would otherwise claim it and
+    // drop the ladder.
+    const handoff = (location.state ?? null) as { recovery?: SessionConfig["recovery"] } | null;
+    if (handoff?.recovery) {
+      deepLinkHandled.current = true;
+      // Clear it so a back-navigation does not silently re-open a session
+      // that has already been submitted.
+      navigate(location.pathname, { replace: true, state: null });
+      const rec = handoff.recovery;
+      setModeKey("weak");
+      setConfig({
+        mode: "weak",
+        label: "Recovery",
+        subject: "Mixed",
+        chapter: null,
+        topic: null,
+        difficulty: "mixed",
+        qCount: Object.keys(rec.tierByQuestionId).length,
+        timeLimitSec: null,
+        recovery: rec,
+      });
+      setPhase("session");
+      return;
+    }
 
     // ?mode=<instant mode> — used by Mistake Book's "Practice again".
     const modeRaw = searchParams.get("mode");
