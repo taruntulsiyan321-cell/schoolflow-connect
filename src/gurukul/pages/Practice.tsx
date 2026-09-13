@@ -2451,6 +2451,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         attempts: res.attempts,
         startedAt: res.startedAt,
         serverStats: res.serverStats ?? null,
+        recovery: res.recovery ?? null,
       });
       return;
     }

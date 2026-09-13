@@ -71,6 +71,17 @@ export type PracticeSessionResultState = {
   startedAt?: string;
   /** From rpc_finish_practice_session — SSOT until practice_sessions row hydrates. */
   serverStats?: PracticeServerStats | null;
+  /**
+   * Present only when the session was a §4.2 recovery session.
+   *
+   * Carried through rather than re-fetched because the result screen must
+   * report the engine's verdict, not re-derive one: §4.2b decides readiness
+   * from TWO rates against two different thresholds, and a screen that
+   * recomputed it from the raw score would be a second home for both numbers
+   * — and would have no way to say WHICH half failed, which is the entire
+   * point of keeping them apart.
+   */
+  recovery?: import("@/academic").RecoverySessionOutcome | null;
 };
 
 /** Build the optional intelligence meta blob for rpc_record_question_attempt. */
