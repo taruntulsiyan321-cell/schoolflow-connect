@@ -46,10 +46,24 @@ const CLASS_LEVEL_UNRESOLVED_MSG =
 // ── Types ────────────────────────────────────────────────────────────────────
 type Phase   = "hub" | "config" | "session" | "feedback" | "summary";
 type Cat     = "all" | "content" | "source" | "type" | "targeted";
+/**
+ * The nine modes a student can pick, plus "recovery".
+ *
+ * "recovery" is deliberately NOT in MODES: it has no hub tile because nobody
+ * chooses it — Recovery builds the §4.2 ladder and hands the session over. It
+ * is in the union so the session it hands over is RECORDED as what it is.
+ * Before this it borrowed "weak", and a recovery session showed up in practice
+ * history as "Weak Areas Practice", which is a different thing a student can
+ * actually start.
+ *
+ * Everything that looks a mode up in MODES must therefore tolerate a miss —
+ * see the `Config` component, which is never rendered for a recovery session
+ * but no longer asserts its way out of that.
+ */
 type ModeKey =
   | "subject" | "chapter" | "topic" | "custom"
   | "pyq" | "weak" | "incorrect" | "skipped"
-  | "bookmarked";
+  | "bookmarked" | "recovery";
 
 interface Mode {
   key: ModeKey; label: string; desc: string;
@@ -583,7 +597,11 @@ function ConfigView({
   classUnresolved?: boolean;
   classUnresolvedMessage?: string;
 }) {
-  const mode = MODES.find(m => m.key === modeKey)!;
+  // Not `!`. "recovery" has no MODES entry by design, and although Recovery
+  // jumps straight to the session phase and never renders this screen, an
+  // assertion that is only safe because of a control-flow accident elsewhere
+  // is one refactor away from a blank page.
+  const mode = MODES.find(m => m.key === modeKey) ?? MODES.find(m => m.key === "chapter")!;
   const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
   const navigate = useNavigate();
 
@@ -1885,6 +1903,11 @@ function Session({
       chapter: "No questions for this chapter in the bank yet.",
       topic: "No questions for this topic in the bank yet.",
       custom: "No questions match those filters yet. Try a different difficulty or clear a filter.",
+      // Reachable only if the ladder's questions were retired between the
+      // plan being built and this screen loading them. The session row already
+      // exists at that point, so the honest instruction is to start again
+      // rather than to sit on a recovery session with nothing in it.
+      recovery: "The questions for this recovery session are no longer available. Open Recovery and start it again.",
     };
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
@@ -2300,9 +2323,9 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       // that has already been submitted.
       navigate(location.pathname, { replace: true, state: null });
       const rec = handoff.recovery;
-      setModeKey("weak");
+      setModeKey("recovery");
       setConfig({
-        mode: "weak",
+        mode: "recovery",
         label: "Recovery",
         subject: "Mixed",
         chapter: null,
