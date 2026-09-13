@@ -9,9 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
  * so every object was URL-enumerable with no token, no signature and no expiry,
  * and it was an unmetered upload target as well. KNOWN_ISSUES 7b.
  *
- * This module is the read/write half of closing that. It is a copy of the shape
- * `chatFileUpload.ts` established and `academicFileUpload.ts` follows: store a
- * DURABLE REF, resolve a signed URL on read. A public URL persisted into
+ * This module is the read/write half of closing that. It follows the shape
+ * `academicFileUpload.ts` uses: store a DURABLE REF, resolve a signed URL on
+ * read. A public URL persisted into
  * `community_doubts.image_url` is a permanent bet that the bucket stays public,
  * and every such row breaks the moment it does not.
  */

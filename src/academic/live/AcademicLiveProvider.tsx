@@ -45,7 +45,6 @@ const ACADEMIC_NOTIF_TYPES = new Set([
   "xp",
   "doubt",
   "leave",
-  "message",
 ]);
 /**
  * Mount once under AuthProvider. Subscribes to school academic tables + bus,
@@ -306,26 +305,6 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
           filter: `invited_user_id=eq.${user.id}`,
         },
         onTable(["battle"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `receiver_id=eq.${user.id}`,
-        },
-        onTable(["message", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `sender_id=eq.${user.id}`,
-        },
-        onTable(["message"]),
       )
       .on(
         "postgres_changes",

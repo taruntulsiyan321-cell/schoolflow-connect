@@ -81,7 +81,6 @@ export {
   CurriculumService,
   AnnouncementService,
   LeaveService,
-  MessageService,
   TimetableService,
   CalendarEventsService,
   ResourceService,
@@ -157,13 +156,6 @@ export type {
 } from "./services/announcementService";
 export type { LeaveRequestRow, SchoolLeaveRequestRow, LeaveDecisionRow } from "./services/leaveService";
 export { decisionAttribution, matchesStatus } from "./services/leaveService";
-export type {
-  ChatContact,
-  ChatMessage,
-  ChatAttachment,
-  ChatSearchHit,
-} from "./services/messageService";
-
 export { AcademicLiveProvider, useAcademicLive, useAcademicLiveBump, broadcastAcademicWrite } from "./live";
 export {
   academicQueryKeys,

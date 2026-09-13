@@ -7,13 +7,5 @@
  * gurukul-teacher/theme.css for what each of those rules did and why none of
  * them survives.
  *
- * The chat screen is NOT corrected from here. It briefly was: a
- * `.gurukul-parent .chat-panel` block re-pointed the component's eleven
- * `--chat-*` properties and re-squared its corners, which left the off-design
- * stylesheet in place and painted over it once per panel. That is the patch this
- * project's first rule forbids, so the component itself was rewritten to read
- * semantic tokens — see components/chat/chat-panel.css — and this file has
- * nothing to say about it.
- *
  * One design system, one file: src/autonomous-design.css. */
 @import "../autonomous-design.css";

@@ -21,7 +21,6 @@ import { QuestionPaperService } from "./questionPaperService";
 import { CurriculumService } from "./curriculumService";
 import { AnnouncementService } from "./announcementService";
 import { LeaveService } from "./leaveService";
-import { MessageService } from "./messageService";
 import { TimetableService } from "./timetableService";
 import { CalendarEventsService } from "./calendarEventsService";
 import { ResourceService } from "./resourceService";
@@ -63,7 +62,6 @@ export const AcademicServices = {
   curriculum: CurriculumService,
   announcement: AnnouncementService,
   leave: LeaveService,
-  message: MessageService,
   timetable: TimetableService,
   calendarEvents: CalendarEventsService,
   resource: ResourceService,
@@ -88,7 +86,6 @@ export {
   CurriculumService,
   AnnouncementService,
   LeaveService,
-  MessageService,
   TimetableService,
   CalendarEventsService,
   ResourceService,

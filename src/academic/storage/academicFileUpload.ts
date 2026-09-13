@@ -99,9 +99,8 @@ export async function uploadAcademicFile(
   // A DURABLE REF, NOT A URL. `url` is persisted into `homework.attachments`
   // and `homework_submissions.attachments` and read back months later; a public
   // URL baked into a row is a permanent decision that the bucket stays public.
-  // This stores what the object IS and lets the reader decide how to reach it —
-  // the same shape `toDurableChatAttachmentRef` already uses for chat, and the
-  // prerequisite for KNOWN_ISSUES 7's fence, which cannot land while rows hold
+  // This stores what the object IS and lets the reader decide how to reach it,
+  // and is the prerequisite for KNOWN_ISSUES 7's fence, which cannot land while rows hold
   // URLs that stop working the moment the bucket turns private.
   return {
     name: file.name,

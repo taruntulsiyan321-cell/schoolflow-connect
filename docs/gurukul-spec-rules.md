@@ -260,6 +260,46 @@ replaces those three surfaces afterwards.**
 
 ---
 
+## Chat and the teacher's Question Bank are removed — RULED 2026-09-13
+
+**The instruction, in the owner's words:** "Question Bank and communication have to
+be removed completely", "Communication was to be removed from everywhere inside
+the application", and of the teachers' AI: "Teachers' AI was only meant to create
+question papers and upload them to the classes that teach."
+
+**Chat is gone from the product, not hidden.** Removing it from one panel only
+would have left parents and students writing to teachers who have no screen to
+read them on, which is worse than either having it or not. So the whole feature
+went: `pages/shared/ChatPage.tsx`, `gurukul-teacher/Communication.tsx`,
+`gurukul-parent/Messages.tsx`, `components/chat/*`, `services/messageService.ts`,
+`storage/chatFileUpload.ts`, the `message` entity, its ownership row, its live
+domain, its query key, its two realtime subscriptions, every unread badge in
+three shells, and `messages` / `communication` from `ROLE_MODULES`. The old
+addresses redirect to the notices each role still receives rather than 404.
+
+**What the school still communicates with:** announcements (school and class) and
+the doubt portal. Both are live and unchanged.
+
+**The `messages` table and its RPCs are NOT dropped.** No migration in this change
+touches them. Deleting a school's message history is not a design decision to take
+on the way past, and an unread table costs nothing.
+
+**The teacher's Question Bank screen is gone; the bank is not.** `/teacher/question-bank`
+was a browser over the central bank, and a teacher reaches those same questions
+where they need them — picking questions for a test, and filling a paper section.
+The super admin's review queue (`/admin/question-bank-review`, §10.20) stays: it is
+the only thing that approves a question, and without it the bank every other
+surface draws on stops being fed.
+
+**The teachers' AI is the question-paper maker.** `TeacherAICoach.tsx` promised a
+per-student diagnostic report and rendered a hard-coded example of one for a
+student who does not exist — a screen that lied about having data. Deleted;
+`/teacher/ai-coach` redirects to Question Papers, which builds a paper from the
+bank or generates it, and pushes it to a class the teacher teaches as an online
+test.
+
+---
+
 ## Parked — year-end rollover
 
 Not started. The model is being decided at product level and will arrive as its own spec. Build nothing from inference. When it arrives: write the definition first (what promotes, archives, resets, carries forward), get it ruled on, map every academic table against it, build it idempotent and dry-runnable, and test against a copy of production rather than a fixture.

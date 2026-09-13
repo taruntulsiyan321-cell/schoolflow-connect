@@ -59,14 +59,12 @@ export const ROLE_MODULES: Record<AppRole, readonly string[]> = {
     "examinations",
     "attendance",
     "announcements",
-    "messages",
     "settings",
   ],
   teacher: [
     "dashboard",
     "my_classes",
     "doubts",
-    "communication",
     "announcements",
     "leave",
     "profile",
@@ -86,7 +84,6 @@ export const ROLE_MODULES: Record<AppRole, readonly string[]> = {
     "insights",
     "marks",
     "announcements",
-    "messages",
     "profile",
   ],
 };

@@ -5,7 +5,7 @@ import type { PageKey } from "@/gurukul/nav";
 import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonStats } from "@/gurukul/components/shared";
 import {
   Clock, Calendar, CalendarDays, ClipboardList, FlaskConical,
-  MessageCircle, Trophy, ArrowRight, Library, Bell, MessageSquare
+  MessageCircle, Trophy, ArrowRight, Library, Bell
 } from "lucide-react";
 import {
   AcademicProfileService,
@@ -199,15 +199,6 @@ export default function ClassHub({ setPage }: Props) {
       icon: <Bell className="w-6 h-6" />,
       color: "hsl(var(--primary))",
       badge: "Announcements",
-    },
-    {
-      kind: "path",
-      path: "/student/chat",
-      label: "Messages",
-      sub: "Direct messages with teachers",
-      icon: <MessageSquare className="w-6 h-6" />,
-      color: "hsl(var(--success))",
-      badge: "Inbox",
     },
     {
       kind: "page",

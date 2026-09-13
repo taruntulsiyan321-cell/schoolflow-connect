@@ -4,7 +4,6 @@ export type ParentPageKey =
   | "academic_insights"
   | "test_results"
   | "announcements"
-  | "messages"
   | "notifications"
   | "profile";
 
@@ -14,7 +13,6 @@ export const PARENT_PAGE_PATH: Record<ParentPageKey, string> = {
   academic_insights: "/parent/insights",
   test_results: "/parent/marks",
   announcements: "/parent/notices",
-  messages: "/parent/chat",
   notifications: "/parent/notifications",
   profile: "/parent/profile",
 };
@@ -25,7 +23,6 @@ export const PARENT_PAGE_TITLES: Record<ParentPageKey, string> = {
   academic_insights: "Academic Insights",
   test_results: "Test Results",
   announcements: "Announcements",
-  messages: "Messages",
   notifications: "Notifications",
   profile: "My Profile",
 };
@@ -37,8 +34,10 @@ export function parentPathToPage(pathname: string): ParentPageKey {
   if (p.startsWith("/parent/insights")) return "academic_insights";
   if (p.startsWith("/parent/marks") || p.startsWith("/parent/test-results")) return "test_results";
   if (p.startsWith("/parent/notices") || p.startsWith("/parent/announcements")) return "announcements";
+  // Chat is gone from every panel; its old addresses land on the notices a
+  // parent still receives rather than on a dead route.
   if (p.startsWith("/parent/chat") || p.startsWith("/parent/messages") || p.startsWith("/parent/complaints"))
-    return "messages";
+    return "announcements";
   if (p.startsWith("/parent/notifications")) return "notifications";
   if (p.startsWith("/parent/profile") || p.startsWith("/parent/fees")) return "profile";
   if (p === "/parent") return "dashboard";

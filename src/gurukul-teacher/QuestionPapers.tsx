@@ -23,6 +23,12 @@
  *
  * THE ANSWER KEY IS A SEPARATE SHEET, on a toggle and in its own CSV, because
  * the paper is what a student sees and the key is not.
+ *
+ * THIS IS THE WHOLE OF THE TEACHERS' AI. There was a second screen, "AI Coach",
+ * which promised a per-student diagnostic report and rendered a hard-coded
+ * example of one for a student who does not exist. It is deleted, not disabled:
+ * the teachers' AI makes question papers and puts them on a class, and that is
+ * this screen. /teacher/ai-coach redirects here.
  */
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -406,7 +412,8 @@ export default function QuestionPapers() {
         <div>
           <div className="text-sm font-bold text-foreground">Question papers</div>
           <div className="text-[10px] text-muted-foreground">
-            Build the blueprint, then fill the multiple-choice sections from the question bank.
+            Build the blueprint, fill or generate the questions, then send the paper to a class
+            you teach as an online test.
           </div>
         </div>
         <button

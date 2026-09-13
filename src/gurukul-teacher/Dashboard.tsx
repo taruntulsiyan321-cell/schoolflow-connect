@@ -10,7 +10,6 @@ import {
   HelpCircle,
   Loader2,
   PenLine,
-  MessageCircle,
   Megaphone,
   AlertTriangle,
 } from "lucide-react";
@@ -371,12 +370,6 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             label="Announcements"
             color="hsl(var(--muted-foreground))"
             onClick={() => setPage("announcements")}
-          />
-          <QuickAction
-            icon={<MessageCircle className="w-5 h-5" />}
-            label="Communication"
-            color="hsl(var(--primary))"
-            onClick={() => setPage("communication")}
           />
           <QuickAction
             icon={<FileText className="w-5 h-5" />}

@@ -209,12 +209,6 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
     consumers: ["admin", "principal", "teacher", "student", "parent"],
     description: "School / class notice",
   },
-  message: {
-    entity: "message",
-    owners: ["teacher", "student", "parent", "admin", "principal"],
-    consumers: ["teacher", "student", "parent", "admin", "principal"],
-    description: "School chat (DM + class/teacher groups) via MessageService",
-  },
   notification: {
     entity: "notification",
     owners: ["admin"],

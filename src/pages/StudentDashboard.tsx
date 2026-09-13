@@ -43,7 +43,6 @@ import TestResult from "./student/TestResult";
 import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
 import BattleReportPage from "./student/BattleReportPage";
 import StudentClassesPage from "@/pages/shared/StudentClassesPage";
-import ChatPage from "./shared/ChatPage";
 import Notices from "@/gurukul/pages/Notices";
 import Notifications from "@/gurukul/pages/Notifications";
 import MyFeesPage from "./shared/MyFeesPage";
@@ -353,7 +352,7 @@ export default function StudentDashboard() {
           <Route path="test" element={<Navigate to="/student/tests" replace />} />
           <Route path="test/:id/attempt" element={<TestAttempt />} />
           <Route path="test/:id/result" element={<TestResult />} />
-          <Route path="chat" element={<ChatPage userRole="student" />} />
+          <Route path="chat" element={<Navigate to="/student/notices" replace />} />
           <Route path="notices" element={<Notices />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="fees" element={<MyFeesPage />} />

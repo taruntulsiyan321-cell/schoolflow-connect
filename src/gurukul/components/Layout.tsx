@@ -8,8 +8,6 @@ import { PAGE_TITLE, LEARNING as LEARNING_KEYS, CLASS as CLASS_KEYS } from "@/gu
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
-import { MessageService, useAcademicLive } from "@/academic";
-import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn, XPBar, EASE_OUT, springSnappy, springSoft } from "./shared";
 import {
   Home, BookOpen, Brain, Swords,
@@ -29,8 +27,7 @@ type NavEntry = { key: PageKey; label: string; icon: ReactNode };
 // submenu duplicated the page it linked to and made the sidebar the tallest
 // thing on screen. Clicking a nav item now opens its page, and nothing else.
 //
-// Chat is cut from v1. Its route still exists — this removes the way in, not
-// the screen.
+// Chat is gone from the app entirely — the screen, its service and its route.
 const sidebarNav: NavEntry[] = [
   { key:"dashboard",    label:"Home",         icon:<Home className="w-4 h-4"/> },
   { key:"practice",     label:"Practice",     icon:<BookOpen className="w-4 h-4"/> },
@@ -90,37 +87,14 @@ export default function Layout({
   const navigate = useNavigate();
   const location = useLocation();
   const { unread } = useNotifications();
-  const { ctx, ready } = useAcademicContext();
-  const messageLive = useAcademicLive("message");
-  const [unreadMsg, setUnreadMsg] = useState(0);
   const student = { ...EMPTY_STUDENT, ...profile };
   const showXpChrome = progressionReady;
   const reduceMotion = useReducedMotion();
-
-  useEffect(() => {
-    if (!ready || !ctx) {
-      setUnreadMsg(0);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const n = await MessageService.countUnread(ctx);
-        if (!cancelled) setUnreadMsg(n);
-      } catch {
-        if (!cancelled) setUnreadMsg(0);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, ctx, messageLive]);
 
   const headerTitle =
     location.pathname.startsWith("/student/notifications") ? "Notifications"
     : location.pathname.startsWith("/student/notices") ? "Notices"
     : location.pathname.startsWith("/student/fees") ? "Fees"
-    : location.pathname.startsWith("/student/chat") ? "Chat"
     : PAGE_TITLE[page];
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -163,7 +137,6 @@ export default function Layout({
     // A hub stays lit while the student is on one of the pages it leads to,
     // which is what the expanded submenu used to signal.
     const active = isBottomActive(entry.key);
-    const showChatBadge = false; // Chat is not in the sidebar (v1)
     return (
       <motion.button
         onClick={() => { setPage(entry.key); setMobileOpen(false); }}
@@ -181,20 +154,8 @@ export default function Layout({
             className="absolute inset-0 rounded-xl bg-primary shadow-lg shadow-primary/15"
           />
         )}
-        <span className="relative z-10 shrink-0">
-          {entry.icon}
-          {showChatBadge && collapsed && (
-            <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[8px] font-black flex items-center justify-center">
-              {unreadMsg > 9 ? "9+" : unreadMsg}
-            </span>
-          )}
-        </span>
+        <span className="relative z-10 shrink-0">{entry.icon}</span>
         {!collapsed && <span className="relative z-10 truncate flex-1">{entry.label}</span>}
-        {showChatBadge && !collapsed && (
-          <span className="relative z-10 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-black flex items-center justify-center shrink-0">
-            {unreadMsg > 9 ? "9+" : unreadMsg}
-          </span>
-        )}
       </motion.button>
     );
   };
@@ -500,7 +461,6 @@ export default function Layout({
           <div className="flex">
             {bottomNav.map(item => {
               const active = isBottomActive(item.key);
-              const showChatBadge = item.key === "chat" && unreadMsg > 0;
               return (
                 <motion.button key={item.key} onClick={() => setPage(item.key)}
                   whileTap={reduceMotion ? undefined : { scale: 0.92 }}
@@ -520,11 +480,6 @@ export default function Layout({
                     animate={{ scale: active ? 1.1 : 1 }}
                     transition={reduceMotion ? { duration: 0 } : springSnappy}>
                     {item.icon}
-                    {showChatBadge && (
-                      <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[8px] font-black flex items-center justify-center">
-                        {unreadMsg > 9 ? "9+" : unreadMsg}
-                      </span>
-                    )}
                   </motion.span>
                   {item.label}
                 </motion.button>

@@ -2,7 +2,7 @@
 export type PageKey =
   | "dashboard" | "practice" | "aicoach" | "analysis"
   | "recovery"  | "revision" | "mistakebook"
-  | "battleground" | "chat" | "leaderboard" | "achievements"
+  | "battleground" | "leaderboard" | "achievements"
   | "resources" | "doubtportal" | "assignments" | "attendance" | "profile"
   | "timetable" | "calendar" | "tests"
   | "learninghub" | "classhub";
@@ -17,7 +17,6 @@ export const PAGE_PATH: Record<PageKey, string> = {
   revision: "/student/revision",
   mistakebook: "/student/mistakes",
   battleground: "/student/battleground",
-  chat: "/student/chat",
   leaderboard: "/student/leaderboard",
   achievements: "/student/achievements",
   resources: "/student/resources",
@@ -49,7 +48,6 @@ const LEGACY_CLASSES_HASH: Record<string, PageKey> = {
 /** Absolute paths for hashes that are not PAGE_PATH keys. */
 const LEGACY_CLASSES_ABS: Record<string, string> = {
   fees: "/student/fees",
-  chat: "/student/chat",
   notices: "/student/notices",
 };
 
@@ -84,7 +82,6 @@ export function pathToPage(pathname: string): PageKey {
   if (p.startsWith("/student/analytics") || p.startsWith("/student/analysis") || p.startsWith("/student/report"))
     return "analysis";
   if (p.startsWith("/student/revision") || p.startsWith("/student/plans")) return "revision";
-  if (p.startsWith("/student/chat")) return "chat";
   if (p.startsWith("/student/notices") || p.startsWith("/student/notifications"))
     return "classhub";
   if (p.startsWith("/student/classes")) return "classhub";
@@ -116,7 +113,6 @@ export const PAGE_TITLE: Record<PageKey, string> = {
   revision: "Revision",
   mistakebook: "Mistake Book",
   battleground: "Battleground",
-  chat: "Chat",
   leaderboard: "Rankings",
   achievements: "Achievements",
   resources: "Resources",

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Users, Bell, MessageSquare, User,
+  LayoutDashboard, Users, Bell, User,
   ChevronLeft, ChevronRight, Menu, BookOpen, LogOut,
   BarChart2, ClipboardList,
 } from "lucide-react";
@@ -15,7 +15,6 @@ import {
 import ParentHome from "./Dashboard";
 import MyChildren from "./MyChildren";
 import ParentAnnouncements from "./Announcements";
-import ParentMessages from "./Messages";
 import ParentNotifications from "./Notifications";
 import ParentProfile from "./Profile";
 import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
@@ -24,10 +23,6 @@ import TestResults from "./TestResults";
 import { useParentLiveChildren } from "./ParentLiveAttendance";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
-import { MessageService, useAcademicLive } from "@/academic";
-import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import { toast } from "sonner";
-import { toErrorMessage } from "@/lib/presentation";
 
 export type { ParentPageKey } from "./nav";
 
@@ -61,7 +56,6 @@ function Sidebar({
   onSignOut,
   parentName,
   unreadNotif,
-  unreadMsg,
 }: {
   page: ParentPageKey;
   setPage: (p: ParentPageKey) => void;
@@ -74,7 +68,6 @@ function Sidebar({
   onSignOut?: () => void;
   parentName: string;
   unreadNotif: number;
-  unreadMsg: number;
 }) {
   const displayName = parentName.trim() || "Parent";
   const initials = initialsFromName(displayName);
@@ -95,10 +88,9 @@ function Sidebar({
       ],
     },
     {
-      label: "Communication",
+      label: "Updates",
       items: [
         { key: "announcements", label: "Announcements", icon: <Bell className="w-4 h-4" /> },
-        { key: "messages", label: "Messages", icon: <MessageSquare className="w-4 h-4" />, badge: unreadMsg },
         { key: "notifications", label: "Notifications", icon: <Bell className="w-4 h-4" />, badge: unreadNotif },
       ],
     },
@@ -261,9 +253,6 @@ export default function ParentApp() {
   const location = useLocation();
   const { signOut, profile } = useAuth();
   const { unread: unreadNotif } = useNotifications();
-  const { ctx, ready } = useAcademicContext();
-  const liveMsg = useAcademicLive(["message"]);
-  const [unreadMsg, setUnreadMsg] = useState(0);
   const page = useMemo(() => parentPathToPage(location.pathname), [location.pathname]);
   const setPage = (p: ParentPageKey) => navigate(PARENT_PAGE_PATH[p]);
   const [collapsed, setCollapsed] = useState(false);
@@ -281,27 +270,6 @@ export default function ParentApp() {
       setActiveChildId(liveChild.id);
     }
   }, [liveChild, activeChildId]);
-
-  useEffect(() => {
-    if (!ready || !ctx) {
-      setUnreadMsg(0);
-      return;
-    }
-    let cancelled = false;
-    void MessageService.countUnread(ctx)
-      .then((n) => {
-        if (!cancelled) setUnreadMsg(n);
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setUnreadMsg(0);
-          toast.error(toErrorMessage(e, "Could not load unread messages"));
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, ctx, liveMsg, page]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -321,7 +289,6 @@ export default function ParentApp() {
           onSignOut={handleSignOut}
           parentName={parentName}
           unreadNotif={unreadNotif}
-          unreadMsg={unreadMsg}
         />
       </div>
 
@@ -341,8 +308,7 @@ export default function ParentApp() {
               onSignOut={handleSignOut}
               parentName={parentName}
               unreadNotif={unreadNotif}
-              unreadMsg={unreadMsg}
-            />
+                />
           </div>
         </div>
       )}
@@ -371,17 +337,6 @@ export default function ParentApp() {
               {unreadNotif > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive rounded-full text-[8px] font-bold text-primary-foreground flex items-center justify-center">
                   {unreadNotif}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setPage("messages")}
-              className="relative w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
-            >
-              <MessageSquare className="w-4 h-4" />
-              {unreadMsg > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary rounded-full text-[8px] font-bold text-primary-foreground flex items-center justify-center">
-                  {unreadMsg}
                 </span>
               )}
             </button>
@@ -436,14 +391,14 @@ export default function ParentApp() {
               <Route path="test-results" element={<Navigate to="/parent/marks" replace />} />
               <Route path="notices" element={<ParentAnnouncements />} />
               <Route path="announcements" element={<Navigate to="/parent/notices" replace />} />
-              <Route path="chat" element={<ParentMessages />} />
-              <Route path="messages" element={<Navigate to="/parent/chat" replace />} />
+              <Route path="chat" element={<Navigate to="/parent/notices" replace />} />
+              <Route path="messages" element={<Navigate to="/parent/notices" replace />} />
               <Route path="notifications" element={<ParentNotifications />} />
               <Route path="profile" element={<ParentProfile />} />
               <Route path="attendance" element={<Navigate to="/parent/children" replace />} />
               <Route path="homework" element={<Navigate to="/parent/children" replace />} />
               <Route path="fees" element={<Navigate to="/parent/profile" replace />} />
-              <Route path="complaints" element={<Navigate to="/parent/chat" replace />} />
+              <Route path="complaints" element={<Navigate to="/parent/notices" replace />} />
               <Route path="*" element={<Navigate to="/parent" replace />} />
             </Routes>
           </div>
