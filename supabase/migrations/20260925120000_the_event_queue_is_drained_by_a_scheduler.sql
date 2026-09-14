@@ -99,10 +99,21 @@ DECLARE
   _student uuid; _school uuid; _user uuid; _pending uuid; _failed uuid; _refused boolean; _n int;
 BEGIN
 BEGIN
-  SELECT id, school_id, user_id INTO _student, _school, _user
-    FROM public.students WHERE deleted_at IS NULL AND user_id IS NOT NULL LIMIT 1;
+  -- A signed-in student of a school that sets homework: the recounts this queue
+  -- carries. Any student would do for the drain itself, but not every one can be
+  -- recounted — the scale-fixture tenant on live stores 330 test attempts scored
+  -- above their own maximum, which the profile's 0–100 range refuses
+  -- (KNOWN_ISSUES, "The scale fixture's test scores exceed their maximum"). An
+  -- arbitrary pick landed there on 2026-09-14 and proved that defect instead of
+  -- the drain; the refusal below now names the event's own error either way.
+  SELECT s.id, s.school_id, s.user_id INTO _student, _school, _user
+    FROM public.students s
+   WHERE s.deleted_at IS NULL AND s.user_id IS NOT NULL
+     AND EXISTS (SELECT 1 FROM public.homework h WHERE h.school_id = s.school_id)
+   ORDER BY s.id
+   LIMIT 1;
   IF _student IS NULL THEN
-    RAISE EXCEPTION 'ROLLED BACK: need a signed-in student to queue a refresh for';
+    RAISE EXCEPTION 'ROLLED BACK: need a signed-in student of a school that sets homework to queue a refresh for';
   END IF;
 
   -- Both queued as the class fan-out queues them, and both older than any real
@@ -152,7 +163,9 @@ BEGIN
   -- 2. The scheduler drains, pending before failed, and the profile recounts.
   _n := public.process_pending_academic_events(1);
   IF _n <> 1 OR (SELECT status FROM public.academic_events WHERE id = _pending) <> 'processed' THEN
-    RAISE EXCEPTION 'ROLLED BACK: the scheduler''s drain did not process the pending refresh (processed %)', _n;
+    RAISE EXCEPTION 'ROLLED BACK: the scheduler''s drain did not process the pending refresh (processed %; the event reads %, %)', _n,
+      (SELECT status FROM public.academic_events WHERE id = _pending),
+      coalesce((SELECT error FROM public.academic_events WHERE id = _pending), 'no error');
   END IF;
   IF (SELECT status FROM public.academic_events WHERE id = _failed) <> 'failed' THEN
     RAISE EXCEPTION 'ROLLED BACK: the drain took an older failed row before a pending one';
