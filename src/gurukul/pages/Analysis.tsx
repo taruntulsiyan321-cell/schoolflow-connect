@@ -24,6 +24,7 @@ import {
   TREND_MIN_SESSIONS,
   type TrendState,
 } from "@/academic/recovery/constants";
+import { RecoveryEngineService, type ChapterStateRow, type RecoveryQueueRow } from "@/academic";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
 import { useAcademicLive } from "@/academic";
@@ -439,20 +440,47 @@ export default function Analysis() {
     return weeks.slice(-4);
   }, [snapshot?.activity_heatmap]);
 
-  const recoveryProgress = useMemo(
-    () => deriveRecoveryProgress(mastery, snapshot?.recovery_pending ?? 0),
-    [snapshot?.recovery_pending, mastery],
-  );
+  // The 7C engine, not snapshot.revision_queue.
+  //
+  // That queue is retired: every row was written due CURRENT_DATE and nothing
+  // applied the §5.3 intervals, so "due today" meant "in the queue" (223 rows,
+  // 223 due, measured). The Revision screen moved to chapter_state and this
+  // did not, so the two pages were describing different worlds off different
+  // tables — Analysis showing 17 items due while Revision showed the real
+  // ladder.
+  const [chapterStates, setChapterStates] = useState<ChapterStateRow[]>([]);
+  const [recoveryQueue, setRecoveryQueue] = useState<RecoveryQueueRow[]>([]);
+  useEffect(() => {
+    if (!academicReady || !ctx) return;
+    let cancelled = false;
+    // Both: chapter_state carries the revision ladder (next_revision_at,
+    // revision_due) and the queue carries the recovery side (open_mistakes,
+    // ready) including chapters with no state row yet. Neither is derivable
+    // from the other.
+    Promise.all([
+      RecoveryEngineService.getChapterStates(ctx),
+      RecoveryEngineService.getRecoveryQueue(ctx),
+    ])
+      .then(([states, queue]) => {
+        if (cancelled) return;
+        setChapterStates(states);
+        setRecoveryQueue(queue);
+      })
+      .catch((e) => {
+        // Analysis is a read-only surface and every other panel stands on its
+        // own, so one failed section must not blank the page. It is logged
+        // rather than swallowed, and the panel renders its empty state.
+        if (!cancelled) {
+          console.warn("[Analysis] chapter states failed:", e instanceof Error ? e.message : e);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [ctx, academicReady]);
 
-  const recoveryTopics = useMemo(
-    () => deriveRecoveryTopics(snapshot?.weak_topics, mastery),
-    [snapshot?.weak_topics, mastery],
-  );
+  const recoveryProgress = useMemo(() => deriveRecoveryProgress(recoveryQueue), [recoveryQueue]);
+  const recoveryTopics = useMemo(() => deriveRecoveryTopics(recoveryQueue), [recoveryQueue]);
 
-  const revisionData = useMemo(
-    () => deriveRevisionData(snapshot?.revision_queue),
-    [snapshot?.revision_queue],
-  );
+  const revisionData = useMemo(() => deriveRevisionData(chapterStates), [chapterStates]);
 
   // RULING 1. This read `mastery_score >= 75` and printed the result as "Topics
   // completed" — a count of mastered concepts shown to a student, which §10.8
@@ -1115,11 +1143,11 @@ export default function Analysis() {
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-foreground">{recoveryProgress.completed}</div>
-                  <div className="text-[11px] text-muted-foreground">Completed</div>
+                  <div className="text-[11px] text-muted-foreground">Recovered</div>
                 </div>
                 <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-warning">{recoveryProgress.stillPending}</div>
-                  <div className="text-[11px] text-muted-foreground">Still pending</div>
+                  <div className="text-[11px] text-muted-foreground">Ready now</div>
                 </div>
               </div>
               <div className="space-y-2">
@@ -1127,17 +1155,24 @@ export default function Analysis() {
                   <p className="text-sm text-muted-foreground py-4 text-center">No recovery topics yet</p>
                 ) : recoveryTopics.map((r) => (
                   <div key={r.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60">
-                    {r.status === "completed"
+                    {r.status === "recovered"
                       ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
-                      : <Clock className="w-4 h-4 text-warning shrink-0" />
+                      : <Clock className={cn("w-4 h-4 shrink-0", r.status === "ready" ? "text-destructive" : "text-muted-foreground")} />
                     }
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-foreground truncate">{displayTopic(r.topic)}</div>
                       <div className="text-[11px] text-muted-foreground">{displaySubject(r.subject)}</div>
                     </div>
-                    {r.status === "completed"
-                      ? <span className="text-xs font-semibold text-success">+{r.improvement}%</span>
-                      : <span className="text-[11px] text-muted-foreground">{r.attempts} tries</span>
+                    {/* The count, not a percentage. The old card showed an
+                        invented "+N%" improvement derived by comparing a
+                        mastery score against a weak-topic accuracy from a
+                        different table; open mistakes is the figure the
+                        engine actually turns on. */}
+                    {r.status === "recovered"
+                      ? <span className="text-xs font-semibold text-success">Recovered</span>
+                      : r.status === "ready"
+                        ? <span className="text-xs font-semibold text-destructive">Ready</span>
+                        : <span className="text-[11px] text-muted-foreground tabular-nums">{r.openMistakes} of {r.triggerCount}</span>
                     }
                   </div>
                 ))}

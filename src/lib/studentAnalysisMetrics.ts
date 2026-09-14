@@ -6,6 +6,7 @@
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
 import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import type { ChapterStateRow, RecoveryQueueRow } from "@/academic";
 import type {
   PracticeTrendPoint,
   WeeklyActivityPoint,
@@ -501,79 +502,122 @@ export function deriveMonthComparison(
   ];
 }
 
-export function deriveRecoveryProgress(mastery: ConceptMasteryItem[], pending: number) {
-  const recovered = mastery.filter((m) => (m.recovery_attempts ?? 0) > 0);
-  const completed = recovered.filter((m) => m.mastery_score >= 65);
-  const stillWeak = recovered.filter((m) => m.mastery_score < 65);
-  // Only report a lift when both cleared and still-open recovery concepts exist (real comparison).
-  let improvementAfter = 0;
-  if (completed.length > 0 && stillWeak.length > 0) {
-    const avgDone = completed.reduce((s, m) => s + m.mastery_score, 0) / completed.length;
-    const avgOpen = stillWeak.reduce((s, m) => s + m.mastery_score, 0) / stillWeak.length;
-    improvementAfter = Math.max(0, Math.round(avgDone - avgOpen));
-  }
+/**
+ * Recovery, as the 7C engine sees it.
+ *
+ * ── WHAT THIS READ BEFORE ─────────────────────────────────────────────────
+ *
+ * `snapshot.recovery_pending` (a count of OPEN recovery_assignments rows) and
+ * `concept_mastery.recovery_attempts`. Both belong to the retired engine:
+ * assignments were created on the FIRST wrong answer in a concept, and
+ * measured live there were 17 of them across 2 users, every one with
+ * questions_completed = 0 — abandoned stubs. Analysis reported 14 of those as
+ * this student's "still pending" recovery while the Recovery screen, now on
+ * chapter_state, showed one chapter actually ready.
+ *
+ * Two pages, two engines, two different answers about the same student.
+ *
+ * ── WHAT IT READS NOW ─────────────────────────────────────────────────────
+ *
+ * The same rpc_student_recovery_queue rows the Recovery screen renders, so
+ * the two pages cannot disagree. `ready` is decided server-side against
+ * RECOVERY_TRIGGER_COUNT; this file does not hold a copy of the threshold.
+ */
+export function deriveRecoveryProgress(queue: RecoveryQueueRow[] | null | undefined): {
+  totalToRevisit: number;
+  completed: number;
+  stillPending: number;
+} {
+  const rows = queue ?? [];
   return {
-    totalToRevisit: pending + recovered.length,
-    completed: completed.length,
-    stillPending: pending,
-    improvementAfter,
+    // Every chapter carrying an open mistake — what is left to fix.
+    totalToRevisit: rows.length,
+    // §3.2 'recovered' is the engine's own word for a chapter that cleared
+    // both readiness rates. Not a mastery score over a boundary this file
+    // invented.
+    completed: rows.filter((r) => r.state === "recovered").length,
+    // Ready means the trigger is met and a session can be built right now.
+    // A chapter three mistakes in is not "pending recovery"; it is a chapter
+    // the student is still working in.
+    stillPending: rows.filter((r) => r.ready).length,
   };
 }
 
-export function deriveRecoveryTopics(
-  weakTopics: AcademicSnapshot["weak_topics"],
-  mastery: ConceptMasteryItem[],
-): {
+/**
+ * The chapters the Recovery panel lists, from the same rows Recovery uses.
+ *
+ * Replaces a version that matched `snapshot.weak_topics` against
+ * concept_mastery by comparing display labels — string matching across two
+ * tables, which is the free-text coupling §2 forbids and the reason the old
+ * revision_queue filled with rows pointing at 'Chapter 3'. These rows are
+ * keyed on chapter_id and need no matching at all.
+ */
+export function deriveRecoveryTopics(queue: RecoveryQueueRow[] | null | undefined): {
   topic: string;
   subject: string;
-  status: "pending" | "completed";
-  attempts: number;
-  improvement: number;
+  status: "ready" | "building" | "recovered";
+  openMistakes: number;
+  triggerCount: number;
 }[] {
-  return (weakTopics ?? [])
-    .map((t) => {
-      const topic = preferRealAcademicLabel(t.topic, t.chapter);
-      const subject = preferRealAcademicLabel(t.subject);
+  return (queue ?? [])
+    .map((r) => {
+      const topic = preferRealAcademicLabel(r.chapter);
+      const subject = preferRealAcademicLabel(r.subject);
       if (!topic || !subject) return null;
-      const match = mastery.find(
-        (m) =>
-          preferRealAcademicLabel(m.subject) === subject &&
-          (preferRealAcademicLabel(m.concept) === topic ||
-            preferRealAcademicLabel(m.chapter) === topic ||
-            m.concept === t.topic ||
-            m.chapter === t.chapter),
-      );
-      const attempts = match?.total_attempts ?? match?.recovery_attempts ?? 0;
-      const completed =
-        (match?.recovery_attempts ?? 0) > 0 && (match?.mastery_score ?? 0) >= 65;
-      let improvement = 0;
-      if (completed && match && match.total_attempts > 0) {
-        const acc = Math.round((100 * match.correct_attempts) / match.total_attempts);
-        improvement = Math.max(0, Math.round(acc - t.accuracy));
-      }
       return {
         topic,
         subject,
-        status: completed ? ("completed" as const) : ("pending" as const),
-        attempts,
-        improvement,
+        status: r.state === "recovered" ? ("recovered" as const)
+              : r.ready ? ("ready" as const)
+              : ("building" as const),
+        openMistakes: r.open_mistakes,
+        triggerCount: r.trigger_count,
       };
     })
     .filter((row): row is NonNullable<typeof row> => row != null)
     .slice(0, 6);
 }
 
-export function deriveRevisionData(queue: AcademicSnapshot["revision_queue"]) {
-  const items = queue ?? [];
-  const dueToday = items
-    .filter((r) => new Date(r.due_date).toDateString() === new Date().toDateString())
-    .map((r) => preferRealAcademicLabel(r.topic, r.chapter, r.subject))
+/**
+ * Revision, as the 7C engine sees it.
+ *
+ * ── WHAT THIS READ BEFORE ─────────────────────────────────────────────────
+ *
+ * snapshot.revision_queue — the RETIRED queue. Every row in it was written
+ * with `due_date = CURRENT_DATE` on a wrong answer and nothing anywhere
+ * applied the §5.3 intervals, so "due today" was a synonym for "in the queue"
+ * (measured on production: 223 rows, 223 due, 0 upcoming). `completed` was
+ * hardcoded to 0 on the reasoning that finished items leave the queue, so the
+ * "Done" tile could only ever read zero.
+ *
+ * Worse, the Revision SCREEN moved to chapter_state and this did not, so the
+ * two pages described different worlds from different tables.
+ *
+ * ── WHAT IT READS NOW ─────────────────────────────────────────────────────
+ *
+ * chapter_state, where the ladder actually lives. "Done" is a chapter that has
+ * gone solid: §5.3 says three consecutive passes and the chapter LEAVES the
+ * queue, and the way it leaves is that next_revision_at becomes null. That
+ * absence — paired with a recovered_at, so an untouched chapter is not counted
+ * as finished — is the only honest completion signal in the schema.
+ */
+export function deriveRevisionData(
+  states: ChapterStateRow[] | null | undefined,
+): { totalRevised: number; completed: number; pending: number; dueToday: string[] } {
+  const items = states ?? [];
+  const solid = items.filter((s) => s.next_revision_at === null && s.recovered_at !== null);
+  const scheduled = items.filter((s) => s.next_revision_at !== null);
+  // `revision_due` is computed server-side against now(); recomputing the
+  // comparison here would put "is it due" in a second home and drift on any
+  // timezone difference between the browser and the database.
+  const dueToday = scheduled
+    .filter((s) => s.revision_due)
+    .map((s) => preferRealAcademicLabel(s.chapter, s.subject))
     .filter((label): label is string => Boolean(label));
-  // Queue only contains open items — completed revisions leave the queue.
   return {
     totalRevised: items.length,
-    completed: 0,
-    pending: items.length,
+    completed: solid.length,
+    pending: scheduled.length,
     dueToday,
   };
 }
