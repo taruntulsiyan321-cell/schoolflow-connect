@@ -38,8 +38,41 @@ function subjectSessionKey(raw: string | null | undefined): string {
   return presented ? presented.toLowerCase() : "";
 }
 
+/**
+ * A date-only string ("2026-09-14") as LOCAL midnight.
+ *
+ * `new Date("2026-09-14")` is UTC midnight, not local — the one-line rule the
+ * ECMAScript spec applies to date-only forms. Every consumer here then
+ * compares it against a local midnight from startOfDay, and west of Greenwich
+ * that UTC instant falls on the PREVIOUS local day, so a day's activity lands
+ * in the wrong bucket and the last day of a window drops out of it entirely.
+ *
+ * academic_daily_activity.activity_date is a calendar date the student lived
+ * through, not an instant, so local midnight is what it means.
+ */
+function dateOnlyToLocal(dateStr: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(dateStr);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/**
+ * Mon..Sun, in DAY_LABELS' own vocabulary.
+ *
+ * This returned `toLocaleDateString(undefined, { weekday: "short" })` and every
+ * caller then looked the result up in DAY_LABELS, which is English. On a
+ * browser set to any other language the lookup never matches: buildWeekComparison
+ * bucketed nothing and the "this week vs last week" chart drew seven zeros for
+ * a student who had practised all week. Same for the Analysis study-time bars.
+ *
+ * The label is a KEY here, not display text. It is computed from the date, not
+ * from the runtime's locale.
+ */
 export function weekdayLabel(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(undefined, { weekday: "short" });
+  const d = dateOnlyToLocal(dateStr);
+  // getDay() is 0 = Sunday; DAY_LABELS starts at Monday.
+  return DAY_LABELS[(d.getDay() + 6) % 7];
 }
 
 function startOfDay(d: Date): Date {
@@ -126,7 +159,7 @@ export function buildWeekComparison(
   const lastByDay = new Map<string, number>();
 
   for (const row of weekly) {
-    const d = startOfDay(new Date(row.date));
+    const d = dateOnlyToLocal(row.date);
     const label = weekdayLabel(row.date);
     if (d >= thisStart) {
       thisByDay.set(label, (thisByDay.get(label) ?? 0) + (row.total ?? 0));

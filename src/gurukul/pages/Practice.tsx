@@ -136,7 +136,11 @@ type HistoryRow = {
 
 function formatDurationMs(ms: number | null | undefined, startIso?: string, endIso?: string) {
   if (typeof ms === "number" && ms > 0) {
-    const mins = Math.max(1, Math.round(ms / 60000));
+    // Below a minute, say seconds. This floored to Math.max(1, …), so a
+    // seven-second session was reported as "1m" — a rounding that only ever
+    // rounds up, against a student who can see they were faster than that.
+    if (ms < 60000) return `${Math.max(1, Math.round(ms / 1000))}s`;
+    const mins = Math.round(ms / 60000);
     if (mins >= 60) {
       const h = Math.floor(mins / 60);
       const m = mins % 60;
@@ -2105,6 +2109,10 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   results: SessionResults; onRetry: ()=>void; onHub: ()=>void; onRetryIncorrect: ()=>void;
 }) {
   const { correct, total, skipped, bookmarked, config, serverStats, finishFailed } = results;
+  // `finishFailed` was destructured here and never read. The figures below come
+  // from the local attempt log when the server has none, which is right — but
+  // rendering them with nothing said would tell a student their session was
+  // recorded when it was not.
   // Session SSOT: prefer finish-RPC columns via resolvePracticeSessionStats — never invent XP.
   const stats = resolvePracticeSessionStats(null, {
     questionCount: serverStats?.questionCount ?? total,
@@ -2128,9 +2136,24 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   const xpLabel = xpFormatted === "—" ? null : `+${xpFormatted} XP`;
 return (
     <div className="max-w-lg mx-auto space-y-5">
-      <GlassCard className="p-8 text-center" glow={pct>=ACCURACY_CONCEPTUAL?"green":pct>=ACCURACY_BUILDING?"amber":"rose"}>
-        <div className="text-5xl mb-3">{emoji}</div>
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{config.label} · Complete</div>
+      {/* The save failed. Every figure below is the local attempt log, which is
+          the honest thing to show — it is what the student just did — but it is
+          NOT what the server holds, and saying "Complete" over it would be a
+          lie the student cannot check. The session stays unfinished, so it is
+          still there to be finished. */}
+      {finishFailed && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3">
+          <div className="text-sm font-bold text-destructive mb-0.5">This session was not saved</div>
+          <p className="text-xs text-destructive/90">
+            The figures below are from this device, not from your record. Your
+            answers are still here — try Retry Same Mode, or come back and
+            finish it from your practice history.
+          </p>
+        </div>
+      )}
+      <GlassCard className="p-8 text-center" glow={finishFailed ? "rose" : pct>=ACCURACY_CONCEPTUAL?"green":pct>=ACCURACY_BUILDING?"amber":"rose"}>
+        <div className="text-5xl mb-3">{finishFailed ? "⚠️" : emoji}</div>
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{config.label} · {finishFailed ? "Not saved" : "Complete"}</div>
         <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>
         <div className="text-muted-foreground text-sm mb-6">{stats.correctCount} correct out of {stats.questionCount}</div>
         {xpLabel && (
@@ -2466,7 +2489,19 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   function handleFinish(res: SessionResults) {
     setHistoryTick((t) => t + 1);
-    if (res.sessionId) {
+    // A FAILED SAVE DOES NOT GO TO THE RESULT PAGE.
+    //
+    // The result page reads the practice_sessions row for its figures. When
+    // the finish RPC threw, that row is still unfinished and its aggregates
+    // are whatever they were before, so the page renders a session that looks
+    // ordinary and is not saved. `finishFailed` exists for exactly this and
+    // was set here and then ignored: the navigation below only ever asked
+    // whether there was a session id, and a failed finish still has one.
+    //
+    // The in-page Summary is the only surface that receives the flag, so a
+    // failed finish is sent there instead — and Summary now says so rather
+    // than destructuring the flag and dropping it, which is what it did.
+    if (res.sessionId && !res.finishFailed) {
       const chapter = res.config.chapter || res.attempts[0]?.chapter || res.config.label;
       persistAndGoToPracticeResult(navigate, res.sessionId, {
         subject: res.config.subject,

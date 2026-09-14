@@ -26,7 +26,7 @@ import {
 } from "@/academic/recovery/constants";
 import { RecoveryEngineService, type ChapterStateRow, type RecoveryQueueRow } from "@/academic";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
-import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
+import { buildMilestones, consistencyWeeks, consistencyRatio } from "@/components/student/analytics/wisdom/analyticsDerived";
 import { useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { DecisionEngineService, type WeakAreaRecommendation } from "@/academic/services/decisionEngineService";
@@ -34,6 +34,7 @@ import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
   DAY_LABELS,
+  weekdayLabel,
   buildWeekComparison,
   buildSubjectRadarPoints,
   deriveSubjectRows,
@@ -347,16 +348,32 @@ export default function Analysis() {
     };
   }, [snapshot?.weak_topics, v2WeakAreas, mastery, charts?.practice_trend, analysis?.recent_sessions]);
 
+  // Four real Mon–Sun weeks ending with this one. Every cell is a date, so a
+  // Tuesday is drawn under Tuesday; a day with no activity is a zero rather
+  // than a missing cell that shunts the rest along.
+  const activityWeeks = useMemo(
+    () => consistencyWeeks(snapshot?.activity_heatmap, 4),
+    [snapshot?.activity_heatmap],
+  );
+
   const practiceStats = useMemo(() => {
     const weekly = charts?.weekly_activity ?? [];
     const weekDone = weekly.reduce((s, d) => s + d.total, 0);
-    const todayKey = new Date().toDateString();
-    const todayDone = weekly.find((d) => new Date(d.date).toDateString() === todayKey)?.total ?? 0;
+    // From the calendar grid, whose cells are keyed by local date. This read
+    // `new Date(d.date).toDateString()`, and a date-only string parses as UTC
+    // midnight — west of Greenwich that is yesterday, so "Done today" showed
+    // yesterday's count.
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const todayDone =
+      activityWeeks.flatMap((w) => w.days).find((c) => c.date === todayKey)?.total ?? 0;
     const streakDays = student.streak;
-    const activeDays = (snapshot?.activity_heatmap ?? []).filter(
-      (d) => (d.test ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0,
-    ).length;
-    const consistency = weekly.length > 0 ? Math.round((activeDays / Math.max(weekly.length, 1)) * 100) : 0;
+    // Active days over the four-week WINDOW. This divided by weekly.length —
+    // the number of rows the snapshot returned — and academic_daily_activity
+    // only holds a row for a day something happened, so the sum was
+    // activeDays/activeDays and the tile read 100% for anyone who had ever
+    // practised once, and 0% for everyone else. There was no third answer.
+    const consistency = consistencyRatio(activityWeeks).pct;
     return {
       todayDone,
       todayTarget: 0,
@@ -369,7 +386,7 @@ export default function Analysis() {
       pendingAssignments: snapshot?.homework?.pending ?? 0,
       completedSessions: overview.practiceCompleted,
     };
-  }, [charts?.weekly_activity, snapshot, student.streak, overview]);
+  }, [charts?.weekly_activity, snapshot, student.streak, overview, activityWeeks]);
 
   const practiceMonthly = useMemo(() => {
     const weekly = charts?.weekly_activity ?? [];
@@ -403,9 +420,12 @@ export default function Analysis() {
 
   const studyActivity = useMemo(() => {
     const heatmap = snapshot?.activity_heatmap ?? [];
+    // weekdayLabel, not toLocaleDateString: DAY_LABELS is English, and a
+    // browser in any other language made every one of these comparisons false
+    // — seven empty bars for a student who had studied all week.
     const weeklyHrs = DAY_LABELS.map((day) => {
       const mins = heatmap
-        .filter((d) => new Date(d.date).toLocaleDateString(undefined, { weekday: "short" }) === day)
+        .filter((d) => weekdayLabel(d.date) === day)
         .reduce((s, d) => s + (d.minutes ?? 0), 0);
       return Math.round((mins / 60) * 10) / 10;
     });
@@ -422,22 +442,6 @@ export default function Analysis() {
       bestHour: "—",
       weeklyHrs: [...weeklyHrs],
     };
-  }, [snapshot?.activity_heatmap]);
-
-  const activityHeatmap = useMemo(() => {
-    const cells = consistencyGrid(snapshot?.activity_heatmap);
-    const weeks: { week: string; days: { day: string; value: number }[] }[] = [];
-    for (let w = 0; w < Math.ceil(cells.length / 7); w++) {
-      const slice = cells.slice(w * 7, w * 7 + 7);
-      weeks.push({
-        week: `W${w + 1}`,
-        days: DAY_LABELS.map((day, i) => ({
-          day,
-          value: slice[i]?.total ?? 0,
-        })),
-      });
-    }
-    return weeks.slice(-4);
   }, [snapshot?.activity_heatmap]);
 
   // The 7C engine, not snapshot.revision_queue.
@@ -847,7 +851,11 @@ export default function Analysis() {
           </div>
 
           {/* Score over time */}
-          <Card label="How your score changed over 7 weeks">
+          {/* Not "7 weeks". scoreTrend is charts.practice_trend, which
+              rpc_student_performance_charts builds from the last 30 days, and
+              falls back to the recent-sessions list — never seven weeks of
+              anything. */}
+          <Card label="How your score changed — your recent sessions">
             {scoreTrend.length > 0 ? (
             <>
             <div className="h-48 mt-4">
@@ -1217,11 +1225,14 @@ export default function Analysis() {
         <div className="space-y-6">
           {/* Practice stats */}
           <div>
-            <SLabel>Your practice this week</SLabel>
+            {/* weekDone sums charts.weekly_activity, which is the last 28
+                days, not a week — the RPC's key is misnamed and the label
+                inherited it. */}
+            <SLabel>Your practice — last 4 weeks</SLabel>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: "Done today",        value: practiceStats.todayTarget > 0 ? `${practiceStats.todayDone}/${practiceStats.todayTarget}` : `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
-                { label: "Done this week",    value: practiceStats.weekTarget > 0 ? `${practiceStats.weekDone}/${practiceStats.weekTarget}` : `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
+                { label: "Done in 4 weeks",   value: practiceStats.weekTarget > 0 ? `${practiceStats.weekDone}/${practiceStats.weekTarget}` : `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
                 { label: "Practice streak",   value: pluralise(practiceStats.streakDays, "day"),                        color: "hsl(var(--warning))" },
                 { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "hsl(var(--success))" },
               ].map((s) => <Metric key={s.label} label={s.label} value={s.value} color={s.color} />)}
@@ -1292,7 +1303,7 @@ export default function Analysis() {
           </div>
 
           {/* Weekly hours */}
-          <Card label="Study time each day this week (hours)">
+          <Card label="Study time by day of week — last 4 weeks (hours)">
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -1322,16 +1333,27 @@ export default function Analysis() {
                     <div key={d} className="flex-1 text-center text-[10px] text-muted-foreground">{d}</div>
                   ))}
                 </div>
-                {activityHeatmap.map((row) => (
-                  <div key={row.week} className="flex items-center gap-1 mb-1.5">
-                    <div className="w-8 text-[10px] text-muted-foreground shrink-0">{row.week}</div>
+                {activityWeeks.map((row) => (
+                  <div key={row.label} className="flex items-center gap-1 mb-1.5">
+                    <div className="w-8 text-[10px] text-muted-foreground shrink-0">{row.label}</div>
                     {row.days.map((cell) => {
-                      const intensity = cell.value / 50;
-                      const bg = cell.value === 0 ? "hsl(var(--muted))" : withAlpha("hsl(var(--primary))", 0.08 + intensity * 0.92);
+                      // The cell counts ACTIVITIES — tests, homework, battles
+                      // and practice sessions — which is what
+                      // academic_daily_activity stores. The tooltip called them
+                      // "questions", a number this table has never held.
+                      const intensity = Math.min(cell.total / 8, 1);
+                      const bg = cell.total === 0
+                        ? "hsl(var(--muted))"
+                        : withAlpha("hsl(var(--primary))", 0.08 + intensity * 0.92);
                       return (
-                        <div key={cell.day} title={pluralise(cell.value, "question")}
+                        <div
+                          key={cell.date}
+                          title={`${cell.date} — ${pluralise(cell.total, "activity", "activities")}${
+                            cell.minutes > 0 ? `, ${cell.minutes} min` : ""
+                          }`}
                           className="flex-1 h-8 rounded-lg transition-all hover:scale-110 cursor-default"
-                          style={{ background: bg }} />
+                          style={{ background: bg }}
+                        />
                       );
                     })}
                   </div>

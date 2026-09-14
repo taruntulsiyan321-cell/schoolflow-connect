@@ -133,7 +133,7 @@ export function useAnalysisPageData(enabled = true) {
     setError(null);
 
     try {
-      const [sessionsRes, rankRes, classRes, snapRes, attemptsRes, correctRes] = await Promise.all([
+      const [sessionsRes, rankRes, classRes, attemptsRes, correctRes] = await Promise.all([
         supabase
           .from("practice_sessions")
           .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at, accuracy, wrong_count, skipped_count, total_time_ms")
@@ -159,7 +159,16 @@ export function useAnalysisPageData(enabled = true) {
           .select("class_id, classes(name, section)")
           .eq("user_id", user.id)
           .maybeSingle(),
-        supabase.rpc("rpc_student_academic_snapshot"),
+        // rpc_student_academic_snapshot USED TO BE CALLED HERE, and its result
+        // was destructured into `snapRes` and then never read once. Analysis
+        // already mounts useStudentAcademicSnapshot beside this hook, so the
+        // page fired the same RPC twice on every load and threw one answer
+        // away.
+        //
+        // That is not merely wasteful: the snapshot is a WRITE. It ends with
+        // PERFORM _rebuild_revision_queue, which inserts, updates and
+        // auto-clears rows in the AI layer's weak-topic worklist. Opening
+        // Analysis ran that twice, concurrently, against the same rows.
         // THE ONE POPULATION ACCURACY IS COUNTED OVER (G5).
         //
         // `question_attempts` is the durable per-attempt record, and it is what
