@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ProgressionService, resolveStudentServiceContext, useAcademicLive } from "@/academic";
+import { useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { toErrorMessage } from "@/lib/presentation";
@@ -29,18 +29,7 @@ export type PracticeSessionSummary = {
   accuracy_pct: number;
 };
 
-export type LeaderboardEntry = {
-  user_id: string;
-  full_name: string;
-  roll_number: string | null;
-  score: number;
-  rank: number;
-};
-
 export type AnalysisPageData = {
-  class_rank: number | null;
-  leaderboard_top: LeaderboardEntry[];
-  class_size: number;
   student_class: string | null;
   recent_sessions: PracticeSessionSummary[];
   totals: {
@@ -133,7 +122,12 @@ export function useAnalysisPageData(enabled = true) {
     setError(null);
 
     try {
-      const [sessionsRes, rankRes, classRes, attemptsRes, correctRes] = await Promise.all([
+      // NO LEADERBOARD FETCH. §6.7 forbids analysis comparing the student to
+      // other students, so the rank it fed has been removed from the screen —
+      // and a 200-row class leaderboard pulled on every Analysis load to
+      // compute a number nothing renders is the definition of dead weight.
+      // Ranking lives on the surfaces §10.16 gives it to.
+      const [sessionsRes, classRes, attemptsRes, correctRes] = await Promise.all([
         supabase
           .from("practice_sessions")
           .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at, accuracy, wrong_count, skipped_count, total_time_ms")
@@ -141,19 +135,6 @@ export function useAnalysisPageData(enabled = true) {
           .not("finished_at", "is", null)
           .order("finished_at", { ascending: false })
           .limit(40),
-        (async () => {
-          try {
-            const ctx = await resolveStudentServiceContext();
-            return await ProgressionService.leaderboard(ctx, {
-              scope: "class",
-              period: "lifetime",
-              metric: "xp",
-              limit: 200,
-            });
-          } catch {
-            return { rows: [] as { user_id: string; name: string; value: number }[] };
-          }
-        })(),
         supabase
           .from("students")
           .select("class_id, classes(name, section)")
@@ -221,27 +202,7 @@ export function useAnalysisPageData(enabled = true) {
       const latest = sessions[0];
       const previous = sessions[1];
 
-      let class_rank: number | null = null;
-      let leaderboard_top: LeaderboardEntry[] = [];
-      let class_size = 0;
       let student_class: string | null = null;
-
-      {
-        const lb = rankRes as { rows?: { user_id: string; name: string; value: number }[] };
-        const rows = Array.isArray(lb?.rows) ? lb.rows : [];
-        if (rows.length) {
-          class_size = rows.length;
-          const idx = rows.findIndex((r) => r.user_id === user.id);
-          class_rank = idx >= 0 ? idx + 1 : null;
-          leaderboard_top = rows.slice(0, 5).map((r, i) => ({
-            user_id: r.user_id,
-            full_name: r.name,
-            roll_number: null,
-            score: Number(r.value) || 0,
-            rank: i + 1,
-          }));
-        }
-      }
 
       const classRow = classRes.data as {
         classes?: { name: string; section: string } | null;
@@ -316,9 +277,6 @@ export function useAnalysisPageData(enabled = true) {
           : null;
 
       setData({
-        class_rank,
-        leaderboard_top,
-        class_size,
         student_class,
         recent_sessions: sessions,
         totals: {
@@ -337,9 +295,6 @@ export function useAnalysisPageData(enabled = true) {
     } catch (e) {
       setError(toErrorMessage(e, "Could not load analysis"));
       setData({
-        class_rank: null,
-        leaderboard_top: [],
-        class_size: 0,
         student_class: null,
         recent_sessions: [],
         totals: {

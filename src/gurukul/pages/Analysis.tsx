@@ -226,10 +226,8 @@ export default function Analysis() {
       // hours. Minutes are the honest unit below an hour, so the tile uses them.
       studyMinutes: studyMinutes > 0 ? studyMinutes : null,
       streak: student.streak,
-      rank: analysis?.class_rank ?? student.rank ?? 0,
-      totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
     };
-  }, [analysis, snapshot, student.streak, student.rank, student.totalStudents]);
+  }, [analysis, snapshot, student.streak]);
 
   const scoreTrend = useMemo(() => {
     const trend = charts?.practice_trend ?? [];
@@ -262,7 +260,6 @@ export default function Analysis() {
       ...s,
       color: subjectColor(s.name, i),
       score: s.accuracy,
-      rankInClass: 0,
     }));
   }, [charts?.subjects, analysis?.recent_sessions]);
 
@@ -599,9 +596,14 @@ export default function Analysis() {
   }, [subjectData, snapshot?.weak_topics, studyActivity, analysis]);
 
   const questionCards = useMemo(() => {
-    const rankText = overview.rank > 0 && overview.totalStudents > 0
-      ? `Rank #${overview.rank} of ${overview.totalStudents}`
-      : overview.rank > 0 ? `Rank #${overview.rank}` : "No rank yet";
+    // NO CLASS RANK HERE. §6.7: analysis must never "compare the student to
+    // other students (leaderboards are separate, §10.16)". This card rendered
+    // "Rank #3 of 40" directly under the heading "How am I doing?", which is
+    // the comparison the section forbids, on the one screen that is supposed
+    // to be about this student's own learning and nobody else's.
+    //
+    // The streak stays: it is the student against their own last week, not
+    // against a classmate.
     const streakText = overview.streak > 0 ? `${overview.streak}-day streak` : "No streak yet";
     const weakSubjects = subjectData
       .filter((s) => s.status === "needs-attention")
@@ -617,7 +619,7 @@ export default function Analysis() {
         a: overview.accuracy == null
           ? "No practice yet"
           : `${overview.accuracy}% accuracy overall`,
-        sub: `${rankText} · ${streakText}`,
+        sub: streakText,
         color: "hsl(var(--info))",
         icon: <TrendingUp className="w-4 h-4" />,
       },
@@ -977,7 +979,7 @@ export default function Analysis() {
                           shown for every subject, high and low alike. */}
                       {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{pluralise(s.questions, "question")}{s.timeHrs > 0 ? ` · ${s.timeHrs}h study time` : ""}{s.rankInClass > 0 ? ` · Rank #${s.rankInClass}` : ""}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{pluralise(s.questions, "question")}{s.timeHrs > 0 ? ` · ${s.timeHrs}h study time` : ""}</div>
                     <div className="h-1 rounded-full bg-muted mt-2 overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
                     </div>
