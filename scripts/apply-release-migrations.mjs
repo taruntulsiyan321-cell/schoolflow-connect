@@ -1,12 +1,12 @@
-// Applies this release's sixteen migrations to the live project — the ten of the
-// test feature, then the six of homework — in order, stopping at the first one
-// that does not hold.
+// Applies this release's seventeen migrations to the live project — the ten of
+// the test feature, then the seven of homework — in order, stopping at the first
+// one that does not hold.
 //
-// WHY A RUNNER AND NOT SIXTEEN COMMANDS
+// WHY A RUNNER AND NOT SEVENTEEN COMMANDS
 //   The order matters — 20260925040000 redefines a function 20260925000000
 //   installed, 20260925060000's policy calls a function 20260925030000 creates,
 //   and each homework migration builds on the one before — and a human applying
-//   sixteen files by hand will eventually skip one. Every file is still applied
+//   seventeen files by hand will eventually skip one. Every file is still applied
 //   by `apply-one-migration.mjs`: this loops that, it does not reimplement it
 //   (one applier, one ledger writer).
 //
@@ -62,6 +62,8 @@ const FILES = [
   "20260925130000_homework_is_counted_in_one_place.sql",
   "20260925140000_a_handed_in_file_cannot_change.sql",
   "20260925150000_the_family_is_told_accepted_or_rejected.sql",
+  // Found by the production browser run: the counts above timed the teacher out.
+  "20260925160000_homework_is_counted_without_asking_once_per_row.sql",
 ];
 
 function fail(msg) {

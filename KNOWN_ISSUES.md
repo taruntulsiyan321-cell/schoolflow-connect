@@ -2644,9 +2644,15 @@ being rounded into the mark a parent and a principal read.
 
 ---
 
-## 50. The live database has not received the 2026-09-20 migrations — OPEN, environment-blocked
+## 50. ~~The live database has not received the 2026-09-20 migrations~~ — FIXED
 
-**Found:** 2026-09-12.
+**Found:** 2026-09-12. **Fixed:** 2026-09-14 — renumbered off the stamps another
+branch had applied (they are `20260925000000`–`20260925090000` now, with a tenth
+added since), then applied to live with the six homework migrations through
+`npm run db:apply-release`, each proving itself; `main` fast-forwarded so the app
+that calls them is the one deployed. HANDOFF.md, "RELEASED TO PRODUCTION".
+
+The entry as it was found:
 
 Eight migrations (`20260925000000`–`20260925070000`) are written, each with a
 rollback and an in-migration proof block, and **all eight applied cleanly with
@@ -2666,3 +2672,110 @@ yet (`rpc_test_leaderboard`, `rpc_test_answer_sheet`, `rpc_test_class_marks`,
 branch**, in filename order, with `node scripts/apply-one-migration.mjs`. Each
 one refuses to commit if its own proof does not hold, so a failure is
 informative rather than silent.
+
+---
+
+## 51. The scale fixture's test scores exceed their maximum — OPEN, needs a data ruling
+
+**Found:** 2026-09-14, applying the release to live.
+
+```
+Northfield Public School (scale fixture)
+  submitted test_attempts ............. 458
+  with score > max_score .............. 330     all written 2026-08-29 11:32:44
+  students affected ................... 40
+  e.g. one student's tests average .... 159.38%
+```
+
+`supabase/fixtures/SCALE_FIXTURE.sql` seeds each attempt with `score = test_marks.mark`
+— a mark on that test's own `max_mark` scale — and `max_score = 8`, the eight
+one-mark questions it also seeds. Any mark above 8 is a score above its maximum.
+
+**What it breaks:** `refresh_student_academic_profile` divides score by max_score
+into `tests_avg_pct`, and `student_academic_profiles_pct_range` refuses anything
+over 100 — so **none of those 40 students' stored profiles can be recounted**.
+Every refresh for them fails (and the queue now retries a failed event every
+minute). No other school is affected: on live, all 12 signed-in students of the
+schools that set homework recount cleanly (a rolled-back diagnostic). This is
+what stopped `20260925120000` on live: its proof picked a student at random and
+landed here. Its proof now picks a student of a school that sets homework.
+
+**Not fixed, because it needs a ruling:** the fixture is internally inconsistent
+— its tests' `max_mark`, its eight one-mark questions and its marks do not agree —
+so a correction has to choose which is truth (rescale the attempt to eight
+questions, or set `max_score` to the test's `max_mark`), for both the file and
+the 330 live rows. Nothing about homework depends on it.
+
+---
+
+## 52. Practice reads a table live no longer has — OPEN, cross-branch
+
+**Found:** 2026-09-14, regenerating the types from live after the release.
+
+`src/academic/services/practiceService.ts:988` queries `public.practice_skipped`.
+On live that table does not exist: branch `claude/busy-shannon-nymdhd` applied
+`20260920000000_a_skipped_question_comes_back` (and four more practice and
+recovery migrations) to live on 2026-09-13, and its client code is not on `main`
+or on this branch. `main` already carried this query before the 2026-09-14
+release (`a1c6e7d`), so the skipped-question part of practice was broken in
+production from 2026-09-13, independent of homework.
+
+`npm run db:types` from live therefore does not typecheck against this tree
+(`practice_skipped` is missing from the generated types), and
+`check-foreign-migrations` lists those five migrations as applied with no file
+here. The fix is that branch's client work reaching `main`, reviewed as its own
+release.
+
+---
+
+## 53. Every homework count asked "may I see this row?" once per row — FIXED IN THE REPO, NOT YET APPLIED TO LIVE
+
+**Found:** 2026-09-14, by the production browser run of the homework chain.
+**Fixed:** `20260925160000_homework_is_counted_without_asking_once_per_row`,
+proven against every account on live in rolled-back transactions. **Applying it
+to live is waiting on the owner's permission** — this session's attempt was
+refused by the permission gate, so live still has the per-row policies.
+
+The chain did not fail on a wrong answer; it ran out of its five minutes. The
+teacher's list reloads through `homework_completion` after every action, and
+the edge logs showed 2.6–4.9 s of origin time on every one of those requests —
+for 13 students. The pre-clean deleting 25 old evidence homework spent the budget.
+
+`scripts/query-timing.mjs`, as each role, before:
+
+```
+homework_submissions     admin 4,694 ms (32.1 ms/row)   principal 4,665   parent 4,032   FINDING x3
+homework_student_status  admin 4,559   principal 5,457   parent 5,243                   FINDING x3
+homework_completion      admin 4,537   principal 6,053   parent 4,840                   FINDING x3
+```
+
+`homework`, `homework_submissions` and `students_read` were never converted to
+docs/rls-policy-pattern.md: each read policy called a SECURITY DEFINER function
+per row (`can_read_student_row` 17.2 ms a call, `teacher_teaches_class` 6.0,
+`can_manage_homework` 3.5, `same_school` 3.4), and the counting views of
+`20260925130000` join all three once per student a homework is set to.
+
+After, measured on live inside the rolled-back dry run: admin completion 93 ms,
+principal 81, teacher 110, a student's standings 100, a parent's 116, an admin
+reading every hand-in 16.
+
+One thing is deliberately not the same, and is the ruling of 20260919000000
+carried to the hand-ins: a teacher who AUTHORED homework into a class they do not
+teach could not read the homework but could still read the files students
+handed in to it (`can_manage_homework` kept `created_by = auth.uid()`). 3 hand-ins
+on live; the proof requires every one of them gone and nothing else.
+
+---
+
+## 54. ~~The exam-marks evidence test could not find the exam it had just created~~ — FIXED
+
+**Found:** 2026-09-14, the same production browser run. **Fixed** the same day.
+
+`e2e-evidence/tier1-writes.spec.ts` located the exam card as
+`div.p-3.bg-surface.rounded-xl`. The panel redesign (`6cb2374`, "The teacher and
+parent panels wear the Autonomous Design") made that card `rounded-[2px]`, so the
+test reported "the new sitting appears in the exam list" as failed while the page
+it captured showed the sitting in the list — and left it behind in the demo
+tenant. The card is now found by its content (the sitting's name and its own
+"Review / publish" control). Run against production: passed, and its REST sweep
+removed the sitting the failed run left.

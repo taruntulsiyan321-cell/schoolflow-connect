@@ -9081,7 +9081,6 @@ export type Database = {
         Returns: boolean
       }
       can_manage_exam: { Args: { _exam_id: string }; Returns: boolean }
-      can_manage_homework: { Args: { _homework_id: string }; Returns: boolean }
       can_manage_test: { Args: { _test_id: string }; Returns: boolean }
       can_read_exam_row: {
         Args: { _class_id: string; _school_id: string }
@@ -9089,16 +9088,6 @@ export type Database = {
       }
       can_read_mark: {
         Args: { _exam_id: string; _student_id: string }
-        Returns: boolean
-      }
-      can_read_student_row: {
-        Args: {
-          _class_id: string
-          _id: string
-          _parent_user_id: string
-          _school_id: string
-          _user_id: string
-        }
         Returns: boolean
       }
       can_read_test: { Args: { _test_id: string }; Returns: boolean }
@@ -9339,12 +9328,14 @@ export type Database = {
       my_class_teacher_class_ids: { Args: never; Returns: string[] }
       my_class_teacher_student_ids: { Args: never; Returns: string[] }
       my_exam_ids_for_marks: { Args: never; Returns: string[] }
+      my_guardian_student_ids: { Args: never; Returns: string[] }
       my_manageable_exam_ids: { Args: never; Returns: string[] }
       my_manageable_test_ids: { Args: never; Returns: string[] }
       my_own_or_children_student_ids: { Args: never; Returns: string[] }
       my_readable_mark_student_ids: { Args: never; Returns: string[] }
       my_readable_test_ids: { Args: never; Returns: string[] }
       my_teacher_class_ids: { Args: never; Returns: string[] }
+      my_teacher_homework_ids: { Args: never; Returns: string[] }
       my_teacher_submission_ids: { Args: never; Returns: string[] }
       my_visible_student_ids: { Args: never; Returns: string[] }
       normalize_phone: { Args: { _raw: string }; Returns: string }

@@ -1220,22 +1220,6 @@
       "verifiedBy": "",
       "reviewed": false
     },
-    "can_manage_homework(_homework_id uuid)": {
-      "name": "can_manage_homework",
-      "readerSet": "teacher",
-      "callability": "granted",
-      "returns": "boolean",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [
-        "same_school",
-        "teacher_teaches_class"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
     "can_manage_test(_test_id uuid)": {
       "name": "can_manage_test",
       "readerSet": "staff",
@@ -1931,16 +1915,17 @@
     "my_children_class_ids()": {
       "name": "my_children_class_ids",
       "readerSet": "parent",
-      "callability": "internal",
+      "callability": "granted",
       "returns": "uuid[]",
-      "grants": [],
-      "calls": [
-        "active_local_person_id",
-        "active_membership_role",
-        "active_membership_school_id"
+      "grants": [
+        "authenticated"
       ],
-      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
-      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "calls": [
+        "active_membership_role",
+        "my_own_or_children_student_ids"
+      ],
+      "justification": "Named by \"homework parent read\" (20260925160000), which RLS evaluates as the caller, so authenticated must hold EXECUTE. Zero arguments and read once per statement as a hashed SubPlan (docs/rls-policy-pattern.md). Reveals only the caller's own reach. The class ids of the caller's own children; empty for anyone not acting as a parent.",
+      "verifiedBy": "20260925160000 verify: its answer is unchanged for every caller, before and after its body was hoisted",
       "reviewed": true,
       "observed": {
         "student": "answered",
@@ -1949,6 +1934,22 @@
         "principal": "answered",
         "admin": "answered"
       }
+    },
+    "my_guardian_student_ids()": {
+      "name": "my_guardian_student_ids",
+      "readerSet": "parent",
+      "callability": "granted",
+      "returns": "SETOF uuid",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "active_local_person_id",
+        "active_membership_role"
+      ],
+      "justification": "Named by students_read (20260925160000), which RLS evaluates as the caller, so authenticated must hold EXECUTE. Zero arguments and read once per statement as a hashed SubPlan (docs/rls-policy-pattern.md). Reveals only the caller's own reach. The students the caller is linked to through parent_students; reads no students row, so students_read stays row-local (20260912010000).",
+      "verifiedBy": "20260925160000 verify: a parent linked only through parent_students sees exactly the students they saw before",
+      "reviewed": true
     },
     "my_children_student_ids()": {
       "name": "my_children_student_ids",
@@ -2104,9 +2105,9 @@
         "active_membership_role",
         "active_membership_school_id"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
+      "justification": "Named by \"hw_sub parent read\" (20260925160000), which RLS evaluates as the caller, so authenticated must hold EXECUTE. Zero arguments and read once per statement as a hashed SubPlan (docs/rls-policy-pattern.md). Reveals only the caller's own reach. Explicitly granted rather than left to PUBLIC.",
+      "verifiedBy": "20260925160000 verify",
+      "reviewed": true,
       "observed": {
         "student": "answered",
         "teacher": "answered",
@@ -2170,16 +2171,18 @@
     "my_teacher_class_ids()": {
       "name": "my_teacher_class_ids",
       "readerSet": "self",
-      "callability": "internal",
+      "callability": "granted",
       "returns": "SETOF uuid",
-      "grants": [],
+      "grants": [
+        "authenticated"
+      ],
       "calls": [
         "active_local_person_id",
         "active_membership_role",
         "active_membership_school_id"
       ],
-      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
-      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
+      "justification": "Named by students_read and \"homework teacher read\" (20260925160000), which RLS evaluates as the caller, so authenticated must hold EXECUTE. Zero arguments and read once per statement as a hashed SubPlan (docs/rls-policy-pattern.md). Reveals only the caller's own reach. The class ids the caller teaches; teacher_classes is already readable to that teacher.",
+      "verifiedBy": "20260925160000 verify: every caller sees exactly the students, homework and hand-ins they saw before",
       "reviewed": true,
       "observed": {
         "student": "answered",
@@ -2188,6 +2191,22 @@
         "principal": "answered",
         "admin": "answered"
       }
+    },
+    "my_teacher_homework_ids()": {
+      "name": "my_teacher_homework_ids",
+      "readerSet": "teacher",
+      "callability": "granted",
+      "returns": "SETOF uuid",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "my_accessible_school_ids",
+        "my_teacher_class_ids"
+      ],
+      "justification": "Named by \"hw_sub teacher read\" (20260925160000), which RLS evaluates as the caller, so authenticated must hold EXECUTE. Zero arguments and read once per statement as a hashed SubPlan (docs/rls-policy-pattern.md). Reveals only the caller's own reach. Homework set to a class the caller teaches; authorship is not a door (20260919000000).",
+      "verifiedBy": "20260925160000 verify: teachers see exactly the hand-ins they saw before, less the 3 only authorship admitted",
+      "reviewed": true
     },
     "my_teacher_submission_ids()": {
       "name": "my_teacher_submission_ids",

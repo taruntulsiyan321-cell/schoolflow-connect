@@ -8,18 +8,79 @@ bottom before touching anything.
 ## HOMEWORK — 2026-09-13 session. READ THIS FIRST IF YOU TOUCH HOMEWORK.
 
 **Branch:** `claude/tender-goodall-kalj38`. **The ruling:** `docs/gurukul-spec-rules.md`,
-"Homework — RULED 2026-09-13" (rules 33–44) — one question (text or one file), one deadline,
+"Homework — RULED 2026-09-13" (rules 33–45) — one question (text or one file), one deadline,
 one image or PDF back, accept or reject, closed automatically, counted in one place; **missing
 homework costs XP** and **the family is told "Homework accepted" / "Homework rejected"** (both
 ruled on 2026-09-13, after the first commit, and built on 2026-09-14).
 
-### NOT APPLIED — the six migrations exist only in the repo
+### RELEASED TO PRODUCTION — 2026-09-14
 
-`20260925100000` … `20260925150000`. **Apply them in filename order, AFTER the ten test-feature
-migrations**, which are also unapplied. They do not depend on the test migrations; filename order
-is simply how the ledger applies. **This branch's app needs them**: it calls
-`rpc_homework_submit`, `rpc_homework_decide`, `rpc_homework_delete` and reads
-`homework_student_status`, none of which live has.
+With the owner's go-ahead for a full release ("the homework features shall be properly working
+now completed end to end"):
+* **Live database:** all sixteen migrations of this branch applied through
+  `npm run db:apply-release` — the ten of the test feature (`20260925000000`–`090000`) and the
+  six of homework (`20260925100000`–`150000`), each proving itself as it went. The run stopped
+  once, at `20260925120000`: its proof had picked a student of the scale-fixture tenant, whose
+  profile cannot be recounted (see KNOWN_ISSUES, "The scale fixture's test scores exceed their
+  maximum"). Nothing of that file was written; its proof was corrected (`502ac32`), the last four
+  passed a whole-transaction dry run against live, and then applied.
+* **App:** `main` fast-forwarded to this branch (`502ac32`); Vercel's production deployment of
+  it completed.
+* **Edge functions:** `ai-gateway` and `mcp` deployed from the repo; `check:edge-drift` passes
+  with only its six older, accepted findings.
+* **Measured on live after the release:** the three new jobs (`publish-due-scheduled-work`,
+  `resolve-closed-homework`, `process-pending-academic-events`) run every minute and succeed; the
+  19 legacy published homework are resolved and 0 closed homework is unresolved; all 51 released
+  homework are marked `missed_costs_xp = false` and no missed-homework XP has been charged; the
+  116 queued events drained with 0 failed. `db:verify-integrity` 97 PASS / 1 FAIL (the 20260903
+  ledger names, which predate this); `verify:caller-privileges` 443 of 443; seed gate PASS;
+  `db:check-migrations` 0 pending.
+* **Probes brought to the test ruling** now that it is live: probe31/32/33 wrote numerical and
+  written questions an online test no longer holds, probe34 asserted answers are purged (they are
+  kept since 20260925000000) and counted a comment as a `dpp` reference, and probe32 read the
+  question format from the submit's reply where the review now reads the answer sheet.
+
+### THE PRODUCTION BROWSER RUN, AND WHAT IT FOUND — 2026-09-14
+
+`e2e-evidence` against https://schoolflow-connect.vercel.app: **17 passed, 2 failed.**
+
+1. **The homework chain passed every functional step** — set, "Missing it costs XP", hand in
+   one PDF, reject, told "Homework rejected" once, hand in again, accept, told "Homework
+   accepted" once, accepted is final — **and then ran out of its five minutes deleting.** Not a
+   wrong answer: the teacher's list reloads through `homework_completion` after every action,
+   and every one of those requests took 2.6–4.9 s at the database (edge logs), for 13 students.
+   The pre-clean deleting 25 old evidence homework spent the budget. The cause was the read
+   policies on `homework`, `homework_submissions` and `students`, which asked a function once
+   per row — the shape docs/rls-policy-pattern.md exists to remove, never applied to these
+   three tables — multiplied by the counting views' homework × students join. KNOWN_ISSUES 53.
+   * **Fix: `20260925160000_homework_is_counted_without_asking_once_per_row`** — every read
+     policy on the three tables in the once-per-statement shape; `can_read_student_row` and
+     `can_manage_homework` retired; the teacher write policies split out of FOR ALL, unchanged;
+     the authorship door on hand-ins shut (rule 45). Rollback restores from a snapshot table
+     (`rls_pre_20260925160000`) because live's grants and a comment differ from the repo's.
+   * **Proven:** on live, all 21 accounts (every active membership and the super admin), in
+     rolled-back transactions, see exactly the students, homework and hand-ins they saw before,
+     less exactly the 3 authorship-only hand-ins, computed from the old predicates before they
+     were dropped. Mutating the helper to keep authorship is caught on live. On the replica:
+     7 of 7 mutations of the proof caught, 4 of 4 of the rollback's guards, the round trip
+     restores the exact signature and re-applies, and `run.sh` 408/450 applied, 160 claims
+     passed, 0 failed, race 3 of 3.
+   * **Measured on live, inside the rolled-back dry run:** admin completion 4,537 → 93 ms,
+     principal 6,053 → 81, parent standings 4,840 → 116, student 3,871 → 100, an admin reading
+     every hand-in 4,694 → 16.
+   * **NOT APPLIED.** `node scripts/apply-release-migrations.mjs` (it skips the sixteen already
+     in the ledger) was refused by this session's permission gate. Live still has the per-row
+     policies; the homework chain will keep running out of time on production until it is
+     applied. After applying: `npm run verify:caller-privileges`, `npm run db:verify-integrity`,
+     `node scripts/query-timing.mjs homework homework_submissions students homework_student_status homework_completion`,
+     then the evidence run.
+2. **The exam-marks test** could not find the exam it had just created: its locator named the
+   card's old classes, which the panel redesign (`6cb2374`) had changed. Fixed to find the card
+   by content; passed against production, and swept the sitting the failed run left. KNOWN_ISSUES 54.
+
+**Left in the demo tenant by the failed homework run:** "E2E homework 20260914022223" (accepted,
+its XP awarded) and six archived evidence homework from earlier runs; the next passing chain
+deletes them through the card's own Delete.
 
 > **VERSION COLLISION — resolved by renumbering.** On 2026-09-13 branch
 > `claude/busy-shannon-nymdhd` applied six migrations to live: `20260919000000` (which this
@@ -48,12 +109,12 @@ is simply how the ledger applies. **This branch's app needs them**: it calls
 | `20260925130000_homework_is_counted_in_one_place` | `homework_student_status`, `homework_completion`; `rpc_homework_delete`; profile, leaderboard, snapshot and digest read the one view |
 | `20260925140000_a_handed_in_file_cannot_change` | `academic-files` UPDATE/DELETE refuse a handed-in or question file |
 | `20260925150000_the_family_is_told_accepted_or_rejected` | the router's decision branch says "Homework accepted" / "Homework rejected" and drops the dead `homework.graded` route — edited IN PLACE, line endings kept; `_notify_student_circle` hands parents to `_notify_student_parents`, so a parent on both links is told once |
+| `20260925160000_homework_is_counted_without_asking_once_per_row` | **not yet applied** — read policies on `homework`, `homework_submissions`, `students` resolve once per statement; `can_read_student_row`, `can_manage_homework` dropped; `my_guardian_student_ids()`, `my_teacher_homework_ids()` added; teacher writes split out of FOR ALL; authorship no longer reads hand-ins |
 
-**When applying:**
+**What applying involved (kept for a rollback or a second environment):**
 * **Deploy `ai-gateway` and `mcp` immediately after.** `supabase/functions/_shared/aiRouter.ts`
-  and `mcp/index.ts` read the new schema; the deployed ones read columns `20260925110000` drops.
-  `npm run check:edge-drift` reports exactly these two as NEW drift until then — deliberately
-  NOT baselined away.
+  and `mcp/index.ts` read the new schema; the previously deployed ones read columns
+  `20260925110000` drops. (Done 2026-09-14.)
 * `20260925140000` drops and recreates two policies on `storage.objects` — the same kind of change
   `20260914000000_private_buckets` made on live. It is one transaction; if the applying role may
   not change storage policies it fails whole and changes nothing.
@@ -157,11 +218,12 @@ only a file path. It was run through a shim; the replica also shows 205 unrelate
 
 ### Still open
 
-* **No browser run.** The rewritten homework chain in `e2e-evidence/tier1-writes.spec.ts`
-  (set → hand in one PDF → reject → hand in again → accept → delete) and the updated read in
-  `tier1-reads.spec.ts` are type-checked, not run: they need the migrations live. The chain
-  cannot put back the XP accepting awards, or the two tiny PDFs it hands in (a handed-in file
-  cannot be deleted, by design).
+* **Apply `20260925160000` to live** (see "THE PRODUCTION BROWSER RUN" above), then run the
+  evidence suite again: the homework chain's steps all passed on production and only its
+  cleanup ran out of time. The chain cannot put back the XP accepting awards, or the two tiny
+  PDFs it hands in (a handed-in file cannot be deleted, by design).
+* **After the release is accepted,** drop `rls_pre_20260925160000` with the three earlier
+  `_pre_` tables.
 * **Ruling request:** XP stays when homework is deleted or archived — what accepting awarded and
   what missing it cost are not reversed (nor by a rollback). If deleting homework should refund
   the missed-homework cost, that needs a ruling.

@@ -337,6 +337,20 @@ test.describe('Tier1-W · homework · set → hand in → reject → hand in aga
       await expect(studentCard(), `the card shows the file of hand-in ${n}`).toContainText(pdf(n).name)
     }
 
+    /**
+     * The student is told the teacher's decision in those words, once, about
+     * this homework (20260925150000). Exactly one: a second copy is the defect
+     * that migration removed.
+     */
+    const toldAbout = async (words: 'Homework rejected' | 'Homework accepted') => {
+      await student.goto('/student/notifications', { waitUntil: 'domcontentloaded' })
+      await settle(student)
+      await expect(
+        student.getByRole('button').filter({ hasText: words }).filter({ hasText: title }),
+        `the student is told "${words}" about this homework, once`,
+      ).toHaveCount(1, { timeout: 45000 })
+    }
+
     /** One of the teacher's two actions, on the one hand-in awaiting review. */
     const decide = async (action: 'Accept' | 'Reject', reads: string) => {
       await openTeacherHomework()
@@ -388,6 +402,11 @@ test.describe('Tier1-W · homework · set → hand in → reject → hand in aga
       ).toHaveCount(1, { timeout: 45000 })
 
       // ── 2. STUDENT HANDS IN ONE FILE ──────────────────────────────────
+      // While it is still to do, the student is told what missing it costs.
+      await openStudentHomework()
+      await expect(studentCard(), 'open homework tells the student that missing it costs XP').toContainText(
+        'Missing it costs XP',
+      )
       await handIn(1, 'Hand in')
 
       // ── 3. TEACHER REJECTS; IT REACHES THE STUDENT AS NOT GIVEN ───────
@@ -396,10 +415,12 @@ test.describe('Tier1-W · homework · set → hand in → reject → hand in aga
       await expect(studentCard(), 'the rejection reaches the student').toContainText('Rejected — hand in again', {
         timeout: 30000,
       })
+      await toldAbout('Homework rejected')
 
       // ── 4. STUDENT HANDS IN AGAIN; TEACHER ACCEPTS ────────────────────
       await handIn(2, 'Hand in again')
       await decide('Accept', 'Accepted')
+      await toldAbout('Homework accepted')
 
       // ── 5. ACCEPTED IS FINAL FOR THE STUDENT ──────────────────────────
       await openStudentHomework()
@@ -464,9 +485,19 @@ test.describe('Tier1-W · teacher · exam marks', () => {
     const examName = `E2E exam ${stamp}`
     const mark = '42'
 
-    // Exam cards render as div.p-3.bg-surface.rounded-xl (LiveClassPanels).
+    // The exam card is the innermost element holding both this sitting's name
+    // and its own "Review / publish" control: ancestors precede it in document
+    // order, and the "Pending marks" row names the exam but has no such
+    // control. Found by content, not by class — the card was located by
+    // `div.p-3.bg-surface.rounded-xl` until the panel redesign (6cb2374) made
+    // it `rounded-[2px]`, and the exam was created while this test reported
+    // that it never appeared.
     const examCard = () =>
-      page.locator('div.p-3.bg-surface.rounded-xl').filter({ hasText: examName }).last()
+      page
+        .locator('div')
+        .filter({ hasText: examName })
+        .filter({ has: page.getByRole('button', { name: 'Review / publish' }) })
+        .last()
 
     /** Open the Exams & Marks tab from a fresh page load. */
     const openExamsTab = async () => {

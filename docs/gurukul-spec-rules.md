@@ -376,7 +376,7 @@ test.
 
 ---
 
-## Homework — RULED 2026-09-13, built, NOT APPLIED
+## Homework — RULED 2026-09-13, released 2026-09-14
 
 **The specification, in the owner's words.** The teacher sets homework with "a heading/title
 and the usual fields"; the question is typed text OR one uploaded file (image, document or
@@ -389,9 +389,10 @@ REJECTED submission counts as NOT GIVEN.
 Ruled the same day, on being asked: **missing homework costs the student XP**, and **the
 teacher's decision reaches the family as "accepted" or "rejected"**.
 
-**Built as six migrations, `20260925100000`–`20260925150000`, each with a rollback and a
-proof block that rolls itself back if it cannot demonstrate its own effect. None is applied
-to the live project** — see HANDOFF.md.
+**Built as seven migrations, `20260925100000`–`20260925160000`, each with a rollback and a
+proof block that rolls itself back if it cannot demonstrate its own effect. The first six were
+applied to the live project on 2026-09-14; `20260925160000` (rule 45) is proven against live
+and waiting to be applied** — see HANDOFF.md.
 
 33. **The deadline is one instant: `homework.closes_at`, timestamptz, NOT NULL.** The brief
     offered "delete `closes_at`/`submission_mode`, or implement `closes_at` as the deadline".
@@ -479,6 +480,16 @@ to the live project** — see HANDOFF.md.
     `students.parent_user_id` and through `parent_students` — every legacy link — is told once,
     not twice; every other caller of the circle (remarks, badges, battles, risk alerts) stops
     doubling with it.
+45. **Who reads a hand-in, and what it costs to ask.** The student who handed it in, their
+    parents, a teacher of the homework's CLASS, and the school's principal and admin. Authoring
+    the homework is not a door (rule 18's ruling, 20260919000000, carried from the homework to
+    its hand-ins): before `20260925160000` a teacher who set homework in a class they do not
+    teach could not read the homework but could read the files handed in to it — 3 hand-ins on
+    live. A teacher reads homework, hand-ins and the roster through the classes they teach, the
+    same set every other feature's reads use. **Every read policy on `homework`,
+    `homework_submissions` and `students` answers once per statement, not once per row**
+    (docs/rls-policy-pattern.md): per row, the homework counts took 4.5–6 s for an admin,
+    principal or parent at 13 students, and ran the production browser run out of time.
 
 **Assumptions proceeded on, as the brief allowed — they are not rulings.**
 * A student may replace their file, or hand in again after a rejection, only before the
