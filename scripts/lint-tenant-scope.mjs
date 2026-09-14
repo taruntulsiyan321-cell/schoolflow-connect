@@ -232,6 +232,17 @@ const ALLOWLIST = {
   rpc_student_chapter_states: "No parameters; self-scoped via auth.uid(). Reads chapter_state/chapters/curriculum_subjects for that one user only.",
   rpc_student_recovery_queue: "No parameters; self-scoped via auth.uid(). Groups the caller's own open student_mistakes and LEFT JOINs their own chapter_state.",
 
+  // Takes two ids and reads them BOTH under auth.uid() before touching
+  // anything: the recovery session by (id, user_id), the practice session by
+  // (id, user_id), and the answers by (session_id, user_id). The tier counts
+  // are then joined to that recovery session's own stored question ids, so a
+  // handed-over id belonging to somebody else selects nothing rather than
+  // scoring something. Its writes are UPDATE ... WHERE id = the row already
+  // proved to be the caller's, and chapter_state WHERE user_id = auth.uid().
+  // There is no argument through which another school's row is reachable, so
+  // there is nothing for a school_id predicate to narrow. Read body 2026-09-14.
+  rpc_submit_recovery_session: "Every read and write is scoped to auth.uid() before use; the two id arguments are verified against the caller and the per-tier counts join to that session's own stored question ids.",
+
   // BEFORE INSERT/UPDATE on student_mistakes. It reads exactly one row of
   // question_bank — WHERE qb.id = NEW.question_id — and writes only
   // NEW.chapter_id. question_bank is the shared national bank and carries no

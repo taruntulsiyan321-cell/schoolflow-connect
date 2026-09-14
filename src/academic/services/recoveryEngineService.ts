@@ -308,26 +308,32 @@ export const RecoveryEngineService = {
   },
 
   /**
-   * Record a finished recovery session, per tier.
+   * Record a finished recovery session.
    *
-   * The four counts are passed separately and stay separate all the way to the
-   * table. Summing them here would throw away the only thing §4.2b asks for.
+   * ── WHY THIS NO LONGER SENDS A SCORE ──────────────────────────────────
+   *
+   * It used to send four per-tier counts, and the server stored what it was
+   * given. Driven as an ordinary student — real session, anon key, no
+   * privileged credential — that allowed a chapter to be marked RECOVERED at
+   * readiness 1.0 having answered zero questions, which is §7's "catches
+   * them" reduced to nothing, because the signal it catches them with was
+   * the forgeable part.
+   *
+   * What travels now is the practice session the ladder was sat in. The
+   * server counts each tier from the answers given to THAT tier's own
+   * questions, which rpc_record_question_attempt has already graded against
+   * the bank. The two rates still stay separate all the way to the table —
+   * §4.2b is unchanged; only who does the counting has moved.
    */
   async submitRecoverySession(
     ctx: ServiceContext,
     sessionId: string,
-    correctByTier: { tier0: number; tier1: number; tier2: number; tier3: number },
+    practiceSessionId: string,
   ): Promise<RecoverySessionOutcome> {
     assertCanOwn(ctx, "practice");
     const { data, error } = await getClient(toRepoContext(ctx)).rpc(
       "rpc_submit_recovery_session" as never,
-      {
-        _session_id: sessionId,
-        _tier0_correct: correctByTier.tier0,
-        _tier1_correct: correctByTier.tier1,
-        _tier2_correct: correctByTier.tier2,
-        _tier3_correct: correctByTier.tier3,
-      } as never,
+      { _session_id: sessionId, _practice_session_id: practiceSessionId } as never,
     );
     throwIfError(error, "Failed to submit recovery session");
     broadcastAcademicWrite(ctx.schoolId, ["profile"], {
@@ -340,21 +346,22 @@ export const RecoveryEngineService = {
   /**
    * Record a revision check and let the engine walk the ladder.
    *
-   * The caller does not decide pass or fail and does not compute the next
-   * date: REVISION_PASS_THRESHOLD and the 7/21/60 intervals live in
-   * recovery_constants, and the server reads them. A client that decided
-   * either would be a second home for both.
+   * The caller decides nothing: not the score, not pass or fail, not the next
+   * date. It hands over the practice session the check was sat in, and the
+   * server counts the answers itself — bound to this chapter through
+   * question_bank, and refused if that sitting has already been spent on a
+   * check. Sending `correct` and `total` was enough to walk the whole ladder
+   * to "solid" without being asked a question.
    */
   async submitRevisionSession(
     ctx: ServiceContext,
     chapterId: string,
-    correct: number,
-    total: number,
+    practiceSessionId: string,
   ): Promise<RevisionSessionOutcome> {
     assertCanOwn(ctx, "practice");
     const { data, error } = await getClient(toRepoContext(ctx)).rpc(
       "rpc_submit_revision_session" as never,
-      { _chapter_id: chapterId, _correct: correct, _total: total } as never,
+      { _chapter_id: chapterId, _practice_session_id: practiceSessionId } as never,
     );
     throwIfError(error, "Failed to submit revision check");
     broadcastAcademicWrite(ctx.schoolId, ["profile"], {

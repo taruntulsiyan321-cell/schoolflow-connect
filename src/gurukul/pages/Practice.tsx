@@ -1625,28 +1625,30 @@ function Session({
         // which is what `finishFailed` renders. It is surfaced as its own
         // error, and the chapter simply stays due — the honest outcome, since
         // an unrecorded check is a check that did not happen.
-        // §4.2b — recovery is scored per tier and the four counts stay
-        // separate all the way to the server, which applies the two
-        // thresholds independently. Counting them up here into one number is
-        // exactly what the section forbids.
+        // NEITHER OF THESE SENDS A SCORE ANY MORE.
         //
-        // Counted from attemptLog, not from the running `correct` tally: the
-        // tally has no idea which tier a question belonged to. A skipped
-        // question counts as not-correct for its tier, which is right — it
-        // was asked and not answered.
-        if (config.recovery && ctx) {
-          const tierOf = config.recovery.tierByQuestionId;
-          const byTier = [0, 0, 0, 0];
-          for (const a of attemptLog.current) {
-            const id = a.bankQuestionId;
-            if (!id || !(id in tierOf)) continue;
-            if (a.isCorrect && !a.skipped) byTier[tierOf[id]] += 1;
-          }
+        // This used to count the tiers here, out of attemptLog, and hand the
+        // four numbers to the server, which stored them. Driven as an ordinary
+        // student that allowed a chapter to be marked recovered at readiness
+        // 1.0 with zero questions answered, and the whole 3-check ladder
+        // walked to "solid" the same way. §7 permits clearing without
+        // learning — it catches it with an honest readiness — so the number
+        // being forgeable removed the only thing doing the catching.
+        //
+        // What travels now is this session's id. The server counts each
+        // recovery tier from the answers given to that tier's own questions,
+        // and counts a revision check from the answers given to questions in
+        // that chapter, having already graded every one of them against the
+        // bank. §4.2b is unchanged: the two rates are still computed and kept
+        // separate, just on the side that cannot be edited from devtools.
+        const sittingId = sessionIdRef.current;
+
+        if (config.recovery && ctx && sittingId) {
           try {
             const outcome = await RecoveryEngineService.submitRecoverySession(
               ctx,
               config.recovery.sessionId,
-              { tier0: byTier[0], tier1: byTier[1], tier2: byTier[2], tier3: byTier[3] },
+              sittingId,
             );
             results.recovery = outcome;
           } catch (e) {
@@ -1654,20 +1656,16 @@ function Session({
           }
         }
 
-        if (config.revisionChapterId && ctx) {
-          const total = results.total ?? 0;
-          if (total > 0) {
-            try {
-              const outcome = await RecoveryEngineService.submitRevisionSession(
-                ctx,
-                config.revisionChapterId,
-                results.correct ?? 0,
-                total,
-              );
-              results.revision = outcome;
-            } catch (e) {
-              toast.error(toErrorMessage(e, "Practice saved, but the revision check was not recorded"));
-            }
+        if (config.revisionChapterId && ctx && sittingId) {
+          try {
+            const outcome = await RecoveryEngineService.submitRevisionSession(
+              ctx,
+              config.revisionChapterId,
+              sittingId,
+            );
+            results.revision = outcome;
+          } catch (e) {
+            toast.error(toErrorMessage(e, "Practice saved, but the revision check was not recorded"));
           }
         }
       } catch (e) {
