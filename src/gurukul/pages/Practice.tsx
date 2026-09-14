@@ -2475,6 +2475,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         startedAt: res.startedAt,
         serverStats: res.serverStats ?? null,
         recovery: res.recovery ?? null,
+        revision: res.revision ?? null,
       });
       return;
     }

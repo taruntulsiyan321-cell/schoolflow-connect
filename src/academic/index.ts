@@ -142,6 +142,7 @@ export type {
   RecoverySessionStart,
   RecoverySessionOutcome,
   RevisionSessionOutcome,
+  RevisionHistoryRow,
 } from "./services/recoveryEngineService";
 export type { QuestionBankInsertRow, QuestionReviewRow } from "./services/questionBankService";
 export type {

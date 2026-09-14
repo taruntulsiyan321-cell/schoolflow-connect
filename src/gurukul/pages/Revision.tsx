@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAcademicContext } from "@/academic";
-import { useRevisionItems, type RevItem } from "./useRevisionQueueV2";
+import { useRevisionItems, useRevisionHistory, type RevItem } from "./useRevisionQueueV2";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, ProgressRing, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
@@ -105,6 +105,9 @@ export default function Revision() {
     error,
     loading,
   } = useRevisionItems(ctx, academicReady);
+  // Its own state, deliberately: a history that fails to load must not blank
+  // the queue the student came here to work through.
+  const { history, error: historyError } = useRevisionHistory(ctx, academicReady);
   // Study streak SSOT: Progression via shell (same as Home) — not raw snapshot xp.
   const streak = student.streak;
 
@@ -295,15 +298,70 @@ export default function Revision() {
         </div>
       </GlassCard>
 
-      {/* History */}
+      {/* History — this said "not stored yet" long after
+          rpc_submit_revision_session began writing a row for every check.
+          It is stored, in revision_sessions, and a student who passed two of
+          three and then failed has every reason to be able to see that. */}
       <div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
           <History className="w-3.5 h-3.5"/>
           Revision History
         </div>
-        <GlassCard className="p-6 text-center">
-          <p className="text-xs text-muted-foreground">Revision history is not stored yet — completed items leave the queue above.</p>
-        </GlassCard>
+        {historyError ? (
+          <GlassCard className="p-6 text-center">
+            <p className="text-xs text-muted-foreground">
+              Could not load revision history: {historyError}
+            </p>
+          </GlassCard>
+        ) : history.length === 0 ? (
+          <GlassCard className="p-6 text-center">
+            <p className="text-xs text-muted-foreground">
+              No revision checks taken yet. A chapter gets its first check seven days
+              after you clear its recovery.
+            </p>
+          </GlassCard>
+        ) : (
+          <GlassCard className="p-3">
+            <ul className="divide-y divide-border/60">
+              {history.map((h) => (
+                <li key={h.id} className="flex items-center gap-3 px-2 py-2.5">
+                  <span
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full shrink-0",
+                      h.passed ? "bg-emerald-400" : "bg-amber-400",
+                    )}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-foreground truncate">
+                      {h.chapter ?? "This chapter"}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      check {h.stage} ·{" "}
+                      {h.completed_at
+                        ? new Date(h.completed_at).toLocaleDateString(undefined, {
+                            day: "numeric", month: "short",
+                          })
+                        : "—"}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div
+                      className={cn(
+                        "text-sm font-bold tabular-nums",
+                        h.passed ? "text-emerald-400" : "text-amber-400",
+                      )}
+                    >
+                      {h.correct}/{h.total}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {h.passed ? "passed" : "not passed"}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </GlassCard>
+        )}
       </div>
     </div>
   );

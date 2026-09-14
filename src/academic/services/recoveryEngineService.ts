@@ -135,11 +135,50 @@ export type RecoverySessionOutcome = {
 export type RevisionSessionOutcome = {
   passed: boolean;
   rate: number;
+  /**
+   * The rung this check WAS FOR, not the one it moved to. After a pass at
+   * rung 1, chapter_state.revision_stage is 2 and this is still 1 — which is
+   * the number a sentence about what just happened needs.
+   */
   stage: number;
   /** True when this pass was the third in a row and the chapter is done. */
   solid: boolean;
   consecutive_passes: number;
   stages_to_solid: number;
+  /**
+   * The date now on chapter_state, read back from the row rather than rebuilt
+   * from the branch that wrote it.
+   *
+   * Null is meaningful and is exactly what `solid` means: three consecutive
+   * passes and the chapter leaves the queue, which it does BY having no next
+   * date. The client never computes this — §5.3's 7/21/60 intervals live in
+   * recovery_constants and a copy here would be a second home for them.
+   */
+  next_revision_at: string | null;
+  /** The chapter's state after this check, quoted rather than inferred. */
+  state: ChapterStateRow["state"];
+};
+
+/**
+ * One finished revision check, for the history list.
+ *
+ * Read straight from revision_sessions rather than through an RPC: the table
+ * has a self policy (user_id = auth.uid()) and a RESTRICTIVE tenant fence, so
+ * the rows a student can see are already exactly their own, and a
+ * SECURITY DEFINER wrapper would add a definer door for nothing.
+ */
+export type RevisionHistoryRow = {
+  id: string;
+  chapter_id: string;
+  chapter: string | null;
+  /** The rung this check was for. */
+  stage: number;
+  correct: number;
+  total: number;
+  passed: boolean;
+  completed_at: string | null;
+  /** §5.1 vs §5.2 — why this chapter was being revised at all. */
+  triggered_by: string | null;
 };
 
 export const RecoveryEngineService = {
@@ -175,6 +214,52 @@ export const RecoveryEngineService = {
     );
     throwIfError(error, "Failed to load recovery queue");
     return (data ?? []) as unknown as RecoveryQueueRow[];
+  },
+
+  /**
+   * Revision checks this student has finished, newest first.
+   *
+   * The Revision screen said "Revision history is not stored yet" long after
+   * rpc_submit_revision_session began writing a row for every check. It is
+   * stored; this is it.
+   *
+   * An empty array is a real answer — a student who has never reached a
+   * revision check has no history, and that is not a loading state.
+   */
+  async getRevisionHistory(
+    ctx: ServiceContext,
+    limit = 20,
+  ): Promise<RevisionHistoryRow[]> {
+    assertCanConsume(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("revision_sessions")
+      .select("id, chapter_id, stage, correct, total, passed, completed_at, triggered_by, chapters(name)")
+      .eq("user_id", ctx.userId)
+      .order("completed_at", { ascending: false })
+      .limit(Math.min(100, Math.max(1, limit)));
+    throwIfError(error, "Failed to load revision history");
+    return (data ?? []).map((r) => {
+      const row = r as unknown as {
+        id: string; chapter_id: string; stage: number; correct: number; total: number;
+        passed: boolean; completed_at: string | null; triggered_by: string | null;
+        chapters?: { name?: string | null } | { name?: string | null }[] | null;
+      };
+      // PostgREST returns an embedded to-one as an object, but the generated
+      // types and older versions can hand back a single-element array. Both
+      // shapes are read rather than one being assumed.
+      const chap = Array.isArray(row.chapters) ? row.chapters[0] : row.chapters;
+      return {
+        id: row.id,
+        chapter_id: row.chapter_id,
+        chapter: chap?.name ?? null,
+        stage: row.stage,
+        correct: row.correct,
+        total: row.total,
+        passed: row.passed,
+        completed_at: row.completed_at,
+        triggered_by: row.triggered_by,
+      };
+    });
   },
 
   /**

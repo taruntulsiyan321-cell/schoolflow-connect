@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { RecoveryEngineService, type ChapterStateRow, type ServiceContext } from "@/academic";
+import {
+  RecoveryEngineService,
+  type ChapterStateRow,
+  type RevisionHistoryRow,
+  type ServiceContext,
+} from "@/academic";
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
+import { REVISION_STAGES_TO_SOLID } from "@/academic/recovery/constants";
 import { toErrorMessage } from "@/lib/presentation";
 
 /**
@@ -100,7 +106,11 @@ function toRevItem(r: ChapterStateRow): RevItem | null {
     source: "chapter-state",
     stage: Math.max(r.revision_stage, 1),
     passes: r.consecutive_passes,
-    stagesToSolid: 3,
+    // REVISION_STAGES_TO_SOLID, not a literal 3. The number lives in
+    // recovery_constants, is re-exported by the TS constants module, and is
+    // checked against the database by check:recovery-constants. A 3 written
+    // here is a second home for it and would survive the constant changing.
+    stagesToSolid: REVISION_STAGES_TO_SOLID,
     openMistakes: r.open_mistakes,
     state: r.state,
   };
@@ -155,4 +165,48 @@ export function useRevisionItems(
   }, [ctx, academicReady, nonce]);
 
   return { items, error, loading, reload };
+}
+
+/**
+ * Revision checks already taken, newest first.
+ *
+ * A separate hook rather than another field on useRevisionItems: the queue is
+ * what the student has to DO and the history is what they have done, and one
+ * of them failing to load is not a reason to blank the other. The screen
+ * renders each from its own state.
+ *
+ * No silent fallback here either — an error is surfaced, because an empty
+ * history and a failed read look identical to a student.
+ */
+export function useRevisionHistory(
+  ctx: ServiceContext | null,
+  academicReady: boolean,
+): { history: RevisionHistoryRow[]; error: string | null; loading: boolean } {
+  const [history, setHistory] = useState<RevisionHistoryRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!academicReady || !ctx) return;
+    let cancelled = false;
+    setLoading(true);
+    RecoveryEngineService.getRevisionHistory(ctx, 20)
+      .then((rows) => {
+        if (cancelled) return;
+        setHistory(rows);
+        setError(null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(toErrorMessage(e, "Failed to load revision history"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx, academicReady]);
+
+  return { history, error, loading };
 }

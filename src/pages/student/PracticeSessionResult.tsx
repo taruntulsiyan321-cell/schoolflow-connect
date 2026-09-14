@@ -34,6 +34,7 @@ import { displayChapter, displaySubject } from "@/lib/academicPresentation";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
 import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
+import { revisionVerdictLine } from "@/lib/revisionVerdict";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -94,6 +95,10 @@ export default function PracticeSessionResult() {
   // it is the engine's verdict on the session that just finished, not a fact
   // about the practice_sessions row, so it is never re-read from the database.
   const recovery = localState?.recovery ?? null;
+
+  // Same rule, same reason: §5.5 decided pass or fail and §5.3 scheduled the
+  // next date, both server-side. This screen quotes them.
+  const revision = localState?.revision ?? null;
 
   const [session, setSession] = useState<SessionRow | null>(null);
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);
@@ -458,6 +463,80 @@ export default function PracticeSessionResult() {
               .
             </p>
           )}
+        </GlassCard>
+      )}
+
+      {/* §5.3/§5.5 — the revision verdict. A session is a recovery session or
+          a revision check, never both, so this and the card above cannot
+          stack. Every figure here is the engine's: the threshold it passed,
+          the rung it was for, the streak it is on, and the date it wrote. */}
+      {revision && (
+        <GlassCard className="p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div
+              className={cn(
+                "w-7 h-7 rounded-lg flex items-center justify-center",
+                revision.passed ? "bg-emerald-500/15" : "bg-amber-500/15",
+              )}
+            >
+              {revision.passed
+                ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                : <AlertCircle className="w-4 h-4 text-amber-400" />}
+            </div>
+            <div>
+              <div className="text-sm font-bold text-foreground">
+                {revision.solid
+                  ? "Chapter solid"
+                  : revision.passed
+                    ? "Revision check passed"
+                    : "Revision check not passed"}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {revisionVerdictLine(revision)}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl border border-border/70 bg-surface/60">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                This check
+              </div>
+              <div
+                className={cn(
+                  "text-xl font-black tabular-nums",
+                  revision.passed ? "text-emerald-400" : "text-amber-400",
+                )}
+              >
+                {Math.round(revision.rate * 100)}%
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                check {revision.stage} of the {revision.stages_to_solid}-step ladder
+              </div>
+            </div>
+            <div className="p-3 rounded-xl border border-border/70 bg-surface/60">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                In a row
+              </div>
+              <div className="text-xl font-black tabular-nums text-foreground">
+                {revision.consecutive_passes}
+                <span className="text-sm text-muted-foreground">/{revision.stages_to_solid}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                consecutive passes needed
+              </div>
+            </div>
+          </div>
+
+          {/* No date is not a missing date: a solid chapter has none, and
+              that absence is what removes it from the revision list. */}
+          <p className="text-[11px] text-muted-foreground mt-3">
+            {revision.next_revision_at
+              ? `Next check on ${new Date(revision.next_revision_at).toLocaleDateString(undefined, {
+                  day: "numeric", month: "short",
+                })}.`
+              : "No next check scheduled — this chapter is off the list."}
+          </p>
         </GlassCard>
       )}
 
