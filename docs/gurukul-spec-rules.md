@@ -104,7 +104,7 @@ These are the product owner's, given directly. They override any inference from 
 
 26. **Production is the source of truth for edge functions until a hash says otherwise.** 1 of 17 deployed functions had a known relationship to its repo source; two (`ai-expand-questions`, `mcp`) had no source on any branch. Date heuristics were wrong in both directions — only a content hash settles it. The verbatim production snapshot lives on `claude/edge-function-provenance`; it is a recovery artifact and is **not merged to main**, because the repo side contains work that may never have been deployed. A deploy-time hash gate is required before any function ships.
 
-27. **A missing-data render must not read as a data-bearing render.** `TestResult.tsx` rendered every question with the correct answer and a blank student response, under copy stating wrong answers were saved to the Mistake Book. It looked functional and misrepresented. Where data is absent, say it is absent. *(FIXED 2026-09-12. The honest empty state landed first, and then the CAUSE was found and removed: `rpc_test_submit` deleted `test_answers` at submit, so the responses were absent for every student after every test. The screen now reviews the real paper through `rpc_test_answer_sheet` and keeps the empty state for the case where the rows genuinely are not there — a pre-20260920000000 attempt.)*
+27. **A missing-data render must not read as a data-bearing render.** `TestResult.tsx` rendered every question with the correct answer and a blank student response, under copy stating wrong answers were saved to the Mistake Book. It looked functional and misrepresented. Where data is absent, say it is absent. *(FIXED 2026-09-12. The honest empty state landed first, and then the CAUSE was found and removed: `rpc_test_submit` deleted `test_answers` at submit, so the responses were absent for every student after every test. The screen now reviews the real paper through `rpc_test_answer_sheet` and keeps the empty state for the case where the rows genuinely are not there — a pre-20260925000000 attempt.)*
 
 28. **`has_role/2` asks whether the caller is acting in a role; `has_role/3` asks whether an account holds one.** They can disagree about the same person at the same school, deliberately. Choose by the question, not by argument count. *(Because `memberships` is UNIQUE on `(account_id, school_id, role)`, one account can hold several roles at one institution; collapsing the two forms would blend them regardless of which is active. All 111 live policies use the two-argument form, which is correct — a policy always has a session. The three-argument form exists for callers that have none and know which institution they mean.)*
 
@@ -209,7 +209,7 @@ resolved.
     constraint so every written answer scored zero in silence, `multi` marks a
     correct answer wrong whenever the student's click order differs from the
     key's, and `numerical` has no tolerance. Enforced by
-    `trg_test_question_is_a_markable_mcq` (20260920020000), not by the builder
+    `trg_test_question_is_a_markable_mcq` (20260925020000), not by the builder
     alone. Question marks are whole numbers for the same reason: `tests.max_mark`
     and `test_marks.mark` are integer columns and a half mark was being rounded
     into what a parent and a principal read.
@@ -218,7 +218,7 @@ resolved.
     test is already shown at the top. As soon as all the students start
     submitting, the leaderboard gets updated."** This is the NAMED leaderboard
     that 20260916030000 declined to build without a ruling. Built as
-    `rpc_test_leaderboard` (20260920030000): every submitted attempt, ranked by
+    `rpc_test_leaderboard` (20260925030000): every submitted attempt, ranked by
     mark, ordered so that on equal marks whoever finished FIRST is above — and
     ties share a rank, computed identically to `rpc_test_student_report.rank` so
     the two surfaces can never disagree. Readable by the teachers of the section,
@@ -250,7 +250,7 @@ makes test answers durable school data, §10.25 needs "their actual wrong
 answers, with the topic on each" on tap, and the 2026-09-12 session's own work
 depends on those rows surviving — deleting them at 24 hours would empty the
 student's review, the teacher's drill-down and the weakest-topic ranking a day
-after every test. Building it would re-open the defect 20260920000000 closed.
+after every test. Building it would re-open the defect 20260925000000 closed.
 **If the expiry is wanted anyway, it needs a fresh ruling that also says what
 replaces those three surfaces afterwards.**
 

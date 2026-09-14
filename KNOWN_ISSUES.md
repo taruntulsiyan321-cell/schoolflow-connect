@@ -2535,7 +2535,7 @@ edge functions.
 
 ## 46. ~~Every test report was wrong, because the submit deleted the answers it reads~~ — FIXED
 
-**Found and fixed:** 2026-09-12. `20260920000000`.
+**Found and fixed:** 2026-09-12. `20260925000000`.
 
 Driven end to end as the real callers — a teacher created a test, published it,
 three students sat it and submitted, each under their own session — the grading
@@ -2577,7 +2577,7 @@ bump read 0 minutes); `test_marks.uploaded_at` was never stamped, and
 
 ## 47. ~~`_bump_academic_activity` exists twice, so every five-argument call raised 42725~~ — FIXED
 
-**Found and fixed:** 2026-09-12. `20260920010000`.
+**Found and fixed:** 2026-09-12. `20260925010000`.
 
 ```
 20260606000000   (_uid uuid, _test int, _hw int, _battle int, _mins int)
@@ -2605,7 +2605,7 @@ are repaired without being edited.
 
 ## 48. ~~A student could read every classmate's mark for a test they had not sat~~ — FIXED
 
-**Found and fixed:** 2026-09-12. `20260920060000`.
+**Found and fixed:** 2026-09-12. `20260925060000`.
 
 Signed in as a student of 10-A who had sat NEITHER test in her own class:
 
@@ -2624,7 +2624,7 @@ with someone who has not yet written the paper. The policy now calls
 
 ## 49. ~~Three of the five question formats could never be marked~~ — FIXED
 
-**Found and fixed:** 2026-09-12. `20260920020000`, ruled the same day.
+**Found and fixed:** 2026-09-12. `20260925020000`, ruled the same day.
 
 `rpc_test_submit` marks by one rule — `a.response = q.correct` as jsonb. Against
 the five formats `test_questions_question_format_check` admitted:
@@ -2648,7 +2648,7 @@ being rounded into the mark a parent and a principal read.
 
 **Found:** 2026-09-12.
 
-Eight migrations (`20260920000000`–`20260920070000`) are written, each with a
+Eight migrations (`20260925000000`–`20260925070000`) are written, each with a
 rollback and an in-migration proof block, and **all eight applied cleanly with
 their proofs green against a local replica of the same schema**. None has been
 applied to `psqxykzqfvxgsvkmgurn`, because this session's environment refuses

@@ -21,7 +21,7 @@
 --   avg_time_ms, max_time_ms             what it cost, measured per answer
 --   slowest_student_id / _name / _ms     who it cost the most, by name
 --
--- `test_answers.time_ms` has been landed per answer since 20260920000000, and
+-- `test_answers.time_ms` has been landed per answer since 20260925000000, and
 -- the attempt clock (`time_spent_sec`) is the sum the old number divided. This
 -- reads the per-answer column the submit RPC already writes; nothing new is
 -- recorded and no existing caller changes.
@@ -51,7 +51,7 @@
 -- principal's surface is `rpc_test_class_marks`, which this does not touch.
 --
 -- Rollback: supabase/migrations/rollback/
---           20260921000000_the_report_says_which_question_cost_the_class_its_time.rollback.sql
+--           20260925090000_the_report_says_which_question_cost_the_class_its_time.rollback.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.rpc_test_question_breakdown(_test_id uuid)
@@ -176,7 +176,7 @@ BEGIN
 
   INSERT INTO public.tests (school_id, section_subject_id, created_by, title, max_mark, total_marks,
                             status, test_kind, duration_sec, published_at)
-  VALUES (_school, _ss, _teacher, '[verify 20260921000000] where the time went', 2, 2,
+  VALUES (_school, _ss, _teacher, '[verify 20260925090000] where the time went', 2, 2,
           'published', 'class_test', 600, now())
   RETURNING id INTO _test;
   INSERT INTO public.test_questions (test_id, school_id, order_index, question_format, question, options, correct, marks, concept)

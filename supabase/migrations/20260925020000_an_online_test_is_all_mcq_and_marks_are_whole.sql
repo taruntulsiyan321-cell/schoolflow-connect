@@ -67,7 +67,7 @@
 -- the question is markable at all.
 --
 -- Rollback: supabase/migrations/rollback/
---           20260920020000_an_online_test_is_all_mcq_and_marks_are_whole.rollback.sql
+--           20260925020000_an_online_test_is_all_mcq_and_marks_are_whole.rollback.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.tg_test_question_is_a_markable_mcq()
@@ -103,7 +103,7 @@ COMMENT ON FUNCTION public.tg_test_question_is_a_markable_mcq() IS
   'An online test question must be an MCQ with whole marks: rpc_test_submit '
   'marks by jsonb equality against the key, which only an MCQ position can '
   'satisfy, and every mark surface downstream of it is an integer column. '
-  'See 20260920020000 for the three formats this refuses and why each is '
+  'See 20260925020000 for the three formats this refuses and why each is '
   'unmarkable.';
 
 -- ── Proof ─────────────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ BEGIN
   END IF;
 
   INSERT INTO public.tests (school_id, section_subject_id, created_by, title, max_mark, status)
-  VALUES (_school, _ss, _teacher, '[verify 20260920020000] markable questions only', 1, 'draft')
+  VALUES (_school, _ss, _teacher, '[verify 20260925020000] markable questions only', 1, 'draft')
   RETURNING id INTO _test;
 
   -- 1. A short-answer question is refused.

@@ -1,4 +1,4 @@
--- Rollback for 20260920030000.
+-- Rollback for 20260925030000.
 --
 -- Removes the per-test leaderboard and its fence. The student's own position is
 -- unaffected: `rpc_test_student_report` still returns `rank` and `class_size`,

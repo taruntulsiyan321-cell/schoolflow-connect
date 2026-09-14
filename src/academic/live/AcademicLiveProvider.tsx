@@ -135,7 +135,7 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         onTable(["test", "profile"]),
       )
       /**
-       * A submission, as it happens (20260920080000).
+       * A submission, as it happens (20260925080000).
        *
        * `tests` above catches a teacher publishing one. It does NOT catch a
        * student handing one in, which writes `test_attempts` and `test_marks`
@@ -144,7 +144,7 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
        *
        * Realtime applies RLS per subscriber, and that decides who is woken
        * rather than this filter: a classmate who has submitted may read
-       * `test_marks` for that test (20260920060000) and is woken; one who has
+       * `test_marks` for that test (20260925060000) and is woken; one who has
        * not may not, and is not — which is the same answer the leaderboard
        * itself gives them. A teacher is woken for attempts on the tests they
        * own, through `test_attempts_staff_read`.

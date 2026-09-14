@@ -93,7 +93,7 @@ type LiveStudent = ClassStudentRow & {
  * class report then ranked its topic 100% wrong.
  *
  * Ruled 2026-09-12 — "for the online test, only MCQ questions can be given" —
- * and made structural by `20260920020000`. True/False survives as what it
+ * and made structural by `20260925020000`. True/False survives as what it
  * always was underneath: a two-option MCQ.
  */
 const QUESTION_PRESETS = [

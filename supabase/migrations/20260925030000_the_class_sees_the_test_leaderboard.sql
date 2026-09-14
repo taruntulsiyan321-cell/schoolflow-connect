@@ -48,7 +48,7 @@
 --        see the test and the marks each student has got." Marks, not
 --        per-question detail — which is why this function exists separately
 --        from `rpc_test_student_report` and the principal is NOT admitted
---        there (20260920040000 states that split).
+--        there (20260925040000 states that split).
 --
 -- Everyone else is refused, the admin included: the office's stated need is
 -- "all the numbers of tests given in the school", which is a count over `tests`
@@ -56,7 +56,7 @@
 -- class's marks.
 --
 -- Rollback: supabase/migrations/rollback/
---           20260920030000_the_class_sees_the_test_leaderboard.rollback.sql
+--           20260925030000_the_class_sees_the_test_leaderboard.rollback.sql
 -- Assertion: supabase/migrations/verification/caller-privileges/probe44.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
@@ -95,7 +95,7 @@ $function$;
 COMMENT ON FUNCTION public.can_read_test_leaderboard(uuid) IS
   'Sole authority for who may read a test leaderboard: the teachers of that '
   'section, the principal (marks only, 2026-09-12 ruling), and a student of '
-  'the section who has submitted. Admin is deliberately out — see 20260920030000.';
+  'the section who has submitted. Admin is deliberately out — see 20260925030000.';
 
 CREATE OR REPLACE FUNCTION public.rpc_test_leaderboard(_test_id uuid)
 RETURNS jsonb
@@ -201,7 +201,7 @@ BEGIN
 
   INSERT INTO public.tests (school_id, section_subject_id, created_by, title, max_mark, total_marks,
                             status, test_kind, duration_sec, published_at)
-  VALUES (_school, _ss, _teacher, '[verify 20260920030000] leaderboard', 2, 2, 'published', 'class_test', 1800, now())
+  VALUES (_school, _ss, _teacher, '[verify 20260925030000] leaderboard', 2, 2, 'published', 'class_test', 1800, now())
   RETURNING id INTO _test;
 
   INSERT INTO public.test_questions (test_id, school_id, order_index, question_format, question, options, correct, marks)

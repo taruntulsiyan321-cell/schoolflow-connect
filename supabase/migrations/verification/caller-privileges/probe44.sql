@@ -9,13 +9,13 @@
 --   * `rpc_test_submit` DELETED `test_answers` at submit, so the student's own
 --     report listed the WHOLE PAPER as wrong with their answer shown blank, and
 --     the teacher's weakest-topics ranking read 100% wrong on every topic for a
---     class that had averaged 2 of 3 (20260920000000);
+--     class that had averaged 2 of 3 (20260925000000);
 --   * every five-argument `_bump_academic_activity` call raised 42725, so a
---     submitted test recorded no activity at all (20260920010000);
+--     submitted test recorded no activity at all (20260925010000);
 --   * a student who had sat NEITHER test in her class could read all six of her
---     classmates' mark rows (20260920060000);
+--     classmates' mark rows (20260925060000);
 --   * three of the five question formats could never be marked by the only
---     marker that exists (20260920020000).
+--     marker that exists (20260925020000).
 --
 -- THE JOURNEY, AND WHAT EACH HOP PROVES
 --   1. a teacher creates a test on a section they teach.       (POSITIVE CONTROL)
@@ -169,7 +169,7 @@ BEGIN
   SELECT id INTO q2 FROM public.test_questions WHERE test_id = the_test AND order_index = 1;
 
   -- An online test holds MCQs only: a written question cannot be marked by
-  -- anything in this product, so the table refuses it (20260920020000).
+  -- anything in this product, so the table refuses it (20260925020000).
   r := pg_temp.as_user(t_uid, format(
     $q$WITH i AS (INSERT INTO public.test_questions
                    (test_id, school_id, order_index, question_format, question, answer, marks)

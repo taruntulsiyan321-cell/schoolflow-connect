@@ -47,14 +47,14 @@ export default function TestResult() {
   const [attempt, setAttempt] = useState<Record<string, unknown> | null>(null);
   /**
    * The paper as this student answered it — question, their choice, the key,
-   * the explanation — from `rpc_test_answer_sheet` (20260920050000).
+   * the explanation — from `rpc_test_answer_sheet` (20260925050000).
    *
    * This screen used to assemble the review from two client reads that could
    * not carry it: `listQuestions` goes through
    * `rpc_test_questions_for_attempt`, which omits `correct` and `explanation`
    * on purpose (it is the paper, not the key), and `listAnswers` read
    * `test_answers` — a table `rpc_test_submit` deleted at submit time until
-   * 20260920000000. So the review had no right answer to show and no student
+   * 20260925000000. So the review had no right answer to show and no student
    * answer to show it against, and rule 27's honest empty state ("your
    * individual answers were not recorded") was what every student saw after
    * every test.
@@ -201,10 +201,10 @@ export default function TestResult() {
   // Rule 27, still keyed off the thing this page actually renders from rather
   // than off the attempt's status: a score on the attempt does not prove the
   // per-question rows exist. It now normally does — the submit stopped deleting
-  // them (20260920000000) — and where they are absent this still says so.
+  // them (20260925000000) — and where they are absent this still says so.
   const reviewQuestions = sheet?.questions ?? [];
   const hasResponses = reviewQuestions.length > 0;
-  // `time_spent_sec` is written at submit (20260920000000). Before that it was
+  // `time_spent_sec` is written at submit (20260925000000). Before that it was
   // never written by anything, so this read `Math.round(null / 60)` and every
   // result screen ever rendered said "0m".
   const spentSec = Number(attempt.time_spent_sec ?? sheet?.time_spent_sec ?? 0);
@@ -290,7 +290,7 @@ export default function TestResult() {
       )}
       {/* ── THE LEADERBOARD ─────────────────────────────────────────────────
           Named, ranked, and it moves as the rest of the class hands in
-          (20260920030000, ruled 2026-09-12). Rule 13 as corrected on
+          (20260925030000, ruled 2026-09-12). Rule 13 as corrected on
           2026-09-11 is what allows the names: "marks and rank are shared
           within the class; per-question detail is private to each student."
           The per-question half above and below is this student's alone.

@@ -21,26 +21,24 @@ is simply how the ledger applies. **This branch's app needs them**: it calls
 `rpc_homework_submit`, `rpc_homework_decide`, `rpc_homework_delete` and reads
 `homework_student_status`, none of which live has.
 
-> **VERSION COLLISION — READ BEFORE APPLYING ANYTHING FROM THIS BRANCH.** On 2026-09-13 branch
+> **VERSION COLLISION — resolved by renumbering.** On 2026-09-13 branch
 > `claude/busy-shannon-nymdhd` applied six migrations to live: `20260919000000` (which this
 > branch also has) and `20260920000000_a_skipped_question_comes_back`,
 > `20260921000000_a_practice_mistake_knows_its_question`,
 > `20260922000000_the_recovery_and_revision_loop_closes`, `20260923000000_…` and
-> `20260924000000_…` — recorded in `public.schema_migrations`. **Two of those stamps are this
-> branch's own test-feature migrations** (`20260920000000_a_test_answer_is_school_data…` and
-> `20260921000000_the_report_says_which_question…`), and the homework migrations were written
-> at `20260922000000`–`040000` until this session found it. `check-foreign-migrations` matches
-> the ledger by timestamp, so it reported the homework migration as "applied but not
-> committed" when it never was; anything matching the same way would skip it.
-> * The homework migrations were **renumbered to `20260925100000`–`20260925140000`** — after
->   everything live has, nothing on any branch numbered that high.
-> * **The ten test-feature migrations still collide and must be renumbered as one block before
->   they are applied** — `20260925000000`–`20260925090000` is left free for exactly that, so
->   they keep sorting ahead of homework. Not done here: they are another feature's identities,
->   referenced across its docs and scripts, and the brief was not to touch them.
-> * Measured before renumbering: busy-shannon's live migrations change practice and recovery
->   functions only; every function the homework migrations replace or restore is identical on
->   live and on the base they were verified against (line endings aside).
+> `20260924000000_…` — recorded in `public.schema_migrations`. Two of those stamps were this
+> branch's own test-feature migrations, and the homework migrations were written at
+> `20260922000000`–`040000`. `check-foreign-migrations` matches the ledger by timestamp, so it
+> reported the homework migration as "applied but not committed" when it never was; anything
+> matching the same way would skip it.
+> * The homework migrations were **renumbered to `20260925100000`–`20260925150000`**.
+> * On 2026-09-14, with the owner's go-ahead for a full release, the ten test-feature
+>   migrations were **renumbered as one block to `20260925000000`–`20260925090000`**, order
+>   kept, so they sort after everything live has and ahead of homework.
+> * Measured: busy-shannon's five live migrations define none of the objects these sixteen
+>   define; every function the homework migrations replace or restore is identical on live and
+>   on the base they were verified against (line endings aside), the router excepted, which
+>   `20260925150000` edits in place.
 
 | migration | what it does |
 |---|---|
@@ -218,7 +216,7 @@ The short version:
 
 ### What is now true, and where it is proven
 
-Ten migrations, `20260920000000`–`20260921000000`, each with a rollback and an
+Ten migrations, `20260925000000`–`20260925090000`, each with a rollback and an
 in-migration proof block that refuses to commit if it cannot demonstrate its own
 effect. Plus `probe44.sql` — the test journey as each caller, 25 claims, the
 same shape as probe43's homework journey.
@@ -250,7 +248,7 @@ DELETION half is rule 14, which this product owner withdrew on 2026-09-11 after
 measuring it — and the 2026-09-12 work depends on exactly those rows: deleting
 them at 24 hours would empty the student's review, the teacher's drill-down and
 the weakest-topic ranking a day after every test, re-opening the defect
-`20260920000000` closed. It needs a fresh ruling that also says what replaces
+`20260925000000` closed. It needs a fresh ruling that also says what replaces
 those three surfaces. See `docs/gurukul-spec-rules.md`, "The test flow — RULED
 2026-09-12".
 
@@ -267,7 +265,7 @@ Three more things the owner asked for, after seeing the panel:
 * **The teacher's test report was rebuilt** into
   `src/gurukul-teacher/TestReportPanel.tsx`: a leaderboard ranked by mark, a
   per-question timing breakdown (`rpc_test_question_breakdown`, migration
-  `20260921000000` — the tenth, also unapplied), and a drill-down that is now
+  `20260925090000` — the tenth, also unapplied), and a drill-down that is now
   the student's WHOLE paper with their own time on each question rather than
   their wrong answers only. Ruled in the same file under "The teacher's test
   report — what it must answer".
@@ -283,7 +281,7 @@ Three more things the owner asked for, after seeing the panel:
   Tests section (`src/gurukul-principal/PrincipalTests.tsx`, real data). Its own
   header says so. Wiring the rest is a separate pass.
 * **Cross-client liveness of the leaderboard** is now a push plus a 30s floor:
-  `20260920080000` adds `test_attempts` and `test_marks` to the
+  `20260925080000` adds `test_attempts` and `test_marks` to the
   `supabase_realtime` publication and `AcademicLiveProvider` subscribes to both.
   Until that migration is applied the push half does nothing and the floor is
   all there is.

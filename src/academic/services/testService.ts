@@ -128,7 +128,7 @@ export type UpdateTestInput = Partial<CreateTestInput>;
  *                 no tolerance expressible.
  *
  * Ruled 2026-09-12: "for the online test, only MCQ questions can be given …
- * the test automatically gets marked." `20260920020000` makes that structural
+ * the test automatically gets marked." `20260925020000` makes that structural
  * with a trigger on `test_questions`, so this type is the client agreeing with
  * the table rather than the only thing enforcing it.
  *
@@ -451,7 +451,7 @@ export interface TestStudentReport {
   wrong_answers: TestReportWrongAnswer[];
 }
 
-/* ── The tests list (20260920070000) ───────────────────────────────────────
+/* ── The tests list (20260925070000) ───────────────────────────────────────
  *
  * One row of `rpc_test_list_for_class`. Hand-written for the same reason as the
  * report shapes: the RPC returns `jsonb`, so the generated types can only say
@@ -492,7 +492,7 @@ export interface TestListRow {
   my_submitted_at: string | null;
 }
 
-/** One ranked entry on a test's leaderboard (20260920030000). */
+/** One ranked entry on a test's leaderboard (20260925030000). */
 export interface TestLeaderboardEntry {
   student_id: string;
   full_name: string | null;
@@ -517,7 +517,7 @@ export interface TestLeaderboard {
   entries: TestLeaderboardEntry[];
 }
 
-/** One question of a student's own submitted paper (20260920050000). */
+/** One question of a student's own submitted paper (20260925050000). */
 export interface TestAnswerSheetQuestion {
   question_id: string;
   order_index: number | null;
@@ -551,7 +551,7 @@ export interface TestAnswerSheet {
   questions: TestAnswerSheetQuestion[];
 }
 
-/** What each student of the section scored (20260920040000). */
+/** What each student of the section scored (20260925040000). */
 export interface TestClassMarks {
   test_id: string;
   title: string | null;
@@ -563,7 +563,7 @@ export interface TestClassMarks {
   students: TestReportStudentRow[];
 }
 
-/** One question of a test, as the whole class answered it (20260921000000). */
+/** One question of a test, as the whole class answered it (20260925090000). */
 export interface TestQuestionBreakdownRow {
   question_id: string;
   order_index: number | null;
@@ -1324,7 +1324,7 @@ export const TestService = {
 
   /**
    * The tests of a class, with everything the two list screens need — through
-   * `rpc_test_list_for_class` (20260920070000).
+   * `rpc_test_list_for_class` (20260925070000).
    *
    * ── WHY THIS EXISTS BESIDE `listForClass` ───────────────────────────────
    *
@@ -1431,7 +1431,7 @@ export const TestService = {
    *   is_active     a retired or replaced question (15 rows) is not a question
    *                 to set.
    *   question_format = 'mcq'
-   *                 an online test holds nothing else (20260920020000), and the
+   *                 an online test holds nothing else (20260925020000), and the
    *                 bank's own columns only ever held MCQs — `options` and
    *                 `correct_index` are NOT NULL.
    *   board         the same test `rpc_fill_paper_section_from_bank` applies:
@@ -1557,7 +1557,7 @@ export const TestService = {
    * ordered so the first student to finish leads on equal marks.
    *
    * No role check here and none in the RPC's caller: `can_read_test_leaderboard`
-   * is the only home for that rule (see 20260920030000). A caller who may not
+   * is the only home for that rule (see 20260925030000). A caller who may not
    * read gets 42501, screened into a sentence by `throwIfError`.
    */
   async leaderboard(ctx: ServiceContext, testId: string): Promise<TestLeaderboard | null> {
@@ -1597,7 +1597,7 @@ export const TestService = {
    * This is what replaces a single `average_seconds_per_question` for a
    * teacher: the paper mean cannot name the question to re-teach and this can.
    * Fenced by `can_read_test_report` — the same readers as the class report,
-   * and no second copy of that rule here (20260921000000).
+   * and no second copy of that rule here (20260925090000).
    */
   async questionBreakdown(
     ctx: ServiceContext,

@@ -85,7 +85,7 @@
 --    became a WARNING nobody reads. Measured: submitting a test left
 --    `academic_daily_activity` with no row at all. The call now names the
 --    six-argument form explicitly. (The duplicate itself is removed by
---    20260920010000 — this only stops depending on which one wins.)
+--    20260925010000 — this only stops depending on which one wins.)
 --
 -- 3. `test_marks.uploaded_at` was left NULL, and `_parent_weekly_digest`
 --    windows on `COALESCE(tm.uploaded_at, tm.created_at)` and orders by
@@ -94,7 +94,7 @@
 --    Submitting now stamps it.
 --
 -- Rollback: supabase/migrations/rollback/
---           20260920000000_a_test_answer_is_school_data_and_the_report_stops_lying.rollback.sql
+--           20260925000000_a_test_answer_is_school_data_and_the_report_stops_lying.rollback.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.rpc_test_submit(_attempt_id uuid, _answers jsonb DEFAULT NULL)
@@ -137,7 +137,7 @@ BEGIN
          time_ms  = COALESCE(EXCLUDED.time_ms, test_answers.time_ms);
 
   -- An answer is right when it equals the key. Every online question is an MCQ
-  -- (20260920020000), the key is a position, and the renderer can only send a
+  -- (20260925020000), the key is a position, and the renderer can only send a
   -- position it drew — so this equality is the whole of the marking, and no
   -- human decides any part of it.
   UPDATE public.test_answers a
@@ -267,7 +267,7 @@ COMMENT ON FUNCTION public.rpc_test_submit(uuid, jsonb) IS
   'Grades a submitted attempt by comparing each answer to its key, writes the '
   'durable mark to test_marks, sends the wrong ones to the mistake book, and '
   'KEEPS the per-question rows: they are school data (§10.23) and the reports '
-  'read them (§10.25). See 20260920000000 for what deleting them broke.';
+  'read them (§10.25). See 20260925000000 for what deleting them broke.';
 
 -- ── Proof, as the student, before this is called done ─────────────────────
 --
@@ -308,7 +308,7 @@ BEGIN
 
   INSERT INTO public.tests (school_id, section_subject_id, created_by, title,
                             max_mark, total_marks, status, test_kind, duration_sec, published_at)
-  VALUES (_school, _ss, _teacher, '[verify 20260920000000] durable answers',
+  VALUES (_school, _ss, _teacher, '[verify 20260925000000] durable answers',
           2, 2, 'published', 'class_test', 1800, now())
   RETURNING id INTO _test;
 

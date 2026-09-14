@@ -11,7 +11,7 @@ import { ValidationFailedError } from "../repository/errors";
  *
  *   shape            test_questions_shape_matches_format  (20260914050000)
  *   key addresses    trg_test_question_key_addresses_an_option (20260914110000)
- *   MCQ + whole      trg_test_question_is_a_markable_mcq  (20260920020000)
+ *   MCQ + whole      trg_test_question_is_a_markable_mcq  (20260925020000)
  */
 const TEST = "11111111-1111-4111-8111-111111111111";
 const SCHOOL = "22222222-2222-4222-8222-222222222222";

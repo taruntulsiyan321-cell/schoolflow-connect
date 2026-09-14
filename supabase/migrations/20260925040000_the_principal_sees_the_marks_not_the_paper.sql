@@ -60,7 +60,7 @@
 -- the marks function is ever consulted.
 --
 -- Rollback: supabase/migrations/rollback/
---           20260920040000_the_principal_sees_the_marks_not_the_paper.rollback.sql
+--           20260925040000_the_principal_sees_the_marks_not_the_paper.rollback.sql
 -- Assertion: supabase/migrations/verification/caller-privileges/probe44.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
@@ -238,7 +238,7 @@ BEGIN
 
   INSERT INTO public.tests (school_id, section_subject_id, created_by, title, max_mark, total_marks,
                             status, test_kind, duration_sec, published_at)
-  VALUES (_school, _ss, _teacher, '[verify 20260920040000] principal marks', 1, 1, 'published', 'class_test', 600, now())
+  VALUES (_school, _ss, _teacher, '[verify 20260925040000] principal marks', 1, 1, 'published', 'class_test', 600, now())
   RETURNING id INTO _test;
   INSERT INTO public.test_questions (test_id, school_id, order_index, question_format, question, options, correct, marks, concept)
   VALUES (_test, _school, 0, 'mcq', 'verify: 5 + 5 ?', '["10","11"]', '{"indexes":[0]}', 1, 'Addition')

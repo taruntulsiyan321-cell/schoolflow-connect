@@ -1,4 +1,4 @@
--- Rollback for 20260920080000.
+-- Rollback for 20260925080000.
 --
 -- Removes both tables from the realtime publication. The leaderboard and the
 -- teacher's handed-in count then move only on their own poll — a few seconds

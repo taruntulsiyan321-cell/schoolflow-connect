@@ -1,4 +1,4 @@
--- Rollback for 20260920050000.
+-- Rollback for 20260925050000.
 --
 -- Drops the answer sheet. The result screen's question review then has no
 -- source for the correct answer — a student's own read of `test_questions` goes

@@ -18,7 +18,7 @@
 --      that is exactly right BEFORE the paper is handed in. After it is handed
 --      in, the screen has no way to say what the right answer was.
 --   2. `listAnswers` reads `test_answers` directly, which was purged at submit
---      until 20260920000000. Rule 27's honest empty state — "Your individual
+--      until 20260925000000. Rule 27's honest empty state — "Your individual
 --      answers for this test were not recorded" — was therefore what EVERY
 --      student saw after EVERY test.
 --
@@ -47,7 +47,7 @@
 -- second copy of the rule (G9).
 --
 -- Rollback: supabase/migrations/rollback/
---           20260920050000_a_student_can_review_the_paper_they_handed_in.rollback.sql
+--           20260925050000_a_student_can_review_the_paper_they_handed_in.rollback.sql
 -- Assertion: supabase/migrations/verification/caller-privileges/probe44.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
@@ -160,7 +160,7 @@ BEGIN
 
   INSERT INTO public.tests (school_id, section_subject_id, created_by, title, max_mark, total_marks,
                             status, test_kind, duration_sec, published_at)
-  VALUES (_school, _ss, _teacher, '[verify 20260920050000] answer sheet', 2, 2, 'published', 'class_test', 900, now())
+  VALUES (_school, _ss, _teacher, '[verify 20260925050000] answer sheet', 2, 2, 'published', 'class_test', 900, now())
   RETURNING id INTO _test;
   INSERT INTO public.test_questions (test_id, school_id, order_index, question_format, question, options, correct, marks, explanation)
   VALUES (_test, _school, 0, 'mcq', 'verify: 7 + 7 ?', '["14","15"]', '{"indexes":[0]}', 1, 'fourteen')

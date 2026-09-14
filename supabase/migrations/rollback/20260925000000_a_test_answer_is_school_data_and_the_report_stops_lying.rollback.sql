@@ -1,4 +1,4 @@
--- Rollback for 20260920000000.
+-- Rollback for 20260925000000.
 --
 -- Restores the deployed body verbatim — the one from 20260916140000 — which
 -- means RESTORING THE PURGE:

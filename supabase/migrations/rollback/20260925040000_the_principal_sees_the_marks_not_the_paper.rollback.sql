@@ -1,4 +1,4 @@
--- Rollback for 20260920040000.
+-- Rollback for 20260925040000.
 --
 -- Drops the principal's marks view and puts the class report back to the
 -- self-contained body from 20260916010000 — the one that built its own student

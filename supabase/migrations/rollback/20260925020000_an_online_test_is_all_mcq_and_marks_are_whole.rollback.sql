@@ -1,4 +1,4 @@
--- Rollback for 20260920020000.
+-- Rollback for 20260925020000.
 --
 -- Removes the markable-MCQ trigger, which re-opens `test_questions` to the four
 -- shapes the migration measured as unmarkable:

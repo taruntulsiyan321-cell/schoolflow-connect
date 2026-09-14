@@ -19,7 +19,7 @@
 --   rpc_test_submit               wrapped -> WARNING, swallowed. A student who
 --                                 submitted a test had no daily activity row at
 --                                 all, and their weekly activity chart showed
---                                 no tests. (Fixed in 20260920000000 by naming
+--                                 no tests. (Fixed in 20260925000000 by naming
 --                                 the six-argument form; this removes the
 --                                 ambiguity it was working around.)
 --   rpc_finish_battle             wrapped -> WARNING, swallowed. Same loss.
@@ -45,14 +45,14 @@
 -- drop is possible at all and also why nothing warned about the ambiguity.
 --
 -- Rollback: supabase/migrations/rollback/
---           20260920010000_one_activity_bump_not_two.rollback.sql
+--           20260925010000_one_activity_bump_not_two.rollback.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 DROP FUNCTION IF EXISTS public._bump_academic_activity(uuid, integer, integer, integer, integer);
 
 COMMENT ON FUNCTION public._bump_academic_activity(uuid, integer, integer, integer, integer, integer) IS
   'The only activity bump. A five-argument overload existed alongside it from '
-  '20260606000000 to 20260920010000 and made every five-positional-argument '
+  '20260606000000 to 20260925010000 and made every five-positional-argument '
   'call ambiguous (42725) — see that migration.';
 
 -- ── Proof ─────────────────────────────────────────────────────────────────

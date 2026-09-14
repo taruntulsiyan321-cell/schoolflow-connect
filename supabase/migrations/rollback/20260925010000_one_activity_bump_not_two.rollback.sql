@@ -1,4 +1,4 @@
--- Rollback for 20260920010000.
+-- Rollback for 20260925010000.
 --
 -- Recreates the five-argument overload from 20260606000000, verbatim except for
 -- the column rename 7.5c applied (`dpp_count` -> `test_count`), so it compiles

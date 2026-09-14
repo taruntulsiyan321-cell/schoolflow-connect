@@ -1,4 +1,4 @@
--- Rollback for 20260920060000.
+-- Rollback for 20260925060000.
 --
 -- Restores the policy verbatim from 20260904180000, which admits any student of
 -- a section to EVERY classmate's mark on EVERY test of that section, whether or

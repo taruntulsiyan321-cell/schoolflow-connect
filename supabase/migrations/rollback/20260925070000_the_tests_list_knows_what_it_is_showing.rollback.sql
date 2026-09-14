@@ -1,4 +1,4 @@
--- Rollback for 20260920070000.
+-- Rollback for 20260925070000.
 --
 -- Drops the list RPC. Both Tests screens then fall back to
 -- `TestService.listForClass`, which cannot carry the subject (no such column on

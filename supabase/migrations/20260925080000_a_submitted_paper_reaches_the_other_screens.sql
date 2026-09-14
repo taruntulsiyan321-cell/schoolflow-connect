@@ -27,7 +27,7 @@
 -- rather than a limitation:
 --
 --   test_marks       `test_marks_read` admits a classmate WHO HAS SUBMITTED
---                    (20260920060000), which is exactly the set of students
+--                    (20260925060000), which is exactly the set of students
 --                    the leaderboard is readable by. They get the event; a
 --                    student who has not sat it gets nothing, which is the same
 --                    answer the board itself gives them.
@@ -47,7 +47,7 @@
 -- without another round trip.
 --
 -- Rollback: supabase/migrations/rollback/
---           20260920080000_a_submitted_paper_reaches_the_other_screens.rollback.sql
+--           20260925080000_a_submitted_paper_reaches_the_other_screens.rollback.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 DO $add$

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 /**
  * The floor, not the mechanism.
  *
- * `test_attempts` and `test_marks` publish to realtime (20260920080000), so a
+ * `test_attempts` and `test_marks` publish to realtime (20260925080000), so a
  * classmate handing in wakes this board through `useAcademicLive` within a
  * second. This timer exists for when that does not arrive — a dropped socket,
  * a project with realtime off — because a leaderboard that silently stops
@@ -39,7 +39,7 @@ const POLL_MS = 30_000;
  *                           tables a submission writes — so a classmate
  *                           handing in emitted nothing any other browser was
  *                           listening for. Both now publish
- *                           (20260920080000) and the provider subscribes, so
+ *                           (20260925080000) and the provider subscribes, so
  *                           `liveVersion` below moves when the class does.
  *
  * Both are used. Realtime makes it immediate; the timer is the floor for when
@@ -75,7 +75,7 @@ export function TestLeaderboard({
       } catch (e) {
         if (cancelled) return;
         // A student who has not submitted is REFUSED this board, by design
-        // (20260920030000). That is not an error to shout about on a result
+        // (20260925030000). That is not an error to shout about on a result
         // screen, so it reads as an absence rather than a failure.
         setError(toErrorMessage(e, "Could not load the leaderboard"));
       } finally {

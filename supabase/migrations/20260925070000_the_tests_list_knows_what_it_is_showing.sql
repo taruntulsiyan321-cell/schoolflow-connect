@@ -47,7 +47,7 @@
 -- cannot become a back door to a classmate's mark.
 --
 -- Rollback: supabase/migrations/rollback/
---           20260920070000_the_tests_list_knows_what_it_is_showing.rollback.sql
+--           20260925070000_the_tests_list_knows_what_it_is_showing.rollback.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.rpc_test_list_for_class(_class_id uuid)
@@ -113,7 +113,7 @@ BEGIN
              (SELECT count(*)::int FROM public.test_questions q WHERE q.test_id = t.id) AS question_count,
              -- Staff only. A student learns nothing here about who else sat it;
              -- that is the leaderboard's job, and it requires them to have
-             -- submitted (20260920030000).
+             -- submitted (20260925030000).
              CASE WHEN _is_staff THEN
                (SELECT count(*)::int FROM public.test_attempts a
                  WHERE a.test_id = t.id AND a.status = 'submitted')
@@ -193,13 +193,13 @@ BEGIN
   -- Three tests: a draft, a published one with a question, and a published
   -- "uploaded paper" with none.
   INSERT INTO public.tests (school_id, section_subject_id, created_by, title, max_mark, status, test_kind, duration_sec)
-  VALUES (_school, _ss, _teacher, '[verify 20260920070000] draft', 1, 'draft', 'class_test', 600)
+  VALUES (_school, _ss, _teacher, '[verify 20260925070000] draft', 1, 'draft', 'class_test', 600)
   RETURNING id INTO _draft;
   INSERT INTO public.tests (school_id, section_subject_id, created_by, title, max_mark, status, test_kind, duration_sec, published_at)
-  VALUES (_school, _ss, _teacher, '[verify 20260920070000] published', 1, 'published', 'unit_test', 600, now())
+  VALUES (_school, _ss, _teacher, '[verify 20260925070000] published', 1, 'published', 'unit_test', 600, now())
   RETURNING id INTO _published;
   INSERT INTO public.tests (school_id, section_subject_id, created_by, title, max_mark, status, test_kind, duration_sec, published_at)
-  VALUES (_school, _ss, _teacher, '[verify 20260920070000] paper', 10, 'published', 'class_test', NULL, now())
+  VALUES (_school, _ss, _teacher, '[verify 20260925070000] paper', 10, 'published', 'class_test', NULL, now())
   RETURNING id INTO _paper;
   INSERT INTO public.test_questions (test_id, school_id, order_index, question_format, question, options, correct, marks)
   VALUES (_published, _school, 0, 'mcq', 'verify: 4 + 4 ?', '["8","9"]', '{"indexes":[0]}', 1)

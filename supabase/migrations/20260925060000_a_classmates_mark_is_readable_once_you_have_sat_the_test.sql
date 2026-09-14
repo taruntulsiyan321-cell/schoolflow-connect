@@ -28,7 +28,7 @@
 -- Rule 13, as corrected on 2026-09-11, does say marks are shared within the
 -- class: "a rank is a position among classmates and cannot be shown without
 -- comparing to them." This migration does not argue with that — the leaderboard
--- built in 20260920030000 shows exactly those marks, by name.
+-- built in 20260925030000 shows exactly those marks, by name.
 --
 -- What that fence adds, and this policy lacked, is WHEN. A student reads the
 -- board once they have handed their own paper in. Before that, the class's
@@ -60,7 +60,7 @@
 --   a classmate who has NOT    ————                                 REMOVED
 --
 -- Rollback: supabase/migrations/rollback/
---           20260920060000_a_classmates_mark_is_readable_once_you_have_sat_the_test.rollback.sql
+--           20260925060000_a_classmates_mark_is_readable_once_you_have_sat_the_test.rollback.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
 DROP POLICY IF EXISTS test_marks_read ON public.test_marks;
@@ -108,7 +108,7 @@ BEGIN
 
   INSERT INTO public.tests (school_id, section_subject_id, created_by, title, max_mark, total_marks,
                             status, test_kind, duration_sec, published_at)
-  VALUES (_school, _ss, _teacher, '[verify 20260920060000] whose marks', 1, 1, 'published', 'class_test', 600, now())
+  VALUES (_school, _ss, _teacher, '[verify 20260925060000] whose marks', 1, 1, 'published', 'class_test', 600, now())
   RETURNING id INTO _test;
   INSERT INTO public.test_questions (test_id, school_id, order_index, question_format, question, options, correct, marks)
   VALUES (_test, _school, 0, 'mcq', 'verify: 9 + 1 ?', '["10","11"]', '{"indexes":[0]}', 1)
