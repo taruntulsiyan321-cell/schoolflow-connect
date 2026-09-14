@@ -82,6 +82,12 @@ export function HomeworkReview({
   };
 
   const counts = ORDER.map((s) => [s, sorted.filter((r) => r.standing === s).length] as const);
+  // Past the deadline a rejected hand-in cannot be handed in again, so the
+  // database counts the rejection as missed homework and charges its XP — said
+  // here before the teacher decides, where it applies.
+  const rejectingCostsXp =
+    homework.missedCostsXp &&
+    rows.some((r) => r.standing.closed && r.submission?.status === "submitted");
 
   return (
     <div className="space-y-4">
@@ -108,6 +114,12 @@ export function HomeworkReview({
           </span>
         ))}
       </div>
+      {rejectingCostsXp && (
+        <div className="text-[10px] text-muted-foreground">
+          The deadline has passed, so rejected work cannot be handed in again: rejecting it now counts as missed homework
+          and costs the student XP.
+        </div>
+      )}
       {error && <div className="text-xs text-destructive">{error}</div>}
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground">

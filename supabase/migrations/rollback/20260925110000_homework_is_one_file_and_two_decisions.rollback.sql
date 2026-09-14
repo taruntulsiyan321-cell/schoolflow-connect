@@ -22,6 +22,10 @@
 --     onto it; nothing in the snapshot is discarded.
 --   * A not_submitted row the closure job wrote has no old equivalent — in the
 --     old model, no row meant nothing was handed in — and is deleted.
+--   * XP stays as it was applied. What accepting awarded and what missing
+--     homework cost are progression history, recorded by the engine with its own
+--     keys; undoing the model does not rewrite a student's past. The column that
+--     excused homework released before the cost (`missed_costs_xp`) goes.
 -- Grants and tenant fences are restored as the live project held them on
 -- 2026-09-13: ALL to anon and authenticated on every homework table, and the
 -- my_accessible_school_ids() form of the fence. Recreated tables and functions
@@ -55,6 +59,70 @@ DROP FUNCTION public.rpc_homework_decide(uuid, text);
 DROP FUNCTION public.resolve_closed_homework();
 DROP TRIGGER trg_homework_lifecycle ON public.homework;
 DROP FUNCTION public.tg_homework_lifecycle();
+
+-- The publisher exactly as 20260925100000 wrote it, before this migration held
+-- homework back once its deadline had passed.
+CREATE OR REPLACE FUNCTION public.publish_due_scheduled_work()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  -- Inside SECURITY DEFINER, `current_user` is the owner for every caller.
+  -- The session role is what tells a PostgREST request (`anon`,
+  -- `authenticated`) from the scheduler (`postgres` under pg_cron, reporting
+  -- 'none') or a service-role worker.
+  _session_role text := coalesce(nullif(current_setting('role', true), ''), 'none');
+  _uid uuid := auth.uid();
+  _school uuid := NULL;
+  _n_hw int := 0;
+  _n_test int := 0;
+BEGIN
+  IF _session_role IN ('anon', 'authenticated') THEN
+    IF _uid IS NULL OR NOT (
+         public.has_role(_uid, 'teacher'::public.app_role)
+      OR public.has_role(_uid, 'admin'::public.app_role)
+      OR public.has_role(_uid, 'principal'::public.app_role)
+    ) THEN
+      RAISE EXCEPTION 'Only school staff may publish scheduled work'
+        USING ERRCODE = '42501';
+    END IF;
+    _school := public.get_my_school_id();
+    IF _school IS NULL THEN
+      RAISE EXCEPTION 'publish_due_scheduled_work: no school context for this caller'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  UPDATE public.homework
+     SET status = 'published',
+         published_at = coalesce(published_at, now()),
+         updated_at = now()
+   WHERE status = 'scheduled'
+     AND scheduled_publish_at IS NOT NULL
+     AND scheduled_publish_at <= now()
+     AND deleted_at IS NULL
+     AND (_school IS NULL OR school_id = _school);
+  GET DIAGNOSTICS _n_hw = ROW_COUNT;
+
+  UPDATE public.tests
+     SET status = 'published',
+         published_at = coalesce(published_at, now()),
+         updated_at = now()
+   WHERE status = 'scheduled'
+     AND scheduled_publish_at IS NOT NULL
+     AND scheduled_publish_at <= now()
+     AND deleted_at IS NULL
+     AND (_school IS NULL OR school_id = _school);
+  GET DIAGNOSTICS _n_test = ROW_COUNT;
+
+  RETURN _n_hw + _n_test;
+END;
+$$;
+
+COMMENT ON FUNCTION public.publish_due_scheduled_work() IS
+  'Publishes homework and tests whose scheduled_publish_at has passed. Run every minute by pg_cron job publish-due-scheduled-work across all schools; a signed-in teacher, admin or principal may run it for their own school; any other caller is refused (42501). Never publishes a deleted row. Replaces publish_due_scheduled_homework, which any signed-in session — a student''s included — could run, and which page loads called in place of a scheduler.';
 
 ALTER TABLE public.homework DISABLE TRIGGER trg_emit_homework_event;
 ALTER TABLE public.homework DISABLE TRIGGER homework_set_updated;
@@ -223,7 +291,7 @@ DROP INDEX public.homework_awaiting_resolution_idx;
 ALTER TABLE public.homework DROP COLUMN due_date;
 ALTER TABLE public.homework RENAME COLUMN legacy_due_date TO due_date;
 ALTER TABLE public.homework ALTER COLUMN due_date SET NOT NULL;
-ALTER TABLE public.homework DROP COLUMN resolved_at, DROP COLUMN question_file;
+ALTER TABLE public.homework DROP COLUMN resolved_at, DROP COLUMN question_file, DROP COLUMN missed_costs_xp;
 DROP FUNCTION public.school_local_date(timestamptz);
 DROP FUNCTION public.homework_question_file_ok(jsonb);
 DROP FUNCTION public.homework_hand_in_ok(jsonb);

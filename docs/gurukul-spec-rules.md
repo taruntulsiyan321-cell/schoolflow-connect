@@ -386,7 +386,10 @@ automatically and every student is resolved to submitted or not submitted; nothi
 The teacher has EXACTLY TWO ACTIONS, accept or reject — no marks, grades or remarks — and a
 REJECTED submission counts as NOT GIVEN.
 
-**Built as five migrations, `20260925100000`–`20260925140000`, each with a rollback and a
+Ruled the same day, on being asked: **missing homework costs the student XP**, and **the
+teacher's decision reaches the family as "accepted" or "rejected"**.
+
+**Built as six migrations, `20260925100000`–`20260925150000`, each with a rollback and a
 proof block that rolls itself back if it cannot demonstrate its own effect. None is applied
 to the live project** — see HANDOFF.md.
 
@@ -408,22 +411,31 @@ to the live project** — see HANDOFF.md.
     pg_cron job `publish-due-scheduled-work` every minute (`publish_due_scheduled_work()`), not
     by page loads; students and parents read a homework only once it is published and while it
     is not deleted. **Nobody signed in can publish or schedule homework whose deadline has
-    passed**, and a closed homework cannot go back to draft or scheduled — republishing would
-    tell the class "New homework" about work nobody can hand in. It can be archived.
+    passed, or move a released homework's deadline to a moment that has** — closing it early
+    would charge the class for work it still had time to do; extending it is allowed. **The
+    scheduler does not release homework whose deadline passed before it ran**: it stays
+    scheduled, where its teacher sees it, and a later deadline releases it on the next run. A
+    closed homework cannot go back to draft or scheduled — republishing would tell the class
+    "New homework" about work nobody can hand in. It can be archived.
 36. **The hand-in is ONE image or PDF**, through `rpc_homework_submit` only — no session writes
     a submission row. `homework_submissions.file` is a single jsonb object, so a second file
     cannot be stored (`homework_hand_in_ok`); the file must exist in `academic-files` under the
     student's own folder. **A handed-in file cannot be overwritten or deleted** through storage
     afterwards (`homework_file_is_fixed`, 20260925140000) — before this, a student could swap
     the bytes behind an accepted hand-in.
-37. **The deadline closes it for everyone.** Nothing is handed in at or after `closes_at`.
-    pg_cron job `resolve-closed-homework`, every minute, writes a `not_submitted` row for each
-    current student of a closed homework's class and stamps `resolved_at`, once: resolution
+37. **The deadline closes it for everyone.** Nothing is handed in at or after `closes_at`, nor
+    once the homework is resolved. pg_cron job `resolve-closed-homework`, every minute, writes a
+    `not_submitted` row for each current student of a closed homework's class, charges the
+    missed-homework XP (rule 42), and stamps `resolved_at` — all together, once: resolution
     freezes the roster, so a student who joins later is not counted as having missed work set
     before they arrived.
 38. **The teacher's two actions: accept or reject** (`rpc_homework_decide`), on a hand-in
     awaiting review, by a teacher of the class or an admin of the school. No marks, no grade,
-    no remark exist anywhere in the model any more.
+    no remark exist anywhere in the model any more. A hand-in and a decision hold the homework
+    `FOR SHARE`, and the closure job skips a homework held that way, so neither interleaves
+    with it (proven on two connections by `scripts/local-replica/race.mjs`: without the lock a
+    rejection taken as the job runs is never charged, and a student handing in again is charged
+    for work they gave).
 39. **Four statuses:** `not_submitted`, `submitted`, `accepted`, `rejected`, and
     `homework_submissions_state` makes each mean one thing. Lateness is not stored: nothing can
     be late. `is_late`, `grade`, `marks_obtained`, `teacher_remarks`, the typed `content` and the
@@ -441,6 +453,32 @@ to the live project** — see HANDOFF.md.
     read live drops at once; the stored profiles recount through the academic event queue,
     which pg_cron job `process-pending-academic-events` now drains every minute — the browser
     no longer does, and no signed-in or anonymous session may drain it or replay an event.
+42. **Missing homework costs XP — RULED.** Missing means not given when the homework closes:
+    never handed in, or rejected and not handed in again. The closure job charges each current
+    student with an account the progression engine's own rule `homework.missed` (live:
+    "Missing homework", −20 XP and −5 reputation; XP never goes below 0), once per submission
+    row — the idempotency key is the row, so a second run or a later path never charges twice.
+    A hand-in rejected AFTER the homework was resolved can no longer be handed in again, so
+    `rpc_homework_decide` charges it on the same terms; a rejection before the deadline costs
+    nothing yet. Work handed in and still awaiting review at the deadline is given, and costs
+    nothing. A student who has left the school is nobody's missing work. An admin who disables
+    the rule stops the cost without touching this code. A homework whose charge cannot be
+    applied stays unresolved and is retried the next minute — never resolved without it.
+43. **Homework released before rule 42 costs nobody** (`homework.missed_costs_xp = false`, set
+    by `20260925110000` on every published or archived row, and on nothing else). It was set and
+    handed in under rules with no such cost, and its typed hand-ins become `not_submitted` in
+    this model — charging it would charge students who did hand in. It is resolved like any
+    other homework when it closes. No teacher can write the column. Measured on live
+    2026-09-13: all 19 published homework had closed; without this their first closure would
+    have charged 12 students for up to 19 homework each.
+44. **The family is told "Homework accepted" or "Homework rejected" — RULED — once each.** The
+    router's decision branch names the two decisions and no longer routes `homework.graded`,
+    which nothing emits (`20260925150000`, an in-place edit of `process_academic_event` that
+    keeps its line endings and changes nothing else in it). `_notify_student_circle` now hands a
+    student's parents to `_notify_student_parents`, so a parent linked both by
+    `students.parent_user_id` and through `parent_students` — every legacy link — is told once,
+    not twice; every other caller of the circle (remarks, badges, battles, risk alerts) stops
+    doubling with it.
 
 **Assumptions proceeded on, as the brief allowed — they are not rulings.**
 * A student may replace their file, or hand in again after a rejection, only before the
@@ -448,6 +486,15 @@ to the live project** — see HANDOFF.md.
 * XP for homework is awarded when the teacher ACCEPTS, not at hand-in, so rejected work earns
   nothing — exactly like work never handed in.
 * "Duplicate" opens the form as new homework with no deadline, for the teacher to set one.
+* **XP stays as it was applied.** Deleting or archiving homework takes it out of every count,
+  but the XP accepting it awarded and the XP missing it cost are progression history and are
+  not reversed — nor by a rollback. If deleting homework should refund what missing it cost,
+  that is a ruling to ask for.
+* The teacher is told on the review screen, once the deadline has passed, that rejecting now
+  counts as missed homework and costs the student XP; the student is told "Missing it costs XP"
+  on homework to do, or rejected and still open — never on homework released before rule 42.
+* The teacher's form keeps a deadline the teacher did not touch to the second. The field holds
+  minutes, and every legacy deadline is 23:59:59: saving an edit used to move it a minute earlier.
 
 **What the legacy rows become (measured on live 2026-09-13).** 51 homework — 19 published, 32
 archived, none scheduled, none deleted — all keep their typed question. 145 submissions — 108
@@ -456,17 +503,6 @@ submitted, 28 graded, 9 late — and **not one carries a file**, so all 145 beco
 remark are copied first into `homework_submissions_pre_20260925110000` (and every homework row
 into `homework_pre_20260925110000`), which is what the rollback restores from. Decision D1 in
 `docs/decisions.md` is superseded accordingly.
-
-**Not built, and said so.**
-* **Missing homework costs no XP.** The progression engine defines a rule `homework.missed`
-  ("Past due without submission", −5 XP), and nothing has ever applied it — before this work
-  or after. The closure job resolves a student to `not_submitted` and deducts nothing. Whether
-  missed homework should cost XP is a **ruling request**, not something to switch on quietly.
-* **The notification wording predates the ruling.** Accepting emits `homework.reviewed` and
-  rejecting `homework.returned`, the event names the live router (`process_academic_event`)
-  already routes, so the student and parents read "Work reviewed" and "Work returned" (measured
-  on live). Renaming them means replacing that router, whose live body differs from anything a
-  replica built from the migrations can hold, so it was not replaced on inspection alone.
 
 ---
 

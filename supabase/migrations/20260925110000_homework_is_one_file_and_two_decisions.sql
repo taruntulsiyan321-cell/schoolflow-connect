@@ -14,6 +14,10 @@
 --   * The teacher can do EXACTLY TWO things with a submission: accept or
 --     reject. No marks, no grades, no remarks. A rejected submission counts as
 --     not given.
+--   * RULED the same day, on being asked: MISSING HOMEWORK COSTS THE STUDENT XP.
+--     Missing means not given when the homework closes — never handed in, or
+--     rejected and not handed in again — and a hand-in rejected after the
+--     homework has closed, when it can no longer be handed in again.
 --
 -- Assumptions proceeded on, as the brief allowed, and stated here so they are
 -- not mistaken for rulings:
@@ -22,7 +26,15 @@
 --   * A decision is taken on a submission awaiting review. Rejected work goes
 --     back to the student; resubmitting it puts it back in front of the teacher.
 --   * XP for homework is awarded when the teacher ACCEPTS it, not when it is
---     handed in (see §6).
+--     handed in (see §6). The missed-homework cost is the progression engine's
+--     own rule `homework.missed`; its amount lives there, and disabling it stops
+--     the cost without touching this code.
+--   * Homework ALREADY RELEASED to its class when this migration runs — closed
+--     or still open — costs nobody XP: it was set, and handed in, before the
+--     rule existed, and its typed hand-ins become not_submitted below, so the
+--     cost would fall on students who did hand in (§5b, `missed_costs_xp`).
+--   * Accepting awards XP and a rejection after closure costs it on ANY
+--     homework the rule applies to, whenever the decision is taken.
 --
 -- ── WHAT THE TABLES HELD, MEASURED ON A REPLICA BUILT FROM EVERY MIGRATION ──
 --
@@ -94,7 +106,7 @@
 --     rpc_homework_delete(homework)         soft delete, see 20260925130000
 --   Teachers keep writing homework rows directly, but only the columns a
 --   teacher sets: `created_by`, `published_at`, `archived_at`, `resolved_at`,
---   `deleted_at` and `deleted_by` are the server's.
+--   `missed_costs_xp`, `deleted_at` and `deleted_by` are the server's.
 --
 -- CLOSURE — `resolve_closed_homework()`, pg_cron every minute. For published,
 --   undeleted homework past its deadline and not yet resolved, it writes a
@@ -102,10 +114,20 @@
 --   stamps `resolved_at`. Once only: `resolved_at` freezes the roster, so a
 --   student who joins the class after the deadline is not counted as having
 --   missed work set before they arrived. Idempotent: a second run finds nothing.
+--   Every current student with an account who has not given it pays
+--   `homework.missed`, once per submission row (the idempotency key is the
+--   row), unless the homework is marked `missed_costs_xp = false`. A homework
+--   whose cost cannot be applied is left unresolved and retried the next
+--   minute, with a WARNING — never resolved without it.
 --   Closed homework stays closed (`tg_homework_lifecycle`): its deadline, class
 --   and release cannot change — it may be archived, never taken back to draft
---   or scheduled — and nobody signed in can publish or schedule homework whose
---   deadline has already passed.
+--   or scheduled. Nobody signed in can publish or schedule homework whose
+--   deadline has already passed, or move a released homework's deadline to a
+--   moment that has — closing it early would charge the class for work it still
+--   had time to do. Nor does the scheduler release homework whose deadline
+--   passed before it ran (`publish_due_scheduled_work`): the class would be
+--   told of work nobody can hand in, and charged for it. It stays scheduled,
+--   and the teacher can give it a new deadline.
 --
 -- ── LEGACY ROWS ───────────────────────────────────────────────────────────
 --
@@ -123,6 +145,12 @@
 --     in the snapshot.
 --   * published or scheduled homework with neither takes its title as the
 --     question text — the teacher's own words, not invented ones.
+--   * published or archived homework is marked `missed_costs_xp = false` (§5b).
+--     The closure job still resolves it — every current student given a final
+--     row — and charges nobody. Measured on live 2026-09-13: all 19 published
+--     homework had closed, and the closure job's first run would otherwise have
+--     charged 12 students for up to 19 homework each, handed in under the old
+--     rules; on the replica, one open homework holds two typed hand-ins.
 -- The counts of each are raised as NOTICEs when this applies.
 -- ═══════════════════════════════════════════════════════════════════════════
 
@@ -445,6 +473,30 @@ COMMENT ON COLUMN public.homework_submissions.status IS
 COMMENT ON COLUMN public.homework_submissions.file IS
   'The ONE file handed in: {path, name, mime, size}, an image or a PDF under the student''s own folder in academic-files. A single object, so a second file cannot be stored.';
 
+-- ── 5b. Homework released before this ruling costs nothing ───────────────
+--
+-- Missing homework costs XP from this migration on. Homework already released
+-- to its class — published, or archived after it was — was set and handed in
+-- under rules with no such cost, and its typed hand-ins became not_submitted
+-- above: charging it would charge students who did hand in. It is resolved like
+-- any other when it closes, and costs nobody. Drafts and scheduled homework
+-- reach the class under the new rules, and cost. The emitters and updated_at are
+-- still disabled, so marking the rows is not an edit (the rollback tells
+-- untouched rows by it, and the column goes with it).
+ALTER TABLE public.homework ADD COLUMN missed_costs_xp boolean NOT NULL DEFAULT true;
+
+DO $legacy_released$
+DECLARE _n int;
+BEGIN
+  UPDATE public.homework SET missed_costs_xp = false WHERE status IN ('published', 'archived');
+  GET DIAGNOSTICS _n = ROW_COUNT;
+  RAISE NOTICE 'legacy homework: % already released, and missing it costs no XP', _n;
+END
+$legacy_released$;
+
+COMMENT ON COLUMN public.homework.missed_costs_xp IS
+  'Whether a student who has not given this homework when it closes pays the missed-homework XP (rule homework.missed). False only for homework already released when that rule was made (20260925110000): it was set and handed in without the cost, typed hand-ins included. Server-owned: no grant lets a teacher write it.';
+
 -- ── 6. The only ways to write a submission ────────────────────────────────
 
 CREATE OR REPLACE FUNCTION public.rpc_homework_submit(_homework_id uuid, _file jsonb)
@@ -466,24 +518,33 @@ BEGIN
     RAISE EXCEPTION 'Sign in to hand in homework' USING ERRCODE = '42501';
   END IF;
 
-  SELECT * INTO _student FROM public.students
-   WHERE user_id = _uid AND deleted_at IS NULL LIMIT 1;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Only a student can hand in homework' USING ERRCODE = '42501';
+  -- The student row is the caller's row IN THIS HOMEWORK'S CLASS. An account
+  -- can hold more than one student row (a membership per school); taking any
+  -- one of them would refuse a student their own class's homework whenever the
+  -- other row came first.
+  -- FOR SHARE holds the homework against the closure job, which locks it FOR
+  -- UPDATE: a hand-in and the closure never interleave. Were they to, a
+  -- rejected student resubmitting as the job read their row would be charged
+  -- for work they had just handed in.
+  SELECT * INTO _hw FROM public.homework WHERE id = _homework_id FOR SHARE;
+  IF FOUND THEN
+    SELECT * INTO _student FROM public.students
+     WHERE user_id = _uid AND deleted_at IS NULL
+       AND class_id = _hw.class_id AND school_id = _hw.school_id
+     LIMIT 1;
   END IF;
-
-  SELECT * INTO _hw FROM public.homework WHERE id = _homework_id;
-  IF NOT FOUND
-     OR _hw.school_id IS DISTINCT FROM _student.school_id
-     OR _hw.class_id IS DISTINCT FROM _student.class_id
+  IF _hw.id IS NULL OR _student.id IS NULL
      OR _hw.status <> 'published'
      OR _hw.deleted_at IS NOT NULL THEN
     -- One message for every case, so the refusal does not reveal whether a
-    -- homework the student may not see exists.
+    -- homework the caller may not see exists.
     RAISE EXCEPTION 'This homework is not open to you' USING ERRCODE = '42501';
   END IF;
 
-  IF now() >= _hw.closes_at THEN
+  -- `now()` is when this call began. A call that began before the deadline and
+  -- waited on the lock above while the closure job resolved the homework must
+  -- not hand in behind it, so a resolved homework is closed whatever the clock.
+  IF now() >= _hw.closes_at OR _hw.resolved_at IS NOT NULL THEN
     RAISE EXCEPTION 'The deadline has passed. Nothing can be handed in after it.' USING ERRCODE = '55000';
   END IF;
 
@@ -550,6 +611,7 @@ DECLARE
   _sub public.homework_submissions%ROWTYPE;
   _hw public.homework%ROWTYPE;
   _student_user uuid;
+  _student_gone timestamptz;
   _row public.homework_submissions%ROWTYPE;
 BEGIN
   IF _decision NOT IN ('accepted', 'rejected') THEN
@@ -560,7 +622,11 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Not a submission you can decide on' USING ERRCODE = '42501';
   END IF;
-  SELECT * INTO _hw FROM public.homework WHERE id = _sub.homework_id;
+  -- FOR SHARE, as in rpc_homework_submit: a decision and the closure job never
+  -- interleave. Were they to, a rejection taken as the job resolved the homework
+  -- would read it unresolved and charge nothing, while the job read the
+  -- submission still awaiting review and charged nothing either.
+  SELECT * INTO _hw FROM public.homework WHERE id = _sub.homework_id FOR SHARE;
 
   IF _uid IS NULL OR NOT (
        public.teacher_teaches_class(_uid, _hw.class_id)
@@ -581,28 +647,46 @@ BEGIN
    WHERE id = _submission_id
   RETURNING * INTO _row;
 
-  -- XP ON ACCEPTANCE. The two homework rules used to be awarded by the client
-  -- the moment a file was handed in, so a rejected submission kept its XP and
-  -- its place in homework_submitted_count — the count the homework_hero and
-  -- homework_100 badges are awarded from. Awarded here, rejected work earns
-  -- nothing, exactly like work never handed in. The idempotency keys are the
-  -- ones the client used, so a submission already paid at hand-in is not paid
-  -- twice. Every submission is before its deadline now, so both rules apply.
+  -- XP FOLLOWS THE DECISION, in the same transaction as the decision.
   --
-  -- A failure here must not undo the decision, which is the fact that matters;
-  -- it is raised as a WARNING rather than swallowed silently.
-  IF _decision = 'accepted' THEN
-    SELECT user_id INTO _student_user FROM public.students WHERE id = _row.student_id;
-    IF _student_user IS NOT NULL THEN
-      BEGIN
+  -- Accepted: the two homework rules. They used to be awarded by the client the
+  -- moment a file was handed in, so a rejected submission kept its XP and its
+  -- place in homework_submitted_count — the count the homework_hero and
+  -- homework_100 badges are awarded from. The idempotency keys are the ones the
+  -- client used, so a submission already paid at hand-in is not paid twice.
+  -- Every submission is before its deadline now, so both rules apply.
+  --
+  -- Rejected AFTER the homework was resolved: the work can no longer be handed
+  -- in again, so it is missed, and costs what missing it costs — on the same
+  -- terms as the closure job: homework the cost applies to, a current student.
+  -- A rejection before then costs nothing yet — the closure job charges it if it
+  -- is still rejected when it resolves the homework. The key is the submission
+  -- row, the same key the closure job uses, so the cost is taken once whichever
+  -- path gets there.
+  --
+  -- A failure applying XP fails the decision, loudly, so the teacher can try
+  -- again: an accepted submission is final and a swallowed failure would lose the
+  -- award for good. A rule an admin has disabled is not a failure — it applies
+  -- nothing, which is what disabling it means.
+  SELECT user_id, deleted_at INTO _student_user, _student_gone
+    FROM public.students WHERE id = _row.student_id;
+  IF _student_user IS NOT NULL THEN
+    IF _decision = 'accepted' THEN
+      IF EXISTS (SELECT 1 FROM public.progression_xp_rules WHERE code = 'homework.submit' AND enabled) THEN
         PERFORM public.rpc_apply_progression('homework.submit', 'homework_submission', _row.id::text,
           'homework.submit:' || _row.id::text, NULL, jsonb_build_object('homework_id', _row.homework_id),
           _student_user);
+      END IF;
+      IF EXISTS (SELECT 1 FROM public.progression_xp_rules WHERE code = 'homework.before_deadline' AND enabled) THEN
         PERFORM public.rpc_apply_progression('homework.before_deadline', 'homework_submission', _row.id::text,
-          'homework.before:' || _row.id::text, NULL, '{}'::jsonb, _student_user);
-      EXCEPTION WHEN OTHERS THEN
-        RAISE WARNING 'rpc_homework_decide: XP for accepted submission % was not awarded: %', _row.id, SQLERRM;
-      END;
+          'homework.before:' || _row.id::text, NULL, jsonb_build_object('homework_id', _row.homework_id),
+          _student_user);
+      END IF;
+    ELSIF _hw.resolved_at IS NOT NULL AND _hw.missed_costs_xp AND _student_gone IS NULL
+      AND EXISTS (SELECT 1 FROM public.progression_xp_rules WHERE code = 'homework.missed' AND enabled) THEN
+      PERFORM public.rpc_apply_progression('homework.missed', 'homework_submission', _row.id::text,
+        'homework.missed:' || _row.id::text, NULL, jsonb_build_object('homework_id', _row.homework_id),
+        _student_user);
     END IF;
   END IF;
 
@@ -611,7 +695,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.rpc_homework_decide(uuid, text) IS
-  'A teacher of the class (or an admin of the school) accepts or rejects a submission awaiting review. The only two actions. Accepting awards the homework XP; rejecting sends the work back, and it counts as not given.';
+  'A teacher of the class (or an admin of the school) accepts or rejects a submission awaiting review. The only two actions. Accepting awards the homework XP; rejecting sends the work back, and it counts as not given — and once the homework has been resolved, it costs a current student the missed-homework XP (where missed_costs_xp), since it can no longer be handed in again.';
 
 CREATE OR REPLACE FUNCTION public.resolve_closed_homework()
 RETURNS integer
@@ -621,10 +705,12 @@ SET search_path = public
 AS $$
 DECLARE
   _hw record;
+  _missed record;
+  _charge boolean;
   _n int := 0;
 BEGIN
   FOR _hw IN
-    SELECT id, school_id, class_id
+    SELECT id, school_id, class_id, missed_costs_xp
       FROM public.homework
      WHERE status = 'published'
        AND deleted_at IS NULL
@@ -633,16 +719,50 @@ BEGIN
      ORDER BY closes_at
      FOR UPDATE SKIP LOCKED
   LOOP
-    INSERT INTO public.homework_submissions (homework_id, student_id, school_id, status)
-    SELECT _hw.id, s.id, _hw.school_id, 'not_submitted'
-      FROM public.students s
-     WHERE s.class_id = _hw.class_id
-       AND s.school_id = _hw.school_id
-       AND s.deleted_at IS NULL
-    ON CONFLICT (homework_id, student_id) DO NOTHING;
+    -- One homework at a time, in its own savepoint: its final rows, its
+    -- missed-homework costs and its resolved_at stand or fall together. If a
+    -- cost cannot be applied, THIS homework stays unresolved and is tried again
+    -- the next minute — resolving it without the cost would lose it for good,
+    -- and letting the error escape would stop every other homework closing.
+    -- A homework a hand-in or a decision holds (FOR SHARE) is skipped, and
+    -- resolved on the next run from what that call left.
+    BEGIN
+      INSERT INTO public.homework_submissions (homework_id, student_id, school_id, status)
+      SELECT _hw.id, s.id, _hw.school_id, 'not_submitted'
+        FROM public.students s
+       WHERE s.class_id = _hw.class_id
+         AND s.school_id = _hw.school_id
+         AND s.deleted_at IS NULL
+      ON CONFLICT (homework_id, student_id) DO NOTHING;
 
-    UPDATE public.homework SET resolved_at = now() WHERE id = _hw.id;
-    _n := _n + 1;
+      -- Missing homework costs XP: every current student with an account who
+      -- has not given it — nothing handed in, or rejected and not handed in
+      -- again. Keyed on the submission row, so a second run, or a rejection
+      -- decided after closure, never charges it twice. Homework released before
+      -- the rule existed, and a rule an admin has disabled, charge nothing.
+      _charge := _hw.missed_costs_xp
+             AND EXISTS (SELECT 1 FROM public.progression_xp_rules WHERE code = 'homework.missed' AND enabled);
+      IF _charge THEN
+        FOR _missed IN
+          SELECT hs.id, s.user_id
+            FROM public.homework_submissions hs
+            JOIN public.students s ON s.id = hs.student_id
+           WHERE hs.homework_id = _hw.id
+             AND hs.status IN ('not_submitted', 'rejected')
+             AND s.user_id IS NOT NULL
+             AND s.deleted_at IS NULL
+        LOOP
+          PERFORM public.rpc_apply_progression('homework.missed', 'homework_submission', _missed.id::text,
+            'homework.missed:' || _missed.id::text, NULL, jsonb_build_object('homework_id', _hw.id),
+            _missed.user_id);
+        END LOOP;
+      END IF;
+
+      UPDATE public.homework SET resolved_at = now() WHERE id = _hw.id;
+      _n := _n + 1;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'resolve_closed_homework: homework % left unresolved, to be retried: %', _hw.id, SQLERRM;
+    END;
   END LOOP;
 
   RETURN _n;
@@ -650,7 +770,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.resolve_closed_homework() IS
-  'pg_cron job resolve-closed-homework, every minute. Gives every current student of a closed homework''s class a final row — not_submitted where they handed nothing in — and stamps resolved_at, once. Returns how many homework it resolved. Only the scheduler and service_role may execute it.';
+  'pg_cron job resolve-closed-homework, every minute. Gives every current student of a closed homework''s class a final row — not_submitted where they handed nothing in — charges each current student with an account who has not given it the missed-homework XP (rule homework.missed, where missed_costs_xp), and stamps resolved_at, once, all together per homework; a homework that cannot be charged stays unresolved and is retried. Returns how many homework it resolved. Only the scheduler and service_role may execute it.';
 
 -- A function created in public executes for service_role alone by default
 -- (pg_default_acl, measured on the live project), which is exactly who may run
@@ -735,14 +855,22 @@ BEGIN
     END IF;
   END IF;
 
-  -- Nothing is released to a class after its deadline. A person publishing or
-  -- scheduling homework whose deadline has passed is refused; the scheduler,
-  -- which has no signed-in user, still releases what was scheduled before it.
+  -- Nothing is released to a class after its deadline, and a released
+  -- homework's deadline is not moved to a moment that has already passed. A
+  -- person doing either is refused: releasing it would announce work nobody can
+  -- hand in, and pulling the deadline into the past would close it at once and
+  -- charge the class the missed-homework XP for work it still had time to do.
+  -- Extending a deadline, or shortening it to a later moment, is allowed. The
+  -- rule is for people: the scheduler keeps it by releasing only homework whose
+  -- deadline is still ahead (publish_due_scheduled_work, below), and the server
+  -- writing a row directly — a seed, this migration's proof — is not refused.
   IF auth.uid() IS NOT NULL
      AND NEW.status IN ('published', 'scheduled')
-     AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM NEW.status)
+     AND (TG_OP = 'INSERT'
+          OR OLD.status IS DISTINCT FROM NEW.status
+          OR NEW.closes_at IS DISTINCT FROM OLD.closes_at)
      AND NEW.closes_at <= now() THEN
-    RAISE EXCEPTION 'The deadline has already passed. Set a later deadline before this goes to the class.'
+    RAISE EXCEPTION 'That deadline has already passed. Set a later deadline for work the class is given.'
       USING ERRCODE = '55000';
   END IF;
 
@@ -765,6 +893,76 @@ $$;
 CREATE TRIGGER trg_homework_lifecycle
   BEFORE INSERT OR UPDATE ON public.homework
   FOR EACH ROW EXECUTE FUNCTION public.tg_homework_lifecycle();
+
+-- The publisher 20260925100000 wrote, with one condition added now that
+-- `closes_at` is the deadline: homework whose deadline passed before the
+-- scheduler reached it is not released. Released late it would tell the class
+-- "New homework" nobody can hand in, and the closure job would charge every
+-- student for it a minute later. It stays scheduled, where its teacher sees it,
+-- and giving it a later deadline releases it on the next run. Tests are
+-- released exactly as before.
+CREATE OR REPLACE FUNCTION public.publish_due_scheduled_work()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  -- Inside SECURITY DEFINER, `current_user` is the owner for every caller.
+  -- The session role is what tells a PostgREST request (`anon`,
+  -- `authenticated`) from the scheduler (`postgres` under pg_cron, reporting
+  -- 'none') or a service-role worker.
+  _session_role text := coalesce(nullif(current_setting('role', true), ''), 'none');
+  _uid uuid := auth.uid();
+  _school uuid := NULL;
+  _n_hw int := 0;
+  _n_test int := 0;
+BEGIN
+  IF _session_role IN ('anon', 'authenticated') THEN
+    IF _uid IS NULL OR NOT (
+         public.has_role(_uid, 'teacher'::public.app_role)
+      OR public.has_role(_uid, 'admin'::public.app_role)
+      OR public.has_role(_uid, 'principal'::public.app_role)
+    ) THEN
+      RAISE EXCEPTION 'Only school staff may publish scheduled work'
+        USING ERRCODE = '42501';
+    END IF;
+    _school := public.get_my_school_id();
+    IF _school IS NULL THEN
+      RAISE EXCEPTION 'publish_due_scheduled_work: no school context for this caller'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  UPDATE public.homework
+     SET status = 'published',
+         published_at = coalesce(published_at, now()),
+         updated_at = now()
+   WHERE status = 'scheduled'
+     AND scheduled_publish_at IS NOT NULL
+     AND scheduled_publish_at <= now()
+     AND closes_at > now()
+     AND deleted_at IS NULL
+     AND (_school IS NULL OR school_id = _school);
+  GET DIAGNOSTICS _n_hw = ROW_COUNT;
+
+  UPDATE public.tests
+     SET status = 'published',
+         published_at = coalesce(published_at, now()),
+         updated_at = now()
+   WHERE status = 'scheduled'
+     AND scheduled_publish_at IS NOT NULL
+     AND scheduled_publish_at <= now()
+     AND deleted_at IS NULL
+     AND (_school IS NULL OR school_id = _school);
+  GET DIAGNOSTICS _n_test = ROW_COUNT;
+
+  RETURN _n_hw + _n_test;
+END;
+$$;
+
+COMMENT ON FUNCTION public.publish_due_scheduled_work() IS
+  'Publishes homework and tests whose scheduled_publish_at has passed — homework only while its deadline (closes_at) is still ahead; homework whose deadline passed first stays scheduled for its teacher to re-date. Run every minute by pg_cron job publish-due-scheduled-work across all schools; a signed-in teacher, admin or principal may run it for their own school; any other caller is refused (42501). Never publishes a deleted row. Replaces publish_due_scheduled_homework, which any signed-in session — a student''s included — could run, and which page loads called in place of a scheduler.';
 
 -- ── 8. The emitters, rewritten for the model ──────────────────────────────
 
@@ -855,14 +1053,14 @@ BEGIN
 
   SELECT id, title, class_id, school_id INTO _hw FROM public.homework WHERE id = _row.homework_id;
 
-  -- The decision events keep the names the notification router already
-  -- routes to the student and their parents ('Work reviewed', 'Work
-  -- returned'). The router is the academic event processor, whose latest
-  -- definition could not be applied to the local replica this was verified
-  -- against, so it is not replaced here; renaming the events without it would
-  -- silently stop those notifications. The decision itself is in the payload.
-  -- (Named in words, not by identifier: the definer inventory reads a body's
-  -- identifiers as calls, and this function calls no event processor.)
+  -- The decision events keep the names the notification router already routes
+  -- to the student and their parents: accepting is `homework.reviewed`,
+  -- rejecting `homework.returned`. What the family READS is the router's, and
+  -- 20260925150000 changes it to "Homework accepted" / "Homework rejected".
+  -- Renaming the events instead would silently stop those notifications. The
+  -- decision itself is in the payload. (The router is named in words, not by
+  -- identifier: the definer inventory reads a body's identifiers as calls, and
+  -- this function calls no event processor.)
   IF TG_OP = 'DELETE' THEN
     _etype := 'homework.submission.deleted';
   ELSIF NEW.status = 'submitted' AND (TG_OP = 'INSERT' OR OLD.status = 'not_submitted') THEN
@@ -915,10 +1113,25 @@ DO $verify$
 DECLARE
   _school uuid; _class uuid; _teacher uuid; _other_teacher uuid; _other_tid uuid;
   _s1 uuid; _u1 uuid; _s2 uuid; _u2 uuid; _s3 uuid;
-  _hw uuid; _closed uuid; _draft uuid; _sub uuid; _out jsonb;
-  _p1 text; _p2 text; _err text; _n int; _refused boolean;
+  _hw uuid; _closed uuid; _rej uuid; _gone uuid; _legacy uuid; _free uuid; _late uuid; _due uuid; _draft uuid;
+  _sub uuid; _out jsonb;
+  _sub_u1c uuid; _sub_u2c uuid; _sub_u2r uuid; _sub_u1r uuid; _sub_u1g uuid; _sub_u2g uuid; _sub_u2l uuid;
+  _sub_u1f uuid; _sub_u2f uuid;
+  _p1 text; _p2 text; _err text; _n int; _total int; _refused boolean;
   _xp_before int; _xp_after int;
 BEGIN
+  -- 0. Every homework already released when this migration ran — published or
+  --    archived, open or closed — costs nobody for missing it (§5b); every
+  --    other row does. Read against the snapshot, which holds the status each
+  --    row had before anything here touched it.
+  SELECT count(*) INTO _n
+    FROM public.homework h
+    JOIN public.homework_pre_20260925110000 p ON p.id = h.id
+   WHERE h.missed_costs_xp IS DISTINCT FROM (coalesce(p.status, '') NOT IN ('published', 'archived'));
+  IF _n > 0 THEN
+    RAISE EXCEPTION 'ROLLED BACK: % homework row(s) are marked to cost missed-homework XP, or not, against when they were released', _n;
+  END IF;
+
 BEGIN
   SELECT s.school_id, s.class_id, t.user_id
     INTO _school, _class, _teacher
@@ -966,6 +1179,15 @@ BEGIN
   _p2 := _u2::text || '/verify-20260925110000-work.png';
   INSERT INTO storage.objects (bucket_id, name) VALUES ('academic-files', _p1), ('academic-files', _p2);
 
+  -- The proof needs the three homework rules on, whatever an admin has set;
+  -- the savepoint puts them back.
+  UPDATE public.progression_xp_rules SET enabled = true
+   WHERE code IN ('homework.submit', 'homework.before_deadline', 'homework.missed');
+  IF (SELECT count(*) FROM public.progression_xp_rules
+       WHERE code IN ('homework.submit', 'homework.before_deadline', 'homework.missed')) <> 3 THEN
+    RAISE EXCEPTION 'ROLLED BACK: the progression engine does not hold the three homework rules this model applies';
+  END IF;
+
   -- The teacher sets a typed question, published, due tomorrow.
   PERFORM set_config('request.jwt.claims', json_build_object('sub', _teacher, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
@@ -1004,11 +1226,21 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN _refused := true;
   END;
   IF NOT _refused THEN RAISE EXCEPTION 'ROLLED BACK: a teacher wrote created_by directly'; END IF;
+  --    …nor excuse the class from the missed-homework cost.
+  _refused := false;
+  BEGIN
+    UPDATE public.homework SET missed_costs_xp = false WHERE id = _hw;
+  EXCEPTION WHEN insufficient_privilege THEN _refused := true;
+  END;
+  IF NOT _refused THEN RAISE EXCEPTION 'ROLLED BACK: a teacher excused their class from the missed-homework cost'; END IF;
   RESET ROLE;
 
   IF (SELECT created_by FROM public.homework WHERE id = _hw) IS DISTINCT FROM _teacher
      OR (SELECT published_at FROM public.homework WHERE id = _hw) IS NULL THEN
     RAISE EXCEPTION 'ROLLED BACK: the server did not set created_by and published_at';
+  END IF;
+  IF (SELECT missed_costs_xp FROM public.homework WHERE id = _hw) IS NOT TRUE THEN
+    RAISE EXCEPTION 'ROLLED BACK: homework a teacher set today does not cost the class for missing it';
   END IF;
   IF (SELECT due_date FROM public.homework WHERE id = _hw) <> public.school_local_date(now() + interval '1 day') THEN
     RAISE EXCEPTION 'ROLLED BACK: due_date is not the deadline''s school-local date';
@@ -1067,12 +1299,14 @@ BEGIN
   END IF;
 
   -- 6. Another teacher cannot decide; the teacher of the class can, and only
-  --    the two ways.
+  --    the two ways. (A rejection before the deadline applies no XP, so the
+  --    progression engine's own check on who may award a student XP cannot be
+  --    what refuses it: this proves the decision's fence alone.)
   PERFORM set_config('request.jwt.claims', json_build_object('sub', _other_teacher, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
   _refused := false;
   BEGIN
-    PERFORM public.rpc_homework_decide(_sub, 'accepted');
+    PERFORM public.rpc_homework_decide(_sub, 'rejected');
   EXCEPTION WHEN insufficient_privilege THEN _refused := true;
   END;
   RESET ROLE;
@@ -1125,9 +1359,7 @@ BEGIN
   RESET ROLE;
   IF NOT _refused THEN RAISE EXCEPTION 'ROLLED BACK: an accepted submission was replaced'; END IF;
 
-  -- 9. Past the deadline nothing goes in, and the closure job resolves the
-  --    class exactly once.
-  --    A teacher cannot release homework whose deadline has already passed —
+  -- 9. A teacher cannot release homework whose deadline has already passed —
   --    neither set straight out, nor a draft published afterwards. (The
   --    teacher's future-deadline homework above is the positive control.)
   PERFORM set_config('request.jwt.claims', json_build_object('sub', _teacher, 'role', 'authenticated')::text, true);
@@ -1150,12 +1382,107 @@ BEGIN
   RESET ROLE;
   IF NOT _refused THEN RAISE EXCEPTION 'ROLLED BACK: a teacher published a draft whose deadline had passed'; END IF;
 
-  -- The server, with nobody signed in, can hold published homework that has
-  -- closed — the scheduler releasing work scheduled before its deadline.
+  --    Nor pull a released homework's deadline into the past — that would close
+  --    it at once and charge the class — though extending it is allowed.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _teacher, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  _refused := false;
+  BEGIN
+    UPDATE public.homework SET closes_at = now() - interval '1 minute' WHERE id = _hw;
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN _refused := true;
+  END;
+  IF NOT _refused THEN RAISE EXCEPTION 'ROLLED BACK: a teacher pulled a released homework''s deadline into the past'; END IF;
+  UPDATE public.homework SET closes_at = now() + interval '2 days' WHERE id = _hw;
+  RESET ROLE;
+  IF (SELECT closes_at FROM public.homework WHERE id = _hw) < now() + interval '2 days' THEN
+    RAISE EXCEPTION 'ROLLED BACK: a teacher could not extend a released homework''s deadline';
+  END IF;
+
+  -- 10. The scheduler releases scheduled homework only while its deadline is
+  --     ahead. Both are written by the server, due for release a minute ago.
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status, scheduled_publish_at, created_by)
+  VALUES (_school, _class, 'Mathematics', '[verify 20260925110000] missed its release', 'q',
+          now() + interval '2 hours', 'scheduled', now() + interval '1 hour', _teacher),
+         (_school, _class, 'Mathematics', '[verify 20260925110000] due for release', 'q',
+          now() + interval '2 hours', 'scheduled', now() + interval '1 hour', _teacher);
+  SELECT id INTO _late FROM public.homework WHERE title = '[verify 20260925110000] missed its release';
+  SELECT id INTO _due FROM public.homework WHERE title = '[verify 20260925110000] due for release';
+  UPDATE public.homework SET scheduled_publish_at = now() - interval '2 minutes', closes_at = now() - interval '1 minute'
+   WHERE id = _late;
+  UPDATE public.homework SET scheduled_publish_at = now() - interval '1 minute' WHERE id = _due;
+  PERFORM public.publish_due_scheduled_work();
+  IF (SELECT status FROM public.homework WHERE id = _late) <> 'scheduled' THEN
+    RAISE EXCEPTION 'ROLLED BACK: the scheduler released homework whose deadline had already passed';
+  END IF;
+  IF (SELECT status FROM public.homework WHERE id = _due) <> 'published' THEN
+    RAISE EXCEPTION 'ROLLED BACK: the scheduler did not release homework whose deadline is ahead';
+  END IF;
+
+  --     A released homework takes hand-ins; once resolved it takes none, even
+  --     with its deadline still ahead — a hand-in that waited on the closure
+  --     job does not land behind it.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _u2, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM public.rpc_homework_submit(_due, jsonb_build_object('path', _p2, 'name', 'w.png', 'mime', 'image/png'));
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE public.homework SET resolved_at = now() WHERE id = _due;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _u2, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  _refused := false;
+  BEGIN
+    PERFORM public.rpc_homework_submit(_due, jsonb_build_object('path', _p2, 'name', 'w2.png', 'mime', 'image/png'));
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN _refused := true;
+  END;
+  RESET ROLE;
+  IF NOT _refused THEN RAISE EXCEPTION 'ROLLED BACK: a hand-in went in behind the closure job on resolved homework'; END IF;
+
+  -- 11. Missing homework costs XP. Four homework the class stands differently
+  --     on when they close. The server writes them open, the students act
+  --     before the deadline, and then the deadline passes — written by the
+  --     server, the only writer that may.
   PERFORM set_config('request.jwt.claims', '', true);
   INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status, created_by)
-  VALUES (_school, _class, 'Mathematics', '[verify 20260925110000] closed', 'q', now() - interval '1 minute', 'published', _teacher)
+  VALUES (_school, _class, 'Mathematics', '[verify 20260925110000] closed', 'q', now() + interval '1 day', 'published', _teacher)
   RETURNING id INTO _closed;
+  INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status, created_by)
+  VALUES (_school, _class, 'Mathematics', '[verify 20260925110000] rejected', 'q', now() + interval '1 day', 'published', _teacher)
+  RETURNING id INTO _rej;
+  INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status, created_by)
+  VALUES (_school, _class, 'Mathematics', '[verify 20260925110000] students gone', 'q', now() + interval '1 day', 'published', _teacher)
+  RETURNING id INTO _gone;
+  -- As every homework released before this migration is marked (§5b).
+  INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status, created_by, missed_costs_xp)
+  VALUES (_school, _class, 'Mathematics', '[verify 20260925110000] released before the rule', 'q', now() + interval '1 day', 'published', _teacher, false)
+  RETURNING id INTO _legacy;
+
+  -- Student 1 hands in the first and is still awaiting review at the deadline;
+  -- hands in the third and is rejected; hands in nothing else.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _u1, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  _sub_u1c := (public.rpc_homework_submit(_closed, jsonb_build_object('path', _p1, 'name', 'w.pdf', 'mime', 'application/pdf'))->>'id')::uuid;
+  _sub_u1g := (public.rpc_homework_submit(_gone, jsonb_build_object('path', _p1, 'name', 'w.pdf', 'mime', 'application/pdf'))->>'id')::uuid;
+  RESET ROLE;
+  -- Student 2 hands in the second and is rejected, and does not hand in again;
+  -- hands in the third and the fourth, and is awaiting review on both.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _u2, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  _sub_u2r := (public.rpc_homework_submit(_rej, jsonb_build_object('path', _p2, 'name', 'w.png', 'mime', 'image/png'))->>'id')::uuid;
+  _sub_u2g := (public.rpc_homework_submit(_gone, jsonb_build_object('path', _p2, 'name', 'w.png', 'mime', 'image/png'))->>'id')::uuid;
+  _sub_u2l := (public.rpc_homework_submit(_legacy, jsonb_build_object('path', _p2, 'name', 'w.png', 'mime', 'image/png'))->>'id')::uuid;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _teacher, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM public.rpc_homework_decide(_sub_u2r, 'rejected');
+  PERFORM public.rpc_homework_decide(_sub_u1g, 'rejected');
+  RESET ROLE;
+  IF EXISTS (SELECT 1 FROM public.progression_history WHERE idempotency_key = 'homework.missed:' || _sub_u2r) THEN
+    RAISE EXCEPTION 'ROLLED BACK: a rejection before the deadline charged missed-homework XP while the work could still be handed in again';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE public.homework SET closes_at = now() - interval '1 minute' WHERE id IN (_closed, _rej, _legacy);
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', _u2, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
@@ -1176,11 +1503,28 @@ BEGIN
   -- A student deleted before the deadline passed is nobody's missing work.
   UPDATE public.students SET deleted_at = now() WHERE id = _s3;
 
+  -- A charge that cannot be applied leaves its homework unresolved, to be tried
+  -- again — never resolved without the charge, never half written. Forced here
+  -- by refusing the history row every charge writes.
+  -- (The second homework is the one watched: student 2's rejection there is
+  -- charged whatever else the job writes.)
   PERFORM set_config('request.jwt.claims', '', true);
+  ALTER TABLE public.progression_history ADD CONSTRAINT verify_20260925110000_refuse_missed
+    CHECK (rule_code IS DISTINCT FROM 'homework.missed') NOT VALID;
+  PERFORM public.resolve_closed_homework();
+  IF (SELECT resolved_at FROM public.homework WHERE id = _rej) IS NOT NULL THEN
+    RAISE EXCEPTION 'ROLLED BACK: closure resolved homework whose missed-homework charge could not be applied';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.homework_submissions WHERE homework_id = _rej AND status = 'not_submitted') THEN
+    RAISE EXCEPTION 'ROLLED BACK: a closure that could not charge kept the final rows it wrote';
+  END IF;
+  ALTER TABLE public.progression_history DROP CONSTRAINT verify_20260925110000_refuse_missed;
+
+  -- Tried again, it resolves the class exactly once.
   PERFORM public.resolve_closed_homework();
   SELECT count(*) INTO _n FROM public.homework_submissions WHERE homework_id = _closed AND status = 'not_submitted';
-  IF _n = 0 OR _n <> (SELECT count(*) FROM public.students WHERE class_id = _class AND school_id = _school AND deleted_at IS NULL) THEN
-    RAISE EXCEPTION 'ROLLED BACK: closure resolved % students, the class has %', _n,
+  IF _n = 0 OR _n <> (SELECT count(*) FROM public.students WHERE class_id = _class AND school_id = _school AND deleted_at IS NULL) - 1 THEN
+    RAISE EXCEPTION 'ROLLED BACK: closure resolved % students as not handed in; the class has %, one of whom handed in', _n,
       (SELECT count(*) FROM public.students WHERE class_id = _class AND school_id = _school AND deleted_at IS NULL);
   END IF;
   IF EXISTS (SELECT 1 FROM public.homework_submissions WHERE homework_id = _closed AND student_id = _s3) THEN
@@ -1189,18 +1533,126 @@ BEGIN
   IF (SELECT resolved_at FROM public.homework WHERE id = _closed) IS NULL THEN
     RAISE EXCEPTION 'ROLLED BACK: closure did not stamp resolved_at';
   END IF;
+
+  -- Missing homework costs XP — nothing handed in, or rejected and not handed in
+  -- again — and work awaiting review at the deadline costs nothing.
+  SELECT id INTO _sub_u2c FROM public.homework_submissions WHERE homework_id = _closed AND student_id = _s2;
+  SELECT id INTO _sub_u1r FROM public.homework_submissions WHERE homework_id = _rej AND student_id = _s1;
+  IF (SELECT count(*) FROM public.progression_history WHERE user_id = _u2 AND rule_code = 'homework.missed'
+        AND idempotency_key = 'homework.missed:' || _sub_u2c AND xp_delta < 0) <> 1 THEN
+    RAISE EXCEPTION 'ROLLED BACK: closure did not charge missed-homework XP to a student who handed nothing in';
+  END IF;
+  IF (SELECT count(*) FROM public.progression_history WHERE user_id = _u2 AND rule_code = 'homework.missed'
+        AND idempotency_key = 'homework.missed:' || _sub_u2r AND xp_delta < 0) <> 1 THEN
+    RAISE EXCEPTION 'ROLLED BACK: closure did not charge missed-homework XP to a student whose work stood rejected';
+  END IF;
+  IF (SELECT count(*) FROM public.progression_history WHERE user_id = _u1 AND rule_code = 'homework.missed'
+        AND idempotency_key = 'homework.missed:' || _sub_u1r AND xp_delta < 0) <> 1 THEN
+    RAISE EXCEPTION 'ROLLED BACK: closure did not charge the second student who handed nothing in';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.progression_history WHERE idempotency_key = 'homework.missed:' || _sub_u1c) THEN
+    RAISE EXCEPTION 'ROLLED BACK: closure charged missed-homework XP for work handed in and awaiting review';
+  END IF;
+
+  -- Homework released before the rule is resolved like any other, and costs
+  -- nobody — student 1 handed nothing in.
+  IF (SELECT resolved_at FROM public.homework WHERE id = _legacy) IS NULL
+     OR NOT EXISTS (SELECT 1 FROM public.homework_submissions
+                     WHERE homework_id = _legacy AND student_id = _s1 AND status = 'not_submitted') THEN
+    RAISE EXCEPTION 'ROLLED BACK: closure did not resolve homework released before the rule';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.progression_history ph
+               JOIN public.homework_submissions hs ON ph.idempotency_key = 'homework.missed:' || hs.id
+              WHERE hs.homework_id = _legacy) THEN
+    RAISE EXCEPTION 'ROLLED BACK: closure charged missed-homework XP for homework released before the rule';
+  END IF;
+
   -- Resolution freezes who the homework was set to: a student who (re)joins the
   -- class afterwards is not counted as having missed it, however often the job runs.
+  SELECT count(*) INTO _total FROM public.homework_submissions WHERE homework_id = _closed;
   UPDATE public.students SET deleted_at = NULL WHERE id = _s3;
   PERFORM public.resolve_closed_homework();
-  IF (SELECT count(*) FROM public.homework_submissions WHERE homework_id = _closed) <> _n THEN
+  IF (SELECT count(*) FROM public.homework_submissions WHERE homework_id = _closed) <> _total THEN
     RAISE EXCEPTION 'ROLLED BACK: a second closure run wrote more rows';
   END IF;
   IF (SELECT resolved_at FROM public.homework WHERE id = _hw) IS NOT NULL THEN
     RAISE EXCEPTION 'ROLLED BACK: closure resolved homework whose deadline has not passed';
   END IF;
 
-  -- 10. A closed homework's deadline is history, and so is its release: the
+  -- A hand-in rejected AFTER the homework closed can no longer be handed in
+  -- again: it is missed, and charged once.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _teacher, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM public.rpc_homework_decide(_sub_u1c, 'rejected');
+  --     …but not on homework released before the rule.
+  PERFORM public.rpc_homework_decide(_sub_u2l, 'rejected');
+  RESET ROLE;
+  IF (SELECT count(*) FROM public.progression_history WHERE user_id = _u1 AND rule_code = 'homework.missed'
+        AND idempotency_key = 'homework.missed:' || _sub_u1c AND xp_delta < 0) <> 1 THEN
+    RAISE EXCEPTION 'ROLLED BACK: a hand-in rejected after the homework closed was not charged as missed';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.progression_history WHERE idempotency_key = 'homework.missed:' || _sub_u2l) THEN
+    RAISE EXCEPTION 'ROLLED BACK: a rejection after closure charged missed-homework XP on homework released before the rule';
+  END IF;
+
+  -- A student no longer in the school is nobody's missing work, at closure or
+  -- after it: both students are removed, then the third homework closes with
+  -- student 1's work rejected, and student 2's is rejected after.
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE public.homework SET closes_at = now() - interval '1 minute' WHERE id = _gone;
+  UPDATE public.students SET deleted_at = now() WHERE id IN (_s1, _s2);
+  PERFORM public.resolve_closed_homework();
+  IF (SELECT resolved_at FROM public.homework WHERE id = _gone) IS NULL THEN
+    RAISE EXCEPTION 'ROLLED BACK: closure did not resolve homework whose rejected students had left';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.progression_history WHERE idempotency_key = 'homework.missed:' || _sub_u1g) THEN
+    RAISE EXCEPTION 'ROLLED BACK: closure charged missed-homework XP to a student no longer in the school';
+  END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _teacher, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM public.rpc_homework_decide(_sub_u2g, 'rejected');
+  RESET ROLE;
+  IF EXISTS (SELECT 1 FROM public.progression_history WHERE idempotency_key = 'homework.missed:' || _sub_u2g) THEN
+    RAISE EXCEPTION 'ROLLED BACK: a rejection after closure charged missed-homework XP to a student no longer in the school';
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE public.students SET deleted_at = NULL WHERE id IN (_s1, _s2);
+
+  -- A rule an admin has disabled applies nothing, and nothing fails for it:
+  -- homework still closes, and the teacher still accepts and rejects.
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status, created_by)
+  VALUES (_school, _class, 'Mathematics', '[verify 20260925110000] rules off', 'q', now() + interval '1 day', 'published', _teacher)
+  RETURNING id INTO _free;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _u1, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  _sub_u1f := (public.rpc_homework_submit(_free, jsonb_build_object('path', _p1, 'name', 'w.pdf', 'mime', 'application/pdf'))->>'id')::uuid;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _u2, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  _sub_u2f := (public.rpc_homework_submit(_free, jsonb_build_object('path', _p2, 'name', 'w.png', 'mime', 'image/png'))->>'id')::uuid;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE public.progression_xp_rules SET enabled = false
+   WHERE code IN ('homework.submit', 'homework.before_deadline', 'homework.missed');
+  UPDATE public.homework SET closes_at = now() - interval '1 minute' WHERE id = _free;
+  PERFORM public.resolve_closed_homework();
+  IF (SELECT resolved_at FROM public.homework WHERE id = _free) IS NULL THEN
+    RAISE EXCEPTION 'ROLLED BACK: homework did not close while the missed-homework rule was disabled';
+  END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', _teacher, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM public.rpc_homework_decide(_sub_u1f, 'accepted');
+  PERFORM public.rpc_homework_decide(_sub_u2f, 'rejected');
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF EXISTS (SELECT 1 FROM public.progression_history ph
+               JOIN public.homework_submissions hs ON ph.source_type = 'homework_submission' AND ph.source_id = hs.id::text
+              WHERE hs.homework_id = _free) THEN
+    RAISE EXCEPTION 'ROLLED BACK: a disabled homework rule still applied XP';
+  END IF;
+
+  -- 12. A closed homework's deadline is history, and so is its release: the
   --     teacher cannot take it back to draft, but can still archive it.
   _refused := false;
   BEGIN
@@ -1224,7 +1676,7 @@ BEGIN
     RAISE EXCEPTION 'ROLLED BACK: the teacher could not archive closed homework';
   END IF;
 
-  -- 11. Nobody outside the server holds a privilege the model does not use:
+  -- 13. Nobody outside the server holds a privilege the model does not use:
   --     anon holds nothing on either table, and authenticated reads them and
   --     writes only homework's teacher columns.
   IF has_any_column_privilege('anon', 'public.homework', 'SELECT, INSERT, UPDATE, REFERENCES')
@@ -1240,7 +1692,7 @@ BEGIN
     RAISE EXCEPTION 'ROLLED BACK: the homework tables grant something beyond reads and the teacher''s columns';
   END IF;
 
-  -- 12. The dead paths are gone and the jobs exist.
+  -- 14. The dead paths are gone and the jobs exist.
   IF to_regclass('public.homework_answers') IS NOT NULL OR to_regclass('public.homework_completions') IS NOT NULL
      OR to_regprocedure('public.rpc_close_homework(uuid,boolean)') IS NOT NULL
      OR to_regprocedure('public.tg_homework_compute_is_late()') IS NOT NULL THEN
@@ -1276,6 +1728,6 @@ END;
     RAISE EXCEPTION 'ROLLED BACK: reshaping legacy rows stamped updated_at, so the rollback could not tell them from rows edited since';
   END IF;
 
-  RAISE NOTICE 'verify OK: text xor file; server columns refused; no direct submission writes; one own image/PDF only; two decisions only, by the class teacher; resubmit after rejection; XP on acceptance; accepted is final; nothing handed in or released after the deadline; closure resolves every student once; closed homework stays closed — and nothing it did survived';
+  RAISE NOTICE 'verify OK: released homework marked against the snapshot; text xor file; server columns refused; no direct submission writes; one own image/PDF only; two decisions only, by the class teacher; resubmit after rejection; XP on acceptance; accepted is final; nothing released, re-dated into the past or handed in after the deadline; closure resolves every student once and charges missed homework — not work awaiting review, not homework released before the rule, not students who left, not a disabled rule, and not at all when a charge fails; a rejection after closure is charged once; closed homework stays closed — and nothing it did survived';
 END
 $verify$;

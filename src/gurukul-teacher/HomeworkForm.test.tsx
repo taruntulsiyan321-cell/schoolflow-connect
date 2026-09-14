@@ -14,6 +14,8 @@ import type { HomeworkRecord } from "@/academic/repository/homeworkRepository";
  *    starts with no deadline, and cannot be saved until one is set.
  * 3. PUBLISHED HOMEWORK IS ALREADY OUT. Editing it changes its content, not its
  *    release: no draft or schedule choice is offered.
+ * 4. SAVING AN EDIT MOVED THE DEADLINE. The field holds minutes, so an untouched
+ *    23:59:59 deadline went back as 23:59:00. It now goes back as it was.
  */
 const create = vi.fn();
 const update = vi.fn();
@@ -60,6 +62,7 @@ const homework = (over: Partial<HomeworkRecord>): HomeworkRecord => ({
   publishedAt: null,
   archivedAt: null,
   resolvedAt: null,
+  missedCostsXp: true,
   createdBy: "teacher-1",
   createdAt: "2026-09-13T08:00:00.000Z",
   updatedAt: "2026-09-13T08:00:00.000Z",
@@ -122,6 +125,28 @@ describe("the teacher's homework form", () => {
 
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
     expect(update.mock.calls[0][2]).toMatchObject({ title: "Real numbers (corrected)", status: "published" });
+  });
+
+  // The deadline field holds minutes. Every homework that existed before the
+  // one-deadline model closes at 23:59:59, and saving any edit used to send the
+  // field back as 23:59:00 — moving a released deadline a minute earlier
+  // because the teacher fixed a typo.
+  it("keeps a deadline the teacher did not touch to the second", async () => {
+    renderForm({ as: "edit", homework: homework({ status: "published", closesAt: "2026-09-20T18:29:59.000Z" }) });
+    fireEvent.change(screen.getByPlaceholderText("Title *"), { target: { value: "Real numbers (typo fixed)" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][2].closesAt).toBe("2026-09-20T18:29:59.000Z");
+  });
+
+  it("sends the deadline the teacher changed it to", async () => {
+    renderForm({ as: "edit", homework: homework({ status: "published", closesAt: "2026-09-20T18:29:59.000Z" }) });
+    fireEvent.change(deadlineInput(), { target: { value: "2026-09-27T17:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][2].closesAt).toBe(new Date("2026-09-27T17:00").toISOString());
   });
 
   it("starts a copy with no deadline, and will not set it until one is given", async () => {

@@ -739,12 +739,46 @@ const main = async () => {
   // docs/gurukul-spec-rules.md, "Homework — RULED 2026-09-13": the teacher sets
   // it (text or one file, a deadline, now or on a schedule); the student hands
   // in ONE image or PDF before the deadline; the teacher accepts or rejects,
-  // and rejected is not given; the deadline closes it for everyone; deleting it
+  // and rejected is not given, and the family is told which in those words;
+  // the deadline closes it for everyone, and missing it costs XP; deleting it
   // takes it out of every count.
-  console.log("\n══ 12. homework: set, hand in, decide, close, delete ═══════════════");
+  console.log("\n══ 12. homework: set, hand in, decide, close, charge, delete ═══════");
   const studentIdOf = async (uid) =>
     (await as(null, async (q) => await q(`select id from public.students where user_id=$1`, [uid])))[0].id;
   const studentIdB = await studentIdOf(ID.stuB);
+  const studentIdC = await studentIdOf(ID.stuC);
+  // A's parent, linked down BOTH paths — the legacy column and parent_students —
+  // as every legacy link is, so "told once" is a real case.
+  const parentA = await as(null, async (q) =>
+    (
+      await q(
+        `select p.user_id, s.parent_user_id as legacy
+           from public.parent_students ps
+           join public.parents p on p.id = ps.parent_id and p.user_id is not null
+           join public.students s on s.id = ps.student_id
+          where s.user_id = $1 limit 1`,
+        [ID.stuA],
+      )
+    )[0],
+  );
+  await as(null, async (q) => await q(`update public.students set parent_user_id=$1 where user_id=$2`, [parentA.user_id, ID.stuA]));
+  const toldAbout = async (uid, title, body) =>
+    (
+      await as(uid, async (q) =>
+        await q(`select count(*)::int as n from public.notifications where user_id = auth.uid() and title=$1 and body=$2`, [title, body]),
+      )
+    )[0].n;
+  const missedCharges = async (uid, submissionId) =>
+    (
+      await as(null, async (q) =>
+        await q(
+          `select count(*)::int as n, min(xp_delta) as delta from public.progression_history
+            where user_id=$1 and rule_code='homework.missed' and idempotency_key = 'homework.missed:' || $2`,
+          [uid, submissionId],
+        )
+      )
+    )[0];
+  const missedCost = -(await as(null, async (q) => await q(`select amount from public.progression_xp_rules where code='homework.missed' and enabled`)))[0].amount;
   const roll10a = (
     await as(null, async (q) =>
       await q(`select count(*)::int as n from public.students where class_id=$1 and deleted_at is null`, [ID.class10a]),
@@ -799,6 +833,26 @@ const main = async () => {
   );
   claim("FENCE a teacher cannot publish homework whose deadline has passed", lateRelease?.code, "55000");
 
+  // …nor by the scheduler, when its release and its deadline both passed before
+  // it ran: the class would be told of work nobody can hand in, and charged for it.
+  const missedRelease = await as(null, async (q) =>
+    (
+      await q(
+        `insert into public.homework (school_id, class_id, subject, title, description, closes_at, status, scheduled_publish_at, created_by)
+         values ($1, $2, 'Mathematics', 'Flow homework — release missed', 'q', now() - interval '1 minute', 'scheduled', now() - interval '2 minutes', $3)
+         returning id`,
+        [ID.school, ID.class10a, ID.priya],
+      )
+    )[0],
+  );
+  await as(null, async (q) => await q(`select public.publish_due_scheduled_work()`));
+  claim(
+    "the scheduler does not release homework whose deadline passed before it ran",
+    (await as(null, async (q) => await q(`select status from public.homework where id=$1`, [missedRelease.id])))[0].status,
+    "scheduled",
+  );
+  claim("FENCE …so the class never reads it", await visibleTo(ID.stuA, missedRelease.id), 0);
+
   // Published now, with a typed question.
   const hw = await setHomework(ID.priya, "Flow homework — published", { status: "published" });
   claim("the teacher publishes homework", hw.status, "published");
@@ -809,6 +863,17 @@ const main = async () => {
     given: false,
     closed: false,
   });
+
+  // A released deadline can move later, never into the past — that would close
+  // the homework at once and charge the class for work it still had time to do.
+  const pulledIn = await refusal(ID.priya, async (q) =>
+    await q(`update public.homework set closes_at = now() - interval '1 minute' where id=$1`, [hw.id]),
+  );
+  claim("FENCE a teacher cannot pull a released deadline into the past", pulledIn?.code, "55000");
+  const extended = await as(ID.priya, async (q) =>
+    (await q(`update public.homework set closes_at = now() + interval '3 days' where id=$1 returning closes_at`, [hw.id])).length,
+  );
+  claim("POSITIVE CONTROL the teacher extends it", extended, 1);
 
   // The student hands in ONE file of their own — nothing else gets in.
   const fileA1 = `${ID.stuA}/flow-homework-1.pdf`;
@@ -853,6 +918,9 @@ const main = async () => {
     (await q(`select public.rpc_homework_decide($1, 'rejected') as r`, [handedA.id]))[0].r,
   );
   claim("the teacher rejects it", rejected.status, "rejected");
+  claim("the student is told \"Homework rejected\", once", await toldAbout(ID.stuA, "Homework rejected", "Flow homework — published"), 1);
+  claim("…and so is their parent, once, though linked down both paths", await toldAbout(parentA.user_id, "Homework rejected", "Flow homework — published"), 1);
+  claim("a rejection before the deadline costs nothing yet", (await missedCharges(ID.stuA, handedA.id)).n, 0);
   claim("a rejected hand-in is not given", await standingOf(ID.stuA, hw.id, studentIdA), {
     status: "rejected",
     given: false,
@@ -882,6 +950,21 @@ const main = async () => {
     (await q(`select public.rpc_homework_decide($1, 'accepted') as r`, [handedA.id]))[0].r,
   );
   claim("the teacher accepts the hand-in", accepted.status, "accepted");
+  claim("the student is told \"Homework accepted\", once", await toldAbout(ID.stuA, "Homework accepted", "Flow homework — published"), 1);
+  claim("…and so is their parent, once", await toldAbout(parentA.user_id, "Homework accepted", "Flow homework — published"), 1);
+  claim(
+    "accepting awards the homework XP, once each rule",
+    (
+      await as(null, async (q) =>
+        await q(
+          `select rule_code, count(*)::int as n from public.progression_history
+            where user_id=$1 and source_type='homework_submission' and source_id=$2 group by rule_code order by rule_code`,
+          [ID.stuA, handedA.id],
+        )
+      )
+    ).map((r) => `${r.rule_code}×${r.n}`),
+    ["homework.before_deadline×1", "homework.submit×1"],
+  );
   const replaceAccepted = await refusal(ID.stuA, async (q) =>
     await q(`select public.rpc_homework_submit($1, $2::jsonb)`, [hw.id, pdf(fileA2)]),
   );
@@ -916,6 +999,18 @@ const main = async () => {
     (await q(`select count(*)::int as n from public.homework_submissions where homework_id=$1`, [hw.id]))[0].n,
   );
   claim("a second closure run writes nothing", resolvedAgain, roll10a);
+
+  // Missing homework costs XP — once, and only for what was not given.
+  const submissionOf = async (homeworkId, studentId) =>
+    (await as(null, async (q) => await q(`select id from public.homework_submissions where homework_id=$1 and student_id=$2`, [homeworkId, studentId])))[0].id;
+  const subC = await submissionOf(hw.id, studentIdC);
+  const subB = await submissionOf(hw.id, studentIdB);
+  claim("C, who handed nothing in, is charged the missed-homework XP once — by both closure runs together", await missedCharges(ID.stuC, subC), {
+    n: 1,
+    delta: missedCost,
+  });
+  claim("A, accepted, is not charged", (await missedCharges(ID.stuA, handedA.id)).n, 0);
+  claim("B, awaiting review at the deadline, is not charged", (await missedCharges(ID.stuB, subB)).n, 0);
   const completionClosed = await as(ID.priya, async (q) =>
     (await q(`select students, given, accepted, awaiting_review, not_given from public.homework_completion where homework_id=$1`, [hw.id]))[0],
   );
@@ -930,6 +1025,12 @@ const main = async () => {
     await q(`update public.homework set status='draft' where id=$1`, [hw.id]),
   );
   claim("FENCE closed homework cannot go back to draft", unpublishClosed?.code, "55000");
+
+  // B's hand-in is rejected after the homework closed: it can no longer be
+  // handed in again, so it is missed, and charged once.
+  await as(ID.priya, async (q) => await q(`select public.rpc_homework_decide($1, 'rejected')`, [subB]));
+  claim("a hand-in rejected after closure is charged as missed, once", await missedCharges(ID.stuB, subB), { n: 1, delta: missedCost });
+  claim("B is told \"Homework rejected\"", await toldAbout(ID.stuB, "Homework rejected", "Flow homework — published"), 1);
 
   // The event queue is the scheduler's to drain; the stored profile recounts through it.
   const studentDrains = await refusal(ID.stuA, async (q) => await q(`select public.process_pending_academic_events(500)`));
@@ -967,11 +1068,12 @@ const main = async () => {
     given: profileBefore[who].homework_submitted - profileAfter[who].homework_submitted,
   });
   claim("A's stored profile recounts without it once the queue drains (accepted: one given)", dropped("a"), { assigned: 1, given: 1 });
-  claim("B's drops with it (awaiting review: one given)", dropped("b"), { assigned: 1, given: 1 });
+  claim("B's drops with it (rejected after closure: assigned, not given)", dropped("b"), { assigned: 1, given: 0 });
 
   // ── teardown ──────────────────────────────────────────────────────────────
   await as(null, async (q) => {
     await q(`update public.students set class_id=$1 where id=$2`, [ID.class10a, ID.stuOutsiderPerson]);
+    await q(`update public.students set parent_user_id=$1 where user_id=$2`, [parentA.legacy, ID.stuA]);
   });
 
   console.log("\n══════════════════════════════════════════════════════════════════════");

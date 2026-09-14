@@ -413,7 +413,8 @@
       "returns": "void",
       "grants": [],
       "calls": [
-        "_notify"
+        "_notify",
+        "_notify_student_parents"
       ],
       "justification": "",
       "verifiedBy": "",
@@ -2337,8 +2338,8 @@
         "get_my_school_id",
         "has_role"
       ],
-      "justification": "Publishes scheduled homework and tests whose release time has passed. pg_cron job publish-due-scheduled-work runs it for every school (no signed-in user, session role not anon/authenticated). A signed-in session must be a teacher, admin or principal and publishes its own school only (get_my_school_id); a student or parent is refused 42501. Never publishes a deleted row. Returns a count, no rows.",
-      "verifiedBy": "20260925100000 verify: student and anon refused; teacher run publishes own school only; scheduler publishes due homework and tests, not deleted rows",
+      "justification": "Publishes scheduled homework and tests whose release time has passed. pg_cron job publish-due-scheduled-work runs it for every school (no signed-in user, session role not anon/authenticated). A signed-in session must be a teacher, admin or principal and publishes its own school only (get_my_school_id); a student or parent is refused 42501. Never publishes a deleted row, nor homework whose deadline has passed (20260925110000). Returns a count, no rows.",
+      "verifiedBy": "20260925100000 verify: student and anon refused; teacher run publishes own school only; scheduler publishes due homework and tests, not deleted rows. 20260925110000 verify: homework whose deadline passed before its release stays scheduled; homework whose deadline is ahead is released",
       "reviewed": true
     },
     "refresh_student_academic_profile(_student_id uuid)": {
@@ -2380,9 +2381,11 @@
       "callability": "internal",
       "returns": "integer",
       "grants": [],
-      "calls": [],
-      "justification": "Closure job, pg_cron resolve-closed-homework every minute: writes a not_submitted row for each current student of a closed homework's class and stamps resolved_at, once. Crosses schools by design. No EXECUTE for anon or authenticated (default privileges); returns a count, no rows.",
-      "verifiedBy": "20260925110000 verify: a student cannot run it; it resolves every current student once and never a deleted one",
+      "calls": [
+        "rpc_apply_progression"
+      ],
+      "justification": "Closure job, pg_cron resolve-closed-homework every minute: writes a not_submitted row for each current student of a closed homework's class, charges each current student with an account who has not given it homework.missed through rpc_apply_progression (where missed_costs_xp and the rule is enabled), and stamps resolved_at, once, per homework in its own savepoint — a homework whose charge fails stays unresolved and is retried. Skips homework a hand-in or decision holds. Crosses schools by design. No EXECUTE for anon or authenticated (default privileges); returns a count, no rows.",
+      "verifiedBy": "20260925110000 verify: a student cannot run it; it resolves every current student once and never a deleted one; charges nothing handed in and rejected work, not work awaiting review, not homework released before the rule, not students who left, not under a disabled rule; a failed charge leaves the homework unresolved with no rows kept",
       "reviewed": true
     },
     "rls_auto_enable()": {
@@ -3183,8 +3186,8 @@
         "same_school",
         "teacher_teaches_class"
       ],
-      "justification": "Accept or reject a submission awaiting review — the teacher's only two actions. The caller must teach the homework's class, or be an admin of its school; anyone else is refused with the same 42501 whether or not the submission exists. Awards the homework XP on acceptance through rpc_apply_progression for that one student. Returns the decided row.",
-      "verifiedBy": "20260925110000 verify: a teacher of another class refused; a third decision refused; reject, resubmit, accept; XP awarded on acceptance",
+      "justification": "Accept or reject a submission awaiting review — the teacher's only two actions. The caller must teach the homework's class, or be an admin of its school; anyone else is refused with the same 42501 whether or not the submission exists. Through rpc_apply_progression for that one student: awards the homework XP on acceptance, and charges homework.missed for a rejection taken after the homework was resolved (where missed_costs_xp, for a current student). A disabled rule applies nothing. Holds the homework FOR SHARE so it never interleaves with resolve_closed_homework. Returns the decided row.",
+      "verifiedBy": "20260925110000 verify: a teacher of another class refused; a third decision refused; reject, resubmit, accept; XP awarded on acceptance; a rejection before the deadline costs nothing, after closure it costs once, not on homework released before the rule nor to a student who left; disabled rules apply nothing. scripts/local-replica/race.mjs: a rejection taken as the closure resolves is charged once, and fails without the lock",
       "reviewed": true
     },
     "rpc_homework_delete(_homework_id uuid)": {
@@ -3213,8 +3216,8 @@
         "authenticated"
       ],
       "calls": [],
-      "justification": "The student hands in ONE image or PDF for a published, undeleted homework of their own class and school, before its deadline. The caller must be a student (students.user_id = auth.uid()); the file must exist in academic-files under the caller's own folder. Returns only the caller's own submission row.",
-      "verifiedBy": "20260925110000 verify: direct writes refused; two files, a Word document, an untyped file and a classmate's file refused; nothing after the deadline; accepted is final",
+      "justification": "The student hands in ONE image or PDF for a published, undeleted homework of their own class and school, before its deadline and before it is resolved. The caller must hold a student row in that homework's class and school (students.user_id = auth.uid()); the file must exist in academic-files under the caller's own folder. Holds the homework FOR SHARE so it never interleaves with resolve_closed_homework. Returns only the caller's own submission row.",
+      "verifiedBy": "20260925110000 verify: direct writes refused; two files, a Word document, an untyped file and a classmate's file refused; nothing after the deadline, nor on resolved homework; accepted is final. scripts/local-replica/race.mjs: a hand-in that waited on the closure is refused, and goes in without the lock",
       "reviewed": true
     },
     "rpc_invite_member(_identifier_type identifier_type, _identifier_value text, _role app_role, _local_person_id uuid)": {

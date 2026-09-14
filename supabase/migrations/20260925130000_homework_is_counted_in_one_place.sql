@@ -737,8 +737,11 @@ BEGIN
          (_closing, _b, _school, 'accepted', '{"path":"x/b.pdf","name":"b.pdf","mime":"application/pdf"}', now(), now(), _teacher),
          (_closing, _c, _school, 'submitted', '{"path":"x/c.pdf","name":"c.pdf","mime":"application/pdf"}', now(), NULL, NULL);
 
-  -- Its deadline passes. Nothing has recounted yet: completion is measured at
-  -- the deadline, and until the closure runs the stored profile still says 0.
+  -- Its deadline passes — written by the server, as the passage of time: no
+  -- signed-in teacher may pull a released deadline into the past. Nothing has
+  -- recounted yet: completion is measured at the deadline, and until the
+  -- closure runs the stored profile still says 0.
+  PERFORM set_config('request.jwt.claims', '', true);
   UPDATE public.homework SET closes_at = now() - interval '1 minute' WHERE id = _closing;
   SELECT homework_assigned INTO _n FROM public.student_academic_profiles WHERE student_id = _a;
   IF _n IS DISTINCT FROM 0 THEN
@@ -746,11 +749,12 @@ BEGIN
   END IF;
 
   -- 1. The closure resolves it and queues the class recount; the scheduler's
-  --    drain applies it. Before the drain the stored profile has not moved —
-  --    the recount really does travel through the queue.
-  PERFORM set_config('request.jwt.claims', '', true);
+  --    drain applies it. Before the drain B's stored profile has not moved —
+  --    the recount really does travel through the queue. (B is the witness: A's
+  --    rejection costs the missed-homework XP, and the XP event it raises
+  --    refreshes A's profile as it is charged.)
   PERFORM public.resolve_closed_homework();
-  SELECT homework_assigned INTO _n FROM public.student_academic_profiles WHERE student_id = _a;
+  SELECT homework_assigned INTO _n FROM public.student_academic_profiles WHERE student_id = _b;
   IF _n IS DISTINCT FROM 0 THEN
     RAISE EXCEPTION 'ROLLED BACK: the closure recounted the profile inside its own write (% assigned), so the queue is not what is being proven', _n;
   END IF;

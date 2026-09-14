@@ -25,9 +25,15 @@ export type HomeworkFormSource = { as: "edit" | "copy"; homework: HomeworkRecord
 const NO_CHAPTER = "__none__";
 const ADD_TOPIC = "__add__";
 
-/** `datetime-local` holds a wall-clock time with no zone; the browser's zone is the teacher's. */
-function toInstant(local: string): string {
-  return new Date(local).toISOString();
+/**
+ * `datetime-local` holds a wall-clock time to the minute, with no zone; the
+ * browser's zone is the teacher's. A field still showing the instant it was
+ * filled from gives that instant back to the second: it would otherwise lose its
+ * seconds, and saving any edit would move the deadline — every deadline from
+ * before the one-deadline model is 23:59:59.
+ */
+function toInstant(local: string, filledFrom: string | null = null): string {
+  return filledFrom && local === toLocalInput(filledFrom) ? filledFrom : new Date(local).toISOString();
 }
 
 function toLocalInput(iso: string | null): string {
@@ -164,11 +170,11 @@ export function HomeworkForm({
         chapterId,
         topicId,
         chapterLabel: chapterId ? null : chapterLabel,
-        closesAt: toInstant(closesAt),
+        closesAt: toInstant(closesAt, editing?.closesAt),
         priority,
         workKind,
         status: publishMode === "now" ? "published" : publishMode === "schedule" ? "scheduled" : "draft",
-        scheduledPublishAt: publishMode === "schedule" ? toInstant(scheduledAt) : null,
+        scheduledPublishAt: publishMode === "schedule" ? toInstant(scheduledAt, editing?.scheduledPublishAt) : null,
       };
       if (editing) await HomeworkService.update(ctx, editing.id, input);
       else await HomeworkService.create(ctx, input);

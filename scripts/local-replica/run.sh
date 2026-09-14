@@ -12,7 +12,9 @@
 #   This builds the same schema from the repo's own migrations against a
 #   throwaway postgres, and runs `flow.mjs` — the test journey and the homework
 #   journey end to end, each claim driven under RLS as the role that would make
-#   the call, each refusal paired with a positive control.
+#   the call, each refusal paired with a positive control. Then `race.mjs` runs
+#   the homework closure against a decision and a hand-in in flight on two
+#   connections, and proves its claims can fail by taking the locks out.
 #
 #   It is NOT a substitute for applying the migrations to the project. It
 #   proves the SQL is right; it says nothing about what the live database
@@ -53,3 +55,6 @@ GK_PORT="$PORT" node "$HERE/apply.mjs" | tail -4
 
 echo "── driving the flows as the real callers"
 GK_PORT="$PORT" node "$HERE/flow.mjs"
+
+echo "── racing the homework closure against calls in flight"
+GK_PORT="$PORT" node "$HERE/race.mjs"

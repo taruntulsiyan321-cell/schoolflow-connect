@@ -264,6 +264,11 @@ export default function Assignments({ embedded = false }: { embedded?: boolean }
                     <div className="flex items-center gap-2 flex-wrap">
                       <SubjectBadge subject={a.subject} color={col} />
                       <span className="text-[11px] text-muted-foreground">Deadline {when(a.closesAt)}</span>
+                      {/* The owner's ruling of 2026-09-13: not given by the deadline, it costs XP —
+                          said while there is still time, and not on homework set before the rule. */}
+                      {open && state !== "handed_in" && a.missedCostsXp && (
+                        <span className="text-[10px] font-semibold text-destructive">Missing it costs XP</span>
+                      )}
                       {s?.submittedAt && (
                         <span className="text-[10px] text-muted-foreground">Handed in {when(s.submittedAt)}</span>
                       )}

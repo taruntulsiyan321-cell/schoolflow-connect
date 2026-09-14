@@ -170,7 +170,7 @@ async function main() {
   );
 
   // --- Homework: one file, two decisions, one deadline (docs/gurukul-spec-rules.md,
-  // "Homework — RULED 2026-09-13"; 20260925100000–20260925130000). These fail
+  // "Homework — RULED 2026-09-13"; 20260925100000–20260925150000). These fail
   // against a database those migrations have not reached, which is the truth. ---
   await check(
     "the deadline is one instant: homework.closes_at is required and due_date is generated from it",
@@ -182,9 +182,51 @@ async function main() {
       r.some((c) => c.column_name === "due_date" && c.is_generated === "ALWAYS"),
   );
   await check(
-    "nothing is handed in at or after the deadline — refused server-side by rpc_homework_submit",
+    "nothing is handed in at or after the deadline, or once the homework is resolved — refused server-side by rpc_homework_submit",
     "SELECT prosrc FROM pg_proc WHERE proname = 'rpc_homework_submit'",
-    (r) => (r[0]?.prosrc ?? "").includes("now() >= _hw.closes_at"),
+    (r) => (r[0]?.prosrc ?? "").includes("now() >= _hw.closes_at OR _hw.resolved_at IS NOT NULL"),
+  );
+  await check(
+    "a hand-in and a decision hold the homework FOR SHARE, so neither interleaves with the closure job",
+    `SELECT count(*) FROM pg_proc
+      WHERE oid IN ('public.rpc_homework_submit(uuid,jsonb)'::regprocedure, 'public.rpc_homework_decide(uuid,text)'::regprocedure)
+        AND prosrc ~ 'FROM public\\.homework WHERE id = [^;]* FOR SHARE;'`,
+    (r) => count(r) === 2,
+  );
+  await check(
+    "missing homework costs XP: the closure charges homework.missed where the homework costs it, and a rejection after closure does too",
+    `SELECT count(*) FROM pg_proc
+      WHERE oid IN ('public.resolve_closed_homework()'::regprocedure, 'public.rpc_homework_decide(uuid,text)'::regprocedure)
+        AND prosrc LIKE '%''homework.missed''%' AND prosrc LIKE '%missed_costs_xp%'`,
+    (r) => count(r) === 2,
+  );
+  await check(
+    "homework released before the missed-homework rule is marked, and nothing else is: homework.missed_costs_xp is NOT NULL DEFAULT true, and no teacher writes it",
+    `SELECT c.is_nullable, c.column_default,
+            has_column_privilege('authenticated', 'public.homework', 'missed_costs_xp', 'INSERT')
+         OR has_column_privilege('authenticated', 'public.homework', 'missed_costs_xp', 'UPDATE') AS writable
+       FROM information_schema.columns c
+      WHERE c.table_schema = 'public' AND c.table_name = 'homework' AND c.column_name = 'missed_costs_xp'`,
+    (r) => r[0]?.is_nullable === "NO" && r[0]?.column_default === "true" && r[0]?.writable === false,
+  );
+  await check(
+    "the scheduler never releases homework whose deadline has passed",
+    "SELECT prosrc FROM pg_proc WHERE oid = 'public.publish_due_scheduled_work()'::regprocedure",
+    (r) => (r[0]?.prosrc ?? "").includes("AND closes_at > now()"),
+  );
+  await check(
+    "the family is told \"Homework accepted\" or \"Homework rejected\", and no grade is routed (20260925150000)",
+    "SELECT prosrc FROM pg_proc WHERE oid = 'public.process_academic_event(uuid)'::regprocedure",
+    (r) => {
+      const src = r[0]?.prosrc ?? "";
+      return src.includes("'Homework accepted'") && src.includes("'Homework rejected'") &&
+        !/'Work (reviewed|returned|graded)'|'homework\.graded'/.test(src);
+    },
+  );
+  await check(
+    "a parent is told once: _notify_student_circle hands the parents to _notify_student_parents",
+    "SELECT prosrc FROM pg_proc WHERE oid = 'public._notify_student_circle(uuid,text,text,text,text,text)'::regprocedure",
+    (r) => (r[0]?.prosrc ?? "").includes("_notify_student_parents(") && !(r[0]?.prosrc ?? "").includes("FROM public.parent_students"),
   );
   await check(
     "a hand-in is ONE image or PDF: homework_submissions_file_shape is homework_hand_in_ok()",

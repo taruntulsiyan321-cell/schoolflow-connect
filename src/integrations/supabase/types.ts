@@ -3607,6 +3607,7 @@ export type Database = {
           description: string | null
           due_date: string
           id: string
+          missed_costs_xp: boolean
           priority: string | null
           published_at: string | null
           question_file: Json | null
@@ -3633,6 +3634,7 @@ export type Database = {
           description?: string | null
           due_date?: never
           id?: string
+          missed_costs_xp?: boolean
           priority?: string | null
           published_at?: string | null
           question_file?: Json | null
@@ -3659,6 +3661,7 @@ export type Database = {
           description?: string | null
           due_date?: never
           id?: string
+          missed_costs_xp?: boolean
           priority?: string | null
           published_at?: string | null
           question_file?: Json | null

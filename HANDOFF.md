@@ -8,12 +8,14 @@ bottom before touching anything.
 ## HOMEWORK — 2026-09-13 session. READ THIS FIRST IF YOU TOUCH HOMEWORK.
 
 **Branch:** `claude/tender-goodall-kalj38`. **The ruling:** `docs/gurukul-spec-rules.md`,
-"Homework — RULED 2026-09-13" (rules 33–41) — one question (text or one file), one deadline,
-one image or PDF back, accept or reject, closed automatically, counted in one place.
+"Homework — RULED 2026-09-13" (rules 33–44) — one question (text or one file), one deadline,
+one image or PDF back, accept or reject, closed automatically, counted in one place; **missing
+homework costs XP** and **the family is told "Homework accepted" / "Homework rejected"** (both
+ruled on 2026-09-13, after the first commit, and built on 2026-09-14).
 
-### NOT APPLIED — the five migrations exist only in the repo
+### NOT APPLIED — the six migrations exist only in the repo
 
-`20260925100000` … `20260925140000`. **Apply them in filename order, AFTER the ten test-feature
+`20260925100000` … `20260925150000`. **Apply them in filename order, AFTER the ten test-feature
 migrations**, which are also unapplied. They do not depend on the test migrations; filename order
 is simply how the ledger applies. **This branch's app needs them**: it calls
 `rpc_homework_submit`, `rpc_homework_decide`, `rpc_homework_delete` and reads
@@ -43,10 +45,11 @@ is simply how the ledger applies. **This branch's app needs them**: it calls
 | migration | what it does |
 |---|---|
 | `20260925100000_homework_reaches_students_only_when_published` | student/parent read only published, undeleted homework; `publish_due_scheduled_work()` + pg_cron `publish-due-scheduled-work`; the old publisher dropped |
-| `20260925110000_homework_is_one_file_and_two_decisions` | `closes_at` is the deadline, `due_date` generated; text-or-file question; one-file hand-in; four statuses; accept/reject; closure job `resolve-closed-homework`; read-only submission RLS; dead tables dropped; legacy rows mapped |
+| `20260925110000_homework_is_one_file_and_two_decisions` | `closes_at` is the deadline, `due_date` generated; text-or-file question; one-file hand-in; four statuses; accept/reject; closure job `resolve-closed-homework`, which charges `homework.missed`; a rejection after closure charged too; `missed_costs_xp` false on every homework already released; the scheduler holds back homework whose deadline passed; hand-in and decision hold the homework `FOR SHARE`; read-only submission RLS; dead tables dropped; legacy rows mapped |
 | `20260925120000_the_event_queue_is_drained_by_a_scheduler` | pg_cron `process-pending-academic-events`; the queue revoked from PUBLIC, anon, authenticated |
 | `20260925130000_homework_is_counted_in_one_place` | `homework_student_status`, `homework_completion`; `rpc_homework_delete`; profile, leaderboard, snapshot and digest read the one view |
 | `20260925140000_a_handed_in_file_cannot_change` | `academic-files` UPDATE/DELETE refuse a handed-in or question file |
+| `20260925150000_the_family_is_told_accepted_or_rejected` | the router's decision branch says "Homework accepted" / "Homework rejected" and drops the dead `homework.graded` route — edited IN PLACE, line endings kept; `_notify_student_circle` hands parents to `_notify_student_parents`, so a parent on both links is told once |
 
 **When applying:**
 * **Deploy `ai-gateway` and `mcp` immediately after.** `supabase/functions/_shared/aiRouter.ts`
@@ -59,9 +62,20 @@ is simply how the ledger applies. **This branch's app needs them**: it calls
 * The proof blocks insert fixture rows into `storage.objects` and `academic_events` as
   `postgres` (live grants postgres INSERT/DELETE there) inside a savepoint that always rolls
   back; each migration then checks that no fixture survived.
-* **After it is accepted on live**, drop `homework_pre_20260925110000` and
-  `homework_submissions_pre_20260925110000`. The `20260925110000` rollback restores from them; until
-  they are dropped, rollback is exact.
+* **After it is accepted on live**, drop `homework_pre_20260925110000`,
+  `homework_submissions_pre_20260925110000` and `routines_pre_20260925150000`. The rollbacks
+  restore from them; until they are dropped, rollback is exact.
+* **The first closure run after deploy resolves the 19 legacy homework and charges nobody**
+  (`missed_costs_xp = false` on all of them — measured: without it, 12 students were each about
+  to be charged for up to 19 homework handed in under the old rules). It queues one class recount
+  per homework, drained within the minute.
+* `20260925150000` was proven against BOTH router shapes: the replica's (LF, the dead
+  `homework.submission.graded` alias, no KEPT comment) and live's (CRLF throughout, the KEPT
+  comment, measured 2026-09-13: 407 of 407 line endings CRLF). If live's decision branch has
+  changed by the time it is applied, its anchor check aborts it whole and changes nothing.
+* The seed (`SEED_DEMO_DATA.sql`) now sets the demo homework again, beside the closed one, when
+  the seeded homework has closed — the committed seed failed the seed gate there, because
+  closed homework cannot be re-dated.
 
 **What the data becomes** (measured on live today): 51 homework keep their typed questions; all
 145 submissions — none of which carries a file — become `not_submitted`, their typed content,
@@ -72,24 +86,40 @@ grades and remarks kept in the snapshot table. D1 is superseded (see `docs/decis
 * **Every migration proves itself** in a block that raises if it cannot demonstrate its effect,
   with a positive control beside each refusal.
 * **A break battery** (outside the repo) applied each migration with a deliberate break for every
-  check and required THAT check to fire: **76 of 76 proven able to fail**, the rollbacks'
-  own checks included.
-* **Round trip:** base + legacy fixtures → the five migrations → activity as each role →
-  the five rollbacks in reverse; every rollback restores the exact schema signature (public
-  objects, grants, policies, storage policies, cron jobs) and untouched rows byte for byte.
-* **`bash scripts/local-replica/run.sh` — a replica built from the migrations alone (406 of 448
-  apply; the rest are the known bare-cluster failures, none on these paths): 145 claims, 0
-  failed** — the test journey plus 39 new homework claims, each driven as its role, every
-  fence beside a positive control. (`npm run verify:test-flow` runs the same script; on this
-  Windows machine npm's `cmd` shell has no `bash`, so run it from Git Bash.) Four breaks of that replica (grants; rejected counted as
-  given; deleted homework counted through all three fences; the lifecycle trigger off) each
-  failed exactly their claims.
+  check and required THAT check to fire: **119 of 119 proven able to fail**, the rollbacks'
+  own checks included, `20260925150000` against both router shapes.
+* **Round trip:** base + legacy fixtures → the six migrations → activity as each role →
+  the six rollbacks in reverse; every rollback restores the exact schema signature (public
+  objects, grants, policies, storage policies, cron jobs) and untouched rows byte for byte;
+  closing the legacy homework charged nobody. `20260925150000`'s own round trip restores both
+  routines byte for byte, line endings included, on both router shapes.
+* **`bash scripts/local-replica/run.sh` — a replica built from the migrations alone (407 of 449
+  apply; the rest are the known bare-cluster failures, none on these paths): 160 claims, 0
+  failed** — the test journey plus 54 homework claims, each driven as its role, every
+  fence beside a positive control: the missed-homework charge at closure and after it, the
+  accept XP, "Homework accepted/rejected" to the student and once to a parent on both links,
+  the scheduler holding back late homework, a deadline refused into the past. Then
+  **`race.mjs`** runs the closure against a decision and a hand-in in flight on two
+  connections: 3 of 3 hold with the locks, and with `FOR SHARE` taken out the two racing
+  orderings go wrong (a rejection never charged; a student charged for work they handed in).
+  (`npm run verify:test-flow` runs the same script; on this Windows machine npm's `cmd` shell
+  has no `bash`, so run it from Git Bash.) **Eleven breaks** of that replica (the charge off at
+  closure; off after it; the accept XP off; the old router; the old parent circle; the
+  scheduler releasing late; the deadline arm off; grants; rejected counted as given; deleted
+  homework counted through all three fences; the lifecycle trigger off) each failed exactly
+  their claims.
+* `db:verify-integrity` run unchanged against the replica through a shim: all homework checks
+  PASS after the migrations — 7 new ones (charge, released-before marking, FOR SHARE, scheduler
+  deadline, the family's words, parent once, hand-in on resolved homework) — and every one
+  FAILS or errors before them. `hw-columns`: 98 column checks pass after, 35 fail before.
 * `probe18` (the publisher) and `probe43` (the homework journey) were rewritten for the model and
   run on the replica: 10/10 and all run claims PASS; both fail on the pre-migration schema.
   `CHUNK5_VERIFY` was rewritten to what Chunk 5 still claims and reaches its abort with every
   item verified.
-* `npm run typecheck` clean · `npx vitest run` 80 files, 800 tests · `npm run lint:baseline`
-  PASS with the baseline LOWERED to 95 errors / 57 warnings · `npm run build` passes.
+* `npm run typecheck` clean · `npx vitest run` 82 files, 810 tests (the review screen's XP note,
+  the student's "Missing it costs XP", the form keeping an untouched deadline — each mutated to
+  show it fails) · `npm run lint:baseline` PASS at 95 errors / 57 warnings, and the changed files
+  lint clean on their own · `npm run build` passes.
 
 ### Gates that will read red against live until the migrations are applied — correctly
 
@@ -115,6 +145,17 @@ only a file path. It was run through a shim; the replica also shows 205 unrelate
 * `e2e/seed-demo-via-admin.spec.ts` never seeded a leave decision — it indexed the `{rows}`
   wrapper instead of `.rows`. The seeders no longer fake graded, typed submissions;
   `e2e/seed-demo-finish.spec.ts` existed only to do that, and is deleted.
+* Found building the XP ruling (2026-09-14), each fixed and each proven:
+  * a rejection taken as the closure job ran was never charged, and a rejected student handing
+    in again as it ran was charged for work they gave — the two calls and the job interleaved;
+  * the scheduler released homework whose deadline had passed while it was down, which would
+    have announced it and then charged the whole class for it;
+  * open legacy homework with typed hand-ins would have charged the students who did hand in;
+  * a parent on both links got every family notification twice (`_notify_student_circle`);
+  * saving any edit moved a 23:59:59 deadline to 23:59:00;
+  * the seed could not run once its demo homework had closed;
+  * a teacher of another class deciding was proven only through the XP engine's own check;
+    the proof now shows the decision's fence alone.
 
 ### Still open
 
@@ -123,8 +164,16 @@ only a file path. It was run through a shim; the replica also shows 205 unrelate
   `tier1-reads.spec.ts` are type-checked, not run: they need the migrations live. The chain
   cannot put back the XP accepting awards, or the two tiny PDFs it hands in (a handed-in file
   cannot be deleted, by design).
-* **Ruling requests:** whether missed homework should cost XP (`homework.missed` has never had a
-  producer), and whether "Work reviewed"/"Work returned" should say accepted/rejected.
+* **Ruling request:** XP stays when homework is deleted or archived — what accepting awarded and
+  what missing it cost are not reversed (nor by a rollback). If deleting homework should refund
+  the missed-homework cost, that needs a ruling.
+* The seed's proof on the replica stops after the homework block, at `leave_decisions`, which
+  this replica has never had; the homework block itself is proven (the committed seed fails
+  there, the current one passes it). Run `node scripts/seed-gate.mjs` on live after applying
+  (it rolls itself back).
+* Unrelated findings seen and left: `lint:render-safety` (PrincipalTests.tsx:271),
+  `lint:threshold-literals` (`attPct < 75` in the principal design), `lint:metric-duplication`
+  (two deleted principal pages still on its baseline) — all from earlier commits on this branch.
 * The principal portal's homework figures are still the fixture design (`autonomous-design/`);
   only the vocabulary was brought to the four statuses.
 * **The local replica on Windows:** postgres 16 lives at `%TEMP%\gkpg` and dies with the session;

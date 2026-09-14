@@ -385,6 +385,19 @@ BEGIN
   -- closes_at is the deadline (20260925110000); due_date is generated from it.
   -- It must be refreshed on a re-run, not just the title: a second seed once
   -- left homework at its ORIGINAL deadline, closed. Keep it relative to now().
+  -- Homework whose deadline has passed is history — once resolved its deadline
+  -- cannot move (tg_homework_lifecycle) — so a re-run refreshes the demo
+  -- homework only while it is open, and otherwise sets it again beside the
+  -- closed one, under a new id.
+  IF EXISTS (SELECT 1 FROM public.homework WHERE id = hw1 AND closes_at <= now()) THEN
+    hw1 := coalesce(
+      (SELECT id FROM public.homework
+        WHERE school_id = _demo_school AND class_id = c10a AND created_by = u_t_math
+          AND title = 'NCERT Ch 1 — Euclid''s Division Lemma'
+          AND closes_at > now() AND deleted_at IS NULL
+        ORDER BY closes_at DESC LIMIT 1),
+      gen_random_uuid());
+  END IF;
   INSERT INTO public.homework (id, school_id, class_id, subject, title, description, closes_at, status, created_by) VALUES
     (hw1, _demo_school, c10a, 'Mathematics', 'NCERT Ch 1 — Euclid''s Division Lemma',
      'Solve Ex 1.1 Q 1–5 and upload a photo or PDF of your working.', now() + interval '3 days', 'published', u_t_math)

@@ -49,6 +49,11 @@ export interface HomeworkRecord {
   publishedAt: string | null;
   archivedAt: string | null;
   resolvedAt: string | null;
+  /**
+   * Whether not giving it when it closes costs the student the missed-homework
+   * XP. False only for homework released before that rule existed.
+   */
+  missedCostsXp: boolean;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -131,13 +136,14 @@ type HomeworkRow = {
   published_at: string | null;
   archived_at: string | null;
   resolved_at: string | null;
+  missed_costs_xp: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
 };
 
 const HW_SELECT =
-  "id, school_id, class_id, subject, title, description, question_file, chapter_id, topic_id, topic, closes_at, due_date, priority, work_kind, status, scheduled_publish_at, published_at, archived_at, resolved_at, created_by, created_at, updated_at";
+  "id, school_id, class_id, subject, title, description, question_file, chapter_id, topic_id, topic, closes_at, due_date, priority, work_kind, status, scheduled_publish_at, published_at, archived_at, resolved_at, missed_costs_xp, created_by, created_at, updated_at";
 
 const SUB_SELECT = "id, homework_id, student_id, status, file, submitted_at, decided_at, decided_by, updated_at";
 
@@ -178,6 +184,7 @@ function mapHomework(row: HomeworkRow): HomeworkRecord {
     publishedAt: row.published_at,
     archivedAt: row.archived_at,
     resolvedAt: row.resolved_at,
+    missedCostsXp: row.missed_costs_xp,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
