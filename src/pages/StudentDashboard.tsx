@@ -30,9 +30,6 @@ import LearningHub from "@/gurukul/pages/LearningHub";
 import ClassHub from "@/gurukul/pages/ClassHub";
 
 /* Keep deep functional flows from the live app */
-import RecoverySession from "./student/RecoverySession";
-import RecoverySessionResult from "./student/RecoverySessionResult";
-import RecoveryCompletionReportPage from "./student/RecoveryCompletionReportPage";
 import Class12MathPractice from "./student/Class12MathPractice";
 import Class12MathSession from "./student/Class12MathSession";
 import Class12AiSession from "./student/Class12AiSession";
@@ -334,9 +331,6 @@ export default function StudentDashboard() {
           <Route path="class" element={<ClassHub setPage={setPage} />} />
 
           {/* Legacy / deep functional routes */}
-          <Route path="recovery/:id/complete" element={<RecoveryCompletionReportPage />} />
-          <Route path="recovery/:id/result" element={<RecoverySessionResult />} />
-          <Route path="recovery/:id" element={<RecoverySession />} />
           <Route path="practice/math12" element={<Class12MathPractice />} />
           <Route path="practice/math12/session" element={<Class12MathSession />} />
           <Route path="practice/ai/session" element={<Class12AiSession />} />

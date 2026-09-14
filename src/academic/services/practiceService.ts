@@ -1062,82 +1062,6 @@ export const PracticeService = {
     });
   },
 
-  /**
-   * Mistake Book rows: every question currently answered wrong, with the
-   * student's own attempt stats attached.
-   *
-   * Derived, never separately maintained — a question leaves the Mistake Book
-   * only by being answered correctly, which flips current_status. Soft-deleted
-   * questions are included, because this is a historical review surface and
-   * retiring a question should not silently erase a student's record of it.
-   */
-  async listMistakeBook(
-    ctx: ServiceContext,
-    opts: { limit?: number } = {},
-  ) {
-    assertCanConsume(ctx, "practice");
-    const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
-    const client = getClient(toRepoContext(ctx));
-    const { data, error } = await client
-      .from("student_mistakes")
-      .select("question_id, times_wrong, student_answer, last_wrong_at")
-      .eq("user_id", ctx.userId)
-      .eq("status", "open")
-      .not("question_id", "is", null)
-      .order("last_wrong_at", { ascending: false })
-      .limit(limit);
-    throwIfError(error, "Failed to load mistake book");
-
-    const records = ((data ?? []) as Array<{
-      question_id: string;
-      times_wrong: number;
-      student_answer: { selected_index?: number; index?: number } | null;
-      last_wrong_at: string;
-    }>).map((r) => ({
-      question_id: r.question_id,
-      wrong_count: r.times_wrong,
-      last_selected_option: r.student_answer,
-      last_practiced_date: r.last_wrong_at,
-    }));
-    if (records.length === 0) return [];
-
-    type BankRow = {
-      id: string;
-      subject: string;
-      chapter: string | null;
-      difficulty: string | null;
-      question: string;
-      options: unknown;
-      correct_index: number;
-      explanation: string | null;
-    };
-    const bank = (await this.listBankQuestions(ctx, {
-      ids: records.map((r) => r.question_id),
-      limit,
-      includeInactive: true,
-    })) as BankRow[];
-    const byId = new Map<string, BankRow>(bank.map((b) => [b.id, b]));
-
-    return records
-      .map((r) => {
-        const q = byId.get(r.question_id);
-        if (!q) return null;
-        const sel = r.last_selected_option;
-        const selectedIndex =
-          typeof sel?.selected_index === "number"
-            ? sel.selected_index
-            : typeof sel?.index === "number"
-              ? sel.index
-              : null;
-        return {
-          ...q,
-          wrong_count: r.wrong_count,
-          selected_index: selectedIndex,
-          last_practiced_date: r.last_practiced_date,
-        };
-      })
-      .filter((r): r is NonNullable<typeof r> => r !== null);
-  },
 
   /** Previously skipped questions (honest empty if none). */
   async listSkippedBankQuestions(
@@ -1407,102 +1331,7 @@ export const PracticeService = {
     }));
   },
 
-  /**
-   * Recovery answer — mirrors into question_attempts via RPC.
-   * UI must not call rpc_submit_recovery_answer directly.
-   */
-  async submitRecoveryAnswer(
-    ctx: ServiceContext,
-    args: {
-      questionId: string;
-      studentAnswer: Record<string, unknown>;
-      isCorrect: boolean;
-    },
-  ) {
-    assertCanOwn(ctx, "practice_attempt");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_submit_recovery_answer",
-      {
-        _question_id: args.questionId,
-        _student_answer: args.studentAnswer,
-        _is_correct: args.isCorrect,
-      } as never,
-    );
-    throwIfError(error, "Failed to submit recovery answer");
-    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
-      studentId: ctx.studentId,
-      source: "PracticeService.submitRecoveryAnswer",
-    });
-    return data;
-  },
-
-  /** Queue recovery work when a concept is weak (idempotent per concept). Returns assignment id when available. */
-  async assignRecovery(
-    ctx: ServiceContext,
-    args: {
-      subject: string;
-      chapter?: string | null;
-      concept?: string | null;
-      sourceType: string;
-      sourceId: string;
-      accuracy?: number;
-    },
-  ): Promise<string | null> {
-    assertCanOwn(ctx, "practice");
-    const uuidRe =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const sourceId = uuidRe.test(args.sourceId) ? args.sourceId : null;
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_assign_concept_recovery",
-      {
-        _subject: args.subject,
-        _chapter: args.chapter ?? null,
-        _concept: args.concept ?? args.chapter ?? null,
-        _subconcept: null,
-        // Never invent accuracy — omit so RPC uses DEFAULT.
-        ...(typeof args.accuracy === "number" ? { _accuracy: args.accuracy } : {}),
-        _source_type: args.sourceType,
-        _source_id: sourceId,
-      } as never,
-    );
-    if (error) {
-      console.warn("recovery assign:", error.message);
-      return null;
-    }
-    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
-      studentId: ctx.studentId,
-      source: "PracticeService.assignRecovery",
-    });
-    return typeof data === "string" ? data : data != null ? String(data) : null;
-  },
-
-  /** Mark a recovery assignment complete (AI/template sessions without bank question UUIDs). */
-  async completeRecoveryAssignment(
-    ctx: ServiceContext,
-    args: {
-      assignmentId: string;
-      questionsCompleted?: number;
-      questionsCorrect?: number;
-    },
-  ): Promise<void> {
-    assertCanOwn(ctx, "practice_attempt");
-    const { error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_complete_recovery_assignment",
-      {
-        _assignment_id: args.assignmentId,
-        _questions_completed: args.questionsCompleted ?? null,
-        _questions_correct: args.questionsCorrect ?? null,
-      } as never,
-    );
-    throwIfError(error, "Failed to complete recovery assignment");
-    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
-      studentId: ctx.studentId,
-      source: "PracticeService.completeRecoveryAssignment",
-    });
-  },
-
   /** Clear student mistakes after a successful retry practice. */
-
   async completeMistakeRetry(
     ctx: ServiceContext,
     attempts: Array<{
@@ -1582,6 +1411,7 @@ export const PracticeService = {
     if (clearedIds.length) await this.markMistakesCleared(ctx, clearedIds);
     return { score, clearedIds, sessionId, persisted: true };
   },
+
   async markMistakesCleared(ctx: ServiceContext, mistakeIds: string[]): Promise<void> {
     assertCanOwn(ctx, "practice");
     if (!mistakeIds.length) return;
