@@ -2,21 +2,25 @@
 --
 -- 20260914040000 gave `test_questions` a `question_format` and an `answer`, so
 -- `correct` can never mean "the correct option" in one row and "a paragraph a
--- person marks" in another (G9). 20260914050000 then corrected where the line
--- falls: §10.24's rule is AUTO-MARKABLE versus HAND-MARKED, not MCQ versus
--- rest. `numerical` is graded by the same jsonb equality as an MCQ and stays
--- online; only `short` and `long` are prose a person has to read.
+-- person marks" in another (G9). 20260914050000 drew §10.24's line at
+-- AUTO-MARKABLE versus HAND-MARKED and kept `numerical` online. The product
+-- ruling of 2026-09-12 moved it: an online test is ALL MCQ, with whole marks
+-- (20260925020000, `trg_test_question_is_a_markable_mcq`), because the grader's
+-- jsonb equality marks a numerical answer only by luck of typing. This probe
+-- was rewritten to that ruling when it was applied to live on 2026-09-14 — its
+-- old numerical positive control could no longer be written at all.
 --
 -- THE CLAIMS
 --   1. the student session is genuinely authenticated.        (harness control)
 --   2. an ordinary MCQ test still serves its questions.       <- POSITIVE CONTROL
---      This is the one this migration could most easily have broken, and a
---      suite that only tested the refusal would not have noticed.
+--      The one the MCQ-only rule could most easily have broken, and a suite that
+--      only tested the refusal would not have noticed.
 --   3. the answer key is still absent from what a student receives.
---   4. a paper containing a WRITTEN question refuses, naming §10.24.
---   4b. ...while a NUMERICAL question is served like any other.
---   5. ...and refuses rather than serving a SHORTER paper.  <- no silent truncation
---   6. a written question may not hide its answer in `correct`.
+--   4. a paper still holding a WRITTEN question — a row written before the
+--      MCQ-only trigger, which binds new rows only — refuses, naming §10.24.
+--   4b. a NUMERICAL question can no longer be put on an online test.
+--   5. ...and the attempt refuses rather than serving a SHORTER paper.
+--   6. a written question may not be written, its answer in `correct` or not.
 --   7. an MCQ may not carry an `answer`.
 --   8. another student cannot read this attempt at all.      (untouched fence)
 --
@@ -135,23 +139,36 @@ BEGIN
     ('an MCQ carrying a written answer as well','-','ERROR: check_violation', r,
      CASE WHEN r = 'ERROR: check_violation' THEN 'PASS' ELSE 'FAIL' END);
 
-  -- ── 4b. numerical is auto-marked, so it stays online ───────────────────
-  -- Without this the suite would pass on a rule that quietly excluded a format
-  -- the grader handles perfectly well.
-  INSERT INTO public.test_questions
-    (test_id, school_id, order_index, question, question_format, correct, marks)
-  VALUES (t_id, sch_a, 3, 'probe31 what is 2+2', 'numerical', '{"value": 4}'::jsonb, 1);
+  -- ── 4b. numerical is refused onto an online test (ruling 2026-09-12) ────
+  BEGIN
+    INSERT INTO public.test_questions
+      (test_id, school_id, order_index, question, question_format, correct, marks)
+    VALUES (t_id, sch_a, 3, 'probe31 what is 2+2', 'numerical', '{"value": 4}'::jsonb, 1);
+    r := 'OK: accepted';
+  EXCEPTION WHEN check_violation THEN r := 'ERROR: ' || SQLERRM;
+  END;
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('put a NUMERICAL question on an online test','-','ERROR: only MCQ questions', left(r, 70),
+     CASE WHEN r LIKE 'ERROR:%can only hold MCQ questions%' THEN 'PASS' ELSE 'FAIL' END);
 
+  -- …and the paper it was refused from still serves as it was (positive control).
   r := pg_temp.as_user(stu, format(
         'SELECT count(*)::text FROM public.rpc_test_questions_for_attempt(%L::uuid)', att));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('a NUMERICAL question is still served (positive control)','student (owns the attempt)','OK: 3', r,
-     CASE WHEN r = 'OK: 3' THEN 'PASS' ELSE 'FAIL' END);
+    ('...while the MCQ paper still serves (positive control)','student (owns the attempt)','OK: 2', r,
+     CASE WHEN r = 'OK: 2' THEN 'PASS' ELSE 'FAIL' END);
 
-  -- ── 4/5. a mixed paper refuses, and does not quietly shrink ────────────
+  -- ── 4/5. a paper from before the ruling refuses, and does not shrink ────
+  -- The MCQ-only trigger binds rows written from 20260925020000 on and leaves
+  -- history alone, so a written question can only be in a paper that predates
+  -- it. That is recreated here by writing the row with the trigger off, inside
+  -- this rolled-back transaction — which is exactly the state the attempt-time
+  -- guard still has to handle.
+  ALTER TABLE public.test_questions DISABLE TRIGGER trg_test_question_is_a_markable_mcq;
   INSERT INTO public.test_questions
     (test_id, school_id, order_index, question, question_format, answer, marks)
   VALUES (t_id, sch_a, 5, 'probe31 explain photosynthesis', 'long', 'A model answer.', 5);
+  ALTER TABLE public.test_questions ENABLE TRIGGER trg_test_question_is_a_markable_mcq;
 
   r := pg_temp.as_user(stu, format(
         'SELECT count(*)::text FROM public.rpc_test_questions_for_attempt(%L::uuid)', att));
@@ -162,7 +179,7 @@ BEGIN
 
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('...and did NOT quietly serve a shorter paper instead','student (owns the attempt)',
-     'not OK: 3', r,
+     'not OK: 2', r,
      CASE WHEN r LIKE 'OK:%' THEN 'FAIL' ELSE 'PASS' END);
 END $probe$;
 

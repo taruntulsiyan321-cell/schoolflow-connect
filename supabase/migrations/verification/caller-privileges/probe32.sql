@@ -20,8 +20,13 @@
 --   3. the shape the service now writes is ACCEPTED.          (positive control)
 --   4. the student receives `question_format` for every question.  <- the fix
 --   5. ...and still does NOT receive `correct` or `answer`.        (G14)
---   6. a written question stores its model answer in `answer`, not `correct`.
---   7. submitting grades against `correct` and returns the format for review.
+--   6. a written question is refused onto an online test — and its model answer
+--      could never sit in `correct` either. (Since the ruling of 2026-09-12,
+--      20260925020000: an online test is all MCQ. This probe's second question
+--      was a numerical one until that ruling reached live on 2026-09-14 and the
+--      fixture could no longer be written; it is a second MCQ now.)
+--   7. submitting grades against `correct`, and the answer sheet the review
+--      screen reads carries each question's format.
 --   8. another student still cannot read the attempt.        (untouched fence)
 --
 -- Claim 3 is what makes 2 meaningful: "the insert fails" is only evidence if
@@ -113,10 +118,10 @@ BEGIN
 
   INSERT INTO public.test_questions
     (test_id, school_id, order_index, question, question_format, options, correct, marks)
-  VALUES (t_id, sch_a, 2, 'probe32 how many sides', 'numerical',
-          '[]'::jsonb, '{"value":4}'::jsonb, 3);
+  VALUES (t_id, sch_a, 2, 'probe32 how many sides has a square', 'mcq',
+          '["3","4","5"]'::jsonb, '{"indexes":[1]}'::jsonb, 3);
 
-  -- ── 6. a written question keeps its answer out of `correct` ────────────
+  -- ── 6. a written question is refused, with or without `correct` ────────
   BEGIN
     INSERT INTO public.test_questions
       (test_id, school_id, order_index, question, question_format, answer, correct, marks)
@@ -143,8 +148,8 @@ BEGIN
         'SELECT string_agg(question_format, '','' ORDER BY order_index) '
         'FROM public.rpc_test_questions_for_attempt(%L::uuid)', att));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('...and it is the format that was written','student (owns the attempt)','OK: mcq,numerical', r,
-     CASE WHEN r = 'OK: mcq,numerical' THEN 'PASS' ELSE 'FAIL' END);
+    ('...and it is the format that was written','student (owns the attempt)','OK: mcq,mcq', r,
+     CASE WHEN r = 'OK: mcq,mcq' THEN 'PASS' ELSE 'FAIL' END);
 
   -- ── 5. the key is still withheld ───────────────────────────────────────
   INSERT INTO probe(area,role_tested,expected,observed,verdict)
@@ -177,9 +182,20 @@ BEGIN
      'score ' || coalesce(j->>'score','?'),
      CASE WHEN (j->>'score') = '2' THEN 'PASS' ELSE 'FAIL' END);
 
+  -- The review is the answer sheet (20260925050000): the result screen reads
+  -- `rpc_test_answer_sheet`, not the submit's own reply, and that is where the
+  -- format has to reach the student. This claim read the submit's reply until
+  -- 20260925000000 rebuilt it without the format and the answer sheet took over.
+  SELECT s.id::text INTO r FROM public.students s WHERE s.user_id = stu AND s.school_id = sch_a LIMIT 1;
+  r := pg_temp.as_user(stu, format(
+        'SELECT public.rpc_test_answer_sheet(%L::uuid, %L::uuid)::text', t_id, r));
+  BEGIN
+    j := (regexp_replace(r, '^OK: ', ''))::jsonb;
+  EXCEPTION WHEN OTHERS THEN j := '{}'::jsonb;
+  END;
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('the review payload carries the format too','student (owns the attempt)','OK: mcq',
-     coalesce(j#>>'{questions,0,question_format}', 'absent'),
+    ('the answer sheet the review reads carries the format too','student (owns the attempt)','OK: mcq',
+     coalesce(j#>>'{questions,0,question_format}', left(r, 60)),
      CASE WHEN (j#>>'{questions,0,question_format}') = 'mcq' THEN 'PASS' ELSE 'FAIL' END);
 END $probe$;
 

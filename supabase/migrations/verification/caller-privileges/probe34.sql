@@ -41,7 +41,10 @@
 --   6.  the mark lands in test_marks, one per student per test.     (§10.22)
 --   7.  both the wrong AND the skipped question reach the mistake book,
 --       chapter-keyed.
---   8.  per-question answers do not survive the session.             (§10.8)
+--   8.  per-question answers SURVIVE the submit — one row per answered
+--       question, none for the skipped one. (§10.23: test answers are school
+--       data. This claim said the opposite, under §10.8's transient rule, until
+--       20260925000000 removed the purge and reached live on 2026-09-14.)
 --   9.  the student cannot SELECT test_questions directly.
 --   10. `dpp` is gone from every schema surface.
 --   11. `tests` is anchored on section_subject_id, never class_id.
@@ -197,11 +200,15 @@ BEGIN
      format('%s mistake(s), %s chapter-keyed', n, m),
      CASE WHEN n = 2 AND m = 2 THEN 'PASS' ELSE 'FAIL' END);
 
-  -- ── 8. working state is purged (§10.8) ──────────────────────────────────
-  SELECT count(*)::int INTO n FROM public.test_answers WHERE attempt_id = att;
+  -- ── 8. the answers are kept (§10.23, 20260925000000) ────────────────────
+  -- Two answered (Q1 right, Q2 wrong), Q3 skipped: two rows, and the wrong one
+  -- still holds what the student chose — the report reads it.
+  SELECT count(*)::int, count(*) FILTER (WHERE question_id = q[2] AND response = '{"indexes":[0]}'::jsonb)::int
+    INTO n, m FROM public.test_answers WHERE attempt_id = att;
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('per-question answers do not survive the session','- (durable state, read as owner)','0', n::text,
-     CASE WHEN n = 0 THEN 'PASS' ELSE 'FAIL' END);
+    ('per-question answers survive the submit, the wrong one as chosen','- (durable state, read as owner)',
+     '2 rows, wrong answer kept', format('%s rows, wrong answer kept %s', n, m),
+     CASE WHEN n = 2 AND m = 1 THEN 'PASS' ELSE 'FAIL' END);
 
   -- ── 9. the student cannot reach the key directly ────────────────────────
   -- 7.5a granted SELECT on test_questions to anyone in the institution, and
@@ -221,10 +228,14 @@ BEGIN
      CASE WHEN r = 'OK: 3' THEN 'PASS' ELSE 'FAIL' END);
 
   -- ── 10. dpp is gone from every schema surface ───────────────────────────
+  -- A function body is read with its line comments stripped: a comment that
+  -- names the old vocabulary to explain its removal is history, not a reference
+  -- (rpc_test_submit carries one since 20260925000000).
   SELECT (SELECT count(*) FROM pg_class c JOIN pg_namespace ns ON ns.oid=c.relnamespace
            WHERE ns.nspname='public' AND c.relname ILIKE '%dpp%')
        + (SELECT count(*) FROM pg_proc p JOIN pg_namespace ns ON ns.oid=p.pronamespace
-           WHERE ns.nspname='public' AND p.prokind='f' AND pg_get_functiondef(p.oid) ~* 'dpp')
+           WHERE ns.nspname='public' AND p.prokind='f'
+             AND regexp_replace(pg_get_functiondef(p.oid), '--[^\n]*', '', 'g') ~* 'dpp')
        + (SELECT count(*) FROM information_schema.columns
            WHERE table_schema='public' AND column_name ILIKE '%dpp%')
        + (SELECT count(*) FROM pg_constraint c JOIN pg_class t ON t.oid=c.conrelid
