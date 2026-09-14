@@ -1426,38 +1426,4 @@ export const PracticeService = {
       source: "PracticeService.markMistakesCleared",
     });
   },
-
-  /** Mark a revision-queue item complete. */
-  async completeRevision(ctx: ServiceContext, revisionId: string): Promise<void> {
-    assertCanOwn(ctx, "practice");
-    const { error } = await getClient(toRepoContext(ctx)).rpc("rpc_complete_revision", {
-      _id: revisionId,
-    } as never);
-    throwIfError(error, "Failed to complete revision");
-    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
-      studentId: ctx.studentId,
-      source: "PracticeService.completeRevision",
-    });
-    notifyStudentXpUpdated();
-    try {
-      const { ProgressionService } = await import("./progressionService");
-      await ProgressionService.awardSafe(ctx, {
-        ruleCode: "revision.complete",
-        sourceType: "revision",
-        sourceId: revisionId,
-        idempotencyKey: `revision.complete:${revisionId}`,
-      });
-    } catch (e) {
-      // G10, and this is the exact shape the rule was written from: awardSafe
-      // already exists so an XP failure cannot crash the caller, and it was
-      // then wrapped in an empty catch as well — swallowed twice. The original
-      // finding was nine of eleven award paths failing for four days while the
-      // UI said "submitted", visible only to someone who happened to query
-      // progression_history. Not crashing is still not the same as silence.
-      console.error("PracticeService.completeRevision: XP award failed", {
-        revisionId,
-        error: e,
-      });
-    }
-  },
 };

@@ -366,7 +366,6 @@ function buildBattleConceptFallback(data: BattleReportPayload): ConceptRecoveryR
       attempts: Number(item.total ?? 0),
       correct: Number(item.correct ?? 0),
     })),
-    recovery_assignments: [],
     improvement_areas: weak.map((item: any) => item.label ?? item.topic ?? "Weak concept"),
   };
 }

@@ -136,7 +136,6 @@ export function buildPracticeRecoveryReport(
     total_count: total,
     time_minutes: timeMinutes,
     weak_concepts: weak,
-    recovery_assignments: [],
     improvement_areas: weak.map((w) => w.concept),
     insights: undefined,
   };

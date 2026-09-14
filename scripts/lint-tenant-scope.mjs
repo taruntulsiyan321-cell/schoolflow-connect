@@ -47,7 +47,7 @@ const SCHOOL_SCOPED_TABLES = [
   "messages", "notices", "notifications", "parent_academic_alerts",
   "parent_students", "parents", "practice_sessions", "profiles", "progression_history",
   "progression_league_history", "question_attempts", "question_bank", "question_records",
-  "question_templates", "recovery_assignment_questions", "recovery_assignments",
+  "question_templates",
   "revision_queue", "school_activity_feed", "school_calendar_events", "school_complaints",
   "student_academic_brain", "student_academic_profiles",
   "student_badges", "student_improvement_plans", "student_mistakes", "student_question_history",
@@ -209,11 +209,7 @@ const ALLOWLIST = {
   rpc_get_concept_recovery_report: "Self-scoped; _source_id is an additional filter alongside user_id = auth.uid().",
   rpc_post_assessment_concept_analysis: "Self-scoped; same pattern as rpc_get_concept_recovery_report.",
   rpc_save_practice_session: "WHERE id = _session_id AND user_id = auth.uid() -- ownership-scoped.",
-  rpc_complete_revision: "rpc_complete_revision's UPDATE is WHERE id=_id AND user_id=auth.uid() -- ownership-scoped (read body earlier this session).",
-  rpc_get_recovery_assignment: "WHERE id = _assignment_id AND user_id = auth.uid() -- ownership-scoped (read body earlier this session).",
-  rpc_complete_recovery_assignment: "Same ownership-scoping as rpc_get_recovery_assignment (read body earlier this session).",
   rpc_record_concept_mistake: "Self-scoped via auth.uid(); _source_id/_question_id are opaque grouping keys, not lookups into another user's data (read body earlier this session).",
-  rpc_assign_concept_recovery: "Internal helper called only from rpc_record_concept_mistake/rpc_post_assessment_concept_analysis with an already-derived auth.uid(); not independently exploitable.",
   rpc_challenge_student: "Explicitly checks student_class_id(_opponent_user_id) matches the caller's own class before allowing a challenge -- can't target a cross-class/cross-school opponent (read body 2026-08-22).",
   rpc_accept_battle_invite: "Checks _inv.invited_user_id = auth.uid() before accepting -- ownership-scoped (read body 2026-08-22).",
   rpc_mark_group_messages_read: "WHERE conversation_id = _id AND user_id = auth.uid() -- only ever touches the caller's own read receipt.",
@@ -226,8 +222,37 @@ const ALLOWLIST = {
   rpc_academic_revision_plan: "No parameters; self-scoped via auth.uid().",
   rpc_student_performance_charts: "No parameters; self-scoped via auth.uid().",
   rpc_student_revision_queue: "No parameters; self-scoped via auth.uid().",
+
+  // The 7C recovery/revision engine. chapter_state, recovery_sessions and
+  // revision_sessions all carry school_id and all have the same RESTRICTIVE
+  // tenant fence, but none of these three functions names it — they do not
+  // have to. Each resolves the student from auth.uid() and takes no argument
+  // that could point at another row, so there is nothing for a school_id
+  // predicate to narrow that auth.uid() has not already narrowed to one user.
+  rpc_student_chapter_states: "No parameters; self-scoped via auth.uid(). Reads chapter_state/chapters/curriculum_subjects for that one user only.",
+  rpc_student_recovery_queue: "No parameters; self-scoped via auth.uid(). Groups the caller's own open student_mistakes and LEFT JOINs their own chapter_state.",
+
+  // BEFORE INSERT/UPDATE on student_mistakes. It reads exactly one row of
+  // question_bank — WHERE qb.id = NEW.question_id — and writes only
+  // NEW.chapter_id. question_bank is the shared national bank and carries no
+  // school_id of its own, so there is no tenant column to predicate on, and
+  // the only row it can reach is the one the writer already named. The
+  // student_mistakes row itself is fenced by that table's own policy.
+  tg_student_mistakes_set_chapter_id: "Trigger on student_mistakes: derives NEW.chapter_id from the one question_bank row NEW.question_id names. Writes only NEW; reads no tenant-scoped row.",
+
+  // Dropped from the database by 20260926000000_one_recovery_engine.sql along
+  // with recovery_assignments and recovery_assignment_questions. This linter
+  // scans migration FILES, so the CREATE statements that defined them are
+  // still on disk and still scanned; the functions themselves no longer
+  // exist and cannot be called. Verified live after the drop: zero functions
+  // in pg_proc mention recovery_assignment at all.
+  rpc_assign_concept_recovery: "Dropped by 20260926000000; only the historical CREATE in 20260821120000 remains on disk.",
+  rpc_complete_recovery_assignment: "Dropped by 20260926000000; only the historical CREATE remains on disk.",
+  rpc_get_recovery_assignment: "Dropped by 20260926000000; only the historical CREATE in 20260617000000 remains on disk.",
+  rpc_student_recovery_zone: "Dropped by 20260926000000; only the historical CREATE in 20260802330000 remains on disk.",
+  rpc_submit_recovery_answer: "Dropped by 20260926000000; only the historical CREATE remains on disk.",
+  rpc_complete_revision: "Dropped by 20260926000000 together with its only caller, PracticeService.completeRevision; only the historical CREATE in 20260616000000 remains on disk.",
   rpc_student_improvement_plans: "No parameters; self-scoped via auth.uid().",
-  rpc_student_recovery_zone: "No parameters; self-scoped via auth.uid().",
   rpc_student_concept_mastery: "No parameters; self-scoped via auth.uid().",
   rpc_weak_areas_v2: "No parameters; self-scoped via auth.uid().",
   rpc_revision_plan_v2: "No parameters; self-scoped via auth.uid().",

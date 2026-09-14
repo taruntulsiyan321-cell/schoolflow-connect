@@ -71,9 +71,9 @@ const BASELINE = [
   "src/pages/principal/PrincipalTeacherDetail.tsx",
   "src/pages/shared/StudentExamsResultsPage.tsx",
   "src/pages/student/Battleground.tsx",
-  "src/pages/student/RecoverySessionResult.tsx",
   "src/pages/student/TestResult.tsx",
-]; // 10 site(s) -- Analysis.tsx converged in f6e2f51 (practice-only), removed 2026-09-08
+]; // 9 site(s) -- Analysis.tsx converged in f6e2f51 (practice-only), removed 2026-09-08;
+   // RecoverySessionResult.tsx was deleted with the retired recovery flow (0896c29), removed 2026-09-14
 
 function walk(dir, out = []) {
   if (!existsSync(dir)) return out;

@@ -129,11 +129,6 @@ async function main() {
     (r) => count(r) === 0,
   );
   await check(
-    "recovery_assignments has no open duplicates (expect 0 groups)",
-    "SELECT count(*) FROM (SELECT 1 FROM recovery_assignments WHERE status IN ('pending','in_progress') GROUP BY user_id, subject, concept HAVING count(*)>1) x",
-    (r) => count(r) === 0,
-  );
-  await check(
     "revision_queue.school_id fully backfilled (expect 0 null)",
     "SELECT count(*) FROM revision_queue WHERE school_id IS NULL",
     (r) => count(r) === 0,
@@ -141,11 +136,6 @@ async function main() {
   await check(
     "student_academic_brain.school_id fully backfilled (expect 0 null)",
     "SELECT count(*) FROM student_academic_brain WHERE school_id IS NULL",
-    (r) => count(r) === 0,
-  );
-  await check(
-    "recovery_assignments.school_id fully backfilled (expect 0 null; found by lint-tenant-scope.mjs's first run)",
-    "SELECT count(*) FROM recovery_assignments WHERE school_id IS NULL",
     (r) => count(r) === 0,
   );
   await check(
@@ -292,21 +282,18 @@ async function main() {
     (r) => count(r) === 0,
   );
   await check(
-    "recovery_assignment_questions.school_id fully backfilled (expect 0 null)",
-    "SELECT count(*) FROM recovery_assignment_questions WHERE school_id IS NULL",
-    (r) => count(r) === 0,
-  );
-  await check(
     "attendance.school_id fully backfilled (expect 0 null)",
     "SELECT count(*) FROM attendance WHERE school_id IS NULL",
     (r) => count(r) === 0,
   );
   await check(
-    "concept_mastery/student_mistakes/academic_daily_activity/recovery_assignment_questions all have a school_id-setting trigger (prevents regression to NULL on new writes)",
+    // Was four tables. recovery_assignment_questions went with its parent in
+    // 20260926000000; the remaining three still have to keep their trigger.
+    "concept_mastery/student_mistakes/academic_daily_activity all have a school_id-setting trigger (prevents regression to NULL on new writes)",
     `SELECT c.relname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_proc p ON p.oid = t.tgfoid
      WHERE p.proname = 'tg_set_school_id_from_session' AND NOT t.tgisinternal
-       AND c.relname IN ('concept_mastery','student_mistakes','academic_daily_activity','recovery_assignment_questions')`,
-    (r) => r.length === 4,
+       AND c.relname IN ('concept_mastery','student_mistakes','academic_daily_activity')`,
+    (r) => r.length === 3,
   );
 
   // --- Phase 2 audit (2026-08-22): homework late-detection forgery + IST
@@ -416,15 +403,18 @@ async function main() {
   // auto-clear (20260822210000_gap_closure_check_constraints.sql,
   // 20260822220000_gap_closure_revision_queue_auto_clear.sql) ---
   await check(
-    "all 13 gap-closure CHECK constraints exist",
+    // Was 13. recovery_assignments_source_type_check was dropped with its
+    // table in 20260926000000, so the roll-call is 12 — the number moves with
+    // the constraint rather than the assertion being weakened to >= .
+    "all 12 remaining gap-closure CHECK constraints exist",
     `SELECT conname FROM pg_constraint WHERE conname IN (
        'approval_requests_status_check','battle_events_kind_check','battle_invites_status_check',
        'battles_source_check','concept_mastery_classification_check','exams_status_check',
        'homework_priority_check','notices_status_check','progression_history_source_type_check',
-       'question_attempts_source_check','recovery_assignments_source_type_check',
+       'question_attempts_source_check',
        'student_mistakes_assessment_type_check','teachers_status_check'
      )`,
-    (r) => r.length === 13,
+    (r) => r.length === 12,
   );
   await check(
     "_rebuild_revision_queue auto-clears revision items whose topic accuracy has recovered",

@@ -26,8 +26,8 @@ DECLARE
   _qrec_exists  int;  _upsert_fn int;                    -- 1
   _bad_cols     text;                                    -- 2
   _truth_q      uuid[]; _actual_q uuid[];                -- 3
-  _q1 uuid; _q2 uuid;
-  _own_bm bigint; _own_sk bigint; _own_ct bigint;        -- 4
+  _q1 uuid;
+  _own_bm bigint; _own_ct bigint;                        -- 4
   _t_bm bigint; _p_bm bigint; _pr_bm bigint; _a_bm bigint; -- 5
   _nc_before bigint; _nc_open bigint;                    -- 6
   _w_own bigint; _w_other bigint;                        -- 7
@@ -42,7 +42,6 @@ BEGIN
   SELECT id INTO _sid_student   FROM public.students WHERE user_id=_uid_student AND deleted_at IS NULL LIMIT 1;
 
   SELECT id INTO _q1 FROM public.question_bank WHERE is_active ORDER BY id LIMIT 1;
-  SELECT id INTO _q2 FROM public.question_bank WHERE is_active ORDER BY id DESC LIMIT 1;
 
   ------------------------------------------------------------------
   -- 1. question_records is retired, and its writer with it
@@ -70,8 +69,11 @@ BEGIN
   -- constrains PRACTICE.
   --
   -- This sweep found six columns on first run when the author expected two.
-  -- The four practice-side ones are listed explicitly as the declared gap, so
-  -- that a SEVENTH appearing later fails this item instead of blending in.
+  -- Four were practice-side and were listed explicitly as the declared gap.
+  -- 20260926000000 dropped recovery_assignment_questions with the rest of the
+  -- retired recovery engine, so the declared gap is now THREE — narrowed by
+  -- deleting the surface, not by widening the exception. A FOURTH appearing
+  -- later still fails this item instead of blending in.
   SELECT string_agg(c.table_name || '.' || c.column_name, ', ' ORDER BY c.table_name, c.column_name)
     INTO _bad_cols
     FROM information_schema.columns c
@@ -88,13 +90,13 @@ BEGIN
   _r2 := 'practice-side per-question correctness still stored: ' || COALESCE(_bad_cols,'(none)')
       || CASE WHEN _bad_cols IS NULL THEN ' (PASS)'
               WHEN _bad_cols = 'battle_answers.is_correct,'
-                            || ' question_attempts.is_correct, question_attempts.score,'
-                            || ' recovery_assignment_questions.is_correct'
-              THEN ' — KNOWN GAP, declared not fixed, and WIDER than first reported.'
+                            || ' question_attempts.is_correct, question_attempts.score'
+              THEN ' — KNOWN GAP, declared not fixed, and now one column narrower.'
                 || ' question_attempts alone is read by 14 SECURITY DEFINER functions'
-                || ' including the analytics engine (7C); dpp_answers and'
-                || ' recovery_assignment_questions are 7C surfaces; battle_answers'
-                || ' needs a ruling since §10.16 makes battles public effort.'
+                || ' including the analytics engine (7C); battle_answers needs a'
+                || ' ruling since §10.16 makes battles public effort.'
+                || ' recovery_assignment_questions.is_correct is GONE — dropped'
+                || ' with its table by 20260926000000, not excused.'
                 || ' Batch 1 removed question_records only. Reported, not passed.'
               ELSE ' — an UNDECLARED practice correctness column exists (FAIL)' END;
 
@@ -125,8 +127,6 @@ BEGIN
   ------------------------------------------------------------------
   INSERT INTO public.practice_bookmarks (user_id, student_id, school_id, question_id)
        VALUES (_uid_student, _sid_student, _demo, _q1);
-  INSERT INTO public.practice_skipped   (user_id, student_id, school_id, question_id)
-       VALUES (_uid_student, _sid_student, _demo, _q2);
   INSERT INTO public.chapter_tally (user_id, student_id, school_id, attempted, correct)
        VALUES (_uid_student, _sid_student, _demo, 5, 3);
 
@@ -134,12 +134,16 @@ BEGIN
     json_build_object('sub', _uid_student, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
     SELECT count(*) INTO _own_bm FROM public.practice_bookmarks;
-    SELECT count(*) INTO _own_sk FROM public.practice_skipped;
     SELECT count(*) INTO _own_ct FROM public.chapter_tally;
   RESET ROLE;
 
-  _r4 := 'student sees bookmarks=' || _own_bm || ' skipped=' || _own_sk || ' tally=' || _own_ct
-      || CASE WHEN _own_bm=1 AND _own_sk=1 AND _own_ct=1
+  -- practice_skipped was the third table here until 20260920000000 dropped
+  -- it: zero rows, no writer since 20260828170000, and its one reader moved
+  -- to question_attempts.skipped. Two tables still make this item real —
+  -- both are seeded above, so each count is a fence answering, not an empty
+  -- table agreeing.
+  _r4 := 'student sees bookmarks=' || _own_bm || ' tally=' || _own_ct
+      || CASE WHEN _own_bm=1 AND _own_ct=1
               THEN ' — own practice rows readable (PASS)'
               ELSE ' — a student cannot read their own practice data (FAIL)' END;
 

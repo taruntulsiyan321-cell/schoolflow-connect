@@ -26,7 +26,6 @@ function report(over: Partial<ConceptRecoveryReport> = {}): ConceptRecoveryRepor
     total_count: 1,
     time_minutes: 0,
     weak_concepts: [],
-    recovery_assignments: [],
     improvement_areas: [],
     ...over,
   };

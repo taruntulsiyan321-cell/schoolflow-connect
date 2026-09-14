@@ -23,7 +23,6 @@ export type ConceptRecoveryReport = {
     attempts?: number;
     correct?: number;
   }[];
-  recovery_assignments: { assignment_id: string; concept: string; severity?: string }[];
   improvement_areas: string[];
   insights?: {
     headline: string;
@@ -88,12 +87,6 @@ export function buildRuleConceptReport(report: ConceptRecoveryReport): ConceptAi
     );
   } else {
     bullets.push("No concept-level weaknesses detected in this session.");
-  }
-
-  if ((report.recovery_assignments ?? []).length > 0) {
-    bullets.push(
-      `${report.recovery_assignments.length} recovery assignment(s) queued — open Recovery Zone to fix mistakes.`,
-    );
   }
 
   const next_steps: string[] = [];
