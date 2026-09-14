@@ -3026,7 +3026,9 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   > | null>(null);
   const [profiles, setProfiles] = useState<StudentAcademicProfile[]>([]);
   const [nameById, setNameById] = useState<Map<string, string>>(new Map());
-  const [homework, setHomework] = useState<InsightHwRow[]>([]);
+  // Every published homework of the class — listPublishedForClass reads to the
+  // end, so neither count below stops at a page.
+  const [activeHomework, setActiveHomework] = useState<InsightHwRow[]>([]);
   const [tests, setTests] = useState<InsightTestRow[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
   // A pending row is { exam, subject } — one per SUBJECT still awaiting
@@ -3053,7 +3055,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           AnalyticsService.forClass(ctx, classId),
           AcademicProfileService.listForClass(ctx, classId, { limit: 200 }),
           AttendanceService.listClassStudents(ctx, classId),
-          HomeworkService.listForClass(ctx, classId, { limit: 100 }),
+          HomeworkService.listPublishedForClass(ctx, classId),
           TestService.listForClass(ctx, classId),
           MarksService.listExamsForClass(ctx, classId, { limit: 100 }),
           MarksService.listMyPendingSubjectExams(ctx, classId),
@@ -3081,7 +3083,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         setAnalytics(a);
         setProfiles(p);
         setNameById(new Map(students.map((s) => [s.id, s.fullName])));
-        setHomework(hw);
+        setActiveHomework(hw);
         setTests(tRows);
         setExams(examRows);
         setPendingExams(pending);
@@ -3112,8 +3114,6 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     nameById.get(studentId) ?? "Unknown student";
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-
-  const activeHomework = useMemo(() => homework.filter((h) => h.status === "published"), [homework]);
 
   const activeTests = useMemo(
     () =>

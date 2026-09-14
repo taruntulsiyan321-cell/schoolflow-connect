@@ -61,6 +61,12 @@ const field = "w-full bg-muted border border-border rounded-[2px] px-3 py-2 text
  * never typed; the topic is picked from that chapter or added; a free-text label
  * is allowed only where no chapter fits.
  *
+ * The subject: new homework is set in one of the subjects the teacher teaches
+ * in this class — a teacher of several is offered each. Edited or copied
+ * homework keeps the subject it was set in; the class screen is opened under
+ * one subject, and an edit made from it once refiled another subject's
+ * homework under that one.
+ *
  * A copy starts with no deadline: the one it came from has usually passed, and
  * the database refuses to release work whose deadline has.
  */
@@ -74,7 +80,8 @@ export function HomeworkForm({
 }: {
   classId: string;
   classLabel: string;
-  subject: string;
+  /** The subject the class screen was opened under — new homework's first choice. */
+  subject: string | null;
   source?: HomeworkFormSource;
   onSaved: () => void;
   onCancel: () => void;
@@ -82,6 +89,8 @@ export function HomeworkForm({
   const { ctx } = useAcademicContext();
   const from = source?.homework;
   const editing = source?.as === "edit" ? source.homework : null;
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [chosenSubject, setChosenSubject] = useState(from?.subject ?? subject ?? "");
   const [title, setTitle] = useState(from ? (editing ? from.title : `${from.title} (copy)`) : "");
   const [workKind, setWorkKind] = useState<WorkKind>(from?.workKind ?? "homework");
   const [priority, setPriority] = useState<HomeworkPriority>(from?.priority ?? "normal");
@@ -103,10 +112,28 @@ export function HomeworkForm({
   /** Published homework is already with the class; editing it changes its content, not its release. */
   const released = editing?.status === "published";
 
+  // Only new homework chooses its subject; what an edit or a copy starts from keeps its own.
   useEffect(() => {
-    if (!ctx) return;
+    if (!ctx || from) return;
     let cancelled = false;
-    CurriculumService.listChaptersForClass(ctx, classLabel, subject)
+    HomeworkService.subjectsForClass(ctx, classId)
+      .then((rows) => {
+        if (cancelled) return;
+        setSubjects(rows);
+        setChosenSubject((current) => current || rows[0] || "");
+      })
+      .catch((e) => !cancelled && setError(toErrorMessage(e, "Failed to load your subjects")));
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx, classId, from]);
+
+  const subjectOptions = [...new Set([chosenSubject, ...subjects].filter(Boolean))];
+
+  useEffect(() => {
+    if (!ctx || !chosenSubject) return;
+    let cancelled = false;
+    CurriculumService.listChaptersForClass(ctx, classLabel, chosenSubject)
       .then((rows) => {
         if (cancelled) return;
         setChapters(rows);
@@ -117,7 +144,7 @@ export function HomeworkForm({
     return () => {
       cancelled = true;
     };
-  }, [ctx, classLabel, subject]);
+  }, [ctx, classLabel, chosenSubject]);
 
   const chapterId = chapterChoice && chapterChoice !== NO_CHAPTER ? chapterChoice : null;
 
@@ -139,9 +166,19 @@ export function HomeworkForm({
     setNewTopic("");
   };
 
+  /** Another subject has other chapters: what was picked under the last one does not carry over. */
+  const pickSubject = (value: string) => {
+    setChosenSubject(value);
+    setChapters([]);
+    setChapterChoice("");
+    setChapterLabel("");
+    pickChapter("");
+  };
+
   const save = async () => {
     if (!ctx || saving) return;
     const problems = [
+      !chosenSubject.trim() && "Choose the subject.",
       !title.trim() && "Give the homework a title.",
       !closesAt && "Set the deadline.",
       publishMode !== "draft" &&
@@ -163,7 +200,7 @@ export function HomeworkForm({
       }
       const input: HomeworkInput = {
         classId,
-        subject,
+        subject: chosenSubject,
         title,
         questionText: questionMode === "text" ? questionText : "",
         questionFile: questionMode === "file" ? questionFile : null,
@@ -189,9 +226,21 @@ export function HomeworkForm({
   return (
     <div className="bg-surface border border-border rounded-[2px] p-4 space-y-3">
       <div className="text-[10px] text-muted-foreground">
-        {editing ? "Editing" : source?.as === "copy" ? "New homework from a copy" : "New homework"} · For {classLabel} ·{" "}
-        {subject}
+        {editing ? "Editing" : source?.as === "copy" ? "New homework from a copy" : "New homework"} · For {classLabel}
+        {(from || subjectOptions.length <= 1) && chosenSubject ? ` · ${chosenSubject}` : ""}
       </div>
+      {!from && subjectOptions.length > 1 && (
+        <label className="block space-y-1">
+          <span className="text-[10px] font-semibold text-muted-foreground">Subject *</span>
+          <select value={chosenSubject} onChange={(e) => pickSubject(e.target.value)} className={field}>
+            {subjectOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title *" className={field} />
 
       <div className="flex flex-wrap gap-2">

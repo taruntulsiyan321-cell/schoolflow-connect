@@ -1,12 +1,12 @@
-// Applies this release's seventeen migrations to the live project — the ten of
-// the test feature, then the seven of homework — in order, stopping at the first
+// Applies this release's eighteen migrations to the live project — the ten of
+// the test feature, then the eight of homework — in order, stopping at the first
 // one that does not hold.
 //
-// WHY A RUNNER AND NOT SEVENTEEN COMMANDS
+// WHY A RUNNER AND NOT EIGHTEEN COMMANDS
 //   The order matters — 20260925040000 redefines a function 20260925000000
 //   installed, 20260925060000's policy calls a function 20260925030000 creates,
 //   and each homework migration builds on the one before — and a human applying
-//   seventeen files by hand will eventually skip one. Every file is still applied
+//   eighteen files by hand will eventually skip one. Every file is still applied
 //   by `apply-one-migration.mjs`: this loops that, it does not reimplement it
 //   (one applier, one ledger writer).
 //
@@ -64,6 +64,8 @@ const FILES = [
   "20260925150000_the_family_is_told_accepted_or_rejected.sql",
   // Found by the production browser run: the counts above timed the teacher out.
   "20260925160000_homework_is_counted_without_asking_once_per_row.sql",
+  // Found reading the panel line by line: closed homework could be unpublished before the closure job ran.
+  "20260925170000_closed_homework_is_history_before_the_closure_runs.sql",
 ];
 
 function fail(msg) {
@@ -111,9 +113,17 @@ if (!ledgerRes.ok) fail(`Could not read public.schema_migrations (HTTP ${ledgerR
 const ledger = (JSON.parse(await ledgerRes.text()) || []).map((r) => String(r.version));
 const applied = new Set(ledger);
 
+// A collision matters only for a file still to apply: a tool matching the
+// ledger by timestamp would take it for applied and skip it. A file the ledger
+// already holds under its FULL name was applied, whatever else shares its
+// stamp — on 2026-09-14 another branch recorded
+// 20260925000000_a_session_counts_when_it_was_answered beside this release's
+// already-applied 20260925000000, and refusing on that would block every
+// later file for a collision that can no longer cause a skip.
 const collisions = [];
 for (const file of FILES) {
   const version = file.replace(/\.sql$/, "");
+  if (applied.has(version)) continue;
   const stamp = version.split("_")[0];
   for (const row of ledger) if (row.split("_")[0] === stamp && row !== version) collisions.push(`${file}  <->  ledger ${row}`);
 }

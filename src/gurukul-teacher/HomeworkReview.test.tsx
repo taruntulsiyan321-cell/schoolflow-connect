@@ -3,13 +3,18 @@ import { render, screen } from "@testing-library/react";
 import type { HomeworkRecord } from "@/academic/repository/homeworkRepository";
 
 /**
- * The teacher's review screen, held to the owner's ruling of 2026-09-13 that
- * missing homework costs XP: once the deadline has passed, a rejected hand-in
- * cannot be handed in again, so rejecting it is charged as missed. The teacher
- * is told so before deciding — and only where it is true: not while the
- * homework is open, and not on homework released before the rule existed.
- * Each case first finds the Accept button, so the note's absence is never an
- * empty screen.
+ * The teacher's review screen, held to two rulings.
+ *
+ * 1. Missing homework costs XP (2026-09-13): once the deadline has passed, a
+ *    rejected hand-in cannot be handed in again, so rejecting it is charged as
+ *    missed. The teacher is told so before deciding — and only where it is
+ *    true: not while the homework is open, and not on homework released before
+ *    the rule existed.
+ * 2. A teacher sees every subject of a class they teach and decides only their
+ *    own (docs/locked-decisions.md). Another subject's hand-ins are listed —
+ *    the screen used to refuse them outright — with nothing to decide.
+ *
+ * Each case first finds the student's name, so an absence is never an empty screen.
  */
 const listForReview = vi.fn();
 
@@ -90,28 +95,70 @@ const awaitingReview = (closed: boolean) => [
 ];
 
 const NOTE = /rejecting it now counts as missed homework and costs the student XP/;
+const VIEW_ONLY = /View only — hand-ins for Mathematics are accepted or rejected by its teachers/;
+
+const renderReview = (over: Partial<HomeworkRecord> = {}, canDecide = true) =>
+  render(<HomeworkReview homework={homework(over)} classId="class-1" canDecide={canDecide} onBack={vi.fn()} />);
 
 describe("HomeworkReview — the XP a rejection costs", () => {
-  beforeEach(() => listForReview.mockReset());
+  // Braces, not an expression: vitest calls a function returned from beforeEach
+  // as that test's teardown, and mockReset returns the mock itself.
+  beforeEach(() => {
+    listForReview.mockReset();
+  });
 
   it("tells the teacher, past the deadline, that rejecting costs the student XP", async () => {
     listForReview.mockResolvedValue(awaitingReview(true));
-    render(<HomeworkReview homework={homework({})} classId="class-1" onBack={vi.fn()} />);
+    renderReview();
     expect(await screen.findByRole("button", { name: /Accept/ })).toBeTruthy();
     expect(screen.getByText(NOTE)).toBeTruthy();
   });
 
   it("says nothing while the homework is still open — the student can hand in again", async () => {
     listForReview.mockResolvedValue(awaitingReview(false));
-    render(<HomeworkReview homework={homework({})} classId="class-1" onBack={vi.fn()} />);
+    renderReview();
     expect(await screen.findByRole("button", { name: /Accept/ })).toBeTruthy();
     expect(screen.queryByText(NOTE)).toBeNull();
   });
 
   it("says nothing on homework released before the rule, which costs nobody", async () => {
     listForReview.mockResolvedValue(awaitingReview(true));
-    render(<HomeworkReview homework={homework({ missedCostsXp: false })} classId="class-1" onBack={vi.fn()} />);
+    renderReview({ missedCostsXp: false });
     expect(await screen.findByRole("button", { name: /Accept/ })).toBeTruthy();
     expect(screen.queryByText(NOTE)).toBeNull();
+  });
+});
+
+describe("HomeworkReview — another subject's hand-ins", () => {
+  beforeEach(() => {
+    listForReview.mockReset();
+  });
+
+  it("lists them, says why there is nothing to decide, and offers no decision", async () => {
+    listForReview.mockResolvedValue(awaitingReview(true));
+    renderReview({}, false);
+    expect(await screen.findByText("Arjun Mehta")).toBeTruthy();
+    expect(screen.getByText(VIEW_ONLY)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Accept/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Reject/ })).toBeNull();
+    // Nor a warning about a decision this teacher cannot take.
+    expect(screen.queryByText(NOTE)).toBeNull();
+  });
+
+  it("offers the subject's own teacher the decision, and no view-only line", async () => {
+    listForReview.mockResolvedValue(awaitingReview(false));
+    renderReview({}, true);
+    expect(await screen.findByText("Arjun Mehta")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Reject/ })).toBeTruthy();
+    expect(screen.queryByText(VIEW_ONLY)).toBeNull();
+  });
+});
+
+describe("HomeworkReview — a homework nobody is counted on", () => {
+  it("says the class had no students, not that the homework is unpublished", async () => {
+    listForReview.mockReset().mockResolvedValue([]);
+    renderReview();
+    expect(await screen.findByText(/No student is counted on this homework/)).toBeTruthy();
+    expect(screen.queryByText(/when it is published/)).toBeNull();
   });
 });

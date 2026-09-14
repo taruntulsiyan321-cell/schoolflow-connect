@@ -92,7 +92,11 @@ const renderPage = async () => {
 };
 
 describe("Assignments — what missing homework costs", () => {
-  beforeEach(() => listForStudent.mockReset());
+  // Braces, not an expression: vitest calls a function returned from beforeEach
+  // as that test's teardown, and mockReset returns the mock itself.
+  beforeEach(() => {
+    listForStudent.mockReset();
+  });
 
   it("tells the student on homework still to do", async () => {
     listForStudent.mockResolvedValue([row("not_submitted")]);

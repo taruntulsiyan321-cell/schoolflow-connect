@@ -179,7 +179,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
                 c.isClassTeacher
                   ? AttendanceService.listForClassDate(ctx, c.id, todayDate)
                   : Promise.resolve(null),
-                HomeworkService.listForClass(ctx, c.id, { limit: 100 }),
+                HomeworkService.listPublishedForClass(ctx, c.id),
                 TestService.listForClass(ctx, c.id) as Promise<{ status?: string }[]>,
                 MarksService.listExamsForClass(ctx, c.id, { limit: 100 }),
                 AcademicProfileService.listForClass(ctx, c.id),

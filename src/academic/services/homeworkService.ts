@@ -12,6 +12,7 @@ import {
   decideSubmission,
   deleteHomework,
   getHomework,
+  getSubmission,
   listCompletion,
   listHomeworkByIds,
   listHomeworkForClass,
@@ -28,12 +29,14 @@ import {
   type HomeworkRecord,
   type HomeworkStandingRow,
   type HomeworkSubmissionRecord,
+  type SchoolHomeworkRecord,
   type SubmissionStatus,
 } from "../repository/homeworkRepository";
-import type { PageParams } from "../repository/base";
+import { MAX_PAGE_LIMIT, type PageParams } from "../repository/base";
+import { listTeacherClassSubjectPairs } from "../repository/teacherClassesRepository";
 import type { AcademicFile } from "../storage/academicFileUpload";
 import { assertMayAccessStudent } from "./parentAccess";
-import { assertTeacherMayManageAcademicWork } from "./workLifecycle";
+import { assertTeacherMayManageAcademicWork, teacherMayManageSubject } from "./workLifecycle";
 import { broadcastAcademicWrite } from "../live";
 
 function afterHomeworkWrite(ctx: ServiceContext, meta: { classId?: string | null; studentId?: string | null; source: string }) {
@@ -90,6 +93,15 @@ export function canHandIn(row: { status: SubmissionStatus; closed: boolean }): b
   return !row.closed && row.status !== "accepted";
 }
 
+/**
+ * Released homework whose deadline has passed. Nothing about it may change
+ * from here but archiving and deleting (`tg_homework_lifecycle`), whether or
+ * not the closure job has resolved it yet.
+ */
+export function homeworkHasClosed(hw: Pick<HomeworkRecord, "status" | "closesAt" | "resolvedAt">, now = Date.now()): boolean {
+  return hw.resolvedAt !== null || (hw.status === "published" && Date.parse(hw.closesAt) <= now);
+}
+
 export interface StudentHomeworkRow {
   homework: HomeworkRecord;
   standing: HomeworkStandingRow;
@@ -107,6 +119,16 @@ export interface ClassHomeworkRow extends HomeworkRecord {
   completion: HomeworkCompletionRow | null;
 }
 
+/** A row of the teacher's list: the homework, its completion, and whether this caller may change it. */
+export interface ManagedHomeworkRow extends ClassHomeworkRow {
+  /** False for another subject's homework in a class this teacher teaches: they see it, and change nothing. */
+  canManage: boolean;
+}
+
+export interface SchoolHomeworkRow extends SchoolHomeworkRecord {
+  completion: HomeworkCompletionRow | null;
+}
+
 export interface SchoolHomeworkSummary {
   published: number;
   scheduled: number;
@@ -120,30 +142,74 @@ export interface SchoolHomeworkSummary {
   completionPct: number;
 }
 
+/** Each homework with its `homework_completion` row — one read for the lot, only for published work. */
+async function withCompletion<T extends HomeworkRecord>(
+  ctx: ServiceContext,
+  items: T[],
+): Promise<(T & { completion: HomeworkCompletionRow | null })[]> {
+  const completion = await listCompletion(
+    toRepoContext(ctx),
+    items.filter((h) => h.status === "published").map((h) => h.id),
+  );
+  const byId = new Map(completion.map((c) => [c.homeworkId, c]));
+  return items.map((h) => ({ ...h, completion: byId.get(h.id) ?? null }));
+}
+
 /**
  * HomeworkService — the teacher sets and decides; the student hands in; the
  * parent, principal and admin read. Every panel goes through here.
  */
 export const HomeworkService = {
-  /** A class's homework with its completion — the teacher's list and the class insights. */
-  async listForClass(ctx: ServiceContext, classId: string, page?: PageParams): Promise<ClassHomeworkRow[]> {
+  /**
+   * One page of a class's homework, newest first, with its completion and
+   * whether the caller may change it. A teacher of the class reads every
+   * subject's homework in it, and changes only their own subjects'.
+   */
+  async listForClass(ctx: ServiceContext, classId: string, page?: PageParams): Promise<ManagedHomeworkRow[]> {
+    assertCanConsume(ctx, "homework");
+    if (ctx.role === "teacher") await assertTeacherMayManageAcademicWork(ctx, classId);
+    const items = await withCompletion(ctx, await listHomeworkForClass(toRepoContext(ctx), classId, page));
+    const subjects = [...new Set(items.map((h) => h.subject))];
+    const mayManage = new Map(
+      await Promise.all(subjects.map(async (s) => [s, await teacherMayManageSubject(ctx, classId, s)] as const)),
+    );
+    return items.map((h) => ({ ...h, canManage: mayManage.get(h.subject) === true }));
+  },
+
+  /**
+   * EVERY published homework of a class, with its completion — for the counts
+   * a class's dashboard and insights show. Read page by page to the end: a
+   * count taken over one page is a count that stops at the page size.
+   */
+  async listPublishedForClass(ctx: ServiceContext, classId: string): Promise<ClassHomeworkRow[]> {
     assertCanConsume(ctx, "homework");
     if (ctx.role === "teacher") await assertTeacherMayManageAcademicWork(ctx, classId);
     const repo = toRepoContext(ctx);
-    const items = await listHomeworkForClass(repo, classId, page);
-    const completion = await listCompletion(
-      repo,
-      items.filter((h) => h.status === "published").map((h) => h.id),
-    );
-    const byId = new Map(completion.map((c) => [c.homeworkId, c]));
-    return items.map((h) => ({ ...h, completion: byId.get(h.id) ?? null }));
+    const items: HomeworkRecord[] = [];
+    for (let offset = 0; ; offset += MAX_PAGE_LIMIT) {
+      const page = await listHomeworkForClass(repo, classId, { limit: MAX_PAGE_LIMIT, offset }, "published");
+      items.push(...page);
+      if (page.length < MAX_PAGE_LIMIT) break;
+    }
+    return withCompletion(ctx, items);
   },
 
-  /** School-wide list — principal/admin monitoring. */
-  async listForSchool(ctx: ServiceContext, page?: PageParams): Promise<HomeworkRecord[]> {
+  /**
+   * The subjects the caller may set homework in for a class — a teacher's own
+   * subjects there, from `teacher_classes`. Empty for anyone else.
+   */
+  async subjectsForClass(ctx: ServiceContext, classId: string): Promise<string[]> {
+    assertCanConsume(ctx, "homework");
+    if (ctx.role !== "teacher") return [];
+    const pairs = await listTeacherClassSubjectPairs(toRepoContext(ctx), ctx.userId);
+    return pairs.filter((p) => p.classId === classId).map((p) => p.subject);
+  },
+
+  /** One page of the school's homework, with each one's class and completion — principal/admin monitoring. */
+  async listForSchool(ctx: ServiceContext, page?: PageParams): Promise<SchoolHomeworkRow[]> {
     assertCanConsume(ctx, "homework");
     if (!canReadSchoolWide(ctx.role)) throw new ForbiddenError("School homework list is admin/principal-only");
-    return listHomeworkForSchool(toRepoContext(ctx), page);
+    return withCompletion(ctx, await listHomeworkForSchool(toRepoContext(ctx), page));
   },
 
   /** Everything set to one student — for the student, their parent, and staff. */
@@ -165,7 +231,11 @@ export const HomeworkService = {
     });
   },
 
-  /** Every student a homework is set to, with what they handed in — the teacher's review. */
+  /**
+   * Every student a homework is set to, with what they handed in — the
+   * teacher's review. Any teacher of the class may read it, whatever the
+   * subject; deciding is `decide`'s, and is the subject's teachers' only.
+   */
   async listForReview(ctx: ServiceContext, homeworkId: string): Promise<ReviewRow[]> {
     assertCanConsume(ctx, "homework_submission");
     if (ctx.role === "student" || ctx.role === "parent") {
@@ -173,7 +243,7 @@ export const HomeworkService = {
     }
     const repo = toRepoContext(ctx);
     const hw = await getHomework(repo, homeworkId);
-    if (ctx.role === "teacher") await assertTeacherMayManageAcademicWork(ctx, hw.classId, hw.subject);
+    if (ctx.role === "teacher") await assertTeacherMayManageAcademicWork(ctx, hw.classId);
     const [standings, submissions] = await Promise.all([
       listStandingsForHomework(repo, homeworkId),
       listSubmissionsForHomework(repo, homeworkId),
@@ -196,15 +266,21 @@ export const HomeworkService = {
   },
 
   /**
-   * Edit homework that has not closed. The database refuses what may not
-   * change: a closed homework's deadline, class or release, and releasing work
-   * whose deadline has passed (`tg_homework_lifecycle`).
+   * Edit homework that has not closed. Its class and subject are what it was
+   * set for, and stay so — an edit is not a way to file one subject's homework
+   * under another. The database refuses the rest of what may not change: a
+   * closed homework's deadline or release, and releasing work whose deadline
+   * has passed (`tg_homework_lifecycle`).
    */
   async update(ctx: ServiceContext, homeworkId: string, input: HomeworkInput): Promise<HomeworkRecord> {
     assertCanOwn(ctx, "homework");
     const existing = await getHomework(toRepoContext(ctx), homeworkId);
-    await assertTeacherMayManageAcademicWork(ctx, existing.classId, input.subject);
-    const row = await updateHomework(toRepoContext(ctx), homeworkId, { ...input, classId: existing.classId });
+    await assertTeacherMayManageAcademicWork(ctx, existing.classId, existing.subject);
+    const row = await updateHomework(toRepoContext(ctx), homeworkId, {
+      ...input,
+      classId: existing.classId,
+      subject: existing.subject,
+    });
     afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.update" });
     return row;
   },
@@ -239,11 +315,14 @@ export const HomeworkService = {
     return row;
   },
 
-  /** The teacher's two actions. */
+  /** The teacher's two actions — for a teacher of the homework's subject in that class, or an admin. */
   async decide(ctx: ServiceContext, submissionId: string, decision: HomeworkDecision): Promise<HomeworkSubmissionRecord> {
     assertCanOwn(ctx, "homework");
-    const row = await decideSubmission(toRepoContext(ctx), submissionId, decision);
-    afterHomeworkWrite(ctx, { studentId: row.studentId, source: "HomeworkService.decide" });
+    const repo = toRepoContext(ctx);
+    const hw = await getHomework(repo, (await getSubmission(repo, submissionId)).homeworkId);
+    await assertTeacherMayManageAcademicWork(ctx, hw.classId, hw.subject);
+    const row = await decideSubmission(repo, submissionId, decision);
+    afterHomeworkWrite(ctx, { classId: hw.classId, studentId: row.studentId, source: "HomeworkService.decide" });
     return row;
   },
 

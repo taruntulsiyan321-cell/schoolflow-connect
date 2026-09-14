@@ -177,11 +177,14 @@ export type {
   StudentHomeworkRow,
   ReviewRow,
   ClassHomeworkRow,
+  ManagedHomeworkRow,
+  SchoolHomeworkRow,
   SchoolHomeworkSummary,
   HomeworkStanding,
 } from "./services/homeworkService";
 export {
   homeworkStanding,
+  homeworkHasClosed,
   canHandIn,
   HOMEWORK_STANDING_LABELS,
   HOMEWORK_QUESTION_FILE_PICKER,

@@ -17,6 +17,8 @@ import {
   type ParentNarrative,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { attachmentOfFile } from "@/academic/storage/academicFileUpload";
+import { AttachmentList } from "@/gurukul-teacher/AttachmentUI";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { localDateKey } from "@/lib/localDate";
 import { cn } from "./shared";
@@ -37,7 +39,13 @@ function Loading({ label }: { label: string }) {
   );
 }
 
-/** Parent homework from HomeworkService (no mock). */
+/**
+ * The child's homework, as the child sees it (§10.15: a parent sees everything
+ * the student sees except practice, and "the child's actual homework
+ * submission"): what was set, the deadline, where the child stands, and the file
+ * the child handed in. The teacher's comment §10.15 also names no longer exists
+ * — a teacher accepts or rejects, and the standing says which.
+ */
 export function ParentLiveHomework({ studentId }: { studentId: string }) {
   const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["homework", "profile"]);
@@ -90,6 +98,21 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
                 {HOMEWORK_STANDING_LABELS[state]}
               </div>
             </div>
+            {h.questionFile ? (
+              <div className="mt-2">
+                <AttachmentList items={[attachmentOfFile(h.questionFile)]} dense />
+              </div>
+            ) : (
+              h.questionText && (
+                <p className="mt-2 text-[10px] text-muted-foreground whitespace-pre-wrap">{h.questionText}</p>
+              )
+            )}
+            {s?.file && (
+              <div className="mt-2 space-y-1">
+                <div className="text-[9px] font-bold text-muted-foreground">Handed in</div>
+                <AttachmentList items={[attachmentOfFile(s.file)]} dense />
+              </div>
+            )}
           </div>
         );
       })}

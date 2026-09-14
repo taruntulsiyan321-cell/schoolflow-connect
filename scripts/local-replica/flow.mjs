@@ -870,6 +870,12 @@ const main = async () => {
     await q(`update public.homework set closes_at = now() - interval '1 minute' where id=$1`, [hw.id]),
   );
   claim("FENCE a teacher cannot pull a released deadline into the past", pulledIn?.code, "55000");
+  // `refusal` commits a write that was NOT refused. Were this fence down, the
+  // homework would now be closed; the server puts the deadline back, so one
+  // broken fence fails its own claim instead of crashing every claim after it.
+  if (!pulledIn) {
+    await as(null, async (q) => await q(`update public.homework set closes_at = now() + interval '3 days' where id=$1`, [hw.id]));
+  }
   const extended = await as(ID.priya, async (q) =>
     (await q(`update public.homework set closes_at = now() + interval '3 days' where id=$1 returning closes_at`, [hw.id])).length,
   );
@@ -977,6 +983,30 @@ const main = async () => {
 
   // The deadline passes. The closure job resolves every student, once.
   await as(null, async (q) => await q(`update public.homework set closes_at = now() - interval '1 second' where id=$1`, [hw.id]));
+  // Closed before the closure job reaches it, too (20260925170000). The job runs
+  // a minute apart and retries a homework whose charge failed; in that wait a
+  // teacher could unpublish it — out of the job's reach, so nobody who missed it
+  // was charged — or move its deadline and reopen it.
+  const unpublishUnresolved = await refusal(ID.priya, async (q) =>
+    await q(`update public.homework set status='draft' where id=$1`, [hw.id]),
+  );
+  claim("FENCE a teacher cannot unpublish homework whose deadline has passed, before the closure runs", unpublishUnresolved?.code, "55000");
+  // As above: a fence that did not hold committed its write. Undo it as the
+  // server, so the closure below still has published, closed homework to resolve.
+  if (!unpublishUnresolved) {
+    await as(null, async (q) => await q(`update public.homework set status='published' where id=$1`, [hw.id]));
+  }
+  const reopenUnresolved = await refusal(ID.priya, async (q) =>
+    await q(`update public.homework set closes_at = now() + interval '3 days' where id=$1`, [hw.id]),
+  );
+  claim("FENCE …nor move its deadline to reopen it", reopenUnresolved?.code, "55000");
+  if (!reopenUnresolved) {
+    await as(null, async (q) => await q(`update public.homework set closes_at = now() - interval '1 second' where id=$1`, [hw.id]));
+  }
+  const retitled = await as(ID.priya, async (q) =>
+    (await q(`update public.homework set title = title where id=$1 returning id`, [hw.id])).length,
+  );
+  claim("POSITIVE CONTROL the teacher still writes to it — only its deadline, class and release are fixed", retitled, 1);
   const lateHandIn = await refusal(ID.stuB, async (q) =>
     await q(`select public.rpc_homework_submit($1, $2::jsonb)`, [hw.id, JSON.stringify({ path: fileB, name: "b.png", mime: "image/png" })]),
   );

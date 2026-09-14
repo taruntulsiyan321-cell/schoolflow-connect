@@ -389,10 +389,11 @@ REJECTED submission counts as NOT GIVEN.
 Ruled the same day, on being asked: **missing homework costs the student XP**, and **the
 teacher's decision reaches the family as "accepted" or "rejected"**.
 
-**Built as seven migrations, `20260925100000`–`20260925160000`, each with a rollback and a
+**Built as eight migrations, `20260925100000`–`20260925170000`, each with a rollback and a
 proof block that rolls itself back if it cannot demonstrate its own effect. The first six were
-applied to the live project on 2026-09-14; `20260925160000` (rule 45) is proven against live
-and waiting to be applied** — see HANDOFF.md.
+applied to the live project on 2026-09-14; `20260925160000` (rule 45) and `20260925170000`
+(rule 35's closed-before-resolution clause) are proven against live and waiting to be
+applied** — see HANDOFF.md.
 
 33. **The deadline is one instant: `homework.closes_at`, timestamptz, NOT NULL.** The brief
     offered "delete `closes_at`/`submission_mode`, or implement `closes_at` as the deadline".
@@ -417,7 +418,11 @@ and waiting to be applied** — see HANDOFF.md.
     scheduler does not release homework whose deadline passed before it ran**: it stays
     scheduled, where its teacher sees it, and a later deadline releases it on the next run. A
     closed homework cannot go back to draft or scheduled — republishing would tell the class
-    "New homework" about work nobody can hand in. It can be archived.
+    "New homework" about work nobody can hand in. It can be archived. **Closed means the
+    deadline has passed on released work, whether or not the closure job has reached it yet**
+    (`20260925170000`): the job runs a minute apart and retries a homework whose charge failed,
+    and in that wait a teacher could unpublish it out of the job's reach or move its deadline
+    to reopen it. The teacher's list stops offering Edit and Unpublish at the deadline.
 36. **The hand-in is ONE image or PDF**, through `rpc_homework_submit` only — no session writes
     a submission row. `homework_submissions.file` is a single jsonb object, so a second file
     cannot be stored (`homework_hand_in_ok`); the file must exist in `academic-files` under the
@@ -490,6 +495,20 @@ and waiting to be applied** — see HANDOFF.md.
     `homework_submissions` and `students` answers once per statement, not once per row**
     (docs/rls-policy-pattern.md): per row, the homework counts took 4.5–6 s for an admin,
     principal or parent at 13 students, and ran the production browser run out of time.
+46. **Every subject is visible to a teacher of the class; only their own subjects change.**
+    docs/locked-decisions.md ("a teacher sees all academic data for students in sections they
+    teach — all subjects … view-only outside their own subject") applied to homework: a teacher
+    of the class reads every subject's homework and hand-ins; setting, editing, releasing,
+    archiving, deleting, duplicating, accepting and rejecting are for a teacher of that subject
+    in that class (`teacher_teaches_class_subject`) or an admin. New homework is set in one of
+    the teacher's own subjects there — a teacher of several picks — and an edit keeps the
+    homework's subject: the class screen opens under one subject, and an edit made from it once
+    refiled another subject's homework under that one. The client holds the rule in one place,
+    `teacherMayManageSubject`, which the service enforces and the screens ask; the database
+    fence stays class-level, as rule 38 rules.
+47. **A parent sees the homework as their child does** (§10.15): what was set — typed or its
+    file — the deadline, where the child stands, and the file the child handed in. The teacher's
+    comment §10.15 also names does not exist any more (rule 38).
 
 **Assumptions proceeded on, as the brief allowed — they are not rulings.**
 * A student may replace their file, or hand in again after a rejection, only before the

@@ -16,19 +16,27 @@ import type { HomeworkRecord } from "@/academic/repository/homeworkRepository";
  *    release: no draft or schedule choice is offered.
  * 4. SAVING AN EDIT MOVED THE DEADLINE. The field holds minutes, so an untouched
  *    23:59:59 deadline went back as 23:59:00. It now goes back as it was.
+ * 5. AN EDIT REFILED ANOTHER SUBJECT'S HOMEWORK. The form sent the subject the
+ *    class screen was opened under, so a teacher of Accountancy and Mathematics
+ *    in 12 A, on the screen opened as Accountancy, saved a Mathematics homework
+ *    as Accountancy. An edit keeps the homework's subject; new homework is set
+ *    in one the teacher teaches there, and a teacher of several picks.
  */
 const create = vi.fn();
 const update = vi.fn();
+const subjectsForClass = vi.fn();
+const listChaptersForClass = vi.fn();
 
 vi.mock("@/academic", () => ({
   CurriculumService: {
-    listChaptersForClass: vi.fn().mockResolvedValue([]),
+    listChaptersForClass: (...a: unknown[]) => listChaptersForClass(...a),
     listTopics: vi.fn().mockResolvedValue([]),
     addTopic: vi.fn(),
   },
   HomeworkService: {
     create: (...a: unknown[]) => create(...a),
     update: (...a: unknown[]) => update(...a),
+    subjectsForClass: (...a: unknown[]) => subjectsForClass(...a),
   },
   HOMEWORK_QUESTION_FILE_PICKER: { accept: ".pdf", kinds: ["pdf", "image", "doc"], label: "an image, a Word document or a PDF" },
   WORK_KINDS: ["homework", "assignment"],
@@ -83,6 +91,8 @@ describe("the teacher's homework form", () => {
   beforeEach(() => {
     create.mockReset().mockResolvedValue({ id: "hw-new" });
     update.mockReset().mockResolvedValue({ id: "hw-1" });
+    subjectsForClass.mockReset().mockResolvedValue(["Mathematics"]);
+    listChaptersForClass.mockReset().mockResolvedValue([]);
   });
 
   it("sets new homework through create, published, with the deadline as an instant", async () => {
@@ -162,5 +172,53 @@ describe("the teacher's homework form", () => {
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("keeps an edited homework's own subject, whatever subject the screen was opened under", async () => {
+    render(
+      <HomeworkForm
+        classId="class-1"
+        classLabel="Class 12 A"
+        subject="Accountancy"
+        source={{ as: "edit", homework: homework({ status: "published", subject: "Mathematics" }) }}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    // Its chapters are the Mathematics chapters, not the screen's subject's.
+    await waitFor(() => expect(listChaptersForClass).toHaveBeenCalledWith(expect.anything(), "Class 12 A", "Mathematics"));
+    expect(listChaptersForClass).not.toHaveBeenCalledWith(expect.anything(), "Class 12 A", "Accountancy");
+    // An edit has no subject to choose.
+    expect(screen.queryByRole("combobox", { name: /Subject/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][2].subject).toBe("Mathematics");
+  });
+
+  it("sets new homework in whichever of the teacher's subjects in the class they pick", async () => {
+    subjectsForClass.mockResolvedValue(["Accountancy", "Mathematics"]);
+    render(
+      <HomeworkForm classId="class-1" classLabel="Class 12 A" subject="Accountancy" onSaved={vi.fn()} onCancel={vi.fn()} />,
+    );
+    const picker = await screen.findByRole("combobox", { name: /Subject/ });
+    expect(picker).toHaveValue("Accountancy");
+    fireEvent.change(picker, { target: { value: "Mathematics" } });
+    await waitFor(() => expect(listChaptersForClass).toHaveBeenCalledWith(expect.anything(), "Class 12 A", "Mathematics"));
+
+    fireEvent.change(screen.getByPlaceholderText("Title *"), { target: { value: "Matrices" } });
+    fireEvent.change(screen.getByPlaceholderText("The question"), { target: { value: "Find the inverse." } });
+    fireEvent.change(deadlineInput(), { target: { value: "2026-09-25T17:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Publish" }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    expect(create.mock.calls[0][1].subject).toBe("Mathematics");
+  });
+
+  it("offers no subject picker to a teacher of one subject in the class", async () => {
+    renderForm();
+    await waitFor(() => expect(subjectsForClass).toHaveBeenCalled());
+    // Positive control: the form rendered, and says which subject it sets.
+    expect(screen.getByText(/New homework · For Class 10 A · Mathematics/)).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /Subject/ })).toBeNull();
   });
 });

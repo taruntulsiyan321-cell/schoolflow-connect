@@ -3776,20 +3776,6 @@ export type Database = {
             referencedRelation: "students_current"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "hw_sub_student_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "hw_sub_student_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students_current"
-            referencedColumns: ["id"]
-          },
         ]
       }
       invitations: {

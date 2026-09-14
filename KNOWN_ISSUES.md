@@ -2732,9 +2732,12 @@ release.
 
 **Found:** 2026-09-14, by the production browser run of the homework chain.
 **Fixed:** `20260925160000_homework_is_counted_without_asking_once_per_row`,
-proven against every account on live in rolled-back transactions. **Applying it
-to live is waiting on the owner's permission** — this session's attempt was
-refused by the permission gate, so live still has the per-row policies.
+proven against every account on live in rolled-back transactions — twice: on
+2026-09-14, and again on 2026-09-15 after another branch had applied eleven more
+migrations to live (21 of 21 accounts, the same 3 authorship-only hand-ins).
+**Applying it to live is waiting on the owner's permission** — both attempts
+were refused by the session's permission gate as a production deploy, so live
+still has the per-row policies.
 
 The chain did not fail on a wrong answer; it ran out of its five minutes. The
 teacher's list reloads through `homework_completion` after every action, and
@@ -2779,3 +2782,73 @@ it captured showed the sitting in the list — and left it behind in the demo
 tenant. The card is now found by its content (the sitting's name and its own
 "Review / publish" control). Run against production: passed, and its REST sweep
 removed the sitting the failed run left.
+
+---
+
+## 55. The homework panel, read line by line — FIXED IN THE REPO; the two database halves NOT YET APPLIED TO LIVE
+
+**Found:** 2026-09-15, reading every homework screen, service and repository
+function against docs/gurukul-spec-rules.md and docs/locked-decisions.md.
+
+1. **An edit refiled another subject's homework.** The class screen is opened
+   under one subject (`AssignedClass.subject` — the first of a teacher's
+   subjects in that class), and the form sent THAT subject on every save. On
+   live, Priya Sharma teaches Accountancy, Business Studies, Economics and
+   Mathematics in 12 A and the screen opens as Accountancy: editing one of its 3
+   Mathematics homework would have saved it as Accountancy. Worse, she could
+   never set Mathematics homework for 12 A at all. **Fixed:** an edit keeps the
+   homework's subject — in `HomeworkService.update`, where the decision lives,
+   and in the form; new homework is set in any subject the teacher teaches in
+   the class (`HomeworkService.subjectsForClass`), with a picker when there is
+   more than one.
+2. **Another subject's homework offered every control, and refused them all.**
+   docs/locked-decisions.md: a teacher sees every subject of a section they teach
+   and edits only their own. The list showed Edit, Publish, Unpublish, Archive,
+   Duplicate and Delete on 10 A's English, Science and Social Science homework
+   to its Mathematics class teacher; the service refused each, and refused even
+   OPENING the hand-ins (`listForReview` asserted the subject). **Fixed:** each
+   row carries `canManage` from `teacherMayManageSubject` — the one client home
+   of the rule, which the service's assert now also calls; another subject's
+   card and review screen are view-only; `listForReview` needs the class only;
+   `decide` now asserts the subject too, which it never had. The database fence
+   stays class-level, as rule 38 rules.
+3. **Closed homework could be unpublished before the closure job ran.**
+   `tg_homework_lifecycle` held homework closed only once `resolved_at` was set;
+   the job runs a minute apart and retries a homework whose charge failed. In
+   that wait a teacher could unpublish it (so it was never resolved and nobody
+   who missed it was charged) or move its deadline and reopen it — and the list
+   offered both. **Fixed:** `20260925170000_closed_homework_is_history_before_the_closure_runs`
+   (for a person, released homework past its deadline is closed, resolved or
+   not) and `homeworkHasClosed` on the screen. Not applied to live — see 53.
+4. **Every homework list stopped at 100.** The teacher's list, the teacher
+   dashboard's review count and the class insights read one page of 100
+   (newest first, drafts and archived included), and the admin list read 100 —
+   silently. **Fixed:** the two lists page on request ("Show older homework"),
+   keeping every page through a reload; the counts read every published
+   homework (`listPublishedForClass`).
+5. **The admin monitor did not say which class, or how much was handed in.**
+   Its heading promised both; the table had neither. **Fixed:** Class and
+   Handed in columns, searchable by class.
+6. **A parent saw a status and nothing else.** §10.15: a parent sees what the
+   student sees, and "the child's actual homework submission". **Fixed:** the
+   question (typed or its file) and the file the child handed in. Storage
+   already allowed the read (same-school).
+7. **The review screen's empty state was wrong** — "it goes to the class when it
+   is published", on a screen only published homework opens.
+8. **`homework_submissions` held its student foreign key twice** on live
+   (`hw_sub_student_fkey`, 20260508010620). Dropped in 20260925170000.
+9. **Five test files returned the mock from `beforeEach`.** Vitest runs a
+   function returned from `beforeEach` as the test's teardown, with no
+   arguments; harmless while a mock only resolved a value, a TypeError the
+   moment one read its arguments. Braces now.
+
+**Proven:** every rule above, broken in its source, fails its test (9 of 9);
+20260925170000's proof, broken 7 ways, fails by name 7 of 7, round-trips exactly
+on the replica, and passed with 20260925160000 in one rolled-back transaction
+on live. `run.sh`: 163 claims, 0 failed; the replica break battery, 12 of 12
+breaks fail their claims, the closed-before-resolution break exactly the two new
+ones. **Not done:** applying the two
+migrations to live (53), and so the production browser run of the chain.
+**Out of scope and still true:** the principal's portal is a fixture design
+(`src/gurukul-principal/PrincipalApp.tsx`: "Design-only"), its homework figures
+included — no screen there reads the database.

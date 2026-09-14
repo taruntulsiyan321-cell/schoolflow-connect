@@ -287,37 +287,47 @@ export async function getHomework(ctx: RepoContext, homeworkId: string): Promise
   return mapHomework(data as HomeworkRow);
 }
 
-/** Undeleted homework of one class, newest first. */
+/** Undeleted homework of one class, newest first — one page, optionally of one status. */
 export async function listHomeworkForClass(
   ctx: RepoContext,
   classId: string,
   page?: PageParams,
+  status?: HomeworkStatus,
 ): Promise<HomeworkRecord[]> {
   const { limit, offset } = normalizePage(page);
-  const { data, error } = await getClient(ctx)
+  let q = getClient(ctx)
     .from("homework")
     .select(HW_SELECT)
     .eq("school_id", schoolIdOf(ctx))
     .eq("class_id", classId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .is("deleted_at", null);
+  if (status) q = q.eq("status", status);
+  const { data, error } = await q.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
   throwIfError(error, "Failed to list homework");
   return (data ?? []).map((r) => mapHomework(r as HomeworkRow));
 }
 
-/** Undeleted homework across the school, newest first. */
-export async function listHomeworkForSchool(ctx: RepoContext, page?: PageParams): Promise<HomeworkRecord[]> {
+/** A school's homework row, with the class it was set to, as recorded (either part may be null). */
+export interface SchoolHomeworkRecord extends HomeworkRecord {
+  className: string | null;
+  classSection: string | null;
+}
+
+/** Undeleted homework across the school, newest first, each with its class. */
+export async function listHomeworkForSchool(ctx: RepoContext, page?: PageParams): Promise<SchoolHomeworkRecord[]> {
   const { limit, offset } = normalizePage(page);
   const { data, error } = await getClient(ctx)
     .from("homework")
-    .select(HW_SELECT)
+    .select(`${HW_SELECT}, classes(name, section)`)
     .eq("school_id", schoolIdOf(ctx))
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
   throwIfError(error, "Failed to list school homework");
-  return (data ?? []).map((r) => mapHomework(r as HomeworkRow));
+  return (data ?? []).map((r) => {
+    const row = r as HomeworkRow & { classes: { name: string | null; section: string | null } | null };
+    return { ...mapHomework(row), className: row.classes?.name ?? null, classSection: row.classes?.section ?? null };
+  });
 }
 
 /** How many undeleted homework the school has in each status — exact counts, not a page. */
@@ -380,6 +390,18 @@ export async function updateHomework(
 export async function deleteHomework(ctx: RepoContext, homeworkId: string): Promise<void> {
   const { error } = await getClient(ctx).rpc("rpc_homework_delete", { _homework_id: homeworkId });
   refusalError(error, "Failed to delete homework");
+}
+
+/** One submission, as the caller may read it. */
+export async function getSubmission(ctx: RepoContext, submissionId: string): Promise<HomeworkSubmissionRecord> {
+  const { data, error } = await getClient(ctx)
+    .from("homework_submissions")
+    .select(SUB_SELECT)
+    .eq("id", submissionId)
+    .maybeSingle();
+  throwIfError(error, "Failed to load the submission");
+  if (!data) throw new NotFoundError("homework_submission", submissionId);
+  return mapSubmission(data as SubmissionRow);
 }
 
 export async function listSubmissionsForHomework(

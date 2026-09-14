@@ -210,6 +210,17 @@ async function main() {
     (r) => r[0]?.is_nullable === "NO" && r[0]?.column_default === "true" && r[0]?.writable === false,
   );
   await check(
+    "released homework past its deadline is closed to people before the closure job reaches it (20260925170000)",
+    "SELECT prosrc FROM pg_proc WHERE oid = 'public.tg_homework_lifecycle()'::regprocedure",
+    (r) => /OLD\.resolved_at IS NOT NULL\s+OR \(auth\.uid\(\) IS NOT NULL\s+AND \(OLD\.status = 'published' OR OLD\.published_at IS NOT NULL\)\s+AND OLD\.closes_at <= now\(\)\)/.test(r[0]?.prosrc ?? ""),
+  );
+  await check(
+    "a hand-in has one foreign key to its student, not two (20260925170000)",
+    `SELECT conname FROM pg_constraint
+      WHERE conrelid = 'public.homework_submissions'::regclass AND contype = 'f' AND confrelid = 'public.students'::regclass`,
+    (r) => r.length === 1 && r[0].conname === "homework_submissions_student_id_fkey",
+  );
+  await check(
     "the scheduler never releases homework whose deadline has passed",
     "SELECT prosrc FROM pg_proc WHERE oid = 'public.publish_due_scheduled_work()'::regprocedure",
     (r) => (r[0]?.prosrc ?? "").includes("AND closes_at > now()"),

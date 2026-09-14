@@ -40,6 +40,58 @@ now completed end to end"):
   kept since 20260925000000) and counted a comment as a `dpp` reference, and probe32 read the
   question format from the submit's reply where the review now reads the answer sheet.
 
+### THE HOMEWORK PANEL, READ LINE BY LINE — 2026-09-15
+
+Every homework screen, service and repository function was read against the rules, and what
+did not hold was rewritten (KNOWN_ISSUES 55 has each one, measured):
+* **An edit refiled another subject's homework** under the subject the class screen was
+  opened as — and a teacher of several subjects in a class could set homework in one only.
+  Edits keep the homework's subject (`HomeworkService.update`); new homework picks among the
+  teacher's subjects there (`subjectsForClass`). Spec rule 46.
+* **Another subject's homework offered every control and the service refused them all,**
+  down to opening its hand-ins. Rows carry `canManage` (`teacherMayManageSubject`, the one
+  client home of the rule); those cards and their review are view-only; `decide` now checks the
+  subject too.
+* **Closed homework could be unpublished or reopened before the closure job ran.**
+  `20260925170000_closed_homework_is_history_before_the_closure_runs` + `homeworkHasClosed`
+  on the screen. Spec rule 35.
+* **Every list and count stopped at 100.** Teacher and admin lists page on request, keeping
+  pages through reloads; the dashboard and insights counts read every published homework.
+* **The admin table gained Class and Handed in; a parent now sees the question and the child's
+  file** (§10.15, spec rule 47); the review's empty state says what is true.
+* `homework_submissions`' duplicate student foreign key is dropped (20260925170000).
+
+**Proven:** `npm run typecheck` clean · `npx vitest run` 85 files, 828 tests · lint:baseline
+PASS (95/57) · `npm run build` PASS · `run.sh` 409 of 451 applied, 163 claims, 0 failed, race 3
+of 3 · 9 of 9 UI rules broken in their source fail their tests · 20260925170000's proof broken
+7 ways fails by name 7 of 7, and its rollback round-trips exactly · the replica break battery,
+run on a template carrying both new migrations, 12 of 12 breaks fail their claims — the new one
+(the closed-before-resolution arm removed) fails exactly the two new claims · 20260925160000 +
+20260925170000 passed together in one rolled-back transaction on live, and 20260925160000's proof
+passed again for all 21 live accounts.
+
+`flow.mjs` now undoes, as the server, a write that a broken fence let through — `refusal`
+commits a write it did not refuse, so before this one broken fence crashed every claim after
+it. A trap seen on the way, not caused by this work: flows run on the OLD templates
+(`gurukul_fresh_pristine` and anything cloned from it) fail "submitting a test records the
+student's daily activity" (2, not 1) with nothing broken; a replica built from scratch passes
+it. Rebuild the template before trusting that one claim there.
+
+**Live moved under this branch on 2026-09-14.** `claude/busy-shannon-nymdhd` applied eleven
+more migrations (`20260925000000_a_session_counts_when_it_was_answered`, then
+`20260926000000`–`20261005000000`). Read for overlap: only `rpc_student_academic_snapshot`
+(20260926000000) is shared, and its live body keeps this branch's homework counting. The
+shared stamp `20260925000000` made `apply-release-migrations.mjs` refuse to run; a stamp
+shared with an ALREADY-applied file cannot cause a skip, so the runner now checks collisions
+only for files still to apply.
+
+**NOT APPLIED — needs the owner:** `node scripts/apply-release-migrations.mjs` (applies
+20260925160000 then 20260925170000, skipping the sixteen already live) was refused twice by
+the session's permission gate as a production deploy. Until it runs, production keeps the slow
+per-row homework counts and the closed-homework gap. After it: `npm run verify:caller-privileges`,
+`npm run db:verify-integrity` (two new checks for 170000), the query-timing command in the
+section below, then push `main` and run the evidence suite against production.
+
 ### THE PRODUCTION BROWSER RUN, AND WHAT IT FOUND — 2026-09-14
 
 `e2e-evidence` against https://schoolflow-connect.vercel.app: **17 passed, 2 failed.**
@@ -110,6 +162,7 @@ deletes them through the card's own Delete.
 | `20260925140000_a_handed_in_file_cannot_change` | `academic-files` UPDATE/DELETE refuse a handed-in or question file |
 | `20260925150000_the_family_is_told_accepted_or_rejected` | the router's decision branch says "Homework accepted" / "Homework rejected" and drops the dead `homework.graded` route — edited IN PLACE, line endings kept; `_notify_student_circle` hands parents to `_notify_student_parents`, so a parent on both links is told once |
 | `20260925160000_homework_is_counted_without_asking_once_per_row` | **not yet applied** — read policies on `homework`, `homework_submissions`, `students` resolve once per statement; `can_read_student_row`, `can_manage_homework` dropped; `my_guardian_student_ids()`, `my_teacher_homework_ids()` added; teacher writes split out of FOR ALL; authorship no longer reads hand-ins |
+| `20260925170000_closed_homework_is_history_before_the_closure_runs` | **not yet applied** — for a person, released homework past its deadline is closed before the closure job resolves it (no unpublish, no reopened deadline, no archive-and-unarchive); the duplicate `hw_sub_student_fkey` dropped |
 
 **What applying involved (kept for a rollback or a second environment):**
 * **Deploy `ai-gateway` and `mcp` immediately after.** `supabase/functions/_shared/aiRouter.ts`
@@ -218,9 +271,9 @@ only a file path. It was run through a shim; the replica also shows 205 unrelate
 
 ### Still open
 
-* **Apply `20260925160000` to live** (see "THE PRODUCTION BROWSER RUN" above), then run the
-  evidence suite again: the homework chain's steps all passed on production and only its
-  cleanup ran out of time. The chain cannot put back the XP accepting awards, or the two tiny
+* **Apply `20260925160000` and `20260925170000` to live** (see "THE HOMEWORK PANEL, READ LINE
+  BY LINE" above), push `main`, then run the evidence suite again: the homework chain's steps
+  all passed on production and only its cleanup ran out of time. The chain cannot put back the XP accepting awards, or the two tiny
   PDFs it hands in (a handed-in file cannot be deleted, by design).
 * **After the release is accepted,** drop `rls_pre_20260925160000` with the three earlier
   `_pre_` tables.

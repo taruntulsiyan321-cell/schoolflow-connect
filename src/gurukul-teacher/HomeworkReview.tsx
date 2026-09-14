@@ -20,14 +20,19 @@ const ORDER: HomeworkStanding[] = ["handed_in", "rejected", "to_do", "not_handed
 /**
  * One homework's hand-ins. The teacher does exactly two things with a hand-in
  * awaiting review: accept it or reject it. No marks, no grade, no remark.
+ *
+ * `canDecide` is false for a teacher of the class who does not teach the
+ * homework's subject: they read every hand-in, and decide none.
  */
 export function HomeworkReview({
   homework,
   classId,
+  canDecide,
   onBack,
 }: {
   homework: HomeworkRecord;
   classId: string;
+  canDecide: boolean;
   onBack: () => void;
 }) {
   const { ctx } = useAcademicContext();
@@ -86,8 +91,7 @@ export function HomeworkReview({
   // database counts the rejection as missed homework and charges its XP — said
   // here before the teacher decides, where it applies.
   const rejectingCostsXp =
-    homework.missedCostsXp &&
-    rows.some((r) => r.standing.closed && r.submission?.status === "submitted");
+    canDecide && homework.missedCostsXp && rows.some((r) => r.standing.closed && r.submission?.status === "submitted");
 
   return (
     <div className="space-y-4">
@@ -97,7 +101,8 @@ export function HomeworkReview({
       <div>
         <div className="text-sm font-bold text-foreground">{homework.title}</div>
         <div className="text-[10px] text-muted-foreground">
-          Deadline {new Date(homework.closesAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+          {homework.subject} · Deadline{" "}
+          {new Date(homework.closesAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
         </div>
       </div>
       {homework.questionFile ? (
@@ -114,6 +119,11 @@ export function HomeworkReview({
           </span>
         ))}
       </div>
+      {!canDecide && (
+        <div className="text-[10px] text-muted-foreground">
+          View only — hand-ins for {homework.subject} are accepted or rejected by its teachers.
+        </div>
+      )}
       {rejectingCostsXp && (
         <div className="text-[10px] text-muted-foreground">
           The deadline has passed, so rejected work cannot be handed in again: rejecting it now counts as missed homework
@@ -141,7 +151,7 @@ export function HomeworkReview({
                 </div>
               </div>
               {r.submission?.file && <AttachmentList items={[attachmentOfFile(r.submission.file)]} dense />}
-              {r.submission?.status === "submitted" && (
+              {canDecide && r.submission?.status === "submitted" && (
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -165,7 +175,7 @@ export function HomeworkReview({
           ))}
           {sorted.length === 0 && (
             <div className="text-center py-8 text-xs text-muted-foreground">
-              This homework is not set to anyone yet — it goes to the class when it is published.
+              No student is counted on this homework — the class had no students when it was set.
             </div>
           )}
         </div>
