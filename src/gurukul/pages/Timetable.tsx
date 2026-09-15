@@ -22,7 +22,7 @@ const SUBJECT_ICONS: Record<string, string> = {
   Physics: "⚡",
   Chemistry: "⚗",
   Biology: "🧬",
-  English: "âœ",
+  English: "✍",
   "Physics Lab": "⚡",
   "Chemistry Lab": "⚗",
 };

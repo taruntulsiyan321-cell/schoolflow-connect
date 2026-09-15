@@ -470,7 +470,7 @@ export default function Analysis() {
       title: m.title,
       desc: m.detail ?? "",
       date: m.when,
-      icon: m.badge ? "â­" : "📈",
+      icon: m.badge ? "⭐" : "📈",
       category: m.badge ?? "Progress",
     }));
     if (streak >= STREAK_ESTABLISHED) {

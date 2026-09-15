@@ -2605,7 +2605,7 @@ export function LiveExamsMarksTab({
           onClick={() => setActiveSubject(null)}
           className="text-[10px] font-bold text-primary"
         >
-          â† Back to exams
+          ← Back to exams
         </button>
         {error && (
           <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -2695,7 +2695,7 @@ export function LiveExamsMarksTab({
           onClick={() => setActiveSitting(null)}
           className="text-[10px] font-bold text-primary"
         >
-          â† Back to exams
+          ← Back to exams
         </button>
         {error && (
           <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">

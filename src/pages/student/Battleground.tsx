@@ -691,7 +691,7 @@ export function BattleRoom() {
               : revealedCorrectIndex != null && selected === revealedCorrectIndex
                 ? "✓ Correct!"
                 : selected === -1
-                  ? "â± Time's up"
+                  ? "⏱ Time's up"
                   : "✗ Wrong"}
           </div>
           {answerSyncFailed ? (
