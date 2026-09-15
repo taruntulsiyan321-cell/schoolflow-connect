@@ -16,6 +16,8 @@
     "test:watch": "vitest",
     "test:ai-benchmarks": "vitest run src/academic/ai/benchmarkCi.test.ts",
     "db:seed": "node scripts/apply-seed.mjs",
+    "db:seed:e2e-school": "node scripts/apply-e2e-school.mjs",
+    "db:seed:e2e-school:remove": "node scripts/apply-e2e-school.mjs --remove",
     "db:migrate": "node scripts/apply-pending-migrations.mjs",
     "db:migrate:all": "node scripts/apply-pending-migrations.mjs --all",
     "db:check-migrations": "node scripts/check-pending-migrations.mjs",
