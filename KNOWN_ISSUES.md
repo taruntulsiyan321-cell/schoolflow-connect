@@ -2942,3 +2942,30 @@ panel. Its first run failed on item 9 — the check that shows it can fail.
   notifications. Everything up to FCM is proven; the last hop is not.
 * **Exams on the principal's Classes tab.** They were invented; real exam screens
   for a principal are not built.
+
+---
+
+## 57. The sign-in form refused real accounts on domain extensions it did not list — FIXED 2026-09-15
+
+**Found:** 2026-09-15, by the first run of `e2e-evidence/zz-riverside-homework.spec.ts`
+against production, right after Riverside Public School (20260925200000) was
+applied. teacher01@rps.e2e.test typed the right password into /auth and stayed
+there; no request reached Supabase Auth (the trace holds none). Supabase itself
+accepted all four Riverside logins tried directly, each resolving to its role.
+
+`validateEmail` (src/lib/emailValidation.ts) refused any address whose extension
+was missing from a curated list of "widely-used" TLDs — `.test` was not on it —
+and the sign-in handler then reported "Enter a valid email or mobile number".
+Every caller (password sign-in, password reset, email OTP) is about an account
+that already exists, which Supabase is the authority on; the list could only lock
+real accounts out — all 26 Riverside logins, and a school on any extension it
+forgot. The provisioning script's own login check had passed only because it
+called Supabase Auth directly, around the form.
+
+**Fixed:** the list is gone; the shape check and the popular-provider typo
+suggestions ("Did you mean …@gmail.com?") stay, and both sign-in modes now show
+that message for an input with an "@" instead of one about mobile numbers.
+`src/lib/emailValidation.test.ts` fails against the old validator (2 of 4).
+**Proven on production:** after the deploy, the same spec signed teacher01, student
+8A-01 and the Riverside principal in through /auth and ran the whole homework story
+to the end.

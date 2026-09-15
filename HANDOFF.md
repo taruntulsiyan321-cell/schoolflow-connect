@@ -40,6 +40,36 @@ now completed end to end"):
   kept since 20260925000000) and counted a comment as a `dpp` reference, and probe32 read the
   question format from the submit's reply where the review now reads the answer sheet.
 
+### RIVERSIDE PUBLIC SCHOOL — THE E2E ORGANISATION — 2026-09-15 (LIVE)
+
+The owner ruled that the E2E school structure is applied as a migration.
+* **`20260925200000_riverside_public_school_is_a_real_organisation`** is its one home (the
+  `supabase/fixtures/E2E_SCHOOL_STRUCTURE*.sql` copies are gone): school
+  `00000000-0000-4000-8000-000000000003`, 12 sections of classes 8–12, 224 students, 12 teachers,
+  26 logins (`admin@`, `principal@`, `teacher01@`…`teacher12@`, `student.<grade><section>.01@` —
+  all `@rps.e2e.test`, password `E2eSchool123!`). No parents, no academic data.
+* **Apply / remove:** `npm run db:seed:e2e-school` (the migration through
+  `apply-one-migration.mjs`, then a principal login check) and `npm run db:seed:e2e-school:remove`
+  (the rollback, which removes the school, everything E2E runs wrote into it and its accounts —
+  never another school's rows — then the ledger row). Handed-in files stay in storage: SQL cannot
+  delete `storage.objects`.
+* **Its proof** checks every section exactly, each class teacher teaching in their own section, every
+  login against the password (and a wrong one), memberships bound to their people, and the
+  principal, teacher01 and student 8A-01 reading under their own RLS. 9 of 9 broken proofs fail by
+  name on the replica; the round trip was run with real homework written into the school before
+  rolling back.
+* **Sign-in was refusing all of them** (KNOWN_ISSUES 57) — the form's email check allowed only a
+  curated list of extensions. Fixed and deployed before the production run.
+* **The homework story, as Riverside's people:** `e2e-evidence/zz-riverside-homework.spec.ts`, run with
+  `PLAYWRIGHT_BASE_URL=https://schoolflow-connect.vercel.app npx playwright test --config=playwright.evidence.config.ts --project=evidence --no-deps e2e-evidence/zz-riverside-homework.spec.ts`
+  (it signs its own accounts in; no shared sessions needed). **Passed on production 2026-09-15:**
+  teacher01 set homework for 8-A; Aarav Sharma (8A-01) handed in a PDF; the teacher accepted it and
+  he was told "Homework accepted" once; the principal saw 12 sections, 8 A as `20 students · 1
+  homework · — · 0 awaiting`, the homework at 1 / 20 with his row Accepted (with the file) and 19 To
+  do, and downloaded both reports (20 rows each, exactly one "Yes"); teacher01's profile read "1 of
+  20 handed in", his read 1 / 0 / 0; the teacher deleted it and the principal's 8 A went back to 0
+  homework. No uncaught error on any screen.
+
 ### HOMEWORK TO THE FAMILY, THE PRINCIPAL AND THE PROFILES — 2026-09-15 (LIVE)
 
 Asked: does homework reach the student's and the parents' phones; does the principal see it on
