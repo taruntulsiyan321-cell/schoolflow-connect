@@ -825,7 +825,8 @@ export const PracticeService = {
 
     let query = client
       .from("question_bank")
-      .select("topic, concept, chapter")
+      // Same dead columns as listBankQuestions: the label is topics.name now.
+      .select("chapter, topics(name)")
       .eq("is_approved", true)
       .eq("class_level", classLevel)
       .ilike("subject", opts.subject)
@@ -842,9 +843,9 @@ export const PracticeService = {
     throwIfError(error, "Failed to load practice topics");
     const seen = new Map<string, AcademicTermRef>();
     for (const row of data ?? []) {
-      const r = row as { topic?: string | null; concept?: string | null; chapter?: string | null };
+      const r = row as { topics?: { name?: string | null } | null; chapter?: string | null };
       if (opts.chapter && !academicLabelMatches(r.chapter, opts.chapter)) continue;
-      for (const candidate of [r.topic, r.concept]) {
+      for (const candidate of [r.topics?.name]) {
         const raw = String(candidate ?? "").trim();
         if (!raw) continue;
         const term = toPresentedTerm(raw, "concept");
@@ -1201,17 +1202,31 @@ export const PracticeService = {
       const chapter = safe(opts.chapter);
       const topic = safe(opts.topic);
       const concept = safe(opts.concept);
+      // Only `chapter` can be narrowed here. The topic label lives on an
+      // EMBEDDED row (topics.name) and PostgREST's or() applies to the parent
+      // table, so a topic/concept arm would have to be an inner-join filter —
+      // which would also drop the 15 rows that carry no topic_id. The
+      // client-side academicLabelMatches pass below is, as the comment above
+      // says, the precision filter; this only has to make the window contain
+      // candidates. The old topic./concept. arms could never match anything.
       const clauses: string[] = [];
       if (chapter) clauses.push(`chapter.ilike.${chapter}`);
-      if (topic) clauses.push(`topic.ilike.${topic}`, `concept.ilike.${topic}`, `chapter.ilike.${topic}`);
-      if (concept) clauses.push(`concept.ilike.${concept}`, `topic.ilike.${concept}`);
+      if (topic) clauses.push(`chapter.ilike.${topic}`);
       return clauses.length ? clauses.join(",") : null;
     };
 
     const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean) => {
       let query = client
         .from("question_bank")
-        .select("id, subject, chapter, topic, concept, difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
+        // `topic` and `concept` are NOT columns of question_bank and have not
+        // been for some time — the taxonomy moved to topic_id -> topics.name
+        // (21,696 of 21,711 rows carry one). Selecting them returned
+        // 42703 "column question_bank.topic does not exist", which the UI
+        // renders as "Could not start practice / This feature isn't available
+        // right now", so chapter practice failed to start at all. It was
+        // survivable only while PostgREST served a stale schema cache; the
+        // first DDL that reloaded that cache broke every practice session.
+        .select("id, subject, chapter, topic_id, topics(name), difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
         .eq("is_approved", true)
         // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
         // so there is no per-school arm left to filter on.
@@ -1270,13 +1285,14 @@ export const PracticeService = {
         const chapters = Array.from(
           new Set(opts.weakTargets.map((w) => w.chapter).filter((c): c is string => Boolean(c))),
         );
+        // Same reason as labelPredicate: concept/topic are not columns here.
+        // A weak target names a CHAPTER as well (the chapter is the scheduling
+        // unit), so narrowing on chapter keeps the window tight; the
+        // concept-level precision is applied client-side below.
         const clauses: string[] = [];
-        if (concepts.length) {
-          clauses.push(`concept.in.(${concepts.map(quote).join(",")})`);
-          clauses.push(`topic.in.(${concepts.map(quote).join(",")})`);
-        }
         if (chapters.length) clauses.push(`chapter.in.(${chapters.map(quote).join(",")})`);
         if (clauses.length) query = query.or(clauses.join(","));
+        void concepts;
       }
       if (opts.pyqOnly) {
         query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
@@ -1309,7 +1325,34 @@ export const PracticeService = {
       if (!retry.error) ({ data } = retry);
     }
     throwIfError(error, "Failed to load practice questions");
-    let rows = (data ?? []) as Array<{
+    type BankRow = {
+      id: string;
+      subject: string;
+      chapter: string | null;
+      topic_id: string | null;
+      topics: { name: string | null } | null;
+      difficulty: string | null;
+      question: string;
+      options: unknown;
+      correct_index: number;
+      explanation: string | null;
+      exam_year: number | null;
+      source: string | null;
+      source_type: string | null;
+      stream: string | null;
+    };
+
+    // The bank has ONE taxonomy label per question now, and it arrives
+    // embedded. Everything downstream — the chapter/topic/concept filters, the
+    // weak-target match, the mapper — was written against `topic` and
+    // `concept` fields, and they all mean "the teachable idea this question
+    // is about". So the name is resolved once, here, and fills both rather
+    // than eight call sites each learning about the embed.
+    let rows = ((data ?? []) as unknown as BankRow[]).map((r) => ({
+      ...r,
+      topic: r.topics?.name ?? null,
+      concept: r.topics?.name ?? null,
+    })) as Array<{
       id: string;
       subject: string;
       chapter: string | null;

@@ -269,12 +269,15 @@ export const QuestionBankService = {
     assertCanConsume(ctx, "question");
     let query = getClient(toRepoContext(ctx))
       .from("question_bank")
-      .select("topic_group")
+      // `topic_group` is not a column of question_bank either — this returned
+      // 42703 on every call, so the topic list was always empty. The taxonomy
+      // is topic_id -> topics.name; rows without one are dropped below rather
+      // than by a filter on a column that does not exist.
+      .select("chapter, topics(name)")
       .eq("subject", input.subject)
       .eq("class_level", input.classLevel)
       .eq("is_active", true)
-      .eq("is_approved", true)
-      .not("topic_group", "is", null);
+      .eq("is_approved", true);
     if (input.chapters?.length) query = query.in("chapter", input.chapters);
 
     const { data, error } = await query;
@@ -282,7 +285,7 @@ export const QuestionBankService = {
 
     const map: Record<string, number> = {};
     for (const r of data ?? []) {
-      const t = String((r as { topic_group?: string }).topic_group ?? "").trim();
+      const t = String((r as { topics?: { name?: string | null } | null }).topics?.name ?? "").trim();
       if (!t) continue;
       map[t] = (map[t] ?? 0) + 1;
     }

@@ -45,6 +45,16 @@ const browser = await chromium.launch({ headless: true,
 const page = await (await browser.newContext({ viewport:{width:1280,height:950} })).newPage();
 const errors = [];
 page.on("pageerror", e => errors.push(String(e).slice(0,140)));
+// "Could not start practice / This feature isn't available right now" is what
+// the UI shows for SQLSTATE 42P01 and 42703 — a missing table or column. The
+// screen deliberately hides which; a smoke run that cannot say WHICH is a bug
+// report nobody can act on, so capture the body here.
+const failures = [];
+page.on("response", async r => {
+  if (!/supabase\.co/.test(r.url()) || r.status() < 400) return;
+  const body = await r.text().catch(() => "");
+  failures.push(`${r.status()} ${decodeURIComponent(r.url()).replace(/apikey=[^&]+/,"").slice(0,120)} :: ${body.slice(0,200)}`);
+});
 page.on("console", m => { if (m.type()==="error" && !/WebSocket|realtime|403/.test(m.text())) errors.push(m.text().slice(0,140)); });
 
 await page.goto("http://127.0.0.1:5173/", { waitUntil: "domcontentloaded" });
@@ -65,6 +75,8 @@ await page.waitForFunction(() => /Q1 of/.test(document.body?.innerText ?? ""), {
   .catch(async () => {
     console.log(`!! never reached Q1 for ${SUBJECT} / ${CHAPTER}`);
     console.log("   screen says:", ((await page.textContent("body")) ?? "").replace(/\s+/g, " ").slice(0, 200));
+    for (const f of failures.slice(0, 6)) console.log("   FAILED REQUEST:", f);
+    if (!failures.length) console.log("   (no 4xx/5xx — the screen failed without the server refusing anything)");
     process.exit(1);
   });
 await page.screenshot({ path: `${SP}/shots/10-question.png` });

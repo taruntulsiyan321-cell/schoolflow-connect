@@ -53,10 +53,44 @@ describe("weak areas filter reaches the database", () => {
     ).toBe(true);
   });
 
-  it("constrains on chapter and concept, the columns the targets name", () => {
+  it("constrains on chapter, the column the targets name that actually exists", () => {
     const build = buildQuerySection();
-    expect(build).toContain("concept.in.");
     expect(build).toContain("chapter.in.");
+  });
+
+  /**
+   * This assertion used to demand `concept.in.` as well, and that was wrong in
+   * a way that cost a working practice screen.
+   *
+   * question_bank has no `topic`, `concept` or `topic_group` column — the
+   * taxonomy is topic_id -> topics.name, and 21,696 of 21,711 rows carry one.
+   * Naming a column PostgREST cannot resolve fails the WHOLE request with
+   * 42703, which the UI renders as "Could not start practice / This feature
+   * isn't available right now". It stayed hidden only while PostgREST served a
+   * stale schema cache; the next DDL reloaded it and every practice session
+   * stopped starting. Measured 2026-09-15:
+   *
+   *   select=id,subject,chapter,topic,concept,...  -> 400 42703
+   *   select=id,subject,chapter,...                -> 200
+   *
+   * So the guard is inverted: the query must not name them at all.
+   */
+  it("never names a question_bank column that does not exist", () => {
+    const build = buildQuerySection();
+    for (const dead of [
+      "topic.ilike.", "concept.ilike.", "topic.in.", "concept.in.",
+      "topic_group",
+    ]) {
+      expect(build, `${dead} names a column question_bank does not have`).not.toContain(dead);
+    }
+    // The select list, specifically: bare `topic`/`concept` between commas.
+    expect(build).not.toMatch(/select\("[^"]*[ ,]topic[ ,][^"]*"/);
+    expect(build).not.toMatch(/select\("[^"]*[ ,]concept[ ,][^"]*"/);
+  });
+
+  it("reads the topic label from the embedded topics row", () => {
+    const build = buildQuerySection();
+    expect(build).toContain("topics(name)");
   });
 
   it("still runs the client-side precision pass afterwards", () => {

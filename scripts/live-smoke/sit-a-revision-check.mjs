@@ -21,6 +21,18 @@ const browser = await chromium.launch({ headless: true,
 const page = await (await browser.newContext({viewport:{width:1280,height:1000}})).newPage();
 const errors = [];
 page.on("pageerror", e => errors.push(String(e).slice(0,140)));
+// A refused start shows the student a toast that is gone in seconds and shows
+// a smoke run nothing at all. Capture the server's own words.
+const failures = [];
+page.on("response", async r => {
+  if (!/supabase\.co/.test(r.url()) || r.status() < 400) return;
+  const body = await r.text().catch(() => "");
+  failures.push(`${r.status()} ${decodeURIComponent(r.url()).replace(/apikey=[^&]+/,"").slice(0,110)} :: ${body.slice(0,220)}`);
+});
+const reportFailures = () => {
+  for (const f of failures.slice(0, 6)) console.log("   FAILED REQUEST:", f);
+  if (!failures.length) console.log("   (no 4xx/5xx — nothing was refused by the server)");
+};
 page.on("console", m => { if (m.type()==="error" && !/WebSocket|realtime|403/.test(m.text())) errors.push(m.text().slice(0,140)); });
 
 await page.goto("http://127.0.0.1:5173/", { waitUntil: "domcontentloaded" });

@@ -17,7 +17,7 @@ import {
   RefreshCw, AlertCircle, CheckCircle2, BookOpen, Search, Play, Loader2,
 } from "lucide-react";
 import { toErrorMessage } from "@/lib/presentation";
-import { pluralise } from "@/lib/plural";
+import { pluralise, pluraliseWord } from "@/lib/plural";
 
 /**
  * Recovery — the 7C engine, and nothing else.
@@ -137,7 +137,7 @@ function RecoveryCard({
             {item.open_mistakes}
           </div>
           <div className="text-[9px] text-muted-foreground">
-            open {pluralise(item.open_mistakes, "mistake", "mistakes")}
+            open {pluraliseWord(item.open_mistakes, "mistake", "mistakes")}
           </div>
         </div>
       </div>
@@ -193,9 +193,9 @@ function RecoveryCard({
               questions" stopped being true the moment the ladder started
               sizing itself to the mistakes. */}
           <p className="text-[11px] text-muted-foreground mb-2">
-            {item.planned_size} {pluralise(item.planned_size, "question", "questions")},
+            {item.planned_size} {pluraliseWord(item.planned_size, "question", "questions")},
             covering {item.mode === "deep" ? "all four steps of" : "every one of"}{" "}
-            your {item.open_mistakes} {pluralise(item.open_mistakes, "mistake", "mistakes")}.
+            your {item.open_mistakes} {pluraliseWord(item.open_mistakes, "mistake", "mistakes")}.
           </p>
           <button
             onClick={onStart}
@@ -478,7 +478,7 @@ export default function Recovery() {
             >
               <p className={cn("text-xs text-muted-foreground")}>
                 No chapter has reached {items[0]?.trigger_count}{" "}
-                {pluralise(items[0]?.trigger_count ?? 0, "open mistake", "open mistakes")}{" "}
+                {pluraliseWord(items[0]?.trigger_count ?? 0, "open mistake", "open mistakes")}{" "}
                 yet. Keep practising — recovery opens by itself when one does.
               </p>
             </GlassCard>
