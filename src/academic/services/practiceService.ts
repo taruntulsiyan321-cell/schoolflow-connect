@@ -1167,7 +1167,48 @@ export const PracticeService = {
       return [];
     }
 
-    const buildQuery = (applyActiveFilter: boolean) => {
+    // ── THE CHAPTER FILTER MUST REACH THE DATABASE TOO ──────────────────
+    //
+    // Same defect the weakTargets block below was fixed for, in the same
+    // function, left in place for ordinary chapter practice. The chapter was
+    // matched ONLY client-side, over a window capped at
+    // min(400, max(80, limit * 8)) rows — so the query was "any approved
+    // question for this class, board and subject", and the chapter was picked
+    // out of whatever came back.
+    //
+    // Measured on production 2026-09-15, driving the real app in a browser as
+    // arjun.mehta (Class 10, rbse) and opening Arithmetic Progressions:
+    //
+    //     questions in that class/board/subject pool ....... 569
+    //     questions in Arithmetic Progressions ............. 43
+    //     of those, inside the 160-row window .............. 3
+    //
+    // The screen said "No questions for this chapter in the bank yet" for a
+    // chapter holding 43 of them. And because PostgREST returns no guaranteed
+    // order without an ORDER BY, the same tap can return 3, 0 or 20 — so the
+    // failure is intermittent, which is why it survived.
+    //
+    // Pushed down as an OR across the three label columns, case-insensitively.
+    // The client-side academicLabelMatches pass further down is still the
+    // precision filter; this only guarantees the window it filters actually
+    // contains candidates.
+    const labelPredicate = (): string | null => {
+      // PostgREST's or() is comma/parenthesis delimited, so a label containing
+      // either would change the shape of the filter rather than be matched by
+      // it. Such a label falls back to the client-side pass instead.
+      const safe = (v: string | null | undefined) =>
+        v && !/[,()"\\]/.test(v) ? v.trim() : null;
+      const chapter = safe(opts.chapter);
+      const topic = safe(opts.topic);
+      const concept = safe(opts.concept);
+      const clauses: string[] = [];
+      if (chapter) clauses.push(`chapter.ilike.${chapter}`);
+      if (topic) clauses.push(`topic.ilike.${topic}`, `concept.ilike.${topic}`, `chapter.ilike.${topic}`);
+      if (concept) clauses.push(`concept.ilike.${concept}`, `topic.ilike.${concept}`);
+      return clauses.length ? clauses.join(",") : null;
+    };
+
+    const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean) => {
       let query = client
         .from("question_bank")
         .select("id, subject, chapter, topic, concept, difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
@@ -1192,8 +1233,13 @@ export const PracticeService = {
       if (opts.subject && opts.subject !== "Mixed") {
         query = query.ilike("subject", opts.subject);
       }
-      // Chapter / topic / concept filters applied client-side with academicLabelMatches
-      // so display-cleaned labels still hit slug or mojibake-stored rows.
+      // The label predicate NARROWS; academicLabelMatches below is still what
+      // decides. Skipped on the fallback pass so a chapter stored under a
+      // mojibake or slugged label is still reachable the way it was before.
+      if (narrowToLabels && !byIds) {
+        const pred = labelPredicate();
+        if (pred) query = query.or(pred);
+      }
       if (opts.difficulty && opts.difficulty !== "mixed") {
         query = query.eq("difficulty", opts.difficulty);
       }
@@ -1245,12 +1291,22 @@ export const PracticeService = {
     // applied. Filtering on a missing column fails the whole query, which would
     // stop practice from starting, so probe once and fall back.
     const wantActiveFilter = !opts.includeInactive && softDeleteAvailable !== false;
-    let { data, error } = await buildQuery(wantActiveFilter);
+    let { data, error } = await buildQuery(wantActiveFilter, true);
     if (error && wantActiveFilter && isMissingSchema(error)) {
       softDeleteAvailable = false;
-      ({ data, error } = await buildQuery(false));
+      ({ data, error } = await buildQuery(false, true));
     } else if (!error && wantActiveFilter) {
       softDeleteAvailable = true;
+    }
+    // A narrowed query that found nothing is retried WITHOUT the label
+    // predicate. The predicate is an exact (case-insensitive) match, and this
+    // bank holds slugged and mojibake-encoded labels that only
+    // academicLabelMatches can resolve — so the narrowing must never be the
+    // thing that makes a chapter unreachable. One extra round trip, and only
+    // on the path that would otherwise have shown an empty screen.
+    if (!error && (data?.length ?? 0) === 0 && !byIds && labelPredicate()) {
+      const retry = await buildQuery(wantActiveFilter && softDeleteAvailable !== false, false);
+      if (!retry.error) ({ data } = retry);
     }
     throwIfError(error, "Failed to load practice questions");
     let rows = (data ?? []) as Array<{

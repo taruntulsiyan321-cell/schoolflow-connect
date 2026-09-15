@@ -146,7 +146,16 @@ describe("G5 — accuracy has one source", () => {
   it("derives it from correct and the attempt total instead", () => {
     // The positive half: asserting only the absences above would pass if the
     // figure stopped being computed at all.
-    expect(HOOK).toContain("(100 * correct) / totalAttempts");
+    // It is now correct / (correct + wrong), via the named accuracyOverAnswered.
+    //
+    // totalAttempts INCLUDES SKIPPED questions, and skips stopped being counted
+    // as wrong answers on 2026-09-15. Dividing a skip-free numerator by a
+    // skip-inclusive denominator put three tiles on one row that do not add up:
+    // measured live at 10 correct, 14 incorrect, "36%", where 10 of 24 is 42%.
+    // That is the very defect this file exists to prevent, so the guard moves
+    // to the corrected rule rather than being deleted.
+    expect(HOOK).toContain("accuracyOverAnswered(correct, wrong)");
+    expect(HOOK).toContain("(100 * correct) / answered");
   });
 
   it("counts the SAME rows Home counts, not concept_mastery", () => {

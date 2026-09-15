@@ -29,6 +29,24 @@ export type PracticeSessionSummary = {
   accuracy_pct: number;
 };
 
+/**
+ * Practice accuracy, over the questions that were ANSWERED.
+ *
+ * Exported and named rather than written inline, because the Overview tab
+ * prints `correct`, `wrong` and this side by side, and the one rule that must
+ * hold is that they agree: correct / (correct + wrong). It did not hold when
+ * skips were removed from `wrong` and left in this denominator — measured in
+ * a real browser as 10 correct, 14 incorrect, "Accuracy 36%", where 10 of 24
+ * is 42%.
+ *
+ * Null, never 0, when nothing has been answered: 0% claims a student who has
+ * never practised got everything wrong.
+ */
+export function accuracyOverAnswered(correct: number, wrong: number): number | null {
+  const answered = correct + wrong;
+  return answered > 0 ? Math.round((100 * correct) / answered) : null;
+}
+
 export type AnalysisPageData = {
   student_class: string | null;
   recent_sessions: PracticeSessionSummary[];
@@ -281,9 +299,16 @@ export function useAnalysisPageData(enabled = true) {
       // So it is computed from `correct` and `wrong` — the same two numbers the
       // tab prints. Null when nothing has been attempted: 0% would claim a
       // student who has never practised got everything wrong.
-      const accuracy_pct = totalAttempts > 0
-        ? Math.round((100 * correct) / totalAttempts)
-        : null;
+      // OVER THE COUNTS RENDERED BESIDE IT, which is now correct + wrong and
+      // no longer totalAttempts.
+      //
+      // Subtracting skips from `wrong` above without changing this divided a
+      // skip-free numerator by a skip-inclusive denominator: measured in the
+      // browser at 10 correct, 14 incorrect, "Accuracy 36%" — but 10 + 14 is
+      // 24 and 10/24 is 42%. The 36% was 10/28. Three tiles on one row that do
+      // not add up is the exact G5 defect the comment above this block
+      // describes, reintroduced by a half-applied fix.
+      const accuracy_pct = accuracyOverAnswered(correct, wrong);
 
       // Average pace across recent timed sessions (not only the latest).
       const timed = sessions.filter((s) => s.question_count > 0 && s.duration_minutes > 0);

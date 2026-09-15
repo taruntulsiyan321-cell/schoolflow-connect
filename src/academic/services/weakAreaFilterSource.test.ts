@@ -33,7 +33,11 @@ const SOURCE = stripComments(readFileSync(join(__dirname, "practiceService.ts"),
 
 /** The query-building closure, isolated from the client-side pass below it. */
 function buildQuerySection(): string {
-  const start = SOURCE.indexOf("const buildQuery = (applyActiveFilter: boolean)");
+  // The signature gained a second parameter when the CHAPTER filter was pushed
+  // down to the database too (the same defect this file guards for weak areas,
+  // left unfixed for ordinary chapter practice). Anchored on the name and the
+  // first parameter so the guard survives that without going blind.
+  const start = SOURCE.indexOf("const buildQuery = (applyActiveFilter: boolean,");
   expect(start, "buildQuery has been renamed or removed").toBeGreaterThan(-1);
   const end = SOURCE.indexOf("return query;", start);
   expect(end, "buildQuery no longer returns the query").toBeGreaterThan(start);
