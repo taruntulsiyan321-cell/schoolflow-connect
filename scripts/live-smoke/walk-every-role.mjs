@@ -123,8 +123,11 @@ for (const role of roles) {
     await page.waitForFunction(() => {
       const t = document.body?.innerText ?? "";
       return t.length > 60 && !/Restoring your session/.test(t);
-    }, { timeout: 30000 }).catch(() => note("SLOW", "never finished loading in 30s"));
-    await page.waitForTimeout(1100);
+      // 12s, not 30s. Five portals at ~90 screens means a per-screen timeout is
+      // multiplied by however many screens are slow, and a 30s one turned a
+      // sweep into something that outlived the session watching it.
+    }, { timeout: 12000 }).catch(() => note("SLOW", "never finished loading in 12s"));
+    await page.waitForTimeout(900);
 
     const text = ((await page.textContent("body")) ?? "").replace(/\s+/g, " ").trim();
 
