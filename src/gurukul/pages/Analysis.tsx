@@ -176,6 +176,9 @@ export default function Analysis() {
   const overview = useMemo(() => {
     const correct = analysis?.totals.correct ?? 0;
     const incorrect = analysis?.totals.wrong ?? 0;
+    // §6.6 — passed over, not got wrong. Kept out of totalQuestions so the
+    // accuracy beside it is over questions actually answered.
+    const skipped = analysis?.totals.skipped ?? 0;
     const totalQuestions = correct + incorrect;
     const heatmap = snapshot?.activity_heatmap ?? [];
     const studyMinutes = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
@@ -206,6 +209,7 @@ export default function Analysis() {
       totalQuestions,
       correct,
       incorrect,
+      skipped,
       practiceCompleted: snapshot?.self_practice?.sessions_completed ?? analysis?.recent_sessions.length ?? 0,
       // NULL, not 0, when no time was recorded.
       //
@@ -837,6 +841,14 @@ export default function Analysis() {
               // two different measures wearing one slot. It is practice
               // accuracy now, always, and named that way.
               { label: "Accuracy",           value: overview.accuracy == null ? "—" : `${overview.accuracy}%`, color: "hsl(var(--warning))" },
+              // §6.6. Its own tile, not folded into "Incorrect answers", which
+              // is where it used to go: `wrong = total - correct` counted every
+              // skip as a wrong answer, so the student was told they had got
+              // wrong what they had in fact never attempted. Accuracy now
+              // excludes skips, which makes surfacing them necessary rather
+              // than optional — otherwise a heavy skipper simply looks better
+              // and nothing on the screen says why.
+              { label: "Skipped",            value: overview.skipped.toLocaleString(),        color: "hsl(var(--muted-foreground))" },
               { label: "Practice sessions",  value: overview.practiceCompleted,               color: "hsl(var(--foreground))" },
               // "Marks recorded" was a count of exam marks. Marks are not an
               // Analysis figure any more (rule 11); the student reads them on

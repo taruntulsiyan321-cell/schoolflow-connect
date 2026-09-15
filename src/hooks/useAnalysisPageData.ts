@@ -35,6 +35,13 @@ export type AnalysisPageData = {
   totals: {
     correct: number;
     wrong: number;
+    /**
+     * §6.6 — questions the student passed over, counted separately from wrong
+     * ones. Surfacing this is not decoration: accuracy now EXCLUDES skips, so
+     * a student who skips heavily would otherwise look better without anything
+     * on the screen saying why.
+     */
+    skipped: number;
     /** NULL when nothing has been attempted — never 0, which would read as
      *  "got everything wrong" for a student who has not started. */
     accuracy_pct: number | null;
@@ -127,7 +134,7 @@ export function useAnalysisPageData(enabled = true) {
       // and a 200-row class leaderboard pulled on every Analysis load to
       // compute a number nothing renders is the definition of dead weight.
       // Ranking lives on the surfaces §10.16 gives it to.
-      const [sessionsRes, classRes, attemptsRes, correctRes] = await Promise.all([
+      const [sessionsRes, classRes, attemptsRes, correctRes, skippedRes] = await Promise.all([
         supabase
           .from("practice_sessions")
           .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at, accuracy, wrong_count, skipped_count, total_time_ms")
@@ -168,6 +175,21 @@ export function useAnalysisPageData(enabled = true) {
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
           .eq("is_correct", true),
+        // SKIPS ARE COUNTED SEPARATELY, because they are not wrong answers.
+        //
+        // rpc_record_question_attempt forces is_correct false on a skip, so
+        // `total - correct` silently folded every skipped question into the
+        // "Incorrect answers" tile and into the accuracy beside it. Measured
+        // 2026-09-15: 241 of 4,841 attempts are skips.
+        //
+        // This is the same correction made to _weak_topics_for_user in
+        // 20261013000000. Making it in one place and not the other is how two
+        // screens start disagreeing about the same student again (G5).
+        supabase
+          .from("question_attempts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("skipped", true),
       ]);
 
       const sessions = sessionsRes.error
@@ -234,8 +256,12 @@ export function useAnalysisPageData(enabled = true) {
       // error by another route.
       const correct = correctRes.count ?? 0;
       const totalAttempts = attemptsRes.count ?? 0;
+      const skipped = skippedRes.count ?? 0;
 
-      const wrong = Math.max(0, totalAttempts - correct);
+      // A skip is "I did not answer this", not "I got this wrong". Subtracting
+      // it here is what keeps the Incorrect tile, the accuracy derived from it,
+      // and §6.6's skipped count from being three views of one confused number.
+      const wrong = Math.max(0, totalAttempts - correct - skipped);
 
       // ACCURACY IS DERIVED FROM THE COUNTS SHOWN BESIDE IT (G5).
       //
@@ -282,6 +308,7 @@ export function useAnalysisPageData(enabled = true) {
         totals: {
           correct,
           wrong,
+          skipped,
           accuracy_pct,
           avg_sec_per_question,
           last_session_minutes: latest?.duration_minutes ?? null,
@@ -300,6 +327,7 @@ export function useAnalysisPageData(enabled = true) {
         totals: {
           correct: 0,
           wrong: 0,
+          skipped: 0,
           accuracy_pct: null,
           avg_sec_per_question: null,
           last_session_minutes: null,
