@@ -15,12 +15,26 @@
  * needs to read at the same time.
  *
  * WHAT IT NEEDS
- *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   -- the function is service-role
- *                                                only (spec §4.1a: background
- *                                                job, never in front of a
- *                                                waiting student)
- * and ai-recovery-variants deployed. Until it is deployed this script cannot
- * run, and it says so rather than reporting zeros.
+ *   SUPABASE_URL              -- the project
+ *   VARIANT_GENERATION_DRAIN  -- the shared secret the function checks. It is
+ *                                held in the vault as variant_generation_drain
+ *                                and set on the function as an environment
+ *                                secret; this script is the third holder and
+ *                                must be given it explicitly.
+ *
+ * The drain secret rather than the service-role key, since 20261012000000.
+ * The function is called in production by a postgres cron over pg_net, and a
+ * service-role key in a SQL function body is a master credential sitting in
+ * pg_proc. One purpose-made secret opens exactly one door.
+ *
+ * ai-recovery-variants must be deployed. Until it is, this script cannot run,
+ * and it says so rather than reporting zeros.
+ *
+ * NOTE: this script is the MANUAL path, for measuring cost and reading output.
+ * The production path is the queue: a recovery session prepared at the end of
+ * practice enqueues its missing rungs, and dispatch_variant_generation drains
+ * them every minute. Running this by hand does not replace that and is not
+ * needed for the feature to work.
  *
  * COST IS COMPUTED FROM REAL TOKEN COUNTS, and per model. One model is
  * configured -- Qwen 3.7 Flash, ruled 2026-09-07 -- so every call is billable
@@ -54,14 +68,16 @@ if (existsSync(".env.local")) {
 }
 
 const BASE = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
-const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const KEY = process.env.VARIANT_GENERATION_DRAIN || "";
 if (!BASE || !KEY) {
   console.error(
     [
-      "Cannot run: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are both required.",
+      "Cannot run: SUPABASE_URL and VARIANT_GENERATION_DRAIN are both required.",
       "",
-      "  ai-recovery-variants is a service-role-only background endpoint (§4.1a), so",
-      "  there is no user-credential path to it by design.",
+      "  ai-recovery-variants is a background endpoint (§4.1a) gated on a shared",
+      "  secret, so there is no user-credential path to it by design. The value is",
+      "  in the vault as variant_generation_drain and on the function as the",
+      "  environment secret VARIANT_GENERATION_DRAIN.",
       "",
       "  This is a hard stop rather than a skip. A generation run that quietly",
       "  produced zero results would answer the cost question with 'free' and the",
@@ -113,7 +129,14 @@ if (sources.length === 0) {
   process.exit(1);
 }
 
+// 1 and 2 only. Tier 3 comes from the bank (§4.2) and the generator refuses it
+// — question_bank_variant_tier_check is `variant_tier IN (1, 2)`, so a tier-3
+// request could never have been stored even when the branch existed.
 const tiers = ONLY_TIER ? [Number(ONLY_TIER)] : [1, 2];
+if (tiers.some((t) => t !== 1 && t !== 2)) {
+  console.error(`--tier must be 1 or 2; got ${tiers.join(", ")}.`);
+  process.exit(2);
+}
 console.log(`Sources: ${sources.length} (${sourceOrigin})`);
 console.log(`Tiers: ${tiers.join(", ")}   Target: ${LIMIT} variant(s)   ${DRY ? "DRY RUN — nothing written" : "WRITING to question_bank"}`);
 console.log("");
@@ -129,7 +152,7 @@ outer: for (const tier of tiers) {
     try {
       const res = await fetch(`${BASE}/functions/v1/ai-recovery-variants`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
+        headers: { "x-variant-drain": KEY, "Content-Type": "application/json" },
         body: JSON.stringify({ source_question_id: src.id, tier, count: 1, dry_run: DRY }),
       });
       payload = await res.json().catch(() => ({ error: `non-JSON response, HTTP ${res.status}` }));

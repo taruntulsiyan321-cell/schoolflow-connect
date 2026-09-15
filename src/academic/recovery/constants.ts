@@ -54,6 +54,19 @@ export const GENERATION_TARGET_SECONDS = 120;
 export const GENERATION_MAX_RETRIES = 5;
 
 /**
+ * Generation jobs dispatched per cron tick, and the tick is every minute.
+ *
+ * Three, not thirty. Each job is a paid AI call, and the realistic backlog is
+ * small because a variant is generated once per QUESTION and not once per
+ * student (§4.2a): forty students failing the same question produce ONE job.
+ * A backlog drains at 180 an hour, which clears any plausible spike well
+ * inside the time a student spends between finishing practice and opening the
+ * Recovery tab. A larger batch would only let a runaway cost more before
+ * anyone noticed it.
+ */
+export const GENERATION_BATCH_SIZE = 3;
+
+/**
  * §4.1a, as resolved 2026-08-30. The section says a session that cannot be
  * completed is not offered — nobody is waiting, so there is no reason to
  * degrade — and it retries. Taken literally that strands a chapter whose
