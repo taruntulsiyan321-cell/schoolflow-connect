@@ -207,14 +207,11 @@ export { AnalyticsService, AiSummaryService, AuditReadService } from "./services
 
 export { useAcademicContext } from "./hooks/useAcademicContext";
 
-export {
-  SyncEngine,
-  processPendingEvents,
-  processEvent,
-  refreshStudentProfile,
-  plannedTargets,
-  type SyncRunResult,
-} from "./sync";
+// syncTargetsFor / SyncTarget are already exported from "./events" above, which
+// is where they live. The sync module used to re-export them under a second
+// name (plannedTargets) alongside three RPC wrappers a browser could not call;
+// all four are gone, and with them the reason for this barrel to mention sync
+// at all.
 
 export {
   AnalyticsFoundation,

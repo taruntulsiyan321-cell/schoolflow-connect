@@ -1440,8 +1440,20 @@ export const PracticeService = {
         subject: a.subject, chapter: a.chapter ?? null, concept: a.concept ?? null,
         practice_mode: "incorrect", mistake_id: a.mistakeId,
       };
-      const selectedAnswer = { selected_index: a.selectedIndex };
-      const correctAnswer = { correct_index: a.correctIndex };
+      // The SAME shape practice itself writes ({ index, text }), not the
+      // legacy { correct_index } this used to send. Two writers disagreeing on
+      // the key is how readers ended up guessing, and how the Mistake Book came
+      // to mark every answer wrong. `selected_index` is kept alongside `index`
+      // because that is exactly what the practice snapshot stores today, and
+      // dropping it would break the readers that look for it.
+      const selectedAnswer = {
+        index: a.selectedIndex, selected_index: a.selectedIndex,
+        text: a.options[a.selectedIndex] ?? "",
+      };
+      const correctAnswer = {
+        index: a.correctIndex,
+        text: Number.isInteger(a.correctIndex) ? a.options[a.correctIndex] ?? "" : "",
+      };
       try {
         await this.recordAttempt(ctx, {
           sessionId, bankQuestionId: a.bankQuestionId ?? null, generatedQuestion, selectedAnswer, correctAnswer,

@@ -29,7 +29,12 @@
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync } from "fs";
 const SP = process.env.SP, REF = "psqxykzqfvxgsvkmgurn";
-const s = JSON.parse(readFileSync(`${SP}/sessions.json`, "utf8")).roles.student;
+// ROLE is selectable so this can be re-run against a student whose state
+// suits the flow under test. Repeated runs push one student into relearn
+// on every chapter, and then the recovery path has no fixture.
+const ROLE = process.env.ROLE || "student";
+const s = JSON.parse(readFileSync(`${SP}/sessions.json`, "utf8")).roles[ROLE];
+if (!s) { console.error(`no session for role ${ROLE}`); process.exit(2); }
 mkdirSync(`${SP}/shots`, { recursive: true });
 
 const browser = await chromium.launch({ headless: true,
@@ -48,13 +53,30 @@ await page.evaluate(([r,t]) => localStorage.setItem(`sb-${r}-auth-token`, JSON.s
   expires_in:9999, token_type:"bearer", user:{id:t.user_id,email:t.email}})), [REF,s]);
 
 const OPT = 'button.rounded-2xl.border.text-left';
-await page.goto("http://127.0.0.1:5173/student/practice?chapter=Arithmetic%20Progressions&subject=Mathematics",
+// The chapter is selectable: it must be one this student's class is actually
+// taught, and the curriculum fence correctly refuses anything else. Hardcoding
+// a Class 10 chapter made this unrunnable for a Class 12 student.
+const CHAPTER = process.env.CHAPTER || "Arithmetic Progressions";
+const SUBJECT = process.env.SUBJECT || "Mathematics";
+await page.goto(
+  `http://127.0.0.1:5173/student/practice?chapter=${encodeURIComponent(CHAPTER)}&subject=${encodeURIComponent(SUBJECT)}`,
   { waitUntil: "domcontentloaded" });
-await page.waitForFunction(() => /Q1 of/.test(document.body?.innerText ?? ""), { timeout: 60000 });
+await page.waitForFunction(() => /Q1 of/.test(document.body?.innerText ?? ""), { timeout: 60000 })
+  .catch(async () => {
+    console.log(`!! never reached Q1 for ${SUBJECT} / ${CHAPTER}`);
+    console.log("   screen says:", ((await page.textContent("body")) ?? "").replace(/\s+/g, " ").slice(0, 200));
+    process.exit(1);
+  });
 await page.screenshot({ path: `${SP}/shots/10-question.png` });
 
+// MAX_Q ends the sitting early. A full 20-question run by a bot that answers
+// quasi-randomly produces 12+ mistakes in one chapter, which is above
+// RECOVERY_WIDE_MAX_MISTAKES and therefore lands in relearn every time — so
+// the recovery path had no fixture to run against. A short sitting lands in
+// the deep/wide band, which is where a real student who slips a few times is.
+const MAX_Q = Number(process.env.MAX_Q || 25);
 let answered = 0, skipped = 0;
-for (let i = 0; i < 25; i++) {
+for (let i = 0; i < MAX_Q; i++) {
   const txt = (await page.textContent("body")) ?? "";
   if (!/Q\d+ of/.test(txt)) break;
 

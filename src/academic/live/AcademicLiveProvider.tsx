@@ -11,7 +11,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/auth";
-import { SyncEngine } from "@/academic/sync/engine";
 import {
   domainsFromNotificationType,
   notifyAcademicChange,
@@ -86,8 +85,6 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id || !schoolId) return;
-
-    void SyncEngine.processPendingEvents(schoolId, 80).catch(() => undefined);
 
     const onTable =
       (domains: AcademicDomain[]) =>
@@ -318,25 +315,24 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
 
-    // Focus / poll: drain SyncEngine only. Do NOT bump(["all"]) — that rematches
-    // every filtered useAcademicLive consumer and was resetting panels to loading.
-    // Domain-specific realtime handlers above still bump the right surfaces.
-    const onVisible = () => {
-      if (document.visibilityState !== "visible") return;
-      void SyncEngine.processPendingEvents(schoolId, 50).catch(() => undefined);
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
-
-    const poll = window.setInterval(() => {
-      void SyncEngine.processPendingEvents(schoolId, 30).catch(() => undefined);
-    }, 90_000);
+    // THE CLIENT NO LONGER DRAINS THE EVENT QUEUE.
+    //
+    // This used to call SyncEngine.processPendingEvents on mount, on every tab
+    // focus, and every 90 seconds. All three returned 403 — every time, for
+    // every student — because process_pending_academic_events is not granted
+    // to `authenticated`, and correctly so: it is a cron job that processes
+    // the whole SCHOOL's queue, and a student's browser has no business
+    // draining other students' events.
+    //
+    // `.catch(() => undefined)` is what kept that invisible for however long
+    // it has been there. Found by watching the network tab on a real session.
+    //
+    // Nothing is lost by removing it: the pg_cron job
+    // `process-pending-academic-events` runs the same function every minute,
+    // and the realtime handlers above are what actually refresh this screen.
 
     return () => {
       supabase.removeChannel(channel);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
-      window.clearInterval(poll);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [bump, isAuthenticated, schoolId, user?.id, role]);

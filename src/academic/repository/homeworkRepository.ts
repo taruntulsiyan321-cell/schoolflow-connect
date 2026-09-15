@@ -119,6 +119,34 @@ function asAttachments(v: unknown): HomeworkAttachmentMeta[] {
     .filter(Boolean) as HomeworkAttachmentMeta[];
 }
 
+/**
+ * NINE OF THESE FIELDS NO LONGER HAVE A COLUMN BEHIND THEM.
+ *
+ * Migration 20260925110000 simplified `homework` in production and moved the
+ * old shape to `homework_pre_20260925110000`. These were dropped:
+ *
+ *     subject_id, instructions, due_time, estimated_minutes, difficulty,
+ *     max_marks, tags, external_links, attachments
+ *
+ * HW_SELECT still asked for all nine, so EVERY homework read from a browser
+ * returned 400 Bad Request — the feature was entirely broken client-side, on
+ * the student's Home screen among others. Found on 2026-09-15 by watching the
+ * network tab during a live session. No gate could see it: HomeworkRow is
+ * loose enough that TypeScript had nothing to object to, and the only caller
+ * treated the failure as an empty list.
+ *
+ * HW_SELECT now asks only for columns that exist, which fixes the 400. The
+ * nine fields below therefore map to null or an empty array, ALWAYS, for every
+ * homework — left deliberately visible rather than quietly deleted, because
+ * removing them properly means deciding what six UI files do without
+ * attachments, marks and tags. Measured: 33 type errors across contextApis,
+ * homeworkService, LiveHomeworkPanels, Assignments, StudentHomeworkPage and
+ * this file.
+ *
+ * That is a homework decision in a subsystem this work did not touch, and
+ * guessing at it would be worse than saying so. The scope is written down here
+ * so it is a short job rather than a rediscovery.
+ */
 function mapHomework(row: HomeworkRow): HomeworkRecord {
   return {
     id: String(row.id),
@@ -179,8 +207,10 @@ function mapSubmission(row: SubmissionRow): HomeworkSubmissionRecord {
   };
 }
 
+// Only columns that exist. See mapHomework above for the nine that do not,
+// and why they are still in the record type.
 const HW_SELECT =
-  "id, school_id, class_id, subject, subject_id, title, description, instructions, due_date, due_time, estimated_minutes, priority, difficulty, max_marks, tags, external_links, attachments, work_kind, status, scheduled_publish_at, published_at, archived_at, created_by, created_at, updated_at";
+  "id, school_id, class_id, subject, title, description, due_date, priority, work_kind, status, scheduled_publish_at, published_at, archived_at, created_by, created_at, updated_at, chapter_id, topic, topic_id, closes_at, question_file, missed_costs_xp";
 
 export interface HomeworkListFilters {
   status?: HomeworkStatus | HomeworkStatus[] | "active";

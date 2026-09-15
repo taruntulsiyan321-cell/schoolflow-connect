@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { answerToText } from "@/academic/services/answerText";
 import { generateAiPracticeQuestions } from "@/lib/aiPracticeQuestions";
 
 export type MistakeRecord = {
@@ -175,12 +176,12 @@ export function formatMistakesForPrompt(mistakes: MistakeRecord[]): string {
   return mistakes
     .map((m, i) => {
       const label = conceptLabel(m);
-      const studentIdx = m.student_answer?.selected_index;
-      const correctIdx = m.correct_answer?.correct_index;
-      const studentPick =
-        studentIdx != null && m.options[studentIdx] ? m.options[studentIdx] : "(unknown)";
-      const correctPick =
-        correctIdx != null && m.options[correctIdx] ? m.options[correctIdx] : "(unknown)";
+      // Both through the one decoder. `correct_index` — read here before — is
+      // in no row of student_mistakes, so every mistake handed to Nova told it
+      // the correct answer was "(unknown)", which is the single most useful
+      // fact in the prompt.
+      const studentPick = answerToText(m.student_answer, m.options) ?? "(unknown)";
+      const correctPick = answerToText(m.correct_answer, m.options) ?? "(unknown)";
       const opts = m.options.map((o, j) => `${String.fromCharCode(65 + j)}. ${o}`).join("; ");
       const expl = m.explanation ? `\n   Explanation: ${m.explanation.slice(0, 400)}` : "";
       return `${i + 1}. [${label}] (wrong ${m.times_wrong}x)

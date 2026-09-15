@@ -6,7 +6,12 @@
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync } from "fs";
 const SP = process.env.SP, REF = "psqxykzqfvxgsvkmgurn";
-const s = JSON.parse(readFileSync(`${SP}/sessions.json`, "utf8")).roles.student;
+// ROLE is selectable so this can be re-run against a student whose state
+// suits the flow under test. Repeated runs push one student into relearn
+// on every chapter, and then the recovery path has no fixture.
+const ROLE = process.env.ROLE || "student";
+const s = JSON.parse(readFileSync(`${SP}/sessions.json`, "utf8")).roles[ROLE];
+if (!s) { console.error(`no session for role ${ROLE}`); process.exit(2); }
 mkdirSync(`${SP}/shots`, { recursive: true });
 const browser = await chromium.launch({ headless: true,
   executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",

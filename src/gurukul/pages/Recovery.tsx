@@ -97,11 +97,12 @@ function StateTag({ item }: { item: QueueItem }) {
 }
 
 function RecoveryCard({
-  item, onStart, onPractise, starting,
+  item, onStart, onPractise, onClearBook, starting,
 }: {
   item: QueueItem;
   onStart: () => void;
   onPractise: () => void;
+  onClearBook: () => void;
   starting: boolean;
 }) {
   // The old card drew a progress bar towards RECOVERY_TRIGGER_COUNT ("3 of 5
@@ -147,18 +148,35 @@ function RecoveryCard({
               drilling variants is the wrong response to this many mistakes in
               one chapter, and says which one it is doing and why. Softening
               this into "come back later" would leave the student waiting for
-              something that is never going to arrive. */}
+              something that is never going to arrive.
+
+              ── WHY THIS BUTTON IS NOT "PRACTISE THIS CHAPTER" ─────────────
+              It was, and that was a dead end with a signpost on it. Ordinary
+              practice CANNOT lower the open count: a wrong answer upserts
+              `status='open', cleared_at=NULL` and bumps times_wrong, and a
+              right answer to an unseen question writes nothing at all. So the
+              count can only rise, and the card told the student to go and do
+              the one thing guaranteed not to move them out of relearn. Three
+              chapters on production were sitting above the boundary with no
+              reachable way down.
+
+              The spec names exactly two exits — "Entries leave only when the
+              student clears them, from the mistake book or from the recovery
+              report." Above the boundary the recovery report is unreachable,
+              so the mistake book is THE exit, and that is where this goes. */}
           <p className="text-[11px] text-muted-foreground mb-2">
-            {item.open_mistakes} open mistakes here is more than a set of slips.
-            Practising {item.open_mistakes * 3} variations of them would not
-            teach the chapter — work through the material again first, then
-            come back.
+            {item.open_mistakes} open mistakes is more than a set of slips, so
+            recovery stays shut here — drilling {item.open_mistakes * 3}{" "}
+            variations of them would not teach you the chapter. Work back
+            through them in your mistake book, where each one carries its
+            explanation; the ones you answer correctly there leave the book.
+            Recovery opens again at {item.relearn_above} or fewer.
           </p>
           <button
-            onClick={onPractise}
+            onClick={onClearBook}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-bold hover:bg-amber-500/20 transition-all"
           >
-            <BookOpen className="w-3 h-3" /> Go back over this chapter
+            <BookOpen className="w-3 h-3" /> Open these in your mistake book
           </button>
         </>
       ) : item.ready ? (
@@ -297,6 +315,22 @@ export default function Recovery() {
     navigate(`/student/practice?${qs.toString()}`);
   }
 
+  /**
+   * The way out of relearn: this chapter's own entries, in the mistake book,
+   * where answering them correctly is what actually clears them.
+   *
+   * Only the chapter goes in the URL. The book already matches its search
+   * against the displayed chapter label, and `chapterLabel` is that same
+   * display form, so this reuses the filter the page has rather than adding a
+   * second one. Passing a subject as well would introduce a filter that shows
+   * nothing whenever the two spellings disagree.
+   */
+  function openMistakeBook(item: QueueItem) {
+    const qs = new URLSearchParams();
+    qs.set("chapter", item.chapterLabel);
+    navigate(`/student/mistakes?${qs.toString()}`);
+  }
+
   const header = (
     <PageHeader
       eyebrow="Learning"
@@ -353,6 +387,7 @@ export default function Recovery() {
     : items;
 
   const readyCount = items.filter((t) => t.ready).length;
+  const relearnCount = items.filter((t) => t.mode === "relearn").length;
   const openTotal = items.reduce((a, t) => a + t.open_mistakes, 0);
   const roundsTotal = items.reduce((a, t) => a + t.rounds_taken, 0);
 
@@ -424,19 +459,27 @@ export default function Recovery() {
                   starting={startingId === item.chapter_id}
                   onStart={() => void startRecovery(item)}
                   onPractise={() => practiseChapter(item)}
+                  onClearBook={() => openMistakeBook(item)}
                 />
               ))}
             </div>
           )}
 
-          {readyCount === 0 && (
+          {/* Only when nothing is ready AND nothing is in relearn. A chapter in
+              relearn has too MANY mistakes, so telling that student no chapter
+              has reached the trigger yet is false on its face — it rendered
+              under cards reading 26 and 9 — and "keep practising" is the one
+              instruction that cannot help them. Those cards carry their own
+              explanation; this card has nothing left to add. */}
+          {readyCount === 0 && relearnCount === 0 && (
             <GlassCard
               className="p-4 text-center"
               style={{ borderColor: withAlpha("hsl(var(--warning))", 0.2) }}
             >
               <p className={cn("text-xs text-muted-foreground")}>
-                No chapter has reached {items[0]?.trigger_count} open mistakes yet. Keep
-                practising — recovery opens by itself when one does.
+                No chapter has reached {items[0]?.trigger_count}{" "}
+                {pluralise(items[0]?.trigger_count ?? 0, "open mistake", "open mistakes")}{" "}
+                yet. Keep practising — recovery opens by itself when one does.
               </p>
             </GlassCard>
           )}
