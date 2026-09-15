@@ -186,7 +186,7 @@ describe("HomeworkReview — the report", () => {
     fireEvent.click(screen.getByRole("button", { name: /Download report/ }));
     expect(exportCSV).toHaveBeenCalledTimes(1);
     const [filename, rows] = exportCSV.mock.calls[0] as [string, Record<string, string>[]];
-    expect(filename).toBe("homework-real-numbers-2026-09-10.csv");
+    expect(filename).toBe("homework-real-numbers-2026-09-10");
     expect(rows).toEqual([
       expect.objectContaining({ Roll: "7", Student: "Arjun Mehta", Done: "Yes", File: "w.pdf" }),
     ]);

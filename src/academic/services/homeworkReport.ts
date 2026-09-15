@@ -64,9 +64,12 @@ export function homeworkReportRows(rows: ReviewRow[], roster: HomeworkReportStud
   }));
 }
 
-/** `homework-real-numbers-2026-09-20.csv` — the title and deadline date, safe as a filename. */
+/**
+ * `homework-real-numbers-2026-09-20` — the title and deadline date, safe as a filename. No
+ * extension: `exportCSV` adds `.csv`, and one written here too downloaded as `….csv.csv`.
+ */
 export function homeworkReportFilename(homework: { title: string; dueDate: string }): string {
-  return `homework-${slug(homework.title) || "report"}-${homework.dueDate}.csv`;
+  return `homework-${slug(homework.title) || "report"}-${homework.dueDate}`;
 }
 
 /** One student's homework record across a class's released homework. */
@@ -134,8 +137,8 @@ export function classHomeworkReportRows(tally: { roll: string; name: string; row
   }));
 }
 
-/** `homework-10-a-2026-09-15.csv` — the class and the day the report was taken. */
+/** `homework-10-a-2026-09-15` — the class and the day the report was taken; `exportCSV` adds `.csv`. */
 export function classHomeworkReportFilename(className: string, on = new Date()): string {
   const day = [on.getFullYear(), on.getMonth() + 1, on.getDate()].map((n) => String(n).padStart(2, "0")).join("-");
-  return `homework-${slug(className) || "class"}-${day}.csv`;
+  return `homework-${slug(className) || "class"}-${day}`;
 }

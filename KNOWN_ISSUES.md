@@ -2906,6 +2906,14 @@ who did it — as the owner asked, measuring each before changing it.
    `rpc_create_class_group` recorded as internal while granted to
    `authenticated`. Reconciling them is not this change's; they are written here
    so they are not rediscovered.
+9. **Both homework reports downloaded as `….csv.csv`.** Found by the production
+   browser run of this work, after release: the principal's download of a live
+   homework arrived as `homework-e2e-homework-20260914022223-2026-09-21.csv.csv`.
+   `exportCSV` adds the extension and the report's filename functions added it
+   too; the unit tests mocked `exportCSV`, so they checked the name handed to it
+   and never the file. **Fixed:** the filename functions give no extension, and
+   `e2e-evidence/tier1-homework-family.spec.ts` asserts on the file the browser
+   actually saves.
 
 **Proven:** on live — both migrations proved themselves as they applied, after
 passing together in a rolled-back dry run; the push pipeline end to end
@@ -2919,7 +2927,14 @@ ledger names, and tables another branch dropped with `recovery_assignments`). On
 the replica — both migrations round-trip exactly, and 23 of 23 broken proofs fail
 by name (plus, on live, the dispatch with its pg_net call removed). In the source
 — 19 of 19 broken rules fail their tests; the suite, 93 files and 866 tests;
-typecheck; build; the lint baseline.
+typecheck; build; the lint baseline. On production, as each role
+(`e2e-evidence/tier1-homework-family.spec.ts`): the principal's Classes tab lists
+the school's real classes, opens a class's released homework onto every
+student's standing with no decision offered, and downloads the homework's report
+and the class's; the teacher's profile carries the homework they set; the
+student's profile counts handed in / still to do / missed and opens the homework;
+a parent's notification opens a parent page and none points into the student
+panel. Its first run failed on item 9 — the check that shows it can fail.
 
 **Not done:**
 * **A real phone.** None has registered (`device_tokens` 0), so nothing arrives

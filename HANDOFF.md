@@ -73,6 +73,13 @@ spec rules 48–52 the behaviour now.
   migrations round-trip exactly on the replica; live dry run, then apply; `verify:caller-privileges`
   443/443; `db:verify-integrity` — the five new checks PASS, the six older FAILs unchanged; the
   push pipeline end to end on live; suite 93 files / 866 tests; typecheck; build; lint baseline.
+* **App:** `main` carries it (merged with main's Riverside E2E fixture commit, so not a plain
+  fast-forward); Vercel production serves it.
+* **On production, as each role:** `e2e-evidence/tier1-homework-family.spec.ts` (run with
+  `PLAYWRIGHT_BASE_URL=https://schoolflow-connect.vercel.app npx playwright test
+  --config=playwright.evidence.config.ts --project=evidence --no-deps e2e-evidence/tier1-homework-family.spec.ts`;
+  drop `--no-deps` if the saved sessions have died). Its first run caught both report downloads
+  named `….csv.csv` (KNOWN_ISSUES 56, item 9); fixed and redeployed.
 
 ### THE HOMEWORK PANEL, READ LINE BY LINE — 2026-09-15
 
