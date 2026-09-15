@@ -311,6 +311,65 @@ export const TREND_DELTA_POINTS = 10;
 /** §6.3: times_wrong that pins a chapter to the top of the analysis list. */
 export const REPEATED_MISTAKE_PIN = 3;
 
+// ── Weak areas (§6.2) ──────────────────────────────────────────────────────
+//
+// WHAT "WEAK" MEANS, AND WHY IT IS NOT A FIXED PERCENTAGE ANY MORE.
+//
+// It used to be `accuracy < 60`, written at the call sites rather than here —
+// and by 2026-09-15 there were THREE live thresholds disagreeing: 60 in
+// _rebuild_revision_queue, 60 in rpc_student_academic_snapshot, and 65 in
+// rpc_student_improvement_plans (which also applied 65 to a different table,
+// concept_mastery.mastery_score). Three answers to one question is the exact
+// shape RULE 0 names: fix the shared definition, not the call sites.
+//
+// A FIXED BAR IS ALSO THE WRONG IDEA. Measured on production, this cohort's
+// overall accuracy is 17.9% (823 correct of 4,600 non-skipped attempts). At a
+// 60% bar, 202 of 244 chapter rows read "weak" — a list of everything, which
+// tells a student nothing about where to start. The mirror failure is a strong
+// student at 90% whose genuine 65% gap never clears the bar at all.
+//
+// So weak is relative to THE STUDENT'S OWN baseline: a chapter is weak when
+// they do materially worse on it than they do generally. That is the same
+// number for nobody, which is the point.
+
+/**
+ * Attempts in a chapter before any verdict is given at all.
+ *
+ * FIVE. The old floor was two, which made one wrong answer out of two a 50%
+ * accuracy and therefore "weak" — the thing this must not do. Five is the
+ * smallest count where a single unlucky question cannot by itself put a
+ * chapter on the list.
+ *
+ * Below this the row is still RETURNED, with is_weak false: "not enough
+ * evidence" and "fine" are different statements, and collapsing them is how a
+ * chapter a student has barely touched disappears from their own analysis.
+ */
+export const WEAK_MIN_ATTEMPTS = 5;
+
+/**
+ * Accuracy points below the student's own baseline that count as weak.
+ *
+ * Fifteen. Small enough to catch a real gap, wide enough that ordinary
+ * variation between chapters does not flag half of them. It is a judgment and
+ * should be revisited against real usage — there is no data yet on how widely
+ * one student's chapter accuracies actually spread.
+ */
+export const WEAK_MARGIN_POINTS = 15;
+
+/**
+ * How far back the accuracy behind "weak" is measured.
+ *
+ * Ninety days, so a chapter can STOP being weak. Without a window, accuracy is
+ * a lifetime average and a chapter the student fixed months ago keeps dragging
+ * its old failures forward for ever — which is the "mistakes never decay"
+ * problem, one level up.
+ *
+ * When the window holds fewer than WEAK_MIN_ATTEMPTS the function falls back
+ * to all time for that chapter rather than reporting nothing: a student
+ * returning after the holidays must not find their analysis blank.
+ */
+export const WEAK_WINDOW_DAYS = 90;
+
 /**
  * The trend states. NOT_ENOUGH_DATA is deliberately one of them rather than
  * being represented by null or by an absent row — §6.4 requires it to be
