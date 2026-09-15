@@ -56,8 +56,11 @@ export type QuestionBankInsertRow = {
    * the 15 retired legacy rows that have no chapter.
    */
   chapter_id?: string | null;
-  topic?: string | null;
-  concept?: string | null;
+  /**
+   * One of `chapter_id`'s own topics (`topics.id`). The database refuses a
+   * topic from another chapter (question_bank_topic_in_its_chapter_fkey).
+   */
+  topic_id?: string | null;
   difficulty?: string;
   question: string;
   /**
@@ -131,8 +134,6 @@ export function buildQuestionBankInsertPayload(
       ...rest,
       subject: repairUtf8Mojibake(r.subject),
       chapter: r.chapter != null ? repairUtf8Mojibake(r.chapter) : r.chapter,
-      topic: r.topic != null ? repairUtf8Mojibake(r.topic) : r.topic,
-      concept: r.concept != null ? repairUtf8Mojibake(r.concept) : r.concept,
       question: fixUtf8Content(r.question),
       options,
       explanation:
@@ -249,46 +250,56 @@ export const QuestionBankService = {
   },
 
   /**
-   * The canonical topics available for a subject/class, optionally narrowed to
-   * chapters — with how many APPROVED, ACTIVE questions each one actually has.
+   * The topics of a subject/class, optionally narrowed to chapters — each with
+   * how many APPROVED, ACTIVE questions it holds.
    *
-   * The count is the point, not decoration. A topic carrying two questions
-   * cannot fill a ten-question section, and rule 31's objection to topic as a
-   * unit is exactly that the bank's topics are thin: measured 2026-09-10, the
-   * median group holds ONE question and 62% hold exactly one. A teacher
-   * choosing blind would pick a topic and get a shortfall with no idea why.
+   * The count is the point, not decoration: a topic carrying two questions
+   * cannot fill a ten-question section, and a teacher choosing blind would get
+   * a shortfall with no idea why.
    *
-   * Reads `topic_group`, never `topic`: the raw column carries 11,917 spellings
-   * of the same teachable ideas, which is what made topic unusable as a filter
-   * in the first place (see `20260916130000`).
+   * Keyed by topic ID, never by name. Topics are per chapter (§10.22), so two
+   * chapters in one section can both have a "Journal Entries"; by name they
+   * would be one chip that fills from both.
    */
   async listTopics(
     ctx: ServiceContext,
     input: { subject: string; classLevel: number; chapters?: string[] },
-  ): Promise<{ topic: string; count: number }[]> {
+  ): Promise<{ topicId: string; topic: string; chapter: string | null; count: number }[]> {
     assertCanConsume(ctx, "question");
-    let query = getClient(toRepoContext(ctx))
-      .from("question_bank")
-      .select("topic_group")
-      .eq("subject", input.subject)
-      .eq("class_level", input.classLevel)
-      .eq("is_active", true)
-      .eq("is_approved", true)
-      .not("topic_group", "is", null);
-    if (input.chapters?.length) query = query.in("chapter", input.chapters);
-
-    const { data, error } = await query;
-    throwIfError(error, "Failed to load topics");
-
-    const map: Record<string, number> = {};
-    for (const r of data ?? []) {
-      const t = String((r as { topic_group?: string }).topic_group ?? "").trim();
-      if (!t) continue;
-      map[t] = (map[t] ?? 0) + 1;
+    // Paged, because one subject and class can hold more active questions than
+    // PostgREST returns in a single response, and a truncated read would
+    // undercount the very number this exists to show.
+    const PAGE = 1000;
+    const rows: { topic_id: string | null; chapter: string | null; topics: { name: string } | null }[] = [];
+    for (let from = 0; ; from += PAGE) {
+      let query = getClient(toRepoContext(ctx))
+        .from("question_bank")
+        .select("topic_id, chapter, topics(name)")
+        .eq("subject", input.subject)
+        .eq("class_level", input.classLevel)
+        .eq("is_active", true)
+        .eq("is_approved", true)
+        .not("topic_id", "is", null)
+        .order("id")
+        .range(from, from + PAGE - 1);
+      if (input.chapters?.length) query = query.in("chapter", input.chapters);
+      const { data, error } = await query;
+      throwIfError(error, "Failed to load topics");
+      const page = (data ?? []) as unknown as typeof rows;
+      rows.push(...page);
+      if (page.length < PAGE) break;
     }
-    return Object.entries(map)
-      .map(([topic, count]) => ({ topic, count }))
-      .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic));
+
+    const byId = new Map<string, { topicId: string; topic: string; chapter: string | null; count: number }>();
+    for (const r of rows) {
+      if (!r.topic_id || !r.topics?.name) continue;
+      const hit = byId.get(r.topic_id);
+      if (hit) hit.count += 1;
+      else byId.set(r.topic_id, { topicId: r.topic_id, topic: r.topics.name, chapter: r.chapter, count: 1 });
+    }
+    return [...byId.values()].sort(
+      (a, b) => (a.chapter ?? "").localeCompare(b.chapter ?? "") || b.count - a.count || a.topic.localeCompare(b.topic),
+    );
   },
 
   async insert(

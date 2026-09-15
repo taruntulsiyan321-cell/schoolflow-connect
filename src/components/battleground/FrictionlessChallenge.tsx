@@ -129,9 +129,11 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
     let cancelled = false;
     (async () => {
       setCurriculumLoading(true);
+      // `_class_id` is omitted rather than sent as null: it has a SQL default,
+      // and the generated type for a defaulted parameter is optional-non-null.
       const { data, error } = await supabase.rpc("rpc_battle_curriculum", {
         _subject: subject,
-        _class_id: classId ?? null,
+        ...(classId ? { _class_id: classId } : {}),
       });
 
       if (cancelled) return;

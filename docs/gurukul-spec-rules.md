@@ -114,7 +114,40 @@ These are the product owner's, given directly. They override any inference from 
 
 ## Added 2026-09-06
 
-31. **Topic is not an ANALYSIS unit; chapter and subject are. It is now a
+31. **AMENDED 2026-09-15 (owner ruling) — topics are real rows, per chapter,
+    and every question carries one.** The text below this block is the
+    2026-09-10 state and is kept for the history of why; where it disagrees,
+    this block wins.
+
+    - **Topics are per chapter.** `topics` is UNIQUE (chapter_id, name): the
+      same name in two chapters is two topics ("Journal Entries" in every
+      Accountancy chapter holds only that chapter's questions). Owner: "create
+      the topics chapter wise, not standard topics, universal topics."
+    - **Every chaptered question names one topic of its own chapter**
+      (`question_bank.topic_id`, enforced by a composite key onto
+      `topics (id, chapter_id)`). All 21,695 were read and filed by hand into
+      4,583 topics across 665 chapters (`20261020000000`).
+    - **The old labels are gone** (`20261020010000`): `question_bank.topic`,
+      `concept`, `subconcept`, `subtopic` and `topic_group` are dropped; the
+      copies in attempts, mistakes, mastery and the old revision queue were
+      rewritten to the real topic's name. Owner: "don't leave the trace of old
+      topics, remove them, because they can create problems in future."
+      `scripts/classify-question-topics.mjs` (the `topic_group` job described
+      below) is deleted.
+    - **Generated questions are tagged and stored automatically — this
+      reverses "leave `topic` NULL".** An AI-written question enters the bank
+      only through `store_generated_questions` (`20261020020000`): the
+      generator names the topic it wrote for, or the source question of a
+      variant; chapter, subject, class and board are derived from the
+      curriculum, never taken from the caller. Owner: questions "get
+      automatically classified into all the labels we have and automatically
+      stored … so next time fewer tokens are spent."
+    - **What has NOT moved:** weakness, recovery and revision still roll up at
+      chapter level (the recovery engine keys on `chapter_id`). The mastery
+      engine's own text key (`concept_mastery.concept`) now holds the topic's
+      name; renaming that key to `topic_id` is a separate change.
+
+    **Topic is not an ANALYSIS unit; chapter and subject are. It is now a
     SELECTION filter, where a teacher supplies one.** Updated 2026-09-10, when
     the batch job this rule deferred was actually run.
 

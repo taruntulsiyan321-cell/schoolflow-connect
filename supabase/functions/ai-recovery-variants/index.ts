@@ -56,6 +56,15 @@
 // Worth being clear-eyed about what that means: unreviewed AI content becomes
 // servable to every student in the school. That is the spec's decision, and
 // scripts/dump-variants.mjs exists so a human can actually read what landed.
+//
+// WHERE A VARIANT IS FILED
+// Through public.store_generated_questions, and nowhere else. This function
+// names only the source question and the tier; the database files the variant
+// under the source's topic, chapter, subject, class, board and stream, and its
+// difficulty. It used to copy those columns itself — including the old
+// per-question `topic`/`concept` strings — which made every generator its own
+// authority on what a stored question is labelled. A variant the door skips
+// (a repeat of a question already in the bank, say) is reported, not faked.
 import { corsHeaders, generateStructuredWithFallback, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -64,16 +73,18 @@ type SourceQuestion = {
   class_level: number | null;
   subject: string | null;
   chapter: string | null;
-  chapter_id: string | null;
-  topic: string | null;
-  subtopic: string | null;
-  concept: string | null;
+  topic_id: string | null;
+  topics: { name: string } | null;
   difficulty: string | null;
-  board: string | null;
   question: string;
   options: unknown;
   correct_index: number | null;
   explanation: string | null;
+};
+
+type StoreResult = {
+  inserted: { index: number; id: string }[];
+  skipped: { index: number; reason: string; existing_id?: string }[];
 };
 
 type GeneratedVariant = {
@@ -200,12 +211,17 @@ Deno.serve(async (req) => {
     const { data: src, error: srcErr } = await admin
       .from("question_bank")
       .select(
-        "id, class_level, subject, chapter, chapter_id, topic, subtopic, concept, difficulty, board, question, options, correct_index, explanation",
+        "id, class_level, subject, chapter, topic_id, topics(name), difficulty, question, options, correct_index, explanation",
       )
       .eq("id", sourceQuestionId)
       .single<SourceQuestion>();
 
     if (srcErr || !src) return jsonResponse({ error: `source question not found: ${srcErr?.message ?? "no row"}` }, 404);
+    // A source with no topic cannot give one to its variant, and the door would
+    // refuse every row. Said now, before a paid call is spent on it.
+    if (!src.topic_id) {
+      return jsonResponse({ error: "the source question has no topic, so a variant could not be filed", retryable: false }, 422);
+    }
 
     // §4.2a's input list, and nothing beyond it.
     const originalOptions = Array.isArray(src.options) ? (src.options as unknown[]).map(String) : [];
@@ -230,8 +246,7 @@ Deno.serve(async (req) => {
 
     const user = [
       `Chapter: ${src.chapter ?? "(unknown)"}`,
-      `Topic: ${src.topic ?? "(unknown)"}${src.subtopic ? ` / ${src.subtopic}` : ""}`,
-      src.concept ? `Concept: ${src.concept}` : null,
+      `Topic: ${src.topics?.name ?? "(unknown)"}`,
       `Subject: ${src.subject ?? "(unknown)"}`,
       `Class: ${src.class_level ?? "(unknown)"}`,
       `Difficulty to match: ${src.difficulty ?? "(unknown)"}`,
@@ -303,44 +318,37 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Only what this function actually knows. Topic, chapter, subject, class,
+    // board, stream and difficulty (§4.2: variants mirror what was failed) are
+    // inherited from the source by the database; approval and activity are the
+    // door's rule, per the header.
     const rows = accepted.map((v) => ({
-      class_level: src.class_level,
-      subject: src.subject,
-      chapter: src.chapter,
-      chapter_id: src.chapter_id,
-      topic: src.topic,
-      subtopic: src.subtopic,
-      concept: src.concept,
-      // §4.2: variants mirror the difficulty of what was failed.
-      difficulty: src.difficulty,
-      board: src.board,
+      source_question_id: src.id,
+      variant_tier: tier,
       question: v.question,
+      question_format: "mcq",
       options: v.options,
       correct_index: v.correct_index,
       explanation: v.explanation,
       source: "ai_recovery_variant",
-      source_type: "ai_generated",
-      // See the header: unapproved means invisible, which means the cache never
-      // pays. The spec makes this call explicitly.
-      is_approved: true,
-      is_active: true,
-      source_question_id: src.id,
-      variant_tier: tier,
     }));
 
-    const { data: inserted, error: insErr } = await admin
-      .from("question_bank")
-      .insert(rows)
-      .select("id");
+    const { data: stored, error: storeErr } = await admin.rpc("store_generated_questions", {
+      _questions: rows,
+    });
 
-    if (insErr) return jsonResponse({ error: `insert failed: ${insErr.message}`, retryable: true }, 500);
+    if (storeErr) return jsonResponse({ error: `store failed: ${storeErr.message}`, retryable: true }, 500);
+
+    const result = stored as StoreResult;
+    for (const s of result.skipped ?? []) skipped.push(`not stored: ${s.reason}`);
 
     return jsonResponse({
       source_question_id: src.id,
       tier,
       requested: count,
-      inserted: inserted?.length ?? 0,
-      variant_ids: (inserted ?? []).map((r) => r.id),
+      inserted: result.inserted?.length ?? 0,
+      variant_ids: (result.inserted ?? []).map((r) => r.id),
+      topic_id: src.topic_id,
       skipped,
       usage,
     });

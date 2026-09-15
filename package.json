@@ -67,10 +67,6 @@
     "verify:chunk-files": "node scripts/run-verification-files.mjs",
     "lint:client-columns": "node scripts/lint-client-columns.mjs",
     "lint:client-columns:self-test": "node scripts/lint-client-columns.mjs --self-test",
-    "classify:topics": "node scripts/classify-question-topics.mjs",
-    "classify:topics:apply": "node scripts/classify-question-topics.mjs --apply",
-    "classify:topics:incremental": "node scripts/classify-question-topics.mjs --incremental --apply",
-    "classify:topics:self-test": "node scripts/classify-question-topics.mjs --self-test",
     "verify:test-flow": "bash scripts/local-replica/run.sh",
     "db:apply-release": "node scripts/apply-release-migrations.mjs"
   },

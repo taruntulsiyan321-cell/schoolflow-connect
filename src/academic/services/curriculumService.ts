@@ -76,7 +76,7 @@ export const CurriculumService = {
     return listCurriculumChapters(repo, ids);
   },
 
-  /** The topics teachers have named inside a chapter. */
+  /** A chapter's topics (per chapter — the same name in another chapter is another topic). */
   async listTopics(ctx: ServiceContext, chapterId: string): Promise<CurriculumTopic[]> {
     assertCanConsume(ctx, "homework");
     return listChapterTopics(toRepoContext(ctx), chapterId);

@@ -621,7 +621,7 @@ function ConfigView({
   const [goalType,      setGoalType]      = useState<"count" | "time">("count");
   const [pyqYear,       setPyqYear]       = useState<number | null>(null);
   const [chapters,      setChapters]      = useState<AcademicTermRef[]>([]);
-  const [topics,        setTopics]        = useState<AcademicTermRef[]>([]);
+  const [topics,        setTopics]        = useState<(AcademicTermRef & { chapter: string | null })[]>([]);
   const [metaLoading,   setMetaLoading]   = useState(false);
 
   useEffect(() => {
@@ -675,7 +675,9 @@ function ConfigView({
       mode: modeKey,
       label: mode.label,
       subject: selSubject ?? "Mixed",
-      chapter: selChapter,
+      // A topic belongs to one chapter, so a session started from a topic is
+      // that chapter's session even when no chapter was picked first.
+      chapter: selChapter ?? topics.find((t) => t.id === selTopic)?.chapter ?? null,
       topic: selTopic,
       difficulty: selDifficulty,
       // A time-goal session is bounded by the clock, so request a generous
@@ -1269,10 +1271,9 @@ function Session({
           return;
         }
 
-        const chapterForStart =
-          config.chapter ||
-          config.topic ||
-          null;
+        // config.topic is a topic id, never a chapter name: the picker already
+        // resolved a topic-only start to its chapter.
+        const chapterForStart = config.chapter || null;
 
         const excludeIds: string[] = [];
         let remainingCount = config.qCount;
@@ -1742,8 +1743,6 @@ function Session({
       bankQuestionId: q.id,
       subject: q.subject,
       chapter: q.chapter,
-      concept: q.chapter,
-      topic: config.topic || q.chapter,
       difficulty: q.difficulty,
       source: "practice",
       practiceMode: config.mode,
@@ -1860,8 +1859,6 @@ function Session({
       bankQuestionId: q.id,
       subject: q.subject,
       chapter: q.chapter,
-      concept: q.chapter,
-      topic: config.topic || q.chapter,
       difficulty: q.difficulty,
       source: "practice",
       practiceMode: config.mode,

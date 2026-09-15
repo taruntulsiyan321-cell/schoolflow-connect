@@ -810,11 +810,20 @@ export const PracticeService = {
     return [...seen.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, "hi"));
   },
 
-  /** Unique topics/concepts for subject (+ optional chapter). */
+  /**
+   * The topics a student can practise in a subject (+ optional chapter), from
+   * the questions their class, board and stream can actually be served.
+   *
+   * `id` is the topic's id and is what listBankQuestions filters on. Topics are
+   * per chapter, so without a chapter the same name can appear once per
+   * chapter that teaches it — the chapter is then part of the label, never
+   * merged away. `chapter` is carried so a caller that started from a topic can
+   * name the session's chapter.
+   */
   async listBankTopics(
     ctx: ServiceContext,
     opts: { subject: string; chapter?: string | null; classLevel?: number | null },
-  ): Promise<AcademicTermRef[]> {
+  ): Promise<(AcademicTermRef & { chapter: string | null })[]> {
     assertCanConsume(ctx, "practice");
     const client = getClient(toRepoContext(ctx));
     const scope = await this.resolveCurriculumScope(ctx);
@@ -823,47 +832,44 @@ export const PracticeService = {
     if (classLevel == null || !Number.isFinite(classLevel)) return [];
     if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
-    let query = client
-      .from("question_bank")
-      .select("topic, concept, chapter")
-      .eq("is_approved", true)
-      .eq("class_level", classLevel)
-      .ilike("subject", opts.subject)
-      // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-      // so there is no per-school arm left to filter on.
-      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
-      .limit(800);
-
-    if (scope.stream) {
-      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
+    // Paged: a whole subject can hold more servable questions than one
+    // PostgREST response, and a truncated read would silently hide topics.
+    const PAGE = 1000;
+    const rows: { topic_id: string | null; chapter: string | null; topics: { name: string } | null }[] = [];
+    for (let from = 0; ; from += PAGE) {
+      let query = client
+        .from("question_bank")
+        .select("topic_id, chapter, topics(name)")
+        .eq("is_approved", true)
+        .eq("is_active", true)
+        .eq("class_level", classLevel)
+        .ilike("subject", opts.subject)
+        .not("topic_id", "is", null)
+        // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
+        // so there is no per-school arm left to filter on.
+        .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
+        .order("id")
+        .range(from, from + PAGE - 1);
+      if (scope.stream) {
+        query = query.or(`stream.eq.${scope.stream},stream.is.null`);
+      }
+      const { data, error } = await query;
+      throwIfError(error, "Failed to load practice topics");
+      const page = (data ?? []) as unknown as typeof rows;
+      rows.push(...page);
+      if (page.length < PAGE) break;
     }
 
-    const { data, error } = await query;
-    throwIfError(error, "Failed to load practice topics");
-    const seen = new Map<string, AcademicTermRef>();
-    for (const row of data ?? []) {
-      const r = row as { topic?: string | null; concept?: string | null; chapter?: string | null };
+    const seen = new Map<string, AcademicTermRef & { chapter: string | null }>();
+    for (const r of rows) {
+      if (!r.topic_id || !r.topics?.name || seen.has(r.topic_id)) continue;
       if (opts.chapter && !academicLabelMatches(r.chapter, opts.chapter)) continue;
-      for (const candidate of [r.topic, r.concept]) {
-        const raw = String(candidate ?? "").trim();
-        if (!raw) continue;
-        const term = toPresentedTerm(raw, "concept");
-        if (!term) continue;
-        if (looksLikeUnresolvedMojibake(term.displayName)) continue;
-        const key = academicMatchKey(term.displayName) || term.displayName.toLowerCase();
-        if (!key) continue;
-        const existing = seen.get(key);
-        if (!existing) {
-          seen.set(key, {
-            id: isCleanAcademicLabel(raw) ? raw : term.displayName,
-            displayName: term.displayName,
-          });
-          continue;
-        }
-        if (!isCleanAcademicLabel(existing.id) && isCleanAcademicLabel(raw)) {
-          seen.set(key, { id: raw, displayName: term.displayName });
-        }
-      }
+      const chapterLabel = r.chapter ? displayChapter(r.chapter) || r.chapter : null;
+      seen.set(r.topic_id, {
+        id: r.topic_id,
+        displayName: opts.chapter || !chapterLabel ? r.topics.name : `${r.topics.name} · ${chapterLabel}`,
+        chapter: r.chapter,
+      });
     }
     return [...seen.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, "hi"));
   },
@@ -1128,8 +1134,8 @@ export const PracticeService = {
     opts: {
       subject?: string | null;
       chapter?: string | null;
+      /** A topic id from listBankTopics. */
       topic?: string | null;
-      concept?: string | null;
       difficulty?: string | null;
       classLevel?: number | null;
       limit?: number;
@@ -1139,7 +1145,10 @@ export const PracticeService = {
       ids?: string[];
       /** Skip these bank ids (session resume). */
       excludeIds?: string[];
-      /** Match any of these chapter/concept/topic strings (weak-area mode). */
+      /**
+       * Weak-area mode: each target is a chapter, or a topic NAMED within its
+       * chapter (concept_mastery keys a topic by its name inside the chapter).
+       */
       weakTargets?: Array<{ subject?: string; chapter?: string | null; concept?: string }>;
       /**
        * Include soft-deleted (is_active=false) questions. Only for historical
@@ -1188,10 +1197,11 @@ export const PracticeService = {
     // order without an ORDER BY, the same tap can return 3, 0 or 20 — so the
     // failure is intermittent, which is why it survived.
     //
-    // Pushed down as an OR across the three label columns, case-insensitively.
-    // The client-side academicLabelMatches pass further down is still the
-    // precision filter; this only guarantees the window it filters actually
-    // contains candidates.
+    // Pushed down case-insensitively. The client-side academicLabelMatches
+    // pass further down is still the precision filter; this only guarantees
+    // the window it filters actually contains candidates.
+    //
+    // A topic is not a label any more: it is an id, filtered exactly (below).
     const labelPredicate = (): string | null => {
       // PostgREST's or() is comma/parenthesis delimited, so a label containing
       // either would change the shape of the filter rather than be matched by
@@ -1199,19 +1209,13 @@ export const PracticeService = {
       const safe = (v: string | null | undefined) =>
         v && !/[,()"\\]/.test(v) ? v.trim() : null;
       const chapter = safe(opts.chapter);
-      const topic = safe(opts.topic);
-      const concept = safe(opts.concept);
-      const clauses: string[] = [];
-      if (chapter) clauses.push(`chapter.ilike.${chapter}`);
-      if (topic) clauses.push(`topic.ilike.${topic}`, `concept.ilike.${topic}`, `chapter.ilike.${topic}`);
-      if (concept) clauses.push(`concept.ilike.${concept}`, `topic.ilike.${concept}`);
-      return clauses.length ? clauses.join(",") : null;
+      return chapter ? `chapter.ilike.${chapter}` : null;
     };
 
     const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean) => {
       let query = client
         .from("question_bank")
-        .select("id, subject, chapter, topic, concept, difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
+        .select("id, subject, chapter, topic_id, topics(name), difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
         .eq("is_approved", true)
         // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
         // so there is no per-school arm left to filter on.
@@ -1240,6 +1244,9 @@ export const PracticeService = {
         const pred = labelPredicate();
         if (pred) query = query.or(pred);
       }
+      if (opts.topic && !byIds) {
+        query = query.eq("topic_id", opts.topic);
+      }
       if (opts.difficulty && opts.difficulty !== "mixed") {
         query = query.eq("difficulty", opts.difficulty);
       }
@@ -1257,26 +1264,24 @@ export const PracticeService = {
       // — 20-question shells auto-finished at 0% because the loader came back
       // empty. Those zeros were then averaged into Analysis.
       //
-      // So the targets are pushed down as an OR of exact chapter/concept
-      // matches. The client-side pass below still runs and is still the
-      // precision filter (it handles display-cleaned and mojibake labels);
-      // this only guarantees the window it filters actually contains
-      // candidates.
+      // So the targets' chapters are pushed down. A weak topic is always held
+      // with its chapter, so the chapter narrows the window to rows that can
+      // match; the client-side pass below then picks the topic by name INSIDE
+      // that chapter, which is where the name is unique.
+      //
+      // Pushed down only when it cannot drop a target: chapters when every
+      // target has one, topic names when none does. A mixed list is left to
+      // the client-side pass rather than narrowed in a way that loses half.
       if (opts.weakTargets && opts.weakTargets.length > 0) {
-        const quote = (v: string) => `"${v.replace(/["\\]/g, "")}"`;
-        const concepts = Array.from(
-          new Set(opts.weakTargets.map((w) => w.concept).filter((c): c is string => Boolean(c))),
-        );
-        const chapters = Array.from(
-          new Set(opts.weakTargets.map((w) => w.chapter).filter((c): c is string => Boolean(c))),
-        );
-        const clauses: string[] = [];
-        if (concepts.length) {
-          clauses.push(`concept.in.(${concepts.map(quote).join(",")})`);
-          clauses.push(`topic.in.(${concepts.map(quote).join(",")})`);
+        const withChapter = opts.weakTargets.filter((w) => Boolean(w.chapter));
+        if (withChapter.length === opts.weakTargets.length) {
+          query = query.in("chapter", Array.from(new Set(withChapter.map((w) => w.chapter as string))));
+        } else if (withChapter.length === 0) {
+          const names = Array.from(
+            new Set(opts.weakTargets.map((w) => w.concept).filter((c): c is string => Boolean(c))),
+          );
+          if (names.length) query = query.in("topics.name", names).not("topics", "is", null);
         }
-        if (chapters.length) clauses.push(`chapter.in.(${chapters.map(quote).join(",")})`);
-        if (clauses.length) query = query.or(clauses.join(","));
       }
       if (opts.pyqOnly) {
         query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
@@ -1313,8 +1318,8 @@ export const PracticeService = {
       id: string;
       subject: string;
       chapter: string | null;
-      topic: string | null;
-      concept: string | null;
+      topic_id: string | null;
+      topics: { name: string } | null;
       difficulty: string | null;
       question: string;
       options: unknown;
@@ -1338,17 +1343,7 @@ export const PracticeService = {
       rows = rows.filter((r) => academicLabelMatches(r.chapter, opts.chapter));
     }
     if (opts.topic) {
-      rows = rows.filter((r) =>
-        academicLabelMatches(r.topic, opts.topic) ||
-        academicLabelMatches(r.concept, opts.topic) ||
-        academicLabelMatches(r.chapter, opts.topic),
-      );
-    }
-    if (opts.concept) {
-      rows = rows.filter((r) =>
-        academicLabelMatches(r.concept, opts.concept) ||
-        academicLabelMatches(r.topic, opts.concept),
-      );
+      rows = rows.filter((r) => r.topic_id === opts.topic);
     }
     if (opts.weakTargets && opts.weakTargets.length > 0) {
       const targets = opts.weakTargets.filter((w) =>
@@ -1359,13 +1354,18 @@ export const PracticeService = {
         targets.some((w) => {
           const subjOk = !w.subject || r.subject.toLowerCase() === w.subject.toLowerCase();
           if (!subjOk) return false;
-          const needle = w.concept || w.chapter || "";
-          if (!needle) return subjOk;
-          return (
-            academicLabelMatches(r.concept, needle) ||
-            academicLabelMatches(r.topic, needle) ||
-            academicLabelMatches(r.chapter, needle)
-          );
+          if (!w.chapter && !w.concept) return true;
+          if (w.chapter && !academicLabelMatches(r.chapter, w.chapter)) return false;
+          // A weak topic is a name INSIDE its chapter: matched only there, so
+          // "Journal Entries" weak in one chapter does not pull another's.
+          if (w.concept) {
+            return (
+              academicLabelMatches(r.topics?.name ?? null, w.concept) ||
+              // A mastery row with no topic of its own names its chapter.
+              (!!w.chapter && academicLabelMatches(w.chapter, w.concept))
+            );
+          }
+          return Boolean(w.chapter);
         }),
       );
     }

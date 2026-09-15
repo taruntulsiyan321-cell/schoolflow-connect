@@ -16,13 +16,21 @@
  *   candidates once chapter/concept reach the query:             377
  *   that student's finished sessions:  16, of which 14 were empty weak shells
  *
+ * ── WHAT CHANGED 2026-09-15 ───────────────────────────────────────────────
+ *
+ * question_bank has no `concept` or `topic` column any more (20261020010000):
+ * a question's topic is its topics row, and a topic is a name INSIDE a
+ * chapter. So the window is narrowed by the targets' chapters, and the topic is
+ * matched by name only within that chapter — "Journal Entries" weak in one
+ * Accountancy chapter must not pull another chapter's Journal Entries.
+ *
  * ── WHY A SOURCE ASSERTION ────────────────────────────────────────────────
  *
  * The bug was invisible to every unit test: the SQL was valid, the client
  * matcher was correct, and the mode returned an empty array rather than an
  * error. Only WHERE the filter runs distinguishes the two, and that is exactly
  * what was wrong. G11 — each assertion below fails against the code as it
- * stood.
+ * stood before each fix.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -33,10 +41,6 @@ const SOURCE = stripComments(readFileSync(join(__dirname, "practiceService.ts"),
 
 /** The query-building closure, isolated from the client-side pass below it. */
 function buildQuerySection(): string {
-  // The signature gained a second parameter when the CHAPTER filter was pushed
-  // down to the database too (the same defect this file guards for weak areas,
-  // left unfixed for ordinary chapter practice). Anchored on the name and the
-  // first parameter so the guard survives that without going blind.
   const start = SOURCE.indexOf("const buildQuery = (applyActiveFilter: boolean,");
   expect(start, "buildQuery has been renamed or removed").toBeGreaterThan(-1);
   const end = SOURCE.indexOf("return query;", start);
@@ -53,24 +57,30 @@ describe("weak areas filter reaches the database", () => {
     ).toBe(true);
   });
 
-  it("constrains on chapter and concept, the columns the targets name", () => {
+  it("narrows by the targets' chapters, and by topic name when no target has a chapter", () => {
     const build = buildQuerySection();
-    expect(build).toContain("concept.in.");
-    expect(build).toContain("chapter.in.");
+    // .in() rather than a hand-built or() string: the client library quotes
+    // values containing commas and parentheses ("Areas Related to Circles"),
+    // which a hand-built in.() list had to remember to do itself.
+    expect(build).toContain('.in("chapter"');
+    expect(build).toContain('.in("topics.name"');
   });
 
-  it("still runs the client-side precision pass afterwards", () => {
-    // The pushdown is a window guarantee, not a replacement: the client
-    // matcher handles display-cleaned and mojibake labels that an exact SQL
-    // `in` would miss. Losing it would silently widen every weak session.
-    expect(SOURCE).toContain("academicLabelMatches(r.concept, needle)");
+  it("never filters on the dropped label columns", () => {
+    const build = buildQuerySection();
+    expect(build).not.toMatch(/\bconcept\.(in|ilike|eq)\b/);
+    expect(build).not.toMatch(/"topic"|\btopic\.(in|ilike|eq)\b/);
   });
 
-  it("quotes the values it interpolates into the or() clause", () => {
-    // Chapter names carry spaces and commas ("Areas Related to Circles"), and
-    // an unquoted PostgREST in.() list would split on them and match nothing —
-    // reintroducing the empty-session bug through a different door.
-    const build = buildQuerySection();
-    expect(build).toMatch(/const quote = /);
+  it("matches a weak topic by name only inside its own chapter", () => {
+    // The pushdown is a window guarantee, not a replacement. The precision pass
+    // must check the chapter BEFORE the topic name, or a topic name shared by
+    // two chapters would match both.
+    const pass = SOURCE.slice(SOURCE.indexOf("targets.some((w) => {"));
+    const chapterCheck = pass.indexOf("academicLabelMatches(r.chapter, w.chapter)");
+    const topicCheck = pass.indexOf("academicLabelMatches(r.topics?.name ?? null, w.concept)");
+    expect(chapterCheck, "the precision pass no longer checks the chapter").toBeGreaterThan(-1);
+    expect(topicCheck, "the precision pass no longer matches the topic name").toBeGreaterThan(-1);
+    expect(chapterCheck).toBeLessThan(topicCheck);
   });
 });

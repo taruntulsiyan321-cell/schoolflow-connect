@@ -190,10 +190,7 @@ const ALLOWLIST = {
   // target regardless of who calls them.
   _generate_battle_code: "No parameters; generates a random code, no table read scoped to any user.",
   _enforce_duel_capacity: "No parameters; checks/enforces a global capacity limit, not user-specific.",
-  _backfill_battle_question_concepts: "No parameters; one-time/idempotent batch backfill over the global battle_questions catalog, not per-tenant.",
   _backfill_dpp_question_concepts: "No parameters; same pattern over the global dpp_questions catalog.",
-  _backfill_question_bank_concepts: "No parameters; same pattern over the global question_bank catalog.",
-  _backfill_template_concepts: "No parameters; same pattern over the global question_templates catalog.",
 
   // --- Gap-closure sweep, 2026-08-22: individually read every one of these
   // (the last of the originally-flagged 114). Each is self-scoped -- every
@@ -279,7 +276,7 @@ const ALLOWLIST = {
     "Self-scoped, and strictly tighter than an institution predicate: _uid is auth.uid() with no target-user parameter at all, and every statement is keyed to it -- the earned-badge check reads student_badges WHERE user_id = _uid, and the write is UPDATE student_xp ... WHERE user_id = _uid. One person, where same_school() would admit thousands. Same shape and same reason as rpc_set_featured_badges directly above, for the neighbouring column on the same table; it exists because 20260905000000_xp_engine_owned.sql revoked the client's direct write to student_xp, so equip needed a definer path. school_id is set, when the row is first created, by _ensure_student_xp from the student's own record. Read body 2026-09-04.",
   rpc_classmates: "Self-scoped; resolves the caller's own class via auth.uid() before listing classmates in that same class.",
   rpc_battle_feed: "uses_teacher_scope_helper; already gated by role + class-teacher check, no cross-school target parameter.",
-  rpc_battle_curriculum: "Global curriculum/topic catalog (both overloads), no user-specific data -- same reasoning as rpc_pick_question_templates.",
+  rpc_battle_curriculum: "Global curriculum/topic catalog (one overload since 20261020010000), no user-specific data -- same reasoning as rpc_pick_question_templates.",
   rpc_pick_question_templates: "Global question_templates catalog by subject/class/chapter, no user-specific data.",
   process_pending_academic_events: "Platform queue worker, not a request handler: it drains academic_events for every institution, so there is no correct institution to scope to. Since 20260925120000_the_event_queue_is_drained_by_a_scheduler.sql its only caller is pg_cron job process-pending-academic-events, every minute; EXECUTE is revoked from PUBLIC, anon and authenticated and held by service_role, and the client-side sync engine that used to drain it on page loads is deleted. FOR UPDATE SKIP LOCKED prevents cross-worker double-processing. That migration's verify refuses a signed-in and an anon drain.",
   rpc_rotate_featured_battles: "Confirmed caller: battleExperienceService.ts, client-triggered lazy-scheduler pattern (the one scheduled homework used until 20260925100000 moved it to a pg_cron job). Idempotent UPDATE on globally-shared featured-battle state, not per-tenant.",
