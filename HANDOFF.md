@@ -78,8 +78,11 @@ spec rules 48–52 the behaviour now.
 * **On production, as each role:** `e2e-evidence/tier1-homework-family.spec.ts` (run with
   `PLAYWRIGHT_BASE_URL=https://schoolflow-connect.vercel.app npx playwright test
   --config=playwright.evidence.config.ts --project=evidence --no-deps e2e-evidence/tier1-homework-family.spec.ts`;
-  drop `--no-deps` if the saved sessions have died). Its first run caught both report downloads
-  named `….csv.csv` (KNOWN_ISSUES 56, item 9); fixed and redeployed.
+  without `--no-deps` it first signs every role in afresh). Its first run caught both report
+  downloads named `….csv.csv` (KNOWN_ISSUES 56, item 9); fixed and redeployed, then **11 of 11
+  passed on production** with fresh sessions. With `--no-deps` and a saved session a day old, the
+  principal test fails on a 401 from `link_portal_on_auth` — the expired access token's first
+  request, not the app; mint fresh sessions rather than loosening that check.
 
 ### THE HOMEWORK PANEL, READ LINE BY LINE — 2026-09-15
 
