@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
@@ -2365,6 +2365,39 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const location = useLocation();
   const deepLinkHandled = useRef(false);
 
+  /**
+   * Drop the router state WITHOUT navigating.
+   *
+   * It used to be `navigate(location.pathname, { replace: true, state: null })`
+   * — and that navigation REMOUNTED this component. Traced live on 2026-09-15
+   * by logging the effect on every run:
+   *
+   *   1  handled:false  phase:hub      state:{recovery:{…}}   -> handoff taken
+   *   2  handled:true   phase:session  state:null             -> correctly skipped
+   *   3  handled:false  phase:hub      state:null             -> REMOUNTED, and
+   *                                                              the state it
+   *                                                              needed is gone
+   *
+   * The remount reset both the ref and `phase`, so the third pass found an
+   * empty state and fell through to the practice hub. Pressing "Start
+   * recovery" therefore landed the student back on the mode list, every time,
+   * with a recovery session already opened server-side and no way to reach it.
+   *
+   * The clearing itself is still wanted — a back-navigation must not re-open a
+   * session that has been submitted — so it is done through the History API,
+   * which React Router reads (`history.state.usr`) but does not treat as a
+   * navigation. Same effect, no remount.
+   */
+  const clearRouterState = useCallback(() => {
+    try {
+      const h = window.history;
+      h.replaceState({ ...(h.state ?? {}), usr: null }, "");
+    } catch {
+      // A browser that refuses replaceState keeps the state; the ref below
+      // still stops it being consumed twice in this mount.
+    }
+  }, []);
+
   /** Instant modes skip config and load with mode-specific filters. */
   const INSTANT: ModeKey[] = ["weak", "incorrect", "skipped", "bookmarked"];
 
@@ -2390,7 +2423,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     // specifically supposed to exclude.
     if (handoff?.revision) {
       deepLinkHandled.current = true;
-      navigate(location.pathname, { replace: true, state: null });
+      clearRouterState();
       const rev = handoff.revision;
       setModeKey("chapter");
       setConfig({
@@ -2413,9 +2446,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
     if (handoff?.recovery) {
       deepLinkHandled.current = true;
-      // Clear it so a back-navigation does not silently re-open a session
-      // that has already been submitted.
-      navigate(location.pathname, { replace: true, state: null });
+      clearRouterState();
       const rec = handoff.recovery;
       setModeKey("recovery");
       setConfig({

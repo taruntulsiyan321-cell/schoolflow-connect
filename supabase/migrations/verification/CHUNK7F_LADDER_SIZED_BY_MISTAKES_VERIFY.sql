@@ -56,16 +56,24 @@ BEGIN
     ----------------------------------------------------------------------
     -- Fixture: a real student with real open mistakes in a real chapter.
     ----------------------------------------------------------------------
+    -- A chapter sitting in the DEEP band, which is what items 1 and 2 assert.
+    --
+    -- This used to take the chapter with the MOST open mistakes, which was a
+    -- fixture that only worked while no student had many. Sitting one real
+    -- practice session in a browser pushed the top chapter to 19 mistakes —
+    -- relearn — and three items failed against a perfectly correct engine.
+    -- A suite that depends on production staying small is a suite that will
+    -- fail for the wrong reason at the worst time.
     SELECT sm.user_id, sm.chapter_id INTO _uid, _chapter
       FROM public.student_mistakes sm
      WHERE sm.status = 'open' AND sm.question_id IS NOT NULL AND sm.chapter_id IS NOT NULL
      GROUP BY sm.user_id, sm.chapter_id
-    HAVING count(*) >= 2
+    HAVING count(*) BETWEEN 1 AND public._recovery_const('RECOVERY_DEEP_MAX_MISTAKES')::int
      ORDER BY count(*) DESC
      LIMIT 1;
 
     IF _uid IS NULL THEN
-      RAISE EXCEPTION 'NO FIXTURE: no student has two open mistakes with a question_id in one chapter. This suite cannot run, which is NOT a pass.';
+      RAISE EXCEPTION 'NO FIXTURE: no student holds between 1 and RECOVERY_DEEP_MAX_MISTAKES open mistakes (with a question_id) in one chapter, so deep mode cannot be exercised. NOT a pass.';
     END IF;
 
     SELECT s.id, s.school_id INTO _sid, _school FROM public.students s WHERE s.user_id = _uid LIMIT 1;
@@ -138,11 +146,12 @@ BEGIN
          AND qb.source_question_id IS NULL
          AND NOT EXISTS (SELECT 1 FROM public.student_mistakes sm
                           WHERE sm.user_id = _uid AND sm.question_id = qb.id)
-       ORDER BY qb.created_at LIMIT 10) t;
+       ORDER BY qb.created_at LIMIT 20) t;
 
-    IF COALESCE(array_length(_extra, 1), 0) < 7 THEN
-      RAISE EXCEPTION 'NO FIXTURE: chapter % has only % spare bank questions; items 3-6 need 7. NOT a pass.',
-        _chapter, COALESCE(array_length(_extra, 1), 0);
+    IF COALESCE(array_length(_extra, 1), 0) < (public._recovery_const('RECOVERY_WIDE_MAX_MISTAKES')::int + 1 - _n) THEN
+      RAISE EXCEPTION 'NO FIXTURE: chapter % has only % spare bank question(s); items 3-6 need % to reach the relearn band. NOT a pass.',
+        _chapter, COALESCE(array_length(_extra, 1), 0),
+        public._recovery_const('RECOVERY_WIDE_MAX_MISTAKES')::int + 1 - _n;
     END IF;
 
     FOR _i IN 1 .. (6 - _n) LOOP
@@ -199,9 +208,9 @@ BEGIN
     END IF;
 
     ----------------------------------------------------------------------
-    -- 5. RELEARN: at nine mistakes the app refuses to drill, and says so.
+    -- 5. RELEARN: one past RECOVERY_RELEARN_ABOVE, the app refuses to drill.
     ----------------------------------------------------------------------
-    FOR _i IN 5 .. 7 LOOP
+    FOR _i IN 7 .. (public._recovery_const('RECOVERY_WIDE_MAX_MISTAKES')::int + 1 - _n + 6) LOOP
       INSERT INTO public.student_mistakes
         (user_id, student_id, school_id, chapter_id, question_id, source, status,
          question_text, times_wrong, last_wrong_at)
@@ -222,13 +231,16 @@ BEGIN
       _fail := _fail || format('(FAIL) 5: nine mistakes should select relearn, got %s. ', _plan->>'mode');
     ELSIF COALESCE((_plan->>'offerable_if_generation_exhausted')::boolean, true) THEN
       _fail := _fail || '(FAIL) 5: relearn must not be offerable as a drill. ';
-    ELSIF COALESCE(_plan->>'not_offerable_reason', '') NOT LIKE '%9 open mistakes%' THEN
+    ELSIF COALESCE(_plan->>'not_offerable_reason', '')
+          NOT LIKE '%' || (_plan->>'open_mistakes') || ' open mistakes%' THEN
       -- The refusal has to NAME the number. A generic "not enough material"
       -- would be a lie: there is plenty of material.
       _fail := _fail || format('(FAIL) 5: the reason does not state the count: %s ', _plan->>'not_offerable_reason');
     ELSE
       _pass := _pass + 1;
-      _report := _report || '(PASS) 5: nine mistakes → relearn, not offerable, and the reason names the count.' || E'\n';
+      _report := _report || format(
+        '(PASS) 5: %s mistakes → relearn, not offerable, and the reason names the count.',
+        _plan->>'open_mistakes') || E'\n';
     END IF;
 
     ----------------------------------------------------------------------

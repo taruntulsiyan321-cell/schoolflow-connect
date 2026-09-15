@@ -27,7 +27,7 @@ DECLARE
   _bad_cols     text;                                    -- 2
   _truth_q      uuid[]; _actual_q uuid[];                -- 3
   _q1 uuid;
-  _own_bm bigint; _own_ct bigint;                        -- 4
+  _own_bm bigint; _own_ct bigint; _other_rows bigint;    -- 4
   _t_bm bigint; _p_bm bigint; _pr_bm bigint; _a_bm bigint; -- 5
   _nc_before bigint; _nc_open bigint;                    -- 6
   _w_own bigint; _w_other bigint;                        -- 7
@@ -135,6 +135,13 @@ BEGIN
   SET LOCAL ROLE authenticated;
     SELECT count(*) INTO _own_bm FROM public.practice_bookmarks;
     SELECT count(*) INTO _own_ct FROM public.chapter_tally;
+    -- The fence itself: nothing belonging to anyone else is visible. This is
+    -- what item 4 is actually about, and unlike a total it does not change
+    -- when this student does more practice.
+    SELECT count(*) INTO _other_rows
+      FROM (SELECT user_id FROM public.practice_bookmarks
+            UNION ALL SELECT user_id FROM public.chapter_tally) v
+     WHERE v.user_id <> _uid_student::uuid;
   RESET ROLE;
 
   -- practice_skipped was the third table here until 20260920000000 dropped
@@ -142,9 +149,20 @@ BEGIN
   -- to question_attempts.skipped. Two tables still make this item real —
   -- both are seeded above, so each count is a fence answering, not an empty
   -- table agreeing.
-  _r4 := 'student sees bookmarks=' || _own_bm || ' tally=' || _own_ct
-      || CASE WHEN _own_bm=1 AND _own_ct=1
-              THEN ' — own practice rows readable (PASS)'
+  -- Asserted as ">= the row we just seeded, and ZERO belonging to anyone
+  -- else", not as an exact total.
+  --
+  -- It was `_own_ct = 1`, which silently assumed this student had no other
+  -- practice history. Sitting one real session in a browser on 2026-09-15 gave
+  -- them four more chapter_tally rows and this item failed — against a fence
+  -- that was working perfectly. A verification that breaks when the app is
+  -- USED is worse than none, because the next person learns to ignore it.
+  _r4 := 'student sees own bookmarks=' || _own_bm || ' own tally=' || _own_ct
+      || ', other users'' rows=' || _other_rows
+      || CASE WHEN _own_bm >= 1 AND _own_ct >= 1 AND _other_rows = 0
+              THEN ' — own practice rows readable, nobody else''s (PASS)'
+              WHEN _other_rows > 0
+              THEN ' — A STUDENT CAN SEE ANOTHER USER''S PRACTICE ROWS (FAIL)'
               ELSE ' — a student cannot read their own practice data (FAIL)' END;
 
   ------------------------------------------------------------------
