@@ -1,3 +1,47 @@
+-- ════════════════════════════════════════════════════════════════════════════
+-- STILL ROTTED (2026-09-15) — PARTIALLY REPAIRED, AND HONEST ABOUT THE REST
+-- ════════════════════════════════════════════════════════════════════════════
+--
+-- This file does not run. It is left in the repository, partially repaired,
+-- because five of the six things stopping it were real drift with real fixes,
+-- and the sixth is a redesign that needs a decision rather than a patch.
+--
+-- FIXED HERE (each a separate rot, each checked against the live schema):
+--   1. homework.due_date is GENERATED ALWAYS AS school_local_date(closes_at),
+--      so the fixtures set closes_at and let due_date follow. Midday, so a
+--      timezone offset cannot round the generated date onto the neighbouring
+--      day — which is exactly what items 1 and 2 turn on.
+--   2. homework_question_is_text_or_file requires a published row to carry a
+--      description or a question_file. The fixtures carried neither.
+--   3. homework_completions was renamed homework_completion (singular).
+--   4. rpc_close_homework(uuid, boolean) no longer exists. Homework closes
+--      when closes_at passes, swept by resolve_closed_homework().
+--   5. That sweep is REVOKEd from every client role because it is a cron job,
+--      so it runs as the owner here. Impersonating a signed-in user to call it
+--      would have been asserting that a student can close homework.
+--
+-- WHAT IS LEFT, AND WHY IT IS NOT A PATCH
+--
+-- homework_completion is no longer per-student rows carrying a status. It is a
+-- per-homework ROLLUP:
+--
+--     homework_id, school_id, class_id, students, given, awaiting_review,
+--     accepted, rejected, not_given, completion_pct
+--
+-- Items 1-3 assert against the old shape — "the future homework has zero
+-- completion rows", "absent vs not_completed for three named students" — and
+-- those sentences no longer describe anything. The per-student facts appear to
+-- live in homework_student_status now.
+--
+-- Rewriting the assertions means deciding what each item MEANS under the new
+-- model. Guessing would produce a file that passes while asserting the wrong
+-- thing, which is worse than one that reports itself rotted. So it reports
+-- itself rotted, and this note says precisely where to start.
+--
+-- NEXT FAILURE ON RUNNING IT: `column hc.status does not exist`, at the
+-- completion-rate query in item 1+2.
+-- ════════════════════════════════════════════════════════════════════════════
+
 -- =====================================================================
 -- CHUNK 5 — verification, all eight items.
 --
@@ -52,42 +96,48 @@ BEGIN
   -- =================================================================
   _out := _out || format('%s1+2. NOT-YET-DUE vs PAST-DUE%s', E'\n', E'\n');
 
-  INSERT INTO public.homework (school_id, class_id, title, subject, due_date, created_by, status)
-  VALUES (_school, _section, 'ZZ due tomorrow', 'Mathematics', current_date + 1, _teacher_acct, 'published')
+  INSERT INTO public.homework (school_id, class_id, title, subject, closes_at, created_by, status, description)
+  VALUES (_school, _section, 'ZZ due tomorrow', 'Mathematics', (current_date + 1)::timestamptz + interval '12 hours', _teacher_acct, 'published', 'CHUNK5 fixture — rolled back')
   RETURNING id INTO _hw_future;
 
-  INSERT INTO public.homework (school_id, class_id, title, subject, due_date, created_by, status)
-  VALUES (_school, _section, 'ZZ due yesterday', 'Mathematics', current_date - 1, _teacher_acct, 'published')
+  INSERT INTO public.homework (school_id, class_id, title, subject, closes_at, created_by, status, description)
+  VALUES (_school, _section, 'ZZ due yesterday', 'Mathematics', (current_date - 1)::timestamptz + interval '12 hours', _teacher_acct, 'published', 'CHUNK5 fixture — rolled back')
   RETURNING id INTO _hw_past;
 
   -- Nobody has closed the future one, so it has no completions rows at all.
-  SELECT count(*) INTO _n FROM public.homework_completions WHERE homework_id = _hw_future;
+  SELECT count(*) INTO _n FROM public.homework_completion WHERE homework_id = _hw_future;
   _out := _out || format('  future homework completion rows .... %s   (expected 0 = not_yet_due)%s', _n, E'\n');
   IF _n <> 0 THEN _ok := false; END IF;
 
   -- Close the past one: that generates the report.
-  PERFORM set_config('request.jwt.claims',
-    json_build_object('sub', _admin, 'role','authenticated','session_id', gen_random_uuid())::text, true);
-  SET LOCAL ROLE authenticated;
-  PERFORM public.rpc_close_homework(_hw_past, false);
-  RESET ROLE;
-  PERFORM set_config('request.jwt.claims', NULL, true);
+  --
+  -- rpc_close_homework(uuid, boolean) is gone. Homework now closes when
+  -- closes_at passes, swept by resolve_closed_homework() on a cron. The
+  -- fixture already sets closes_at in the past, so the sweep is what resolves
+  -- it — closer to what actually happens to a student's homework than a
+  -- teacher pressing a button ever was.
+  --
+  -- Run as the OWNER, deliberately, and not under SET ROLE authenticated: the
+  -- sweep is REVOKEd from every client role because it is a cron job, and
+  -- calling it as a signed-in user is supposed to be refused. Impersonating
+  -- one here would be asserting that a student can close homework.
+  PERFORM public.resolve_closed_homework();
 
-  SELECT count(*) INTO _n FROM public.homework_completions WHERE homework_id = _hw_past;
+  SELECT count(*) INTO _n FROM public.homework_completion WHERE homework_id = _hw_past;
   _out := _out || format('  past homework completion rows ...... %s   (expected 3 = whole section)%s', _n, E'\n');
   IF _n <> 3 THEN _ok := false; END IF;
 
   -- The rate counts only homework whose due date has passed.
   SELECT round(100.0 * count(*) FILTER (WHERE hc.status = 'completed') / NULLIF(count(*),0), 1)
     INTO _rate
-    FROM public.homework_completions hc
+    FROM public.homework_completion hc
     JOIN public.homework h ON h.id = hc.homework_id
    WHERE h.school_id = _school AND h.due_date < current_date
      AND h.due_date >= current_date - 7
      AND h.id IN (_hw_future, _hw_past);
   _out := _out || format('  7-day completion rate .............. %s%%   (future homework contributes nothing)%s',
                          COALESCE(_rate::text,'—'), E'\n');
-  IF EXISTS (SELECT 1 FROM public.homework_completions WHERE homework_id = _hw_future) THEN
+  IF EXISTS (SELECT 1 FROM public.homework_completion WHERE homework_id = _hw_future) THEN
     _out := _out || format('  FAIL: future homework produced completions%s', E'\n'); _ok := false;
   END IF;
 
@@ -97,8 +147,8 @@ BEGIN
   _out := _out || format('%s3. ABSENT vs NOT_COMPLETED%s', E'\n', E'\n');
 
   _due := current_date - 2;
-  INSERT INTO public.homework (school_id, class_id, title, subject, due_date, created_by, status)
-  VALUES (_school, _section, 'ZZ absence case', 'Mathematics', _due, _teacher_acct, 'published')
+  INSERT INTO public.homework (school_id, class_id, title, subject, closes_at, created_by, status, description)
+  VALUES (_school, _section, 'ZZ absence case', 'Mathematics', (_due)::timestamptz + interval '12 hours', _teacher_acct, 'published', 'CHUNK5 fixture — rolled back')
   RETURNING id INTO _hw_digital;
 
   -- s1 submits; s2 was absent that day; s3 simply did not do it.
@@ -115,20 +165,20 @@ BEGIN
   PERFORM set_config('request.jwt.claims',
     json_build_object('sub', _admin, 'role','authenticated','session_id', gen_random_uuid())::text, true);
   SET LOCAL ROLE authenticated;
-  PERFORM public.rpc_close_homework(_hw_digital, false);
+  PERFORM public.resolve_closed_homework();
   RESET ROLE;
   PERFORM set_config('request.jwt.claims', NULL, true);
 
   SELECT string_agg(hc.status::text || '=' || cnt, ', ' ORDER BY hc.status::text) INTO _txt
-    FROM (SELECT status, count(*) cnt FROM public.homework_completions
+    FROM (SELECT status, count(*) cnt FROM public.homework_completion
            WHERE homework_id = _hw_digital GROUP BY status) hc;
   _out := _out || format('  statuses ........................... %s%s', _txt, E'\n');
   _out := _out || format('  (expected absent=1, completed=1, not_completed=1 — three distinct facts)%s', E'\n');
 
-  SELECT count(*) INTO _n FROM public.homework_completions
+  SELECT count(*) INTO _n FROM public.homework_completion
    WHERE homework_id = _hw_digital AND status = 'absent' AND student_id = _s2;
   IF _n <> 1 THEN _ok := false; END IF;
-  SELECT count(*) INTO _n FROM public.homework_completions
+  SELECT count(*) INTO _n FROM public.homework_completion
    WHERE homework_id = _hw_digital AND status = 'not_completed' AND student_id = _s3;
   IF _n <> 1 THEN _ok := false; END IF;
 
@@ -215,8 +265,8 @@ BEGIN
   -- =================================================================
   _out := _out || format('%s8. SOFT DELETE%s', E'\n', E'\n');
 
-  INSERT INTO public.homework (school_id, class_id, title, subject, due_date, created_by, status)
-  VALUES (_school, _section, 'ZZ to delete', 'Mathematics', current_date - 1, _teacher_acct, 'published')
+  INSERT INTO public.homework (school_id, class_id, title, subject, closes_at, created_by, status, description)
+  VALUES (_school, _section, 'ZZ to delete', 'Mathematics', (current_date - 1)::timestamptz + interval '12 hours', _teacher_acct, 'published', 'CHUNK5 fixture — rolled back')
   RETURNING id INTO _hw_del;
 
   UPDATE public.homework SET deleted_at = now(), deleted_by = _admin WHERE id = _hw_del;
