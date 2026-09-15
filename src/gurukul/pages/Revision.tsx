@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useAcademicContext } from "@/academic";
+import { RecoveryEngineService, useAcademicContext } from "@/academic";
 import { useRevisionItems, useRevisionHistory, type RevItem } from "./useRevisionQueueV2";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
@@ -27,11 +27,13 @@ function DueTag({ dueIn }: { dueIn: string }) {
 }
 
 function RevItemCard({
-  item, onRevise, onCheck,
+  item, onRevise, onCheck, busy,
 }: {
   item: RevItem;
   onRevise: () => void;
   onCheck: () => void;
+  /** The check's contents are being fetched from the server. */
+  busy: boolean;
 }) {
   const conceptLabel = displayConcept(item.concept);
   const chapterLabel = displayChapter(item.chapter);
@@ -79,10 +81,25 @@ function RevItemCard({
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-bold hover:bg-violet-500/30 transition-all">
           <Play className="w-3 h-3"/> Practice topic
         </button>
-        <button onClick={onCheck}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/20 transition-all">
-          <CheckCircle2 className="w-3 h-3"/> Take the check
+        <button onClick={onCheck} disabled={busy}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold transition-all",
+            busy ? "opacity-60 cursor-not-allowed" : "hover:bg-emerald-500/20",
+          )}>
+          <CheckCircle2 className="w-3 h-3"/> {busy ? "Building your check…" : "Take the check"}
         </button>
+        {/* Said BEFORE the student commits, not after. A chapter whose bank
+            this student has worked through cannot give a full-length check,
+            and finding that out at question four is worse than knowing now. */}
+        {item.freshAvailable === 0 ? (
+          <span className="text-[10px] text-muted-foreground">
+            nothing new left in this chapter
+          </span>
+        ) : item.freshAvailable < item.stagesToSolid ? (
+          <span className="text-[10px] text-muted-foreground">
+            only {item.freshAvailable} new {item.freshAvailable === 1 ? "question" : "questions"} left here
+          </span>
+        ) : null}
       </div>
     </GlassCard>
   );
@@ -94,6 +111,13 @@ export default function Revision() {
   const { ctx, ready: academicReady } = useAcademicContext();
   const [filter, setFilter] = useState<"all"|"due"|"upcoming">("all");
   const [subjectTab, setSubjectTab] = useState("all");
+  /**
+   * The chapter whose check is being built, so the button can say so.
+   * Building a check is a round trip now — it asks the server which questions
+   * this student has never seen — and a button that looks idle while that runs
+   * gets pressed twice.
+   */
+  const [startingId, setStartingId] = useState<string | null>(null);
 
   // useStudentAcademicSnapshot is gone from this screen. It was here only to
   // supply snapshot.revision_queue, and that queue is retired — every row in
@@ -121,17 +145,61 @@ export default function Revision() {
    * so a button that completed a revision by being pressed was the whole
    * anti-gaming section defeated by a click.
    *
-   * The check runs in the practice session runner (there is only one
-   * question-runner, and a second would drift from it). `revision` carries the
-   * chapter UUID; the runner posts the score to rpc_submit_revision_session on
-   * finish, and the server decides pass or fail and the next date.
+   * ── THE CONTENTS ARE FETCHED, NOT IMPLIED BY A LINK ───────────────────
+   *
+   * This used to navigate to /student/practice?revision=<uuid> and let the
+   * ordinary question loader pick by chapter. That loader cannot exclude
+   * questions the student has already seen, so §5.4's "never the old
+   * questions" was enforced nowhere — measured at 2 already-seen questions in
+   * a sampled 8-question check.
+   *
+   * rpc_revision_session_plan decides the contents instead: up to
+   * REVISION_MISTAKE_MAX of the student's own misses, then REVISION_COUNT
+   * questions they have never attempted. The ids travel in router state
+   * because the plan is not persisted and a URL could only carry the chapter.
+   *
+   * The check still runs in the practice session runner — there is one
+   * question-runner, and a second would drift from it.
    */
-  function startCheck(item: RevItem) {
-    const qs = new URLSearchParams();
-    qs.set("chapter", item.chapter);
-    if (item.subject) qs.set("subject", item.subject);
-    qs.set("revision", item.id);
-    navigate(`/student/practice?${qs.toString()}`);
+  async function startCheck(item: RevItem) {
+    if (!ctx) return;
+    setStartingId(item.id);
+    try {
+      const plan = await RecoveryEngineService.getRevisionSessionPlan(ctx, item.id);
+
+      if (plan.total === 0) {
+        // Not an error and not silence. A chapter whose bank this student has
+        // exhausted genuinely has no check to give, and saying so beats
+        // opening an empty session.
+        toast.message(
+          `There is nothing new left in ${item.chapter} to check you on yet — every question in it has already come up.`,
+        );
+        return;
+      }
+
+      // §4.2a's principle, applied to revision: short, and SAYS SO.
+      if (plan.fresh_short > 0) {
+        toast.message(
+          `This check is ${plan.total} ${plan.total === 1 ? "question" : "questions"} — ${plan.fresh_short} fewer than usual, because that is all the new material this chapter has left.`,
+        );
+      }
+
+      navigate("/student/practice", {
+        state: {
+          revision: {
+            chapterId: item.id,
+            questionIds: plan.question_ids,
+            mistakes: plan.mistakes,
+            fresh: plan.fresh,
+            freshShort: plan.fresh_short,
+          },
+        },
+      });
+    } catch (e) {
+      toast.error(toErrorMessage(e, "Could not build the revision check"));
+    } finally {
+      setStartingId(null);
+    }
   }
 
   function openPractice(item: RevItem) {
@@ -269,8 +337,9 @@ export default function Revision() {
           ) : (
             filtered.map(item => (
               <RevItemCard key={item.id} item={item}
+                busy={startingId === item.id}
                 onRevise={() => openPractice(item)}
-                onCheck={() => startCheck(item)}/>
+                onCheck={() => { void startCheck(item); }}/>
             ))
           )}
         </div>

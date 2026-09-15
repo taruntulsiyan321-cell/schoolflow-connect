@@ -74,8 +74,11 @@ BEGIN
   END IF;
 
   _plan := public.rpc_recovery_session_plan(_chap);
-  _proc := (_plan->>'procedural_available')::int;
-  _conc := (_plan->>'conceptual_available')::int;
+  -- Renamed in Chunk 7F from procedural_available / conceptual_available, to
+  -- match the per-tier `filled` key the same plan already used. No client ever
+  -- read either name; this file was the only consumer.
+  _proc := (_plan->>'procedural_filled')::int;
+  _conc := (_plan->>'conceptual_filled')::int;
 
   _r2 := format('plan: %s procedural (tiers 0-1), %s conceptual (tiers 2-3), offerable=%s',
                 _proc, _conc, _plan->>'offerable_if_generation_exhausted')
@@ -143,8 +146,11 @@ BEGIN
   -- gets offered as though it were whole. `complete` means the ladder was
   -- filled; `offerable_if_generation_exhausted` means what remains can still
   -- produce a two-rate diagnosis.
-  _r5 := format('complete=%s, generation_required=%s, offerable=%s, shortfall=%s',
-                _plan->>'complete', _plan->>'generation_required',
+  -- generation_required is gone (Chunk 7F): it was (shortfall > 0), a second
+  -- home for the number printed beside it, and a report that prints an empty
+  -- value for a key nothing sets is how a report stops meaning anything.
+  _r5 := format('complete=%s, offerable=%s, shortfall=%s',
+                _plan->>'complete',
                 _plan->>'offerable_if_generation_exhausted', _plan->>'shortfall')
       || CASE WHEN (_plan ? 'complete') AND (_plan ? 'offerable_if_generation_exhausted')
                    AND (_plan ? 'not_offerable_reason')

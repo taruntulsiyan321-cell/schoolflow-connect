@@ -52,11 +52,18 @@ export type ChapterStateRow = {
     | "recovered"
     | "revision_due"
     | "revision_failed";
-  /** Which rung of the 7/21/60 ladder this chapter is on. */
+  /** Which rung of the weekly ladder this chapter is on. */
   revision_stage: number;
-  /** Passes in a row. REVISION_STAGES_TO_SOLID of them and it leaves the queue. */
+  /**
+   * Passes in a row. REVISION_STAGES_TO_SOLID of them and the chapter drops to
+   * the much longer REVISION_INTERVAL_SOLID — it does NOT leave the schedule.
+   */
   consecutive_passes: number;
-  /** Null once the chapter is solid — that absence is what removes it. */
+  /**
+   * Null only for a chapter that has never been scheduled. It is no longer
+   * nulled by going solid: forgetting does not stop because a student passed
+   * three checks, so a solid chapter keeps a date at the long interval.
+   */
   next_revision_at: string | null;
   revision_due: boolean;
   recovered_at: string | null;
@@ -67,6 +74,16 @@ export type ChapterStateRow = {
    */
   last_recovery_readiness: number | null;
   open_mistakes: number;
+  /**
+   * Questions in this chapter the student has never attempted and has never
+   * had a mistake recorded against — the pool a revision check draws its fresh
+   * half from (§5.4).
+   *
+   * Carried so the tab can say a check will be short BEFORE the student sits
+   * it. Without it the screen could announce a chapter as due and then hand
+   * over three questions.
+   */
+  revision_fresh_available: number;
 };
 
 /**
@@ -84,8 +101,28 @@ export type RecoveryQueueRow = {
   open_mistakes: number;
   /** RECOVERY_TRIGGER_COUNT, returned as data so no screen holds a copy. */
   trigger_count: number;
-  /** open_mistakes >= trigger_count, decided server-side. */
+  /** Server-side verdict: there is a session here and it is worth sitting. */
   ready: boolean;
+  /**
+   * What the ladder will do with these mistakes.
+   *
+   *   'deep'    every mistake gets all four rungs
+   *   'wide'    every mistake gets rungs 0-2
+   *   'relearn' too many mistakes to drill — the chapter needs learning again
+   *   'none'    nothing open here
+   *
+   * Decided by the server from three constants. A screen that re-derived it
+   * from open_mistakes would be a fourth place those constants live.
+   */
+  mode: "deep" | "wide" | "relearn" | "none";
+  /**
+   * How many questions the session will actually hold, so the tab can say
+   * "12 questions" instead of a fixed ten that stopped being true. Zero in
+   * relearn mode, where no session is offered.
+   */
+  planned_size: number;
+  /** Mistakes above which the app refuses to drill, returned as data. */
+  relearn_above: number;
   state: ChapterStateRow["state"];
   in_recovery: boolean;
   last_recovery_readiness: number | null;
@@ -95,11 +132,25 @@ export type RecoveryQueueRow = {
 };
 
 export type RecoverySessionStart =
-  | { started: false; reason: string }
+  | {
+      started: false;
+      reason: string;
+      /**
+       * 'relearn' is not a failure to build a session — it is the app
+       * concluding that drilling is the wrong response to this many mistakes.
+       * The screen must say something different for it than for "the bank is
+       * too thin", because those need opposite things from the student.
+       */
+      mode?: "deep" | "wide" | "relearn" | "none";
+      open_mistakes?: number;
+    }
   | {
       started: true;
       session_id: string;
       round: number;
+      mode: "deep" | "wide";
+      /** The mistakes this ladder was built from — every one of them. */
+      open_mistakes: number;
       /** False when generation could not supply every tier (§4.2a). */
       complete: boolean;
       /** How many questions short of the full ladder. */
@@ -149,12 +200,25 @@ export type RevisionSessionOutcome = {
    * The date now on chapter_state, read back from the row rather than rebuilt
    * from the branch that wrote it.
    *
-   * Null is meaningful and is exactly what `solid` means: three consecutive
-   * passes and the chapter leaves the queue, which it does BY having no next
-   * date. The client never computes this — §5.3's 7/21/60 intervals live in
-   * recovery_constants and a copy here would be a second home for them.
+   * A solid chapter still has one, at the long interval. It is null only for a
+   * chapter that was never scheduled. The client never computes this — the
+   * intervals live in recovery_constants and a copy here would be a second
+   * home for them.
    */
   next_revision_at: string | null;
+  /**
+   * The check's two halves, never blended into `rate` above.
+   *
+   * `mistake_*` counts the questions this student had previously got wrong;
+   * `fresh_*` the ones they had never seen. "You still miss the same two" and
+   * "you have lost the chapter" are different diagnoses, and a single
+   * percentage cannot tell them apart — the same argument §4.2b makes for
+   * recovery's two rates.
+   */
+  mistake_correct: number;
+  mistake_total: number;
+  fresh_correct: number;
+  fresh_total: number;
   /** The chapter's state after this check, quoted rather than inferred. */
   state: ChapterStateRow["state"];
 };
@@ -179,6 +243,39 @@ export type RevisionHistoryRow = {
   completed_at: string | null;
   /** §5.1 vs §5.2 — why this chapter was being revised at all. */
   triggered_by: string | null;
+};
+
+/**
+ * What a revision check for one chapter contains (§5.4).
+ *
+ * The check is built server-side rather than by the practice loader, because
+ * "questions this student has never seen" is a fact about the student's whole
+ * history and the loader has never had it. Before this existed, checks were
+ * measured to contain questions the student had already answered.
+ */
+export type RevisionSessionPlan = {
+  chapter_id: string;
+  /** Up to REVISION_MISTAKE_MAX of their own open mistakes, worst first. */
+  mistake_ids: string[];
+  /** REVISION_COUNT questions never attempted and never missed by them. */
+  fresh_ids: string[];
+  /** The two halves in the order they should be asked: misses, then fresh. */
+  question_ids: string[];
+  mistakes: number;
+  fresh: number;
+  fresh_wanted: number;
+  /**
+   * How many fresh questions the chapter could not supply. Reported, never
+   * padded: filling the gap with questions they have already seen would
+   * quietly turn a retention check into a recall check.
+   */
+  fresh_short: number;
+  total: number;
+  stage: number;
+  next_revision_at: string | null;
+  due: boolean;
+  /** False for a chapter with no chapter_state row — an early check is allowed. */
+  scheduled: boolean;
 };
 
 export const RecoveryEngineService = {
@@ -263,11 +360,38 @@ export const RecoveryEngineService = {
   },
 
   /**
+   * What a revision check for this chapter will contain.
+   *
+   * Read BEFORE the session is started, so the runner can load exactly these
+   * questions. §5.3 says timing is a suggestion and is never enforced, so this
+   * answers for a chapter whose date has not arrived too — `due` says whether
+   * it had, and the caller decides what to do about that.
+   */
+  async getRevisionSessionPlan(
+    ctx: ServiceContext,
+    chapterId: string,
+  ): Promise<RevisionSessionPlan> {
+    assertCanConsume(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_revision_session_plan" as never,
+      { _chapter_id: chapterId } as never,
+    );
+    throwIfError(error, "Failed to build the revision check");
+    return data as unknown as RevisionSessionPlan;
+  },
+
+  /**
    * Open a recovery session for one chapter.
    *
    * Returns `started: false` with a reason rather than throwing when the
    * chapter cannot produce a diagnosis yet — §4.1a treats "offer nothing and
    * try again later" as a correct outcome, not a failure.
+   *
+   * `mode: 'relearn'` arrives through the same branch and is a THIRD thing:
+   * not a failure and not "try again later", but the app declining to drill a
+   * chapter the student has not learned. Callers must not collapse it into the
+   * generic not-offerable message, which would tell the student the bank is
+   * thin when in fact it is full.
    */
   async startRecoverySession(
     ctx: ServiceContext,
@@ -280,7 +404,7 @@ export const RecoveryEngineService = {
     );
     throwIfError(error, "Failed to start recovery session");
     const raw = data as unknown as
-      | { started: false; reason: string }
+      | Extract<RecoverySessionStart, { started: false }>
       | (Omit<Extract<RecoverySessionStart, { started: true }>, "tierByQuestionId"> & {
           plan?: { tiers?: Record<string, { from_bank?: unknown }> };
         });

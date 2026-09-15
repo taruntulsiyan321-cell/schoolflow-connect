@@ -10,7 +10,7 @@ import {
 import { displayChapter, displaySubject } from "@/lib/academicDisplay";
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import {
-  GlassCard, NoStudentProfile, PageHeader, PageSkeleton, ProgressBar,
+  GlassCard, NoStudentProfile, PageHeader, PageSkeleton,
   Skeleton, SkeletonCard, SkeletonList, SkeletonStats, SubjectBadge, cn,
 } from "@/gurukul/components/shared";
 import {
@@ -104,8 +104,17 @@ function RecoveryCard({
   onPractise: () => void;
   starting: boolean;
 }) {
-  const pct = Math.min(100, Math.round((item.open_mistakes / item.trigger_count) * 100));
-  const accent = item.ready ? "hsl(var(--destructive))" : "hsl(var(--warning))";
+  // The old card drew a progress bar towards RECOVERY_TRIGGER_COUNT ("3 of 5
+  // before recovery opens"). The trigger is one now, so that bar could only
+  // ever read 100% — it measured the distance to a gate that no longer exists.
+  // The state it used to occupy belongs to `relearn`, which is the opposite
+  // situation: too many mistakes rather than too few.
+  const relearn = item.mode === "relearn";
+  const accent = relearn
+    ? "hsl(var(--warning))"
+    : item.ready
+      ? "hsl(var(--destructive))"
+      : "hsl(var(--muted-foreground))";
 
   return (
     <GlassCard className="p-4 hover:border-border transition-all">
@@ -132,7 +141,27 @@ function RecoveryCard({
         </div>
       </div>
 
-      {item.ready ? (
+      {relearn ? (
+        <>
+          {/* NOT "you are not allowed a session". The app has concluded that
+              drilling variants is the wrong response to this many mistakes in
+              one chapter, and says which one it is doing and why. Softening
+              this into "come back later" would leave the student waiting for
+              something that is never going to arrive. */}
+          <p className="text-[11px] text-muted-foreground mb-2">
+            {item.open_mistakes} open mistakes here is more than a set of slips.
+            Practising {item.open_mistakes * 3} variations of them would not
+            teach the chapter — work through the material again first, then
+            come back.
+          </p>
+          <button
+            onClick={onPractise}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-bold hover:bg-amber-500/20 transition-all"
+          >
+            <BookOpen className="w-3 h-3" /> Go back over this chapter
+          </button>
+        </>
+      ) : item.ready ? (
         <>
           {/* §4.4 — a readiness quoted back only when one was actually
               recorded. Null means no recovery has been taken, which is a
@@ -142,6 +171,14 @@ function RecoveryCard({
               Last cleared at {Math.round(item.last_recovery_readiness * 100)}% readiness.
             </p>
           )}
+          {/* The real length, from the server's own plan. A fixed "10
+              questions" stopped being true the moment the ladder started
+              sizing itself to the mistakes. */}
+          <p className="text-[11px] text-muted-foreground mb-2">
+            {item.planned_size} {pluralise(item.planned_size, "question", "questions")},
+            covering {item.mode === "deep" ? "all four steps of" : "every one of"}{" "}
+            your {item.open_mistakes} {pluralise(item.open_mistakes, "mistake", "mistakes")}.
+          </p>
           <button
             onClick={onStart}
             disabled={starting}
@@ -154,16 +191,9 @@ function RecoveryCard({
         </>
       ) : (
         <>
-          <div className="mb-2">
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-              <span>{item.open_mistakes} of {item.trigger_count} before recovery opens</span>
-              <span className="tabular-nums">{pct}%</span>
-            </div>
-            <ProgressBar value={pct} color={accent} />
-          </div>
-          {/* §4.1: fewer than the trigger is not worth a session — "clearing a
-              one-mistake chapter creates a false sense of progress". So the
-              offer here is ordinary practice, not a recovery session. */}
+          {/* Reachable only when the chapter's mistakes carry no bank question
+              id — 480 rows of a retired backfill do. There is no original to
+              ladder off, so ordinary practice is the honest offer. */}
           <button
             onClick={onPractise}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-muted border border-border text-xs font-semibold text-muted-foreground hover:bg-secondary transition-all"
@@ -223,7 +253,12 @@ export default function Recovery() {
       if (!res.started) {
         // §4.1a treats "offer nothing and try again later" as a correct
         // outcome, so the reason is shown rather than thrown.
-        toast.message(res.reason);
+        //
+        // 'relearn' comes through here too and is NOT that outcome — it is the
+        // app declining to drill. The card already carries that message in
+        // full, so a toast repeating it would be noise; reloading is enough,
+        // and the card will show the relearn branch.
+        if (res.mode !== "relearn") toast.message(res.reason);
         reload();
         return;
       }

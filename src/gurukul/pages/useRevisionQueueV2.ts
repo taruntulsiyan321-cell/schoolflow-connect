@@ -63,11 +63,21 @@ export interface RevItem {
   stagesToSolid: number;
   /** Open mistakes still recorded against this chapter. */
   openMistakes: number;
+  /**
+   * Questions in this chapter the student has never seen — the pool the fresh
+   * half of a check draws from (§5.4). Carried so the card can warn that a
+   * check will be short BEFORE the student sits it.
+   */
+  freshAvailable: number;
   state: ChapterStateRow["state"];
 }
 
 export function dueLabelFromDate(dueDate: string | null): string {
-  if (!dueDate) return "Solid";
+  // Null now means "never scheduled", not "solid": passing three checks drops
+  // the chapter to the long interval and it keeps a date. A solid chapter
+  // reads as a date like any other, which is the honest thing — forgetting
+  // did not stop because the student passed three checks.
+  if (!dueDate) return "Not scheduled";
   try {
     const due = new Date(dueDate);
     const today = new Date();
@@ -112,6 +122,7 @@ function toRevItem(r: ChapterStateRow): RevItem | null {
     // here is a second home for it and would survive the constant changing.
     stagesToSolid: REVISION_STAGES_TO_SOLID,
     openMistakes: r.open_mistakes,
+    freshAvailable: r.revision_fresh_available,
     state: r.state,
   };
 }
@@ -119,9 +130,11 @@ function toRevItem(r: ChapterStateRow): RevItem | null {
 /**
  * Chapters with a revision schedule, soonest first.
  *
- * A chapter that has gone solid (next_revision_at null) is dropped here rather
- * than shown as "Done" — §5.3 says it leaves the queue, and a queue that keeps
- * everything it has ever finished stops being a queue.
+ * A chapter with no date at all is dropped: it has never been scheduled and
+ * there is nothing to show. Note this is no longer the same thing as "solid" —
+ * a solid chapter keeps a date, at REVISION_INTERVAL_SOLID, and stays in the
+ * list. That is deliberate: dropping it is how a student who proved they knew
+ * a chapter three times stopped ever being asked about it again.
  */
 export function useRevisionItems(
   ctx: ServiceContext | null,

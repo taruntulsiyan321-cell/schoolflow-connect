@@ -94,8 +94,12 @@ BEGIN
      OR jsonb_array_length(_plan->'tiers'->'1'->'from_bank') <> 0 THEN
     _fail := _fail || '(FAIL) 1: tier 1 returned questions when the bank holds no variants — the ladder was padded. ';
   END IF;
-  IF (_plan->>'complete')::boolean IS NOT FALSE
-     OR (_plan->>'generation_required')::boolean IS NOT TRUE THEN
+  -- `generation_required` is gone from the plan (Chunk 7F). It was
+  -- (_total_short > 0) — a second home for `shortfall`, which the next check
+  -- already asserts on — so the rewrite dropped it rather than carrying two
+  -- keys that can disagree. No client ever read it. `complete` stays: it is
+  -- the plan's own verdict and not a restatement of the count.
+  IF (_plan->>'complete')::boolean IS NOT FALSE THEN
     _fail := _fail || '(FAIL) 1: an incomplete ladder did not report itself as incomplete. ';
   END IF;
   IF (_plan->>'shortfall')::int = 0 THEN
@@ -250,20 +254,37 @@ BEGIN
   -- ═════════════════════════════════════════════════════════════════════
   -- 7. NO LITERALS — the ladder sizes come from the constants (item 7).
   --    Proved by moving one and watching the plan move with it, which a
-  --    hardcoded 3 would not.
+  --    hardcoded count would not.
+  --
+  --    RECOVERY_TIER1 no longer exists: Chunk 7F replaced the fixed 2/3/3/2
+  --    ladder with a PER-MISTAKE one, because the fixed tier 0 of two silently
+  --    dropped four of one student's six mistakes. The constant that now sets
+  --    tier 1's size in deep mode is RECOVERY_DEEP_TIER1, and the plan needs
+  --    (open mistakes x that) — so the assertion multiplies, which also proves
+  --    the per-mistake arithmetic is real and not a coincidence at 1.
   -- ═════════════════════════════════════════════════════════════════════
-  UPDATE public.recovery_constants SET value = 4 WHERE key = 'RECOVERY_TIER1';
+  SELECT count(*)::int INTO _n
+    FROM public.student_mistakes sm
+   WHERE sm.user_id = _arjun::uuid AND sm.chapter_id = _chapter
+     AND sm.status = 'open' AND sm.question_id IS NOT NULL;
 
-  PERFORM set_config('request.jwt.claims',
-    json_build_object('sub', _arjun, 'role', 'authenticated')::text, true);
-  SET LOCAL ROLE authenticated;
-  _plan := public.rpc_recovery_session_plan(_chapter);
-  RESET ROLE;
-  PERFORM set_config('request.jwt.claims', NULL, true);
+  IF _n = 0 OR _n > public._recovery_const('RECOVERY_DEEP_MAX_MISTAKES')::int THEN
+    _fail := _fail || format('(FAIL) 7: fixture has %s open mistake(s); this item needs 1..%s so the plan is in deep mode. ',
+                             _n, public._recovery_const('RECOVERY_DEEP_MAX_MISTAKES'));
+  ELSE
+    UPDATE public.recovery_constants SET value = 4 WHERE key = 'RECOVERY_DEEP_TIER1';
 
-  IF (_plan->'tiers'->'1'->>'needed')::int <> 4 THEN
-    _fail := _fail || format('(FAIL) 7: RECOVERY_TIER1 was changed to 4 but the plan still needs %s — the count is a literal, not the constant. ',
-                             _plan->'tiers'->'1'->>'needed');
+    PERFORM set_config('request.jwt.claims',
+      json_build_object('sub', _arjun, 'role', 'authenticated')::text, true);
+    SET LOCAL ROLE authenticated;
+    _plan := public.rpc_recovery_session_plan(_chapter);
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claims', NULL, true);
+
+    IF (_plan->'tiers'->'1'->>'needed')::int <> 4 * _n THEN
+      _fail := _fail || format('(FAIL) 7: RECOVERY_DEEP_TIER1 was changed to 4 with %s open mistake(s), so the plan should need %s at tier 1; it needs %s — the count is a literal, not the constant. ',
+                               _n, 4 * _n, _plan->'tiers'->'1'->>'needed');
+    END IF;
   END IF;
 
 

@@ -30,7 +30,6 @@ import {
 } from "lucide-react";
 import { toErrorMessage } from "@/lib/presentation";
 import { ACCURACY_PROCEDURAL, ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
-import { REVISION_COUNT } from "@/academic/recovery/constants";
 import { pluralise } from "@/lib/plural";
 
 const CLASS_UNRESOLVED_MSG =
@@ -1133,13 +1132,39 @@ interface SessionConfig {
    * practice session with a purpose, so it reuses this one rather than
    * standing up a second screen that would drift from it. What makes it a
    * check is where the score goes at the end: rpc_submit_revision_session,
-   * which walks the 7/21/60 ladder and decides pass or fail server-side
+   * which walks the weekly ladder and decides pass or fail server-side
    * against REVISION_PASS_THRESHOLD.
    *
-   * The chapter UUID, never a chapter name — §2, and the reason the old
+   * ── WHY THIS CARRIES QUESTION IDS AND NOT JUST A CHAPTER ──────────────
+   *
+   * It used to be a bare chapter UUID, and the session then loaded questions
+   * the ordinary way — by chapter name, from the bank. The ordinary loader has
+   * no concept of "seen", so §5.4's "fresh questions… never seen by this
+   * student. Never the old questions" was enforced by nothing at all. Measured:
+   * 2 of 8 questions in a sampled check had already been answered by that
+   * student, which makes the check a test of last week rather than of
+   * retention.
+   *
+   * The contents are now decided by rpc_revision_session_plan, which can see
+   * the student's whole attempt history, and they travel here as ids for the
+   * same reason the recovery ladder does: the plan is not persisted, so a URL
+   * could not carry it and re-deriving it here would drift from what the
+   * student was actually shown.
+   *
+   * The chapter is a UUID, never a chapter name — §2, and the reason the old
    * revision_queue filled with rows pointing at 'Chapter 3'.
    */
-  revisionChapterId?: string | null;
+  revision?: {
+    chapterId: string;
+    /** Their own misses first, then the unseen. Asked in this order. */
+    questionIds: string[];
+    /** How many of the above came from the student's mistake book. */
+    mistakes: number;
+    /** How many were genuinely new material. */
+    fresh: number;
+    /** Unseen questions the chapter could not supply — reported, never padded. */
+    freshShort: number;
+  } | null;
   /**
    * §4.2 — set when this session IS a recovery session.
    *
@@ -1399,6 +1424,22 @@ function Session({
             .map((id) => byId.get(id))
             .filter((r): r is NonNullable<typeof r> => r != null)
             .sort((a, b) => (tierOf[a.id] ?? 0) - (tierOf[b.id] ?? 0));
+        } else if (config.revision) {
+          // §5.4 — the check is already built, by a server function that can
+          // see this student's whole attempt history. Load exactly those
+          // questions, in that order (their own misses first), and nothing
+          // else: topping the session up from the bank is precisely how
+          // already-seen questions got into a check that is supposed to
+          // contain none.
+          const planIds = config.revision.questionIds;
+          const fetched = await PracticeService.listBankQuestions(ctx, {
+            ids: planIds,
+            limit: planIds.length,
+          });
+          const byId = new Map(fetched.map((r) => [r.id, r]));
+          rows = planIds
+            .map((id) => byId.get(id))
+            .filter((r): r is NonNullable<typeof r> => r != null);
         } else if (config.mode === "incorrect") {
           rows = await PracticeService.listMistakeQuestions(ctx, { limit: remainingCount });
           if (excludeIds.length) {
@@ -1656,11 +1697,11 @@ function Session({
           }
         }
 
-        if (config.revisionChapterId && ctx && sittingId) {
+        if (config.revision && ctx && sittingId) {
           try {
             const outcome = await RecoveryEngineService.submitRevisionSession(
               ctx,
-              config.revisionChapterId,
+              config.revision.chapterId,
               sittingId,
             );
             results.revision = outcome;
@@ -2337,7 +2378,39 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     // because a recovery hand-off carries chapter/subject too, and the
     // ordinary chapter-practice branch below would otherwise claim it and
     // drop the ladder.
-    const handoff = (location.state ?? null) as { recovery?: SessionConfig["recovery"] } | null;
+    const handoff = (location.state ?? null) as {
+      recovery?: SessionConfig["recovery"];
+      revision?: SessionConfig["revision"];
+    } | null;
+
+    // A revision check arrives the same way and for the same reason: its
+    // contents are decided by rpc_revision_session_plan, which knows which
+    // questions this student has already seen. A URL could only carry the
+    // chapter, and the loader would then pick questions the check is
+    // specifically supposed to exclude.
+    if (handoff?.revision) {
+      deepLinkHandled.current = true;
+      navigate(location.pathname, { replace: true, state: null });
+      const rev = handoff.revision;
+      setModeKey("chapter");
+      setConfig({
+        mode: "chapter",
+        label: "Revision check",
+        subject: "Mixed",
+        chapter: null,
+        topic: null,
+        difficulty: "mixed",
+        // What the plan could actually supply, never REVISION_COUNT: a thin
+        // chapter gives a shorter check, and asking for more than exists
+        // would leave the runner waiting on questions that are not coming.
+        qCount: rev.questionIds.length,
+        timeLimitSec: null,
+        revision: rev,
+      });
+      setPhase("session");
+      return;
+    }
+
     if (handoff?.recovery) {
       deepLinkHandled.current = true;
       // Clear it so a back-navigation does not silently re-open a session
@@ -2372,13 +2445,13 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     const chapterRaw = searchParams.get("chapter");
     const subjectRaw = searchParams.get("subject");
     const topicRaw = searchParams.get("topic");
-    // Revision.tsx sends the chapter UUID here to turn this session into a
-    // §5.4 check. Validated as a UUID rather than trusted: a malformed value
-    // would otherwise reach rpc_submit_revision_session and raise there,
-    // losing the student's whole session to a bad link.
-    const revisionRaw = searchParams.get("revision");
-    const revisionChapterId =
-      revisionRaw && /^[0-9a-f-]{36}$/i.test(revisionRaw) ? revisionRaw : null;
+    // ?revision=<uuid> USED TO BE HANDLED HERE and is deliberately gone.
+    //
+    // It turned the session into a §5.4 check by chapter alone, leaving the
+    // ordinary loader to pick the questions — and the ordinary loader cannot
+    // exclude what the student has already seen. Keeping it alongside the
+    // router-state hand-off would leave a second way to start a check that
+    // quietly skips the one rule that makes a check mean anything.
     if (!chapterRaw && !subjectRaw && !topicRaw) return;
 
     const chapter =
@@ -2406,10 +2479,8 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       chapter: chapter || topic,
       topic,
       difficulty: "mixed",
-      // §5.4 fixes the length of a revision check; ordinary practice does not.
-      qCount: revisionChapterId ? REVISION_COUNT : 20,
+      qCount: 20,
       timeLimitSec: null,
-      revisionChapterId,
     });
     setPhase("session");
   }, [searchParams, setSearchParams, phase]);

@@ -34,7 +34,7 @@ import { displayChapter, displaySubject } from "@/lib/academicPresentation";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
 import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
-import { revisionVerdictLine } from "@/lib/revisionVerdict";
+import { revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -494,6 +494,15 @@ export default function PracticeSessionResult() {
               <div className="text-[11px] text-muted-foreground">
                 {revisionVerdictLine(revision)}
               </div>
+              {/* §5.4's two halves. The percentage above blends them; this
+                  line is the only place the student is told WHICH half went,
+                  and "you fixed the old ones, the new material faded" is a
+                  different instruction from "you still miss the same two". */}
+              {revisionSplitLine(revision) && (
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  {revisionSplitLine(revision)}
+                </div>
+              )}
             </div>
           </div>
 
@@ -513,6 +522,12 @@ export default function PracticeSessionResult() {
               <div className="text-[10px] text-muted-foreground mt-0.5">
                 check {revision.stage} of the {revision.stages_to_solid}-step ladder
               </div>
+              {(revision.mistake_total > 0 || revision.fresh_total > 0) && (
+                <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+                  {revision.mistake_correct}/{revision.mistake_total} old ·{" "}
+                  {revision.fresh_correct}/{revision.fresh_total} new
+                </div>
+              )}
             </div>
             <div className="p-3 rounded-xl border border-border/70 bg-surface/60">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
@@ -528,14 +543,15 @@ export default function PracticeSessionResult() {
             </div>
           </div>
 
-          {/* No date is not a missing date: a solid chapter has none, and
-              that absence is what removes it from the revision list. */}
+          {/* A solid chapter still has a date, at the long interval. Missing
+              is now genuinely missing, and saying "off the list" for it would
+              promise something the engine no longer does. */}
           <p className="text-[11px] text-muted-foreground mt-3">
             {revision.next_revision_at
               ? `Next check on ${new Date(revision.next_revision_at).toLocaleDateString(undefined, {
                   day: "numeric", month: "short",
                 })}.`
-              : "No next check scheduled — this chapter is off the list."}
+              : "No next check scheduled for this chapter."}
           </p>
         </GlassCard>
       )}

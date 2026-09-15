@@ -19,10 +19,25 @@
 /**
  * Open mistakes in one chapter before a recovery session is built.
  *
- * §4.1: "Fewer than five is not worth a session, and clearing a one-mistake
- * chapter creates a false sense of progress."
+ * ONE. The spec argued for five — "fewer than five is not worth a session, and
+ * clearing a one-mistake chapter creates a false sense of progress" — and the
+ * production data says five is why the feature has never run. Measured
+ * 2026-09-15 across every open mistake in the database:
+ *
+ *     1 mistake in a chapter   5 students
+ *     2 mistakes               3 students
+ *     6 mistakes               1 student
+ *
+ * One student in the entire database has ever reached five. Zero recovery
+ * sessions exist. A threshold that excludes 8 of the 9 students who have
+ * something to recover is not a quality bar, it is an off switch.
+ *
+ * The "false sense of progress" worry is answered by the session itself rather
+ * than by the trigger: a one-mistake recovery is four questions laddered off
+ * that one mistake (see RECOVERY_DEEP_MAX_MISTAKES), and clearing it means
+ * clearing one mistake, which is exactly what it says.
  */
-export const RECOVERY_TRIGGER_COUNT = 5;
+export const RECOVERY_TRIGGER_COUNT = 1;
 
 /**
  * Target build time. §4.1: "Build time is deliberately unhurried... The system
@@ -85,23 +100,84 @@ export const RECOVERY_GENERATION_ROUNDS = 3;
 
 // ── Recovery: the transfer ladder (§4.2) ───────────────────────────────────
 //
-// Ten questions per session. The counts are not arbitrary: tier 0 is small
-// because re-answering the original proves almost nothing, and tiers 1 and 2
-// are the widest because the 1-pass/2-fail split is the single most useful
-// thing this feature detects.
+// THE SESSION IS SIZED BY THE MISTAKES, NOT BY A FIXED NUMBER.
+//
+// The old ladder was a fixed 2/3/3/2 — ten questions, always. Measured against
+// the production mistake book on 2026-09-15 it was wrong in both directions at
+// once:
+//
+//   * A student with ONE mistake got ten questions, eight of which were not
+//     about anything he had got wrong.
+//   * A student with SIX mistakes got tier 0 capped at two, so FOUR of his six
+//     mistakes never appeared in the session at all. They were simply dropped,
+//     and nothing downstream ever brought them back.
+//
+// The second one is the defect. A recovery session that silently omits two
+// thirds of what the student got wrong is not a recovery session.
+//
+// So the ladder is now per-mistake, and the session is as long as the mistakes
+// require. There is deliberately NO cap on the total: a cap is exactly how
+// mistakes got dropped before, and re-introducing one under a different name
+// would re-introduce the bug.
 
-/** Tier 0 — the exact questions they got wrong. Closes the specific loop. */
-export const RECOVERY_TIER0 = 2;
-/** Tier 1 — same question, different values. Proves they can execute it. */
-export const RECOVERY_TIER1 = 3;
-/** Tier 2 — same concept, different framing. Proves they understand it. */
-export const RECOVERY_TIER2 = 3;
-/** Tier 3 — same topic, different application. Proves it transfers. */
-export const RECOVERY_TIER3 = 2;
+/**
+ * At or below this many open mistakes in a chapter, go DEEP: every mistake
+ * gets the full four-rung ladder — the original, the same question with
+ * different values, the same idea asked differently, and a far application.
+ *
+ * Two, because the full ladder is four questions per mistake and eight is the
+ * most a student will work through carefully. Below that the diagnosis is
+ * worth more than the breadth.
+ */
+export const RECOVERY_DEEP_MAX_MISTAKES = 2;
 
-/** Derived, so no screen has to add the four up and get it wrong. */
-export const RECOVERY_SESSION_SIZE =
-  RECOVERY_TIER0 + RECOVERY_TIER1 + RECOVERY_TIER2 + RECOVERY_TIER3;
+/**
+ * Above RECOVERY_DEEP_MAX_MISTAKES and up to this, go WIDE: every mistake gets
+ * the original, a near variant and a mid variant. Tier 3 is dropped — it is
+ * the rung that proves transfer to a new application, and a student with six
+ * open mistakes in one chapter is not yet at the transfer question.
+ *
+ * Both rates survive the drop, which is the constraint that decides this.
+ * §4.2b needs a procedural rate (tiers 0-1) AND a conceptual rate (tiers 2-3),
+ * never blended. Dropping tier 3 leaves tier 2 carrying the conceptual rate on
+ * its own — one question per mistake, so three mistakes give a three-question
+ * conceptual rate, comfortably above RECOVERY_MIN_CONCEPTUAL_TO_OFFER.
+ *
+ * An earlier draft of this used "the original plus ONE alternating variant" to
+ * keep sessions short. It is recorded here because it looks right and is not:
+ * at three mistakes it yields a conceptual rate computed from a SINGLE
+ * question, which is below the floor two constants above this one exist to
+ * enforce. Shortness is not worth a rate that cannot be measured.
+ */
+export const RECOVERY_WIDE_MAX_MISTAKES = 8;
+
+/**
+ * Questions per mistake in DEEP mode — one at each of tiers 0, 1, 2, 3.
+ * Indexed by tier, so the array position IS the tier number.
+ */
+export const RECOVERY_DEEP_PER_MISTAKE = [1, 1, 1, 1] as const;
+
+/**
+ * Questions per mistake in WIDE mode — tiers 0, 1, 2; nothing at tier 3.
+ * Same indexing as RECOVERY_DEEP_PER_MISTAKE.
+ */
+export const RECOVERY_WIDE_PER_MISTAKE = [1, 1, 1, 0] as const;
+
+/**
+ * Above RECOVERY_WIDE_MAX_MISTAKES open mistakes in one chapter, a recovery
+ * session is the WRONG ANSWER and is not offered.
+ *
+ * Nine or more mistakes in a single chapter is not a set of slips to drill
+ * away; it means the chapter was not learned. Serving twenty-seven variant
+ * questions to that student is not recovery, it is punishment, and it is the
+ * point at which a student stops opening the app. The screen says so and
+ * points them back at the material instead.
+ *
+ * This is a REFUSAL TO DRILL, never a refusal to help, and it is never a
+ * silent one — rpc_start_recovery_session returns mode 'relearn' with the
+ * count, so the student is told what the app concluded and why.
+ */
+export const RECOVERY_RELEARN_ABOVE = RECOVERY_WIDE_MAX_MISTAKES;
 
 // ── Recovery: readiness (§4.2b) ────────────────────────────────────────────
 //
@@ -117,26 +193,84 @@ export const RECOVERY_CONCEPTUAL_THRESHOLD = 0.7;
 // ── Revision (§5) ──────────────────────────────────────────────────────────
 
 /**
- * §5.3: "Roughly tripling, which is the shape of every effective spacing
- * schedule. Seven days is past the point where short-term recall carries you.
- * Sixty days spans a term."
+ * WEEKLY, three times, then much less often.
+ *
+ * The spec chose 7 / 21 / 60 — "roughly tripling, which is the shape of every
+ * effective spacing schedule". Tripling is the right shape for a deck of
+ * flashcards a student owns for years. It is the wrong shape for a school
+ * term: the second check lands three weeks later, by which point the chapter
+ * has been taught past, and the third lands two months later, which for a
+ * student sitting boards in four months is most of the runway.
+ *
+ * So the schedule is weekly for all three checks. A week is past the point
+ * where short-term recall carries you, and it matches the rhythm a school
+ * student actually lives in.
+ *
+ * The honest caveat, recorded rather than hidden: ZERO revision sessions have
+ * ever run in production, so there is no data to tune against and none of
+ * these four numbers is evidence-based yet. Seven is the one worth defending.
+ * REVISION_INTERVAL_SOLID is a guess and should be the first thing revisited
+ * once students are actually completing checks.
  */
-export const REVISION_INTERVALS_DAYS = [7, 21, 60] as const;
+export const REVISION_INTERVALS_DAYS = [7, 7, 7] as const;
 
 /**
- * §5.2: questions attempted in one chapter that start the revision clock even
- * with nothing to recover. "A student who practises Cash Flow, scores 18 of 20
- * and has nothing to recover still needs reminding a week later."
+ * After REVISION_STAGES_TO_SOLID passes the chapter is solid — but solid is
+ * not finished. Forgetting does not stop because a student passed three
+ * checks, so the chapter keeps a check at this interval indefinitely rather
+ * than leaving the queue for ever.
+ *
+ * The old behaviour returned NULL past stage 3, which dropped the chapter out
+ * of the schedule permanently. That is the same mistake as gating revision on
+ * recovery, one level down: the students who most deserve to keep their good
+ * work are the ones the system stops looking after.
  */
-export const REVISION_ENGAGEMENT_MIN = 10;
+export const REVISION_INTERVAL_SOLID = 30;
 
-/** §5.4: fresh questions per check. Never the old ones. */
+/**
+ * Questions attempted in one chapter, in one session, that book a revision.
+ *
+ * THREE, and this is the number that decides whether the feature runs at all.
+ * The spec said ten. Measured on production 2026-09-15, every chapter_tally
+ * row ever written:
+ *
+ *     rows 11 · mean attempted 2.3 · max attempted 5 · rows at 10+: ZERO
+ *
+ * Not one chapter in any session has ever reached ten questions, so the
+ * revision clock has never started for anybody. Ten was not a quality bar
+ * either; it was the second off switch, sitting behind the first.
+ *
+ * Three rather than one. At one, a twenty-question session spanning nine
+ * chapters (which is what the tally data shows a real session looks like)
+ * books NINE revisions — roughly a hundred questions next week off a single
+ * twenty-question sitting. That is not "let it pile", that is a wall. Three is
+ * the smallest count that means the student actually worked on the chapter
+ * rather than brushing it, and it still fires on every real session.
+ */
+export const REVISION_ENGAGEMENT_MIN = 3;
+
+/** §5.4: fresh questions per check — never ones this student has seen. */
 export const REVISION_COUNT = 8;
+
+/**
+ * Open mistakes from the chapter carried into the revision check, on top of
+ * the REVISION_COUNT fresh ones.
+ *
+ * A revision check made only of fresh questions cannot tell the student
+ * whether the specific things they got wrong have stuck. A check made only of
+ * their old mistakes tests recall of those questions, not of the chapter. It
+ * is both, and they are counted separately (see rpc_submit_revision_session)
+ * so "you still miss the same two" and "you have lost the chapter" stay
+ * distinguishable.
+ *
+ * Five, so the check stays under fourteen questions at its longest.
+ */
+export const REVISION_MISTAKE_MAX = 5;
 
 /** §5.5 */
 export const REVISION_PASS_THRESHOLD = 0.7;
 
-/** §5.3: pass all three and the chapter leaves the queue. */
+/** Passes needed before a chapter drops to REVISION_INTERVAL_SOLID. */
 export const REVISION_STAGES_TO_SOLID = 3;
 
 // ── Generation (§4.2a) ─────────────────────────────────────────────────────

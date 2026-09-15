@@ -39,6 +39,7 @@ function state(p: Partial<ChapterStateRow>): ChapterStateRow {
     recovered_at: p.recovered_at ?? null,
     last_recovery_readiness: p.last_recovery_readiness ?? null,
     open_mistakes: p.open_mistakes ?? 0,
+    revision_fresh_available: p.revision_fresh_available ?? 0,
   };
 }
 
@@ -51,8 +52,14 @@ function queued(p: Partial<RecoveryQueueRow>): RecoveryQueueRow {
     chapter: "chapter" in p ? (p.chapter ?? null) : "Circles",
     subject: "subject" in p ? (p.subject ?? null) : "Mathematics",
     open_mistakes: p.open_mistakes ?? 1,
-    trigger_count: p.trigger_count ?? 5,
+    // One, not five. The trigger stopped being a quality bar and became an off
+    // switch: one student in production had ever reached five, and zero
+    // recovery sessions existed.
+    trigger_count: p.trigger_count ?? 1,
     ready: p.ready ?? false,
+    mode: p.mode ?? "deep",
+    planned_size: p.planned_size ?? 4,
+    relearn_above: p.relearn_above ?? 8,
     state: p.state ?? "has_mistakes",
     in_recovery: p.in_recovery ?? false,
     last_recovery_readiness: p.last_recovery_readiness ?? null,
