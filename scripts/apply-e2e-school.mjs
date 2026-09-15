@@ -1,123 +1,77 @@
 /**
- * Apply Riverside Public School E2E org structure (no academic demo noise).
+ * Riverside Public School — the E2E organisation — onto the live project, or off it.
  *
- * Requires .env.local with SUPABASE_ACCESS_TOKEN or DATABASE_URL.
- *   npm run db:seed:e2e-school
- *   npm run db:seed:e2e-school:remove
+ *   npm run db:seed:e2e-school          apply the migration (and record it in the ledger)
+ *   npm run db:seed:e2e-school:remove   apply its rollback (and remove the ledger row)
+ *
+ * The organisation is ONE file: supabase/migrations/20260925200000_riverside_public_school_is_a_real_organisation.sql.
+ * It was a fixture (supabase/fixtures/E2E_SCHOOL_STRUCTURE.sql) until the owner ruled on 2026-09-15 that
+ * it is applied as a migration; a second copy here would drift from the first (G9), so this script
+ * applies that file through scripts/apply-one-migration.mjs, the one applier and ledger writer, and
+ * then checks that a Riverside login works.
+ *
+ * Requires .env.local with SUPABASE_ACCESS_TOKEN.
  */
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { spawnSync } from "child_process";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
-
-function loadEnvFile(name) {
-  const path = join(ROOT, name);
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"?([^"]*)"?\s*$/);
-    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
-  }
-}
-
-loadEnvFile(".env.local");
-loadEnvFile(".env");
-
-const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "psqxykzqfvxgsvkmgurn";
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const NAME = "20260925200000_riverside_public_school_is_a_real_organisation";
+const MIGRATION = join(ROOT, "supabase", "migrations", `${NAME}.sql`);
+const ROLLBACK = join(ROOT, "supabase", "migrations", "rollback", `${NAME}.rollback.sql`);
 const remove = process.argv.includes("--remove");
-const sqlPath = join(
-  ROOT,
-  "supabase",
-  "fixtures",
-  remove ? "E2E_SCHOOL_STRUCTURE_REMOVE.sql" : "E2E_SCHOOL_STRUCTURE.sql",
-);
-const sql = readFileSync(sqlPath, "utf8");
 
-async function viaManagementApi(token) {
-  const res = await fetch(
-    `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query: sql }),
-    },
-  );
-  const text = await res.text();
-  if (!res.ok) throw new Error(`Management API ${res.status}: ${text.slice(0, 800)}`);
-  return text;
+function envFrom(file, key) {
+  const path = join(ROOT, file);
+  if (!existsSync(path)) return undefined;
+  const m = readFileSync(path, "utf8").match(new RegExp(`^\\s*${key}\\s*=\\s*"?([^"\\r\\n]*)"?\\s*$`, "m"));
+  return m?.[1];
 }
 
-async function viaPg(url) {
-  const pg = await import("pg");
-  const client = new pg.default.Client({
-    connectionString: url,
-    ssl: { rejectUnauthorized: false },
+function apply(file, ...flags) {
+  const r = spawnSync("node", [join(ROOT, "scripts", "apply-one-migration.mjs"), file, ...flags], {
+    cwd: ROOT,
+    encoding: "utf8",
   });
-  await client.connect();
-  try {
-    await client.query(sql);
-  } finally {
-    await client.end();
-  }
+  process.stdout.write(r.stdout ?? "");
+  process.stderr.write(r.stderr ?? "");
+  if (r.status !== 0) process.exit(r.status ?? 1);
+}
+
+async function dropLedgerRow() {
+  const token = envFrom(".env.local", "SUPABASE_ACCESS_TOKEN");
+  const ref = envFrom(".env", "VITE_SUPABASE_PROJECT_ID") || "psqxykzqfvxgsvkmgurn";
+  const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ query: `DELETE FROM public.schema_migrations WHERE version = '${NAME}'` }),
+  });
+  if (!res.ok) throw new Error(`removing the ledger row failed: HTTP ${res.status}`);
+  console.log(`Ledger row removed: ${NAME}`);
 }
 
 async function verifyLogin() {
-  if (remove) return;
-  const url = process.env.VITE_SUPABASE_URL;
-  const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) {
-    console.warn("Skip login verify: VITE_SUPABASE_URL / PUBLISHABLE_KEY missing");
-    return;
-  }
-  const auth = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+  const url = envFrom(".env", "VITE_SUPABASE_URL");
+  const key = envFrom(".env", "VITE_SUPABASE_PUBLISHABLE_KEY");
+  if (!url || !key) throw new Error("VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY missing from .env");
+  const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
     method: "POST",
     headers: { apikey: key, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: "principal@rps.e2e.test",
-      password: "E2eSchool123!",
-    }),
+    body: JSON.stringify({ email: "principal@rps.e2e.test", password: "E2eSchool123!" }),
   });
-  const body = await auth.json();
-  if (auth.ok) {
-    console.log("OK: principal@rps.e2e.test login works");
-    return;
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`principal@rps.e2e.test cannot sign in: ${res.status} ${body.msg || body.error_description || ""}`);
   }
-  console.warn("Login check:", auth.status, body.msg || body.error_description || body);
+  console.log("OK: principal@rps.e2e.test signs in");
 }
 
-async function main() {
-  const token = process.env.SUPABASE_ACCESS_TOKEN;
-  const dbUrl = process.env.DATABASE_URL;
-
-  console.log(remove ? "Removing E2E school…" : "Applying E2E school structure…");
-
-  if (token) {
-    console.log("Via Supabase Management API…");
-    const out = await viaManagementApi(token);
-    if (out && out !== "[]" && out !== "null") console.log(out.slice(0, 400));
-  } else if (dbUrl) {
-    console.log("Via DATABASE_URL…");
-    await viaPg(dbUrl);
-  } else {
-    console.error(`
-Missing credentials. Add to .env.local:
-
-  SUPABASE_ACCESS_TOKEN=sbp_xxxx
-  # or
-  DATABASE_URL=postgresql://...
-`);
-    process.exit(1);
-  }
-
+if (remove) {
+  apply(ROLLBACK, "--no-ledger");
+  await dropLedgerRow();
+} else {
+  apply(MIGRATION);
   await verifyLogin();
-  console.log(remove ? "Done (removed)." : "Done. Password for all RPS logins: E2eSchool123!");
 }
-
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});

@@ -3,6 +3,13 @@
 -- =============================================================================
 -- Real organization for end-to-end testing of the whole app.
 --
+-- Applied as a MIGRATION by the owner's ruling of 2026-09-15 ("apply this SQL in a
+-- migration in Supabase, because it will create a real organizational structure in
+-- our app"). It was the fixture supabase/fixtures/E2E_SCHOOL_STRUCTURE.sql (main,
+-- 34a7167); this file is now its one home and the fixture is gone, so the two
+-- cannot drift. The SQL below is that fixture unchanged; what this file adds is the
+-- proof at the end.
+--
 -- INTENTIONALLY EXCLUDES (no demo academic noise):
 --   practice_sessions, question_attempts, student_xp, battles, mistakes,
 --   recovery_assignments, revision_queue, homework, attendance, fees,
@@ -24,13 +31,17 @@
 --   principal@rps.e2e.test
 --   teacher01@rps.e2e.test … teacher12@rps.e2e.test  (class teachers)
 --   student.<grade><section>.01@rps.e2e.test          (roll 1 of each section)
+-- These are test accounts on the reserved .test domain, for the E2E suite
+-- (e2e-evidence/zz-riverside-homework.spec.ts); the password is deliberately
+-- shared and published, exactly as the fixture carried it.
 --
 -- Other students exist as person records with portal_email set (no auth yet).
+-- No parent accounts: the organisation is roster-only.
 --
 -- School id: 00000000-0000-4000-8000-000000000003
 -- Idempotent: md5 labels + ON CONFLICT. Safe to re-run.
--- Apply: npm run db:seed:e2e-school
--- Remove: npm run db:seed:e2e-school:remove
+-- Apply: npm run db:seed:e2e-school          (this migration, through apply-one-migration.mjs)
+-- Remove: npm run db:seed:e2e-school:remove  (supabase/migrations/rollback/20260925200000_riverside_public_school_is_a_real_organisation.rollback.sql)
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -461,3 +472,176 @@ END
 $e2e$;
 
 DROP FUNCTION IF EXISTS public._e2e_upsert_auth_user(uuid, text, text, text);
+
+-- =============================================================================
+-- Proof
+--
+-- The fixture's own check ("at least 220 students, 12 teachers, 12 sections") would
+-- pass with a section short, a class with no class teacher, a teacher who teaches
+-- nothing, or not one login that works. What an E2E organisation is FOR is that
+-- its people can sign in and do their jobs, so that is what is proven — every
+-- section exactly, every login against the password, and three of its people
+-- reading the database under their own row security.
+-- =============================================================================
+
+DO $verify$
+DECLARE
+  _school  constant uuid := '00000000-0000-4000-8000-000000000003';
+  _ay      constant uuid := md5('rps-ay-2025-26')::uuid;
+  _u_prin  constant uuid := md5('rps-auth-principal')::uuid;
+  _u_t1    constant uuid := md5('rps-auth-teacher-1')::uuid;
+  _u_s1    constant uuid := md5('rps-auth-student-1')::uuid;
+  _s1      constant uuid := md5('rps-student-1')::uuid;
+  _plan    constant text[] := ARRAY['8-A:20','8-B:20','9-A:22','9-B:22','10-A:16','10-B:16','10-C:16',
+                                    '11-A:25','11-B:25','12-A:14','12-B:14','12-C:14'];
+  _p text; _grade text; _section text; _expected int; _sec uuid;
+  _n bigint; _m bigint; _k bigint; _role text; _t text;
+BEGIN
+  -- 0. The helper that wrote the logins does not outlive the migration.
+  IF to_regprocedure('public._e2e_upsert_auth_user(uuid,text,text,text)') IS NOT NULL THEN
+    RAISE EXCEPTION 'ROLLED BACK: the login helper _e2e_upsert_auth_user was left behind';
+  END IF;
+
+  -- 1. The institution, its one current year, its five class groups.
+  IF NOT EXISTS (SELECT 1 FROM public.schools
+                  WHERE id = _school AND name = 'Riverside Public School' AND is_active AND status = 'active') THEN
+    RAISE EXCEPTION 'ROLLED BACK: Riverside Public School is missing or inactive';
+  END IF;
+  IF (SELECT count(*) FROM public.academic_years WHERE school_id = _school AND is_current) <> 1
+     OR NOT EXISTS (SELECT 1 FROM public.academic_years WHERE id = _ay AND school_id = _school AND is_current) THEN
+    RAISE EXCEPTION 'ROLLED BACK: Riverside does not have exactly one current year, 2025-26';
+  END IF;
+  IF (SELECT count(*) FROM public.class_groups WHERE school_id = _school) <> 5 THEN
+    RAISE EXCEPTION 'ROLLED BACK: Riverside has % class groups, expected 5',
+      (SELECT count(*) FROM public.class_groups WHERE school_id = _school);
+  END IF;
+
+  -- 2. Every section, exactly: its roll, its rolls numbered once each, its class
+  --    teacher (who is class teacher of it, and teaches a subject in it), its subjects.
+  FOREACH _p IN ARRAY _plan LOOP
+    _grade := split_part(split_part(_p, ':', 1), '-', 1);
+    _section := split_part(split_part(_p, ':', 1), '-', 2);
+    _expected := split_part(_p, ':', 2)::int;
+    _sec := md5('rps-sec-' || _grade || '-' || _section)::uuid;
+
+    IF NOT EXISTS (SELECT 1 FROM public.classes c
+                     JOIN public.teachers t ON t.id = c.class_teacher_id AND t.class_teacher_of = c.id
+                    WHERE c.id = _sec AND c.school_id = _school AND c.name = _grade AND c.section = _section AND c.is_active) THEN
+      RAISE EXCEPTION 'ROLLED BACK: section %-% is missing, inactive, or has no class teacher', _grade, _section;
+    END IF;
+    SELECT count(*) INTO _n FROM public.students WHERE class_id = _sec AND school_id = _school AND status = 'active';
+    SELECT count(*), count(DISTINCT roll_number) INTO _m, _k
+      FROM public.student_enrolments WHERE section_id = _sec AND academic_year_id = _ay AND to_date IS NULL;
+    IF _n <> _expected OR _m <> _expected OR _k <> _expected THEN
+      RAISE EXCEPTION 'ROLLED BACK: section %-% has % students and % enrolments (% distinct rolls); expected %',
+        _grade, _section, _n, _m, _k, _expected;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.teacher_classes tc JOIN public.classes c ON c.id = tc.class_id
+                    WHERE tc.class_id = _sec AND tc.teacher_id = c.class_teacher_id) THEN
+      RAISE EXCEPTION 'ROLLED BACK: the class teacher of %-% teaches no subject in it, so could set no homework there', _grade, _section;
+    END IF;
+    IF (SELECT count(*) FROM public.section_subjects WHERE section_id = _sec)
+       <> (SELECT least(6, count(*)) FROM public.curriculum_subjects cs
+             JOIN public.class_groups g ON g.curriculum_class_id = cs.curriculum_class_id
+             JOIN public.classes c ON c.class_group_id = g.id
+            WHERE c.id = _sec)
+       OR NOT EXISTS (SELECT 1 FROM public.section_subjects WHERE section_id = _sec) THEN
+      RAISE EXCEPTION 'ROLLED BACK: section %-% does not carry its curriculum''s subjects (up to 6)', _grade, _section;
+    END IF;
+  END LOOP;
+  IF (SELECT count(*) FROM public.classes WHERE school_id = _school) <> 12
+     OR (SELECT count(*) FROM public.students WHERE school_id = _school) <> 224
+     OR (SELECT count(*) FROM public.teachers WHERE school_id = _school AND status = 'active') <> 12 THEN
+    RAISE EXCEPTION 'ROLLED BACK: Riverside is not 12 sections, 224 students and 12 teachers';
+  END IF;
+  -- Each teacher: their own section's first subject and one subject in the next section.
+  IF (SELECT count(*) FROM public.teacher_classes WHERE school_id = _school) <> 24
+     OR EXISTS (SELECT 1 FROM public.teachers t WHERE t.school_id = _school
+                  AND (SELECT count(*) FROM public.teacher_classes tc WHERE tc.teacher_id = t.id) <> 2) THEN
+    RAISE EXCEPTION 'ROLLED BACK: Riverside''s teachers do not each teach two sections (% teacher_classes rows, expected 24)',
+      (SELECT count(*) FROM public.teacher_classes WHERE school_id = _school);
+  END IF;
+
+  -- 3. The 26 logins: each signs in with the E2E password — and a wrong one opens none,
+  --    or this comparison proves nothing — each with an identity, a profile of this
+  --    school, and its role here.
+  SELECT count(*) INTO _n FROM auth.users u
+   WHERE u.email LIKE '%@rps.e2e.test' AND u.email_confirmed_at IS NOT NULL
+     AND u.encrypted_password = extensions.crypt('E2eSchool123!', u.encrypted_password);
+  IF _n <> 26 THEN
+    RAISE EXCEPTION 'ROLLED BACK: % Riverside logins accept the E2E password, expected 26', _n;
+  END IF;
+  IF EXISTS (SELECT 1 FROM auth.users u WHERE u.email LIKE '%@rps.e2e.test'
+               AND u.encrypted_password = extensions.crypt('not-the-password', u.encrypted_password)) THEN
+    RAISE EXCEPTION 'ROLLED BACK: a wrong password opens a Riverside login';
+  END IF;
+  IF (SELECT count(*) FROM auth.identities i JOIN auth.users u ON u.id = i.user_id
+       WHERE u.email LIKE '%@rps.e2e.test' AND i.provider = 'email') <> 26
+     OR (SELECT count(*) FROM public.profiles p JOIN auth.users u ON u.id = p.id
+          WHERE u.email LIKE '%@rps.e2e.test' AND p.school_id = _school) <> 26 THEN
+    RAISE EXCEPTION 'ROLLED BACK: a Riverside login lacks its email identity or its profile of this school';
+  END IF;
+  SELECT count(*) FILTER (WHERE m.role = 'admin'), count(*) FILTER (WHERE m.role = 'principal'),
+         count(*) FILTER (WHERE m.role = 'teacher' AND EXISTS (SELECT 1 FROM public.teachers t WHERE t.id = m.local_person_id AND t.user_id = m.account_id)),
+         count(*) FILTER (WHERE m.role = 'student' AND EXISTS (SELECT 1 FROM public.students s WHERE s.id = m.local_person_id AND s.user_id = m.account_id))
+    INTO _n, _m, _k, _p
+    FROM public.memberships m WHERE m.school_id = _school AND m.status = 'active';
+  IF (_n, _m, _k, _p::bigint) IS DISTINCT FROM (1::bigint, 1::bigint, 12::bigint, 12::bigint)
+     OR (SELECT count(*) FROM public.memberships WHERE school_id = _school) <> 26 THEN
+    RAISE EXCEPTION 'ROLLED BACK: Riverside memberships are % admin, % principal, % teacher, % student (bound to their person); expected 1, 1, 12, 12',
+      _n, _m, _k, _p;
+  END IF;
+
+  -- 4. No academic data: the organisation is a roster.
+  FOREACH _t IN ARRAY ARRAY['homework', 'homework_submissions', 'attendance', 'marks', 'exams', 'tests', 'fees'] LOOP
+    IF to_regclass('public.' || _t) IS NOT NULL THEN
+      EXECUTE format('SELECT count(*) FROM public.%I WHERE school_id = $1', _t) INTO _n USING _school;
+      IF _n <> 0 THEN
+        RAISE EXCEPTION 'ROLLED BACK: Riverside already holds % row(s) of %', _n, _t;
+      END IF;
+    END IF;
+  END LOOP;
+
+  -- 5. Three of its people, under their own row security. Inside a savepoint that
+  --    always ends by raising P0999.
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', _u_prin, 'role', 'authenticated')::text, true);
+    SET LOCAL ROLE authenticated;
+    _role := public.get_my_role()::text;
+    SELECT count(*), count(*) FILTER (WHERE school_id <> _school) INTO _n, _m FROM public.classes;
+    SELECT count(*) INTO _k FROM public.students;
+    RESET ROLE;
+    IF _role IS DISTINCT FROM 'principal' OR _n <> 12 OR _m <> 0 OR _k <> 224 THEN
+      RAISE EXCEPTION 'ROLLED BACK: principal@rps.e2e.test acts as % and reads % sections (% of another school) and % students; expected principal, 12, 0, 224',
+        _role, _n, _m, _k;
+    END IF;
+
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', _u_t1, 'role', 'authenticated')::text, true);
+    SET LOCAL ROLE authenticated;
+    _role := public.get_my_role()::text;
+    SELECT count(*) INTO _n FROM public.students;
+    SELECT count(*) INTO _m FROM public.students WHERE class_id = md5('rps-sec-12-C')::uuid;
+    RESET ROLE;
+    IF _role IS DISTINCT FROM 'teacher' OR _n <> 40 OR _m <> 0 THEN
+      RAISE EXCEPTION 'ROLLED BACK: teacher01@rps.e2e.test acts as % and reads % students (% of 12-C, which they do not teach); expected teacher, the 40 of 8-A and 8-B, 0',
+        _role, _n, _m;
+    END IF;
+
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', _u_s1, 'role', 'authenticated')::text, true);
+    SET LOCAL ROLE authenticated;
+    _role := public.get_my_role()::text;
+    SELECT count(*), count(*) FILTER (WHERE id = _s1) INTO _n, _m FROM public.students;
+    RESET ROLE;
+    IF _role IS DISTINCT FROM 'student' OR _n <> 1 OR _m <> 1 THEN
+      RAISE EXCEPTION 'ROLLED BACK: student.8a.01@rps.e2e.test acts as % and reads % student row(s), % of them their own; expected student, 1, 1',
+        _role, _n, _m;
+    END IF;
+
+    RAISE EXCEPTION USING ERRCODE = 'P0999', MESSAGE = 'verify probes rolled back';
+  EXCEPTION WHEN SQLSTATE 'P0999' THEN
+    NULL;
+  END;
+
+  RAISE NOTICE 'verify OK: Riverside Public School — 12 sections exactly as planned (224 students, each roll numbered once, each section with its class teacher teaching in it and its subjects), 12 teachers each teaching two sections, 26 logins that open with the E2E password and not with another, memberships 1 admin / 1 principal / 12 teachers / 12 students bound to their people, no academic data; the principal reads the school and nothing else, teacher01 the 40 students they teach, student 8A-01 their own row';
+END
+$verify$;
