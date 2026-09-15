@@ -2394,6 +2394,39 @@
         "admin": "answered"
       }
     },
+    "claim_notifications_for_push(_limit integer)": {
+      "name": "claim_notifications_for_push",
+      "readerSet": "public",
+      "callability": "internal",
+      "returns": "TABLE(notification_id uuid, recipient uuid, title text, body text, link text, kind text, tokens text[])",
+      "grants": [],
+      "calls": [],
+      "justification": "The push sender's claim: settles and returns every waiting notification younger than 30 minutes with its recipient's device tokens, across schools by design. EXECUTE revoked from PUBLIC, anon and authenticated and granted to service_role only (20260925190000); its one caller is the notification-push edge function.",
+      "verifiedBy": "20260925190000 verify: an authenticated call is refused (42501); service_role claims a waiting notification once, with its token and link, and never one 31 minutes old or one for someone with no phone",
+      "reviewed": true
+    },
+    "dispatch_notification_push()": {
+      "name": "dispatch_notification_push",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "integer",
+      "grants": [],
+      "calls": [],
+      "justification": "Run every minute by pg_cron (push-notifications-to-phones): settles notifications 30 minutes old unsent and, when any wait, posts to notification-push through pg_net with the vault drain secret. Returns only a count. EXECUTE revoked from PUBLIC, anon and authenticated (20260925190000).",
+      "verifiedBy": "20260925190000 verify: dispatch sees a waiting notification and queues one pg_net request (proven failing on live with the call removed); settles one 31 minutes old; not executable by anon or authenticated",
+      "reviewed": true
+    },
+    "tg_notification_push_queue()": {
+      "name": "tg_notification_push_queue",
+      "readerSet": "none",
+      "callability": "trigger",
+      "returns": "trigger",
+      "grants": [],
+      "calls": [],
+      "justification": "BEFORE INSERT on notifications: asks whether the recipient has any device token — across device_tokens' self-only RLS, hence definer — and sets pushed_at (NULL to wait, now() otherwise). Returns nothing to any caller.",
+      "verifiedBy": "20260925190000 verify: a notification for someone with no phone is settled on arrival and one for someone with a phone waits, whatever the writer put in pushed_at",
+      "reviewed": true
+    },
     "resolve_closed_homework()": {
       "name": "resolve_closed_homework",
       "readerSet": "none",
@@ -4735,6 +4768,12 @@
       "justification": "",
       "verifiedBy": "",
       "reviewed": false
+    },
+    "notification-push": {
+      "readerSet": "public",
+      "justification": "Called only by dispatch_notification_push through pg_net. verify_jwt is off (the database has no user to sign for) and every call without the drain secret (x-push-drain = NOTIFICATION_PUSH_DRAIN = vault notification_push_drain) is refused 401 before anything is read. Runs as service_role: claims waiting notifications of every school and sends each to its recipient's FCM tokens; answers with counts and FCM's error text, never notification content.",
+      "verifiedBy": "push-e2e on live 2026-09-15: no secret 401, a wrong secret of the right length 401; a queued probe notification was claimed within the cron minute and reached FCM with the service account accepted",
+      "reviewed": true
     },
     "send-push": {
       "readerSet": "public",

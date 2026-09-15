@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, Download, Loader2, XCircle } from "lucide-react";
 import {
   AttendanceService,
   HOMEWORK_STANDING_LABELS,
   HomeworkService,
   homeworkStanding,
+  type ClassStudentRow,
   type HomeworkStanding,
   type ReviewRow,
 } from "@/academic";
 import type { HomeworkDecision, HomeworkRecord } from "@/academic/repository/homeworkRepository";
+import { homeworkReportFilename, homeworkReportRows } from "@/academic/services/homeworkReport";
 import { attachmentOfFile } from "@/academic/storage/academicFileUpload";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { exportCSV } from "@/lib/exportCsv";
 import { toErrorMessage, toPersonName } from "@/lib/presentation";
 import { AttachmentList } from "./AttachmentUI";
 
@@ -37,7 +40,8 @@ export function HomeworkReview({
 }) {
   const { ctx } = useAcademicContext();
   const [rows, setRows] = useState<ReviewRow[]>([]);
-  const [names, setNames] = useState<Map<string, string>>(new Map());
+  const [roster, setRoster] = useState<ClassStudentRow[]>([]);
+  const names = useMemo(() => new Map(roster.map((s) => [s.id, s.fullName])), [roster]);
   const [loading, setLoading] = useState(true);
   const [deciding, setDeciding] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +54,7 @@ export function HomeworkReview({
         AttendanceService.listClassStudents(ctx, classId),
       ]);
       setRows(review);
-      setNames(new Map(students.map((s) => [s.id, s.fullName])));
+      setRoster(students);
       setError(null);
     } catch (e) {
       setError(toErrorMessage(e, "Failed to load hand-ins"));
@@ -112,12 +116,21 @@ export function HomeworkReview({
           <div className="text-[11px] text-muted-foreground whitespace-pre-wrap">{homework.questionText}</div>
         )
       )}
-      <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+      <div className="flex flex-wrap gap-2 items-center text-[10px] text-muted-foreground">
         {counts.map(([s, n]) => (
           <span key={s} className="px-2 py-0.5 rounded-lg bg-muted">
             {HOMEWORK_STANDING_LABELS[s]}: {n}
           </span>
         ))}
+        {!loading && rows.length > 0 && (
+          <button
+            type="button"
+            onClick={() => exportCSV(homeworkReportFilename(homework), homeworkReportRows(rows, roster))}
+            className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/15 text-primary font-bold"
+          >
+            <Download className="w-3 h-3" /> Download report
+          </button>
+        )}
       </div>
       {!canDecide && (
         <div className="text-[10px] text-muted-foreground">

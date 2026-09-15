@@ -2,15 +2,16 @@
 import {
   User, Mail, Lock, Link2,
   Edit2, Save, X, Check, Smartphone, Shield, Briefcase, Loader2, LogOut,
-  ClipboardList,
+  ClipboardList, NotebookPen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
-import { TestService, useAcademicLive } from "@/academic";
+import { HomeworkService, TestService, homeworkHasClosed, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import { displaySubject } from "@/lib/presentation";
+import type { TeacherHomeworkSummary } from "@/academic/services/homeworkService";
+import { displaySubject, toClassLabel } from "@/lib/presentation";
 import type { TeacherProfile } from "./data";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -155,6 +156,102 @@ function TestsSetSection() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+/**
+ * The homework this teacher has set, beside the tests.
+ *
+ * Homework is credited to whoever set it (docs/locked-decisions.md), so these
+ * are the `homework` rows they created. "Waiting for your decision" is counted
+ * across everything they have released — the one number that asks something
+ * of them.
+ */
+function HomeworkSetSection() {
+  const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["homework", "profile"]);
+  const [summary, setSummary] = useState<TeacherHomeworkSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const next = await HomeworkService.summaryForTeacher(ctx, { limit: 5 });
+        if (!cancelled) {
+          setSummary(next);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) setError(toErrorMessage(e, "Could not load the homework you have set"));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, liveVersion]);
+
+  return (
+    <Section title="Homework You Have Set" icon={<NotebookPen className="w-4 h-4" />}>
+      {error ? (
+        <div className="text-xs text-muted-foreground">{error}</div>
+      ) : !summary ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading your homework…
+        </div>
+      ) : summary.total === 0 ? (
+        <div className="text-xs text-muted-foreground">
+          You have not set homework yet. Open a class and use New homework.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Homework set", value: summary.total },
+              { label: "Released", value: summary.published },
+              { label: "Waiting for your decision", value: summary.awaitingReview },
+            ].map((s) => (
+              <div key={s.label} className="rounded-[2px] bg-muted/60 px-3 py-2">
+                <div className="text-lg font-black tabular-nums text-foreground">{s.value}</div>
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                  {s.label}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-1.5">
+            {summary.recent.map((h) => {
+              const released = h.status === "published";
+              return (
+                <div
+                  key={h.id}
+                  className="flex items-center justify-between gap-2 rounded-[2px] bg-muted/40 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="text-xs text-foreground truncate">{h.title}</div>
+                    <div className="text-[9px] text-muted-foreground">
+                      {[
+                        toClassLabel(h.className, h.classSection),
+                        displaySubject(h.subject),
+                        released ? (homeworkHasClosed(h) ? "closed" : "open") : h.status,
+                      ].join(" · ")}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground shrink-0">
+                    {released && h.completion
+                      ? `${h.completion.given} of ${h.completion.students} handed in`
+                      : h.status === "draft"
+                        ? "not released"
+                        : h.status}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -417,6 +514,8 @@ export default function TeacherProfile() {
       </Section>
 
       <TestsSetSection />
+
+      <HomeworkSetSection />
 
       <Section title="Linked Accounts" icon={<Link2 className="w-4 h-4" />}>
         <div className="space-y-3">

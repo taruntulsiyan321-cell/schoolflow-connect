@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canHandIn, homeworkHasClosed, homeworkStanding } from "@/academic/services/homeworkService";
+import { canHandIn, homeworkHasClosed, homeworkOutcome, homeworkStanding } from "@/academic/services/homeworkService";
 
 /**
  * Where a student stands on one homework, as every screen shows it
@@ -33,6 +33,27 @@ describe("homework standing", () => {
   it("keeps work that was given as given after the deadline", () => {
     expect(homeworkStanding(row("submitted", true))).toBe("handed_in");
     expect(homeworkStanding(row("accepted", true))).toBe("accepted");
+  });
+});
+
+/**
+ * What a homework comes to, for the counts a student's profile and a class's
+ * report show: done, missed at the deadline, or still to do.
+ */
+describe("homework outcome", () => {
+  it("counts work that was given as done, before and after the deadline", () => {
+    expect(homeworkOutcome(row("submitted", false))).toBe("done");
+    expect(homeworkOutcome(row("accepted", true))).toBe("done");
+  });
+
+  it("counts nothing handed in, or a rejection, as to do while the deadline is open", () => {
+    expect(homeworkOutcome(row("not_submitted", false))).toBe("to_do");
+    expect(homeworkOutcome(row("rejected", false))).toBe("to_do");
+  });
+
+  it("counts it as missed only once the deadline has passed", () => {
+    expect(homeworkOutcome(row("not_submitted", true))).toBe("missed");
+    expect(homeworkOutcome(row("rejected", true))).toBe("missed");
   });
 });
 

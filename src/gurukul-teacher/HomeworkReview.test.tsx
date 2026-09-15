@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { HomeworkRecord } from "@/academic/repository/homeworkRepository";
 
 /**
@@ -17,9 +17,13 @@ import type { HomeworkRecord } from "@/academic/repository/homeworkRepository";
  * Each case first finds the student's name, so an absence is never an empty screen.
  */
 const listForReview = vi.fn();
+const exportCSV = vi.fn();
 
+vi.mock("@/lib/exportCsv", () => ({ exportCSV: (...a: unknown[]) => exportCSV(...a) }));
 vi.mock("@/academic", () => ({
-  AttendanceService: { listClassStudents: vi.fn().mockResolvedValue([{ id: "student-1", fullName: "Arjun Mehta" }]) },
+  AttendanceService: {
+    listClassStudents: vi.fn().mockResolvedValue([{ id: "student-1", fullName: "Arjun Mehta", rollNumber: "7" }]),
+  },
   HomeworkService: { listForReview: (...a: unknown[]) => listForReview(...a), decide: vi.fn() },
   HOMEWORK_STANDING_LABELS: {
     to_do: "To do",
@@ -155,10 +159,36 @@ describe("HomeworkReview — another subject's hand-ins", () => {
 });
 
 describe("HomeworkReview — a homework nobody is counted on", () => {
-  it("says the class had no students, not that the homework is unpublished", async () => {
+  it("says the class had no students, not that the homework is unpublished, and offers no empty report", async () => {
     listForReview.mockReset().mockResolvedValue([]);
     renderReview();
     expect(await screen.findByText(/No student is counted on this homework/)).toBeTruthy();
     expect(screen.queryByText(/when it is published/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Download report/ })).toBeNull();
+  });
+});
+
+/**
+ * The homework's report — who did it and who did not — downloads from the
+ * review screen, built by the same function as the principal's download, and
+ * for a teacher who only views another subject's homework as well.
+ */
+describe("HomeworkReview — the report", () => {
+  beforeEach(() => {
+    listForReview.mockReset();
+    exportCSV.mockReset();
+  });
+
+  it("downloads each student's roll, whether they did it, and their file", async () => {
+    listForReview.mockResolvedValue(awaitingReview(true));
+    renderReview({}, false);
+    expect(await screen.findByText("Arjun Mehta")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Download report/ }));
+    expect(exportCSV).toHaveBeenCalledTimes(1);
+    const [filename, rows] = exportCSV.mock.calls[0] as [string, Record<string, string>[]];
+    expect(filename).toBe("homework-real-numbers-2026-09-10.csv");
+    expect(rows).toEqual([
+      expect.objectContaining({ Roll: "7", Student: "Arjun Mehta", Done: "Yes", File: "w.pdf" }),
+    ]);
   });
 });

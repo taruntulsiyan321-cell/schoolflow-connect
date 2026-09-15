@@ -1,12 +1,12 @@
-// Applies this release's eighteen migrations to the live project — the ten of
-// the test feature, then the eight of homework — in order, stopping at the first
+// Applies this release's twenty migrations to the live project — the ten of
+// the test feature, then the ten of homework — in order, stopping at the first
 // one that does not hold.
 //
-// WHY A RUNNER AND NOT EIGHTEEN COMMANDS
+// WHY A RUNNER AND NOT TWENTY COMMANDS
 //   The order matters — 20260925040000 redefines a function 20260925000000
 //   installed, 20260925060000's policy calls a function 20260925030000 creates,
 //   and each homework migration builds on the one before — and a human applying
-//   eighteen files by hand will eventually skip one. Every file is still applied
+//   twenty files by hand will eventually skip one. Every file is still applied
 //   by `apply-one-migration.mjs`: this loops that, it does not reimplement it
 //   (one applier, one ledger writer).
 //
@@ -66,6 +66,9 @@ const FILES = [
   "20260925160000_homework_is_counted_without_asking_once_per_row.sql",
   // Found reading the panel line by line: closed homework could be unpublished before the closure job ran.
   "20260925170000_closed_homework_is_history_before_the_closure_runs.sql",
+  // Found following homework to the family end to end: a parent's link opened the student panel, and nothing reached a phone.
+  "20260925180000_a_parent_is_sent_to_a_parent_page.sql",
+  "20260925190000_a_notification_reaches_the_phone.sql",
 ];
 
 function fail(msg) {

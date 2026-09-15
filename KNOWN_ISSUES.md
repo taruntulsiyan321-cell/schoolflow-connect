@@ -2728,16 +2728,17 @@ release.
 
 ---
 
-## 53. Every homework count asked "may I see this row?" once per row — FIXED IN THE REPO, NOT YET APPLIED TO LIVE
+## 53. ~~Every homework count asked "may I see this row?" once per row~~ — FIXED, applied to live 2026-09-15
 
 **Found:** 2026-09-14, by the production browser run of the homework chain.
 **Fixed:** `20260925160000_homework_is_counted_without_asking_once_per_row`,
 proven against every account on live in rolled-back transactions — twice: on
 2026-09-14, and again on 2026-09-15 after another branch had applied eleven more
 migrations to live (21 of 21 accounts, the same 3 authorship-only hand-ins).
-**Applying it to live is waiting on the owner's permission** — both attempts
-were refused by the session's permission gate as a production deploy, so live
-still has the per-row policies.
+**Applied to live** 2026-09-15 with `scripts/apply-release-migrations.mjs`, once
+the owner asked for homework to be completed end to end (two earlier attempts had
+been refused by the session's permission gate as a production deploy).
+`scripts/query-timing.mjs` afterwards: 0 findings.
 
 The chain did not fail on a wrong answer; it ran out of its five minutes. The
 teacher's list reloads through `homework_completion` after every action, and
@@ -2785,7 +2786,7 @@ removed the sitting the failed run left.
 
 ---
 
-## 55. The homework panel, read line by line — FIXED IN THE REPO; the two database halves NOT YET APPLIED TO LIVE
+## 55. ~~The homework panel, read line by line~~ — FIXED; both database halves applied to live 2026-09-15
 
 **Found:** 2026-09-15, reading every homework screen, service and repository
 function against docs/gurukul-spec-rules.md and docs/locked-decisions.md.
@@ -2847,8 +2848,82 @@ function against docs/gurukul-spec-rules.md and docs/locked-decisions.md.
 on the replica, and passed with 20260925160000 in one rolled-back transaction
 on live. `run.sh`: 163 claims, 0 failed; the replica break battery, 12 of 12
 breaks fail their claims, the closed-before-resolution break exactly the two new
-ones. **Not done:** applying the two
-migrations to live (53), and so the production browser run of the chain.
-**Out of scope and still true:** the principal's portal is a fixture design
-(`src/gurukul-principal/PrincipalApp.tsx`: "Design-only"), its homework figures
-included — no screen there reads the database.
+ones. **Applied to live** 2026-09-15 with 53. The principal's portal, a fixture
+design when this was written, has a live Classes tab since 56.
+
+---
+
+## 56. Homework stopped at the student's screen — FIXED 2026-09-15, applied to live
+
+**Found:** 2026-09-15, following homework past the class — to the student's and
+the parents' phones, the principal's Classes tab, both profiles and a report of
+who did it — as the owner asked, measuring each before changing it.
+
+1. **Nothing reached a phone.** Every notification is a row in `notifications`,
+   seen in the app while it is open (realtime). With the app closed nothing
+   arrived: `send-push` (FCM) was called only for a direct message or an admin
+   broadcast, `pg_net` was not installed, and `device_tokens` held 0 rows.
+   **Fixed:** `20260925190000_a_notification_reaches_the_phone` and the
+   `notification-push` edge function — every notification for someone with a
+   registered phone is sent to it within about a minute, once; one 30 minutes
+   old is settled, never sent; FCM has one home, `_shared/fcm.ts`, which
+   `send-push` now uses too; a tapped notification opens its page in the app.
+2. **A parent's notification pointed into the student panel.** The router writes
+   the student's link and `_notify_student_parents` passed it on: 619 parent
+   notifications on live linked to `/student/...`, which a parent cannot open —
+   and the parent Notifications page opened no link at all, so nothing showed
+   it. **Fixed:** `20260925180000_a_parent_is_sent_to_a_parent_page`
+   (`parent_link_for`; the 619 corrected, their old links kept for the rollback)
+   and the page opens a parent link (`parentLinkOf`).
+3. **The principal's Classes tab could never show homework.** It was the fixture
+   design: eight invented classes, the same five invented homework each, a
+   hard-coded completion rate, under ids that exist in no database. **Fixed:**
+   `PrincipalClasses.tsx` — the school's classes, each class's released homework
+   and hand-ins, every student's standing and file, updated by realtime. The
+   fixture class, homework, test and exam screens are deleted, with everything in
+   `data.ts` only they used.
+4. **No homework report existed.** **Fixed:** `homeworkReport.ts` — one
+   homework's report (the teacher's review screen and the principal's homework
+   screen) and a class's (the principal's Students tab), downloaded as CSV with
+   the numbers the screen shows.
+5. **The teacher's profile said nothing about homework.** **Fixed:** "Homework
+   You Have Set" — how much, how much released, the hand-ins waiting on them, the
+   recent few with where each stands.
+6. **The student's profile counted homework still open as "Not submitted".**
+   **Fixed:** handed in / still to do / missed at the deadline, through
+   `homeworkOutcome`, now the one place those three are decided; and a way to the
+   homework page.
+7. **The school's completion stopped at the API's row limit.** `listCompletion`
+   read `homework_completion` for a whole school in one request, which the API
+   caps silently, and put any number of ids into one filter. **Fixed:** paged,
+   and chunked a hundred ids at a time.
+8. **The definer-door gate had never run.** `lint-definer-doors.mjs` calls
+   `node q.mjs -e "<sql>"`, and `q.mjs` read `-e` as a file name. **Fixed.** Run
+   for the first time: the four doors this work added are inventoried, and **56
+   problems remain from before it** — 38 unlisted definers (the test feature's
+   `rpc_test_*`, the recovery engine's, the question-bank triggers), 11 entries
+   for functions that no longer exist, 5 unlisted edge functions, and
+   `rpc_create_class_group` recorded as internal while granted to
+   `authenticated`. Reconciling them is not this change's; they are written here
+   so they are not rediscovered.
+
+**Proven:** on live — both migrations proved themselves as they applied, after
+passing together in a rolled-back dry run; the push pipeline end to end
+(`scripts/verify-push-pipeline.mjs`): calls without the secret or with a wrong one
+refused 401, a probe notification queued, dispatched, claimed inside the minute
+and handed to FCM, which accepted the service account and rejected only the probe
+token; a principal reads every homework table, and the handed-in file, under
+their own RLS; `verify:caller-privileges` 443/443; `db:verify-integrity` — the
+five new checks PASS, the six FAILs are the ones already recorded (the 20260903
+ledger names, and tables another branch dropped with `recovery_assignments`). On
+the replica — both migrations round-trip exactly, and 23 of 23 broken proofs fail
+by name (plus, on live, the dispatch with its pg_net call removed). In the source
+— 19 of 19 broken rules fail their tests; the suite, 93 files and 866 tests;
+typecheck; build; the lint baseline.
+
+**Not done:**
+* **A real phone.** None has registered (`device_tokens` 0), so nothing arrives
+  until the Android app is built, installed, signed in and allowed
+  notifications. Everything up to FCM is proven; the last hop is not.
+* **Exams on the principal's Classes tab.** They were invented; real exam screens
+  for a principal are not built.

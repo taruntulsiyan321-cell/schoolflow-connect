@@ -15,8 +15,11 @@ import {
   getSubmission,
   listCompletion,
   listHomeworkByIds,
+  listHomeworkCreatedBy,
   listHomeworkForClass,
   listHomeworkForSchool,
+  listPublishedHomeworkDeadlines,
+  listStandingsForClass,
   listStandingsForHomework,
   listStandingsForStudent,
   listSubmissionsForHomework,
@@ -61,6 +64,19 @@ export function homeworkStanding(row: { status: SubmissionStatus; given: boolean
   if (row.given) return "handed_in";
   if (row.closed) return "not_handed_in";
   return row.status === "rejected" ? "rejected" : "to_do";
+}
+
+/**
+ * What a homework comes to for one student, counted at its deadline (§10.12):
+ * done (`given`), missed (the deadline passed without it), or still to do.
+ * Every count of homework — a student's profile, a class's report — classifies
+ * through here, so no two screens can count "missed" differently.
+ */
+export type HomeworkOutcome = "done" | "missed" | "to_do";
+
+export function homeworkOutcome(row: { given: boolean; closed: boolean }): HomeworkOutcome {
+  if (row.given) return "done";
+  return row.closed ? "missed" : "to_do";
 }
 
 export const HOMEWORK_STANDING_LABELS: Record<HomeworkStanding, string> = {
@@ -127,6 +143,38 @@ export interface ManagedHomeworkRow extends ClassHomeworkRow {
 
 export interface SchoolHomeworkRow extends SchoolHomeworkRecord {
   completion: HomeworkCompletionRow | null;
+}
+
+/**
+ * One class's homework, for the principal's class list. Completion is measured
+ * at the deadline (§10.12, rule 40): only homework that has closed counts, so a
+ * class is not behind on work its students still have time to hand in.
+ */
+export interface ClassHomeworkCompletion {
+  classId: string;
+  /** Published homework whose deadline has passed. */
+  closedHomework: number;
+  /** Published homework still open. */
+  openHomework: number;
+  /** Across the closed homework: hand-ins given, and students it was set to. */
+  given: number;
+  expected: number;
+  /** null when nothing has closed yet — no rate, rather than a rate of 0. */
+  completionPct: number | null;
+  /** Hand-ins waiting for a teacher's decision, open or closed. */
+  awaitingReview: number;
+}
+
+/** What one teacher has set, for their own profile. */
+export interface TeacherHomeworkSummary {
+  total: number;
+  published: number;
+  scheduled: number;
+  drafts: number;
+  archived: number;
+  /** Across everything they have published. */
+  awaitingReview: number;
+  recent: SchoolHomeworkRow[];
 }
 
 export interface SchoolHomeworkSummary {
@@ -256,6 +304,20 @@ export const HomeworkService = {
     }));
   },
 
+  /**
+   * Every student's standing on every published homework of a class — the
+   * class's homework report. The principal and admin read any class of the
+   * school; a teacher, a class they teach.
+   */
+  async standingsForClass(ctx: ServiceContext, classId: string): Promise<HomeworkStandingRow[]> {
+    assertCanConsume(ctx, "homework_submission");
+    if (ctx.role === "student" || ctx.role === "parent") {
+      throw new ForbiddenError("Students and parents may not list a class's homework standings");
+    }
+    if (ctx.role === "teacher") await assertTeacherMayManageAcademicWork(ctx, classId);
+    return listStandingsForClass(toRepoContext(ctx), classId);
+  },
+
   /** Set homework: published now, scheduled, or kept as a draft (`input.status`). */
   async create(ctx: ServiceContext, input: HomeworkInput): Promise<HomeworkRecord> {
     assertCanOwn(ctx, "homework");
@@ -324,6 +386,70 @@ export const HomeworkService = {
     const row = await decideSubmission(repo, submissionId, decision);
     afterHomeworkWrite(ctx, { classId: hw.classId, studentId: row.studentId, source: "HomeworkService.decide" });
     return row;
+  },
+
+  /**
+   * Every class's homework completion, measured at the deadline — the
+   * principal's class list. Two reads for the whole school, both read to the
+   * end: the published homework and their deadlines, and `homework_completion`.
+   */
+  async completionByClass(ctx: ServiceContext, now = Date.now()): Promise<Map<string, ClassHomeworkCompletion>> {
+    assertCanConsume(ctx, "homework");
+    if (!canReadSchoolWide(ctx.role)) throw new ForbiddenError("School homework completion is admin/principal-only");
+    const repo = toRepoContext(ctx);
+    const [deadlines, completion] = await Promise.all([listPublishedHomeworkDeadlines(repo), listCompletion(repo)]);
+    const byHomework = new Map(completion.map((c) => [c.homeworkId, c]));
+    const byClass = new Map<string, ClassHomeworkCompletion>();
+    for (const hw of deadlines) {
+      const acc =
+        byClass.get(hw.classId) ??
+        { classId: hw.classId, closedHomework: 0, openHomework: 0, given: 0, expected: 0, completionPct: null, awaitingReview: 0 };
+      const c = byHomework.get(hw.id);
+      if (Date.parse(hw.closesAt) <= now) {
+        acc.closedHomework += 1;
+        acc.given += c?.given ?? 0;
+        acc.expected += c?.students ?? 0;
+      } else {
+        acc.openHomework += 1;
+      }
+      acc.awaitingReview += c?.awaitingReview ?? 0;
+      byClass.set(hw.classId, acc);
+    }
+    for (const acc of byClass.values()) {
+      acc.completionPct = acc.expected ? Math.round((1000 * acc.given) / acc.expected) / 10 : null;
+    }
+    return byClass;
+  },
+
+  /**
+   * What this teacher has set, for their own profile: how much, in which state,
+   * how many hand-ins wait on them, and the recent few with their completion.
+   * Homework is credited to whoever set it (docs/locked-decisions.md).
+   */
+  async summaryForTeacher(ctx: ServiceContext, opts?: { limit?: number }): Promise<TeacherHomeworkSummary> {
+    assertCanConsume(ctx, "homework");
+    if (!ctx.userId) throw new ForbiddenError("No signed-in user — cannot list the homework you have set");
+    const repo = toRepoContext(ctx);
+    const published: SchoolHomeworkRecord[] = [];
+    for (let offset = 0; ; offset += MAX_PAGE_LIMIT) {
+      const page = await listHomeworkCreatedBy(repo, ctx.userId, { limit: MAX_PAGE_LIMIT, offset }, "published");
+      published.push(...page);
+      if (page.length < MAX_PAGE_LIMIT) break;
+    }
+    const [counts, recent, publishedCompletion] = await Promise.all([
+      countHomeworkByStatus(repo, { createdBy: ctx.userId }),
+      listHomeworkCreatedBy(repo, ctx.userId, { limit: opts?.limit ?? 5 }).then((rows) => withCompletion(ctx, rows)),
+      listCompletion(repo, published.map((h) => h.id)),
+    ]);
+    return {
+      total: counts.draft + counts.scheduled + counts.published + counts.archived,
+      published: counts.published,
+      scheduled: counts.scheduled,
+      drafts: counts.draft,
+      archived: counts.archived,
+      awaitingReview: publishedCompletion.reduce((n, c) => n + c.awaitingReview, 0),
+      recent,
+    };
   },
 
   /** School homework for the principal and admin, from `homework_completion`. */

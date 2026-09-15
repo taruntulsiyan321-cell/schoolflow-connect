@@ -27,6 +27,17 @@ export const PARENT_PAGE_TITLES: Record<ParentPageKey, string> = {
   profile: "My Profile",
 };
 
+/**
+ * The page a parent's notification opens — a parent page, or none.
+ *
+ * Until 20260925180000 the router gave a parent the student's own link
+ * ("/student/homework"), which the parent panel cannot open. Rows written
+ * before then still carry one; they open nothing rather than a dead route.
+ */
+export function parentLinkOf(n: { link: string | null }): string | null {
+  return n.link && (n.link === "/parent" || n.link.startsWith("/parent/")) ? n.link : null;
+}
+
 export function parentPathToPage(pathname: string): ParentPageKey {
   const p = pathname.replace(/\/+$/, "") || "/parent";
   if (p.startsWith("/parent/children") || p.startsWith("/parent/attendance") || p.startsWith("/parent/homework"))

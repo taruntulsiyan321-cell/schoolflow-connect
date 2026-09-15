@@ -5,6 +5,7 @@ import { ArrowRight } from "lucide-react";
 import {
   ProgressionService,
   TestService, MarksService, HomeworkService, RemarksService,
+  homeworkOutcome,
   useAcademicLive,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -51,6 +52,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
     { id: string; label: string; obtained: number | null; max: number | null }[]
   >([]);
   const [hwDone, setHwDone] = useState(0);
+  const [hwToDo, setHwToDo] = useState(0);
   const [hwMissing, setHwMissing] = useState(0);
   const [remarks, setRemarks] = useState<{ id: string; text: string; author: string; at: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,13 +154,17 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         })),
       );
 
-      // Counts, not a percentage (v2 Screen 12). `given` comes from
-      // homework_student_status — deciding it here would be a second home for
-      // the same rule (G9). A rejected hand-in is not given.
+      // Counts, not a percentage (v2 Screen 12). `given` and `closed` come from
+      // homework_student_status, and `homeworkOutcome` is the one place they
+      // become done / missed / to do (G9). A rejected hand-in is not given, and
+      // missed is measured at the deadline (§10.12): homework the student still
+      // has time to hand in is to do — it used to count as "Not submitted" the
+      // moment it was set.
       const hw = settled[5].status === "fulfilled" ? settled[5].value : [];
-      const hwRows = Array.isArray(hw) ? hw : [];
-      setHwDone(hwRows.filter((h) => h.standing.given).length);
-      setHwMissing(hwRows.filter((h) => !h.standing.given).length);
+      const hwOutcomes = (Array.isArray(hw) ? hw : []).map((h) => homeworkOutcome(h.standing));
+      setHwDone(hwOutcomes.filter((o) => o === "done").length);
+      setHwToDo(hwOutcomes.filter((o) => o === "to_do").length);
+      setHwMissing(hwOutcomes.filter((o) => o === "missed").length);
 
       const rm = settled[6].status === "fulfilled" ? settled[6].value : [];
       setRemarks(
@@ -327,16 +333,29 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         nothing. Averages are banned product-wide; the profile shows the actual
         marks and honest counts instead.
       */}
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid sm:grid-cols-3 gap-3">
         <div className="p-4 rounded-2xl border border-border/70 bg-surface/70">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Homework handed in</div>
           <div className="text-2xl font-black tabular-nums text-foreground">{hwDone}</div>
         </div>
         <div className="p-4 rounded-2xl border border-border/70 bg-surface/70">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Not submitted</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Still to do</div>
+          <div className="text-2xl font-black tabular-nums text-foreground">{hwToDo}</div>
+        </div>
+        <div className="p-4 rounded-2xl border border-border/70 bg-surface/70">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Missed at the deadline</div>
           <div className="text-2xl font-black tabular-nums text-foreground">{hwMissing}</div>
         </div>
       </div>
+      {setPage && (
+        <button
+          type="button"
+          onClick={() => setPage("assignments")}
+          className="text-left text-xs font-semibold text-primary"
+        >
+          Open your homework — read the question, hand in or replace your file →
+        </button>
+      )}
 
       <GlassCard className="p-5">
         <SectionLabel>Last 10 test marks</SectionLabel>

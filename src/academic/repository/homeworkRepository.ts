@@ -2,7 +2,15 @@ import type { Json } from "@/integrations/supabase/types";
 import type { AcademicFile } from "../storage/academicFileUpload";
 import type { WorkKind } from "../services/workLifecycle";
 import { AcademicRepositoryError, NotFoundError } from "./errors";
-import { getClient, normalizePage, schoolIdOf, throwIfError, type PageParams, type RepoContext } from "./base";
+import {
+  getClient,
+  MAX_PAGE_LIMIT,
+  normalizePage,
+  schoolIdOf,
+  throwIfError,
+  type PageParams,
+  type RepoContext,
+} from "./base";
 
 /**
  * Homework, as the product owner's specification of 2026-09-13 has it
@@ -313,6 +321,12 @@ export interface SchoolHomeworkRecord extends HomeworkRecord {
   classSection: string | null;
 }
 
+type HomeworkWithClassRow = HomeworkRow & { classes: { name: string | null; section: string | null } | null };
+
+function mapHomeworkWithClass(row: HomeworkWithClassRow): SchoolHomeworkRecord {
+  return { ...mapHomework(row), className: row.classes?.name ?? null, classSection: row.classes?.section ?? null };
+}
+
 /** Undeleted homework across the school, newest first, each with its class. */
 export async function listHomeworkForSchool(ctx: RepoContext, page?: PageParams): Promise<SchoolHomeworkRecord[]> {
   const { limit, offset } = normalizePage(page);
@@ -324,23 +338,73 @@ export async function listHomeworkForSchool(ctx: RepoContext, page?: PageParams)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
   throwIfError(error, "Failed to list school homework");
-  return (data ?? []).map((r) => {
-    const row = r as HomeworkRow & { classes: { name: string | null; section: string | null } | null };
-    return { ...mapHomework(row), className: row.classes?.name ?? null, classSection: row.classes?.section ?? null };
-  });
+  return (data ?? []).map((r) => mapHomeworkWithClass(r as HomeworkWithClassRow));
 }
 
-/** How many undeleted homework the school has in each status — exact counts, not a page. */
-export async function countHomeworkByStatus(ctx: RepoContext): Promise<Record<HomeworkStatus, number>> {
+/** Undeleted homework one person set, newest first, each with its class — optionally of one status. */
+export async function listHomeworkCreatedBy(
+  ctx: RepoContext,
+  userId: string,
+  page?: PageParams,
+  status?: HomeworkStatus,
+): Promise<SchoolHomeworkRecord[]> {
+  const { limit, offset } = normalizePage(page);
+  let q = getClient(ctx)
+    .from("homework")
+    .select(`${HW_SELECT}, classes(name, section)`)
+    .eq("school_id", schoolIdOf(ctx))
+    .eq("created_by", userId)
+    .is("deleted_at", null);
+  if (status) q = q.eq("status", status);
+  const { data, error } = await q.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+  throwIfError(error, "Failed to list the homework you have set");
+  return (data ?? []).map((r) => mapHomeworkWithClass(r as HomeworkWithClassRow));
+}
+
+/**
+ * Every published, undeleted homework of the school — id, class and deadline
+ * only — read page by page to the end, for counts that must not stop at a page.
+ */
+export async function listPublishedHomeworkDeadlines(
+  ctx: RepoContext,
+): Promise<{ id: string; classId: string; closesAt: string }[]> {
+  const out: { id: string; classId: string; closesAt: string }[] = [];
+  for (let offset = 0; ; offset += MAX_PAGE_LIMIT) {
+    const { data, error } = await getClient(ctx)
+      .from("homework")
+      .select("id, class_id, closes_at")
+      .eq("school_id", schoolIdOf(ctx))
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + MAX_PAGE_LIMIT - 1);
+    throwIfError(error, "Failed to load homework deadlines");
+    const page = (data ?? []) as { id: string; class_id: string; closes_at: string }[];
+    out.push(...page.map((r) => ({ id: r.id, classId: r.class_id, closesAt: r.closes_at })));
+    if (page.length < MAX_PAGE_LIMIT) break;
+  }
+  return out;
+}
+
+/**
+ * How many undeleted homework there are in each status — the school's, or one
+ * person's when `createdBy` is given. Exact counts, not a page.
+ */
+export async function countHomeworkByStatus(
+  ctx: RepoContext,
+  filter?: { createdBy?: string },
+): Promise<Record<HomeworkStatus, number>> {
   const statuses: HomeworkStatus[] = ["draft", "scheduled", "published", "archived"];
   const counts = await Promise.all(
     statuses.map(async (status) => {
-      const { count, error } = await getClient(ctx)
+      let q = getClient(ctx)
         .from("homework")
         .select("id", { count: "exact", head: true })
         .eq("school_id", schoolIdOf(ctx))
         .eq("status", status)
         .is("deleted_at", null);
+      if (filter?.createdBy) q = q.eq("created_by", filter.createdBy);
+      const { count, error } = await q;
       throwIfError(error, "Failed to count homework");
       return [status, count ?? 0] as const;
     }),
@@ -482,6 +546,29 @@ export async function listStandingsForHomework(ctx: RepoContext, homeworkId: str
   return (data ?? []).map((r) => mapStanding(r as StandingViewRow));
 }
 
+/**
+ * Every student's standing on every published homework of one class — a class
+ * of forty over a term is thousands of rows, so it is read page by page to the end.
+ */
+export async function listStandingsForClass(ctx: RepoContext, classId: string): Promise<HomeworkStandingRow[]> {
+  const out: HomeworkStandingRow[] = [];
+  for (let offset = 0; ; offset += MAX_PAGE_LIMIT) {
+    const { data, error } = await getClient(ctx)
+      .from("homework_student_status")
+      .select(STANDING_SELECT)
+      .eq("school_id", schoolIdOf(ctx))
+      .eq("class_id", classId)
+      .order("homework_id", { ascending: true })
+      .order("student_id", { ascending: true })
+      .range(offset, offset + MAX_PAGE_LIMIT - 1);
+    throwIfError(error, "Failed to load the class's homework standings");
+    const page = (data ?? []) as StandingViewRow[];
+    out.push(...page.map(mapStanding));
+    if (page.length < MAX_PAGE_LIMIT) break;
+  }
+  return out;
+}
+
 type CompletionViewRow = {
   homework_id: string | null;
   class_id: string | null;
@@ -494,30 +581,59 @@ type CompletionViewRow = {
   completion_pct: number | null;
 };
 
-/** `homework_completion` for the given homework, or for the whole school when `homeworkIds` is omitted. */
+const COMPLETION_SELECT =
+  "homework_id, class_id, students, given, awaiting_review, accepted, rejected, not_given, completion_pct";
+
+/** Ids per `in.(…)` filter: a hundred uuids keep the request line near 4 KB. */
+const COMPLETION_ID_CHUNK = 100;
+
+function mapCompletion(row: CompletionViewRow): HomeworkCompletionRow {
+  return {
+    homeworkId: String(row.homework_id),
+    classId: String(row.class_id),
+    students: Number(row.students ?? 0),
+    given: Number(row.given ?? 0),
+    awaitingReview: Number(row.awaiting_review ?? 0),
+    accepted: Number(row.accepted ?? 0),
+    rejected: Number(row.rejected ?? 0),
+    notGiven: Number(row.not_given ?? 0),
+    completionPct: Number(row.completion_pct ?? 0),
+  };
+}
+
+/**
+ * `homework_completion` for the given homework, or for the whole school when
+ * `homeworkIds` is omitted — all of it either way. The school's rows are read
+ * page by page (the API stops at its row limit, silently), and a long id list
+ * in chunks (one filter holding hundreds of ids outgrows the request line).
+ */
 export async function listCompletion(ctx: RepoContext, homeworkIds?: string[]): Promise<HomeworkCompletionRow[]> {
-  if (homeworkIds && homeworkIds.length === 0) return [];
-  let q = getClient(ctx)
-    .from("homework_completion")
-    .select("homework_id, class_id, students, given, awaiting_review, accepted, rejected, not_given, completion_pct")
-    .eq("school_id", schoolIdOf(ctx));
-  if (homeworkIds) q = q.in("homework_id", homeworkIds);
-  const { data, error } = await q;
-  throwIfError(error, "Failed to load homework completion");
-  return (data ?? []).map((row) => {
-    const r = row as CompletionViewRow;
-    return {
-      homeworkId: String(r.homework_id),
-      classId: String(r.class_id),
-      students: Number(r.students ?? 0),
-      given: Number(r.given ?? 0),
-      awaitingReview: Number(r.awaiting_review ?? 0),
-      accepted: Number(r.accepted ?? 0),
-      rejected: Number(r.rejected ?? 0),
-      notGiven: Number(r.not_given ?? 0),
-      completionPct: Number(r.completion_pct ?? 0),
-    };
-  });
+  const out: HomeworkCompletionRow[] = [];
+  if (homeworkIds) {
+    for (let i = 0; i < homeworkIds.length; i += COMPLETION_ID_CHUNK) {
+      const { data, error } = await getClient(ctx)
+        .from("homework_completion")
+        .select(COMPLETION_SELECT)
+        .eq("school_id", schoolIdOf(ctx))
+        .in("homework_id", homeworkIds.slice(i, i + COMPLETION_ID_CHUNK));
+      throwIfError(error, "Failed to load homework completion");
+      out.push(...(data ?? []).map((r) => mapCompletion(r as CompletionViewRow)));
+    }
+    return out;
+  }
+  for (let offset = 0; ; offset += MAX_PAGE_LIMIT) {
+    const { data, error } = await getClient(ctx)
+      .from("homework_completion")
+      .select(COMPLETION_SELECT)
+      .eq("school_id", schoolIdOf(ctx))
+      .order("homework_id", { ascending: true })
+      .range(offset, offset + MAX_PAGE_LIMIT - 1);
+    throwIfError(error, "Failed to load homework completion");
+    const page = (data ?? []) as CompletionViewRow[];
+    out.push(...page.map(mapCompletion));
+    if (page.length < MAX_PAGE_LIMIT) break;
+  }
+  return out;
 }
 
 /** The student hands in one file, through `rpc_homework_submit`. */

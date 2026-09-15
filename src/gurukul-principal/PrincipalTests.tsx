@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { TestService, TEST_KIND_LABELS, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { TestClassMarks, TestListRow } from "@/academic/services/testService";
 import { displaySubject, toCountLabel, toErrorMessage, toPersonName } from "@/lib/presentation";
 import { BackButton, EmptyState, Label, LoadingRow, Pill, SectionHeading } from "./primitives";
+import { classLabel, useSchoolClasses, type ClassRow } from "./useSchoolClasses";
 
 /**
  * THE PRINCIPAL'S TEST SCREENS, ON REAL DATA.
@@ -15,18 +15,17 @@ import { BackButton, EmptyState, Label, LoadingRow, Pill, SectionHeading } from 
  * on the class tab, the principal shall be able to see the test and the marks
  * each student has got."
  *
- * The principal portal (`autonomous-design/PrincipalPortalDesign.tsx`) has a
- * class → tests → marks flow already and its own header says what it is:
- * "Design-only: screens use fixture data from autonomous-design/data.ts. Not
- * wired to Academic Engine / Supabase." Its class ids are fixture strings that
- * exist in no database, so the marks behind that flow are invented and no
- * amount of wiring at the leaf could fix it.
+ * The principal portal (`autonomous-design/PrincipalPortalDesign.tsx`) had a
+ * class → tests → marks flow on fixture data from `autonomous-design/data.ts`,
+ * whose class ids exist in no database, so the marks behind that flow were
+ * invented and no amount of wiring at the leaf could fix it.
  *
  * So this is the same three screens, live: the school's real classes, each
  * class's real tests, and each student's real mark — using the portal's own
  * primitives so it reads as one product rather than a bolted-on panel. The
- * fixture screens are left exactly as they are; they are a design, and replacing
- * the whole portal is not this change.
+ * tests table and the marks screen are exported: the live Classes tab
+ * (`PrincipalClasses.tsx`, 2026-09-15) shows a class's tests through these same
+ * two components, so the two tabs cannot show a test differently.
  *
  * ── WHAT THE PRINCIPAL IS NOT SHOWN, AND WHY ────────────────────────────────
  *
@@ -43,8 +42,6 @@ type PrincipalTestScreen =
   | { id: "classes" }
   | { id: "class"; classId: string; className: string }
   | { id: "test"; classId: string; className: string; testId: string };
-
-type ClassRow = { id: string; name: string; section: string | null; students: number };
 
 export default function PrincipalTests() {
   const [screen, setScreen] = useState<PrincipalTestScreen>({ id: "classes" });
@@ -74,65 +71,9 @@ export default function PrincipalTests() {
   );
 }
 
-function classLabel(c: ClassRow): string {
-  return [c.name, c.section].filter(Boolean).join(" ");
-}
-
 /** Every class of this school, with how many students are on its roll. */
 function ClassesList({ onOpen }: { onOpen: (c: ClassRow) => void }) {
-  const { ctx, ready } = useAcademicContext();
-  const liveVersion = useAcademicLive(["test", "profile"]);
-  const [rows, setRows] = useState<ClassRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!ready || !ctx?.schoolId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data, error: classErr } = await supabase
-          .from("classes")
-          .select("id, name, section, is_active")
-          .eq("school_id", ctx.schoolId)
-          .eq("is_active", true)
-          .order("name", { ascending: true });
-        if (classErr) throw classErr;
-
-        const ids = (data ?? []).map((c) => String(c.id));
-        // One read for the roll counts rather than one per class.
-        const counts = new Map<string, number>();
-        if (ids.length > 0) {
-          const { data: students, error: stuErr } = await supabase
-            .from("students")
-            .select("id, class_id")
-            .eq("school_id", ctx.schoolId)
-            .is("deleted_at", null)
-            .in("class_id", ids);
-          if (stuErr) throw stuErr;
-          for (const s of students ?? []) {
-            const key = String((s as { class_id: string | null }).class_id ?? "");
-            if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
-          }
-        }
-
-        if (cancelled) return;
-        setRows(
-          (data ?? []).map((c) => ({
-            id: String(c.id),
-            name: String(c.name ?? ""),
-            section: (c as { section: string | null }).section ?? null,
-            students: counts.get(String(c.id)) ?? 0,
-          })),
-        );
-        setError(null);
-      } catch (e) {
-        if (!cancelled) setError(toErrorMessage(e, "Could not load the school's classes"));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, ctx, liveVersion]);
+  const { rows, error } = useSchoolClasses();
 
   return (
     <div className="p-8 scroll-y h-full">
@@ -178,7 +119,7 @@ function ClassesList({ onOpen }: { onOpen: (c: ClassRow) => void }) {
   );
 }
 
-/** The tests of one class, newest first, with how many have handed in. */
+/** The tests of one class, as a screen of its own. */
 function ClassTests({
   classId,
   className,
@@ -190,6 +131,18 @@ function ClassTests({
   onBack: () => void;
   onOpenTest: (testId: string) => void;
 }) {
+  return (
+    <div className="p-8 scroll-y h-full">
+      <BackButton onClick={onBack} />
+      <Label>Tests</Label>
+      <SectionHeading>{className}</SectionHeading>
+      <ClassTestsTable classId={classId} onOpenTest={onOpenTest} />
+    </div>
+  );
+}
+
+/** The tests of one class, newest first, with how many have handed in. */
+export function ClassTestsTable({ classId, onOpenTest }: { classId: string; onOpenTest: (testId: string) => void }) {
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["test", "profile"]);
   const [tests, setTests] = useState<TestListRow[] | null>(null);
@@ -215,10 +168,7 @@ function ClassTests({
   }, [ready, ctx, classId, liveVersion]);
 
   return (
-    <div className="p-8 scroll-y h-full">
-      <BackButton onClick={onBack} />
-      <Label>Tests</Label>
-      <SectionHeading>{className}</SectionHeading>
+    <>
       <div className="text-sm text-muted-foreground mb-6">
         {tests === null ? "Loading…" : `${tests.length} test${tests.length === 1 ? "" : "s"}`}
       </div>
@@ -279,12 +229,12 @@ function ClassTests({
           ))
         )}
       </div>
-    </div>
+    </>
   );
 }
 
 /** One test: the class average, and every student's mark. */
-function TestMarks({
+export function TestMarks({
   classId,
   className,
   testId,

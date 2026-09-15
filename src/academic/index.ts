@@ -184,6 +184,7 @@ export type {
 } from "./services/homeworkService";
 export {
   homeworkStanding,
+  homeworkOutcome,
   homeworkHasClosed,
   canHandIn,
   HOMEWORK_STANDING_LABELS,

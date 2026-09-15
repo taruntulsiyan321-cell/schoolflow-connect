@@ -509,6 +509,31 @@ applied** — see HANDOFF.md.
 47. **A parent sees the homework as their child does** (§10.15): what was set — typed or its
     file — the deadline, where the child stands, and the file the child handed in. The teacher's
     comment §10.15 also names does not exist any more (rule 38).
+48. **The principal sees each class's homework on the Classes tab, as it happens.** Every active
+    class with its roll, the homework released to it, the share of homework **that has closed**
+    that was handed in — no rate while nothing has closed, never 0% — and the hand-ins waiting on a
+    teacher. A class opens onto its released homework, each student's homework record and its
+    tests; a homework onto its question and every student's standing and file. The screens move
+    when homework or a hand-in changes. The principal reads; accepting and rejecting stay with the
+    subject's teachers (rule 46).
+49. **Homework has a report of who did it.** One homework's report — every student it was set to,
+    in roll order: done (`given`), standing, when handed in, when decided, the file — downloads
+    from the teacher's review screen and the principal's homework screen, built by one function. A
+    class's report — for each student: set, done, accepted, awaiting review, missed at the
+    deadline, still to do — downloads from the principal's Students tab.
+50. **Done, missed and still to do are decided once** (`homeworkOutcome`): done is `given`; missed
+    is not given once the deadline has passed; everything else is still to do, a rejection that can
+    still be handed in again included. The student's profile, the class report and every count use
+    it. The teacher's profile carries the homework they have set and the hand-ins waiting on them.
+51. **A parent's notification opens a parent page.** A notification about a child points at the
+    parent page that shows the same thing — homework and attendance on My Children, tests and marks
+    on Marks, notices on Notices, anything else on the dashboard (`parent_link_for`,
+    `20260925180000`) — and tapping it opens that page.
+52. **A notification reaches the phone.** Every notification written for someone with a registered
+    phone — student, parent or teacher — is sent to that phone within about a minute, once, and
+    tapping it opens its page; one not sent within 30 minutes is not sent at all (`20260925190000`,
+    `notification-push`). A phone registers when its owner signs in to the Android app and allows
+    notifications; the web app has no push.
 
 **Assumptions proceeded on, as the brief allowed — they are not rulings.**
 * A student may replace their file, or hand in again after a rejection, only before the

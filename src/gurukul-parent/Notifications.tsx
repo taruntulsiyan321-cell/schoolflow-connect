@@ -1,12 +1,14 @@
 ﻿import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { withAlpha } from "@/lib/colorAlpha";
 import {
   Bell, UserCheck, BookOpen, ClipboardList, Megaphone, MessageSquare,
   Calendar, Check, CheckCheck, Trash2, Loader2,
 } from "lucide-react";
 import { cn } from "./shared";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 import { humanizeEnumValue } from "@/lib/presentation";
+import { parentLinkOf } from "./nav";
 
 const typeConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
   attendance: { icon: <UserCheck className="w-3.5 h-3.5" />, color: "hsl(var(--primary))", label: "Attendance" },
@@ -21,10 +23,20 @@ const typeConfig: Record<string, { icon: React.ReactNode; color: string; label: 
 
 /**
  * Parent notifications — live `notifications` rows via useNotifications.
+ *
+ * A notification opens what it is about: the parent page `parentLinkOf` finds
+ * in its link. This page used to open nothing at all.
  */
 export default function ParentNotifications() {
   const { items, unread, loading, error, markRead, markAllRead, remove } = useNotifications();
   const [filterType, setFilterType] = useState("all");
+  const navigate = useNavigate();
+
+  const open = (n: AppNotification) => {
+    if (!n.read) void markRead(n.id);
+    const link = parentLinkOf(n);
+    if (link) navigate(link);
+  };
 
   const types = Array.from(new Set(items.map((n) => n.type)));
   const filtered = items.filter((n) => filterType === "all" || n.type === filterType);
@@ -101,8 +113,18 @@ export default function ParentNotifications() {
           return (
             <div
               key={n.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => open(n)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  open(n);
+                }
+              }}
               className={cn(
                 "flex items-start gap-3 p-4 rounded-[2px] border transition-all group",
+                parentLinkOf(n) ? "cursor-pointer hover:border-primary/40" : "cursor-default",
                 n.read ? "bg-surface border-border/70" : "bg-primary/5 border-primary/20",
               )}
             >
@@ -132,7 +154,10 @@ export default function ParentNotifications() {
                     {!n.read && (
                       <button
                         type="button"
-                        onClick={() => void markRead(n.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void markRead(n.id);
+                        }}
                         title="Mark as read"
                         className="w-6 h-6 rounded-lg bg-primary/15 text-primary flex items-center justify-center hover:bg-primary/25 transition-all"
                       >
@@ -141,7 +166,10 @@ export default function ParentNotifications() {
                     )}
                     <button
                       type="button"
-                      onClick={() => void remove(n.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void remove(n.id);
+                      }}
                       title="Delete"
                       className="w-6 h-6 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center hover:bg-destructive/25 transition-all"
                     >

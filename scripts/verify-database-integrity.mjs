@@ -240,6 +240,42 @@ async function main() {
     (r) => (r[0]?.prosrc ?? "").includes("_notify_student_parents(") && !(r[0]?.prosrc ?? "").includes("FROM public.parent_students"),
   );
   await check(
+    "a parent's notification opens a parent page: _notify_student_parents sends parent_link_for(_link) (20260925180000)",
+    "SELECT prosrc FROM pg_proc WHERE oid = 'public._notify_student_parents(uuid,text,text,text,text,text)'::regprocedure",
+    (r) => (r[0]?.prosrc ?? "").includes("public.parent_link_for(_link)"),
+  );
+  await check(
+    "no notification held only by a parent points into the student panel (20260925180000)",
+    `SELECT count(*) FROM notifications n
+      WHERE n.link ~ '^/student(/|$)'
+        AND (EXISTS (SELECT 1 FROM parents p WHERE p.user_id = n.user_id)
+             OR EXISTS (SELECT 1 FROM students s WHERE s.parent_user_id = n.user_id))
+        AND NOT EXISTS (SELECT 1 FROM students s WHERE s.user_id = n.user_id)`,
+    (r) => count(r) === 0,
+  );
+  // The queue is drained every minute and anything 30 minutes old is settled,
+  // so a row waiting past 35 minutes means the dispatch has stopped running.
+  await check(
+    "every notification is sent to the phone or settled within its half hour: none has waited 35 minutes (20260925190000)",
+    "SELECT count(*) FROM notifications WHERE pushed_at IS NULL AND created_at < now() - interval '35 minutes'",
+    (r) => count(r) === 0,
+  );
+  await check(
+    "the push dispatch is scheduled every minute and active (20260925190000)",
+    "SELECT schedule, command, active FROM cron.job WHERE jobname = 'push-notifications-to-phones'",
+    (r) => r.length === 1 && r[0].schedule === "* * * * *" && r[0].active === true &&
+      r[0].command === "SELECT public.dispatch_notification_push()",
+  );
+  await check(
+    "only service_role claims notifications for push, and no signed-in session dispatches them (20260925190000)",
+    `SELECT (has_function_privilege('authenticated', 'public.claim_notifications_for_push(integer)', 'EXECUTE')
+          OR has_function_privilege('anon', 'public.claim_notifications_for_push(integer)', 'EXECUTE')
+          OR has_function_privilege('authenticated', 'public.dispatch_notification_push()', 'EXECUTE')
+          OR has_function_privilege('anon', 'public.dispatch_notification_push()', 'EXECUTE')) AS open,
+            has_function_privilege('service_role', 'public.claim_notifications_for_push(integer)', 'EXECUTE') AS sender`,
+    (r) => r[0]?.open === false && r[0]?.sender === true,
+  );
+  await check(
     "a hand-in is ONE image or PDF: homework_submissions_file_shape is homework_hand_in_ok()",
     "SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'homework_submissions_file_shape'",
     (r) => (r[0]?.def ?? "").includes("homework_hand_in_ok"),
