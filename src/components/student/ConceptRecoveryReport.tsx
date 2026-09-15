@@ -243,9 +243,19 @@ export function ConceptRecoveryReport({
         </div>
       )}
 
-      {(report.recovery_assignments ?? []).length > 0 && (
+      {/*
+        This used to count recovery_assignments the report created for itself:
+        one row per weak concept, written by rpc_post_assessment_concept_analysis
+        on the FIRST wrong answer. That engine is gone (20260926000000) and the
+        count with it — recovery now unlocks per CHAPTER at
+        RECOVERY_TRIGGER_COUNT open mistakes, which this report cannot know
+        without asking the engine. So the button offers the screen and says
+        nothing it cannot back up; Recovery itself shows how close each chapter
+        is, "3 of 5" included.
+      */}
+      {weak.length > 0 && (
         <Button asChild size="sm">
-          <Link to="/student/recovery">Fix my mistakes ({report.recovery_assignments.length} queued)</Link>
+          <Link to="/student/recovery">Fix my mistakes</Link>
         </Button>
       )}
     </Card>

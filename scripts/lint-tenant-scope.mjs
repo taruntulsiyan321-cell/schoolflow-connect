@@ -47,7 +47,7 @@ const SCHOOL_SCOPED_TABLES = [
   "messages", "notices", "notifications", "parent_academic_alerts",
   "parent_students", "parents", "practice_sessions", "profiles", "progression_history",
   "progression_league_history", "question_attempts", "question_bank", "question_records",
-  "question_templates", "recovery_assignment_questions", "recovery_assignments",
+  "question_templates",
   "revision_queue", "school_activity_feed", "school_calendar_events", "school_complaints",
   "student_academic_brain", "student_academic_profiles",
   "student_badges", "student_improvement_plans", "student_mistakes", "student_question_history",
@@ -212,11 +212,7 @@ const ALLOWLIST = {
   rpc_get_concept_recovery_report: "Self-scoped; _source_id is an additional filter alongside user_id = auth.uid().",
   rpc_post_assessment_concept_analysis: "Self-scoped; same pattern as rpc_get_concept_recovery_report.",
   rpc_save_practice_session: "WHERE id = _session_id AND user_id = auth.uid() -- ownership-scoped.",
-  rpc_complete_revision: "rpc_complete_revision's UPDATE is WHERE id=_id AND user_id=auth.uid() -- ownership-scoped (read body earlier this session).",
-  rpc_get_recovery_assignment: "WHERE id = _assignment_id AND user_id = auth.uid() -- ownership-scoped (read body earlier this session).",
-  rpc_complete_recovery_assignment: "Same ownership-scoping as rpc_get_recovery_assignment (read body earlier this session).",
   rpc_record_concept_mistake: "Self-scoped via auth.uid(); _source_id/_question_id are opaque grouping keys, not lookups into another user's data (read body earlier this session).",
-  rpc_assign_concept_recovery: "Internal helper called only from rpc_record_concept_mistake/rpc_post_assessment_concept_analysis with an already-derived auth.uid(); not independently exploitable.",
   rpc_challenge_student: "Explicitly checks student_class_id(_opponent_user_id) matches the caller's own class before allowing a challenge -- can't target a cross-class/cross-school opponent (read body 2026-08-22).",
   rpc_accept_battle_invite: "Checks _inv.invited_user_id = auth.uid() before accepting -- ownership-scoped (read body 2026-08-22).",
   rpc_mark_group_messages_read: "WHERE conversation_id = _id AND user_id = auth.uid() -- only ever touches the caller's own read receipt.",
@@ -229,8 +225,48 @@ const ALLOWLIST = {
   rpc_academic_revision_plan: "No parameters; self-scoped via auth.uid().",
   rpc_student_performance_charts: "No parameters; self-scoped via auth.uid().",
   rpc_student_revision_queue: "No parameters; self-scoped via auth.uid().",
+
+  // The 7C recovery/revision engine. chapter_state, recovery_sessions and
+  // revision_sessions all carry school_id and all have the same RESTRICTIVE
+  // tenant fence, but none of these three functions names it — they do not
+  // have to. Each resolves the student from auth.uid() and takes no argument
+  // that could point at another row, so there is nothing for a school_id
+  // predicate to narrow that auth.uid() has not already narrowed to one user.
+  rpc_student_chapter_states: "No parameters; self-scoped via auth.uid(). Reads chapter_state/chapters/curriculum_subjects for that one user only.",
+  rpc_student_recovery_queue: "No parameters; self-scoped via auth.uid(). Groups the caller's own open student_mistakes and LEFT JOINs their own chapter_state.",
+
+  // Takes two ids and reads them BOTH under auth.uid() before touching
+  // anything: the recovery session by (id, user_id), the practice session by
+  // (id, user_id), and the answers by (session_id, user_id). The tier counts
+  // are then joined to that recovery session's own stored question ids, so a
+  // handed-over id belonging to somebody else selects nothing rather than
+  // scoring something. Its writes are UPDATE ... WHERE id = the row already
+  // proved to be the caller's, and chapter_state WHERE user_id = auth.uid().
+  // There is no argument through which another school's row is reachable, so
+  // there is nothing for a school_id predicate to narrow. Read body 2026-09-14.
+  rpc_submit_recovery_session: "Every read and write is scoped to auth.uid() before use; the two id arguments are verified against the caller and the per-tier counts join to that session's own stored question ids.",
+
+  // BEFORE INSERT/UPDATE on student_mistakes. It reads exactly one row of
+  // question_bank — WHERE qb.id = NEW.question_id — and writes only
+  // NEW.chapter_id. question_bank is the shared national bank and carries no
+  // school_id of its own, so there is no tenant column to predicate on, and
+  // the only row it can reach is the one the writer already named. The
+  // student_mistakes row itself is fenced by that table's own policy.
+  tg_student_mistakes_set_chapter_id: "Trigger on student_mistakes: derives NEW.chapter_id from the one question_bank row NEW.question_id names. Writes only NEW; reads no tenant-scoped row.",
+
+  // Dropped from the database by 20260926000000_one_recovery_engine.sql along
+  // with recovery_assignments and recovery_assignment_questions. This linter
+  // scans migration FILES, so the CREATE statements that defined them are
+  // still on disk and still scanned; the functions themselves no longer
+  // exist and cannot be called. Verified live after the drop: zero functions
+  // in pg_proc mention recovery_assignment at all.
+  rpc_assign_concept_recovery: "Dropped by 20260926000000; only the historical CREATE in 20260821120000 remains on disk.",
+  rpc_complete_recovery_assignment: "Dropped by 20260926000000; only the historical CREATE remains on disk.",
+  rpc_get_recovery_assignment: "Dropped by 20260926000000; only the historical CREATE in 20260617000000 remains on disk.",
+  rpc_student_recovery_zone: "Dropped by 20260926000000; only the historical CREATE in 20260802330000 remains on disk.",
+  rpc_submit_recovery_answer: "Dropped by 20260926000000; only the historical CREATE remains on disk.",
+  rpc_complete_revision: "Dropped by 20260926000000 together with its only caller, PracticeService.completeRevision; only the historical CREATE in 20260616000000 remains on disk.",
   rpc_student_improvement_plans: "No parameters; self-scoped via auth.uid().",
-  rpc_student_recovery_zone: "No parameters; self-scoped via auth.uid().",
   rpc_student_concept_mastery: "No parameters; self-scoped via auth.uid().",
   rpc_weak_areas_v2: "No parameters; self-scoped via auth.uid().",
   rpc_revision_plan_v2: "No parameters; self-scoped via auth.uid().",
@@ -264,7 +300,24 @@ const ALLOWLIST = {
   _recovery_variant_pool:
     "SECURITY INVOKER. Reads question_bank and nothing else. question_bank is a G2 GLOBAL table with NO school_id column at all (7A: 'Shared across every school. No institution_id'), so there is no tenant predicate available to add. The filter it must honour is the BOARD filter, and that lives in the RLS policy qb_select_approved_board — it applies precisely because this is not a definer. That is the reason for the invoker choice rather than an accident of it: 7A §8 records rpc_dpp_pick_from_bank as the counter-example, a definer over the same table with 'no board filter, NO class filter at all'.",
   rpc_recovery_session_plan:
-    "SECURITY INVOKER. Reads student_mistakes (own rows only, via its user_id = auth.uid() policy) and question_bank (G2 global, board-filtered by policy). Every row it can return is either the caller's own mistake or a globally shared bank question, so there is no other tenant's data in reach to predicate against. Entitlement is enforced before any read by _recovery_chapter_is_mine, which requires the chapter's curriculum subject to be taught by the caller's OWN section — the doc's 'a Class 5 student is never served Class 8 content, enforced in the query layer'. CHUNK7C_C1_VERIFY item 6 asserts that behaviourally by planning an unentitled chapter and requiring a RAISE.",
+    "SECURITY INVOKER. Reads student_mistakes (own rows only, via its user_id = auth.uid() policy) and question_bank (G2 global, board-filtered by policy). Every row it can return is either the caller's own mistake or a globally shared bank question, so there is no other tenant's data in reach to predicate against. Entitlement is enforced before any read by _recovery_chapter_is_mine, which requires the chapter's curriculum subject to be taught by the caller's OWN section — the doc's 'a Class 5 student is never served Class 8 content, enforced in the query layer'. CHUNK7C_C1_VERIFY item 6 asserts that behaviourally by planning an unentitled chapter and requiring a RAISE. Since 20261009000000 the body is one line delegating to _recovery_session_plan_for(auth.uid(), ...), which carries the same reasoning below.",
+
+  // --- Chunk 7F, 2026-09-15 ---
+  // The loop was rebuilt so a recovery session is prepared when the practice
+  // session ENDS. That step runs as a background part of the finish path,
+  // where auth.uid() is not available, so the two functions above were split
+  // into an implementation taking the user explicitly and an auth.uid() form
+  // delegating to it. These are the implementations.
+  _recovery_chapter_is_for:
+    "SECURITY INVOKER (no DEFINER clause in 20261009000000; absent from lint-definer-doors' definer inventory, which is the cross-check). The body of _recovery_chapter_is_mine with auth.uid() lifted into a parameter, and nothing else changed — same three tables, same join, same reasoning, which is why the entry above now points here. Touches chapters (G2 GLOBAL, no school_id to predicate on) plus section_subjects and students, both of which carry their own RESTRICTIVE tenant fences that apply BECAUSE this runs as the caller. The _uid parameter does not widen it: the fences still bound what this caller can see of students and section_subjects, so passing another school's user id returns false rather than that user's entitlement. Its one non-auth.uid() caller is _apply_chapter_state, which passes practice_sessions.user_id for the session it was handed — the student's own id, not an arbitrary one.",
+  _enqueue_variant_generation:
+    "SECURITY DEFINER, and callable by nobody: 20261012000000 REVOKEs it from anon and authenticated, so the only caller is _ensure_recovery_session inside the practice-finish path. It reads question_bank and writes variant_generation_queue, and NEITHER carries a school_id. question_bank is a G2 GLOBAL table (7A: 'Shared across every school. No institution_id'); the queue is keyed on (source question, tier) and deliberately not on the student, because §4.2a's economics depend on one generation serving every student who fails that question — adding a school_id would be the bug, not the fix, since it would make forty schools pay forty times for the same variant. The jsonb plan it is handed is produced by _recovery_session_plan_for for one named student, so the question ids it can reach are that student's own mistakes.",
+  dispatch_variant_generation:
+    "SECURITY DEFINER cron drain, REVOKEd from anon and authenticated by 20261012000000; its only caller is the pg_cron job drain-variant-generation, running as postgres. It touches variant_generation_queue (no school_id — see above) and reads question_bank (G2 global, no school_id column exists) to resolve finished jobs. It reads no per-student table at all: a job names a QUESTION and a tier, never a user, which is the whole point of caching by question. The one credential it handles is the vault secret variant_generation_drain, deliberately not the service-role key, so a reader of pg_proc finds a single-purpose token rather than a master one. Same shape as dispatch_notification_push, already in production.",
+  rpc_revision_session_plan:
+    "SECURITY INVOKER (no DEFINER clause in 20261008000000). Reads student_mistakes (own rows only, via its user_id = auth.uid() policy), question_bank (G2 GLOBAL, no school_id column to predicate on, board-filtered by qb_select_approved_board because this is not a definer), question_attempts (own rows only, same shape) and chapter_state (own rows only). Every row in reach is either the caller's own or a globally shared bank question, so there is no other tenant's data to predicate against. Entitlement is enforced BEFORE any read by _recovery_chapter_is_mine, which raises rather than filtering — the same fence rpc_recovery_session_plan carries, and for the same reason: a Class 5 student must never be served Class 8 content, enforced in the query layer. CHUNK7F_REVISION_CONTENT_VERIFY drives it under set_config('request.jwt.claims') as a real student, so the policies are live during that suite.",
+  _recovery_session_plan_for:
+    "SECURITY INVOKER. The body of rpc_recovery_session_plan with auth.uid() lifted into a parameter; the entry above is now a one-line delegation to it. Reads student_mistakes and question_bank, exactly as before. student_mistakes' own policy is user_id = auth.uid(), which is what actually bounds the read — so under a caller who is not _uid the function returns an empty ladder rather than another student's mistakes, and the _uid parameter cannot be used to read across users. Entitlement is still enforced before any read, by _recovery_chapter_is_for. CHUNK7F_LADDER_SIZED_BY_MISTAKES_VERIFY drives it under set_config('request.jwt.claims') as a real student, so the policy is live during that suite rather than bypassed.",
 };
 
 // Lower-priority, NOT fixed by this audit (documented, not silently ignored):

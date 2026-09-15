@@ -11,7 +11,6 @@ import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { StudentErrorState, StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 import { generateAiPracticeQuestions } from "@/lib/aiPracticeQuestions";
-import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import {
   completePracticeSession,
   recordPracticeAttemptBestEffort,
@@ -171,16 +170,6 @@ export default function Class12AiSession() {
       solutionViewed: true,
       templateId: current.templateId ?? null,
     });
-
-    if (!ok) {
-      void assignRecoveryOnMistake({
-        subject,
-        chapter,
-        concept: chapter,
-        sourceType: "practice_session",
-        sourceId: sessionId,
-      });
-    }
 
     const saved = await recordPracticeAttemptBestEffort({
       sessionId,

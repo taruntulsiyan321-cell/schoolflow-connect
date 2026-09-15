@@ -18,8 +18,22 @@ export type AcademicSnapshot = {
   homework?: { pending: number; completed: number };
   test?: { open: number; completed: number };
   weak_topics?: { subject: string; chapter?: string; topic?: string; accuracy: number }[];
-  revision_queue?: { id: string; subject: string; topic?: string; chapter?: string; priority: number; due_date: string }[];
+  /**
+   * Chapters whose §5.3 revision date has arrived, from chapter_state — the
+   * same source the Revision screen reads.
+   *
+   * It replaced `revision_queue`, which served up to ten rows of the AI
+   * layer's weak-TOPIC worklist. Nothing ever read those rows; Dashboard and
+   * LearningHub both took `.length`, and that length disagreed with the
+   * Revision screen next to it because the two counted different things.
+   */
+  revision_due?: number;
   mistake_count?: number;
+  /**
+   * Chapters at RECOVERY_TRIGGER_COUNT open mistakes — what Recovery calls
+   * `ready`. Was a count of open recovery_assignments rows until
+   * 20260926000000 dropped that engine.
+   */
   recovery_pending?: number;
   weak_concepts?: { subject: string; concept: string; mastery_score: number }[];
   self_practice?: { sessions_completed: number };

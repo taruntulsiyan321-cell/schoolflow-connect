@@ -6,14 +6,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart2, Check, Lightbulb, Save, Target, Timer, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, BarChart2, Check, CheckCircle2, Lightbulb, Save, Target, Timer, X } from "lucide-react";
 import { ScoreRing } from "@/components/student/ScoreRing";
 // The STUDENT panel header, not ui-bits'. Both export a `PageHeader` with the
 // same props and different designs — text-3xl display face with a 0.2em eyebrow
 // here, text-[28px] with a bottom rule and a primary eyebrow there — so a
 // student crossing from a gurukul screen into this one saw the page title
 // change size, weight and typeface. That is the two-halves split in one import.
-import { PageHeader } from "@/gurukul/components/shared";
+import { GlassCard, PageHeader } from "@/gurukul/components/shared";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
@@ -33,6 +33,8 @@ import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSess
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
+import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
+import { revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -88,6 +90,15 @@ export default function PracticeSessionResult() {
     if (id) return readLocalState(id);
     return null;
   }, [location.state, id]);
+
+  // Only ever present on a recovery session, and only from this navigation:
+  // it is the engine's verdict on the session that just finished, not a fact
+  // about the practice_sessions row, so it is never re-read from the database.
+  const recovery = localState?.recovery ?? null;
+
+  // Same rule, same reason: §5.5 decided pass or fail and §5.3 scheduled the
+  // next date, both server-side. This screen quotes them.
+  const revision = localState?.revision ?? null;
 
   const [session, setSession] = useState<SessionRow | null>(null);
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);
@@ -378,6 +389,172 @@ export default function PracticeSessionResult() {
               : "Just now"
         }`}
       />
+
+      {/* §4.2b — the recovery verdict, and it is deliberately TWO figures.
+          "You can do the steps but the idea isn't solid yet" is actionable;
+          a single blended 74% is not, and the spec calls that out by name.
+          Rendered from the engine's own answer, never recomputed here. */}
+      {recovery && (
+        <GlassCard className="p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div
+              className={cn(
+                "w-7 h-7 rounded-lg flex items-center justify-center",
+                recovery.outcome === "ready" ? "bg-emerald-500/15" : "bg-amber-500/15",
+              )}
+            >
+              {recovery.outcome === "ready"
+                ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                : <AlertCircle className="w-4 h-4 text-amber-400" />}
+            </div>
+            <div>
+              <div className="text-sm font-bold text-foreground">
+                {recovery.outcome === "ready" ? "Chapter recovered" : "Not solid yet"}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {recoveryVerdictLine(recovery)}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              {
+                label: "Running the steps",
+                sub: "the questions and their variants",
+                rate: recovery.procedural_rate,
+                passed: recovery.procedural_passed,
+              },
+              {
+                label: "Understanding it",
+                sub: "the idea reframed and applied",
+                rate: recovery.conceptual_rate,
+                passed: recovery.conceptual_passed,
+              },
+            ].map((r) => (
+              <div
+                key={r.label}
+                className="p-3 rounded-xl border border-border/70 bg-surface/60"
+              >
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                  {r.label}
+                </div>
+                <div
+                  className={cn(
+                    "text-xl font-black tabular-nums",
+                    r.passed ? "text-emerald-400" : "text-amber-400",
+                  )}
+                >
+                  {/* A rate over zero questions is absent, not 0% — the tier
+                      had nothing in it, which is a different statement. */}
+                  {r.rate == null ? "—" : `${Math.round(r.rate * 100)}%`}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{r.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {recovery.outcome === "ready" && recovery.next_revision_at && (
+            <p className="text-[11px] text-muted-foreground mt-3">
+              Next revision check on{" "}
+              {new Date(recovery.next_revision_at).toLocaleDateString(undefined, {
+                day: "numeric", month: "short",
+              })}
+              .
+            </p>
+          )}
+        </GlassCard>
+      )}
+
+      {/* §5.3/§5.5 — the revision verdict. A session is a recovery session or
+          a revision check, never both, so this and the card above cannot
+          stack. Every figure here is the engine's: the threshold it passed,
+          the rung it was for, the streak it is on, and the date it wrote. */}
+      {revision && (
+        <GlassCard className="p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div
+              className={cn(
+                "w-7 h-7 rounded-lg flex items-center justify-center",
+                revision.passed ? "bg-emerald-500/15" : "bg-amber-500/15",
+              )}
+            >
+              {revision.passed
+                ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                : <AlertCircle className="w-4 h-4 text-amber-400" />}
+            </div>
+            <div>
+              <div className="text-sm font-bold text-foreground">
+                {revision.solid
+                  ? "Chapter solid"
+                  : revision.passed
+                    ? "Revision check passed"
+                    : "Revision check not passed"}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {revisionVerdictLine(revision)}
+              </div>
+              {/* §5.4's two halves. The percentage above blends them; this
+                  line is the only place the student is told WHICH half went,
+                  and "you fixed the old ones, the new material faded" is a
+                  different instruction from "you still miss the same two". */}
+              {revisionSplitLine(revision) && (
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  {revisionSplitLine(revision)}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl border border-border/70 bg-surface/60">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                This check
+              </div>
+              <div
+                className={cn(
+                  "text-xl font-black tabular-nums",
+                  revision.passed ? "text-emerald-400" : "text-amber-400",
+                )}
+              >
+                {Math.round(revision.rate * 100)}%
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                check {revision.stage} of the {revision.stages_to_solid}-step ladder
+              </div>
+              {(revision.mistake_total > 0 || revision.fresh_total > 0) && (
+                <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+                  {revision.mistake_correct}/{revision.mistake_total} old ·{" "}
+                  {revision.fresh_correct}/{revision.fresh_total} new
+                </div>
+              )}
+            </div>
+            <div className="p-3 rounded-xl border border-border/70 bg-surface/60">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                In a row
+              </div>
+              <div className="text-xl font-black tabular-nums text-foreground">
+                {revision.consecutive_passes}
+                <span className="text-sm text-muted-foreground">/{revision.stages_to_solid}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                consecutive passes needed
+              </div>
+            </div>
+          </div>
+
+          {/* A solid chapter still has a date, at the long interval. Missing
+              is now genuinely missing, and saying "off the list" for it would
+              promise something the engine no longer does. */}
+          <p className="text-[11px] text-muted-foreground mt-3">
+            {revision.next_revision_at
+              ? `Next check on ${new Date(revision.next_revision_at).toLocaleDateString(undefined, {
+                  day: "numeric", month: "short",
+                })}.`
+              : "No next check scheduled for this chapter."}
+          </p>
+        </GlassCard>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-6">
         <Button

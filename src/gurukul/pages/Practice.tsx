@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicContext, PracticeService, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
+import { useAcademicContext, PracticeService, RecoveryEngineService, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
 import type { PracticeSessionRow } from "@/academic";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
@@ -45,10 +45,24 @@ const CLASS_LEVEL_UNRESOLVED_MSG =
 // ── Types ────────────────────────────────────────────────────────────────────
 type Phase   = "hub" | "config" | "session" | "feedback" | "summary";
 type Cat     = "all" | "content" | "source" | "type" | "targeted";
+/**
+ * The nine modes a student can pick, plus "recovery".
+ *
+ * "recovery" is deliberately NOT in MODES: it has no hub tile because nobody
+ * chooses it — Recovery builds the §4.2 ladder and hands the session over. It
+ * is in the union so the session it hands over is RECORDED as what it is.
+ * Before this it borrowed "weak", and a recovery session showed up in practice
+ * history as "Weak Areas Practice", which is a different thing a student can
+ * actually start.
+ *
+ * Everything that looks a mode up in MODES must therefore tolerate a miss —
+ * see the `Config` component, which is never rendered for a recovery session
+ * but no longer asserts its way out of that.
+ */
 type ModeKey =
   | "subject" | "chapter" | "topic" | "custom"
   | "pyq" | "weak" | "incorrect" | "skipped"
-  | "bookmarked";
+  | "bookmarked" | "recovery";
 
 interface Mode {
   key: ModeKey; label: string; desc: string;
@@ -121,7 +135,11 @@ type HistoryRow = {
 
 function formatDurationMs(ms: number | null | undefined, startIso?: string, endIso?: string) {
   if (typeof ms === "number" && ms > 0) {
-    const mins = Math.max(1, Math.round(ms / 60000));
+    // Below a minute, say seconds. This floored to Math.max(1, …), so a
+    // seven-second session was reported as "1m" — a rounding that only ever
+    // rounds up, against a student who can see they were faster than that.
+    if (ms < 60000) return `${Math.max(1, Math.round(ms / 1000))}s`;
+    const mins = Math.round(ms / 60000);
     if (mins >= 60) {
       const h = Math.floor(mins / 60);
       const m = mins % 60;
@@ -582,7 +600,11 @@ function ConfigView({
   classUnresolved?: boolean;
   classUnresolvedMessage?: string;
 }) {
-  const mode = MODES.find(m => m.key === modeKey)!;
+  // Not `!`. "recovery" has no MODES entry by design, and although Recovery
+  // jumps straight to the session phase and never renders this screen, an
+  // assertion that is only safe because of a control-flow accident elsewhere
+  // is one refactor away from a blank page.
+  const mode = MODES.find(m => m.key === modeKey) ?? MODES.find(m => m.key === "chapter")!;
   const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
   const navigate = useNavigate();
 
@@ -1103,6 +1125,73 @@ interface SessionConfig {
    * KNOWN_ISSUES so it is not mistaken for live code.
    */
   resumeSessionId?: string | null;
+  /**
+   * §5.4 — set when this session IS a revision check for that chapter.
+   *
+   * A revision check is not a separate kind of question-runner; it is a
+   * practice session with a purpose, so it reuses this one rather than
+   * standing up a second screen that would drift from it. What makes it a
+   * check is where the score goes at the end: rpc_submit_revision_session,
+   * which walks the weekly ladder and decides pass or fail server-side
+   * against REVISION_PASS_THRESHOLD.
+   *
+   * ── WHY THIS CARRIES QUESTION IDS AND NOT JUST A CHAPTER ──────────────
+   *
+   * It used to be a bare chapter UUID, and the session then loaded questions
+   * the ordinary way — by chapter name, from the bank. The ordinary loader has
+   * no concept of "seen", so §5.4's "fresh questions… never seen by this
+   * student. Never the old questions" was enforced by nothing at all. Measured:
+   * 2 of 8 questions in a sampled check had already been answered by that
+   * student, which makes the check a test of last week rather than of
+   * retention.
+   *
+   * The contents are now decided by rpc_revision_session_plan, which can see
+   * the student's whole attempt history, and they travel here as ids for the
+   * same reason the recovery ladder does: the plan is not persisted, so a URL
+   * could not carry it and re-deriving it here would drift from what the
+   * student was actually shown.
+   *
+   * The chapter is a UUID, never a chapter name — §2, and the reason the old
+   * revision_queue filled with rows pointing at 'Chapter 3'.
+   */
+  revision?: {
+    chapterId: string;
+    /** Their own misses first, then the unseen. Asked in this order. */
+    questionIds: string[];
+    /** How many of the above came from the student's mistake book. */
+    mistakes: number;
+    /** How many were genuinely new material. */
+    fresh: number;
+    /** Unseen questions the chapter could not supply — reported, never padded. */
+    freshShort: number;
+  } | null;
+  /**
+   * §4.2 — set when this session IS a recovery session.
+   *
+   * Recovery differs from every other mode in one way that matters: it is
+   * scored per TIER, never as one total. tier 0 is the student's own wrong
+   * questions, 1 the same question with different values, 2 the same concept
+   * reframed, 3 the topic applied elsewhere — and §4.2b reads tiers 0+1 as
+   * "can they run the procedure" against 2+3's "do they understand it". Two
+   * rates, never blended. So the runner has to know which tier each question
+   * came from, which `tierByQuestionId` carries.
+   *
+   * The ids come from rpc_start_recovery_session, which builds the ladder
+   * bank-first. They are passed through router state rather than the URL: the
+   * plan is not persisted server-side (recovery_sessions stores the tier
+   * TOTALS, not which questions filled them), so re-deriving it here could
+   * drift from what the session was opened against and score the student
+   * against questions they were never asked.
+   */
+  recovery?: {
+    sessionId: string;
+    chapterId: string;
+    /** bank question id -> tier. Order of the keys is the order asked. */
+    tierByQuestionId: Record<string, 0 | 1 | 2 | 3>;
+    /** False when generation could not fill every tier — the screen says so. */
+    complete: boolean;
+    shortfall: number;
+  } | null;
 }
 
 // ── Session (question-solving) ───────────────────────────────────────────────
@@ -1318,7 +1407,40 @@ function Session({
         let rows: Awaited<ReturnType<typeof PracticeService.listBankQuestions>> = [];
         const bankOpts = { excludeIds: excludeIds.length ? excludeIds : undefined };
 
-        if (config.mode === "incorrect") {
+        if (config.recovery) {
+          // §4.2 — the ladder is already built. Load exactly the questions
+          // rpc_start_recovery_session chose, in tier order, and nothing else:
+          // topping the session up from the bank would put questions into it
+          // that no tier accounts for, and the per-tier score would then be
+          // taken over a different set than the totals recorded at start.
+          const ladderIds = Object.keys(config.recovery.tierByQuestionId);
+          const tierOf = config.recovery.tierByQuestionId;
+          const fetched = await PracticeService.listBankQuestions(ctx, {
+            ids: ladderIds,
+            limit: ladderIds.length,
+          });
+          const byId = new Map(fetched.map((r) => [r.id, r]));
+          rows = ladderIds
+            .map((id) => byId.get(id))
+            .filter((r): r is NonNullable<typeof r> => r != null)
+            .sort((a, b) => (tierOf[a.id] ?? 0) - (tierOf[b.id] ?? 0));
+        } else if (config.revision) {
+          // §5.4 — the check is already built, by a server function that can
+          // see this student's whole attempt history. Load exactly those
+          // questions, in that order (their own misses first), and nothing
+          // else: topping the session up from the bank is precisely how
+          // already-seen questions got into a check that is supposed to
+          // contain none.
+          const planIds = config.revision.questionIds;
+          const fetched = await PracticeService.listBankQuestions(ctx, {
+            ids: planIds,
+            limit: planIds.length,
+          });
+          const byId = new Map(fetched.map((r) => [r.id, r]));
+          rows = planIds
+            .map((id) => byId.get(id))
+            .filter((r): r is NonNullable<typeof r> => r != null);
+        } else if (config.mode === "incorrect") {
           rows = await PracticeService.listMistakeQuestions(ctx, { limit: remainingCount });
           if (excludeIds.length) {
             const skip = new Set(excludeIds);
@@ -1531,6 +1653,62 @@ function Session({
         if (typeof serverStats.correctCount === "number") results.correct = serverStats.correctCount;
         if (typeof serverStats.questionCount === "number") results.total = serverStats.questionCount;
         if (typeof serverStats.skippedCount === "number") results.skipped = serverStats.skippedCount;
+
+        // §5.4/§5.5 — a revision check reports its score to the engine, which
+        // decides pass or fail against REVISION_PASS_THRESHOLD and moves the
+        // chapter along the 7/21/60 ladder. Neither judgement is made here:
+        // both constants live in recovery_constants and a copy on this side
+        // would be a second home for them.
+        //
+        // Deliberately NOT inside the try above that owns the finish call. The
+        // session is already saved by this point; a revision submit that fails
+        // must not make the student look as though their practice was lost,
+        // which is what `finishFailed` renders. It is surfaced as its own
+        // error, and the chapter simply stays due — the honest outcome, since
+        // an unrecorded check is a check that did not happen.
+        // NEITHER OF THESE SENDS A SCORE ANY MORE.
+        //
+        // This used to count the tiers here, out of attemptLog, and hand the
+        // four numbers to the server, which stored them. Driven as an ordinary
+        // student that allowed a chapter to be marked recovered at readiness
+        // 1.0 with zero questions answered, and the whole 3-check ladder
+        // walked to "solid" the same way. §7 permits clearing without
+        // learning — it catches it with an honest readiness — so the number
+        // being forgeable removed the only thing doing the catching.
+        //
+        // What travels now is this session's id. The server counts each
+        // recovery tier from the answers given to that tier's own questions,
+        // and counts a revision check from the answers given to questions in
+        // that chapter, having already graded every one of them against the
+        // bank. §4.2b is unchanged: the two rates are still computed and kept
+        // separate, just on the side that cannot be edited from devtools.
+        const sittingId = sessionIdRef.current;
+
+        if (config.recovery && ctx && sittingId) {
+          try {
+            const outcome = await RecoveryEngineService.submitRecoverySession(
+              ctx,
+              config.recovery.sessionId,
+              sittingId,
+            );
+            results.recovery = outcome;
+          } catch (e) {
+            toast.error(toErrorMessage(e, "Practice saved, but the recovery result was not recorded"));
+          }
+        }
+
+        if (config.revision && ctx && sittingId) {
+          try {
+            const outcome = await RecoveryEngineService.submitRevisionSession(
+              ctx,
+              config.revision.chapterId,
+              sittingId,
+            );
+            results.revision = outcome;
+          } catch (e) {
+            toast.error(toErrorMessage(e, "Practice saved, but the revision check was not recorded"));
+          }
+        }
       } catch (e) {
         toast.error(toErrorMessage(e, "Could not save practice session"));
         results.serverStats = null;
@@ -1768,6 +1946,11 @@ function Session({
       chapter: "No questions for this chapter in the bank yet.",
       topic: "No questions for this topic in the bank yet.",
       custom: "No questions match those filters yet. Try a different difficulty or clear a filter.",
+      // Reachable only if the ladder's questions were retired between the
+      // plan being built and this screen loading them. The session row already
+      // exists at that point, so the honest instruction is to start again
+      // rather than to sit on a recovery session with nothing in it.
+      recovery: "The questions for this recovery session are no longer available. Open Recovery and start it again.",
     };
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
@@ -1936,6 +2119,20 @@ interface SessionResults {
   attempts: PracticeAttemptSnapshot[];
   startedAt?: string;
   finishFailed?: boolean;
+  /**
+   * Present only when this session was a §5.4 revision check. Carries the
+   * engine's verdict — passed, which rung of the ladder, and whether the
+   * chapter is now solid — so the result screen reports what actually
+   * happened rather than re-deciding it from the raw score.
+   */
+  revision?: import("@/academic").RevisionSessionOutcome;
+  /**
+   * Present only when this session was a §4.2 recovery session. Carries the
+   * engine's verdict — the two rates SEPARATELY, and which of them failed —
+   * so the result screen can say "you can do the steps but the idea isn't
+   * solid yet" rather than a bare percentage.
+   */
+  recovery?: import("@/academic").RecoverySessionOutcome;
   serverStats?: {
     questionCount?: number;
     correctCount?: number;
@@ -1951,6 +2148,10 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   results: SessionResults; onRetry: ()=>void; onHub: ()=>void; onRetryIncorrect: ()=>void;
 }) {
   const { correct, total, skipped, bookmarked, config, serverStats, finishFailed } = results;
+  // `finishFailed` was destructured here and never read. The figures below come
+  // from the local attempt log when the server has none, which is right — but
+  // rendering them with nothing said would tell a student their session was
+  // recorded when it was not.
   // Session SSOT: prefer finish-RPC columns via resolvePracticeSessionStats — never invent XP.
   const stats = resolvePracticeSessionStats(null, {
     questionCount: serverStats?.questionCount ?? total,
@@ -1974,9 +2175,24 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   const xpLabel = xpFormatted === "—" ? null : `+${xpFormatted} XP`;
 return (
     <div className="max-w-lg mx-auto space-y-5">
-      <GlassCard className="p-8 text-center" glow={pct>=ACCURACY_CONCEPTUAL?"green":pct>=ACCURACY_BUILDING?"amber":"rose"}>
-        <div className="text-5xl mb-3">{emoji}</div>
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{config.label} · Complete</div>
+      {/* The save failed. Every figure below is the local attempt log, which is
+          the honest thing to show — it is what the student just did — but it is
+          NOT what the server holds, and saying "Complete" over it would be a
+          lie the student cannot check. The session stays unfinished, so it is
+          still there to be finished. */}
+      {finishFailed && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3">
+          <div className="text-sm font-bold text-destructive mb-0.5">This session was not saved</div>
+          <p className="text-xs text-destructive/90">
+            The figures below are from this device, not from your record. Your
+            answers are still here — try Retry Same Mode, or come back and
+            finish it from your practice history.
+          </p>
+        </div>
+      )}
+      <GlassCard className="p-8 text-center" glow={finishFailed ? "rose" : pct>=ACCURACY_CONCEPTUAL?"green":pct>=ACCURACY_BUILDING?"amber":"rose"}>
+        <div className="text-5xl mb-3">{finishFailed ? "⚠️" : emoji}</div>
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{config.label} · {finishFailed ? "Not saved" : "Complete"}</div>
         <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>
         <div className="text-muted-foreground text-sm mb-6">{stats.correctCount} correct out of {stats.questionCount}</div>
         {xpLabel && (
@@ -2146,7 +2362,41 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const [config,  setConfig]  = useState<SessionConfig | null>(null);
   const [results, setResults] = useState<SessionResults | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const deepLinkHandled = useRef(false);
+
+  /**
+   * Drop the router state WITHOUT navigating.
+   *
+   * It used to be `navigate(location.pathname, { replace: true, state: null })`
+   * — and that navigation REMOUNTED this component. Traced live on 2026-09-15
+   * by logging the effect on every run:
+   *
+   *   1  handled:false  phase:hub      state:{recovery:{…}}   -> handoff taken
+   *   2  handled:true   phase:session  state:null             -> correctly skipped
+   *   3  handled:false  phase:hub      state:null             -> REMOUNTED, and
+   *                                                              the state it
+   *                                                              needed is gone
+   *
+   * The remount reset both the ref and `phase`, so the third pass found an
+   * empty state and fell through to the practice hub. Pressing "Start
+   * recovery" therefore landed the student back on the mode list, every time,
+   * with a recovery session already opened server-side and no way to reach it.
+   *
+   * The clearing itself is still wanted — a back-navigation must not re-open a
+   * session that has been submitted — so it is done through the History API,
+   * which React Router reads (`history.state.usr`) but does not treat as a
+   * navigation. Same effect, no remount.
+   */
+  const clearRouterState = useCallback(() => {
+    try {
+      const h = window.history;
+      h.replaceState({ ...(h.state ?? {}), usr: null }, "");
+    } catch {
+      // A browser that refuses replaceState keeps the state; the ref below
+      // still stops it being consumed twice in this mount.
+    }
+  }, []);
 
   /** Instant modes skip config and load with mode-specific filters. */
   const INSTANT: ModeKey[] = ["weak", "incorrect", "skipped", "bookmarked"];
@@ -2154,6 +2404,65 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   /** Honor Revision/Recovery CTAs: /student/practice?chapter=&subject=&topic= */
   useEffect(() => {
     if (deepLinkHandled.current || phase !== "hub") return;
+
+    // A recovery session arrives through router state, not the URL: its tier
+    // ladder is a map of question ids that is not persisted server-side, so it
+    // cannot be re-derived from a link. Checked before the query params
+    // because a recovery hand-off carries chapter/subject too, and the
+    // ordinary chapter-practice branch below would otherwise claim it and
+    // drop the ladder.
+    const handoff = (location.state ?? null) as {
+      recovery?: SessionConfig["recovery"];
+      revision?: SessionConfig["revision"];
+    } | null;
+
+    // A revision check arrives the same way and for the same reason: its
+    // contents are decided by rpc_revision_session_plan, which knows which
+    // questions this student has already seen. A URL could only carry the
+    // chapter, and the loader would then pick questions the check is
+    // specifically supposed to exclude.
+    if (handoff?.revision) {
+      deepLinkHandled.current = true;
+      clearRouterState();
+      const rev = handoff.revision;
+      setModeKey("chapter");
+      setConfig({
+        mode: "chapter",
+        label: "Revision check",
+        subject: "Mixed",
+        chapter: null,
+        topic: null,
+        difficulty: "mixed",
+        // What the plan could actually supply, never REVISION_COUNT: a thin
+        // chapter gives a shorter check, and asking for more than exists
+        // would leave the runner waiting on questions that are not coming.
+        qCount: rev.questionIds.length,
+        timeLimitSec: null,
+        revision: rev,
+      });
+      setPhase("session");
+      return;
+    }
+
+    if (handoff?.recovery) {
+      deepLinkHandled.current = true;
+      clearRouterState();
+      const rec = handoff.recovery;
+      setModeKey("recovery");
+      setConfig({
+        mode: "recovery",
+        label: "Recovery",
+        subject: "Mixed",
+        chapter: null,
+        topic: null,
+        difficulty: "mixed",
+        qCount: Object.keys(rec.tierByQuestionId).length,
+        timeLimitSec: null,
+        recovery: rec,
+      });
+      setPhase("session");
+      return;
+    }
 
     // ?mode=<instant mode> — used by Mistake Book's "Practice again".
     const modeRaw = searchParams.get("mode");
@@ -2167,6 +2476,13 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     const chapterRaw = searchParams.get("chapter");
     const subjectRaw = searchParams.get("subject");
     const topicRaw = searchParams.get("topic");
+    // ?revision=<uuid> USED TO BE HANDLED HERE and is deliberately gone.
+    //
+    // It turned the session into a §5.4 check by chapter alone, leaving the
+    // ordinary loader to pick the questions — and the ordinary loader cannot
+    // exclude what the student has already seen. Keeping it alongside the
+    // router-state hand-off would leave a second way to start a check that
+    // quietly skips the one rule that makes a check mean anything.
     if (!chapterRaw && !subjectRaw && !topicRaw) return;
 
     const chapter =
@@ -2273,7 +2589,19 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   function handleFinish(res: SessionResults) {
     setHistoryTick((t) => t + 1);
-    if (res.sessionId) {
+    // A FAILED SAVE DOES NOT GO TO THE RESULT PAGE.
+    //
+    // The result page reads the practice_sessions row for its figures. When
+    // the finish RPC threw, that row is still unfinished and its aggregates
+    // are whatever they were before, so the page renders a session that looks
+    // ordinary and is not saved. `finishFailed` exists for exactly this and
+    // was set here and then ignored: the navigation below only ever asked
+    // whether there was a session id, and a failed finish still has one.
+    //
+    // The in-page Summary is the only surface that receives the flag, so a
+    // failed finish is sent there instead — and Summary now says so rather
+    // than destructuring the flag and dropping it, which is what it did.
+    if (res.sessionId && !res.finishFailed) {
       const chapter = res.config.chapter || res.attempts[0]?.chapter || res.config.label;
       persistAndGoToPracticeResult(navigate, res.sessionId, {
         subject: res.config.subject,
@@ -2281,6 +2609,8 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         attempts: res.attempts,
         startedAt: res.startedAt,
         serverStats: res.serverStats ?? null,
+        recovery: res.recovery ?? null,
+        revision: res.revision ?? null,
       });
       return;
     }

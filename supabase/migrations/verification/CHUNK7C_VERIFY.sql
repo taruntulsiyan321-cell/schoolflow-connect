@@ -114,12 +114,29 @@ BEGIN
   -- is complete is what makes "no literals" true on the SQL side; the client
   -- half is src/academic/recovery/constants.ts.
   SELECT string_agg(want.k, ', ') INTO _const_missing FROM (
-    SELECT unnest(ARRAY['RECOVERY_TRIGGER_COUNT','RECOVERY_TIER0','RECOVERY_TIER1',
-                        'RECOVERY_TIER2','RECOVERY_TIER3','RECOVERY_PROCEDURAL_THRESHOLD',
+    -- RECOVERY_TIER0..3 are deliberately absent since Chunk 7F. The fixed
+    -- 2/3/3/2 ladder they sized is gone: tier 0 capped at two silently dropped
+    -- four of one student's six mistakes. The per-mistake counts that replaced
+    -- them, and the band boundaries that choose between deep and wide, are the
+    -- eight RECOVERY_DEEP_*/RECOVERY_WIDE_* rows below.
+    --
+    -- RECOVERY_RELEARN_ABOVE is NOT in this list and must not be: it is
+    -- derived from RECOVERY_WIDE_MAX_MISTAKES in the TypeScript module and has
+    -- no row of its own, which 20261010000000 fixed after
+    -- check:recovery-constants caught the duplicate.
+    SELECT unnest(ARRAY['RECOVERY_TRIGGER_COUNT',
+                        'RECOVERY_DEEP_MAX_MISTAKES','RECOVERY_WIDE_MAX_MISTAKES',
+                        'RECOVERY_DEEP_TIER0','RECOVERY_DEEP_TIER1',
+                        'RECOVERY_DEEP_TIER2','RECOVERY_DEEP_TIER3',
+                        'RECOVERY_WIDE_TIER0','RECOVERY_WIDE_TIER1',
+                        'RECOVERY_WIDE_TIER2','RECOVERY_WIDE_TIER3',
+                        'RECOVERY_PROCEDURAL_THRESHOLD',
                         'RECOVERY_CONCEPTUAL_THRESHOLD','RECOVERY_GENERATION_ROUNDS',
                         'REVISION_ENGAGEMENT_MIN','REVISION_COUNT','REVISION_PASS_THRESHOLD',
-                        'REVISION_STAGES_TO_SOLID','REVISION_INTERVAL_1','REVISION_INTERVAL_2',
-                        'REVISION_INTERVAL_3','TREND_MIN_SESSIONS','TREND_DELTA_POINTS',
+                        'REVISION_MISTAKE_MAX','REVISION_STAGES_TO_SOLID',
+                        'REVISION_INTERVAL_1','REVISION_INTERVAL_2',
+                        'REVISION_INTERVAL_3','REVISION_INTERVAL_SOLID',
+                        'TREND_MIN_SESSIONS','TREND_DELTA_POINTS',
                         'REPEATED_MISTAKE_PIN']) AS k) want
    WHERE NOT EXISTS (SELECT 1 FROM public.recovery_constants c WHERE c.key = want.k);
 

@@ -71,6 +71,30 @@ export type PracticeSessionResultState = {
   startedAt?: string;
   /** From rpc_finish_practice_session — SSOT until practice_sessions row hydrates. */
   serverStats?: PracticeServerStats | null;
+  /**
+   * Present only when the session was a §4.2 recovery session.
+   *
+   * Carried through rather than re-fetched because the result screen must
+   * report the engine's verdict, not re-derive one: §4.2b decides readiness
+   * from TWO rates against two different thresholds, and a screen that
+   * recomputed it from the raw score would be a second home for both numbers
+   * — and would have no way to say WHICH half failed, which is the entire
+   * point of keeping them apart.
+   */
+  recovery?: import("@/academic").RecoverySessionOutcome | null;
+  /**
+   * Present only when the session was a §5.4 revision check.
+   *
+   * Carried for the same reason `recovery` is: §5.5 decides pass or fail
+   * against REVISION_PASS_THRESHOLD and §5.3 schedules the next date from
+   * the 7/21/60 ladder, both server-side against recovery_constants. A screen
+   * that re-derived either would be a second home for both.
+   *
+   * It was missing, and so was the card: Practice computed this outcome and
+   * dropped it, so a student who sat a revision check was never told whether
+   * they passed, how far into the run they were, or when to come back.
+   */
+  revision?: import("@/academic").RevisionSessionOutcome | null;
 };
 
 /** Build the optional intelligence meta blob for rpc_record_question_attempt. */
@@ -125,7 +149,6 @@ export function buildPracticeRecoveryReport(
     total_count: total,
     time_minutes: timeMinutes,
     weak_concepts: weak,
-    recovery_assignments: [],
     improvement_areas: weak.map((w) => w.concept),
     insights: undefined,
   };

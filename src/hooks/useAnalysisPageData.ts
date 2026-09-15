@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ProgressionService, resolveStudentServiceContext, useAcademicLive } from "@/academic";
+import { useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { toErrorMessage } from "@/lib/presentation";
@@ -29,23 +29,37 @@ export type PracticeSessionSummary = {
   accuracy_pct: number;
 };
 
-export type LeaderboardEntry = {
-  user_id: string;
-  full_name: string;
-  roll_number: string | null;
-  score: number;
-  rank: number;
-};
+/**
+ * Practice accuracy, over the questions that were ANSWERED.
+ *
+ * Exported and named rather than written inline, because the Overview tab
+ * prints `correct`, `wrong` and this side by side, and the one rule that must
+ * hold is that they agree: correct / (correct + wrong). It did not hold when
+ * skips were removed from `wrong` and left in this denominator — measured in
+ * a real browser as 10 correct, 14 incorrect, "Accuracy 36%", where 10 of 24
+ * is 42%.
+ *
+ * Null, never 0, when nothing has been answered: 0% claims a student who has
+ * never practised got everything wrong.
+ */
+export function accuracyOverAnswered(correct: number, wrong: number): number | null {
+  const answered = correct + wrong;
+  return answered > 0 ? Math.round((100 * correct) / answered) : null;
+}
 
 export type AnalysisPageData = {
-  class_rank: number | null;
-  leaderboard_top: LeaderboardEntry[];
-  class_size: number;
   student_class: string | null;
   recent_sessions: PracticeSessionSummary[];
   totals: {
     correct: number;
     wrong: number;
+    /**
+     * §6.6 — questions the student passed over, counted separately from wrong
+     * ones. Surfacing this is not decoration: accuracy now EXCLUDES skips, so
+     * a student who skips heavily would otherwise look better without anything
+     * on the screen saying why.
+     */
+    skipped: number;
     /** NULL when nothing has been attempted — never 0, which would read as
      *  "got everything wrong" for a student who has not started. */
     accuracy_pct: number | null;
@@ -58,6 +72,26 @@ export type AnalysisPageData = {
     improvement_pct: number | null;
   };
 };
+
+/**
+ * Did the student actually attempt anything in this session?
+ *
+ * correct + wrong + skipped IS the attempt count. `question_count` is not: for
+ * a session the loader could not fill, rpc_finish_practice_session leaves it at
+ * the REQUESTED count (it only overwrites when the attempt total is above
+ * zero), so a shell reads as a full 20-question session scored 0%.
+ *
+ * Exported and tested rather than inlined, because "a session with no attempts
+ * is not a session scored zero" is a rule every consumer of these rows needs to
+ * apply the same way — the defect was one screen not applying it at all.
+ */
+export function sessionWasAttempted(row: {
+  correct_count?: number | null;
+  wrong_count?: number | null;
+  skipped_count?: number | null;
+}): boolean {
+  return (row.correct_count ?? 0) + (row.wrong_count ?? 0) + (row.skipped_count ?? 0) > 0;
+}
 
 function sessionSummary(row: {
   id: string;
@@ -113,7 +147,12 @@ export function useAnalysisPageData(enabled = true) {
     setError(null);
 
     try {
-      const [sessionsRes, rankRes, classRes, snapRes, attemptsRes, correctRes] = await Promise.all([
+      // NO LEADERBOARD FETCH. §6.7 forbids analysis comparing the student to
+      // other students, so the rank it fed has been removed from the screen —
+      // and a 200-row class leaderboard pulled on every Analysis load to
+      // compute a number nothing renders is the definition of dead weight.
+      // Ranking lives on the surfaces §10.16 gives it to.
+      const [sessionsRes, classRes, attemptsRes, correctRes, skippedRes] = await Promise.all([
         supabase
           .from("practice_sessions")
           .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at, accuracy, wrong_count, skipped_count, total_time_ms")
@@ -121,25 +160,21 @@ export function useAnalysisPageData(enabled = true) {
           .not("finished_at", "is", null)
           .order("finished_at", { ascending: false })
           .limit(40),
-        (async () => {
-          try {
-            const ctx = await resolveStudentServiceContext();
-            return await ProgressionService.leaderboard(ctx, {
-              scope: "class",
-              period: "lifetime",
-              metric: "xp",
-              limit: 200,
-            });
-          } catch {
-            return { rows: [] as { user_id: string; name: string; value: number }[] };
-          }
-        })(),
         supabase
           .from("students")
           .select("class_id, classes(name, section)")
           .eq("user_id", user.id)
           .maybeSingle(),
-        supabase.rpc("rpc_student_academic_snapshot"),
+        // rpc_student_academic_snapshot USED TO BE CALLED HERE, and its result
+        // was destructured into `snapRes` and then never read once. Analysis
+        // already mounts useStudentAcademicSnapshot beside this hook, so the
+        // page fired the same RPC twice on every load and threw one answer
+        // away.
+        //
+        // That is not merely wasteful: the snapshot is a WRITE. It ends with
+        // PERFORM _rebuild_revision_queue, which inserts, updates and
+        // auto-clears rows in the AI layer's weak-topic worklist. Opening
+        // Analysis ran that twice, concurrently, against the same rows.
         // THE ONE POPULATION ACCURACY IS COUNTED OVER (G5).
         //
         // `question_attempts` is the durable per-attempt record, and it is what
@@ -158,37 +193,56 @@ export function useAnalysisPageData(enabled = true) {
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
           .eq("is_correct", true),
+        // SKIPS ARE COUNTED SEPARATELY, because they are not wrong answers.
+        //
+        // rpc_record_question_attempt forces is_correct false on a skip, so
+        // `total - correct` silently folded every skipped question into the
+        // "Incorrect answers" tile and into the accuracy beside it. Measured
+        // 2026-09-15: 241 of 4,841 attempts are skips.
+        //
+        // This is the same correction made to _weak_topics_for_user in
+        // 20261013000000. Making it in one place and not the other is how two
+        // screens start disagreeing about the same student again (G5).
+        supabase
+          .from("question_attempts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("skipped", true),
       ]);
 
       const sessions = sessionsRes.error
         ? []
         : (sessionsRes.data ?? [])
             .filter((r): r is typeof r & { finished_at: string } => r.finished_at !== null)
+            // A SESSION WITH NO ATTEMPTS IS NOT A SESSION SCORED ZERO.
+            //
+            // src/academic/metrics/practice.ts states this for the accuracy
+            // helper, and Analysis was breaking it wholesale: a session where
+            // the loader returned no questions is auto-finished (so Resume is
+            // not polluted with shells), which stores correct_count 0 and
+            // accuracy 0 while question_count keeps the REQUESTED count,
+            // because rpc_finish_practice_session only overwrites it when the
+            // attempt total is above zero. Analysis then averaged those zeros.
+            //
+            // Measured on production: the busiest student had 16 finished
+            // sessions, 14 of them 0-attempt 'weak' shells left by the
+            // weak-area loader returning nothing. Their Analysis was built
+            // almost entirely out of sessions they never answered a question
+            // in — 0% accuracy, no subject, no chapter.
+            //
+            // The loader bug is fixed separately (the weak filter is pushed to
+            // the database now). This is the other half: even once shells are
+            // rare, one is still not a result, and the rows already on
+            // production have to stop counting.
+            //
+            // correct + wrong + skipped is the attempt count; question_count
+            // is not, and is what made the shells look like full sessions.
+            .filter(sessionWasAttempted)
             .map(sessionSummary);
       const latest = sessions[0];
       const previous = sessions[1];
 
-      let class_rank: number | null = null;
-      let leaderboard_top: LeaderboardEntry[] = [];
-      let class_size = 0;
       let student_class: string | null = null;
-
-      {
-        const lb = rankRes as { rows?: { user_id: string; name: string; value: number }[] };
-        const rows = Array.isArray(lb?.rows) ? lb.rows : [];
-        if (rows.length) {
-          class_size = rows.length;
-          const idx = rows.findIndex((r) => r.user_id === user.id);
-          class_rank = idx >= 0 ? idx + 1 : null;
-          leaderboard_top = rows.slice(0, 5).map((r, i) => ({
-            user_id: r.user_id,
-            full_name: r.name,
-            roll_number: null,
-            score: Number(r.value) || 0,
-            rank: i + 1,
-          }));
-        }
-      }
 
       const classRow = classRes.data as {
         classes?: { name: string; section: string } | null;
@@ -220,8 +274,12 @@ export function useAnalysisPageData(enabled = true) {
       // error by another route.
       const correct = correctRes.count ?? 0;
       const totalAttempts = attemptsRes.count ?? 0;
+      const skipped = skippedRes.count ?? 0;
 
-      const wrong = Math.max(0, totalAttempts - correct);
+      // A skip is "I did not answer this", not "I got this wrong". Subtracting
+      // it here is what keeps the Incorrect tile, the accuracy derived from it,
+      // and §6.6's skipped count from being three views of one confused number.
+      const wrong = Math.max(0, totalAttempts - correct - skipped);
 
       // ACCURACY IS DERIVED FROM THE COUNTS SHOWN BESIDE IT (G5).
       //
@@ -241,9 +299,16 @@ export function useAnalysisPageData(enabled = true) {
       // So it is computed from `correct` and `wrong` — the same two numbers the
       // tab prints. Null when nothing has been attempted: 0% would claim a
       // student who has never practised got everything wrong.
-      const accuracy_pct = totalAttempts > 0
-        ? Math.round((100 * correct) / totalAttempts)
-        : null;
+      // OVER THE COUNTS RENDERED BESIDE IT, which is now correct + wrong and
+      // no longer totalAttempts.
+      //
+      // Subtracting skips from `wrong` above without changing this divided a
+      // skip-free numerator by a skip-inclusive denominator: measured in the
+      // browser at 10 correct, 14 incorrect, "Accuracy 36%" — but 10 + 14 is
+      // 24 and 10/24 is 42%. The 36% was 10/28. Three tiles on one row that do
+      // not add up is the exact G5 defect the comment above this block
+      // describes, reintroduced by a half-applied fix.
+      const accuracy_pct = accuracyOverAnswered(correct, wrong);
 
       // Average pace across recent timed sessions (not only the latest).
       const timed = sessions.filter((s) => s.question_count > 0 && s.duration_minutes > 0);
@@ -263,14 +328,12 @@ export function useAnalysisPageData(enabled = true) {
           : null;
 
       setData({
-        class_rank,
-        leaderboard_top,
-        class_size,
         student_class,
         recent_sessions: sessions,
         totals: {
           correct,
           wrong,
+          skipped,
           accuracy_pct,
           avg_sec_per_question,
           last_session_minutes: latest?.duration_minutes ?? null,
@@ -284,14 +347,12 @@ export function useAnalysisPageData(enabled = true) {
     } catch (e) {
       setError(toErrorMessage(e, "Could not load analysis"));
       setData({
-        class_rank: null,
-        leaderboard_top: [],
-        class_size: 0,
         student_class: null,
         recent_sessions: [],
         totals: {
           correct: 0,
           wrong: 0,
+          skipped: 0,
           accuracy_pct: null,
           avg_sec_per_question: null,
           last_session_minutes: null,

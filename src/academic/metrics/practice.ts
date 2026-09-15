@@ -13,8 +13,8 @@
  *
  *     const accuracy = total ? Math.round((correct / total) * 100) : 0;
  *
- * in practiceService, useRecoveryZone, practiceSessionSnapshot,
- * recoverySessionSnapshot and recoveryCompletionReport. Identical, including the
+ * in practiceService, practiceSessionSnapshot and three modules of the retired
+ * recovery-assignment flow, since deleted. Identical, including the
  * defect: `: 0`. A session with no attempts is not a session scored zero. A
  * student who opened a practice screen and answered nothing was shown 0%
  * accuracy, which is a mark, not an absence.

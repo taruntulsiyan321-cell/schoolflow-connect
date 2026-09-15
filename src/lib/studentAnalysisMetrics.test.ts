@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildWeekComparison,
   halfWindowTrend,
+  trendState,
   deriveSpeedStats,
   deriveMonthComparison,
   scoreAxisDomain,
@@ -50,6 +51,58 @@ describe("studentAnalysisMetrics", () => {
     expect(halfWindowTrend([90])).toBeNull();
   });
 
+  // ── §6.4, the trend floor and the three states ──────────────────────────
+  //
+  // These replace a computation that declared a trend from TWO sessions and
+  // handed the screen a number it drew a coloured arrow on. Each assertion
+  // below fails against that old behaviour, which is the control: the first
+  // two returned a number where they now require null, and the "steady" case
+  // returned +2 (an up-arrow, "2%") where it now reports movement too small
+  // to call.
+
+  it("refuses a trend below TREND_MIN_SESSIONS sessions", () => {
+    // Three sessions moving 40 points is still not a trend — the floor is a
+    // count of sessions, not a size of movement.
+    expect(halfWindowTrend([50, 90, 90])).toBeNull();
+    expect(trendState([50, 90, 90])).toEqual({ state: "not_enough_data", deltaPoints: null });
+    // And the boundary itself is inclusive: four sessions IS enough.
+    expect(halfWindowTrend([50, 50, 90, 90])).toBe(40);
+  });
+
+  it("calls small movement stuck, not improving", () => {
+    // +2 points across four sessions. The old code returned 2 and the screen
+    // drew a green up-arrow reading "2%".
+    const t = trendState([50, 50, 52, 52]);
+    expect(t.state).toBe("stuck");
+    expect(t.deltaPoints).toBe(2);
+  });
+
+  it("separates not_enough_data from stuck", () => {
+    // The distinction §6.4 exists for: both used to render as the same dash.
+    expect(trendState([50, 51]).state).toBe("not_enough_data");
+    expect(trendState([50, 50, 51, 51]).state).toBe("stuck");
+  });
+
+  it("names direction only once movement clears TREND_DELTA_POINTS", () => {
+    expect(trendState([40, 40, 60, 60]).state).toBe("improving");
+    expect(trendState([60, 60, 40, 40]).state).toBe("worsening");
+    // Exactly at the threshold counts as movement, not as stuck.
+    expect(trendState([40, 40, 50, 50]).state).toBe("improving");
+  });
+
+  it("gives every derived chapter row a trend state", () => {
+    // The fallback path builds rows with no session list behind them. It used
+    // to emit `trend: null` and nothing else, and a `r is DerivedChapterRow`
+    // filter predicate hid the missing field from the typechecker.
+    const rows = deriveChapterRows([], [], {
+      weak_topics: [{ subject: "Mathematics", chapter: "Integrals", topic: "Integrals", accuracy: 40 }],
+    } as never);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) {
+      expect(r.trendState).toBe("not_enough_data");
+    }
+  });
+
   it("derives per-subject speed from sessions", () => {
     const sessions = [
       session({ id: "1", subject: "Math", question_count: 10, duration_minutes: 10, accuracy_pct: 60, finished_at: "2026-07-01T10:00:00Z" }),
@@ -89,17 +142,38 @@ describe("studentAnalysisMetrics", () => {
   });
 
   it("improving topics require real half-window lift", () => {
+    // A chapter present in practiceTrend is scored from THOSE points — the
+    // session path is skipped for it — so the lift has to be expressed there.
     const improving = deriveImprovingTopics(
       [
         { date: "2026-07-01", score_pct: 40, chapter: "Integration" },
+        { date: "2026-07-05", score_pct: 40, chapter: "Integration" },
+        { date: "2026-07-10", score_pct: 70, chapter: "Integration" },
         { date: "2026-07-15", score_pct: 70, chapter: "Integration" },
       ],
       [
         session({ id: "1", subject: "Math", chapter: "Integration", accuracy_pct: 40, finished_at: "2026-07-01T10:00:00Z" }),
-        session({ id: "2", subject: "Math", chapter: "Integration", accuracy_pct: 70, finished_at: "2026-07-15T10:00:00Z" }),
       ],
     );
     expect(improving.some((t) => t.topic === "Integration" && t.improvement >= 5)).toBe(true);
+  });
+
+  it("drops a topic that lifted by less than TREND_DELTA_POINTS", () => {
+    // The control for the assertion above: same shape, movement of 4 points.
+    // This list used to run on its own `< 5` threshold, so a 6-point lift was
+    // "improving" here while the chapter grid beside it read "steady".
+    const improving = deriveImprovingTopics(
+      [
+        { date: "2026-07-01", score_pct: 40, chapter: "Integration" },
+        { date: "2026-07-05", score_pct: 40, chapter: "Integration" },
+        { date: "2026-07-10", score_pct: 46, chapter: "Integration" },
+        { date: "2026-07-15", score_pct: 46, chapter: "Integration" },
+      ],
+      [
+        session({ id: "1", subject: "Math", chapter: "Integration", accuracy_pct: 40, finished_at: "2026-07-01T10:00:00Z" }),
+      ],
+    );
+    expect(improving.some((t) => t.topic === "Integration")).toBe(false);
   });
 
   it("chapter accuracy uses correct/total attempts, not mastery as completion", () => {
@@ -131,15 +205,22 @@ describe("studentAnalysisMetrics", () => {
         { name: "Subject", accuracy: 99, attempts: 50 },
         { name: "Daily", accuracy: 10, attempts: 10 },
       ],
+      // Four sessions, not two. This test is about alias collapsing, but it
+      // also asserted a trend — and two sessions is below TREND_MIN_SESSIONS,
+      // so under §6.4 there is no trend to assert. The aliases still collapse
+      // across all four, which is what the test is named for.
       [
         session({ id: "1", subject: "Math", accuracy_pct: 50, finished_at: "2026-07-01T10:00:00Z" }),
-        session({ id: "2", subject: "Mathematics", accuracy_pct: 90, finished_at: "2026-07-15T10:00:00Z" }),
+        session({ id: "2", subject: "Mathematics", accuracy_pct: 50, finished_at: "2026-07-05T10:00:00Z" }),
+        session({ id: "3", subject: "Math", accuracy_pct: 90, finished_at: "2026-07-10T10:00:00Z" }),
+        session({ id: "4", subject: "Mathematics", accuracy_pct: 90, finished_at: "2026-07-15T10:00:00Z" }),
       ],
     );
     expect(rows).toHaveLength(1);
     expect(rows[0].name).toBe("Mathematics");
     expect(rows[0].questions).toBe(20);
     expect(rows[0].trend).toBe(40);
+    expect(rows[0].trendState).toBe("improving");
   });
 
   it("deriveChapterRows omits generic Topic/Daily/Subject cards", () => {

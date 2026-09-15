@@ -8,7 +8,7 @@
  * earned the point the hard way: it shipped green, and running these cases by
  * hand found two shapes it could not detect at all.
  *
- *   RECOVERY_SESSION_SIZE = 99
+ *   RECOVERY_RELEARN_ABOVE = 99
  *     It was declared TS-only ON THE GROUNDS that it was derived, but the
  *     derivation check only ran when the value failed to parse as a number.
  *     Written as a literal it parsed fine, so the derivation check was skipped
@@ -68,16 +68,14 @@ function mutate(text, from, to, label) {
   return text.replace(from, to);
 }
 
-const SESSION_SIZE_EXPR =
-  "export const RECOVERY_SESSION_SIZE =" +
-  "\n  RECOVERY_TIER0 + RECOVERY_TIER1 + RECOVERY_TIER2 + RECOVERY_TIER3;";
+const DERIVED_EXPR = "export const RECOVERY_RELEARN_ABOVE = RECOVERY_WIDE_MAX_MISTAKES;";
 
 const CASES = [
   {
-    name: "value mismatch — module 8, table 5",
+    name: "value mismatch — module 8, table 1",
     why: "the exact split-brain this gate exists for: recovery fires at one threshold, the UI describes another",
     offline: false,
-    build: () => mutate(src, "RECOVERY_TRIGGER_COUNT = 5;", "RECOVERY_TRIGGER_COUNT = 8;", "trigger count"),
+    build: () => mutate(src, "RECOVERY_TRIGGER_COUNT = 1;", "RECOVERY_TRIGGER_COUNT = 8;", "trigger count"),
   },
   {
     name: "key in the module, not in the table",
@@ -96,13 +94,13 @@ const CASES = [
     name: "array maps to 3 table rows but has 2 entries",
     why: "the declared expansion has to stay total or one interval silently loses its home",
     offline: true,
-    build: () => mutate(src, "[7, 21, 60]", "[7, 21]", "revision intervals"),
+    build: () => mutate(src, "[7, 7, 7]", "[7, 7]", "revision intervals"),
   },
   {
-    name: "derived RECOVERY_SESSION_SIZE replaced by a literal",
-    why: "THE HOLE THIS FILE WAS WRITTEN FOR: right until someone tunes a tier, and §10 says tuning is expected",
+    name: "derived RECOVERY_RELEARN_ABOVE replaced by a literal",
+    why: "THE HOLE THIS FILE WAS WRITTEN FOR: right until someone tunes the band, and §10 says tuning is expected",
     offline: true,
-    build: () => mutate(src, SESSION_SIZE_EXPR, "export const RECOVERY_SESSION_SIZE = 99;", "session size derivation"),
+    build: () => mutate(src, DERIVED_EXPR, "export const RECOVERY_RELEARN_ABOVE = 99;", "relearn derivation"),
   },
   {
     name: "declared TS-only constant deleted from the module",

@@ -11,7 +11,17 @@
 //   Tier 2  same concept, DIFFERENT STRUCTURE. Reverse what is given and what
 //           is asked, embed it in another scenario, or ask for a different
 //           output of the same idea.
-//   Tier 3  same topic, DIFFERENT APPLICATION.
+//
+// TIER 3 IS NOT GENERATED, and the branch that claimed to has been removed.
+// It was dead code that looked alive, in two independent ways:
+//   * rpc_recovery_session_plan takes tier 3 from the bank only and has never
+//     asked this function for one, so nothing could reach the branch; and
+//   * question_bank_variant_tier_check is `variant_tier IN (1, 2)`, so had
+//     anything reached it, every insert would have died on a constraint.
+// §4.2 says "tier 3 comes from the bank where coverage allows, AI otherwise";
+// the planner implements the first half and the second half was never built.
+// Restoring it means widening the constraint too, deliberately, not leaving a
+// branch that cannot run.
 //
 // The correct answer is generated with the question, so §10.8's auto-grade rule
 // applies and grading is immediate.
@@ -20,12 +30,21 @@
 // validation is dropped and counted; nothing is padded to hit a target.
 //
 // WHO MAY CALL IT
-// The service role only. §4.1a is emphatic that nothing is generated while a
-// student watches a loading screen — this runs after a practice session ends,
-// as a background job. Leaving it callable by a signed-in user would put an
+// A background worker holding the `variant_generation_drain` secret, and
+// nobody else. §4.1a is emphatic that nothing is generated while a student
+// watches a loading screen — this runs after a practice session ends, as a
+// background job. Leaving it callable by a signed-in user would put an
 // unbounded paid AI call behind a student's session, which is the failure this
 // design exists to avoid. The old role gate (teacher/admin/principal) was right
 // for a teacher pressing "generate"; it is wrong for a background worker.
+//
+// The secret rather than the service-role key, because the caller is a
+// postgres cron function reaching this over pg_net: the service-role key in a
+// SQL function body is a master credential sitting in pg_proc, readable by
+// anything that can read a function definition. A purpose-made secret in the
+// vault opens exactly one door, and revoking it costs one UPDATE. This is the
+// same shape dispatch_notification_push already uses in production for
+// notification-push.
 //
 // WHY GENERATED VARIANTS ARE SAVED APPROVED AND ACTIVE
 // question_bank's SELECT policy is `is_approved AND board matches`. A variant
@@ -79,9 +98,6 @@ const TIER_RULES: Record<number, string> = {
     "Rewording the original, or changing only its numbers, is a FAILED tier-2 variant — that is " +
     "tier 1 wearing a different label. A student who memorised the original's answer must not be " +
     "able to answer yours from memory. This rung proves the student UNDERSTANDS it.",
-  3:
-    "TIER 3 — FAR TRANSFER. Same topic, DIFFERENT APPLICATION. Use the same underlying principle " +
-    "in a situation the original never mentions. This rung proves the understanding TRANSFERS.",
 };
 
 /** §4.2a: the correct answer is generated with the question, so grading is immediate. */
@@ -142,10 +158,24 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const presented = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
-  if (!serviceKey || presented !== serviceKey) {
+  const drain = Deno.env.get("VARIANT_GENERATION_DRAIN") ?? "";
+  const presented = (req.headers.get("x-variant-drain") ?? "").trim();
+
+  // A missing secret is a REFUSAL, never an open door. Without this branch an
+  // unset environment variable would make "" === "" true for every caller,
+  // which is the fail-open shape that turns a misconfiguration into a public
+  // endpoint that spends money.
+  if (!drain) {
+    return jsonResponse({
+      error: "VARIANT_GENERATION_DRAIN is not configured; refusing rather than running unauthenticated.",
+    }, 503);
+  }
+  if (presented.length !== drain.length || presented !== drain) {
     // Deliberately not "invalid role" — this endpoint is not for users at all.
-    return jsonResponse({ error: "This is a background job endpoint; service role required." }, 403);
+    return jsonResponse({ error: "This is a background job endpoint." }, 403);
+  }
+  if (!serviceKey) {
+    return jsonResponse({ error: "SUPABASE_SERVICE_ROLE_KEY is not configured." }, 503);
   }
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
@@ -159,7 +189,13 @@ Deno.serve(async (req) => {
     const dryRun = body.dry_run === true;
 
     if (!sourceQuestionId) return jsonResponse({ error: "source_question_id is required" }, 400);
-    if (![1, 2, 3].includes(tier)) return jsonResponse({ error: "tier must be 1, 2 or 3" }, 400);
+    // 1 or 2 only — see the header. question_bank_variant_tier_check would
+    // refuse anything else anyway; refusing it here says why.
+    if (![1, 2].includes(tier)) {
+      return jsonResponse({
+        error: "tier must be 1 or 2; tier 3 comes from the bank, not from generation",
+      }, 400);
+    }
 
     const { data: src, error: srcErr } = await admin
       .from("question_bank")

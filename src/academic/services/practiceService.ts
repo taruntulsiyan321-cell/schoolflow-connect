@@ -42,6 +42,24 @@ import { valueOr } from "../metrics/types";
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
 
+/**
+ * First occurrence wins, order preserved.
+ *
+ * Needed wherever a newest-first PostgREST result is deduped by id: PostgREST
+ * has no DISTINCT ON, so the collapse happens here, and it must keep the
+ * newest row rather than an arbitrary one.
+ */
+export function dedupePreservingOrder(ids: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 export type PracticeSessionRow = {
   id: string;
   subject: string;
@@ -961,10 +979,34 @@ export const PracticeService = {
    * and now none can: the storage rule is enforced by the type, not by a
    * convention someone has to remember.
    *
-   * Wrong lives in student_mistakes (the nominated mistake book), skipped in
-   * practice_skipped. The Mistake Book is still self-clearing — a question
-   * leaves it when the mistake is cleared, which is the same behaviour
-   * current_status gave, without recording correctness to get it.
+   * Wrong lives in student_mistakes (the nominated mistake book). The Mistake
+   * Book is still self-clearing — a question leaves it when the mistake is
+   * cleared, which is the same behaviour current_status gave, without
+   * recording correctness to get it.
+   *
+   * ── SKIPPED READS question_attempts, NOT practice_skipped ─────────────────
+   *
+   * 7B batch 1 created practice_skipped, carried the historical rows across
+   * from question_records, and in the same migration stripped the
+   * `PERFORM public._upsert_question_record(...)` call out of
+   * rpc_record_question_attempt and dropped the function. That call was the
+   * only thing that had ever written a skip. practice_skipped was left with
+   * one reader (this function) and NO writer, so "Skipped Questions" could
+   * only ever return skips made before 2026-08-28 — the mode was dead for
+   * every skip since.
+   *
+   * question_attempts is where a skip actually lands, and always has:
+   * rpc_record_question_attempt forces `skipped = true` (with is_correct
+   * false and score 0) for a skip or a timeout, on both the bank and the
+   * template path. It is the authority, and practice_skipped was a second
+   * home for the same fact that never got filled. So the reader moves to the
+   * authority rather than a writer being added to the duplicate — see the
+   * migration that drops practice_skipped.
+   *
+   * Reading `skipped = true` surfaces no correctness, so §10.8 is untouched.
+   * Rows are deduped newest-first here rather than in SQL: PostgREST has no
+   * DISTINCT ON, and a student who skips the same question in three sessions
+   * has three rows.
    */
   async listQuestionIdsByStatus(
     ctx: ServiceContext,
@@ -985,15 +1027,24 @@ export const PracticeService = {
             .order("last_wrong_at", { ascending: false })
             .limit(limit)
         : await client
-            .from("practice_skipped")
-            .select("question_id, created_at")
+            .from("question_attempts")
+            .select("bank_question_id, created_at")
             .eq("user_id", ctx.userId)
+            .eq("skipped", true)
+            .not("bank_question_id", "is", null)
             .order("created_at", { ascending: false })
-            .limit(limit);
+            // Over-fetch: the limit applies to rows, and duplicates collapse
+            // below, so limiting to `limit` rows would under-fill the mode for
+            // a student who re-skips the same questions.
+            .limit(Math.min(400, limit * 4));
     throwIfError(error, `Failed to load ${status} questions`);
-    return (data ?? [])
-      .map((r) => (r as { question_id: string }).question_id)
-      .filter(Boolean);
+    const ids = (data ?? [])
+      .map((r) => {
+        const row = r as { question_id?: string | null; bank_question_id?: string | null };
+        return status === "wrong" ? row.question_id : row.bank_question_id;
+      })
+      .filter((id): id is string => Boolean(id));
+    return dedupePreservingOrder(ids).slice(0, limit);
   },
 
   /** Wrong questions as practice-ready bank rows (honest empty if none). */
@@ -1011,82 +1062,6 @@ export const PracticeService = {
     });
   },
 
-  /**
-   * Mistake Book rows: every question currently answered wrong, with the
-   * student's own attempt stats attached.
-   *
-   * Derived, never separately maintained — a question leaves the Mistake Book
-   * only by being answered correctly, which flips current_status. Soft-deleted
-   * questions are included, because this is a historical review surface and
-   * retiring a question should not silently erase a student's record of it.
-   */
-  async listMistakeBook(
-    ctx: ServiceContext,
-    opts: { limit?: number } = {},
-  ) {
-    assertCanConsume(ctx, "practice");
-    const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
-    const client = getClient(toRepoContext(ctx));
-    const { data, error } = await client
-      .from("student_mistakes")
-      .select("question_id, times_wrong, student_answer, last_wrong_at")
-      .eq("user_id", ctx.userId)
-      .eq("status", "open")
-      .not("question_id", "is", null)
-      .order("last_wrong_at", { ascending: false })
-      .limit(limit);
-    throwIfError(error, "Failed to load mistake book");
-
-    const records = ((data ?? []) as Array<{
-      question_id: string;
-      times_wrong: number;
-      student_answer: { selected_index?: number; index?: number } | null;
-      last_wrong_at: string;
-    }>).map((r) => ({
-      question_id: r.question_id,
-      wrong_count: r.times_wrong,
-      last_selected_option: r.student_answer,
-      last_practiced_date: r.last_wrong_at,
-    }));
-    if (records.length === 0) return [];
-
-    type BankRow = {
-      id: string;
-      subject: string;
-      chapter: string | null;
-      difficulty: string | null;
-      question: string;
-      options: unknown;
-      correct_index: number;
-      explanation: string | null;
-    };
-    const bank = (await this.listBankQuestions(ctx, {
-      ids: records.map((r) => r.question_id),
-      limit,
-      includeInactive: true,
-    })) as BankRow[];
-    const byId = new Map<string, BankRow>(bank.map((b) => [b.id, b]));
-
-    return records
-      .map((r) => {
-        const q = byId.get(r.question_id);
-        if (!q) return null;
-        const sel = r.last_selected_option;
-        const selectedIndex =
-          typeof sel?.selected_index === "number"
-            ? sel.selected_index
-            : typeof sel?.index === "number"
-              ? sel.index
-              : null;
-        return {
-          ...q,
-          wrong_count: r.wrong_count,
-          selected_index: selectedIndex,
-          last_practiced_date: r.last_practiced_date,
-        };
-      })
-      .filter((r): r is NonNullable<typeof r> => r !== null);
-  },
 
   /** Previously skipped questions (honest empty if none). */
   async listSkippedBankQuestions(
@@ -1192,7 +1167,48 @@ export const PracticeService = {
       return [];
     }
 
-    const buildQuery = (applyActiveFilter: boolean) => {
+    // ── THE CHAPTER FILTER MUST REACH THE DATABASE TOO ──────────────────
+    //
+    // Same defect the weakTargets block below was fixed for, in the same
+    // function, left in place for ordinary chapter practice. The chapter was
+    // matched ONLY client-side, over a window capped at
+    // min(400, max(80, limit * 8)) rows — so the query was "any approved
+    // question for this class, board and subject", and the chapter was picked
+    // out of whatever came back.
+    //
+    // Measured on production 2026-09-15, driving the real app in a browser as
+    // arjun.mehta (Class 10, rbse) and opening Arithmetic Progressions:
+    //
+    //     questions in that class/board/subject pool ....... 569
+    //     questions in Arithmetic Progressions ............. 43
+    //     of those, inside the 160-row window .............. 3
+    //
+    // The screen said "No questions for this chapter in the bank yet" for a
+    // chapter holding 43 of them. And because PostgREST returns no guaranteed
+    // order without an ORDER BY, the same tap can return 3, 0 or 20 — so the
+    // failure is intermittent, which is why it survived.
+    //
+    // Pushed down as an OR across the three label columns, case-insensitively.
+    // The client-side academicLabelMatches pass further down is still the
+    // precision filter; this only guarantees the window it filters actually
+    // contains candidates.
+    const labelPredicate = (): string | null => {
+      // PostgREST's or() is comma/parenthesis delimited, so a label containing
+      // either would change the shape of the filter rather than be matched by
+      // it. Such a label falls back to the client-side pass instead.
+      const safe = (v: string | null | undefined) =>
+        v && !/[,()"\\]/.test(v) ? v.trim() : null;
+      const chapter = safe(opts.chapter);
+      const topic = safe(opts.topic);
+      const concept = safe(opts.concept);
+      const clauses: string[] = [];
+      if (chapter) clauses.push(`chapter.ilike.${chapter}`);
+      if (topic) clauses.push(`topic.ilike.${topic}`, `concept.ilike.${topic}`, `chapter.ilike.${topic}`);
+      if (concept) clauses.push(`concept.ilike.${concept}`, `topic.ilike.${concept}`);
+      return clauses.length ? clauses.join(",") : null;
+    };
+
+    const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean) => {
       let query = client
         .from("question_bank")
         .select("id, subject, chapter, topic, concept, difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
@@ -1217,10 +1233,50 @@ export const PracticeService = {
       if (opts.subject && opts.subject !== "Mixed") {
         query = query.ilike("subject", opts.subject);
       }
-      // Chapter / topic / concept filters applied client-side with academicLabelMatches
-      // so display-cleaned labels still hit slug or mojibake-stored rows.
+      // The label predicate NARROWS; academicLabelMatches below is still what
+      // decides. Skipped on the fallback pass so a chapter stored under a
+      // mojibake or slugged label is still reachable the way it was before.
+      if (narrowToLabels && !byIds) {
+        const pred = labelPredicate();
+        if (pred) query = query.or(pred);
+      }
       if (opts.difficulty && opts.difficulty !== "mixed") {
         query = query.eq("difficulty", opts.difficulty);
+      }
+      // ── WEAK AREAS: the filter must reach the DATABASE ──────────────────
+      //
+      // weakTargets used to be matched ONLY client-side, over whatever this
+      // query happened to return. With no chapter or concept predicate the
+      // query is "every approved active question for this class and board",
+      // capped at 400 of 21,681 — an arbitrary window that almost never
+      // contained the handful of questions matching a given student's weak
+      // concepts. The mode then loaded nothing.
+      //
+      // Measured on production before this fix: the busiest student had 16
+      // finished sessions, 14 of them practice_mode 'weak' with ZERO attempts
+      // — 20-question shells auto-finished at 0% because the loader came back
+      // empty. Those zeros were then averaged into Analysis.
+      //
+      // So the targets are pushed down as an OR of exact chapter/concept
+      // matches. The client-side pass below still runs and is still the
+      // precision filter (it handles display-cleaned and mojibake labels);
+      // this only guarantees the window it filters actually contains
+      // candidates.
+      if (opts.weakTargets && opts.weakTargets.length > 0) {
+        const quote = (v: string) => `"${v.replace(/["\\]/g, "")}"`;
+        const concepts = Array.from(
+          new Set(opts.weakTargets.map((w) => w.concept).filter((c): c is string => Boolean(c))),
+        );
+        const chapters = Array.from(
+          new Set(opts.weakTargets.map((w) => w.chapter).filter((c): c is string => Boolean(c))),
+        );
+        const clauses: string[] = [];
+        if (concepts.length) {
+          clauses.push(`concept.in.(${concepts.map(quote).join(",")})`);
+          clauses.push(`topic.in.(${concepts.map(quote).join(",")})`);
+        }
+        if (chapters.length) clauses.push(`chapter.in.(${chapters.map(quote).join(",")})`);
+        if (clauses.length) query = query.or(clauses.join(","));
       }
       if (opts.pyqOnly) {
         query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
@@ -1235,12 +1291,22 @@ export const PracticeService = {
     // applied. Filtering on a missing column fails the whole query, which would
     // stop practice from starting, so probe once and fall back.
     const wantActiveFilter = !opts.includeInactive && softDeleteAvailable !== false;
-    let { data, error } = await buildQuery(wantActiveFilter);
+    let { data, error } = await buildQuery(wantActiveFilter, true);
     if (error && wantActiveFilter && isMissingSchema(error)) {
       softDeleteAvailable = false;
-      ({ data, error } = await buildQuery(false));
+      ({ data, error } = await buildQuery(false, true));
     } else if (!error && wantActiveFilter) {
       softDeleteAvailable = true;
+    }
+    // A narrowed query that found nothing is retried WITHOUT the label
+    // predicate. The predicate is an exact (case-insensitive) match, and this
+    // bank holds slugged and mojibake-encoded labels that only
+    // academicLabelMatches can resolve — so the narrowing must never be the
+    // thing that makes a chapter unreachable. One extra round trip, and only
+    // on the path that would otherwise have shown an empty screen.
+    if (!error && (data?.length ?? 0) === 0 && !byIds && labelPredicate()) {
+      const retry = await buildQuery(wantActiveFilter && softDeleteAvailable !== false, false);
+      if (!retry.error) ({ data } = retry);
     }
     throwIfError(error, "Failed to load practice questions");
     let rows = (data ?? []) as Array<{
@@ -1321,102 +1387,7 @@ export const PracticeService = {
     }));
   },
 
-  /**
-   * Recovery answer — mirrors into question_attempts via RPC.
-   * UI must not call rpc_submit_recovery_answer directly.
-   */
-  async submitRecoveryAnswer(
-    ctx: ServiceContext,
-    args: {
-      questionId: string;
-      studentAnswer: Record<string, unknown>;
-      isCorrect: boolean;
-    },
-  ) {
-    assertCanOwn(ctx, "practice_attempt");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_submit_recovery_answer",
-      {
-        _question_id: args.questionId,
-        _student_answer: args.studentAnswer,
-        _is_correct: args.isCorrect,
-      } as never,
-    );
-    throwIfError(error, "Failed to submit recovery answer");
-    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
-      studentId: ctx.studentId,
-      source: "PracticeService.submitRecoveryAnswer",
-    });
-    return data;
-  },
-
-  /** Queue recovery work when a concept is weak (idempotent per concept). Returns assignment id when available. */
-  async assignRecovery(
-    ctx: ServiceContext,
-    args: {
-      subject: string;
-      chapter?: string | null;
-      concept?: string | null;
-      sourceType: string;
-      sourceId: string;
-      accuracy?: number;
-    },
-  ): Promise<string | null> {
-    assertCanOwn(ctx, "practice");
-    const uuidRe =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const sourceId = uuidRe.test(args.sourceId) ? args.sourceId : null;
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_assign_concept_recovery",
-      {
-        _subject: args.subject,
-        _chapter: args.chapter ?? null,
-        _concept: args.concept ?? args.chapter ?? null,
-        _subconcept: null,
-        // Never invent accuracy — omit so RPC uses DEFAULT.
-        ...(typeof args.accuracy === "number" ? { _accuracy: args.accuracy } : {}),
-        _source_type: args.sourceType,
-        _source_id: sourceId,
-      } as never,
-    );
-    if (error) {
-      console.warn("recovery assign:", error.message);
-      return null;
-    }
-    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
-      studentId: ctx.studentId,
-      source: "PracticeService.assignRecovery",
-    });
-    return typeof data === "string" ? data : data != null ? String(data) : null;
-  },
-
-  /** Mark a recovery assignment complete (AI/template sessions without bank question UUIDs). */
-  async completeRecoveryAssignment(
-    ctx: ServiceContext,
-    args: {
-      assignmentId: string;
-      questionsCompleted?: number;
-      questionsCorrect?: number;
-    },
-  ): Promise<void> {
-    assertCanOwn(ctx, "practice_attempt");
-    const { error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_complete_recovery_assignment",
-      {
-        _assignment_id: args.assignmentId,
-        _questions_completed: args.questionsCompleted ?? null,
-        _questions_correct: args.questionsCorrect ?? null,
-      } as never,
-    );
-    throwIfError(error, "Failed to complete recovery assignment");
-    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
-      studentId: ctx.studentId,
-      source: "PracticeService.completeRecoveryAssignment",
-    });
-  },
-
   /** Clear student mistakes after a successful retry practice. */
-
   async completeMistakeRetry(
     ctx: ServiceContext,
     attempts: Array<{
@@ -1496,6 +1467,7 @@ export const PracticeService = {
     if (clearedIds.length) await this.markMistakesCleared(ctx, clearedIds);
     return { score, clearedIds, sessionId, persisted: true };
   },
+
   async markMistakesCleared(ctx: ServiceContext, mistakeIds: string[]): Promise<void> {
     assertCanOwn(ctx, "practice");
     if (!mistakeIds.length) return;
@@ -1509,39 +1481,5 @@ export const PracticeService = {
       studentId: ctx.studentId,
       source: "PracticeService.markMistakesCleared",
     });
-  },
-
-  /** Mark a revision-queue item complete. */
-  async completeRevision(ctx: ServiceContext, revisionId: string): Promise<void> {
-    assertCanOwn(ctx, "practice");
-    const { error } = await getClient(toRepoContext(ctx)).rpc("rpc_complete_revision", {
-      _id: revisionId,
-    } as never);
-    throwIfError(error, "Failed to complete revision");
-    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
-      studentId: ctx.studentId,
-      source: "PracticeService.completeRevision",
-    });
-    notifyStudentXpUpdated();
-    try {
-      const { ProgressionService } = await import("./progressionService");
-      await ProgressionService.awardSafe(ctx, {
-        ruleCode: "revision.complete",
-        sourceType: "revision",
-        sourceId: revisionId,
-        idempotencyKey: `revision.complete:${revisionId}`,
-      });
-    } catch (e) {
-      // G10, and this is the exact shape the rule was written from: awardSafe
-      // already exists so an XP failure cannot crash the caller, and it was
-      // then wrapped in an empty catch as well — swallowed twice. The original
-      // finding was nine of eleven award paths failing for four days while the
-      // UI said "submitted", visible only to someone who happened to query
-      // progression_history. Not crashing is still not the same as silence.
-      console.error("PracticeService.completeRevision: XP award failed", {
-        revisionId,
-        error: e,
-      });
-    }
   },
 };
