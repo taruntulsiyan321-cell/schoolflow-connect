@@ -67,7 +67,7 @@ async function settle() {
   await page.waitForFunction(() => {
     const t = document.body?.innerText ?? "";
     return t.length > 60 && !/Restoring your session/.test(t);
-  }, { timeout: 45000 }).catch(() => note("SLOW", "never finished loading in 45s"));
+  }, { timeout: 15000 }).catch(() => note("SLOW", "never finished loading in 15s"));
   await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(1200);
 }
@@ -96,8 +96,19 @@ for (const [name, url] of TABS) {
   await scan(`${name}-main`);
 
   // Click every in-page tab this screen offers.
+  //
+  // NOT `nav button`. That matched the SIDEBAR — Home, Practice, Learning,
+  // Class — so the sweep navigated away from the screen it was auditing and
+  // then re-scanned the page it had landed on, up to ten times, scoring the
+  // same nav item as a "tab" of every screen. The screenshots gave it away:
+  // analysis-6-Home, analysis-7-Practice, analysis-8-Learning, all byte-identical.
+  // A run could take half an hour and its "0 findings across every in-page tab"
+  // was partly a statement about the sidebar.
+  //
+  // Scoped to the main region and to controls that actually declare themselves
+  // tabs, with the sidebar excluded outright.
   const tabs = await page.locator(
-    '[role="tab"], button[data-state], nav button, [class*="tab"] button'
+    'main [role="tab"], main button[data-state], [role="tablist"] button'
   ).all();
   for (let i = 0; i < Math.min(tabs.length, 10); i++) {
     const label = ((await tabs[i].textContent()) ?? "").trim().slice(0, 30) || `tab${i}`;
