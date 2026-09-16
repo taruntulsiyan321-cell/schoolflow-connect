@@ -49,9 +49,30 @@ await page.screenshot({ path: `${SP}/shots/30-recovery-tab.png`, fullPage: true 
 const tab = (await page.textContent("body")).replace(/\s+/g," ");
 console.log("RECOVERY TAB:", tab.slice(tab.indexOf("Recovery"), tab.indexOf("Recovery") + 620));
 
-const start = page.locator('button:has-text("Start recovery")').first();
-if (!(await start.count())) { console.log("\nno 'Start recovery' button on the tab"); await browser.close(); process.exit(0); }
-await start.click();
+// CHAPTER picks WHICH card to start, rather than whichever happens to be
+// first. Without it an end-to-end run that just practised one chapter gets a
+// recovery session for a different one, and the chain proves nothing.
+const CHAPTER = process.env.CHAPTER || null;
+// Scoped to the CARD, not to any div containing the name. `locator('div')`
+// matches every ancestor too, including the container holding all the cards,
+// so filtering it by chapter name then taking a button picked whichever card
+// happened to be last — a run asking for Matrices started a different chapter.
+const start = CHAPTER
+  ? page.locator('button:has-text("Start recovery")').filter({
+      has: page.locator(`xpath=ancestor::*[contains(., ${JSON.stringify(CHAPTER)})][1]`),
+    }).first()
+  : page.locator('button:has-text("Start recovery")').first();
+const startBtn = CHAPTER && (await start.count()) === 0
+  // Fall back to matching the card by its own text block.
+  ? page.locator('div.rounded-2xl, [class*="GlassCard"], div').filter({
+      hasText: new RegExp(`^(?=.*${CHAPTER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}).{0,400}$`, "s"),
+    }).locator('button:has-text("Start recovery")').first()
+  : start;
+if (!(await startBtn.count())) {
+  console.log(`\nno 'Start recovery' button${CHAPTER ? ` for ${CHAPTER}` : ""} on the tab`);
+  await browser.close(); process.exit(0);
+}
+await startBtn.click();
 await page.waitForFunction(() => /Q1 of/.test(document.body?.innerText ?? ""), { timeout: 60000 })
   .catch(()=>{ console.log("!! recovery session never reached Q1"); reportFailures(); });
 await page.waitForTimeout(1200);
