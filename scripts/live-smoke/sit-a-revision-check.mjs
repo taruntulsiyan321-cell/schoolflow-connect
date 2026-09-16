@@ -34,6 +34,10 @@ const reportFailures = () => {
   if (!failures.length) console.log("   (no 4xx/5xx — nothing was refused by the server)");
 };
 page.on("console", m => { if (m.type()==="error" && !/WebSocket|realtime|403/.test(m.text())) errors.push(m.text().slice(0,140)); });
+let lastRequestAt = Date.now();
+page.on("request", r => {
+  if (/supabase\.co/.test(r.url()) && !/realtime/.test(r.url())) lastRequestAt = Date.now();
+});
 
 await page.goto("http://127.0.0.1:5173/", { waitUntil: "domcontentloaded" });
 await page.evaluate(([r,t]) => localStorage.setItem(`sb-${r}-auth-token`, JSON.stringify({
@@ -72,7 +76,21 @@ for (const l of ["End Session","Finish","See results"]) {
   const b = page.locator(`button:has-text("${l}")`).first();
   if (await b.count() && await b.isVisible().catch(()=>false)) { await b.click().catch(()=>{}); break; }
 }
-await page.waitForTimeout(6000);
+/**
+ * Wait for the submit to actually finish, not for six seconds.
+ *
+ * The same fixed delay in clear-mistakes-in-the-book.mjs aborted 4 of 12
+ * attempt writes and reported the app's "cleared 0" as fact. Scoring a
+ * revision check writes at least as much, so wait for Supabase to go quiet.
+ */
+{
+  const QUIET_MS = 4000, CAP_MS = 90000;
+  const started = Date.now();
+  while (Date.now() - lastRequestAt < QUIET_MS && Date.now() - started < CAP_MS) {
+    await page.waitForTimeout(500);
+  }
+  console.log(`\nsettled after ${Math.round((Date.now() - started) / 1000)}s of waiting`);
+}
 await page.screenshot({ path: `${SP}/shots/42-revision-result.png`, fullPage: true });
 console.log("\nRESULT:", (await page.textContent("body")).replace(/\s+/g," ").slice(0,620));
 console.log("\nerrors:", errors.length ? errors.slice(0,4).join(" | ") : "none");
