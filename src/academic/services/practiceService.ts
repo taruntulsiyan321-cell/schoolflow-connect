@@ -1211,11 +1211,39 @@ export const PracticeService = {
       // candidates. The old topic./concept. arms could never match anything.
       const clauses: string[] = [];
       if (chapter) clauses.push(`chapter.ilike.${chapter}`);
-      if (topic) clauses.push(`chapter.ilike.${topic}`);
+      void topic; void concept;   // narrowed on the embedded topic instead
       return clauses.length ? clauses.join(",") : null;
     };
 
+    /**
+     * The topic, narrowed IN THE DATABASE, on the embedded topics row.
+     *
+     * Topic practice can be started without a chapter — its start button is
+     * gated on subject + topic only — so chapter narrowing does not help it,
+     * and the fetch window is 400 rows against banks that are bigger than
+     * that: Mathematics class 12 holds 695 approved questions over 125 topics,
+     * Social Science class 10 holds 953. A topic sitting in the unfetched
+     * remainder came back empty and the screen said "No questions for this
+     * topic in the bank yet", which was false.
+     *
+     * `topics!inner(name)` + `topics.name=ilike` makes PostgREST filter the
+     * PARENT rows by the embedded relation. It is an inner join, so the 15
+     * rows carrying no topic_id drop out — correct here, since a question with
+     * no topic cannot be part of a named topic.
+     *
+     * `opts.topic` is not always a topic: the client-side pass below also
+     * matches it against chapter and concept, and weak-area callers pass a
+     * chapter through it. A value that names no topic narrows to zero rows and
+     * the un-narrowed retry below then runs, which is exactly the old
+     * behaviour.
+     */
+    const topicNeedle = ((): string | null => {
+      const v = opts.topic;
+      return v && !/[,()"\\]/.test(v) ? v.trim() : null;
+    })();
+
     const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean) => {
+      const narrowTopic = narrowToLabels && !byIds && topicNeedle !== null;
       let query = client
         .from("question_bank")
         // `topic` and `concept` are NOT columns of question_bank and have not
@@ -1226,7 +1254,10 @@ export const PracticeService = {
         // right now", so chapter practice failed to start at all. It was
         // survivable only while PostgREST served a stale schema cache; the
         // first DDL that reloaded that cache broke every practice session.
-        .select("id, subject, chapter, topic_id, topics(name), difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
+        .select(
+          `id, subject, chapter, topic_id, topics${narrowTopic ? "!inner" : ""}(name), ` +
+          "difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream",
+        )
         .eq("is_approved", true)
         // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
         // so there is no per-school arm left to filter on.
@@ -1254,6 +1285,11 @@ export const PracticeService = {
       if (narrowToLabels && !byIds) {
         const pred = labelPredicate();
         if (pred) query = query.or(pred);
+      }
+      // Applies to the embedded relation, which the !inner above turns into a
+      // filter on the parent rows rather than just on what is nested.
+      if (narrowTopic) {
+        query = query.ilike("topics.name", topicNeedle!);
       }
       if (opts.difficulty && opts.difficulty !== "mixed") {
         query = query.eq("difficulty", opts.difficulty);
@@ -1320,7 +1356,7 @@ export const PracticeService = {
     // academicLabelMatches can resolve — so the narrowing must never be the
     // thing that makes a chapter unreachable. One extra round trip, and only
     // on the path that would otherwise have shown an empty screen.
-    if (!error && (data?.length ?? 0) === 0 && !byIds && labelPredicate()) {
+    if (!error && (data?.length ?? 0) === 0 && !byIds && (labelPredicate() || topicNeedle)) {
       const retry = await buildQuery(wantActiveFilter && softDeleteAvailable !== false, false);
       if (!retry.error) ({ data } = retry);
     }

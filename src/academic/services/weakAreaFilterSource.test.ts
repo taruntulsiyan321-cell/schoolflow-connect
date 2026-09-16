@@ -90,7 +90,26 @@ describe("weak areas filter reaches the database", () => {
 
   it("reads the topic label from the embedded topics row", () => {
     const build = buildQuerySection();
-    expect(build).toContain("topics(name)");
+    // The select is built as a template now, because the embed switches to
+    // !inner when the topic is being narrowed on.
+    expect(build).toMatch(/topics\$\{[^}]*\}\(name\)/);
+  });
+
+  /**
+   * Topic practice can start with NO chapter — its start button is gated on
+   * subject + topic alone — so chapter narrowing does nothing for it and the
+   * 400-row window is smaller than several banks: Mathematics class 12 holds
+   * 695 approved questions over 125 topics, Social Science class 10 holds 953.
+   * A topic in the unfetched remainder returned nothing and the screen claimed
+   * "No questions for this topic in the bank yet".
+   *
+   * The topic must therefore be narrowed IN THE DATABASE, on the embedded
+   * relation, which is what `!inner` plus a `topics.name` filter does.
+   */
+  it("narrows the topic in the database, not just in the browser", () => {
+    const build = buildQuerySection();
+    expect(build).toContain('"topics.name"');
+    expect(build).toContain("!inner");
   });
 
   it("still runs the client-side precision pass afterwards", () => {

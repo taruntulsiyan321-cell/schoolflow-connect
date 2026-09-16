@@ -2500,14 +2500,23 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       return;
     }
 
-    const modeKeyDeep: ModeKey = chapter || topic ? "chapter" : "subject";
+    // A topic WITHOUT a chapter is topic mode, not chapter mode.
+    //
+    // `chapter: chapter || topic` used to copy the topic into the chapter,
+    // from when the topic could not be narrowed server-side and had to act as
+    // a chapter needle. It now does active harm: the query would require
+    // question_bank.chapter to equal a TOPIC name, which no row satisfies, so
+    // the narrowed fetch returns nothing and falls back to the 400-row window
+    // this was meant to avoid. It also wrote the topic name into
+    // practice_sessions.chapter, inventing a chapter that does not exist.
+    const modeKeyDeep: ModeKey = chapter ? "chapter" : topic ? "topic" : "subject";
     const mode = MODES.find((m) => m.key === modeKeyDeep) ?? MODES.find((m) => m.key === "chapter")!;
     setModeKey(modeKeyDeep);
     setConfig({
       mode: modeKeyDeep,
       label: mode.label,
       subject: subject || "Mixed",
-      chapter: chapter || topic,
+      chapter,
       topic,
       difficulty: "mixed",
       qCount: 20,
