@@ -588,7 +588,7 @@ export function deriveRecoveryProgress(queue: RecoveryQueueRow[] | null | undefi
 export function deriveRecoveryTopics(queue: RecoveryQueueRow[] | null | undefined): {
   topic: string;
   subject: string;
-  status: "ready" | "building" | "recovered";
+  status: "ready" | "building" | "recovered" | "relearn";
   openMistakes: number;
   triggerCount: number;
 }[] {
@@ -600,7 +600,14 @@ export function deriveRecoveryTopics(queue: RecoveryQueueRow[] | null | undefine
       return {
         topic,
         subject,
+        // `relearn` is checked BEFORE `building`. A relearn chapter has
+        // ready=false and a state that is not "recovered", so it used to land
+        // in "building" — the bucket for a chapter that has not collected
+        // enough mistakes yet — and the row then rendered "26 of 1": the
+        // student told they need more mistakes when the engine has declined to
+        // drill them BECAUSE they have too many.
         status: r.state === "recovered" ? ("recovered" as const)
+              : r.mode === "relearn" ? ("relearn" as const)
               : r.ready ? ("ready" as const)
               : ("building" as const),
         openMistakes: r.open_mistakes,

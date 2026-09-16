@@ -17,7 +17,16 @@ export type AcademicSnapshot = {
   } | null;
   homework?: { pending: number; completed: number };
   test?: { open: number; completed: number };
-  weak_topics?: { subject: string; chapter?: string; topic?: string; accuracy: number }[];
+  /**
+   * From _weak_topics_for_user, filtered to is_weak. `attempts` is the count
+   * the SERVER measured for that topic — the client must not re-derive it by
+   * matching the topic name against session chapters, which is what
+   * practiceCountForTopic did back when a "topic" was a chapter.
+   */
+  weak_topics?: {
+    subject: string; chapter?: string; topic?: string; accuracy: number;
+    attempts?: number; correct?: number; thin?: boolean;
+  }[];
   /**
    * Chapters whose §5.3 revision date has arrived, from chapter_state — the
    * same source the Revision screen reads.

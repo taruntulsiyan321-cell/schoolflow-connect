@@ -291,7 +291,9 @@ export default function Analysis() {
     const realTopic = (t: { topic?: string | null; chapter?: string | null }) =>
       preferRealAcademicLabel(t.topic, t.chapter);
     const realSubject = (s: string | null | undefined) => preferRealAcademicLabel(s);
-    const weakTopicsSource: { subject: string; chapter?: string; topic?: string; accuracy: number }[] =
+    const weakTopicsSource: {
+      subject: string; chapter?: string; topic?: string; accuracy: number; attempts?: number;
+    }[] =
       DECISION_ENGINE_FEATURE_FLAGS.weakAreasV2
         ? (v2WeakAreas ?? []).map((r) => ({
             subject: r.subject,
@@ -314,11 +316,21 @@ export default function Analysis() {
             topic,
             subject,
             score: Math.round(t.accuracy),
-            practiceCount: practiceCountForTopic(
-              analysis?.recent_sessions ?? [],
-              t.subject,
-              topic,
-            ),
+            // The SERVER's count for this topic, not a client re-derivation.
+            //
+            // practiceCountForTopic matches the topic against the SESSION's
+            // chapter, which worked only while a "topic" was a chapter. Now
+            // that a topic is a topic, "Word Problems on AP" never matches the
+            // chapter "Arithmetic Progressions", so every weak topic counted
+            // zero attempts, mayBeJudged() dropped it, and this tab read
+            // "Nothing flagged yet" while the Overview tab beside it said
+            // "2 topics need attention". _weak_topics_for_user already counts
+            // the attempts per topic and only sets is_weak once there are
+            // enough of them; the fallback is for the v2 source, which has no
+            // attempt count of its own.
+            practiceCount:
+              t.attempts ??
+              practiceCountForTopic(analysis?.recent_sessions ?? [], t.subject, topic),
           };
         })
         .filter((t): t is NonNullable<typeof t> => t != null)
@@ -1194,7 +1206,11 @@ export default function Analysis() {
                       ? <span className="text-xs font-semibold text-success">Recovered</span>
                       : r.status === "ready"
                         ? <span className="text-xs font-semibold text-destructive">Ready</span>
-                        : <span className="text-[11px] text-muted-foreground tabular-nums">{r.openMistakes} of {r.triggerCount}</span>
+                        : r.status === "relearn"
+                          ? <span className="text-xs font-semibold text-warning">
+                              {pluralise(r.openMistakes, "mistake")} — work through the book
+                            </span>
+                          : <span className="text-[11px] text-muted-foreground tabular-nums">{r.openMistakes} of {r.triggerCount}</span>
                     }
                   </div>
                 ))}
