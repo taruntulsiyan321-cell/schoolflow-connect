@@ -1,18 +1,16 @@
 /**
  * Riverside Public School — the E2E organisation — onto the live project, or off it.
  *
- *   npm run db:seed:e2e-school          apply every Riverside migration the ledger does not hold, in order
- *   npm run db:seed:e2e-school:remove   roll every applied one back, newest first, and drop its ledger row
+ *   npm run db:seed:e2e-school          apply 20260925220000 if the ledger does not hold it, then sign its leaders in
+ *   npm run db:seed:e2e-school:remove   roll it back (the whole school and everyone added into it) and drop its ledger row
  *
- * The organisation is these migrations, in this order, and nothing else:
- *   20260925200000_riverside_public_school_is_a_real_organisation   the roster (school, sections, teachers, students)
- *   20260925210000_riverside_is_a_whole_school                      every student's login, their parents, a teacher for every subject
- * Each is applied through scripts/apply-one-migration.mjs — the one applier and ledger writer — and one
- * already in the ledger is not applied again (its proof describes the school as it stood when it ran, so
- * re-running an earlier one over a later one would fail it).
+ * The migration is the school as it is handed over — its year, its twelve sections, its admin and its principal —
+ * and nothing else. Its teachers, students and parents are added by the admin THROUGH THE APP (the owner's ruling of
+ * 2026-09-15), so no script writes a person into it. Applied through scripts/apply-one-migration.mjs, the one applier
+ * and ledger writer.
  *
- * After applying, a principal, a teacher, a student and a parent sign in through Supabase Auth. That proves the
- * accounts, NOT that the app's /auth form admits them (KNOWN_ISSUES 57): e2e-evidence/zz-riverside-*.spec.ts does.
+ * After applying, the admin and the principal sign in through Supabase Auth. That proves the accounts, NOT that the
+ * app's /auth form admits them (KNOWN_ISSUES 57): the e2e-evidence/zz-riverside-* specs do.
  *
  * Requires .env.local with SUPABASE_ACCESS_TOKEN.
  */
@@ -22,10 +20,7 @@ import { fileURLToPath } from "url";
 import { spawnSync } from "child_process";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const MIGRATIONS = [
-  "20260925200000_riverside_public_school_is_a_real_organisation",
-  "20260925210000_riverside_is_a_whole_school",
-];
+const MIGRATION = "20260925220000_riverside_public_school_awaits_its_people";
 const remove = process.argv.includes("--remove");
 
 function envFrom(file, key) {
@@ -63,8 +58,7 @@ async function verifyLogins() {
   const url = envFrom(".env", "VITE_SUPABASE_URL");
   const key = envFrom(".env", "VITE_SUPABASE_PUBLISHABLE_KEY");
   if (!url || !key) throw new Error("VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY missing from .env");
-  const accounts = ["principal@rps.e2e.test", "teacher01@rps.e2e.test", "student.8a.05@rps.e2e.test", "parent.8a.01@rps.e2e.test"];
-  for (const email of accounts) {
+  for (const email of ["admin@rps.e2e.test", "principal@rps.e2e.test"]) {
     const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: { apikey: key, "Content-Type": "application/json" },
@@ -78,23 +72,18 @@ async function verifyLogins() {
   }
 }
 
-const rows = await sql(`SELECT version FROM public.schema_migrations WHERE version IN (${MIGRATIONS.map((m) => `'${m}'`).join(", ")})`);
-const applied = new Set(rows.map((r) => r.version));
+const applied = (await sql(`SELECT 1 FROM public.schema_migrations WHERE version = '${MIGRATION}'`)).length > 0;
 
 if (remove) {
-  for (const name of [...MIGRATIONS].reverse()) {
-    if (!applied.has(name)) continue;
-    apply(join(ROOT, "supabase", "migrations", "rollback", `${name}.rollback.sql`), "--no-ledger");
-    await sql(`DELETE FROM public.schema_migrations WHERE version = '${name}'`);
-    console.log(`Ledger row removed: ${name}`);
+  if (!applied) {
+    console.log(`not applied: ${MIGRATION}`);
+  } else {
+    apply(join(ROOT, "supabase", "migrations", "rollback", `${MIGRATION}.rollback.sql`), "--no-ledger");
+    await sql(`DELETE FROM public.schema_migrations WHERE version = '${MIGRATION}'`);
+    console.log(`Ledger row removed: ${MIGRATION}`);
   }
 } else {
-  for (const name of MIGRATIONS) {
-    if (applied.has(name)) {
-      console.log(`already applied: ${name}`);
-      continue;
-    }
-    apply(join(ROOT, "supabase", "migrations", `${name}.sql`));
-  }
+  if (applied) console.log(`already applied: ${MIGRATION}`);
+  else apply(join(ROOT, "supabase", "migrations", `${MIGRATION}.sql`));
   await verifyLogins();
 }

@@ -5,8 +5,8 @@
 // password reset, email OTP — src/pages/Auth.tsx) is about an account that already
 // exists, and Supabase Auth is what knows that. This file used to hold a curated list
 // of "widely-used" domain extensions and refused anything else, which refused real
-// accounts before Supabase was asked: all 26 Riverside Public School logins
-// (`…@rps.e2e.test`, 20260925200000) could not sign in through the form, and neither
+// accounts before Supabase was asked: every Riverside Public School login
+// (`…@rps.e2e.test`, the E2E organisation) could not sign in through the form, and neither
 // could a school on any extension the list forgot. The typo check is kept — it
 // catches the mistakes the list was written for, without locking anyone out.
 

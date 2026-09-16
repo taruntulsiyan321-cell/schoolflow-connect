@@ -1,22 +1,21 @@
--- Rollback for 20260925200000_riverside_public_school_is_a_real_organisation.
+-- Rollback for 20260925220000_riverside_public_school_awaits_its_people.
 --
 -- Removes Riverside Public School (00000000-0000-4000-8000-000000000003) entirely:
--- every row of every public table that belongs to it — the roster the migration
--- wrote AND whatever end-to-end runs have written into it since (homework and
--- hand-ins, attendance, marks, notifications, events, XP, sessions) — and then its
--- accounts: account rows and identifiers, profiles, auth identities and users.
+-- every row of every public table that belongs to it — the structure the migration
+-- wrote AND everything added into it since through the app (its teachers, students
+-- and parents, their links, homework and hand-ins, attendance, tests, exams and marks,
+-- notices, notifications, events, XP) — and then its accounts: account rows and
+-- identifiers, profiles, auth identities and users.
 --
 -- NEVER ANOTHER SCHOOL. Rows are chosen by this school's id; an account is removed
--- only when it holds no membership in any other school; and the proof compares
--- every other school's rows before and after.
+-- only when it holds no membership in any other school; and the proof compares every
+-- other school's rows before and after.
 --
--- WHAT IT CANNOT REMOVE: files handed in during E2E runs stay in storage —
--- `storage.objects` refuses a SQL delete (`protect_objects_delete`); remove them
--- through the Storage API if wanted. The RBSE curriculum classes 8–12 the migration
+-- WHAT IT CANNOT REMOVE: files handed in stay in storage — `storage.objects` refuses a
+-- SQL delete (`protect_objects_delete`). The RBSE curriculum classes 8–12 the migration
 -- ensures are the curriculum's, not the school's, and stay.
 --
--- The ledger row goes with `npm run db:seed:e2e-school:remove`, which applies this
--- file and then deletes it.
+-- `npm run db:seed:e2e-school:remove` applies this file and then deletes the ledger row.
 
 -- Every other school's rows, to prove afterwards that none of them moved.
 CREATE TEMP TABLE rps_rollback_others AS
@@ -154,7 +153,7 @@ BEGIN
      OR EXISTS (SELECT 1 FROM public.profiles WHERE email LIKE '%@rps.e2e.test') THEN
     RAISE EXCEPTION 'ROLLED BACK: a Riverside login or profile remains';
   END IF;
-  RAISE NOTICE 'rollback OK: Riverside Public School, everything written into it and its accounts are gone; no other school''s row changed';
+  RAISE NOTICE 'rollback OK: Riverside Public School, everything added into it and its accounts are gone; no other school''s row changed';
 END
 $verify$;
 

@@ -1,3 +1,183 @@
+# RIVERSIDE — WHERE IT STANDS, AND EVERY TASK LEFT — 2026-09-16. READ THIS FIRST.
+
+The session that wrote this ran out of credits. Everything below is measured, not assumed.
+
+## 0. The owner's rulings that govern this work
+
+1. **A real school, not a demo.** "We just want to create a real-life school environment so that we can
+   find the bugs and glitches. It shall look raw and real-life, like how a real school environment is going
+   to work." A failing step is an APP BUG to fix — never a script to bend.
+2. **Its people are created BY THE ADMIN, THROUGH THE APP.** "You have to create student, teacher, and
+   parent accounts with an admin account only, not a demo account added to a school. Only then can we check
+   that everything is connected properly and working properly." No migration, script or SQL may write a
+   teacher, student or parent into the school again.
+3. **Keep the structure and the admin; remove every SQL-made person** (answered 2026-09-16). Done — see §1.
+4. **Real classes first:** teachers for two sections, their ~40 students and their parents, added through
+   the admin screens; run the school-life checks on them; grow the school after.
+5. **First sign-in: whatever is quickest now, more ways later.** "Just use any way you can to log in quickly
+   and check everything." The owner is turning OFF "Confirm email" in the Supabase dashboard
+   (Authentication → Sign In / Providers → Email). Until then, and for speed, the agreed path is:
+   the admin records the person AND their email through the app → the login for that email is created
+   directly (§3) → the app's own trigger (`handle_new_user` → `link_portal_on_auth`) links that login to
+   the record the admin made. Nothing about school, class or role is written by hand.
+6. **Nothing is tidied away.** A real school keeps the tests its children sat, the exams it published and
+   the notices it posted. Only the homework story deletes its homework, because deleting is what it checks.
+7. Standing rules of §2 of this file still apply (no secrets, no `strip-demo-tenants --apply`, no PR unless
+   asked, migrations ship a rollback and an in-migration proof with positive controls).
+
+## 1. LIVE STATE (2026-09-16)
+
+* **Riverside Public School (`00000000-0000-4000-8000-000000000003`) is GONE from live.** Both
+  `20260925200000` (the pasted roster: 12 teachers, 224 students, 26 SQL logins) and `20260925210000`
+  (every other login, 216 parents, the subject teachers) were rolled back through their own rollback files
+  — dry-run on live first, then applied — and their ledger rows deleted. Verified after:
+  `schools` 0, `auth.users LIKE '%@rps.e2e.test'` 0, `schema_migrations LIKE '202609252%'` 0.
+* No other school moved: each rollback's proof compares every other school's row counts before and after.
+* **Auth settings on live:** `mailer_autoconfirm` FALSE, `rate_limit_email_sent` 2 per hour, Google OFF,
+  phone OFF, `site_url` https://www.gurukul.study. Check before relying on sign-up:
+  `GET https://api.supabase.com/v1/projects/psqxykzqfvxgsvkmgurn/config/auth` with SUPABASE_ACCESS_TOKEN.
+* Wisdom Campus (the demo tenant) is untouched and still carries the shared `.auth` evidence sessions.
+
+## 2. REPO STATE (branch `claude/tender-goodall-kalj38`; main is at d1b3f0e)
+
+* **Deleted:** both Riverside migrations and their rollbacks. They wrote people by SQL, which ruling 2 forbids.
+* **New, PROVEN ON THE REPLICA, NOT YET APPLIED TO LIVE:**
+  `supabase/migrations/20260925220000_riverside_public_school_awaits_its_people.sql` and its rollback.
+  Structure only — the school, the 2025-26 year, five class groups on the RBSE curriculum, the twelve
+  sections (8-A, 8-B, 9-A, 9-B, 10-A, 10-B, 10-C, 11-A, 11-B, 12-A, 12-B, 12-C) with their seats and NO
+  class teacher, and the two logins a school is handed over with: `admin@rps.e2e.test` (Ravi Krishnan) and
+  `principal@rps.e2e.test` (Sunita Menon), password `E2eSchool123!`. No teacher, student, parent, subject.
+* `scripts/apply-e2e-school.mjs` applies/removes exactly that migration (`npm run db:seed:e2e-school[:remove]`)
+  and signs the two leaders in afterwards.
+* `scripts/local-replica/` gained the proof tools this work used: `tpl.mjs` (save/load a template database),
+  `one.mjs` (apply one file with psql semantics), `rt220.mjs` (the round trip below), `rps-use-220.sql`
+  (the school used as the owner ruled), `dry-run.mjs` (run files against LIVE in one transaction that always
+  rolls back), `stray.mjs` (sweep the empty root files the shell hook leaves — run before every commit).
+* `e2e-evidence/riverside.ts` (one home for signing a Riverside person in, opening a class tab, waiting for a
+  queued notification), `zz-riverside-homework.spec.ts` (rewritten: the parent now follows the homework), and
+  `zz-riverside-school.spec.ts` (attendance, a class test, an exam, a notice, a family of two).
+  **Both specs name people who do not exist yet.** They are the target state for after §4, not runnable today.
+* `playwright.evidence.config.ts` testMatch includes `zz-riverside-school`.
+* Commit `c8e3ab4` restored four garbled characters on screen (← ⭐ ✍ ⏱). Commit `19b0636` is the
+  whole-school migration that ruling 2 superseded; its files are deleted in the working tree.
+
+### The proof that exists for 20260925220000
+
+`node scripts/local-replica/rt220.mjs` (replica Postgres on 127.0.0.1:5433, template `tpl_r18`) —
+M applies and proves itself → USE (`rps-use-220.sql`: the ADMIN, under their own row security, adds a
+teacher and a student and reserves the student's login through `admin_connect_student_account`; the two
+logins are then created, and the app's own trigger links both to the records the admin made; the teacher
+sets homework) → R (the school, everyone added into it and all four accounts gone; no other school moved)
+→ M again rebuilds the identical school. **PASSES.**
+
+## 3. TASK 1 — prove and apply the structure migration
+
+1. The replica lives at `%TEMP%\gkpg` and dies with the session that started it; `scripts/local-replica/run.sh`
+   rebuilds it. Templates: `tpl_r18` = live schema + demo data.
+2. **Mutation proof (NOT DONE).** Every check in 20260925220000's proof must be shown able to fail, by name.
+   Copy the shape used before (a script that loads the template, writes a mutated copy of the migration,
+   applies it, and asserts the proof refuses it with the expected message). At least: a section missing; a
+   section that already has a class teacher; the logins carrying another password; a third login; a stray
+   teacher or student row; the admin probe unable to add a student.
+3. **Live dry runs** (both must print `DRY RUN PASSED`):
+   `node scripts/local-replica/dry-run.mjs supabase/migrations/20260925220000_riverside_public_school_awaits_its_people.sql`
+   then the same command with `supabase/migrations/rollback/20260925220000_riverside_public_school_awaits_its_people.rollback.sql` appended.
+4. **Apply:** `npm run db:seed:e2e-school` — it applies through `scripts/apply-one-migration.mjs` (the one
+   applier and ledger writer) and then signs admin and principal in through Supabase Auth.
+5. `npm run preflight` must be clean (it fails on anything applied that this tree cannot reproduce).
+
+## 4. TASK 2 — the admission: the admin builds 8-A and 11-A through the app
+
+Do this against production (https://schoolflow-connect.vercel.app) as `admin@rps.e2e.test`, driving the real
+screens with Playwright, and treat every failure as a defect to fix (§5). Suggested file:
+`e2e-evidence/zz-riverside-admission.spec.ts` (sorts before the other zz-riverside specs), idempotent — if a
+person is already listed, check their state instead of adding them again.
+
+The school to build (real, with the messiness kept):
+
+* **8-A** — 20 students, subjects English, Hindi, Mathematics, Science, Social Science.
+* **11-A** — 25 students (science), subjects English, Physics, Chemistry, Mathematics, Biology.
+* **Teachers (8):** Mathematics and English each teach both sections; Science, Social Science, Hindi teach
+  8-A; Physics, Chemistry, Biology teach 11-A. One class teacher per section, and a class teacher must teach
+  a subject in their own section or they cannot set homework (`teacher_teaches_class_subject`).
+* **Parents:** one per student, and at least two families with a child in each section, to exercise the
+  two-children parent. Emails `parent.<class><section>.<roll>@rps.e2e.test`.
+* Keep the emails predictable so the other specs can name them:
+  `teacher01@rps.e2e.test` …, `student.8a.01@rps.e2e.test` …, `parent.8a.01@rps.e2e.test` ….
+
+The screens: Add Teacher (`/admin/teachers`) → name, subject, email, Is Class Teacher + its section, and the
+sections they teach; Add Student (`/admin/students`) → name, admission number, roll, class, date of birth,
+parent name and mobile, and "Link account" with the student's email; the student's Edit → Account Access →
+"Parent" + the parent's email; Add Parent (`/admin/parents`) → name, email, phone, linked children.
+
+**Creating the login for an email the admin recorded** (the agreed shortcut of ruling 5 — credential only):
+insert into `auth.users` (id, instance_id `00000000-0000-0000-0000-000000000000`, aud/role `authenticated`,
+email, `encrypted_password = extensions.crypt('E2eSchool123!', extensions.gen_salt('bf'))`,
+`email_confirmed_at = now()`, the four empty token columns) plus the matching `auth.identities` row — the
+pattern is in `scripts/local-replica/rps-use-220.sql`. The `handle_new_user` trigger then calls
+`link_portal_on_auth`, which binds the login to the teacher/student/parent record and grants the membership.
+Nothing else may be written by hand. If a person ends up unlinked, THAT is the bug to fix.
+
+## 5. TASK 3 — the defects already found (fix these; they block §4)
+
+1. **The admin cannot give a teacher their classes.** `src/pages/admin/TeachersAdmin.tsx:57`
+   (`persistAssignments`) inserts `teacher_classes` rows with no `school_id`, and the table's admin policy is
+   `has_role(admin) AND same_school(school_id)` — a NULL school fails it. Measured on the replica: `new row
+   violates row-level security policy for table "teacher_classes"`. The admin sees "Teacher saved, but class
+   assignments failed to save" and the teacher teaches nothing. Suggested fix, one home: a BEFORE INSERT OR
+   UPDATE trigger on `teacher_classes` that fills `school_id` from the teacher and refuses a class of another
+   school (mirroring `tg_section_subjects_same_institution`); Postgres checks RLS against the row as the
+   trigger leaves it. Backfill any existing NULL `school_id` rows.
+2. **The admin cannot add a student.** `src/pages/admin/StudentsAdmin.tsx:57` posts `roll_number` in the
+   `students` payload; `public.students` has no such column (roll lives on `student_enrolments.roll_number`),
+   so PostgREST refuses the insert. Fix the form to write the roll where it belongs.
+3. **A student added through the app has no enrolment.** Nothing creates a `student_enrolments` row, so the
+   student has no roll and no section for the current year; everything reading enrolments (rolls in reports,
+   `students_current`) is blind to them. Decide one home — a trigger on `students` that opens the current-year
+   enrolment when `class_id` is set, or an admin RPC that writes both — and make the form use it.
+4. **A parent added on the Parents page can never sign in as that parent.** `link_portal_on_auth` matches a
+   parent by `students.parent_portal_email` / `parent_mobile` only; `parents.email` is never consulted, so a
+   parent created at `/admin/parents` with an email gets no membership when their login appears. The other
+   path (student → Account Access → Parent) writes `parent_portal_email` and does link, but leaves
+   `memberships.local_person_id` NULL, so `my_guardian_student_ids()` returns nothing and only the
+   `parent_user_id` branch of `students_read` works. Two admin paths, neither complete: make them one.
+5. **The teacher "Connect" button creates a login nobody can use.** `AccountAccess` in TeachersAdmin calls the
+   `admin-link-account` edge function, which creates an auth user with NO password (Google/magic-link only) —
+   and Google and phone are off, email confirmation is on, and only 2 emails an hour can be sent. The RPC
+   `admin_connect_teacher_account` does the correct rendezvous instead (record the email, let the first
+   sign-in link it). Two homes for one decision; pick the rendezvous, or give the admin a first password.
+6. **The mojibake guards cannot see a whole class of corruption.** `scripts/lint-render-safety.mjs`
+   (`source-mojibake`) matches a hand-written list of leads (`â€`, `Â·`, `Ã…`), and
+   `scripts/repair-source-mojibake.cjs` ends a run at an undefined CP1252 byte (0x81, 0x8D, 0x8F, 0x90), so
+   neither could see `â†` (←), `â­` (⭐), `âœ` (✍) or `â±` (⏱) — all four were live on screen until c8e3ab4.
+   Rewrite the detection once (decode-based, treating U+0080–U+009F as run characters) and have the linter and
+   the repair script share it.
+
+## 6. TASK 4 — check everything on the school the admin built
+
+Rewrite `e2e-evidence/zz-riverside-homework.spec.ts` and `zz-riverside-school.spec.ts` for the people §4
+created (they are written for exactly this shape already), then run against production:
+
+```
+PLAYWRIGHT_BASE_URL=https://schoolflow-connect.vercel.app npx playwright test --config=playwright.evidence.config.ts --project=evidence --no-deps e2e-evidence/zz-riverside-admission.spec.ts e2e-evidence/zz-riverside-homework.spec.ts e2e-evidence/zz-riverside-school.spec.ts
+```
+
+`--no-deps` skips the shared-session setup: these specs sign their own people in. What they cover: homework
+set → handed in → accepted → the parent told and following it → the principal's Classes tab and both reports
+→ both profiles → deleted; attendance taken by the class teacher and seen by student and parent; a class test
+set, sat and marked; an exam created, marked, finalised, published and read by student and parent; a notice
+posted to 8-A, read by that class and NOT by a parent of another class; a parent of two seeing both children.
+Fix what fails in the app.
+
+## 7. TASK 5 — close out
+
+* KNOWN_ISSUES.md: add every defect of §5 that is still open, with what was measured.
+* This file: replace §1–§2 with the state you leave behind.
+* Memory: `riverside-e2e-organisation.md` describes the ruling and the live state — keep it true.
+* Commit on `claude/tender-goodall-kalj38`, sweep `node scripts/local-replica/stray.mjs .` first, and push.
+  Do not open a pull request unless the owner asks.
+
+---
 # Gurukul — session handoff
 
 Written 2026-09-09, updated the same day after §4's UI landed. Read this top to
