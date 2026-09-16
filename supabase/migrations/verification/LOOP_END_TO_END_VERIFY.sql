@@ -141,6 +141,17 @@ BEGIN
                                CASE WHEN _n>0 THEN 'PASS ('||_n||')' ELSE 'FAIL (none resolve)' END, E'\n');
   IF _n = 0 THEN _fails := _fails + 1; END IF;
 
+  -- 10 ── nothing may be permanently stuck: an open mistake with neither a
+  --       question to ladder from nor options to retry with can never be
+  --       cleared by anything. 480 such rows existed until 20261028000000.
+  SELECT count(*) INTO _n
+  FROM public.student_mistakes
+  WHERE status='open' AND source='practice'
+    AND question_id IS NULL AND options IS NULL;
+  _report := _report || format('%-52s %s%s', 'no open mistake is permanently unclearable',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
   -- ── Populations deliberately outside the checks above ────────────────────
   -- Reported, not hidden: a check that quietly skips rows is a check that
   -- stops mentioning them.
@@ -150,9 +161,19 @@ BEGIN
    WHERE finished_at IS NOT NULL AND practice_mode IS NULL;
   _report := _report || format('%-52s %s%s', 'seeded fixture sessions (accuracy not computed)', _n, E'\n');
 
+  -- Not linked to the bank, but they carry their own options, so the Mistake
+  -- Book can still render and retry them — which is what clears an entry. The
+  -- 480 that could NOT be retried were load-test rows and are gone
+  -- (20261028000000); these are real questions from the retired generator.
   SELECT count(*) INTO _n FROM public.student_mistakes
    WHERE status='open' AND source='practice' AND question_id IS NULL;
-  _report := _report || format('%-52s %s%s', 'retired-backfill mistakes, unclearable', _n, E'\n');
+  _report := _report || format('%-52s %s%s', 'unlinked mistakes (retriable via own options)', _n, E'\n');
+
+  -- The one that would actually be stuck: no question to ladder from AND no
+  -- options to retry with. This is the number that must stay at zero.
+  SELECT count(*) INTO _n FROM public.student_mistakes
+   WHERE status='open' AND source='practice' AND question_id IS NULL AND options IS NULL;
+  _report := _report || format('%-52s %s%s', 'mistakes with no question AND no options', _n, E'\n');
 
   SELECT count(*) INTO _n FROM public.practice_sessions ps
    WHERE ps.finished_at IS NOT NULL
