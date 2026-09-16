@@ -53,14 +53,12 @@ BEGIN
   IF _n <> 0 THEN _fails := _fails + 1; END IF;
 
   -- 3 ── accuracy excludes skips (20261021000000)
-  -- practice_mode IS NULL are the 240 seeded "scale fixture" sessions, whose
-  -- accuracy was written by the seed rather than computed from their attempts.
-  -- Every session the engine itself finished matches. The seed count is
-  -- reported below rather than silently excluded.
+  -- No mode exclusion any more. The 240 seeded sessions carried seed-written
+  -- counts until 20261029000000 recomputed them from their own attempts, so
+  -- the rule now applies to every finished session in the database.
   SELECT count(*) INTO _n
   FROM public.practice_sessions ps
   WHERE ps.finished_at IS NOT NULL
-    AND ps.practice_mode IS NOT NULL
     AND EXISTS (SELECT 1 FROM public.question_attempts qa WHERE qa.session_id = ps.id)
     AND ps.accuracy IS DISTINCT FROM
         round(100.0 * ps.correct_count / NULLIF(ps.question_count - ps.skipped_count, 0), 2);
@@ -152,14 +150,44 @@ BEGIN
                                CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
   IF _n <> 0 THEN _fails := _fails + 1; END IF;
 
-  -- ── Populations deliberately outside the checks above ────────────────────
-  -- Reported, not hidden: a check that quietly skips rows is a check that
-  -- stops mentioning them.
-  _report := _report || E'\n── carried, not asserted on ────────────────────────────\n';
+  -- 11 ── a stored summary must equal the attempts it summarises. The seeder
+  --       wrote correct/skipped counts by hand for 240 sessions; the rate
+  --       beside them was recomputed in 20261021000000 and then disagreed with
+  --       them until 20261029000000.
+  SELECT count(*) INTO _n
+  FROM public.practice_sessions ps
+  JOIN LATERAL (
+    SELECT count(*)::int AS attempts,
+           count(*) FILTER (WHERE qa.is_correct AND NOT COALESCE(qa.skipped,false))::int AS correct,
+           count(*) FILTER (WHERE COALESCE(qa.skipped,false))::int AS skipped
+    FROM public.question_attempts qa WHERE qa.session_id = ps.id
+  ) a ON true
+  WHERE ps.finished_at IS NOT NULL
+    AND (ps.question_count <> a.attempts OR ps.correct_count <> a.correct
+      OR ps.skipped_count <> a.skipped);
+  _report := _report || format('%-52s %s%s', 'session summary = its own attempts',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- 12 ── a session that asked nothing may not claim questions either. 20 of
+  --       them declared 385 between them.
+  SELECT count(*) INTO _n
+  FROM public.practice_sessions ps
+  WHERE ps.finished_at IS NOT NULL AND ps.question_count > 0
+    AND NOT EXISTS (SELECT 1 FROM public.question_attempts qa WHERE qa.session_id = ps.id);
+  _report := _report || format('%-52s %s%s', 'no session claims questions it never asked',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- ── Context for the checks above ──────────────────────────────────────────
+  -- These started as populations the checks had to step around. Each is now
+  -- covered by an assertion above and conforms; the counts stay because a
+  -- number that silently becomes zero is a number nobody notices returning.
+  _report := _report || E'\n── context (each covered by a check above) ─────────────\n';
 
   SELECT count(*) INTO _n FROM public.practice_sessions
    WHERE finished_at IS NOT NULL AND practice_mode IS NULL;
-  _report := _report || format('%-52s %s%s', 'seeded fixture sessions (accuracy not computed)', _n, E'\n');
+  _report := _report || format('%-52s %s%s', 'seeded sessions (now counted from attempts)', _n, E'\n');
 
   -- Not linked to the bank, but they carry their own options, so the Mistake
   -- Book can still render and retry them — which is what clears an entry. The
@@ -178,7 +206,7 @@ BEGIN
   SELECT count(*) INTO _n FROM public.practice_sessions ps
    WHERE ps.finished_at IS NOT NULL
      AND NOT EXISTS (SELECT 1 FROM public.question_attempts qa WHERE qa.session_id=ps.id);
-  _report := _report || format('%-52s %s%s', 'shell sessions left by the practice outage', _n, E'\n');
+  _report := _report || format('%-52s %s%s', 'shell sessions (kept, but claim 0 questions)', _n, E'\n');
 
   _report := _report || E'────────────────────────────────────────────────────────\n';
   _report := _report || CASE WHEN _fails = 0
