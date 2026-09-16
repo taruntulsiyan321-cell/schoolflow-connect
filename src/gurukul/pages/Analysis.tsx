@@ -509,10 +509,26 @@ export default function Analysis() {
   // about coverage, not a judgement about the child.
   const learningProgress = useMemo(() => {
     const toRevisit = mastery.filter((m) => m.mistake_count > 0).length;
-    const openMistakes = mastery.reduce((n, m) => n + (m.mistake_count ?? 0), 0);
+    // ONE ROW PER MISTAKE, from student_mistakes — not a sum over
+    // concept_mastery.
+    //
+    // concept_mastery.mistake_count is a per-concept SNAPSHOT: each row stores
+    // the open count for its own (subject, chapter, concept) key at the moment
+    // it was last upserted. Adding those up counts the same mistake once for
+    // every concept row whose key it matches, and keeps counting rows whose
+    // key no longer matches anything. Measured for one student: the tile read
+    // 69 while they had 35 open mistakes — the Mistake Book, Recovery and the
+    // snapshot all said 35.
+    //
+    // rpc_student_academic_snapshot already counts the rows directly
+    // (`count(*) ... WHERE status='open'`), which is the same number every
+    // other surface shows. The mastery sum stays only as the fallback for a
+    // snapshot that has not arrived.
+    const openMistakes =
+      snapshot?.mistake_count ?? mastery.reduce((n, m) => n + (m.mistake_count ?? 0), 0);
     const notStarted = mastery.filter((m) => m.total_attempts === 0).length;
     return { toRevisit, openMistakes, notStarted, total: mastery.length };
-  }, [mastery]);
+  }, [mastery, snapshot?.mistake_count]);
 
   const milestones = useMemo(() => {
     const built = buildMilestones(snapshot ?? {}, [], analysis?.trend.improvement_pct ?? null);
