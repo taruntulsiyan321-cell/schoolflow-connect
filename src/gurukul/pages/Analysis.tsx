@@ -411,25 +411,24 @@ export default function Analysis() {
     return [...byMonth.entries()].map(([month, done]) => ({ month, done }));
   }, [charts?.weekly_activity]);
 
+  // ONE PACE FIGURE ON THIS PAGE, AND THIS IS IT.
+  //
+  // The `fallbackAvg` that stood here was `analysis.totals.avg_sec_per_question`
+  // — a SECOND definition of the same quantity, the mean of per-session rates
+  // where deriveSpeedStats pools. Both rendered: Overview's "Average time per
+  // question" read 15s while the Practice tab's "Average per question" read 6s,
+  // for the same student in the same minute. The rival is deleted in
+  // useAnalysisPageData rather than reconciled here; a fallback between two
+  // definitions is not a fallback, it is a coin toss about which is true.
   const { speedStats, speedBySubject } = useMemo(() => {
     const derived = deriveSpeedStats(analysis?.recent_sessions ?? []);
-    const fallbackAvg = analysis?.totals.avg_sec_per_question ?? 0;
-    const stats = {
-      ...derived.stats,
-      avgSec: derived.stats.avgSec > 0 ? derived.stats.avgSec : fallbackAvg,
-    };
-    const bySubject =
-      derived.bySubject.length > 0
-        ? derived.bySubject.map((s, i) => ({
-            name: s.name,
-            color: subjectColor(s.name, i),
-            avgSec: s.avgSec,
-          }))
-        : stats.avgSec > 0
-          ? [{ name: "Overall", color: "hsl(var(--primary))", avgSec: stats.avgSec }]
-          : [];
-    return { speedStats: stats, speedBySubject: bySubject };
-  }, [analysis?.recent_sessions, analysis?.totals.avg_sec_per_question]);
+    const bySubject = derived.bySubject.map((s, i) => ({
+      name: s.name,
+      color: subjectColor(s.name, i),
+      avgSec: s.avgSec,
+    }));
+    return { speedStats: derived.stats, speedBySubject: bySubject };
+  }, [analysis?.recent_sessions]);
 
   const studyActivity = useMemo(() => {
     const heatmap = snapshot?.activity_heatmap ?? [];
@@ -446,7 +445,15 @@ export default function Analysis() {
     const activeDays = heatmap.filter((d) => (d.minutes ?? 0) > 0);
     const bestDayRow = [...activeDays].sort((a, b) => (b.minutes ?? 0) - (a.minutes ?? 0))[0];
     return {
-      totalHrs: Math.round(totalMins / 60),
+      // MINUTES, NOT HOURS. `Math.round(totalMins / 60)` printed "0h" for
+      // every real total under thirty minutes — measured on production as
+      // "Total study time 0h" on this tab beside "Study time total 6m" on
+      // Overview, off the one heat-map. Overview was fixed with
+      // formatStudyTime and this was not, which is how one source ended up
+      // contradicting itself on one page. The rounding is gone from here
+      // entirely; formatStudyTime is the only thing that turns these minutes
+      // into a label.
+      totalMinutes: totalMins,
       avgDailyMin: activeDays.length > 0 ? Math.round(totalMins / activeDays.length) : 0,
       bestDay: bestDayRow
         ? new Date(bestDayRow.date).toLocaleDateString(undefined, { weekday: "short" })
@@ -537,7 +544,11 @@ export default function Analysis() {
       title: m.title,
       desc: m.detail ?? "",
       date: m.when,
-      icon: m.badge ? "â­" : "📈",
+      // Was the three characters U+00E2 U+00AD U+0090 - a star read back as
+      // Latin-1 after a non-UTF-8 round trip, so every badge milestone
+      // rendered mojibake where its icon should be. src/lib/utf8Text.ts
+      // repairs this class of damage in DATA; this one was in the source.
+      icon: m.badge ? "⭐" : "📈",
       category: m.badge ?? "Progress",
     }));
     if (streak >= STREAK_ESTABLISHED) {
@@ -610,22 +621,25 @@ export default function Analysis() {
       items.push({
         label: "Most active day recently",
         value: bestDay,
-        sub: `${studyActivity.totalHrs}h total study time logged`,
+        sub: `${formatStudyTime(studyActivity.totalMinutes || null)} total study time logged`,
         color: "hsl(var(--info))",
         icon: <Calendar className="w-4 h-4" />,
       });
     }
-    if (analysis?.totals.avg_sec_per_question) {
+    // The same figure the Practice tab prints, from the same call. The sub
+    // line said "Based on your latest practice session" and never was: the
+    // figure it described spanned every timed session the page had loaded.
+    if (speedStats.avgSec > 0) {
       items.push({
         label: "Average time per question",
-        value: `${analysis.totals.avg_sec_per_question}s`,
-        sub: "Based on your latest practice session",
+        value: `${speedStats.avgSec}s`,
+        sub: "Across your timed practice sessions",
         color: "hsl(var(--destructive))",
         icon: <Clock className="w-4 h-4" />,
       });
     }
     return items;
-  }, [subjectData, snapshot?.weak_topics, studyActivity, analysis]);
+  }, [subjectData, snapshot?.weak_topics, studyActivity, speedStats.avgSec]);
 
   const questionCards = useMemo(() => {
     // NO CLASS RANK HERE. §6.7: analysis must never "compare the student to
@@ -682,10 +696,10 @@ export default function Analysis() {
     () =>
       deriveMonthComparison(
         charts?.weekly_activity ?? [],
-        charts?.practice_trend ?? [],
+        analysis?.recent_sessions ?? [],
         snapshot?.activity_heatmap,
       ),
-    [charts?.weekly_activity, charts?.practice_trend, snapshot?.activity_heatmap],
+    [charts?.weekly_activity, analysis?.recent_sessions, snapshot?.activity_heatmap],
   );
 
   const scoreTrendDomain = useMemo(
@@ -1019,7 +1033,11 @@ export default function Analysis() {
                           shown for every subject, high and low alike. */}
                       {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{pluralise(s.questions, "question")}{s.timeHrs > 0 ? ` · ${s.timeHrs}h study time` : ""}</div>
+                    {/* formatStudyTime, not a bare `${hours}h`: this printed "0.1h study
+                        time" for six measured minutes, and "0h" for anything under
+                        half an hour. Silent when the subject's sessions were never
+                        timed — a subject with no measurement makes no claim. */}
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{pluralise(s.questions, "question")}{s.measuredMinutes != null && s.measuredMinutes > 0 ? ` · ${formatStudyTime(s.measuredMinutes)} study time` : ""}</div>
                     <div className="h-1 rounded-full bg-muted mt-2 overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
                     </div>
@@ -1278,7 +1296,7 @@ export default function Analysis() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: "Done today",        value: practiceStats.todayTarget > 0 ? `${practiceStats.todayDone}/${practiceStats.todayTarget}` : `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
-                { label: "Done in 4 weeks",   value: practiceStats.weekTarget > 0 ? `${practiceStats.weekDone}/${practiceStats.weekTarget}` : `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
+                { label: "Activities in 4 weeks", value: practiceStats.weekTarget > 0 ? `${practiceStats.weekDone}/${practiceStats.weekTarget}` : `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
                 { label: "Practice streak",   value: pluralise(practiceStats.streakDays, "day"),                        color: "hsl(var(--warning))" },
                 { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "hsl(var(--success))" },
               ].map((s) => <Metric key={s.label} label={s.label} value={s.value} color={s.color} />)}
@@ -1286,7 +1304,13 @@ export default function Analysis() {
           </div>
 
           {/* Practice monthly */}
-          <Card label="Questions practiced each month">
+          {/* NOT QUESTIONS. practiceMonthly sums weekly_activity.total, which
+              rpc_student_performance_charts builds as
+              test_count + homework_count + battle_count + self_practice_count.
+              The heat-map tooltip two panels down was corrected to say
+              "activities" for this exact reason; the correction was made there
+              and not here, so the same table kept being read as questions. */}
+          <Card label="Practice activity each month">
             {practiceMonthly.length > 0 ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -1295,7 +1319,7 @@ export default function Analysis() {
                   <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="done" name="Questions" radius={[6, 6, 0, 0]} isAnimationActive={false}>
+                  <Bar dataKey="done" name="Activities" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                     {practiceMonthly.map((_, i) => (
                       <Cell key={i} fill={i === practiceMonthly.length - 1 ? "hsl(var(--primary))" : withAlpha("hsl(var(--primary))", 0.35)} />
                     ))}
@@ -1304,7 +1328,7 @@ export default function Analysis() {
               </ResponsiveContainer>
             </div>
             ) : (
-              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">No monthly practice data yet</p>
+              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">No monthly activity yet</p>
             )}
           </Card>
 
@@ -1313,8 +1337,12 @@ export default function Analysis() {
             <SLabel>How fast you solve questions</SLabel>
             <div className="grid sm:grid-cols-3 gap-3 mb-4">
               <Metric label="Average per question"  value={speedStats.avgSec > 0 ? `${speedStats.avgSec}s` : "—"}    color="hsl(var(--foreground))" />
-              <Metric label="Fastest subject"        value={speedStats.fastestSubject}  color="hsl(var(--success))" sub={speedStats.avgSec > 0 ? `${speedStats.fastestSec}s avg` : undefined} />
-              <Metric label="Takes most time"        value={speedStats.slowestSubject}  color="hsl(var(--warning))" sub={speedStats.avgSec > 0 ? `${speedStats.slowestSec}s avg` : undefined} />
+              <Metric label="Fastest subject"        value={speedStats.fastestSubject}  color="hsl(var(--success))" sub={speedStats.fastestSec > 0 ? `${speedStats.fastestSec}s avg` : undefined} />
+              {/* The sub line asked `avgSec > 0`, which is a question about a
+                  DIFFERENT figure: with one subject practised there is no
+                  slowest, the value renders "—", and the sub still printed
+                  "0s avg" underneath it. It asks about its own number now. */}
+              <Metric label="Takes most time"        value={speedStats.slowestSubject}  color="hsl(var(--warning))" sub={speedStats.slowestSec > 0 ? `${speedStats.slowestSec}s avg` : undefined} />
             </div>
             <Card label="Time per question by subject (seconds)">
               {speedBySubject.length > 0 && speedStats.avgSec > 0 ? (
@@ -1342,7 +1370,7 @@ export default function Analysis() {
       {tab === "activity" && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Metric label="Total study time"    value={`${studyActivity.totalHrs}h`}       color="hsl(var(--info))" />
+            <Metric label="Total study time"    value={formatStudyTime(studyActivity.totalMinutes || null)} color="hsl(var(--info))" />
             <Metric label="Average per day"     value={`${studyActivity.avgDailyMin} min`} color="hsl(var(--foreground))" />
             <Metric label="Most active day"     value={studyActivity.bestDay}              color="hsl(var(--warning))" />
             <Metric label="Most productive hour" value={studyActivity.bestHour}            color="hsl(var(--info))" />
@@ -1419,15 +1447,22 @@ export default function Analysis() {
           <Card label="This month vs last month">
             <div className="grid grid-cols-3 gap-4 mt-3">
               {monthComparison.map((row) => {
-                const diff = row.lastM > 0 ? row.thisM - row.lastM : 0;
-                const pct = row.lastM > 0 ? Math.round((diff / row.lastM) * 100) : 0;
+                // A month with nothing measured is null, not zero — "0%
+                // accuracy last month" is a claim about a month the student
+                // may not have practised in at all. Minutes go through the one
+                // formatter; every other unit is appended as-is.
+                const show = (v: number | null) =>
+                  v == null ? "—" : row.unit === "min" ? formatStudyTime(v) : `${v}${row.unit}`;
+                const comparable = row.thisM != null && row.lastM != null && row.lastM > 0;
+                const diff = comparable ? (row.thisM as number) - (row.lastM as number) : 0;
+                const pct = comparable ? Math.round((diff / (row.lastM as number)) * 100) : 0;
                 const up = diff > 0;
                 return (
                   <div key={row.label} className="text-center p-3 rounded-xl border border-border/70 bg-surface/60">
                     <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{row.label}</div>
-                    <div className="text-xl font-black text-foreground">{row.thisM}{row.unit}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">{row.lastM > 0 ? `vs ${row.lastM}${row.unit} last month` : "No prior month data"}</div>
-                    {row.lastM > 0 && (
+                    <div className="text-xl font-black text-foreground">{show(row.thisM)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{comparable ? `vs ${show(row.lastM)} last month` : "No prior month data"}</div>
+                    {comparable && (
                     <div className={cn("flex items-center gap-1 justify-center mt-1 text-xs font-semibold", up ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground")}>
                       {diff !== 0 && (up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
                       {diff !== 0 ? `${up ? "+" : ""}${pct}%` : "—"}

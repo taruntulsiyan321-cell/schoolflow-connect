@@ -89,9 +89,17 @@ function accuracyOf(session: PracticeSessionSummary): number {
   return session.accuracy_pct;
 }
 
+/**
+ * Seconds per question for one session — or null when nothing timed it.
+ *
+ * `measured_ms`, not a wall-clock duration. The wall-clock fallback this used
+ * to receive was a seeded 18-minute constant on 240 of 284 sessions, which
+ * made every figure derived here a function of the question count alone.
+ */
 function sessionSecPerQuestion(session: PracticeSessionSummary): number | null {
   if (session.question_count <= 0) return null;
-  const sec = (session.duration_minutes * 60) / session.question_count;
+  if (session.measured_ms == null) return null;
+  const sec = session.measured_ms / 1000 / session.question_count;
   if (!Number.isFinite(sec) || sec <= 0) return null;
   return Math.round(sec);
 }
@@ -179,7 +187,17 @@ export type DerivedSubjectRow = {
   name: string;
   accuracy: number;
   questions: number;
-  timeHrs: number;
+  /**
+   * Measured study minutes across this subject's TIMED sessions, or null when
+   * none of them was timed.
+   *
+   * Was `timeHrs`, a number of hours pre-rounded to one decimal in this
+   * module. Two problems, one root: rounding a measurement here means the
+   * renderer cannot choose an honest unit (6 minutes arrived as 0.1h and
+   * printed as "0.1h study time"), and a `number` cannot say "nobody timed
+   * this", so an untimed subject rendered as zero hours of work.
+   */
+  measuredMinutes: number | null;
   /** Movement in accuracy points. Null unless the §6.4 floor is met. */
   trend: number | null;
   /** §6.4. Distinguishes "steady" from "not enough data"; trend alone cannot. */
@@ -213,13 +231,21 @@ export function deriveSubjectRows(
   return deduped.map((s) => {
     const accuracy = Math.round(s.accuracy);
     const sess = bySubject.get(s.name.toLowerCase()) ?? [];
-    const timeMins = sess.reduce((sum, x) => sum + x.duration_minutes, 0);
+    // Only the sessions that were actually timed. Summing an unmeasured
+    // session as zero would under-report; summing a wall clock over it would
+    // invent time the student never spent. Null when none of them was timed,
+    // so the row can say nothing rather than say "0h".
+    const timedSess = sess.filter((x) => x.measured_ms != null);
+    const measuredMinutes =
+      timedSess.length > 0
+        ? Math.round(timedSess.reduce((sum, x) => sum + (x.measured_ms ?? 0), 0) / 60000)
+        : null;
     const { state: subjectTrendState, deltaPoints } = trendState(sess.map(accuracyOf));
     return {
       name: s.name,
       accuracy,
       questions: s.attempts,
-      timeHrs: Math.round((timeMins / 60) * 10) / 10,
+      measuredMinutes,
       trend: deltaPoints,
       trendState: subjectTrendState,
       // Converged onto the one accuracy ladder: this asked "< 65", which was a
@@ -261,31 +287,79 @@ export function deriveChapterRows(
     byChapter.set(key, list);
   }
 
-  const fromMastery = mastery
-    .map((m) => {
-      const chapterRaw = preferRealAcademicLabel(m.chapter, m.concept);
-      const subjectRaw = preferRealAcademicLabel(m.subject);
-      if (!chapterRaw || !subjectRaw) return null;
-      const chapter = displayChapter(chapterRaw) || chapterRaw;
-      const subjectCanon = normalizeSubjectName(subjectRaw) || subjectRaw;
-      const subject = displaySubject(subjectCanon) || subjectCanon;
-      if (!chapter || !subject || isGenericAcademicLabel(chapter) || isGenericAcademicLabel(subject)) {
-        return null;
-      }
-      const attempts = m.total_attempts ?? 0;
+  // ── ONE CARD PER CHAPTER. ────────────────────────────────────────────────
+  //
+  // This mapped concept_mastery rows ONE TO ONE onto cards, under the heading
+  // "Chapter by chapter", taking `chapter ?? concept` as the card's title and
+  // then slicing the first twelve. concept_mastery holds a row per CONCEPT,
+  // so measured for one student on 2026-09-17:
+  //
+  //     20 concept rows across 6 chapters  ->  12 cards:
+  //       Polynomials             x6  (0%, 40%, 40%, 20%, 36%, 33%)
+  //       Arithmetic Progressions x4
+  //       Probability             x1
+  //       ...and Introduction to Trigonometry (94%), Quadratic Equations
+  //       (88%) and Pair of Linear Equations (42%) shown NOWHERE, cut off by
+  //       the slice.
+  //
+  // So the student saw one chapter six times with six different accuracies,
+  // and three of their six chapters not at all. Grouping is not a display
+  // nicety here: the ungrouped figures are per-concept numbers wearing a
+  // chapter's name, which is the same level confusion as `c.chapter AS topic`
+  // in _weak_topics_for_user, in the other direction.
+  //
+  // Attempts and correct answers are SUMMED and the rate taken once over the
+  // totals — pooled, never the mean of the concepts' rates.
+  const byChapterKey = new Map<
+    string,
+    { chapter: string; subject: string; attempts: number; correct: number; masteryScores: number[] }
+  >();
+  for (const m of mastery) {
+    const chapterRaw = preferRealAcademicLabel(m.chapter, m.concept);
+    const subjectRaw = preferRealAcademicLabel(m.subject);
+    if (!chapterRaw || !subjectRaw) continue;
+    const chapter = displayChapter(chapterRaw) || chapterRaw;
+    const subjectCanon = normalizeSubjectName(subjectRaw) || subjectRaw;
+    const subject = displaySubject(subjectCanon) || subjectCanon;
+    if (!chapter || !subject || isGenericAcademicLabel(chapter) || isGenericAcademicLabel(subject)) {
+      continue;
+    }
+    const key = `${subject.toLowerCase()}::${chapter.toLowerCase()}`;
+    const entry = byChapterKey.get(key) ?? {
+      chapter,
+      subject,
+      attempts: 0,
+      correct: 0,
+      masteryScores: [] as number[],
+    };
+    entry.attempts += m.total_attempts ?? 0;
+    entry.correct += m.correct_attempts ?? 0;
+    entry.masteryScores.push(m.mastery_score);
+    byChapterKey.set(key, entry);
+  }
+
+  const fromMastery = [...byChapterKey.values()]
+    .map((entry) => {
       const accuracy =
-        attempts > 0
-          ? Math.round((100 * (m.correct_attempts ?? 0)) / attempts)
-          : Math.round(m.mastery_score);
-      const key = `${subject.toLowerCase()}::${chapter.toLowerCase()}`;
+        entry.attempts > 0
+          ? Math.round((100 * entry.correct) / entry.attempts)
+          : entry.masteryScores.length > 0
+            ? Math.round(
+                entry.masteryScores.reduce((a, b) => a + b, 0) / entry.masteryScores.length,
+              )
+            : 0;
+      const key = `${entry.subject.toLowerCase()}::${entry.chapter.toLowerCase()}`;
       const sessList = byChapter.get(key) ?? [];
       const { state: chapterTrendState, deltaPoints } = trendState(sessList.map(accuracyOf));
       return {
-        chapter,
-        subject,
-        practiceDepth: Math.min(100, Math.round((attempts / 5) * 100)),
+        chapter: entry.chapter,
+        subject: entry.subject,
+        // Depth toward five attempts, now over the CHAPTER's attempts rather
+        // than one concept's — which is why a chapter with a single 5-attempt
+        // concept used to read "100% Practice".
+        practiceDepth: Math.min(100, Math.round((entry.attempts / 5) * 100)),
         accuracy,
-        questions: attempts,
+        questions: entry.attempts,
         trend: deltaPoints,
         trendState: chapterTrendState,
         // Converged: 75/55 were this file's own boundaries for the same figure
@@ -297,7 +371,11 @@ export function deriveChapterRows(
             : "needs-work") as DerivedChapterRow["status"],
       };
     })
-    .filter((r): r is DerivedChapterRow => r != null)
+    // Weakest first. The slice below is a cap on how much the grid shows, and
+    // an arbitrary order made it cut whichever chapters happened to sort last
+    // — which is how three chapters vanished. §10.8 forbids a list filtered to
+    // the strongest; ordering so the weakest survive a cap is the opposite.
+    .sort((a, b) => a.accuracy - b.accuracy)
     .slice(0, 12);
   if (fromMastery.length > 0) return fromMastery;
 
@@ -485,53 +563,87 @@ export function deriveSpeedStats(sessions: PracticeSessionSummary[]): {
   };
 }
 
+/**
+ * This month against last month.
+ *
+ * ── THREE THINGS WERE WRONG HERE, AND EACH HAD A TWIN ELSEWHERE ────────────
+ *
+ * 1. "Questions". `weekly_activity.total` is
+ *    `test_count + homework_count + battle_count + self_practice_count` — a
+ *    count of ACTIVITIES, which the heat-map tooltip beside it was corrected
+ *    to say in as many words ("the tooltip called them questions, a number
+ *    this table has never held"). That correction was made in one place and
+ *    not this one, so the same table kept being read as questions two panels
+ *    down. It is labelled for what it counts now.
+ *
+ * 2. "Avg score" was the mean of per-day `score_pct` — the mean of rates,
+ *    which 20261022000000 removed from refresh_student_academic_profile for
+ *    disagreeing with the pooled figure every other surface shows. It came
+ *    back in the browser. It is pooled here: correct over answered, across
+ *    the month's sessions, which is the one accuracy this app has.
+ *
+ * 3. "Study time" was `Math.round(mins / 60)` with the unit "h" appended.
+ *    Every real total under thirty minutes printed as "0h" — the same
+ *    rounding that formatStudyTime exists to prevent on the Overview tile,
+ *    made here about the same minutes. Minutes are returned; the renderer
+ *    picks the unit.
+ */
 export function deriveMonthComparison(
   weekly: WeeklyActivityPoint[],
-  practiceTrend: PracticeTrendPoint[],
+  sessions: PracticeSessionSummary[],
   heatmap: AcademicSnapshot["activity_heatmap"],
   now = new Date(),
-): { label: string; thisM: number; lastM: number; unit: string }[] {
+): { label: string; thisM: number | null; lastM: number | null; unit: string }[] {
   const thisMonth = now.getMonth();
   const thisYear = now.getFullYear();
   const lastMonthDate = new Date(thisYear, thisMonth - 1, 1);
   const lastMonth = lastMonthDate.getMonth();
   const lastYear = lastMonthDate.getFullYear();
 
-  let thisQ = 0;
-  let lastQ = 0;
+  const inThis = (iso: string) => {
+    const d = new Date(iso);
+    return d.getFullYear() === thisYear && d.getMonth() === thisMonth;
+  };
+  const inLast = (iso: string) => {
+    const d = new Date(iso);
+    return d.getFullYear() === lastYear && d.getMonth() === lastMonth;
+  };
+
+  let thisActivities = 0;
+  let lastActivities = 0;
   for (const row of weekly) {
-    const d = new Date(row.date);
-    if (d.getFullYear() === thisYear && d.getMonth() === thisMonth) thisQ += row.total ?? 0;
-    if (d.getFullYear() === lastYear && d.getMonth() === lastMonth) lastQ += row.total ?? 0;
+    if (inThis(row.date)) thisActivities += row.total ?? 0;
+    if (inLast(row.date)) lastActivities += row.total ?? 0;
   }
 
-  const scoresThis: number[] = [];
-  const scoresLast: number[] = [];
-  for (const p of practiceTrend) {
-    const d = new Date(p.date);
-    if (d.getFullYear() === thisYear && d.getMonth() === thisMonth) scoresThis.push(p.score_pct);
-    if (d.getFullYear() === lastYear && d.getMonth() === lastMonth) scoresLast.push(p.score_pct);
-  }
-  const avg = (xs: number[]) =>
-    xs.length > 0 ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0;
+  /** Pooled: correct over answered, never a mean of session percentages. */
+  const pooled = (rows: PracticeSessionSummary[]): number | null => {
+    let correct = 0;
+    let answered = 0;
+    for (const r of rows) {
+      correct += r.correct_count;
+      answered += r.correct_count + r.wrong_count;
+    }
+    return answered > 0 ? Math.round((100 * correct) / answered) : null;
+  };
 
   let thisMins = 0;
   let lastMins = 0;
   for (const row of heatmap ?? []) {
-    const d = new Date(row.date);
-    if (d.getFullYear() === thisYear && d.getMonth() === thisMonth) thisMins += row.minutes ?? 0;
-    if (d.getFullYear() === lastYear && d.getMonth() === lastMonth) lastMins += row.minutes ?? 0;
+    if (inThis(row.date)) thisMins += row.minutes ?? 0;
+    if (inLast(row.date)) lastMins += row.minutes ?? 0;
   }
 
   return [
-    { label: "Questions", thisM: thisQ, lastM: lastQ, unit: "" },
-    { label: "Avg score", thisM: avg(scoresThis), lastM: avg(scoresLast), unit: "%" },
+    { label: "Activities", thisM: thisActivities, lastM: lastActivities, unit: "" },
     {
-      label: "Study time",
-      thisM: Math.round(thisMins / 60),
-      lastM: Math.round(lastMins / 60),
-      unit: "h",
+      label: "Accuracy",
+      thisM: pooled(sessions.filter((x) => inThis(x.finished_at))),
+      lastM: pooled(sessions.filter((x) => inLast(x.finished_at))),
+      unit: "%",
     },
+    // Minutes. The renderer formats — see formatStudyTime in Analysis.tsx.
+    { label: "Study time", thisM: thisMins, lastM: lastMins, unit: "min" },
   ];
 }
 

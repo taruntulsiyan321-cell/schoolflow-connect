@@ -15,6 +15,14 @@ export type PracticeSessionSummary = {
   chapter: string | null;
   question_count: number;
   correct_count: number;
+  /**
+   * Answered and got wrong — NOT `question_count - correct_count`, which
+   * counts every skipped question as one got wrong. Selected by the query and
+   * spread into these rows all along; it was simply never declared, so any
+   * consumer wanting a pooled accuracy had to re-derive the denominator and
+   * got the skip rule wrong doing it.
+   */
+  wrong_count: number;
   score: number;
   created_at: string;
   // NOT nullable. Every PracticeSessionSummary is produced by sessionSummary
@@ -25,7 +33,24 @@ export type PracticeSessionSummary = {
   // studentAnalysisMetrics into ordering unfinished sessions as though they
   // happened in 1970.
   finished_at: string;
-  duration_minutes: number;
+  /**
+   * How long this session's questions actually took, in milliseconds — or
+   * NULL when nothing timed it.
+   *
+   * This was `duration_minutes`, and it was derived as
+   * `total_time_ms ?? (finished_at - created_at)`. The fallback is the defect:
+   * wall clock is how long the ROW EXISTED, not how long the student worked,
+   * and on this database it was not even that. Measured 2026-09-17, 240 of
+   * 284 finished sessions carry exactly 1080 wall seconds — an 18-minute
+   * seeded constant. Divided by the question count that constant became a
+   * per-question pace, so "which subject takes you longest" was answering
+   * "which subject has the fewest questions per session".
+   *
+   * NULL, never 0, and never a guess: a session nobody timed has no duration,
+   * and every consumer below must decide what to do about that rather than be
+   * handed a number that was never measured.
+   */
+  measured_ms: number | null;
   accuracy_pct: number;
 };
 
@@ -63,8 +88,6 @@ export type AnalysisPageData = {
     /** NULL when nothing has been attempted — never 0, which would read as
      *  "got everything wrong" for a student who has not started. */
     accuracy_pct: number | null;
-    avg_sec_per_question: number | null;
-    last_session_minutes: number | null;
   };
   trend: {
     previous_accuracy: number | null;
@@ -108,12 +131,14 @@ function sessionSummary(row: {
   skipped_count?: number | null;
   total_time_ms?: number | null;
 }): PracticeSessionSummary {
-  const start = new Date(row.created_at).getTime();
-  const end = new Date(row.finished_at).getTime();
-  const duration_minutes =
-    typeof row.total_time_ms === "number" && row.total_time_ms > 0
-      ? Math.max(1, Math.round(row.total_time_ms / 60000))
-      : Math.max(1, Math.round((end - start) / 60000));
+  // THE ONLY TIME SOURCE IS THE ONE THE APP MEASURED.
+  //
+  // `total_time_ms` is the sum of this session's question_attempts.time_taken_ms,
+  // written by rpc_finish_practice_session. Migration 20261030000000 carries
+  // that same sum back onto the rows that predate it, so a session with timed
+  // attempts has it and a session without has nothing to report.
+  const measured_ms =
+    typeof row.total_time_ms === "number" && row.total_time_ms > 0 ? row.total_time_ms : null;
   // Prefer finish-RPC accuracy column — never re-derive when present.
   const accuracy_pct =
     typeof row.accuracy === "number"
@@ -123,7 +148,11 @@ function sessionSummary(row: {
         : 0;
   return {
     ...row,
-    duration_minutes,
+    // Normalised at the boundary: the column is nullable in
+    // practice_sessions, and a null that reached a `+` would make every
+    // pooled denominator downstream NaN rather than simply wrong.
+    wrong_count: row.wrong_count ?? 0,
+    measured_ms,
     accuracy_pct,
   };
 }
@@ -310,15 +339,19 @@ export function useAnalysisPageData(enabled = true) {
       // describes, reintroduced by a half-applied fix.
       const accuracy_pct = accuracyOverAnswered(correct, wrong);
 
-      // Average pace across recent timed sessions (not only the latest).
-      const timed = sessions.filter((s) => s.question_count > 0 && s.duration_minutes > 0);
-      const avg_sec_per_question =
-        timed.length > 0
-          ? Math.round(
-              timed.reduce((sum, s) => sum + (s.duration_minutes * 60) / s.question_count, 0) /
-                timed.length,
-            )
-          : null;
+      // NO PACE FIGURE IS COMPUTED HERE — deriveSpeedStats is the one that
+      // exists, and there must not be two.
+      //
+      // This block used to produce `avg_sec_per_question` as the MEAN OF
+      // PER-SESSION RATES, while deriveSpeedStats pools (total seconds over
+      // total questions). Both rendered on one page: Overview's "Average time
+      // per question" read 15s and the Practice tab's "Average per question"
+      // read 6s for the same student, in the same minute, off the same rows.
+      // That is G5 — one quantity, two definitions, two screens — and the fix
+      // is to delete one, not to reconcile them.
+      //
+      // `last_session_minutes` went with it: declared, assigned, and read by
+      // nothing.
 
       const current_accuracy = latest?.accuracy_pct ?? null;
       const previous_accuracy = previous?.accuracy_pct ?? null;
@@ -335,8 +368,6 @@ export function useAnalysisPageData(enabled = true) {
           wrong,
           skipped,
           accuracy_pct,
-          avg_sec_per_question,
-          last_session_minutes: latest?.duration_minutes ?? null,
         },
         trend: {
           previous_accuracy,
@@ -354,8 +385,6 @@ export function useAnalysisPageData(enabled = true) {
           wrong: 0,
           skipped: 0,
           accuracy_pct: null,
-          avg_sec_per_question: null,
-          last_session_minutes: null,
         },
         trend: { previous_accuracy: null, current_accuracy: null, improvement_pct: null },
       });

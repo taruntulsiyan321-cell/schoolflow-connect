@@ -22,7 +22,12 @@ function session(partial: Partial<PracticeSessionSummary> & Pick<PracticeSession
     score: partial.score ?? 70,
     created_at: partial.created_at ?? "2026-07-01T10:00:00Z",
     finished_at: partial.finished_at ?? "2026-07-01T10:20:00Z",
-    duration_minutes: partial.duration_minutes ?? 20,
+    wrong_count: partial.wrong_count ?? 3,
+    // Measured milliseconds, null when nothing timed the session. The fixture
+    // default used to be `duration_minutes: 20`, which every speed assertion
+    // below silently depended on — and which was exactly the shape of the
+    // production defect: a constant standing in for a measurement.
+    measured_ms: partial.measured_ms ?? 20 * 60_000,
     accuracy_pct: partial.accuracy_pct ?? 70,
     ...partial,
   };
@@ -105,8 +110,8 @@ describe("studentAnalysisMetrics", () => {
 
   it("derives per-subject speed from sessions", () => {
     const sessions = [
-      session({ id: "1", subject: "Math", question_count: 10, duration_minutes: 10, accuracy_pct: 60, finished_at: "2026-07-01T10:00:00Z" }),
-      session({ id: "2", subject: "Physics", question_count: 10, duration_minutes: 20, accuracy_pct: 70, finished_at: "2026-07-02T10:00:00Z" }),
+      session({ id: "1", subject: "Math", question_count: 10, measured_ms: 10 * 60_000, accuracy_pct: 60, finished_at: "2026-07-01T10:00:00Z" }),
+      session({ id: "2", subject: "Physics", question_count: 10, measured_ms: 20 * 60_000, accuracy_pct: 70, finished_at: "2026-07-02T10:00:00Z" }),
     ];
     const { stats, bySubject } = deriveSpeedStats(sessions);
     expect(bySubject).toHaveLength(2);
@@ -115,7 +120,7 @@ describe("studentAnalysisMetrics", () => {
     expect(stats.slowestSubject).toBe("Physics");
   });
 
-  it("month comparison uses prior-month practice scores and study minutes", () => {
+  it("month comparison pools accuracy and reports activities and minutes as they are", () => {
     const now = new Date("2026-08-15T12:00:00Z");
     const rows = deriveMonthComparison(
       [
@@ -123,8 +128,13 @@ describe("studentAnalysisMetrics", () => {
         { date: "2026-07-10", total: 2, test: 0, battles: 0 },
       ],
       [
-        { date: "2026-08-10", score_pct: 80 },
-        { date: "2026-07-10", score_pct: 60 },
+        // This month: 8 of 10 answered correctly ACROSS the two sessions.
+        // The mean of the two session rates is (100 + 60)/2 = 80; pooled is
+        // 8/10 = 80 as well, so the sessions are deliberately uneven below —
+        // otherwise this test would pass against the defect it exists for.
+        session({ id: "a", subject: "Math", correct_count: 1, wrong_count: 0, finished_at: "2026-08-10T10:00:00Z" }),
+        session({ id: "b", subject: "Math", correct_count: 3, wrong_count: 6, finished_at: "2026-08-12T10:00:00Z" }),
+        session({ id: "c", subject: "Math", correct_count: 3, wrong_count: 2, finished_at: "2026-07-10T10:00:00Z" }),
       ],
       [
         { date: "2026-08-10", test: 0, homework: 0, battles: 0, minutes: 120 },
@@ -132,9 +142,18 @@ describe("studentAnalysisMetrics", () => {
       ],
       now,
     );
-    expect(rows[0]).toMatchObject({ label: "Questions", thisM: 4, lastM: 2 });
-    expect(rows[1]).toMatchObject({ label: "Avg score", thisM: 80, lastM: 60 });
-    expect(rows[2]).toMatchObject({ label: "Study time", thisM: 2, lastM: 1 });
+    expect(rows[0]).toMatchObject({ label: "Activities", thisM: 4, lastM: 2 });
+    // Pooled: 4 correct of 10 answered = 40%. The mean of the session rates
+    // would be (100 + 33)/2 = 67, which is what this used to report.
+    expect(rows[1]).toMatchObject({ label: "Accuracy", thisM: 40, lastM: 60 });
+    // MINUTES, not hours. Rounding to hours here is what printed "0h" for
+    // every real total under thirty minutes.
+    expect(rows[2]).toMatchObject({ label: "Study time", thisM: 120, lastM: 60 });
+  });
+
+  it("month comparison reports a month with no answered questions as null, not 0%", () => {
+    const rows = deriveMonthComparison([], [], [], new Date("2026-08-15T12:00:00Z"));
+    expect(rows[1]).toMatchObject({ label: "Accuracy", thisM: null, lastM: null });
   });
 
   it("score axis domain includes scores below 50", () => {
@@ -195,6 +214,73 @@ describe("studentAnalysisMetrics", () => {
     expect(rows[0].accuracy).toBe(50);
     expect(rows[0].practiceDepth).toBe(100);
     expect(rows[0].subject).toBe("Mathematics");
+  });
+
+  it("deriveChapterRows gives one card per chapter, not one per concept", () => {
+    // THE PRODUCTION DEFECT, IN MINIATURE. concept_mastery holds a row per
+    // concept; this mapped them one-to-one onto cards headed "Chapter by
+    // chapter". Measured for one student: 20 concept rows over 6 chapters
+    // produced 12 cards, Polynomials six of them with six different
+    // accuracies, and three whole chapters cut off by the slice.
+    const concept = (chapter: string, name: string, attempts: number, correct: number) => ({
+      subject: "Math",
+      chapter,
+      concept: name,
+      mastery_score: 50,
+      total_attempts: attempts,
+      correct_attempts: correct,
+      recovery_attempts: 0,
+      mistake_count: 0,
+    });
+    const rows = deriveChapterRows(
+      [
+        concept("Polynomials", "Zeroes of polynomial", 14, 5),
+        concept("Polynomials", "Degree and Value", 5, 1),
+        concept("Polynomials", "Algebraic Identities", 3, 1),
+        concept("Arithmetic Progressions", "nth Term of an AP", 19, 4),
+        concept("Arithmetic Progressions", "Word Problems on AP", 5, 0),
+      ],
+      [],
+    );
+
+    expect(rows).toHaveLength(2);
+    const poly = rows.find((r) => r.chapter === "Polynomials");
+    const ap = rows.find((r) => r.chapter === "Arithmetic Progressions");
+    // Pooled over the chapter: 7 correct of 22, not the mean of 36/20/33.
+    expect(poly).toMatchObject({ questions: 22, accuracy: 32 });
+    // 4 of 24.
+    expect(ap).toMatchObject({ questions: 24, accuracy: 17 });
+  });
+
+  it("deriveChapterRows keeps the weakest chapters when it has to cap the grid", () => {
+    // The cap used to cut in whatever order the concept rows arrived, which
+    // is how a student's three best-known chapters vanished from the grid
+    // while their weakest appeared six times. §10.8 forbids a list filtered
+    // to the strongest; surviving a cap weakest-first is the opposite.
+    //
+    // STRONGEST FIRST on the way in — 70% down to 0% — because that ordering
+    // is what lets this test fail. Fed weakest-first, an unsorted
+    // `.slice(0, 12)` would keep the weakest by accident and these assertions
+    // would pass against the defect they exist to catch.
+    const rows = deriveChapterRows(
+      Array.from({ length: 15 }, (_, i) => ({
+        subject: "Math",
+        chapter: `Chapter ${String.fromCharCode(65 + i)}`,
+        concept: `Concept ${i}`,
+        mastery_score: 50,
+        total_attempts: 20,
+        correct_attempts: 14 - i,
+        recovery_attempts: 0,
+        mistake_count: 0,
+      })),
+      [],
+    );
+    expect(rows).toHaveLength(12);
+    expect(rows[0].accuracy).toBe(0);
+    // The three strongest — 70%, 65%, 60% — are the ones dropped.
+    for (const dropped of [70, 65, 60]) {
+      expect(rows.map((r) => r.accuracy)).not.toContain(dropped);
+    }
   });
 
   it("deriveSubjectRows collapses Maths aliases and drops Subject/Daily", () => {
