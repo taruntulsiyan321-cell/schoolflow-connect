@@ -154,6 +154,164 @@ function validate(v: GeneratedVariant, original: string): { ok: true; value: {
   return { ok: true, value: { question: q, options, correct_index: ci, explanation } };
 }
 
+/**
+ * The shape gate above is not an answer gate, and four questions proved it.
+ *
+ * Read and solved by hand on 2026-09-17, 4 of the 40 variants this function
+ * had produced were mathematically wrong. Every one of them passed validate()
+ * — they are well-formed: four distinct options, an index in range, a fluent
+ * explanation. What none of them had was a correct answer:
+ *
+ *   "S_n = 3n^2 + 5n. What is the 10th term?"   a_10 = 62. Options: 47, 57,
+ *                                               67, 77. Marked: 57.
+ *   "Sum 216, first term 8, last term 56. How   n = 432/64 = 6.75. There is
+ *    many terms?"                               no such AP. Marked: 6.
+ *   "S_n = 3n^2 + 5n. nth term is 107. Find n"  6n+2 = 107 -> n = 17.5.
+ *                                               Marked: 8.
+ *   "a^3+b^3+c^3 = 3abc, abc != 0. a+b+c = ?"   0 OR a=b=c. a=b=c=1 gives 3,
+ *                                               also on the list. Marked: 0.
+ *
+ * Three share one signature: the model invents numbers, does not solve what it
+ * invented, and picks a plausible integer. The fourth is a "must be" question
+ * with two correct options.
+ *
+ * These are RECOVERY questions. They go to the student who already failed the
+ * topic, and the mistakes they create feed weak-topic detection, the recovery
+ * ladder and the revision schedule. Measured: those four were served 5 times
+ * and created 5 mistake-book rows, and one student was marked CORRECT for
+ * answering 6 to a question whose answer is 6.75.
+ *
+ * So the question is solved again, in a SEPARATE call that is never told which
+ * option the writer marked. Agreement is the gate. The solver is also asked
+ * whether exactly one option is correct, which is what catches the fourth: a
+ * question can have a derivable answer and still be broken because two of its
+ * options are right.
+ *
+ * Temperature 0: this is arithmetic, not writing, and a solver that varies
+ * run to run is not a check.
+ *
+ * COST. One extra call per generation batch, not per variant. §4.2a's
+ * economics survive it — a wrong variant is cached and served to every student
+ * who fails that question afterwards, so paying once to not store it is the
+ * cheaper side of the trade by a wide margin.
+ */
+const CHECK_SCHEMA = {
+  type: "object",
+  properties: {
+    answers: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          n: { type: "integer" },
+          working: { type: "string" },
+          // -1 is a real answer here: "none of these options is correct".
+          // Without it the solver has to name one, and a forced choice from a
+          // broken option list is exactly the failure being looked for.
+          correct_index: { type: "integer", minimum: -1, maximum: 3 },
+          exactly_one_correct: { type: "boolean" },
+        },
+        required: ["n", "working", "correct_index", "exactly_one_correct"],
+      },
+    },
+  },
+  required: ["answers"],
+};
+
+type SolvedAnswer = {
+  n?: unknown;
+  working?: unknown;
+  correct_index?: unknown;
+  exactly_one_correct?: unknown;
+};
+
+type Candidate = { question: string; options: string[]; correct_index: number; explanation: string };
+
+/**
+ * Solve each candidate independently and report, per candidate, why it may or
+ * may not be stored. Never told the writer's answer.
+ *
+ * On a failed AI call every candidate is REJECTED, not waved through. A check
+ * that disappears when it errors is not a check, and this function's own rule
+ * is that a variant which cannot be produced is skipped rather than faked.
+ */
+async function solveBack(
+  candidates: Candidate[],
+  context: { subject: string; chapter: string; classLevel: string },
+): Promise<{ verdicts: ({ ok: true } | { ok: false; why: string })[]; usage: unknown }> {
+  const system =
+    "You are a careful mathematics and science examiner for Indian school students " +
+    "(CBSE/RBSE, NCERT syllabus). You are given multiple-choice questions and you SOLVE them.\n\n" +
+    "For each question: work it out step by step, then say which option index (0-3) is correct.\n\n" +
+    "HARD RULES:\n" +
+    "- Do the arithmetic. Do not assume the question is well-posed.\n" +
+    "- If your worked answer is NOT among the four options, return correct_index -1. " +
+    "Do not pick the nearest one.\n" +
+    "- If the question as worded has NO valid solution (a count that is not a whole number, " +
+    "a contradictory condition), return correct_index -1.\n" +
+    "- Set exactly_one_correct false if two or more options satisfy the question as worded, " +
+    "even when one of them is the intended answer.";
+
+  const user = [
+    `Subject: ${context.subject}`,
+    `Chapter: ${context.chapter}`,
+    `Class: ${context.classLevel}`,
+    "",
+    ...candidates.flatMap((c, i) => [
+      `QUESTION ${i}:`,
+      c.question,
+      ...c.options.map((o, oi) => `  ${oi}. ${o}`),
+      "",
+    ]),
+    `Solve all ${candidates.length} and return one answer object per question, with n set to the question number.`,
+  ].join("\n");
+
+  const ai = await generateStructuredWithFallback<{ answers: SolvedAnswer[] }>(
+    { system, user, schema: CHECK_SCHEMA, toolName: "emit_answers" },
+    { max_tokens: Math.min(4000, Math.max(1200, candidates.length * 400)), temperature: 0 },
+  );
+
+  if (!ai.ok) {
+    return {
+      verdicts: candidates.map(() => ({
+        ok: false as const,
+        why: `answer check could not run (${ai.error}) — not stored unverified`,
+      })),
+      usage: null,
+    };
+  }
+
+  const byN = new Map<number, SolvedAnswer>();
+  for (const a of ai.data.answers ?? []) {
+    const n = typeof a.n === "number" ? a.n : Number.NaN;
+    if (Number.isInteger(n)) byN.set(n, a);
+  }
+
+  const verdicts = candidates.map((c, i) => {
+    const a = byN.get(i);
+    if (!a) return { ok: false as const, why: "answer check returned nothing for this variant" };
+    if (a.exactly_one_correct === false) {
+      return { ok: false as const, why: "more than one option satisfies the question as worded" };
+    }
+    const solved = typeof a.correct_index === "number" ? a.correct_index : Number.NaN;
+    if (solved === -1) {
+      return { ok: false as const, why: "solved independently: no option is correct" };
+    }
+    if (!Number.isInteger(solved) || solved < 0 || solved > 3) {
+      return { ok: false as const, why: `answer check returned index ${String(a.correct_index)}` };
+    }
+    if (solved !== c.correct_index) {
+      return {
+        ok: false as const,
+        why: `answer check says ${solved} ("${c.options[solved]}"), the writer marked ${c.correct_index} ("${c.options[c.correct_index]}")`,
+      };
+    }
+    return { ok: true as const };
+  });
+
+  return { verdicts, usage: { model_id: ai.model_id ?? null, source: ai.source } };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -260,14 +418,34 @@ Deno.serve(async (req) => {
     if (!ai.ok) return jsonResponse({ error: ai.error, retryable: true }, ai.status);
 
     const skipped: string[] = [];
-    const accepted = [];
+    const wellFormed: Candidate[] = [];
     for (const raw of (ai.data.variants ?? []).slice(0, count)) {
       const v = validate(raw, src.question);
       if (!v.ok) {
         skipped.push(v.why);
         continue;
       }
-      accepted.push(v.value);
+      wellFormed.push(v.value);
+    }
+
+    // THE SECOND GATE. Shape is not correctness — see solveBack's header for
+    // the four questions that taught this function so. Nothing reaches the
+    // bank without being solved again by a caller that was never told the
+    // answer.
+    let checkUsage: unknown = null;
+    const accepted: Candidate[] = [];
+    if (wellFormed.length > 0) {
+      const checked = await solveBack(wellFormed, {
+        subject: src.subject ?? "(unknown)",
+        chapter: src.chapter ?? "(unknown)",
+        classLevel: String(src.class_level ?? "(unknown)"),
+      });
+      checkUsage = checked.usage;
+      wellFormed.forEach((c, i) => {
+        const verdict = checked.verdicts[i];
+        if (verdict?.ok) accepted.push(c);
+        else skipped.push(verdict?.why ?? "answer check produced no verdict");
+      });
     }
 
     const usage = {
@@ -276,6 +454,9 @@ Deno.serve(async (req) => {
       prompt_tokens: ai.usage?.prompt_tokens ?? null,
       completion_tokens: ai.usage?.completion_tokens ?? null,
       elapsed_ms: Date.now() - startedAt,
+      // Named separately so a run that spent on the check and stored nothing
+      // reads as what it is, rather than as a generation that produced nothing.
+      answer_check: checkUsage,
     };
 
     if (dryRun) {
@@ -284,6 +465,7 @@ Deno.serve(async (req) => {
         source_question_id: src.id,
         tier,
         requested: count,
+        well_formed: wellFormed.length,
         generated: accepted.length,
         skipped,
         variants: accepted,
@@ -299,7 +481,10 @@ Deno.serve(async (req) => {
         inserted: 0,
         skipped,
         usage,
-        note: "nothing was written — a variant that cannot be generated is skipped, not faked (§4.2a)",
+        well_formed: wellFormed.length,
+      note: wellFormed.length > 0
+        ? "nothing was written — every well-formed variant failed the answer check (see skipped)"
+        : "nothing was written — a variant that cannot be generated is skipped, not faked (§4.2a)",
       });
     }
 
@@ -339,6 +524,7 @@ Deno.serve(async (req) => {
       source_question_id: src.id,
       tier,
       requested: count,
+      well_formed: wellFormed.length,
       inserted: inserted?.length ?? 0,
       variant_ids: (inserted ?? []).map((r) => r.id),
       skipped,

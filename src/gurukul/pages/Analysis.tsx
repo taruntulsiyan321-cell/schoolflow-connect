@@ -621,7 +621,7 @@ export default function Analysis() {
       items.push({
         label: "Most active day recently",
         value: bestDay,
-        sub: `${formatStudyTime(studyActivity.totalMinutes || null)} total study time logged`,
+        sub: `${formatStudyTime(studyActivity.totalMinutes || null)} of study time in the last 4 weeks`,
         color: "hsl(var(--info))",
         icon: <Calendar className="w-4 h-4" />,
       });
@@ -895,7 +895,14 @@ export default function Analysis() {
               // "Marks recorded" was a count of exam marks. Marks are not an
               // Analysis figure any more (rule 11); the student reads them on
               // their marks surface.
-              { label: "Study time total",  value: formatStudyTime(overview.studyMinutes), color: "hsl(var(--info))" },
+              // "Study time total" was a WINDOW wearing the word total.
+              // rpc_student_academic_snapshot builds activity_heatmap from
+              // `activity_date >= CURRENT_DATE - 28`, so this tile has always
+              // been four weeks — measured, it read 14m for a student with 15
+              // recorded minutes, the missing one being 33 days old. The chart
+              // on Activity & Speed already says "last 4 weeks"; the tiles that
+              // sum the same rows now say it too.
+              { label: "Study time (4 weeks)",  value: formatStudyTime(overview.studyMinutes), color: "hsl(var(--info))" },
               // "Exam readiness" was removed in the v2 redesign: a composite of
               // four measures collapsed into one number, which is the
               // no-blended-score rule and cannot be explained to a student.
@@ -1370,7 +1377,7 @@ export default function Analysis() {
       {tab === "activity" && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Metric label="Total study time"    value={formatStudyTime(studyActivity.totalMinutes || null)} color="hsl(var(--info))" />
+            <Metric label="Study time (4 weeks)" value={formatStudyTime(studyActivity.totalMinutes || null)} color="hsl(var(--info))" />
             <Metric label="Average per day"     value={`${studyActivity.avgDailyMin} min`} color="hsl(var(--foreground))" />
             <Metric label="Most active day"     value={studyActivity.bestDay}              color="hsl(var(--warning))" />
             <Metric label="Most productive hour" value={studyActivity.bestHour}            color="hsl(var(--info))" />

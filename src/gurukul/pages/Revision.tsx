@@ -81,10 +81,19 @@ function RevItemCard({
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-bold hover:bg-violet-500/30 transition-all">
           <Play className="w-3 h-3"/> Practice topic
         </button>
-        <button onClick={onCheck} disabled={busy}
+        {/* DISABLED WHEN THERE IS NOTHING TO CHECK ON. The note below already
+            said "nothing new left in this chapter" and the button stayed live
+            beside it — so the student took the check anyway, answered every
+            question, and rpc_submit_revision_session threw the sitting away
+            for having no unseen half (§5.4). Measured live on two chapters,
+            at 80% and 100%.
+            `freshAvailable` is rpc_student_revision_queue's own count, not a
+            rule restated in the browser: the server decides what a check
+            needs and this reflects the answer. */}
+        <button onClick={onCheck} disabled={busy || item.freshAvailable === 0}
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold transition-all",
-            busy ? "opacity-60 cursor-not-allowed" : "hover:bg-emerald-500/20",
+            busy || item.freshAvailable === 0 ? "opacity-60 cursor-not-allowed" : "hover:bg-emerald-500/20",
           )}>
           <CheckCircle2 className="w-3 h-3"/> {busy ? "Building your check…" : "Take the check"}
         </button>
@@ -167,10 +176,13 @@ export default function Revision() {
     try {
       const plan = await RecoveryEngineService.getRevisionSessionPlan(ctx, item.id);
 
-      if (plan.total === 0) {
-        // Not an error and not silence. A chapter whose bank this student has
-        // exhausted genuinely has no check to give, and saying so beats
-        // opening an empty session.
+      // `fresh`, NOT `total`. total counts the mistake half too, so a chapter
+      // with five open mistakes and no unseen questions left produced
+      // total = 5, sailed past this guard, and was refused by
+      // rpc_submit_revision_session AFTER the student had answered all five.
+      // The planner refuses this case itself now (20261034000000); this stays
+      // as the belt-and-braces for a plan that somehow arrives empty-handed.
+      if (plan.fresh === 0) {
         toast.message(
           `There is nothing new left in ${item.chapter} to check you on yet — every question in it has already come up.`,
         );

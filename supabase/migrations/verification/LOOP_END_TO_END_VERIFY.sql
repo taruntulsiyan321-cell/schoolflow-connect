@@ -179,6 +179,116 @@ BEGIN
                                CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
   IF _n <> 0 THEN _fails := _fails + 1; END IF;
 
+  -- 13 ── the session's duration is the sum of its own questions' timings
+  --       (20261030000000). Analysis derived it from finished_at - created_at
+  --       when the roll-up was missing, and on this database that was a seeded
+  --       1080 wall seconds on 240 of 284 finished sessions. Divided by the
+  --       question count it became a per-question pace, so "which subject takes
+  --       you longest" ranked subjects by how many questions the fixture put in
+  --       a session: 54.0s for five of them, to the first decimal.
+  SELECT count(*) INTO _n
+  FROM public.practice_sessions ps
+  JOIN LATERAL (
+    SELECT sum(qa.time_taken_ms)::bigint AS ms
+    FROM public.question_attempts qa
+    WHERE qa.session_id = ps.id AND COALESCE(qa.time_taken_ms, 0) > 0
+  ) t ON true
+  WHERE t.ms > 0 AND ps.total_time_ms IS DISTINCT FROM t.ms;
+  _report := _report || format('%-52s %s%s', 'session time = its own questions'' timings',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- 14 ── a servable question renders its symbols (20261036000000). Six carried
+  --       JSON escapes as literal text — "The value of e\u2070 is:" — and each
+  --       one was a question whose meaning lives in the symbol.
+  --       chr(92) rather than a written backslash: a \uXXXX inside a file that
+  --       travels as JSON is decoded in transit, and the first draft of that
+  --       migration matched 600 rows instead of 6 because of it.
+  SELECT count(*) INTO _n
+  FROM public.question_bank
+  WHERE is_active AND position(chr(92) || 'u' IN question) > 0;
+  _report := _report || format('%-52s %s%s', 'no servable question shows an escape code',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- 15 ── a question's marked answer is on its own option list. This is the
+  --       structural half of what went wrong with the generated variants: four
+  --       of forty were mathematically wrong and shape validation passed all
+  --       four, because they were well formed. Arithmetic cannot be checked
+  --       here; an index that does not resolve to an option can.
+  SELECT count(*) INTO _n
+  FROM public.question_bank qb
+  WHERE qb.is_active
+    AND (qb.correct_index IS NULL
+      OR jsonb_typeof(qb.options) <> 'array'
+      OR qb.correct_index < 0
+      OR qb.correct_index >= jsonb_array_length(qb.options)
+      OR COALESCE(btrim(qb.options ->> qb.correct_index), '') = '');
+  _report := _report || format('%-52s %s%s', 'every servable question marks a real option',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- 16 ── the revision ladder books the interval its stage calls for
+  --       (§5.3: 7, 7, 7, then REVISION_INTERVAL_SOLID). Driven live on
+  --       2026-09-17 it booked 7.00, 7.00 and 30.00 days — but only after
+  --       20261033000000, because before it every pass by an
+  --       engagement-triggered chapter was rolled back whole by
+  --       chapter_state_recovered_has_timestamp and the ladder could not leave
+  --       stage 1 at all.
+  --
+  --       Checked against the last PASSED check's own timestamp, not against
+  --       updated_at, which moves for unrelated reasons. One day of tolerance,
+  --       because next_revision_at is set from now() and the row may be read
+  --       across a day boundary.
+  SELECT count(*) INTO _n
+  FROM public.chapter_state cs
+  JOIN LATERAL (
+    SELECT rs.completed_at
+    FROM public.revision_sessions rs
+    WHERE rs.user_id = cs.user_id AND rs.chapter_id = cs.chapter_id AND rs.passed
+    ORDER BY rs.completed_at DESC LIMIT 1
+  ) last_pass ON true
+  WHERE cs.next_revision_at IS NOT NULL
+    AND cs.revision_stage > 0
+    AND abs(
+      EXTRACT(EPOCH FROM (cs.next_revision_at - last_pass.completed_at)) / 86400.0
+      - public._revision_interval_days(cs.revision_stage)
+    ) > 1;
+  _report := _report || format('%-52s %s%s', 'revision books the interval its stage says',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- 17 ── a chapter called recovered says when it recovered. The constraint
+  --       chapter_state_recovered_has_timestamp enforces this, so a violation
+  --       cannot be stored — which is exactly why it was worth checking: the
+  --       pass branch of rpc_submit_revision_session TRIED to store one on
+  --       every pass by an engagement-triggered chapter, and the whole
+  --       transaction, revision_sessions row included, was rolled back. A
+  --       student scored 12 of 13 and the screen said "Accuracy 92%" while
+  --       nothing was recorded anywhere. This counts the chapters that have
+  --       passed a check and can therefore prove the write now lands.
+  SELECT count(*) INTO _n
+  FROM public.chapter_state cs
+  WHERE cs.consecutive_revision_passes > 0 AND cs.recovered_at IS NULL;
+  _report := _report || format('%-52s %s%s', 'a passed chapter carries its recovered_at',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- 18 ── "active days" never exceeds its own window (20261035000000). The
+  --       field summed test + homework + battle + practice COUNTS over 14 days
+  --       and was rendered as "N active days (14d)"; one student's header read
+  --       15 of 14, which is the only value of the defect that looks wrong from
+  --       outside. Every value below fourteen was wrong in the same way.
+  SELECT count(*) INTO _n
+  FROM public.students s
+  JOIN LATERAL (
+    SELECT (public._exam_readiness(s.user_id, s.id) ->> 'active_days_14d')::int AS d
+  ) r ON true
+  WHERE s.user_id IS NOT NULL AND r.d > 15;
+  _report := _report || format('%-52s %s%s', 'active days fits inside its 14-day window',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
   -- ── Context for the checks above ──────────────────────────────────────────
   -- These started as populations the checks had to step around. Each is now
   -- covered by an assertion above and conforms; the counts stay because a

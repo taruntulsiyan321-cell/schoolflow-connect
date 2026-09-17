@@ -15,6 +15,7 @@ import type {
 import { normalizeSubjectName } from "@/lib/curriculumScope";
 import { accuracyBand } from "@/academic/metrics/bands";
 import {
+  REVISION_STAGES_TO_SOLID,
   TREND_DELTA_POINTS,
   TREND_MIN_SESSIONS,
   type TrendState,
@@ -748,16 +749,32 @@ export function deriveRecoveryTopics(queue: RecoveryQueueRow[] | null | undefine
  * ── WHAT IT READS NOW ─────────────────────────────────────────────────────
  *
  * chapter_state, where the ladder actually lives. "Done" is a chapter that has
- * gone solid: §5.3 says three consecutive passes and the chapter LEAVES the
- * queue, and the way it leaves is that next_revision_at becomes null. That
- * absence — paired with a recovered_at, so an untouched chapter is not counted
- * as finished — is the only honest completion signal in the schema.
+ * gone solid — REVISION_STAGES_TO_SOLID consecutive passes.
+ *
+ * ── WHY IT IS NOT `next_revision_at === null` ANY MORE ────────────────────
+ *
+ * It was, and the comment here used to call that "the only honest completion
+ * signal in the schema". It stopped being a signal at all: the database was
+ * corrected so that going solid does NOT clear the date —
+ *
+ *   "SOLID IS NOT FINISHED. The chapter keeps a check, at
+ *    REVISION_INTERVAL_SOLID, for ever. The old body set next_revision_at to
+ *    NULL here, which dropped the chapter out of the schedule permanently."
+ *        -- rpc_submit_revision_session, and _revision_interval_days
+ *
+ * So the condition this tested for can no longer occur, and "Done" was
+ * structurally zero for every student — the exact defect the paragraph above
+ * describes this function as having been written to fix, reintroduced by the
+ * database moving underneath it rather than by anyone editing this file.
+ *
+ * The passes are the completion signal, and they are what the database counts
+ * to decide the same thing.
  */
 export function deriveRevisionData(
   states: ChapterStateRow[] | null | undefined,
 ): { totalRevised: number; completed: number; pending: number; dueToday: string[] } {
   const items = states ?? [];
-  const solid = items.filter((s) => s.next_revision_at === null && s.recovered_at !== null);
+  const solid = items.filter((s) => s.consecutive_passes >= REVISION_STAGES_TO_SOLID);
   const scheduled = items.filter((s) => s.next_revision_at !== null);
   // `revision_due` is computed server-side against now(); recomputing the
   // comparison here would put "is it due" in a second home and drift on any

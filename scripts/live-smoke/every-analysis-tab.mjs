@@ -162,7 +162,7 @@ for (const tab of TABS) {
 // counted as nothing.
 const PAGE_WIDE = [
   // The same minutes, from snapshot.activity_heatmap, rendered in three places.
-  ["Study time total", "Total study time"],
+  ["Study time (4 weeks)"],
   // The same pace, from deriveSpeedStats, on Overview and on Practice.
   ["Average time per question", "Average per question"],
   // The same count, from the snapshot, on the header row and the Topics tiles.
@@ -171,22 +171,29 @@ const PAGE_WIDE = [
   ["Skipped"],
 ];
 
-const valueOf = (label) => {
+// EVERY tab that shows a label in the group, not the first one that does.
+// Taking the first is what let two tiles that now share a label — "Study time
+// (4 weeks)" on Overview and on Activity & Speed — stop being compared at all
+// the moment the labels were made to match.
+const sightings = (labels) => {
+  const out = [];
   for (const tab of TABS) {
-    const v = perTab[tab]?.figures?.[label];
-    if (v !== undefined) return { tab, value: v };
+    for (const label of labels) {
+      const v = perTab[tab]?.figures?.[label];
+      if (v !== undefined) out.push({ tab, label, value: v });
+    }
   }
-  return null;
+  return out;
 };
 
 for (const group of PAGE_WIDE) {
-  const found = group.map(valueOf).filter(Boolean);
+  const found = sightings(group);
   if (found.length < 2) continue;
   const distinct = [...new Set(found.map((f) => f.value))];
   if (distinct.length > 1) {
     problems++;
     console.log(`!! one quantity, ${distinct.length} answers: ` +
-      found.map((f) => `${f.value} on ${f.tab}`).join("  vs  "));
+      found.map((f) => `${f.value} (${f.label} on ${f.tab})`).join("  vs  "));
   }
 }
 
