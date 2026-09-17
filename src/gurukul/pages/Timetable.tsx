@@ -22,7 +22,11 @@ const SUBJECT_ICONS: Record<string, string> = {
   Physics: "⚡",
   Chemistry: "⚗",
   Biology: "🧬",
-  English: "âœ",
+  // Was U+00E2 U+0153 U+008D — the bytes E2 9C 8D (a writing hand, U+270D)
+  // read back through cp1252, so the English row showed mojibake where
+  // every other subject showed an icon. Same damage as the badge icon in
+  // Analysis.tsx; fixing one and not the other is how the second survives.
+  English: "✍",
   "Physics Lab": "⚡",
   "Chemistry Lab": "⚗",
 };
