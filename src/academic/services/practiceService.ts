@@ -112,6 +112,13 @@ function isMissingSchema(err: unknown): boolean {
   return /does not exist|schema cache|could not find/i.test(String(e.message ?? ""));
 }
 
+/**
+ * A topics.id. listBankTopics hands these to the topic picker; a
+ * /student/practice?topic= link carries a topic NAME instead, and
+ * listBankQuestions narrows each shape its own way.
+ */
+const TOPIC_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 let softDeleteAvailable: boolean | null = null;
 let confidenceAvailable: boolean | null = null;
 
@@ -1134,7 +1141,10 @@ export const PracticeService = {
     opts: {
       subject?: string | null;
       chapter?: string | null;
-      /** A topic id from listBankTopics. */
+      /**
+       * A topic: its id (what listBankTopics offers — exact, and per chapter),
+       * or its NAME (what a /student/practice?topic= link carries).
+       */
       topic?: string | null;
       difficulty?: string | null;
       classLevel?: number | null;
@@ -1201,7 +1211,11 @@ export const PracticeService = {
     // pass further down is still the precision filter; this only guarantees
     // the window it filters actually contains candidates.
     //
-    // A topic is not a label any more: it is an id, filtered exactly (below).
+    // Only `chapter` is narrowed here: it is the one real label COLUMN. The
+    // topic lives on the embedded topics row (topic_id -> topics.name) and is
+    // narrowed separately below — question_bank has no `topic`, `concept` or
+    // `topic_group` column (20261020010000), and naming one fails the whole
+    // request with 42703, which is how practice once stopped starting.
     const labelPredicate = (): string | null => {
       // PostgREST's or() is comma/parenthesis delimited, so a label containing
       // either would change the shape of the filter rather than be matched by
@@ -1212,10 +1226,47 @@ export const PracticeService = {
       return chapter ? `chapter.ilike.${chapter}` : null;
     };
 
+    /**
+     * The topic, narrowed IN THE DATABASE — never picked out of a window.
+     *
+     * Topic practice can be started without a chapter (its start button is
+     * gated on subject + topic only), so chapter narrowing does not help it,
+     * and the fetch window is 400 rows against banks that are bigger than
+     * that: Mathematics class 12 holds 695 approved questions over 125 topics,
+     * Social Science class 10 holds 953. A topic in the unfetched remainder
+     * came back empty and the screen said "No questions for this topic in the
+     * bank yet", which was false.
+     *
+     * Two shapes reach here, and each is narrowed the way it can be:
+     *
+     *   an ID    from the topic picker. topic_id = id. Exact: topics are per
+     *            chapter (§10.22), so the id is one chapter's topic and never
+     *            a same-named topic of another chapter. Applied on every pass,
+     *            because an id cannot be a mojibake or slugged spelling.
+     *
+     *   a NAME   from a ?topic= link. topics!inner(name) + topics.name=ilike
+     *            filters the PARENT rows by the embedded relation (an inner
+     *            join, so rows with no topic drop out — right, since they
+     *            cannot be in a named topic). When the link also names a
+     *            chapter, the chapter narrows it to that chapter's topic. A
+     *            name that matches no topic narrows to zero rows, and the
+     *            un-narrowed retry below runs, where the client pass still
+     *            accepts a value that is really a chapter name.
+     */
+    const topicId = opts.topic && TOPIC_ID_RE.test(opts.topic.trim()) ? opts.topic.trim() : null;
+    const topicName = ((): string | null => {
+      const v = opts.topic;
+      return !topicId && v && !/[,()"\\]/.test(v) ? v.trim() : null;
+    })();
+
     const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean) => {
+      const narrowTopicName = narrowToLabels && !byIds && topicName !== null;
       let query = client
         .from("question_bank")
-        .select("id, subject, chapter, topic_id, topics(name), difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
+        .select(
+          `id, subject, chapter, topic_id, topics${narrowTopicName ? "!inner" : ""}(name), ` +
+          "difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream",
+        )
         .eq("is_approved", true)
         // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
         // so there is no per-school arm left to filter on.
@@ -1244,8 +1295,13 @@ export const PracticeService = {
         const pred = labelPredicate();
         if (pred) query = query.or(pred);
       }
-      if (opts.topic && !byIds) {
-        query = query.eq("topic_id", opts.topic);
+      if (topicId && !byIds) {
+        query = query.eq("topic_id", topicId);
+      }
+      // Applies to the embedded relation, which the !inner above turns into a
+      // filter on the parent rows rather than just on what is nested.
+      if (narrowTopicName) {
+        query = query.ilike("topics.name", topicName!);
       }
       if (opts.difficulty && opts.difficulty !== "mixed") {
         query = query.eq("difficulty", opts.difficulty);
@@ -1273,6 +1329,10 @@ export const PracticeService = {
       // target has one, topic names when none does. A mixed list is left to
       // the client-side pass rather than narrowed in a way that loses half.
       if (opts.weakTargets && opts.weakTargets.length > 0) {
+        //
+        // `.in()` rather than a hand-built in.() string: the client library
+        // quotes values holding commas and parentheses ("Areas Related to
+        // Circles"), which a hand-built list had to remember to do itself.
         const withChapter = opts.weakTargets.filter((w) => Boolean(w.chapter));
         if (withChapter.length === opts.weakTargets.length) {
           query = query.in("chapter", Array.from(new Set(withChapter.map((w) => w.chapter as string))));
@@ -1309,17 +1369,17 @@ export const PracticeService = {
     // academicLabelMatches can resolve — so the narrowing must never be the
     // thing that makes a chapter unreachable. One extra round trip, and only
     // on the path that would otherwise have shown an empty screen.
-    if (!error && (data?.length ?? 0) === 0 && !byIds && labelPredicate()) {
+    if (!error && (data?.length ?? 0) === 0 && !byIds && (labelPredicate() || topicName)) {
       const retry = await buildQuery(wantActiveFilter && softDeleteAvailable !== false, false);
       if (!retry.error) ({ data } = retry);
     }
     throwIfError(error, "Failed to load practice questions");
-    let rows = (data ?? []) as Array<{
+    type BankRow = {
       id: string;
       subject: string;
       chapter: string | null;
       topic_id: string | null;
-      topics: { name: string } | null;
+      topics: { name: string | null } | null;
       difficulty: string | null;
       question: string;
       options: unknown;
@@ -1329,7 +1389,11 @@ export const PracticeService = {
       source: string | null;
       source_type: string | null;
       stream: string | null;
-    }>;
+    };
+
+    // The bank has ONE taxonomy label per question, and it arrives embedded:
+    // every pass below reads `r.topics?.name` (and `r.topic_id` for an id).
+    let rows = (data ?? []) as unknown as BankRow[];
 
     // Senior stream allowlists (commerce / science 11–12) — covers null-stream legacy rows.
     rows = rows.filter((r) => isSubjectAllowedForScope(r.subject, scope.stream, classLevel));
@@ -1342,8 +1406,15 @@ export const PracticeService = {
     if (opts.chapter) {
       rows = rows.filter((r) => academicLabelMatches(r.chapter, opts.chapter));
     }
-    if (opts.topic) {
-      rows = rows.filter((r) => r.topic_id === opts.topic);
+    if (topicId) {
+      rows = rows.filter((r) => r.topic_id === topicId);
+    } else if (opts.topic) {
+      // A name: the topic's own name, or — from an old link — a chapter name.
+      const needle = opts.topic;
+      rows = rows.filter((r) =>
+        academicLabelMatches(r.topics?.name ?? null, needle) ||
+        academicLabelMatches(r.chapter, needle),
+      );
     }
     if (opts.weakTargets && opts.weakTargets.length > 0) {
       const targets = opts.weakTargets.filter((w) =>
@@ -1440,8 +1511,20 @@ export const PracticeService = {
         subject: a.subject, chapter: a.chapter ?? null, concept: a.concept ?? null,
         practice_mode: "incorrect", mistake_id: a.mistakeId,
       };
-      const selectedAnswer = { selected_index: a.selectedIndex };
-      const correctAnswer = { correct_index: a.correctIndex };
+      // The SAME shape practice itself writes ({ index, text }), not the
+      // legacy { correct_index } this used to send. Two writers disagreeing on
+      // the key is how readers ended up guessing, and how the Mistake Book came
+      // to mark every answer wrong. `selected_index` is kept alongside `index`
+      // because that is exactly what the practice snapshot stores today, and
+      // dropping it would break the readers that look for it.
+      const selectedAnswer = {
+        index: a.selectedIndex, selected_index: a.selectedIndex,
+        text: a.options[a.selectedIndex] ?? "",
+      };
+      const correctAnswer = {
+        index: a.correctIndex,
+        text: Number.isInteger(a.correctIndex) ? a.options[a.correctIndex] ?? "" : "",
+      };
       try {
         await this.recordAttempt(ctx, {
           sessionId, bankQuestionId: a.bankQuestionId ?? null, generatedQuestion, selectedAnswer, correctAnswer,

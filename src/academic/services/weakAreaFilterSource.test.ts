@@ -1,5 +1,6 @@
 /**
- * Weak Areas Practice must filter in the DATABASE, not in the browser.
+ * Practice must filter in the DATABASE, not in the browser — and only on
+ * columns question_bank actually has.
  *
  * ── THE DEFECT THIS GUARDS ────────────────────────────────────────────────
  *
@@ -16,13 +17,19 @@
  *   candidates once chapter/concept reach the query:             377
  *   that student's finished sessions:  16, of which 14 were empty weak shells
  *
- * ── WHAT CHANGED 2026-09-15 ───────────────────────────────────────────────
+ * ── THE TAXONOMY IS topic_id -> topics.name (20261020000000/010000) ───────
  *
- * question_bank has no `concept` or `topic` column any more (20261020010000):
- * a question's topic is its topics row, and a topic is a name INSIDE a
- * chapter. So the window is narrowed by the targets' chapters, and the topic is
- * matched by name only within that chapter — "Journal Entries" weak in one
- * Accountancy chapter must not pull another chapter's Journal Entries.
+ * question_bank has no `topic`, `concept` or `topic_group` column. Naming one
+ * fails the WHOLE PostgREST request with 42703, which the UI renders as
+ * "Could not start practice" — measured 2026-09-15:
+ *
+ *   select=id,subject,chapter,topic,concept,...  -> 400 42703
+ *   select=id,subject,chapter,...                -> 200
+ *
+ * Topics are per chapter (§10.22): the same name in two chapters is two
+ * topics. So a topic ID is filtered exactly, a topic NAME is matched only
+ * inside its chapter when the chapter is known, and a weak topic ("Journal
+ * Entries" in one Accountancy chapter) never pulls another chapter's.
  *
  * ── WHY A SOURCE ASSERTION ────────────────────────────────────────────────
  *
@@ -41,6 +48,8 @@ const SOURCE = stripComments(readFileSync(join(__dirname, "practiceService.ts"),
 
 /** The query-building closure, isolated from the client-side pass below it. */
 function buildQuerySection(): string {
+  // Anchored on the name and the first parameter, so the guard survives a
+  // second parameter without going blind.
   const start = SOURCE.indexOf("const buildQuery = (applyActiveFilter: boolean,");
   expect(start, "buildQuery has been renamed or removed").toBeGreaterThan(-1);
   const end = SOURCE.indexOf("return query;", start);
@@ -48,7 +57,17 @@ function buildQuerySection(): string {
   return SOURCE.slice(start, end);
 }
 
-describe("weak areas filter reaches the database", () => {
+/** The client-side precision pass over the rows that came back. */
+function precisionPass(): string {
+  const start = SOURCE.indexOf("let rows = (data ?? [])");
+  expect(start, "the precision pass has moved").toBeGreaterThan(-1);
+  // SOURCE has its comments stripped, so the anchor is the shuffle's code.
+  const end = SOURCE.indexOf("for (let i = rows.length - 1", start);
+  expect(end, "the precision pass no longer ends at the shuffle").toBeGreaterThan(start);
+  return SOURCE.slice(start, end);
+}
+
+describe("practice filters reach the database", () => {
   it("pushes weakTargets into the query, not just the client pass", () => {
     const build = buildQuerySection();
     expect(
@@ -57,25 +76,63 @@ describe("weak areas filter reaches the database", () => {
     ).toBe(true);
   });
 
-  it("narrows by the targets' chapters, and by topic name when no target has a chapter", () => {
+  it("narrows weak targets by chapter, and by topic name when no target has a chapter", () => {
     const build = buildQuerySection();
-    // .in() rather than a hand-built or() string: the client library quotes
+    // .in() rather than a hand-built in.() string: the client library quotes
     // values containing commas and parentheses ("Areas Related to Circles"),
-    // which a hand-built in.() list had to remember to do itself.
+    // which a hand-built list had to remember to do itself.
     expect(build).toContain('.in("chapter"');
     expect(build).toContain('.in("topics.name"');
   });
 
-  it("never filters on the dropped label columns", () => {
+  it("never names a question_bank column that does not exist", () => {
     const build = buildQuerySection();
-    expect(build).not.toMatch(/\bconcept\.(in|ilike|eq)\b/);
-    expect(build).not.toMatch(/"topic"|\btopic\.(in|ilike|eq)\b/);
+    for (const dead of [
+      "topic.ilike.", "concept.ilike.", "topic.in.", "concept.in.",
+      "topic_group",
+    ]) {
+      expect(build, `${dead} names a column question_bank does not have`).not.toContain(dead);
+    }
+    // The select list, specifically: bare `topic`/`concept` between commas.
+    expect(build).not.toMatch(/select\([^)]*[ ,`"]topic[ ,`"]/);
+    expect(build).not.toMatch(/select\([^)]*[ ,`"]concept[ ,`"]/);
+  });
+
+  it("reads the topic label from the embedded topics row", () => {
+    const build = buildQuerySection();
+    // A template, because the embed switches to !inner when a topic NAME is
+    // being narrowed on.
+    expect(build).toMatch(/topics\$\{[^}]*\}\(name\)/);
+  });
+
+  it("filters a topic id exactly, on topic_id", () => {
+    // The picker hands out ids. An id is one chapter's topic; matching it by
+    // name instead would pull a same-named topic from another chapter.
+    const build = buildQuerySection();
+    expect(build).toContain('.eq("topic_id", topicId)');
+  });
+
+  it("narrows a topic name in the database, not just in the browser", () => {
+    // Topic practice can start with NO chapter, and the 400-row window is
+    // smaller than several banks (Mathematics class 12: 695 approved questions
+    // over 125 topics). A topic in the unfetched remainder returned nothing.
+    const build = buildQuerySection();
+    expect(build).toContain('"topics.name"');
+    expect(build).toContain("!inner");
+  });
+
+  it("still runs the client-side precision pass afterwards, on the embedded name", () => {
+    // The pushdown is a window guarantee, not a replacement: the client
+    // matcher handles display-cleaned labels an exact SQL filter would miss.
+    // Losing it would silently widen every weak session.
+    const pass = precisionPass();
+    expect(pass).toContain("academicLabelMatches(r.topics?.name ?? null, needle)");
+    expect(pass).toContain("r.topic_id === topicId");
   });
 
   it("matches a weak topic by name only inside its own chapter", () => {
-    // The pushdown is a window guarantee, not a replacement. The precision pass
-    // must check the chapter BEFORE the topic name, or a topic name shared by
-    // two chapters would match both.
+    // The precision pass must check the chapter BEFORE the topic name, or a
+    // topic name shared by two chapters would match both.
     const pass = SOURCE.slice(SOURCE.indexOf("targets.some((w) => {"));
     const chapterCheck = pass.indexOf("academicLabelMatches(r.chapter, w.chapter)");
     const topicCheck = pass.indexOf("academicLabelMatches(r.topics?.name ?? null, w.concept)");

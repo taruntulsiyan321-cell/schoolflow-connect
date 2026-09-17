@@ -2,6 +2,7 @@ import {
   fetchMistakesForAnalytics,
   type MistakeRecord,
 } from "@/lib/mistakeRecovery";
+import { answerToText } from "@/academic/services/answerText";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
@@ -85,10 +86,11 @@ export type MistakeTopicAggregate = {
 export type MistakeConceptAggregate = MistakeTopicAggregate;
 
 function pickAnswerText(m: MistakeRecord, kind: "student" | "correct"): string {
-  const idx = kind === "student" ? m.student_answer?.selected_index : m.correct_answer?.correct_index;
-  if (idx != null && m.options[idx]) return m.options[idx];
-  const text = kind === "student" ? m.student_answer?.text : m.correct_answer?.text;
-  return text ?? "(unknown)";
+  // Was `correct_answer.correct_index`, a key no row in student_mistakes
+  // carries — so every "correct answer" in an insight fell through to the text
+  // fallback, and to "(unknown)" for the rows that have only a position.
+  const raw = kind === "student" ? m.student_answer : m.correct_answer;
+  return answerToText(raw, m.options) ?? "(unknown)";
 }
 
 function normalizeTopicKey(topic: string, chapter: string | null, subject: string): string {

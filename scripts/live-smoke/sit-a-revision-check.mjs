@@ -6,7 +6,12 @@
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync } from "fs";
 const SP = process.env.SP, REF = "psqxykzqfvxgsvkmgurn";
-const s = JSON.parse(readFileSync(`${SP}/sessions.json`, "utf8")).roles.student;
+// ROLE is selectable so this can be re-run against a student whose state
+// suits the flow under test. Repeated runs push one student into relearn
+// on every chapter, and then the recovery path has no fixture.
+const ROLE = process.env.ROLE || "student";
+const s = JSON.parse(readFileSync(`${SP}/sessions.json`, "utf8")).roles[ROLE];
+if (!s) { console.error(`no session for role ${ROLE}`); process.exit(2); }
 mkdirSync(`${SP}/shots`, { recursive: true });
 const browser = await chromium.launch({ headless: true,
   executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
@@ -16,7 +21,23 @@ const browser = await chromium.launch({ headless: true,
 const page = await (await browser.newContext({viewport:{width:1280,height:1000}})).newPage();
 const errors = [];
 page.on("pageerror", e => errors.push(String(e).slice(0,140)));
+// A refused start shows the student a toast that is gone in seconds and shows
+// a smoke run nothing at all. Capture the server's own words.
+const failures = [];
+page.on("response", async r => {
+  if (!/supabase\.co/.test(r.url()) || r.status() < 400) return;
+  const body = await r.text().catch(() => "");
+  failures.push(`${r.status()} ${decodeURIComponent(r.url()).replace(/apikey=[^&]+/,"").slice(0,110)} :: ${body.slice(0,220)}`);
+});
+const reportFailures = () => {
+  for (const f of failures.slice(0, 6)) console.log("   FAILED REQUEST:", f);
+  if (!failures.length) console.log("   (no 4xx/5xx — nothing was refused by the server)");
+};
 page.on("console", m => { if (m.type()==="error" && !/WebSocket|realtime|403/.test(m.text())) errors.push(m.text().slice(0,140)); });
+let lastRequestAt = Date.now();
+page.on("request", r => {
+  if (/supabase\.co/.test(r.url()) && !/realtime/.test(r.url())) lastRequestAt = Date.now();
+});
 
 await page.goto("http://127.0.0.1:5173/", { waitUntil: "domcontentloaded" });
 await page.evaluate(([r,t]) => localStorage.setItem(`sb-${r}-auth-token`, JSON.stringify({
@@ -55,7 +76,21 @@ for (const l of ["End Session","Finish","See results"]) {
   const b = page.locator(`button:has-text("${l}")`).first();
   if (await b.count() && await b.isVisible().catch(()=>false)) { await b.click().catch(()=>{}); break; }
 }
-await page.waitForTimeout(6000);
+/**
+ * Wait for the submit to actually finish, not for six seconds.
+ *
+ * The same fixed delay in clear-mistakes-in-the-book.mjs aborted 4 of 12
+ * attempt writes and reported the app's "cleared 0" as fact. Scoring a
+ * revision check writes at least as much, so wait for Supabase to go quiet.
+ */
+{
+  const QUIET_MS = 4000, CAP_MS = 90000;
+  const started = Date.now();
+  while (Date.now() - lastRequestAt < QUIET_MS && Date.now() - started < CAP_MS) {
+    await page.waitForTimeout(500);
+  }
+  console.log(`\nsettled after ${Math.round((Date.now() - started) / 1000)}s of waiting`);
+}
 await page.screenshot({ path: `${SP}/shots/42-revision-result.png`, fullPage: true });
 console.log("\nRESULT:", (await page.textContent("body")).replace(/\s+/g," ").slice(0,620));
 console.log("\nerrors:", errors.length ? errors.slice(0,4).join(" | ") : "none");

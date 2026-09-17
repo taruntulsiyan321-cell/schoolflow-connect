@@ -1,11 +1,12 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { withAlpha } from "@/lib/colorAlpha";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { mistakeBookmarksKey } from "@/lib/clientStorage";
 import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
+import { answerToIndex } from "@/academic/services/answerText";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayTopic, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, PageSkeleton, ProgressBar, ProgressRing, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
@@ -58,23 +59,6 @@ function parseOptions(raw: unknown): string[] {
   return [];
 }
 
-/** Returns null (unknown) when the stored answer is missing/malformed — never
- *  fabricates option A as a guess, since that would misrepresent the actual
- *  correct/chosen answer to the student. */
-function answerIndex(raw: { correct_index?: number; indexes?: number[] } | null): number | null {
-  if (!raw) return null;
-  if (typeof raw.correct_index === "number") return raw.correct_index;
-  if (Array.isArray(raw.indexes) && raw.indexes.length > 0) return raw.indexes[0];
-  return null;
-}
-
-function studentIndex(raw: { selected_index?: number; indexes?: number[] } | null): number | null {
-  if (!raw) return null;
-  if (typeof raw.selected_index === "number") return raw.selected_index;
-  if (Array.isArray(raw.indexes) && raw.indexes.length > 0) return raw.indexes[0];
-  return null;
-}
-
 function formatMistakeDate(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -105,8 +89,12 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     id: row.id,
     question: row.question_text,
     options,
-    correct: answerIndex(row.correct_answer),
-    chosen: studentIndex(row.student_answer),
+    // answerToIndex, not a local reader. The local one looked for
+    // `correct_index`; practice writes `index`, so every correct answer in this
+    // book read as "unknown" and the retry marked all 12 of a chapter's
+    // questions wrong however the student answered.
+    correct: answerToIndex(row.correct_answer, options),
+    chosen: answerToIndex(row.student_answer, options),
     subject: row.subject,
     chapter: displayChapter(row.chapter) || "—",
     topic: displayTopic(row.concept ?? row.topic) || "—",
@@ -455,8 +443,24 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [loading, setLoading] = useState(true);
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate([user?.id]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [filterResolved, setFilterResolved] = useState<"all"|"unresolved"|"resolved"|"bookmarked">("all");
+  /**
+   * Recovery sends a student here when a chapter is in relearn: too many open
+   * mistakes for a recovery session to be the right answer, so the book is the
+   * only way the count comes down. Arriving at the whole book — every chapter,
+   * resolved entries included — and being told to find the right ones is how
+   * that hand-off gets abandoned.
+   *
+   * Seeded once, not pinned: these are the ordinary search and filter, so the
+   * student can clear the box and see everything. The chapter is matched
+   * against the DISPLAYED label, which is what `search` already compares and
+   * what Recovery sends.
+   */
+  const [searchParams] = useSearchParams();
+  const scopedChapter = searchParams.get("chapter");
+  const [search, setSearch] = useState(scopedChapter ?? "");
+  const [filterResolved, setFilterResolved] = useState<"all"|"unresolved"|"resolved"|"bookmarked">(
+    scopedChapter ? "unresolved" : "all",
+  );
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [toastMsg, setToast] = useState<string|null>(null);
   const [stream, setStream] = useState<AcademicStream | null>(null);

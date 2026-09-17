@@ -69,23 +69,43 @@ function queued(p: Partial<RecoveryQueueRow>): RecoveryQueueRow {
 }
 
 describe("deriveRevisionData", () => {
-  it("counts a solid chapter as done", () => {
-    // §5.3: three consecutive passes and the chapter LEAVES the queue. The way
-    // it leaves is next_revision_at going null. The old version hardcoded
-    // completed to 0, so this could never be reported.
+  it("counts a solid chapter as done, by its passes", () => {
+    // §5.3: REVISION_STAGES_TO_SOLID consecutive passes and the chapter is
+    // solid.
+    //
+    // THIS TEST USED TO ASSERT `next_revision_at === null`, and it passed for
+    // as long as the database nulled that column on the third pass. The
+    // database stopped: "SOLID IS NOT FINISHED — the chapter keeps a check, at
+    // REVISION_INTERVAL_SOLID, for ever." The condition became unreachable,
+    // "Done" became structurally 0 for every student, and this test went on
+    // passing against a fixture that production could no longer produce.
+    //
+    // So the solid chapter below keeps its date, exactly as a real one does.
     const d = deriveRevisionData([
-      state({ chapter_id: "a", next_revision_at: null, recovered_at: "2026-09-01T00:00:00Z" }),
-      state({ chapter_id: "b", next_revision_at: "2026-09-20T00:00:00Z" }),
+      state({ chapter_id: "a", consecutive_passes: 3, next_revision_at: "2026-10-17T00:00:00Z" }),
+      state({ chapter_id: "b", consecutive_passes: 0, next_revision_at: "2026-09-20T00:00:00Z" }),
     ]);
     expect(d.completed).toBe(1);
-    expect(d.pending).toBe(1);
+    // Both are still scheduled — solid does not leave the queue.
+    expect(d.pending).toBe(2);
+  });
+
+  it("does not count a chapter one pass short of solid", () => {
+    // The control for the assertion above. Two passes is not three, and a
+    // rule that counted "has passed at all" would report this as done.
+    const d = deriveRevisionData([
+      state({ consecutive_passes: 2, next_revision_at: "2026-09-24T00:00:00Z" }),
+    ]);
+    expect(d.completed).toBe(0);
   });
 
   it("does not count an untouched chapter as done", () => {
-    // next_revision_at null AND no recovered_at means the chapter was never
-    // scheduled, not that it finished. Counting it would inflate "Done" with
-    // chapters the student has never revised.
-    const d = deriveRevisionData([state({ next_revision_at: null, recovered_at: null })]);
+    // A chapter that was never scheduled has no passes either, so it is not
+    // finished. Counting it would inflate "Done" with chapters the student has
+    // never revised.
+    const d = deriveRevisionData([
+      state({ consecutive_passes: 0, next_revision_at: null, recovered_at: null }),
+    ]);
     expect(d.completed).toBe(0);
   });
 
