@@ -45,8 +45,11 @@ import {
   deriveRecoveryProgress,
   deriveRecoveryTopics,
   deriveRevisionData,
+  trendState,
   practiceCountForTopic,
   scoreAxisDomain,
+  busiestHour,
+  formatHour,
 } from "@/lib/studentAnalysisMetrics";
 import {
   hasPracticeAccuracy,
@@ -278,7 +281,6 @@ export default function Analysis() {
       chapter: c.chapter,
       subject: c.subject,
       color: subjectColor(c.subject, 0),
-      completion: c.practiceDepth,
       questions: c.questions,
       accuracy: c.accuracy,
       trend: c.trend,
@@ -387,19 +389,23 @@ export default function Analysis() {
     // activeDays/activeDays and the tile read 100% for anyone who had ever
     // practised once, and 0% for everyone else. There was no third answer.
     const consistency = consistencyRatio(activityWeeks).pct;
-    return {
-      todayDone,
-      todayTarget: 0,
-      weekDone,
-      weekTarget: 0,
-      monthDone: overview.totalQuestions,
-      monthTarget: 0,
-      streakDays,
-      consistency,
-      pendingAssignments: snapshot?.homework?.pending ?? 0,
-      completedSessions: overview.practiceCompleted,
-    };
-  }, [charts?.weekly_activity, snapshot, student.streak, overview, activityWeeks]);
+    // FOUR FIELDS AND TWO CONSTANTS WENT FROM HERE, all of them dead:
+    //
+    //   todayTarget, weekTarget   hardcoded 0, read only by `target > 0 ?
+    //                             withTarget : withoutTarget` ternaries whose
+    //                             first branch could never be taken
+    //   monthDone, monthTarget    computed, rendered nowhere
+    //   pendingAssignments        homework, on a practice-only page (rule 11),
+    //                             rendered nowhere
+    //   completedSessions         a second name for overview.practiceCompleted,
+    //                             rendered nowhere
+    //
+    // Targets are not a feature this product has. Carrying a zero for one
+    // makes the screen look like it is one release away from having them, and
+    // it kept `snapshot` in this hook's dependency list for a field nothing
+    // read.
+    return { todayDone, weekDone, streakDays, consistency };
+  }, [charts?.weekly_activity, student.streak, activityWeeks]);
 
   const practiceMonthly = useMemo(() => {
     const weekly = charts?.weekly_activity ?? [];
@@ -458,11 +464,23 @@ export default function Analysis() {
       bestDay: bestDayRow
         ? new Date(bestDayRow.date).toLocaleDateString(undefined, { weekday: "short" })
         : "—",
-      // Hourly buckets are not in academic_daily_activity — honest empty.
-      bestHour: "—",
+      // REAL NOW, AND IT WAS ALWAYS AVAILABLE.
+      //
+      // This said "Hourly buckets are not in academic_daily_activity — honest
+      // empty" and rendered "—" for every student on every visit. The claim
+      // was true about that table and false about the database:
+      // question_attempts.created_at is written on every attempt, 5,623 of
+      // them across 11 distinct hours when this was measured. An empty tile
+      // defended by a comment is still an empty tile, and "we do not store it"
+      // was not the reason.
+      //
+      // Still honest when there is nothing: busiestHour returns null rather
+      // than hour 0, so a student who has never practised gets "—" and not a
+      // confident "12 AM".
+      bestHour: formatHour(busiestHour(analysis?.attempt_hours ?? [])),
       weeklyHrs: [...weeklyHrs],
     };
-  }, [snapshot?.activity_heatmap]);
+  }, [snapshot?.activity_heatmap, analysis?.attempt_hours]);
 
   // The 7C engine, not snapshot.revision_queue.
   //
@@ -538,7 +556,26 @@ export default function Analysis() {
   }, [mastery, snapshot?.mistake_count]);
 
   const milestones = useMemo(() => {
-    const built = buildMilestones(snapshot ?? {}, [], analysis?.trend.improvement_pct ?? null);
+    // THE SAME §6.4 LADDER THE REST OF THE PAGE USES.
+    //
+    // This was handed `analysis.trend.improvement_pct` — the difference
+    // between the last session's accuracy and the one before it — and turned
+    // it into a milestone reading "Accuracy up 12%". Two sessions is not a
+    // trend; it is one good sitting after one bad one, and TREND_MIN_SESSIONS
+    // is four for that reason. A milestone is the strongest claim this page
+    // makes, so it gets the strictest test: enough sessions AND movement past
+    // TREND_DELTA_POINTS, or no milestone at all.
+    //
+    // recent_sessions arrives newest-first; trendState reads a run in the
+    // order it happened.
+    const { state: accuracyTrend, deltaPoints } = trendState(
+      (analysis?.recent_sessions ?? []).slice().reverse().map((x) => x.accuracy_pct),
+    );
+    const built = buildMilestones(
+      snapshot ?? {},
+      [],
+      accuracyTrend === "improving" ? deltaPoints : null,
+    );
     const streak = overview.streak;
     const items: { title: string; desc: string; date: string; icon: string; category: string }[] = built.map((m) => ({
       title: m.title,
@@ -570,7 +607,7 @@ export default function Analysis() {
       });
     }
     return items;
-  }, [snapshot, analysis?.trend.improvement_pct, overview]);
+  }, [snapshot, analysis?.recent_sessions, overview]);
 
   const personalInsights = useMemo(() => {
     const sorted = [...subjectData].sort((a, b) => b.accuracy - a.accuracy);
@@ -688,9 +725,25 @@ export default function Analysis() {
     ];
   }, [overview, subjectData, snapshot?.weak_topics, revisionData.dueToday.length]);
 
-  const scoreTrendDelta = scoreTrend.length >= 2
-    ? scoreTrend[scoreTrend.length - 1].score - scoreTrend[0].score
-    : null;
+  // FIRST POINT AGAINST LAST POINT IS NOT A TREND, and points are not percent.
+  //
+  // This was `last.score - first.score`, rendered as "-60% over recent
+  // sessions". Two failures in one line:
+  //
+  //   · two points. §6.4 and TREND_MIN_SESSIONS exist because a run that
+  //     opens on a good sitting and closes on a bad one is not a decline, and
+  //     this line took the two most extreme-in-time points of the run and
+  //     ignored everything between them.
+  //   · "%" on a difference of two percentages. Sixty-eight down to eight is
+  //     sixty POINTS, not sixty percent; the same confusion the month
+  //     comparison was corrected for on this page.
+  //
+  // trendState is the ladder everything else here uses: null below the floor,
+  // and no caption rather than a confident one.
+  const { state: scoreTrendState, deltaPoints: scoreTrendDelta } = useMemo(
+    () => trendState(scoreTrend.map((p) => p.score)),
+    [scoreTrend],
+  );
 
   const monthComparison = useMemo(
     () =>
@@ -939,7 +992,10 @@ export default function Analysis() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            {scoreTrendDelta != null && scoreTrendDelta !== 0 && (
+            {/* Only when §6.4 says there is a direction to report. "stuck" and
+                "not_enough_data" both render nothing here — the chart above is
+                still the honest picture in either case. */}
+            {(scoreTrendState === "improving" || scoreTrendState === "worsening") && scoreTrendDelta != null && (
             <div className="flex items-center gap-2 mt-2">
               {scoreTrendDelta > 0 ? (
                 <ArrowUp className="w-3.5 h-3.5 text-success" />
@@ -947,7 +1003,7 @@ export default function Analysis() {
                 <ArrowDown className="w-3.5 h-3.5 text-destructive" />
               )}
               <span className={cn("text-xs font-medium", scoreTrendDelta > 0 ? "text-success" : "text-destructive")}>
-                {scoreTrendDelta > 0 ? "+" : ""}{scoreTrendDelta}% over recent sessions
+                {scoreTrendDelta > 0 ? "+" : ""}{scoreTrendDelta} points across these sessions
               </span>
             </div>
             )}
@@ -958,7 +1014,14 @@ export default function Analysis() {
           </Card>
 
           {/* This week vs last week */}
-          <Card label="This week vs last week — questions done">
+          {/* NOT QUESTIONS. buildWeekComparison sums weekly_activity.total,
+              which rpc_student_performance_charts builds as
+              test_count + homework_count + battle_count + self_practice_count.
+              This is the fourth panel on the page to have read that column as
+              questions; the other three were corrected on 2026-09-17 and this
+              one was missed because its title says it in prose rather than in
+              a dataKey. */}
+          <Card label="This week vs last week — activities">
             {weekComparison.some((d) => d.thisWeek > 0 || d.lastWeek > 0) ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -1038,7 +1101,10 @@ export default function Analysis() {
                           exact prohibition — a list filtered to the highest.
                           The accuracy figure beside it is unchanged and still
                           shown for every subject, high and low alike. */}
-                      {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
+                      {/* Same floor as the chapter grid below and the Topics
+                          tab. A subject is not "needs attention" off one
+                          attempt, whatever the arithmetic says. */}
+                      {s.status === "needs-attention" && mayBeJudged(s.questions) && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
                     {/* formatStudyTime, not a bare `${hours}h`: this printed "0.1h study
                         time" for six measured minutes, and "0h" for anything under
@@ -1050,8 +1116,17 @@ export default function Analysis() {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-lg font-black tabular-nums" style={{ color: s.color }}>{s.score}%</div>
-                    <TrendCell state={s.trendState} deltaPoints={s.trend} size="xs" />
+                    {accuracyWhenMeaningful(s.questions, s.score) == null ? (
+                      <>
+                        <div className="text-lg font-black tabular-nums text-muted-foreground">—</div>
+                        <div className="text-[10px] text-muted-foreground">not enough yet</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-lg font-black tabular-nums" style={{ color: s.color }}>{s.score}%</div>
+                        <TrendCell state={s.trendState} deltaPoints={s.trend} size="xs" />
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1071,6 +1146,22 @@ export default function Analysis() {
                   "practice-more":{ text: "Practice more",      color: "hsl(var(--warning))" },
                   "needs-work":   { text: "Needs attention",    color: "hsl(var(--destructive))" },
                 };
+                // THE SAME FLOOR THE TOPICS TAB APPLIES, on the same page.
+                //
+                // thresholds.ts states the rule and names this exact case:
+                // "A student told 'Tangent Length — 0% accuracy' off a single
+                // wrong answer has been given a judgement about themselves
+                // that the data cannot support." The Topics tab obeys it
+                // through accuracyWhenMeaningful and mayBeJudged; this grid
+                // did not, and rendered "Circles — Needs attention — 0%
+                // Accuracy" off ONE attempt.
+                //
+                // Below the floor the card still appears and still says what
+                // the student did — the Attempts cell carries the count and the
+                // Accuracy cell says "not enough yet". It just stops telling
+                // them what it means: no verdict badge, no rate, no bar.
+                const meaningful = accuracyWhenMeaningful(c.questions, c.accuracy);
+                const judged = mayBeJudged(c.questions);
                 const st = statusLabel[c.status];
                 return (
                   <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
@@ -1079,26 +1170,42 @@ export default function Analysis() {
                         <div className="text-sm font-semibold text-foreground">{displayChapter(c.chapter)}</div>
                         <div className="text-[11px] mt-0.5" style={{ color: c.color }}>{displaySubject(c.subject)}</div>
                       </div>
-                      <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: st.color, background: `${withAlpha(st.color, 0.07)}` }}>
-                        {st.text}
-                      </span>
+                      {judged ? (
+                        <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: st.color, background: `${withAlpha(st.color, 0.07)}` }}>
+                          {st.text}
+                        </span>
+                      ) : null}
                     </div>
                     <div className="grid grid-cols-3 gap-2 mb-2">
+                      {/* THE COUNT, not a percentage of five. This cell read
+                          "{practiceDepth}% · Practice" — progress toward the
+                          five attempts accuracy needs — which a student reads
+                          as having covered that much of the chapter. */}
                       <div className="text-center">
-                        <div className="text-sm font-black tabular-nums text-foreground">{c.completion}%</div>
-                        <div className="text-[9px] text-muted-foreground">Practice</div>
+                        <div className="text-sm font-black tabular-nums text-foreground">{c.questions}</div>
+                        <div className="text-[9px] text-muted-foreground">{c.questions === 1 ? "Attempt" : "Attempts"}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-sm font-black tabular-nums text-foreground">{c.accuracy}%</div>
-                        <div className="text-[9px] text-muted-foreground">Accuracy</div>
+                        <div className={cn("text-sm font-black tabular-nums", meaningful == null ? "text-muted-foreground" : "text-foreground")}>
+                          {meaningful == null ? "—" : `${meaningful}%`}
+                        </div>
+                        <div className="text-[9px] text-muted-foreground">{meaningful == null ? "not enough yet" : "Accuracy"}</div>
                       </div>
                       <div className="text-center">
                         <TrendCell state={c.trendState} deltaPoints={c.trend} />
                         <div className="text-[9px] text-muted-foreground">Change</div>
                       </div>
                     </div>
+                    {/* The bar is the ACCURACY in the cell above it, so the
+                        card has one quantity drawn one way. It used to be the
+                        depth figure, which made a chapter with five attempts
+                        and no correct answers render as a full bar. Nothing is
+                        drawn below the judgement floor — an empty track is the
+                        honest picture of "not enough yet". */}
                     <div className="h-1 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${c.completion}%`, background: c.color }} />
+                      {meaningful != null && (
+                        <div className="h-full rounded-full" style={{ width: `${meaningful}%`, background: c.color }} />
+                      )}
                     </div>
                   </div>
                 );
@@ -1302,8 +1409,12 @@ export default function Analysis() {
             <SLabel>Your practice — last 4 weeks</SLabel>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Done today",        value: practiceStats.todayTarget > 0 ? `${practiceStats.todayDone}/${practiceStats.todayTarget}` : `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
-                { label: "Activities in 4 weeks", value: practiceStats.weekTarget > 0 ? `${practiceStats.weekDone}/${practiceStats.weekTarget}` : `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
+                // Both count ACTIVITIES — the heat map's own cells, which are
+                // tests + homework + battles + practice sessions. "Done today"
+                // sat beside "Activities in 4 weeks" naming the same unit two
+                // ways, under a heading that says practice.
+                { label: "Activities today",      value: `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
+                { label: "Activities in 4 weeks", value: `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
                 { label: "Practice streak",   value: pluralise(practiceStats.streakDays, "day"),                        color: "hsl(var(--warning))" },
                 { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "hsl(var(--success))" },
               ].map((s) => <Metric key={s.label} label={s.label} value={s.value} color={s.color} />)}
@@ -1380,7 +1491,12 @@ export default function Analysis() {
             <Metric label="Study time (4 weeks)" value={formatStudyTime(studyActivity.totalMinutes || null)} color="hsl(var(--info))" />
             <Metric label="Average per day"     value={`${studyActivity.avgDailyMin} min`} color="hsl(var(--foreground))" />
             <Metric label="Most active day"     value={studyActivity.bestDay}              color="hsl(var(--warning))" />
-            <Metric label="Most productive hour" value={studyActivity.bestHour}            color="hsl(var(--info))" />
+            {/* "Most active hour", not "most productive". It counts attempts,
+                which is when the student WORKS — the same question "Most
+                active day" beside it answers, asked of the clock instead of
+                the calendar. Calling it productive would promise a judgement
+                about quality that this figure does not make. */}
+            <Metric label="Most active hour"    value={studyActivity.bestHour}            color="hsl(var(--info))" />
           </div>
 
           {/* Weekly hours */}
@@ -1462,8 +1578,34 @@ export default function Analysis() {
                   v == null ? "—" : row.unit === "min" ? formatStudyTime(v) : `${v}${row.unit}`;
                 const comparable = row.thisM != null && row.lastM != null && row.lastM > 0;
                 const diff = comparable ? (row.thisM as number) - (row.lastM as number) : 0;
-                const pct = comparable ? Math.round((diff / (row.lastM as number)) * 100) : 0;
                 const up = diff > 0;
+
+                // HOW THE CHANGE IS EXPRESSED, and it is not one rule.
+                //
+                // A RATE moves in POINTS. 28% to 46% is eighteen points, not
+                // "+64%" — a percentage change of a percentage, which is the
+                // classic way to make a modest improvement look like a
+                // transformation. Every other accuracy movement on this page
+                // is already in points (TrendCell, deltaPoints); this row was
+                // the one place about to disagree.
+                //
+                // A COUNT moves in percent, but not off any base. Measured
+                // live: "Activities 75 vs 1 last month +7400%" and "Study time
+                // 1.8h vs 1m last month +10500%". Both are arithmetically
+                // correct and neither means anything. TREND_MIN_SESSIONS is
+                // the floor this page already uses for "is there enough here
+                // to call it a trend", so it is the floor here too; below it
+                // the two figures are shown side by side and no growth rate is
+                // claimed.
+                const isRate = row.unit === "%";
+                const baseIsEnough = comparable && (row.lastM as number) >= TREND_MIN_SESSIONS;
+                const changeLabel = !comparable
+                  ? null
+                  : isRate
+                    ? `${up ? "+" : ""}${Math.round(diff)} points`
+                    : baseIsEnough
+                      ? `${up ? "+" : ""}${Math.round((diff / (row.lastM as number)) * 100)}%`
+                      : null;
                 return (
                   <div key={row.label} className="text-center p-3 rounded-xl border border-border/70 bg-surface/60">
                     <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{row.label}</div>
@@ -1472,7 +1614,7 @@ export default function Analysis() {
                     {comparable && (
                     <div className={cn("flex items-center gap-1 justify-center mt-1 text-xs font-semibold", up ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground")}>
                       {diff !== 0 && (up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
-                      {diff !== 0 ? `${up ? "+" : ""}${pct}%` : "—"}
+                      {diff === 0 ? "no change" : (changeLabel ?? "too little last month to compare")}
                     </div>
                     )}
                   </div>
@@ -1541,7 +1683,10 @@ export default function Analysis() {
             <div className="grid sm:grid-cols-2 gap-3">
               {[
                 { label: "Print / Save as PDF", icon: <Download className="w-4 h-4" />,  color: "hsl(var(--primary))",  desc: "Opens browser print → Save as PDF", action: "pdf" as const },
-                { label: "Copy summary",        icon: <Share2 className="w-4 h-4" />,    color: "hsl(var(--success))",  desc: "Copy text to paste yourself — teacher/parent send is coming soon", action: "share" as const },
+                // "teacher/parent send is coming soon" promised a feature with no
+                // code behind it, on the one page whose whole job is to not
+                // overstate. What the button does is copy text.
+                { label: "Copy summary",        icon: <Share2 className="w-4 h-4" />,    color: "hsl(var(--success))",  desc: "Copy your accuracy, questions and sessions as text", action: "share" as const },
                 { label: "Print report",        icon: <Printer className="w-4 h-4" />,   color: "hsl(var(--warning))",  desc: "Print a physical copy", action: "print" as const },
               ].map((r) => (
                 <button
