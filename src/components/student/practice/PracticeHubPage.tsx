@@ -30,7 +30,7 @@ import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useAcademicContext, PracticeService, WEAK_CONCEPT_THRESHOLD } from "@/academic";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
-import { resolvePracticeSessionStats } from "@/lib/practiceSessionStats";
+import { formatSessionAccuracy, resolvePracticeSessionStats } from "@/lib/practiceSessionStats";
 import { toDisplayText } from "@/lib/presentation";
 import { pluralise } from "@/lib/plural";
 
@@ -135,7 +135,8 @@ export default function PracticeHubPage() {
     Array<{
       id: string;
       topic: string;
-      accuracy: number;
+      /** Over answered questions; null when nothing was answered. */
+      accuracy: number | null;
       correct: number;
       incorrect: number;
       time: string;
@@ -593,7 +594,7 @@ export default function PracticeHubPage() {
                         and stays; what went is the styling that appeared only
                         when it was high, which is "presenting a figure as an
                         achievement" in the one form that needs no words. */}
-                    <Stat label="Accuracy" value={`${s.accuracy}%`} />
+                    <Stat label="Accuracy" value={formatSessionAccuracy(s.accuracy)} />
                     <Stat label="Correct" value={toDisplayText(s.correct)} />
                     <Stat label="Incorrect" value={toDisplayText(s.incorrect)} warn />
                   </div>

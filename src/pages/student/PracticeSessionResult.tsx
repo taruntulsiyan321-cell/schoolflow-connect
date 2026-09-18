@@ -25,11 +25,14 @@ import {
   snapshotsToAttemptRows,
   type PracticeSessionResultState,
 } from "@/lib/practiceSessionSnapshot";
+import type { PracticeAnalysisSnapshot } from "@/lib/practiceAnalysisSnapshot";
 import {
-  buildPracticeAnalysisSnapshot,
-  type PracticeAnalysisSnapshot,
-} from "@/lib/practiceAnalysisSnapshot";
-import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
+  deriveSessionAccuracy,
+  formatSessionAccuracy,
+  formatSessionDuration,
+  formatSessionXp,
+  resolvePracticeSessionStats,
+} from "@/lib/practiceSessionStats";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
@@ -138,53 +141,42 @@ export default function PracticeSessionResult() {
   const subject = displaySubject(subjectRaw);
   const chapter = chapterRaw ? displayChapter(chapterRaw) : "";
 
-  // Prefer finish-RPC payload (nav/serverStats) + DB columns. Local tallies only as last resort.
-  const localCorrect = displayAttempts.filter((a) => a.is_correct).length;
-  const localSkipped = displayAttempts.filter((a) => !!(a as AttemptRow).skipped).length;
-  const localWrong = displayAttempts.filter(
-    (a) => !a.is_correct && !(a as AttemptRow).skipped,
-  ).length;
-  const overlay = snapshot ?? (localState?.serverStats
-    ? {
-        questionCount: localState.serverStats.questionCount,
-        correctCount: localState.serverStats.correctCount,
-        wrongCount: localState.serverStats.wrongCount,
-        skippedCount: localState.serverStats.skippedCount,
-        accuracy: localState.serverStats.accuracy,
-        xpEarned: localState.serverStats.xpEarned,
-        totalTimeMs: localState.serverStats.totalTimeMs,
-      }
-    : null);
+  // ONE reading of this session, from the best source there is: the finished
+  // row, else the finish RPC's own reply or a saved snapshot, else — offline,
+  // before either arrives — this device's own attempt log. Each of those used
+  // to be read with its own arithmetic here, and the local one counted a skip
+  // as a wrong answer.
+  const localOverlay = useMemo(() => {
+    if (!localState?.attempts?.length) return null;
+    const answered = localState.attempts.filter((x) => !x.skipped && !x.timedOut);
+    const correctCount = answered.filter((x) => x.isCorrect).length;
+    const ms = localState.attempts.reduce((sum, x) => sum + (x.timeTakenMs ?? 0), 0);
+    return {
+      questionCount: localState.attempts.length,
+      correctCount,
+      wrongCount: answered.length - correctCount,
+      skippedCount: localState.attempts.length - answered.length,
+      accuracy: deriveSessionAccuracy(correctCount, answered.length - correctCount),
+      totalTimeMs: ms > 0 ? ms : null,
+    };
+  }, [localState]);
+  const overlay = snapshot ?? localState?.serverStats ?? localOverlay;
   const stats = resolvePracticeSessionStats(session, overlay);
-  const hasSessionRow = Boolean(session || overlay);
-  // When finish-RPC / DB row exists, never inflate totals from local attempt array length.
-  const total = hasSessionRow
-    ? stats.questionCount
-    : Math.max(displayAttempts.length, 0);
-  const correct = hasSessionRow ? stats.correctCount : localCorrect;
-  const wrong = hasSessionRow ? stats.wrongCount : localWrong;
-  const skipped = hasSessionRow ? stats.skippedCount : localSkipped;
-  const accuracy = hasSessionRow
-    ? stats.accuracy
-    : total
-      ? Math.round((correct / total) * 100)
-      : 0;
-  const xpEarned = hasSessionRow ? stats.xpEarned : 0;
-  const xpLabel = formatSessionXp(xpEarned, hasSessionRow ? stats.xpFromDb : false);
-  const finishedMs =
-    stats.totalTimeMs ??
-    (session?.finished_at && session?.created_at
-      ? new Date(session.finished_at).getTime() - new Date(session.created_at).getTime()
-      : localState?.startedAt
-        ? Date.now() - new Date(localState.startedAt).getTime()
-        : 0);
-  const mins = Math.max(1, Math.round((finishedMs || 60000) / 60000));
+  const total = stats.questionCount;
+  const correct = stats.correctCount;
+  const wrong = stats.wrongCount;
+  const skipped = stats.skippedCount;
+  const accuracy = stats.accuracy;
+  const xpLabel = formatSessionXp(stats.xpEarned, stats.xpFromDb);
+  // A session is as long as its questions took (20261030000000) — never the
+  // wall clock from opening to finishing, and never a floor of one minute.
+  const durationLabel = formatSessionDuration(stats.totalTimeMs);
   const avgSec =
     snapshot?.statistics?.avgSecPerQuestion ??
-    (finishedMs && total ? Math.round(finishedMs / total / 1000) : null);
+    (stats.totalTimeMs && total ? Math.round(stats.totalTimeMs / total / 1000) : null);
 
   const insights = snapshot?.insights;
-  const recommendations =
+  const recommendations: string[] =
     insights?.recommendations ??
     // RULING 2, and the finding it produced. This was reported as one of three
     // "perfect-score celebrations"; it is not one. `accuracy < 100` GATES
@@ -198,15 +190,17 @@ export default function PracticeSessionResult() {
     // the advice. Rare, but it fails in the direction that hides the fix.
     (wrong > 0
       ? [
-          accuracy < ACCURACY_BUILDING ? "Review wrong answers below — they feed Mistake Book automatically." : null,
-          accuracy < ACCURACY_PROCEDURAL ? "Revise weak topics from Analysis before your next practice session." : null,
+          accuracy != null && accuracy < ACCURACY_BUILDING ? "Review wrong answers below — they feed Mistake Book automatically." : null,
+          accuracy != null && accuracy < ACCURACY_PROCEDURAL ? "Revise weak topics from Analysis before your next practice session." : null,
           'Use "Explain my mistake" on each wrong question to understand the concept.',
         ].filter(Boolean) as string[]
       // §10.8. This read "Excellent accuracy — keep momentum with a short daily
       // practice." at 100%. The rule permits the NUMBER — "session totals are
       // stored so accuracy can be shown" — and forbids the praise attached to
       // it. The next step survives; the verdict on the student does not.
-      : ["Keep a short daily practice going to hold this topic."]);
+      : skipped > 0 && correct === 0
+        ? ["Every question was skipped — try the ones you skipped when you have more time."]
+        : ["Keep a short daily practice going to hold this topic."]);
 
   const fallbackReport = useMemo(() => {
     if (!id || displayAttempts.length === 0) return null;
@@ -221,8 +215,9 @@ export default function PracticeSessionResult() {
         isCorrect: !!a.is_correct,
         skipped: !!a.skipped,
       }));
-    return buildPracticeRecoveryReport(id, subjectRaw, chapterRaw, snaps, mins);
-  }, [id, subjectRaw, chapterRaw, localState, snapshot, displayAttempts, mins]);
+    const minutes = stats.totalTimeMs ? Math.max(1, Math.round(stats.totalTimeMs / 60000)) : 1;
+    return buildPracticeRecoveryReport(id, subjectRaw, chapterRaw, snaps, minutes);
+  }, [id, subjectRaw, chapterRaw, localState, snapshot, displayAttempts, stats.totalTimeMs]);
 
   const retryUrl = `/student/practice`;
   const hasLocalData = displayAttempts.length > 0 || !!snapshot;
@@ -301,48 +296,15 @@ export default function PracticeSessionResult() {
     }
     setSaving(true);
     try {
-      const snap = buildPracticeAnalysisSnapshot({
-        subject: subjectRaw,
-        chapter: chapterRaw,
-        practiceMode: session?.practice_mode ?? snapshot?.practiceMode ?? null,
-        practiceTypeLabel: snapshot?.practiceTypeLabel,
-        difficulty: session?.difficulty ?? snapshot?.difficulty ?? null,
-        questionCount: total,
-        correctCount: correct,
-        wrongCount: wrong,
-        skippedCount: skipped,
-        accuracy,
-        xpEarned,
-        totalTimeMs: finishedMs || null,
-        finishedAt: session?.finished_at ?? snapshot?.finishedAt ?? null,
-        startedAt: session?.created_at ?? snapshot?.startedAt ?? localState?.startedAt ?? null,
-        attempts:
-          localState?.attempts?.map((a) => ({
-            question: a.question,
-            options: a.options,
-            correctIndex: a.correctIndex,
-            selectedIndex: a.selectedIndex,
-            isCorrect: a.isCorrect,
-            skipped: a.skipped,
-            explanation: a.explanation,
-          })) ??
-          displayAttempts.map((a) => ({
-            question: a.generated_question?.question ?? "",
-            options: a.generated_question?.options ?? [],
-            correctIndex: typeof a.correct_answer?.index === "number" ? a.correct_answer.index : 0,
-            selectedIndex: typeof a.selected_answer?.index === "number" ? a.selected_answer.index : -1,
-            isCorrect: !!a.is_correct,
-            skipped: !!a.skipped,
-            explanation: a.generated_question?.explanation,
-          })),
-        bookmarked: snapshot?.statistics?.bookmarked ?? 0,
-      });
-      const res = await PracticeService.saveSession(ctx, id, snap as unknown as Record<string, unknown>);
+      // The snapshot is built by PracticeService.saveSession, from the session
+      // row and its recorded attempts. This screen used to build its own from
+      // whatever it happened to hold, and the hub built a different one.
+      const res = await PracticeService.saveSession(ctx, id);
       setSavedAt(res.saved_at);
       if (res.already_saved) toast.message("Session already saved");
       else toast.success("Session saved — find it under Saved Sessions");
     } catch (e) {
-      toast.error(toErrorMessage(e, "Could not save session"));
+      toast.error(toErrorMessage(e, "Could not save this session"));
     } finally {
       setSaving(false);
     }
@@ -557,15 +519,18 @@ export default function PracticeSessionResult() {
       )}
 
       <div className="flex flex-wrap gap-2 mb-6">
-        <Button
-          size="sm"
-          onClick={() => void handleSaveSession()}
-          disabled={saving || Boolean(savedAt)}
-          className="gap-1.5"
-        >
-          <Save className="w-4 h-4" />
-          {savedAt ? "Saved" : saving ? "Saving…" : "Save Session"}
-        </Button>
+        {/* Nothing was answered — there is no analysis to freeze. */}
+        {total > 0 && (
+          <Button
+            size="sm"
+            onClick={() => void handleSaveSession()}
+            disabled={saving || Boolean(savedAt)}
+            className="gap-1.5"
+          >
+            <Save className="w-4 h-4" />
+            {savedAt ? "Saved" : saving ? "Saving…" : "Save Session"}
+          </Button>
+        )}
         <Button asChild variant="outline" size="sm">
           <Link to={retryUrl}>Back to Practice</Link>
         </Button>
@@ -585,19 +550,21 @@ export default function PracticeSessionResult() {
             <Target className="w-5 h-5 text-accent" />
             <div>
               <div className="text-xs text-muted-foreground">Accuracy</div>
-              <div className="font-bold text-lg">{accuracy}%</div>
+              {/* Over ANSWERED questions; an em dash when none was answered —
+                  "0%" would be a verdict the data does not carry. */}
+              <div className="font-bold text-lg">{formatSessionAccuracy(accuracy)}</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Timer className="w-5 h-5 text-primary" />
             <div>
               <div className="text-xs text-muted-foreground">Time</div>
-              <div className="font-bold text-lg">{mins}m</div>
+              <div className="font-bold text-lg">{durationLabel}</div>
             </div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Correct</div>
-            <div className="font-bold text-lg">{correct}/{total || displayAttempts.length}</div>
+            <div className="font-bold text-lg">{correct}/{total}</div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground">XP earned</div>
@@ -626,7 +593,7 @@ export default function PracticeSessionResult() {
           </div>
           <div className="rounded-lg border p-3">
             <div className="text-xs text-muted-foreground">Score</div>
-            <div className="font-bold text-lg">{Number(session?.score ?? correct).toFixed(0)} / {total || displayAttempts.length}</div>
+            <div className="font-bold text-lg">{correct} / {total}</div>
           </div>
         </div>
       </Card>
@@ -736,7 +703,9 @@ export default function PracticeSessionResult() {
 
       {displayAttempts.length === 0 && (
         <Card className="p-6 text-center text-sm text-muted-foreground">
-          No question details saved for this session. Complete a new practice session after updating the app.
+          {total > 0
+            ? "The questions from this session are no longer available to review."
+            : "No question was answered in this session, so there is nothing to review."}
         </Card>
       )}
     </>

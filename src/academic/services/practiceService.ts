@@ -38,6 +38,10 @@ import { DecisionEngineService, type WeakAreaRecommendation } from "./decisionEn
 import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
 import { sessionAccuracy } from "../metrics/practice";
 import { valueOr } from "../metrics/types";
+import {
+  buildPracticeAnalysisSnapshot,
+  type PracticeAttemptRecord,
+} from "@/lib/practiceAnalysisSnapshot";
 
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
@@ -210,6 +214,31 @@ async function loadWeakConceptsFromDecisionEngineV2(
     .map(({ subjectRaw: _s, conceptRaw: _c, ...row }) => row);
 }
 
+/**
+ * How far back Practice History looks when no date is chosen. Saved Sessions
+ * are how a session is kept past it; the hub states the window from here.
+ */
+export const PRACTICE_HISTORY_WINDOW_DAYS = 7;
+
+/**
+ * How long a session with no new answers is left open before it counts as
+ * walked away from. Long enough that a session being sat in another tab — or a
+ * student thinking about a hard question — is never closed underneath them.
+ */
+export const ABANDONED_AFTER_MS = 30 * 60 * 1000;
+
+/**
+ * And how stale is too stale to settle at all.
+ *
+ * Finishing a session credits XP, bumps the activity minutes and marks a study
+ * day — all of them NOW. For practice left an hour ago that is simply late. For
+ * practice left five weeks ago it would be an invention: a student who opens
+ * Practice today and answers nothing would be given today's streak for a
+ * session they sat in August. Older sessions are left as they are; they hold no
+ * lost mistakes, because every answer was already recorded as it was given.
+ */
+export const SETTLE_WITHIN_MS = 12 * 60 * 60 * 1000;
+
 const PRACTICE_SESSION_LIST_SELECT =
   "id, subject, chapter, question_count, correct_count, score, created_at, finished_at, practice_mode, skipped_count, wrong_count, total_time_ms, accuracy, saved_at, analysis_snapshot, xp_earned, difficulty, time_limit_sec";
 
@@ -233,14 +262,13 @@ export const PracticeService = {
       _chapter: string | null;
       _count?: number;
       _practice_mode?: string | null;
-      /** easy | medium | hard — persisted for resume; omitted/mixed → null in DB. */
+      /** easy | medium | hard; mixed/any/all are stored as null. */
       _difficulty?: string | null;
-      /** Timed/mock limit in seconds — persisted for honest resume; omitted → null. */
+      /** A Custom Practice time goal, in seconds; null for an untimed session. */
       _time_limit_sec?: number | null;
     },
-  ) {
+  ): Promise<string> {
     assertCanOwn(ctx, "practice");
-    const client = getClient(toRepoContext(ctx));
     const difficulty =
       args._difficulty && !["mixed", "any", "all"].includes(String(args._difficulty).toLowerCase())
         ? String(args._difficulty).toLowerCase()
@@ -249,56 +277,24 @@ export const PracticeService = {
       typeof args._time_limit_sec === "number" && args._time_limit_sec > 0
         ? Math.floor(args._time_limit_sec)
         : null;
-
-    const withTime = await client.rpc("rpc_start_practice_session", {
+    // One signature, the live one. This used to retry two older signatures on
+    // ANY error — so a network failure on the real call was reported as
+    // whatever the oldest signature said, and a pre-migration fallback wrote
+    // difficulty and time limit with a second, unchecked update.
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_start_practice_session", {
       _subject: args._subject,
-      _chapter: args._chapter,
+      // `_chapter text` has no DEFAULT, so it cannot be omitted, and the
+      // generated type cannot say it takes null — which whole-subject practice
+      // sends on purpose. This one field is cast; the rest are omitted when
+      // unset, which reaches the same DEFAULT NULL.
+      _chapter: args._chapter as string,
       _count: args._count ?? 10,
-      _practice_mode: args._practice_mode ?? null,
-      _difficulty: difficulty,
-      _time_limit_sec: timeLimit,
-    } as never);
-    if (!withTime.error) return withTime.data;
-
-    const withDiff = await client.rpc("rpc_start_practice_session", {
-      _subject: args._subject,
-      _chapter: args._chapter,
-      _count: args._count ?? 10,
-      _practice_mode: args._practice_mode ?? null,
-      _difficulty: difficulty,
-    } as never);
-    if (!withDiff.error) {
-      const sid = withDiff.data as string;
-      if (sid && timeLimit != null) {
-        await client
-          .from("practice_sessions")
-          .update({ time_limit_sec: timeLimit } as never)
-          .eq("id", sid)
-          .eq("user_id", ctx.userId);
-      }
-      return sid;
-    }
-
-    // Pre-migration: start RPC without _difficulty / _time_limit_sec.
-    const legacy = await client.rpc("rpc_start_practice_session", {
-      _subject: args._subject,
-      _chapter: args._chapter,
-      _count: args._count ?? 10,
-      _practice_mode: args._practice_mode ?? null,
-    } as never);
-    throwIfError(legacy.error ?? withDiff.error ?? withTime.error, "Failed to start practice session");
-    const sid = legacy.data as string;
-    if (sid && (difficulty || timeLimit != null)) {
-      await client
-        .from("practice_sessions")
-        .update({
-          ...(difficulty ? { difficulty } : {}),
-          ...(timeLimit != null ? { time_limit_sec: timeLimit } : {}),
-        } as never)
-        .eq("id", sid)
-        .eq("user_id", ctx.userId);
-    }
-    return sid;
+      ...(args._practice_mode ? { _practice_mode: args._practice_mode } : {}),
+      ...(difficulty ? { _difficulty: difficulty } : {}),
+      ...(timeLimit != null ? { _time_limit_sec: timeLimit } : {}),
+    });
+    throwIfError(error, "Failed to start practice session");
+    return data as string;
   },
 
   async finish(
@@ -454,7 +450,14 @@ export const PracticeService = {
     return data ?? [];
   },
 
-  /** Finished sessions for Practice History (presentation-ready fields stay in UI). */
+  /**
+   * The latest finished sessions the student actually sat, newest first.
+   *
+   * "Sat" is _practice_session_attempted's rule — something answered or
+   * skipped. A session that loaded nothing is finished too, and without this
+   * "Save latest result" would save that instead of the student's last real
+   * session.
+   */
   async listRecentFinished(ctx: ServiceContext, limit = 40) {
     assertCanConsume(ctx, "practice");
     const { data, error } = await getClient(toRepoContext(ctx))
@@ -462,18 +465,33 @@ export const PracticeService = {
       .select(PRACTICE_SESSION_LIST_SELECT)
       .eq("user_id", ctx.userId)
       .not("finished_at", "is", null)
+      .or("correct_count.gt.0,wrong_count.gt.0,skipped_count.gt.0")
       .order("finished_at", { ascending: false })
       .limit(limit);
     throwIfError(error, "Failed to load practice history");
     return (data ?? []) as PracticeSessionRow[];
   },
 
+  /**
+   * Practice History: finished sessions that were sat, newest first.
+   *
+   * History is a PRACTICE_HISTORY_WINDOW_DAYS window unless the caller names
+   * dates; a session worth keeping longer is saved (Saved Sessions has no
+   * window). The screen says so — it used to promise "your most recent 100
+   * sessions" and "every session you finish", and show a student who last
+   * practised eight days ago "No practice history yet".
+   *
+   * The RPC is the only path. A fallback query used to run on ANY error from
+   * it, with different filters and no attempted-rule, so a failure showed a
+   * different list rather than an error.
+   */
   async listHistory(
     ctx: ServiceContext,
     opts?: {
       limit?: number;
       subject?: string | null;
       practiceMode?: string | null;
+      /** ISO instants. Pass the student's LOCAL day boundaries for a day filter. */
       dateFrom?: string | null;
       dateTo?: string | null;
       search?: string | null;
@@ -487,64 +505,23 @@ export const PracticeService = {
     },
   ) {
     assertCanConsume(ctx, "practice");
-    const client = getClient(toRepoContext(ctx));
-    const limit = opts?.limit ?? 100;
-
-    // V1 retains one week of practice history. An explicit dateFrom from the
-    // caller still wins, so this is a default window and not a hard ceiling.
-    const defaultFrom = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const dateFrom = opts?.dateFrom || defaultFrom;
-
-    // Prefer server RPC (filter/search/sort beyond client window).
-    const rpc = await client.rpc("rpc_list_practice_history", {
-      _limit: limit,
-      _subject: opts?.subject?.trim() || null,
-      _practice_mode: opts?.practiceMode?.trim() || null,
+    const dateFrom =
+      opts?.dateFrom ||
+      new Date(Date.now() - PRACTICE_HISTORY_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const subject = opts?.subject?.trim();
+    const practiceMode = opts?.practiceMode?.trim();
+    const search = opts?.search?.trim();
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_list_practice_history", {
+      _limit: opts?.limit ?? 100,
       _date_from: dateFrom,
-      _date_to: opts?.dateTo || null,
-      _search: opts?.search?.trim() || null,
       _sort: opts?.sort || "finished_at_desc",
-    } as never);
-    if (!rpc.error && Array.isArray(rpc.data)) {
-      return rpc.data as PracticeSessionRow[];
-    }
-
-    // Fallback when RPC not yet applied: filtered select + client search.
-    let q = client
-      .from("practice_sessions")
-      .select(PRACTICE_SESSION_LIST_SELECT)
-      .eq("user_id", ctx.userId)
-      .not("finished_at", "is", null)
-      .order("finished_at", { ascending: false })
-      .limit(limit);
-
-    if (opts?.subject?.trim()) {
-      q = q.ilike("subject", opts.subject.trim());
-    }
-    if (opts?.practiceMode?.trim()) {
-      q = q.eq("practice_mode", opts.practiceMode.trim());
-    }
-    if (dateFrom) {
-      q = q.gte("finished_at", dateFrom);
-    }
-    if (opts?.dateTo) {
-      q = q.lte("finished_at", opts.dateTo);
-    }
-
-    const { data, error } = await q;
+      ...(subject ? { _subject: subject } : {}),
+      ...(practiceMode ? { _practice_mode: practiceMode } : {}),
+      ...(opts?.dateTo ? { _date_to: opts.dateTo } : {}),
+      ...(search ? { _search: search } : {}),
+    });
     throwIfError(error, "Failed to load practice history");
-    let rows = (data ?? []) as PracticeSessionRow[];
-    const search = opts?.search?.trim().toLowerCase();
-    if (search) {
-      rows = rows.filter((r) => {
-        const hay = [r.subject, r.chapter, r.practice_mode, r.difficulty]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return hay.includes(search);
-      });
-    }
-    return rows;
+    return (data ?? []) as PracticeSessionRow[];
   },
 
   async listSavedSessions(ctx: ServiceContext, limit = 30) {
@@ -560,37 +537,99 @@ export const PracticeService = {
     return (data ?? []) as PracticeSessionRow[];
   },
 
-  /** Unfinished sessions the student can resume (live attempts already on the row). */
-  async listIncompleteSessions(ctx: ServiceContext, limit = 8) {
-    assertCanConsume(ctx, "practice");
-    const { data, error } = await getClient(toRepoContext(ctx))
+  /**
+   * Finish the sessions this student walked away from, from the answers they
+   * already recorded.
+   *
+   * The runner finishes a session when the student navigates away in the app,
+   * but a closed tab or a lost connection takes the request with it. Without
+   * this, those sessions stay open for ever: 52 of them on 2026-09-17, holding
+   * answers that earned no XP, moved no streak, wrote no chapter tally and
+   * appeared in no history — and resuming was removed with the v2 redesign, so
+   * nothing was ever going to come back for them.
+   *
+   * Only sessions whose newest answer is older than ABANDONED_AFTER_MS: a
+   * session being sat right now, in another tab, has fresher answers than that
+   * and must not be closed underneath the student.
+   *
+   * Returns how many were settled. Best effort by design — the hub calls it on
+   * the way past, and one that fails is simply tried again next time.
+   */
+  async settleAbandonedSessions(ctx: ServiceContext): Promise<number> {
+    assertCanOwn(ctx, "practice");
+    const client = getClient(toRepoContext(ctx));
+    const { data: open, error } = await client
       .from("practice_sessions")
-      .select(PRACTICE_SESSION_LIST_SELECT)
+      .select("id")
       .eq("user_id", ctx.userId)
       .is("finished_at", null)
       .order("created_at", { ascending: false })
-      .limit(limit);
-    throwIfError(error, "Failed to load incomplete practice sessions");
-    return (data ?? []) as PracticeSessionRow[];
+      .limit(20);
+    throwIfError(error, "Failed to load unfinished practice sessions");
+    const ids = (open ?? []).map((r) => (r as { id: string }).id);
+    if (ids.length === 0) return 0;
+
+    const { data: attempts, error: attErr } = await client
+      .from("question_attempts")
+      .select("session_id, created_at")
+      .eq("user_id", ctx.userId)
+      .in("session_id", ids);
+    throwIfError(attErr, "Failed to load unfinished practice attempts");
+
+    const newest = new Map<string, number>();
+    for (const row of attempts ?? []) {
+      const r = row as { session_id: string | null; created_at: string };
+      if (!r.session_id) continue;
+      const at = new Date(r.created_at).getTime();
+      if (at > (newest.get(r.session_id) ?? 0)) newest.set(r.session_id, at);
+    }
+
+    const now = Date.now();
+    let settled = 0;
+    for (const id of ids) {
+      const last = newest.get(id);
+      // No answer at all: the student opened it and never answered. There is
+      // nothing to record, and finishing it would add a session that never
+      // happened to their history.
+      if (last == null) continue;
+      // Still warm (another tab, a long think) or too old to credit today.
+      if (last > now - ABANDONED_AFTER_MS || last < now - SETTLE_WITHIN_MS) continue;
+      try {
+        await this.finish(ctx, {
+          _session_id: id,
+          _attempts: [],
+          _ended_by_user: true,
+          _ended_normally: false,
+        });
+        settled += 1;
+      } catch (e) {
+        console.warn("[PracticeService.settleAbandonedSessions]", e instanceof Error ? e.message : e);
+      }
+    }
+    return settled;
   },
 
   /**
-   * Persist analysis snapshot for a finished session (idempotent).
-   * Duplicate saves return already_saved without rewriting the snapshot.
+   * Save a finished session, with its analysis frozen (idempotent — a second
+   * save returns already_saved and keeps the first snapshot).
+   *
+   * The snapshot is built HERE, from the session row and its recorded
+   * attempts, for every caller. It used to be built by each screen: the result
+   * page froze the questions and a "Practice" type label, the hub's "Save
+   * latest result" froze no questions at all — two saves of one session, two
+   * different records.
    */
-  async saveSession(
-    ctx: ServiceContext,
-    sessionId: string,
-    snapshot?: Record<string, unknown> | null,
-  ) {
+  async saveSession(ctx: ServiceContext, sessionId: string) {
     assertCanOwn(ctx, "practice");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_save_practice_session",
-      {
-        _session_id: sessionId,
-        _snapshot: snapshot ?? null,
-      } as never,
-    );
+    const session = await this.getSession(ctx, sessionId);
+    if (!session) throw new Error("That practice session could not be found.");
+    const attempts = await this.listSessionAttempts(ctx, sessionId);
+    if (attempts.length === 0) throw new Error("Nothing was answered in this session, so there is nothing to save.");
+    const snapshot = buildPracticeAnalysisSnapshot(session, attempts as PracticeAttemptRecord[]);
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_save_practice_session", {
+      _session_id: sessionId,
+      _snapshot: snapshot as unknown as Json,
+    });
     throwIfError(error, "Failed to save practice session");
     broadcastAcademicWrite(ctx.schoolId, ["profile"], {
       studentId: ctx.studentId,
@@ -716,41 +755,46 @@ export const PracticeService = {
     return { classLevel, board, stream, classLabel };
   },
 
-  /** Unique approved subjects from the live question bank (class + board + stream). */
+  /**
+   * The subjects and chapters a class can be served, with question counts —
+   * counted by the database (rpc_practice_bank_catalog), under the student's
+   * own read policies, in the same class / board / stream scope listBankQuestions
+   * serves from.
+   *
+   * Both pickers used to read 800 question rows in no order and list whatever
+   * subjects and chapters those rows happened to hold. Class 10 has 3,045
+   * servable rows: Social Science, with 953 questions, was never offered.
+   * Class 12 commerce lost Hindi and English.
+   */
+  async listBankCatalog(
+    ctx: ServiceContext,
+    opts: { subject?: string | null; classLevel?: number | null } = {},
+  ): Promise<{ scope: CurriculumScope; classLevel: number | null; rows: { subject: string; chapter: string | null; questions: number }[] }> {
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = opts.classLevel ?? scope.classLevel;
+    // Never list another class's bank when the student's class is unknown.
+    if (classLevel == null || !Number.isFinite(classLevel)) return { scope, classLevel: null, rows: [] };
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_practice_bank_catalog", {
+      _class_level: classLevel,
+      _board: scope.board,
+      ...(scope.stream ? { _stream: scope.stream } : {}),
+      ...(opts.subject ? { _subject: opts.subject } : {}),
+    });
+    throwIfError(error, "Failed to load the practice question bank");
+    return { scope, classLevel, rows: data ?? [] };
+  },
+
+  /** Subjects the student's class can practise (class + board + stream). */
   async listBankSubjects(
     ctx: ServiceContext,
     opts: { classLevel?: number | null } = {},
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
     assertStudentClassContext(ctx);
-    const client = getClient(toRepoContext(ctx));
-    const scope = await this.resolveCurriculumScope(ctx);
-    const classLevel = opts.classLevel ?? scope.classLevel;
-
-    // Never dump all classes when we cannot resolve the student's class.
-    if (classLevel == null || !Number.isFinite(classLevel)) {
-      return [];
-    }
-
-    let query = client
-      .from("question_bank")
-      .select("subject, stream")
-      .eq("is_approved", true)
-      .eq("class_level", classLevel)
-      // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-      // so there is no per-school arm left to filter on.
-      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
-      .limit(800);
-
-    if (scope.stream) {
-      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
-    }
-
-    const { data, error } = await query;
-    throwIfError(error, "Failed to load practice subjects");
+    const { scope, classLevel, rows } = await this.listBankCatalog(ctx, opts);
     const seen = new Map<string, string>();
-    for (const row of data ?? []) {
-      const raw = String((row as { subject?: string }).subject ?? "").trim();
+    for (const row of rows) {
+      const raw = row.subject.trim();
       if (!raw) continue;
       if (!isSubjectAllowedForScope(raw, scope.stream, classLevel)) continue;
       const label = displaySubject(raw);
@@ -760,39 +804,19 @@ export const PracticeService = {
     return filterSubjectsForStream([...seen.values()], scope.stream, classLevel);
   },
 
-  /** Unique chapters for a subject from the live bank (`id` = DB value, `displayName` for UI). */
+  /** Chapters for a subject (`id` = the stored chapter, `displayName` for UI). */
   async listBankChapters(
     ctx: ServiceContext,
     opts: { subject: string; classLevel?: number | null },
   ): Promise<AcademicTermRef[]> {
     assertCanConsume(ctx, "practice");
-    const client = getClient(toRepoContext(ctx));
-    const scope = await this.resolveCurriculumScope(ctx);
-    const classLevel = opts.classLevel ?? scope.classLevel;
-
-    if (classLevel == null || !Number.isFinite(classLevel)) return [];
+    const { scope, classLevel, rows } = await this.listBankCatalog(ctx, opts);
+    if (classLevel == null) return [];
     if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
-    let query = client
-      .from("question_bank")
-      .select("chapter")
-      .eq("is_approved", true)
-      .eq("class_level", classLevel)
-      .ilike("subject", opts.subject)
-      // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-      // so there is no per-school arm left to filter on.
-      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
-      .limit(800);
-
-    if (scope.stream) {
-      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
-    }
-
-    const { data, error } = await query;
-    throwIfError(error, "Failed to load practice chapters");
     const seen = new Map<string, AcademicTermRef>();
-    for (const row of data ?? []) {
-      const raw = String((row as { chapter?: string | null }).chapter ?? "").trim();
+    for (const row of rows) {
+      const raw = String(row.chapter ?? "").trim();
       if (!raw) continue;
       const term = toPresentedTerm(raw, "chapter");
       if (!term) continue;

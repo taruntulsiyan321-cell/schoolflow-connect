@@ -1,12 +1,16 @@
 /**
- * Practice Session Stats SSOT — presentation helpers only.
+ * Practice session figures, for display — one reading of a session for every
+ * screen that shows one.
  *
- * Accuracy / wrong / skip / XP are owned by `rpc_finish_practice_session`
- * (practice_sessions columns). UI must prefer those columns and must NEVER
- * invent XP (e.g. correct×10) or invent accuracy when the row exists.
+ * rpc_finish_practice_session decides them and stores them on
+ * practice_sessions; a finished row is therefore the answer, and a screen that
+ * has no row yet reads the finish RPC's own reply (the overlay). Nothing here
+ * invents XP.
  *
- * Accuracy policy (matches finish RPC): correct / total_attempts × 100,
- * where total_attempts includes skips.
+ * Accuracy is correct ÷ ANSWERED — skipped questions are not wrong answers
+ * (20261021000000) — and it is ABSENT, not 0%, when nothing was answered. A
+ * student who skipped every question has no accuracy; "0%" would be a claim
+ * about them the data does not make.
  */
 
 export type PracticeSessionStatsSource = {
@@ -14,11 +18,21 @@ export type PracticeSessionStatsSource = {
   correct_count?: number | null;
   wrong_count?: number | null;
   skipped_count?: number | null;
-  accuracy?: number | null;
+  accuracy?: number | string | null;
   xp_earned?: number | null;
   total_time_ms?: number | null;
   finished_at?: string | null;
-  created_at?: string | null;
+};
+
+/** The finish RPC's reply, for a screen that has not loaded the row yet. */
+export type PracticeSessionStatsOverlay = {
+  questionCount?: number;
+  correctCount?: number;
+  wrongCount?: number;
+  skippedCount?: number;
+  accuracy?: number | null;
+  xpEarned?: number;
+  totalTimeMs?: number | null;
 };
 
 export type PracticeSessionStats = {
@@ -26,110 +40,94 @@ export type PracticeSessionStats = {
   correctCount: number;
   wrongCount: number;
   skippedCount: number;
-  /** Rounded percent from DB when present; else derived from counts using server policy. */
-  accuracy: number;
-  /** Session XP from finish RPC — 0 when not yet credited. Never invent. */
+  /** Rounded percent over answered questions; null when none was answered. */
+  accuracy: number | null;
+  /** Session XP from the finish — 0 when not yet credited. Never invented. */
   xpEarned: number;
   totalTimeMs: number | null;
-  /** True when accuracy came from DB column (not derived). */
-  accuracyFromDb: boolean;
-  /** True when xp came from a positive DB column. */
+  /** True once XP has actually been credited (a finished row, or the finish's reply). */
   xpFromDb: boolean;
 };
 
-function asNonNegInt(n: unknown, fallback = 0): number {
-  const v = typeof n === "number" ? n : Number(n);
-  if (!Number.isFinite(v) || v < 0) return fallback;
-  return Math.floor(v);
+function asCount(n: unknown): number | null {
+  const v = typeof n === "number" ? n : n == null ? NaN : Number(n);
+  return Number.isFinite(v) && v >= 0 ? Math.floor(v) : null;
 }
 
-/** Derive accuracy the same way finish RPC does (correct / total including skips). */
-export function deriveSessionAccuracy(
-  correctCount: number,
-  questionCount: number,
-): number {
-  if (questionCount <= 0) return 0;
-  return Math.round((correctCount / questionCount) * 100);
+/** correct ÷ (correct + wrong), rounded — the finish RPC's rule. */
+export function deriveSessionAccuracy(correctCount: number, wrongCount: number): number | null {
+  const answered = correctCount + wrongCount;
+  return answered > 0 ? Math.round((correctCount / answered) * 100) : null;
 }
 
-/**
- * Resolve display stats from a practice_sessions row (and optional snapshot overlay).
- * Snapshot wins for frozen Saved Session reopen; otherwise DB columns win.
- */
 export function resolvePracticeSessionStats(
   session: PracticeSessionStatsSource | null | undefined,
-  snapshot?: {
-    questionCount?: number;
-    correctCount?: number;
-    wrongCount?: number;
-    skippedCount?: number;
-    accuracy?: number;
-    xpEarned?: number;
-    totalTimeMs?: number | null;
-  } | null,
+  overlay?: PracticeSessionStatsOverlay | null,
 ): PracticeSessionStats {
-  const questionCount = asNonNegInt(
-    snapshot?.questionCount ?? session?.question_count,
-  );
-  const correctCount = asNonNegInt(
-    snapshot?.correctCount ?? session?.correct_count,
-  );
-  const skippedCount = asNonNegInt(
-    snapshot?.skippedCount ?? session?.skipped_count,
-  );
-  const wrongFromSource =
-    snapshot?.wrongCount ?? session?.wrong_count;
+  // ONE source per reading, never a mix. A finished row is what the server
+  // holds — including any correction made after a finish reply or a saved
+  // snapshot was taken. Before the row is there, the finish's own reply.
+  if (session?.finished_at) {
+    const questionCount = asCount(session.question_count) ?? 0;
+    const correctCount = asCount(session.correct_count) ?? 0;
+    const skippedCount = asCount(session.skipped_count) ?? 0;
+    const wrongCount = asCount(session.wrong_count) ?? Math.max(0, questionCount - correctCount - skippedCount);
+    // A finished row's NULL is the finish saying "nothing answered".
+    const acc = session.accuracy == null ? NaN : Number(session.accuracy);
+    return {
+      questionCount, correctCount, wrongCount, skippedCount,
+      accuracy: Number.isFinite(acc) ? Math.round(acc) : null,
+      xpEarned: asCount(session.xp_earned) ?? 0,
+      totalTimeMs: typeof session.total_time_ms === "number" && session.total_time_ms > 0 ? session.total_time_ms : null,
+      xpFromDb: true,
+    };
+  }
+
+  const questionCount = asCount(overlay?.questionCount ?? session?.question_count) ?? 0;
+  const correctCount = asCount(overlay?.correctCount ?? session?.correct_count) ?? 0;
+  const skippedCount = asCount(overlay?.skippedCount ?? session?.skipped_count) ?? 0;
   const wrongCount =
-    wrongFromSource != null
-      ? asNonNegInt(wrongFromSource)
-      : Math.max(0, questionCount - correctCount - skippedCount);
-
-  const accuracyFromDb =
-    typeof snapshot?.accuracy === "number" ||
-    typeof session?.accuracy === "number";
-  const accuracyRaw =
-    typeof snapshot?.accuracy === "number"
-      ? snapshot.accuracy
-      : typeof session?.accuracy === "number"
-        ? Number(session.accuracy)
-        : deriveSessionAccuracy(correctCount, questionCount);
-  const accuracy = Math.round(Number.isFinite(accuracyRaw) ? accuracyRaw : 0);
-
-  // Column xp_earned is NOT NULL DEFAULT 0 — credit only after finish, positive award, or snapshot.
-  const sessionFinished = Boolean(session?.finished_at);
-  const snapshotHasXp =
-    typeof snapshot?.xpEarned === "number" && Number.isFinite(snapshot.xpEarned);
-  const sessionXpRaw =
-    typeof session?.xp_earned === "number" && Number.isFinite(session.xp_earned)
-      ? Math.max(0, Math.floor(session.xp_earned))
-      : null;
-  const xpFromDb =
-    snapshotHasXp || sessionFinished || (sessionXpRaw != null && sessionXpRaw > 0);
-  const xpEarned = snapshotHasXp
-    ? Math.max(0, Math.floor(snapshot!.xpEarned!))
-    : xpFromDb && sessionXpRaw != null
-      ? sessionXpRaw
-      : 0;
-
-  const totalTimeMs =
-    snapshot?.totalTimeMs ??
-    (typeof session?.total_time_ms === "number" ? session.total_time_ms : null);
-
+    asCount(overlay?.wrongCount ?? session?.wrong_count) ??
+    Math.max(0, questionCount - correctCount - skippedCount);
+  const accuracy =
+    overlay && overlay.accuracy !== undefined
+      ? overlay.accuracy == null || !Number.isFinite(overlay.accuracy) ? null : Math.round(overlay.accuracy)
+      : deriveSessionAccuracy(correctCount, wrongCount);
+  // Unfinished: only the finish's reply can say XP was credited. The column's
+  // DEFAULT 0 on an open row is not a credit.
+  const overlayXp = asCount(overlay?.xpEarned);
+  const totalTimeMs = overlay?.totalTimeMs ?? null;
   return {
-    questionCount,
-    correctCount,
-    wrongCount,
-    skippedCount,
-    accuracy,
-    xpEarned,
-    totalTimeMs,
-    accuracyFromDb,
-    xpFromDb,
+    questionCount, correctCount, wrongCount, skippedCount, accuracy,
+    xpEarned: overlayXp ?? 0,
+    totalTimeMs: typeof totalTimeMs === "number" && totalTimeMs > 0 ? totalTimeMs : null,
+    xpFromDb: overlayXp != null,
   };
 }
 
-/** Format XP for UI — show em dash when session has no credited XP yet. */
+/** XP for display — an em dash until the finish has credited it. */
 export function formatSessionXp(xpEarned: number, xpFromDb: boolean): string {
   if (!xpFromDb && xpEarned <= 0) return "—";
   return String(xpEarned);
+}
+
+/** Accuracy for display — an em dash when nothing was answered. */
+export function formatSessionAccuracy(accuracy: number | null): string {
+  return accuracy == null ? "—" : `${accuracy}%`;
+}
+
+/**
+ * A session's length: the time spent on its questions (total_time_ms), never
+ * the wall clock between opening and finishing. Seconds under a minute — a
+ * floor of "1m" reported a seven-second session as a minute. An em dash when
+ * no question carried a timing.
+ */
+export function formatSessionDuration(ms: number | null | undefined): string {
+  if (typeof ms !== "number" || !(ms > 0)) return "—";
+  if (ms < 60000) return `${Math.max(1, Math.round(ms / 1000))}s`;
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }

@@ -7,7 +7,6 @@ import { useAcademicContext, PracticeService, RecoveryEngineService, WEAK_CONCEP
 import type { PracticeSessionRow } from "@/academic";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
-import { buildPracticeAnalysisSnapshot } from "@/lib/practiceAnalysisSnapshot";
 import { toast } from "sonner";
 import {
   displayChapter,
@@ -15,8 +14,13 @@ import {
   isPlaceholderAcademicLabel,
   presentAcademicLabel,
 } from "@/lib/academicPresentation";
-import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
-import type { AcademicTermRef } from "@/academic/services/practiceService";
+import {
+  formatSessionAccuracy,
+  formatSessionDuration,
+  formatSessionXp,
+  resolvePracticeSessionStats,
+} from "@/lib/practiceSessionStats";
+import { PRACTICE_HISTORY_WINDOW_DAYS, type AcademicTermRef } from "@/academic/services/practiceService";
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
@@ -43,26 +47,27 @@ const CLASS_LEVEL_UNRESOLVED_MSG =
   "Your class is assigned, but its name or category does not identify a class level. Ask your school admin to use a label such as Class 10, Std 9, XI, or 12-A.";
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type Phase   = "hub" | "config" | "session" | "feedback" | "summary";
+type Phase   = "hub" | "config" | "session" | "saveFailed";
 type Cat     = "all" | "content" | "source" | "type" | "targeted";
 /**
- * The nine modes a student can pick, plus "recovery".
+ * The nine modes a student can pick, plus "recovery" and "revision".
  *
- * "recovery" is deliberately NOT in MODES: it has no hub tile because nobody
- * chooses it — Recovery builds the §4.2 ladder and hands the session over. It
- * is in the union so the session it hands over is RECORDED as what it is.
- * Before this it borrowed "weak", and a recovery session showed up in practice
- * history as "Weak Areas Practice", which is a different thing a student can
- * actually start.
+ * Those two are deliberately NOT in MODES: they have no hub tile because
+ * nobody chooses them — Recovery builds the §4.2 ladder, and the revision
+ * schedule builds the §5.4 check, and each hands the session over. They are in
+ * the union so the session handed over is RECORDED as what it is. Recovery
+ * used to borrow "weak" and showed up in history as "Weak Areas Practice"; a
+ * revision check borrowed "chapter" and showed up as "Chapter Practice" — each
+ * a different thing a student can actually start.
  *
  * Everything that looks a mode up in MODES must therefore tolerate a miss —
- * see the `Config` component, which is never rendered for a recovery session
- * but no longer asserts its way out of that.
+ * see the `Config` component, which is never rendered for either but does not
+ * assert its way out of that.
  */
 type ModeKey =
   | "subject" | "chapter" | "topic" | "custom"
   | "pyq" | "weak" | "incorrect" | "skipped"
-  | "bookmarked" | "recovery";
+  | "bookmarked" | "recovery" | "revision";
 
 interface Mode {
   key: ModeKey; label: string; desc: string;
@@ -114,41 +119,32 @@ type PracticeSubject = {
 type HistoryRow = {
   id: string;
   date: string;
-  mode: string;
+  /** The row's heading: its chapter, or its practice type when it has none. */
+  title: string;
   practiceType: string;
+  /** Empty for a session with no single subject (the targeted modes). */
   subject: string;
-  chapter: string;
   difficulty: string;
   qs: number;
-  attempted: number;
-  score: number;
-  pct: number;
+  /** Over answered questions; null when nothing was answered. */
+  accuracy: number | null;
   time: string;
-  xp: number;
   /** Display string — em dash when XP not yet credited by Progression Engine. */
   xpLabel: string;
-  status: string;
   finishedAt: string | null;
   practiceMode: string | null;
   saved: boolean;
 };
 
-function formatDurationMs(ms: number | null | undefined, startIso?: string, endIso?: string) {
-  if (typeof ms === "number" && ms > 0) {
-    // Below a minute, say seconds. This floored to Math.max(1, …), so a
-    // seven-second session was reported as "1m" — a rounding that only ever
-    // rounds up, against a student who can see they were faster than that.
-    if (ms < 60000) return `${Math.max(1, Math.round(ms / 1000))}s`;
-    const mins = Math.round(ms / 60000);
-    if (mins >= 60) {
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
-      return m > 0 ? `${h}h ${m}m` : `${h}h`;
-    }
-    return `${mins}m`;
-  }
-  if (startIso && endIso) return formatDuration(startIso, endIso);
-  return "—";
+/**
+ * A YYYY-MM-DD the student picked, as the instants bounding THEIR day — never
+ * the UTC day, which in India starts at 05:30.
+ */
+function localDayBounds(day: string): { dateFrom: string; dateTo: string } {
+  const [y, m, d] = day.split("-").map(Number);
+  const start = new Date(y, m - 1, d);
+  const next = new Date(y, m - 1, d + 1);
+  return { dateFrom: start.toISOString(), dateTo: new Date(next.getTime() - 1).toISOString() };
 }
 
 function formatSessionDate(iso: string) {
@@ -162,16 +158,6 @@ function formatSessionDate(iso: string) {
   if (isToday) return `Today, ${time}`;
   if (isYesterday) return `Yesterday, ${time}`;
   return `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${time}`;
-}
-
-function formatDuration(startIso: string, endIso: string) {
-  const mins = Math.max(1, Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000));
-  if (mins >= 60) {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  }
-  return `${mins}m`;
 }
 
 // ── Static data ──────────────────────────────────────────────────────────────
@@ -208,47 +194,49 @@ const CATS: { key: Cat; label: string }[] = [
   { key:"targeted", label:"Targeted" },
 ];
 
+/** Sessions a student is handed rather than picks; they have no hub tile. */
+const HANDED_OVER_LABELS: Record<string, string> = {
+  recovery: "Recovery",
+  revision: "Revision check",
+};
+
+/** A session's type, from its practice_mode — the only home for the label. */
 function practiceTypeLabel(mode: string | null | undefined): string {
   if (!mode) return "Practice";
   const found = MODES.find((m) => m.key === mode);
   if (found) return found.label;
-  return presentAcademicLabel(mode) || mode;
+  return HANDED_OVER_LABELS[mode] ?? (presentAcademicLabel(mode) || mode);
 }
 
 function mapSessionToHistoryRow(row: PracticeSessionRow): HistoryRow {
-  const snap = row.analysis_snapshot as {
-    difficulty?: string;
-    practiceTypeLabel?: string;
-    questionCount?: number;
-    correctCount?: number;
-    wrongCount?: number;
-    skippedCount?: number;
-    accuracy?: number;
-    xpEarned?: number;
-    totalTimeMs?: number | null;
-  } | null;
-  const stats = resolvePracticeSessionStats(row, snap);
-  const difficultyRaw = row.difficulty || snap?.difficulty || "mixed";
+  // The finished row is the record (a saved snapshot is a frozen copy of it,
+  // and would be the stale one if the row were ever corrected).
+  const stats = resolvePracticeSessionStats(row);
+  const practiceType = practiceTypeLabel(row.practice_mode);
+  const difficultyRaw = row.difficulty || "mixed";
   return {
     id: row.id,
-    date: row.finished_at ? formatSessionDate(row.finished_at) : formatSessionDate(row.created_at),
-    mode: row.chapter ? displayChapter(String(row.chapter)) : practiceTypeLabel(row.practice_mode),
-    practiceType: snap?.practiceTypeLabel || practiceTypeLabel(row.practice_mode),
-    subject: displaySubject(row.subject || "Mixed"),
-    chapter: row.chapter ? displayChapter(String(row.chapter)) : "—",
+    date: formatSessionDate(row.finished_at ?? row.created_at),
+    title: row.chapter ? displayChapter(String(row.chapter)) : practiceType,
+    practiceType,
+    subject: row.subject ? displaySubject(row.subject) : "",
     difficulty: presentAcademicLabel(String(difficultyRaw)) || String(difficultyRaw),
     qs: stats.questionCount,
-    attempted: stats.questionCount,
-    score: stats.correctCount,
-    pct: stats.accuracy,
-    time: formatDurationMs(row.total_time_ms, row.created_at, row.finished_at ?? undefined),
-    xp: stats.xpEarned,
+    accuracy: stats.accuracy,
+    time: formatSessionDuration(stats.totalTimeMs),
     xpLabel: formatSessionXp(stats.xpEarned, stats.xpFromDb),
-    status: row.finished_at ? "completed" : "incomplete",
     finishedAt: row.finished_at,
     practiceMode: row.practice_mode ?? null,
     saved: Boolean(row.saved_at),
   };
+}
+
+/** History tint: by accuracy band; neutral when nothing was answered. */
+function accuracyTint(accuracy: number | null): string {
+  if (accuracy == null) return "hsl(var(--muted-foreground))";
+  if (accuracy >= ACCURACY_CONCEPTUAL) return "hsl(var(--success))";
+  if (accuracy >= ACCURACY_BUILDING) return "hsl(var(--warning))";
+  return "hsl(var(--destructive))";
 }
 
 const DIFFICULTIES = [
@@ -266,17 +254,6 @@ function Tag({ children, color }: { children: React.ReactNode; color: string }) 
       {children}
     </span>
   );
-}
-
-function StatusTag({ status }: { status: string }) {
-  const map: Record<string, { label:string; color:string }> = {
-    completed:    { label:"Completed",   color:"hsl(var(--success))" },
-    incomplete:   { label:"Incomplete",  color:"hsl(var(--warning))" },
-    "in-progress":{ label:"In Progress", color:"hsl(var(--info))" },
-    "not-started":{ label:"Not Started", color:"hsl(var(--muted-foreground))" },
-  };
-  const s = map[status] ?? { label:status, color:"hsl(var(--muted-foreground))" };
-  return <Tag color={s.color}>{s.label}</Tag>;
 }
 
 // ── Hub view ─────────────────────────────────────────────────────────────────
@@ -314,20 +291,13 @@ function Hub({
 
   const hot = MODES.filter(m => m.hot || m.instant).slice(0, 4);
 
-  const filteredHistory = history.filter((h) => {
-    const q = historyFilters.search.trim().toLowerCase();
-    if (q) {
-      const hay = `${h.subject} ${h.chapter} ${h.practiceType} ${h.difficulty}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    if (historyFilters.subject && h.subject !== historyFilters.subject) return false;
-    if (historyFilters.practiceType && h.practiceMode !== historyFilters.practiceType) return false;
-    if (historyFilters.date && h.finishedAt) {
-      const day = h.finishedAt.slice(0, 10);
-      if (day !== historyFilters.date) return false;
-    }
-    return true;
-  });
+  // Subject, type and date are filtered by the server (listHistory); only the
+  // free-text search runs here, over what came back.
+  const q = historyFilters.search.trim().toLowerCase();
+  const filteredHistory = q
+    ? history.filter((h) => `${h.subject} ${h.title} ${h.practiceType} ${h.difficulty}`.toLowerCase().includes(q))
+    : history;
+  const anyFilter = Boolean(q || historyFilters.subject || historyFilters.practiceType || historyFilters.date);
 
   return (
     <div className="space-y-8">
@@ -463,8 +433,17 @@ function Hub({
                   <Save className="w-3.5 h-3.5"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-foreground truncate">{s.subject} · {s.chapter}</div>
-                  <div className="text-[10px] text-muted-foreground truncate mt-0.5">{s.practiceType} · {s.pct}% · {s.attempted} Qs · {s.xpLabel} XP</div>
+                  <div className="text-xs font-bold text-foreground truncate">{[s.subject, s.title].filter(Boolean).join(" · ")}</div>
+                  <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                    {[
+                      // The title is already the type when the session has no
+                      // chapter; saying it twice reads as a stutter.
+                      s.title === s.practiceType ? null : s.practiceType,
+                      formatSessionAccuracy(s.accuracy),
+                      pluralise(s.qs, "question"),
+                      `${s.xpLabel} XP`,
+                    ].filter(Boolean).join(" · ")}
+                  </div>
                   <div className="text-[10px] text-muted-foreground/60 mt-0.5">{s.date}</div>
                 </div>
                 <Play className="w-3.5 h-3.5 text-muted-foreground group-hover:text-info transition-colors shrink-0 mt-1"/>
@@ -502,7 +481,9 @@ function Hub({
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-muted border border-border/70 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border"
                 />
                 <div className="mt-1.5 text-[10px] text-muted-foreground/70">
-                  Showing your most recent 100 sessions
+                  {historyFilters.date
+                    ? "Sessions finished on the chosen day"
+                    : `Sessions from the last ${PRACTICE_HISTORY_WINDOW_DAYS} days — pick a date to look further back`}
                 </div>
               </div>
               <select
@@ -538,12 +519,12 @@ function Hub({
             {filteredHistory.length === 0 ? (
               <EmptyState
                 variant="section"
-                icon={history.length === 0 ? <Clock className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
-                title={history.length === 0 ? "No practice history yet" : "No sessions match these filters"}
+                icon={anyFilter ? <Filter className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                title={anyFilter ? "No sessions match these filters" : `No practice in the last ${PRACTICE_HISTORY_WINDOW_DAYS} days`}
                 sub={
-                  history.length === 0
-                    ? "Every practice session you finish is listed here."
-                    : "Clear a filter to see the rest of your sessions."
+                  anyFilter
+                    ? "Clear a filter to see the rest of your sessions."
+                    : "Sessions you finish are listed here for a week. Save one to keep it longer, or pick a date to look further back."
                 }
               />
             ) : filteredHistory.map(h => (
@@ -554,27 +535,23 @@ function Hub({
                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:border-border hover:bg-muted transition-all text-left"
               >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background:`${withAlpha(h.pct>=ACCURACY_CONCEPTUAL?"hsl(var(--success))":h.pct>=ACCURACY_BUILDING?"hsl(var(--warning))":"hsl(var(--destructive))", 0.08)}`, color:h.pct>=ACCURACY_CONCEPTUAL?"hsl(var(--success))":h.pct>=ACCURACY_BUILDING?"hsl(var(--warning))":"hsl(var(--destructive))" }}>
-                  <span className="text-xs font-black">{h.pct}%</span>
+                  style={{ background:`${withAlpha(accuracyTint(h.accuracy), 0.08)}`, color:accuracyTint(h.accuracy) }}>
+                  <span className="text-xs font-black">{formatSessionAccuracy(h.accuracy)}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-foreground truncate">{h.chapter !== "—" ? h.chapter : h.practiceType}</span>
-                    <StatusTag status={h.status}/>
+                    <span className="text-xs font-semibold text-foreground truncate">{h.title}</span>
                     {h.saved && <Tag color="hsl(var(--info))">Saved</Tag>}
                   </div>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="text-[10px] text-muted-foreground">{h.subject}</span>
-                    <span className="text-[10px] text-muted-foreground/40">·</span>
-                    <span className="text-[10px] text-muted-foreground">{h.practiceType}</span>
-                    <span className="text-[10px] text-muted-foreground/40">·</span>
-                    <span className="text-[10px] text-muted-foreground">{h.difficulty}</span>
-                    <span className="text-[10px] text-muted-foreground/40">·</span>
-                    <span className="text-[10px] text-muted-foreground">{h.attempted} Qs</span>
-                    <span className="text-[10px] text-muted-foreground/40">·</span>
-                    <span className="text-[10px] text-muted-foreground">{h.time}</span>
-                    <span className="text-[10px] text-muted-foreground/40">·</span>
-                    <span className="text-[10px] text-warning">{h.xpLabel} XP</span>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    {[
+                      h.subject,
+                      h.title !== h.practiceType ? h.practiceType : null,
+                      h.difficulty,
+                      pluralise(h.qs, "question"),
+                      h.time,
+                    ].filter(Boolean).join(" · ")}
+                    {" · "}<span className="text-warning">{h.xpLabel} XP</span>
                   </div>
                 </div>
                 <div className="text-[10px] text-muted-foreground shrink-0 text-right hidden sm:block">{h.date}</div>
@@ -590,23 +567,21 @@ function Hub({
 
 // ── Config views ─────────────────────────────────────────────────────────────
 function ConfigView({
-  modeKey, onStart, onBack, subjects, onNavigate, classUnresolved, classUnresolvedMessage,
+  modeKey, onStart, onBack, subjects, classUnresolved, classUnresolvedMessage,
 }: {
   modeKey: ModeKey;
   onStart: (cfg: SessionConfig) => void;
   onBack: () => void;
   subjects: PracticeSubject[];
-  onNavigate?: (page: PageKey) => void;
   classUnresolved?: boolean;
   classUnresolvedMessage?: string;
 }) {
-  // Not `!`. "recovery" has no MODES entry by design, and although Recovery
-  // jumps straight to the session phase and never renders this screen, an
+  // Not `!`. "recovery" and "revision" have no MODES entry by design, and
+  // although both jump straight to the session phase and never render this screen, an
   // assertion that is only safe because of a control-flow accident elsewhere
   // is one refactor away from a blank page.
   const mode = MODES.find(m => m.key === modeKey) ?? MODES.find(m => m.key === "chapter")!;
-  const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
-  const navigate = useNavigate();
+  const { ctx, ready: academicReady } = useAcademicContext();
 
   const [selSubject,    setSelSubject]    = useState<string | null>(null);
   const [selChapter,    setSelChapter]    = useState<string | null>(null);
@@ -740,7 +715,9 @@ function ConfigView({
                     selDifficulty === d.key ? "scale-[1.02]" : "border-border/70 hover:border-border"
                   )}
                   style={selDifficulty === d.key ? { borderColor:`${withAlpha(d.color, 0.25)}`, background:`${withAlpha(d.color, 0.06)}` } : {}}>
-                  <div className="text-sm font-black mb-1" style={{ color:selDifficulty===d.key?d.color:"white" }}>{d.label}</div>
+                  {/* Unselected reads in the theme's own text colour. This was a
+                      literal "white", which vanished on the light theme. */}
+                  <div className="text-sm font-black mb-1 text-foreground" style={selDifficulty === d.key ? { color: d.color } : undefined}>{d.label}</div>
                   <div className="text-[11px] text-muted-foreground">{d.desc}</div>
                 </button>
               ))}
@@ -943,24 +920,6 @@ function ConfigView({
   );
 }
 
-function EmptyConfig({
-  title, body, actionLabel, onAction,
-}: { title: string; body: string; actionLabel?: string; onAction?: () => void }) {
-  return (
-    <div className="py-8 text-center space-y-3">
-      <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto"/>
-      <div className="text-sm font-bold text-foreground">{title}</div>
-      <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">{body}</p>
-      {actionLabel && onAction && (
-        <button type="button" onClick={onAction}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
-          {actionLabel} <ChevronRight className="w-3 h-3"/>
-        </button>
-      )}
-    </div>
-  );
-}
-
 function OptionChips({
   label, options, selected, onSelect, empty, allowClear,
 }: {
@@ -1114,19 +1073,6 @@ interface SessionConfig {
   difficulty: string; qCount: number; timeLimitSec: number | null;
   /** Previous Year Questions only — restricts to one exam year. */
   pyqYear?: number | null;
-  /** When set, continue an unfinished practice_sessions row instead of starting new. */
-  /**
-   * DEAD SINCE THE v2 REDESIGN. The Resume Session band was the only thing that
-   * ever set this, and it was removed (Screen 2: "the feature goes"). Every
-   * branch below that reads it is therefore unreachable.
-   *
-   * Left in place deliberately rather than cut blind: the branches are ~110
-   * lines threaded through the question loader, the timer and the finish path,
-   * and this is the screen students use most. Removing them wants the app
-   * running in a browser to verify, which needs Supabase. Tracked in
-   * KNOWN_ISSUES so it is not mistaken for live code.
-   */
-  resumeSessionId?: string | null;
   /**
    * §5.4 — set when this session IS a revision check for that chapter.
    *
@@ -1196,6 +1142,142 @@ interface SessionConfig {
   } | null;
 }
 
+/**
+ * How a session ended. "left" is the student navigating away mid-session:
+ * what they answered is still finished and counted — resuming was removed with
+ * the v2 redesign, so an unfinished row could only ever sit there, holding
+ * answers that earned nothing and appeared nowhere.
+ */
+type EndReason = "completed" | "ended" | "timed_out" | "left";
+
+type BankRows = Awaited<ReturnType<typeof PracticeService.listBankQuestions>>;
+
+/** The questions a session asks, decided by its mode. */
+async function loadSessionQuestions(
+  ctx: NonNullable<ReturnType<typeof useAcademicContext>["ctx"]>,
+  config: SessionConfig,
+): Promise<BankRows> {
+  const difficulty = config.difficulty || "mixed";
+  if (config.recovery) {
+    // §4.2 — the ladder is already built. Load exactly the questions
+    // rpc_start_recovery_session chose, in tier order, and nothing else:
+    // topping the session up from the bank would put questions into it that no
+    // tier accounts for, and the per-tier score would then be taken over a
+    // different set than the totals recorded at start.
+    const tierOf = config.recovery.tierByQuestionId;
+    const ids = Object.keys(tierOf);
+    const byId = new Map((await PracticeService.listBankQuestions(ctx, { ids, limit: ids.length })).map((r) => [r.id, r]));
+    return ids
+      .map((id) => byId.get(id))
+      .filter((r): r is NonNullable<typeof r> => r != null)
+      .sort((a, b) => (tierOf[a.id] ?? 0) - (tierOf[b.id] ?? 0));
+  }
+  if (config.revision) {
+    // §5.4 — the check is already built by a server function that can see this
+    // student's whole attempt history. Exactly those questions, in that order
+    // (their own misses first), and nothing else: topping up from the bank is
+    // how already-seen questions got into a check meant to contain none.
+    const ids = config.revision.questionIds;
+    const byId = new Map((await PracticeService.listBankQuestions(ctx, { ids, limit: ids.length })).map((r) => [r.id, r]));
+    return ids.map((id) => byId.get(id)).filter((r): r is NonNullable<typeof r> => r != null);
+  }
+  switch (config.mode) {
+    case "incorrect":
+      return PracticeService.listMistakeQuestions(ctx, { limit: config.qCount });
+    case "skipped":
+      return PracticeService.listSkippedBankQuestions(ctx, { limit: config.qCount });
+    case "bookmarked":
+      return PracticeService.listBookmarkedQuestions(ctx, { limit: config.qCount });
+    case "weak": {
+      // Practice Engine owns this mode, so it reads V1 confidence.
+      // Recovery/Revision/Nova keep reading the legacy weighted score.
+      const weak = await PracticeService.listWeakConcepts(ctx, { source: "simple", limit: 12 });
+      if (weak.length === 0) return [];
+      return PracticeService.listBankQuestions(ctx, {
+        difficulty,
+        limit: config.qCount,
+        weakTargets: weak.map((w) => ({ subject: w.subject, chapter: w.chapter, concept: w.concept })),
+      });
+    }
+    case "pyq":
+      return PracticeService.listBankQuestions(ctx, {
+        subject: config.subject,
+        difficulty,
+        limit: config.qCount,
+        pyqOnly: true,
+        examYear: config.pyqYear ?? null,
+      });
+    default:
+      // config.topic is a topic id from the picker, or a topic NAME from a
+      // ?topic= link; listBankQuestions narrows each its own way.
+      return PracticeService.listBankQuestions(ctx, {
+        subject: config.subject,
+        chapter: config.chapter,
+        topic: config.topic,
+        difficulty,
+        limit: config.qCount,
+      });
+  }
+}
+
+/**
+ * Finish a session on the server and hand its result to the engine that asked
+ * for it. Used by the session itself and by "Try saving again".
+ *
+ * Throws only when the finish fails — that is the one failure that means the
+ * session was not recorded. A recovery or revision submit that fails is
+ * reported on its own: the practice is saved by then, and the chapter simply
+ * stays where it was, which is the honest outcome of an unrecorded check.
+ *
+ * NEITHER SUBMIT SENDS A SCORE. The server counts each recovery tier, and a
+ * revision check, from the answers given to that session's own questions,
+ * having graded every one against the bank. A client-sent score once let a
+ * chapter be marked recovered with nothing answered.
+ */
+async function completeSession(
+  ctx: NonNullable<ReturnType<typeof useAcademicContext>["ctx"]>,
+  config: SessionConfig,
+  sessionId: string,
+  attempts: PracticeAttemptSnapshot[],
+  reason: EndReason,
+): Promise<Pick<SessionResults, "serverStats" | "recovery" | "revision">> {
+  const fin = ((await PracticeService.finish(ctx, {
+    _session_id: sessionId,
+    _attempts: attemptsToFinishPayload(attempts),
+    _ended_by_user: reason === "ended" || reason === "left",
+    _ended_normally: reason !== "left",
+  })) ?? {}) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+  const out: Pick<SessionResults, "serverStats" | "recovery" | "revision"> = {
+    serverStats: {
+      questionCount: num(fin.total),
+      correctCount: num(fin.correct_count),
+      wrongCount: num(fin.wrong_count),
+      skippedCount: num(fin.skipped_count),
+      // The finish stores NULL when nothing was answered; keep it null.
+      accuracy: fin.accuracy == null ? null : num(Number(fin.accuracy)) ?? null,
+      xpEarned: num(fin.xp_earned),
+      totalTimeMs: num(fin.total_time_ms) ?? null,
+    },
+  };
+  if (reason === "left") return out;
+  if (config.recovery) {
+    try {
+      out.recovery = await RecoveryEngineService.submitRecoverySession(ctx, config.recovery.sessionId, sessionId);
+    } catch (e) {
+      toast.error(toErrorMessage(e, "Practice saved, but the recovery result was not recorded"));
+    }
+  }
+  if (config.revision) {
+    try {
+      out.revision = await RecoveryEngineService.submitRevisionSession(ctx, config.revision.chapterId, sessionId);
+    } catch (e) {
+      toast.error(toErrorMessage(e, "Practice saved, but the revision check was not recorded"));
+    }
+  }
+  return out;
+}
+
 // ── Session (question-solving) ───────────────────────────────────────────────
 function Session({
   config, onFinish, onBack, onNavigate, subjects, classUnresolved, classUnresolvedMessage,
@@ -1216,44 +1298,40 @@ function Session({
   const [chosen,    setChosen]    = useState<number | null>(null);
   const [phase,     setPhase]     = useState<"q" | "fb">("q");
   const [correct,   setCorrect]   = useState(0);
-  const [attempted, setAttempted] = useState(0);
+  const [answered,  setAnswered]  = useState(0);
   const [bookmarked,setBookmarked]= useState<number[]>([]);
-  const [skipped,   setSkipped]   = useState<number[]>([]);
   const [timeLeft,  setTimeLeft]  = useState(config.timeLimitSec ?? 0);
   const [finishing, setFinishing] = useState(false);
-  const [hintRevealed, setHintRevealed] = useState(false);
-  /** Prior attempts already on the session (resume) — progress UI must include these. */
-  const [priorCount, setPriorCount] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ctxRef = useRef(ctx);
+  ctxRef.current = ctx;
+  const loadedRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
+  const startedAtRef = useRef<string | undefined>(undefined);
+  const deadlineRef = useRef<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const correctRef = useRef(0);
-  const attemptedRef = useRef(0);
-  const skippedRef = useRef<number[]>([]);
+  const skippedRef = useRef(0);
   const bookmarkedRef = useRef<number[]>([]);
   const attemptLog = useRef<PracticeAttemptSnapshot[]>([]);
   const finishedRef = useRef(false);
+  /** Answers already sent by a "left" finish; a later leave sends only if there are more. */
+  const leftWithRef = useRef(0);
   const questionStartRef = useRef<number>(Date.now());
   const attemptNumberRef = useRef(0);
-  const hintUsedRef = useRef(false);
-  const startedAtRef = useRef<string | undefined>(undefined);
-  const serverStatsRef = useRef<{
-    questionCount?: number;
-    correctCount?: number;
-    wrongCount?: number;
-    skippedCount?: number;
-    accuracy?: number;
-    xpEarned?: number;
-    totalTimeMs?: number | null;
-  } | null>(null);
+  /**
+   * Answers still on their way to the server. The finish waits for them, so
+   * the roll-up it reads includes them; the server also serialises writes per
+   * session (20261039300000), which is what actually stops an answer being
+   * recorded twice when the two cross.
+   */
+  const pendingWrites = useRef(new Set<Promise<unknown>>());
 
   useEffect(() => {
+    if (loadedRef.current) return;
     if (!ctx || !academicReady) {
-      // Academic context is still initializing — this is a normal ~1s state
-      // on every fresh mount, not a failure, so it must not flash an error.
-      // Leave loadingQs at its initial `true` (spinner keeps showing) and
-      // let this effect's own dependency array re-run it the instant
-      // ctx/academicReady resolve. Only if that genuinely never happens do
-      // we surface a real error, after a bounded wait.
+      // Academic context is still initializing — a normal ~1s state on every
+      // fresh mount, not a failure. Only if it genuinely never arrives is it an
+      // error, after a bounded wait.
       const timeout = setTimeout(() => {
         setLoadingQs(false);
         setLoadError("Academic context not ready. Try again in a moment.");
@@ -1266,239 +1344,13 @@ function Session({
       setLoadingQs(true);
       setLoadError(null);
       try {
-        if (!config.resumeSessionId && classUnresolved) {
+        if (classUnresolved) {
           setLoadError(classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG);
           return;
         }
-
-        // config.topic is a topic id, never a chapter name: the picker already
-        // resolved a topic-only start to its chapter.
-        const chapterForStart = config.chapter || null;
-
-        const excludeIds: string[] = [];
-        let remainingCount = config.qCount;
-        /** Effective bank difficulty — prefer config, then session row, then prior attempts. */
-        let effectiveDifficulty = config.difficulty || "mixed";
-
-        if (config.resumeSessionId) {
-          sessionIdRef.current = config.resumeSessionId;
-          const existing = await PracticeService.getSession(ctx, config.resumeSessionId);
-          if (!existing || existing.finished_at) {
-            setLoadError("That session is already finished or no longer available.");
-            return;
-          }
-          startedAtRef.current = existing.created_at;
-          if (existing.difficulty && existing.difficulty !== "mixed") {
-            effectiveDifficulty = existing.difficulty;
-          } else if (!effectiveDifficulty || effectiveDifficulty === "mixed") {
-            // Legacy incomplete rows pre-difficulty-persist: keep config as-is.
-          }
-          const prior = await PracticeService.listSessionAttempts(ctx, config.resumeSessionId);
-          if (cancelled) return;
-
-          let priorCorrect = 0;
-          let priorAttempted = 0;
-          const priorSkipped: number[] = [];
-          const priorLog: PracticeAttemptSnapshot[] = [];
-
-          prior.forEach((row: Record<string, unknown>, i: number) => {
-            const gq = (row.generated_question ?? {}) as Record<string, unknown>;
-            const opts = parseBankOptions(gq.options);
-            const bankId =
-              (typeof row.bank_question_id === "string" && row.bank_question_id) ||
-              (typeof gq.bank_question_id === "string" ? gq.bank_question_id : null);
-            if (bankId) excludeIds.push(bankId);
-            const skipped = Boolean(row.skipped);
-            const isCorrect = Boolean(row.is_correct) && !skipped;
-            if (skipped) priorSkipped.push(i);
-            else priorAttempted += 1;
-            if (isCorrect) priorCorrect += 1;
-            const selected = (row.selected_answer ?? {}) as { index?: number; selected_index?: number };
-            const correctAns = (row.correct_answer ?? {}) as { index?: number; correct_index?: number };
-            priorLog.push({
-              question: String(gq.question ?? ""),
-              options: opts,
-              correctIndex:
-                typeof correctAns.correct_index === "number"
-                  ? correctAns.correct_index
-                  : typeof correctAns.index === "number"
-                    ? correctAns.index
-                    : 0,
-              selectedIndex:
-                typeof selected.selected_index === "number"
-                  ? selected.selected_index
-                  : typeof selected.index === "number"
-                    ? selected.index
-                    : -1,
-              isCorrect,
-              skipped,
-              explanation: typeof gq.explanation === "string" ? gq.explanation : undefined,
-              bankQuestionId: bankId,
-              subject: String(row.subject ?? gq.subject ?? existing.subject ?? ""),
-              chapter: String(row.chapter ?? gq.chapter ?? existing.chapter ?? ""),
-              difficulty: typeof gq.difficulty === "string" ? gq.difficulty : "medium",
-              source: "practice",
-              practiceMode: config.mode,
-              sourceId: config.resumeSessionId,
-              timeTakenMs: typeof row.time_taken_ms === "number" ? row.time_taken_ms : null,
-              hintUsed: Boolean(row.hint_used),
-              attemptNumber: i + 1,
-              schoolId: ctx.schoolId ?? null,
-            });
-          });
-
-          // Legacy resume: if session.difficulty is null, infer when all prior attempts agree.
-          if ((!effectiveDifficulty || effectiveDifficulty === "mixed") && priorLog.length > 0) {
-            const uniq = [
-              ...new Set(
-                priorLog
-                  .map((p) => String(p.difficulty || "").toLowerCase())
-                  .filter((d) => d && d !== "mixed"),
-              ),
-            ];
-            if (uniq.length === 1) effectiveDifficulty = uniq[0];
-          }
-
-          attemptLog.current = priorLog;
-          correctRef.current = priorCorrect;
-          attemptedRef.current = priorAttempted;
-          skippedRef.current = priorSkipped;
-          setCorrect(priorCorrect);
-          setAttempted(priorAttempted);
-          setSkipped(priorSkipped);
-          setPriorCount(priorLog.length);
-          attemptNumberRef.current = priorLog.length;
-          // Honest timed resume: remaining = persisted limit − elapsed attempt time (never invent 15m).
-          const limitSec =
-            typeof existing.time_limit_sec === "number" && existing.time_limit_sec > 0
-              ? existing.time_limit_sec
-              : config.timeLimitSec;
-          if (typeof limitSec === "number" && limitSec > 0) {
-            const usedMs = priorLog.reduce((sum, a) => sum + (a.timeTakenMs || 0), 0);
-            setTimeLeft(Math.max(0, limitSec - Math.floor(usedMs / 1000)));
-          } else {
-            setTimeLeft(0);
-          }
-          const target = existing.question_count || config.qCount;
-          remainingCount = Math.max(0, target - priorLog.length);
-          if (remainingCount === 0) {
-            // Nothing left — finish the incomplete session with prior attempts.
-            setQs([]);
-            return;
-          }
-        } else {
-          const sid = await PracticeService.start(ctx, {
-            _subject: config.subject === "Mixed" ? "" : config.subject,
-            _chapter: chapterForStart,
-            _count: config.qCount,
-            _practice_mode: config.mode,
-            _difficulty: config.difficulty,
-            _time_limit_sec: config.timeLimitSec,
-          });
-          if (cancelled) return;
-          sessionIdRef.current = sid as string;
-          startedAtRef.current = new Date().toISOString();
-          questionStartRef.current = Date.now();
-          attemptNumberRef.current = 0;
-          setPriorCount(0);
-        }
-
-        questionStartRef.current = Date.now();
-
-        let rows: Awaited<ReturnType<typeof PracticeService.listBankQuestions>> = [];
-        const bankOpts = { excludeIds: excludeIds.length ? excludeIds : undefined };
-
-        if (config.recovery) {
-          // §4.2 — the ladder is already built. Load exactly the questions
-          // rpc_start_recovery_session chose, in tier order, and nothing else:
-          // topping the session up from the bank would put questions into it
-          // that no tier accounts for, and the per-tier score would then be
-          // taken over a different set than the totals recorded at start.
-          const ladderIds = Object.keys(config.recovery.tierByQuestionId);
-          const tierOf = config.recovery.tierByQuestionId;
-          const fetched = await PracticeService.listBankQuestions(ctx, {
-            ids: ladderIds,
-            limit: ladderIds.length,
-          });
-          const byId = new Map(fetched.map((r) => [r.id, r]));
-          rows = ladderIds
-            .map((id) => byId.get(id))
-            .filter((r): r is NonNullable<typeof r> => r != null)
-            .sort((a, b) => (tierOf[a.id] ?? 0) - (tierOf[b.id] ?? 0));
-        } else if (config.revision) {
-          // §5.4 — the check is already built, by a server function that can
-          // see this student's whole attempt history. Load exactly those
-          // questions, in that order (their own misses first), and nothing
-          // else: topping the session up from the bank is precisely how
-          // already-seen questions got into a check that is supposed to
-          // contain none.
-          const planIds = config.revision.questionIds;
-          const fetched = await PracticeService.listBankQuestions(ctx, {
-            ids: planIds,
-            limit: planIds.length,
-          });
-          const byId = new Map(fetched.map((r) => [r.id, r]));
-          rows = planIds
-            .map((id) => byId.get(id))
-            .filter((r): r is NonNullable<typeof r> => r != null);
-        } else if (config.mode === "incorrect") {
-          rows = await PracticeService.listMistakeQuestions(ctx, { limit: remainingCount });
-          if (excludeIds.length) {
-            const skip = new Set(excludeIds);
-            rows = rows.filter((r) => !skip.has(r.id));
-          }
-        } else if (config.mode === "skipped") {
-          rows = await PracticeService.listSkippedBankQuestions(ctx, { limit: remainingCount });
-          if (excludeIds.length) {
-            const skip = new Set(excludeIds);
-            rows = rows.filter((r) => !skip.has(r.id));
-          }
-        } else if (config.mode === "bookmarked") {
-          rows = await PracticeService.listBookmarkedQuestions(ctx, { limit: remainingCount });
-          if (excludeIds.length) {
-            const skip = new Set(excludeIds);
-            rows = rows.filter((r) => !skip.has(r.id));
-          }
-        } else if (config.mode === "weak") {
-          // Practice Engine owns this mode, so it reads V1 confidence.
-          // Recovery/Revision/Nova keep reading the legacy weighted score.
-          const weak = await PracticeService.listWeakConcepts(ctx, { source: "simple", limit: 12 });
-          if (weak.length === 0) {
-            rows = [];
-          } else {
-            rows = await PracticeService.listBankQuestions(ctx, {
-              difficulty: effectiveDifficulty,
-              limit: remainingCount,
-              weakTargets: weak.map((w) => ({
-                subject: w.subject,
-                chapter: w.chapter,
-                concept: w.concept,
-              })),
-              ...bankOpts,
-            });
-          }
-        } else if (config.mode === "pyq") {
-          rows = await PracticeService.listBankQuestions(ctx, {
-            subject: config.subject,
-            difficulty: effectiveDifficulty,
-            limit: remainingCount,
-            pyqOnly: true,
-            examYear: config.pyqYear ?? null,
-            ...bankOpts,
-          });
-        } else {
-          rows = await PracticeService.listBankQuestions(ctx, {
-            subject: config.subject,
-            chapter: config.chapter,
-            topic: config.topic,
-            difficulty: effectiveDifficulty,
-            limit: remainingCount,
-            ...bankOpts,
-          });
-        }
-
+        const rows = await loadSessionQuestions(ctx, config);
         if (cancelled) return;
-        const mapped: BankQuestion[] = rows
+        const mapped = rows
           .map((r): BankQuestion | null => {
             const options = parseBankOptions(r.options);
             if (!r.id || !r.question || options.length < 2) return null;
@@ -1514,34 +1366,36 @@ function Session({
             };
           })
           .filter((x): x is BankQuestion => x !== null);
-        // Empty new session → finish immediately so Resume is not polluted with 0-question shells.
-        if (
-          mapped.length === 0 &&
-          !config.resumeSessionId &&
-          sessionIdRef.current &&
-          ctx
-        ) {
-          try {
-            await PracticeService.finish(ctx, {
-              _session_id: sessionIdRef.current,
-              _attempts: [],
-            });
-          } catch {
-            /* best-effort; empty UI still shown */
-          }
-          sessionIdRef.current = null;
+
+        // The session row is created only once there is something to sit. It
+        // used to be created first and, when the mode had nothing, finished
+        // straight away — a "Completed · 0 questions" entry in history for
+        // every empty tap.
+        if (mapped.length > 0) {
+          const sid = await PracticeService.start(ctx, {
+            _subject: config.subject === "Mixed" ? "" : config.subject,
+            // A topic belongs to one chapter, and the picker resolved it.
+            _chapter: config.chapter || null,
+            _count: mapped.length,
+            _practice_mode: config.mode,
+            _difficulty: config.difficulty,
+            _time_limit_sec: config.timeLimitSec,
+          });
+          if (cancelled) return;
+          sessionIdRef.current = sid;
+          startedAtRef.current = new Date().toISOString();
         }
+        loadedRef.current = true;
         setQs(mapped);
-        // Bookmarked Questions loads only questions that are already
-        // bookmarked in question_records — the toggle button's local state
-        // must start reflecting that, or the first click on it (a same-value
-        // "set bookmarked=true") is a no-op and the question can never be
-        // un-bookmarked from within this mode.
-        if (config.mode === "bookmarked" && !config.resumeSessionId) {
-          const allIdx = mapped.map((_, i) => i);
-          bookmarkedRef.current = allIdx;
-          setBookmarked(allIdx);
+        // Bookmarked Questions loads only questions already bookmarked, so the
+        // toggle starts ON — or its first tap is a no-op "set bookmarked=true"
+        // and the question can never be un-bookmarked from within this mode.
+        if (config.mode === "bookmarked") {
+          bookmarkedRef.current = mapped.map((_, i) => i);
+          setBookmarked(bookmarkedRef.current);
         }
+        questionStartRef.current = Date.now();
+        if (config.timeLimitSec) deadlineRef.current = Date.now() + config.timeLimitSec * 1000;
       } catch (e) {
         if (!cancelled) setLoadError(toErrorMessage(e, "Could not start practice"));
       } finally {
@@ -1549,196 +1403,53 @@ function Session({
       }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx, academicReady, config, classUnresolved, classUnresolvedMessage]);
 
-  // Resume with prior attempts but no remaining bank questions → finish via SSOT RPC.
-  useEffect(() => {
-    if (loadingQs || loadError || finishedRef.current) return;
-    if (!config.resumeSessionId) return;
-    if (qs.length > 0) return;
-    if (attemptLog.current.length === 0) return;
-    void finish();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingQs, loadError, qs.length, config.resumeSessionId]);
+  // The latest finish, for callbacks created by an earlier render: the clock
+  // and the leave handler. The clock used to call the finish it was created
+  // with, which saw the first question as the one on screen, so the question
+  // actually on screen when time ran out was recorded with no time at all.
+  const finishRef = useRef<(reason: EndReason) => Promise<void>>(async () => {});
 
-  // Timer
+  // A deadline, not a countdown: a background tab runs its intervals late, and
+  // decrementing once per tick let a ten-minute goal run for as long as the tab
+  // was hidden.
   useEffect(() => {
     if (!config.timeLimitSec || loadingQs || qs.length === 0) return;
-    timerRef.current = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current!); void finish({ timedOut: true }); return 0; }
-        return t - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      const deadline = deadlineRef.current;
+      if (deadline == null) return;
+      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setTimeLeft(left);
+      if (left === 0) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        void finishRef.current("timed_out");
+      }
+    };
+    tick();
+    timerRef.current = setInterval(tick, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.timeLimitSec, loadingQs, qs.length]);
 
-  async function finish(opts?: { timedOut?: boolean }) {
-    if (finishedRef.current || finishing) return;
-    finishedRef.current = true;
-    setFinishing(true);
-    if (timerRef.current) clearInterval(timerRef.current);
-
-    // Unanswered remaining questions → skipped / timed_out so Skipped mode can load them
-    if (opts?.timedOut) {
-      const loggedBankIds = new Set(
-        attemptLog.current.map((a) => a.bankQuestionId).filter(Boolean),
-      );
-      for (let i = idx; i < qs.length; i++) {
-        const q = qs[i];
-        if (!q || loggedBankIds.has(q.id)) continue;
-        const snap: PracticeAttemptSnapshot = {
-          question: q.question,
-          options: q.options,
-          correctIndex: q.correct,
-          selectedIndex: -1,
-          isCorrect: false,
-          skipped: true,
-          timedOut: true,
-          explanation: q.explanation,
-          bankQuestionId: q.id,
-          subject: q.subject,
-          chapter: q.chapter,
-          concept: q.chapter,
-          topic: q.chapter,
-          difficulty: q.difficulty,
-          source: "practice",
-          practiceMode: config.mode,
-          sourceId: sessionIdRef.current,
-          timeTakenMs: i === idx ? Date.now() - questionStartRef.current : 0,
-          hintUsed: i === idx ? hintUsedRef.current : false,
-          solutionViewed: false,
-          attemptNumber: ++attemptNumberRef.current,
-          answeredAt: new Date().toISOString(),
-          schoolId: ctx?.schoolId ?? null,
-        };
-        attemptLog.current.push(snap);
-        skippedRef.current = [...skippedRef.current, i];
-        void persistAttemptLive(snap);
-      }
-    }
-
-    const sid = sessionIdRef.current;
-    const results: SessionResults = {
-      correct: correctRef.current,
-      total: Math.max(attemptedRef.current, attemptLog.current.length),
-      skipped: skippedRef.current.length,
-      bookmarked: bookmarkedRef.current.length,
-      config,
-      sessionId: sid,
-      attempts: [...attemptLog.current],
-      startedAt: startedAtRef.current,
-      serverStats: null,
+  // Leaving mid-session ends it with what was answered — in-app navigation
+  // unmounts this, and closing the tab fires pagehide (best effort: the page
+  // may be gone before the request is).
+  useEffect(() => {
+    const leave = () => { void finishRef.current("left"); };
+    window.addEventListener("pagehide", leave);
+    return () => {
+      window.removeEventListener("pagehide", leave);
+      leave();
     };
+  }, []);
 
-    if (sid && ctx) {
-      try {
-        const finishRaw = await PracticeService.finish(ctx, {
-          _session_id: sid,
-          _attempts: attemptsToFinishPayload(attemptLog.current),
-        });
-        const fin = (finishRaw ?? {}) as Record<string, unknown>;
-        const serverStats = {
-          questionCount: typeof fin.total === "number" ? fin.total : attemptLog.current.length,
-          correctCount: typeof fin.correct_count === "number" ? fin.correct_count : correctRef.current,
-          wrongCount: typeof fin.wrong_count === "number" ? fin.wrong_count : undefined,
-          skippedCount: typeof fin.skipped_count === "number" ? fin.skipped_count : skippedRef.current.length,
-          accuracy: typeof fin.accuracy === "number" ? Number(fin.accuracy) : undefined,
-          xpEarned: typeof fin.xp_earned === "number" ? fin.xp_earned : undefined,
-          totalTimeMs: typeof fin.total_time_ms === "number" ? fin.total_time_ms : null,
-        };
-        serverStatsRef.current = serverStats;
-        results.serverStats = serverStats;
-        if (typeof serverStats.correctCount === "number") results.correct = serverStats.correctCount;
-        if (typeof serverStats.questionCount === "number") results.total = serverStats.questionCount;
-        if (typeof serverStats.skippedCount === "number") results.skipped = serverStats.skippedCount;
-
-        // §5.4/§5.5 — a revision check reports its score to the engine, which
-        // decides pass or fail against REVISION_PASS_THRESHOLD and moves the
-        // chapter along the 7/21/60 ladder. Neither judgement is made here:
-        // both constants live in recovery_constants and a copy on this side
-        // would be a second home for them.
-        //
-        // Deliberately NOT inside the try above that owns the finish call. The
-        // session is already saved by this point; a revision submit that fails
-        // must not make the student look as though their practice was lost,
-        // which is what `finishFailed` renders. It is surfaced as its own
-        // error, and the chapter simply stays due — the honest outcome, since
-        // an unrecorded check is a check that did not happen.
-        // NEITHER OF THESE SENDS A SCORE ANY MORE.
-        //
-        // This used to count the tiers here, out of attemptLog, and hand the
-        // four numbers to the server, which stored them. Driven as an ordinary
-        // student that allowed a chapter to be marked recovered at readiness
-        // 1.0 with zero questions answered, and the whole 3-check ladder
-        // walked to "solid" the same way. §7 permits clearing without
-        // learning — it catches it with an honest readiness — so the number
-        // being forgeable removed the only thing doing the catching.
-        //
-        // What travels now is this session's id. The server counts each
-        // recovery tier from the answers given to that tier's own questions,
-        // and counts a revision check from the answers given to questions in
-        // that chapter, having already graded every one of them against the
-        // bank. §4.2b is unchanged: the two rates are still computed and kept
-        // separate, just on the side that cannot be edited from devtools.
-        const sittingId = sessionIdRef.current;
-
-        if (config.recovery && ctx && sittingId) {
-          try {
-            const outcome = await RecoveryEngineService.submitRecoverySession(
-              ctx,
-              config.recovery.sessionId,
-              sittingId,
-            );
-            results.recovery = outcome;
-          } catch (e) {
-            toast.error(toErrorMessage(e, "Practice saved, but the recovery result was not recorded"));
-          }
-        }
-
-        if (config.revision && ctx && sittingId) {
-          try {
-            const outcome = await RecoveryEngineService.submitRevisionSession(
-              ctx,
-              config.revision.chapterId,
-              sittingId,
-            );
-            results.revision = outcome;
-          } catch (e) {
-            toast.error(toErrorMessage(e, "Practice saved, but the revision check was not recorded"));
-          }
-        }
-      } catch (e) {
-        toast.error(toErrorMessage(e, "Could not save practice session"));
-        results.serverStats = null;
-        onFinish({ ...results, finishFailed: true });
-        return;
-      }
-    }
-    onFinish(results);
-  }
-
-  function answer(i: number) {
-    const q = qs[idx];
-    if (!q) return;
-    setChosen(i);
-    attemptedRef.current += 1;
-    setAttempted(attemptedRef.current);
-    const ok = i === q.correct;
-    if (ok) {
-      correctRef.current += 1;
-      setCorrect(correctRef.current);
-    }
-    const elapsed = Date.now() - questionStartRef.current;
-    const snap: PracticeAttemptSnapshot = {
+  function snapshotOf(q: BankQuestion, fields: {
+    selectedIndex: number; isCorrect: boolean; skipped: boolean; timedOut?: boolean; solutionViewed?: boolean;
+  }): PracticeAttemptSnapshot {
+    return {
       question: q.question,
       options: q.options,
       correctIndex: q.correct,
-      selectedIndex: i,
-      isCorrect: ok,
-      skipped: false,
       explanation: q.explanation,
       bankQuestionId: q.id,
       subject: q.subject,
@@ -1747,46 +1458,104 @@ function Session({
       source: "practice",
       practiceMode: config.mode,
       sourceId: sessionIdRef.current,
-      timeTakenMs: elapsed,
-      hintUsed: hintUsedRef.current,
-      solutionViewed: Boolean(q.explanation),
+      timeTakenMs: Date.now() - questionStartRef.current,
+      solutionViewed: false,
       attemptNumber: ++attemptNumberRef.current,
       answeredAt: new Date().toISOString(),
       schoolId: ctx?.schoolId ?? null,
+      ...fields,
     };
+  }
+
+  function record(snap: PracticeAttemptSnapshot) {
     attemptLog.current.push(snap);
-    void persistAttemptLive(snap);
+    const write = persistAttemptLive(snap);
+    pendingWrites.current.add(write);
+    void write.finally(() => pendingWrites.current.delete(write));
+  }
+
+  async function finish(reason: EndReason) {
+    if (finishedRef.current) return;
+    const sid = sessionIdRef.current;
+    const context = ctxRef.current;
+    if (reason === "left") {
+      // Nothing started, or nothing new answered since the last leave: nothing
+      // to send. A leave never marks the session done here — a page restored
+      // from the back/forward cache carries on, and its own finish re-rolls
+      // the session up (the finish is idempotent).
+      if (!sid || !context || attemptLog.current.length <= leftWithRef.current) return;
+      leftWithRef.current = attemptLog.current.length;
+      await Promise.allSettled([...pendingWrites.current]);
+      await completeSession(context, config, sid, [...attemptLog.current], "left").catch(() => undefined);
+      return;
+    }
+    finishedRef.current = true;
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    // Out of time: only the question ON SCREEN was seen. The rest of the pool
+    // was never shown, and recording it as skipped — as this once did, 48
+    // questions for a student who saw 2 — put unseen questions into Skipped
+    // Practice, the chapter tally and topic confidence.
+    if (reason === "timed_out" && phase === "q" && qs[idx]) {
+      attemptLog.current.push(snapshotOf(qs[idx], { selectedIndex: -1, isCorrect: false, skipped: true, timedOut: true }));
+    }
+
+    const attempts = [...attemptLog.current];
+    const results: SessionResults = {
+      correct: correctRef.current,
+      total: attempts.length,
+      skipped: skippedRef.current + (reason === "timed_out" && phase === "q" ? 1 : 0),
+      bookmarked: bookmarkedRef.current.length,
+      config,
+      sessionId: sid,
+      attempts,
+      startedAt: startedAtRef.current,
+      serverStats: null,
+    };
+    if (!sid || !context) {
+      onFinish(results);
+      return;
+    }
+    setFinishing(true);
+    await Promise.allSettled([...pendingWrites.current]);
+    try {
+      Object.assign(results, await completeSession(context, config, sid, attempts, reason));
+    } catch (e) {
+      toast.error(toErrorMessage(e, "Could not save practice session"));
+      onFinish({ ...results, finishFailed: true });
+      return;
+    }
+    onFinish(results);
+  }
+  finishRef.current = finish;
+
+  function answer(i: number) {
+    const q = qs[idx];
+    if (!q || phase !== "q" || finishedRef.current) return;
+    setChosen(i);
+    const ok = i === q.correct;
+    setAnswered((n) => n + 1);
+    if (ok) {
+      correctRef.current += 1;
+      setCorrect(correctRef.current);
+    }
+    // The explanation is shown with the feedback, so it has been viewed.
+    record(snapshotOf(q, { selectedIndex: i, isCorrect: ok, skipped: false, solutionViewed: Boolean(q.explanation) }));
     setPhase("fb");
   }
 
-  function revealHint() {
-    const current = qs[idx];
-    if (!current?.explanation || hintUsedRef.current) return;
-    hintUsedRef.current = true;
-    setHintRevealed(true);
-  }
-
-  function hintPreview(explanation: string): string {
-    const trimmed = explanation.trim();
-    if (trimmed.length <= 120) return trimmed;
-    const cut = trimmed.slice(0, 117);
-    const lastSpace = cut.lastIndexOf(" ");
-    return `${(lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trim()}…`;
-  }
-
   function next() {
-    if (idx + 1 >= qs.length) { void finish(); return; }
+    if (idx + 1 >= qs.length) { void finish("completed"); return; }
     setIdx(i => i + 1); setChosen(null); setPhase("q");
-    hintUsedRef.current = false;
-    setHintRevealed(false);
     questionStartRef.current = Date.now();
   }
 
   async function persistAttemptLive(snap: PracticeAttemptSnapshot) {
     const sid = sessionIdRef.current;
-    if (!sid || !ctx) return;
+    const context = ctxRef.current;
+    if (!sid || !context) return;
     try {
-      await PracticeService.recordAttempt(ctx, {
+      await PracticeService.recordAttempt(context, {
         sessionId: sid,
         bankQuestionId: snap.bankQuestionId ?? null,
         generatedQuestion: {
@@ -1794,15 +1563,10 @@ function Session({
           options: snap.options,
           explanation: snap.explanation ?? "",
           bank_question_id: snap.bankQuestionId ?? null,
-          // `?? null` rather than `!`: these are optional on the snapshot and
-          // the column is jsonb, which has a null but no undefined. Giving the
-          // absent case an explicit representation is narrowing; asserting it
-          // away would store `undefined`, which JSON.stringify drops silently —
-          // the key would vanish from the row rather than be recorded as unset.
+          // `?? null`: the column is jsonb, which has a null but no undefined —
+          // an undefined key would vanish from the row rather than be unset.
           subject: snap.subject ?? null,
           chapter: snap.chapter ?? null,
-          concept: snap.concept ?? null,
-          topic: snap.topic ?? null,
           difficulty: snap.difficulty ?? null,
           practice_mode: snap.practiceMode ?? null,
         },
@@ -1817,61 +1581,31 @@ function Session({
           text: snap.options[snap.correctIndex] ?? "",
         },
         isCorrect: snap.isCorrect,
-        score: snap.skipped || snap.timedOut ? 0 : snap.isCorrect ? 1 : 0,
+        score: snap.skipped ? 0 : snap.isCorrect ? 1 : 0,
         skipped: snap.skipped ?? false,
         timedOut: snap.timedOut ?? false,
         timeTakenMs: snap.timeTakenMs ?? null,
         subject: snap.subject,
         chapter: snap.chapter,
-        concept: snap.concept ?? snap.chapter,
-        topic: snap.topic,
         difficulty: snap.difficulty,
         source: snap.source ?? "practice",
         practiceMode: snap.practiceMode ?? config.mode,
         sourceId: snap.sourceId ?? sid,
-        hintUsed: snap.hintUsed ?? false,
         solutionViewed: snap.solutionViewed ?? false,
-        confidence: snap.confidence ?? null,
         attemptNumber: snap.attemptNumber ?? null,
         answeredAt: snap.answeredAt ?? null,
-        schoolId: snap.schoolId ?? ctx.schoolId ?? null,
+        schoolId: snap.schoolId ?? context.schoolId ?? null,
       });
     } catch (e) {
-      toast.error(toErrorMessage(e, "Could not save this answer — it will retry when you finish"));
+      toast.error(toErrorMessage(e, "Could not save this answer — it will be sent again when you finish"));
     }
   }
 
-  function skip(opts?: { timedOut?: boolean }) {
+  function skip() {
     const q = qs[idx];
-    if (!q) return;
-    skippedRef.current = [...skippedRef.current, idx];
-    setSkipped(skippedRef.current);
-    const elapsed = Date.now() - questionStartRef.current;
-    const snap: PracticeAttemptSnapshot = {
-      question: q.question,
-      options: q.options,
-      correctIndex: q.correct,
-      selectedIndex: -1,
-      isCorrect: false,
-      skipped: true,
-      timedOut: opts?.timedOut ?? false,
-      explanation: q.explanation,
-      bankQuestionId: q.id,
-      subject: q.subject,
-      chapter: q.chapter,
-      difficulty: q.difficulty,
-      source: "practice",
-      practiceMode: config.mode,
-      sourceId: sessionIdRef.current,
-      timeTakenMs: elapsed,
-      hintUsed: hintUsedRef.current,
-      solutionViewed: false,
-      attemptNumber: ++attemptNumberRef.current,
-      answeredAt: new Date().toISOString(),
-      schoolId: ctx?.schoolId ?? null,
-    };
-    attemptLog.current.push(snap);
-    void persistAttemptLive(snap);
+    if (!q || phase !== "q" || finishedRef.current) return;
+    skippedRef.current += 1;
+    record(snapshotOf(q, { selectedIndex: -1, isCorrect: false, skipped: true }));
     next();
   }
 
@@ -1885,18 +1619,19 @@ function Session({
     // Persist. Bookmarks are permanent — answering correctly never clears one.
     const bankId = qs[idx]?.id;
     if (!bankId || !ctx) {
-      toast.message(nextOn ? "Bookmarked for this session." : "Bookmark removed.");
+      toast.error("Could not save bookmark. Please try again.");
       return;
     }
+    const at = idx;
     void PracticeService.toggleBookmark(ctx, bankId, nextOn)
       .then(() => {
-        toast.success(nextOn ? "Bookmarked." : "Bookmark removed.");
+        toast.success(nextOn ? "Bookmarked — find it in Bookmarked Questions." : "Bookmark removed.");
       })
       .catch(() => {
         // Roll the optimistic toggle back so the icon never lies about state.
         bookmarkedRef.current = nextOn
-          ? bookmarkedRef.current.filter(x => x !== idx)
-          : [...bookmarkedRef.current, idx];
+          ? bookmarkedRef.current.filter(x => x !== at)
+          : [...bookmarkedRef.current, at];
         setBookmarked([...bookmarkedRef.current]);
         toast.error("Could not save bookmark. Please try again.");
       });
@@ -1908,8 +1643,6 @@ function Session({
   const timed   = config.timeLimitSec !== null;
   const mm      = Math.floor(timeLeft / 60).toString().padStart(2,"0");
   const ss      = (timeLeft % 60).toString().padStart(2,"0");
-  const displayTotal = priorCount + qs.length;
-  const displayIndex = priorCount + idx + 1;
 
   if (loadingQs) {
     return (
@@ -1943,21 +1676,18 @@ function Session({
       chapter: "No questions for this chapter in the bank yet.",
       topic: "No questions for this topic in the bank yet.",
       custom: "No questions match those filters yet. Try a different difficulty or clear a filter.",
-      // Reachable only if the ladder's questions were retired between the
-      // plan being built and this screen loading them. The session row already
-      // exists at that point, so the honest instruction is to start again
-      // rather than to sit on a recovery session with nothing in it.
+      // Reachable only if the plan's questions were retired between the plan
+      // being built and this screen loading them.
       recovery: "The questions for this recovery session are no longer available. Open Recovery and start it again.",
+      revision: "The questions for this revision check are no longer available. Open Revision and start it again.",
     };
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
         <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto"/>
         <div className="text-lg font-bold text-foreground">No questions available</div>
         <p className="text-sm text-muted-foreground">
-          {classUnresolved
-            ? classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG
-            : emptyByMode[config.mode] ??
-              "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions."}
+          {emptyByMode[config.mode] ??
+            "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions."}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           {config.mode === "weak" && onNavigate && (
@@ -1979,6 +1709,7 @@ function Session({
   }
 
   if (!q) return null;
+  const isBookmarked = bookmarked.includes(idx);
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
@@ -1986,7 +1717,7 @@ function Session({
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-muted-foreground">{config.label} · Q{displayIndex} of {displayTotal}</span>
+            <span className="text-xs text-muted-foreground">{config.label} · Q{idx + 1} of {qs.length}</span>
             <div className="flex items-center gap-3">
               {timed && (
                 <div className={cn(
@@ -1996,10 +1727,10 @@ function Session({
                   <Clock className="w-3.5 h-3.5"/>{mm}:{ss}
                 </div>
               )}
-              <span className="text-xs text-muted-foreground">{correct}/{attempted} correct</span>
+              <span className="text-xs text-muted-foreground">{correct}/{answered} correct</span>
             </div>
           </div>
-          <ProgressBar value={priorCount + idx} max={Math.max(displayTotal, 1)} color="hsl(var(--primary))" height="h-1"/>
+          <ProgressBar value={idx} max={Math.max(qs.length, 1)} color="hsl(var(--primary))" height="h-1"/>
         </div>
       </div>
 
@@ -2012,9 +1743,15 @@ function Session({
             <span className="text-[10px] text-muted-foreground">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={toggleBookmark} title="Flag for this session (not saved to Mistake Book)"
+            <button
+              type="button"
+              onClick={toggleBookmark}
+              aria-pressed={isBookmarked}
+              title={isBookmarked
+                ? "Bookmarked — it stays in Bookmarked Questions until you remove it"
+                : "Bookmark — keep this question in Bookmarked Questions"}
               className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                bookmarked.includes(idx) ? "text-info bg-info/15" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                isBookmarked ? "text-info bg-info/15" : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}>
               <Bookmark className="w-3.5 h-3.5"/>
             </button>
@@ -2037,7 +1774,7 @@ function Session({
             else                        bg = "border-border text-muted-foreground opacity-60";
           }
           return (
-            <button key={i} onClick={() => phase === "q" && answer(i)} disabled={phase === "fb" || finishing}
+            <button key={i} onClick={() => answer(i)} disabled={phase === "fb" || finishing}
               className={cn("w-full p-4 rounded-2xl border text-left text-sm font-medium transition-all duration-150 flex items-center gap-3", bg)}>
               <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 bg-muted">
                 {String.fromCharCode(65+i)}
@@ -2050,20 +1787,10 @@ function Session({
         })}
       </div>
 
-      {/* Hint (question phase — recorded as hint_used on attempt) */}
-      {phase === "q" && q.explanation && hintRevealed && (
-        <GlassCard className="p-4 border-warning/25">
-          <div className="flex items-start gap-2">
-            <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
-            <div className="text-sm text-muted-foreground leading-relaxed">
-              <span className="font-semibold text-foreground">Hint: </span>
-              <MathText text={hintPreview(q.explanation)} />
-            </div>
-          </div>
-        </GlassCard>
-      )}
-
-      {/* Explanation (feedback phase) */}
+      {/* Explanation, once answered. There is no hint before answering: the
+          bank has no hint text, only the worked solution, and the "hint" this
+          screen showed was that solution's first 120 characters — the whole
+          answer for 39% of servable questions (8,557 of 21,717). */}
       {phase === "fb" && q.explanation && (
         <GlassCard className="p-4 border-blue-500/20">
           <div className="flex items-start gap-2">
@@ -2079,15 +1806,9 @@ function Session({
       {/* Action buttons */}
       <div className="flex items-center gap-3">
         {phase === "q" && (
-          <button onClick={() => skip()} disabled={finishing}
+          <button onClick={skip} disabled={finishing}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-all">
             <SkipForward className="w-3.5 h-3.5"/> Skip
-          </button>
-        )}
-        {phase === "q" && q.explanation && !hintRevealed && (
-          <button onClick={revealHint} disabled={finishing}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-warning/30 text-sm text-warning hover:bg-warning/10 transition-all">
-            <Lightbulb className="w-3.5 h-3.5"/> Hint
           </button>
         )}
         {phase === "fb" && (
@@ -2096,7 +1817,7 @@ function Session({
             {idx+1 >= qs.length ? "See Results" : "Next Question"} <ChevronRight className="w-4 h-4"/>
           </button>
         )}
-        <button onClick={() => void finish()} disabled={finishing}
+        <button onClick={() => void finish("ended")} disabled={finishing}
           className="px-4 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-destructive hover:border-destructive/20 transition-all">
           {finishing ? "Saving…" : "End Session"}
         </button>
@@ -2135,96 +1856,55 @@ interface SessionResults {
     correctCount?: number;
     wrongCount?: number;
     skippedCount?: number;
-    accuracy?: number;
+    accuracy?: number | null;
     xpEarned?: number;
     totalTimeMs?: number | null;
   } | null;
 }
 
-function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
-  results: SessionResults; onRetry: ()=>void; onHub: ()=>void; onRetryIncorrect: ()=>void;
+/**
+ * The finish failed, so nothing below is on the student's record yet.
+ *
+ * A successful finish never comes here — it goes to the result page, which
+ * reads the saved row. This screen used to be a general summary with "Retry
+ * Same Mode" (which started a NEW session and dropped these answers) and an
+ * instruction to "finish it from your practice history" (which lists finished
+ * sessions only, and has no way to finish one). The one thing that helps is
+ * sending the same answers again, so that is what it offers.
+ */
+function SaveFailed({ results, retrying, onRetrySave, onHub }: {
+  results: SessionResults; retrying: boolean; onRetrySave: () => void; onHub: () => void;
 }) {
-  const { correct, total, skipped, bookmarked, config, serverStats, finishFailed } = results;
-  // `finishFailed` was destructured here and never read. The figures below come
-  // from the local attempt log when the server has none, which is right — but
-  // rendering them with nothing said would tell a student their session was
-  // recorded when it was not.
-  // Session SSOT: prefer finish-RPC columns via resolvePracticeSessionStats — never invent XP.
-  const stats = resolvePracticeSessionStats(null, {
-    questionCount: serverStats?.questionCount ?? total,
-    correctCount: serverStats?.correctCount ?? correct,
-    wrongCount: serverStats?.wrongCount,
-    skippedCount: serverStats?.skippedCount ?? skipped,
-    accuracy: serverStats?.accuracy,
-    xpEarned: serverStats?.xpEarned,
-    totalTimeMs: serverStats?.totalTimeMs,
-  });
-  const wrong = stats.wrongCount;
-  const pct = stats.accuracy;
-  const color = pct >= ACCURACY_PROCEDURAL ? "hsl(var(--success))" : pct >= ACCURACY_BUILDING ? "hsl(var(--warning))" : "hsl(var(--destructive))";
-  // No trophy rung. §10.8: the product surfaces weaknesses, never ability, and
-  // a trophy for a high score is the plainest celebration of ability there is.
-  // Converging its boundary from 90 to ACCURACY_PROCEDURAL had made it MORE
-  // frequent, which is the opposite of what the rule wants. The remaining three
-  // describe effort and direction, not attainment.
-  const emoji = pct >= ACCURACY_CONCEPTUAL ? "🎯" : pct >= ACCURACY_BUILDING ? "📈" : "💪";
-  const xpFormatted = formatSessionXp(stats.xpEarned, stats.xpFromDb);
-  const xpLabel = xpFormatted === "—" ? null : `+${xpFormatted} XP`;
-return (
+  const answered = results.attempts.filter((a) => !a.skipped && !a.timedOut);
+  const correct = answered.filter((a) => a.isCorrect).length;
+  const skipped = results.attempts.length - answered.length;
+  return (
     <div className="max-w-lg mx-auto space-y-5">
-      {/* The save failed. Every figure below is the local attempt log, which is
-          the honest thing to show — it is what the student just did — but it is
-          NOT what the server holds, and saying "Complete" over it would be a
-          lie the student cannot check. The session stays unfinished, so it is
-          still there to be finished. */}
-      {finishFailed && (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3">
-          <div className="text-sm font-bold text-destructive mb-0.5">This session was not saved</div>
-          <p className="text-xs text-destructive/90">
-            The figures below are from this device, not from your record. Your
-            answers are still here — try Retry Same Mode, or come back and
-            finish it from your practice history.
-          </p>
-        </div>
-      )}
-      <GlassCard className="p-8 text-center" glow={finishFailed ? "rose" : pct>=ACCURACY_CONCEPTUAL?"green":pct>=ACCURACY_BUILDING?"amber":"rose"}>
-        <div className="text-5xl mb-3">{finishFailed ? "⚠️" : emoji}</div>
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{config.label} · {finishFailed ? "Not saved" : "Complete"}</div>
-        <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>
-        <div className="text-muted-foreground text-sm mb-6">{stats.correctCount} correct out of {stats.questionCount}</div>
-        {xpLabel && (
-          <div className="text-sm font-bold text-warning mb-4 tabular-nums">
-            {xpLabel}
-          </div>
-        )}
-
-        <div className="grid grid-cols-4 gap-3 mb-6">
+      <GlassCard className="p-8 text-center" glow="rose">
+        <div className="text-5xl mb-3">⚠️</div>
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{results.config.label} · Not saved</div>
+        <div className="text-lg font-bold text-foreground mb-1">This session was not saved</div>
+        <p className="text-sm text-muted-foreground mb-6">
+          Your answers are still on this device. Try saving again — they are not on your record until it works.
+        </p>
+        <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label:"Correct",    value:stats.correctCount,    color:"hsl(var(--success))" },
-            { label:"Wrong",      value:wrong, color:"hsl(var(--destructive))" },
-            { label:"Skipped",    value:stats.skippedCount,    color:"hsl(var(--warning))" },
-            { label:"Flagged", value:bookmarked, color:"hsl(var(--info))" },
+            { label: "Correct", value: correct, color: "hsl(var(--success))" },
+            { label: "Wrong", value: answered.length - correct, color: "hsl(var(--destructive))" },
+            { label: "Skipped", value: skipped, color: "hsl(var(--warning))" },
           ].map(s => (
             <div key={s.label} className="bg-muted rounded-xl p-2.5 border border-border">
-              <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
+              <div className="text-xl font-black tabular-nums" style={{ color: s.color }}>{s.value}</div>
               <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>
-
         <div className="space-y-2.5">
-          <button onClick={onRetry}
-            className="w-full py-3 rounded-2xl font-bold text-sm text-foreground flex items-center justify-center gap-2 transition-all hover:opacity-90"
-            style={{ background:`linear-gradient(135deg,hsl(var(--primary)),hsl(var(--info)))`, boxShadow:`0 8px 24px ${withAlpha("hsl(var(--primary))", 0.3)}` }}>
-            <RotateCcw className="w-4 h-4"/> Retry Same Mode
+          <button onClick={onRetrySave} disabled={retrying || !results.sessionId}
+            className="w-full py-3 rounded-2xl font-bold text-sm text-primary-foreground bg-primary flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50">
+            <RotateCcw className="w-4 h-4"/> {retrying ? "Saving…" : "Try saving again"}
           </button>
-          {wrong > 0 && (
-            <button onClick={onRetryIncorrect}
-              className="w-full py-3 rounded-2xl border border-destructive/30 text-destructive font-semibold text-sm hover:bg-destructive/8 transition-all flex items-center justify-center gap-2">
-              <XCircle className="w-4 h-4"/> Practice {wrong} incorrect question{wrong!==1?"s":""}
-            </button>
-          )}
-          <button onClick={onHub}
+          <button onClick={onHub} disabled={retrying}
             className="w-full py-3 rounded-2xl border border-border/70 text-muted-foreground font-semibold text-sm hover:text-foreground hover:border-border transition-all">
             Back to Practice Hub
           </button>
@@ -2319,14 +1999,27 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     let cancelled = false;
     (async () => {
       try {
+        // A session the student walked away from — a closed tab, a lost
+        // connection — is finished from the answers it already holds before
+        // the list is read, so it appears in the history below rather than
+        // sitting open for ever.
+        const settled = await PracticeService.settleAbandonedSessions(ctx).catch(() => 0);
+        if (cancelled) return;
+        if (settled > 0) {
+          toast.message(settled === 1
+            ? "A practice session you left open has been saved with what you answered."
+            : `${settled} practice sessions you left open have been saved with what you answered.`);
+        }
         const [hist, savedRows] = await Promise.all([
           PracticeService.listHistory(ctx, {
             limit: 100,
             subject: historyFilters.subject || null,
             practiceMode: historyFilters.practiceType || null,
-            dateFrom: historyFilters.date ? `${historyFilters.date}T00:00:00.000Z` : null,
-            dateTo: historyFilters.date ? `${historyFilters.date}T23:59:59.999Z` : null,
-            // Search stays client-side over this window (ilike OR across columns needs RPC).
+            // The picked date is the student's own calendar day. It was sent
+            // as a UTC day, so in India every session between midnight and
+            // 05:30 was filed under the day before.
+            ...(historyFilters.date ? localDayBounds(historyFilters.date) : {}),
+            // Search stays client-side over this window.
             search: null,
           }),
           PracticeService.listSavedSessions(ctx, 40),
@@ -2358,6 +2051,9 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const [modeKey, setModeKey] = useState<ModeKey>("subject");
   const [config,  setConfig]  = useState<SessionConfig | null>(null);
   const [results, setResults] = useState<SessionResults | null>(null);
+  const [retryingSave, setRetryingSave] = useState(false);
+  /** Bumped per session, so every session mounts a fresh runner. */
+  const [runId, setRunId] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const deepLinkHandled = useRef(false);
@@ -2422,10 +2118,10 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       deepLinkHandled.current = true;
       clearRouterState();
       const rev = handoff.revision;
-      setModeKey("chapter");
-      setConfig({
-        mode: "chapter",
-        label: "Revision check",
+      setModeKey("revision");
+      startSession({
+        mode: "revision",
+        label: HANDED_OVER_LABELS.revision,
         subject: "Mixed",
         chapter: null,
         topic: null,
@@ -2437,7 +2133,6 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         timeLimitSec: null,
         revision: rev,
       });
-      setPhase("session");
       return;
     }
 
@@ -2446,9 +2141,9 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       clearRouterState();
       const rec = handoff.recovery;
       setModeKey("recovery");
-      setConfig({
+      startSession({
         mode: "recovery",
-        label: "Recovery",
+        label: HANDED_OVER_LABELS.recovery,
         subject: "Mixed",
         chapter: null,
         topic: null,
@@ -2457,7 +2152,6 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         timeLimitSec: null,
         recovery: rec,
       });
-      setPhase("session");
       return;
     }
 
@@ -2509,7 +2203,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     const modeKeyDeep: ModeKey = chapter ? "chapter" : topic ? "topic" : "subject";
     const mode = MODES.find((m) => m.key === modeKeyDeep) ?? MODES.find((m) => m.key === "chapter")!;
     setModeKey(modeKeyDeep);
-    setConfig({
+    startSession({
       mode: modeKeyDeep,
       label: mode.label,
       subject: subject || "Mixed",
@@ -2519,14 +2213,19 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       qCount: 20,
       timeLimitSec: null,
     });
-    setPhase("session");
   }, [searchParams, setSearchParams, phase]);
+
+  function startSession(cfg: SessionConfig) {
+    setConfig(cfg);
+    setRunId((n) => n + 1);
+    setPhase("session");
+  }
 
   function handleMode(key: ModeKey) {
     setModeKey(key);
     if (INSTANT.includes(key)) {
       const mode = MODES.find(m => m.key === key)!;
-      setConfig({
+      startSession({
         mode: key,
         label: mode.label,
         subject: "Mixed",
@@ -2536,14 +2235,13 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         qCount: 20,
         timeLimitSec: null,
       });
-      setPhase("session");
     } else {
       setPhase("config");
     }
   }
 
   function handleConfigStart(cfg: SessionConfig) {
-    setConfig(cfg); setPhase("session");
+    startSession(cfg);
   }
 
   function openSessionAnalysis(sessionId: string) {
@@ -2557,34 +2255,15 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     }
     setSavingLatest(true);
     try {
-      // Absolute latest finished session — ignore history filters.
-      const recent = await PracticeService.listRecentFinished(ctx, 1);
-      const latestRow = recent[0];
-      if (!latestRow) {
+      // The latest session actually sat — history filters do not apply.
+      const [latest] = await PracticeService.listRecentFinished(ctx, 1);
+      if (!latest) {
         toast.message("Complete a practice session first");
         return;
       }
-      const latest = mapSessionToHistoryRow(latestRow);
-      const session = await PracticeService.getSession(ctx, latest.id);
-      const snap = buildPracticeAnalysisSnapshot({
-        subject: session?.subject ?? latest.subject,
-        chapter: session?.chapter ?? latest.chapter,
-        practiceMode: session?.practice_mode ?? latest.practiceMode,
-        practiceTypeLabel: latest.practiceType,
-        difficulty: session?.difficulty ?? latest.difficulty,
-        questionCount: session?.question_count ?? latest.qs,
-        correctCount: session?.correct_count ?? latest.score,
-        wrongCount: session?.wrong_count ?? undefined,
-        skippedCount: session?.skipped_count ?? undefined,
-        accuracy: session?.accuracy ?? latest.pct,
-        xpEarned: session?.xp_earned ?? latest.xp,
-        totalTimeMs: session?.total_time_ms ?? null,
-        finishedAt: session?.finished_at ?? latest.finishedAt,
-        startedAt: session?.created_at ?? null,
-      });
-      const res = await PracticeService.saveSession(ctx, latest.id, snap as unknown as Record<string, unknown>);
-      if (res.already_saved) toast.message("Session already saved");
-      else toast.success("Session saved");
+      const res = await PracticeService.saveSession(ctx, latest.id);
+      if (res.already_saved) toast.message("Your latest session is already saved");
+      else toast.success("Latest session saved — it stays under Saved Sessions");
       setHistoryTick((t) => t + 1);
     } catch (e) {
       toast.error(toErrorMessage(e, "Could not save session"));
@@ -2604,29 +2283,42 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     // was set here and then ignored: the navigation below only ever asked
     // whether there was a session id, and a failed finish still has one.
     //
-    // The in-page Summary is the only surface that receives the flag, so a
-    // failed finish is sent there instead — and Summary now says so rather
-    // than destructuring the flag and dropping it, which is what it did.
+    // A failed finish goes to SaveFailed instead, which can send the same
+    // answers again.
     if (res.sessionId && !res.finishFailed) {
-      const chapter = res.config.chapter || res.attempts[0]?.chapter || res.config.label;
-      persistAndGoToPracticeResult(navigate, res.sessionId, {
-        subject: res.config.subject,
-        chapter: String(chapter),
-        attempts: res.attempts,
-        startedAt: res.startedAt,
-        serverStats: res.serverStats ?? null,
-        recovery: res.recovery ?? null,
-        revision: res.revision ?? null,
-      });
+      goToResult(res);
       return;
     }
     setResults(res);
-    setPhase("summary");
+    setPhase("saveFailed");
   }
 
-  function handleRetry() {
-    if (!config) return;
-    setPhase("session");
+  function goToResult(res: SessionResults) {
+    if (!res.sessionId) return;
+    const chapter = res.config.chapter || res.attempts[0]?.chapter || res.config.label;
+    persistAndGoToPracticeResult(navigate, res.sessionId, {
+      subject: res.config.subject,
+      chapter: String(chapter),
+      attempts: res.attempts,
+      startedAt: res.startedAt,
+      serverStats: res.serverStats ?? null,
+      recovery: res.recovery ?? null,
+      revision: res.revision ?? null,
+    });
+  }
+
+  async function retrySave() {
+    if (!results?.sessionId || !ctx) return;
+    setRetryingSave(true);
+    try {
+      const done = await completeSession(ctx, results.config, results.sessionId, results.attempts, "completed");
+      setHistoryTick((t) => t + 1);
+      goToResult({ ...results, ...done, finishFailed: false });
+    } catch (e) {
+      toast.error(toErrorMessage(e, "Still could not save — check your connection and try again"));
+    } finally {
+      setRetryingSave(false);
+    }
   }
 
   return (
@@ -2656,13 +2348,13 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           onStart={handleConfigStart}
           onBack={() => setPhase("hub")}
           subjects={subjects}
-          onNavigate={setPage}
           classUnresolved={classUnresolved}
           classUnresolvedMessage={classUnresolvedMessage}
         />
       )}
       {phase === "session" && config && (
         <Session
+          key={runId}
           config={config}
           onFinish={handleFinish}
           onBack={() => setPhase("hub")}
@@ -2672,12 +2364,12 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           classUnresolvedMessage={classUnresolvedMessage}
         />
       )}
-      {phase === "summary" && results && (
-        <Summary
+      {phase === "saveFailed" && results && (
+        <SaveFailed
           results={results}
-          onRetry={handleRetry}
+          retrying={retryingSave}
+          onRetrySave={() => void retrySave()}
           onHub={() => setPhase("hub")}
-          onRetryIncorrect={() => handleMode("incorrect")}
         />
       )}
     </>

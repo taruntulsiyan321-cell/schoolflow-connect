@@ -23,18 +23,19 @@
 import { type Metric, noData, pct } from "./types";
 
 /**
- * Accuracy over one session: correct ÷ attempted.
+ * Accuracy over one session: correct ÷ ANSWERED.
  *
- * `no_data` when nothing was attempted — never 0%. Skipped questions count as
- * attempted (the student saw them and chose not to answer); unseen ones do not,
- * which is why the caller passes the counts rather than the question list.
+ * `no_data` when nothing was answered — never 0%. A skipped question is not a
+ * wrong answer (20261021000000, the rule rpc_finish_practice_session stores),
+ * so the caller passes the count of questions actually answered — skips and
+ * unseen questions excluded — rather than the question list.
  */
-export function sessionAccuracy(correct: number, attempted: number): Metric<number> {
-  if (!Number.isFinite(correct) || !Number.isFinite(attempted)) {
+export function sessionAccuracy(correct: number, answered: number): Metric<number> {
+  if (!Number.isFinite(correct) || !Number.isFinite(answered)) {
     return noData("accuracy: non-finite counts");
   }
-  if (attempted <= 0) return noData("no question attempted in this session");
-  return pct(correct, attempted, `${correct} of ${attempted} attempted`);
+  if (answered <= 0) return noData("no question answered in this session");
+  return pct(correct, answered, `${correct} of ${answered} answered`);
 }
 
 /**

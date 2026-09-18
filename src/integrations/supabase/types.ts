@@ -5392,6 +5392,7 @@ export type Database = {
           difficulty: string
           embed_status: string
           embedding: string | null
+          embedding_basis: string | null
           exam_year: number | null
           explanation: string | null
           id: string
@@ -5425,6 +5426,7 @@ export type Database = {
           difficulty?: string
           embed_status?: string
           embedding?: string | null
+          embedding_basis?: string | null
           exam_year?: number | null
           explanation?: string | null
           id?: string
@@ -5458,6 +5460,7 @@ export type Database = {
           difficulty?: string
           embed_status?: string
           embedding?: string | null
+          embedding_basis?: string | null
           exam_year?: number | null
           explanation?: string | null
           id?: string
@@ -9254,6 +9257,7 @@ export type Database = {
       current_auth_session_id: { Args: never; Returns: string }
       default_school_id: { Args: never; Returns: string }
       dispatch_notification_push: { Args: never; Returns: number }
+      dispatch_question_embedding: { Args: never; Returns: number }
       dispatch_variant_generation: { Args: never; Returns: number }
       effective_role: {
         Args: { _user_id?: string }
@@ -10033,6 +10037,19 @@ export type Database = {
       rpc_post_assessment_concept_analysis: {
         Args: { _source_id: string; _source_type: string }
         Returns: Json
+      }
+      rpc_practice_bank_catalog: {
+        Args: {
+          _board: string
+          _class_level: number
+          _stream?: string
+          _subject?: string
+        }
+        Returns: {
+          chapter: string
+          questions: number
+          subject: string
+        }[]
       }
       rpc_principal_concept_analytics: { Args: never; Returns: Json }
       rpc_principal_school_health: { Args: never; Returns: Json }

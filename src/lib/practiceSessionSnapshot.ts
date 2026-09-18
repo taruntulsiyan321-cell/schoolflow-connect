@@ -59,7 +59,8 @@ export type PracticeServerStats = {
   correctCount?: number;
   wrongCount?: number;
   skippedCount?: number;
-  accuracy?: number;
+  /** null when nothing was answered — the finish stores no accuracy then. */
+  accuracy?: number | null;
   xpEarned?: number;
   totalTimeMs?: number | null;
 };
@@ -124,20 +125,20 @@ export function buildPracticeRecoveryReport(
   attempts: PracticeAttemptSnapshot[],
   timeMinutes = 1,
 ): ConceptRecoveryReport {
-  const total = attempts.length;
-  const correct = attempts.filter((a) => a.isCorrect).length;
-  // Chunk 10. Was `total ? … : 0` — the same expression, with the same defect,
-  // in five files. A session with nothing attempted is not a session scored
-  // zero. valueOr(..., 0) keeps this snapshot's numeric shape for its callers,
-  // but the zero now comes from ONE place that knows it is standing in for
-  // no_data, instead of five that thought it was an answer.
-  const accuracyMetric = sessionAccuracy(correct, total);
+  // Answered, not attempted: a skipped question is not a wrong answer
+  // (20261021000000). This report counted every skip as a miss, so a session
+  // skipped end to end flagged its chapter weak at 0%.
+  const answered = attempts.filter((a) => !a.skipped && !a.timedOut);
+  const correct = answered.filter((a) => a.isCorrect).length;
+  const accuracyMetric = sessionAccuracy(correct, answered.length);
+  // valueOr keeps the report's numeric field; the weak flag below asks the
+  // metric itself, so "nothing answered" can never read as a weak chapter.
   const accuracy = valueOr(accuracyMetric, 0);
   const concept = chapter;
 
   // The weak-topic bar IS the conceptual readiness bar; it was a bare 70.
   const weak =
-    accuracy < ACCURACY_CONCEPTUAL
+    accuracyMetric.state === "ok" && accuracy < ACCURACY_CONCEPTUAL
       ? [{ subject, chapter, concept, accuracy }]
       : [];
 
@@ -146,7 +147,7 @@ export function buildPracticeRecoveryReport(
     source_id: sessionId,
     accuracy_pct: accuracy,
     correct_count: correct,
-    total_count: total,
+    total_count: answered.length,
     time_minutes: timeMinutes,
     weak_concepts: weak,
     improvement_areas: weak.map((w) => w.concept),
@@ -155,14 +156,18 @@ export function buildPracticeRecoveryReport(
 }
 
 export function snapshotsToAttemptRows(attempts: PracticeAttemptSnapshot[]) {
-  return attempts.map((a, i) => ({
-    id: `local-${i}`,
-    generated_question: { question: a.question, options: a.options },
-    correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
-    selected_answer: { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
-    is_correct: a.isCorrect,
-    created_at: new Date().toISOString(),
-  }));
+  return attempts.map((a, i) => {
+    const skipped = Boolean(a.skipped || a.timedOut);
+    return {
+      id: `local-${i}`,
+      generated_question: { question: a.question, options: a.options, explanation: a.explanation },
+      correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
+      selected_answer: skipped ? null : { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
+      is_correct: skipped ? false : a.isCorrect,
+      skipped,
+      created_at: new Date().toISOString(),
+    };
+  });
 }
 
 export function persistAndGoToPracticeResult(
