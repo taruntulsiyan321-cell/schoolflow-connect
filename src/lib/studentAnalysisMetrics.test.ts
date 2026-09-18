@@ -4,6 +4,9 @@ import {
   halfWindowTrend,
   trendState,
   deriveSpeedStats,
+  hourHistogram,
+  busiestHour,
+  formatHour,
   deriveMonthComparison,
   scoreAxisDomain,
   deriveImprovingTopics,
@@ -156,6 +159,48 @@ describe("studentAnalysisMetrics", () => {
     expect(rows[1]).toMatchObject({ label: "Accuracy", thisM: null, lastM: null });
   });
 
+  it("buckets attempts by the hour of the viewer's own clock", () => {
+    // Built from a local Date, so the expectation holds wherever this runs.
+    //
+    // WHAT THIS DOES NOT PROVE, stated rather than implied: swapping
+    // getHours() for getUTCHours() in the implementation does NOT fail this
+    // test, because CI and this container both run in UTC, where the two are
+    // the same function. No test written here can separate them under a UTC
+    // clock. The local-hours choice is argued in hourHistogram's own comment
+    // and verified by reading it; what this test covers is the bucketing and
+    // the handling of unusable entries.
+    const at = (h: number) => new Date(2026, 8, 18, h, 30).toISOString();
+    const hours = hourHistogram([at(17), at(17), at(5), null, undefined, "not a date"]);
+
+    expect(hours).toHaveLength(24);
+    expect(hours[17]).toBe(2);
+    expect(hours[5]).toBe(1);
+    // Everything else, including the three unusable entries, contributes zero.
+    expect(hours.reduce((a, b) => a + b, 0)).toBe(3);
+  });
+
+  it("names the busiest hour, and says nothing when there is nothing to say", () => {
+    const empty = new Array<number>(24).fill(0);
+    // NULL, not 0. `indexOf(Math.max(...))` over an empty histogram returns 0,
+    // which would render "12 AM" as a claim about a student who has never
+    // practised — the same invented-from-absence defect as "0% accuracy".
+    expect(busiestHour(empty)).toBeNull();
+    expect(formatHour(busiestHour(empty))).toBe("—");
+
+    const hours = [...empty];
+    hours[17] = 9;
+    hours[5] = 4;
+    expect(busiestHour(hours)).toBe(17);
+    expect(formatHour(17)).toBe("5 PM");
+  });
+
+  it("formats midnight and noon the way a clock does", () => {
+    // 0 and 12 are where a naive `h % 12` prints "0 AM" and "0 PM".
+    expect(formatHour(0)).toBe("12 AM");
+    expect(formatHour(12)).toBe("12 PM");
+    expect(formatHour(23)).toBe("11 PM");
+  });
+
   it("score axis domain includes scores below 50", () => {
     expect(scoreAxisDomain([40, 55, 70])[0]).toBeLessThanOrEqual(40);
   });
@@ -212,7 +257,11 @@ describe("studentAnalysisMetrics", () => {
       [],
     );
     expect(rows[0].accuracy).toBe(50);
-    expect(rows[0].practiceDepth).toBe(100);
+    // `questions` is the attempt count itself. It replaced `practiceDepth`,
+    // which was min(100, attempts / 5 * 100) and which the screen rendered as
+    // "% Practice" beside a progress bar — a fifth of five attempts drawn as a
+    // fifth of the chapter.
+    expect(rows[0].questions).toBe(10);
     expect(rows[0].subject).toBe("Mathematics");
   });
 
@@ -250,6 +299,33 @@ describe("studentAnalysisMetrics", () => {
     expect(poly).toMatchObject({ questions: 22, accuracy: 32 });
     // 4 of 24.
     expect(ap).toMatchObject({ questions: 24, accuracy: 17 });
+  });
+
+  it("deriveChapterRows leaves out a chapter nobody has attempted", () => {
+    // concept_mastery carries rows at total_attempts = 0. The old fallback
+    // scored them by mastery_score — which is 0 for an untouched concept — so
+    // the grid drew "Needs attention · 0% Accuracy" for five English chapters
+    // this student had never opened, and the weakest-first ordering put all
+    // five at the top of the tab.
+    const row = (chapter: string, attempts: number, correct: number) => ({
+      subject: "Math",
+      chapter,
+      concept: `${chapter} concept`,
+      mastery_score: 0,
+      total_attempts: attempts,
+      correct_attempts: correct,
+      recovery_attempts: 0,
+      mistake_count: 0,
+    });
+    const rows = deriveChapterRows(
+      [row("Untouched", 0, 0), row("Attempted", 10, 3)],
+      [],
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ chapter: "Attempted", accuracy: 30 });
+    // Not merely absent from the top — absent. A 0% card is a claim.
+    expect(rows.map((r) => r.chapter)).not.toContain("Untouched");
   });
 
   it("deriveChapterRows keeps the weakest chapters when it has to cap the grid", () => {

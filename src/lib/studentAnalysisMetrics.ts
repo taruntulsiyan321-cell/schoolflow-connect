@@ -259,8 +259,15 @@ export function deriveSubjectRows(
 export type DerivedChapterRow = {
   chapter: string;
   subject: string;
-  /** Practice depth toward 5 attempts (not syllabus %). */
-  practiceDepth: number;
+  // `practiceDepth` WENT FROM HERE. It was min(100, attempts / 5 * 100) —
+  // progress toward MIN_ATTEMPTS_FOR_ACCURACY — and Analysis renamed it
+  // `completion`, printed it as "20% Practice" and drew it as a full-width
+  // progress bar under the chapter's name. A student reads that as "I have
+  // covered a fifth of this chapter". It was never syllabus coverage, the
+  // type comment said so, and the screen said the opposite.
+  //
+  // `questions` below is the same fact without the arithmetic: the number of
+  // attempts, which is what the card shows now.
   accuracy: number;
   questions: number;
   /** Movement in accuracy points. Null unless the §6.4 floor is met. */
@@ -340,25 +347,30 @@ export function deriveChapterRows(
   }
 
   const fromMastery = [...byChapterKey.values()]
+    // A CHAPTER NOBODY HAS ATTEMPTED HAS NO ACCURACY.
+    //
+    // concept_mastery carries rows at total_attempts = 0 — measured for one
+    // student, 9 of them, every one English. The old fallback gave those rows
+    // `Math.round(mastery_score)`, which is 0 for an untouched concept, so the
+    // grid drew five chapters reading "Needs attention · 0% Practice · 0%
+    // Accuracy" for chapters the student has never opened. That is 0% invented
+    // out of an absence — the same defect as scoring an unattempted session
+    // zero — and it carries a JUDGEMENT ("needs attention") that G7 says is
+    // not made on one attempt, let alone none.
+    //
+    // The slice used to hide them by accident. Ordering weakest-first, which
+    // is what stops a cap dropping the chapters that matter, put all five at
+    // the TOP of the tab instead. They are not weak; they are unmeasured, and
+    // "Topics yet to begin" is the panel that says so.
+    .filter((entry) => entry.attempts > 0)
     .map((entry) => {
-      const accuracy =
-        entry.attempts > 0
-          ? Math.round((100 * entry.correct) / entry.attempts)
-          : entry.masteryScores.length > 0
-            ? Math.round(
-                entry.masteryScores.reduce((a, b) => a + b, 0) / entry.masteryScores.length,
-              )
-            : 0;
+      const accuracy = Math.round((100 * entry.correct) / entry.attempts);
       const key = `${entry.subject.toLowerCase()}::${entry.chapter.toLowerCase()}`;
       const sessList = byChapter.get(key) ?? [];
       const { state: chapterTrendState, deltaPoints } = trendState(sessList.map(accuracyOf));
       return {
         chapter: entry.chapter,
         subject: entry.subject,
-        // Depth toward five attempts, now over the CHAPTER's attempts rather
-        // than one concept's — which is why a chapter with a single 5-attempt
-        // concept used to read "100% Practice".
-        practiceDepth: Math.min(100, Math.round((entry.attempts / 5) * 100)),
         accuracy,
         questions: entry.attempts,
         trend: deltaPoints,
@@ -404,7 +416,6 @@ export function deriveChapterRows(
       return {
         chapter,
         subject,
-        practiceDepth: 0,
         accuracy: acc,
         questions: 0,
         // No session list reaches this fallback, so there is nothing to
@@ -789,6 +800,77 @@ export function deriveRevisionData(
     pending: scheduled.length,
     dueToday,
   };
+}
+
+/**
+ * When in the day this student actually practises.
+ *
+ * ── WHY THIS EXISTS ────────────────────────────────────────────────────────
+ *
+ * The Activity & Speed tab has a tile headed "Most productive hour" and it
+ * rendered "—" for every student, always, with this note beside it:
+ *
+ *     // Hourly buckets are not in academic_daily_activity — honest empty.
+ *
+ * That was true about academic_daily_activity and false about the database.
+ * question_attempts.created_at is set on every attempt — measured 2026-09-18,
+ * 5,623 of them across 11 distinct hours — so the hour a student works has
+ * been recorded all along. Nothing needed storing; the page needed to read it.
+ *
+ * ── WHY THE BUCKETING IS DONE IN THE BROWSER ───────────────────────────────
+ *
+ * The database runs in UTC and has no column saying where a student is. An
+ * hour bucket computed server-side would therefore be a UTC hour, and India —
+ * which is who this product is for — is UTC+5:30, so a UTC bucket straddles
+ * two local hours and cannot be shifted into one afterwards. Hardcoding
+ * Asia/Kolkata in SQL would work today and be wrong the first time a school
+ * sits anywhere else.
+ *
+ * `new Date(iso).getHours()` is the viewer's own clock, which is the only
+ * clock that makes "you work best at 5pm" mean anything to the person reading
+ * it.
+ */
+export function hourHistogram(timestamps: (string | null | undefined)[]): number[] {
+  const hours = new Array<number>(24).fill(0);
+  for (const iso of timestamps) {
+    if (!iso) continue;
+    const at = new Date(iso);
+    if (Number.isNaN(at.getTime())) continue;
+    hours[at.getHours()] += 1;
+  }
+  return hours;
+}
+
+/**
+ * The hour with the most attempts behind it, or null when there is nothing to
+ * say.
+ *
+ * NULL, not midnight. An empty histogram is all zeroes, and `indexOf(max)` on
+ * it returns 0 — which would render "12 AM" as a confident claim about a
+ * student who has never practised, in the same family as the 0% accuracy and
+ * 0h study time this page has already been corrected for twice.
+ *
+ * A tie goes to the earlier hour, deterministically, rather than to whichever
+ * the engine happened to visit first.
+ */
+export function busiestHour(hours: number[]): number | null {
+  let best = -1;
+  let bestCount = 0;
+  for (let h = 0; h < hours.length; h += 1) {
+    if (hours[h] > bestCount) {
+      bestCount = hours[h];
+      best = h;
+    }
+  }
+  return bestCount > 0 ? best : null;
+}
+
+/** "5 PM", "12 AM" — the way a student reads a clock, not "17". */
+export function formatHour(hour: number | null): string {
+  if (hour == null) return "—";
+  const suffix = hour < 12 ? "AM" : "PM";
+  const twelve = hour % 12 === 0 ? 12 : hour % 12;
+  return `${twelve} ${suffix}`;
 }
 
 export function scoreAxisDomain(scores: number[]): [number, number] {

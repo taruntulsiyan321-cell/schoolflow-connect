@@ -234,33 +234,49 @@ BEGIN
                                CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
   IF _n <> 0 THEN _fails := _fails + 1; END IF;
 
-  -- 16 ── the revision ladder books the interval its stage calls for
-  --       (§5.3: 7, 7, 7, then REVISION_INTERVAL_SOLID). Driven live on
-  --       2026-09-17 it booked 7.00, 7.00 and 30.00 days — but only after
-  --       20261033000000, because before it every pass by an
-  --       engagement-triggered chapter was rolled back whole by
-  --       chapter_state_recovered_has_timestamp and the ladder could not leave
-  --       stage 1 at all.
+  -- 16 ── the ladder returns the intervals §5.3 declares: 7, 7, 7, then
+  --       REVISION_INTERVAL_SOLID, for ever after.
   --
-  --       Checked against the last PASSED check's own timestamp, not against
-  --       updated_at, which moves for unrelated reasons. One day of tolerance,
-  --       because next_revision_at is set from now() and the row may be read
-  --       across a day boundary.
+  --       THIS CHECK WAS WRONG ON ITS FIRST DAY and is rewritten rather than
+  --       loosened. It compared each chapter's next_revision_at against the
+  --       completed_at of its last PASSED revision check, on the assumption
+  --       that a pass is what writes the booking. It is not the only thing
+  --       that writes it: the engagement path in _rebuild_revision_queue
+  --       re-books chapters too, and a failure re-books at stage 1. Measured
+  --       2026-09-18, Polynomials read 8.03 days against a ladder of 7 — not
+  --       because the ladder was wrong, but because the row had been re-booked
+  --       a day after the pass the check was measuring from.
+  --
+  --       Nothing stores WHEN a booking was written (chapter_state.updated_at
+  --       moves for unrelated reasons — measured 12:25:14 against a booking
+  --       made at 12:23:43), so the interval cannot be recovered from the rows
+  --       after the fact. What can be checked is the ladder itself, and that
+  --       is what this does now.
+  --
+  --       The end-to-end timing was proved by DRIVING it in the live school on
+  --       2026-09-17: stage 1 -> 2 booked 7.00 days, 2 -> 3 booked 7.00, and
+  --       3 -> 4 booked 30.00 with the screen reading "Chapter solid". That is
+  --       a measurement a stored row cannot repeat, which is why it lives in
+  --       scripts/live-smoke/climb-the-revision-ladder.mjs and not here.
+  SELECT count(*) INTO _n FROM (
+    SELECT s.stage, public._revision_interval_days(s.stage) AS got,
+           CASE WHEN s.stage <= public._recovery_const('REVISION_STAGES_TO_SOLID')::int
+                THEN public._recovery_const('REVISION_INTERVAL_' || s.stage::text)::int
+                ELSE public._recovery_const('REVISION_INTERVAL_SOLID')::int END AS want
+      FROM generate_series(1, 5) AS s(stage)
+  ) rungs WHERE got IS DISTINCT FROM want;
+  _report := _report || format('%-52s %s%s', 'the ladder returns §5.3''s intervals',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- 16b ── and no live booking sits outside what the ladder can produce. A
+  --        date further out than the longest interval means something wrote it
+  --        that is not the ladder.
   SELECT count(*) INTO _n
   FROM public.chapter_state cs
-  JOIN LATERAL (
-    SELECT rs.completed_at
-    FROM public.revision_sessions rs
-    WHERE rs.user_id = cs.user_id AND rs.chapter_id = cs.chapter_id AND rs.passed
-    ORDER BY rs.completed_at DESC LIMIT 1
-  ) last_pass ON true
   WHERE cs.next_revision_at IS NOT NULL
-    AND cs.revision_stage > 0
-    AND abs(
-      EXTRACT(EPOCH FROM (cs.next_revision_at - last_pass.completed_at)) / 86400.0
-      - public._revision_interval_days(cs.revision_stage)
-    ) > 1;
-  _report := _report || format('%-52s %s%s', 'revision books the interval its stage says',
+    AND cs.next_revision_at > now() + (public._recovery_const('REVISION_INTERVAL_SOLID')::int || ' days')::interval + interval '1 day';
+  _report := _report || format('%-52s %s%s', 'no booking is further out than the ladder allows',
                                CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
   IF _n <> 0 THEN _fails := _fails + 1; END IF;
 
