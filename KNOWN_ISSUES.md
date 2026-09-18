@@ -2927,3 +2927,79 @@ typecheck; build; the lint baseline.
   notifications. Everything up to FCM is proven; the last hop is not.
 * **Exams on the principal's Classes tab.** They were invented; real exam screens
   for a principal are not built.
+---
+
+## 57. Previous Year Questions has no content, anywhere — OPEN, needs data
+
+Measured 2026-09-18 on live: **0 of 21,717** servable bank questions carry
+`exam_year`, a `pyq` `source_type`, or a `source` naming a past paper. The mode
+is offered on the hub ("Board and competitive exam questions from past years"),
+its config screen offers the last six exam years, and every start of it —
+for every student, every subject, every year — reaches the honest empty state.
+
+Not a code defect: the loader's filter is correct and the empty state says so
+plainly. It stays empty until past papers are tagged or imported. Recorded here
+so the next person driving the modes does not go looking for the bug.
+
+---
+
+## 58. Practice serves subjects the student's section does not teach — OPEN
+
+Found while driving the Practice tab, 2026-09-18. Custom Practice with no
+subject chosen ("All") serves any subject in the student's CLASS and board —
+`question_bank` is a global table keyed by class level, not by what this
+student's section is taught. Driving it as arjun.mehta (Class 10-A) produced a
+ten-question English session (Grammar - Reported Speech, Comprehension Skills,
+Vocabulary), and the finish did what it does for any chapter: wrote the tally
+and started the revision clock.
+
+Then the two halves disagree. `rpc_revision_session_plan` enforces entitlement —
+`_recovery_chapter_is_mine` — so the check that clock books can never be built:
+
+    POST /rest/v1/rpc/rpc_revision_session_plan
+    400 {"code":"P0001","message":"chapter 1e39a58c-… is not taught to this
+         student's section"}
+
+So the Revision screen offers a check that refuses to start. The chapter is
+otherwise inert; nothing else reads it.
+
+One of the two rules is wrong and it is a product decision which: either
+practice is bounded by the section's subjects (and the bank read gains a
+`section_subjects` predicate), or entitlement does not apply to a chapter the
+student has actually practised. Fixing it inside the Practice tab would pick
+that ruling by accident, so it is written down instead.
+
+---
+
+## 59. A finished practice session still keeps per-question correctness — OPEN, a §10.8 ruling
+
+§10.8's transient rule: "While a session is in flight, per-question correctness
+may exist… When the session closes, it must not persist. What survives is
+session or tier **totals**, plus rows for **wrong, skipped and bookmarked**" and
+"**No per-question record of correct answers.**"
+
+Measured 2026-09-18: `question_attempts` holds **1,004** rows with
+`is_correct = true` belonging to finished practice sessions, and
+`rpc_finish_practice_session` purges nothing. Two shipped features are built on
+those rows and cannot work without them:
+
+* **Saved Sessions** — the snapshot freezes every question with whether it was
+  right, so a saved session reopens as it was;
+* **the result screen's Question review** — the same, for the session just
+  finished.
+
+And three engines read the same rows for their own arithmetic: the chapter
+tally, topic confidence (Weak Areas), and the recovery/revision verdicts.
+
+So this is not a defect to fix quietly — deleting the rows would remove Saved
+Sessions and the review with them, and keeping them contradicts the spec as
+written. It needs the same kind of ruling rule 14 got (withdrawn 2026-09-11 for
+test answers, on exactly this shape of conflict): either the practice rule is
+narrowed to what it was aimed at — a per-question *display* of correctness to
+anyone but the student — or Saved Sessions and the review are dropped.
+
+Nothing here leaks. §10.8's privacy half is enforced by RLS, probed as five
+signed-in roles against arjun.mehta's rows on 2026-09-18 — teacher, principal,
+admin, parent and another student each read 0 rows from `question_attempts`,
+`practice_sessions`, `student_mistakes` and `concept_mastery`, against a control
+in which the student reads all four.
