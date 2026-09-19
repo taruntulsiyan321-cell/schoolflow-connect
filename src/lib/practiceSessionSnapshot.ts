@@ -66,8 +66,12 @@ export type PracticeServerStats = {
 };
 
 export type PracticeSessionResultState = {
+  /** Empty when the session had no single subject. */
   subject: string;
+  /** Empty when the session had no single chapter — never a guess at one. */
   chapter: string;
+  /** The session's practice_mode, which names it when it has no chapter. */
+  practiceMode?: string | null;
   attempts: PracticeAttemptSnapshot[];
   startedAt?: string;
   /** From rpc_finish_practice_session — SSOT until practice_sessions row hydrates. */

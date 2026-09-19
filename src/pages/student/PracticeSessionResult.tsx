@@ -34,6 +34,7 @@ import {
   resolvePracticeSessionStats,
 } from "@/lib/practiceSessionStats";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
+import { practiceModeLabel } from "@/lib/practiceModeLabel";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
 import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
@@ -136,10 +137,16 @@ export default function PracticeSessionResult() {
     return localAttempts;
   }, [attempts, snapshotAttempts, localAttempts]);
 
-  const subjectRaw = session?.subject ?? snapshot?.subject ?? localState?.subject ?? "Practice";
-  const chapterRaw = session?.chapter ?? snapshot?.chapter ?? localState?.chapter ?? "";
-  const subject = displaySubject(subjectRaw);
+  // `||`, not `??`: a session with no single subject stores "" — an empty
+  // string is an absent subject, not one to print.
+  const subjectRaw = session?.subject || snapshot?.subject || localState?.subject || "";
+  const chapterRaw = session?.chapter || snapshot?.chapter || localState?.chapter || "";
+  const subject = subjectRaw ? displaySubject(subjectRaw) : "";
   const chapter = chapterRaw ? displayChapter(chapterRaw) : "";
+  const typeLabel = practiceModeLabel(session?.practice_mode ?? snapshot?.practiceMode ?? localState?.practiceMode ?? null);
+  // A session that spans chapters is titled by what it was — "Weak Areas
+  // Practice" — not by the chapter its first question happened to come from.
+  const heading = [subject, chapter].filter(Boolean).join(" · ") || typeLabel;
 
   // ONE reading of this session, from the best source there is: the finished
   // row, else the finish RPC's own reply or a saved snapshot, else — offline,
@@ -342,8 +349,8 @@ export default function PracticeSessionResult() {
         <Link to="/student/practice"><ArrowLeft className="w-4 h-4" /> Practice</Link>
       </Button>
       <PageHeader
-        title={`${subject}${chapter ? ` · ${chapter}` : ""}`}
-        subtitle={`Practice analysis · ${
+        title={heading}
+        subtitle={`${typeLabel} · ${
           session?.finished_at
             ? new Date(session.finished_at).toLocaleString()
             : snapshot?.finishedAt

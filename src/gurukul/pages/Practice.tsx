@@ -35,6 +35,7 @@ import {
 import { toErrorMessage } from "@/lib/presentation";
 import { ACCURACY_PROCEDURAL, ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
 import { pluralise } from "@/lib/plural";
+import { PRACTICE_MODE_LABELS, practiceModeLabel } from "@/lib/practiceModeLabel";
 
 const CLASS_UNRESOLVED_MSG =
   "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
@@ -64,10 +65,7 @@ type Cat     = "all" | "content" | "source" | "type" | "targeted";
  * see the `Config` component, which is never rendered for either but does not
  * assert its way out of that.
  */
-type ModeKey =
-  | "subject" | "chapter" | "topic" | "custom"
-  | "pyq" | "weak" | "incorrect" | "skipped"
-  | "bookmarked" | "recovery" | "revision";
+type ModeKey = keyof typeof PRACTICE_MODE_LABELS;
 
 interface Mode {
   key: ModeKey; label: string; desc: string;
@@ -166,23 +164,23 @@ function formatSessionDate(iso: string) {
 // mode. Only the Mock Tests entry point is gone — the teacher test system it
 // used is untouched and still serves teacher-assigned tests elsewhere.
 const MODES: Mode[] = [
-  { key:"subject",    label:"Subject Practice",       desc:"Practice questions from a subject of your choice",
+  { key:"subject",    label:PRACTICE_MODE_LABELS.subject,       desc:"Practice questions from a subject of your choice",
     icon:<BookOpen className="w-5 h-5"/>,   color:"hsl(var(--primary))", cat:"content",  badge:"By subject" },
-  { key:"chapter",    label:"Chapter Practice",       desc:"Focus on a specific chapter to reinforce concepts",
+  { key:"chapter",    label:PRACTICE_MODE_LABELS.chapter,       desc:"Focus on a specific chapter to reinforce concepts",
     icon:<Layers className="w-5 h-5"/>,     color:"hsl(var(--info))", cat:"content",  badge:"Chapter" },
-  { key:"topic",      label:"Topic Practice",         desc:"Drill down to a precise concept or sub-topic",
+  { key:"topic",      label:PRACTICE_MODE_LABELS.topic,         desc:"Drill down to a precise concept or sub-topic",
     icon:<Target className="w-5 h-5"/>,     color:"hsl(var(--success))", cat:"content",  badge:"By topic" },
-  { key:"custom",     label:"Custom Practice",        desc:"Choose difficulty and either a question count or a time limit",
+  { key:"custom",     label:PRACTICE_MODE_LABELS.custom,        desc:"Choose difficulty and either a question count or a time limit",
     icon:<BarChart2 className="w-5 h-5"/>,  color:"hsl(var(--info))", cat:"type",    badge:"Your rules" },
-  { key:"pyq",        label:"Previous Year Questions",desc:"Board and competitive exam questions from past years",
+  { key:"pyq",        label:PRACTICE_MODE_LABELS.pyq,desc:"Board and competitive exam questions from past years",
     icon:<FileText className="w-5 h-5"/>,   color:"hsl(var(--destructive))", cat:"source",  badge:"Past papers" },
-  { key:"weak",       label:"Weak Areas Practice",    desc:"Auto-generated from concepts where your confidence is below 60%",
+  { key:"weak",       label:PRACTICE_MODE_LABELS.weak,    desc:`Auto-generated from concepts where your confidence is below ${WEAK_CONCEPT_THRESHOLD}%`,
     icon:<TrendingDown className="w-5 h-5"/>, color:"hsl(var(--destructive))", cat:"targeted", badge:"Weak areas", instant:true, hot:true },
-  { key:"incorrect",  label:"Incorrect Questions",    desc:"Reattempt questions you got wrong in previous sessions",
+  { key:"incorrect",  label:PRACTICE_MODE_LABELS.incorrect,    desc:"Reattempt questions you got wrong in previous sessions",
     icon:<XCircle className="w-5 h-5"/>,    color:"hsl(var(--destructive))", cat:"targeted", badge:"Retry wrong", instant:true },
-  { key:"skipped",    label:"Skipped Questions",      desc:"Solve questions you chose to skip earlier",
+  { key:"skipped",    label:PRACTICE_MODE_LABELS.skipped,      desc:"Solve questions you chose to skip earlier",
     icon:<SkipForward className="w-5 h-5"/>, color:"hsl(var(--warning))", cat:"targeted", badge:"Skipped", instant:true },
-  { key:"bookmarked", label:"Bookmarked Questions",   desc:"Questions you bookmarked — they stay until you remove them",
+  { key:"bookmarked", label:PRACTICE_MODE_LABELS.bookmarked,   desc:"Questions you bookmarked — they stay until you remove them",
     icon:<BookMarked className="w-5 h-5"/>, color:"hsl(var(--info))", cat:"targeted", badge:"Bookmarked", instant:true },
 ];
 
@@ -194,25 +192,12 @@ const CATS: { key: Cat; label: string }[] = [
   { key:"targeted", label:"Targeted" },
 ];
 
-/** Sessions a student is handed rather than picks; they have no hub tile. */
-const HANDED_OVER_LABELS: Record<string, string> = {
-  recovery: "Recovery",
-  revision: "Revision check",
-};
-
-/** A session's type, from its practice_mode — the only home for the label. */
-function practiceTypeLabel(mode: string | null | undefined): string {
-  if (!mode) return "Practice";
-  const found = MODES.find((m) => m.key === mode);
-  if (found) return found.label;
-  return HANDED_OVER_LABELS[mode] ?? (presentAcademicLabel(mode) || mode);
-}
 
 function mapSessionToHistoryRow(row: PracticeSessionRow): HistoryRow {
   // The finished row is the record (a saved snapshot is a frozen copy of it,
   // and would be the stale one if the row were ever corrected).
   const stats = resolvePracticeSessionStats(row);
-  const practiceType = practiceTypeLabel(row.practice_mode);
+  const practiceType = practiceModeLabel(row.practice_mode);
   const difficultyRaw = row.difficulty || "mixed";
   return {
     id: row.id,
@@ -420,7 +405,7 @@ function Hub({
                 variant="section"
                 icon={<Bookmark className="w-5 h-5" />}
                 title="No saved sessions yet"
-                sub="Finish practice, open analysis, then Save Session — or bookmark your latest finished result here."
+                sub="Save a session from its results page, or use Save latest result above. Saved sessions stay here after history's week is up."
               />
             ) : saved.map(s => (
               <button
@@ -502,8 +487,8 @@ function Hub({
                 className="px-3 py-2 rounded-xl bg-muted border border-border/70 text-xs text-foreground focus:outline-none"
               >
                 <option value="">All practice types</option>
-                {MODES.map((m) => (
-                  <option key={m.key} value={m.key}>{m.label}</option>
+                {(Object.keys(PRACTICE_MODE_LABELS) as ModeKey[]).map((key) => (
+                  <option key={key} value={key}>{PRACTICE_MODE_LABELS[key]}</option>
                 ))}
               </select>
               <input
@@ -553,6 +538,9 @@ function Hub({
                     ].filter(Boolean).join(" · ")}
                     {" · "}<span className="text-warning">{h.xpLabel} XP</span>
                   </div>
+                  {/* The right-hand date column is hidden below sm, so on a
+                      phone no row said when it was sat. */}
+                  <div className="text-[10px] text-muted-foreground mt-0.5 sm:hidden">{h.date}</div>
                 </div>
                 <div className="text-[10px] text-muted-foreground shrink-0 text-right hidden sm:block">{h.date}</div>
                 <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0"/>
@@ -598,12 +586,19 @@ function ConfigView({
   const [chapters,      setChapters]      = useState<AcademicTermRef[]>([]);
   const [topics,        setTopics]        = useState<(AcademicTermRef & { chapter: string | null })[]>([]);
   const [metaLoading,   setMetaLoading]   = useState(false);
+  // A failed read is not an empty bank. Both lists used to catch the error and
+  // show "No chapters in the bank for this subject yet." — a claim about the
+  // bank made by a network failure.
+  const [chaptersError, setChaptersError] = useState(false);
+  const [topicsError,   setTopicsError]   = useState(false);
+  const [reloadKey,     setReloadKey]     = useState(0);
 
   useEffect(() => {
     setSelChapter(null);
     setSelTopic(null);
     setChapters([]);
     setTopics([]);
+    setChaptersError(false);
     if (!selSubject || !ctx || !academicReady) return;
     if (!["chapter", "topic", "custom"].includes(modeKey)) return;
     let cancelled = false;
@@ -613,18 +608,19 @@ function ConfigView({
         const ch = await PracticeService.listBankChapters(ctx, { subject: selSubject });
         if (!cancelled) setChapters(ch);
       } catch {
-        if (!cancelled) setChapters([]);
+        if (!cancelled) setChaptersError(true);
       } finally {
         if (!cancelled) setMetaLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [selSubject, ctx, academicReady, modeKey]);
+  }, [selSubject, ctx, academicReady, modeKey, reloadKey]);
 
 
   useEffect(() => {
     setSelTopic(null);
     setTopics([]);
+    setTopicsError(false);
     if (!selSubject || !ctx || !academicReady) return;
     if (!["topic", "custom"].includes(modeKey)) return;
     let cancelled = false;
@@ -636,11 +632,13 @@ function ConfigView({
         });
         if (!cancelled) setTopics(tp);
       } catch {
-        if (!cancelled) setTopics([]);
+        if (!cancelled) setTopicsError(true);
       }
     })();
     return () => { cancelled = true; };
-  }, [selSubject, selChapter, ctx, academicReady, modeKey]);
+  }, [selSubject, selChapter, ctx, academicReady, modeKey, reloadKey]);
+
+  const retryLists = () => setReloadKey((k) => k + 1);
 
   function handleStart() {
     // Custom Practice is the only mode with a time goal, and it is exclusive
@@ -689,6 +687,8 @@ function ConfigView({
               selected={selChapter}
               onSelect={setSelChapter}
               allowClear
+              failed={chaptersError}
+              onRetry={retryLists}
               empty="No chapters in the bank for this subject yet."
             />
           )}
@@ -699,6 +699,8 @@ function ConfigView({
               selected={selTopic}
               onSelect={setSelTopic}
               allowClear
+              failed={topicsError}
+              onRetry={retryLists}
               empty="No topics tagged for this chapter yet."
             />
           )}
@@ -715,9 +717,11 @@ function ConfigView({
                     selDifficulty === d.key ? "scale-[1.02]" : "border-border/70 hover:border-border"
                   )}
                   style={selDifficulty === d.key ? { borderColor:`${withAlpha(d.color, 0.25)}`, background:`${withAlpha(d.color, 0.06)}` } : {}}>
-                  {/* Unselected reads in the theme's own text colour. This was a
-                      literal "white", which vanished on the light theme. */}
-                  <div className="text-sm font-black mb-1 text-foreground" style={selDifficulty === d.key ? { color: d.color } : undefined}>{d.label}</div>
+                  {/* The label reads in the theme's text colour; the card's border and
+                      tint mark the selected one. It was a literal "white" (invisible
+                      on the light theme), and a coloured label on its own tint would
+                      read about 4.1:1 — measured on the feedback options. */}
+                  <div className="text-sm font-black mb-1 text-foreground">{d.label}</div>
                   <div className="text-[11px] text-muted-foreground">{d.desc}</div>
                 </button>
               ))}
@@ -779,7 +783,6 @@ function ConfigView({
           </div>
         </div>
         <StartButton
-          color={mode.color}
           disabled={!selDifficulty || !goalReady}
           onStart={handleStart}
         />
@@ -822,7 +825,7 @@ function ConfigView({
           </div>
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
-        <StartButton color={mode.color} onStart={handleStart}/>
+        <StartButton onStart={handleStart}/>
       </ConfigShell>
     );
   }
@@ -835,7 +838,7 @@ function ConfigView({
           <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="Choose subject"/>
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
-        <StartButton color={mode.color} disabled={!selSubject} onStart={handleStart}/>
+        <StartButton disabled={!selSubject} onStart={handleStart}/>
       </ConfigShell>
     );
   }
@@ -851,6 +854,8 @@ function ConfigView({
               options={chapters}
               selected={selChapter}
               onSelect={setSelChapter}
+              failed={chaptersError}
+              onRetry={retryLists}
               empty="No chapters in the bank for this subject yet."
             />
           )}
@@ -862,9 +867,8 @@ function ConfigView({
                   <button key={d.key} onClick={() => setSelDifficulty(d.key)}
                     className={cn(
                       "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                      selDifficulty === d.key ? "text-foreground shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
-                    )}
-                    style={selDifficulty === d.key ? { background:d.color } : {}}>
+                      selDifficulty === d.key ? "bg-primary text-primary-foreground shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
+                    )}>
                     {d.label}
                   </button>
                 ))}
@@ -873,7 +877,7 @@ function ConfigView({
           )}
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
-        <StartButton color={mode.color} disabled={!selSubject || !selChapter} onStart={handleStart}/>
+        <StartButton disabled={!selSubject || !selChapter} onStart={handleStart}/>
       </ConfigShell>
     );
   }
@@ -890,6 +894,8 @@ function ConfigView({
               selected={selChapter}
               onSelect={setSelChapter}
               allowClear
+              failed={chaptersError}
+              onRetry={retryLists}
               empty="No chapters yet — pick a topic below if available."
             />
           )}
@@ -899,12 +905,14 @@ function ConfigView({
               options={topics}
               selected={selTopic}
               onSelect={setSelTopic}
+              failed={topicsError}
+              onRetry={retryLists}
               empty="No topics tagged in the bank for this selection yet."
             />
           )}
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
-        <StartButton color={mode.color} disabled={!selSubject || !selTopic} onStart={handleStart}/>
+        <StartButton disabled={!selSubject || !selTopic} onStart={handleStart}/>
       </ConfigShell>
     );
   }
@@ -915,13 +923,13 @@ function ConfigView({
         <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll/>
         <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
       </div>
-      <StartButton color={mode.color} onStart={handleStart}/>
+      <StartButton onStart={handleStart}/>
     </ConfigShell>
   );
 }
 
 function OptionChips({
-  label, options, selected, onSelect, empty, allowClear,
+  label, options, selected, onSelect, empty, allowClear, failed, onRetry,
 }: {
   label: string;
   options: AcademicTermRef[];
@@ -929,11 +937,21 @@ function OptionChips({
   onSelect: (v: string | null) => void;
   empty?: string;
   allowClear?: boolean;
+  /** The list could not be read — say so, and offer to read it again. */
+  failed?: boolean;
+  onRetry?: () => void;
 }) {
   return (
     <div>
       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{label}</div>
-      {options.length === 0 ? (
+      {failed ? (
+        <p className="text-xs text-destructive">
+          Could not load this list.{" "}
+          {onRetry && (
+            <button type="button" onClick={onRetry} className="font-semibold underline">Try again</button>
+          )}
+        </p>
+      ) : options.length === 0 ? (
         <p className="text-xs text-muted-foreground">{empty ?? "Nothing available yet."}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -1022,9 +1040,8 @@ function SubjectPicker({
             <button key={s.id} type="button" onClick={() => onSelect(s.name)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === s.name ? "text-foreground shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
-              )}
-              style={selected===s.name ? { background:s.color, boxShadow:`0 4px 14px ${withAlpha(s.color, 0.25)}` } : {}}>
+                selected === s.name ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
+              )}>
               {displaySubject(s.name) || s.name}
             </button>
           ))}
@@ -1051,16 +1068,19 @@ function CountSlider({ value, onChange, color }: { value:number; onChange:(v:num
 }
 
 // Start button
-function StartButton({ color, disabled=false, onStart, label="Start Practice" }: {
-  color:string; disabled?:boolean; onStart:()=>void; label?:string;
+// The one primary action on every setup screen. It wore the mode's colour
+// as a fading gradient under the panel's dark text: 3.3:1, measured.
+function StartButton({ disabled=false, onStart, label="Start Practice" }: {
+  disabled?:boolean; onStart:()=>void; label?:string;
 }) {
   return (
     <button onClick={onStart} disabled={disabled}
       className={cn(
-        "w-full mt-6 py-3.5 rounded-2xl font-black text-sm text-foreground flex items-center justify-center gap-2 transition-all",
-        disabled ? "opacity-30 cursor-not-allowed bg-muted" : "hover:opacity-90 hover:scale-[1.02] active:scale-[0.99]"
-      )}
-      style={disabled ? {} : { background:`linear-gradient(135deg,${color},${withAlpha(color, 0.8)})`, boxShadow:`0 8px 24px ${withAlpha(color, 0.19)}` }}>
+        "w-full mt-6 py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all",
+        disabled
+          ? "opacity-40 cursor-not-allowed bg-muted text-muted-foreground"
+          : "bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-90 hover:scale-[1.02] active:scale-[0.99]"
+      )}>
       <Play className="w-4 h-4"/> {label}
     </button>
   );
@@ -1769,8 +1789,10 @@ function Session({
           const isCorrect = i === q.correct;
           let bg = "border-border/70 text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted";
           if (phase === "fb") {
-            if (isCorrect)              bg = "border-success/40 bg-success/10 text-success";
-            else if (isChosen && !isRight) bg = "border-destructive/40 bg-destructive/10 text-destructive";
+            // The fill, the border and the mark say which is right; the text
+            // stays the foreground. text-success on its own tint read 4.13:1.
+            if (isCorrect)              bg = "border-success/50 bg-success/10 text-foreground";
+            else if (isChosen && !isRight) bg = "border-destructive/50 bg-destructive/10 text-foreground";
             else                        bg = "border-border text-muted-foreground opacity-60";
           }
           return (
@@ -1792,7 +1814,7 @@ function Session({
           screen showed was that solution's first 120 characters — the whole
           answer for 39% of servable questions (8,557 of 21,717). */}
       {phase === "fb" && q.explanation && (
-        <GlassCard className="p-4 border-blue-500/20">
+        <GlassCard className="p-4 border-info/20">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
             <div className="text-sm text-muted-foreground leading-relaxed">
@@ -1988,6 +2010,27 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     return () => { cancelled = true; };
   }, [ctx, academicReady]);
 
+  // A session the student walked away from — a closed tab, a lost connection —
+  // is finished from the answers it already holds before history is first
+  // read, so it appears there rather than sitting open for ever. Once per
+  // visit: it used to run again on every history filter change.
+  const settleRef = useRef<Promise<void> | null>(null);
+  const settleOnce = useCallback(() => {
+    if (!ctx) return Promise.resolve();
+    if (!settleRef.current) {
+      settleRef.current = PracticeService.settleAbandonedSessions(ctx)
+        .then((settled) => {
+          if (settled > 0) {
+            toast.message(settled === 1
+              ? "A practice session you left open has been saved with what you answered."
+              : `${settled} practice sessions you left open have been saved with what you answered.`);
+          }
+        })
+        .catch(() => undefined);
+    }
+    return settleRef.current;
+  }, [ctx]);
+
   useEffect(() => {
     if (!user || !ctx || !academicReady) {
       if (!user) {
@@ -1999,17 +2042,8 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     let cancelled = false;
     (async () => {
       try {
-        // A session the student walked away from — a closed tab, a lost
-        // connection — is finished from the answers it already holds before
-        // the list is read, so it appears in the history below rather than
-        // sitting open for ever.
-        const settled = await PracticeService.settleAbandonedSessions(ctx).catch(() => 0);
+        await settleOnce();
         if (cancelled) return;
-        if (settled > 0) {
-          toast.message(settled === 1
-            ? "A practice session you left open has been saved with what you answered."
-            : `${settled} practice sessions you left open have been saved with what you answered.`);
-        }
         const [hist, savedRows] = await Promise.all([
           PracticeService.listHistory(ctx, {
             limit: 100,
@@ -2044,6 +2078,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     historyFilters.subject,
     historyFilters.practiceType,
     historyFilters.date,
+    settleOnce,
   ]);
 
   const streak = student.streak;
@@ -2121,7 +2156,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       setModeKey("revision");
       startSession({
         mode: "revision",
-        label: HANDED_OVER_LABELS.revision,
+        label: PRACTICE_MODE_LABELS.revision,
         subject: "Mixed",
         chapter: null,
         topic: null,
@@ -2143,7 +2178,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       setModeKey("recovery");
       startSession({
         mode: "recovery",
-        label: HANDED_OVER_LABELS.recovery,
+        label: PRACTICE_MODE_LABELS.recovery,
         subject: "Mixed",
         chapter: null,
         topic: null,
@@ -2295,10 +2330,13 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   function goToResult(res: SessionResults) {
     if (!res.sessionId) return;
-    const chapter = res.config.chapter || res.attempts[0]?.chapter || res.config.label;
+    // The session's own chapter, or none. The first question's chapter used to
+    // stand in for it, so a Weak Areas session across six chapters was titled
+    // with one of them.
     persistAndGoToPracticeResult(navigate, res.sessionId, {
-      subject: res.config.subject,
-      chapter: String(chapter),
+      subject: res.config.subject === "Mixed" ? "" : res.config.subject,
+      chapter: res.config.chapter ?? "",
+      practiceMode: res.config.mode,
       attempts: res.attempts,
       startedAt: res.startedAt,
       serverStats: res.serverStats ?? null,

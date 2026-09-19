@@ -102,7 +102,9 @@ describe("a practice session records what the student was shown", () => {
     expect(SOURCE, "a revision check used to be recorded as Chapter Practice")
       .toContain('mode: "revision"');
     expect(SOURCE).toContain('mode: "recovery"');
-    expect(SOURCE).toContain("HANDED_OVER_LABELS");
+    // The label comes from its one home, shared with the result page.
+    expect(SOURCE).toContain("PRACTICE_MODE_LABELS.revision");
+    expect(SOURCE).toContain("PRACTICE_MODE_LABELS.recovery");
   });
 
   it("does not build a saved snapshot of its own", () => {

@@ -133,11 +133,25 @@ describe("practice filters reach the database", () => {
   it("matches a weak topic by name only inside its own chapter", () => {
     // The precision pass must check the chapter BEFORE the topic name, or a
     // topic name shared by two chapters would match both.
-    const pass = SOURCE.slice(SOURCE.indexOf("targets.some((w) => {"));
-    const chapterCheck = pass.indexOf("academicLabelMatches(r.chapter, w.chapter)");
-    const topicCheck = pass.indexOf("academicLabelMatches(r.topics?.name ?? null, w.concept)");
+    const start = SOURCE.indexOf("targets.some((w) => {");
+    expect(start, "the weak-target pass has moved").toBeGreaterThan(-1);
+    const pass = SOURCE.slice(start, SOURCE.indexOf("for (let i = rows.length - 1", start));
+    const chapterCheck = pass.indexOf("academicLabelEquals(r.chapter, w.chapter)");
+    const topicCheck = pass.indexOf("academicLabelEquals(r.topics?.name ?? null, w.concept)");
     expect(chapterCheck, "the precision pass no longer checks the chapter").toBeGreaterThan(-1);
     expect(topicCheck, "the precision pass no longer matches the topic name").toBeGreaterThan(-1);
     expect(chapterCheck).toBeLessThan(topicCheck);
+  });
+
+  it("decides a weak target by equal labels, never one label inside another", () => {
+    // "Areas of Similar Triangles" contains "Triangles", so a containment match
+    // read that weak topic as naming its whole chapter and drew every Triangles
+    // question — measured 2026-09-18 as the Class 10 student: an "Angle
+    // Bisector Theorem" question in a Weak Areas session, a topic with no
+    // mastery row at all.
+    const start = SOURCE.indexOf("targets.some((w) => {");
+    const pass = SOURCE.slice(start, SOURCE.indexOf("for (let i = rows.length - 1", start));
+    expect(pass, "a containment match widens a weak topic to its whole chapter").not.toContain("academicLabelMatches");
+    expect(pass).toContain("academicLabelEquals(w.chapter, w.concept)");
   });
 });

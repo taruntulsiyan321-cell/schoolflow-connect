@@ -223,15 +223,34 @@ export function academicMatchKey(raw: string | null | undefined): string {
     .trim();
 }
 
+/**
+ * The same label, however it was written: slug, mojibake, case or an alias.
+ * Never a label that merely CONTAINS the other — "Areas of Similar Triangles"
+ * is not the chapter "Triangles".
+ */
+export function academicLabelEquals(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
+  const ka = academicMatchKey(a);
+  const kb = academicMatchKey(b);
+  if (!ka || !kb) return false;
+  return ka === kb || canonicalizeConceptId(a) === canonicalizeConceptId(b);
+}
+
+/**
+ * The same label, or one inside the other. For finding a label from a loose
+ * query (an old link, a typed name); to decide that two labels name the same
+ * thing, use academicLabelEquals.
+ */
 export function academicLabelMatches(
   stored: string | null | undefined,
   query: string | null | undefined,
 ): boolean {
+  if (academicLabelEquals(stored, query)) return true;
   const a = academicMatchKey(stored);
   const b = academicMatchKey(query);
   if (!a || !b) return false;
-  if (a === b) return true;
-  if (canonicalizeConceptId(stored) === canonicalizeConceptId(query)) return true;
   return a.includes(b) || b.includes(a);
 }
 

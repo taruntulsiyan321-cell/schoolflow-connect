@@ -3003,3 +3003,75 @@ signed-in roles against arjun.mehta's rows on 2026-09-18 — teacher, principal,
 admin, parent and another student each read 0 rows from `question_attempts`,
 `practice_sessions`, `student_mistakes` and `concept_mastery`, against a control
 in which the student reads all four.
+
+**Correction, same day:** those four tables do not leak, but the same answers
+did — through `academic_events` and `school_activity_feed`. See 60.
+
+---
+
+## 60. Practice answers reached the whole school through the activity feed — FIXED in code; migration 20261042000000 written, NOT yet applied
+
+Measured 2026-09-18, signed in through PostgREST as each real person: the
+principal, the admin, a teacher, a parent and a Class 12 student each read three
+of arjun.mehta's practice sessions from `school_activity_feed` — every question,
+the option he chose and whether it was right. Admin and principal read the same
+from `academic_events`. §10.8: no teacher, parent or principal.
+
+The path: `PracticeService.finish` emitted `practice.session.completed` with its
+own finish arguments (`_attempts`, the whole answer sheet) as the payload;
+`process_academic_event` copies every event's payload into the feed; the feed is
+read by admin/principal/teacher and by every student and parent (61).
+`src/academic/events.ts` never listed `activity_feed` for that event — the
+router did not follow it.
+
+* **Client (committed):** neither emitter sends a payload; the weak-area
+  telemetry events are catalogued with target `analytics`, and `syncTargetsFor`
+  never routes a `practice.*` type to the feed. Guarded by
+  `practiceEventPrivacy.test.ts` and `academic.engine.test.ts`, both shown to
+  fail against the old emitters.
+* **Database (written, not applied):** `20261042000000_practice_stays_with_the_student`
+  — the router stops copying `practice.*` into the feed (an anchor edit of the
+  live definition, which also drops three duplicate profile refreshes), admin
+  and principal stop reading `practice.*` events, and the leak is purged (143
+  feed rows deleted and 116 payloads emptied, as of 2026-09-19). The
+  anchors were checked read-only against live on 2026-09-19: each matched once.
+  Its proof runs as the principal, admin, a teacher, a parent and another
+  student, each with a positive control; `probe45` repeats that under
+  `npm run verify:caller-privileges`.
+
+**Why not applied:** on 2026-09-19 the Management API returned 401 for the
+`SUPABASE_ACCESS_TOKEN` in `.env.local` (unchanged since 13 Sep, working on
+18 Sep). Every applier and DB-reading gate goes through it. Until a new token is
+in place, the old rows stay readable and each practice session still adds a
+feed row, now with an empty payload: the session's existence and time, not its
+answers.
+
+---
+
+## 61. Every student and parent reads the whole school's activity feed — OPEN, a ruling
+
+`activity_feed_select_family` admits any account holding the student or parent
+role to every `school_activity_feed` row of the school: not their own family's
+rows, all of them. The feed carries `marks.published` (marks obtained),
+`attendance.*` (status per day), `homework.*` decisions and `test.attempt.completed`
+(score). `xp.updated` rows also name a `rule_code` such as
+`practice.session.complete`, which tells the school when a student practised.
+
+Which rows a parent or student should see is a product decision (their own
+child's? announcements only?), so it is recorded rather than decided inside a
+practice change. `src/academic/events.ts` (`EVENT_SYNC_TARGETS`) also
+disagrees with the router for several non-practice types: `marks.updated`,
+`test.attempt.completed`, `doubt.created` and `leave.reviewed` are documented
+without `activity_feed` but are copied to it. The fix belongs with that ruling.
+
+---
+
+## 62. lint:tenant-scope fails on seven functions — OPEN, pre-existing
+
+On clean HEAD (c6ecbe4) as well as with 2026-09-19's changes:
+`_backfill_question_bank_concepts`, `_backfill_battle_question_concepts`,
+`_backfill_template_concepts` (20260613000000), `my_children_class_ids`,
+`my_guardian_student_ids` (20260925160000), `tg_notification_push_queue`,
+`claim_notifications_for_push` (20260925190000). Each needs a school_id
+predicate or an allowlist entry with a checkable reason. None of them is
+practice.

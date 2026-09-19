@@ -48,6 +48,7 @@ export {
 export { formatTaxonomyBreadcrumb, resolveTaxonomyDisplayPath } from "./resolve";
 
 export {
+  academicLabelEquals,
   academicLabelMatches,
   academicMatchKey,
   displayChapter,
