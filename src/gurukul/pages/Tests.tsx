@@ -61,7 +61,12 @@ export default function Tests() {
     (async () => {
       beginLoading(setLoading);
       try {
-        await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
+        // NO publishDueScheduled HERE. publish_due_scheduled_work() refuses a
+        // student — "Only school staff may publish scheduled work" — so this call
+        // was a guaranteed 403 on every load of a student page. The pg_cron job
+        // publish-due-scheduled-work runs it every minute, which is what makes due
+        // work appear for a student; asking the browser to do it was never the
+        // mechanism, only a fallback from before the cron existed.
         const settled = await Promise.allSettled([
           MarksService.listForStudent(ctx, studentId, { limit: 100 }),
           AnalyticsService.forStudent(ctx, studentId),

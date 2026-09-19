@@ -267,8 +267,9 @@ export default function QuestionBankPage() {
       // with the tree the id points at, character for character.
       subject,
       chapter,
-      topic: topic.trim() ? normalizeIncomingAcademicTerm(topic, "topic") : null,
-      concept: topic.trim() ? normalizeIncomingAcademicTerm(topic, "concept") : null,
+      // No `topic` / `concept` here: question_bank has neither column. The
+      // typed topic steers generation above; the bank keys topics through
+      // topic_id, which the classifier assigns.
       difficulty,
       question: fixUtf8Content(d.question),
       options: d.options.map((o) => fixUtf8Content(o)),

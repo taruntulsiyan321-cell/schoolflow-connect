@@ -3596,37 +3596,26 @@ export type Database = {
       }
       homework: {
         Row: {
-          academic_year_id: string | null
           archived_at: string | null
-          assigned_date: string | null
-          attachment_url: string | null
-          attachments: Json | null
           chapter_id: string | null
           class_id: string
-          closes_at: string | null
+          closes_at: string
           created_at: string
           created_by: string | null
           deleted_at: string | null
           deleted_by: string | null
           description: string | null
-          difficulty: string | null
-          due_date: string
-          due_time: string | null
-          estimated_minutes: number | null
-          external_links: Json | null
+          due_date: string | null
           id: string
-          instructions: string | null
-          max_marks: number | null
+          missed_costs_xp: boolean
           priority: string | null
           published_at: string | null
+          question_file: Json | null
+          resolved_at: string | null
           scheduled_publish_at: string | null
           school_id: string
-          section_subject_id: string | null
           status: string
           subject: string
-          subject_id: string | null
-          submission_mode: Database["public"]["Enums"]["homework_submission_mode"]
-          tags: string[] | null
           title: string
           topic: string | null
           topic_id: string | null
@@ -3634,37 +3623,26 @@ export type Database = {
           work_kind: string
         }
         Insert: {
-          academic_year_id?: string | null
           archived_at?: string | null
-          assigned_date?: string | null
-          attachment_url?: string | null
-          attachments?: Json | null
           chapter_id?: string | null
           class_id: string
-          closes_at?: string | null
+          closes_at: string
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
-          difficulty?: string | null
-          due_date: string
-          due_time?: string | null
-          estimated_minutes?: number | null
-          external_links?: Json | null
+          due_date?: string | null
           id?: string
-          instructions?: string | null
-          max_marks?: number | null
+          missed_costs_xp?: boolean
           priority?: string | null
           published_at?: string | null
+          question_file?: Json | null
+          resolved_at?: string | null
           scheduled_publish_at?: string | null
           school_id: string
-          section_subject_id?: string | null
           status?: string
           subject?: string
-          subject_id?: string | null
-          submission_mode?: Database["public"]["Enums"]["homework_submission_mode"]
-          tags?: string[] | null
           title: string
           topic?: string | null
           topic_id?: string | null
@@ -3672,37 +3650,26 @@ export type Database = {
           work_kind?: string
         }
         Update: {
-          academic_year_id?: string | null
           archived_at?: string | null
-          assigned_date?: string | null
-          attachment_url?: string | null
-          attachments?: Json | null
           chapter_id?: string | null
           class_id?: string
-          closes_at?: string | null
+          closes_at?: string
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
-          difficulty?: string | null
-          due_date?: string
-          due_time?: string | null
-          estimated_minutes?: number | null
-          external_links?: Json | null
+          due_date?: string | null
           id?: string
-          instructions?: string | null
-          max_marks?: number | null
+          missed_costs_xp?: boolean
           priority?: string | null
           published_at?: string | null
+          question_file?: Json | null
+          resolved_at?: string | null
           scheduled_publish_at?: string | null
           school_id?: string
-          section_subject_id?: string | null
           status?: string
           subject?: string
-          subject_id?: string | null
-          submission_mode?: Database["public"]["Enums"]["homework_submission_mode"]
-          tags?: string[] | null
           title?: string
           topic?: string | null
           topic_id?: string | null
@@ -3710,13 +3677,6 @@ export type Database = {
           work_kind?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "homework_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "academic_years"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "homework_chapter_id_fkey"
             columns: ["chapter_id"]
@@ -3739,20 +3699,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "homework_section_subject_fk"
-            columns: ["section_subject_id", "school_id"]
-            isOneToOne: false
-            referencedRelation: "section_subjects"
-            referencedColumns: ["id", "school_id"]
-          },
-          {
-            foreignKeyName: "homework_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "homework_topic_id_fkey"
             columns: ["topic_id"]
             isOneToOne: false
@@ -3761,278 +3707,162 @@ export type Database = {
           },
         ]
       }
-      homework_answers: {
+      homework_pre_20260925110000: {
         Row: {
-          answer: string | null
-          answered_at: string
+          academic_year_id: string | null
+          archived_at: string | null
+          assigned_date: string | null
+          attachment_url: string | null
+          attachments: Json | null
           chapter_id: string | null
-          graded_at: string | null
-          graded_by: string | null
-          homework_id: string
-          id: string
-          is_correct: boolean | null
-          question_id: string
-          school_id: string
-          student_id: string
-          time_taken_seconds: number | null
+          class_id: string | null
+          closes_at: string | null
+          created_at: string | null
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          difficulty: string | null
+          due_date: string | null
+          due_time: string | null
+          estimated_minutes: number | null
+          external_links: Json | null
+          id: string | null
+          instructions: string | null
+          max_marks: number | null
+          priority: string | null
+          published_at: string | null
+          scheduled_publish_at: string | null
+          school_id: string | null
+          section_subject_id: string | null
+          status: string | null
+          subject: string | null
+          subject_id: string | null
+          submission_mode: string | null
+          tags: string[] | null
+          title: string | null
+          topic: string | null
           topic_id: string | null
+          updated_at: string | null
+          work_kind: string | null
         }
         Insert: {
-          answer?: string | null
-          answered_at?: string
+          academic_year_id?: string | null
+          archived_at?: string | null
+          assigned_date?: string | null
+          attachment_url?: string | null
+          attachments?: Json | null
           chapter_id?: string | null
-          graded_at?: string | null
-          graded_by?: string | null
-          homework_id: string
-          id?: string
-          is_correct?: boolean | null
-          question_id: string
-          school_id: string
-          student_id: string
-          time_taken_seconds?: number | null
+          class_id?: string | null
+          closes_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          difficulty?: string | null
+          due_date?: string | null
+          due_time?: string | null
+          estimated_minutes?: number | null
+          external_links?: Json | null
+          id?: string | null
+          instructions?: string | null
+          max_marks?: number | null
+          priority?: string | null
+          published_at?: string | null
+          scheduled_publish_at?: string | null
+          school_id?: string | null
+          section_subject_id?: string | null
+          status?: string | null
+          subject?: string | null
+          subject_id?: string | null
+          submission_mode?: string | null
+          tags?: string[] | null
+          title?: string | null
+          topic?: string | null
           topic_id?: string | null
+          updated_at?: string | null
+          work_kind?: string | null
         }
         Update: {
-          answer?: string | null
-          answered_at?: string
+          academic_year_id?: string | null
+          archived_at?: string | null
+          assigned_date?: string | null
+          attachment_url?: string | null
+          attachments?: Json | null
           chapter_id?: string | null
-          graded_at?: string | null
-          graded_by?: string | null
-          homework_id?: string
-          id?: string
-          is_correct?: boolean | null
-          question_id?: string
-          school_id?: string
-          student_id?: string
-          time_taken_seconds?: number | null
+          class_id?: string | null
+          closes_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          difficulty?: string | null
+          due_date?: string | null
+          due_time?: string | null
+          estimated_minutes?: number | null
+          external_links?: Json | null
+          id?: string | null
+          instructions?: string | null
+          max_marks?: number | null
+          priority?: string | null
+          published_at?: string | null
+          scheduled_publish_at?: string | null
+          school_id?: string | null
+          section_subject_id?: string | null
+          status?: string | null
+          subject?: string | null
+          subject_id?: string | null
+          submission_mode?: string | null
+          tags?: string[] | null
+          title?: string | null
+          topic?: string | null
           topic_id?: string | null
+          updated_at?: string | null
+          work_kind?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "homework_answers_chapter_id_fkey"
-            columns: ["chapter_id"]
-            isOneToOne: false
-            referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_answers_homework_id_fkey"
-            columns: ["homework_id"]
-            isOneToOne: false
-            referencedRelation: "homework"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_answers_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "question_bank"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_answers_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_answers_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_answers_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students_current"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_answers_topic_id_fkey"
-            columns: ["topic_id"]
-            isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      homework_completions: {
-        Row: {
-          comment: string | null
-          homework_id: string
-          id: string
-          marked_at: string
-          marked_by: string | null
-          school_id: string
-          status: Database["public"]["Enums"]["homework_completion_status"]
-          student_id: string
-        }
-        Insert: {
-          comment?: string | null
-          homework_id: string
-          id?: string
-          marked_at?: string
-          marked_by?: string | null
-          school_id: string
-          status: Database["public"]["Enums"]["homework_completion_status"]
-          student_id: string
-        }
-        Update: {
-          comment?: string | null
-          homework_id?: string
-          id?: string
-          marked_at?: string
-          marked_by?: string | null
-          school_id?: string
-          status?: Database["public"]["Enums"]["homework_completion_status"]
-          student_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "homework_completions_homework_id_fkey"
-            columns: ["homework_id"]
-            isOneToOne: false
-            referencedRelation: "homework"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_completions_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_completions_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_completions_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students_current"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      homework_questions: {
-        Row: {
-          created_at: string
-          homework_id: string
-          id: string
-          question_id: string
-          school_id: string
-          sequence: number
-        }
-        Insert: {
-          created_at?: string
-          homework_id: string
-          id?: string
-          question_id: string
-          school_id: string
-          sequence: number
-        }
-        Update: {
-          created_at?: string
-          homework_id?: string
-          id?: string
-          question_id?: string
-          school_id?: string
-          sequence?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "homework_questions_homework_id_fkey"
-            columns: ["homework_id"]
-            isOneToOne: false
-            referencedRelation: "homework"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_questions_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "question_bank"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homework_questions_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       homework_submissions: {
         Row: {
-          attachments: Json | null
-          content: string | null
           created_at: string
-          external_links: Json | null
-          grade: string | null
-          graded_at: string | null
+          decided_at: string | null
+          decided_by: string | null
+          file: Json | null
           homework_id: string
           id: string
-          is_late: boolean | null
-          marks_obtained: number | null
-          returned_at: string | null
-          reviewed_at: string | null
           school_id: string | null
           status: string
           student_id: string
           submitted_at: string | null
-          teacher_remarks: string | null
           updated_at: string
-          version: number | null
         }
         Insert: {
-          attachments?: Json | null
-          content?: string | null
           created_at?: string
-          external_links?: Json | null
-          grade?: string | null
-          graded_at?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          file?: Json | null
           homework_id: string
           id?: string
-          is_late?: boolean | null
-          marks_obtained?: number | null
-          returned_at?: string | null
-          reviewed_at?: string | null
           school_id?: string | null
           status?: string
           student_id: string
           submitted_at?: string | null
-          teacher_remarks?: string | null
           updated_at?: string
-          version?: number | null
         }
         Update: {
-          attachments?: Json | null
-          content?: string | null
           created_at?: string
-          external_links?: Json | null
-          grade?: string | null
-          graded_at?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          file?: Json | null
           homework_id?: string
           id?: string
-          is_late?: boolean | null
-          marks_obtained?: number | null
-          returned_at?: string | null
-          reviewed_at?: string | null
           school_id?: string | null
           status?: string
           student_id?: string
           submitted_at?: string | null
-          teacher_remarks?: string | null
           updated_at?: string
-          version?: number | null
         }
         Relationships: [
           {
@@ -4063,21 +3893,73 @@ export type Database = {
             referencedRelation: "students_current"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "hw_sub_student_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "hw_sub_student_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students_current"
-            referencedColumns: ["id"]
-          },
         ]
+      }
+      homework_submissions_pre_20260925110000: {
+        Row: {
+          attachments: Json | null
+          content: string | null
+          created_at: string | null
+          external_links: Json | null
+          grade: string | null
+          graded_at: string | null
+          homework_id: string | null
+          id: string | null
+          is_late: boolean | null
+          marks_obtained: number | null
+          returned_at: string | null
+          reviewed_at: string | null
+          school_id: string | null
+          status: string | null
+          student_id: string | null
+          submitted_at: string | null
+          teacher_remarks: string | null
+          updated_at: string | null
+          version: number | null
+        }
+        Insert: {
+          attachments?: Json | null
+          content?: string | null
+          created_at?: string | null
+          external_links?: Json | null
+          grade?: string | null
+          graded_at?: string | null
+          homework_id?: string | null
+          id?: string | null
+          is_late?: boolean | null
+          marks_obtained?: number | null
+          returned_at?: string | null
+          reviewed_at?: string | null
+          school_id?: string | null
+          status?: string | null
+          student_id?: string | null
+          submitted_at?: string | null
+          teacher_remarks?: string | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Update: {
+          attachments?: Json | null
+          content?: string | null
+          created_at?: string | null
+          external_links?: Json | null
+          grade?: string | null
+          graded_at?: string | null
+          homework_id?: string | null
+          id?: string | null
+          is_late?: boolean | null
+          marks_obtained?: number | null
+          returned_at?: string | null
+          reviewed_at?: string | null
+          school_id?: string | null
+          status?: string | null
+          student_id?: string | null
+          submitted_at?: string | null
+          teacher_remarks?: string | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Relationships: []
       }
       invitations: {
         Row: {
@@ -4661,6 +4543,21 @@ export type Database = {
           },
         ]
       }
+      notification_links_pre_20260925180000: {
+        Row: {
+          id: string
+          link: string
+        }
+        Insert: {
+          id: string
+          link: string
+        }
+        Update: {
+          id?: string
+          link?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -4668,6 +4565,7 @@ export type Database = {
           icon: string | null
           id: string
           link: string | null
+          pushed_at: string | null
           read: boolean
           school_id: string | null
           title: string
@@ -4680,6 +4578,7 @@ export type Database = {
           icon?: string | null
           id?: string
           link?: string | null
+          pushed_at?: string | null
           read?: boolean
           school_id?: string | null
           title: string
@@ -4692,6 +4591,7 @@ export type Database = {
           icon?: string | null
           id?: string
           link?: string | null
+          pushed_at?: string | null
           read?: boolean
           school_id?: string | null
           title?: string
@@ -5020,62 +4920,6 @@ export type Database = {
           },
           {
             foreignKeyName: "practice_sessions_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students_current"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      practice_skipped: {
-        Row: {
-          created_at: string
-          id: string
-          question_id: string
-          school_id: string
-          student_id: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          question_id: string
-          school_id: string
-          student_id?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          question_id?: string
-          school_id?: string
-          student_id?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "practice_skipped_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "question_bank"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "practice_skipped_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "practice_skipped_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "practice_skipped_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students_current"
@@ -5542,13 +5386,13 @@ export type Database = {
           chapter: string | null
           chapter_id: string | null
           class_level: number | null
-          concept: string | null
           correct_index: number | null
           created_at: string
           created_by: string | null
           difficulty: string
           embed_status: string
           embedding: string | null
+          embedding_basis: string | null
           exam_year: number | null
           explanation: string | null
           id: string
@@ -5563,11 +5407,8 @@ export type Database = {
           source_question_id: string | null
           source_type: string | null
           stream: string | null
-          subconcept: string | null
           subject: string
-          subtopic: string | null
-          topic: string | null
-          topic_group: string | null
+          topic_id: string | null
           updated_at: string | null
           variant_tier: number | null
         }
@@ -5579,13 +5420,13 @@ export type Database = {
           chapter?: string | null
           chapter_id?: string | null
           class_level?: number | null
-          concept?: string | null
           correct_index?: number | null
           created_at?: string
           created_by?: string | null
           difficulty?: string
           embed_status?: string
           embedding?: string | null
+          embedding_basis?: string | null
           exam_year?: number | null
           explanation?: string | null
           id?: string
@@ -5600,11 +5441,8 @@ export type Database = {
           source_question_id?: string | null
           source_type?: string | null
           stream?: string | null
-          subconcept?: string | null
           subject: string
-          subtopic?: string | null
-          topic?: string | null
-          topic_group?: string | null
+          topic_id?: string | null
           updated_at?: string | null
           variant_tier?: number | null
         }
@@ -5616,13 +5454,13 @@ export type Database = {
           chapter?: string | null
           chapter_id?: string | null
           class_level?: number | null
-          concept?: string | null
           correct_index?: number | null
           created_at?: string
           created_by?: string | null
           difficulty?: string
           embed_status?: string
           embedding?: string | null
+          embedding_basis?: string | null
           exam_year?: number | null
           explanation?: string | null
           id?: string
@@ -5637,11 +5475,8 @@ export type Database = {
           source_question_id?: string | null
           source_type?: string | null
           stream?: string | null
-          subconcept?: string | null
           subject?: string
-          subtopic?: string | null
-          topic?: string | null
-          topic_group?: string | null
+          topic_id?: string | null
           updated_at?: string | null
           variant_tier?: number | null
         }
@@ -5666,6 +5501,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "question_bank"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_bank_topic_in_its_chapter_fkey"
+            columns: ["topic_id", "chapter_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id", "chapter_id"]
           },
         ]
       }
@@ -5765,7 +5607,7 @@ export type Database = {
           school_id: string
           target_count: number
           title: string
-          topics: string[]
+          topic_ids: string[]
         }
         Insert: {
           chapters?: string[]
@@ -5779,7 +5621,7 @@ export type Database = {
           school_id: string
           target_count: number
           title: string
-          topics?: string[]
+          topic_ids?: string[]
         }
         Update: {
           chapters?: string[]
@@ -5793,7 +5635,7 @@ export type Database = {
           school_id?: string
           target_count?: number
           title?: string
-          topics?: string[]
+          topic_ids?: string[]
         }
         Relationships: [
           {
@@ -5953,168 +5795,6 @@ export type Database = {
           },
         ]
       }
-      recovery_assignment_questions: {
-        Row: {
-          answered: boolean
-          assignment_id: string
-          bank_question_id: string | null
-          correct_answer: Json
-          created_at: string
-          explanation: string | null
-          id: string
-          is_correct: boolean | null
-          options: Json
-          order_index: number
-          question_text: string
-          school_id: string | null
-          student_answer: Json | null
-          template_id: string | null
-        }
-        Insert: {
-          answered?: boolean
-          assignment_id: string
-          bank_question_id?: string | null
-          correct_answer?: Json
-          created_at?: string
-          explanation?: string | null
-          id?: string
-          is_correct?: boolean | null
-          options?: Json
-          order_index?: number
-          question_text: string
-          school_id?: string | null
-          student_answer?: Json | null
-          template_id?: string | null
-        }
-        Update: {
-          answered?: boolean
-          assignment_id?: string
-          bank_question_id?: string | null
-          correct_answer?: Json
-          created_at?: string
-          explanation?: string | null
-          id?: string
-          is_correct?: boolean | null
-          options?: Json
-          order_index?: number
-          question_text?: string
-          school_id?: string | null
-          student_answer?: Json | null
-          template_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "recovery_assignment_questions_assignment_id_fkey"
-            columns: ["assignment_id"]
-            isOneToOne: false
-            referencedRelation: "recovery_assignments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recovery_assignment_questions_bank_question_id_fkey"
-            columns: ["bank_question_id"]
-            isOneToOne: false
-            referencedRelation: "question_bank"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recovery_assignment_questions_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recovery_assignment_questions_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "question_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      recovery_assignments: {
-        Row: {
-          chapter: string | null
-          completed_at: string | null
-          concept: string
-          created_at: string
-          id: string
-          question_count: number
-          questions_completed: number
-          questions_correct: number
-          school_id: string | null
-          severity: string
-          source_id: string | null
-          source_type: string | null
-          status: string
-          student_id: string | null
-          subconcept: string | null
-          subject: string
-          user_id: string
-        }
-        Insert: {
-          chapter?: string | null
-          completed_at?: string | null
-          concept: string
-          created_at?: string
-          id?: string
-          question_count?: number
-          questions_completed?: number
-          questions_correct?: number
-          school_id?: string | null
-          severity: string
-          source_id?: string | null
-          source_type?: string | null
-          status?: string
-          student_id?: string | null
-          subconcept?: string | null
-          subject: string
-          user_id: string
-        }
-        Update: {
-          chapter?: string | null
-          completed_at?: string | null
-          concept?: string
-          created_at?: string
-          id?: string
-          question_count?: number
-          questions_completed?: number
-          questions_correct?: number
-          school_id?: string | null
-          severity?: string
-          source_id?: string | null
-          source_type?: string | null
-          status?: string
-          student_id?: string | null
-          subconcept?: string | null
-          subject?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "recovery_assignments_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recovery_assignments_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recovery_assignments_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students_current"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       recovery_constants: {
         Row: {
           key: string
@@ -6146,6 +5826,8 @@ export type Database = {
           conceptual_rate: number | null
           id: string
           outcome: string | null
+          plan: Json | null
+          practice_session_id: string | null
           procedural_rate: number | null
           readiness: number | null
           round: number
@@ -6168,6 +5850,8 @@ export type Database = {
           conceptual_rate?: number | null
           id?: string
           outcome?: string | null
+          plan?: Json | null
+          practice_session_id?: string | null
           procedural_rate?: number | null
           readiness?: number | null
           round?: number
@@ -6190,6 +5874,8 @@ export type Database = {
           conceptual_rate?: number | null
           id?: string
           outcome?: string | null
+          plan?: Json | null
+          practice_session_id?: string | null
           procedural_rate?: number | null
           readiness?: number | null
           round?: number
@@ -6212,6 +5898,13 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_sessions_practice_session_id_fkey"
+            columns: ["practice_session_id"]
+            isOneToOne: false
+            referencedRelation: "practice_sessions"
             referencedColumns: ["id"]
           },
           {
@@ -6370,6 +6063,7 @@ export type Database = {
           correct: number
           id: string
           passed: boolean | null
+          practice_session_id: string | null
           school_id: string
           stage: number
           started_at: string
@@ -6384,6 +6078,7 @@ export type Database = {
           correct?: number
           id?: string
           passed?: boolean | null
+          practice_session_id?: string | null
           school_id: string
           stage: number
           started_at?: string
@@ -6398,6 +6093,7 @@ export type Database = {
           correct?: number
           id?: string
           passed?: boolean | null
+          practice_session_id?: string | null
           school_id?: string
           stage?: number
           started_at?: string
@@ -6412,6 +6108,13 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revision_sessions_practice_session_id_fkey"
+            columns: ["practice_session_id"]
+            isOneToOne: false
+            referencedRelation: "practice_sessions"
             referencedColumns: ["id"]
           },
           {
@@ -6436,6 +6139,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rls_pre_20260925160000: {
+        Row: {
+          acl: string | null
+          applied: string | null
+          applied_acl: string | null
+          applied_comment: string | null
+          comment: string | null
+          definition: string | null
+          kind: string
+          name: string
+        }
+        Insert: {
+          acl?: string | null
+          applied?: string | null
+          applied_acl?: string | null
+          applied_comment?: string | null
+          comment?: string | null
+          definition?: string | null
+          kind: string
+          name: string
+        }
+        Update: {
+          acl?: string | null
+          applied?: string | null
+          applied_acl?: string | null
+          applied_comment?: string | null
+          comment?: string | null
+          definition?: string | null
+          kind?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20260925150000: {
+        Row: {
+          applied: string | null
+          definition: string
+          routine: string
+        }
+        Insert: {
+          applied?: string | null
+          definition: string
+          routine: string
+        }
+        Update: {
+          applied?: string | null
+          definition?: string
+          routine?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20260925180000: {
+        Row: {
+          definition: string
+          routine: string
+        }
+        Insert: {
+          definition: string
+          routine: string
+        }
+        Update: {
+          definition?: string
+          routine?: string
+        }
+        Relationships: []
       }
       schema_migrations: {
         Row: {
@@ -8530,6 +8299,50 @@ export type Database = {
         }
         Relationships: []
       }
+      variant_generation_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          dispatched_at: string | null
+          id: string
+          last_error: string | null
+          resolved_at: string | null
+          source_question_id: string
+          status: string
+          tier: number
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          dispatched_at?: string | null
+          id?: string
+          last_error?: string | null
+          resolved_at?: string | null
+          source_question_id: string
+          status?: string
+          tier: number
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          dispatched_at?: string | null
+          id?: string
+          last_error?: string | null
+          resolved_at?: string | null
+          source_question_id?: string
+          status?: string
+          tier?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variant_generation_queue_source_question_id_fkey"
+            columns: ["source_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       attendance_current: {
@@ -8609,6 +8422,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      homework_completion: {
+        Row: {
+          accepted: number | null
+          awaiting_review: number | null
+          class_id: string | null
+          completion_pct: number | null
+          given: number | null
+          homework_id: string | null
+          not_given: number | null
+          rejected: number | null
+          school_id: string | null
+          students: number | null
+        }
+        Relationships: []
+      }
+      homework_student_status: {
+        Row: {
+          class_id: string | null
+          closed: boolean | null
+          closes_at: string | null
+          due_date: string | null
+          given: boolean | null
+          homework_id: string | null
+          school_id: string | null
+          status: string | null
+          student_id: string | null
+          submission_id: string | null
+        }
+        Relationships: []
       }
       students_current: {
         Row: {
@@ -8697,9 +8540,6 @@ export type Database = {
         Returns: undefined
       }
       _award_engagement_badges: { Args: { _uid: string }; Returns: undefined }
-      _backfill_battle_question_concepts: { Args: never; Returns: number }
-      _backfill_question_bank_concepts: { Args: never; Returns: number }
-      _backfill_template_concepts: { Args: never; Returns: number }
       _battle_event: {
         Args: {
           _battle?: string
@@ -8718,28 +8558,17 @@ export type Database = {
         Args: { _source_id: string; _source_type: string; _uid: string }
         Returns: Json
       }
-      _bump_academic_activity:
-        | {
-            Args: {
-              _battle?: number
-              _hw?: number
-              _mins?: number
-              _test?: number
-              _uid: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              _battle?: number
-              _hw?: number
-              _mins?: number
-              _self_practice?: number
-              _test?: number
-              _uid: string
-            }
-            Returns: undefined
-          }
+      _bump_academic_activity: {
+        Args: {
+          _battle?: number
+          _hw?: number
+          _mins?: number
+          _self_practice?: number
+          _test?: number
+          _uid: string
+        }
+        Returns: undefined
+      }
       _capture_battle_mistakes: {
         Args: { _participant_id: string }
         Returns: undefined
@@ -8840,6 +8669,16 @@ export type Database = {
       _eie_band_severity: { Args: { _band: string }; Returns: number }
       _eie_homework_consistency_band: {
         Args: { _pct: number }
+        Returns: string
+      }
+      _enqueue_variant_generation: { Args: { _plan: Json }; Returns: number }
+      _ensure_recovery_session: {
+        Args: {
+          _chapter_id: string
+          _school_id: string
+          _student_id: string
+          _uid: string
+        }
         Returns: string
       }
       _ensure_student_xp: {
@@ -9019,7 +8858,6 @@ export type Database = {
         Returns: {
           chapter: string
           class_level: number
-          concept: string
           correct_answer: Json
           difficulty: string
           explanation: string
@@ -9027,9 +8865,14 @@ export type Database = {
           options: Json
           question_text: string
           score: number
-          subconcept: string
           subject: string
+          topic: string
+          topic_id: string
         }[]
+      }
+      _practice_session_attempted: {
+        Args: { _correct: number; _skipped: number; _wrong: number }
+        Returns: boolean
       }
       _progression_bump_study_streak: {
         Args: { _on?: string; _uid: string }
@@ -9039,6 +8882,7 @@ export type Database = {
         Args: { _uid: string }
         Returns: undefined
       }
+      _question_text_key: { Args: { _text: string }; Returns: string }
       _rebuild_revision_queue: {
         Args: { _student_id: string; _uid: string }
         Returns: undefined
@@ -9047,12 +8891,20 @@ export type Database = {
         Args: { _session_id: string }
         Returns: undefined
       }
+      _recovery_chapter_is_for: {
+        Args: { _chapter_id: string; _uid: string }
+        Returns: boolean
+      }
       _recovery_chapter_is_mine: {
         Args: { _chapter_id: string }
         Returns: boolean
       }
       _recovery_const: { Args: { _key: string }; Returns: number }
       _recovery_question_count: { Args: { _severity: string }; Returns: number }
+      _recovery_session_plan_for: {
+        Args: { _chapter_id: string; _uid: string }
+        Returns: Json
+      }
       _recovery_variant_pool: {
         Args: {
           _difficulty: string
@@ -9062,6 +8914,7 @@ export type Database = {
         Returns: string[]
       }
       _repair_utf8_mojibake: { Args: { t: string }; Returns: string }
+      _revision_interval_days: { Args: { _stage: number }; Returns: number }
       _revision_recently_completed: {
         Args: {
           _chapter: string
@@ -9139,9 +8992,13 @@ export type Database = {
         Returns: {
           accuracy: number
           attempts: number
+          baseline_accuracy: number
           chapter: string
           correct: number
+          is_weak: boolean
+          last_attempt_at: string
           subject: string
+          thin: boolean
           topic: string
         }[]
       }
@@ -9338,7 +9195,6 @@ export type Database = {
         Returns: boolean
       }
       can_manage_exam: { Args: { _exam_id: string }; Returns: boolean }
-      can_manage_homework: { Args: { _homework_id: string }; Returns: boolean }
       can_manage_test: { Args: { _test_id: string }; Returns: boolean }
       can_read_exam_row: {
         Args: { _class_id: string; _school_id: string }
@@ -9348,17 +9204,12 @@ export type Database = {
         Args: { _exam_id: string; _student_id: string }
         Returns: boolean
       }
-      can_read_student_row: {
-        Args: {
-          _class_id: string
-          _id: string
-          _parent_user_id: string
-          _school_id: string
-          _user_id: string
-        }
+      can_read_test: { Args: { _test_id: string }; Returns: boolean }
+      can_read_test_leaderboard: {
+        Args: { _test_id: string }
         Returns: boolean
       }
-      can_read_test: { Args: { _test_id: string }; Returns: boolean }
+      can_read_test_marks: { Args: { _test_id: string }; Returns: boolean }
       can_read_test_report: { Args: { _test_id: string }; Returns: boolean }
       can_read_test_row: {
         Args: {
@@ -9387,12 +9238,27 @@ export type Database = {
       }
       chat_can_dm: { Args: { _from: string; _to: string }; Returns: boolean }
       chat_dm_key: { Args: { _a: string; _b: string }; Returns: string }
+      claim_notifications_for_push: {
+        Args: { _limit?: number }
+        Returns: {
+          body: string
+          kind: string
+          link: string
+          notification_id: string
+          recipient: string
+          title: string
+          tokens: string[]
+        }[]
+      }
       claim_signup_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: Database["public"]["Enums"]["app_role"]
       }
       current_auth_session_id: { Args: never; Returns: string }
       default_school_id: { Args: never; Returns: string }
+      dispatch_notification_push: { Args: never; Returns: number }
+      dispatch_question_embedding: { Args: never; Returns: number }
+      dispatch_variant_generation: { Args: never; Returns: number }
       effective_role: {
         Args: { _user_id?: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -9503,6 +9369,12 @@ export type Database = {
             }
             Returns: boolean
           }
+      homework_file_is_fixed: {
+        Args: { _object_name: string }
+        Returns: boolean
+      }
+      homework_hand_in_ok: { Args: { _f: Json }; Returns: boolean }
+      homework_question_file_ok: { Args: { _f: Json }; Returns: boolean }
       is_battle_participant: { Args: { _battle_id: string }; Returns: boolean }
       is_chat_participant: {
         Args: { _conversation_id: string; _user_id?: string }
@@ -9564,7 +9436,6 @@ export type Database = {
         }
         Returns: {
           chapter: string
-          concept: string
           correct_index: number
           explanation: string
           id: string
@@ -9573,6 +9444,7 @@ export type Database = {
           similarity: number
           subject: string
           topic: string
+          topic_id: string
         }[]
       }
       membership_role_at: {
@@ -9585,16 +9457,19 @@ export type Database = {
       my_class_teacher_class_ids: { Args: never; Returns: string[] }
       my_class_teacher_student_ids: { Args: never; Returns: string[] }
       my_exam_ids_for_marks: { Args: never; Returns: string[] }
+      my_guardian_student_ids: { Args: never; Returns: string[] }
       my_manageable_exam_ids: { Args: never; Returns: string[] }
       my_manageable_test_ids: { Args: never; Returns: string[] }
       my_own_or_children_student_ids: { Args: never; Returns: string[] }
       my_readable_mark_student_ids: { Args: never; Returns: string[] }
       my_readable_test_ids: { Args: never; Returns: string[] }
       my_teacher_class_ids: { Args: never; Returns: string[] }
+      my_teacher_homework_ids: { Args: never; Returns: string[] }
       my_teacher_submission_ids: { Args: never; Returns: string[] }
       my_visible_student_ids: { Args: never; Returns: string[] }
       normalize_phone: { Args: { _raw: string }; Returns: string }
       owns_question_paper: { Args: { _paper_id: string }; Returns: boolean }
+      parent_link_for: { Args: { _link: string }; Returns: string }
       process_academic_event: { Args: { _event_id: string }; Returns: boolean }
       process_pending_academic_events: {
         Args: { _limit?: number }
@@ -9606,15 +9481,13 @@ export type Database = {
       }
       progression_level_for_xp: { Args: { _xp: number }; Returns: number }
       progression_xp_for_level: { Args: { _level: number }; Returns: number }
-      publish_due_scheduled_homework: {
-        Args: { _school_id?: string }
-        Returns: number
-      }
+      publish_due_scheduled_work: { Args: never; Returns: number }
       refresh_student_academic_profile: {
         Args: { _student_id: string }
         Returns: string
       }
       require_active_profile: { Args: never; Returns: string }
+      resolve_closed_homework: { Args: never; Returns: number }
       rpc_academic_revision_plan: { Args: never; Returns: Json }
       rpc_accept_battle_invite: {
         Args: { _invite_id: string }
@@ -9636,22 +9509,10 @@ export type Database = {
         }
         Returns: Json
       }
-      rpc_assign_concept_recovery: {
-        Args: {
-          _accuracy?: number
-          _chapter?: string
-          _concept?: string
-          _source_id?: string
-          _source_type?: string
-          _subconcept?: string
-          _subject: string
-        }
-        Returns: string
+      rpc_battle_curriculum: {
+        Args: { _class_id?: string; _subject: string }
+        Returns: Json
       }
-      rpc_backfill_question_concepts: { Args: never; Returns: Json }
-      rpc_battle_curriculum:
-        | { Args: { _subject: string }; Returns: Json }
-        | { Args: { _class_id?: string; _subject: string }; Returns: Json }
       rpc_battle_feed: {
         Args: { _limit?: number }
         Returns: {
@@ -9712,19 +9573,6 @@ export type Database = {
           xp: number
         }[]
       }
-      rpc_close_homework: {
-        Args: { _early?: boolean; _homework_id: string }
-        Returns: Json
-      }
-      rpc_complete_recovery_assignment: {
-        Args: {
-          _assignment_id: string
-          _questions_completed?: number
-          _questions_correct?: number
-        }
-        Returns: Json
-      }
-      rpc_complete_revision: { Args: { _id: string }; Returns: undefined }
       rpc_compute_session_analytics: {
         Args: { _session_id?: string }
         Returns: Json
@@ -10010,12 +9858,17 @@ export type Database = {
           user_id: string
         }[]
       }
-      rpc_get_recovery_assignment: {
-        Args: { _assignment_id: string }
-        Returns: Json
-      }
       rpc_get_student_progression: {
         Args: { _user_id?: string }
+        Returns: Json
+      }
+      rpc_homework_decide: {
+        Args: { _decision: string; _submission_id: string }
+        Returns: Json
+      }
+      rpc_homework_delete: { Args: { _homework_id: string }; Returns: Json }
+      rpc_homework_submit: {
+        Args: { _file: Json; _homework_id: string }
         Returns: Json
       }
       rpc_invite_member: {
@@ -10185,6 +10038,19 @@ export type Database = {
         Args: { _source_id: string; _source_type: string }
         Returns: Json
       }
+      rpc_practice_bank_catalog: {
+        Args: {
+          _board: string
+          _class_level: number
+          _stream?: string
+          _subject?: string
+        }
+        Returns: {
+          chapter: string
+          questions: number
+          subject: string
+        }[]
+      }
       rpc_principal_concept_analytics: { Args: never; Returns: Json }
       rpc_principal_school_health: { Args: never; Returns: Json }
       rpc_progression_leaderboard: {
@@ -10313,6 +10179,10 @@ export type Database = {
           subject: string
           understanding: number
         }[]
+      }
+      rpc_revision_session_plan: {
+        Args: { _chapter_id: string }
+        Returns: Json
       }
       rpc_rotate_featured_battles: { Args: never; Returns: Json }
       rpc_save_battle_ai_insights: {
@@ -10494,6 +10364,10 @@ export type Database = {
         }
         Returns: string
       }
+      rpc_start_recovery_session: {
+        Args: { _chapter_id: string }
+        Returns: Json
+      }
       rpc_start_session: {
         Args: never
         Returns: {
@@ -10509,10 +10383,12 @@ export type Database = {
         Args: { _student_id: string; _uid: string }
         Returns: Json
       }
+      rpc_student_chapter_states: { Args: never; Returns: Json }
       rpc_student_concept_mastery: { Args: never; Returns: Json }
       rpc_student_improvement_plans: { Args: never; Returns: Json }
       rpc_student_performance_charts: { Args: never; Returns: Json }
-      rpc_student_recovery_zone: { Args: never; Returns: Json }
+      rpc_student_practice_analytics: { Args: never; Returns: Json }
+      rpc_student_recovery_queue: { Args: never; Returns: Json }
       rpc_student_revision_queue: { Args: never; Returns: Json }
       rpc_submit_battle_answer: {
         Args: {
@@ -10523,12 +10399,12 @@ export type Database = {
         }
         Returns: Json
       }
-      rpc_submit_recovery_answer: {
-        Args: {
-          _is_correct: boolean
-          _question_id: string
-          _student_answer: Json
-        }
+      rpc_submit_recovery_session: {
+        Args: { _practice_session_id: string; _session_id: string }
+        Returns: Json
+      }
+      rpc_submit_revision_session: {
+        Args: { _chapter_id: string; _practice_session_id: string }
         Returns: Json
       }
       rpc_super_admin_open_access: {
@@ -10557,7 +10433,15 @@ export type Database = {
         Returns: Json
       }
       rpc_teacher_doubt_dashboard: { Args: never; Returns: Json }
+      rpc_test_answer_sheet: {
+        Args: { _student_id: string; _test_id: string }
+        Returns: Json
+      }
+      rpc_test_class_marks: { Args: { _test_id: string }; Returns: Json }
       rpc_test_class_report: { Args: { _test_id: string }; Returns: Json }
+      rpc_test_leaderboard: { Args: { _test_id: string }; Returns: Json }
+      rpc_test_list_for_class: { Args: { _class_id: string }; Returns: Json }
+      rpc_test_question_breakdown: { Args: { _test_id: string }; Returns: Json }
       rpc_test_questions_for_attempt: {
         Args: { _attempt_id: string }
         Returns: {
@@ -10606,10 +10490,12 @@ export type Database = {
         }[]
       }
       same_school: { Args: { _school_id: string }; Returns: boolean }
+      school_local_date: { Args: { _at: string }; Returns: string }
       storage_object_owner_school_id: {
         Args: { _object_name: string }
         Returns: string
       }
+      store_generated_questions: { Args: { _questions: Json }; Returns: Json }
       student_class_id: { Args: { _user_id: string }; Returns: string }
       super_admin_has_access: { Args: { _school_id: string }; Returns: boolean }
       super_admin_has_any_access: { Args: never; Returns: boolean }
@@ -10684,8 +10570,6 @@ export type Database = {
         | "surprise_test"
       fee_status: "paid" | "unpaid" | "partial"
       gender_type: "male" | "female" | "other" | "unspecified"
-      homework_completion_status: "completed" | "not_completed" | "absent"
-      homework_submission_mode: "none" | "digital" | "upload"
       identifier_type: "phone" | "email"
       institution_status: "active" | "suspended" | "deleted"
       invitation_status:
@@ -10891,8 +10775,6 @@ export const Constants = {
       ],
       fee_status: ["paid", "unpaid", "partial"],
       gender_type: ["male", "female", "other", "unspecified"],
-      homework_completion_status: ["completed", "not_completed", "absent"],
-      homework_submission_mode: ["none", "digital", "upload"],
       identifier_type: ["phone", "email"],
       institution_status: ["active", "suspended", "deleted"],
       invitation_status: [

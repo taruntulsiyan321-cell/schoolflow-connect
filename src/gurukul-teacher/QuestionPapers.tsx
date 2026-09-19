@@ -111,6 +111,7 @@ const emptySectionForm = () => ({
   targetCount: "5",
   difficulty: "" as PaperDifficulty | "",
   chapters: "",
+  /** `topics.id` values, not names — the column is uuid[]. */
   topics: [] as string[],
 });
 
@@ -139,7 +140,7 @@ export default function QuestionPapers() {
    *  for, with counts. Loaded from the bank rather than typed from memory —
    *  the whole reason topic was unusable before is that nobody could guess
    *  which of thirty spellings the bank stored. */
-  const [topicOptions, setTopicOptions] = useState<{ topic: string; count: number }[]>([]);
+  const [topicOptions, setTopicOptions] = useState<{ id: string; topic: string; count: number }[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
   const [fills, setFills] = useState<Record<string, SectionFillResult>>({});
   const [generated, setGenerated] = useState<Record<string, GenerationOutcome>>({});
@@ -305,12 +306,16 @@ export default function QuestionPapers() {
     };
   }, [addingSection, ctx, openPaper?.subject, openPaper?.class_level, sectionForm.chapters]);
 
-  const toggleTopic = (topic: string) =>
+  // Toggles on the topic's ID, not its name. question_paper_sections.topic_ids
+  // is uuid[], so a picker that collected names was choosing something the
+  // section could never store — and it stored it anyway, because the generated
+  // types were stale enough to hide the column mismatch.
+  const toggleTopic = (topicId: string) =>
     setSectionForm((f) => ({
       ...f,
-      topics: f.topics.includes(topic)
-        ? f.topics.filter((t) => t !== topic)
-        : [...f.topics, topic],
+      topics: f.topics.includes(topicId)
+        ? f.topics.filter((t) => t !== topicId)
+        : [...f.topics, topicId],
     }));
 
   const addSection = () =>
@@ -329,7 +334,7 @@ export default function QuestionPapers() {
             .split(",")
             .map((c) => c.trim())
             .filter(Boolean),
-          topics: sectionForm.topics,
+          topicIds: sectionForm.topics,
         },
         sections.length,
       );
@@ -832,12 +837,12 @@ export default function QuestionPapers() {
                             </div>
                             <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                               {topicOptions.map((t) => {
-                                const on = sectionForm.topics.includes(t.topic);
+                                const on = sectionForm.topics.includes(t.id);
                                 return (
                                   <button
-                                    key={t.topic}
+                                    key={t.id}
                                     type="button"
-                                    onClick={() => toggleTopic(t.topic)}
+                                    onClick={() => toggleTopic(t.id)}
                                     aria-pressed={on}
                                     className={cn(
                                       "px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors",
@@ -855,8 +860,13 @@ export default function QuestionPapers() {
                             {sectionForm.topics.length > 0 && (
                               <div className="text-[10px] text-muted-foreground">
                                 {(() => {
+                                  // `t.id`, not `t.topic`. Both are strings, so
+                                  // the compiler accepted a name-against-id
+                                  // comparison once the picker moved to ids —
+                                  // and this count would have silently read 0
+                                  // for every selection.
                                   const available = topicOptions
-                                    .filter((t) => sectionForm.topics.includes(t.topic))
+                                    .filter((t) => sectionForm.topics.includes(t.id))
                                     .reduce((n, t) => n + t.count, 0);
                                   const want = Number(sectionForm.targetCount) || 0;
                                   return available < want

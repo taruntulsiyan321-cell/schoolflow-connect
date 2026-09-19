@@ -56,8 +56,16 @@ export type QuestionBankInsertRow = {
    * the 15 retired legacy rows that have no chapter.
    */
   chapter_id?: string | null;
-  topic?: string | null;
-  concept?: string | null;
+  // `topic` and `concept` WERE HERE and neither is a column on question_bank.
+  //
+  // The bank keys a topic through `topic_id uuid` into `topics`; the free-text
+  // pair predates that and belonged to the retired `topic_group` model. Every
+  // save from QuestionBankPage, which sent both, was refused by PostgREST for
+  // a column that does not exist — invisible until the generated types were
+  // regenerated against production on 2026-09-19.
+  //
+  // The topic a teacher types is still used: it steers GENERATION. It is not
+  // stored as text, because there is nowhere to store it.
   difficulty?: string;
   question: string;
   /**
@@ -131,8 +139,6 @@ export function buildQuestionBankInsertPayload(
       ...rest,
       subject: repairUtf8Mojibake(r.subject),
       chapter: r.chapter != null ? repairUtf8Mojibake(r.chapter) : r.chapter,
-      topic: r.topic != null ? repairUtf8Mojibake(r.topic) : r.topic,
-      concept: r.concept != null ? repairUtf8Mojibake(r.concept) : r.concept,
       question: fixUtf8Content(r.question),
       options,
       explanation:
@@ -265,7 +271,10 @@ export const QuestionBankService = {
   async listTopics(
     ctx: ServiceContext,
     input: { subject: string; classLevel: number; chapters?: string[] },
-  ): Promise<{ topic: string; count: number }[]> {
+    // The ID travels with the name. question_paper_sections.topic_ids is
+    // `uuid[]`, so a picker that only knows names cannot store what it picked
+    // — which is why the section form was writing names into a uuid column.
+  ): Promise<{ id: string; topic: string; count: number }[]> {
     assertCanConsume(ctx, "question");
     let query = getClient(toRepoContext(ctx))
       .from("question_bank")
@@ -273,7 +282,7 @@ export const QuestionBankService = {
       // 42703 on every call, so the topic list was always empty. The taxonomy
       // is topic_id -> topics.name; rows without one are dropped below rather
       // than by a filter on a column that does not exist.
-      .select("chapter, topics(name)")
+      .select("chapter, topic_id, topics(name)")
       .eq("subject", input.subject)
       .eq("class_level", input.classLevel)
       .eq("is_active", true)
@@ -283,15 +292,19 @@ export const QuestionBankService = {
     const { data, error } = await query;
     throwIfError(error, "Failed to load topics");
 
-    const map: Record<string, number> = {};
+    // Keyed by ID, not by name: two topics may share a display name across
+    // chapters, and the column stores the id.
+    const map = new Map<string, { id: string; topic: string; count: number }>();
     for (const r of data ?? []) {
-      const t = String((r as { topics?: { name?: string | null } | null }).topics?.name ?? "").trim();
-      if (!t) continue;
-      map[t] = (map[t] ?? 0) + 1;
+      const row = r as { topic_id?: string | null; topics?: { name?: string | null } | null };
+      const id = String(row.topic_id ?? "").trim();
+      const t = String(row.topics?.name ?? "").trim();
+      if (!id || !t) continue;
+      const seen = map.get(id);
+      if (seen) seen.count += 1;
+      else map.set(id, { id, topic: t, count: 1 });
     }
-    return Object.entries(map)
-      .map(([topic, count]) => ({ topic, count }))
-      .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic));
+    return [...map.values()].sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic));
   },
 
   async insert(

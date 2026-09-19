@@ -1,4 +1,5 @@
 import { ValidationFailedError, NotFoundError, TenantViolationError } from "./errors";
+import { extractAcademicStoragePath } from "@/academic/storage/academicFileUpload";
 import {
   getClient,
   schoolIdOf,
@@ -624,93 +625,81 @@ export interface SubmitHomeworkInput {
   externalLinks?: string[];
 }
 
+/**
+ * Hand in one homework, through rpc_homework_submit.
+ *
+ * ── WHAT THIS REPLACED, AND WHY IT COULD NEVER HAVE WORKED ─────────────────
+ *
+ * This upserted a row carrying `content`, `attachments`, `external_links`,
+ * `is_late`, `version`, `grade`, `marks_obtained`, `teacher_remarks`,
+ * `graded_at`, `reviewed_at` and `returned_at`. homework_submissions has NONE
+ * of them. Its columns are:
+ *
+ *     id, homework_id, student_id, status, submitted_at, created_at,
+ *     updated_at, school_id, file, decided_at, decided_by
+ *
+ * The homework model was rewritten in the database — from a text submission
+ * that gets graded, to ONE uploaded file that a teacher accepts or rejects —
+ * and the client was never migrated. Measured 2026-09-19: 146 submission rows,
+ * statuses only `accepted` and `not_submitted`, and not one `submitted`, which
+ * is the status this function wrote. Student hand-in has been failing on both
+ * surfaces that call it (/student/homework and /student/classes). The stale
+ * generated types hid it from `tsc` and `row: Record<string, unknown>` hid it
+ * from review.
+ *
+ * ── WHAT IT DOES NOW ───────────────────────────────────────────────────────
+ *
+ * Calls the database's own entry point. Everything this function used to do by
+ * hand — checking the homework is open, the deadline, whether a prior
+ * submission is locked, whose file it is — rpc_homework_submit does under
+ * `FOR SHARE` on the homework and `FOR UPDATE` on the submission, so a hand-in
+ * and the closure job cannot interleave. Re-implementing any of it here would
+ * be a second home for a rule with locks behind it.
+ *
+ * ── THE BEHAVIOUR CHANGE, STATED PLAINLY ───────────────────────────────────
+ *
+ * A note-only submission is no longer possible, and neither is an external
+ * link. The schema has nowhere to put either, and the server's own rule is
+ * "hand in exactly one image or PDF". Callers that collect a note keep
+ * collecting it; it is not stored. Only the first uploaded attachment is sent
+ * — the column holds one file object, not an array.
+ */
 export async function upsertHomeworkSubmission(
   ctx: RepoContext,
   input: SubmitHomeworkInput,
 ): Promise<HomeworkSubmissionRecord> {
-  const hasAttachments = (input.attachments?.length ?? 0) > 0;
-  const hasLinks = (input.externalLinks?.length ?? 0) > 0;
-  if (!input.content?.trim() && !hasAttachments && !hasLinks) {
+  const first = (input.attachments ?? []).find(
+    (a) => extractAcademicStoragePath(a.url) != null,
+  );
+  const path = first ? extractAcademicStoragePath(first.url) : null;
+
+  if (!first || !path) {
     throw new ValidationFailedError([
       {
-        field: "content",
+        field: "attachments",
         code: "required",
-        message: "Add a note or attach at least one file/link",
+        // Names the two cases a caller can actually be in: nothing attached,
+        // or something attached that is not an upload (an external link has
+        // no storage path, so the server could never verify it).
+        message:
+          (input.externalLinks?.length ?? 0) > 0 || (input.attachments?.length ?? 0) > 0
+            ? "Upload the image or PDF itself — a link cannot be handed in"
+            : "Attach the one image or PDF you are handing in",
       },
     ]);
   }
 
-  const schoolId = schoolIdOf(ctx);
-  const hw = await getHomework(ctx, input.homeworkId);
-  if (hw.status !== "published" && hw.status !== "active") {
-    throw new ValidationFailedError([
-      { field: "homeworkId", code: "invalid", message: "Homework is not open for submission" },
-    ]);
-  }
-
-  const now = new Date();
-  let isLate = false;
-  if (hw.dueDate) {
-    const due = new Date(`${hw.dueDate}T${hw.dueTime ?? "23:59:59"}`);
-    isLate = now.getTime() > due.getTime();
-  }
-
-  const { data: existing } = await getClient(ctx)
-    .from("homework_submissions")
-    .select("id, version, status")
-    .eq("homework_id", input.homeworkId)
-    .eq("student_id", input.studentId)
-    .maybeSingle();
-
-  if (existing && ["graded", "reviewed", "completed"].includes(String(existing.status))) {
-    throw new ValidationFailedError([
-      {
-        field: "status",
-        code: "locked",
-        message: "Graded submissions cannot be replaced",
-      },
-    ]);
-  }
-
-  const status = isLate ? "late" : "submitted";
-  const priorStatus = existing ? String(existing.status) : null;
-  // First real turn-in from pending keeps version 1; replace/resubmit bumps.
-  const version =
-    !existing || priorStatus === "pending"
-      ? Number(existing?.version ?? 1)
-      : Number(existing.version ?? 1) + 1;
-
-  const row: Record<string, unknown> = {
-    homework_id: input.homeworkId,
-    student_id: input.studentId,
-    content: input.content,
-    status,
-    is_late: isLate,
-    version,
-    attachments: input.attachments ?? [],
-    external_links: input.externalLinks ?? [],
-    submitted_at: now.toISOString(),
-    school_id: schoolId,
-    updated_at: now.toISOString(),
-  };
-  // Clear prior review fields on replace / return→resubmit
-  if (existing && priorStatus !== "pending") {
-    row.grade = null;
-    row.marks_obtained = null;
-    row.teacher_remarks = null;
-    row.graded_at = null;
-    row.reviewed_at = null;
-    row.returned_at = null;
-  }
-
-  const { data, error } = await getClient(ctx)
-    .from("homework_submissions")
-    .upsert(row as never, { onConflict: "homework_id,student_id" })
-    .select("*")
-    .single();
-
+  const { data, error } = await getClient(ctx).rpc("rpc_homework_submit", {
+    _homework_id: input.homeworkId,
+    _file: {
+      path,
+      name: first.name,
+      mime: first.mimeType ?? null,
+      size: first.sizeBytes ?? null,
+    },
+  });
   throwIfError(error, "Failed to submit homework");
-  return mapSubmission(data as SubmissionRow);
+  return mapSubmission((data ?? {}) as SubmissionRow);
 }
 
 export interface ReviewHomeworkInput {

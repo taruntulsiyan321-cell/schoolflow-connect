@@ -93,9 +93,18 @@ export interface QuestionPaperSectionRow {
   target_count: number;
   difficulty: PaperDifficulty | null;
   chapters: string[];
-  /** Canonical topics (`question_bank.topic_group`). EMPTY MEANS THE WHOLE
-   *  CHAPTER SET, never "no topics" — the same convention `chapters` uses. */
-  topics: string[];
+  /**
+   * `topics.id` values to narrow to. EMPTY MEANS THE WHOLE CHAPTER SET, never
+   * "no topics" — the same convention `chapters` uses.
+   *
+   * WAS `topics: string[]`, described as "canonical topics
+   * (question_bank.topic_group)". Both halves of that are retired:
+   * topic_group is gone from question_bank, and the column here is
+   * `topic_ids uuid[]`, not a text array of names. The row type therefore
+   * named a column that does not exist and the insert below wrote it, which
+   * the stale generated types hid until they were regenerated on 2026-09-19.
+   */
+  topic_ids: string[];
 }
 
 export interface QuestionPaperQuestionRow {
@@ -154,8 +163,8 @@ export interface CreateSectionInput {
   targetCount: number;
   difficulty?: PaperDifficulty | null;
   chapters?: string[];
-  /** Canonical topics to narrow to. Omitted or empty = the whole chapter set. */
-  topics?: string[];
+  /** `topics.id` values to narrow to. Omitted or empty = the whole chapter set. */
+  topicIds?: string[];
 }
 
 /**
@@ -257,7 +266,7 @@ export const QuestionPaperService = {
         target_count: input.targetCount,
         difficulty: input.difficulty ?? null,
         chapters: input.chapters ?? [],
-        topics: input.topics ?? [],
+        topic_ids: input.topicIds ?? [],
       })
       .select("*")
       .single();

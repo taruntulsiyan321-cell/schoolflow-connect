@@ -218,6 +218,28 @@ function studentDisplayStatus(
  * Teacher owns writes (class-scoped); Student submits; Parent/Principal/Admin consume.
  * All panel mutations must go through here (never direct Supabase from UI).
  */
+/**
+ * Handed in after the deadline, from the two timestamps that decide it.
+ *
+ * REPLACES a stored `is_late` flag that this schema does not have. A derived
+ * answer is also the better one: a flag written at hand-in time cannot follow
+ * a deadline the teacher later moves, and this comparison always can.
+ *
+ * Neither timestamp present is NOT late. An un-handed-in submission has no
+ * submitted_at, and homework with no closes_at has no deadline to be late
+ * against — calling either of those late would invent a fault.
+ */
+function isLateSubmission(
+  submittedAt: string | null | undefined,
+  closesAt: string | null | undefined,
+): boolean {
+  if (!submittedAt || !closesAt) return false;
+  const handed = new Date(submittedAt).getTime();
+  const due = new Date(closesAt).getTime();
+  if (!Number.isFinite(handed) || !Number.isFinite(due)) return false;
+  return handed > due;
+}
+
 export const HomeworkService = {
   async get(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
     assertCanConsume(ctx, "homework");
@@ -428,94 +450,52 @@ export const HomeworkService = {
   },
 
   /**
-   * Publish homework/tests whose scheduled_publish_at is due.
-   * Prefers RPC `publish_due_scheduled_homework(_school_id)`; falls back to direct update.
-   * Callable by any homework consumer (students included) so due work appears without cron.
+   * Publish homework and tests whose scheduled_publish_at has passed.
+   *
+   * ── WHAT THIS WAS DOING ────────────────────────────────────────────────
+   *
+   * It called `publish_due_scheduled_homework(_school_id)`, which does not
+   * exist on this database — every homework, test and class page that calls
+   * this took a 404 (PGRST202) on load, then ran a 60-line client-side
+   * fallback that swept `homework` and `tests` itself. The fallback is the
+   * part that mattered and the part nobody could see was doing the work.
+   *
+   * The live function is `publish_due_scheduled_work()`, with no arguments,
+   * and pg_cron runs it every minute (`publish-due-scheduled-work`). So the
+   * fallback was also a SECOND HOME for a job the database already does on a
+   * schedule — and a weaker one: it updates rows from the browser under the
+   * caller's RLS, where the cron runs the real thing.
+   *
+   * ── WHAT IT DOES NOW ───────────────────────────────────────────────────
+   *
+   * Calls the function that exists. Keeping the call at all — rather than
+   * leaving it to the cron — is deliberate: a student opening the page ten
+   * seconds after a deadline should see the work, not wait out the minute.
+   *
+   * It returns 0 rather than throwing when the sweep fails. Every caller
+   * already writes `.catch(() => 0)`, because publishing due work is a
+   * courtesy on the way to rendering a list, never the thing the page is for.
+   *
+   * STAFF ONLY. The function raises "Only school staff may publish scheduled
+   * work" for a student, so the three student surfaces that used to call this
+   * (Assignments, Tests, StudentHomeworkPage) no longer do — they took a
+   * guaranteed 403 on every load. For them the cron is the mechanism.
    */
   async publishDueScheduled(ctx: ServiceContext): Promise<number> {
     assertCanConsume(ctx, "homework");
-    const repo = toRepoContext(ctx);
-    const schoolId = schoolIdOf(repo);
-    const client = getClient(repo);
+    const client = getClient(toRepoContext(ctx));
 
-    const { data: rpcData, error: rpcError } = await (client.rpc as any)(
-      "publish_due_scheduled_homework",
-      { _school_id: schoolId },
-    );
-    if (!rpcError) {
-      const n = typeof rpcData === "number" ? rpcData : Number(rpcData ?? 0);
-      if (n > 0) {
-        afterHomeworkWrite(ctx, {
-          domains: ["homework", "test", "profile"],
-          source: "HomeworkService.publishDueScheduled",
-        });
-      }
-      return n;
-    }
+    const { data, error } = await client.rpc("publish_due_scheduled_work");
+    if (error) return 0;
 
-    const now = new Date().toISOString();
-    const { data: dueHw, error: listErr } = await client
-      .from("homework")
-      .select("id")
-      .eq("school_id", schoolId)
-      .eq("status", "scheduled")
-      .lte("scheduled_publish_at", now);
-    throwIfError(listErr, "Failed to list due scheduled homework");
-
-    const hwIds = (dueHw ?? []).map((r) => String(r.id));
-    if (hwIds.length > 0) {
-      const { error: updErr } = await client
-        .from("homework")
-        .update({
-          status: "published",
-          published_at: now,
-          updated_at: now,
-        } as never)
-        .eq("school_id", schoolId)
-        .in("id", hwIds);
-      throwIfError(updErr, "Failed to publish due scheduled homework");
-    }
-
-    const { data: dueTests, error: testListErr } = await client
-      .from("tests")
-      .select("id")
-      .eq("school_id", schoolId)
-      .eq("status", "scheduled")
-      .lte("scheduled_publish_at", now);
-    // Optional column/school_id may be missing on older schemas — ignore list failures.
-    let testIds: string[] = [];
-    if (!testListErr) {
-      testIds = (dueTests ?? []).map((r) => String(r.id));
-      if (testIds.length > 0) {
-        // `is_published` was removed here. 7.5 dropped that boolean from
-        // `tests` deliberately — it was the same fact as `status` twice and
-        // drifts the moment one is written without the other (G9,
-        // `isPublishedFlag` in testService.ts). `tests` has no such column, so
-        // this write was naming one that does not exist.
-        const { error: testUpdErr } = await client
-          .from("tests")
-          .update({
-            status: "published",
-            published_at: now,
-            updated_at: now,
-          } as never)
-          .eq("school_id", schoolId)
-          .in("id", testIds);
-        // This used to be an unchecked `await`. A failure here meant scheduled
-        // TESTS silently never published while homework did, and the caller was
-        // told the whole sweep had succeeded.
-        throwIfError(testUpdErr, "Failed to publish due scheduled tests");
-      }
-    }
-
-    const n = hwIds.length + testIds.length;
+    const n = typeof data === "number" ? data : Number(data ?? 0);
     if (n > 0) {
       afterHomeworkWrite(ctx, {
         domains: ["homework", "test", "profile"],
         source: "HomeworkService.publishDueScheduled",
       });
     }
-    return n;
+    return Number.isFinite(n) ? n : 0;
   },
 
   async unpublish(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
@@ -717,11 +697,17 @@ export const HomeworkService = {
         client.from("classes").select("id, name, section").eq("school_id", schoolId),
         (client as any)
           .from("homework")
-          .select("id, class_id, status, created_by, work_kind")
+          // closes_at joins the select so lateness can be DERIVED — see below.
+          .select("id, class_id, status, created_by, work_kind, closes_at")
           .eq("school_id", schoolId),
         client
           .from("homework_submissions")
-          .select("id, homework_id, status, is_late")
+          // `is_late` is NOT a column on homework_submissions and never was on
+          // this schema. Selecting it made PostgREST refuse the whole query, so
+          // `subs` came back null and every figure this summary produces —
+          // submitted, late, expected — silently read zero for the whole
+          // school. The stale generated types hid it until 2026-09-19.
+          .select("id, homework_id, status, submitted_at")
           .eq("school_id", schoolId),
       ]);
     throwIfError(cErr, "Failed to list classes");
@@ -776,7 +762,7 @@ export const HomeworkService = {
         submitted += ss.filter((x) =>
           (COMPLETE_SUBMISSION_STATUSES as readonly string[]).includes(String(x.status)),
         ).length;
-        late += ss.filter((x) => x.is_late || x.status === "late").length;
+        late += ss.filter((x) => isLateSubmission(x.submitted_at, h.closes_at)).length;
       }
       const students = countByClass.get(c.id) ?? 0;
       const expectedClass = students * pub.length;

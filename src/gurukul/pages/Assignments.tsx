@@ -38,7 +38,12 @@ export default function Assignments() {
 
   const reload = async () => {
     if (!ctx || !studentId) return;
-    await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
+    // NO publishDueScheduled HERE. publish_due_scheduled_work() refuses a
+    // student — "Only school staff may publish scheduled work" — so this call
+    // was a guaranteed 403 on every load of a student page. The pg_cron job
+    // publish-due-scheduled-work runs it every minute, which is what makes due
+    // work appear for a student; asking the browser to do it was never the
+    // mechanism, only a fallback from before the cron existed.
     const list = await HomeworkService.listForStudent(ctx, studentId);
     setRows(list);
   };
@@ -98,8 +103,13 @@ export default function Assignments() {
 
   const submit = async (homeworkId: string) => {
     if (!ctx || !studentId) return;
-    if (!content.trim() && attachments.length === 0) {
-      setActionError("Add a note or attach at least one file/link before sending");
+    // ONE UPLOADED FILE, which is what homework_submissions can hold: a
+    // single `file` object. A note has no column and neither does a link, so
+    // "a note OR a file" promised something the hand-in could not keep — and
+    // the server refuses it in as many words ("Attach the one image or PDF
+    // you uploaded"). Better to say so here than to fail after sending.
+    if (attachments.length === 0) {
+      setActionError("Attach the image or PDF you are handing in");
       return;
     }
     setSaving(true);
@@ -305,8 +315,8 @@ export default function Assignments() {
                           onChange={(e) => setContent(e.target.value)}
                           placeholder={
                             isReturned
-                              ? "Revise notes (optional if attaching files)…"
-                              : "Notes (optional if attaching files)"
+                              ? "Revise notes (not stored — attach the file itself)…"
+                              : "Notes (not stored — attach the file itself)"
                           }
                           className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[70px]"
                         />

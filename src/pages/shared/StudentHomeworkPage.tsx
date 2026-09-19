@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { NotebookPen, Clock, CheckCircle, Send, Calendar, BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -24,6 +25,7 @@ import { toErrorMessage } from "@/lib/presentation";
  * Embedded under Classes or standalone; no mock assignments.
  */
 export default function StudentHomeworkPage({ embedded = false }: { embedded?: boolean }) {
+  const navigate = useNavigate();
   const { ctx, ready, studentId: ctxStudentId } = useAcademicContext();
   const liveVersion = useAcademicLive("homework");
   const [rows, setRows] = useState<StudentHomeworkRow[]>([]);
@@ -48,7 +50,12 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
       try {
         setStudentId(ctxStudentId);
         setNoClass(false);
-        await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
+        // NO publishDueScheduled HERE. publish_due_scheduled_work() refuses a
+        // student — "Only school staff may publish scheduled work" — so this call
+        // was a guaranteed 403 on every load of a student page. The pg_cron job
+        // publish-due-scheduled-work runs it every minute, which is what makes due
+        // work appear for a student; asking the browser to do it was never the
+        // mechanism, only a fallback from before the cron existed.
         const list = await HomeworkService.listForStudent(ctx, ctxStudentId);
         if (!cancelled) setRows(list);
       } catch (e) {
@@ -63,28 +70,24 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
     };
   }, [ready, ctx, ctxStudentId, liveVersion]);
 
-  const submitHomework = async (hwId: string) => {
-    if (!studentId) return;
-    if (!ctx) return toast.error("Sign in required");
-    const content = submitText[hwId]?.trim() || "";
-    if (!content) return toast.error("Enter your submission before sending");
-    setSubmitting(hwId);
-
-    try {
-      const submission = await HomeworkService.submit(
-        { ...ctx, studentId },
-        { homeworkId: hwId, studentId, content },
-      );
-      toast.success(
-        submission.version > 1 ? "Homework resubmitted!" : "Homework submitted!",
-      );
-      const list = await HomeworkService.listForStudent(ctx, studentId);
-      setRows(list);
-      setSubmitText((p) => ({ ...p, [hwId]: "" }));
-    } catch (err) {
-      toast.error(toErrorMessage(err, "Failed to submit"));
-    }
-    setSubmitting(null);
+  /**
+   * THIS SURFACE CANNOT HAND IN, and it now says so instead of failing.
+   *
+   * It collects a text note. homework_submissions holds one uploaded file and
+   * no text at all — the model was rewritten in the database from "a
+   * submission that gets graded" to "one image or PDF a teacher accepts", and
+   * rpc_homework_submit refuses anything else. So every press of this button
+   * produced a generic "Failed to submit" toast.
+   *
+   * The file picker lives on /student/homework, which is the route the sidebar
+   * points at; this page is reached only through /student/classes. Sending the
+   * student there is the honest answer, and it is a stop-gap: the real fix is
+   * for this page to carry the same picker or to stop offering the button,
+   * and that is a homework change rather than a types one.
+   */
+  const submitHomework = (_hwId: string) => {
+    toast.info("Hand in from the Homework page — it takes the image or PDF itself.");
+    navigate("/student/homework");
   };
 
   if (showLoading(loading)) {
