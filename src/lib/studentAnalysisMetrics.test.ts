@@ -10,7 +10,6 @@ import {
   deriveMonthComparison,
   scoreAxisDomain,
   deriveImprovingTopics,
-  deriveChapterRows,
   deriveSubjectRows,
 } from "@/lib/studentAnalysisMetrics";
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
@@ -96,19 +95,6 @@ describe("studentAnalysisMetrics", () => {
     expect(trendState([60, 60, 40, 40]).state).toBe("worsening");
     // Exactly at the threshold counts as movement, not as stuck.
     expect(trendState([40, 40, 50, 50]).state).toBe("improving");
-  });
-
-  it("gives every derived chapter row a trend state", () => {
-    // The fallback path builds rows with no session list behind them. It used
-    // to emit `trend: null` and nothing else, and a `r is DerivedChapterRow`
-    // filter predicate hid the missing field from the typechecker.
-    const rows = deriveChapterRows([], [], {
-      weak_topics: [{ subject: "Mathematics", chapter: "Integrals", topic: "Integrals", accuracy: 40 }],
-    } as never);
-    expect(rows.length).toBeGreaterThan(0);
-    for (const r of rows) {
-      expect(r.trendState).toBe("not_enough_data");
-    }
   });
 
   it("derives per-subject speed from sessions", () => {
@@ -240,125 +226,6 @@ describe("studentAnalysisMetrics", () => {
     expect(improving.some((t) => t.topic === "Integration")).toBe(false);
   });
 
-  it("chapter accuracy uses correct/total attempts, not mastery as completion", () => {
-    const rows = deriveChapterRows(
-      [
-        {
-          subject: "Math",
-          chapter: "Limits",
-          concept: "Limits",
-          mastery_score: 90,
-          total_attempts: 10,
-          correct_attempts: 5,
-          recovery_attempts: 0,
-          mistake_count: 2,
-        },
-      ],
-      [],
-    );
-    expect(rows[0].accuracy).toBe(50);
-    // `questions` is the attempt count itself. It replaced `practiceDepth`,
-    // which was min(100, attempts / 5 * 100) and which the screen rendered as
-    // "% Practice" beside a progress bar — a fifth of five attempts drawn as a
-    // fifth of the chapter.
-    expect(rows[0].questions).toBe(10);
-    expect(rows[0].subject).toBe("Mathematics");
-  });
-
-  it("deriveChapterRows gives one card per chapter, not one per concept", () => {
-    // THE PRODUCTION DEFECT, IN MINIATURE. concept_mastery holds a row per
-    // concept; this mapped them one-to-one onto cards headed "Chapter by
-    // chapter". Measured for one student: 20 concept rows over 6 chapters
-    // produced 12 cards, Polynomials six of them with six different
-    // accuracies, and three whole chapters cut off by the slice.
-    const concept = (chapter: string, name: string, attempts: number, correct: number) => ({
-      subject: "Math",
-      chapter,
-      concept: name,
-      mastery_score: 50,
-      total_attempts: attempts,
-      correct_attempts: correct,
-      recovery_attempts: 0,
-      mistake_count: 0,
-    });
-    const rows = deriveChapterRows(
-      [
-        concept("Polynomials", "Zeroes of polynomial", 14, 5),
-        concept("Polynomials", "Degree and Value", 5, 1),
-        concept("Polynomials", "Algebraic Identities", 3, 1),
-        concept("Arithmetic Progressions", "nth Term of an AP", 19, 4),
-        concept("Arithmetic Progressions", "Word Problems on AP", 5, 0),
-      ],
-      [],
-    );
-
-    expect(rows).toHaveLength(2);
-    const poly = rows.find((r) => r.chapter === "Polynomials");
-    const ap = rows.find((r) => r.chapter === "Arithmetic Progressions");
-    // Pooled over the chapter: 7 correct of 22, not the mean of 36/20/33.
-    expect(poly).toMatchObject({ questions: 22, accuracy: 32 });
-    // 4 of 24.
-    expect(ap).toMatchObject({ questions: 24, accuracy: 17 });
-  });
-
-  it("deriveChapterRows leaves out a chapter nobody has attempted", () => {
-    // concept_mastery carries rows at total_attempts = 0. The old fallback
-    // scored them by mastery_score — which is 0 for an untouched concept — so
-    // the grid drew "Needs attention · 0% Accuracy" for five English chapters
-    // this student had never opened, and the weakest-first ordering put all
-    // five at the top of the tab.
-    const row = (chapter: string, attempts: number, correct: number) => ({
-      subject: "Math",
-      chapter,
-      concept: `${chapter} concept`,
-      mastery_score: 0,
-      total_attempts: attempts,
-      correct_attempts: correct,
-      recovery_attempts: 0,
-      mistake_count: 0,
-    });
-    const rows = deriveChapterRows(
-      [row("Untouched", 0, 0), row("Attempted", 10, 3)],
-      [],
-    );
-
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ chapter: "Attempted", accuracy: 30 });
-    // Not merely absent from the top — absent. A 0% card is a claim.
-    expect(rows.map((r) => r.chapter)).not.toContain("Untouched");
-  });
-
-  it("deriveChapterRows keeps the weakest chapters when it has to cap the grid", () => {
-    // The cap used to cut in whatever order the concept rows arrived, which
-    // is how a student's three best-known chapters vanished from the grid
-    // while their weakest appeared six times. §10.8 forbids a list filtered
-    // to the strongest; surviving a cap weakest-first is the opposite.
-    //
-    // STRONGEST FIRST on the way in — 70% down to 0% — because that ordering
-    // is what lets this test fail. Fed weakest-first, an unsorted
-    // `.slice(0, 12)` would keep the weakest by accident and these assertions
-    // would pass against the defect they exist to catch.
-    const rows = deriveChapterRows(
-      Array.from({ length: 15 }, (_, i) => ({
-        subject: "Math",
-        chapter: `Chapter ${String.fromCharCode(65 + i)}`,
-        concept: `Concept ${i}`,
-        mastery_score: 50,
-        total_attempts: 20,
-        correct_attempts: 14 - i,
-        recovery_attempts: 0,
-        mistake_count: 0,
-      })),
-      [],
-    );
-    expect(rows).toHaveLength(12);
-    expect(rows[0].accuracy).toBe(0);
-    // The three strongest — 70%, 65%, 60% — are the ones dropped.
-    for (const dropped of [70, 65, 60]) {
-      expect(rows.map((r) => r.accuracy)).not.toContain(dropped);
-    }
-  });
-
   it("deriveSubjectRows collapses Maths aliases and drops Subject/Daily", () => {
     const rows = deriveSubjectRows(
       [
@@ -385,39 +252,6 @@ describe("studentAnalysisMetrics", () => {
     expect(rows[0].trendState).toBe("improving");
   });
 
-  it("deriveChapterRows omits generic Topic/Daily/Subject cards", () => {
-    const rows = deriveChapterRows(
-      [
-        {
-          subject: "Subject",
-          chapter: "Topic",
-          concept: "Daily",
-          mastery_score: 10,
-          total_attempts: 4,
-          correct_attempts: 1,
-          recovery_attempts: 0,
-          mistake_count: 3,
-        },
-        {
-          subject: "Accountancy",
-          chapter: "Cash Book",
-          concept: "Cash Book",
-          mastery_score: 70,
-          total_attempts: 5,
-          correct_attempts: 4,
-          recovery_attempts: 0,
-          mistake_count: 1,
-        },
-      ],
-      [],
-    );
-    expect(rows).toHaveLength(1);
-    expect(rows[0].chapter).toMatch(/Cash Book/i);
-    expect(rows[0].subject).toBe("Accountancy");
-  });
-});
-
-describe("analyticsDerived honesty", () => {
   it("classifyMistakes does not invent calc/rushed percentages", () => {
     const aggregates: MistakeTopicAggregate[] = [
       {

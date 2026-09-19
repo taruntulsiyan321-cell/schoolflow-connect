@@ -66,8 +66,25 @@ describe("rule 11 — Analysis touches practice tables only", () => {
     const keys = TABS.map((t) => t.key) as string[];
     expect(keys).toContain("practice");
     expect(SOURCE).toContain('tab === "practice"');
-    expect(SOURCE).toContain("useConceptMastery");
+    // NAMED SOURCES, and they changed. This asserted `useConceptMastery`,
+    // which is exactly the trap a guard written against an implementation
+    // falls into: concept_mastery was removed from this page deliberately —
+    // it is a DERIVED table already caught disagreeing with the attempts it is
+    // built from — and the guard then failed a correct change.
+    //
+    // What the guard is for is that the page still reads real practice data,
+    // so it names the hooks that carry it now. It still fails if they go.
+    expect(SOURCE).toContain("useStudentPracticeAnalytics");
     expect(SOURCE).toContain("useStudentPerformanceCharts");
+    expect(SOURCE).toContain("useAnalysisPageData");
+  });
+
+  it("reads no attendance, which practice does not produce", () => {
+    // The last school-data figure on a practice-only page. It was a measured
+    // number, which made it honest but not relevant: a student reading their
+    // practice analysis cannot act on their attendance here, and their
+    // attendance surface already shows it.
+    expect(SOURCE).not.toContain("attendance_pct");
   });
 
   it("blends no two rates into one field (§4.2b)", () => {

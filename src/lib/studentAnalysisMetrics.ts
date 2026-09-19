@@ -256,178 +256,21 @@ export function deriveSubjectRows(
   });
 }
 
-export type DerivedChapterRow = {
-  chapter: string;
-  subject: string;
-  // `practiceDepth` WENT FROM HERE. It was min(100, attempts / 5 * 100) —
-  // progress toward MIN_ATTEMPTS_FOR_ACCURACY — and Analysis renamed it
-  // `completion`, printed it as "20% Practice" and drew it as a full-width
-  // progress bar under the chapter's name. A student reads that as "I have
-  // covered a fifth of this chapter". It was never syllabus coverage, the
-  // type comment said so, and the screen said the opposite.
-  //
-  // `questions` below is the same fact without the arithmetic: the number of
-  // attempts, which is what the card shows now.
-  accuracy: number;
-  questions: number;
-  /** Movement in accuracy points. Null unless the §6.4 floor is met. */
-  trend: number | null;
-  /** §6.4. Distinguishes "steady" from "not enough data"; trend alone cannot. */
-  trendState: TrendState;
-  status: "ready" | "practice-more" | "needs-work";
-};
-
-export function deriveChapterRows(
-  mastery: ConceptMasteryItem[],
-  sessions: PracticeSessionSummary[],
-  snapshot?: AcademicSnapshot | null,
-): DerivedChapterRow[] {
-  const byChapter = new Map<string, PracticeSessionSummary[]>();
-  for (const sess of [...sessions].sort(
-    (a, b) => new Date(a.finished_at).getTime() - new Date(b.finished_at).getTime(),
-  )) {
-    const subjKey = subjectSessionKey(sess.subject);
-    const chapterLabel = preferRealAcademicLabel(sess.chapter);
-    if (!subjKey || !chapterLabel) continue;
-    const key = `${subjKey}::${chapterLabel.toLowerCase()}`;
-    const list = byChapter.get(key) ?? [];
-    list.push(sess);
-    byChapter.set(key, list);
-  }
-
-  // ── ONE CARD PER CHAPTER. ────────────────────────────────────────────────
-  //
-  // This mapped concept_mastery rows ONE TO ONE onto cards, under the heading
-  // "Chapter by chapter", taking `chapter ?? concept` as the card's title and
-  // then slicing the first twelve. concept_mastery holds a row per CONCEPT,
-  // so measured for one student on 2026-09-17:
-  //
-  //     20 concept rows across 6 chapters  ->  12 cards:
-  //       Polynomials             x6  (0%, 40%, 40%, 20%, 36%, 33%)
-  //       Arithmetic Progressions x4
-  //       Probability             x1
-  //       ...and Introduction to Trigonometry (94%), Quadratic Equations
-  //       (88%) and Pair of Linear Equations (42%) shown NOWHERE, cut off by
-  //       the slice.
-  //
-  // So the student saw one chapter six times with six different accuracies,
-  // and three of their six chapters not at all. Grouping is not a display
-  // nicety here: the ungrouped figures are per-concept numbers wearing a
-  // chapter's name, which is the same level confusion as `c.chapter AS topic`
-  // in _weak_topics_for_user, in the other direction.
-  //
-  // Attempts and correct answers are SUMMED and the rate taken once over the
-  // totals — pooled, never the mean of the concepts' rates.
-  const byChapterKey = new Map<
-    string,
-    { chapter: string; subject: string; attempts: number; correct: number; masteryScores: number[] }
-  >();
-  for (const m of mastery) {
-    const chapterRaw = preferRealAcademicLabel(m.chapter, m.concept);
-    const subjectRaw = preferRealAcademicLabel(m.subject);
-    if (!chapterRaw || !subjectRaw) continue;
-    const chapter = displayChapter(chapterRaw) || chapterRaw;
-    const subjectCanon = normalizeSubjectName(subjectRaw) || subjectRaw;
-    const subject = displaySubject(subjectCanon) || subjectCanon;
-    if (!chapter || !subject || isGenericAcademicLabel(chapter) || isGenericAcademicLabel(subject)) {
-      continue;
-    }
-    const key = `${subject.toLowerCase()}::${chapter.toLowerCase()}`;
-    const entry = byChapterKey.get(key) ?? {
-      chapter,
-      subject,
-      attempts: 0,
-      correct: 0,
-      masteryScores: [] as number[],
-    };
-    entry.attempts += m.total_attempts ?? 0;
-    entry.correct += m.correct_attempts ?? 0;
-    entry.masteryScores.push(m.mastery_score);
-    byChapterKey.set(key, entry);
-  }
-
-  const fromMastery = [...byChapterKey.values()]
-    // A CHAPTER NOBODY HAS ATTEMPTED HAS NO ACCURACY.
-    //
-    // concept_mastery carries rows at total_attempts = 0 — measured for one
-    // student, 9 of them, every one English. The old fallback gave those rows
-    // `Math.round(mastery_score)`, which is 0 for an untouched concept, so the
-    // grid drew five chapters reading "Needs attention · 0% Practice · 0%
-    // Accuracy" for chapters the student has never opened. That is 0% invented
-    // out of an absence — the same defect as scoring an unattempted session
-    // zero — and it carries a JUDGEMENT ("needs attention") that G7 says is
-    // not made on one attempt, let alone none.
-    //
-    // The slice used to hide them by accident. Ordering weakest-first, which
-    // is what stops a cap dropping the chapters that matter, put all five at
-    // the TOP of the tab instead. They are not weak; they are unmeasured, and
-    // "Topics yet to begin" is the panel that says so.
-    .filter((entry) => entry.attempts > 0)
-    .map((entry) => {
-      const accuracy = Math.round((100 * entry.correct) / entry.attempts);
-      const key = `${entry.subject.toLowerCase()}::${entry.chapter.toLowerCase()}`;
-      const sessList = byChapter.get(key) ?? [];
-      const { state: chapterTrendState, deltaPoints } = trendState(sessList.map(accuracyOf));
-      return {
-        chapter: entry.chapter,
-        subject: entry.subject,
-        accuracy,
-        questions: entry.attempts,
-        trend: deltaPoints,
-        trendState: chapterTrendState,
-        // Converged: 75/55 were this file's own boundaries for the same figure
-        // the subject rows above band at 40/60/70/80.
-        status: (["high", "near"].includes(accuracyBand(accuracy))
-          ? "ready"
-          : accuracyBand(accuracy) === "building"
-            ? "practice-more"
-            : "needs-work") as DerivedChapterRow["status"],
-      };
-    })
-    // Weakest first. The slice below is a cap on how much the grid shows, and
-    // an arbitrary order made it cut whichever chapters happened to sort last
-    // — which is how three chapters vanished. §10.8 forbids a list filtered to
-    // the strongest; ordering so the weakest survive a cap is the opposite.
-    .sort((a, b) => a.accuracy - b.accuracy)
-    .slice(0, 12);
-  if (fromMastery.length > 0) return fromMastery;
-
-  // This is the FALLBACK chapter list, used only when per-chapter mastery is
-  // empty. It used to be [...strong, ...weak]; strong_topics no longer exists
-  // on the snapshot, so it is the weak half alone.
-  //
-  // Not the mastery ruling applied backwards: that ruling keeps the FIGURE for
-  // every subject including the weak ones, and the primary path above still
-  // returns every chapter with its accuracy. What is gone is a list assembled
-  // by selecting the best.
-  const weak = snapshot?.weak_topics ?? [];
-  return [...weak]
-    .map((t) => {
-      const chapterRaw = preferRealAcademicLabel(t.topic, t.chapter);
-      const subjectRaw = preferRealAcademicLabel(t.subject);
-      if (!chapterRaw || !subjectRaw) return null;
-      const chapter = displayChapter(chapterRaw) || displayTopic(chapterRaw) || chapterRaw;
-      const subjectCanon = normalizeSubjectName(subjectRaw) || subjectRaw;
-      const subject = displaySubject(subjectCanon) || subjectCanon;
-      if (!chapter || !subject || isGenericAcademicLabel(chapter) || isGenericAcademicLabel(subject)) {
-        return null;
-      }
-      const acc = Math.round(t.accuracy);
-      return {
-        chapter,
-        subject,
-        accuracy: acc,
-        questions: 0,
-        // No session list reaches this fallback, so there is nothing to
-        // derive a trend from — not_enough_data, never a silent "steady".
-        trend: null as number | null,
-        trendState: "not_enough_data" as TrendState,
-        status: (acc >= 75 ? "ready" : acc >= 55 ? "practice-more" : "needs-work") as DerivedChapterRow["status"],
-      };
-    })
-    .filter((r): r is DerivedChapterRow => r != null)
-    .slice(0, 12);
-}
+// `DerivedChapterRow` and `deriveChapterRows` WERE HERE, and they are gone
+// with the table they read.
+//
+// They grouped concept_mastery into the Analysis chapter grid. concept_mastery
+// is a DERIVED table this codebase has caught disagreeing with the attempts it
+// is derived from — measured on one student, 200 attempts recorded against 120
+// that exist — so the grid was the one panel on the page structurally unable
+// to agree with the accuracy tile above it. rpc_student_practice_analytics
+// (20261039000000) does the same grouping over question_attempts, which every
+// other figure on the page already counts, and brings topic time, difficulty
+// and effort that concept_mastery could not answer at all.
+//
+// Removed rather than left importable: this had no caller once Analysis
+// stopped using it, and a shared derivation kept alive only by its own tests
+// is the next session's second home for a decision already made.
 
 export function deriveImprovingTopics(
   practiceTrend: PracticeTrendPoint[],
