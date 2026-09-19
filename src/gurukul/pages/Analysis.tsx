@@ -18,6 +18,7 @@ import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { useStudentPracticeAnalytics } from "@/hooks/useStudentPracticeAnalytics";
 import { accuracyBand, STREAK_ESTABLISHED, STREAK_MILESTONE } from "@/academic/metrics/bands";
 import {
   TREND_DELTA_POINTS,
@@ -25,7 +26,6 @@ import {
   type TrendState,
 } from "@/academic/recovery/constants";
 import { RecoveryEngineService, type ChapterStateRow, type RecoveryQueueRow } from "@/academic";
-import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildMilestones, consistencyWeeks, consistencyRatio } from "@/components/student/analytics/wisdom/analyticsDerived";
 import { useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -38,7 +38,6 @@ import {
   buildWeekComparison,
   buildSubjectRadarPoints,
   deriveSubjectRows,
-  deriveChapterRows,
   deriveImprovingTopics,
   deriveSpeedStats,
   deriveMonthComparison,
@@ -59,9 +58,10 @@ import {
 } from "@/lib/learningMetrics";
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { toErrorMessage } from "@/lib/presentation";
+import { formatLastSeen } from "@/lib/analyticsInsights";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { pluralise } from "@/lib/plural";
-import { accuracyWhenMeaningful, mayBeJudged } from "@/academic/metrics/thresholds";
+import { accuracyWhenMeaningful, mayBeJudged, MIN_ATTEMPTS_FOR_ACCURACY } from "@/academic/metrics/thresholds";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "hsl(var(--primary))",
@@ -131,7 +131,24 @@ export default function Analysis() {
   const { data: analysis, loading: analysisLoading, error: analysisError } = useAnalysisPageData(academicReady);
   const { data: charts, loading: chartsLoading, error: chartsError } = useStudentPerformanceCharts(academicReady);
   const { data: snapshot, loading: snapshotLoading, error: snapshotError } = useStudentAcademicSnapshot(academicReady);
-  const { items: mastery, loading: masteryLoading, error: masteryError } = useConceptMastery(academicReady);
+  // CONCEPT MASTERY IS GONE FROM THIS PAGE.
+  //
+  // It fed three panels — the chapter grid, "Topics to revisit" and "Yet to
+  // begin" — and it is a DERIVED table that this codebase has already caught
+  // disagreeing with the attempts it is derived from: measured on one student,
+  // 200 attempts recorded against 120 that exist, and a 46-point accuracy gap
+  // against the same student's question_attempts. Every other figure on this
+  // page counts question_attempts, so the chapter grid was the one panel
+  // structurally unable to agree with the rest of the screen.
+  //
+  // rpc_student_practice_analytics does the same grouping over the attempts
+  // themselves (20261039000000), which also brings topic time, difficulty and
+  // effort — none of which concept_mastery could answer at all.
+  const {
+    data: practiceAnalytics,
+    loading: practiceAnalyticsLoading,
+    error: practiceAnalyticsError,
+  } = useStudentPracticeAnalytics(academicReady);
 
   // Decision Engine Slice 1 swap-in for topicGroups.needs_attention only
   // (see the approved plan -- the other 6 weak_topics/strong_topics read
@@ -167,8 +184,8 @@ export default function Analysis() {
   // not the same as fetching nothing. The student reads their exam marks on
   // their marks surface instead.
 
-  const loading = analysisLoading || chartsLoading || snapshotLoading || masteryLoading;
-  const loadError = analysisError || chartsError || snapshotError || masteryError;
+  const loading = analysisLoading || chartsLoading || snapshotLoading || practiceAnalyticsLoading;
+  const loadError = analysisError || chartsError || snapshotError || practiceAnalyticsError;
 
   useEffect(() => {
     if (loadError) {
@@ -261,33 +278,99 @@ export default function Analysis() {
     [charts?.weekly_activity],
   );
 
+  // SUBJECTS, FROM THE ATTEMPTS — the same rows the chapter and topic panels
+  // beside them count.
+  //
+  // This read charts.subjects, which aggregates _weak_topics_for_user and so
+  // only sees subjects whose attempts resolve to a topic in the bank.
+  // Measured: six subjects practised, one subject shown, and the radar beside
+  // it drawing a single point. The speed panel on the Practice tab reads
+  // practice_sessions and knew about Social Science, so the two tabs
+  // disagreed about which subjects this student even studies.
   const subjectData = useMemo(() => {
-    const rows = deriveSubjectRows(charts?.subjects ?? [], analysis?.recent_sessions ?? []);
-    return rows.map((s, i) => ({
-      ...s,
-      color: subjectColor(s.name, i),
-      score: s.accuracy,
-    }));
-  }, [charts?.subjects, analysis?.recent_sessions]);
+    const sessions = analysis?.recent_sessions ?? [];
+    return (practiceAnalytics?.by_subject ?? []).map((row, i) => {
+      const name = displaySubject(row.subject) || row.subject;
+      const runs = sessions.filter(
+        (x) => preferRealAcademicLabel(x.subject).toLowerCase() === name.toLowerCase(),
+      );
+      const { state: subjectTrendState, deltaPoints } = trendState(
+        runs.slice().reverse().map((x) => x.accuracy_pct),
+      );
+      // NULL STAYS NULL. Coercing it to 0 is the defect this page has been
+      // corrected for three times: measured here, a student with 79 Social
+      // Science attempts — every one of them a SKIP — rendered "0%" and
+      // "Needs attention". Nothing was answered, so there is no rate, and a
+      // verdict off no answers is worse than one off a single answer.
+      const accuracy = row.accuracy == null ? null : Math.round(row.accuracy);
+      return {
+        name,
+        score: accuracy,
+        accuracy,
+        questions: row.attempts,
+        measuredMinutes: row.total_min,
+        color: subjectColor(name, i),
+        trend: deltaPoints,
+        trendState: subjectTrendState,
+        status: (accuracy != null && ["low", "weak"].includes(accuracyBand(accuracy))
+          ? "needs-attention"
+          : "steady") as "needs-attention" | "steady",
+      };
+    });
+  }, [practiceAnalytics?.by_subject, analysis?.recent_sessions]);
 
+  // The radar, from the same subject rows as the list beside it. It kept its
+  // own source and its own shortening helper; only the data feeding it moved.
+  //
+  // A subject with no accuracy has no axis to plot. Measured: one student's 79
+  // Social Science attempts were ALL skips, so the subject has attempts and no
+  // rate — drawing it at zero would put a spike on the radar for questions
+  // that were never answered.
   const radarData = useMemo(
-    () => buildSubjectRadarPoints(subjectData.map((s) => ({ name: s.name, score: s.score }))),
+    () =>
+      buildSubjectRadarPoints(
+        subjectData
+          .filter((s): s is typeof s & { score: number } => s.score != null)
+          .map((s) => ({ name: s.name, score: s.score })),
+      ),
     [subjectData],
   );
 
   const chapterData = useMemo(() => {
-    const rows = deriveChapterRows(mastery, analysis?.recent_sessions ?? [], snapshot);
-    return rows.map((c) => ({
-      chapter: c.chapter,
-      subject: c.subject,
-      color: subjectColor(c.subject, 0),
-      questions: c.questions,
-      accuracy: c.accuracy,
-      trend: c.trend,
-      trendState: c.trendState,
-      status: c.status,
-    }));
-  }, [mastery, analysis?.recent_sessions, snapshot]);
+    const sessions = analysis?.recent_sessions ?? [];
+    return (practiceAnalytics?.by_chapter ?? []).slice(0, 12).map((c) => {
+      const label = preferRealAcademicLabel(c.chapter);
+      const subject = preferRealAcademicLabel(c.subject) || "";
+      const runs = sessions.filter(
+        (x) => preferRealAcademicLabel(x.chapter).toLowerCase() === label.toLowerCase(),
+      );
+      const { state: chapterTrendState, deltaPoints } = trendState(
+        runs.slice().reverse().map((x) => x.accuracy_pct),
+      );
+      // Same rule as the subject rows: a chapter whose attempts were all
+      // skipped has no accuracy, and 0% would be a claim about answers that
+      // were never given.
+      const accuracy = c.accuracy == null ? null : Math.round(c.accuracy);
+      return {
+        chapter: label || c.chapter,
+        subject,
+        color: subjectColor(subject, 0),
+        questions: c.attempts,
+        accuracy,
+        avgSec: c.avg_sec,
+        totalMin: c.total_min,
+        trend: deltaPoints,
+        trendState: chapterTrendState,
+        status: (accuracy == null
+          ? "practice-more"
+          : ["high", "near"].includes(accuracyBand(accuracy))
+            ? "ready"
+            : accuracyBand(accuracy) === "building"
+              ? "practice-more"
+              : "needs-work") as "ready" | "practice-more" | "needs-work",
+      };
+    });
+  }, [practiceAnalytics?.by_chapter, analysis?.recent_sessions]);
 
   const topicGroups = useMemo(() => {
     const realTopic = (t: { topic?: string | null; chapter?: string | null }) =>
@@ -348,20 +431,14 @@ export default function Analysis() {
           preferRealAcademicLabel(t.topic) &&
           (t.subject === "—" || preferRealAcademicLabel(t.subject)),
       ),
-      not_started: mastery
-        .filter(
-          (m) =>
-            m.total_attempts === 0 &&
-            preferRealAcademicLabel(m.concept) &&
-            preferRealAcademicLabel(m.subject),
-        )
-        .slice(0, 8)
-        .map((m) => ({
-          topic: preferRealAcademicLabel(m.concept),
-          subject: preferRealAcademicLabel(m.subject),
-        })),
+      // `not_started` WENT WITH concept_mastery, and it could not have
+      // answered its own question anyway. It listed concept rows at
+      // total_attempts = 0, which is not "topics you have not started" — it is
+      // "rows that happen to exist with no attempts". A student's untouched
+      // syllabus is not in that table at all, so the panel was answering a
+      // question about coverage from a table that only knows about contact.
     };
-  }, [snapshot?.weak_topics, v2WeakAreas, mastery, charts?.practice_trend, analysis?.recent_sessions]);
+  }, [snapshot?.weak_topics, v2WeakAreas, charts?.practice_trend, analysis?.recent_sessions]);
 
   // Four real Mon–Sun weeks ending with this one. Every cell is a date, so a
   // Tuesday is drawn under Tuesday; a day with no activity is a zero rather
@@ -435,6 +512,41 @@ export default function Analysis() {
     }));
     return { speedStats: derived.stats, speedBySubject: bySubject };
   }, [analysis?.recent_sessions]);
+
+  // WHAT TAKES THIS STUDENT LONGEST, per topic and per chapter.
+  //
+  // THE FLOOR IS NOT OPTIONAL HERE. Ordered by raw average, the slowest
+  // "topic" for one student was a single attempt of 579 seconds — a tab left
+  // open, not a hard topic — and the next two were also one attempt each. Four
+  // attempts in 5,570 exceed five minutes and they carry 1.9% of all recorded
+  // time, so the outliers are rare and ruinous: exactly the case
+  // MIN_ATTEMPTS_FOR_ACCURACY exists for. Below the floor a row has a time but
+  // not a rate anybody should read, so it is not ranked.
+  /** Right first time, or null when too few first tries to say. */
+  const firstTryAccuracy = useMemo(() => {
+    const e = practiceAnalytics?.effort;
+    if (!e || e.first_try_attempts <= 0) return null;
+    return accuracyWhenMeaningful(
+      e.first_try_attempts,
+      Math.round((100 * e.first_try_correct) / e.first_try_attempts),
+    );
+  }, [practiceAnalytics?.effort]);
+
+  const slowestTopics = useMemo(
+    () =>
+      (practiceAnalytics?.by_topic ?? [])
+        .filter((t) => mayBeJudged(t.attempts) && (t.avg_sec ?? 0) > 0)
+        .slice(0, 6),
+    [practiceAnalytics?.by_topic],
+  );
+  const slowestChapters = useMemo(
+    () =>
+      [...(practiceAnalytics?.by_chapter ?? [])]
+        .filter((c) => mayBeJudged(c.attempts) && (c.avg_sec ?? 0) > 0)
+        .sort((a, b) => (b.avg_sec ?? 0) - (a.avg_sec ?? 0))
+        .slice(0, 6),
+    [practiceAnalytics?.by_chapter],
+  );
 
   const studyActivity = useMemo(() => {
     const heatmap = snapshot?.activity_heatmap ?? [];
@@ -532,28 +644,26 @@ export default function Analysis() {
   //
   // "Yet to begin" survives unchanged: a concept with no attempts is a fact
   // about coverage, not a judgement about the child.
-  const learningProgress = useMemo(() => {
-    const toRevisit = mastery.filter((m) => m.mistake_count > 0).length;
-    // ONE ROW PER MISTAKE, from student_mistakes — not a sum over
-    // concept_mastery.
-    //
-    // concept_mastery.mistake_count is a per-concept SNAPSHOT: each row stores
-    // the open count for its own (subject, chapter, concept) key at the moment
-    // it was last upserted. Adding those up counts the same mistake once for
-    // every concept row whose key it matches, and keeps counting rows whose
-    // key no longer matches anything. Measured for one student: the tile read
-    // 69 while they had 35 open mistakes — the Mistake Book, Recovery and the
-    // snapshot all said 35.
-    //
-    // rpc_student_academic_snapshot already counts the rows directly
-    // (`count(*) ... WHERE status='open'`), which is the same number every
-    // other surface shows. The mastery sum stays only as the fallback for a
-    // snapshot that has not arrived.
-    const openMistakes =
-      snapshot?.mistake_count ?? mastery.reduce((n, m) => n + (m.mistake_count ?? 0), 0);
-    const notStarted = mastery.filter((m) => m.total_attempts === 0).length;
-    return { toRevisit, openMistakes, notStarted, total: mastery.length };
-  }, [mastery, snapshot?.mistake_count]);
+  // THREE TILES, ALL COUNTED FROM ROWS THAT EXIST.
+  //
+  // Was "Open mistakes / Topics to revisit / Yet to begin", and two of the
+  // three came from concept_mastery: concepts carrying a mistake, and concepts
+  // at zero attempts. Both are facts about which concept_mastery rows happen to
+  // exist rather than about the student's syllabus.
+  //
+  // Open mistakes is unchanged — snapshot.mistake_count, one row per open
+  // mistake, the same number the Mistake Book and Recovery show. The mastery
+  // SUM that used to back it is gone with the table: it was a per-concept
+  // snapshot, so adding it up counted one mistake once per matching concept row
+  // and read 69 for a student with 35.
+  const learningProgress = useMemo(
+    () => ({
+      openMistakes: snapshot?.mistake_count ?? 0,
+      topicsPractised: practiceAnalytics?.by_topic.length ?? 0,
+      needAttention: snapshot?.weak_topics?.length ?? 0,
+    }),
+    [snapshot?.mistake_count, snapshot?.weak_topics, practiceAnalytics?.by_topic],
+  );
 
   const milestones = useMemo(() => {
     // THE SAME §6.4 LADDER THE REST OF THE PAGE USES.
@@ -610,7 +720,12 @@ export default function Analysis() {
   }, [snapshot, analysis?.recent_sessions, overview]);
 
   const personalInsights = useMemo(() => {
-    const sorted = [...subjectData].sort((a, b) => b.accuracy - a.accuracy);
+    // Unmeasured subjects are not the weakest — they are unranked. Sorting
+    // them as zero made "Subject needing more practice" name whichever
+    // subject the student had only skipped.
+    const sorted = subjectData
+      .filter((x) => x.accuracy != null)
+      .sort((a, b) => (b.accuracy ?? 0) - (a.accuracy ?? 0));
     const strongest = sorted[0];
     const weakest = sorted[sorted.length - 1];
     const weakTopic = snapshot?.weak_topics?.[0];
@@ -769,12 +884,14 @@ export default function Analysis() {
     if (overview.totalQuestions < 100) {
       items.push({ title: "Solve 100 practice questions", progress: overview.totalQuestions, target: 100, unit: "questions" });
     }
-    // `> 0` stays: it is excluding an unmeasured subject, not a real zero —
-    // subjectData carries 0 for "no attempts yet", which is not an accuracy.
+    // `accuracy != null` replaces the old `> 0`, which was doing this job by
+    // accident: subjectData used to carry 0 for "nothing measured", so the
+    // guard excluded a genuine 0% too. Null now means unmeasured and 0 means
+    // zero correct, and each is handled as what it is.
     const weak = subjectData.find(
-      (s) => s.accuracy > 0 && !["high", "near"].includes(accuracyBand(s.accuracy)),
+      (s) => s.accuracy != null && !["high", "near"].includes(accuracyBand(s.accuracy)),
     );
-    if (weak) {
+    if (weak?.accuracy != null) {
       items.push({ title: `Improve ${weak.name} above 75%`, progress: weak.accuracy, target: 75, unit: "%" });
     }
     return items;
@@ -839,16 +956,21 @@ export default function Analysis() {
     return <div className="space-y-6">{header}<NoStudentProfile /></div>;
   }
 
+  // ATTENDANCE IS NOT HERE ANY MORE.
+  //
+  // It was the one figure on this page that practice does not produce —
+  // attendance_current, present over total — and analysisTabs.ts states the
+  // rule in its own words: "Analysis is fed by practice and by nothing else —
+  // not test data, and not exam/marks data either." Attendance is school data.
+  // It was kept when marks went, on the argument that it is a measured figure
+  // rather than a composite; that made it honest, not relevant. A student
+  // reading their practice analysis cannot act on it here, and their
+  // attendance surface already shows it.
+  //
   // null means "no figure recorded", never 0. See the Summary block below.
   const summaryRows: { label: string; value: string | number | null }[] = [
     { label: "Practice accuracy", value: hasPracticeAccuracy(snapshot) ? `${practiceAccuracyFromSnapshot(snapshot)}%` : null },
     { label: "Study consistency", value: hasStudyActiveDays(snapshot) ? `${studyActiveDaysFromSnapshot(snapshot)} active days (14d)` : null },
-    {
-      label: "Attendance",
-      value: snapshot?.exam_readiness?.attendance_pct == null
-        ? null
-        : `${snapshot.exam_readiness.attendance_pct}%`,
-    },
     { label: "Open mistakes", value: snapshot?.mistake_count ?? null },
     { label: "Recovery pending", value: snapshot?.recovery_pending ?? null },
   ];
@@ -1161,7 +1283,12 @@ export default function Analysis() {
                 // Accuracy cell says "not enough yet". It just stops telling
                 // them what it means: no verdict badge, no rate, no bar.
                 const meaningful = accuracyWhenMeaningful(c.questions, c.accuracy);
-                const judged = mayBeJudged(c.questions);
+                // A verdict needs a RATE, not just a count of attempts.
+                // Measured: "Market Equilibrium · 14 Attempts · Practice more
+                // · — not enough yet" — fourteen attempts, every one skipped,
+                // so the badge passed the attempts floor while the cell beside
+                // it correctly had nothing to show.
+                const judged = meaningful != null;
                 const st = statusLabel[c.status];
                 return (
                   <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
@@ -1223,8 +1350,8 @@ export default function Analysis() {
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: "Open mistakes",    value: learningProgress.openMistakes, color: "hsl(var(--destructive))", icon: <AlertCircle className="w-5 h-5" /> },
-              { label: "Topics to revisit", value: learningProgress.toRevisit,   color: "hsl(var(--warning))", icon: <BookOpen className="w-5 h-5" /> },
-              { label: "Yet to begin",      value: learningProgress.notStarted,  color: "hsl(var(--muted-foreground))", icon: <Minus className="w-5 h-5" /> },
+              { label: "Topics practised",  value: learningProgress.topicsPractised, color: "hsl(var(--info))", icon: <BookOpen className="w-5 h-5" /> },
+              { label: "Need attention",    value: learningProgress.needAttention,   color: "hsl(var(--warning))", icon: <Target className="w-5 h-5" /> },
             ].map((item) => (
               <div key={item.label} className="p-4 rounded-xl border border-border/70 bg-surface/60 text-center">
                 <div className="flex justify-center mb-2" style={{ color: item.color }}>{item.icon}</div>
@@ -1298,20 +1425,35 @@ export default function Analysis() {
               </div>
             </div>
 
-            {/* Not started */}
+            {/* QUESTIONS THEY KEEP GETTING WRONG.
+                This slot held "Topics yet to begin", which listed
+                concept_mastery rows at zero attempts — rows that happen to
+                exist, not a syllabus. student_mistakes.times_wrong is
+                populated and is the most actionable number on the page:
+                measured, one question missed eight times and another seven,
+                and nothing anywhere showed it. */}
             <div>
-              <SLabel>Topics yet to begin</SLabel>
+              <SLabel>Questions you keep getting wrong</SLabel>
               <div className="space-y-2">
-                {topicGroups.not_started.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">All tracked topics attempted</p>
-                ) : topicGroups.not_started.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted">
-                    <Minus className="w-4 h-4 text-muted-foreground shrink-0" />
+                {(practiceAnalytics?.recurring ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    Nothing has caught you out twice yet.
+                  </p>
+                ) : (practiceAnalytics?.recurring ?? []).map((r, i) => (
+                  <div key={`${r.topic ?? r.chapter ?? "q"}-${i}`} className="flex items-start gap-3 p-3 rounded-xl border border-destructive/12 bg-destructive/5">
+                    <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-muted-foreground truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
+                      <div className="text-sm font-semibold text-foreground truncate">
+                        {displayTopic(r.topic ?? "") || displayChapter(r.chapter ?? "") || "This question"}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {r.question_text ?? displaySubject(r.subject ?? "")}
+                      </div>
                     </div>
-                    <span className="text-[10px] text-muted-foreground">Not started</span>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-black text-destructive tabular-nums">{r.times_wrong}&times;</div>
+                      <div className="text-[10px] text-muted-foreground">{formatLastSeen(r.last_wrong_at)}</div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1462,6 +1604,74 @@ export default function Analysis() {
                   "0s avg" underneath it. It asks about its own number now. */}
               <Metric label="Takes most time"        value={speedStats.slowestSubject}  color="hsl(var(--warning))" sub={speedStats.slowestSec > 0 ? `${speedStats.slowestSec}s avg` : undefined} />
             </div>
+            {/* ── How you do by difficulty ───────────────────────────
+                Every attempt carries a difficulty and nothing read it. The
+                reading is the SHAPE, not any one bar: a student scoring worse
+                on easy than on hard is making careless errors, which is a
+                different thing to fix than not knowing the hard material. */}
+            <Card label="How you do by difficulty">
+              {(practiceAnalytics?.by_difficulty ?? []).filter((d) => mayBeJudged(d.attempts)).length === 0 ? (
+                <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
+                  Not enough attempts at any difficulty yet.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-3 mt-4">
+                  {(practiceAnalytics?.by_difficulty ?? [])
+                    .filter((d) => mayBeJudged(d.attempts))
+                    .map((d) => (
+                    <div key={d.difficulty} className="text-center p-3 rounded-xl border border-border/70 bg-surface/60">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{d.difficulty}</div>
+                      <div className="text-xl font-black tabular-nums text-foreground">
+                        {d.accuracy == null ? "—" : `${Math.round(d.accuracy)}%`}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">
+                        {pluralise(d.attempts, "attempt")}
+                      </div>
+                      {(d.avg_sec ?? 0) > 0 && (
+                        <div className="text-[10px] text-muted-foreground">{d.avg_sec}s each</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* ── How you work ───────────────────────────────────────────
+                solution_viewed and attempt_number are written on every attempt
+                and were read by nothing. Neither is a verdict: looking at a
+                worked solution is studying, and meeting a question twice is
+                what recovery and revision are FOR. They are reported as counts,
+                with no good/bad attached. */}
+            {practiceAnalytics?.effort && practiceAnalytics.effort.attempts > 0 && (
+            <Card label="How you work">
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                <div className="text-center p-3 rounded-xl border border-border/70 bg-surface/60">
+                  <div className="text-xl font-black tabular-nums text-foreground">
+                    {Math.round((100 * practiceAnalytics.effort.solution_viewed) / practiceAnalytics.effort.attempts)}%
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Solution opened</div>
+                  <div className="text-[10px] text-muted-foreground">{practiceAnalytics.effort.solution_viewed} of {practiceAnalytics.effort.attempts}</div>
+                </div>
+                <div className="text-center p-3 rounded-xl border border-border/70 bg-surface/60">
+                  <div className="text-xl font-black tabular-nums text-foreground">
+                    {practiceAnalytics.effort.repeat_attempts}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Seen again</div>
+                  <div className="text-[10px] text-muted-foreground">questions you met more than once</div>
+                </div>
+                <div className="text-center p-3 rounded-xl border border-border/70 bg-surface/60">
+                  {/* The floor applies: first-try accuracy off three first
+                      tries is not a figure. */}
+                  <div className="text-xl font-black tabular-nums text-foreground">
+                    {firstTryAccuracy == null ? "—" : `${firstTryAccuracy}%`}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Right first time</div>
+                  <div className="text-[10px] text-muted-foreground">over {pluralise(practiceAnalytics.effort.first_try_attempts, "first try", "first tries")}</div>
+                </div>
+              </div>
+            </Card>
+            )}
+
             <Card label="Time per question by subject (seconds)">
               {speedBySubject.length > 0 && speedStats.avgSec > 0 ? (
               <div className="h-40 mt-4">
@@ -1565,6 +1775,65 @@ export default function Analysis() {
               </div>
             </div>
           </Card>
+
+          {/* ── What takes longest ────────────────────────────────── */}
+          <div className="grid sm:grid-cols-2 gap-6">
+            <Card label="Topics that take you longest (seconds per question)">
+              {slowestTopics.length === 0 ? (
+                <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
+                  No topic has {MIN_ATTEMPTS_FOR_ACCURACY} timed attempts behind it yet.
+                </p>
+              ) : (
+                <div className="space-y-2 mt-4">
+                  {slowestTopics.map((t) => (
+                    <div key={t.topic} className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-surface/60">
+                      <Clock className="w-4 h-4 text-warning shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {displayChapter(t.chapter ?? "") || displaySubject(t.subject ?? "")} · {pluralise(t.attempts, "attempt")}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-black tabular-nums text-foreground">{t.avg_sec}s</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {t.accuracy == null ? "—" : `${Math.round(t.accuracy)}% right`}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card label="Chapters that take you longest (seconds per question)">
+              {slowestChapters.length === 0 ? (
+                <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
+                  No chapter has {MIN_ATTEMPTS_FOR_ACCURACY} timed attempts behind it yet.
+                </p>
+              ) : (
+                <div className="space-y-2 mt-4">
+                  {slowestChapters.map((c) => (
+                    <div key={c.chapter} className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-surface/60">
+                      <Clock className="w-4 h-4 text-info shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-foreground truncate">{displayChapter(c.chapter)}</div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {displaySubject(c.subject ?? "")} · {formatStudyTime(c.total_min)} total
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-black tabular-nums text-foreground">{c.avg_sec}s</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {c.accuracy == null ? "—" : `${Math.round(c.accuracy)}% right`}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
 
           {/* This month vs last month */}
           <Card label="This month vs last month">
