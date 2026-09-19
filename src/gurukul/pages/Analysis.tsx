@@ -61,7 +61,7 @@ import { toErrorMessage } from "@/lib/presentation";
 import { formatLastSeen } from "@/lib/analyticsInsights";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { pluralise } from "@/lib/plural";
-import { accuracyWhenMeaningful, mayBeJudged, MIN_ATTEMPTS_FOR_ACCURACY } from "@/academic/metrics/thresholds";
+import { accuracyWhenMeaningful, mayBeJudged, MIN_OBSERVATIONS_FOR_VERDICT } from "@/academic/metrics/thresholds";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "hsl(var(--primary))",
@@ -101,6 +101,20 @@ function formatStudyTime(minutes: number | null): string {
   if (minutes < 60) return `${minutes}m`;
   const hours = minutes / 60;
   return `${hours < 10 ? Math.round(hours * 10) / 10 : Math.round(hours)}h`;
+}
+
+/**
+ * The "% right" line printed beside a TIME.
+ *
+ * These two panels rank on timed readings and judge on answers, and the two
+ * counts disagree: a topic can have five timed attempts and none of them
+ * answered. That row used to print a bare em dash where a rate goes, which
+ * reads as a missing value rather than as "there is nothing to rate yet".
+ */
+function rightRate(answered: number, accuracyPct: number | null): string {
+  const rate = accuracyWhenMeaningful(answered, accuracyPct);
+  if (rate != null) return `${Math.round(rate)}% right`;
+  return answered === 0 ? "none answered" : "too few answers";
 }
 
 const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) => {
@@ -297,17 +311,30 @@ export default function Analysis() {
       const { state: subjectTrendState, deltaPoints } = trendState(
         runs.slice().reverse().map((x) => x.accuracy_pct),
       );
-      // NULL STAYS NULL. Coercing it to 0 is the defect this page has been
-      // corrected for three times: measured here, a student with 79 Social
-      // Science attempts — every one of them a SKIP — rendered "0%" and
-      // "Needs attention". Nothing was answered, so there is no rate, and a
-      // verdict off no answers is worse than one off a single answer.
-      const accuracy = row.accuracy == null ? null : Math.round(row.accuracy);
+      // NULL STAYS NULL, AND THE FLOOR IS APPLIED HERE — ONCE.
+      //
+      // Coercing null to 0 is the defect this page was corrected for three
+      // times: a student with 79 Social Science attempts — every one a SKIP —
+      // rendered "0%" and "Needs attention". Nothing was answered, so there is
+      // no rate.
+      //
+      // The floor used to be re-applied at each render site, each time against
+      // `questions` (the ATTEMPT count) rather than the answers the rate is
+      // computed from. Three sites, three chances to pass the wrong number,
+      // and the chapter grid took it. It is one decision about the row, so it
+      // is made once, on the row: below the floor `accuracy` is null and every
+      // consumer — badge, rate, bar, radar, band — is right for free.
+      const answered = row.answered;
+      const accuracy = accuracyWhenMeaningful(
+        answered,
+        row.accuracy == null ? null : Math.round(row.accuracy),
+      );
       return {
         name,
         score: accuracy,
         accuracy,
         questions: row.attempts,
+        answered,
         measuredMinutes: row.total_min,
         color: subjectColor(name, i),
         trend: deltaPoints,
@@ -347,15 +374,23 @@ export default function Analysis() {
       const { state: chapterTrendState, deltaPoints } = trendState(
         runs.slice().reverse().map((x) => x.accuracy_pct),
       );
-      // Same rule as the subject rows: a chapter whose attempts were all
-      // skipped has no accuracy, and 0% would be a claim about answers that
-      // were never given.
-      const accuracy = c.accuracy == null ? null : Math.round(c.accuracy);
+      // Same rule as the subject rows, and the same single application of the
+      // floor. Measured before this: "Circles · Mathematics · Needs attention
+      // · 8 Attempts · 0% Accuracy" — 8 attempts, 7 of them skipped, ONE
+      // answered and wrong. Seven skips carried the verdict over a floor of
+      // five because the floor was counting attempts.
+      const answered = c.answered;
+      const accuracy = accuracyWhenMeaningful(
+        answered,
+        c.accuracy == null ? null : Math.round(c.accuracy),
+      );
       return {
         chapter: label || c.chapter,
         subject,
         color: subjectColor(subject, 0),
         questions: c.attempts,
+        answered,
+        timed: c.timed,
         accuracy,
         avgSec: c.avg_sec,
         totalMin: c.total_min,
@@ -520,7 +555,7 @@ export default function Analysis() {
   // open, not a hard topic — and the next two were also one attempt each. Four
   // attempts in 5,570 exceed five minutes and they carry 1.9% of all recorded
   // time, so the outliers are rare and ruinous: exactly the case
-  // MIN_ATTEMPTS_FOR_ACCURACY exists for. Below the floor a row has a time but
+  // MIN_OBSERVATIONS_FOR_VERDICT exists for. Below the floor a row has a time but
   // not a rate anybody should read, so it is not ranked.
   /** Right first time, or null when too few first tries to say. */
   const firstTryAccuracy = useMemo(() => {
@@ -532,17 +567,23 @@ export default function Analysis() {
     );
   }, [practiceAnalytics?.effort]);
 
+  // THE FLOOR HERE COUNTS TIMED READINGS, NOT ATTEMPTS.
+  //
+  // avg_sec averages over attempts that carry a duration, so a row's time can
+  // rest on ONE reading while its attempt count says twenty — and the attempt
+  // count was what this filtered on. That is how a single 579-second reading
+  // ranked as the slowest topic on the page.
   const slowestTopics = useMemo(
     () =>
       (practiceAnalytics?.by_topic ?? [])
-        .filter((t) => mayBeJudged(t.attempts) && (t.avg_sec ?? 0) > 0)
+        .filter((t) => mayBeJudged(t.timed) && (t.avg_sec ?? 0) > 0)
         .slice(0, 6),
     [practiceAnalytics?.by_topic],
   );
   const slowestChapters = useMemo(
     () =>
       [...(practiceAnalytics?.by_chapter ?? [])]
-        .filter((c) => mayBeJudged(c.attempts) && (c.avg_sec ?? 0) > 0)
+        .filter((c) => mayBeJudged(c.timed) && (c.avg_sec ?? 0) > 0)
         .sort((a, b) => (b.avg_sec ?? 0) - (a.avg_sec ?? 0))
         .slice(0, 6),
     [practiceAnalytics?.by_chapter],
@@ -1223,10 +1264,10 @@ export default function Analysis() {
                           exact prohibition — a list filtered to the highest.
                           The accuracy figure beside it is unchanged and still
                           shown for every subject, high and low alike. */}
-                      {/* Same floor as the chapter grid below and the Topics
-                          tab. A subject is not "needs attention" off one
-                          attempt, whatever the arithmetic says. */}
-                      {s.status === "needs-attention" && mayBeJudged(s.questions) && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
+                      {/* No floor re-applied here. `status` is derived from
+                          the row's gated accuracy, so it cannot be
+                          "needs-attention" without a rate behind it. */}
+                      {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
                     {/* formatStudyTime, not a bare `${hours}h`: this printed "0.1h study
                         time" for six measured minutes, and "0h" for anything under
@@ -1238,7 +1279,7 @@ export default function Analysis() {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    {accuracyWhenMeaningful(s.questions, s.score) == null ? (
+                    {s.score == null ? (
                       <>
                         <div className="text-lg font-black tabular-nums text-muted-foreground">—</div>
                         <div className="text-[10px] text-muted-foreground">not enough yet</div>
@@ -1268,26 +1309,18 @@ export default function Analysis() {
                   "practice-more":{ text: "Practice more",      color: "hsl(var(--warning))" },
                   "needs-work":   { text: "Needs attention",    color: "hsl(var(--destructive))" },
                 };
-                // THE SAME FLOOR THE TOPICS TAB APPLIES, on the same page.
-                //
-                // thresholds.ts states the rule and names this exact case:
-                // "A student told 'Tangent Length — 0% accuracy' off a single
-                // wrong answer has been given a judgement about themselves
-                // that the data cannot support." The Topics tab obeys it
-                // through accuracyWhenMeaningful and mayBeJudged; this grid
-                // did not, and rendered "Circles — Needs attention — 0%
-                // Accuracy" off ONE attempt.
-                //
                 // Below the floor the card still appears and still says what
                 // the student did — the Attempts cell carries the count and the
                 // Accuracy cell says "not enough yet". It just stops telling
                 // them what it means: no verdict badge, no rate, no bar.
-                const meaningful = accuracyWhenMeaningful(c.questions, c.accuracy);
-                // A verdict needs a RATE, not just a count of attempts.
-                // Measured: "Market Equilibrium · 14 Attempts · Practice more
-                // · — not enough yet" — fourteen attempts, every one skipped,
-                // so the badge passed the attempts floor while the cell beside
-                // it correctly had nothing to show.
+                //
+                // The floor itself is applied where chapterData is built, on
+                // the answers the rate is computed from. This site used to
+                // re-apply it against `c.questions`, the ATTEMPT count, which
+                // is how "Circles · Needs attention · 8 Attempts · 0%
+                // Accuracy" reached a student off seven skips and one wrong
+                // answer.
+                const meaningful = c.accuracy;
                 const judged = meaningful != null;
                 const st = statusLabel[c.status];
                 return (
@@ -1378,7 +1411,7 @@ export default function Analysis() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
                       {/* G7: the row always reports what the student DID.
-                          Accuracy only appears above MIN_ATTEMPTS_FOR_ACCURACY —
+                          Accuracy only appears above MIN_OBSERVATIONS_FOR_VERDICT —
                           62% of topic groups hold one question, and one attempt
                           makes accuracy 0% or 100%, which is noise dressed as a
                           measurement. */}
@@ -1610,14 +1643,14 @@ export default function Analysis() {
                 on easy than on hard is making careless errors, which is a
                 different thing to fix than not knowing the hard material. */}
             <Card label="How you do by difficulty">
-              {(practiceAnalytics?.by_difficulty ?? []).filter((d) => mayBeJudged(d.attempts)).length === 0 ? (
+              {(practiceAnalytics?.by_difficulty ?? []).filter((d) => mayBeJudged(d.answered)).length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
                   Not enough attempts at any difficulty yet.
                 </p>
               ) : (
                 <div className="grid grid-cols-3 gap-3 mt-4">
                   {(practiceAnalytics?.by_difficulty ?? [])
-                    .filter((d) => mayBeJudged(d.attempts))
+                    .filter((d) => mayBeJudged(d.answered))
                     .map((d) => (
                     <div key={d.difficulty} className="text-center p-3 rounded-xl border border-border/70 bg-surface/60">
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{d.difficulty}</div>
@@ -1781,7 +1814,7 @@ export default function Analysis() {
             <Card label="Topics that take you longest (seconds per question)">
               {slowestTopics.length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
-                  No topic has {MIN_ATTEMPTS_FOR_ACCURACY} timed attempts behind it yet.
+                  No topic has {MIN_OBSERVATIONS_FOR_VERDICT} timed readings behind it yet.
                 </p>
               ) : (
                 <div className="space-y-2 mt-4">
@@ -1796,8 +1829,12 @@ export default function Analysis() {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-sm font-black tabular-nums text-foreground">{t.avg_sec}s</div>
+                        {/* Ranked on TIMED readings, judged on ANSWERS. A
+                            topic can have five timed attempts and none of
+                            them answered, which printed a bare em dash where
+                            a rate goes and said nothing about why. */}
                         <div className="text-[10px] text-muted-foreground">
-                          {t.accuracy == null ? "—" : `${Math.round(t.accuracy)}% right`}
+                          {rightRate(t.answered, t.accuracy)}
                         </div>
                       </div>
                     </div>
@@ -1809,7 +1846,7 @@ export default function Analysis() {
             <Card label="Chapters that take you longest (seconds per question)">
               {slowestChapters.length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
-                  No chapter has {MIN_ATTEMPTS_FOR_ACCURACY} timed attempts behind it yet.
+                  No chapter has {MIN_OBSERVATIONS_FOR_VERDICT} timed readings behind it yet.
                 </p>
               ) : (
                 <div className="space-y-2 mt-4">
@@ -1825,7 +1862,7 @@ export default function Analysis() {
                       <div className="text-right shrink-0">
                         <div className="text-sm font-black tabular-nums text-foreground">{c.avg_sec}s</div>
                         <div className="text-[10px] text-muted-foreground">
-                          {c.accuracy == null ? "—" : `${Math.round(c.accuracy)}% right`}
+                          {rightRate(c.answered, c.accuracy)}
                         </div>
                       </div>
                     </div>

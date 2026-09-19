@@ -14,16 +14,28 @@ import { supabase } from "@/integrations/supabase/client";
  * a student reaches for the solution, and whether they get a question right
  * first time were all written on every attempt and read by nothing.
  *
- * Every row carries `attempts` so the screen can refuse to report a rate or a
- * pace that one answer would decide (MIN_ATTEMPTS_FOR_ACCURACY). That is not
- * optional here: measured 2026-09-18, the slowest "topic" by raw average was a
- * single attempt of 579 seconds — a tab left open, not a hard topic.
+ * EVERY ROW CARRIES THE DENOMINATOR OF EVERY FIGURE IT REPORTS, because they
+ * are not the same number and the screen must refuse a verdict the data
+ * cannot support (MIN_OBSERVATIONS_FOR_VERDICT):
+ *
+ *   attempts   every attempt — how much contact the student has had
+ *   answered   attempts that were not skipped — the ACCURACY denominator
+ *   timed      attempts with a recorded duration — the AVG_SEC denominator
+ *
+ * Carrying only `attempts` is what produced "Circles · Needs attention · 8
+ * Attempts · 0% Accuracy" for a chapter with 7 skips and ONE wrong answer,
+ * and it let a single 579-second reading — a tab left open, not a hard topic
+ * — rank as the slowest topic on the page.
  */
 export type TopicAnalyticsRow = {
   topic: string;
   subject: string | null;
   chapter: string | null;
   attempts: number;
+  /** Attempts that were not skipped. The accuracy denominator. */
+  answered: number;
+  /** Attempts with a recorded duration. The avg_sec denominator. */
+  timed: number;
   correct: number;
   skipped: number;
   /** correct / answered. Null when nothing was answered — never 0. */
@@ -36,6 +48,10 @@ export type TopicAnalyticsRow = {
 export type SubjectAnalyticsRow = {
   subject: string;
   attempts: number;
+  /** Attempts that were not skipped. The accuracy denominator. */
+  answered: number;
+  /** Attempts with a recorded duration. The avg_sec denominator. */
+  timed: number;
   correct: number;
   skipped: number;
   accuracy: number | null;
@@ -47,6 +63,10 @@ export type ChapterAnalyticsRow = {
   chapter: string;
   subject: string | null;
   attempts: number;
+  /** Attempts that were not skipped. The accuracy denominator. */
+  answered: number;
+  /** Attempts with a recorded duration. The avg_sec denominator. */
+  timed: number;
   correct: number;
   skipped: number;
   accuracy: number | null;
@@ -57,7 +77,12 @@ export type ChapterAnalyticsRow = {
 export type DifficultyAnalyticsRow = {
   difficulty: string;
   attempts: number;
+  /** Attempts that were not skipped. The accuracy denominator. */
+  answered: number;
+  /** Attempts with a recorded duration. The avg_sec denominator. */
+  timed: number;
   correct: number;
+  skipped: number;
   accuracy: number | null;
   avg_sec: number | null;
 };
