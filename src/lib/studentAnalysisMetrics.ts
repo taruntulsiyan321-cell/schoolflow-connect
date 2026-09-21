@@ -259,19 +259,33 @@ export function deriveSubjectRows(
 // stopped using it, and a shared derivation kept alive only by its own tests
 // is the next session's second home for a decision already made.
 
-export function deriveImprovingTopics(
+/**
+ * CHAPTERS getting better, and the name says so now.
+ *
+ * This grouped practice_trend and recent_sessions by their CHAPTER, called
+ * the result `topic`, and Analysis rendered it through displayTopic() under
+ * a heading reading "Topics getting better". presentAcademicLabel resolves
+ * against a per-kind dictionary, so a chapter name was being looked up as
+ * though it were a topic — three layers of one mislabel, on a page that
+ * keeps displayChapter and displayTopic apart precisely because they are not
+ * interchangeable.
+ *
+ * practice_trend is per chapter. There is no topic-level trend to show here,
+ * so the panel says chapter.
+ */
+export function deriveImprovingChapters(
   practiceTrend: PracticeTrendPoint[],
   sessions: PracticeSessionSummary[],
-): { topic: string; subject: string; improvement: number }[] {
+): { chapter: string; subject: string; improvement: number }[] {
   const byKey = new Map<string, { subject: string; scores: number[] }>();
 
   const orderedTrend = [...practiceTrend].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
   for (const p of orderedTrend) {
-    const topic = preferRealAcademicLabel(p.chapter);
-    if (!topic) continue;
-    const key = topic.toLowerCase();
+    const chapter = preferRealAcademicLabel(p.chapter);
+    if (!chapter) continue;
+    const key = chapter.toLowerCase();
     const entry = byKey.get(key) ?? { subject: "", scores: [] };
     entry.scores.push(Math.round(p.score_pct));
     byKey.set(key, entry);
@@ -293,10 +307,10 @@ export function deriveImprovingTopics(
   for (const s of [...sessions].sort(
     (a, b) => new Date(a.finished_at).getTime() - new Date(b.finished_at).getTime(),
   )) {
-    const topic = preferRealAcademicLabel(s.chapter);
+    const chapter = preferRealAcademicLabel(s.chapter);
     const subject = preferRealAcademicLabel(s.subject);
-    if (!topic || !subject) continue;
-    const key = topic.toLowerCase();
+    if (!chapter || !subject) continue;
+    const key = chapter.toLowerCase();
     if (byKey.has(key)) continue;
     const entry = byChapterSessions.get(key) ?? { subject, scores: [] };
     entry.scores.push(accuracyOf(s));
@@ -305,7 +319,7 @@ export function deriveImprovingTopics(
   }
 
   const merged = [...byKey.entries(), ...byChapterSessions.entries()];
-  const out: { topic: string; subject: string; improvement: number }[] = [];
+  const out: { chapter: string; subject: string; improvement: number }[] = [];
   for (const [key, { subject, scores }] of merged) {
     // Converged onto the one §6.4 ladder. This carried its own `< 5`, a
     // third threshold for the same judgement the subject rows and chapter
@@ -316,14 +330,14 @@ export function deriveImprovingTopics(
     const trend = deltaPoints;
     const realSubject = preferRealAcademicLabel(subject);
     if (!realSubject) continue;
-    const topic =
+    const chapter =
       preferRealAcademicLabel(
         practiceTrend.find((p) => preferRealAcademicLabel(p.chapter).toLowerCase() === key)?.chapter,
         sessions.find((s) => preferRealAcademicLabel(s.chapter).toLowerCase() === key)?.chapter,
         key,
       );
-    if (!topic) continue;
-    out.push({ topic, subject: realSubject, improvement: Math.round(trend) });
+    if (!chapter) continue;
+    out.push({ chapter, subject: realSubject, improvement: Math.round(trend) });
   }
   return out.sort((a, b) => b.improvement - a.improvement).slice(0, 8);
 }

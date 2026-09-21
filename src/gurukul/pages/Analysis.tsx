@@ -44,7 +44,7 @@ import {
   buildWeekComparison,
   buildSubjectRadarPoints,
   deriveSubjectRows,
-  deriveImprovingTopics,
+  deriveImprovingChapters,
   deriveMonthComparison,
   deriveRecoveryProgress,
   deriveRecoveryTopics,
@@ -494,12 +494,12 @@ export default function Analysis() {
         // does not get made on one attempt. A topic below the bar still appears
         // on the tab — it just reports attempts instead of being flagged.
         .filter((t) => mayBeJudged(t.practiceCount)),
-      improving: deriveImprovingTopics(
+      improving: deriveImprovingChapters(
         charts?.practice_trend ?? [],
         analysis?.recent_sessions ?? [],
       ).filter(
         (t) =>
-          preferRealAcademicLabel(t.topic) &&
+          preferRealAcademicLabel(t.chapter) &&
           (t.subject === "—" || preferRealAcademicLabel(t.subject)),
       ),
       // `not_started` WENT WITH concept_mastery, and it could not have
@@ -1619,15 +1619,19 @@ export default function Analysis() {
           <div className="grid sm:grid-cols-2 gap-6">
             {/* Improving */}
             <div>
-              <SLabel>Topics getting better</SLabel>
+              <SLabel>Chapters getting better</SLabel>
               <div className="space-y-2">
                 {topicGroups.improving.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">No improvement trends yet</p>
                 ) : topicGroups.improving.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
+                  <div key={t.chapter} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
                     <TrendingUp className="w-4 h-4 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
+                      {/* displayCHAPTER. presentAcademicLabel resolves against
+                          a per-kind dictionary, and these rows are grouped by
+                          chapter — formatting one as a topic asks the wrong
+                          dictionary for the name. */}
+                      <div className="text-sm font-semibold text-foreground truncate">{displayChapter(t.chapter)}</div>
                       <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
                     </div>
                     {/* Points, not percent — the same correction as TrendCell below. */}

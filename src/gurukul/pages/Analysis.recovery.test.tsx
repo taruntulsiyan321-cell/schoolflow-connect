@@ -119,6 +119,17 @@ describe("Analysis — recovery, revision and trends", () => {
     expect(document.body.textContent).not.toContain("+30%");
   });
 
+  it("calls a chapter a chapter, even on the Topics tab", async () => {
+    await settle();
+    openTab("Topics");
+    // The panel grouped practice_trend by CHAPTER, called the field `topic`
+    // and rendered it through displayTopic() under "Topics getting better".
+    // presentAcademicLabel resolves per kind, so a chapter was being looked
+    // up in the topic dictionary.
+    expect(screen.getByText("Chapters getting better")).toBeInTheDocument();
+    expect(screen.queryByText("Topics getting better")).toBeNull();
+  });
+
   it("uses the same unit in the subject and chapter grids", async () => {
     await settle();
     openTab("Subjects & Chapters");
