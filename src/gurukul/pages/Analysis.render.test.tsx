@@ -296,6 +296,21 @@ describe("Analysis — rendered", () => {
     expect(document.body.textContent).not.toContain("practiced");
   });
 
+  it("never renders a source comment as page text", () => {
+    // A bare /* ... */ inside JSX is not a comment, it is TEXT, and tsc
+    // accepts it silently. Introduced and caught here while moving an
+    // explanation out of a conditional: the whole paragraph would have
+    // shipped onto the screen above the error banner.
+    render(<Analysis />);
+    for (const t of ["Overview", "Subjects & Chapters", "Topics", "Practice", "Activity & Speed", "Milestones & Reports"]) {
+      openTab(t);
+      const text = document.body.textContent ?? "";
+      expect(text).not.toContain("/*");
+      expect(text).not.toContain("*/");
+      expect(text).not.toContain("THE PAGE DOES");
+    }
+  });
+
   it("renders every tab without throwing", () => {
     render(<Analysis />);
     for (const t of ["Overview", "Subjects & Chapters", "Topics", "Practice", "Activity & Speed", "Milestones & Reports"]) {

@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect } from "react";
+﻿import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -144,9 +144,9 @@ export default function Analysis() {
   // Rule 11: Analysis is practice-only, so it no longer subscribes to the
   // marks or examination channels — it has nothing to refresh from them.
   useAcademicLive(["profile"]);
-  const { data: analysis, loading: analysisLoading, error: analysisError } = useAnalysisPageData(academicReady);
-  const { data: charts, loading: chartsLoading, error: chartsError } = useStudentPerformanceCharts(academicReady);
-  const { data: snapshot, loading: snapshotLoading, error: snapshotError } = useStudentAcademicSnapshot(academicReady);
+  const { data: analysis, loading: analysisLoading, error: analysisError, reload: reloadAnalysis } = useAnalysisPageData(academicReady);
+  const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts(academicReady);
+  const { data: snapshot, loading: snapshotLoading, error: snapshotError, reload: reloadSnapshot } = useStudentAcademicSnapshot(academicReady);
   // CONCEPT MASTERY IS GONE FROM THIS PAGE.
   //
   // It fed three panels — the chapter grid, "Topics to revisit" and "Yet to
@@ -164,6 +164,7 @@ export default function Analysis() {
     data: practiceAnalytics,
     loading: practiceAnalyticsLoading,
     error: practiceAnalyticsError,
+    reload: reloadPracticeAnalytics,
   } = useStudentPracticeAnalytics(academicReady);
 
   // Decision Engine Slice 1 swap-in for topicGroups.needs_attention only
@@ -202,6 +203,17 @@ export default function Analysis() {
 
   const loading = analysisLoading || chartsLoading || snapshotLoading || practiceAnalyticsLoading;
   const loadError = analysisError || chartsError || snapshotError || practiceAnalyticsError;
+
+  // EVERY SOURCE, not just the one that happened to fail first. loadError is
+  // the first non-null of four, so retrying only that one leaves the other
+  // three stale if more than one was down — which, for four calls that go out
+  // together, is the common case rather than the odd one.
+  const retryAll = useCallback(() => {
+    void reloadAnalysis();
+    void reloadCharts();
+    void reloadSnapshot();
+    void reloadPracticeAnalytics();
+  }, [reloadAnalysis, reloadCharts, reloadSnapshot, reloadPracticeAnalytics]);
 
   useEffect(() => {
     if (loadError) {
@@ -1151,9 +1163,29 @@ export default function Analysis() {
   return (
     <div className="space-y-6">
       {header}
+      {/* "Showing available stats as zeros where missing" — THE PAGE DOES
+          NOT DO THAT, and has been corrected three times specifically so that
+          it does not. Missing renders as an em dash precisely so a student
+          never reads an absent measurement as a score of zero; this banner
+          told them to read it as zero anyway, which is the defect those
+          corrections exist to prevent, restated as help text.
+
+          It also left them with no way forward: all four hooks expose
+          reload() and none of them was wired, so a transient failure meant
+          navigating away and back. */}
       {loadError && (
-        <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning">
-          Some analysis data failed to load: {loadError}. Showing available stats as zeros where missing.
+        <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-xs text-warning flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="flex-1 min-w-[16rem]">
+            Some analysis data could not be loaded: {loadError}. Anything
+            missing is shown as — rather than as a figure.
+          </span>
+          <button
+            type="button"
+            onClick={retryAll}
+            className="shrink-0 rounded-lg border border-warning/40 px-3 py-1 font-semibold hover:bg-warning/20 transition-colors"
+          >
+            Try again
+          </button>
         </div>
       )}
       {/* ── Summary ──────────────────────────────────────────────────────
