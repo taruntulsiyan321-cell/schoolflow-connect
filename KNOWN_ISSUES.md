@@ -3075,3 +3075,46 @@ On clean HEAD (c6ecbe4) as well as with 2026-09-19's changes:
 `claim_notifications_for_push` (20260925190000). Each needs a school_id
 predicate or an allowlist entry with a checkable reason. None of them is
 practice.
+
+---
+
+## 63. The concept report contradicted the session it was reporting — FIXED in code; migration 20261043000000 written, NOT yet applied
+
+The practice result screen reports a session from its finished row: accuracy
+over ANSWERED questions (20261021000000), the time its questions took
+(20261030000000), and an em dash where there is nothing to report. The
+"Practice concept recovery report" card inside it computed its own figures in
+`_build_concept_recovery_report` — every attempt counted, a skip as a wrong
+answer, and the wall clock from opening the session to finishing it.
+
+Measured 2026-09-19 as the Class 10 student, over his 40 latest finished
+sessions:
+
+    accuracy disagreed on 24 of 40      "—" vs "0%",  100% vs 50%
+    23 sessions with no wrong answer still listed a weak concept at 0%
+    a session with no timing at all was reported as "1m" by the client fallback
+
+* **Client (committed):** the card no longer restates accuracy, score or time
+  at all — every host of it (practice result, test result, battle report)
+  already shows those from its own record, so the duplicate is gone and the
+  card keeps what only it knows: the weak concepts and the advice that follows
+  from them. The report type now admits an absent accuracy and an absent
+  duration, the rule-based insight says "No question was answered" instead of
+  "0%", the client fallback no longer floors a session to one minute, and the
+  AI insight prompt no longer sends a zero it invented. Guarded by
+  `practiceConceptReport.test.ts` and `conceptReportFallback.test.ts`, five
+  assertions shown to fail against the old code.
+* **Database (written, not applied):**
+  `20261043000000_the_concept_report_counts_what_was_answered` — the practice
+  branch reads the session's own row (correct over answered, and the question
+  time), judges a weak concept only on the questions answered for it, and
+  reports an absent accuracy as NULL rather than 0. The test and battle
+  branches are untouched. Its four anchors were checked read-only against live
+  on 2026-09-19: each matched once. Its proof replays every finished practice
+  session in the database and fails if any report disagrees with its own row,
+  with controls for accuracy, duration and weak concepts.
+
+**What is still wrong until it is applied:** the card lists weak concepts for
+chapters the student only skipped — verified in the browser, where a
+50-question skipped session lists 8 — and its insight sentence quotes the wall
+clock. The figures at the top of the page are correct either way.

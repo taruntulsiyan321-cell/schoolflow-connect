@@ -1,10 +1,20 @@
 export type ConceptRecoveryReport = {
   source_type: string;
   source_id: string;
-  accuracy_pct: number;
+  /**
+   * NULL when nothing was answered, and the type used to say otherwise.
+   *
+   * A session that was skipped end to end has no accuracy; 0% is a verdict
+   * the answers do not carry. Measured 2026-09-19 on the practice result
+   * screen: of the student's 40 latest sessions, this card disagreed with the
+   * summary tiles above it on 24 — "—" against "0%", and 100% against 50% —
+   * because it counted a skip as a wrong answer.
+   */
+  accuracy_pct: number | null;
   correct_count: number;
   total_count: number;
-  time_minutes: number;
+  /** NULL when no question carried a timing — never a floor of one minute. */
+  time_minutes: number | null;
   weak_concepts: {
     subject: string;
     chapter?: string;
@@ -57,18 +67,23 @@ export function buildRuleConceptReport(report: ConceptRecoveryReport): ConceptAi
    * the subject of a sentence about which area to re-read.
    */
   const named = weak.filter((w) => conceptName(w) !== null);
+  const accuracy = report.accuracy_pct;
   const headline =
-    report.accuracy_pct >= 80
-      ? "Strong session — keep consolidating"
-      : report.accuracy_pct >= 60
-        ? "Good effort — a few concepts need targeted practice"
-        : "Focus recovery needed on weak concepts";
+    accuracy == null
+      ? "Nothing was answered — there is no accuracy to report"
+      : accuracy >= 80
+        ? "Strong session — keep consolidating"
+        : accuracy >= 60
+          ? "Good effort — a few concepts need targeted practice"
+          : "Focus recovery needed on weak concepts";
 
   const bullets: string[] = [
-    `Overall accuracy: ${report.accuracy_pct}% (${report.correct_count}/${report.total_count} correct).`,
+    accuracy == null
+      ? "No question was answered."
+      : `Overall accuracy: ${accuracy}% (${report.correct_count}/${report.total_count} correct).`,
   ];
 
-  if (report.time_minutes > 0) {
+  if (report.time_minutes != null && report.time_minutes > 0) {
     bullets.push(`Time spent: ~${report.time_minutes} minutes.`);
   }
 

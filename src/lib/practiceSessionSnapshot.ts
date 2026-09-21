@@ -127,7 +127,8 @@ export function buildPracticeRecoveryReport(
   subject: string,
   chapter: string,
   attempts: PracticeAttemptSnapshot[],
-  timeMinutes = 1,
+  /** null when no question carried a timing — never a floor of one minute. */
+  timeMinutes: number | null = null,
 ): ConceptRecoveryReport {
   // Answered, not attempted: a skipped question is not a wrong answer
   // (20261021000000). This report counted every skip as a miss, so a session
@@ -135,9 +136,10 @@ export function buildPracticeRecoveryReport(
   const answered = attempts.filter((a) => !a.skipped && !a.timedOut);
   const correct = answered.filter((a) => a.isCorrect).length;
   const accuracyMetric = sessionAccuracy(correct, answered.length);
-  // valueOr keeps the report's numeric field; the weak flag below asks the
-  // metric itself, so "nothing answered" can never read as a weak chapter.
+  // The weak flag below asks the metric itself, so "nothing answered" can
+  // never read as a weak chapter; the reported figure is absent, not 0%.
   const accuracy = valueOr(accuracyMetric, 0);
+  const accuracyReported = accuracyMetric.state === "ok" ? accuracy : null;
   const concept = chapter;
 
   // The weak-topic bar IS the conceptual readiness bar; it was a bare 70.
@@ -149,7 +151,7 @@ export function buildPracticeRecoveryReport(
   return {
     source_type: "practice_session",
     source_id: sessionId,
-    accuracy_pct: accuracy,
+    accuracy_pct: accuracyReported,
     correct_count: correct,
     total_count: answered.length,
     time_minutes: timeMinutes,

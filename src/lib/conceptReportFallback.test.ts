@@ -107,4 +107,27 @@ describe("the rule-based concept report never shows a student a placeholder", ()
     const out = buildRuleConceptReport(report({ accuracy_pct: 100, correct_count: 1 }));
     expect(out.bullets.join(" ")).toContain("No concept-level weaknesses");
   });
+
+  /**
+   * A session nobody answered has no accuracy, and the report used to print
+   * one. Measured 2026-09-19 on the practice result screen: for 24 of the
+   * student's 40 latest sessions this report disagreed with the session's own
+   * figures shown directly above it — "0%" where the session says "—".
+   */
+  it("reports no accuracy, and no verdict, when nothing was answered", () => {
+    const out = buildRuleConceptReport(report({ accuracy_pct: null, correct_count: 0, total_count: 0 }));
+    expect(out.headline).toContain("Nothing was answered");
+    expect(out.bullets.join(" ")).toContain("No question was answered");
+    expect(out.bullets.join(" "), "an absent accuracy must not be printed as a number")
+      .not.toMatch(/\d+%/);
+    expect(out.bullets.join(" ")).not.toContain("null");
+  });
+
+  it("gives no duration when none was recorded", () => {
+    const none = buildRuleConceptReport(report({ time_minutes: null }));
+    expect(none.bullets.join(" ")).not.toContain("Time spent");
+    // POSITIVE CONTROL: it does report a duration it has.
+    const timed = buildRuleConceptReport(report({ time_minutes: 7 }));
+    expect(timed.bullets.join(" ")).toContain("Time spent: ~7 minutes");
+  });
 });

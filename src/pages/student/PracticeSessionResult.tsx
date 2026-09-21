@@ -222,7 +222,8 @@ export default function PracticeSessionResult() {
         isCorrect: !!a.is_correct,
         skipped: !!a.skipped,
       }));
-    const minutes = stats.totalTimeMs ? Math.max(1, Math.round(stats.totalTimeMs / 60000)) : 1;
+    // null, not a floor of one minute: a session with no timing has no duration.
+    const minutes = stats.totalTimeMs ? Math.round(stats.totalTimeMs / 60000) : null;
     return buildPracticeRecoveryReport(id, subjectRaw, chapterRaw, snaps, minutes);
   }, [id, subjectRaw, chapterRaw, localState, snapshot, displayAttempts, stats.totalTimeMs]);
 

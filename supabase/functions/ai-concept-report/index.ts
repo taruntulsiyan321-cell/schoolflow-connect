@@ -25,8 +25,14 @@ Deno.serve(async (req) => {
 
     const user = [
       `Student: ${display_name}`,
-      `Accuracy: ${report.accuracy_pct}% (${report.correct_count}/${report.total_count})`,
-      `Time: ${report.time_minutes ?? 0} minutes`,
+      // Absent, not zero: a session nobody answered has no accuracy and no
+      // duration, and "0%" would have the coach address a score never scored.
+      report.accuracy_pct == null
+        ? "Accuracy: not applicable — no question was answered"
+        : `Accuracy: ${report.accuracy_pct}% (${report.correct_count}/${report.total_count})`,
+      report.time_minutes == null || report.time_minutes <= 0
+        ? "Time: not recorded"
+        : `Time: ${report.time_minutes} minutes`,
       `Weak concepts: ${weak || "none"}`,
       `Recovery assignments queued: ${(report.recovery_assignments ?? []).length}`,
     ].join("\n");
