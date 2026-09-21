@@ -362,8 +362,12 @@ export function useAnalysisPageData(enabled = true) {
       // describes, reintroduced by a half-applied fix.
       const accuracy_pct = accuracyOverAnswered(correct, wrong);
 
-      // NO PACE FIGURE IS COMPUTED HERE — deriveSpeedStats is the one that
-      // exists, and there must not be two.
+      // NO PACE FIGURE IS COMPUTED HERE. Per-question time is measured once,
+      // on the attempt record, by deriveSubjectPace over
+      // rpc_student_practice_analytics.by_subject — and there must not be two.
+      // (deriveSpeedStats, the session-level measure this comment used to
+      // name, is itself gone: it counted the gaps between questions while
+      // every other time figure on the page did not.)
       //
       // This block used to produce `avg_sec_per_question` as the MEAN OF
       // PER-SESSION RATES, while deriveSpeedStats pools (total seconds over

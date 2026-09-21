@@ -27,6 +27,7 @@ import {
   isGenericAcademicLabel,
   preferRealAcademicLabel,
 } from "@/lib/qualityGuards";
+import { mayBeJudged } from "@/academic/metrics/thresholds";
 
 export { buildSubjectRadarPoints, dedupeSubjectChartPoints };
 
@@ -90,20 +91,6 @@ function accuracyOf(session: PracticeSessionSummary): number {
   return session.accuracy_pct;
 }
 
-/**
- * Seconds per question for one session — or null when nothing timed it.
- *
- * `measured_ms`, not a wall-clock duration. The wall-clock fallback this used
- * to receive was a seeded 18-minute constant on 240 of 284 sessions, which
- * made every figure derived here a function of the question count alone.
- */
-function sessionSecPerQuestion(session: PracticeSessionSummary): number | null {
-  if (session.question_count <= 0) return null;
-  if (session.measured_ms == null) return null;
-  const sec = session.measured_ms / 1000 / session.question_count;
-  if (!Number.isFinite(sec) || sec <= 0) return null;
-  return Math.round(sec);
-}
 
 /**
  * Average accuracy of the first half vs second half of chronologically
@@ -341,80 +328,69 @@ export function deriveImprovingTopics(
   return out.sort((a, b) => b.improvement - a.improvement).slice(0, 8);
 }
 
-export type SpeedStats = {
+/*
+ * deriveSpeedStats, SpeedStats and sessionSecPerQuestion WERE HERE, and they
+ * are gone rather than corrected.
+ *
+ * They measured per-question time as a SESSION's total_time_ms divided by its
+ * question_count, which counts the gaps between questions. Every other time
+ * figure on the Analysis page — slowest topics, slowest chapters, subject
+ * study time — reads question_attempts.time_taken_ms, which counts only the
+ * time on each question. Two clocks, two answers, one page: "Takes most time"
+ * and "Chapters that take you longest" could disagree and nothing reconciled
+ * them (G9).
+ *
+ * They also carried no floor, so bySubject[0] and bySubject[last] named a
+ * student's fastest and slowest subject off a single session, and
+ * `improvementSec` was computed on every render and rendered nowhere.
+ *
+ * Analysis.tsx now derives all of this from rpc_student_practice_analytics'
+ * by_subject, which carries avg_sec and the count of timed attempts behind
+ * it, so the subject tiles obey the same floor as the chapter and topic
+ * panels beside them.
+ */
+
+export type SubjectPaceRow = { name: string; color: string; avgSec: number; timed: number };
+
+export type SubjectPace = {
+  /** Fastest first. Only subjects with enough timed questions to rank. */
+  rows: SubjectPaceRow[];
+  /** Pooled seconds per question across those subjects. 0 when none qualify. */
   avgSec: number;
-  fastestSubject: string;
-  fastestSec: number;
-  slowestSubject: string;
-  slowestSec: number;
-  improvementSec: number | null;
+  fastest: SubjectPaceRow | null;
+  /** Null with fewer than two subjects: one row cannot be both ends. */
+  slowest: SubjectPaceRow | null;
 };
 
-export function deriveSpeedStats(sessions: PracticeSessionSummary[]): {
-  stats: SpeedStats;
-  bySubject: { name: string; avgSec: number }[];
-} {
-  const withTiming = sessions.filter((s) => sessionSecPerQuestion(s) != null);
-  if (withTiming.length === 0) {
-    return {
-      stats: {
-        avgSec: 0,
-        fastestSubject: "—",
-        fastestSec: 0,
-        slowestSubject: "—",
-        slowestSec: 0,
-        improvementSec: null,
-      },
-      bySubject: [],
-    };
-  }
-
-  const totalSec = withTiming.reduce((sum, s) => sum + (sessionSecPerQuestion(s) ?? 0) * s.question_count, 0);
-  const totalQ = withTiming.reduce((sum, s) => sum + s.question_count, 0);
-  const avgSec = totalQ > 0 ? Math.round(totalSec / totalQ) : 0;
-
-  const subjectMap = new Map<string, { secSum: number; q: number }>();
-  for (const s of withTiming) {
-    const key = subjectSessionKey(s.subject);
-    if (!key) continue;
-    const sec = sessionSecPerQuestion(s)!;
-    const cur = subjectMap.get(key) ?? { secSum: 0, q: 0 };
-    cur.secSum += sec * s.question_count;
-    cur.q += s.question_count;
-    subjectMap.set(key, cur);
-  }
-  const bySubject = [...subjectMap.entries()]
-    .map(([key, v]) => ({
-      name: displaySubject(key) || normalizeSubjectName(key) || key,
-      avgSec: Math.round(v.secSum / v.q),
-    }))
+/**
+ * Per-question time by subject, from the attempt record.
+ *
+ * Takes rows already mapped to their display name and colour so this stays a
+ * pure calculation. Two rules it exists to hold:
+ *
+ *   THE FLOOR, on TIMED attempts — the denominator of avg_sec. Without it the
+ *   fastest and slowest subject were the first and last of an unfiltered
+ *   sort, so one timed question could name the subject a student is slowest
+ *   at.
+ *
+ *   POOLING, not a mean of means (§4.2b). Averaging per-subject averages
+ *   weights a subject with four timed questions the same as one with four
+ *   hundred, and the page prints that number as the student's overall pace.
+ */
+export function deriveSubjectPace(
+  input: { name: string; color: string; avgSec: number | null; timed: number }[],
+): SubjectPace {
+  const rows: SubjectPaceRow[] = input
+    .filter((r) => mayBeJudged(r.timed) && (r.avgSec ?? 0) > 0)
+    .map((r) => ({ name: r.name, color: r.color, avgSec: Math.round(r.avgSec as number), timed: r.timed }))
     .sort((a, b) => a.avgSec - b.avgSec);
-
-  const ordered = [...withTiming].sort(
-    (a, b) => new Date(a.finished_at).getTime() - new Date(b.finished_at).getTime(),
-  );
-  const secs = ordered.map((s) => sessionSecPerQuestion(s)!);
-  const mid = Math.floor(secs.length / 2);
-  let improvementSec: number | null = null;
-  if (secs.length >= 2 && mid > 0) {
-    const early = secs.slice(0, mid).reduce((a, b) => a + b, 0) / mid;
-    const late = secs.slice(mid).reduce((a, b) => a + b, 0) / (secs.length - mid);
-    improvementSec = Math.round(early - late); // positive = faster
-  }
-
-  const fastest = bySubject[0];
-  const slowest = bySubject[bySubject.length - 1];
-
+  const timed = rows.reduce((n, r) => n + r.timed, 0);
+  const seconds = rows.reduce((n, r) => n + r.avgSec * r.timed, 0);
   return {
-    stats: {
-      avgSec,
-      fastestSubject: fastest?.name ?? "—",
-      fastestSec: fastest?.avgSec ?? 0,
-      slowestSubject: slowest && slowest.name !== fastest?.name ? slowest.name : "—",
-      slowestSec: slowest && slowest.name !== fastest?.name ? slowest.avgSec : 0,
-      improvementSec,
-    },
-    bySubject,
+    rows,
+    avgSec: timed > 0 ? Math.round(seconds / timed) : 0,
+    fastest: rows[0] ?? null,
+    slowest: rows.length > 1 ? rows[rows.length - 1] : null,
   };
 }
 

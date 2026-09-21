@@ -19,7 +19,13 @@ import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPracticeAnalytics } from "@/hooks/useStudentPracticeAnalytics";
-import { accuracyBand, STREAK_ESTABLISHED, STREAK_MILESTONE } from "@/academic/metrics/bands";
+import {
+  accuracyBand,
+  ACCURACY_CONCEPTUAL,
+  PRACTICE_QUESTIONS_MILESTONE,
+  STREAK_ESTABLISHED,
+  STREAK_MILESTONE,
+} from "@/academic/metrics/bands";
 import {
   TREND_DELTA_POINTS,
   TREND_MIN_SESSIONS,
@@ -39,10 +45,10 @@ import {
   buildSubjectRadarPoints,
   deriveSubjectRows,
   deriveImprovingTopics,
-  deriveSpeedStats,
   deriveMonthComparison,
   deriveRecoveryProgress,
   deriveRecoveryTopics,
+  deriveSubjectPace,
   deriveRevisionData,
   trendState,
   practiceCountForTopic,
@@ -214,8 +220,6 @@ export default function Analysis() {
     // accuracy beside it is over questions actually answered.
     const skipped = analysis?.totals.skipped ?? 0;
     const totalQuestions = correct + incorrect;
-    const heatmap = snapshot?.activity_heatmap ?? [];
-    const studyMinutes = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
     // ACCURACY COMES FROM THE COUNTS RENDERED BESIDE IT (G5).
     //
     // This read `student.accuracy` — the shell figure — while `correct` and
@@ -257,23 +261,36 @@ export default function Analysis() {
       // finish path, not here. This stops the screen claiming a student studied
       // for zero hours in the meantime. KNOWN_ISSUES 44.
       //
-      // ROUNDING DEFEATED THAT GUARD. `Math.round(minutes / 60)` turns every
-      // real figure under half an hour back into 0, and the tile then printed
-      // "0h" — the exact claim the null above exists to prevent, now made about
-      // time the student DID spend. Eighteen recorded minutes rendered as zero
-      // hours. Minutes are the honest unit below an hour, so the tile uses them.
-      studyMinutes: studyMinutes > 0 ? studyMinutes : null,
+      // studyMinutes WAS HERE, as a second copy of the sum studyActivity
+      // already makes. Same label on two tabs, same arithmetic written twice,
+      // agreeing only because the two copies were identical. The Overview
+      // tile reads studyActivity.totalMinutes now — one sum, one window.
       streak: student.streak,
     };
   }, [analysis, snapshot, student.streak]);
 
   const scoreTrend = useMemo(() => {
+    // TWO PATHS, ONE DEFINITION — and that is why the fallback is allowed to
+    // stand where the `fallbackAvg` below was deleted.
+    //
+    // practice_trend.score_pct is correct_count / (correct_count +
+    // wrong_count), server-side, since 20261031000000; recent_sessions
+    // .accuracy_pct is accuracyOverAnswered(correct_count, wrong_count) over
+    // the same columns of the same rows. Same formula, same source, one
+    // aggregated by the database and one by the client, so which branch runs
+    // cannot change what the line means. Change one and you must change the
+    // other — a fallback between two DIFFERENT measures is a coin toss about
+    // which is true, which is exactly what the pace figure was.
+    //
+    // A third field, `practice`, was carried here and rendered by nothing:
+    // literal 0 in the first branch and question_count in the second, so the
+    // one name meant "no data" or "a real count" depending on a branch
+    // nobody read. Gone rather than reconciled.
     const trend = charts?.practice_trend ?? [];
     if (trend.length > 0) {
-      return trend.map((p, i) => ({
+      return trend.map((p) => ({
         week: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         score: Math.round(p.score_pct),
-        practice: 0,
       }));
     }
     const sessions = [...(analysis?.recent_sessions ?? [])].reverse();
@@ -281,7 +298,6 @@ export default function Analysis() {
       return sessions.map((s) => ({
         week: new Date(s.finished_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         score: s.accuracy_pct,
-        practice: s.question_count,
       }));
     }
     return [];
@@ -529,24 +545,33 @@ export default function Analysis() {
     return [...byMonth.entries()].map(([month, done]) => ({ month, done }));
   }, [charts?.weekly_activity]);
 
-  // ONE PACE FIGURE ON THIS PAGE, AND THIS IS IT.
+  // ONE DEFINITION OF PER-QUESTION TIME ON THIS PAGE, AT EVERY LEVEL.
   //
-  // The `fallbackAvg` that stood here was `analysis.totals.avg_sec_per_question`
-  // — a SECOND definition of the same quantity, the mean of per-session rates
-  // where deriveSpeedStats pools. Both rendered: Overview's "Average time per
-  // question" read 15s while the Practice tab's "Average per question" read 6s,
-  // for the same student in the same minute. The rival is deleted in
-  // useAnalysisPageData rather than reconciled here; a fallback between two
-  // definitions is not a fallback, it is a coin toss about which is true.
-  const { speedStats, speedBySubject } = useMemo(() => {
-    const derived = deriveSpeedStats(analysis?.recent_sessions ?? []);
-    const bySubject = derived.bySubject.map((s, i) => ({
-      name: s.name,
-      color: subjectColor(s.name, i),
-      avgSec: s.avgSec,
-    }));
-    return { speedStats: derived.stats, speedBySubject: bySubject };
-  }, [analysis?.recent_sessions]);
+  // This was deriveSpeedStats(recent_sessions), which is a DIFFERENT
+  // measurement from the one the rest of the page uses: a session's
+  // total_time_ms / question_count counts the gaps between questions, while
+  // question_attempts.time_taken_ms counts only the time on each question.
+  // The Activity tab already ranked topics and chapters on the attempt
+  // record, so "Takes most time: Mathematics" and "Chapters that take you
+  // longest" were answering the same question from two different clocks, and
+  // nothing made them agree (G9: no two homes for one fact).
+  //
+  // It also had NO floor. fastestSubject and slowestSubject were literally
+  // bySubject[0] and bySubject[last], so one session of one subject could be
+  // named the subject that takes this student longest.
+  //
+  // Both are fixed by reading the same rows the chapter and topic panels
+  // read: by_subject carries avg_sec and the count of TIMED attempts behind
+  // it, so the floor here is the floor there.
+  const subjectPace = useMemo(() => {
+    const colorOf = new Map(subjectData.map((s) => [s.name, s.color]));
+    return deriveSubjectPace(
+      (practiceAnalytics?.by_subject ?? []).map((s) => {
+        const name = displaySubject(s.subject) || s.subject;
+        return { name, color: colorOf.get(name) ?? subjectColor(name, 0), avgSec: s.avg_sec, timed: s.timed };
+      }),
+    );
+  }, [practiceAnalytics?.by_subject, subjectData]);
 
   // WHAT TAKES THIS STUDENT LONGEST, per topic and per chapter.
   //
@@ -590,18 +615,32 @@ export default function Analysis() {
   );
 
   const studyActivity = useMemo(() => {
-    const heatmap = snapshot?.activity_heatmap ?? [];
+    // EVERY FIGURE HERE SAYS "LAST 4 WEEKS", SO EVERY FIGURE HERE IS
+    // COMPUTED OVER 4 WEEKS.
+    //
+    // These reduced over snapshot.activity_heatmap RAW — whatever span the
+    // snapshot happens to return — while the label beside them, the heat
+    // grid under them and consistencyRatio all use activityWeeks, which
+    // windows to four weeks from this Monday. The label was a claim the
+    // arithmetic did not make, and the two only agreed while the snapshot
+    // happened to be four weeks long. Reading activityWeeks makes the window
+    // in the label and the window in the sum the same thing by construction,
+    // and it is the one already-windowed structure on this page.
+    //
+    // Its days are dense — consistencyWeeks fills every date with zeros — so
+    // "active days" is a filter on minutes, not on rows existing.
+    const days = activityWeeks.flatMap((w) => w.days);
     // weekdayLabel, not toLocaleDateString: DAY_LABELS is English, and a
     // browser in any other language made every one of these comparisons false
     // — seven empty bars for a student who had studied all week.
     const weeklyHrs = DAY_LABELS.map((day) => {
-      const mins = heatmap
+      const mins = days
         .filter((d) => weekdayLabel(d.date) === day)
         .reduce((s, d) => s + (d.minutes ?? 0), 0);
       return Math.round((mins / 60) * 10) / 10;
     });
-    const totalMins = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
-    const activeDays = heatmap.filter((d) => (d.minutes ?? 0) > 0);
+    const totalMins = days.reduce((s, d) => s + (d.minutes ?? 0), 0);
+    const activeDays = days.filter((d) => (d.minutes ?? 0) > 0);
     const bestDayRow = [...activeDays].sort((a, b) => (b.minutes ?? 0) - (a.minutes ?? 0))[0];
     return {
       // MINUTES, NOT HOURS. `Math.round(totalMins / 60)` printed "0h" for
@@ -633,7 +672,7 @@ export default function Analysis() {
       bestHour: formatHour(busiestHour(analysis?.attempt_hours ?? [])),
       weeklyHrs: [...weeklyHrs],
     };
-  }, [snapshot?.activity_heatmap, analysis?.attempt_hours]);
+  }, [activityWeeks, analysis?.attempt_hours]);
 
   // The 7C engine, not snapshot.revision_queue.
   //
@@ -677,33 +716,35 @@ export default function Analysis() {
 
   const revisionData = useMemo(() => deriveRevisionData(chapterStates), [chapterStates]);
 
-  // RULING 1. This read `mastery_score >= 75` and printed the result as "Topics
-  // completed" — a count of mastered concepts shown to a student, which §10.8
-  // forbids whatever boundary is chosen. The progress figure is now the
-  // open-mistakes count, which answers "what is left to fix" from the same rows
-  // without telling the student what they are good at.
-  //
-  // "Yet to begin" survives unchanged: a concept with no attempts is a fact
-  // about coverage, not a judgement about the child.
   // THREE TILES, ALL COUNTED FROM ROWS THAT EXIST.
   //
   // Was "Open mistakes / Topics to revisit / Yet to begin", and two of the
   // three came from concept_mastery: concepts carrying a mistake, and concepts
   // at zero attempts. Both are facts about which concept_mastery rows happen to
-  // exist rather than about the student's syllabus.
+  // exist rather than about the student's syllabus. §10.8 also ruled out the
+  // "Topics completed" figure that preceded them — a count of mastered
+  // concepts is a statement about what the student is good at, whatever
+  // boundary it uses.
   //
-  // Open mistakes is unchanged — snapshot.mistake_count, one row per open
-  // mistake, the same number the Mistake Book and Recovery show. The mastery
-  // SUM that used to back it is gone with the table: it was a per-concept
-  // snapshot, so adding it up counted one mistake once per matching concept row
-  // and read 69 for a student with 35.
+  // Open mistakes is snapshot.mistake_count, one row per open mistake, the
+  // same number the Mistake Book and Recovery show. The mastery SUM that used
+  // to back it is gone with the table: it was a per-concept snapshot, so
+  // adding it up counted one mistake once per matching concept row and read
+  // 69 for a student with 35.
   const learningProgress = useMemo(
     () => ({
       openMistakes: snapshot?.mistake_count ?? 0,
       topicsPractised: practiceAnalytics?.by_topic.length ?? 0,
-      needAttention: snapshot?.weak_topics?.length ?? 0,
+      // THE TILE COUNTS WHAT THE LIST BENEATH IT SHOWS.
+      //
+      // This was snapshot.weak_topics.length — the RAW array — while the
+      // list on the same tab renders topicGroups.needs_attention, which drops
+      // rows with no usable topic or subject label and rows under the
+      // evidence floor (G7). The tile therefore counted topics the tab
+      // refused to display, on the same screen, at the same moment.
+      needAttention: topicGroups.needs_attention.length,
     }),
-    [snapshot?.mistake_count, snapshot?.weak_topics, practiceAnalytics?.by_topic],
+    [snapshot?.mistake_count, topicGroups.needs_attention, practiceAnalytics?.by_topic],
   );
 
   const milestones = useMemo(() => {
@@ -724,7 +765,6 @@ export default function Analysis() {
     );
     const built = buildMilestones(
       snapshot ?? {},
-      [],
       accuracyTrend === "improving" ? deltaPoints : null,
     );
     const streak = overview.streak;
@@ -748,7 +788,7 @@ export default function Analysis() {
         category: "Consistency",
       });
     }
-    if (overview.totalQuestions >= 100) {
+    if (overview.totalQuestions >= PRACTICE_QUESTIONS_MILESTONE) {
       items.push({
         title: `${pluralise(overview.totalQuestions, "question")} solved`,
         desc: "Total practice questions attempted so far.",
@@ -822,17 +862,17 @@ export default function Analysis() {
     // The same figure the Practice tab prints, from the same call. The sub
     // line said "Based on your latest practice session" and never was: the
     // figure it described spanned every timed session the page had loaded.
-    if (speedStats.avgSec > 0) {
+    if (subjectPace.avgSec > 0) {
       items.push({
         label: "Average time per question",
-        value: `${speedStats.avgSec}s`,
-        sub: "Across your timed practice sessions",
+        value: `${subjectPace.avgSec}s`,
+        sub: "Across every question you were timed on",
         color: "hsl(var(--destructive))",
         icon: <Clock className="w-4 h-4" />,
       });
     }
     return items;
-  }, [subjectData, snapshot?.weak_topics, studyActivity, speedStats.avgSec]);
+  }, [subjectData, snapshot?.weak_topics, studyActivity, subjectPace.avgSec]);
 
   const questionCards = useMemo(() => {
     // NO CLASS RANK HERE. §6.7: analysis must never "compare the student to
@@ -850,8 +890,13 @@ export default function Analysis() {
     const improveText = weakSubjects.length > 0
       ? weakSubjects.join(" & ")
       : subjectData.length > 0 ? "Keep building consistency" : "Start practicing to see insights";
-    const weakCount = snapshot?.weak_topics?.length ?? 0;
-    const nextTopic = snapshot?.weak_topics?.[0];
+    // THE SAME FILTERED SET THE TOPICS TAB SHOWS, for the same reason as the
+    // tile above. "What should I study next?" read weak_topics[0] raw, so the
+    // page could name a topic as the one thing to work on and then decline to
+    // list it — because it had one attempt behind it, or no real label.
+    const weakTopics = topicGroups.needs_attention;
+    const weakCount = weakTopics.length;
+    const nextTopic = weakTopics[0];
     return [
       {
         q: "How am I doing?",
@@ -871,7 +916,7 @@ export default function Analysis() {
       },
       {
         q: "What should I study next?",
-        a: nextTopic ? (nextTopic.topic || nextTopic.chapter || nextTopic.subject) : "Start a practice session",
+        a: nextTopic ? (nextTopic.topic || nextTopic.subject) : "Start a practice session",
         sub: revisionData.dueToday.length > 0
           ? `${revisionData.dueToday.length} revision item${revisionData.dueToday.length === 1 ? "" : "s"} due today`
           : "Check your revision queue",
@@ -879,7 +924,7 @@ export default function Analysis() {
         icon: <BookOpen className="w-4 h-4" />,
       },
     ];
-  }, [overview, subjectData, snapshot?.weak_topics, revisionData.dueToday.length]);
+  }, [overview, subjectData, topicGroups.needs_attention, revisionData.dueToday.length]);
 
   // FIRST POINT AGAINST LAST POINT IS NOT A TREND, and points are not percent.
   //
@@ -919,21 +964,55 @@ export default function Analysis() {
   const upcomingMilestones = useMemo(() => {
     // Annotated, not asserted: `[]` infers never[] under strictNullChecks.
     const items: { title: string; progress: number; target: number; unit: string }[] = [];
+    // EVERY TARGET HERE IS THE CONSTANT THAT DECIDES IT.
+    //
+    // The condition used STREAK_MILESTONE and then wrote `target: 15` and
+    // "Reach 15-day..." beside it; the same for 100, three times over. Moving
+    // a milestone would have moved the bar the page tests and left the bar it
+    // shows the student where it was.
     if (overview.streak < STREAK_MILESTONE && overview.streak > 0) {
-      items.push({ title: "Reach 15-day practice streak", progress: overview.streak, target: 15, unit: "days" });
+      items.push({
+        title: `Reach ${STREAK_MILESTONE}-day practice streak`,
+        progress: overview.streak,
+        target: STREAK_MILESTONE,
+        unit: "days",
+      });
     }
-    if (overview.totalQuestions < 100) {
-      items.push({ title: "Solve 100 practice questions", progress: overview.totalQuestions, target: 100, unit: "questions" });
+    if (overview.totalQuestions < PRACTICE_QUESTIONS_MILESTONE) {
+      items.push({
+        title: `Solve ${PRACTICE_QUESTIONS_MILESTONE} practice questions`,
+        progress: overview.totalQuestions,
+        target: PRACTICE_QUESTIONS_MILESTONE,
+        unit: "questions",
+      });
     }
     // `accuracy != null` replaces the old `> 0`, which was doing this job by
     // accident: subjectData used to carry 0 for "nothing measured", so the
     // guard excluded a genuine 0% too. Null now means unmeasured and 0 means
     // zero correct, and each is handled as what it is.
-    const weak = subjectData.find(
-      (s) => s.accuracy != null && !["high", "near"].includes(accuracyBand(s.accuracy)),
-    );
+    //
+    // THE TARGET WAS 75 AND NOTHING IN THE PRODUCT USES 75.
+    //
+    // The test beside it is `!["high","near"].includes(band)`, and a subject
+    // becomes "near" at ACCURACY_CONCEPTUAL — 70. So the bar this subject
+    // must clear to stop being flagged is 70, while the page told the student
+    // to reach 75: a goal five points past the one the page itself applies,
+    // invented at the call site and matching no boundary in the band module.
+    //
+    // `.find` also took whichever weak subject came first in by_subject
+    // order, which is most-attempts-first — an arbitrary pick presented as
+    // the thing to work on. It is the weakest MEASURED subject now; unmeasured
+    // subjects are unranked, not weak, which is why the null check stays.
+    const weak = subjectData
+      .filter((s) => s.accuracy != null && !["high", "near"].includes(accuracyBand(s.accuracy)))
+      .sort((a, b) => (a.accuracy as number) - (b.accuracy as number))[0];
     if (weak?.accuracy != null) {
-      items.push({ title: `Improve ${weak.name} above 75%`, progress: weak.accuracy, target: 75, unit: "%" });
+      items.push({
+        title: `Improve ${weak.name} above ${ACCURACY_CONCEPTUAL}%`,
+        progress: weak.accuracy,
+        target: ACCURACY_CONCEPTUAL,
+        unit: "%",
+      });
     }
     return items;
   }, [overview, subjectData]);
@@ -1118,7 +1197,7 @@ export default function Analysis() {
               // recorded minutes, the missing one being 33 days old. The chart
               // on Activity & Speed already says "last 4 weeks"; the tiles that
               // sum the same rows now say it too.
-              { label: "Study time (4 weeks)",  value: formatStudyTime(overview.studyMinutes), color: "hsl(var(--info))" },
+              { label: "Study time (4 weeks)",  value: formatStudyTime(studyActivity.totalMinutes || null), color: "hsl(var(--info))" },
               // "Exam readiness" was removed in the v2 redesign: a composite of
               // four measures collapsed into one number, which is the
               // no-blended-score rule and cannot be explained to a student.
@@ -1629,13 +1708,12 @@ export default function Analysis() {
           <div>
             <SLabel>How fast you solve questions</SLabel>
             <div className="grid sm:grid-cols-3 gap-3 mb-4">
-              <Metric label="Average per question"  value={speedStats.avgSec > 0 ? `${speedStats.avgSec}s` : "—"}    color="hsl(var(--foreground))" />
-              <Metric label="Fastest subject"        value={speedStats.fastestSubject}  color="hsl(var(--success))" sub={speedStats.fastestSec > 0 ? `${speedStats.fastestSec}s avg` : undefined} />
-              {/* The sub line asked `avgSec > 0`, which is a question about a
-                  DIFFERENT figure: with one subject practised there is no
-                  slowest, the value renders "—", and the sub still printed
-                  "0s avg" underneath it. It asks about its own number now. */}
-              <Metric label="Takes most time"        value={speedStats.slowestSubject}  color="hsl(var(--warning))" sub={speedStats.slowestSec > 0 ? `${speedStats.slowestSec}s avg` : undefined} />
+              <Metric label="Average per question"  value={subjectPace.avgSec > 0 ? `${subjectPace.avgSec}s` : "—"}    color="hsl(var(--foreground))" />
+              {/* Each tile asks about its OWN number. A sub line gated on the
+                  overall average printed "0s avg" under a "—" whenever only
+                  one subject had enough timed questions to rank. */}
+              <Metric label="Fastest subject"        value={subjectPace.fastest?.name ?? "—"}  color="hsl(var(--success))" sub={subjectPace.fastest ? `${subjectPace.fastest.avgSec}s avg` : undefined} />
+              <Metric label="Takes most time"        value={subjectPace.slowest?.name ?? "—"}  color="hsl(var(--warning))" sub={subjectPace.slowest ? `${subjectPace.slowest.avgSec}s avg` : undefined} />
             </div>
             {/* ── How you do by difficulty ───────────────────────────
                 Every attempt carries a difficulty and nothing read it. The
@@ -1706,16 +1784,16 @@ export default function Analysis() {
             )}
 
             <Card label="Time per question by subject (seconds)">
-              {speedBySubject.length > 0 && speedStats.avgSec > 0 ? (
+              {subjectPace.rows.length > 0 ? (
               <div className="h-40 mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={speedBySubject} layout="vertical" barSize={14}>
+                  <BarChart data={subjectPace.rows} layout="vertical" barSize={14}>
                     <CartesianGrid stroke="hsl(var(--border))" horizontal={false} />
                     <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis dataKey="name" type="category" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
                     <Tooltip content={<ChartTooltip />} />
                     <Bar dataKey="avgSec" name="Seconds" radius={[0, 6, 6, 0]} isAnimationActive={false}>
-                      {speedBySubject.map((s, i) => <Cell key={i} fill={s.color} />)}
+                      {subjectPace.rows.map((s, i) => <Cell key={i} fill={s.color} />)}
                     </Bar>
                 </BarChart>
               </ResponsiveContainer>

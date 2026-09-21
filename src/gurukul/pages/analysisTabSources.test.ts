@@ -107,6 +107,87 @@ describe("rule 11 — Analysis touches practice tables only", () => {
   });
 });
 
+/**
+ * §6.7 / §10.16 — THIS PAGE IS ABOUT ONE STUDENT AND NOBODY ELSE.
+ *
+ * Analysis shows a child their own record. It does not show them the class,
+ * the school, an average, a rank or a percentile, and it does not reach for a
+ * row belonging to anyone else in order to say something about them. The
+ * page already obeyed this; nothing asserted it, so the next person to add a
+ * "how you compare" panel would have found no resistance.
+ *
+ * peerBenchmarkSubjects existed in this page's own helper module until
+ * 2026-09-21 — unused, but still carrying `_rank` and `_classSize`
+ * parameters from a percentile it had been corrected out of. That is how the
+ * comparison gets back in: not as a decision, as a leftover.
+ */
+describe("§6.7 — Analysis reads one student and never a cohort", () => {
+  it("names no cohort, rank or percentile anywhere in the page", () => {
+    for (const token of [
+      "peer",
+      "percentile",
+      "classmate",
+      "cohort",
+      "leaderboard",
+      "classAverage",
+      "class_average",
+      "topper",
+    ]) {
+      expect(SOURCE.includes(token), `${token} is a comparison against other students`).toBe(
+        false,
+      );
+    }
+  });
+
+  it("scopes nothing by school or class", () => {
+    // Every query behind this page filters on the signed-in user — directly
+    // via user_id, or inside an RPC on auth.uid(). A school_id or class_id
+    // filter here would be a query about a group.
+    expect(SOURCE).not.toContain("school_id");
+    expect(SOURCE).not.toContain("class_id");
+  });
+
+  it("still reads the student's own record, so the rule is not met by showing nothing", () => {
+    expect(SOURCE).toContain("useStudentAcademicSnapshot");
+    expect(SOURCE).toContain("subjectData");
+  });
+});
+
+/**
+ * G9 — ONE CLOCK. Per-question time has a single definition on this page.
+ *
+ * deriveSpeedStats measured it as a SESSION's total_time_ms / question_count,
+ * which counts the gaps between questions, while the topic and chapter
+ * panels on the Activity tab read question_attempts.time_taken_ms, which does
+ * not. Both were rendered. "Takes most time: Mathematics" and "Chapters that
+ * take you longest" were answering one question from two different clocks,
+ * and nothing made them agree.
+ *
+ * It also had no evidence floor at all: fastest and slowest subject were the
+ * first and last of an unfiltered sort, so one timed question could name the
+ * subject a student is slowest at.
+ */
+describe("G9 — per-question time has one definition", () => {
+  it("does not measure pace from session totals", () => {
+    expect(SOURCE).not.toContain("deriveSpeedStats");
+    expect(SOURCE).not.toContain("speedBySubject");
+  });
+
+  it("measures it from the attempt record, through the floored helper", () => {
+    expect(SOURCE).toContain("deriveSubjectPace");
+    expect(SOURCE).toContain("subjectPace");
+  });
+
+  it("does not sum the heat-map raw behind a label that says four weeks", () => {
+    // Study time, average per day, most active day and the day-of-week bars
+    // all say "last 4 weeks" and all used to reduce over whatever span the
+    // snapshot returned. They read activityWeeks now, which consistencyWeeks
+    // windows, so the label and the arithmetic cannot drift apart.
+    expect(SOURCE).not.toContain("activity_heatmap ?? []");
+    expect(SOURCE).toContain("consistencyWeeks(snapshot?.activity_heatmap, 4)");
+  });
+});
+
 describe("the tab list itself", () => {
   it("has a unique key per tab and a label for each", () => {
     const keys = TABS.map((t) => t.key);
