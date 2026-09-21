@@ -150,6 +150,18 @@ const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: 
  */
 const RADAR_MIN_AXES = 3;
 
+/**
+ * An area or line chart needs two points to have any extent.
+ *
+ * "How your score changed" is an AreaChart, and with a single session it
+ * drew literally nothing — an empty framed panel under a heading promising a
+ * trend, which reads as a broken chart rather than as "come back after
+ * another session". Distinct from TREND_MIN_SESSIONS, which is about
+ * whether a trend may be JUDGED (§6.4); this is only about whether there is
+ * a shape to draw.
+ */
+const LINE_MIN_POINTS = 2;
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Analysis() {
@@ -1362,7 +1374,7 @@ export default function Analysis() {
               falls back to the recent-sessions list — never seven weeks of
               anything. */}
           <Card label="How your score changed — your recent sessions">
-            {scoreTrend.length > 0 ? (
+            {scoreTrend.length >= LINE_MIN_POINTS ? (
             <>
             <div className="h-48 mt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -1399,7 +1411,11 @@ export default function Analysis() {
             )}
             </>
             ) : (
-              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">No score trend data yet</p>
+              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
+                {scoreTrend.length === 0
+                  ? "No score trend data yet"
+                  : "One session so far — a second gives this chart a line to draw."}
+              </p>
             )}
           </Card>
 

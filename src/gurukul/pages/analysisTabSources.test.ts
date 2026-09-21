@@ -132,6 +132,42 @@ describe("rule 11 — Analysis touches practice tables only", () => {
  * — the fabricated zero the rest of this page was corrected for three times,
  * waiting behind a flag. A defect nobody can see yet is still a defect.
  */
+/**
+ * A CHART THAT CANNOT DRAW A SHAPE SAYS SO INSTEAD OF FRAMING NOTHING.
+ *
+ * "How you perform in each subject" is a RadarChart and rendered whenever it
+ * had any point at all, so one measured subject drew a dot and two drew a
+ * line segment — on the panel whose purpose is comparing subjects, for what
+ * is the COMMON case here: a subject whose attempts were all skipped has no
+ * accuracy and is correctly filtered off the radar, and the student measured
+ * on 2026-09-19 had five of six subjects in that state.
+ *
+ * "How your score changed" is an AreaChart and rendered from one point, so a
+ * student with a single session got an empty framed panel under a heading
+ * promising a trend.
+ *
+ * These are source assertions: the radar case has a render test, the
+ * one-point trend would need a third fixture file for one boolean, and the
+ * thing worth protecting is that the gates exist and are named constants
+ * rather than inline `> 0`.
+ */
+describe("charts are gated on having a shape to draw", () => {
+  it("gates the radar on enough axes to make a polygon", () => {
+    expect(SOURCE).toContain("radarData.length >= RADAR_MIN_AXES");
+    expect(SOURCE).not.toContain("radarData.length > 0 ?");
+  });
+
+  it("gates the score trend on enough points to make a line", () => {
+    expect(SOURCE).toContain("scoreTrend.length >= LINE_MIN_POINTS");
+    expect(SOURCE).not.toContain("scoreTrend.length > 0 ?");
+  });
+
+  it("keeps both thresholds named, not inlined at the call site", () => {
+    expect(SOURCE).toMatch(/const RADAR_MIN_AXES = \d+;/);
+    expect(SOURCE).toMatch(/const LINE_MIN_POINTS = \d+;/);
+  });
+});
+
 describe("the null contract holds on flagged paths too", () => {
   it("does not coerce an unscored v2 topic to zero", () => {
     expect(SOURCE).not.toContain("r.understanding ?? 0");
