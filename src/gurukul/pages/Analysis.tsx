@@ -134,6 +134,22 @@ const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: 
   );
 };
 
+/**
+ * A RADAR NEEDS THREE AXES TO BE A RADAR.
+ *
+ * The chart rendered whenever radarData was non-empty, so a student with one
+ * measured subject got a single dot and two got a line segment — shapes that
+ * look like a broken chart rather than a comparison, on a panel whose entire
+ * purpose is comparing subjects.
+ *
+ * One measured subject is the COMMON case here, not a corner: a subject
+ * whose attempts were all skipped has no accuracy and is correctly filtered
+ * out, and the student measured on 2026-09-19 had five of six subjects in
+ * exactly that state. The list beside the chart still shows every subject,
+ * so nothing is hidden by declining to draw the polygon.
+ */
+const RADAR_MIN_AXES = 3;
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Analysis() {
@@ -1445,7 +1461,7 @@ export default function Analysis() {
           {/* Subject radar */}
           <div className="grid sm:grid-cols-2 gap-6">
             <Card label="How you perform in each subject">
-              {radarData.length > 0 ? (
+              {radarData.length >= RADAR_MIN_AXES ? (
               <div className="h-56 mt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={radarData}>
@@ -1457,7 +1473,11 @@ export default function Analysis() {
                 </ResponsiveContainer>
               </div>
               ) : (
-                <p className="text-sm text-muted-foreground py-12 text-center">No subject data yet</p>
+                <p className="text-sm text-muted-foreground py-12 text-center">
+                  {radarData.length === 0
+                    ? "No subject data yet"
+                    : `A radar needs ${RADAR_MIN_AXES} subjects to compare. ${pluralise(radarData.length, "subject")} measured so far — the list beside this one shows ${radarData.length === 1 ? "it" : "them"}.`}
+                </p>
               )}
             </Card>
 

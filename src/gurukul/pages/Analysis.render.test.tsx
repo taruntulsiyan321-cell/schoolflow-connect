@@ -307,6 +307,19 @@ describe("Analysis — rendered", () => {
     expect(row.textContent).not.toContain("0");
   });
 
+  it("does not draw a radar out of one point", () => {
+    render(<Analysis />);
+    openTab("Subjects & Chapters");
+    // The fixture has four subjects and only Mathematics is measured — the
+    // other three are 100% skipped, so they have no accuracy and are
+    // correctly filtered out. A one-axis radar is a dot, on a panel whose
+    // whole purpose is comparing subjects.
+    expect(screen.getByText(/A radar needs 3 subjects to compare/)).toBeInTheDocument();
+    // And the list beside it still shows every subject, so nothing is lost.
+    expect(screen.getByText("Social Science")).toBeInTheDocument();
+    expect(screen.getAllByText("Mathematics").length).toBeGreaterThan(0);
+  });
+
   it("calls one quantity by one name across the tab", () => {
     render(<Analysis />);
     openTab("Subjects & Chapters");
