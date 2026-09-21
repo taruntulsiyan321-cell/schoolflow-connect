@@ -121,6 +121,31 @@ describe("rule 11 — Analysis touches practice tables only", () => {
  * parameters from a percentile it had been corrected out of. That is how the
  * comparison gets back in: not as a decision, as a leftover.
  */
+/**
+ * G7 / the null contract — an unmeasured figure is never coerced to zero,
+ * including on paths that are currently behind a feature flag.
+ *
+ * The weakAreasV2 adapter did `accuracy: r.understanding ?? 0`, and
+ * understanding is `number | null` where null means the engine has not
+ * scored that topic. Switching VITE_FF_DECISION_ENGINE_WEAK_AREAS_V2 on
+ * would have rendered "0% accuracy · needs review" for every unscored topic
+ * — the fabricated zero the rest of this page was corrected for three times,
+ * waiting behind a flag. A defect nobody can see yet is still a defect.
+ */
+describe("the null contract holds on flagged paths too", () => {
+  it("does not coerce an unscored v2 topic to zero", () => {
+    expect(SOURCE).not.toContain("r.understanding ?? 0");
+    expect(SOURCE).toContain("accuracy: r.understanding,");
+  });
+
+  it("keeps one absence convention for the mistake count", () => {
+    // The summary row read `snapshot?.mistake_count ?? null` and the Topics
+    // tile read the same field as `?? 0`, so one missing snapshot produced
+    // "not recorded yet" at the top of the page and "0" halfway down it.
+    expect(SOURCE).not.toContain("snapshot?.mistake_count ?? 0");
+  });
+});
+
 describe("§6.7 — Analysis reads one student and never a cohort", () => {
   it("names no cohort, rank or percentile anywhere in the page", () => {
     for (const token of [

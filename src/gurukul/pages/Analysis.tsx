@@ -442,7 +442,7 @@ export default function Analysis() {
       preferRealAcademicLabel(t.topic, t.chapter);
     const realSubject = (s: string | null | undefined) => preferRealAcademicLabel(s);
     const weakTopicsSource: {
-      subject: string; chapter?: string; topic?: string; accuracy: number; attempts?: number;
+      subject: string; chapter?: string; topic?: string; accuracy: number | null; attempts?: number;
     }[] =
       DECISION_ENGINE_FEATURE_FLAGS.weakAreasV2
         ? (v2WeakAreas ?? []).map((r) => ({
@@ -453,7 +453,14 @@ export default function Analysis() {
             // mastery_score elsewhere: understanding and accuracy are both
             // 0-100 "how well is this understood" scales, not the same
             // measurement.
-            accuracy: r.understanding ?? 0,
+            //
+            // NULL SURVIVES. This was `?? 0`, so a topic the v2 engine had
+            // not scored rendered "0% accuracy · needs review" — the
+            // fabricated zero every other figure on this page was corrected
+            // for, sitting behind a feature flag waiting to be switched on.
+            // understanding is `number | null` and the null means unscored,
+            // not scored zero.
+            accuracy: r.understanding,
           }))
         : (snapshot?.weak_topics ?? []);
     return {
@@ -465,7 +472,7 @@ export default function Analysis() {
           return {
             topic,
             subject,
-            score: Math.round(t.accuracy),
+            score: t.accuracy == null ? null : Math.round(t.accuracy),
             // The SERVER's count for this topic, not a client re-derivation.
             //
             // practiceCountForTopic matches the topic against the SESSION's
@@ -796,7 +803,11 @@ export default function Analysis() {
   // 69 for a student with 35.
   const learningProgress = useMemo(
     () => ({
-      openMistakes: snapshot?.mistake_count ?? 0,
+      // NULL, matching the summary row at the top of the page, which reads
+      // the same field as `?? null`. One field, two absence conventions:
+      // the header said "not recorded yet" while this tile said 0, for the
+      // same missing snapshot, on the same screen.
+      openMistakes: snapshot?.mistake_count ?? null,
       topicsPractised: practiceAnalytics?.by_topic.length ?? 0,
       // THE TILE COUNTS WHAT THE LIST BENEATH IT SHOWS.
       //
@@ -1566,7 +1577,7 @@ export default function Analysis() {
           {/* Learning journey overview */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Open mistakes",    value: learningProgress.openMistakes, color: "hsl(var(--destructive))", icon: <AlertCircle className="w-5 h-5" /> },
+              { label: "Open mistakes",    value: learningProgress.openMistakes ?? "—", color: "hsl(var(--destructive))", icon: <AlertCircle className="w-5 h-5" /> },
               { label: "Topics practised",  value: learningProgress.topicsPractised, color: "hsl(var(--info))", icon: <BookOpen className="w-5 h-5" /> },
               { label: "Need attention",    value: learningProgress.needAttention,   color: "hsl(var(--warning))", icon: <Target className="w-5 h-5" /> },
             ].map((item) => (
