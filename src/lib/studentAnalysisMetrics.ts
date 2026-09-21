@@ -171,77 +171,23 @@ export function buildWeekComparison(
   }));
 }
 
-export type DerivedSubjectRow = {
-  name: string;
-  accuracy: number;
-  questions: number;
-  /**
-   * Measured study minutes across this subject's TIMED sessions, or null when
-   * none of them was timed.
-   *
-   * Was `timeHrs`, a number of hours pre-rounded to one decimal in this
-   * module. Two problems, one root: rounding a measurement here means the
-   * renderer cannot choose an honest unit (6 minutes arrived as 0.1h and
-   * printed as "0.1h study time"), and a `number` cannot say "nobody timed
-   * this", so an untimed subject rendered as zero hours of work.
-   */
-  measuredMinutes: number | null;
-  /** Movement in accuracy points. Null unless the §6.4 floor is met. */
-  trend: number | null;
-  /** §6.4. Distinguishes "steady" from "not enough data"; trend alone cannot. */
-  trendState: TrendState;
-  /**
-   * §10.8 — the "best" rung is GONE, not renamed. It drove a "Best subject"
-   * badge on the Analysis screen: a list filtered to the highest and a figure
-   * presented as an achievement, which is both halves of the forbidden column.
-   * A rung nothing can reach is still a rung the next screen can render, so it
-   * is removed from the union rather than left unused.
-   */
-  status: "needs-attention" | "steady";
-};
+/*
+ * DerivedSubjectRow and deriveSubjectRows WERE HERE, and they are gone.
+ *
+ * They built the Subjects tab from charts.subjects, which
+ * rpc_student_performance_charts aggregates out of _weak_topics_for_user —
+ * so it only ever saw subjects whose attempts resolve to a topic in the
+ * bank. Measured 2026-09-18: a student with attempts in six subjects had ONE
+ * row, and the radar, a chart whose whole purpose is comparing subjects, was
+ * drawing a single point.
+ *
+ * subjectData now comes from rpc_student_practice_analytics' by_subject,
+ * which groups question_attempts directly. The old builder stayed behind as
+ * an unused export and an unused import in Analysis.tsx, which is how a
+ * retired source gets picked back up by the next screen that needs
+ * "something like this".
+ */
 
-export function deriveSubjectRows(
-  subjects: SubjectChartPoint[],
-  sessions: PracticeSessionSummary[],
-): DerivedSubjectRow[] {
-  const deduped = dedupeSubjectChartPoints(subjects);
-  const bySubject = new Map<string, PracticeSessionSummary[]>();
-  for (const s of [...sessions].sort(
-    (a, b) => new Date(a.finished_at).getTime() - new Date(b.finished_at).getTime(),
-  )) {
-    const key = subjectSessionKey(s.subject);
-    if (!key) continue;
-    const list = bySubject.get(key) ?? [];
-    list.push(s);
-    bySubject.set(key, list);
-  }
-
-  return deduped.map((s) => {
-    const accuracy = Math.round(s.accuracy);
-    const sess = bySubject.get(s.name.toLowerCase()) ?? [];
-    // Only the sessions that were actually timed. Summing an unmeasured
-    // session as zero would under-report; summing a wall clock over it would
-    // invent time the student never spent. Null when none of them was timed,
-    // so the row can say nothing rather than say "0h".
-    const timedSess = sess.filter((x) => x.measured_ms != null);
-    const measuredMinutes =
-      timedSess.length > 0
-        ? Math.round(timedSess.reduce((sum, x) => sum + (x.measured_ms ?? 0), 0) / 60000)
-        : null;
-    const { state: subjectTrendState, deltaPoints } = trendState(sess.map(accuracyOf));
-    return {
-      name: s.name,
-      accuracy,
-      questions: s.attempts,
-      measuredMinutes,
-      trend: deltaPoints,
-      trendState: subjectTrendState,
-      // Converged onto the one accuracy ladder: this asked "< 65", which was a
-      // boundary no other screen used and the ruling does not carry.
-      status: ["low", "weak"].includes(accuracyBand(accuracy)) ? "needs-attention" : "steady",
-    };
-  });
-}
 
 // `DerivedChapterRow` and `deriveChapterRows` WERE HERE, and they are gone
 // with the table they read.
