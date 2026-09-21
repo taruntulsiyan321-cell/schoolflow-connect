@@ -108,15 +108,15 @@ function formatStudyTime(minutes: number | null): string {
 /**
  * The "% right" line printed beside a TIME.
  *
- * These two panels rank on timed readings and judge on answers, and the two
- * counts disagree: a topic can have five timed attempts and none of them
- * answered. That row used to print a bare em dash where a rate goes, which
- * reads as a missing value rather than as "there is nothing to rate yet".
+ * Both panels now require enough ANSWERED questions to appear at all, so a
+ * surviving row always has a rate — but accuracyWhenMeaningful stays the
+ * only thing allowed to decide that, rather than this trusting the filter
+ * upstream and printing `accuracy` raw. If the two ever disagree the row
+ * says so instead of asserting a rate it has not earned.
  */
 function rightRate(answered: number, accuracyPct: number | null): string {
   const rate = accuracyWhenMeaningful(answered, accuracyPct);
-  if (rate != null) return `${Math.round(rate)}% right`;
-  return answered === 0 ? "none answered" : "too few answers";
+  return rate == null ? "not enough answers" : `${Math.round(rate)}% right`;
 }
 
 const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) => {
@@ -606,23 +606,37 @@ export default function Analysis() {
     );
   }, [practiceAnalytics?.effort]);
 
-  // THE FLOOR HERE COUNTS TIMED READINGS, NOT ATTEMPTS.
+  // TWO FLOORS, AND BOTH ARE NEEDED — the same pair the subject tiles use.
   //
-  // avg_sec averages over attempts that carry a duration, so a row's time can
-  // rest on ONE reading while its attempt count says twenty — and the attempt
-  // count was what this filtered on. That is how a single 579-second reading
-  // ranked as the slowest topic on the page.
+  // TIMED READINGS, because avg_sec averages over attempts that carry a
+  // duration: a row's time can rest on ONE reading while its attempt count
+  // says twenty, which is how a single 579-second reading ranked as the
+  // slowest topic on the page.
+  //
+  // ANSWERED QUESTIONS, because these panels are about where a student's
+  // SOLVING time goes, and a skip is not solving. Without it the list ranked
+  // rows a student had never answered anything in — "Reporting Imperative
+  // Sentences, 5 attempts, 0.9s" was five straight skips through an English
+  // topic, sitting at the top of "topics that take you longest" and printing
+  // a blank where its success rate goes.
+  //
+  // THE REAL FIX IS ONE LEVEL DOWN and needs a migration: avg_sec should be
+  // averaged over ANSWERED attempts rather than all timed ones, so a row's
+  // time never mixes reading-and-skipping with solving. Until then the floor
+  // keeps the rows where solving dominates. Both panels and the subject
+  // tiles now apply the identical pair, so the page cannot answer "what
+  // takes you longest" one way per level.
   const slowestTopics = useMemo(
     () =>
       (practiceAnalytics?.by_topic ?? [])
-        .filter((t) => mayBeJudged(t.timed) && (t.avg_sec ?? 0) > 0)
+        .filter((t) => mayBeJudged(t.timed) && mayBeJudged(t.answered) && (t.avg_sec ?? 0) > 0)
         .slice(0, 6),
     [practiceAnalytics?.by_topic],
   );
   const slowestChapters = useMemo(
     () =>
       [...(practiceAnalytics?.by_chapter ?? [])]
-        .filter((c) => mayBeJudged(c.timed) && (c.avg_sec ?? 0) > 0)
+        .filter((c) => mayBeJudged(c.timed) && mayBeJudged(c.answered) && (c.avg_sec ?? 0) > 0)
         .sort((a, b) => (b.avg_sec ?? 0) - (a.avg_sec ?? 0))
         .slice(0, 6),
     [practiceAnalytics?.by_chapter],
@@ -967,12 +981,8 @@ export default function Analysis() {
 
   const monthComparison = useMemo(
     () =>
-      deriveMonthComparison(
-        charts?.weekly_activity ?? [],
-        analysis?.recent_sessions ?? [],
-        snapshot?.activity_heatmap,
-      ),
-    [charts?.weekly_activity, analysis?.recent_sessions, snapshot?.activity_heatmap],
+      deriveMonthComparison(analysis?.recent_sessions ?? [], snapshot?.activity_heatmap),
+    [analysis?.recent_sessions, snapshot?.activity_heatmap],
   );
 
   const scoreTrendDomain = useMemo(
@@ -1613,7 +1623,7 @@ export default function Analysis() {
           {/* Recovery & Revision */}
           <div className="grid sm:grid-cols-2 gap-6">
             <div>
-              <SLabel>Topics you practiced again</SLabel>
+              <SLabel>Topics you practised again</SLabel>
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-foreground">{recoveryProgress.completed}</div>
@@ -1930,7 +1940,7 @@ export default function Analysis() {
             <Card label="Topics that take you longest (seconds per question)">
               {slowestTopics.length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
-                  No topic has {MIN_OBSERVATIONS_FOR_VERDICT} timed readings behind it yet.
+                  No topic has {MIN_OBSERVATIONS_FOR_VERDICT} answered, timed questions behind it yet.
                 </p>
               ) : (
                 <div className="space-y-2 mt-4">
@@ -1962,7 +1972,7 @@ export default function Analysis() {
             <Card label="Chapters that take you longest (seconds per question)">
               {slowestChapters.length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
-                  No chapter has {MIN_OBSERVATIONS_FOR_VERDICT} timed readings behind it yet.
+                  No chapter has {MIN_OBSERVATIONS_FOR_VERDICT} answered, timed questions behind it yet.
                 </p>
               ) : (
                 <div className="space-y-2 mt-4">
@@ -2086,7 +2096,12 @@ export default function Analysis() {
                   <div key={m.title} className="p-4 rounded-xl border border-border/70 bg-surface/60">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-semibold text-foreground">{m.title}</span>
-                      <span className="text-xs text-muted-foreground">{m.progress}/{m.target} {m.unit}</span>
+                      {/* "46/70 %" — the space belongs before a word, not before a
+                          percent sign. */}
+                      <span className="text-xs text-muted-foreground">
+                        {m.progress}/{m.target}
+                        {m.unit === "%" ? "%" : ` ${m.unit}`}
+                      </span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "linear-gradient(90deg,hsl(var(--primary)),hsl(var(--info)))" }} />

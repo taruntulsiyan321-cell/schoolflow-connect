@@ -434,8 +434,21 @@ export function deriveSubjectPace(
  *    made here about the same minutes. Minutes are returned; the renderer
  *    picks the unit.
  */
+/**
+ * `weekly: WeeklyActivityPoint[]` WAS THE FIRST PARAMETER AND IT IS GONE.
+ *
+ * This counted a month's ACTIVITIES from charts.weekly_activity and that same
+ * month's MINUTES from snapshot.activity_heatmap — two tables answering "what
+ * did this student do on this day", inside one three-row panel. Rendered
+ * together they contradict: the panel showed "Activities 0" directly above
+ * "Study time 1.8h", which is 107 minutes of activity on no activities.
+ *
+ * The heat-map rows already carry the components the count needs
+ * (test + homework + battles + self_practice), so both rows read the same
+ * days now, and they agree with the Practice tab's four-week tiles for the
+ * same reason.
+ */
 export function deriveMonthComparison(
-  weekly: WeeklyActivityPoint[],
   sessions: PracticeSessionSummary[],
   heatmap: AcademicSnapshot["activity_heatmap"],
   now = new Date(),
@@ -455,12 +468,6 @@ export function deriveMonthComparison(
     return d.getFullYear() === lastYear && d.getMonth() === lastMonth;
   };
 
-  let thisActivities = 0;
-  let lastActivities = 0;
-  for (const row of weekly) {
-    if (inThis(row.date)) thisActivities += row.total ?? 0;
-    if (inLast(row.date)) lastActivities += row.total ?? 0;
-  }
 
   /** Pooled: correct over answered, never a mean of session percentages. */
   const pooled = (rows: PracticeSessionSummary[]): number | null => {
@@ -473,11 +480,23 @@ export function deriveMonthComparison(
     return answered > 0 ? Math.round((100 * correct) / answered) : null;
   };
 
+  let thisActivities = 0;
+  let lastActivities = 0;
   let thisMins = 0;
   let lastMins = 0;
   for (const row of heatmap ?? []) {
-    if (inThis(row.date)) thisMins += row.minutes ?? 0;
-    if (inLast(row.date)) lastMins += row.minutes ?? 0;
+    // The same components consistencyWeeks counts, so "activities" means one
+    // thing on this page.
+    const done =
+      (row.test ?? 0) + (row.homework ?? 0) + (row.battles ?? 0) + (row.self_practice ?? 0);
+    if (inThis(row.date)) {
+      thisActivities += done;
+      thisMins += row.minutes ?? 0;
+    }
+    if (inLast(row.date)) {
+      lastActivities += done;
+      lastMins += row.minutes ?? 0;
+    }
   }
 
   return [
