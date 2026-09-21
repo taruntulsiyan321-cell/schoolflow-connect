@@ -281,6 +281,18 @@ describe("G5 — accuracy has one source", () => {
     expect(HOOK).not.toContain("rpc_student_concept_mastery");
   });
 
+  it("counts a correct answer the way the RPC counts one", () => {
+    // The count query asked only `is_correct = true`, while
+    // rpc_student_practice_analytics counts
+    // `is_correct AND NOT COALESCE(skipped, false)` for every subject,
+    // chapter and topic row on the same page. One row that is both skipped
+    // and correct — possible in seeded and legacy data, which was not
+    // written through rpc_record_question_attempt — would inflate the
+    // Correct tile and deflate Incorrect twice over.
+    expect(HOOK).toContain('.eq("is_correct", true)');
+    expect(HOOK).toContain('.not("skipped", "is", true)');
+  });
+
   it("does not fall back to practice_sessions.correct_count", () => {
     // That column is seeded on 240 of 244 rows and disagrees with its own
     // attempts (KNOWN_ISSUES 44), so a fallback to it reintroduces the same

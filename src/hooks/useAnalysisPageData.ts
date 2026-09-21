@@ -229,11 +229,28 @@ export function useAnalysisPageData(enabled = true) {
           .from("question_attempts")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id),
+        // CORRECT MEANS THE SAME THING HERE AS IT DOES IN THE RPC.
+        //
+        // This asked only `is_correct = true`, while
+        // rpc_student_practice_analytics counts
+        // `is_correct AND NOT COALESCE(skipped, false)` for every subject,
+        // chapter and topic row on the same page. Two definitions of
+        // "correct", agreeing only while no row is both.
+        //
+        // rpc_record_question_attempt forces is_correct false on a skip, so
+        // no row written through it can be both — but seeded and legacy rows
+        // were not written through it, and one such row would inflate the
+        // Correct tile, deflate Incorrect TWICE over (wrong is
+        // total - correct - skipped, and the row counts in both subtrahends),
+        // and put the headline accuracy above what the subject rows show.
+        // Matching the RPC costs one clause; not matching it is a defect
+        // waiting for a single bad row.
         supabase
           .from("question_attempts")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
-          .eq("is_correct", true),
+          .eq("is_correct", true)
+          .not("skipped", "is", true),
         // SKIPS ARE COUNTED SEPARATELY, because they are not wrong answers.
         //
         // rpc_record_question_attempt forces is_correct false on a skip, so
