@@ -234,7 +234,12 @@ BEGIN
     json_build_object('sub', _uid_student, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
     BEGIN
-      DELETE FROM public.practice_bookmarks WHERE user_id=_uid_student;
+      -- The row item 4 seeded, by its question — not every bookmark the
+      -- student owns. It deleted "all of them" and expected exactly one, so a
+      -- student who had bookmarked a question in the app (one browser session
+      -- on 2026-09-21) failed it against a fence that was working. Same trap
+      -- item 4's note describes.
+      DELETE FROM public.practice_bookmarks WHERE user_id=_uid_student AND question_id=_q1;
       GET DIAGNOSTICS _w_own = ROW_COUNT;
     EXCEPTION WHEN others THEN _w_own := -1;
     END;

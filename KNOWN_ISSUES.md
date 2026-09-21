@@ -3009,7 +3009,7 @@ did — through `academic_events` and `school_activity_feed`. See 60.
 
 ---
 
-## 60. Practice answers reached the whole school through the activity feed — FIXED in code; migration 20261042000000 written, NOT yet applied
+## 60. ~~Practice answers reached the whole school through the activity feed~~ — FIXED, 20261042000000 applied 2026-09-21
 
 Measured 2026-09-18, signed in through PostgREST as each real person: the
 principal, the admin, a teacher, a parent and a Class 12 student each read three
@@ -3039,12 +3039,14 @@ router did not follow it.
   student, each with a positive control; `probe45` repeats that under
   `npm run verify:caller-privileges`.
 
-**Why not applied:** on 2026-09-19 the Management API returned 401 for the
-`SUPABASE_ACCESS_TOKEN` in `.env.local` (unchanged since 13 Sep, working on
-18 Sep). Every applier and DB-reading gate goes through it. Until a new token is
-in place, the old rows stay readable and each practice session still adds a
-feed row, now with an empty payload: the session's existence and time, not its
-answers.
+**Applied 2026-09-21** (it waited two days on a Management API token that
+returned 401). Its in-migration proof passed, and measured after it: 0
+practice rows left in the feed (143 deleted; the other 10,086 events intact),
+0 practice payloads left, the weak-area telemetry kept. As the real signed-in
+people, the principal, admin, a teacher, Arjun's own parent, a Class 12
+student and Arjun himself each read 0 of his practice rows from the feed —
+against a control in which each of them reads the feed's school events —
+and `verify:caller-privileges` (probe45) passes.
 
 ---
 
@@ -3078,7 +3080,7 @@ practice.
 
 ---
 
-## 63. The concept report contradicted the session it was reporting — FIXED in code; migration 20261043000000 written, NOT yet applied
+## 63. ~~The concept report contradicted the session it was reporting~~ — FIXED, 20261043000000 applied 2026-09-21
 
 The practice result screen reports a session from its finished row: accuracy
 over ANSWERED questions (20261021000000), the time its questions took
@@ -3114,7 +3116,50 @@ sessions:
   session in the database and fails if any report disagrees with its own row,
   with controls for accuracy, duration and weak concepts.
 
-**What is still wrong until it is applied:** the card lists weak concepts for
-chapters the student only skipped — verified in the browser, where a
-50-question skipped session lists 8 — and its insight sentence quotes the wall
-clock. The figures at the top of the page are correct either way.
+**Applied 2026-09-21 — at the second attempt, which is the proof working.**
+The first draft re-derived the accuracy (correct ÷ answered, to one decimal)
+and its own proof refused it: a session of 5/13 holds 38.46 and the report
+said 38.5. It now takes the row's own accuracy, and the card's insight
+sentence no longer restates accuracy or time at all. Measured after it, as the
+student over his 40 latest sessions: accuracy disagreements 0 (was 24), time
+0 (was 2), weak concepts on a session with no wrong answer 0 (was 23); the
+browser scenario s12 passes, including the positive control that a real wrong
+answer still names its weak concept.
+
+---
+
+## 64. verify:chunk-files — six files fail for reasons outside practice — OPEN
+
+Run 2026-09-21, the first run in two days (it needs the Management API token):
+40 files, 32 clean. Two failures came from that day's work and were fixed in
+the verify files themselves — `CHUNK67_VERIFY` item 2 still expected admin to
+read every academic event, which 20261042000000 changed on purpose, and
+`CHUNK7B_BATCH1_VERIFY` item 7 deleted all of a student's bookmarks while
+expecting exactly the one it had seeded, so a bookmark made in the app failed
+it. Both run clean now.
+
+The other six touch nothing practice changed, and each fails for its own
+reason:
+
+* `CHUNK2_VERIFY` — two checks still assert the topic rule from before rule 31
+  was amended on 2026-09-15: "question_bank.topic_id expected 0" and "topics
+  seeded from the bank expected 0" (there are 4,583, by the owner's ruling).
+  The checks are out of date, not the schema.
+* `CHUNK2_5_VERIFY` — ROTTED: inserts `homework.section_subject_id`, which no
+  longer exists.
+* `MATCH_QUESTION_BANK_FENCE_VERIFY` — ROTTED: inserts `question_bank.topic`,
+  dropped by 20261020010000. (`probe40` had the same rot and was repaired the
+  same day.)
+* `CHUNK7B_BATCH2_VERIFY` item 5 — asserts the teacher, with a permissive hole
+  opened, still cannot see the OTHER institution's mistakes. There are none to
+  see: all 125 `student_mistakes` rows belong to the demo school. The fence may
+  well be fine, but the check cannot currently tell. It needs to seed an
+  other-institution row inside its own rolled-back transaction.
+* `CHUNK7C_C1_VERIFY` — recovery ladder: "tier 0 filled 2, expected the
+  student's own wrong question", and tier 1 returned questions where it
+  expected none. Its expectations or its fixture have drifted from the ladder
+  as it is now built.
+* `CHUNK95_ANON_SURFACE_VERIFY` — **possibly real**: anon can EXECUTE
+  `my_readable_test_ids()` and no documented class explains why. A signed-out
+  visitor holding the public anon key can call it. Read that function's body
+  before deciding whether it is a hole.

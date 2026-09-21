@@ -123,11 +123,23 @@ describe("the rule-based concept report never shows a student a placeholder", ()
     expect(out.bullets.join(" ")).not.toContain("null");
   });
 
-  it("gives no duration when none was recorded", () => {
-    const none = buildRuleConceptReport(report({ time_minutes: null }));
-    expect(none.bullets.join(" ")).not.toContain("Time spent");
-    // POSITIVE CONTROL: it does report a duration it has.
-    const timed = buildRuleConceptReport(report({ time_minutes: 7 }));
-    expect(timed.bullets.join(" ")).toContain("Time spent: ~7 minutes");
+  /**
+   * The score and the time are the host page's to state. A second copy here
+   * read "Overall accuracy: 38.5%" beside a tile showing 38% for the same
+   * session (5 of 13, held as 38.46), and "0%" beside "—".
+   */
+  it("does not restate the score or the time the page already shows", () => {
+    const out = buildRuleConceptReport(report({
+      accuracy_pct: 38.46, correct_count: 5, total_count: 13, time_minutes: 7,
+      weak_concepts: [{ subject: "Mathematics", concept: "Arithmetic Progressions", accuracy: 20 }],
+    }));
+    const text = out.bullets.join(" ");
+    expect(text, "the accuracy is printed by the page, once").not.toMatch(/accuracy|38/i);
+    expect(text, "the score is printed by the page, once").not.toContain("5/13");
+    expect(text, "the time is printed by the page, once").not.toMatch(/Time spent|minutes/);
+    // POSITIVE CONTROL: what only this report knows is still said.
+    expect(text).toContain("Arithmetic Progressions (20%)");
+    // And the accuracy still chooses the advice.
+    expect(out.headline).toContain("Focus recovery");
   });
 });

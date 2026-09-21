@@ -23,8 +23,10 @@
 --
 -- Only the practice_session branch, and only where it disagreed:
 --
---   * correct ÷ answered, both read from the finished row, which is the one
---     home for them — not recounted from the attempt rows;
+--   * the accuracy, the correct count and the answered count are the finished
+--     row's own, which is the one home for them — not recounted from the
+--     attempt rows, and not re-rounded (a first draft reported 38.5 for a row
+--     holding 38.46, and this migration's proof refused it);
 --   * the session's own total_time_ms, not finished_at - created_at;
 --   * a weak concept is judged on the questions ANSWERED for it, so a topic
 --     that was only skipped is not weak at 0%.
@@ -70,6 +72,14 @@ AS $fn$
 DECLARE
   _nl text := CASE WHEN position(E'\r\n' IN _def) > 0 THEN E'\r\n' ELSE E'\n' END;
 BEGIN
+  -- 0. Somewhere to hold the session's own accuracy.
+  n := 0;
+  before := concat_ws(_nl,
+    $t$  _total int := 0; _correct int := 0; _time_sec int := 0;$t$) || _nl;
+  after := concat_ws(_nl,
+    $t$  _total int := 0; _correct int := 0; _time_sec int := 0; _accuracy numeric;$t$) || _nl;
+  RETURN NEXT;
+
   -- 1. The session's own figures, from the row that decided them.
   n := 1;
   before := concat_ws(_nl,
@@ -90,8 +100,9 @@ BEGIN
     $t$    -- shows this report (20261043000000).$t$,
     $t$    SELECT ps.correct_count,$t$,
     $t$           ps.correct_count + COALESCE(ps.wrong_count, 0),$t$,
-    $t$           CASE WHEN ps.total_time_ms > 0 THEN round(ps.total_time_ms / 1000.0)::int END$t$,
-    $t$      INTO _correct, _total, _time_sec$t$,
+    $t$           CASE WHEN ps.total_time_ms > 0 THEN round(ps.total_time_ms / 1000.0)::int END,$t$,
+    $t$           ps.accuracy$t$,
+    $t$      INTO _correct, _total, _time_sec, _accuracy$t$,
     $t$    FROM public.practice_sessions ps WHERE ps.id = _source_id AND ps.user_id = _uid;$t$) || _nl;
   RETURN NEXT;
 
@@ -109,12 +120,15 @@ BEGIN
     $t$      JOIN public.practice_sessions ps ON ps.id = qa.session_id$t$) || _nl;
   RETURN NEXT;
 
-  -- 3. No accuracy, and no duration, is absent — not zero.
+  -- 3. A practice session's accuracy is the one its row holds — not
+  --    recomputed, which rounded 38.46 to 38.5 beside a screen showing 38 —
+  --    and no accuracy is absent, not zero, for every source.
   n := 3;
   before := concat_ws(_nl,
     $t$    'accuracy_pct', CASE WHEN _total > 0 THEN round(100.0 * _correct / _total, 1) ELSE 0 END,$t$) || _nl;
   after := concat_ws(_nl,
-    $t$    'accuracy_pct', CASE WHEN _total > 0 THEN round(100.0 * _correct / _total, 1) END,$t$) || _nl;
+    $t$    'accuracy_pct', CASE WHEN _source_type = 'practice_session' THEN _accuracy$t$,
+    $t$                         WHEN _total > 0 THEN round(100.0 * _correct / _total, 1) END,$t$) || _nl;
   RETURN NEXT;
 
   n := 4;
@@ -163,7 +177,7 @@ DECLARE
   _checked int := 0; _with_accuracy int := 0; _with_weak int := 0; _with_time int := 0;
   _disagreed int := 0; _skip_weak int := 0;
 BEGIN
-  -- 0. The old definition with exactly these four edits, and nothing else.
+  -- 0. The old definition with exactly these five edits, and nothing else.
   _expected := _was;
   FOR _e IN SELECT * FROM pg_temp.report_edits(_was) ORDER BY n LOOP
     _expected := replace(_expected, _e.before, _e.after);
@@ -175,7 +189,7 @@ BEGIN
     END IF;
   END LOOP;
   IF _now IS DISTINCT FROM _expected THEN
-    RAISE EXCEPTION 'ROLLED BACK: the report changed by more than its four edits';
+    RAISE EXCEPTION 'ROLLED BACK: the report changed by more than its five edits';
   END IF;
   -- The other two sources are untouched: their branches still count every
   -- attempt they have, which is right for a test and a battle.
@@ -202,16 +216,14 @@ BEGIN
     _r := public._build_concept_recovery_report('practice_session', _s.id, _s.user_id);
     _checked := _checked + 1;
 
-    IF (_r->>'accuracy_pct') IS NULL THEN
-      IF _s.accuracy IS NOT NULL THEN
-        _disagreed := _disagreed + 1;
-      END IF;
-    ELSE
+    -- Exactly the row's accuracy: equal, or both absent. (A first draft
+    -- compared rounded figures and this very proof caught the difference:
+    -- a session of 5/13 held 38.46 while the report said 38.5.)
+    IF (_r->>'accuracy_pct')::numeric IS DISTINCT FROM _s.accuracy::numeric THEN
+      _disagreed := _disagreed + 1;
+    END IF;
+    IF (_r->>'accuracy_pct') IS NOT NULL THEN
       _with_accuracy := _with_accuracy + 1;
-      IF _s.accuracy IS NULL
-         OR round((_r->>'accuracy_pct')::numeric) <> round(_s.accuracy::numeric) THEN
-        _disagreed := _disagreed + 1;
-      END IF;
     END IF;
 
     IF (_r->>'correct_count')::int <> COALESCE(_s.correct_count, 0)

@@ -77,15 +77,12 @@ export function buildRuleConceptReport(report: ConceptRecoveryReport): ConceptAi
           ? "Good effort — a few concepts need targeted practice"
           : "Focus recovery needed on weak concepts";
 
-  const bullets: string[] = [
-    accuracy == null
-      ? "No question was answered."
-      : `Overall accuracy: ${accuracy}% (${report.correct_count}/${report.total_count} correct).`,
-  ];
-
-  if (report.time_minutes != null && report.time_minutes > 0) {
-    bullets.push(`Time spent: ~${report.time_minutes} minutes.`);
-  }
+  // No restatement of the score or the time. Every page that shows this report
+  // shows both itself, from its own record, and a second copy here disagreed
+  // with the first: "Overall accuracy: 38.5%" beside a tile reading 38%, or 0%
+  // beside "—". The accuracy still chooses the headline above; it is not
+  // printed again.
+  const bullets: string[] = accuracy == null ? ["No question was answered."] : [];
 
   if (named.length > 0) {
     bullets.push(
