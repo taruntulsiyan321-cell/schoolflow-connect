@@ -86,8 +86,24 @@ describe("deriveRevisionData", () => {
       state({ chapter_id: "b", consecutive_passes: 0, next_revision_at: "2026-09-20T00:00:00Z" }),
     ]);
     expect(d.completed).toBe(1);
-    // Both are still scheduled — solid does not leave the queue.
-    expect(d.pending).toBe(2);
+    // Both are still SCHEDULED — solid does not leave the queue — but the
+    // tiles that render these two numbers sit side by side, so they are
+    // reported disjointly: counting the solid chapter in both made two
+    // scheduled chapters read as "1 Done, 2 Pending", which sums to three.
+    // The database fact this test was written to protect is unchanged and
+    // asserted directly below.
+    expect(d.pending).toBe(1);
+    expect(d.completed + d.pending).toBe(2);
+  });
+
+  it("leaves a solid chapter on the schedule, whatever the tiles report", () => {
+    // The fact the assertion above used to carry: solid is not finished, the
+    // chapter keeps a check at REVISION_INTERVAL_SOLID for ever. If it ever
+    // stops carrying a date, `completed` is the figure that must still work
+    // — and it is driven by passes, not by that column.
+    const solid = state({ chapter_id: "a", consecutive_passes: 3, next_revision_at: "2026-10-17T00:00:00Z" });
+    expect(solid.next_revision_at).not.toBeNull();
+    expect(deriveRevisionData([solid]).completed).toBe(1);
   });
 
   it("does not count a chapter one pass short of solid", () => {
