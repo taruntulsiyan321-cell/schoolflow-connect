@@ -49,6 +49,7 @@ import {
   deriveRecoveryProgress,
   deriveRecoveryTopics,
   deriveSubjectPace,
+  formatSeconds,
   deriveRevisionData,
   trendState,
   practiceCountForTopic,
@@ -495,16 +496,28 @@ export default function Analysis() {
   );
 
   const practiceStats = useMemo(() => {
-    const weekly = charts?.weekly_activity ?? [];
-    const weekDone = weekly.reduce((s, d) => s + d.total, 0);
+    // ALL FOUR TILES COUNT THE SAME DAYS.
+    //
+    // "Activities in 4 weeks" summed charts.weekly_activity while "Activities
+    // today" and "Consistency" beside it read activityWeeks, which is built
+    // from snapshot.activity_heatmap. Two tables answering "did this student
+    // do something on this day", in one row of tiles, over the same four
+    // weeks. Rendered together they can contradict outright — measured in the
+    // render fixture as "Activities in 4 weeks: 0" sitting next to
+    // "Consistency: 11%", which is three active days out of twenty-eight.
+    //
+    // weekly_activity still feeds the MONTHLY panels, which need a longer
+    // series than four weeks; that is a different window, not a second
+    // answer to this one.
+    const days = activityWeeks.flatMap((w) => w.days);
+    const weekDone = days.reduce((s, d) => s + d.total, 0);
     // From the calendar grid, whose cells are keyed by local date. This read
     // `new Date(d.date).toDateString()`, and a date-only string parses as UTC
     // midnight — west of Greenwich that is yesterday, so "Done today" showed
     // yesterday's count.
     const now = new Date();
     const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const todayDone =
-      activityWeeks.flatMap((w) => w.days).find((c) => c.date === todayKey)?.total ?? 0;
+    const todayDone = days.find((c) => c.date === todayKey)?.total ?? 0;
     const streakDays = student.streak;
     // Active days over the four-week WINDOW. This divided by weekly.length —
     // the number of rows the snapshot returned — and academic_daily_activity
@@ -528,7 +541,7 @@ export default function Analysis() {
     // it kept `snapshot` in this hook's dependency list for a field nothing
     // read.
     return { todayDone, weekDone, streakDays, consistency };
-  }, [charts?.weekly_activity, student.streak, activityWeeks]);
+  }, [student.streak, activityWeeks]);
 
   const practiceMonthly = useMemo(() => {
     const weekly = charts?.weekly_activity ?? [];
@@ -563,7 +576,13 @@ export default function Analysis() {
     return deriveSubjectPace(
       (practiceAnalytics?.by_subject ?? []).map((s) => {
         const name = displaySubject(s.subject) || s.subject;
-        return { name, color: colorOf.get(name) ?? subjectColor(name, 0), avgSec: s.avg_sec, timed: s.timed };
+        return {
+          name,
+          color: colorOf.get(name) ?? subjectColor(name, 0),
+          avgSec: s.avg_sec,
+          timed: s.timed,
+          answered: s.answered,
+        };
       }),
     );
   }, [practiceAnalytics?.by_subject, subjectData]);
@@ -860,7 +879,7 @@ export default function Analysis() {
     if (subjectPace.avgSec > 0) {
       items.push({
         label: "Average time per question",
-        value: `${subjectPace.avgSec}s`,
+        value: formatSeconds(subjectPace.avgSec),
         sub: "Across every question you were timed on",
         color: "hsl(var(--destructive))",
         icon: <Clock className="w-4 h-4" />,
@@ -1727,12 +1746,12 @@ export default function Analysis() {
           <div>
             <SLabel>How fast you solve questions</SLabel>
             <div className="grid sm:grid-cols-3 gap-3 mb-4">
-              <Metric label="Average per question"  value={subjectPace.avgSec > 0 ? `${subjectPace.avgSec}s` : "—"}    color="hsl(var(--foreground))" />
+              <Metric label="Average per question"  value={subjectPace.avgSec > 0 ? formatSeconds(subjectPace.avgSec) : "—"}    color="hsl(var(--foreground))" />
               {/* Each tile asks about its OWN number. A sub line gated on the
                   overall average printed "0s avg" under a "—" whenever only
                   one subject had enough timed questions to rank. */}
-              <Metric label="Fastest subject"        value={subjectPace.fastest?.name ?? "—"}  color="hsl(var(--success))" sub={subjectPace.fastest ? `${subjectPace.fastest.avgSec}s avg` : undefined} />
-              <Metric label="Takes most time"        value={subjectPace.slowest?.name ?? "—"}  color="hsl(var(--warning))" sub={subjectPace.slowest ? `${subjectPace.slowest.avgSec}s avg` : undefined} />
+              <Metric label="Fastest subject"        value={subjectPace.fastest?.name ?? "—"}  color="hsl(var(--success))" sub={subjectPace.fastest ? `${formatSeconds(subjectPace.fastest.avgSec)} avg` : undefined} />
+              <Metric label="Takes most time"        value={subjectPace.slowest?.name ?? "—"}  color="hsl(var(--warning))" sub={subjectPace.slowest ? `${formatSeconds(subjectPace.slowest.avgSec)} avg` : undefined} />
             </div>
             {/* ── How you do by difficulty ───────────────────────────
                 Every attempt carries a difficulty and nothing read it. The
