@@ -143,8 +143,25 @@ export function trendState(accuracies: number[]): {
 }
 
 /** This week vs previous week activity totals by weekday (Mon–Sun). */
+/**
+ * TAKES DAYS, not a table.
+ *
+ * It was typed to WeeklyActivityPoint[] and every caller handed it
+ * charts.weekly_activity, which made this the last panel on the Analysis
+ * page still counting "activities" from a different source than the tiles
+ * and the month rows beside it. Those were converged onto
+ * snapshot.activity_heatmap; this one kept its own table and could disagree
+ * with them about the same fortnight.
+ *
+ * The parameter is now the shape both sources satisfy — a dated daily total
+ * — so WHICH rows to count is the page's decision and is made once, in one
+ * place, for every activity figure on the screen. weekly_activity is still
+ * the right source for the MONTHLY chart, which needs a longer series than
+ * the heat map carries; that is a different window, not a second answer to
+ * this one.
+ */
 export function buildWeekComparison(
-  weekly: WeeklyActivityPoint[],
+  days: { date: string; total?: number | null }[],
   now = new Date(),
 ): { day: string; thisWeek: number; lastWeek: number }[] {
   const thisStart = daysAgo(6, now);
@@ -154,7 +171,7 @@ export function buildWeekComparison(
   const thisByDay = new Map<string, number>();
   const lastByDay = new Map<string, number>();
 
-  for (const row of weekly) {
+  for (const row of days) {
     const d = dateOnlyToLocal(row.date);
     const label = weekdayLabel(row.date);
     if (d >= thisStart) {

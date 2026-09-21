@@ -322,11 +322,6 @@ export default function Analysis() {
     return [];
   }, [charts?.practice_trend, analysis?.recent_sessions]);
 
-  const weekComparison = useMemo(
-    () => buildWeekComparison(charts?.weekly_activity ?? []),
-    [charts?.weekly_activity],
-  );
-
   // SUBJECTS, FROM THE ATTEMPTS — the same rows the chapter and topic panels
   // beside them count.
   //
@@ -516,6 +511,18 @@ export default function Analysis() {
   const activityWeeks = useMemo(
     () => consistencyWeeks(snapshot?.activity_heatmap, 4),
     [snapshot?.activity_heatmap],
+  );
+
+  // BELOW activityWeeks DELIBERATELY. This memo sat above it and read it
+  // anyway — a const in its temporal dead zone, which throws at runtime and
+  // typechecks clean. tsc will not catch the next one either, so the order
+  // matters and is asserted by the declaration-order check.
+  const weekComparison = useMemo(
+    // The heat map, like every other activity figure on this page. This read
+    // charts.weekly_activity and was the last panel counting a fortnight of
+    // activities from a table nothing else on the screen consults.
+    () => buildWeekComparison(activityWeeks.flatMap((w) => w.days)),
+    [activityWeeks],
   );
 
   const practiceStats = useMemo(() => {
