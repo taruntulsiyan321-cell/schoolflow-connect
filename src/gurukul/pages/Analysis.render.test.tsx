@@ -296,6 +296,27 @@ describe("Analysis — rendered", () => {
     expect(document.body.textContent).not.toContain("practiced");
   });
 
+  it("does not report a capped list length as a session count", () => {
+    render(<Analysis />);
+    // The fixture supplies no self_practice.sessions_completed, and the page
+    // used to fall back to recent_sessions.length — an array fetched with
+    // .limit(40). A student with 72 sessions would have been shown 40.
+    const row = screen.getByText("Practice sessions").parentElement as HTMLElement;
+    expect(row.textContent).toContain("\u2014");
+    expect(row.textContent).not.toContain("40");
+    expect(row.textContent).not.toContain("0");
+  });
+
+  it("calls one quantity by one name across the tab", () => {
+    render(<Analysis />);
+    openTab("Subjects & Chapters");
+    // Subject cards said "408 questions" while the chapter cards below said
+    // "44 Attempts" — the same count, two nouns, one screen.
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("408 attempts");
+    expect(text).not.toContain("408 questions");
+  });
+
   it("never renders a source comment as page text", () => {
     // A bare /* ... */ inside JSX is not a comment, it is TEXT, and tsc
     // accepts it silently. Introduced and caught here while moving an
