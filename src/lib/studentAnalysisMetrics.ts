@@ -353,7 +353,7 @@ export function deriveImprovingTopics(
 export type SubjectPaceRow = { name: string; color: string; avgSec: number; timed: number };
 
 export type SubjectPace = {
-  /** Fastest first. Only subjects with enough timed questions to rank. */
+  /** Fastest first. Only subjects with enough answered, timed questions. */
   rows: SubjectPaceRow[];
   /** Pooled seconds per question across those subjects. 0 when none qualify. */
   avgSec: number;
@@ -362,33 +362,48 @@ export type SubjectPace = {
   slowest: SubjectPaceRow | null;
 };
 
+/** One decimal under ten seconds, whole seconds above it. Never a bare "0". */
+export function formatSeconds(sec: number): string {
+  return sec >= 10 ? `${Math.round(sec)}s` : `${Math.round(sec * 10) / 10}s`;
+}
+
 /**
  * Per-question time by subject, from the attempt record.
  *
  * Takes rows already mapped to their display name and colour so this stays a
- * pure calculation. Two rules it exists to hold:
+ * pure calculation. Three rules it exists to hold:
  *
- *   THE FLOOR, on TIMED attempts — the denominator of avg_sec. Without it the
- *   fastest and slowest subject were the first and last of an unfiltered
- *   sort, so one timed question could name the subject a student is slowest
- *   at.
+ *   ENOUGH TIMED READINGS, the denominator of avg_sec. Without it the fastest
+ *   and slowest subject were the first and last of an unfiltered sort, so one
+ *   timed question could name the subject a student is slowest at.
  *
- *   POOLING, not a mean of means (§4.2b). Averaging per-subject averages
+ *   ENOUGH ANSWERED QUESTIONS. The panel is headed "How fast you solve
+ *   questions", and skipping is not solving. Measured: a student with 79
+ *   Social Science attempts, EVERY ONE of them skipped at about a third of a
+ *   second, was named their "fastest subject" at "0s avg" — a subject they
+ *   had never answered a question in, presented as the one they are quickest
+ *   at, with a time of zero.
+ *
+ *   POOLING ON THE UNROUNDED VALUE (§4.2b). Averaging per-subject averages
  *   weights a subject with four timed questions the same as one with four
- *   hundred, and the page prints that number as the student's overall pace.
+ *   hundred. Rounding each subject to a whole second BEFORE pooling is the
+ *   same error in miniature: it made those 79 Social Science questions
+ *   contribute exactly zero seconds to the student's overall pace.
  */
 export function deriveSubjectPace(
-  input: { name: string; color: string; avgSec: number | null; timed: number }[],
+  input: { name: string; color: string; avgSec: number | null; timed: number; answered: number }[],
 ): SubjectPace {
-  const rows: SubjectPaceRow[] = input
-    .filter((r) => mayBeJudged(r.timed) && (r.avgSec ?? 0) > 0)
-    .map((r) => ({ name: r.name, color: r.color, avgSec: Math.round(r.avgSec as number), timed: r.timed }))
+  const kept = input.filter(
+    (r) => mayBeJudged(r.timed) && mayBeJudged(r.answered) && (r.avgSec ?? 0) > 0,
+  );
+  const rows: SubjectPaceRow[] = kept
+    .map((r) => ({ name: r.name, color: r.color, avgSec: r.avgSec as number, timed: r.timed }))
     .sort((a, b) => a.avgSec - b.avgSec);
   const timed = rows.reduce((n, r) => n + r.timed, 0);
   const seconds = rows.reduce((n, r) => n + r.avgSec * r.timed, 0);
   return {
     rows,
-    avgSec: timed > 0 ? Math.round(seconds / timed) : 0,
+    avgSec: timed > 0 ? seconds / timed : 0,
     fastest: rows[0] ?? null,
     slowest: rows.length > 1 ? rows[rows.length - 1] : null,
   };

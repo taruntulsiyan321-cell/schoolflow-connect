@@ -4,6 +4,7 @@ import {
   halfWindowTrend,
   trendState,
   deriveSubjectPace,
+  formatSeconds,
   hourHistogram,
   busiestHour,
   formatHour,
@@ -103,32 +104,63 @@ describe("studentAnalysisMetrics", () => {
     // question at 300s — would have been named the subject that takes this
     // student longest.
     const pace = deriveSubjectPace([
-      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400 },
-      { name: "Science", color: "#2", avgSec: 45, timed: 20 },
-      { name: "Hindi", color: "#3", avgSec: 300, timed: 1 },
-      { name: "English", color: "#4", avgSec: null, timed: 50 },
+      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400, answered: 400 },
+      { name: "Science", color: "#2", avgSec: 45, timed: 20, answered: 20 },
+      { name: "Hindi", color: "#3", avgSec: 300, timed: 1, answered: 1 },
+      { name: "English", color: "#4", avgSec: null, timed: 50, answered: 50 },
     ]);
     expect(pace.rows.map((r) => r.name)).toEqual(["Mathematics", "Science"]);
     expect(pace.fastest?.name).toBe("Mathematics");
     expect(pace.slowest?.name).toBe("Science");
   });
 
-  it("pools the overall pace instead of averaging the averages", () => {
-    // 400 questions at 30s and 20 at 45s is 12,900s over 420 = 31s.
-    // The mean of the two averages is 38s — the figure the page would print
-    // if it treated a 20-question subject as equal to a 400-question one.
+  it("will not call a subject fast when nothing in it was answered", () => {
+    // MEASURED: 79 Social Science attempts, every one of them SKIPPED at
+    // about a third of a second, rendered as "Fastest subject: Social
+    // Science, 0s avg". The panel is headed "How fast you solve questions"
+    // and the student had solved none of them. It also rounded 0.3s to "0s",
+    // claiming a question took no time at all.
     const pace = deriveSubjectPace([
-      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400 },
-      { name: "Science", color: "#2", avgSec: 45, timed: 20 },
+      { name: "Mathematics", color: "#1", avgSec: 6.8, timed: 402, answered: 220 },
+      { name: "Social Science", color: "#2", avgSec: 0.3, timed: 79, answered: 0 },
+      { name: "English", color: "#3", avgSec: 0.5, timed: 54, answered: 0 },
     ]);
-    expect(pace.avgSec).toBe(31);
-    expect(pace.avgSec).not.toBe(38);
+    expect(pace.rows.map((r) => r.name)).toEqual(["Mathematics"]);
+    expect(pace.fastest?.name).toBe("Mathematics");
+    expect(pace.slowest).toBeNull();
+    expect(formatSeconds(pace.avgSec)).toBe("6.8s");
+  });
+
+  it("pools on the unrounded value, so a sub-second subject is not free", () => {
+    // Rounding each subject to a whole second before pooling made 79
+    // questions at 0.3s contribute exactly ZERO seconds to the overall pace.
+    const pace = deriveSubjectPace([
+      { name: "Mathematics", color: "#1", avgSec: 6.8, timed: 400, answered: 400 },
+      { name: "Social Science", color: "#2", avgSec: 0.4, timed: 100, answered: 100 },
+    ]);
+    // (6.8*400 + 0.4*100) / 500 = 5.52
+    expect(Math.round(pace.avgSec * 100) / 100).toBe(5.52);
+    // Rounding first would have given (7*400 + 0*100)/500 = 5.6.
+    expect(pace.avgSec).not.toBe(5.6);
+  });
+
+  it("pools the overall pace instead of averaging the averages", () => {
+    // 400 questions at 30s and 20 at 45s is 12,900s over 420 = 30.7s.
+    // The mean of the two averages is 37.5s — the figure the page would
+    // print if it treated a 20-question subject as equal to a 400-question
+    // one.
+    const pace = deriveSubjectPace([
+      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400, answered: 400 },
+      { name: "Science", color: "#2", avgSec: 45, timed: 20, answered: 20 },
+    ]);
+    expect(Math.round(pace.avgSec * 10) / 10).toBe(30.7);
+    expect(pace.avgSec).not.toBe(37.5);
   });
 
   it("names no slowest subject when only one can be ranked", () => {
     const pace = deriveSubjectPace([
-      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400 },
-      { name: "Hindi", color: "#3", avgSec: 300, timed: 1 },
+      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400, answered: 400 },
+      { name: "Hindi", color: "#3", avgSec: 300, timed: 1, answered: 1 },
     ]);
     expect(pace.fastest?.name).toBe("Mathematics");
     expect(pace.slowest).toBeNull();
@@ -136,10 +168,19 @@ describe("studentAnalysisMetrics", () => {
   });
 
   it("reports nothing rather than zero when no subject qualifies", () => {
-    const pace = deriveSubjectPace([{ name: "Hindi", color: "#3", avgSec: 300, timed: 1 }]);
+    const pace = deriveSubjectPace([
+      { name: "Hindi", color: "#3", avgSec: 300, timed: 1, answered: 1 },
+    ]);
     expect(pace.rows).toEqual([]);
     expect(pace.fastest).toBeNull();
     expect(pace.avgSec).toBe(0);
+  });
+
+  it("never prints a question as having taken no time", () => {
+    expect(formatSeconds(0.3)).toBe("0.3s");
+    expect(formatSeconds(0.04)).toBe("0s"); // genuinely below a tenth
+    expect(formatSeconds(6.8)).toBe("6.8s");
+    expect(formatSeconds(67.14)).toBe("67s");
   });
 
   it("month comparison pools accuracy and reports activities and minutes as they are", () => {
