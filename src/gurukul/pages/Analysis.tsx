@@ -820,7 +820,9 @@ export default function Analysis() {
       // the header said "not recorded yet" while this tile said 0, for the
       // same missing snapshot, on the same screen.
       openMistakes: snapshot?.mistake_count ?? null,
-      topicsPractised: practiceAnalytics?.by_topic.length ?? 0,
+      // Null when the analytics could not be read at all. An empty list is
+      // a real "no topics yet"; a missing payload is not.
+      topicsPractised: practiceAnalytics ? practiceAnalytics.by_topic.length : null,
       // THE TILE COUNTS WHAT THE LIST BENEATH IT SHOWS.
       //
       // This was snapshot.weak_topics.length — the RAW array — while the
@@ -1590,7 +1592,7 @@ export default function Analysis() {
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: "Open mistakes",    value: learningProgress.openMistakes ?? "—", color: "hsl(var(--destructive))", icon: <AlertCircle className="w-5 h-5" /> },
-              { label: "Topics practised",  value: learningProgress.topicsPractised, color: "hsl(var(--info))", icon: <BookOpen className="w-5 h-5" /> },
+              { label: "Topics practised",  value: learningProgress.topicsPractised ?? "—", color: "hsl(var(--info))", icon: <BookOpen className="w-5 h-5" /> },
               { label: "Need attention",    value: learningProgress.needAttention,   color: "hsl(var(--warning))", icon: <Target className="w-5 h-5" /> },
             ].map((item) => (
               <div key={item.label} className="p-4 rounded-xl border border-border/70 bg-surface/60 text-center">

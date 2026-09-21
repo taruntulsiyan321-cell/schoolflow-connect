@@ -125,14 +125,6 @@ export type StudentPracticeAnalytics = {
   recurring: RecurringMistakeRow[];
 };
 
-const EMPTY: StudentPracticeAnalytics = {
-  by_subject: [],
-  by_topic: [],
-  by_chapter: [],
-  by_difficulty: [],
-  effort: null,
-  recurring: [],
-};
 
 /**
  * THE BOUNDARY, and it is validated rather than cast.
@@ -275,16 +267,23 @@ export function useStudentPracticeAnalytics(enabled = true) {
     const { data: rows, error: err } = await supabase.rpc("rpc_student_practice_analytics");
     if (err) {
       setError(err.message);
-      // EMPTY, not the previous answer. A panel that keeps rendering the last
-      // student's figures after a failed refresh is worse than one that says
-      // it has nothing.
-      setData(EMPTY);
+      // NULL, not the previous answer and not EMPTY either. A panel that
+      // keeps rendering the last student's figures after a failed refresh is
+      // worse than one that says it has nothing — and EMPTY is not "nothing",
+      // it is "no rows", which the page renders as a real count of zero
+      // topics practised. Null is the absence.
+      setData(null);
     } else {
       const { data: parsed, ok } = parseAnalytics(rows);
       if (!ok) {
-        // Says so instead of looking like a student who has never practised.
+        // NULL for the same reason as the branch above, and the comment
+        // that stood here ("says so instead of looking like a student who
+        // has never practised") was contradicted by the EMPTY beside it:
+        // empty arrays are EXACTLY what a student who has never practised
+        // looks like. The error is what says so; the data must not
+        // simultaneously claim the student has no topics.
         setError(CONTRACT_ERROR);
-        setData(EMPTY);
+        setData(null);
       } else {
         setData(parsed);
       }
