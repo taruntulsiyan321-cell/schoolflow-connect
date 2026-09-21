@@ -56,12 +56,7 @@ import {
   busiestHour,
   formatHour,
 } from "@/lib/studentAnalysisMetrics";
-import {
-  hasPracticeAccuracy,
-  hasStudyActiveDays,
-  practiceAccuracyFromSnapshot,
-  studyActiveDaysFromSnapshot,
-} from "@/lib/learningMetrics";
+import { hasStudyActiveDays, studyActiveDaysFromSnapshot } from "@/lib/learningMetrics";
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { toErrorMessage } from "@/lib/presentation";
 import { formatLastSeen } from "@/lib/analyticsInsights";
@@ -910,7 +905,12 @@ export default function Analysis() {
       {
         q: "What should I improve?",
         a: improveText,
-        sub: weakCount > 0 ? `${weakCount} topic${weakCount === 1 ? "" : "s"} need attention` : "No weak topics flagged yet",
+        // "1 topic need attention" — the noun was pluralised and the VERB was
+        // not, so the singular case was ungrammatical on screen. pluralise()
+        // handles the noun; the verb has to agree with it.
+        sub: weakCount > 0
+          ? `${pluralise(weakCount, "topic")} ${weakCount === 1 ? "needs" : "need"} attention`
+          : "No weak topics flagged yet",
         color: "hsl(var(--warning))",
         icon: <Target className="w-4 h-4" />,
       },
@@ -918,7 +918,7 @@ export default function Analysis() {
         q: "What should I study next?",
         a: nextTopic ? (nextTopic.topic || nextTopic.subject) : "Start a practice session",
         sub: revisionData.dueToday.length > 0
-          ? `${revisionData.dueToday.length} revision item${revisionData.dueToday.length === 1 ? "" : "s"} due today`
+          ? `${pluralise(revisionData.dueToday.length, "revision item")} due today`
           : "Check your revision queue",
         color: "hsl(var(--primary))",
         icon: <BookOpen className="w-4 h-4" />,
@@ -1089,7 +1089,26 @@ export default function Analysis() {
   //
   // null means "no figure recorded", never 0. See the Summary block below.
   const summaryRows: { label: string; value: string | number | null }[] = [
-    { label: "Practice accuracy", value: hasPracticeAccuracy(snapshot) ? `${practiceAccuracyFromSnapshot(snapshot)}%` : null },
+    // THE SAME ACCURACY THE OVERVIEW TILE PRINTS, from the same counts (G5).
+    //
+    // This read practiceAccuracyFromSnapshot(snapshot), which is
+    // exam_readiness.practice_accuracy_pct — a SECOND source for the one
+    // rate on this page, sitting in the header directly above a tile that
+    // computes it from analysis.totals. They agreed only for as long as the
+    // two pipelines agreed about one student.
+    //
+    // Worse, that helper falls back to `exam_readiness.accuracy_pct` when
+    // practice_accuracy_pct is null, and accuracy_pct is the TEST + PRACTICE
+    // BLEND. A page that issues no query against marks (rule 11) could
+    // therefore print a number containing exam marks, under the label
+    // "Practice accuracy", with nothing on screen to reveal it — the §4.2b
+    // blend arriving by the back door.
+    //
+    // overview.accuracy is correct / (correct + wrong) over question_attempts
+    // and is null, never 0, when nothing has been answered. The helper stays
+    // where it is for the surfaces that legitimately read readiness; this
+    // page has its own figure and must not have two.
+    { label: "Practice accuracy", value: overview.accuracy == null ? null : `${overview.accuracy}%` },
     { label: "Study consistency", value: hasStudyActiveDays(snapshot) ? `${studyActiveDaysFromSnapshot(snapshot)} active days (14d)` : null },
     { label: "Open mistakes", value: snapshot?.mistake_count ?? null },
     { label: "Recovery pending", value: snapshot?.recovery_pending ?? null },
