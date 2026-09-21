@@ -680,7 +680,12 @@ export default function Analysis() {
       // entirely; formatStudyTime is the only thing that turns these minutes
       // into a label.
       totalMinutes: totalMins,
-      avgDailyMin: activeDays.length > 0 ? Math.round(totalMins / activeDays.length) : 0,
+      // NULL, NOT ZERO, and for the same reason the tile above it renders
+      // "—": with no day carrying a minute there is no daily average to
+      // report, and "0 min" is a confident claim that the student studied
+      // for no time. It sat directly beside "Study time (4 weeks) —", so
+      // the same absence was rendered two ways on one row of tiles.
+      avgDailyMin: activeDays.length > 0 ? Math.round(totalMins / activeDays.length) : null,
       bestDay: bestDayRow
         ? new Date(bestDayRow.date).toLocaleDateString(undefined, { weekday: "short" })
         : "—",
@@ -810,7 +815,7 @@ export default function Analysis() {
     if (streak >= STREAK_ESTABLISHED) {
       items.unshift({
         title: `${streak}-day practice streak`,
-        desc: "Keep practicing daily to maintain your streak.",
+        desc: "Keep practising daily to maintain your streak.",
         date: "Recent",
         icon: "🔥",
         category: "Consistency",
@@ -917,7 +922,7 @@ export default function Analysis() {
       .map((s) => s.name);
     const improveText = weakSubjects.length > 0
       ? weakSubjects.join(" & ")
-      : subjectData.length > 0 ? "Keep building consistency" : "Start practicing to see insights";
+      : subjectData.length > 0 ? "Keep building consistency" : "Start practising to see insights";
     // THE SAME FILTERED SET THE TOPICS TAB SHOWS, for the same reason as the
     // tile above. "What should I study next?" read weak_topics[0] raw, so the
     // page could name a topic as the one thing to work on and then decline to
@@ -1858,7 +1863,7 @@ export default function Analysis() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Metric label="Study time (4 weeks)" value={formatStudyTime(studyActivity.totalMinutes || null)} color="hsl(var(--info))" />
-            <Metric label="Average per day"     value={`${studyActivity.avgDailyMin} min`} color="hsl(var(--foreground))" />
+            <Metric label="Average per day"     value={studyActivity.avgDailyMin == null ? "—" : `${studyActivity.avgDailyMin} min`} color="hsl(var(--foreground))" />
             <Metric label="Most active day"     value={studyActivity.bestDay}              color="hsl(var(--warning))" />
             {/* "Most active hour", not "most productive". It counts attempts,
                 which is when the student WORKS — the same question "Most
@@ -2063,7 +2068,7 @@ export default function Analysis() {
           <div>
             <SLabel>Your progress milestones</SLabel>
             {milestones.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No milestones yet — keep practicing!</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">No milestones yet — keep practising!</p>
             ) : (
             <div className="space-y-3">
               {milestones.map((m) => (

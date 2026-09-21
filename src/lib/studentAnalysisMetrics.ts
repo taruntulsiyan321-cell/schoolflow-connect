@@ -499,8 +499,23 @@ export function deriveMonthComparison(
     }
   }
 
+  // A MONTH WITH NOTHING RECORDED HAS NOTHING TO REPORT.
+  //
+  // thisMins/thisActivities are 0 for such a month and the accuracy is null,
+  // so the panel rendered "Activities 0 / Accuracy — / Study time 0m" — two
+  // confident zeroes and one honest dash for the same absence, directly
+  // below a tile showing "Study time (4 weeks) —". A real zero inside a
+  // month that HAS activity still reports as zero; this only covers the
+  // month where nothing happened at all.
+  const orNull = (n: number, active: number) => (active > 0 ? n : null);
+
   return [
-    { label: "Activities", thisM: thisActivities, lastM: lastActivities, unit: "" },
+    {
+      label: "Activities",
+      thisM: orNull(thisActivities, thisActivities),
+      lastM: orNull(lastActivities, lastActivities),
+      unit: "",
+    },
     {
       label: "Accuracy",
       thisM: pooled(sessions.filter((x) => inThis(x.finished_at))),
@@ -508,7 +523,12 @@ export function deriveMonthComparison(
       unit: "%",
     },
     // Minutes. The renderer formats — see formatStudyTime in Analysis.tsx.
-    { label: "Study time", thisM: thisMins, lastM: lastMins, unit: "min" },
+    {
+      label: "Study time",
+      thisM: orNull(thisMins, thisActivities),
+      lastM: orNull(lastMins, lastActivities),
+      unit: "min",
+    },
   ];
 }
 
