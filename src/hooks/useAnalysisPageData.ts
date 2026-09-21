@@ -428,17 +428,20 @@ export function useAnalysisPageData(enabled = true) {
       });
     } catch (e) {
       setError(toErrorMessage(e, "Could not load analysis"));
-      setData({
-        student_class: null,
-        recent_sessions: [],
-        totals: {
-          correct: 0,
-          wrong: 0,
-          skipped: 0,
-          accuracy_pct: null,
-        },
-        attempt_hours: new Array<number>(24).fill(0),
-      });
+      // NULL, NOT A ZEROED OBJECT.
+      //
+      // This handed the page totals of 0/0/0, so a student whose load failed
+      // read "Questions solved 0 · Correct 0 · Incorrect 0" underneath a
+      // banner saying the data could not be read. Nothing downstream could
+      // tell them apart from a student who has genuinely answered nothing,
+      // because by the time the figures reached the tiles they were
+      // identical.
+      //
+      // Every consumer already reads this through `analysis?.`, and the page
+      // renders an absent total as an em dash. A real zero — a present
+      // totals object carrying 0 — still renders 0, because that is a
+      // measurement.
+      setData(null);
     } finally {
       endLoading(setLoading);
     }

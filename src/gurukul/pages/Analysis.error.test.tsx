@@ -43,7 +43,9 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), info: vi.fn(), success: vi.f
 
 vi.mock("@/hooks/useAnalysisPageData", () => ({
   useAnalysisPageData: () => ({
-    data: { totals: { correct: 0, wrong: 0, skipped: 0, accuracy_pct: null }, recent_sessions: [], attempt_hours: new Array(24).fill(0) },
+    // What the hook actually does on a failure now: null, not a zeroed
+    // totals object that reads as "this student has answered nothing".
+    data: null,
     loading: false,
     error: "practice attempts are unavailable",
     reload: reloadAnalysis,
@@ -88,7 +90,14 @@ describe("Analysis — a load that failed", () => {
     render(<Analysis />);
     expect(screen.getByText("Analysis")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Overview" })).toBeInTheDocument();
-    // And invents nothing to fill the gap.
+    // And invents nothing to fill the gap. "Questions solved 0 · Correct 0
+    // · Incorrect 0" under a banner saying the data could not be read is a
+    // claim about the student, not an absence.
     expect(document.body.textContent).not.toContain("0%");
+    const solved = screen.getByText("Questions solved").parentElement as HTMLElement;
+    expect(solved.textContent).toContain("\u2014");
+    expect(solved.textContent).not.toContain("0");
+    const correct = screen.getByText("Correct answers").parentElement as HTMLElement;
+    expect(correct.textContent).toContain("\u2014");
   });
 });

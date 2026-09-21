@@ -221,12 +221,24 @@ export default function Analysis() {
   }, [loadError]);
 
   const overview = useMemo(() => {
-    const correct = analysis?.totals.correct ?? 0;
-    const incorrect = analysis?.totals.wrong ?? 0;
+    // "NO DATA" AND "ZERO" ARE DIFFERENT, AND `?? 0` COLLAPSED THEM.
+    //
+    // These read `analysis?.totals.correct ?? 0`, so a student whose load
+    // FAILED saw "Questions solved 0 · Correct 0 · Incorrect 0" under a
+    // banner saying the data could not be read. The hook's own error branch
+    // sets those counts to 0 as well, so nothing downstream could tell a
+    // student who has answered nothing from one whose five hundred answers
+    // did not arrive.
+    //
+    // A present totals object with real zeroes still renders 0 — that is a
+    // measurement. An ABSENT one renders an em dash.
+    const totals = analysis?.totals ?? null;
+    const correct = totals ? totals.correct : null;
+    const incorrect = totals ? totals.wrong : null;
     // §6.6 — passed over, not got wrong. Kept out of totalQuestions so the
     // accuracy beside it is over questions actually answered.
-    const skipped = analysis?.totals.skipped ?? 0;
-    const totalQuestions = correct + incorrect;
+    const skipped = totals ? totals.skipped : null;
+    const totalQuestions = totals ? totals.correct + totals.wrong : null;
     // ACCURACY COMES FROM THE COUNTS RENDERED BESIDE IT (G5).
     //
     // This read `student.accuracy` — the shell figure — while `correct` and
@@ -862,7 +874,7 @@ export default function Analysis() {
         category: "Consistency",
       });
     }
-    if (overview.totalQuestions >= PRACTICE_QUESTIONS_MILESTONE) {
+    if (overview.totalQuestions != null && overview.totalQuestions >= PRACTICE_QUESTIONS_MILESTONE) {
       items.push({
         title: `${pluralise(overview.totalQuestions, "question")} solved`,
         desc: "Total practice questions attempted so far.",
@@ -1053,7 +1065,7 @@ export default function Analysis() {
         unit: "days",
       });
     }
-    if (overview.totalQuestions < PRACTICE_QUESTIONS_MILESTONE) {
+    if (overview.totalQuestions != null && overview.totalQuestions < PRACTICE_QUESTIONS_MILESTONE) {
       items.push({
         title: `Solve ${PRACTICE_QUESTIONS_MILESTONE} practice questions`,
         progress: overview.totalQuestions,
@@ -1284,9 +1296,9 @@ export default function Analysis() {
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Questions solved",   value: overview.totalQuestions.toLocaleString(), color: "hsl(var(--foreground))" },
-              { label: "Correct answers",    value: overview.correct.toLocaleString(),        color: "hsl(var(--info))" },
-              { label: "Incorrect answers",  value: overview.incorrect.toLocaleString(),      color: "hsl(var(--destructive))" },
+              { label: "Questions solved",   value: overview.totalQuestions == null ? "—" : overview.totalQuestions.toLocaleString(), color: "hsl(var(--foreground))" },
+              { label: "Correct answers",    value: overview.correct == null ? "—" : overview.correct.toLocaleString(),        color: "hsl(var(--info))" },
+              { label: "Incorrect answers",  value: overview.incorrect == null ? "—" : overview.incorrect.toLocaleString(),      color: "hsl(var(--destructive))" },
               // Was a tile whose LABEL changed between "Average score" and
               // "Accuracy" depending on whether the student had exam marks —
               // two different measures wearing one slot. It is practice
@@ -1299,7 +1311,7 @@ export default function Analysis() {
               // excludes skips, which makes surfacing them necessary rather
               // than optional — otherwise a heavy skipper simply looks better
               // and nothing on the screen says why.
-              { label: "Skipped",            value: overview.skipped.toLocaleString(),        color: "hsl(var(--muted-foreground))" },
+              { label: "Skipped",            value: overview.skipped == null ? "—" : overview.skipped.toLocaleString(),        color: "hsl(var(--muted-foreground))" },
               { label: "Practice sessions",  value: overview.practiceCompleted ?? "—",         color: "hsl(var(--foreground))" },
               // "Marks recorded" was a count of exam marks. Marks are not an
               // Analysis figure any more (rule 11); the student reads them on
@@ -2217,7 +2229,7 @@ export default function Analysis() {
                     const summary = [
                       "Gurukul performance summary",
                       `Accuracy: ${overview.accuracy == null ? "not enough practice yet" : `${overview.accuracy}%`}`,
-                      `Questions: ${overview.totalQuestions}`,
+                      `Questions: ${overview.totalQuestions ?? "not recorded"}`,
                       `Practice sessions: ${overview.practiceCompleted ?? "not recorded"}`,
                     ].join("\n");
                     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
