@@ -187,10 +187,6 @@ describe("studentAnalysisMetrics", () => {
     const now = new Date("2026-08-15T12:00:00Z");
     const rows = deriveMonthComparison(
       [
-        { date: "2026-08-10", total: 4, test: 0, battles: 0 },
-        { date: "2026-07-10", total: 2, test: 0, battles: 0 },
-      ],
-      [
         // This month: 8 of 10 answered correctly ACROSS the two sessions.
         // The mean of the two session rates is (100 + 60)/2 = 80; pooled is
         // 8/10 = 80 as well, so the sessions are deliberately uneven below —
@@ -200,8 +196,11 @@ describe("studentAnalysisMetrics", () => {
         session({ id: "c", subject: "Math", correct_count: 3, wrong_count: 2, finished_at: "2026-07-10T10:00:00Z" }),
       ],
       [
-        { date: "2026-08-10", test: 0, homework: 0, battles: 0, minutes: 120 },
-        { date: "2026-07-10", test: 0, homework: 0, battles: 0, minutes: 60 },
+        // Activities and minutes now come from THESE rows, together. They
+        // used to come from two different tables, which is how the panel
+        // rendered "Activities 0" above "Study time 1.8h".
+        { date: "2026-08-10", test: 1, homework: 2, battles: 0, self_practice: 1, minutes: 120 },
+        { date: "2026-07-10", test: 0, homework: 0, battles: 2, self_practice: 0, minutes: 60 },
       ],
       now,
     );
@@ -215,7 +214,7 @@ describe("studentAnalysisMetrics", () => {
   });
 
   it("month comparison reports a month with no answered questions as null, not 0%", () => {
-    const rows = deriveMonthComparison([], [], [], new Date("2026-08-15T12:00:00Z"));
+    const rows = deriveMonthComparison([], [], new Date("2026-08-15T12:00:00Z"));
     expect(rows[1]).toMatchObject({ label: "Accuracy", thisM: null, lastM: null });
   });
 

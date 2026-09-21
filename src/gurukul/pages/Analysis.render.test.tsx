@@ -269,6 +269,33 @@ describe("Analysis — rendered", () => {
     expect(within(tile).queryByText("11.8h")).toBeNull();
   });
 
+  it("does not rank a topic the student never answered anything in", () => {
+    render(<Analysis />);
+    openTab("Activity & Speed");
+    // "Reporting Imperative Sentences" is five straight SKIPS through an
+    // English topic at 0.9s each. It headed "topics that take you longest"
+    // and printed a blank where its success rate goes.
+    expect(screen.queryByText("Reporting Imperative Sentences")).toBeNull();
+    expect(document.body.textContent).not.toContain("none answered");
+  });
+
+  it("counts a month's activities from the same rows as its study time", () => {
+    render(<Analysis />);
+    openTab("Activity & Speed");
+    // Activities came from weekly_activity and minutes from the heat-map, so
+    // the panel showed "Activities 0" above a real study time. Both read the
+    // heat-map now.
+    const row = screen.getByText("Activities").closest("div") as HTMLElement;
+    expect(row).toBeTruthy();
+    expect(row.textContent).not.toContain("No prior month data");
+  });
+
+  it("writes one spelling of practised", () => {
+    render(<Analysis />);
+    openTab("Topics");
+    expect(document.body.textContent).not.toContain("practiced");
+  });
+
   it("renders every tab without throwing", () => {
     render(<Analysis />);
     for (const t of ["Overview", "Subjects & Chapters", "Topics", "Practice", "Activity & Speed", "Milestones & Reports"]) {
