@@ -43,7 +43,6 @@ import {
   weekdayLabel,
   buildWeekComparison,
   buildSubjectRadarPoints,
-  deriveSubjectRows,
   deriveImprovingChapters,
   deriveMonthComparison,
   deriveRecoveryProgress,
