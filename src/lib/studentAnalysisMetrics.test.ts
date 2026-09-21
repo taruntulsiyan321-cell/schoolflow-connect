@@ -3,7 +3,7 @@ import {
   buildWeekComparison,
   halfWindowTrend,
   trendState,
-  deriveSpeedStats,
+  deriveSubjectPace,
   hourHistogram,
   busiestHour,
   formatHour,
@@ -13,7 +13,7 @@ import {
   deriveSubjectRows,
 } from "@/lib/studentAnalysisMetrics";
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
-import { classifyMistakes, buildMilestones, peerBenchmarkSubjects } from "@/components/student/analytics/wisdom/analyticsDerived";
+import { buildMilestones } from "@/components/student/analytics/wisdom/analyticsDerived";
 import type { MistakeTopicAggregate } from "@/lib/analyticsInsights";
 
 function session(partial: Partial<PracticeSessionSummary> & Pick<PracticeSessionSummary, "id" | "subject">): PracticeSessionSummary {
@@ -97,16 +97,49 @@ describe("studentAnalysisMetrics", () => {
     expect(trendState([40, 40, 50, 50]).state).toBe("improving");
   });
 
-  it("derives per-subject speed from sessions", () => {
-    const sessions = [
-      session({ id: "1", subject: "Math", question_count: 10, measured_ms: 10 * 60_000, accuracy_pct: 60, finished_at: "2026-07-01T10:00:00Z" }),
-      session({ id: "2", subject: "Physics", question_count: 10, measured_ms: 20 * 60_000, accuracy_pct: 70, finished_at: "2026-07-02T10:00:00Z" }),
-    ];
-    const { stats, bySubject } = deriveSpeedStats(sessions);
-    expect(bySubject).toHaveLength(2);
-    expect(stats.fastestSubject).toBe("Mathematics");
-    expect(stats.fastestSec).toBe(60);
-    expect(stats.slowestSubject).toBe("Physics");
+  it("ranks subjects by time only once enough questions were timed", () => {
+    // The defect this replaces: fastest/slowest were bySubject[0] and
+    // bySubject[last] of an UNFILTERED sort, so "Hindi" below — one timed
+    // question at 300s — would have been named the subject that takes this
+    // student longest.
+    const pace = deriveSubjectPace([
+      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400 },
+      { name: "Science", color: "#2", avgSec: 45, timed: 20 },
+      { name: "Hindi", color: "#3", avgSec: 300, timed: 1 },
+      { name: "English", color: "#4", avgSec: null, timed: 50 },
+    ]);
+    expect(pace.rows.map((r) => r.name)).toEqual(["Mathematics", "Science"]);
+    expect(pace.fastest?.name).toBe("Mathematics");
+    expect(pace.slowest?.name).toBe("Science");
+  });
+
+  it("pools the overall pace instead of averaging the averages", () => {
+    // 400 questions at 30s and 20 at 45s is 12,900s over 420 = 31s.
+    // The mean of the two averages is 38s — the figure the page would print
+    // if it treated a 20-question subject as equal to a 400-question one.
+    const pace = deriveSubjectPace([
+      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400 },
+      { name: "Science", color: "#2", avgSec: 45, timed: 20 },
+    ]);
+    expect(pace.avgSec).toBe(31);
+    expect(pace.avgSec).not.toBe(38);
+  });
+
+  it("names no slowest subject when only one can be ranked", () => {
+    const pace = deriveSubjectPace([
+      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400 },
+      { name: "Hindi", color: "#3", avgSec: 300, timed: 1 },
+    ]);
+    expect(pace.fastest?.name).toBe("Mathematics");
+    expect(pace.slowest).toBeNull();
+    expect(pace.avgSec).toBe(30);
+  });
+
+  it("reports nothing rather than zero when no subject qualifies", () => {
+    const pace = deriveSubjectPace([{ name: "Hindi", color: "#3", avgSec: 300, timed: 1 }]);
+    expect(pace.rows).toEqual([]);
+    expect(pace.fastest).toBeNull();
+    expect(pace.avgSec).toBe(0);
   });
 
   it("month comparison pools accuracy and reports activities and minutes as they are", () => {
@@ -252,44 +285,31 @@ describe("studentAnalysisMetrics", () => {
     expect(rows[0].trendState).toBe("improving");
   });
 
-  it("classifyMistakes does not invent calc/rushed percentages", () => {
-    const aggregates: MistakeTopicAggregate[] = [
-      {
-        topic: "A",
-        chapter: null,
-        subject: "Math",
-        concept: null,
-        mistake_count: 3,
-        total_wrong: 6,
-        sample_question: "q",
-        last_seen: null,
-      },
-      {
-        topic: "B",
-        chapter: null,
-        subject: "Math",
-        concept: null,
-        mistake_count: 1,
-        total_wrong: 1,
-        sample_question: "q",
-        last_seen: null,
-      },
-    ];
-    const buckets = classifyMistakes(aggregates);
-    expect(buckets.every((b) => b.key !== "calc" && b.key !== "time")).toBe(true);
-    expect(buckets.reduce((s, b) => s + b.count, 0)).toBe(4);
-  });
 
   it("buildMilestones skips fake Level 1 at 0 XP", () => {
-    expect(buildMilestones({}, [], null)).toEqual([]);
-    expect(buildMilestones({ xp: { xp: 0, level: 1 } }, [], null)).toEqual([]);
-    expect(buildMilestones({ xp: { xp: 120, level: 3 } }, [], null)[0].title).toContain("Level 3");
+    expect(buildMilestones({}, null)).toEqual([]);
+    expect(buildMilestones({ xp: { xp: 0, level: 1 } }, null)).toEqual([]);
+    expect(buildMilestones({ xp: { xp: 120, level: 3 } }, null)[0].title).toContain("Level 3");
   });
 
-  it("peerBenchmarkSubjects never claims Top X% from class XP rank", () => {
-    const labels = peerBenchmarkSubjects([{ name: "Math", accuracy: 90, attempts: 10 }], 1, 40);
-    expect(labels[0].label.includes("Top")).toBe(false);
+  it("buildMilestones reports a rise in POINTS and does not call it a session comparison", () => {
+    // The caller gates this on the §6.4 ladder, so the milestone describes a
+    // run of sessions. It used to read "Compared to your previous practice
+    // session", which is a different — and much weaker — claim, and it
+    // labelled a delta in percentage points as a percent change.
+    const [m] = buildMilestones({ xp: { xp: 120, level: 3 } }, 12).filter((x) =>
+      x.title.startsWith("Accuracy up"),
+    );
+    expect(m.title).toBe("Accuracy up 12 points");
+    expect(m.detail).toBe("Across your recent practice sessions");
+    expect(m.detail).not.toContain("previous practice session");
   });
+
+  it("buildMilestones stays silent when the trend did not qualify", () => {
+    const titles = buildMilestones({ xp: { xp: 120, level: 3 } }, null).map((m) => m.title);
+    expect(titles.some((t) => t.startsWith("Accuracy up"))).toBe(false);
+  });
+
 
   /**
    * This assertion used to read `expect(labels[0].label).toBe("Strong")`.
@@ -302,24 +322,4 @@ describe("studentAnalysisMetrics", () => {
    * Replaced with the rule rather than the string. The label may be reworded
    * again; it may never name a strength.
    */
-  it("peerBenchmarkSubjects never tells a student what they are good at (§10.8)", () => {
-    const labels = peerBenchmarkSubjects(
-      [
-        { name: "Math", accuracy: 95, attempts: 10 },
-        { name: "Physics", accuracy: 80, attempts: 10 },
-        { name: "Chemistry", accuracy: 50, attempts: 10 },
-        { name: "Biology", accuracy: 10, attempts: 10 },
-      ],
-      1,
-      40,
-    );
-    expect(labels).toHaveLength(4);
-    for (const l of labels) {
-      expect(/strong|master|proficient|excellent|strength/i.test(l.label), l.label).toBe(false);
-      expect(l.label.length).toBeGreaterThan(0);
-    }
-    // And the top of the range still says something — silence would be its own
-    // defect, and would let an empty label pass the check above.
-    expect(labels[0].label).toBe("On track");
-  });
 });

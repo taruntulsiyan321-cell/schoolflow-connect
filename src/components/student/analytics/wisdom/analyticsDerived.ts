@@ -1,7 +1,6 @@
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { SubjectChartPoint } from "@/hooks/useStudentPerformanceCharts";
-import type { MistakeTopicAggregate, TopicGapInsight } from "@/lib/analyticsInsights";
 import { displayChapter, displaySubject } from "@/lib/academicDisplay";
 import { accuracyBand, ACCURACY_LABEL, ACCURACY_CONCEPTUAL, STREAK_ESTABLISHED } from "@/academic/metrics/bands";
 
@@ -26,64 +25,37 @@ import { accuracyBand, ACCURACY_LABEL, ACCURACY_CONCEPTUAL, STREAK_ESTABLISHED }
 // from the side the product is allowed to look at: `mistake_count` per concept,
 // already on every ConceptMasteryItem.
 
-export type MistakeBucket = {
-  key: string;
-  label: string;
-  count: number;
-  pct: number;
-  color: string;
-};
-
-/** Honest recurrence buckets from mistake counts — never invent calc/careless/rushed splits. */
-export function classifyMistakes(aggregates: MistakeTopicAggregate[]): MistakeBucket[] {
-  const total = aggregates.reduce((s, a) => s + a.mistake_count, 0);
-  if (total === 0) return [];
-
-  let recurring = 0;
-  let oneOff = 0;
-  let heavy = 0;
-
-  for (const a of aggregates) {
-    if (a.total_wrong >= 5 || a.mistake_count >= 4) heavy += a.mistake_count;
-    else if (a.mistake_count >= 2) recurring += a.mistake_count;
-    else oneOff += a.mistake_count;
-  }
-
-  const raw = [
-    { key: "heavy", label: "Repeated weak topics", count: heavy, color: "#ba1a1a" },
-    { key: "concept", label: "Recurring topic gaps", count: recurring, color: "#003324" },
-    { key: "careless", label: "One-off mistakes", count: oneOff, color: "#7ebaa0" },
-  ];
-
-  return raw
-    .filter((b) => b.count > 0)
-    .map((b) => ({ ...b, pct: Math.round((100 * b.count) / total) }))
-    .sort((a, b) => b.count - a.count);
-}
-
-/** Labels from the student's own subject accuracy only — never invent peer percentile from XP rank. */
-export function peerBenchmarkSubjects(
-  subjects: SubjectChartPoint[],
-  _rank: number | null,
-  _classSize: number,
-): { name: string; pct: number; label: string }[] {
-  return subjects.slice(0, 4).map((s) => {
-    const pct = Math.round(s.accuracy);
-    // CHUNK 10.5 — §10.8. The ladder used to top out at "Strong" and "Solid",
-    // which tell a student what they are good at. It now uses the one band
-    // module, whose top rung is "On track" — a statement about the figure, not
-    // about the child. The boundaries come with it, so this screen can no longer
-    // disagree with the one beside it.
-    const label = ACCURACY_LABEL[accuracyBand(pct)];
-    return { name: s.name, pct, label };
-  });
-}
+/*
+ * classifyMistakes, MistakeBucket and peerBenchmarkSubjects WERE HERE. Both
+ * were dead — defined, tested, imported by nothing the student ever sees —
+ * and both are gone rather than left "in case".
+ *
+ * peerBenchmarkSubjects still carried `_rank` and `_classSize` parameters it
+ * deliberately ignored, the vestige of a percentile-against-the-class it was
+ * corrected out of. The Analysis page shows one student their own record and
+ * nothing about anybody else (§6.7), so a cohort-shaped function sitting in
+ * its helper module is an invitation, not an asset.
+ *
+ * classifyMistakes bucketed student_mistakes by error_type, which is NULL on
+ * every row in production — it had nothing to classify and no caller.
+ * Reviving it means writing the classifier first; the reading is not lost by
+ * deleting a function that never ran.
+ */
 
 export type Milestone = { title: string; when: string; detail?: string; badge?: string };
 
+/**
+ * `topicGaps: TopicGapInsight[]` WAS A THIRD PARAMETER AND IT IS GONE.
+ *
+ * Its only caller passed a literal `[]`, so masteryToOvercome() could only
+ * ever return null and the "Working on: <topic>" milestone it fed was
+ * unreachable code guarded by an empty array. A parameter that is always
+ * empty is not a seam for a future feature, it is a branch nobody can read
+ * the behaviour of. Recovery already has its own surface, and the Topics tab
+ * names what needs attention from the live weak-topics source.
+ */
 export function buildMilestones(
   data: AcademicSnapshot,
-  topicGaps: TopicGapInsight[],
   improvement: number | null,
 ): Milestone[] {
   const items: Milestone[] = [];
@@ -106,26 +78,25 @@ export function buildMilestones(
   }
   if (improvement != null && improvement > 0) {
     items.push({
-      title: `Accuracy up ${improvement}%`,
+      title: `Accuracy up ${improvement} points`,
       when: "Latest sessions",
-      detail: "Compared to your previous practice session",
-    });
-  }
-  const overcome = masteryToOvercome(topicGaps);
-  if (overcome) {
-    items.push({
-      title: `Working on: ${overcome}`,
-      when: "This week",
-      detail: "Recovery and NCERT revision recommended",
+      // THE CAPTION SAID "Compared to your previous practice session" AND
+      // THAT STOPPED BEING TRUE. The caller now gates this on the §6.4
+      // ladder — TREND_MIN_SESSIONS sittings and movement past
+      // TREND_DELTA_POINTS — precisely because two sessions is one good
+      // sitting after one bad one. The value was corrected and the sentence
+      // describing it was not, so the page explained a trend as a comparison
+      // it is not.
+      //
+      // The title said "%" for the same reason: a change of twelve
+      // PERCENTAGE POINTS is not a twelve percent change, and this figure is
+      // a delta in points.
+      detail: "Across your recent practice sessions",
     });
   }
   return items.slice(0, 4);
 }
 
-function masteryToOvercome(gaps: TopicGapInsight[]): string | null {
-  const mild = gaps.find((g) => g.severity === "mild" && g.mistake_count >= 2);
-  return mild?.topic ?? gaps[0]?.topic ?? null;
-}
 
 export type ConsistencyCell = {
   /** Calendar date, yyyy-mm-dd. Present for every cell, including empty ones. */
