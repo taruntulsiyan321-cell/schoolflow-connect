@@ -134,6 +134,134 @@ const EMPTY: StudentPracticeAnalytics = {
   recurring: [],
 };
 
+/**
+ * THE BOUNDARY, and it is validated rather than cast.
+ *
+ * `setData({ ...EMPTY, ...(rows as Partial<StudentPracticeAnalytics>) })` is
+ * a promise to TypeScript, not a check. The payload is JSON built by a
+ * database function, and the two can drift: a rolled-back migration, an
+ * older function still live on another project, a cached edge response.
+ *
+ * The specific failure that matters. Every verdict on the Analysis page is
+ * gated on `answered` and `timed`. If a row arrives without them, they read
+ * `undefined`, mayBeJudged() is false for every row, and the page tells a
+ * student with four hundred answered questions that it does not have enough
+ * data yet — quietly, with no error, looking exactly like a new account.
+ * Failing safe is right; failing SILENTLY is not, because "you have not
+ * practised enough" and "we could not read your practice" are different
+ * sentences and only one of them is true.
+ *
+ * So a row missing its denominators is a contract violation and surfaces as
+ * an error. Everything else is coerced: a numeric string becomes a number, a
+ * missing count becomes 0, and a rate that is absent stays null rather than
+ * collapsing to zero.
+ */
+const CONTRACT_ERROR =
+  "Analysis could not read your practice data — it arrived in an unexpected shape.";
+
+function num(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Null survives as null: an absent rate is not a rate of zero. */
+function numOrNull(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+function strOrNull(v: unknown): string | null {
+  return v == null ? null : String(v);
+}
+
+/**
+ * Every grouped row must carry the denominators its figures are judged on.
+ *
+ * PRESENT, not merely coercible. `Number(null)` is 0 and 0 is finite, so a
+ * row with `timed: null` would have passed a Number.isFinite check and then
+ * gated every verdict on a zero it never measured.
+ */
+function isCount(v: unknown): boolean {
+  return v != null && v !== "" && Number.isFinite(Number(v));
+}
+
+function hasDenominators(r: Record<string, unknown>): boolean {
+  return isCount(r.attempts) && isCount(r.answered) && isCount(r.timed);
+}
+
+function rowsOf(v: unknown): Record<string, unknown>[] {
+  return Array.isArray(v) ? v.filter((r): r is Record<string, unknown> => !!r && typeof r === "object") : [];
+}
+
+function parseAnalytics(payload: unknown): { data: StudentPracticeAnalytics; ok: boolean } {
+  const p = (payload ?? {}) as Record<string, unknown>;
+  const groups = [p.by_subject, p.by_topic, p.by_chapter, p.by_difficulty];
+  const ok = groups.every((g) => rowsOf(g).every(hasDenominators));
+
+  const base = (r: Record<string, unknown>) => ({
+    attempts: num(r.attempts),
+    answered: num(r.answered),
+    timed: num(r.timed),
+    correct: num(r.correct),
+    skipped: num(r.skipped),
+    accuracy: numOrNull(r.accuracy),
+    avg_sec: numOrNull(r.avg_sec),
+  });
+
+  return {
+    ok,
+    data: {
+      by_subject: rowsOf(p.by_subject).map((r) => ({
+        subject: str(r.subject),
+        ...base(r),
+        total_min: numOrNull(r.total_min),
+      })),
+      by_topic: rowsOf(p.by_topic).map((r) => ({
+        topic: str(r.topic),
+        subject: strOrNull(r.subject),
+        chapter: strOrNull(r.chapter),
+        ...base(r),
+        total_min: numOrNull(r.total_min),
+      })),
+      by_chapter: rowsOf(p.by_chapter).map((r) => ({
+        chapter: str(r.chapter),
+        subject: strOrNull(r.subject),
+        ...base(r),
+        total_min: numOrNull(r.total_min),
+      })),
+      by_difficulty: rowsOf(p.by_difficulty).map((r) => ({
+        difficulty: str(r.difficulty),
+        ...base(r),
+      })),
+      effort:
+        p.effort && typeof p.effort === "object"
+          ? {
+              attempts: num((p.effort as Record<string, unknown>).attempts),
+              solution_viewed: num((p.effort as Record<string, unknown>).solution_viewed),
+              repeat_attempts: num((p.effort as Record<string, unknown>).repeat_attempts),
+              first_try_attempts: num((p.effort as Record<string, unknown>).first_try_attempts),
+              first_try_correct: num((p.effort as Record<string, unknown>).first_try_correct),
+            }
+          : null,
+      recurring: rowsOf(p.recurring).map((r) => ({
+        topic: strOrNull(r.topic),
+        chapter: strOrNull(r.chapter),
+        subject: strOrNull(r.subject),
+        times_wrong: num(r.times_wrong),
+        last_wrong_at: strOrNull(r.last_wrong_at),
+        question_text: strOrNull(r.question_text),
+      })),
+    },
+  };
+}
+
+export { parseAnalytics, CONTRACT_ERROR };
+
 export function useStudentPracticeAnalytics(enabled = true) {
   const liveVersion = useAcademicLive(["xp", "profile"]);
   const [data, setData] = useState<StudentPracticeAnalytics | null>(null);
@@ -181,7 +309,14 @@ export function useStudentPracticeAnalytics(enabled = true) {
       // it has nothing.
       setData(EMPTY);
     } else {
-      setData({ ...EMPTY, ...((rows as Partial<StudentPracticeAnalytics>) ?? {}) });
+      const { data: parsed, ok } = parseAnalytics(rows);
+      if (!ok) {
+        // Says so instead of looking like a student who has never practised.
+        setError(CONTRACT_ERROR);
+        setData(EMPTY);
+      } else {
+        setData(parsed);
+      }
     }
     endLoading(setLoading);
   }, [beginLoading, endLoading]);
