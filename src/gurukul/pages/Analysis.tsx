@@ -832,7 +832,11 @@ export default function Analysis() {
       // refused to display, on the same screen, at the same moment.
       needAttention: topicGroups.needs_attention.length,
     }),
-    [snapshot?.mistake_count, topicGroups.needs_attention, practiceAnalytics?.by_topic],
+    // practiceAnalytics ITSELF, not practiceAnalytics?.by_topic. The memo
+    // distinguishes a null payload from an empty list, so it has to re-run
+    // when the payload goes from an object to null even though by_topic
+    // reads undefined either way.
+    [snapshot?.mistake_count, topicGroups.needs_attention, practiceAnalytics],
   );
 
   const milestones = useMemo(() => {
