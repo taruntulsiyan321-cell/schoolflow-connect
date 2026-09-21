@@ -256,7 +256,19 @@ export default function Analysis() {
       correct,
       incorrect,
       skipped,
-      practiceCompleted: snapshot?.self_practice?.sessions_completed ?? analysis?.recent_sessions.length ?? 0,
+      // A LIST LENGTH IS NOT A COUNT, and this fell back to one.
+      //
+      // `?? analysis?.recent_sessions.length ?? 0` reads the array this page
+      // fetched with `.limit(40)`. A student with 72 completed sessions —
+      // which is what production held when this was measured — would have
+      // been shown 40, silently, whenever the snapshot's own count was
+      // absent. The cap is a page-size decision about a list; it can never
+      // stand in for how many sessions a student has sat.
+      //
+      // So the fallback is deleted rather than raised: the server count or
+      // nothing. Null renders as an em dash, which is the honest answer when
+      // the figure was not supplied, and it cannot be mistaken for 40.
+      practiceCompleted: snapshot?.self_practice?.sessions_completed ?? null,
       // NULL, not 0, when no time was recorded.
       //
       // Measured 2026-09-10: only 4 of 262 practice sessions carry
@@ -1271,7 +1283,7 @@ export default function Analysis() {
               // than optional — otherwise a heavy skipper simply looks better
               // and nothing on the screen says why.
               { label: "Skipped",            value: overview.skipped.toLocaleString(),        color: "hsl(var(--muted-foreground))" },
-              { label: "Practice sessions",  value: overview.practiceCompleted,               color: "hsl(var(--foreground))" },
+              { label: "Practice sessions",  value: overview.practiceCompleted ?? "—",         color: "hsl(var(--foreground))" },
               // "Marks recorded" was a count of exam marks. Marks are not an
               // Analysis figure any more (rule 11); the student reads them on
               // their marks surface.
@@ -1437,7 +1449,9 @@ export default function Analysis() {
                         time" for six measured minutes, and "0h" for anything under
                         half an hour. Silent when the subject's sessions were never
                         timed — a subject with no measurement makes no claim. */}
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{pluralise(s.questions, "question")}{s.measuredMinutes != null && s.measuredMinutes > 0 ? ` · ${formatStudyTime(s.measuredMinutes)} study time` : ""}</div>
+                    {/* "Attempts", matching the chapter cards below — the same quantity
+                        was called "questions" here and "Attempts" there, on one tab. */}
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{pluralise(s.questions, "attempt")}{s.measuredMinutes != null && s.measuredMinutes > 0 ? ` · ${formatStudyTime(s.measuredMinutes)} study time` : ""}</div>
                     <div className="h-1 rounded-full bg-muted mt-2 overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
                     </div>
@@ -2180,7 +2194,7 @@ export default function Analysis() {
                       "Gurukul performance summary",
                       `Accuracy: ${overview.accuracy == null ? "not enough practice yet" : `${overview.accuracy}%`}`,
                       `Questions: ${overview.totalQuestions}`,
-                      `Practice sessions: ${overview.practiceCompleted}`,
+                      `Practice sessions: ${overview.practiceCompleted ?? "not recorded"}`,
                     ].join("\n");
                     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
                       void navigator.share({ title: "Gurukul Analysis", text: summary }).catch(() => {
