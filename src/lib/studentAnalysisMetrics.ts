@@ -659,11 +659,29 @@ export function deriveRevisionData(
 ): { totalRevised: number; completed: number; pending: number; dueToday: string[] } {
   const items = states ?? [];
   const solid = items.filter((s) => s.consecutive_passes >= REVISION_STAGES_TO_SOLID);
-  const scheduled = items.filter((s) => s.next_revision_at !== null);
+  // DONE AND PENDING ARE SHOWN SIDE BY SIDE, SO THEY MUST NOT OVERLAP.
+  //
+  // A solid chapter does not leave the schedule — it drops to the much
+  // longer REVISION_INTERVAL_SOLID — so it carries a next_revision_at and was
+  // counted in BOTH tiles. Measured in the render fixture: three chapters
+  // rendering as "1 Done, 2 Pending", which reads as three when one of them
+  // is the same chapter twice.
+  //
+  // Pending is therefore "scheduled and not yet solid". Due today stays a
+  // subset of it, which is what "2 pending, 1 of them due today" should
+  // mean.
+  const scheduled = items.filter(
+    (s) => s.next_revision_at !== null && s.consecutive_passes < REVISION_STAGES_TO_SOLID,
+  );
   // `revision_due` is computed server-side against now(); recomputing the
   // comparison here would put "is it due" in a second home and drift on any
   // timezone difference between the browser and the database.
-  const dueToday = scheduled
+  // FROM EVERY CHAPTER, not from `scheduled`. A solid chapter is still on the
+  // ladder — a much longer rung of it — so it comes due like any other, and
+  // narrowing `scheduled` to the not-yet-solid ones above would have hidden
+  // a solid chapter that is due today. `revision_due` is the server's own
+  // verdict and needs no help from the tile's grouping.
+  const dueToday = items
     .filter((s) => s.revision_due)
     .map((s) => preferRealAcademicLabel(s.chapter, s.subject))
     .filter((label): label is string => Boolean(label));

@@ -12,7 +12,9 @@ import {
   scoreAxisDomain,
   deriveImprovingTopics,
   deriveSubjectRows,
+  deriveRevisionData,
 } from "@/lib/studentAnalysisMetrics";
+import { REVISION_STAGES_TO_SOLID } from "@/academic/recovery/constants";
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
 import { buildMilestones } from "@/components/student/analytics/wisdom/analyticsDerived";
 import type { MistakeTopicAggregate } from "@/lib/analyticsInsights";
@@ -362,4 +364,48 @@ describe("studentAnalysisMetrics", () => {
    * Replaced with the rule rather than the string. The label may be reworded
    * again; it may never name a strength.
    */
+});
+
+describe("revision status tiles", () => {
+  const st = (over: Record<string, unknown> = {}) => ({
+    chapter_id: "c", chapter: "Algebra", subject: "Mathematics", state: "recovered" as const,
+    revision_stage: 3, consecutive_passes: 0, next_revision_at: "2026-10-01T00:00:00Z",
+    revision_due: false, recovered_at: null, last_recovery_readiness: null,
+    open_mistakes: 0, revision_fresh_available: 8, ...over,
+  });
+
+  it("does not count one chapter as both done and pending", () => {
+    // A solid chapter does not leave the schedule, it drops to the much
+    // longer interval — so it carries a next_revision_at and was counted in
+    // BOTH tiles. Three chapters rendered as "1 Done, 2 Pending", which
+    // reads as three when one of them is the same chapter twice.
+    const rows = [
+      st({ chapter_id: "solid", consecutive_passes: REVISION_STAGES_TO_SOLID }),
+      st({ chapter_id: "climbing", consecutive_passes: 1 }),
+    ];
+    const d = deriveRevisionData(rows);
+    expect(d.completed).toBe(1);
+    expect(d.pending).toBe(1);
+    expect(d.completed + d.pending).toBe(rows.length);
+  });
+
+  it("still reports a solid chapter that has come due", () => {
+    // The narrowing above must not reach dueToday: a solid chapter is on a
+    // longer rung of the same ladder and comes due like any other.
+    const d = deriveRevisionData([
+      st({ chapter: "Algebra", consecutive_passes: REVISION_STAGES_TO_SOLID, revision_due: true }),
+    ]);
+    expect(d.completed).toBe(1);
+    expect(d.pending).toBe(0);
+    expect(d.dueToday).toEqual(["Algebra"]);
+  });
+
+  it("keeps due today a subset of what is outstanding", () => {
+    const d = deriveRevisionData([
+      st({ chapter: "Triangles", consecutive_passes: 1, revision_due: true }),
+      st({ chapter: "Circles", consecutive_passes: 1, revision_due: false }),
+    ]);
+    expect(d.pending).toBe(2);
+    expect(d.dueToday).toEqual(["Triangles"]);
+  });
 });

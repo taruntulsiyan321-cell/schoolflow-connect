@@ -1630,7 +1630,10 @@ export default function Analysis() {
                       <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
                       <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
                     </div>
-                    <span className="text-sm font-black text-success shrink-0">+{t.improvement}%</span>
+                    {/* Points, not percent — the same correction as TrendCell below. */}
+                    <span className="text-sm font-black text-success shrink-0">
+                      +{t.improvement} {t.improvement === 1 ? "pt" : "pts"}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -2272,10 +2275,23 @@ function TrendCell({
     );
   }
   const up = state === "improving";
+  // POINTS, NOT PERCENT. deltaPoints is a difference between two accuracy
+  // percentages, and a move from 40% to 70% is thirty POINTS, not thirty
+  // percent — thirty percent of 40 is twelve. The Overview headline and the
+  // milestone card were both corrected to say "points" and this cell, which
+  // renders the same quantity in the subject rows, the chapter grid and the
+  // topics list, kept the percent sign. Three screens of the page disagreed
+  // with the two that had been fixed.
+  //
+  // "pt"/"pts" rather than the word in full: these cells are 11px and sit in
+  // a column, and the unit has to survive being narrow.
   return (
-    <div className={cn("flex items-center gap-0.5", justify, text, up ? "text-success" : "text-destructive")}>
+    <div
+      className={cn("flex items-center gap-0.5", justify, text, up ? "text-success" : "text-destructive")}
+      title={`${up ? "Up" : "Down"} ${Math.abs(deltaPoints)} percentage points across recent sessions`}
+    >
       {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-      {Math.abs(deltaPoints)}%
+      {Math.abs(deltaPoints)} {Math.abs(deltaPoints) === 1 ? "pt" : "pts"}
     </div>
   );
 }
