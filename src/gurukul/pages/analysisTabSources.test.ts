@@ -237,6 +237,20 @@ describe("G5 — accuracy has one source", () => {
     expect(SOURCE).not.toContain("student.accuracy");
   });
 
+  it("does not take its headline accuracy from exam_readiness", () => {
+    // The page header printed "Practice accuracy" from
+    // practiceAccuracyFromSnapshot — exam_readiness.practice_accuracy_pct —
+    // directly above an Overview tile computing the same rate from
+    // analysis.totals. Two pipelines, one label, agreeing only by luck.
+    //
+    // And that helper falls back to exam_readiness.accuracy_pct, which is the
+    // TEST + PRACTICE BLEND, so a page that issues no marks query could still
+    // print a number containing exam marks under a label that says practice
+    // (§4.2b, rule 11). It reads overview.accuracy now.
+    expect(SOURCE).not.toContain("practiceAccuracyFromSnapshot");
+    expect(SOURCE).not.toContain("exam_readiness");
+  });
+
   it("does not blend test marks into the Analysis accuracy", () => {
     expect(HOOK).not.toContain("overallAccuracyFromSnapshot");
   });
