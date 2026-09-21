@@ -10,7 +10,7 @@ import {
   formatHour,
   deriveMonthComparison,
   scoreAxisDomain,
-  deriveImprovingTopics,
+  deriveImprovingChapters,
   deriveSubjectRows,
   deriveRevisionData,
 } from "@/lib/studentAnalysisMetrics";
@@ -269,7 +269,7 @@ describe("studentAnalysisMetrics", () => {
   it("improving topics require real half-window lift", () => {
     // A chapter present in practiceTrend is scored from THOSE points — the
     // session path is skipped for it — so the lift has to be expressed there.
-    const improving = deriveImprovingTopics(
+    const improving = deriveImprovingChapters(
       [
         { date: "2026-07-01", score_pct: 40, chapter: "Integration" },
         { date: "2026-07-05", score_pct: 40, chapter: "Integration" },
@@ -280,14 +280,14 @@ describe("studentAnalysisMetrics", () => {
         session({ id: "1", subject: "Math", chapter: "Integration", accuracy_pct: 40, finished_at: "2026-07-01T10:00:00Z" }),
       ],
     );
-    expect(improving.some((t) => t.topic === "Integration" && t.improvement >= 5)).toBe(true);
+    expect(improving.some((t) => t.chapter === "Integration" && t.improvement >= 5)).toBe(true);
   });
 
-  it("drops a topic that lifted by less than TREND_DELTA_POINTS", () => {
+  it("drops a chapter that lifted by less than TREND_DELTA_POINTS", () => {
     // The control for the assertion above: same shape, movement of 4 points.
     // This list used to run on its own `< 5` threshold, so a 6-point lift was
     // "improving" here while the chapter grid beside it read "steady".
-    const improving = deriveImprovingTopics(
+    const improving = deriveImprovingChapters(
       [
         { date: "2026-07-01", score_pct: 40, chapter: "Integration" },
         { date: "2026-07-05", score_pct: 40, chapter: "Integration" },
@@ -298,7 +298,7 @@ describe("studentAnalysisMetrics", () => {
         session({ id: "1", subject: "Math", chapter: "Integration", accuracy_pct: 40, finished_at: "2026-07-01T10:00:00Z" }),
       ],
     );
-    expect(improving.some((t) => t.topic === "Integration")).toBe(false);
+    expect(improving.some((t) => t.chapter === "Integration")).toBe(false);
   });
 
   it("deriveSubjectRows collapses Maths aliases and drops Subject/Daily", () => {
