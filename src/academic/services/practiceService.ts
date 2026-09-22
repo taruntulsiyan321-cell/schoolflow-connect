@@ -260,6 +260,36 @@ const PRACTICE_SESSION_LIST_SELECT =
   "id, subject, chapter, question_count, correct_count, score, created_at, finished_at, practice_mode, skipped_count, wrong_count, total_time_ms, accuracy, saved_at, analysis_snapshot, xp_earned, difficulty, time_limit_sec";
 
 /**
+ * What the SERVER says about an attempt, returned by
+ * rpc_record_question_attempt.
+ *
+ * correctIndex is null when the server has no answer of its own to give —
+ * a template or AI question with no bank row behind it, the one path where
+ * the client's claim is still what gets stored.
+ */
+export type AttemptVerdict = {
+  attemptId: string | null;
+  isCorrect: boolean;
+  skipped: boolean;
+  correctIndex: number | null;
+  correctText: string;
+  explanation: string;
+};
+
+function parseVerdict(raw: unknown): AttemptVerdict {
+  const v = (raw ?? {}) as Record<string, unknown>;
+  const idx = Number(v.correct_index);
+  return {
+    attemptId: typeof v.attempt_id === "string" ? v.attempt_id : null,
+    isCorrect: v.is_correct === true,
+    skipped: v.skipped === true,
+    correctIndex: Number.isInteger(idx) ? idx : null,
+    correctText: typeof v.correct_text === "string" ? v.correct_text : "",
+    explanation: typeof v.explanation === "string" ? v.explanation : "",
+  };
+}
+
+/**
  * PracticeService — wraps practice session RPCs + finish path.
  * AI/practice modules should call this instead of raw RPCs where practical.
  */
@@ -494,7 +524,16 @@ export const PracticeService = {
       studentId: ctx.studentId,
       source: "PracticeService.recordAttempt",
     });
-    return data as string;
+    // THE SERVER'S VERDICT, not the client's. rpc_record_question_attempt
+    // re-grades every bank question off question_bank.correct_index and
+    // returns what it found; the `_is_correct` this call sent is discarded
+    // there. Proved live 2026-09-22: a wrong answer submitted as
+    // `_is_correct: true` came back is_correct false.
+    //
+    // The old `return data as string` handed back a bare attempt id that no
+    // caller read. This is what the feedback screen needs so the browser
+    // never has to be told the answer in advance.
+    return parseVerdict(data);
   },
 
   async getSession(ctx: ServiceContext, sessionId: string) {
@@ -960,7 +999,7 @@ export const PracticeService = {
     const rows: { topic_id: string | null; chapter: string | null; topics: { name: string } | null }[] = [];
     for (let from = 0; ; from += PAGE) {
       let query = client
-        .from("question_bank")
+        .from("question_bank_student")
         .select("topic_id, chapter, topics(name)")
         .eq("is_approved", true)
         .eq("is_active", true)
@@ -1394,7 +1433,7 @@ export const PracticeService = {
     const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean, withCount = false) => {
       const narrowTopicName = narrowToLabels && !byIds && topicName !== null;
       let query = client
-        .from("question_bank")
+        .from("question_bank_student")
         .select(
           `id, subject, chapter, topic_id, topics${narrowTopicName ? "!inner" : ""}(name)`,
           withCount ? { count: "exact" } : undefined,
@@ -1599,16 +1638,21 @@ export const PracticeService = {
     const drawn = rows.slice(0, limit);
     if (drawn.length === 0) return [];
 
-    // The questions themselves, for the ones drawn and no others.
+    // The questions themselves, for the ones drawn and no others — and NO ANSWER.
+    //
+    // correct_index and explanation used to be fetched here, and a student
+    // could read them straight off question_bank anyway: measured 2026-09-22,
+    // including `?correct_index=eq.2`, which enumerates the answers by
+    // filtering on them. question_bank is staff-only now (20261049000000) and
+    // question_bank_student has no such columns. Nothing here needed them to
+    // grade: rpc_record_question_attempt grades every bank question server-side
+    // and returns its verdict, which is what the feedback screen shows.
     const { data: full, error: fullError } = await client
-      .from("question_bank")
-      .select("id, difficulty, question, options, correct_index, explanation")
+      .from("question_bank_student")
+      .select("id, difficulty, question, options")
       .in("id", drawn.map((r) => r.id));
     throwIfError(fullError, "Failed to load practice questions");
-    type QuestionText = {
-      id: string; difficulty: string | null; question: string; options: unknown;
-      correct_index: number; explanation: string | null;
-    };
+    type QuestionText = { id: string; difficulty: string | null; question: string; options: unknown };
     const text = new Map(((full ?? []) as QuestionText[]).map((q) => [q.id, q]));
     return drawn.flatMap((r) => {
       const q = text.get(r.id);
@@ -1620,8 +1664,6 @@ export const PracticeService = {
         difficulty: q.difficulty,
         question: q.question,
         options: q.options,
-        correct_index: q.correct_index,
-        explanation: q.explanation,
       }];
     });
   },

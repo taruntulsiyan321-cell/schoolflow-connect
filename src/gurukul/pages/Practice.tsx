@@ -20,7 +20,7 @@ import {
   formatSessionXp,
   resolvePracticeSessionStats,
 } from "@/lib/practiceSessionStats";
-import { PRACTICE_HISTORY_WINDOW_DAYS, type AcademicTermRef } from "@/academic/services/practiceService";
+import { PRACTICE_HISTORY_WINDOW_DAYS, type AcademicTermRef, type AttemptVerdict } from "@/academic/services/practiceService";
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { ListFailed, ListLoading, OptionChips, SubjectPicker, type PracticeSubject } from "@/gurukul/components/PracticeLists";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
@@ -95,10 +95,22 @@ function subjectColor(name: string, index: number) {
   return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
+/**
+ * A QUESTION, AS A STUDENT MAY HOLD IT. No `correct`, no `explanation`.
+ *
+ * Both used to be here, fetched with the question, and a student could read
+ * them off question_bank directly anyway — measured 2026-09-22, including
+ * `?correct_index=eq.2`, which enumerates the answers by filtering on them.
+ *
+ * The answer now arrives only after the student commits, in the verdict
+ * rpc_record_question_attempt returns. There is no hint: the bank has none,
+ * and what this screen once called one was the worked solution's opening —
+ * the whole answer for 39% of servable questions.
+ */
 type BankQuestion = {
   id: string;
   subject: string; chapter: string; difficulty: string;
-  question: string; options: string[]; correct: number; explanation?: string;
+  question: string; options: string[];
 };
 
 function parseBankOptions(raw: unknown): string[] {
@@ -1213,6 +1225,9 @@ function Session({
   const [idx,       setIdx]       = useState(0);
   const [chosen,    setChosen]    = useState<number | null>(null);
   const [phase,     setPhase]     = useState<"q" | "fb">("q");
+  // WHAT THE SERVER SAID. Null until the attempt has been recorded, which is
+  // also the first moment this browser is allowed to know the answer.
+  const [verdict,   setVerdict]   = useState<AttemptVerdict | null>(null);
   const [correct,   setCorrect]   = useState(0);
   const [answered,  setAnswered]  = useState(0);
   const [bookmarked,setBookmarked]= useState<number[]>([]);
@@ -1286,8 +1301,6 @@ function Session({
               difficulty: r.difficulty || "medium",
               question: r.question,
               options,
-              correct: typeof r.correct_index === "number" ? r.correct_index : 0,
-              explanation: r.explanation ?? undefined,
             };
           })
           .filter((x): x is BankQuestion => x !== null);
@@ -1401,8 +1414,10 @@ function Session({
     return {
       question: q.question,
       options: q.options,
-      correctIndex: q.correct,
-      explanation: q.explanation,
+      // Unknown here, and deliberately: the server grades and says. The
+      // verdict fills both in on this snapshot when it lands (record below).
+      correctIndex: -1,
+      explanation: undefined,
       bankQuestionId: q.id,
       subject: q.subject,
       chapter: q.chapter,
@@ -1419,10 +1434,23 @@ function Session({
     };
   }
 
-  function record(snap: PracticeAttemptSnapshot) {
+  /** The snapshot of the question on screen, so a late verdict cannot mark the next question. */
+  const onScreenRef = useRef<PracticeAttemptSnapshot | null>(null);
+
+  function record(snap: PracticeAttemptSnapshot, onVerdict?: (v: AttemptVerdict) => void) {
     attemptLog.current.push(snap);
-    const write = persistAttemptLive(snap).then((saved) => {
-      if (saved) confirmedRef.current.add(snap);
+    const write = persistAttemptLive(snap).then((v) => {
+      if (!v) return;
+      confirmedRef.current.add(snap);
+      // What the server found is what this session's record says from now on:
+      // the summary and the review read these snapshots.
+      snap.isCorrect = v.isCorrect;
+      if (v.correctIndex != null) snap.correctIndex = v.correctIndex;
+      if (v.explanation) {
+        snap.explanation = v.explanation;
+        if (!snap.skipped) snap.solutionViewed = true;
+      }
+      onVerdict?.(v);
     });
     pendingWrites.current.add(write);
     void write.finally(() => pendingWrites.current.delete(write));
@@ -1487,30 +1515,39 @@ function Session({
     const q = qs[idx];
     if (!q || phase !== "q" || finishedRef.current) return;
     setChosen(i);
-    const ok = i === q.correct;
     setAnswered((n) => n + 1);
-    if (ok) {
-      correctRef.current += 1;
-      setCorrect(correctRef.current);
-    }
-    // The explanation is shown with the feedback, so it has been viewed.
-    record(snapshotOf(q, { selectedIndex: i, isCorrect: ok, skipped: false, solutionViewed: Boolean(q.explanation) }));
+    // THE CLIENT DOES NOT GRADE. It reports what was chosen, once; the server
+    // grades against the bank and its verdict drives the tick, the cross, the
+    // explanation and the running count. Until it lands the options stay
+    // neutral — the browser genuinely does not know yet.
+    const snap = snapshotOf(q, { selectedIndex: i, isCorrect: false, skipped: false });
+    onScreenRef.current = snap;
+    record(snap, (v) => {
+      if (v.isCorrect) {
+        correctRef.current += 1;
+        setCorrect(correctRef.current);
+      }
+      if (onScreenRef.current === snap) setVerdict(v);
+    });
     setPhase("fb");
   }
 
   function next() {
     if (idx + 1 >= qs.length) { void finish("completed"); return; }
     setIdx(i => i + 1); setChosen(null); setPhase("q");
+    // The last verdict belongs to the last question.
+    onScreenRef.current = null;
+    setVerdict(null);
     questionStartRef.current = Date.now();
   }
 
-  /** True when the server recorded the answer; false leaves it for the finish to send. */
-  async function persistAttemptLive(snap: PracticeAttemptSnapshot): Promise<boolean> {
+  /** The server's verdict when it recorded the answer; null leaves it for the finish to send. */
+  async function persistAttemptLive(snap: PracticeAttemptSnapshot): Promise<AttemptVerdict | null> {
     const sid = sessionIdRef.current;
     const context = ctxRef.current;
-    if (!sid || !context) return false;
+    if (!sid || !context) return null;
     try {
-      await PracticeService.recordAttempt(context, {
+      return await PracticeService.recordAttempt(context, {
         sessionId: sid,
         bankQuestionId: snap.bankQuestionId ?? null,
         generatedQuestion: {
@@ -1551,10 +1588,9 @@ function Session({
         answeredAt: snap.answeredAt ?? null,
         schoolId: snap.schoolId ?? context.schoolId ?? null,
       });
-      return true;
     } catch (e) {
       toast.error(toErrorMessage(e, "Could not save this answer — it will be sent again when you finish"));
-      return false;
+      return null;
     }
   }
 
@@ -1595,7 +1631,10 @@ function Session({
   }
 
   const q       = qs[idx];
-  const isRight = chosen === q?.correct;
+  // FROM THE SERVER, not from a copy of the answer this browser was handed.
+  // Null while the verdict is in flight, which is why the options below stay
+  // neutral until it lands.
+  const isRight = verdict?.isCorrect === true;
   const subj    = subjects.find(s => s.name === q?.subject);
   const timed   = config.timeLimitSec !== null;
   const mm      = Math.floor(timeLeft / 60).toString().padStart(2,"0");
@@ -1723,7 +1762,9 @@ function Session({
       <div className="space-y-2.5">
         {q.options.map((opt, i) => {
           const isChosen = chosen === i;
-          const isCorrect = i === q.correct;
+          // Only once the server has said so. Before the verdict lands
+          // nothing is marked, because nothing is known.
+          const isCorrect = verdict?.correctIndex === i;
           let bg = "border-border/70 text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted";
           if (phase === "fb") {
             // The fill, the border and the mark say which is right; the text
@@ -1750,13 +1791,13 @@ function Session({
           bank has no hint text, only the worked solution, and the "hint" this
           screen showed was that solution's first 120 characters — the whole
           answer for 39% of servable questions (8,557 of 21,717). */}
-      {phase === "fb" && q.explanation && (
+      {phase === "fb" && verdict?.explanation && (
         <GlassCard className="p-4 border-info/20">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
             <div className="text-sm text-muted-foreground leading-relaxed">
               <span className="font-semibold text-foreground">Explanation: </span>
-              <MathText text={q.explanation} />
+              <MathText text={verdict.explanation} />
             </div>
           </div>
         </GlassCard>

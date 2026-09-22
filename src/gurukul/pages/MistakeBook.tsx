@@ -527,7 +527,10 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         const difficultyByBank = new Map<string, string>();
         if (bankIds.length > 0) {
           const { data: bankRows } = await supabase
-            .from("question_bank")
+            // The student view, not the base table. It carries difficulty
+            // and withholds correct_index and explanation, which this read
+            // never wanted — and the base table is staff-only now.
+            .from("question_bank_student")
             .select("id, difficulty")
             .in("id", bankIds);
           for (const b of bankRows ?? []) {
