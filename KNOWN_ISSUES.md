@@ -3298,7 +3298,17 @@ broken:
   counts it (0 of 249 planned questions affected today); and `_apply_chapter_state`
   resets a SOLID chapter's 30-day clock to 7 days whenever it is practised.
 
-## 68. Students can read the practice answer key — OPEN
+## 68. ~~Students can read the practice answer key~~ — FIXED 2026-09-22 (item 2: 20261046–20261050), released 2026-09-22
+
+**Fixed:** students read `question_bank_student`, a view with no `correct_index`, `explanation` or answer;
+`qb_select_approved_board` is dropped, so the base table is staff-only; `rpc_record_question_attempt` returns the
+server's verdict and the runner draws the tick, the cross and the explanation from it; `rpc_question_review` gives
+the answer only for a question the caller has attempted. Measured live: a student's
+`GET /question_bank?correct_index=eq.2` returns zero rows. The release (branch
+`claude/release-practice-analysis`) put the client half live — until then production's app read the base table and
+its practice was empty for every student from the moment 20261049 applied.
+
+**Original entry:**
 
 `question_bank.correct_index` is readable by an ordinary student through
 PostgREST (checked 2026-09-22 with a minted student session). Revision checks
@@ -3332,7 +3342,12 @@ Rewritten so every step consumes input (an unpartnered delimiter is prose,
 "$10 to $20" are not typeset as a formula. `src/components/MathText.test.tsx`
 — the old tokenizer does not fail that test, it never returns (killed at 60 s).
 
-## 71. question_attempts has no index on session_id — OPEN, latent
+## 71. ~~question_attempts has no index on session_id~~ — FIXED 2026-09-22 (item 6: 20261052000000)
+
+The template-path idempotency lookup went from a 95 ms sequential scan to a 0.9 ms index scan (measured on
+production at 7,445 rows); the migration's guard EXPLAINs the lookup and refuses a plan that still scans.
+
+**Original entry:**
 
 Every per-session read scans the whole table: the finish RPC's roll-up, both
 engine graders (`rpc_submit_recovery_session`, `rpc_submit_revision_session`),
@@ -3389,3 +3404,38 @@ that message for an input with an "@" instead of one about mobile numbers.
 **Proven on production:** after the deploy, the same spec signed teacher01, student
 8A-01 and the Riverside principal in through /auth and ran the whole homework story
 to the end.
+
+---
+
+## 74. rpc_student_academic_snapshot is cancelled by the statement timeout — OPEN, measured 2026-09-22
+
+Driving the release in a browser as arjun.mehta (2,464 attempts), `rpc_student_academic_snapshot` returned
+`57014 canceling statement due to statement timeout` on the home and analysis screens — under the battery's load
+five times, and once more on a quiet database (pg_stat_activity showed nothing else running). During the load spike
+`rpc_record_question_attempt`, `rpc_student_performance_charts` and `rpc_finish_practice_session` were cancelled
+too, ten attempts in one session. That is item 5 of the practice report ("session save fails when the DB is busy"),
+now measured. The screens fail to a message rather than to a wrong figure, and the runner resends unsaved answers
+at finish, so nothing was lost — but a student waits and sees an error.
+
+## 75. The Management API token is dead: no migration, dry run or ledger read — OPEN, needs the owner
+
+`SUPABASE_ACCESS_TOKEN` in `.env.local` answers 401 (2026-09-22), so `apply-one-migration`, every dry run,
+`check-foreign-migrations` (BLOCKED) and `mint-role-sessions` cannot run. The Supabase MCP still reads live, as
+`supabase_read_only_user`. Waiting on it: the eleven rollbacks written on 2026-09-22 (never dry-run), dropping the
+now-unused `rpc_question_hint`, and deriving `rpc_practice_bank_catalog`'s board from the caller's school instead of
+a parameter (lint-tenant-scope's entry for it says why). The owner renews the token in the Supabase dashboard
+(Account → Access Tokens) and puts it in `.env.local`.
+
+## 76. rpc_question_hint is live and unused — OPEN, waiting on 75
+
+Item 2 (on claude/busy-shannon-nymdhd) kept a hint behind a per-question RPC; the practice ruling of 2026-09-18
+(claude/question-topics-per-chapter) had already removed the hint, because the bank has no hint text and the "hint"
+was the worked solution's first 120 characters — the whole answer for 39% of servable questions. The release kept
+the ruling and deleted the client call. The function reads only question_bank by primary key and is harmless, but
+it is a door nothing uses; a migration drops it once 75 is resolved.
+
+## 77. LiveHomeworkTab's paging test takes 7 s and times out under a full run — OPEN
+
+`src/gurukul-teacher/LiveHomeworkPanels.test.tsx` "does not stop at a page" passed alone in 7,067 ms and failed at
+25,405 ms inside the full suite (2026-09-22). A unit test that slow is waiting on real timers somewhere; it is
+flaky by construction until it stops.

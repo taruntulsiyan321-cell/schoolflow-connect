@@ -151,7 +151,8 @@ test.describe('Tier1-P · teacher · the panels behind the redirects', () => {
     await page.getByRole('button', { name: /publish now/i }).first().click()
     await page.getByRole('button', { name: /next: choose source/i }).click()
 
-    await page.getByText(/write questions manually/i).click()
+    // The source step is three cards since 41fb18b0; this one writes the questions in the app.
+    await page.getByRole('button', { name: /Write the questions yourself/ }).click()
     await page.getByPlaceholder('Question text *').fill('What is 2 + 3?')
     // The composer defaults to MCQ, and `addManualQuestion` refuses one
     // without at least two options AND a correct answer. Filling only the
@@ -163,7 +164,8 @@ test.describe('Tier1-P · teacher · the panels behind the redirects', () => {
     await page.getByPlaceholder('Option B').fill('5')
     await page.getByPlaceholder('Option C').fill('6')
     await page.getByPlaceholder('Option D').fill('7')
-    await page.getByPlaceholder('Correct option text *').fill('5')
+    // The key is PICKED, never typed (41fb18b0): a typed key could name no option at all.
+    await page.getByRole('button', { name: 'Mark option B correct' }).click()
     await page.getByPlaceholder('Marks').fill('5')
     await page.getByRole('button', { name: /add question/i }).click()
 
@@ -192,10 +194,13 @@ test.describe('Tier1-P · teacher · the panels behind the redirects', () => {
 
     expect(testsWrites, 'POST /rest/v1/tests was not refused').toEqual([])
     expect(body, 'the builder reported a failure').not.toMatch(/failed to create test/i)
+    // The confirmation names what went out, so it is checked against what was
+    // built: one question worth five marks, not merely "a success line".
     await expect(
-      page.getByText(/test published successfully/i),
-      'the panel confirms the test was published',
+      page.getByText(/Published to this class — 1 question\(s\), 5 marks/),
+      'the panel confirms the test was published with the question that was written',
     ).toBeVisible({ timeout: 20000 })
+    await expect(page.getByText(title).first(), 'the published test is in the list').toBeVisible()
   })
 
   /**
@@ -472,7 +477,19 @@ test.describe('Tier1-P · student · the attempt and result routes', () => {
       await page.waitForTimeout(400)
     }
 
+    // Submit confirms once through window.confirm (41fb18b0), naming anything
+    // unanswered. Playwright dismisses dialogs unless told otherwise, which
+    // cancels the submit — so it is accepted here, and its wording is the
+    // check that the paper really had nothing left blank.
+    const confirmed = page.waitForEvent('dialog').then(async (d) => {
+      const message = d.message()
+      await d.accept()
+      return message
+    })
     await page.getByRole('button', { name: /^Submit$/ }).click()
+    expect(await confirmed, 'the submit confirmation says nothing is unanswered').toBe(
+      'Submit your paper? You cannot reopen it.',
+    )
     await expect(page, 'submitting lands on the result route').toHaveURL(
       /\/student\/test\/[0-9a-f-]+\/result/i,
       { timeout: 30000 },

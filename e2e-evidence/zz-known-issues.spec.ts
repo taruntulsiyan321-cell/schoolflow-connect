@@ -58,21 +58,6 @@ async function settle(page: Page, ms = 2000) {
   await page.waitForTimeout(ms)
 }
 
-/** Pick an option out of a Radix Select by its trigger's position on the page. */
-async function chooseFromSelect(page: Page, triggerIndex: number, optionIndex = 0): Promise<string> {
-  const trigger = page.locator('button[role="combobox"]').nth(triggerIndex)
-  await expect(trigger).toBeEnabled({ timeout: 30000 })
-  await trigger.click()
-  const options = page.locator('[role="option"]')
-  await expect(options.first()).toBeVisible({ timeout: 15000 })
-  const chosen = options.nth(optionIndex)
-  const label = ((await chosen.textContent()) || '').trim()
-  await chosen.click()
-  // Radix animates the popover out; wait for it before touching the next one.
-  await expect(page.locator('[role="option"]')).toHaveCount(0, { timeout: 10000 })
-  return label
-}
-
 // ═════════════════════════════════════════════════════════════════════════════
 // KNOWN_ISSUES 11 — no teacher could save a question to the bank, by any route
 //
@@ -86,30 +71,6 @@ test.describe('KNOWN_ISSUES 11 — a teacher can save to the question bank', () 
   test.use({ storageState: authFile('teacher') })
 
   const TAG = 'E2E qb evidence'
-
-  /**
-   * Delete every row this describe block has ever written, as the teacher who
-   * wrote it, and return how many went. Called before AND after the save test:
-   * "after" keeps a passing run clean, "before" collects what a run that died
-   * between the insert and its cleanup left behind — which has happened once,
-   * and left a real row in a real bank until it was noticed.
-   */
-  async function sweep(page: Page): Promise<number> {
-    const url = envVal('VITE_SUPABASE_URL')
-    const H = await restHeaders(page)
-    const like = encodeURIComponent(TAG + '*')
-    const list = await page.request.get(
-      url + '/rest/v1/question_bank?select=id&question=like.' + like, { headers: H },
-    )
-    let ids: string[] = []
-    try { ids = (JSON.parse(await list.text()) as Array<{ id: string }>).map((r) => r.id) } catch { ids = [] }
-    let gone = 0
-    for (const id of ids) {
-      const d = await page.request.delete(url + '/rest/v1/question_bank?id=eq.' + id, { headers: H })
-      if (d.status() === 204 || d.status() === 200) gone++
-    }
-    return gone
-  }
 
   test('the keying rule is live: a chapterless insert is still refused', async ({ page }) => {
     // NEGATIVE CONTROL. If this ever returns 201, the constraint has been
@@ -153,89 +114,114 @@ test.describe('KNOWN_ISSUES 11 — a teacher can save to the question bank', () 
     expect(JSON.parse(await left.text())).toEqual([])
   })
 
-  test('CSV import saves a question keyed to the picked chapter', async ({ page }, testInfo) => {
-    test.setTimeout(180000)
-    await page.goto('/teacher/question-bank', { waitUntil: 'domcontentloaded' })
-    await settle(page)
-
-    // The curriculum tree must actually load — a screen whose pickers are all
-    // empty would "pass" a save test by never being able to attempt one.
-    await expect(page.getByText('Pick the class, subject and chapter')).toBeVisible({ timeout: 30000 })
-    const classLabel = await chooseFromSelect(page, 0, 0)          // Class
-    const subjectLabel = await chooseFromSelect(page, 1, 0)        // Subject
-    const chapterLabel = await chooseFromSelect(page, 2, 0)        // Chapter
-    expect(classLabel, 'class picker is empty').toMatch(/Class \d+/)
-    expect(subjectLabel.length, 'subject picker is empty').toBeGreaterThan(0)
-    expect(chapterLabel.length, 'chapter picker is empty').toBeGreaterThan(0)
-    const classLevel = Number((classLabel.match(/\d+/) || ['0'])[0])
-
-    // Once all three are picked the screen stops warning and lets the save run.
-    await expect(page.getByTestId('qb-keying-hint')).toHaveCount(0)
-
-    // Anything a previous run stranded goes first, so the eq. lookup below can
-    // only ever match this run's row.
-    await sweep(page)
-
-    const question = TAG + ' ' + Date.now() + ' — what is 2+2?'
-    await page.getByRole('tab', { name: /CSV Import/i }).click()
-    const box = page.getByPlaceholder('What is 2+2?', { exact: false })
-    await expect(box).toBeVisible({ timeout: 15000 })
-    await box.fill('"' + question + '",2,3,4,5,2,Basic addition')
-
-    const importBtn = page.getByRole('button', { name: /Import to bank/i })
-    await expect(importBtn).toBeEnabled({ timeout: 15000 })
-    await importBtn.click()
-
-    // The durable proof is the row, not the toast — but the visible text is the
-    // fastest way to see WHY when this breaks, so it is captured either way.
-    await settle(page, 3000)
-    const visible = (await page.evaluate(() => document.body?.innerText ?? '')) || ''
-    testInfo.annotations.push({ type: 'toast', description: visible.replace(/\s+/g, ' ').slice(0, 300) })
-
+  /**
+   * THE ONE WRITE PATH A TEACHER HAS. The Question Bank screen and its CSV
+   * import were deleted on 2026-09-13 (ac6da24c): a teacher now reaches the
+   * bank only through Question Papers, where a generated section's questions
+   * are sent to the bank for review (`QuestionPaperService.writeBackToBank`).
+   * The chapter there is resolved from the section's chapter NAME to a
+   * curriculum id, which is exactly where KNOWN_ISSUES 11 broke — so this
+   * drives that screen and asserts the row carries the right chapter id.
+   *
+   * It depends on the live provider. A provider refusal is not a keying
+   * defect, so it SKIPS with the reason stated — but only after proving the
+   * refused call wrote nothing to the bank. A "Not sent to the bank" line is
+   * never a skip: that is the keying failing, and it fails the test.
+   */
+  test('a generated paper section reaches the bank keyed to its chapter', async ({ page }, testInfo) => {
+    test.setTimeout(300000)
     const url = envVal('VITE_SUPABASE_URL')
+    await page.goto('/teacher/question-papers', { waitUntil: 'domcontentloaded' })
+    await settle(page)
     const H = await restHeaders(page)
-    const q = encodeURIComponent(question)
-    const found = await page.request.get(
-      url + '/rest/v1/question_bank?select=id,chapter_id,class_level,subject,chapter,is_active&question=eq.' + q,
+
+    // The chapter is read off the curriculum, never typed from memory: a name
+    // the curriculum does not carry is skipped by the write, not keyed.
+    const chapRes = await page.request.get(
+      url + '/rest/v1/chapters?select=id,name,curriculum_subjects!inner(name,curriculum_classes!inner(level))'
+        + '&curriculum_subjects.name=eq.Science&curriculum_subjects.curriculum_classes.level=eq.10'
+        + '&order=sequence&limit=1',
       { headers: H },
     )
-    const rows = JSON.parse(await found.text()) as Array<{
-      id: string; chapter_id: string | null; class_level: number | null
-      subject: string; chapter: string | null; is_active: boolean
+    const chapter = (JSON.parse(await chapRes.text()) as Array<{ id: string; name: string }>)[0]
+    expect(chapter?.name, 'the curriculum has no Science class 10 chapter to key to').toBeTruthy()
+
+    const title = 'E2E bank keying ' + Date.now()
+    await page.getByRole('button', { name: /new paper/i }).first().click()
+    await page.getByPlaceholder('Paper title *').fill(title)
+    await page.getByPlaceholder('Subject *').fill('Science')
+    await page.locator('select').filter({ has: page.locator('option', { hasText: /^Class 10$/ }) }).first().selectOption('10')
+    await page.getByRole('button', { name: /^Create paper$/ }).click()
+    await expect(page.getByRole('button', { name: /add section/i }).first()).toBeVisible({ timeout: 20000 })
+
+    const paperRes = await page.request.get(
+      url + '/rest/v1/question_papers?select=id,class_level&title=eq.' + encodeURIComponent(title),
+      { headers: H },
+    )
+    const papers = JSON.parse(await paperRes.text()) as Array<{ id: string; class_level: number }>
+    expect(papers.length, 'the paper was not created').toBe(1)
+    const paperId = papers[0].id
+    expect(papers[0].class_level).toBe(10)
+    const source = encodeURIComponent('question_paper:' + paperId)
+    const bankRows = async () => JSON.parse(await (await page.request.get(
+      url + '/rest/v1/question_bank?select=id,chapter_id,chapter,class_level,subject,is_active,is_approved,created_by'
+        + '&source=eq.' + source,
+      { headers: H },
+    )).text()) as Array<{
+      id: string; chapter_id: string | null; chapter: string | null; class_level: number | null
+      subject: string; is_active: boolean; is_approved: boolean; created_by: string
     }>
-    expect(rows.length, 'the imported question is not in the bank — ' + visible.slice(0, 200)).toBe(1)
 
-    // POSITIVE CONTROL on the keying itself: not merely "a row exists", but
-    // that it carries the chapter the teacher picked, at the class they picked.
-    expect(rows[0].chapter_id, 'row saved without a chapter_id').toBeTruthy()
-    expect(rows[0].class_level).toBe(classLevel)
-    expect(rows[0].chapter).toBe(chapterLabel)
-    expect(rows[0].subject).toBe(subjectLabel)
-    expect(rows[0].is_active).toBe(true)
+    try {
+      // CONTROL: a paper that has generated nothing has sent nothing to the bank.
+      expect(await bankRows(), 'control: the bank holds rows for a paper that has generated nothing').toEqual([])
 
-    // And the chapter_id must point at the chapter whose name was picked —
-    // otherwise a row keyed to the wrong chapter would pass everything above.
-    const chap = await page.request.get(
-      url + '/rest/v1/chapters?select=name&id=eq.' + rows[0].chapter_id,
-      { headers: H },
-    )
-    const chapRows = JSON.parse(await chap.text()) as Array<{ name: string }>
-    expect(chapRows[0]?.name).toBe(chapterLabel)
+      await page.getByRole('button', { name: /add section/i }).first().click()
+      await page.getByPlaceholder('Section title *').fill('Section A')
+      await page.getByPlaceholder('How many').fill('1')
+      await page.getByPlaceholder('Chapters, comma separated (blank = the whole subject)').fill(chapter.name)
+      await page.getByRole('button', { name: /^Add section$/ }).click()
 
-    // Clean up, and assert the cleanup — an unverified restore rots the tenant.
-    const del = await page.request.delete(url + '/rest/v1/question_bank?id=eq.' + rows[0].id, { headers: H })
-    expect([200, 204]).toContain(del.status())
-    const left = await page.request.get(
-      url + '/rest/v1/question_bank?select=id&question=eq.' + q, { headers: H },
-    )
-    expect(JSON.parse(await left.text())).toEqual([])
+      const generateBtn = page.getByRole('button', { name: /Generate/ }).first()
+      await expect(generateBtn).toBeEnabled({ timeout: 20000 })
+      await generateBtn.click()
+      const outcome = page.getByText(/^Generated /).first()
+      await expect(outcome, 'the screen reports what generation did').toBeVisible({ timeout: 240000 })
+      const said = ((await outcome.textContent()) ?? '').replace(/\s+/g, ' ').trim()
+      testInfo.annotations.push({ type: 'generation', description: said.slice(0, 300) })
 
-    // Belt and braces: nothing tagged by this block may survive the run.
-    const stragglers = await page.request.get(
-      url + '/rest/v1/question_bank?select=id&question=like.' + encodeURIComponent(TAG + '*'),
-      { headers: H },
-    )
-    expect(JSON.parse(await stragglers.text())).toEqual([])
+      expect(said, 'the bank refused the generated questions — the keying is broken').not.toMatch(/Not sent to the bank/)
+
+      if (/^Generated nothing/.test(said)) {
+        expect(await bankRows(), 'a generation that produced nothing wrote to the bank').toEqual([])
+        test.skip(true, 'the AI provider produced nothing, so keying is unproven: ' + said.slice(0, 200))
+        return
+      }
+
+      expect(said, 'the generated questions were not sent to the bank').toMatch(/also sent to the question bank for review/)
+      const rows = await bankRows()
+      expect(rows.length, 'the screen said the bank got questions, and the bank holds none').toBeGreaterThan(0)
+      const uid = JSON.parse(Buffer.from((await accessToken(page)).split('.')[1], 'base64').toString('utf8')).sub as string
+      for (const r of rows) {
+        // Not merely "a row exists": the row carries the chapter the section
+        // named, at the paper's class, awaiting review, authored by this teacher.
+        expect(r.chapter_id, 'a generated row was saved without its chapter').toBe(chapter.id)
+        expect(r.class_level).toBe(10)
+        expect(r.subject).toBe('Science')
+        expect(r.is_active).toBe(true)
+        expect(r.is_approved, 'a contribution must wait for review').toBe(false)
+        expect(r.created_by).toBe(uid)
+      }
+    } finally {
+      // Clean up, and assert the cleanup — an unverified restore rots the bank.
+      for (const r of await bankRows()) {
+        const d = await page.request.delete(url + '/rest/v1/question_bank?id=eq.' + r.id, { headers: H })
+        expect([200, 204]).toContain(d.status())
+      }
+      expect(await bankRows(), 'a generated row survived its cleanup').toEqual([])
+      const del = await page.request.delete(url + '/rest/v1/question_papers?id=eq.' + paperId, { headers: H })
+      expect([200, 204]).toContain(del.status())
+    }
   })
 })
 
