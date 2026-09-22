@@ -59,20 +59,60 @@ function buildClassLabel(row: {
 }
 
 /**
- * Load student identity via SECURITY DEFINER RPC when available.
- * Falls back to direct table reads for envs that have not applied the migration yet.
+ * One identity per signed-in student, shared by every caller for a minute.
+ *
+ * useAcademicContext is mounted by 87 components, and each mount loaded the
+ * identity afresh: a round trip to the auth server (getUser) and then
+ * rpc_get_my_student_identity, one after the other. Measured 2026-09-22 as the
+ * Class 12 student: Start Practice spent its first ~800 ms on those two calls
+ * before it could ask for a single question — for an identity the page had
+ * loaded a moment earlier. rpc_get_my_student_identity had run 13,385 times.
+ *
+ * Only a complete student identity is kept. An account that is not linked to a
+ * student yet is re-read on every call, so a portal link made a moment ago is
+ * never hidden behind a cached "no student". A failed load is not kept either.
+ * Concurrent mounts share the one request in flight.
+ */
+const IDENTITY_TTL_MS = 60_000;
+let identityCache: {
+  userId: string;
+  at: number;
+  promise: Promise<StudentAcademicIdentity | null>;
+} | null = null;
+
+/**
+ * Load the signed-in student's identity, from the shared copy when it is
+ * fresh. The session is read locally: the identity RPC itself runs under the
+ * session's token, so the server still verifies it on every load.
  */
 export async function loadStudentAcademicIdentity(
   userId?: string | null,
 ): Promise<StudentAcademicIdentity | null> {
-  const { data: auth, error: authErr } = await supabase.auth.getUser();
+  const { data: auth, error: authErr } = await supabase.auth.getSession();
   if (authErr) throw authErr;
-  const user = auth.user;
+  const user = auth.session?.user;
   if (!user) return null;
   if (userId && user.id !== userId) {
     throw new Error("Student identity user mismatch");
   }
+  const hit = identityCache;
+  if (hit && hit.userId === user.id && Date.now() - hit.at < IDENTITY_TTL_MS) return hit.promise;
+  const promise = fetchStudentAcademicIdentity(user);
+  identityCache = { userId: user.id, at: Date.now(), promise };
+  const forget = () => {
+    if (identityCache?.promise === promise) identityCache = null;
+  };
+  promise.then((loaded) => { if (!loaded?.studentId) forget(); }, forget);
+  return promise;
+}
 
+/**
+ * Load student identity via SECURITY DEFINER RPC when available.
+ * Falls back to direct table reads for envs that have not applied the migration yet.
+ */
+async function fetchStudentAcademicIdentity(
+  user: { id: string },
+): Promise<StudentAcademicIdentity | null> {
   // Prefer SSOT RPC (applies link_portal + class join as definer).
   const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
     "rpc_get_my_student_identity",

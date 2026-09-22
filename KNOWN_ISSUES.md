@@ -2943,7 +2943,7 @@ so the next person driving the modes does not go looking for the bug.
 
 ---
 
-## 58. Practice serves subjects the student's section does not teach — OPEN
+## 58. ~~Practice serves subjects the student's section does not teach~~ — RESOLVED 2026-09-22 (20261044000000)
 
 Found while driving the Practice tab, 2026-09-18. Custom Practice with no
 subject chosen ("All") serves any subject in the student's CLASS and board —
@@ -2968,6 +2968,27 @@ practice is bounded by the section's subjects (and the bank read gains a
 `section_subjects` predicate), or entitlement does not apply to a chapter the
 student has actually practised. Fixing it inside the Practice tab would pick
 that ruling by accident, so it is written down instead.
+
+**RESOLVED 2026-09-22 — entitlement follows practice (20261044000000, applied).**
+Asked to make the Practice tab work end to end, with the Revision screen
+offering checks that could not start. Measured that day as arjun.mehta:
+section 10-A is mapped to Mathematics and Physics only, Practice offered
+eight Class 10 subjects, and 14 of the 23 chapters on his revision schedule
+failed the guard. The same guard refused "Start recovery" for their mistakes.
+
+`_recovery_chapter_is_for` now admits a chapter that is taught to the
+section OR that the student has practised. Practice only serves the
+student's own class, so the guard's purpose — never another class's content
+— holds exactly; a chapter neither taught nor practised is still refused (its
+proof asserts that as the student). Restricting practice instead would have
+removed four subjects from the student's picker. `CHUNK7C_C1_VERIFY` item 6
+now picks a chapter that is neither taught nor practised. Driven in the
+browser: all 23 scheduled chapters listed, and a check for an English
+chapter that used to refuse ran, was recorded against its session and showed
+its verdict.
+
+If the owner rules the other way, the rollback restores the section-only guard
+and the practice read must gain the `section_subjects` predicate instead.
 
 ---
 
@@ -3155,11 +3176,65 @@ reason:
   see: all 125 `student_mistakes` rows belong to the demo school. The fence may
   well be fine, but the check cannot currently tell. It needs to seed an
   other-institution row inside its own rolled-back transaction.
-* `CHUNK7C_C1_VERIFY` — recovery ladder: "tier 0 filled 2, expected the
-  student's own wrong question", and tier 1 returned questions where it
-  expected none. Its expectations or its fixture have drifted from the ladder
-  as it is now built.
+* ~~`CHUNK7C_C1_VERIFY`~~ — RESOLVED 2026-09-22. The fixture, not the ladder:
+  it took the first taught chapter as found, so once the student had real
+  mistakes there, tier 0 held them too ("tier 0 filled 2") and the seed then
+  collided with a real mistake on the same question (23505). It now picks a
+  taught chapter where the student has no mistakes and a question with no
+  variants, and refuses to run if none exists. All 7 checks hold.
 * `CHUNK95_ANON_SURFACE_VERIFY` — **possibly real**: anon can EXECUTE
   `my_readable_test_ids()` and no documented class explains why. A signed-out
   visitor holding the public anon key can call it. Read that function's body
   before deciding whether it is a hole.
+
+---
+
+## 65. The Battleground warms its featured battles on every reload — OPEN, not practice
+
+While driving Practice on 2026-09-22, read-only practice calls intermittently
+hit the database's 8-second statement timeout (the subject list, the finish,
+the sign-in link step). pg_stat_statements named the heaviest consumer by a
+wide margin: `rpc_ensure_featured_battles_all()` — 13,183 calls, 892 ms mean,
+4.5 s max, 3.3 hours of database time. It is called by `useBattlegroundData`'s
+`reload`, which runs on mount and again on every live battle/XP bump, so an
+open Battleground tab re-seeds and re-rotates the featured battles each time
+any XP moves. Only the Battleground page calls it; Practice does not. Each
+call runs the refresh/rotate and three seeding functions before reading.
+
+Practice was hardened against what it caused rather than against it: its own
+start no longer waits on redundant identity/scope reads, and a finish that
+cannot complete in time is still caught (the in-app "Try saving again", the
+page-exit keepalive, and the settle on the next visit). The featured-battle
+warm itself should run on a schedule, not on every client reload.
+
+---
+
+## 66. Two latent practice-scope risks — OPEN, no live effect measured
+
+Found while driving the practice lists on 2026-09-22. Neither changes what a
+student sees today; both would, if the data moved.
+
+* **The session pool's chapter filter is a containment match.**
+  `listBankQuestions` keeps `academicLabelMatches(r.chapter, opts.chapter)`
+  (practiceService.ts, the `if (opts.chapter)` pass). It is harmless on the
+  normal path, because the read is first narrowed by `chapter.ilike.<name>`
+  (exact, no wildcards), so only that chapter's rows reach the filter. It
+  leaks on the two paths that skip the narrowing: a chapter name holding a
+  comma, parenthesis, quote or backslash (6 of 669 live chapters, e.g. "Acids,
+  Bases and Salts"), and the fallback pass after a narrowed read found
+  nothing. None of those six has a containment partner today (34 chapter pairs
+  do contain one another, e.g. "Circles" / "Areas Related to Circles"). It was
+  left loose on purpose for Revision/Recovery links, which can carry a
+  curriculum spelling of the chapter; tightening it to `academicLabelEquals`
+  needs those links' labels checked first. The topic LIST had the same match
+  and a chip's chapter is always a bank label, so that one was made exact.
+* **A Class 9/10 student carries the school's stream.** The demo school's
+  stream is `commerce`, so arjun (Class 10) sends `_stream: commerce` to
+  `rpc_practice_bank_catalog` and `stream.eq.commerce,stream.is.null` to the
+  pool. Every Class 9 and 10 row has a NULL stream (2,107 and 3,098), so
+  nothing is hidden. A Class 10 row tagged `science` would vanish for this
+  student. The subject allowlists already apply a stream only from Class 11
+  (`appliesCommerceSubjectAllowlist`); the row filter should follow the same
+  rule. Not changed here: `scope.stream` is also read by Battleground,
+  FrictionlessChallenge, CommunityDoubtPortal and MistakeBook, so the change
+  reaches four panels outside Practice for no measured effect today.

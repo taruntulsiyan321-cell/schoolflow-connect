@@ -10,6 +10,7 @@ import { getClient, throwIfError } from "../repository/base";
 import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
+import type { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
 import {
   filterSubjectsForStream,
   inferStreamFromText,
@@ -132,6 +133,13 @@ const TOPIC_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
  */
 const POOL_PAGE = 1000;
 const POOL_CAP = 10_000;
+
+/** A student's curriculum scope, shared by every question load for a minute. */
+const SCOPE_TTL_MS = 60_000;
+const scopeCache = new Map<string, { at: number; promise: Promise<CurriculumScope> }>();
+
+/** A keepalive request body may not exceed 64 KB; this leaves headroom. */
+const PAGE_EXIT_BODY_LIMIT = 60_000;
 
 let confidenceAvailable: boolean | null = null;
 
@@ -335,6 +343,55 @@ export const PracticeService = {
     });
     notifyStudentXpUpdated();
     return data;
+  },
+
+  /**
+   * The same finish, for a page that is going away — the tab closed, or Back
+   * out of the app.
+   *
+   * `finish` cannot do this: it is an ordinary request, and the browser
+   * cancels it with the page. So did the answer the student had just given,
+   * whose live write was still in flight. Measured 2026-09-22: answer twice,
+   * press Back out of the app, and the session was left open holding ONE
+   * answer, with no finish sent at all.
+   *
+   * A keepalive request outlives the page. It carries only the answers whose
+   * live write was never confirmed — rpc_finish_practice_session records the
+   * attempts it is sent (de-duplicating any that did land) and then counts the
+   * session from question_attempts, so the rest need not travel. A keepalive
+   * body is capped at 64 KB; past a safe margin the attempts are dropped and
+   * the finish counts what reached the server.
+   *
+   * Nothing is emitted and nothing is awaited: there is no page left to
+   * report to. The settle on the next visit remains the net under this.
+   */
+  finishOnPageExit(args: {
+    sessionId: string;
+    attempts: ReturnType<typeof attemptsToFinishPayload>;
+    accessToken: string;
+  }): void {
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/rpc_finish_practice_session`;
+    const params = {
+      _session_id: args.sessionId,
+      _ended_by_user: true,
+      _ended_normally: false,
+    };
+    let body = JSON.stringify({ ...params, _attempts: args.attempts.length ? args.attempts : null });
+    if (body.length > PAGE_EXIT_BODY_LIMIT) body = JSON.stringify({ ...params, _attempts: null });
+    try {
+      void fetch(url, {
+        method: "POST",
+        keepalive: true,
+        headers: {
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${args.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body,
+      }).catch(() => undefined);
+    } catch {
+      // A browser that refuses the request leaves the session to the settle.
+    }
   },
 
   /**
@@ -662,12 +719,33 @@ export const PracticeService = {
   },
 
   /**
+   * The student's class level, board and stream, from the shared copy when it
+   * is fresh (SCOPE_TTL_MS). Every question load resolved it again — a round
+   * trip to schools, and sometimes students and classes, one after another
+   * before the pool could be asked for — for a scope that does not change
+   * within a visit. Measured 2026-09-22: ~300 ms of every Start Practice.
+   * Keyed on everything the scope is derived from; a failed resolve is not kept.
+   */
+  resolveCurriculumScope(ctx: ServiceContext): Promise<CurriculumScope> {
+    const key = [ctx.userId, ctx.schoolId, ctx.studentId, ctx.classId, ctx.classLabel, ctx.classCategory]
+      .map((v) => v ?? "").join("|");
+    const hit = scopeCache.get(key);
+    if (hit && Date.now() - hit.at < SCOPE_TTL_MS) return hit.promise;
+    const promise = this.computeCurriculumScope(ctx);
+    scopeCache.set(key, { at: Date.now(), promise });
+    promise.catch(() => {
+      if (scopeCache.get(key)?.promise === promise) scopeCache.delete(key);
+    });
+    return promise;
+  },
+
+  /**
    * Resolve student's class_level + school board/stream for bank filtering.
    * class_level comes from students → classes name/display (e.g. "10-A" → 10, "12-C" → 12).
    * Used for EVERY class — never dump other class levels.
    * stream from schools.stream, else class category/label (commerce/science/…).
    */
-  async resolveCurriculumScope(ctx: ServiceContext): Promise<CurriculumScope> {
+  async computeCurriculumScope(ctx: ServiceContext): Promise<CurriculumScope> {
     const client = getClient(toRepoContext(ctx));
     let board = "rbse";
     let schoolStream: AcademicStream | null = null;
@@ -907,7 +985,9 @@ export const PracticeService = {
     const seen = new Map<string, AcademicTermRef & { chapter: string | null }>();
     for (const r of rows) {
       if (!r.topic_id || !r.topics?.name || seen.has(r.topic_id)) continue;
-      if (opts.chapter && !academicLabelMatches(r.chapter, opts.chapter)) continue;
+      // The chapter is a chip from listBankChapters — a label of this bank — so
+      // it is that chapter exactly: "Circles" is not "Areas Related to Circles".
+      if (opts.chapter && !academicLabelEquals(r.chapter, opts.chapter)) continue;
       const chapterLabel = r.chapter ? displayChapter(r.chapter) || r.chapter : null;
       seen.set(r.topic_id, {
         id: r.topic_id,
@@ -1311,11 +1391,14 @@ export const PracticeService = {
     // paged in id order, every question the filters admit. The session is
     // drawn from all of it, and the questions themselves are fetched only for
     // the ones drawn.
-    const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean) => {
+    const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean, withCount = false) => {
       const narrowTopicName = narrowToLabels && !byIds && topicName !== null;
       let query = client
         .from("question_bank")
-        .select(`id, subject, chapter, topic_id, topics${narrowTopicName ? "!inner" : ""}(name)`)
+        .select(
+          `id, subject, chapter, topic_id, topics${narrowTopicName ? "!inner" : ""}(name)`,
+          withCount ? { count: "exact" } : undefined,
+        )
         .eq("is_approved", true)
         // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
         // so there is no per-school arm left to filter on.
@@ -1401,16 +1484,35 @@ export const PracticeService = {
       return query;
     };
 
-    /** Every row the filters admit, a page at a time, up to POOL_CAP. */
+    /**
+     * Every row the filters admit, up to POOL_CAP.
+     *
+     * The first page brings the total with it, and every other page is asked
+     * for at once. They were fetched one after another: each page is a full
+     * round trip of about a second for a thousand rows, so a Class 12 "all
+     * subjects" session (3,305 rows, four pages) waited 6.6 seconds before its
+     * first question — measured 2026-09-22 as the student. Asked for together,
+     * the pages cost one round trip after the first.
+     *
+     * Ordered by id, so the pages tile the pool; a row that moves between the
+     * first request and the rest is counted once.
+     */
     const readPool = async (applyActiveFilter: boolean, narrowToLabels: boolean) => {
-      const pool: unknown[] = [];
-      for (let from = 0; from < POOL_CAP; from += POOL_PAGE) {
-        const page = await buildQuery(applyActiveFilter, narrowToLabels).range(from, from + POOL_PAGE - 1);
-        if (page.error) return { data: null, error: page.error };
-        pool.push(...(page.data ?? []));
-        if ((page.data?.length ?? 0) < POOL_PAGE) break;
+      const first = await buildQuery(applyActiveFilter, narrowToLabels, true).range(0, POOL_PAGE - 1);
+      if (first.error) return { data: null, error: first.error };
+      const total = Math.min(first.count ?? (first.data?.length ?? 0), POOL_CAP);
+      const rest: Array<ReturnType<typeof buildQuery>> = [];
+      for (let from = POOL_PAGE; from < total; from += POOL_PAGE) {
+        rest.push(buildQuery(applyActiveFilter, narrowToLabels).range(from, from + POOL_PAGE - 1));
       }
-      return { data: pool, error: null };
+      const pages = await Promise.all(rest);
+      const failed = pages.find((p) => p.error);
+      if (failed) return { data: null, error: failed.error };
+      const byId = new Map<string, unknown>();
+      for (const row of [first, ...pages].flatMap((p) => (p.data ?? []) as Array<{ id: string }>)) {
+        byId.set(row.id, row);
+      }
+      return { data: [...byId.values()], error: null };
     };
 
     // Retired (is_active = false) questions are left out unless a historical

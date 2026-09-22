@@ -22,6 +22,8 @@ import {
 } from "@/lib/practiceSessionStats";
 import { PRACTICE_HISTORY_WINDOW_DAYS, type AcademicTermRef } from "@/academic/services/practiceService";
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { ListFailed, ListLoading, OptionChips, SubjectPicker, type PracticeSubject } from "@/gurukul/components/PracticeLists";
+import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
 import {
@@ -110,9 +112,7 @@ function parseBankOptions(raw: unknown): string[] {
   return [];
 }
 
-type PracticeSubject = {
-  id: string; name: string; color: string;
-};
+type BankTopic = AcademicTermRef & { chapter: string | null };
 
 type HistoryRow = {
   id: string;
@@ -242,10 +242,12 @@ function Tag({ children, color }: { children: React.ReactNode; color: string }) 
 }
 
 // ── Hub view ─────────────────────────────────────────────────────────────────
-function Hub({
+// Exported for PracticeLists.test.tsx.
+export function Hub({
   onMode,
-  history,
-  saved,
+  historyList,
+  savedList,
+  onRetryHistory,
   streak,
   onOpenSession,
   onSaveLatest,
@@ -255,8 +257,9 @@ function Hub({
   subjects,
 }: {
   onMode: (key: ModeKey) => void;
-  history: HistoryRow[];
-  saved: HistoryRow[];
+  historyList: ListState<HistoryRow>;
+  savedList: ListState<HistoryRow>;
+  onRetryHistory: () => void;
   streak: number;
   onOpenSession: (id: string) => void;
   onSaveLatest: () => void;
@@ -279,6 +282,7 @@ function Hub({
   // Subject, type and date are filtered by the server (listHistory); only the
   // free-text search runs here, over what came back.
   const q = historyFilters.search.trim().toLowerCase();
+  const history = listItems(historyList);
   const filteredHistory = q
     ? history.filter((h) => `${h.subject} ${h.title} ${h.practiceType} ${h.difficulty}`.toLowerCase().includes(q))
     : history;
@@ -400,14 +404,18 @@ function Hub({
             </button>
           </div>
           <div className="space-y-2.5">
-            {saved.length === 0 ? (
+            {savedList.status === "loading" ? (
+              <ListLoading />
+            ) : savedList.status === "failed" ? (
+              <ListFailed onRetry={onRetryHistory} />
+            ) : savedList.items.length === 0 ? (
               <EmptyState
                 variant="section"
                 icon={<Bookmark className="w-5 h-5" />}
                 title="No saved sessions yet"
                 sub="Save a session from its results page, or use Save latest result above. Saved sessions stay here after history's week is up."
               />
-            ) : saved.map(s => (
+            ) : savedList.items.map(s => (
               <button
                 key={s.id}
                 type="button"
@@ -501,7 +509,11 @@ function Hub({
           )}
 
           <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
-            {filteredHistory.length === 0 ? (
+            {historyList.status === "loading" ? (
+              <ListLoading />
+            ) : historyList.status === "failed" ? (
+              <ListFailed onRetry={onRetryHistory} />
+            ) : filteredHistory.length === 0 ? (
               <EmptyState
                 variant="section"
                 icon={anyFilter ? <Filter className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
@@ -554,13 +566,15 @@ function Hub({
 }
 
 // ── Config views ─────────────────────────────────────────────────────────────
-function ConfigView({
-  modeKey, onStart, onBack, subjects, classUnresolved, classUnresolvedMessage,
+// Exported for PracticeLists.test.tsx, which drives it as a student would.
+export function ConfigView({
+  modeKey, onStart, onBack, subjectList, onRetrySubjects, classUnresolved, classUnresolvedMessage,
 }: {
   modeKey: ModeKey;
   onStart: (cfg: SessionConfig) => void;
   onBack: () => void;
-  subjects: PracticeSubject[];
+  subjectList: ListState<PracticeSubject>;
+  onRetrySubjects: () => void;
   classUnresolved?: boolean;
   classUnresolvedMessage?: string;
 }) {
@@ -583,62 +597,42 @@ function ConfigView({
   // both — picking one hides the other.
   const [goalType,      setGoalType]      = useState<"count" | "time">("count");
   const [pyqYear,       setPyqYear]       = useState<number | null>(null);
-  const [chapters,      setChapters]      = useState<AcademicTermRef[]>([]);
-  const [topics,        setTopics]        = useState<(AcademicTermRef & { chapter: string | null })[]>([]);
-  const [metaLoading,   setMetaLoading]   = useState(false);
-  // A failed read is not an empty bank. Both lists used to catch the error and
-  // show "No chapters in the bank for this subject yet." — a claim about the
-  // bank made by a network failure.
-  const [chaptersError, setChaptersError] = useState(false);
-  const [topicsError,   setTopicsError]   = useState(false);
-  const [reloadKey,     setReloadKey]     = useState(0);
+  const [chapterList,   setChapterList]   = useState<ListState<AcademicTermRef>>(LOADING_LIST);
+  const [topicList,     setTopicList]     = useState<ListState<BankTopic>>(LOADING_LIST);
+  // Each list's Try again reads that list again, and only that one: a shared
+  // key re-ran the chapter read on a topic retry, which cleared the chapter
+  // the student had picked.
+  const [chapterReads,  setChapterReads]  = useState(0);
+  const [topicReads,    setTopicReads]    = useState(0);
 
   useEffect(() => {
     setSelChapter(null);
-    setSelTopic(null);
-    setChapters([]);
-    setTopics([]);
-    setChaptersError(false);
+    setChapterList(LOADING_LIST);
     if (!selSubject || !ctx || !academicReady) return;
     if (!["chapter", "topic", "custom"].includes(modeKey)) return;
     let cancelled = false;
-    (async () => {
-      setMetaLoading(true);
-      try {
-        const ch = await PracticeService.listBankChapters(ctx, { subject: selSubject });
-        if (!cancelled) setChapters(ch);
-      } catch {
-        if (!cancelled) setChaptersError(true);
-      } finally {
-        if (!cancelled) setMetaLoading(false);
-      }
-    })();
+    PracticeService.listBankChapters(ctx, { subject: selSubject }).then(
+      (items) => { if (!cancelled) setChapterList({ status: "ready", items }); },
+      () => { if (!cancelled) setChapterList({ status: "failed" }); },
+    );
     return () => { cancelled = true; };
-  }, [selSubject, ctx, academicReady, modeKey, reloadKey]);
-
+  }, [selSubject, ctx, academicReady, modeKey, chapterReads]);
 
   useEffect(() => {
     setSelTopic(null);
-    setTopics([]);
-    setTopicsError(false);
+    setTopicList(LOADING_LIST);
     if (!selSubject || !ctx || !academicReady) return;
     if (!["topic", "custom"].includes(modeKey)) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const tp = await PracticeService.listBankTopics(ctx, {
-          subject: selSubject,
-          chapter: selChapter,
-        });
-        if (!cancelled) setTopics(tp);
-      } catch {
-        if (!cancelled) setTopicsError(true);
-      }
-    })();
+    PracticeService.listBankTopics(ctx, { subject: selSubject, chapter: selChapter }).then(
+      (items) => { if (!cancelled) setTopicList({ status: "ready", items }); },
+      () => { if (!cancelled) setTopicList({ status: "failed" }); },
+    );
     return () => { cancelled = true; };
-  }, [selSubject, selChapter, ctx, academicReady, modeKey, reloadKey]);
+  }, [selSubject, selChapter, ctx, academicReady, modeKey, topicReads]);
 
-  const retryLists = () => setReloadKey((k) => k + 1);
+  const retryChapters = () => setChapterReads((k) => k + 1);
+  const retryTopics = () => setTopicReads((k) => k + 1);
 
   function handleStart() {
     // Custom Practice is the only mode with a time goal, and it is exclusive
@@ -650,7 +644,7 @@ function ConfigView({
       subject: selSubject ?? "Mixed",
       // A topic belongs to one chapter, so a session started from a topic is
       // that chapter's session even when no chapter was picked first.
-      chapter: selChapter ?? topics.find((t) => t.id === selTopic)?.chapter ?? null,
+      chapter: selChapter ?? listItems(topicList).find((t) => t.id === selTopic)?.chapter ?? null,
       topic: selTopic,
       difficulty: selDifficulty,
       // A time-goal session is bounded by the clock, so request a generous
@@ -675,32 +669,33 @@ function ConfigView({
           <SubjectPicker
             selected={selSubject}
             onSelect={setSelSubject}
-            subjects={subjects}
+            list={subjectList}
+            onRetry={onRetrySubjects}
             emptyMessage={subjectEmptyMsg}
             allowAll
             label="1. Subject (optional)"
           />
           {selSubject && (
             <OptionChips
-              label={metaLoading ? "Loading chapters…" : "2. Chapter (optional)"}
-              options={chapters}
+              label="2. Chapter (optional)"
+              list={chapterList}
               selected={selChapter}
               onSelect={setSelChapter}
               allowClear
-              failed={chaptersError}
-              onRetry={retryLists}
+              onRetry={retryChapters}
               empty="No chapters in the bank for this subject yet."
             />
           )}
-          {selSubject && selChapter && topics.length > 0 && (
+          {/* Optional here, so a chapter with no tagged topics shows no list —
+              but one still loading, or one that failed, says so. */}
+          {selSubject && selChapter && (topicList.status !== "ready" || topicList.items.length > 0) && (
             <OptionChips
               label="3. Topic / concept (optional)"
-              options={topics}
+              list={topicList}
               selected={selTopic}
               onSelect={setSelTopic}
               allowClear
-              failed={topicsError}
-              onRetry={retryLists}
+              onRetry={retryTopics}
               empty="No topics tagged for this chapter yet."
             />
           )}
@@ -799,7 +794,7 @@ function ConfigView({
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
           <p className="text-xs text-muted-foreground">Loads past-paper / exam-year tagged questions from the bank when available.</p>
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} list={subjectList} onRetry={onRetrySubjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
           <div>
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Exam year (optional)</div>
             <div className="flex gap-2 flex-wrap">
@@ -835,7 +830,7 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="Choose subject"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} list={subjectList} onRetry={onRetrySubjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="Choose subject"/>
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
         <StartButton disabled={!selSubject} onStart={handleStart}/>
@@ -847,15 +842,14 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} list={subjectList} onRetry={onRetrySubjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
           {selSubject && (
             <OptionChips
-              label={metaLoading ? "Loading chapters…" : "2. Chapter"}
-              options={chapters}
+              label="2. Chapter"
+              list={chapterList}
               selected={selChapter}
               onSelect={setSelChapter}
-              failed={chaptersError}
-              onRetry={retryLists}
+              onRetry={retryChapters}
               empty="No chapters in the bank for this subject yet."
             />
           )}
@@ -886,27 +880,25 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} list={subjectList} onRetry={onRetrySubjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
           {selSubject && (
             <OptionChips
               label="2. Chapter (optional)"
-              options={chapters}
+              list={chapterList}
               selected={selChapter}
               onSelect={setSelChapter}
               allowClear
-              failed={chaptersError}
-              onRetry={retryLists}
+              onRetry={retryChapters}
               empty="No chapters yet — pick a topic below if available."
             />
           )}
           {selSubject && (
             <OptionChips
               label="3. Topic / concept"
-              options={topics}
+              list={topicList}
               selected={selTopic}
               onSelect={setSelTopic}
-              failed={topicsError}
-              onRetry={retryLists}
+              onRetry={retryTopics}
               empty="No topics tagged in the bank for this selection yet."
             />
           )}
@@ -920,65 +912,11 @@ function ConfigView({
   return (
     <ConfigShell mode={mode} onBack={onBack}>
       <div className="space-y-6">
-        <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll/>
+        <SubjectPicker selected={selSubject} onSelect={setSelSubject} list={subjectList} onRetry={onRetrySubjects} emptyMessage={subjectEmptyMsg} allowAll/>
         <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
       </div>
       <StartButton onStart={handleStart}/>
     </ConfigShell>
-  );
-}
-
-function OptionChips({
-  label, options, selected, onSelect, empty, allowClear, failed, onRetry,
-}: {
-  label: string;
-  options: AcademicTermRef[];
-  selected: string | null;
-  onSelect: (v: string | null) => void;
-  empty?: string;
-  allowClear?: boolean;
-  /** The list could not be read — say so, and offer to read it again. */
-  failed?: boolean;
-  onRetry?: () => void;
-}) {
-  return (
-    <div>
-      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{label}</div>
-      {failed ? (
-        <p className="text-xs text-destructive">
-          Could not load this list.{" "}
-          {onRetry && (
-            <button type="button" onClick={onRetry} className="font-semibold underline">Try again</button>
-          )}
-        </p>
-      ) : options.length === 0 ? (
-        <p className="text-xs text-muted-foreground">{empty ?? "Nothing available yet."}</p>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {allowClear && (
-            <button type="button" onClick={() => onSelect(null)}
-              className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === null ? "bg-primary text-primary-foreground shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
-              )}>Any</button>
-          )}
-          {options.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => onSelect(opt.id)}
-              className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all max-w-full truncate",
-                selected === opt.id ? "bg-primary text-primary-foreground shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
-              )}
-              title={opt.displayName}
-            >
-              {opt.displayName || presentAcademicLabel(opt.id)}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -1005,48 +943,6 @@ function ConfigShell({ mode, onBack, children }: {
         </div>
         {children}
       </GlassCard>
-    </div>
-  );
-}
-
-// Subject picker
-function SubjectPicker({
-  selected, onSelect, subjects, allowAll = true, label = "Subject", emptyMessage,
-}: {
-  selected: string | null;
-  onSelect: (s: string | null) => void;
-  subjects: PracticeSubject[];
-  allowAll?: boolean;
-  label?: string;
-  emptyMessage?: string;
-}) {
-  return (
-    <div>
-      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{label}</div>
-      {subjects.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          {emptyMessage ?? "No subjects in the question bank yet for your class and board."}
-        </p>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {allowAll && (
-            <button type="button" onClick={() => onSelect(null)}
-              className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === null ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
-              )}>All</button>
-          )}
-          {subjects.map(s => (
-            <button key={s.id} type="button" onClick={() => onSelect(s.name)}
-              className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === s.name ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
-              )}>
-              {displaySubject(s.name) || s.name}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -1345,6 +1241,15 @@ function Session({
    * recorded twice when the two cross.
    */
   const pendingWrites = useRef(new Set<Promise<unknown>>());
+  /** Answers whose live write the server confirmed. A page exit resends the rest. */
+  const confirmedRef = useRef(new Set<PracticeAttemptSnapshot>());
+  /**
+   * The signed-in session's token, current on every render. A page that is
+   * going away cannot wait for getSession(); the exit request needs it now.
+   */
+  const { session: authSession } = useAuth();
+  const accessTokenRef = useRef<string | null>(null);
+  accessTokenRef.current = authSession?.access_token ?? null;
 
   useEffect(() => {
     if (loadedRef.current) return;
@@ -1451,14 +1356,28 @@ function Session({
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [config.timeLimitSec, loadingQs, qs.length]);
 
-  // Leaving mid-session ends it with what was answered — in-app navigation
-  // unmounts this, and closing the tab fires pagehide (best effort: the page
-  // may be gone before the request is).
+  // Leaving mid-session ends it with what was answered. In-app navigation
+  // unmounts this, and the ordinary finish runs — the page is still there to
+  // complete it. Closing the tab or pressing Back out of the app fires
+  // pagehide instead, and that page is going away: an ordinary request would
+  // be cancelled with it, and so would the answer still being written. The
+  // exit sends the same finish as a request that outlives the page.
+  const exitRef = useRef<() => void>(() => {});
+  exitRef.current = () => {
+    const sid = sessionIdRef.current;
+    const token = accessTokenRef.current;
+    if (finishedRef.current || !sid || !token) return;
+    if (attemptLog.current.length <= leftWithRef.current) return;
+    leftWithRef.current = attemptLog.current.length;
+    const unconfirmed = attemptLog.current.filter((a) => !confirmedRef.current.has(a));
+    PracticeService.finishOnPageExit({ sessionId: sid, attempts: attemptsToFinishPayload(unconfirmed), accessToken: token });
+  };
   useEffect(() => {
     const leave = () => { void finishRef.current("left"); };
-    window.addEventListener("pagehide", leave);
+    const exit = () => exitRef.current();
+    window.addEventListener("pagehide", exit);
     return () => {
-      window.removeEventListener("pagehide", leave);
+      window.removeEventListener("pagehide", exit);
       leave();
     };
   }, []);
@@ -1489,7 +1408,9 @@ function Session({
 
   function record(snap: PracticeAttemptSnapshot) {
     attemptLog.current.push(snap);
-    const write = persistAttemptLive(snap);
+    const write = persistAttemptLive(snap).then((saved) => {
+      if (saved) confirmedRef.current.add(snap);
+    });
     pendingWrites.current.add(write);
     void write.finally(() => pendingWrites.current.delete(write));
   }
@@ -1570,10 +1491,11 @@ function Session({
     questionStartRef.current = Date.now();
   }
 
-  async function persistAttemptLive(snap: PracticeAttemptSnapshot) {
+  /** True when the server recorded the answer; false leaves it for the finish to send. */
+  async function persistAttemptLive(snap: PracticeAttemptSnapshot): Promise<boolean> {
     const sid = sessionIdRef.current;
     const context = ctxRef.current;
-    if (!sid || !context) return;
+    if (!sid || !context) return false;
     try {
       await PracticeService.recordAttempt(context, {
         sessionId: sid,
@@ -1616,8 +1538,10 @@ function Session({
         answeredAt: snap.answeredAt ?? null,
         schoolId: snap.schoolId ?? context.schoolId ?? null,
       });
+      return true;
     } catch (e) {
       toast.error(toErrorMessage(e, "Could not save this answer — it will be sent again when you finish"));
+      return false;
     }
   }
 
@@ -1943,11 +1867,13 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const shellReady = useGurukulShellReady();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { ctx, ready: academicReady } = useAcademicContext();
-  const [history, setHistory] = useState<HistoryRow[]>([]);
-  const [saved, setSaved] = useState<HistoryRow[]>([]);
+  const { ctx, ready: academicReady, settled: academicSettled } = useAcademicContext();
+  const [historyList, setHistoryList] = useState<ListState<HistoryRow>>(LOADING_LIST);
+  const [savedList, setSavedList] = useState<ListState<HistoryRow>>(LOADING_LIST);
   const [historyTick, setHistoryTick] = useState(0);
-  const [subjects, setSubjects] = useState<PracticeSubject[]>([]);
+  const [subjectList, setSubjectList] = useState<ListState<PracticeSubject>>(LOADING_LIST);
+  const [subjectReads, setSubjectReads] = useState(0);
+  const subjects = listItems(subjectList);
   const [curriculumScope, setCurriculumScope] = useState<CurriculumScope | null>(null);
   const [savingLatest, setSavingLatest] = useState(false);
   const [historyFilters, setHistoryFilters] = useState({
@@ -1976,10 +1902,13 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   useEffect(() => {
     if (!ctx || !academicReady) {
-      setSubjects([]);
+      // Settled without a context means nothing is coming: the picker says the
+      // list is empty (or why) rather than loading for ever.
+      setSubjectList(academicSettled ? EMPTY_LIST : LOADING_LIST);
       setCurriculumScope(null);
       return;
     }
+    setSubjectList(LOADING_LIST);
     let cancelled = false;
     (async () => {
       try {
@@ -1987,28 +1916,28 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         if (cancelled) return;
         setCurriculumScope(scope);
         if (scope.classLevel == null) {
-          setSubjects([]);
+          setSubjectList(EMPTY_LIST);
           return;
         }
         const names = await PracticeService.listBankSubjects(ctx);
         if (cancelled) return;
-        setSubjects(
-          names.map((name, i) => ({
+        setSubjectList({
+          status: "ready",
+          items: names.map((name, i) => ({
             id: name.toLowerCase(),
             name,
             color: subjectColor(name, i),
           })),
-        );
-      } catch (e) {
+        });
+      } catch {
         if (!cancelled) {
-          setSubjects([]);
+          setSubjectList({ status: "failed" });
           setCurriculumScope(null);
-          toast.error(toErrorMessage(e, "Could not load subjects"));
         }
       }
     })();
     return () => { cancelled = true; };
-  }, [ctx, academicReady]);
+  }, [ctx, academicReady, academicSettled, subjectReads]);
 
   // A session the student walked away from — a closed tab, a lost connection —
   // is finished from the answers it already holds before history is first
@@ -2033,12 +1962,16 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   useEffect(() => {
     if (!user || !ctx || !academicReady) {
-      if (!user) {
-        setHistory([]);
-        setSaved([]);
+      // Settled without a context means nothing is coming: say "none", not
+      // "loading" for ever.
+      if (!user || academicSettled) {
+        setHistoryList(EMPTY_LIST);
+        setSavedList(EMPTY_LIST);
       }
       return;
     }
+    setHistoryList(LOADING_LIST);
+    setSavedList(LOADING_LIST);
     let cancelled = false;
     (async () => {
       try {
@@ -2059,13 +1992,12 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           PracticeService.listSavedSessions(ctx, 40),
         ]);
         if (cancelled) return;
-        setHistory((hist ?? []).map(mapSessionToHistoryRow));
-        setSaved((savedRows ?? []).map(mapSessionToHistoryRow));
-      } catch (e) {
+        setHistoryList({ status: "ready", items: (hist ?? []).map(mapSessionToHistoryRow) });
+        setSavedList({ status: "ready", items: (savedRows ?? []).map(mapSessionToHistoryRow) });
+      } catch {
         if (!cancelled) {
-          setHistory([]);
-          setSaved([]);
-          toast.error(toErrorMessage(e, "Could not load practice history"));
+          setHistoryList({ status: "failed" });
+          setSavedList({ status: "failed" });
         }
       }
     })();
@@ -2074,6 +2006,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     user,
     ctx,
     academicReady,
+    academicSettled,
     historyTick,
     historyFilters.subject,
     historyFilters.practiceType,
@@ -2369,8 +2302,9 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       {phase === "hub" && (
         <Hub
           onMode={handleMode}
-          history={history}
-          saved={saved}
+          historyList={historyList}
+          savedList={savedList}
+          onRetryHistory={() => setHistoryTick((t) => t + 1)}
           streak={streak}
           onOpenSession={openSessionAnalysis}
           onSaveLatest={() => void saveLatestSession()}
@@ -2385,7 +2319,8 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           modeKey={modeKey}
           onStart={handleConfigStart}
           onBack={() => setPhase("hub")}
-          subjects={subjects}
+          subjectList={subjectList}
+          onRetrySubjects={() => setSubjectReads((k) => k + 1)}
           classUnresolved={classUnresolved}
           classUnresolvedMessage={classUnresolvedMessage}
         />

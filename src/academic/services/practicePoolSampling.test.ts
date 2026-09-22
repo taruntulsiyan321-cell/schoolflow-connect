@@ -28,7 +28,14 @@ const POOL: Row[] = Array.from({ length: 2500 }, (_, i) => ({
 
 let pool: Row[] = POOL;
 
-const calls = { ranges: [] as Array<[number, number]>, limits: [] as number[], textFetches: [] as string[][] };
+const calls = {
+  ranges: [] as Array<[number, number]>,
+  limits: [] as number[],
+  textFetches: [] as string[][],
+  counted: [] as boolean[],
+  inFlight: 0,
+  maxInFlight: 0,
+};
 
 vi.mock("./context", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./context")>();
@@ -38,11 +45,12 @@ vi.mock("./context", async (importOriginal) => {
 vi.mock("../repository/base", () => {
   const builder = () => {
     let select = "";
+    let wantCount = false;
     let range: [number, number] | null = null;
     let ids: string[] | null = null;
     const self: Record<string, unknown> = {};
     for (const m of ["eq", "or", "order", "ilike", "not", "gte", "lte", "is"]) self[m] = () => self;
-    self.select = (s: string) => { select = s; return self; };
+    self.select = (s: string, opts?: { count?: string }) => { select = s; wantCount = opts?.count === "exact"; return self; };
     self.limit = (n: number) => { calls.limits.push(n); range = [0, n - 1]; return self; };
     self.range = (a: number, b: number) => { calls.ranges.push([a, b]); range = [a, b]; return self; };
     self.in = (col: string, values: string[]) => { if (col === "id") ids = values; return self; };
@@ -56,7 +64,19 @@ vi.mock("../repository/base", () => {
         return resolve({ data: rows, error: null });
       }
       const [a, b] = range ?? [0, pool.length - 1];
-      return resolve({ data: pool.slice(a, Math.min(b + 1, a + 1000)), error: null });
+      calls.counted.push(wantCount);
+      // A page takes time to arrive, as it does over the network, so requests
+      // that are made together overlap and requests made in turn do not.
+      calls.inFlight += 1;
+      calls.maxInFlight = Math.max(calls.maxInFlight, calls.inFlight);
+      return new Promise((done) => setTimeout(() => {
+        calls.inFlight -= 1;
+        done(resolve({
+          data: pool.slice(a, Math.min(b + 1, a + 1000)),
+          count: wantCount ? pool.length : null,
+          error: null,
+        }));
+      }, 5));
     };
     return self;
   };
@@ -79,6 +99,9 @@ const ctx = { schoolId: "00000000-0000-4000-8000-000000000001", userId: "u", stu
 
 beforeEach(() => {
   pool = POOL;
+  calls.counted = [];
+  calls.inFlight = 0;
+  calls.maxInFlight = 0;
   calls.ranges = [];
   calls.limits = [];
   calls.textFetches = [];
@@ -92,6 +115,25 @@ describe("a session is drawn from the whole pool", () => {
     await PracticeService.listBankQuestions(ctx, { limit: 20 });
     expect(calls.limits, "a .limit() window is how the same rows came back every time").toEqual([]);
     expect(calls.ranges).toEqual([[0, 999], [1000, 1999], [2000, 2999]]);
+  });
+
+  /**
+   * One after another, a four-page pool kept a Class 12 student waiting 6.6
+   * seconds for the first question of an "all subjects" session (2026-09-22):
+   * a round trip of about a second per page, in turn. The first page carries
+   * the total, and the rest are asked for together.
+   */
+  it("asks for the pages after the first together, not one after another", async () => {
+    await PracticeService.listBankQuestions(ctx, { limit: 20 });
+    expect(calls.counted[0], "the first page must bring the total, or the rest cannot be asked for at once").toBe(true);
+    expect(calls.maxInFlight, "pages 2 and 3 were requested in turn").toBeGreaterThanOrEqual(2);
+  });
+
+  it("POSITIVE CONTROL: a pool of one page makes one request", async () => {
+    pool = POOL.slice(0, 700);
+    const drawn = await PracticeService.listBankQuestions(ctx, { limit: 20 });
+    expect(calls.ranges).toEqual([[0, 999]]);
+    expect(drawn).toHaveLength(20);
   });
 
   it("fetches question text only for the questions drawn", async () => {
@@ -168,5 +210,38 @@ describe("a weak topic draws that topic, and nothing that merely shares words wi
       "Triangles/Areas of Similar Triangles",
     ]);
     expect(drawn).toHaveLength(25);
+  });
+});
+
+/**
+ * Topic Practice lists the topics of the chapter picked — only that chapter.
+ *
+ * Measured 2026-09-22: the chapter filter was a containment match, and 34
+ * chapter pairs in the live bank contain one another's names. Picking Class 10
+ * "Circles" listed the topics of "Areas Related to Circles" too; Class 11
+ * "Financial Statements - I" listed those of "- II".
+ */
+describe("the topic list for a chapter", () => {
+  const bank = (chapter: string, topic: string) => ({
+    id: `q-${topic}`, subject: "Mathematics", chapter, topic_id: `t-${topic}`, topics: { name: topic },
+  });
+
+  it("lists that chapter's topics, not those of a chapter whose name contains it", async () => {
+    pool = [
+      bank("Circles", "Tangent to a Circle"),
+      bank("Areas Related to Circles", "Area of a Sector"),
+      bank("Financial Statements - I", "Trading Account"),
+      bank("Financial Statements - II", "Adjustments"),
+    ];
+    const circles = await PracticeService.listBankTopics(ctx, { subject: "Mathematics", chapter: "Circles" });
+    expect(circles.map((t) => t.displayName)).toEqual(["Tangent to a Circle"]);
+    const fs1 = await PracticeService.listBankTopics(ctx, { subject: "Mathematics", chapter: "Financial Statements - I" });
+    expect(fs1.map((t) => t.displayName)).toEqual(["Trading Account"]);
+  });
+
+  it("POSITIVE CONTROL: the same chapter written differently is still that chapter", async () => {
+    pool = [bank("Circles", "Tangent to a Circle"), bank("CIRCLES", "Chords"), bank("Areas Related to Circles", "Area of a Sector")];
+    const circles = await PracticeService.listBankTopics(ctx, { subject: "Mathematics", chapter: "Circles" });
+    expect(circles.map((t) => t.displayName).sort()).toEqual(["Chords", "Tangent to a Circle"]);
   });
 });
