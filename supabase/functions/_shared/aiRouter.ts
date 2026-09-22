@@ -1804,14 +1804,27 @@ export async function routeAiRequest(
             message: "Student target required", route_class: cap.route_class,
           });
         }
-        data = await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
-          fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
-        );
+        const masteryEie = (await withCache(
+          await probeEie(admin, req.actor.schoolId, studentId, req.actor.role),
+          () => fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
+        )) as Awaited<ReturnType<typeof fetchEie>>;
+        // Student coach chips hit this cap — omit office-risk stubs derived from
+        // attendance/homework so the payload stays learning-only for students.
+        if (req.actor.role === "student") {
+          const {
+            attendance_risk: _omitAttRisk,
+            homework_consistency: _omitHwCons,
+            ...learningOnly
+          } = masteryEie;
+          data = learningOnly;
+        } else {
+          data = masteryEie;
+        }
         decision = "answered_eie";
         provenance = {
-          algorithm_id: (data as { algorithm_id?: string })?.algorithm_id,
-          completeness: (data as { completeness?: number })?.completeness,
-          data_version: (data as { source_data_version?: string })?.source_data_version,
+          algorithm_id: masteryEie.algorithm_id,
+          completeness: masteryEie.completeness,
+          data_version: masteryEie.source_data_version,
         };
         break;
       }
