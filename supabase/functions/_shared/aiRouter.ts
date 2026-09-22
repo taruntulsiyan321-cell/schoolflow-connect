@@ -3779,8 +3779,15 @@ export async function routeAiRequest(
           mistakes,
           recovery,
         } = factsBundle;
+        // fetchEie still attaches office risk stubs for other capabilities; Nova
+        // must never ground on or return attendance_risk / homework_consistency.
+        const {
+          attendance_risk: _novaOmitAttendanceRisk,
+          homework_consistency: _novaOmitHomeworkConsistency,
+          ...eieLearning
+        } = eie;
         const facts = {
-          eie,
+          eie: eieLearning,
           progression,
           student_profile,
           practice,
@@ -4003,7 +4010,7 @@ export async function routeAiRequest(
             mistakes,
             recovery,
           },
-          eie,
+          eie: eieLearning,
           session_memory: sessionForContext,
           tier_signals: {
             facts_complete: !factsEmpty,
@@ -4254,9 +4261,9 @@ export async function routeAiRequest(
           };
         }
 
-        // Ground on learning facts only (mastery / progression). Attendance and
-        // marks evidence are intentionally omitted — Nova must not cite them.
-        const evidence = evidenceFromExplainFacts({
+        // Learning-only evidence: attendance_pct / average_marks_pct / homework_pending
+        // stay null; allowed_pcts is mastery (+ progression ints) — never office fetches.
+        const evidence = evidenceFromNovaLearningFacts({
           eie: facts.eie,
           progression: facts.progression,
         });
