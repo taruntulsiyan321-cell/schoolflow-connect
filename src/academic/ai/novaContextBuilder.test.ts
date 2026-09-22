@@ -51,8 +51,8 @@ describe("Nova Context Builder", () => {
     expect(labels.filter((l) => /Mathematics/i.test(l)).length).toBeLessThanOrEqual(1);
     expect(labels.some((l) => l === "General" || l === "Subject" || l === "Topic")).toBe(false);
     expect(labels.some((l) => /study streak/i.test(l))).toBe(true);
-    expect(labels.some((l) => /HW pending/i.test(l))).toBe(true);
-    expect(labels.some((l) => /Attendance/i.test(l))).toBe(true);
+    expect(labels.some((l) => /HW pending/i.test(l))).toBe(false);
+    expect(labels.some((l) => /Attendance/i.test(l))).toBe(false);
     expect(labels.some((l) => /Weak: Sin Values/i.test(l))).toBe(true);
     // No invented demo chips when zeros
     const empty = buildNovaUiChips({
