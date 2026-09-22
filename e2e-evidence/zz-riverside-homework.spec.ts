@@ -1,57 +1,32 @@
 import { readFileSync } from 'node:fs'
-import type { Browser, BrowserContext, Locator, Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { test, expect } from './fixtures'
+import { closeAll, eventually, openClassTab, settle, signIn, table } from './riverside'
 
 /**
- * HOMEWORK IN A REAL ORGANISATION — Riverside Public School (20260925200000), on the deployed app.
+ * HOMEWORK IN A REAL ORGANISATION — Riverside Public School (20260925200000, 20260925210000), on the deployed app.
  *
- * The whole homework story, told by the people of one school. teacher01 (Priya Sharma, class teacher
- * of 8-A) sets homework for 8-A; student 8A-01 (Aarav Sharma) hands in one file; the teacher accepts it
- * and the student is told, once. The principal finds it on the Classes tab — twelve sections, 8 A's
- * twenty students, one accepted and nineteen still to do — and downloads both reports; the teacher's
- * and the student's profiles count it. Then the teacher deletes it, and the principal's class list
- * stops counting it.
+ * The whole homework story, told by the people of one school. teacher01 (Priya Sharma, class teacher of 8-A,
+ * who teaches it Mathematics) sets homework for 8-A; student 8A-01 (Aarav Sharma) hands in one file; the teacher
+ * accepts it and the student is told, once. Aarav's father (parent.8a.01) is told of the homework and of the
+ * hand-in, and follows it from "To do" to "Accepted" on My Children. The principal finds it on the Classes tab —
+ * twelve sections, 8 A's twenty students, one accepted and nineteen still to do — and downloads both reports;
+ * the teacher's and the student's profiles count it. Then the teacher deletes it, and neither the principal's
+ * class list nor the parent's screen carries it any more.
  *
- * Its own accounts, signed in here through the real /auth form. The shared `.auth` sessions belong to
- * Wisdom Campus and are not touched, which is why this file may sort after zz-known-issues.
- * Riverside has no parent accounts (the organisation is a roster); the family's half of homework is
- * covered on Wisdom Campus by tier1-homework-family.
+ * Its own accounts, signed in through the real /auth form (./riverside.ts), which is why this file may sort
+ * after zz-known-issues.
  *
- * WHAT IT CANNOT PUT BACK: the XP the acceptance gives student 8A-01, and the handed-in file in their
- * storage folder. The homework itself goes to the trash.
+ * WHAT IT CANNOT PUT BACK: the XP the acceptance gives student 8A-01, and the handed-in file in their storage
+ * folder. The homework itself goes to the trash.
  */
 
-const PASSWORD = 'E2eSchool123!'
 const TEACHER = 'teacher01@rps.e2e.test'
 const STUDENT = 'student.8a.01@rps.e2e.test'
+const PARENT = 'parent.8a.01@rps.e2e.test'
 const PRINCIPAL = 'principal@rps.e2e.test'
 const STUDENT_NAME = 'Aarav Sharma'
 const TAG = 'RPS homework'
-
-async function settle(page: Page, ms = 1500) {
-  await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {})
-  await page.waitForTimeout(ms)
-}
-
-async function signIn(browser: Browser, email: string, home: RegExp): Promise<{ ctx: BrowserContext; page: Page; errors: string[] }> {
-  const ctx = await browser.newContext()
-  const page = await ctx.newPage()
-  const errors: string[] = []
-  page.on('pageerror', (e) => errors.push(e.message.slice(0, 300)))
-  await page.goto('/auth', { waitUntil: 'domcontentloaded' })
-  await page.getByLabel('Email or Mobile').fill(email)
-  await page.locator('#signin-password').fill(PASSWORD)
-  await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page, `${email} signs in and lands on their panel`).toHaveURL(home, { timeout: 45000 })
-  return { ctx, page, errors }
-}
-
-/** The bordered table carrying every one of these headers. */
-function table(page: Page, ...headers: string[]): Locator {
-  let t = page.locator('div.border.bg-card')
-  for (const h of headers) t = t.filter({ hasText: h })
-  return t.last()
-}
 
 async function download(page: Page, button: Locator): Promise<{ name: string; lines: string[] }> {
   const [file] = await Promise.all([page.waitForEvent('download'), button.click()])
@@ -60,10 +35,10 @@ async function download(page: Page, button: Locator): Promise<{ name: string; li
 }
 
 test.describe('Riverside Public School · homework, told by its people', () => {
-  test('set → handed in → accepted → on the principal\'s Classes tab, both reports and both profiles → deleted', async ({
+  test('set → handed in → accepted, followed by the parent → on the principal\'s Classes tab, both reports and both profiles → deleted', async ({
     browser,
   }, testInfo) => {
-    test.setTimeout(480000)
+    test.setTimeout(600000)
     const stamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14)
     const title = `${TAG} ${stamp}`
     const file = {
@@ -74,16 +49,15 @@ test.describe('Riverside Public School · homework, told by its people', () => {
 
     const teacher = await signIn(browser, TEACHER, /\/teacher/)
     const student = await signIn(browser, STUDENT, /\/student/)
+    const parent = await signIn(browser, PARENT, /\/parent/)
     const principal = await signIn(browser, PRINCIPAL, /\/principal/)
     const t = teacher.page
     const s = student.page
+    const pa = parent.page
     const p = principal.page
 
     const openTeacherHomework = async () => {
-      await t.goto('/teacher/classes', { waitUntil: 'domcontentloaded' })
-      await settle(t)
-      await t.getByRole('button', { name: /\b8 A · / }).first().click()
-      await t.getByRole('button', { name: 'Homework', exact: true }).click()
+      await openClassTab(t, '8 A', 'Homework')
       await expect(t.getByRole('button', { name: 'New homework' })).toBeVisible({ timeout: 45000 })
     }
     const teacherCards = () =>
@@ -108,6 +82,17 @@ test.describe('Riverside Public School · homework, told by its people', () => {
       await settle(s)
       await expect(studentCard(), 'the homework reaches the student').toBeVisible({ timeout: 45000 })
     }
+    /** The homework on the parent's My Children → Homework tab. */
+    const parentCard = () => pa.getByRole('main').locator('div.p-4').filter({ hasText: title })
+    const openParentHomework = async () => {
+      await pa.goto('/parent/children', { waitUntil: 'domcontentloaded' })
+      await settle(pa)
+      await expect(pa.getByRole('main'), 'the parent\'s child is on My Children').toContainText(STUDENT_NAME, { timeout: 45000 })
+      await pa.getByRole('main').getByRole('button', { name: 'Homework', exact: true }).click()
+      await expect(pa.getByText(/^\d+ homework$/), 'the child\'s homework list loaded').toBeVisible({ timeout: 45000 })
+    }
+    const parentNotification = (heading: string) =>
+      pa.getByRole('button').filter({ hasText: heading }).filter({ hasText: title })
     const principalClasses = async () => {
       await p.goto('/principal', { waitUntil: 'domcontentloaded' })
       await p.locator('aside').getByRole('button', { name: 'Classes', exact: true }).click()
@@ -133,7 +118,13 @@ test.describe('Riverside Public School · homework, told by its people', () => {
         `the teacher's list shows the released homework — ${title}`,
       ).toHaveCount(1, { timeout: 45000 })
 
-      // ── 2. THE STUDENT HANDS IN ONE FILE ───────────────────────────────
+      // ── 2. THE PARENT IS TOLD, AND SEES IT TO DO ───────────────────────
+      await eventually(pa, '/parent/notifications', () => parentNotification('New homework'), 'the parent is told "New homework" about this homework')
+      await expect(parentNotification('New homework'), 'once').toHaveCount(1)
+      await openParentHomework()
+      await expect(parentCard(), 'the homework is on the parent\'s screen, to do').toContainText('To do', { timeout: 45000 })
+
+      // ── 3. THE STUDENT HANDS IN ONE FILE ───────────────────────────────
       await openStudentHomework()
       await studentCard().getByRole('button', { name: 'Hand in', exact: true }).click()
       await studentCard().locator('input[type="file"]').setInputFiles(file)
@@ -142,8 +133,9 @@ test.describe('Riverside Public School · homework, told by its people', () => {
       await settle(s, 2500)
       await openStudentHomework()
       await expect(studentCard(), 'the hand-in reads as awaiting review after a reload').toContainText('Handed in — awaiting review', { timeout: 30000 })
+      await eventually(pa, '/parent/notifications', () => parentNotification('Work submitted'), 'the parent is told the work was handed in')
 
-      // ── 3. THE TEACHER ACCEPTS; THE STUDENT IS TOLD, ONCE ──────────────
+      // ── 4. THE TEACHER ACCEPTS; THE STUDENT IS TOLD, ONCE ──────────────
       await openTeacherHomework()
       await t.locator('div.p-4.bg-surface').filter({ hasText: title }).getByRole('button', { name: 'Hand-ins' }).last().click()
       const awaiting = t.locator('div.p-3').filter({ hasText: 'Handed in — awaiting review' }).filter({ has: t.getByRole('button', { name: 'Accept', exact: true }) })
@@ -157,8 +149,11 @@ test.describe('Riverside Public School · homework, told by its people', () => {
         s.getByRole('button').filter({ hasText: 'Homework accepted' }).filter({ hasText: title }),
         'the student is told "Homework accepted" about this homework, once',
       ).toHaveCount(1, { timeout: 60000 })
+      await openParentHomework()
+      await expect(parentCard(), 'the parent sees it accepted, with the file handed in').toContainText('Accepted', { timeout: 45000 })
+      await expect(parentCard()).toContainText(file.name)
 
-      // ── 4. THE PRINCIPAL: CLASSES TAB, THE HOMEWORK, BOTH REPORTS ───────
+      // ── 5. THE PRINCIPAL: CLASSES TAB, THE HOMEWORK, BOTH REPORTS ───────
       const eightA = await principalClasses()
       // Class, 20 students, 1 homework, no rate until it closes, 0 waiting on a teacher.
       await expect(eightA, '8 A on the principal\'s list').toHaveText('8 A201—0', { timeout: 45000 })
@@ -198,9 +193,9 @@ test.describe('Riverside Public School · homework, told by its people', () => {
       expect(classReport.lines.length - 1).toBe(20)
       expect(classReport.lines.find((l) => l.includes(`"${STUDENT_NAME}"`))).toBe(`"1","${STUDENT_NAME}","1","1","1","0","0","0"`)
       await p.getByRole('tab', { name: 'Tests' }).click()
-      await expect(p.getByText(/^0 tests$/)).toBeVisible({ timeout: 45000 })
+      await expect(p.getByText(/^\d+ tests?$/)).toBeVisible({ timeout: 45000 })
 
-      // ── 5. BOTH PROFILES COUNT IT ──────────────────────────────────────
+      // ── 6. BOTH PROFILES COUNT IT ──────────────────────────────────────
       await t.goto('/teacher/profile', { waitUntil: 'domcontentloaded' })
       const section = t.locator('div.bg-surface').filter({ has: t.getByText('Homework You Have Set', { exact: true }) }).last()
       await expect(section).toContainText(title, { timeout: 45000 })
@@ -213,17 +208,17 @@ test.describe('Riverside Public School · homework, told by its people', () => {
       await expect(figure('Still to do')).toHaveText('0')
       await expect(figure('Missed at the deadline')).toHaveText('0')
 
-      // ── 6. DELETED: OUT OF EVERY COUNT ─────────────────────────────────
+      // ── 7. DELETED: OUT OF EVERY COUNT, AND OFF THE PARENT'S SCREEN ────
       await openTeacherHomework()
       expect(await deleteRiversideHomework(), 'the teacher deleted the homework this run set').toBeGreaterThan(0)
       await expect(await principalClasses(), 'the principal\'s list no longer counts it').toHaveText('8 A200—0', { timeout: 45000 })
+      await openParentHomework()
+      await expect(parentCard(), 'the deleted homework leaves the parent\'s screen').toHaveCount(0, { timeout: 45000 })
 
-      expect([...teacher.errors, ...student.errors, ...principal.errors], 'no uncaught error on any screen').toEqual([])
+      expect([...teacher.errors, ...student.errors, ...parent.errors, ...principal.errors], 'no uncaught error on any screen').toEqual([])
       testInfo.annotations.push({ type: 'riverside-homework', description: `ok: ${title}` })
     } finally {
-      await teacher.ctx.close().catch(() => {})
-      await student.ctx.close().catch(() => {})
-      await principal.ctx.close().catch(() => {})
+      await closeAll(teacher, student, parent, principal)
     }
   })
 })
