@@ -89,7 +89,8 @@ describe("Nova Context Pack v1", () => {
     expect(p?.user_template).toContain("{{question}}");
     expect(p?.system_template).toMatch(/learning facts/i);
     expect(p?.system_template).toMatch(/EIE|recovery|practice|mistakes|revision/i);
-    expect(p?.system_template).toMatch(/not in your pack|Class for those/i);
+    expect(p?.system_template).toMatch(/Refuse attendance|academic doubts/i);
+    expect(p?.system_template).not.toMatch(/students use Class for those/i);
     expect(p?.system_template).not.toMatch(/personal school metrics \(attendance/i);
     const rendered = renderPromptTemplate(p!.user_template, {
       facts: '{"eie":{"avg_mastery":62},"practice":{"sessions_completed":4}}',

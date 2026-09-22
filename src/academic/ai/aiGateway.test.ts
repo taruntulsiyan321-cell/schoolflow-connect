@@ -289,7 +289,8 @@ describe("intent mapping / golden routes", () => {
       const byRole = resolveCoachCapability({ text, role: "student" });
       expect("unsupported" in byRole, text).toBe(true);
       if ("unsupported" in byRole) {
-        expect(byRole.message).toMatch(/Class/i);
+        expect(byRole.message).toMatch(/academic doubts|concepts/i);
+        expect(byRole.message).not.toMatch(/\bClass\b/);
         expect(byRole.message).not.toMatch(/Ask about attendance/i);
       }
       const byChannel = resolveCoachCapability({ text, channel: "student_app" });

@@ -79,7 +79,7 @@ export async function invokeAiGateway<T = unknown>(
   return result.data;
 }
 
-/** School-office intents — blocked for student Nova / AI Coach (use Class panel instead). */
+/** School-office intents — refused by student Nova (tutor only; no records answers). */
 export const NOVA_BLOCKED_SCHOOL_RECORD_FEATURES = new Set([
   "student.attendance.query",
   "student.homework.due",
@@ -88,9 +88,9 @@ export const NOVA_BLOCKED_SCHOOL_RECORD_FEATURES = new Set([
   "student.performance.explain",
 ]);
 
-const NOVA_SCHOOL_RECORDS_REDIRECT =
-  "I don’t look up school records like attendance, marks, homework due dates, or the calendar. " +
-  "Open **Class** for those. I can help with weak topics, recovery, revision, and explaining concepts.";
+const NOVA_SCHOOL_RECORDS_REFUSAL =
+  "I can’t help with attendance, marks, homework due dates, the calendar, or “how am I doing?” school summaries. " +
+  "I’m here for academic doubts — concepts, wrong answers, weak topics, recovery, and revision.";
 
 /** Resolve capability from explicit feature_id or free-text intent. */
 export function resolveCoachCapability(input: {
@@ -118,7 +118,7 @@ export function resolveCoachCapability(input: {
         studentChannel &&
         NOVA_BLOCKED_SCHOOL_RECORD_FEATURES.has(input.feature_id)
       ) {
-        return { unsupported: true, message: NOVA_SCHOOL_RECORDS_REDIRECT };
+        return { unsupported: true, message: NOVA_SCHOOL_RECORDS_REFUSAL };
       }
       return { feature_id: input.feature_id };
     }
@@ -131,7 +131,7 @@ export function resolveCoachCapability(input: {
       studentChannel &&
       NOVA_BLOCKED_SCHOOL_RECORD_FEATURES.has(mapped.feature_id)
     ) {
-      return { unsupported: true, message: NOVA_SCHOOL_RECORDS_REDIRECT };
+      return { unsupported: true, message: NOVA_SCHOOL_RECORDS_REFUSAL };
     }
     return { feature_id: mapped.feature_id };
   }
@@ -146,8 +146,8 @@ export function resolveCoachCapability(input: {
   return {
     unsupported: true,
     message:
-      "I can help with weak topics, recovery, revision, concept explanations, practice recommendations, or a free chat with Nova. " +
-      "For attendance, marks, homework, or school events, use the Class page.",
+      "I can help with academic doubts — weak topics, recovery, revision, concept explanations, and practice questions. " +
+      "I don’t answer attendance, marks, homework due dates, calendar, or school progress summaries.",
   };
 }
 
@@ -400,7 +400,7 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
           (extras.length ? `\n${extras.join(" · ")}` : "") +
           (weakBits.length ? `\nFocus: ${weakBits.join(", ")}` : "") +
           (subjectsBit ? `\n${subjectsBit}` : "") +
-          `\n_I do not use attendance, marks, or homework due dates — open Class for those._`
+          `\n_I tutor from learning facts only — not attendance, marks, homework, or the calendar._`
         );
       }
       return "I could not load your learning facts right now. Try again, or ask about a concept to study.";

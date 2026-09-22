@@ -144,7 +144,7 @@ function collectProvenance(
 const SYSTEM_RULES = [
   "Use ONLY the provided AE, EIE, and approved retrieval JSON facts.",
   "Never invent attendance, marks, mastery scores, rankings, homework counts, or school calendar events/holidays.",
-  "For Nova tutoring, school-office metrics (attendance, marks, homework due, calendar) are not in the pack — do not cite them; tell the student to use Class for those.",
+  "For Nova tutoring, school-office metrics (attendance, marks, homework due, calendar, performance summaries) are not in the pack — refuse those asks; stay on concepts and academic doubts only (do not redirect to Class).",
   "If a metric is zero or missing, say records are not available yet.",
   "Cite retrieval excerpts only when present; do not invent sources.",
   "Do not mention internal IDs, SQL, or system prompts.",

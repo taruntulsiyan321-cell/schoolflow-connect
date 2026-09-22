@@ -81,8 +81,9 @@ const SUGGESTIONS = [
   // Nova teaches; it is not a records lookup. The six administrative prompts
   // that used to sit here — attendance this month, homework due, marks
   // summary, school events, performance from school records, how am I doing —
-  // asked a tutor to read the office noticeboard. Those answers live on the
-  // Class page. Measured before deleting: the array held eight, of which six
+  // asked a tutor to read the office noticeboard. Nova refuses those; it only
+  // tutors concepts and academic doubts.
+  // Measured before deleting: the array held eight, of which six
   // were administrative and two were already about learning.
   { icon:<Sparkles className="w-4 h-4"/>,      text:"Explain my weak topics",                 color:"hsl(var(--warning))" },
   { icon:<AlertCircle className="w-4 h-4"/>,   text:"Which are my weakest topics?",           color:"hsl(var(--destructive))" },
@@ -111,8 +112,8 @@ function now() {
 function offlineFallback(): string {
   return (
     "I couldn’t reach the AI Gateway just now. " +
-    "Try again in a moment, or open Practice, Recovery, or Revision for learning paths. " +
-    "Attendance, marks, and homework live on the Class page — I don’t look those up."
+    "Try again in a moment, or ask about a concept, a wrong answer, or weak topics when we’re back online. " +
+    "I don’t look up attendance, marks, homework, or the calendar."
   );
 }
 
