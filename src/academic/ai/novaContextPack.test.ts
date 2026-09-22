@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { buildContextPack, packForModel } from "./contextBuilder";
 import {
-  evidenceFromExplainFacts,
+  evidenceFromNovaLearningFacts,
   validateModelResponse,
 } from "./responseValidator";
 import { getBuiltinPrompt, renderPromptTemplate } from "./promptLibrary";
@@ -120,14 +120,16 @@ describe("Nova Context Pack v1", () => {
   });
 
   it("validator uses EIE/progression evidence (no attendance/marks for Nova)", () => {
-    const evidence = evidenceFromExplainFacts({
+    const evidence = evidenceFromNovaLearningFacts({
       eie: { avg_mastery: 62 },
       progression: { xp: 400, level: 3, study_streak: 5 },
     });
     expect(evidence.attendance_pct).toBeNull();
     expect(evidence.average_marks_pct).toBeNull();
+    expect(evidence.homework_pending).toBeNull();
     expect(evidence.avg_mastery).toBe(62);
-    expect((evidence.allowed_pcts ?? []).length).toBeGreaterThan(0);
+    expect(evidence.allowed_pcts).toEqual([62]);
+    expect(evidence.xp).toBe(400);
 
     const ok = validateModelResponse(
       "Tracked mastery averages 62%. Focus on Integration.",
