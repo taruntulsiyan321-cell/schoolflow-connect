@@ -561,16 +561,16 @@ export function deriveRecoveryProgress(
 }
 
 /**
- * The chapters the Recovery panel lists, from the same rows Recovery uses.
+ * CHAPTERS in recovery, and the name says so now.
  *
- * Replaces a version that matched `snapshot.weak_topics` against
- * concept_mastery by comparing display labels — string matching across two
- * tables, which is the free-text coupling §2 forbids and the reason the old
- * revision_queue filled with rows pointing at 'Chapter 3'. These rows are
- * keyed on chapter_id and need no matching at all.
+ * The recovery queue is keyed by chapter_id and every row is a chapter, but
+ * this mapped r.chapter into a field called `topic`, Analysis rendered it
+ * through displayTopic() and the panel was headed "Topics you practised
+ * again". The same three-layer mislabel deriveImprovingChapters carried, and
+ * with the same consequence: presentAcademicLabel resolves against a
+ * per-kind dictionary, so a chapter name was being looked up as a topic.
  */
-export function deriveRecoveryTopics(queue: RecoveryQueueRow[] | null | undefined): {
-  /** A chapter — the queue is keyed on chapter_id. It was called `topic`. */
+export function deriveRecoveryChapters(queue: RecoveryQueueRow[] | null | undefined): {
   chapter: string;
   subject: string;
   status: "ready" | "building" | "recovered" | "relearn";

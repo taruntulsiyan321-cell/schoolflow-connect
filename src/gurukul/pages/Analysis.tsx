@@ -46,7 +46,7 @@ import {
   deriveImprovingChapters,
   deriveMonthComparison,
   deriveRecoveryProgress,
-  deriveRecoveryTopics,
+  deriveRecoveryChapters,
   deriveSubjectPace,
   formatSeconds,
   deriveRevisionData,
@@ -197,7 +197,7 @@ export default function Analysis() {
 
   // Decision Engine Slice 1 swap-in for topicGroups.needs_attention only
   // (see the approved plan -- the other 6 weak_topics/strong_topics read
-  // sites in this file, and the shared deriveChapterRows/deriveRecoveryTopics
+  // sites in this file, and the shared deriveChapterRows/deriveRecoveryChapters
   // library functions, are explicitly deferred). Reuses the same
   // weakAreasV2 flag already live for Practice.tsx and
   // RecoveryCompletionReportPage.tsx -- one rollout, not a per-consumer flag.
@@ -844,7 +844,7 @@ export default function Analysis() {
     () => deriveRecoveryProgress(listItems(recoveryQueue), listItems(chapterStates)),
     [recoveryQueue, chapterStates],
   );
-  const recoveryTopics = useMemo(() => deriveRecoveryTopics(listItems(recoveryQueue)), [recoveryQueue]);
+  const recoveryChapters = useMemo(() => deriveRecoveryChapters(listItems(recoveryQueue)), [recoveryQueue]);
 
   const revisionData = useMemo(() => deriveRevisionData(listItems(chapterStates)), [chapterStates]);
 
@@ -1800,9 +1800,9 @@ export default function Analysis() {
                     Could not read your recovery chapters.{" "}
                     <button type="button" onClick={retryEngine} className="font-semibold underline">Try again</button>
                   </p>
-                ) : recoveryTopics.length === 0 ? (
+                ) : recoveryChapters.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">No chapters in recovery yet</p>
-                ) : recoveryTopics.map((r) => (
+                ) : recoveryChapters.map((r) => (
                   <div key={r.chapter} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60">
                     {r.status === "recovered"
                       ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
