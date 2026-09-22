@@ -16,7 +16,7 @@ import {
   presentAcademicLabel,
 } from "@/lib/academicPresentation";
 import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
-import type { AcademicTermRef } from "@/academic/services/practiceService";
+import type { AcademicTermRef, AttemptVerdict } from "@/academic/services/practiceService";
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
@@ -90,10 +90,21 @@ function subjectColor(name: string, index: number) {
   return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
+/**
+ * A QUESTION, AS A STUDENT MAY HOLD IT. No `correct`, no `explanation`.
+ *
+ * Both used to be here, fetched with the question, and a student could read
+ * them off question_bank directly anyway — measured 2026-09-22, including
+ * `?correct_index=eq.2`, which enumerates the answers by filtering on them.
+ *
+ * The answer now arrives only after the student commits, in the verdict
+ * rpc_record_question_attempt returns. The hint arrives only when asked
+ * for, from rpc_question_hint. Neither is in the browser before then.
+ */
 type BankQuestion = {
   id: string;
   subject: string; chapter: string; difficulty: string;
-  question: string; options: string[]; correct: number; explanation?: string;
+  question: string; options: string[];
 };
 
 function parseBankOptions(raw: unknown): string[] {
@@ -1213,6 +1224,11 @@ function Session({
   const [idx,       setIdx]       = useState(0);
   const [chosen,    setChosen]    = useState<number | null>(null);
   const [phase,     setPhase]     = useState<"q" | "fb">("q");
+  // WHAT THE SERVER SAID. Null until the attempt has been recorded, which is
+  // also the first moment this browser is allowed to know the answer.
+  const [verdict,   setVerdict]   = useState<AttemptVerdict | null>(null);
+  // The hint text, fetched per question when the student asks for it.
+  const [hintText,  setHintText]  = useState<string>("");
   const [correct,   setCorrect]   = useState(0);
   const [attempted, setAttempted] = useState(0);
   const [bookmarked,setBookmarked]= useState<number[]>([]);
@@ -1508,8 +1524,6 @@ function Session({
               difficulty: r.difficulty || "medium",
               question: r.question,
               options,
-              correct: typeof r.correct_index === "number" ? r.correct_index : 0,
-              explanation: r.explanation ?? undefined,
             };
           })
           .filter((x): x is BankQuestion => x !== null);
@@ -1591,12 +1605,15 @@ function Session({
         const snap: PracticeAttemptSnapshot = {
           question: q.question,
           options: q.options,
-          correctIndex: q.correct,
+          // Unanswered at finish. The server forces is_correct false on a
+          // skip and resolves the answer itself, so -1 is the honest value
+          // for what this browser knows.
+          correctIndex: -1,
           selectedIndex: -1,
           isCorrect: false,
           skipped: true,
           timedOut: true,
-          explanation: q.explanation,
+          explanation: undefined,
           bankQuestionId: q.id,
           subject: q.subject,
           chapter: q.chapter,
@@ -1725,20 +1742,21 @@ function Session({
     setChosen(i);
     attemptedRef.current += 1;
     setAttempted(attemptedRef.current);
-    const ok = i === q.correct;
-    if (ok) {
-      correctRef.current += 1;
-      setCorrect(correctRef.current);
-    }
     const elapsed = Date.now() - questionStartRef.current;
+    // THE CLIENT NO LONGER GRADES. It reports what was chosen; the server
+    // grades against question_bank and says what it found. `isCorrect` and
+    // `correctIndex` below are what this browser KNOWS, which is nothing —
+    // rpc_record_question_attempt discards both for a bank question and has
+    // always done so, so sending a placeholder changes no stored value.
+    // The counters and the feedback screen move once the verdict lands.
     const snap: PracticeAttemptSnapshot = {
       question: q.question,
       options: q.options,
-      correctIndex: q.correct,
+      correctIndex: -1,
       selectedIndex: i,
-      isCorrect: ok,
+      isCorrect: false,
       skipped: false,
-      explanation: q.explanation,
+      explanation: undefined,
       bankQuestionId: q.id,
       subject: q.subject,
       chapter: q.chapter,
@@ -1750,21 +1768,39 @@ function Session({
       sourceId: sessionIdRef.current,
       timeTakenMs: elapsed,
       hintUsed: hintUsedRef.current,
-      solutionViewed: Boolean(q.explanation),
+      solutionViewed: hintUsedRef.current,
       attemptNumber: ++attemptNumberRef.current,
       answeredAt: new Date().toISOString(),
       schoolId: ctx?.schoolId ?? null,
     };
     attemptLog.current.push(snap);
-    void persistAttemptLive(snap);
     setPhase("fb");
+    // Await the verdict rather than fire-and-forget: it is what the feedback
+    // screen renders. Until it lands the options stay neutral, which is
+    // honest — the browser genuinely does not know yet.
+    void persistAttemptLive(snap).then((v) => {
+      if (!v) return;
+      setVerdict(v);
+      snap.isCorrect = v.isCorrect;
+      if (v.correctIndex != null) snap.correctIndex = v.correctIndex;
+      if (v.isCorrect) {
+        correctRef.current += 1;
+        setCorrect(correctRef.current);
+      }
+    });
   }
 
-  function revealHint() {
+  // THE HINT IS FETCHED, not held. The explanation used to ride along with
+  // every question in the session, so the reveal that records hint_used was
+  // decorative — the text was already in the browser, and readable straight
+  // off question_bank besides. One question, when asked for.
+  async function revealHint() {
     const current = qs[idx];
-    if (!current?.explanation || hintUsedRef.current) return;
+    if (!current || hintUsedRef.current || !ctx) return;
     hintUsedRef.current = true;
     setHintRevealed(true);
+    const text = await PracticeService.questionHint(ctx, current.id);
+    setHintText(text);
   }
 
   function hintPreview(explanation: string): string {
@@ -1780,14 +1816,19 @@ function Session({
     setIdx(i => i + 1); setChosen(null); setPhase("q");
     hintUsedRef.current = false;
     setHintRevealed(false);
+    // The previous question's answer must not survive into the next one.
+    // Without this the options would render the last verdict's tick against
+    // a new question's options.
+    setVerdict(null);
+    setHintText("");
     questionStartRef.current = Date.now();
   }
 
-  async function persistAttemptLive(snap: PracticeAttemptSnapshot) {
+  async function persistAttemptLive(snap: PracticeAttemptSnapshot): Promise<AttemptVerdict | null> {
     const sid = sessionIdRef.current;
-    if (!sid || !ctx) return;
+    if (!sid || !ctx) return null;
     try {
-      await PracticeService.recordAttempt(ctx, {
+      return await PracticeService.recordAttempt(ctx, {
         sessionId: sid,
         bankQuestionId: snap.bankQuestionId ?? null,
         generatedQuestion: {
@@ -1839,6 +1880,9 @@ function Session({
       });
     } catch (e) {
       toast.error(toErrorMessage(e, "Could not save this answer — it will retry when you finish"));
+      // No verdict, so the feedback screen shows no tick and no cross. The
+      // attempt is retried at finish and the result lands on the summary.
+      return null;
     }
   }
 
@@ -1851,12 +1895,12 @@ function Session({
     const snap: PracticeAttemptSnapshot = {
       question: q.question,
       options: q.options,
-      correctIndex: q.correct,
+      correctIndex: -1,
       selectedIndex: -1,
       isCorrect: false,
       skipped: true,
       timedOut: opts?.timedOut ?? false,
-      explanation: q.explanation,
+      explanation: undefined,
       bankQuestionId: q.id,
       subject: q.subject,
       chapter: q.chapter,
@@ -1906,7 +1950,10 @@ function Session({
   }
 
   const q       = qs[idx];
-  const isRight = chosen === q?.correct;
+  // FROM THE SERVER, not from a copy of the answer this browser was handed.
+  // Null while the verdict is in flight, which is why the options below stay
+  // neutral until it lands.
+  const isRight = verdict?.isCorrect === true;
   const subj    = subjects.find(s => s.name === q?.subject);
   const timed   = config.timeLimitSec !== null;
   const mm      = Math.floor(timeLeft / 60).toString().padStart(2,"0");
@@ -2032,7 +2079,9 @@ function Session({
       <div className="space-y-2.5">
         {q.options.map((opt, i) => {
           const isChosen = chosen === i;
-          const isCorrect = i === q.correct;
+          // Only once the server has said so. Before the verdict lands
+          // nothing is marked, because nothing is known.
+          const isCorrect = verdict?.correctIndex === i;
           let bg = "border-border/70 text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted";
           if (phase === "fb") {
             if (isCorrect)              bg = "border-success/40 bg-success/10 text-success";
@@ -2054,26 +2103,26 @@ function Session({
       </div>
 
       {/* Hint (question phase — recorded as hint_used on attempt) */}
-      {phase === "q" && q.explanation && hintRevealed && (
+      {phase === "q" && hintRevealed && hintText && (
         <GlassCard className="p-4 border-warning/25">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
             <div className="text-sm text-muted-foreground leading-relaxed">
               <span className="font-semibold text-foreground">Hint: </span>
-              <MathText text={hintPreview(q.explanation)} />
+              <MathText text={hintPreview(hintText)} />
             </div>
           </div>
         </GlassCard>
       )}
 
       {/* Explanation (feedback phase) */}
-      {phase === "fb" && q.explanation && (
+      {phase === "fb" && verdict?.explanation && (
         <GlassCard className="p-4 border-blue-500/20">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
             <div className="text-sm text-muted-foreground leading-relaxed">
               <span className="font-semibold text-foreground">Explanation: </span>
-              <MathText text={q.explanation} />
+              <MathText text={verdict.explanation} />
             </div>
           </div>
         </GlassCard>
@@ -2087,7 +2136,7 @@ function Session({
             <SkipForward className="w-3.5 h-3.5"/> Skip
           </button>
         )}
-        {phase === "q" && q.explanation && !hintRevealed && (
+        {phase === "q" && !hintRevealed && (
           <button onClick={revealHint} disabled={finishing}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-warning/30 text-sm text-warning hover:bg-warning/10 transition-all">
             <Lightbulb className="w-3.5 h-3.5"/> Hint

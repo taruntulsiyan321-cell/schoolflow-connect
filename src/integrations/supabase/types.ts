@@ -2115,6 +2115,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "battle_questions_bank_question_id_fkey"
+            columns: ["bank_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "battle_questions_battle_id_fkey"
             columns: ["battle_id"]
             isOneToOne: false
@@ -4796,6 +4803,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "practice_bookmarks_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "practice_bookmarks_school_id_fkey"
             columns: ["school_id"]
             isOneToOne: false
@@ -5341,6 +5355,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "question_attempts_bank_question_id_fkey"
+            columns: ["bank_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "question_attempts_school_id_fkey"
             columns: ["school_id"]
             isOneToOne: false
@@ -5496,10 +5517,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "question_bank_replaced_by_question_id_fkey"
+            columns: ["replaced_by_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "question_bank_source_question_id_fkey"
             columns: ["source_question_id"]
             isOneToOne: false
             referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_bank_source_question_id_fkey"
+            columns: ["source_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
             referencedColumns: ["id"]
           },
           {
@@ -5569,6 +5604,13 @@ export type Database = {
             columns: ["bank_id"]
             isOneToOne: false
             referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_paper_questions_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
             referencedColumns: ["id"]
           },
           {
@@ -5735,6 +5777,13 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_reports_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
             referencedColumns: ["id"]
           },
         ]
@@ -6203,6 +6252,81 @@ export type Database = {
         Update: {
           definition?: string
           routine?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261042000000: {
+        Row: {
+          applied: string | null
+          definition: string
+          kind: string
+          object: string
+        }
+        Insert: {
+          applied?: string | null
+          definition: string
+          kind: string
+          object: string
+        }
+        Update: {
+          applied?: string | null
+          definition?: string
+          kind?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261043000000: {
+        Row: {
+          applied: string | null
+          definition: string
+          object: string
+        }
+        Insert: {
+          applied?: string | null
+          definition: string
+          object: string
+        }
+        Update: {
+          applied?: string | null
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261044000000: {
+        Row: {
+          applied: string | null
+          definition: string
+          object: string
+        }
+        Insert: {
+          applied?: string | null
+          definition: string
+          object: string
+        }
+        Update: {
+          applied?: string | null
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261045000000: {
+        Row: {
+          applied: string | null
+          definition: string
+          object: string
+        }
+        Insert: {
+          applied?: string | null
+          definition: string
+          object: string
+        }
+        Update: {
+          applied?: string | null
+          definition?: string
+          object?: string
         }
         Relationships: []
       }
@@ -7095,6 +7219,13 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_question_history_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
             referencedColumns: ["id"]
           },
           {
@@ -8341,6 +8472,13 @@ export type Database = {
             referencedRelation: "question_bank"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "variant_generation_queue_source_question_id_fkey"
+            columns: ["source_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -8453,6 +8591,90 @@ export type Database = {
         }
         Relationships: []
       }
+      question_bank_student: {
+        Row: {
+          board: string | null
+          chapter: string | null
+          chapter_id: string | null
+          class_level: number | null
+          created_at: string | null
+          difficulty: string | null
+          exam_year: number | null
+          id: string | null
+          is_active: boolean | null
+          is_approved: boolean | null
+          options: Json | null
+          question: string | null
+          question_format: string | null
+          source: string | null
+          source_type: string | null
+          stream: string | null
+          subject: string | null
+          topic_id: string | null
+          updated_at: string | null
+          variant_tier: number | null
+        }
+        Insert: {
+          board?: string | null
+          chapter?: string | null
+          chapter_id?: string | null
+          class_level?: number | null
+          created_at?: string | null
+          difficulty?: string | null
+          exam_year?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          is_approved?: boolean | null
+          options?: Json | null
+          question?: string | null
+          question_format?: string | null
+          source?: string | null
+          source_type?: string | null
+          stream?: string | null
+          subject?: string | null
+          topic_id?: string | null
+          updated_at?: string | null
+          variant_tier?: number | null
+        }
+        Update: {
+          board?: string | null
+          chapter?: string | null
+          chapter_id?: string | null
+          class_level?: number | null
+          created_at?: string | null
+          difficulty?: string | null
+          exam_year?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          is_approved?: boolean | null
+          options?: Json | null
+          question?: string | null
+          question_format?: string | null
+          source?: string | null
+          source_type?: string | null
+          stream?: string | null
+          subject?: string | null
+          topic_id?: string | null
+          updated_at?: string | null
+          variant_tier?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_bank_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_bank_topic_in_its_chapter_fkey"
+            columns: ["topic_id", "chapter_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id", "chapter_id"]
+          },
+        ]
+      }
       students_current: {
         Row: {
           academic_year_id: string | null
@@ -8527,6 +8749,7 @@ export type Database = {
     Functions: {
       _academic_label_match_key: { Args: { t: string }; Returns: string }
       _apply_chapter_state: { Args: { _session_id: string }; Returns: Json }
+      _attempt_verdict: { Args: { _aid: string }; Returns: Json }
       _award_achievement: {
         Args: { _code: string; _uid: string }
         Returns: undefined
@@ -10083,6 +10306,7 @@ export type Database = {
           subject: string
         }[]
       }
+      rpc_question_hint: { Args: { _id: string }; Returns: string }
       rpc_question_paper_to_test: {
         Args: {
           _duration_sec?: number
@@ -10090,6 +10314,15 @@ export type Database = {
           _section_subject_id: string
         }
         Returns: string
+      }
+      rpc_question_review: {
+        Args: { _ids: string[] }
+        Returns: {
+          correct_index: number
+          correct_text: string
+          explanation: string
+          id: string
+        }[]
       }
       rpc_record_community_doubt_view: {
         Args: { _doubt_id: string }
@@ -10129,7 +10362,7 @@ export type Database = {
           _template_id?: string
           _time_taken_ms?: number
         }
-        Returns: string
+        Returns: Json
       }
       rpc_recovery_session_plan: {
         Args: { _chapter_id: string }

@@ -207,6 +207,36 @@ const PRACTICE_SESSION_LIST_SELECT =
   "id, subject, chapter, question_count, correct_count, score, created_at, finished_at, practice_mode, skipped_count, wrong_count, total_time_ms, accuracy, saved_at, analysis_snapshot, xp_earned, difficulty, time_limit_sec";
 
 /**
+ * What the SERVER says about an attempt, returned by
+ * rpc_record_question_attempt.
+ *
+ * correctIndex is null when the server has no answer of its own to give —
+ * a template or AI question with no bank row behind it, the one path where
+ * the client's claim is still what gets stored.
+ */
+export type AttemptVerdict = {
+  attemptId: string | null;
+  isCorrect: boolean;
+  skipped: boolean;
+  correctIndex: number | null;
+  correctText: string;
+  explanation: string;
+};
+
+function parseVerdict(raw: unknown): AttemptVerdict {
+  const v = (raw ?? {}) as Record<string, unknown>;
+  const idx = Number(v.correct_index);
+  return {
+    attemptId: typeof v.attempt_id === "string" ? v.attempt_id : null,
+    isCorrect: v.is_correct === true,
+    skipped: v.skipped === true,
+    correctIndex: Number.isInteger(idx) ? idx : null,
+    correctText: typeof v.correct_text === "string" ? v.correct_text : "",
+    explanation: typeof v.explanation === "string" ? v.explanation : "",
+  };
+}
+
+/**
  * PracticeService — wraps practice session RPCs + finish path.
  * AI/practice modules should call this instead of raw RPCs where practical.
  */
@@ -421,7 +451,33 @@ export const PracticeService = {
       studentId: ctx.studentId,
       source: "PracticeService.recordAttempt",
     });
-    return data as string;
+    // THE SERVER'S VERDICT, not the client's. rpc_record_question_attempt
+    // re-grades every bank question off question_bank.correct_index and
+    // returns what it found; the `_is_correct` this call sent is discarded
+    // there. Proved live 2026-09-22: a wrong answer submitted as
+    // `_is_correct: true` came back is_correct false.
+    //
+    // The old `return data as string` handed back a bare attempt id that no
+    // caller read. This is what the feedback screen needs so the browser
+    // never has to be told the answer in advance.
+    return parseVerdict(data);
+  },
+
+  /**
+   * The explanation, for one question, asked for deliberately.
+   *
+   * The practice screen shows this as a hint before the student answers.
+   * It used to come from a column the browser had already been handed for
+   * every question in the session; now it is a request per question, which
+   * is what a hint behind a reveal always was.
+   */
+  async questionHint(ctx: ServiceContext, bankQuestionId: string): Promise<string> {
+    assertCanConsume(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_question_hint", {
+      _id: bankQuestionId,
+    });
+    if (error) return "";
+    return typeof data === "string" ? data : "";
   },
 
   async getSession(ctx: ServiceContext, sessionId: string) {
@@ -726,7 +782,7 @@ export const PracticeService = {
     }
 
     let query = client
-      .from("question_bank")
+      .from("question_bank_student")
       .select("subject, stream")
       .eq("is_approved", true)
       .eq("class_level", classLevel)
@@ -767,7 +823,7 @@ export const PracticeService = {
     if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
     let query = client
-      .from("question_bank")
+      .from("question_bank_student")
       .select("chapter")
       .eq("is_approved", true)
       .eq("class_level", classLevel)
@@ -824,7 +880,7 @@ export const PracticeService = {
     if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
     let query = client
-      .from("question_bank")
+      .from("question_bank_student")
       // Same dead columns as listBankQuestions: the label is topics.name now.
       .select("chapter, topics(name)")
       .eq("is_approved", true)
@@ -1245,7 +1301,7 @@ export const PracticeService = {
     const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean) => {
       const narrowTopic = narrowToLabels && !byIds && topicNeedle !== null;
       let query = client
-        .from("question_bank")
+        .from("question_bank_student")
         // `topic` and `concept` are NOT columns of question_bank and have not
         // been for some time — the taxonomy moved to topic_id -> topics.name
         // (21,696 of 21,711 rows carry one). Selecting them returned
@@ -1256,7 +1312,7 @@ export const PracticeService = {
         // first DDL that reloaded that cache broke every practice session.
         .select(
           `id, subject, chapter, topic_id, topics${narrowTopic ? "!inner" : ""}(name), ` +
-          "difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream",
+          "difficulty, question, options, exam_year, source, source_type, stream",
         )
         .eq("is_approved", true)
         // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
@@ -1370,8 +1426,6 @@ export const PracticeService = {
       difficulty: string | null;
       question: string;
       options: unknown;
-      correct_index: number;
-      explanation: string | null;
       exam_year: number | null;
       source: string | null;
       source_type: string | null;
@@ -1397,8 +1451,6 @@ export const PracticeService = {
       difficulty: string | null;
       question: string;
       options: unknown;
-      correct_index: number;
-      explanation: string | null;
       exam_year: number | null;
       source: string | null;
       source_type: string | null;
@@ -1454,6 +1506,17 @@ export const PracticeService = {
       const j = Math.floor(Math.random() * (i + 1));
       [rows[i], rows[j]] = [rows[j], rows[i]];
     }
+    // NO ANSWER LEAVES THIS FUNCTION.
+    //
+    // correct_index and explanation used to be here, and a student could
+    // read them straight off question_bank anyway — measured 2026-09-22,
+    // including `?correct_index=eq.2`, which enumerates the answers by
+    // filtering on them. The rows now come from question_bank_student, which
+    // has no such columns to select.
+    //
+    // Nothing downstream needed them to GRADE: rpc_record_question_attempt
+    // re-grades every bank question server-side and returns its verdict. The
+    // feedback screen reads that. The hint reads rpc_question_hint.
     return rows.slice(0, limit).map((r) => ({
       id: r.id,
       subject: displaySubject(r.subject) || r.subject,
@@ -1461,8 +1524,6 @@ export const PracticeService = {
       difficulty: r.difficulty,
       question: r.question,
       options: r.options,
-      correct_index: r.correct_index,
-      explanation: r.explanation,
     }));
   },
 

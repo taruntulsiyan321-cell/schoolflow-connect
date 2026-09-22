@@ -74,6 +74,46 @@ const ALLOWLIST = {
   tg_student_section_must_match: "Trigger (BEFORE INSERT/UPDATE on attendance, homework_submissions, marks): reads students.class_id for NEW.student_id purely to compare it with the section the record itself names, and either returns NEW unchanged or RAISEs. It only ever RESTRICTS a write an already-authorized caller is making; it returns no data and can grant nothing, so a school_id predicate would be a category error. Read body 2026-08-26 (Chunk 2, 20260826140000).",
   tg_homework_compute_is_late: "Trigger (BEFORE INSERT OR UPDATE on homework_submissions): operates only on NEW, the single row already being written by an already-authorized caller. Confirmed by reading the body (this audit's own fix, 20260822160000). NOTE: no longer attached to any table since Chunk 5 -- submission locks at the due date, so is_late can never again become true (docs/decisions.md D1).",
 
+  // --- Answer withholding, 2026-09-22 ---
+  //
+  // Context for all three: question_bank is a G2 GLOBAL table (Chunk 7A --
+  // "shared across every school. No institution_id"), so it has no school_id
+  // to predicate on. What these functions guard is not which SCHOOL may see a
+  // question -- every school sees every question -- but whether the CALLER
+  // has earned the answer to it. That is an owner fence, which is strictly
+  // tighter than a school one.
+  rpc_question_review:
+    "SECURITY DEFINER. Reads question_bank (G2 GLOBAL, no school_id column exists) " +
+    "and question_attempts. Owner-scoped by construction: the WHERE clause admits a " +
+    "row only when `EXISTS (SELECT 1 FROM question_attempts qa WHERE qa.user_id = auth.uid() " +
+    "AND qa.bank_question_id = q.id)`, i.e. only for a question this caller has actually " +
+    "attempted, or when the caller is staff (is_principal_or_admin / has_role 'teacher'). " +
+    "It takes an array of QUESTION ids, never a user id, so there is no target parameter " +
+    "to point at another student. Checkable: the body must contain `qa.user_id = _uid` " +
+    "inside an EXISTS, and must NOT contain a _student_id or _user_id parameter. " +
+    "Verified live 2026-09-22 as the signed-in student: 1 row for an attempted question, " +
+    "ZERO rows for three unattempted ones, 1 row as a teacher.",
+
+  _attempt_verdict:
+    "SECURITY DEFINER and callable by nobody through the API: 20261047000000 REVOKEs it " +
+    "from anon and authenticated, and a student calling it directly was measured on " +
+    "2026-09-22 returning 403 'permission denied for function _attempt_verdict' against " +
+    "ANOTHER student's attempt id. Its only callers are the three RETURN paths of " +
+    "rpc_record_question_attempt, which has already established that the attempt row is " +
+    "the caller's own -- it created it. Reads question_attempts by primary key and " +
+    "question_bank (G2 global). Checkable: pg_proc.proacl must not grant EXECUTE to " +
+    "authenticated, and its only caller must be rpc_record_question_attempt.",
+
+  rpc_question_hint:
+    "SECURITY DEFINER. Touches question_bank and NOTHING ELSE -- no per-student table " +
+    "appears in the body at all, so there is no tenant data in reach to scope. " +
+    "question_bank is G2 GLOBAL with no school_id column. It takes one question id and " +
+    "selects by primary key with `is_approved`, so there is no predicate a caller can " +
+    "steer and nothing to enumerate with; the point of it existing is that the whole " +
+    "bank can no longer be dumped in one request, which is what reading " +
+    "question_bank.explanation directly allowed until 20261049000000. Checkable: the " +
+    "body must reference no table other than question_bank.",
+
   // --- Analysis, 2026-09-19 ---
   rpc_student_practice_analytics:
     "Every one of its five aggregates filters `WHERE qa.user_id = _uid` or `WHERE sm.user_id = _uid`, with `_uid := auth.uid()` and a RAISE when it is null. It reads question_attempts and student_mistakes and returns only the caller's own rows, so it is OWNER-scoped — strictly tighter than a school predicate, which any of thousands of same-school users can satisfy. It takes no arguments at all, so there is no target parameter to point at another student. Adding same_school() would narrow nothing and would restate the fence twice (G9), and it would be the wrong fence: what this returns (per-topic accuracy, per-question times, the questions a student keeps getting wrong) is the student's alone under §10.8, not their school's. Checkable: the body must contain `_uid uuid := auth.uid()` and every FROM must be followed by a `user_id = _uid` predicate; it must NOT contain has_role, teacher_teaches_class or any _student_id/_user_id parameter. Read body 2026-09-19 (20261040000000).",
