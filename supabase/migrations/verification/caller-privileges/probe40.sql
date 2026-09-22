@@ -2,7 +2,11 @@
 -- the right people can put it there (§5, §10, §10.9, §10.20).
 --
 -- §5 says a generated question is written back "tagged, created_by set,
--- is_approved=false, topic NULL". Every one of those is a claim about a shared,
+-- is_approved=false" — and it said "topic NULL" until rule 31 was amended
+-- (2026-09-15): topics are rows per chapter, question_bank.topic is DROPPED
+-- (20261020010000), and a question names a topic of its OWN chapter or none.
+-- This probe named the dropped column and stopped running (42703) — a check
+-- that cannot run proves nothing. Every one of those is a claim about a shared,
 -- cross-school table — `question_bank` has no `school_id` at all — so every one
 -- of them is asserted here as the caller rather than trusted to the client.
 --
@@ -14,7 +18,9 @@
 -- THE CLAIMS
 --   1. a TEACHER writes a generated MCQ back.               (POSITIVE CONTROL)
 --   2. ...and it lands UNAPPROVED.                                <- §5
---   3. ...tagged ai_generated, credited, with topic NULL.         <- §5, rule 31
+--   3. ...tagged ai_generated and credited.                       <- §5
+--  3a. a topic from ANOTHER chapter is refused.                   <- rule 31
+--  3b. ...while a topic of its own chapter is taken.        (POSITIVE CONTROL)
 --   4. a STUDENT cannot see it, because it is unapproved.         <- the fence
 --   5. ...while its author can.                             (POSITIVE CONTROL)
 --   6. the PRINCIPAL cannot write to the bank.                    <- §10
@@ -56,6 +62,8 @@ DECLARE
   subj      text;
   lvl       int;
   marker    text := 'probe40 generated question';
+  own_topic   uuid;
+  other_topic uuid;
   r         text;
 BEGIN
   SELECT id INTO teacher   FROM auth.users WHERE email='priya.sharma@wisdomcampus.com';
@@ -84,15 +92,15 @@ BEGIN
     $q$INSERT INTO public.question_bank
          (subject, chapter_id, class_level, difficulty, question, options,
           correct_index, explanation, question_format, source_type,
-          created_by, is_approved, topic)
+          created_by, is_approved)
        VALUES (%L, %L, %s, 'medium', %L, '["a","b","c","d"]'::jsonb, 1,
-               'because', 'mcq', 'ai_generated', %L, false, NULL)
+               'because', 'mcq', 'ai_generated', %L, false)
        RETURNING id::text$q$, subj, chap, lvl, marker, teacher));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('a generated MCQ is written back to the bank (positive control)','teacher','OK: <uuid>', r,
      CASE WHEN r LIKE 'OK: ________-%' THEN 'PASS' ELSE 'FAIL' END);
 
-  -- ── 2/3. unapproved, tagged, credited, topic NULL ──────────────────────
+  -- ── 2/3. unapproved, tagged, credited ──────────────────────────────────
   SELECT CASE WHEN count(*) = 1 THEN 'OK: true' ELSE 'OK: false' END INTO r
     FROM public.question_bank
    WHERE question = marker AND is_approved = false;
@@ -104,11 +112,42 @@ BEGIN
     FROM public.question_bank
    WHERE question = marker
      AND source_type = 'ai_generated'
-     AND created_by = teacher
-     AND topic IS NULL;
+     AND created_by = teacher;
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('...tagged ai_generated, credited, topic NULL (rule 31)','-','OK: true', r,
+    ('...tagged ai_generated and credited (§5)','-','OK: true', r,
      CASE WHEN r = 'OK: true' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 3a/3b. a topic of its own chapter, or none (rule 31, amended) ───────
+  SELECT t.id INTO own_topic FROM public.topics t WHERE t.chapter_id = chap ORDER BY t.id LIMIT 1;
+  SELECT t.id INTO other_topic FROM public.topics t WHERE t.chapter_id <> chap ORDER BY t.id LIMIT 1;
+  IF own_topic IS NULL OR other_topic IS NULL THEN
+    RAISE EXCEPTION 'probe40: no topic to test with (own=%, other=%) — a skipped check is not a passing check',
+      own_topic, other_topic;
+  END IF;
+
+  r := pg_temp.as_user(teacher, format(
+    $q$INSERT INTO public.question_bank
+         (subject, chapter_id, class_level, difficulty, question, options,
+          correct_index, explanation, question_format, source_type,
+          created_by, is_approved, topic_id)
+       VALUES (%L, %L, %s, 'medium', %L, '["a","b","c","d"]'::jsonb, 1,
+               'because', 'mcq', 'ai_generated', %L, false, %L)
+       RETURNING id::text$q$, subj, chap, lvl, marker || ' (foreign topic)', teacher, other_topic));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('a question naming another chapter''s topic is refused (rule 31)','teacher','ERROR', r,
+     CASE WHEN r LIKE 'ERROR:%' THEN 'PASS' ELSE 'FAIL' END);
+
+  r := pg_temp.as_user(teacher, format(
+    $q$INSERT INTO public.question_bank
+         (subject, chapter_id, class_level, difficulty, question, options,
+          correct_index, explanation, question_format, source_type,
+          created_by, is_approved, topic_id)
+       VALUES (%L, %L, %s, 'medium', %L, '["a","b","c","d"]'::jsonb, 1,
+               'because', 'mcq', 'ai_generated', %L, false, %L)
+       RETURNING id::text$q$, subj, chap, lvl, marker || ' (own topic)', teacher, own_topic));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('...while one naming a topic of its own chapter is taken (positive control)','teacher','OK: <uuid>', r,
+     CASE WHEN r LIKE 'OK: ________-%' THEN 'PASS' ELSE 'FAIL' END);
 
   -- ── 4/5. who can see it ────────────────────────────────────────────────
   r := pg_temp.as_user(student, format(

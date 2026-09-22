@@ -43,7 +43,7 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
   const practiceLifetime = snapshot?.self_practice?.sessions_completed ?? 0;
   const practiceToday = practiceSessionsToday(snapshot);
   const recoveryPending = snapshot?.recovery_pending ?? 0;
-  const revisionPending = snapshot?.revision_queue?.length ?? 0;
+  const revisionPending = snapshot?.revision_due ?? 0;
   const homeworkPending = snapshot?.homework?.pending ?? 0;
 
   const practiceDone = Math.min(practiceToday, PRACTICE_TARGET);
@@ -56,13 +56,13 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
   if (recoveryPending > 0) {
     nextAction = {
       label: "Complete recovery session",
-      reason: `${recoveryPending} mistake${recoveryPending === 1 ? "" : "s"} waiting to recover`,
+      reason: `${recoveryPending} chapter${recoveryPending === 1 ? "" : "s"} ready to recover`,
       page: "recovery",
     };
   } else if (revisionPending > 0) {
     nextAction = {
       label: "Review revision queue",
-      reason: `${revisionPending} topic${revisionPending === 1 ? "" : "s"} due for revision`,
+      reason: `${revisionPending} chapter${revisionPending === 1 ? "" : "s"} due for revision`,
       page: "revision",
     };
   } else if (homeworkPending > 0) {

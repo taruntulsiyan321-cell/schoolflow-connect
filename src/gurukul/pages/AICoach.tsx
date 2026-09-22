@@ -29,7 +29,6 @@ import { NovaMarkdown } from "@/components/NovaMarkdown";
 import { useAuth } from "@/auth";
 import { novaConversationsKey } from "@/lib/clientStorage";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
-import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import {
   Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3, MoreHorizontal,
   ChevronLeft, Paperclip, Copy, Bookmark, RotateCcw, X, Loader2,
@@ -653,7 +652,6 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   const { data: charts } = useStudentPerformanceCharts();
   const { items: masteryItems } = useConceptMastery();
   const { data: snapshot } = useStudentAcademicSnapshot();
-  const { data: recoveryZone } = useRecoveryZone();
 
   const subjectNames = useMemo(
     () =>

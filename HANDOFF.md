@@ -58,7 +58,7 @@ The owner ruled that the E2E school structure is applied as a migration.
   principal, teacher01 and student 8A-01 reading under their own RLS. 9 of 9 broken proofs fail by
   name on the replica; the round trip was run with real homework written into the school before
   rolling back.
-* **Sign-in was refusing all of them** (KNOWN_ISSUES 57) — the form's email check allowed only a
+* **Sign-in was refusing all of them** (KNOWN_ISSUES 73) — the form's email check allowed only a
   curated list of extensions. Fixed and deployed before the production run.
 * **The homework story, as Riverside's people:** `e2e-evidence/zz-riverside-homework.spec.ts`, run with
   `PLAYWRIGHT_BASE_URL=https://schoolflow-connect.vercel.app npx playwright test --config=playwright.evidence.config.ts --project=evidence --no-deps e2e-evidence/zz-riverside-homework.spec.ts`

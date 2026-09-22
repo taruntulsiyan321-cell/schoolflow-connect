@@ -66,8 +66,25 @@ describe("rule 11 — Analysis touches practice tables only", () => {
     const keys = TABS.map((t) => t.key) as string[];
     expect(keys).toContain("practice");
     expect(SOURCE).toContain('tab === "practice"');
-    expect(SOURCE).toContain("useConceptMastery");
+    // NAMED SOURCES, and they changed. This asserted `useConceptMastery`,
+    // which is exactly the trap a guard written against an implementation
+    // falls into: concept_mastery was removed from this page deliberately —
+    // it is a DERIVED table already caught disagreeing with the attempts it is
+    // built from — and the guard then failed a correct change.
+    //
+    // What the guard is for is that the page still reads real practice data,
+    // so it names the hooks that carry it now. It still fails if they go.
+    expect(SOURCE).toContain("useStudentPracticeAnalytics");
     expect(SOURCE).toContain("useStudentPerformanceCharts");
+    expect(SOURCE).toContain("useAnalysisPageData");
+  });
+
+  it("reads no attendance, which practice does not produce", () => {
+    // The last school-data figure on a practice-only page. It was a measured
+    // number, which made it honest but not relevant: a student reading their
+    // practice analysis cannot act on their attendance here, and their
+    // attendance surface already shows it.
+    expect(SOURCE).not.toContain("attendance_pct");
   });
 
   it("blends no two rates into one field (§4.2b)", () => {
@@ -87,6 +104,148 @@ describe("rule 11 — Analysis touches practice tables only", () => {
 
   it("the tab is no longer labelled for tests", () => {
     expect(SOURCE).not.toContain('label: "Practice & Tests"');
+  });
+});
+
+/**
+ * §6.7 / §10.16 — THIS PAGE IS ABOUT ONE STUDENT AND NOBODY ELSE.
+ *
+ * Analysis shows a child their own record. It does not show them the class,
+ * the school, an average, a rank or a percentile, and it does not reach for a
+ * row belonging to anyone else in order to say something about them. The
+ * page already obeyed this; nothing asserted it, so the next person to add a
+ * "how you compare" panel would have found no resistance.
+ *
+ * peerBenchmarkSubjects existed in this page's own helper module until
+ * 2026-09-21 — unused, but still carrying `_rank` and `_classSize`
+ * parameters from a percentile it had been corrected out of. That is how the
+ * comparison gets back in: not as a decision, as a leftover.
+ */
+/**
+ * G7 / the null contract — an unmeasured figure is never coerced to zero,
+ * including on paths that are currently behind a feature flag.
+ *
+ * The weakAreasV2 adapter did `accuracy: r.understanding ?? 0`, and
+ * understanding is `number | null` where null means the engine has not
+ * scored that topic. Switching VITE_FF_DECISION_ENGINE_WEAK_AREAS_V2 on
+ * would have rendered "0% accuracy · needs review" for every unscored topic
+ * — the fabricated zero the rest of this page was corrected for three times,
+ * waiting behind a flag. A defect nobody can see yet is still a defect.
+ */
+/**
+ * A CHART THAT CANNOT DRAW A SHAPE SAYS SO INSTEAD OF FRAMING NOTHING.
+ *
+ * "How you perform in each subject" is a RadarChart and rendered whenever it
+ * had any point at all, so one measured subject drew a dot and two drew a
+ * line segment — on the panel whose purpose is comparing subjects, for what
+ * is the COMMON case here: a subject whose attempts were all skipped has no
+ * accuracy and is correctly filtered off the radar, and the student measured
+ * on 2026-09-19 had five of six subjects in that state.
+ *
+ * "How your score changed" is an AreaChart and rendered from one point, so a
+ * student with a single session got an empty framed panel under a heading
+ * promising a trend.
+ *
+ * These are source assertions: the radar case has a render test, the
+ * one-point trend would need a third fixture file for one boolean, and the
+ * thing worth protecting is that the gates exist and are named constants
+ * rather than inline `> 0`.
+ */
+describe("charts are gated on having a shape to draw", () => {
+  it("gates the radar on enough axes to make a polygon", () => {
+    expect(SOURCE).toContain("radarData.length >= RADAR_MIN_AXES");
+    expect(SOURCE).not.toContain("radarData.length > 0 ?");
+  });
+
+  it("gates the score trend on enough points to make a line", () => {
+    expect(SOURCE).toContain("scoreTrend.length >= LINE_MIN_POINTS");
+    expect(SOURCE).not.toContain("scoreTrend.length > 0 ?");
+  });
+
+  it("keeps both thresholds named, not inlined at the call site", () => {
+    expect(SOURCE).toMatch(/const RADAR_MIN_AXES = \d+;/);
+    expect(SOURCE).toMatch(/const LINE_MIN_POINTS = \d+;/);
+  });
+});
+
+describe("the null contract holds on flagged paths too", () => {
+  it("does not coerce an unscored v2 topic to zero", () => {
+    expect(SOURCE).not.toContain("r.understanding ?? 0");
+    expect(SOURCE).toContain("accuracy: r.understanding,");
+  });
+
+  it("keeps one absence convention for the mistake count", () => {
+    // The summary row read `snapshot?.mistake_count ?? null` and the Topics
+    // tile read the same field as `?? 0`, so one missing snapshot produced
+    // "not recorded yet" at the top of the page and "0" halfway down it.
+    expect(SOURCE).not.toContain("snapshot?.mistake_count ?? 0");
+  });
+});
+
+describe("§6.7 — Analysis reads one student and never a cohort", () => {
+  it("names no cohort, rank or percentile anywhere in the page", () => {
+    for (const token of [
+      "peer",
+      "percentile",
+      "classmate",
+      "cohort",
+      "leaderboard",
+      "classAverage",
+      "class_average",
+      "topper",
+    ]) {
+      expect(SOURCE.includes(token), `${token} is a comparison against other students`).toBe(
+        false,
+      );
+    }
+  });
+
+  it("scopes nothing by school or class", () => {
+    // Every query behind this page filters on the signed-in user — directly
+    // via user_id, or inside an RPC on auth.uid(). A school_id or class_id
+    // filter here would be a query about a group.
+    expect(SOURCE).not.toContain("school_id");
+    expect(SOURCE).not.toContain("class_id");
+  });
+
+  it("still reads the student's own record, so the rule is not met by showing nothing", () => {
+    expect(SOURCE).toContain("useStudentAcademicSnapshot");
+    expect(SOURCE).toContain("subjectData");
+  });
+});
+
+/**
+ * G9 — ONE CLOCK. Per-question time has a single definition on this page.
+ *
+ * deriveSpeedStats measured it as a SESSION's total_time_ms / question_count,
+ * which counts the gaps between questions, while the topic and chapter
+ * panels on the Activity tab read question_attempts.time_taken_ms, which does
+ * not. Both were rendered. "Takes most time: Mathematics" and "Chapters that
+ * take you longest" were answering one question from two different clocks,
+ * and nothing made them agree.
+ *
+ * It also had no evidence floor at all: fastest and slowest subject were the
+ * first and last of an unfiltered sort, so one timed question could name the
+ * subject a student is slowest at.
+ */
+describe("G9 — per-question time has one definition", () => {
+  it("does not measure pace from session totals", () => {
+    expect(SOURCE).not.toContain("deriveSpeedStats");
+    expect(SOURCE).not.toContain("speedBySubject");
+  });
+
+  it("measures it from the attempt record, through the floored helper", () => {
+    expect(SOURCE).toContain("deriveSubjectPace");
+    expect(SOURCE).toContain("subjectPace");
+  });
+
+  it("does not sum the heat-map raw behind a label that says four weeks", () => {
+    // Study time, average per day, most active day and the day-of-week bars
+    // all say "last 4 weeks" and all used to reduce over whatever span the
+    // snapshot returned. They read activityWeeks now, which consistencyWeeks
+    // windows, so the label and the arithmetic cannot drift apart.
+    expect(SOURCE).not.toContain("activity_heatmap ?? []");
+    expect(SOURCE).toContain("consistencyWeeks(snapshot?.activity_heatmap, 4)");
   });
 });
 
@@ -139,6 +298,20 @@ describe("G5 — accuracy has one source", () => {
     expect(SOURCE).not.toContain("student.accuracy");
   });
 
+  it("does not take its headline accuracy from exam_readiness", () => {
+    // The page header printed "Practice accuracy" from
+    // practiceAccuracyFromSnapshot — exam_readiness.practice_accuracy_pct —
+    // directly above an Overview tile computing the same rate from
+    // analysis.totals. Two pipelines, one label, agreeing only by luck.
+    //
+    // And that helper falls back to exam_readiness.accuracy_pct, which is the
+    // TEST + PRACTICE BLEND, so a page that issues no marks query could still
+    // print a number containing exam marks under a label that says practice
+    // (§4.2b, rule 11). It reads overview.accuracy now.
+    expect(SOURCE).not.toContain("practiceAccuracyFromSnapshot");
+    expect(SOURCE).not.toContain("exam_readiness");
+  });
+
   it("does not blend test marks into the Analysis accuracy", () => {
     expect(HOOK).not.toContain("overallAccuracyFromSnapshot");
   });
@@ -146,7 +319,16 @@ describe("G5 — accuracy has one source", () => {
   it("derives it from correct and the attempt total instead", () => {
     // The positive half: asserting only the absences above would pass if the
     // figure stopped being computed at all.
-    expect(HOOK).toContain("(100 * correct) / totalAttempts");
+    // It is now correct / (correct + wrong), via the named accuracyOverAnswered.
+    //
+    // totalAttempts INCLUDES SKIPPED questions, and skips stopped being counted
+    // as wrong answers on 2026-09-15. Dividing a skip-free numerator by a
+    // skip-inclusive denominator put three tiles on one row that do not add up:
+    // measured live at 10 correct, 14 incorrect, "36%", where 10 of 24 is 42%.
+    // That is the very defect this file exists to prevent, so the guard moves
+    // to the corrected rule rather than being deleted.
+    expect(HOOK).toContain("accuracyOverAnswered(correct, wrong)");
+    expect(HOOK).toContain("(100 * correct) / answered");
   });
 
   it("counts the SAME rows Home counts, not concept_mastery", () => {
@@ -158,6 +340,18 @@ describe("G5 — accuracy has one source", () => {
     // A 46-point disagreement about one child on two screens.
     expect(HOOK).toContain('from("question_attempts")');
     expect(HOOK).not.toContain("rpc_student_concept_mastery");
+  });
+
+  it("counts a correct answer the way the RPC counts one", () => {
+    // The count query asked only `is_correct = true`, while
+    // rpc_student_practice_analytics counts
+    // `is_correct AND NOT COALESCE(skipped, false)` for every subject,
+    // chapter and topic row on the same page. One row that is both skipped
+    // and correct — possible in seeded and legacy data, which was not
+    // written through rpc_record_question_attempt — would inflate the
+    // Correct tile and deflate Incorrect twice over.
+    expect(HOOK).toContain('.eq("is_correct", true)');
+    expect(HOOK).toContain('.not("skipped", "is", true)');
   });
 
   it("does not fall back to practice_sessions.correct_count", () => {

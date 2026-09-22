@@ -17,9 +17,32 @@ export type AcademicSnapshot = {
   } | null;
   homework?: { pending: number; completed: number };
   test?: { open: number; completed: number };
-  weak_topics?: { subject: string; chapter?: string; topic?: string; accuracy: number }[];
-  revision_queue?: { id: string; subject: string; topic?: string; chapter?: string; priority: number; due_date: string }[];
+  /**
+   * From _weak_topics_for_user, filtered to is_weak. `attempts` is the count
+   * the SERVER measured for that topic — the client must not re-derive it by
+   * matching the topic name against session chapters, which is what
+   * practiceCountForTopic did back when a "topic" was a chapter.
+   */
+  weak_topics?: {
+    subject: string; chapter?: string; topic?: string; accuracy: number;
+    attempts?: number; correct?: number; thin?: boolean;
+  }[];
+  /**
+   * Chapters whose §5.3 revision date has arrived, from chapter_state — the
+   * same source the Revision screen reads.
+   *
+   * It replaced `revision_queue`, which served up to ten rows of the AI
+   * layer's weak-TOPIC worklist. Nothing ever read those rows; Dashboard and
+   * LearningHub both took `.length`, and that length disagreed with the
+   * Revision screen next to it because the two counted different things.
+   */
+  revision_due?: number;
   mistake_count?: number;
+  /**
+   * Chapters at RECOVERY_TRIGGER_COUNT open mistakes — what Recovery calls
+   * `ready`. Was a count of open recovery_assignments rows until
+   * 20260926000000 dropped that engine.
+   */
   recovery_pending?: number;
   weak_concepts?: { subject: string; concept: string; mastery_score: number }[];
   self_practice?: { sessions_completed: number };
@@ -57,8 +80,19 @@ export function useStudentAcademicSnapshot(enabled = true) {
     beginLoading(setLoading);
     setError(null);
     const { data: snap, error: err } = await supabase.rpc("rpc_student_academic_snapshot");
-    if (err) setError(err.message);
-    else setData((snap as AcademicSnapshot) ?? null);
+    if (err) {
+      setError(err.message);
+      // NULL, NOT THE PREVIOUS ANSWER.
+      //
+      // This left `data` untouched on a failure, so a refresh that failed
+      // kept rendering the figures from the last successful load with
+      // nothing to say they were stale — and after a student switch, the
+      // previous student's. useStudentPracticeAnalytics already states the
+      // rule in its own error branch: a panel that keeps showing old
+      // figures is worse than one that says it has nothing. Two of the four
+      // hooks behind this page obeyed it and two did not.
+      setData(null);
+    } else setData((snap as AcademicSnapshot) ?? null);
     endLoading(setLoading);
   }, [beginLoading, endLoading]);
 

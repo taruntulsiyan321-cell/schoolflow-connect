@@ -13,7 +13,6 @@ import { ArrowLeft, CheckCircle2, Sparkles, XCircle } from "lucide-react";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
-import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import { freshSessionSeed, SEED_STRIDE } from "@/lib/practiceDiversity";
 import { loadMath12TemplatePractice } from "@/lib/templatePracticeLoader";
 import {
@@ -160,15 +159,6 @@ export default function Class12MathSession() {
       console.warn("record attempt:", saved.error?.message);
     }
 
-    if (!ok && sessionId) {
-      void assignRecoveryOnMistake({
-        subject: "Mathematics",
-        chapter,
-        concept: current.template.chapter,
-        sourceType: "practice_session",
-        sourceId: sessionId,
-      });
-    }
   };
 
   const next = async () => {

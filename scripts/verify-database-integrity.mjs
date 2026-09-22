@@ -102,6 +102,39 @@ async function main() {
   //
   // Asserting the OLD ruling made this gate demand the defect back. What
   // replaces it is the rule that actually holds now, in both directions.
+  // --- Topics (20261020000000, 20261020010000) ---
+  // Every question with a chapter names one of THAT chapter's topics. The
+  // composite key refuses a cross-chapter topic outright, so what can drift is
+  // a question stored with no topic at all — a teacher path that could not
+  // name one (questionPaperService with a section narrowed to 0 or 2+ topics).
+  // Reported with the rows' sources so the writer that left it is findable.
+  await check(
+    "every chaptered question has a topic (expect 0 untopiced)",
+    `SELECT count(*), string_agg(DISTINCT COALESCE(source, 'NULL'), ', ') AS sources
+       FROM question_bank WHERE chapter_id IS NOT NULL AND topic_id IS NULL`,
+    (r) => count(r) === 0,
+  );
+  // Positive control for the check above: it can only be meaningful if topics
+  // are actually linked. An empty topics table would also make it pass.
+  await check(
+    "questions are linked to topics at all (control for the untopiced check)",
+    "SELECT count(*) FROM question_bank WHERE topic_id IS NOT NULL",
+    (r) => count(r) > 0,
+  );
+  await check(
+    "no question names a topic from another chapter (expect 0)",
+    `SELECT count(*) FROM question_bank qb JOIN topics t ON t.id = qb.topic_id
+      WHERE t.chapter_id IS DISTINCT FROM qb.chapter_id`,
+    (r) => count(r) === 0,
+  );
+  await check(
+    "question_bank carries no old topic label column (topic, concept, subconcept, subtopic, topic_group)",
+    `SELECT count(*) FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'question_bank'
+        AND column_name IN ('topic', 'concept', 'subconcept', 'subtopic', 'topic_group')`,
+    (r) => count(r) === 0,
+  );
+
   await check(
     "Class 5 questions are ACTIVE — §10.9 names Class 5 as the worked example",
     "SELECT count(*) FROM question_bank WHERE class_level=5 AND is_active=true",
@@ -129,11 +162,6 @@ async function main() {
     (r) => count(r) === 0,
   );
   await check(
-    "recovery_assignments has no open duplicates (expect 0 groups)",
-    "SELECT count(*) FROM (SELECT 1 FROM recovery_assignments WHERE status IN ('pending','in_progress') GROUP BY user_id, subject, concept HAVING count(*)>1) x",
-    (r) => count(r) === 0,
-  );
-  await check(
     "revision_queue.school_id fully backfilled (expect 0 null)",
     "SELECT count(*) FROM revision_queue WHERE school_id IS NULL",
     (r) => count(r) === 0,
@@ -141,11 +169,6 @@ async function main() {
   await check(
     "student_academic_brain.school_id fully backfilled (expect 0 null)",
     "SELECT count(*) FROM student_academic_brain WHERE school_id IS NULL",
-    (r) => count(r) === 0,
-  );
-  await check(
-    "recovery_assignments.school_id fully backfilled (expect 0 null; found by lint-tenant-scope.mjs's first run)",
-    "SELECT count(*) FROM recovery_assignments WHERE school_id IS NULL",
     (r) => count(r) === 0,
   );
   await check(
@@ -420,21 +443,18 @@ async function main() {
     (r) => count(r) === 0,
   );
   await check(
-    "recovery_assignment_questions.school_id fully backfilled (expect 0 null)",
-    "SELECT count(*) FROM recovery_assignment_questions WHERE school_id IS NULL",
-    (r) => count(r) === 0,
-  );
-  await check(
     "attendance.school_id fully backfilled (expect 0 null)",
     "SELECT count(*) FROM attendance WHERE school_id IS NULL",
     (r) => count(r) === 0,
   );
   await check(
-    "concept_mastery/student_mistakes/academic_daily_activity/recovery_assignment_questions all have a school_id-setting trigger (prevents regression to NULL on new writes)",
+    // Was four tables. recovery_assignment_questions went with its parent in
+    // 20260926000000; the remaining three still have to keep their trigger.
+    "concept_mastery/student_mistakes/academic_daily_activity all have a school_id-setting trigger (prevents regression to NULL on new writes)",
     `SELECT c.relname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_proc p ON p.oid = t.tgfoid
      WHERE p.proname = 'tg_set_school_id_from_session' AND NOT t.tgisinternal
-       AND c.relname IN ('concept_mastery','student_mistakes','academic_daily_activity','recovery_assignment_questions')`,
-    (r) => r.length === 4,
+       AND c.relname IN ('concept_mastery','student_mistakes','academic_daily_activity')`,
+    (r) => r.length === 3,
   );
 
   // --- Phase 2 audit (2026-08-22): mastery-score volatility fix
@@ -534,15 +554,18 @@ async function main() {
   // auto-clear (20260822210000_gap_closure_check_constraints.sql,
   // 20260822220000_gap_closure_revision_queue_auto_clear.sql) ---
   await check(
-    "all 13 gap-closure CHECK constraints exist",
+    // Was 13. recovery_assignments_source_type_check was dropped with its
+    // table in 20260926000000, so the roll-call is 12 — the number moves with
+    // the constraint rather than the assertion being weakened to >= .
+    "all 12 remaining gap-closure CHECK constraints exist",
     `SELECT conname FROM pg_constraint WHERE conname IN (
        'approval_requests_status_check','battle_events_kind_check','battle_invites_status_check',
        'battles_source_check','concept_mastery_classification_check','exams_status_check',
        'homework_priority_check','notices_status_check','progression_history_source_type_check',
-       'question_attempts_source_check','recovery_assignments_source_type_check',
+       'question_attempts_source_check',
        'student_mistakes_assessment_type_check','teachers_status_check'
      )`,
-    (r) => r.length === 13,
+    (r) => r.length === 12,
   );
   await check(
     "_rebuild_revision_queue auto-clears revision items whose topic accuracy has recovered",

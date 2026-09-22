@@ -51,6 +51,20 @@ describe("academic engine — events", () => {
     expect(targets).toContain("ai_insights");
   });
 
+  it("sends no practice event to the activity feed the whole school reads", () => {
+    // §10.8. Measured 2026-09-18: the principal, admin, a teacher, a parent and
+    // a Class 12 student each read a Class 10 student's practice questions,
+    // his chosen answers and whether they were right, from the feed.
+    const practice = ACADEMIC_EVENT_TYPES.filter((t) => t.startsWith("practice."));
+    expect(practice).toContain("practice.session.completed");
+    for (const t of [...practice, "practice.not_yet_catalogued"]) {
+      expect(syncTargetsFor(t), t).not.toContain("activity_feed");
+    }
+    // Positive controls: the feed itself still exists for school events.
+    expect(syncTargetsFor("marks.published")).toContain("activity_feed");
+    expect(syncTargetsFor("some.uncatalogued_event")).toContain("activity_feed");
+  });
+
   it("lists a stable event catalog", () => {
     expect(ACADEMIC_EVENT_TYPES.length).toBeGreaterThan(10);
     expect(ACADEMIC_EVENT_TYPES).toContain("attendance.marked");

@@ -6,6 +6,7 @@
  */
 
 export {
+  academicLabelEquals,
   academicLabelMatches,
   academicMatchKey,
   displayChapter,

@@ -59,18 +59,47 @@ export type PracticeServerStats = {
   correctCount?: number;
   wrongCount?: number;
   skippedCount?: number;
-  accuracy?: number;
+  /** null when nothing was answered — the finish stores no accuracy then. */
+  accuracy?: number | null;
   xpEarned?: number;
   totalTimeMs?: number | null;
 };
 
 export type PracticeSessionResultState = {
+  /** Empty when the session had no single subject. */
   subject: string;
+  /** Empty when the session had no single chapter — never a guess at one. */
   chapter: string;
+  /** The session's practice_mode, which names it when it has no chapter. */
+  practiceMode?: string | null;
   attempts: PracticeAttemptSnapshot[];
   startedAt?: string;
   /** From rpc_finish_practice_session — SSOT until practice_sessions row hydrates. */
   serverStats?: PracticeServerStats | null;
+  /**
+   * Present only when the session was a §4.2 recovery session.
+   *
+   * Carried through rather than re-fetched because the result screen must
+   * report the engine's verdict, not re-derive one: §4.2b decides readiness
+   * from TWO rates against two different thresholds, and a screen that
+   * recomputed it from the raw score would be a second home for both numbers
+   * — and would have no way to say WHICH half failed, which is the entire
+   * point of keeping them apart.
+   */
+  recovery?: import("@/academic").RecoverySessionOutcome | null;
+  /**
+   * Present only when the session was a §5.4 revision check.
+   *
+   * Carried for the same reason `recovery` is: §5.5 decides pass or fail
+   * against REVISION_PASS_THRESHOLD and §5.3 schedules the next date from
+   * the 7/21/60 ladder, both server-side against recovery_constants. A screen
+   * that re-derived either would be a second home for both.
+   *
+   * It was missing, and so was the card: Practice computed this outcome and
+   * dropped it, so a student who sat a revision check was never told whether
+   * they passed, how far into the run they were, or when to come back.
+   */
+  revision?: import("@/academic").RevisionSessionOutcome | null;
 };
 
 /** Build the optional intelligence meta blob for rpc_record_question_attempt. */
@@ -98,48 +127,53 @@ export function buildPracticeRecoveryReport(
   subject: string,
   chapter: string,
   attempts: PracticeAttemptSnapshot[],
-  timeMinutes = 1,
+  /** null when no question carried a timing — never a floor of one minute. */
+  timeMinutes: number | null = null,
 ): ConceptRecoveryReport {
-  const total = attempts.length;
-  const correct = attempts.filter((a) => a.isCorrect).length;
-  // Chunk 10. Was `total ? … : 0` — the same expression, with the same defect,
-  // in five files. A session with nothing attempted is not a session scored
-  // zero. valueOr(..., 0) keeps this snapshot's numeric shape for its callers,
-  // but the zero now comes from ONE place that knows it is standing in for
-  // no_data, instead of five that thought it was an answer.
-  const accuracyMetric = sessionAccuracy(correct, total);
+  // Answered, not attempted: a skipped question is not a wrong answer
+  // (20261021000000). This report counted every skip as a miss, so a session
+  // skipped end to end flagged its chapter weak at 0%.
+  const answered = attempts.filter((a) => !a.skipped && !a.timedOut);
+  const correct = answered.filter((a) => a.isCorrect).length;
+  const accuracyMetric = sessionAccuracy(correct, answered.length);
+  // The weak flag below asks the metric itself, so "nothing answered" can
+  // never read as a weak chapter; the reported figure is absent, not 0%.
   const accuracy = valueOr(accuracyMetric, 0);
+  const accuracyReported = accuracyMetric.state === "ok" ? accuracy : null;
   const concept = chapter;
 
   // The weak-topic bar IS the conceptual readiness bar; it was a bare 70.
   const weak =
-    accuracy < ACCURACY_CONCEPTUAL
+    accuracyMetric.state === "ok" && accuracy < ACCURACY_CONCEPTUAL
       ? [{ subject, chapter, concept, accuracy }]
       : [];
 
   return {
     source_type: "practice_session",
     source_id: sessionId,
-    accuracy_pct: accuracy,
+    accuracy_pct: accuracyReported,
     correct_count: correct,
-    total_count: total,
+    total_count: answered.length,
     time_minutes: timeMinutes,
     weak_concepts: weak,
-    recovery_assignments: [],
     improvement_areas: weak.map((w) => w.concept),
     insights: undefined,
   };
 }
 
 export function snapshotsToAttemptRows(attempts: PracticeAttemptSnapshot[]) {
-  return attempts.map((a, i) => ({
-    id: `local-${i}`,
-    generated_question: { question: a.question, options: a.options },
-    correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
-    selected_answer: { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
-    is_correct: a.isCorrect,
-    created_at: new Date().toISOString(),
-  }));
+  return attempts.map((a, i) => {
+    const skipped = Boolean(a.skipped || a.timedOut);
+    return {
+      id: `local-${i}`,
+      generated_question: { question: a.question, options: a.options, explanation: a.explanation },
+      correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
+      selected_answer: skipped ? null : { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
+      is_correct: skipped ? false : a.isCorrect,
+      skipped,
+      created_at: new Date().toISOString(),
+    };
+  });
 }
 
 export function persistAndGoToPracticeResult(

@@ -305,6 +305,18 @@ export const riskBand = (v: number | null | undefined): Band =>
 export const STREAK_ESTABLISHED = 3;
 export const STREAK_MILESTONE = 15;
 
+/**
+ * Questions solved before the Analysis page stops offering "solve 100
+ * questions" as a next step and starts reporting the total as an achievement.
+ *
+ * Here for the same reason as the streak pair: it was the literal 100, written
+ * three times in Analysis.tsx — once in the condition that shows the goal,
+ * once as the goal's target, and once in the condition that retires it. Three
+ * copies of one number is three chances for the page to offer a milestone it
+ * has already awarded.
+ */
+export const PRACTICE_QUESTIONS_MILESTONE = 100;
+
 export const URGENCY_SOME = 2;
 export const URGENCY_MANY = 4;
 

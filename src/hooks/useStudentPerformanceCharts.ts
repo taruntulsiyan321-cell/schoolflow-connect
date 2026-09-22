@@ -26,8 +26,19 @@ export function useStudentPerformanceCharts(enabled = true) {
     beginLoading(setLoading);
     setError(null);
     const { data: charts, error: err } = await supabase.rpc("rpc_student_performance_charts");
-    if (err) setError(err.message);
-    else setData((charts as StudentPerformanceCharts) ?? null);
+    if (err) {
+      setError(err.message);
+      // NULL, NOT THE PREVIOUS ANSWER.
+      //
+      // This left `data` untouched on a failure, so a refresh that failed
+      // kept rendering the figures from the last successful load with
+      // nothing to say they were stale — and after a student switch, the
+      // previous student's. useStudentPracticeAnalytics already states the
+      // rule in its own error branch: a panel that keeps showing old
+      // figures is worse than one that says it has nothing. Two of the four
+      // hooks behind this page obeyed it and two did not.
+      setData(null);
+    } else setData((charts as StudentPerformanceCharts) ?? null);
     endLoading(setLoading);
   }, [beginLoading, endLoading]);
 

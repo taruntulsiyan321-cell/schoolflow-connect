@@ -117,7 +117,7 @@ const emptySectionForm = () => ({
   targetCount: "5",
   difficulty: "" as PaperDifficulty | "",
   chapters: "",
-  topics: [] as string[],
+  topicIds: [] as string[],
 });
 
 type ClassSubjectPair = Awaited<ReturnType<typeof listTeacherClassSubjectPairs>>[number];
@@ -141,11 +141,12 @@ export default function QuestionPapers() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [sectionForm, setSectionForm] = useState(emptySectionForm);
   const [addingSection, setAddingSection] = useState(false);
-  /** The canonical topics this paper's subject/class actually has questions
-   *  for, with counts. Loaded from the bank rather than typed from memory —
-   *  the whole reason topic was unusable before is that nobody could guess
-   *  which of thirty spellings the bank stored. */
-  const [topicOptions, setTopicOptions] = useState<{ topic: string; count: number }[]>([]);
+  /** The topics this paper's subject/class actually has questions for, with
+   *  counts, keyed by topic id — two chapters can each have a topic of the
+   *  same name, and those are different topics. */
+  const [topicOptions, setTopicOptions] = useState<
+    { topicId: string; topic: string; chapter: string | null; count: number }[]
+  >([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
   const [fills, setFills] = useState<Record<string, SectionFillResult>>({});
   const [generated, setGenerated] = useState<Record<string, GenerationOutcome>>({});
@@ -311,13 +312,23 @@ export default function QuestionPapers() {
     };
   }, [addingSection, ctx, openPaper?.subject, openPaper?.class_level, sectionForm.chapters]);
 
-  const toggleTopic = (topic: string) =>
+  const toggleTopic = (topicId: string) =>
     setSectionForm((f) => ({
       ...f,
-      topics: f.topics.includes(topic)
-        ? f.topics.filter((t) => t !== topic)
-        : [...f.topics, topic],
+      topicIds: f.topicIds.includes(topicId)
+        ? f.topicIds.filter((t) => t !== topicId)
+        : [...f.topicIds, topicId],
     }));
+
+  // A narrowed chapter list can drop topics the teacher had already picked;
+  // a chosen id that is no longer offered must not ride along unseen.
+  useEffect(() => {
+    setSectionForm((f) => {
+      const offered = new Set(topicOptions.map((t) => t.topicId));
+      const kept = f.topicIds.filter((id) => offered.has(id));
+      return kept.length === f.topicIds.length ? f : { ...f, topicIds: kept };
+    });
+  }, [topicOptions]);
 
   const addSection = () =>
     run("Add section", async () => {
@@ -335,7 +346,7 @@ export default function QuestionPapers() {
             .split(",")
             .map((c) => c.trim())
             .filter(Boolean),
-          topics: sectionForm.topics,
+          topicIds: sectionForm.topicIds,
         },
         sections.length,
       );
@@ -817,13 +828,12 @@ export default function QuestionPapers() {
                           className="w-full bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground"
                         />
 
-                        {/* The topic narrowing. Chosen from what the bank
-                            actually holds, never typed: the raw `topic` column
-                            carries 11,917 spellings of the same ideas, so a
-                            free-text box would ask the teacher to guess. The
-                            count on each chip is load-bearing — the median
-                            topic holds ONE question, so a topic that cannot
-                            fill the section says so before it is picked. */}
+                        {/* The topic narrowing. Chosen from the chapters' own
+                            topics, never typed. The count on each chip is
+                            load-bearing: a topic that cannot fill the section
+                            says so before it is picked. The chapter is shown
+                            because two chapters can each teach a topic of the
+                            same name. */}
                         {topicsLoading && (
                           <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
                             <Loader2 className="w-3 h-3 animate-spin" /> Loading topics…
@@ -833,18 +843,19 @@ export default function QuestionPapers() {
                           <div className="space-y-1.5">
                             <div className="text-[10px] text-muted-foreground">
                               Topics{" "}
-                              {sectionForm.topics.length > 0
-                                ? `· ${sectionForm.topics.length} chosen`
+                              {sectionForm.topicIds.length > 0
+                                ? `· ${sectionForm.topicIds.length} chosen`
                                 : "· optional, blank draws on every topic in these chapters"}
                             </div>
                             <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                               {topicOptions.map((t) => {
-                                const on = sectionForm.topics.includes(t.topic);
+                                const on = sectionForm.topicIds.includes(t.topicId);
                                 return (
                                   <button
-                                    key={t.topic}
+                                    key={t.topicId}
                                     type="button"
-                                    onClick={() => toggleTopic(t.topic)}
+                                    title={t.chapter ? `${t.topic} — ${displayChapter(t.chapter) || t.chapter}` : t.topic}
+                                    onClick={() => toggleTopic(t.topicId)}
                                     aria-pressed={on}
                                     className={cn(
                                       "px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors",
@@ -853,17 +864,20 @@ export default function QuestionPapers() {
                                         : "bg-muted border-border/70 text-muted-foreground hover:text-foreground",
                                     )}
                                   >
-                                    {displayChapter(t.topic) || t.topic}
+                                    {t.topic}
+                                    {t.chapter && (
+                                      <span className="ml-1 opacity-60 font-normal">· {displayChapter(t.chapter) || t.chapter}</span>
+                                    )}
                                     <span className="ml-1 opacity-60">{t.count}</span>
                                   </button>
                                 );
                               })}
                             </div>
-                            {sectionForm.topics.length > 0 && (
+                            {sectionForm.topicIds.length > 0 && (
                               <div className="text-[10px] text-muted-foreground">
                                 {(() => {
                                   const available = topicOptions
-                                    .filter((t) => sectionForm.topics.includes(t.topic))
+                                    .filter((t) => sectionForm.topicIds.includes(t.topicId))
                                     .reduce((n, t) => n + t.count, 0);
                                   const want = Number(sectionForm.targetCount) || 0;
                                   return available < want

@@ -1,27 +1,85 @@
-import { useEffect, useMemo, useState } from "react";
-import type { ServiceContext } from "@/academic";
-import { DecisionEngineService, type RevisionRecommendation } from "@/academic/services/decisionEngineService";
+import { useCallback, useEffect, useState } from "react";
+import {
+  RecoveryEngineService,
+  type ChapterStateRow,
+  type RevisionHistoryRow,
+  type ServiceContext,
+} from "@/academic";
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
-import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
-import type { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { REVISION_STAGES_TO_SOLID } from "@/academic/recovery/constants";
 import { toErrorMessage } from "@/lib/presentation";
+import { EMPTY_LIST, LOADING_LIST, type ListState } from "@/lib/listState";
 
 /**
- * Revision.tsx's item shape and legacy (snapshot.revision_queue-derived)
- * mapping -- moved here rather than left inline in the page component so
- * that file keeps exporting only components (React Fast Refresh requires
- * this; a page file that also exports plain functions/types loses
- * component-level hot reload). Zero behavioral change from where these
- * lived before.
+ * Revision's data source — the 7C engine, and nothing else.
+ *
+ * ── WHAT THIS REPLACED, AND WHY BOTH HAD TO GO ────────────────────────────
+ *
+ * Until now this module chose between two sources on a feature flag:
+ *
+ *   flag off   snapshot.revision_queue — rows written by
+ *              rpc_record_concept_mistake with `due_date = CURRENT_DATE` on
+ *              every single wrong answer. Nothing anywhere applied the §5.3
+ *              intervals, so EVERY item was due today, forever. Measured on
+ *              production: 223 rows, 223 due, 0 upcoming. That is not spaced
+ *              repetition; it is a to-do list that refills itself.
+ *
+ *   flag on    rpc_revision_plan_v2 — no ids, so this module minted synthetic
+ *              ones (`v2:subject|chapter|concept`) and its own comment
+ *              admitted "Mark done" would throw `rpc_complete_revision`'s
+ *              "item not found". A path that cannot complete an item is not a
+ *              revision feature.
+ *
+ * Neither was the engine. chapter_state is: it carries next_revision_at,
+ * revision_stage and consecutive_revision_passes, and the server walks them
+ * along the §5.3 ladder, three consecutive passes to solid. So both branches
+ * are gone rather than a third being added beside them — the flag too,
+ * because a flag between two wrong answers is not a choice worth keeping.
+ *
+ * ── ONE ITEM IS ONE CHAPTER ───────────────────────────────────────────────
+ *
+ * §2: "All triggers, thresholds and scheduling operate on chapter_id." The
+ * old queue was keyed on free-text names and filled with 200 rows pointing at
+ * 'Chapter 3'. `id` here is the chapter UUID, and it is what the revision
+ * check posts its score against.
+ */
+
+/**
+ * One chapter on the revision ladder, as the screen shows it.
+ *
+ * Only what the screen reads. The item used to carry `priority` (computed,
+ * read by nothing — the server already sorts soonest first), `bookmarked`,
+ * `teacherAssigned`, `source` and `notes` (constants, so the "Teacher" badge
+ * and the bookmark icon could never render), `stage` (unread) and `concept`
+ * (the chapter name a second time, formatted with the concept dictionary).
  */
 export interface RevItem {
-  id: string; concept: string; subject: string; chapter: string;
-  dueIn: string; priority: number; bookmarked: boolean;
-  teacherAssigned: boolean;
-  source: string; notes?: string;
+  /** The chapter UUID. Not a queue-row id — there is no queue row any more. */
+  id: string;
+  chapter: string;
+  subject: string;
+  dueIn: string;
+  /** Passes in a row so far. */
+  passes: number;
+  /** How many are needed before the chapter goes solid. */
+  stagesToSolid: number;
+  /** Open mistakes still recorded against this chapter. */
+  openMistakes: number;
+  /**
+   * Questions in this chapter the student has never seen — the pool the fresh
+   * half of a check draws from (§5.4). Carried so the card can warn that a
+   * check will be short BEFORE the student sits it.
+   */
+  freshAvailable: number;
+  state: ChapterStateRow["state"];
 }
 
-function dueLabelFromDate(dueDate: string): string {
+export function dueLabelFromDate(dueDate: string | null): string {
+  // Null now means "never scheduled", not "solid": passing three checks drops
+  // the chapter to the long interval and it keeps a date. A solid chapter
+  // reads as a date like any other, which is the honest thing — forgetting
+  // did not stop because the student passed three checks.
+  if (!dueDate) return "Not scheduled";
   try {
     const due = new Date(dueDate);
     const today = new Date();
@@ -38,110 +96,105 @@ function dueLabelFromDate(dueDate: string): string {
   }
 }
 
-function mapRevisionQueue(
-  queue: NonNullable<ReturnType<typeof useStudentAcademicSnapshot>["data"]>["revision_queue"],
-): RevItem[] {
-  if (!queue?.length) return [];
-  return queue
-    .map((r) => {
-      const concept = [r.topic, r.chapter, r.subject].find((x) => !isPlaceholderAcademicLabel(x));
-      const subject = !isPlaceholderAcademicLabel(r.subject) ? r.subject : "";
-      if (!concept || !subject) return null;
-      const chapter = !isPlaceholderAcademicLabel(r.chapter) ? (r.chapter ?? "—") : "—";
-      return {
-        id: r.id,
-        concept,
-        subject,
-        chapter,
-        dueIn: dueLabelFromDate(r.due_date),
-        priority: r.priority,
-        bookmarked: false,
-        teacherAssigned: false,
-        source: "revision",
-      };
-    })
-    .filter((row): row is RevItem => !!row);
-}
-
-/**
- * Decision Engine Slice 2 swap-in for Revision.tsx's data source, gated by
- * DECISION_ENGINE_FEATURE_FLAGS.revisionV2 (default off).
- *
- * Flag off: returns the exact legacy mapping above, unchanged.
- * Flag on: fetches rpc_revision_plan_v2 directly instead of reading
- * snapshot.revision_queue -- that field is shared by Dashboard, LearningHub,
- * and Analysis.tsx too (confirmed via grep), so overriding it in the shared
- * useStudentAcademicSnapshot hook would leak into those pages. Scoping the
- * swap here keeps this to the one intended consumer, Revision.tsx.
- */
-export function useRevisionItems(
-  ctx: ServiceContext | null,
-  academicReady: boolean,
-  snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"],
-): { items: RevItem[]; v2Error: string | null } {
-  const legacy = useMemo(() => mapRevisionQueue(snapshot?.revision_queue), [snapshot?.revision_queue]);
-  const [v2Items, setV2Items] = useState<RevItem[] | null>(null);
-  const [v2Error, setV2Error] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!DECISION_ENGINE_FEATURE_FLAGS.revisionV2 || !academicReady || !ctx) return;
-    let cancelled = false;
-    DecisionEngineService.getRevisionPlanV2(ctx)
-      .then((recs) => {
-        if (cancelled) return;
-        setV2Items(recs.map(toRevItem));
-        setV2Error(null);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        // No silent fallback -- same reasoning as Weak Areas V2: a
-        // swallowed failure here would look identical to a healthy, empty
-        // queue, masking a broken pilot. Surfaced via Revision.tsx's own
-        // existing error UI (widened OR-condition), not a new one.
-        setV2Error(toErrorMessage(e, "Failed to load revision plan"));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [ctx, academicReady]);
-
-  if (!DECISION_ENGINE_FEATURE_FLAGS.revisionV2) return { items: legacy, v2Error: null };
-  return { items: v2Items ?? [], v2Error };
-}
-
-function toRevItem(r: RevisionRecommendation): RevItem {
-  const subject = r.subject;
-  const chapter = r.chapter && !isPlaceholderAcademicLabel(r.chapter) ? r.chapter : "—";
-  const concept = r.subconcept ?? r.concept;
+function toRevItem(r: ChapterStateRow): RevItem | null {
+  const chapter = r.chapter;
+  if (!chapter || isPlaceholderAcademicLabel(chapter)) return null;
+  const subject = r.subject && !isPlaceholderAcademicLabel(r.subject) ? r.subject : "";
+  if (!subject) return null;
   return {
-    // Synthetic -- rpc_revision_plan_v2 has no id, and this never
-    // corresponds to a real revision_queue row. "Mark done" on a V2 item
-    // will fail with rpc_complete_revision's own "item not found" exception
-    // rather than silently succeeding -- safe by construction, documented
-    // as a known limitation of this first pass rather than fixed here (no
-    // rpc_complete_revision_v2 exists yet to fix it with).
-    id: `v2:${subject}|${chapter}|${concept}`,
-    concept,
-    subject,
+    id: r.chapter_id,
     chapter,
-    // Adapter, not a real date -- rpc_revision_plan_v2 has no due_date;
-    // retention decays continuously, there is no single day it crosses a
-    // threshold without picking one. priority (0-100, urgency) is mapped
-    // into the same bucket labels the legacy due_date path already
-    // produces, so every downstream consumer (AI_SCHEDULE grouping, the
-    // due/upcoming filter, DueTag styling) works unchanged.
-    dueIn: dueLabelFromPriority(r.priority),
-    priority: r.priority,
-    bookmarked: false,
-    teacherAssigned: false,
-    source: "revision-v2",
+    subject,
+    dueIn: dueLabelFromDate(r.next_revision_at),
+    passes: r.consecutive_passes,
+    // REVISION_STAGES_TO_SOLID, not a literal 3. The number lives in
+    // recovery_constants, is re-exported by the TS constants module, and is
+    // checked against the database by check:recovery-constants.
+    stagesToSolid: REVISION_STAGES_TO_SOLID,
+    openMistakes: r.open_mistakes,
+    freshAvailable: r.revision_fresh_available,
+    state: r.state,
   };
 }
 
-function dueLabelFromPriority(priority: number): string {
-  if (priority >= 80) return "Now";
-  if (priority >= 60) return "Today";
-  if (priority >= 40) return "Tomorrow";
-  const days = Math.max(2, Math.round((100 - priority) / 10));
-  return `${days} days`;
+/**
+ * One read of the engine, as a list state — loading, failed, or read.
+ *
+ * Both hooks below started as `loading = true` and let only an effect that
+ * bailed out without a context end it, so an account the app settled without
+ * a student context showed "Loading revision" for ever; and the history's
+ * loading flag was never read, so the screen said "No revision checks taken
+ * yet" while the history was still arriving.
+ */
+function useEngineList<T>(
+  ctx: ServiceContext | null,
+  academicReady: boolean,
+  academicSettled: boolean,
+  read: (ctx: ServiceContext) => Promise<T[]>,
+): { list: ListState<T>; reload: () => void } {
+  const [list, setList] = useState<ListState<T>>(LOADING_LIST);
+  const [nonce, setNonce] = useState(0);
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
+
+  useEffect(() => {
+    if (!academicReady || !ctx) {
+      setList(academicSettled ? EMPTY_LIST : LOADING_LIST);
+      return;
+    }
+    let cancelled = false;
+    setList(LOADING_LIST);
+    read(ctx).then(
+      (items) => { if (!cancelled) setList({ status: "ready", items }); },
+      // No silent fallback. A swallowed failure looks exactly like a healthy
+      // empty list, which is how the old V2 path hid a broken pilot for weeks.
+      // The screen says it could not load; the message is only for an error
+      // that says something more than that (empty otherwise).
+      (e) => { if (!cancelled) setList({ status: "failed", message: toErrorMessage(e, "") }); },
+    );
+    return () => { cancelled = true; };
+    // `read` is a module-level constant per caller, so listing it costs
+    // nothing and keeps the dependency list honest.
+  }, [ctx, academicReady, academicSettled, nonce, read]);
+
+  return { list, reload };
+}
+
+/**
+ * Chapters with a revision schedule, soonest first — the server's order.
+ *
+ * A chapter with no date at all is dropped: it has never been scheduled and
+ * there is nothing to show. That is not the same thing as "solid" — a solid
+ * chapter keeps a date, at REVISION_INTERVAL_SOLID, and stays in the list.
+ */
+const readRevisionItems = async (ctx: ServiceContext): Promise<RevItem[]> =>
+  (await RecoveryEngineService.getChapterStates(ctx))
+    .filter((r) => r.next_revision_at !== null)
+    .map(toRevItem)
+    .filter((r): r is RevItem => r !== null);
+
+export function useRevisionItems(
+  ctx: ServiceContext | null,
+  academicReady: boolean,
+  academicSettled: boolean,
+): { items: ListState<RevItem>; reload: () => void } {
+  const { list, reload } = useEngineList(ctx, academicReady, academicSettled, readRevisionItems);
+  return { items: list, reload };
+}
+
+/**
+ * Revision checks already taken, newest first.
+ *
+ * Its own read rather than another field on useRevisionItems: the queue is
+ * what the student has to DO and the history is what they have done, and one
+ * of them failing to load is not a reason to blank the other.
+ */
+const readRevisionHistory = (ctx: ServiceContext) => RecoveryEngineService.getRevisionHistory(ctx, 20);
+
+export function useRevisionHistory(
+  ctx: ServiceContext | null,
+  academicReady: boolean,
+  academicSettled: boolean,
+): { history: ListState<RevisionHistoryRow>; reload: () => void } {
+  const { list, reload } = useEngineList(ctx, academicReady, academicSettled, readRevisionHistory);
+  return { history: list, reload };
 }

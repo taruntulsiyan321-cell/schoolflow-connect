@@ -10,10 +10,27 @@ import {
   type ConceptAiReport,
   buildRuleConceptReport,
 } from "@/lib/conceptReportFallback";
-import { AlertTriangle, CheckCircle2, Loader2, Sparkles, Target, Timer } from "lucide-react";
+import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import { displayConcept } from "@/lib/academicDisplay";
 import "@/components/student/analytics/wisdom/wisdom-analytics.css";
 import { toAiLine } from "@/lib/presentation";
+
+/**
+ * ── THIS CARD DOES NOT REPORT THE SESSION'S FIGURES ────────────────────────
+ *
+ * It used to show Accuracy, Score and Time of its own, computed by
+ * _build_concept_recovery_report — a SECOND home for numbers the page above it
+ * already shows from the finished row. The two disagreed. Measured 2026-09-19
+ * across the student's 40 latest practice sessions: accuracy differed on 24 of
+ * them, because this one counted a skipped question as a wrong answer ("0%"
+ * where the session reports "—", "50%" where it reports 100%), and its Time
+ * was the wall clock rather than the time spent on the questions.
+ *
+ * Every host — the practice result, the test result and the battle report —
+ * shows accuracy, score and time itself, from its own finished record. So the
+ * duplicate is gone and this card keeps only what it alone knows: which
+ * concepts were weak, and the advice that follows from them.
+ */
 
 type Props = {
   sourceType: "test_attempt" | "battle_participant" | "practice_session" | "recovery_assignment";
@@ -131,20 +148,6 @@ export function ConceptRecoveryReport({
               <p className="text-xs text-muted-foreground mt-1">Session summary from your answers</p>
             </div>
           </div>
-          <div className="grid sm:grid-cols-3 gap-3 mb-4 text-sm">
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-background/60">
-              <Target className="w-4 h-4 text-accent" />
-              <div><div className="text-xs text-muted-foreground">Accuracy</div><div className="font-bold">{fb.accuracy_pct}%</div></div>
-            </div>
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-background/60">
-              <CheckCircle2 className="w-4 h-4 text-primary" />
-              <div><div className="text-xs text-muted-foreground">Score</div><div className="font-bold">{fb.correct_count}/{fb.total_count}</div></div>
-            </div>
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-background/60">
-              <Timer className="w-4 h-4 text-muted-foreground" />
-              <div><div className="text-xs text-muted-foreground">Time</div><div className="font-bold">{fb.time_minutes}m</div></div>
-            </div>
-          </div>
           <div className="p-3 rounded-lg bg-background/70 border">
             <p className="font-medium text-sm">{fbInsights.headline}</p>
             <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc pl-4">
@@ -179,20 +182,6 @@ export function ConceptRecoveryReport({
         </Button>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-3 mb-4 text-sm">
-        <div className="wa-mini-metric">
-          <Target className="w-4 h-4 text-accent" />
-          <div><div className="wa-label text-[10px]">Accuracy</div><div className="font-bold">{report.accuracy_pct}%</div></div>
-        </div>
-        <div className="wa-mini-metric">
-          <CheckCircle2 className="w-4 h-4 text-primary" />
-          <div><div className="wa-label text-[10px]">Score</div><div className="font-bold">{report.correct_count}/{report.total_count}</div></div>
-        </div>
-        <div className="wa-mini-metric">
-          <Timer className="w-4 h-4 text-muted-foreground" />
-          <div><div className="wa-label text-[10px]">Time</div><div className="font-bold">{report.time_minutes}m</div></div>
-        </div>
-      </div>
 
       {weak.length > 0 && (
         <div className="mb-4">
@@ -243,9 +232,19 @@ export function ConceptRecoveryReport({
         </div>
       )}
 
-      {(report.recovery_assignments ?? []).length > 0 && (
+      {/*
+        This used to count recovery_assignments the report created for itself:
+        one row per weak concept, written by rpc_post_assessment_concept_analysis
+        on the FIRST wrong answer. That engine is gone (20260926000000) and the
+        count with it — recovery now unlocks per CHAPTER at
+        RECOVERY_TRIGGER_COUNT open mistakes, which this report cannot know
+        without asking the engine. So the button offers the screen and says
+        nothing it cannot back up; Recovery itself shows how close each chapter
+        is, "3 of 5" included.
+      */}
+      {weak.length > 0 && (
         <Button asChild size="sm">
-          <Link to="/student/recovery">Fix my mistakes ({report.recovery_assignments.length} queued)</Link>
+          <Link to="/student/recovery">Fix my mistakes</Link>
         </Button>
       )}
     </Card>

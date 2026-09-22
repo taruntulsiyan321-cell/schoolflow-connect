@@ -46,7 +46,8 @@
  *
  * It goes onto the paper, and — if it resolves to a curriculum chapter — into
  * the shared `question_bank` as well, tagged `ai_generated`, credited to its
- * author, `topic` NULL (rule 31), and UNAPPROVED. It is therefore invisible to
+ * author, filed under the section's topic when the section names exactly one,
+ * and UNAPPROVED. It is therefore invisible to
  * every student until a super admin approves it, which
  * `trg_question_bank_approval_is_super_admin_only` enforces and this code
  * cannot bypass.
@@ -93,9 +94,9 @@ export interface QuestionPaperSectionRow {
   target_count: number;
   difficulty: PaperDifficulty | null;
   chapters: string[];
-  /** Canonical topics (`question_bank.topic_group`). EMPTY MEANS THE WHOLE
+  /** Topics this section is narrowed to (`topics.id`). EMPTY MEANS THE WHOLE
    *  CHAPTER SET, never "no topics" — the same convention `chapters` uses. */
-  topics: string[];
+  topic_ids: string[];
 }
 
 export interface QuestionPaperQuestionRow {
@@ -154,8 +155,8 @@ export interface CreateSectionInput {
   targetCount: number;
   difficulty?: PaperDifficulty | null;
   chapters?: string[];
-  /** Canonical topics to narrow to. Omitted or empty = the whole chapter set. */
-  topics?: string[];
+  /** Topic ids to narrow to. Omitted or empty = the whole chapter set. */
+  topicIds?: string[];
 }
 
 /**
@@ -257,7 +258,7 @@ export const QuestionPaperService = {
         target_count: input.targetCount,
         difficulty: input.difficulty ?? null,
         chapters: input.chapters ?? [],
-        topics: input.topics ?? [],
+        topic_ids: input.topicIds ?? [],
       })
       .select("*")
       .single();
@@ -461,10 +462,9 @@ export const QuestionPaperService = {
         structured: {
           question_format: section.question_format,
           subject: paper.subject,
-          // Rule 31 — a generated question carries its CHAPTER and leaves
-          // `topic` NULL. The section may name several chapters; the first is
-          // the one the model is pointed at, and the rest are covered by
-          // generating per chapter rather than by guessing a blend.
+          // The section may name several chapters; the first is the one the
+          // model is pointed at, and the rest are covered by generating per
+          // chapter rather than by guessing a blend.
           chapter: section.chapters[0] ?? null,
           difficulty: section.difficulty ?? "medium",
           count: wanted,
@@ -624,6 +624,14 @@ export const QuestionPaperService = {
       };
     }
 
+    // The topic is known only when the teacher narrowed the section to exactly
+    // one topic of this chapter: then every question generated for it is that
+    // topic. Otherwise it is left unset rather than guessed, and the row is
+    // listed as untopiced by db:verify-integrity until a teacher files it.
+    const chapterTopics = await CurriculumService.listTopics(ctx, chapter.id);
+    const narrowedTo = section.topic_ids.filter((id) => chapterTopics.some((t) => t.id === id));
+    const topicId = narrowedTo.length === 1 ? narrowedTo[0] : null;
+
     const isChoice = section.question_format === "mcq";
     const rows = generated
       .filter((q) => {
@@ -646,18 +654,7 @@ export const QuestionPaperService = {
         chapter: chapterName,
         chapter_id: chapter.id,
         class_level: paper.class_level,
-        // Rule 31 — a generated question carries its chapter and leaves `topic`
-        // NULL. A guessed topic string is worse than none: it becomes a facet
-        // nobody can filter on correctly.
-        //
-        // This is still true AFTER the taxonomy landed (20260916130000). The
-        // canonical topic is not knowable here: it is decided by the row's
-        // EMBEDDING against its chapter's existing clusters, and the row has no
-        // embedding until the worker reaches it. `classify-question-topics.mjs
-        // --incremental` files it then, and only if it is within threshold —
-        // otherwise it stays NULL, which is the flag rule 31 asks for rather
-        // than a topic invented to fill the column.
-        topic: null,
+        topic_id: topicId,
         difficulty: section.difficulty ?? "medium",
         question: String(q.question ?? "").trim(),
         options: isChoice ? ((q.options ?? []) as string[]) : null,

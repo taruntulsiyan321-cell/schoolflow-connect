@@ -21,7 +21,7 @@ export default function LearningHub({ setPage }: Props) {
   const loadError = snapError || chartsError;
 
   const pendingRecovery = snapshot?.recovery_pending ?? 0;
-  const dueRevision = snapshot?.revision_queue?.length ?? 0;
+  const dueRevision = snapshot?.revision_due ?? 0;
   const unresolvedErrors = snapshot?.mistake_count ?? 0;
 
   // PRACTICE accuracy — the shell profile carries nothing else. This was

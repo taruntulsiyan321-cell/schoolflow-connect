@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Loader2, Brain, Lightbulb, AlertTriangle } from "lucide-react";
@@ -100,14 +99,6 @@ function buildDeterministicExplanation({
   };
 }
 
-// Stable, short cache key so identical (question, chosen option) pairs reuse one AI call.
-function hashKey(parts: (string | number | null | undefined)[]): string {
-  const s = parts.map((p) => (p ?? "")).join("¦");
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
-  return "ex_" + h.toString(36) + "_" + s.length.toString(36);
-}
-
 export function ExplainPanel(props: Props) {
   const {
     question, options = [], correctIndex = null, selectedIndex = null,
@@ -141,22 +132,14 @@ export function ExplainPanel(props: Props) {
     setLoading(true);
     setError(null);
     setAiSource(null);
-    const cacheKey = hashKey([question, correctIndex, selectedIndex, correctText, selectedText]);
     try {
-      // 1) Cache hit?
-      const { data: cached } = await (supabase as any)
-        .from("ai_explanations")
-        .select("payload")
-        .eq("cache_key", cacheKey)
-        .maybeSingle();
-      if (cached?.payload) {
-        setData(cached.payload as Explanation);
-        setAiSource("ai");
-        setLoading(false);
-        return;
-      }
-
-      // 2) Ask the AI
+      // ai-explain answers from its shared cache when this (question, answer)
+      // has been explained before, and stores what it generates. The cache
+      // used to be read and written from here, and could not work: the insert
+      // was refused by RLS (it never named created_by) and the refusal was
+      // swallowed, so ai_explanations held 0 rows and every click paid for a
+      // model call. It now lives where the payload comes from the model, not
+      // from a browser that could write anything into it.
       const { data: res, error: fnErr } = await invokeEdgeFunction<Explanation & { source?: string }>("ai-explain", {
         question, options, correct_index: correctIndex, selected_index: selectedIndex,
         correct_text: correctText, selected_text: selectedText,
@@ -172,11 +155,6 @@ export function ExplainPanel(props: Props) {
         };
         setData(payload);
         setAiSource("ai");
-
-        // 3) Cache for everyone else
-        (supabase as any).from("ai_explanations").insert({
-          cache_key: cacheKey, subject: subject || null, topic: topic || null, payload,
-        }).then(() => {}, () => {});
         return;
       }
 

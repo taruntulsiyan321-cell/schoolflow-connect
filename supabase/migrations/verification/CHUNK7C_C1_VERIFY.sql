@@ -35,7 +35,13 @@ BEGIN
     RAISE EXCEPTION 'CHUNK7C_C1_VERIFY: demo student accounts missing; cannot verify as a real role.';
   END IF;
 
-  -- A chapter this student's section actually teaches, holding real questions.
+  -- A chapter this student's section actually teaches, holding real questions,
+  -- in which the student has NO mistakes of their own. Every check below reads
+  -- the ladder built from the ONE mistake seeded here: item 1 expects tier 0 to
+  -- hold exactly it, item 7 needs deep mode. The first taught chapter used to
+  -- be taken as found, so once the student had practised and got questions
+  -- wrong there, tier 0 held those too ("tier 0 filled 2") and then the seed
+  -- itself collided with a real mistake on the same question (23505).
   SELECT ch.id INTO _chapter
     FROM public.chapters ch
     JOIN public.section_subjects ss ON ss.curriculum_subject_id = ch.curriculum_subject_id
@@ -43,24 +49,45 @@ BEGIN
    WHERE st.user_id = _arjun
      AND (SELECT count(*) FROM public.question_bank qb
            WHERE qb.chapter_id = ch.id AND qb.is_active AND qb.is_approved) >= 3
+     AND NOT EXISTS (
+       SELECT 1 FROM public.student_mistakes sm
+        WHERE sm.user_id = _arjun AND sm.chapter_id = ch.id)
+     AND NOT EXISTS (
+       SELECT 1 FROM public.student_mistakes sm
+         JOIN public.question_bank qb ON qb.id = sm.question_id
+        WHERE sm.user_id = _arjun AND qb.chapter_id = ch.id)
+   ORDER BY ch.id
    LIMIT 1;
 
   IF _chapter IS NULL THEN
-    RAISE EXCEPTION 'CHUNK7C_C1_VERIFY: no entitled chapter with 3+ approved questions; the checks below would be vacuous.';
+    RAISE EXCEPTION 'CHUNK7C_C1_VERIFY: no taught chapter with 3+ approved questions and no mistakes of the student''s own; the checks below would read someone else''s ladder.';
   END IF;
 
-  -- One chapter the student is NOT entitled to, for the filter check.
+  -- One chapter the student is NOT entitled to, for the filter check: neither
+  -- taught to their section nor practised by them. A practised chapter is
+  -- theirs since 20261044000000, so an untaught one alone no longer is.
   SELECT ch.id INTO _foreign
     FROM public.chapters ch
    WHERE NOT EXISTS (
      SELECT 1 FROM public.section_subjects ss
        JOIN public.students st ON st.class_id = ss.section_id
       WHERE ss.curriculum_subject_id = ch.curriculum_subject_id AND st.user_id = _arjun)
+     AND NOT EXISTS (
+     SELECT 1 FROM public.question_attempts qa
+       JOIN public.question_bank qb ON qb.id = qa.bank_question_id
+      WHERE qa.user_id = _arjun AND qb.chapter_id = ch.id)
    LIMIT 1;
 
-  SELECT * INTO _orig FROM public.question_bank
-   WHERE chapter_id = _chapter AND is_active AND is_approved
-   ORDER BY created_at LIMIT 1;
+  -- A question with no variants yet: item 1 expects tier 1 to start empty.
+  SELECT * INTO _orig FROM public.question_bank qb
+   WHERE qb.chapter_id = _chapter AND qb.is_active AND qb.is_approved
+     AND qb.source_question_id IS NULL
+     AND NOT EXISTS (SELECT 1 FROM public.question_bank v WHERE v.source_question_id = qb.id)
+   ORDER BY qb.created_at, qb.id LIMIT 1;
+
+  IF _orig.id IS NULL THEN
+    RAISE EXCEPTION 'CHUNK7C_C1_VERIFY: every question in chapter % already has variants; item 1 would be vacuous.', _chapter;
+  END IF;
 
   -- A difficulty that is NOT the original's, for the mirroring check.
   _other_difficulty := CASE WHEN _orig.difficulty = 'hard' THEN 'easy' ELSE 'hard' END;
@@ -94,8 +121,12 @@ BEGIN
      OR jsonb_array_length(_plan->'tiers'->'1'->'from_bank') <> 0 THEN
     _fail := _fail || '(FAIL) 1: tier 1 returned questions when the bank holds no variants — the ladder was padded. ';
   END IF;
-  IF (_plan->>'complete')::boolean IS NOT FALSE
-     OR (_plan->>'generation_required')::boolean IS NOT TRUE THEN
+  -- `generation_required` is gone from the plan (Chunk 7F). It was
+  -- (_total_short > 0) — a second home for `shortfall`, which the next check
+  -- already asserts on — so the rewrite dropped it rather than carrying two
+  -- keys that can disagree. No client ever read it. `complete` stays: it is
+  -- the plan's own verdict and not a restatement of the count.
+  IF (_plan->>'complete')::boolean IS NOT FALSE THEN
     _fail := _fail || '(FAIL) 1: an incomplete ladder did not report itself as incomplete. ';
   END IF;
   IF (_plan->>'shortfall')::int = 0 THEN
@@ -240,7 +271,7 @@ BEGIN
     PERFORM set_config('request.jwt.claims', NULL, true);
 
     IF NOT _raised THEN
-      _fail := _fail || '(FAIL) 6: a chapter outside the student''s own section was planned without objection. ';
+      _fail := _fail || '(FAIL) 6: a chapter neither taught to the student''s section nor practised by them was planned without objection. ';
     END IF;
   ELSE
     _fail := _fail || '(FAIL) 6: no unentitled chapter exists to test the filter with, so this check is vacuous. ';
@@ -250,20 +281,37 @@ BEGIN
   -- ═════════════════════════════════════════════════════════════════════
   -- 7. NO LITERALS — the ladder sizes come from the constants (item 7).
   --    Proved by moving one and watching the plan move with it, which a
-  --    hardcoded 3 would not.
+  --    hardcoded count would not.
+  --
+  --    RECOVERY_TIER1 no longer exists: Chunk 7F replaced the fixed 2/3/3/2
+  --    ladder with a PER-MISTAKE one, because the fixed tier 0 of two silently
+  --    dropped four of one student's six mistakes. The constant that now sets
+  --    tier 1's size in deep mode is RECOVERY_DEEP_TIER1, and the plan needs
+  --    (open mistakes x that) — so the assertion multiplies, which also proves
+  --    the per-mistake arithmetic is real and not a coincidence at 1.
   -- ═════════════════════════════════════════════════════════════════════
-  UPDATE public.recovery_constants SET value = 4 WHERE key = 'RECOVERY_TIER1';
+  SELECT count(*)::int INTO _n
+    FROM public.student_mistakes sm
+   WHERE sm.user_id = _arjun::uuid AND sm.chapter_id = _chapter
+     AND sm.status = 'open' AND sm.question_id IS NOT NULL;
 
-  PERFORM set_config('request.jwt.claims',
-    json_build_object('sub', _arjun, 'role', 'authenticated')::text, true);
-  SET LOCAL ROLE authenticated;
-  _plan := public.rpc_recovery_session_plan(_chapter);
-  RESET ROLE;
-  PERFORM set_config('request.jwt.claims', NULL, true);
+  IF _n = 0 OR _n > public._recovery_const('RECOVERY_DEEP_MAX_MISTAKES')::int THEN
+    _fail := _fail || format('(FAIL) 7: fixture has %s open mistake(s); this item needs 1..%s so the plan is in deep mode. ',
+                             _n, public._recovery_const('RECOVERY_DEEP_MAX_MISTAKES'));
+  ELSE
+    UPDATE public.recovery_constants SET value = 4 WHERE key = 'RECOVERY_DEEP_TIER1';
 
-  IF (_plan->'tiers'->'1'->>'needed')::int <> 4 THEN
-    _fail := _fail || format('(FAIL) 7: RECOVERY_TIER1 was changed to 4 but the plan still needs %s — the count is a literal, not the constant. ',
-                             _plan->'tiers'->'1'->>'needed');
+    PERFORM set_config('request.jwt.claims',
+      json_build_object('sub', _arjun, 'role', 'authenticated')::text, true);
+    SET LOCAL ROLE authenticated;
+    _plan := public.rpc_recovery_session_plan(_chapter);
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claims', NULL, true);
+
+    IF (_plan->'tiers'->'1'->>'needed')::int <> 4 * _n THEN
+      _fail := _fail || format('(FAIL) 7: RECOVERY_DEEP_TIER1 was changed to 4 with %s open mistake(s), so the plan should need %s at tier 1; it needs %s — the count is a literal, not the constant. ',
+                               _n, 4 * _n, _plan->'tiers'->'1'->>'needed');
+    END IF;
   END IF;
 
 

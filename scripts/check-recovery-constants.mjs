@@ -20,7 +20,7 @@
  *   - any key in the module and not the table
  *   - any key in the table and not the module
  *   - any asymmetry that is not on the declared list below
- *   - RECOVERY_SESSION_SIZE not equalling the four tiers it is derived from
+ *   - a derived constant not equalling the constant it is derived from
  *   - parsing fewer exports than expected, so a reformat of the module cannot
  *     make this pass by matching nothing (G11: this rule applies to the
  *     tooling too)
@@ -38,7 +38,7 @@ const MODULE_PATH = process.env.RECOVERY_CONSTANTS_MODULE || "src/academic/recov
 /**
  * --offline runs only the half that needs no database: parse completeness,
  * declared-key presence, the derivation check, and the array arity. That is
- * where the hole actually was — RECOVERY_SESSION_SIZE written as a literal is
+ * where the hole actually was — a derived constant written as a literal is
  * detectable with no credentials at all — so CI can run this today rather than
  * waiting on a SUPABASE_ACCESS_TOKEN secret this repo does not have.
  *
@@ -78,10 +78,10 @@ const TS_ONLY = {
  * it is trading for, and that check has to actually run.
  */
 const DERIVED = {
-  RECOVERY_SESSION_SIZE: {
-    inputs: ["RECOVERY_TIER0", "RECOVERY_TIER1", "RECOVERY_TIER2", "RECOVERY_TIER3"],
-    combine: (xs) => xs.reduce((a, b) => a + b, 0),
-    how: "the sum of the four tier counts",
+  RECOVERY_RELEARN_ABOVE: {
+    inputs: ["RECOVERY_WIDE_MAX_MISTAKES"],
+    combine: (xs) => xs[0],
+    how: "RECOVERY_WIDE_MAX_MISTAKES itself",
   },
 };
 
@@ -92,6 +92,15 @@ const DERIVED = {
  */
 const EXPANSIONS = {
   REVISION_INTERVALS_DAYS: ["REVISION_INTERVAL_1", "REVISION_INTERVAL_2", "REVISION_INTERVAL_3"],
+  // The ladder is per-mistake and indexed BY TIER, so entry 0 is tier 0. The
+  // expansion names carry the tier number for exactly that reason: a row
+  // called RECOVERY_DEEP_TIER2 cannot quietly end up holding tier 3's count.
+  RECOVERY_DEEP_PER_MISTAKE: [
+    "RECOVERY_DEEP_TIER0", "RECOVERY_DEEP_TIER1", "RECOVERY_DEEP_TIER2", "RECOVERY_DEEP_TIER3",
+  ],
+  RECOVERY_WIDE_PER_MISTAKE: [
+    "RECOVERY_WIDE_TIER0", "RECOVERY_WIDE_TIER1", "RECOVERY_WIDE_TIER2", "RECOVERY_WIDE_TIER3",
+  ],
 };
 
 // ── Read the module ────────────────────────────────────────────────────────

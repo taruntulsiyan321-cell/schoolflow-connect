@@ -26,7 +26,6 @@ function report(over: Partial<ConceptRecoveryReport> = {}): ConceptRecoveryRepor
     total_count: 1,
     time_minutes: 0,
     weak_concepts: [],
-    recovery_assignments: [],
     improvement_areas: [],
     ...over,
   };
@@ -107,5 +106,40 @@ describe("the rule-based concept report never shows a student a placeholder", ()
   it("says so plainly when there are no weak concepts at all", () => {
     const out = buildRuleConceptReport(report({ accuracy_pct: 100, correct_count: 1 }));
     expect(out.bullets.join(" ")).toContain("No concept-level weaknesses");
+  });
+
+  /**
+   * A session nobody answered has no accuracy, and the report used to print
+   * one. Measured 2026-09-19 on the practice result screen: for 24 of the
+   * student's 40 latest sessions this report disagreed with the session's own
+   * figures shown directly above it — "0%" where the session says "—".
+   */
+  it("reports no accuracy, and no verdict, when nothing was answered", () => {
+    const out = buildRuleConceptReport(report({ accuracy_pct: null, correct_count: 0, total_count: 0 }));
+    expect(out.headline).toContain("Nothing was answered");
+    expect(out.bullets.join(" ")).toContain("No question was answered");
+    expect(out.bullets.join(" "), "an absent accuracy must not be printed as a number")
+      .not.toMatch(/\d+%/);
+    expect(out.bullets.join(" ")).not.toContain("null");
+  });
+
+  /**
+   * The score and the time are the host page's to state. A second copy here
+   * read "Overall accuracy: 38.5%" beside a tile showing 38% for the same
+   * session (5 of 13, held as 38.46), and "0%" beside "—".
+   */
+  it("does not restate the score or the time the page already shows", () => {
+    const out = buildRuleConceptReport(report({
+      accuracy_pct: 38.46, correct_count: 5, total_count: 13, time_minutes: 7,
+      weak_concepts: [{ subject: "Mathematics", concept: "Arithmetic Progressions", accuracy: 20 }],
+    }));
+    const text = out.bullets.join(" ");
+    expect(text, "the accuracy is printed by the page, once").not.toMatch(/accuracy|38/i);
+    expect(text, "the score is printed by the page, once").not.toContain("5/13");
+    expect(text, "the time is printed by the page, once").not.toMatch(/Time spent|minutes/);
+    // POSITIVE CONTROL: what only this report knows is still said.
+    expect(text).toContain("Arithmetic Progressions (20%)");
+    // And the accuracy still chooses the advice.
+    expect(out.headline).toContain("Focus recovery");
   });
 });

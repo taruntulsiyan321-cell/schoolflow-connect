@@ -1448,7 +1448,6 @@ export const TestService = {
       classLevel?: number | null;
       subject?: string | null;
       chapter?: string | null;
-      topic?: string | null;
       difficulty?: string | null;
       search?: string | null;
       limit?: number;
@@ -1477,7 +1476,7 @@ export const TestService = {
       // `question_bank` carries no marks column — what a question is worth is
       // the teacher's decision on their own paper, not the bank's.
       .select(
-        "id, question, options, correct_index, explanation, class_level, subject, chapter, topic, concept, difficulty, board",
+        "id, question, options, correct_index, explanation, class_level, subject, chapter, topics(name), difficulty, board",
       )
       .eq("is_approved", true)
       .eq("is_active", true)
@@ -1493,14 +1492,13 @@ export const TestService = {
     if (filters.classLevel != null) q = q.eq("class_level", filters.classLevel);
     if (filters.subject) q = q.eq("subject", filters.subject);
     if (filters.chapter) q = q.eq("chapter", filters.chapter);
-    if (filters.topic) q = q.eq("topic", filters.topic);
     if (filters.difficulty) q = q.eq("difficulty", filters.difficulty);
     if (filters.search?.trim()) q = q.ilike("question", `%${filters.search.trim()}%`);
 
     const { data, error } = await q;
     throwIfError(error, "Failed to search the question bank");
 
-    return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    return ((data ?? []) as unknown as Record<string, unknown>[]).map((row) => ({
       id: String(row.id ?? ""),
       question: String(row.question ?? ""),
       options: Array.isArray(row.options) ? (row.options as unknown[]).map((o) => String(o ?? "")) : [],
@@ -1509,12 +1507,8 @@ export const TestService = {
       classLevel: row.class_level == null ? null : Number(row.class_level),
       subject: row.subject == null ? null : String(row.subject),
       chapter: row.chapter == null ? null : String(row.chapter),
-      topic:
-        row.topic == null || String(row.topic).trim() === ""
-          ? row.concept == null
-            ? null
-            : String(row.concept)
-          : String(row.topic),
+      // The question's topics row; null only for the chapterless legacy rows.
+      topic: (row.topics as { name?: string } | null)?.name ?? null,
       difficulty: row.difficulty == null ? null : String(row.difficulty),
     }));
   },
