@@ -92,6 +92,10 @@ const NOVA_SCHOOL_RECORDS_REFUSAL =
   "I can’t help with attendance, marks, homework due dates, the calendar, or “how am I doing?” school summaries. " +
   "I’m here for academic doubts — concepts, wrong answers, weak topics, recovery, and revision.";
 
+/** Defense-in-depth: catch office asks that miss mapper rules before free-form nova.chat. */
+const NOVA_OFFICE_ASK_FALLTHROUGH =
+  /\b(attendance|homework|assignments?\b[^.]{0,40}\bdue|marks?\b|exam\s+results?|calendar|school\s+events?|how am I doing|class\s+rank|my\s+rank|timetable)\b/i;
+
 /** Resolve capability from explicit feature_id or free-text intent. */
 export function resolveCoachCapability(input: {
   feature_id?: string;
@@ -138,6 +142,10 @@ export function resolveCoachCapability(input: {
 
   const text = (input.text ?? "").trim();
   // Free-form Nova chat — Gateway → Model Router (Qwen); never invent local pedagogy.
+  // Student channel: refuse residual office phrasing that did not map to a blocked feature_id.
+  if (studentChannel && text && NOVA_OFFICE_ASK_FALLTHROUGH.test(text)) {
+    return { unsupported: true, message: NOVA_SCHOOL_RECORDS_REFUSAL };
+  }
   const nova = getCapability("student.nova.chat");
   if (text && nova && (!input.role || nova.allowed_roles.includes(input.role))) {
     return { feature_id: "student.nova.chat" };

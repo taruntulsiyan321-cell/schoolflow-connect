@@ -135,11 +135,13 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
     feature_id: "student.calendar.upcoming",
     patterns: [
       /\bholiday(s)?\b/i,
+      /\bcalendar\b/i,
       /\b(school|academic)\s*calendar\b/i,
       /\bupcoming\b.+\b(event|events)\b/i,
       /\bschool\s*event(s)?\b/i,
       /\bwhen('s| is)\b.+\b(holiday|break|vacation)\b/i,
       /\bnext\b.+\b(holiday|break|vacation)\b/i,
+      /\bwhat('s| is)\b.+\bon\b.+\b(calendar|schedule)\b/i,
     ],
   },
   {
