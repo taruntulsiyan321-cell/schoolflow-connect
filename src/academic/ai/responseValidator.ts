@@ -208,7 +208,8 @@ export function validateModelResponse(
   };
 }
 
-/** Extract evidence numbers from AE+EIE fact bundle used by performance.explain / Nova. */
+/** Extract evidence numbers from AE+EIE fact bundle used by performance.explain / Nova.
+ * Nova callers should omit attendance/marks/homework — pass only eie + progression. */
 export function evidenceFromExplainFacts(facts: {
   attendance?: { attendance_pct?: number };
   marks?: { average_pct?: number | null };

@@ -79,21 +79,46 @@ export async function invokeAiGateway<T = unknown>(
   return result.data;
 }
 
+/** School-office intents — blocked for student Nova / AI Coach (use Class panel instead). */
+export const NOVA_BLOCKED_SCHOOL_RECORD_FEATURES = new Set([
+  "student.attendance.query",
+  "student.homework.due",
+  "student.marks.summary",
+  "student.calendar.upcoming",
+  "student.performance.explain",
+]);
+
+const NOVA_SCHOOL_RECORDS_REDIRECT =
+  "I don’t look up school records like attendance, marks, homework due dates, or the calendar. " +
+  "Open **Class** for those. I can help with weak topics, recovery, revision, and explaining concepts.";
+
 /** Resolve capability from explicit feature_id or free-text intent. */
 export function resolveCoachCapability(input: {
   feature_id?: string;
   text?: string;
   /** When set, refuse role-mismatched feature_id / intent hits (Student Panel → student). */
   role?: AiActorRole;
+  /** student_app also blocks school-office intents (same as role student). */
+  channel?: AiClientRequest["channel"];
 }): { feature_id: string } | { unsupported: true; message: string } {
+  const studentChannel =
+    input.role === "student" || input.channel === "student_app";
+
   if (input.feature_id) {
     const cap = getCapability(input.feature_id);
     if (cap) {
       if (input.role && !cap.allowed_roles.includes(input.role)) {
         return {
           unsupported: true,
-          message: `That action is not available for your role. Try attendance, homework, marks, mastery, or chat with Nova.`,
+          message:
+            "That action is not available for your role. Try mastery, revision, concept help, or chat with Nova.",
         };
+      }
+      if (
+        studentChannel &&
+        NOVA_BLOCKED_SCHOOL_RECORD_FEATURES.has(input.feature_id)
+      ) {
+        return { unsupported: true, message: NOVA_SCHOOL_RECORDS_REDIRECT };
       }
       return { feature_id: input.feature_id };
     }
@@ -101,7 +126,15 @@ export function resolveCoachCapability(input: {
   const mapped = mapIntentToCapability(input.text ?? "", {
     role: input.role,
   });
-  if (mapped) return { feature_id: mapped.feature_id };
+  if (mapped) {
+    if (
+      studentChannel &&
+      NOVA_BLOCKED_SCHOOL_RECORD_FEATURES.has(mapped.feature_id)
+    ) {
+      return { unsupported: true, message: NOVA_SCHOOL_RECORDS_REDIRECT };
+    }
+    return { feature_id: mapped.feature_id };
+  }
 
   const text = (input.text ?? "").trim();
   // Free-form Nova chat — Gateway → Model Router (Qwen); never invent local pedagogy.
@@ -113,7 +146,8 @@ export function resolveCoachCapability(input: {
   return {
     unsupported: true,
     message:
-      "I can answer attendance, homework due, marks, mastery/revision, next practice recommendation, concept help, performance summary, or a free chat with Nova. Ask one of those, or use Practice / Doubts for learning help.",
+      "I can help with weak topics, recovery, revision, concept explanations, practice recommendations, or a free chat with Nova. " +
+      "For attendance, marks, homework, or school events, use the Class page.",
   };
 }
 
@@ -302,77 +336,41 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       if (typeof d.explanation === "string" && d.explanation.trim()) return d.explanation;
       const facts = d.facts as Record<string, unknown> | undefined;
       if (
-        facts?.attendance ||
         facts?.eie ||
-        facts?.marks ||
-        facts?.homework ||
         facts?.progression ||
         facts?.practice ||
         facts?.mistakes ||
         facts?.recovery ||
         facts?.student_profile
       ) {
-        const att = facts.attendance as { attendance_pct?: number; total_marked?: number } | undefined;
-        const marks = facts.marks as { average_pct?: number | null; exams_count?: number } | undefined;
         const eie = facts.eie as {
           avg_mastery?: number;
           total_tracked?: number;
           weak_concepts?: { concept?: string; subject?: string; mastery_score?: number }[];
         } | undefined;
-        const hw = facts.homework as { pending_count?: number } | undefined;
         const prog = facts.progression as {
-          xp?: number;
-          level?: number;
-          study_streak?: number;
           practice_sessions?: number;
-          league?: string | null;
-          league_label?: string | null;
           weak_concepts?: string[];
         } | undefined;
-        const practice = facts.practice as { sessions_completed?: number; subjects?: string[] } | undefined;
-        const mistakes = facts.mistakes as { open_count?: number; recent_concepts?: string[] } | undefined;
-        const recovery = facts.recovery as { pending_count?: number; open_concepts?: string[] } | undefined;
+        const practice = facts.practice as { sessions_completed?: number } | undefined;
+        const mistakes = facts.mistakes as { open_count?: number } | undefined;
+        const recovery = facts.recovery as { pending_count?: number } | undefined;
         const studentProfile = facts.student_profile as {
           class_label?: string | null;
           subjects?: string[];
         } | undefined;
         if (d.facts_empty === true) {
           return (
-            "I do not have enough Academic Engine / mastery records for you yet, so I cannot cite personal attendance, marks, or mastery. " +
-            "Ask about a study concept, or check attendance / homework / marks once your school data is synced."
+            "I do not have enough learning records yet (mastery, recovery, or practice) to ground a personal answer. " +
+            "Ask about a study concept, or open Practice / Recovery / Revision once you have activity."
           );
         }
-        const leagueBit =
-          prog?.league_label || prog?.league
-            ? `League **${prog.league_label ?? prog.league}**`
-            : null;
-        const progBits = [
-          prog?.xp != null ? `XP **${prog.xp}**` : null,
-          prog?.level != null ? `Level **${prog.level}**` : null,
-          leagueBit,
-          prog?.study_streak != null && prog.study_streak > 0
-            ? `Study streak **${prog.study_streak}d**`
-            : null,
-          (prog?.practice_sessions != null && prog.practice_sessions > 0) ||
-          (practice?.sessions_completed != null && practice.sessions_completed > 0)
-            ? `Practice **${prog?.practice_sessions ?? practice?.sessions_completed ?? 0}**`
-            : null,
-        ].filter(Boolean);
         const weakFromEie = (eie?.weak_concepts ?? [])
           .slice(0, 3)
           .map((c) => presentAcademicLabel(c.concept, "concept"))
           .filter(Boolean);
         const weakFromProg = (prog?.weak_concepts ?? []).slice(0, 3).filter(Boolean);
         const weakBits = weakFromEie.length ? weakFromEie : weakFromProg;
-        const attMarked = Number(att?.total_marked ?? 0);
-        const attLine =
-          attMarked > 0
-            ? `Attendance **${att?.attendance_pct ?? 0}%** (${attMarked} days marked)`
-            : `Attendance **not marked yet**`;
-        const marksLine =
-          Number(marks?.exams_count ?? 0) > 0
-            ? `Marks avg **${marks?.average_pct == null ? "—" : `${marks.average_pct}%`}**`
-            : `Marks **none published yet**`;
         const masteryLine =
           Number(eie?.total_tracked ?? 0) > 0
             ? `Mastery **${eie?.avg_mastery ?? 0}%**`
@@ -385,25 +383,23 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
         const subjectsBit = cleanSubjects.length
           ? `Subjects: ${cleanSubjects.join(", ")}`
           : null;
+        const practiceN = prog?.practice_sessions ?? practice?.sessions_completed ?? 0;
         const extras = [
+          practiceN > 0 ? `Practice sessions **${practiceN}**` : null,
           Number(mistakes?.open_count ?? 0) > 0 ? `Mistakes open **${mistakes!.open_count}**` : null,
           Number(recovery?.pending_count ?? 0) > 0 ? `Recovery **${recovery!.pending_count}**` : null,
         ].filter(Boolean);
         return (
-          `**Nova (facts only)**\n` +
+          `**Nova (learning facts only)**\n` +
           (classBit ? `${classBit} · ` : "") +
-          `${attLine}` +
-          ` · Homework pending **${hw?.pending_count ?? 0}**` +
-          ` · ${marksLine}` +
-          ` · ${masteryLine}` +
-          (progBits.length ? `\nProgression: ${progBits.join(" · ")}` : "") +
-          (subjectsBit ? `\n${subjectsBit}` : "") +
+          `${masteryLine}` +
           (extras.length ? `\n${extras.join(" · ")}` : "") +
-          (weakBits.length ? `\nWeak areas: ${weakBits.join(", ")}` : "") +
-          `\n_Generative reply unavailable — showing Academic Engine + EIE + Progression facts._`
+          (weakBits.length ? `\nFocus: ${weakBits.join(", ")}` : "") +
+          (subjectsBit ? `\n${subjectsBit}` : "") +
+          `\n_I do not use attendance, marks, or homework due dates — open Class for those._`
         );
       }
-      return AI_BILLING_UNAVAILABLE_MSG;
+      return "I could not load your learning facts right now. Try again, or ask about a concept to study.";
     }
     case "student.knowledge.retrieve": {
       const chunks = Array.isArray(d.chunks) ? d.chunks : Array.isArray(d.hits) ? d.hits : [];
@@ -473,6 +469,7 @@ export async function askAiCoach(input: {
     feature_id: input.feature_id,
     text: input.text,
     role,
+    channel: input.channel ?? "student_app",
   });
   if ("unsupported" in resolved) {
     return {

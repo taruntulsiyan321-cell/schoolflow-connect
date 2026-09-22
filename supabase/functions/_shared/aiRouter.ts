@@ -16,6 +16,7 @@ import { buildContextPack, packForModel } from "./contextBuilder.ts";
 import { dedupeSubjects, isPlaceholderLabel } from "./novaContextBuilder.ts";
 import {
   evidenceFromExplainFacts,
+  evidenceFromNovaLearningFacts,
   validateModelResponse,
 } from "./responseValidator.ts";
 import { applyConfidencePolicy, scoreConfidence } from "./confidenceEngine.ts";
@@ -858,9 +859,8 @@ function pickConceptFromEie(
  * fetchRecoveryQueue, fetchProgression, probeEie) carries one.
  *
  * Reachable as parent, principal or admin via parent.child.summary and
- * parent.child.narrative, and as teacher, principal or admin via
- * student.nova.chat, where the result is returned to the client as
- * data.facts.profile AND fed to the model.
+ * parent.child.narrative. Not loaded for student.nova.chat (Nova tutors on
+ * private learning facts only — EIE/practice/mistakes/recovery/progression).
  *
  * The residual metrics are purged by migration 20260828220000; this is the
  * read side, so that a profile written by any future path cannot leak the
@@ -1186,9 +1186,10 @@ async function fetchRecoveryQueue(admin: SupabaseClient, schoolId: string, stude
 
 /**
  * Upcoming school-wide academic calendar events (holidays, exams, meetings, sports,
- * cultural, deadlines) for Nova. Admin/principal/teacher manage `school_calendar_events`
- * via the app; this is read-only. School-wide events (audience 'all'/'students') plus
- * the student's own class events are included; past events are excluded.
+ * cultural, deadlines) for student.calendar.upcoming. Admin/principal/teacher manage
+ * `school_calendar_events` via the app; this is read-only. School-wide events
+ * (audience 'all'/'students') plus the student's own class events are included;
+ * past events are excluded. Not loaded for student.nova.chat.
  */
 async function fetchUpcomingEvents(admin: SupabaseClient, schoolId: string, studentId: string) {
   const { data: student } = await admin
@@ -1688,10 +1689,11 @@ export async function routeAiRequest(
     const cacheKeyBase = `${cap.feature_id}:${studentId ?? "school"}`;
     // fetchParentSummary's exams_avg_pct depends on the ACTOR's role (staff see
     // pre-publish figures, student/parent don't) -- cacheKeyBase alone has no
-    // actor component, so without this suffix a capability reachable by both
-    // tiers for the same studentId (e.g. student.nova.chat) could serve a
+    // actor component, so without this suffix a capability that still loads
+    // parent.child.summary / narrative for the same studentId could serve a
     // staff-scoped cache entry to a student/parent request within the TTL
     // window, silently defeating the role filter in fetchParentSummary.
+    // (student.nova.chat no longer loads parent summary / marks.)
     const examsVisibilityTier =
       req.actor.role === "student" || req.actor.role === "parent" ? "self" : "staff";
 
@@ -3606,6 +3608,14 @@ export async function routeAiRequest(
             correctIdx != null && options[correctIdx] != null
               ? `${String.fromCharCode(65 + correctIdx)}. ${String(options[correctIdx]).slice(0, 300)}`
               : null;
+          const studentAnsIdx =
+            typeof q.student_answer_index === "number" ? q.student_answer_index : null;
+          const studentAnsText =
+            typeof q.student_answer === "string" ? q.student_answer.trim().slice(0, 300) : "";
+          const studentLabel =
+            studentAnsIdx != null && options[studentAnsIdx] != null
+              ? `${String.fromCharCode(65 + studentAnsIdx)}. ${String(options[studentAnsIdx]).slice(0, 300)}`
+              : studentAnsText || null;
           const subjBits = [q.subject, q.chapter, q.topic].filter(
             (v): v is string => typeof v === "string" && v.trim().length > 0,
           );
@@ -3614,6 +3624,7 @@ export async function routeAiRequest(
             (subjBits.length ? ` (${subjBits.join(" · ")})` : "") +
             `:\n"${qText}"` +
             (optsLine ? `\nOptions: ${optsLine}` : "") +
+            (studentLabel ? `\nStudent's answer: ${studentLabel}` : "") +
             (correctLabel ? `\nCorrect answer: ${correctLabel}` : "")
           );
         })();
@@ -3680,106 +3691,74 @@ export async function routeAiRequest(
           };
         }
 
+        // Nova tutors on private learning facts only — never attendance, homework due,
+        // exam marks, parent exam summary, or school calendar events. Those stay on
+        // dedicated feature_ids (student.attendance.query, etc.).
         const factsVersionSeed = await combineProbes([
-          probeAttendance(admin, req.actor.schoolId, studentId),
-          probeHomework(admin, req.actor.schoolId, studentId),
-          probeMarks(admin, req.actor.schoolId, studentId),
           probeEie(admin, req.actor.schoolId, studentId, req.actor.role),
-          probeParentSummary(admin, req.actor.schoolId, studentId),
           probeProgression(admin, req.actor.schoolId, studentId),
           probeStudentProfile(admin, req.actor.schoolId, studentId),
           probePracticeHistory(admin, req.actor.schoolId, studentId),
           probeMistakesBook(admin, req.actor.schoolId, studentId),
           probeRecoveryQueue(admin, req.actor.schoolId, studentId),
-          probeUpcomingEvents(admin, req.actor.schoolId, studentId),
         ]);
-        // The actor role is part of the key: the bundle now differs by role (practice
+        // The actor role is part of the key: the bundle differs by role (practice
         // facts are student-only), so a student-built bundle must never be replayed
         // to a parent or teacher out of the cache.
-        const factsBundle = (await withCache(`${factsVersionSeed}:${examsVisibilityTier}:${req.actor.role}`, async () => {
+        const factsBundle = (await withCache(`${factsVersionSeed}:${req.actor.role}`, async () => {
           const [
-            attendance,
-            homework,
-            marks,
             eie,
-            profile,
             progression,
             student_profile,
             practice,
             mistakes,
             recovery,
-            events,
           ] = await Promise.all([
-            fetchAttendance(admin, req.actor.schoolId, studentId),
-            fetchHomeworkDue(admin, req.actor.schoolId, studentId),
-            fetchMarksSummary(admin, req.actor.schoolId, studentId),
             fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
-            fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchProgression(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchStudentProfileContext(admin, req.actor.schoolId, studentId),
             fetchPracticeHistory(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchMistakesBook(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchRecoveryQueue(admin, req.actor.schoolId, studentId, req.actor.role),
-            fetchUpcomingEvents(admin, req.actor.schoolId, studentId),
           ]);
-          // Merge enrolled subjects with practice/marks subjects (deduped).
+          // Merge enrolled subjects with practice/mistakes/recovery subjects (deduped).
           const subjects = dedupeSubjects([
             ...student_profile.subjects,
             ...practice.subjects,
-            ...marks.subjects.map((s) => s.subject),
             ...mistakes.subjects,
             ...recovery.subjects,
           ]);
           return {
-            attendance,
-            homework,
-            marks,
             eie,
-            profile,
             progression,
             student_profile: { ...student_profile, subjects },
             practice,
             mistakes,
             recovery,
-            events,
-            data_version: `nova:${attendance.data_version}:${homework.data_version}:${marks.data_version}:${eie.data_version}:${profile.data_version}:${progression.data_version}:${student_profile.data_version}:${practice.data_version}:${mistakes.data_version}:${recovery.data_version}:${events.data_version}`,
+            data_version: `nova:${eie.data_version}:${progression.data_version}:${student_profile.data_version}:${practice.data_version}:${mistakes.data_version}:${recovery.data_version}`,
             source_as_of: (() => {
               const stamps = [
-                attendance.source_as_of,
-                homework.source_as_of,
-                marks.source_as_of,
                 eie.computed_at,
-                profile.source_as_of,
                 progression.source_as_of,
                 student_profile.source_as_of,
                 practice.source_as_of,
                 mistakes.source_as_of,
                 recovery.source_as_of,
-                events.source_as_of,
               ].filter((v): v is string => typeof v === "string" && v.length > 0);
               stamps.sort();
               return stamps.length ? stamps[stamps.length - 1] : null;
             })(),
             completeness:
-              (attendance.completeness +
-                homework.completeness +
-                marks.completeness +
-                eie.completeness +
-                profile.completeness +
+              (eie.completeness +
                 progression.completeness +
                 student_profile.completeness +
                 practice.completeness +
                 mistakes.completeness +
-                recovery.completeness +
-                events.completeness) /
-              11,
+                recovery.completeness) /
+              6,
           };
         })) as {
-          attendance: Awaited<ReturnType<typeof fetchAttendance>>;
-          homework: Awaited<ReturnType<typeof fetchHomeworkDue>>;
-          marks: Awaited<ReturnType<typeof fetchMarksSummary>>;
           eie: Awaited<ReturnType<typeof fetchEie>>;
-          profile: Awaited<ReturnType<typeof fetchParentSummary>>;
           progression: Awaited<ReturnType<typeof fetchProgression>>;
           student_profile: Awaited<ReturnType<typeof fetchStudentProfileContext>> & {
             subjects: string[];
@@ -3787,42 +3766,30 @@ export async function routeAiRequest(
           practice: Awaited<ReturnType<typeof fetchPracticeHistory>>;
           mistakes: Awaited<ReturnType<typeof fetchMistakesBook>>;
           recovery: Awaited<ReturnType<typeof fetchRecoveryQueue>>;
-          events: Awaited<ReturnType<typeof fetchUpcomingEvents>>;
           data_version: string;
           source_as_of: string | null;
           completeness: number;
         };
 
         const {
-          attendance,
-          homework,
-          marks,
           eie,
-          profile,
           progression,
           student_profile,
           practice,
           mistakes,
           recovery,
-          events,
         } = factsBundle;
         const facts = {
-          attendance,
-          homework,
-          marks,
           eie,
-          profile,
           progression,
           student_profile,
           practice,
           mistakes,
           recovery,
-          events,
         };
         const factsEmpty =
           factsBundle.completeness < 0.25 &&
           !(eie.weak_concepts?.length || eie.strong_concepts?.length) &&
-          !profile.weak_topics?.length &&
           // practice_sessions is present only for the student themselves; for a
           // parent or teacher its absence is not evidence of emptiness, so it only
           // counts toward "no facts" when it was actually supplied.
@@ -4030,16 +3997,11 @@ export async function routeAiRequest(
           capability: cap.feature_id,
           request_text: question,
           ae: {
-            attendance,
-            homework,
-            marks,
-            profile,
             progression,
             student_profile,
             practice,
             mistakes,
             recovery,
-            events,
           },
           eie,
           session_memory: sessionForContext,
@@ -4059,7 +4021,7 @@ export async function routeAiRequest(
           "AI temporarily unavailable (billing/credits). Deterministic help still works.";
         const factsJson = packForModel(pack);
         const honestEmptyMsg =
-          "I do not have enough Academic Engine / mastery records for you yet, so I cannot cite personal attendance, marks, or mastery. Ask about a study concept, or check attendance / homework / marks once your school data is synced.";
+          "I do not have enough mastery / practice records for you yet, so I cannot cite personal learning stats. Ask about a study concept, or try practice, mistakes book, or recovery once your learning data is synced.";
 
         if (!mayCallModel) {
           const conf = scoreConfidence({
@@ -4277,7 +4239,7 @@ export async function routeAiRequest(
               ? billingUnavailableMsg
               : factsEmpty
               ? honestEmptyMsg
-              : "Nova could not reach the AI model right now. Try attendance, homework, marks, or mastery — those still work without generative credits.",
+              : "Nova could not reach the AI model right now. Try again shortly, or open practice / recovery / mastery for live learning facts.",
             error_code: billing ? "openrouter_billing" : "model_degraded",
             provenance: {
               algorithm_id: eie.algorithm_id,
@@ -4292,7 +4254,12 @@ export async function routeAiRequest(
           };
         }
 
-        const evidence = evidenceFromExplainFacts(facts);
+        // Ground on learning facts only (mastery / progression). Attendance and
+        // marks evidence are intentionally omitted — Nova must not cite them.
+        const evidence = evidenceFromExplainFacts({
+          eie: facts.eie,
+          progression: facts.progression,
+        });
         const validation = validateModelResponse(modelResult.text, evidence, {
           max_chars: pack.token_budget.output * 6,
           system_template: modelResult.prompt?.system_template,
@@ -4369,7 +4336,7 @@ export async function routeAiRequest(
             cache_hit,
             data,
             message: validation.material_failure
-              ? "Nova drafted a reply that looked unreliable (possible invented scores). Please rephrase, or ask about attendance / homework / marks for live school records."
+              ? "Nova drafted a reply that looked unreliable (possible invented scores). Please rephrase, or ask about mastery, practice, or recovery for live learning facts."
               : factsEmpty
               ? honestEmptyMsg
               : undefined,

@@ -20,6 +20,7 @@ import {
 } from "./gatewayClient";
 import { AeSnapshotL1Cache, buildL1CacheKey } from "./l1Cache";
 import { mapIntentToCapability } from "./intentMapper";
+import { SESSION_MEMORY_CAPABILITIES } from "./sessionMemory";
 import { stripComments } from "@/test/stripComments";
 
 const FLAGS_ON: KillSwitchState = {
@@ -223,6 +224,46 @@ describe("intent mapping / golden routes", () => {
     );
   });
 
+  it("maps weak* plurals to mastery and revise-next to recommendation", () => {
+    expect(mapIntentToCapability("Explain my weak topics")?.feature_id).toBe(
+      "student.eie.mastery_summary",
+    );
+    expect(mapIntentToCapability("Summarise my weak concepts")?.feature_id).toBe(
+      "student.eie.mastery_summary",
+    );
+    expect(mapIntentToCapability("Which are my weakest topics?")?.feature_id).toBe(
+      "student.eie.mastery_summary",
+    );
+    expect(mapIntentToCapability("What should I revise next?")?.feature_id).toBe(
+      "student.recommendation.next",
+    );
+    expect(mapIntentToCapability("Explain this concept to me")?.feature_id).toBe(
+      "student.concept.explain",
+    );
+    // concept.explain wins over broad /\bmarks?\b/
+    expect(
+      mapIntentToCapability("Explain how marks are calculated in physics")?.feature_id,
+    ).toBe("student.concept.explain");
+  });
+
+  it("AICoach SUGGESTIONS chips map to learning capabilities (student)", () => {
+    // Keep in sync with SUGGESTIONS in src/gurukul/pages/AICoach.tsx
+    const chips: Array<{ text: string; feature_id: string }> = [
+      { text: "Explain my weak topics", feature_id: "student.eie.mastery_summary" },
+      { text: "Which are my weakest topics?", feature_id: "student.eie.mastery_summary" },
+      { text: "What should I do to improve them?", feature_id: "student.recommendation.next" },
+      { text: "Explain this concept to me", feature_id: "student.concept.explain" },
+      // Wrong-answer tutoring → concept.explain (not marks.summary); nova.chat also acceptable.
+      { text: "I got this question wrong — why?", feature_id: "student.concept.explain" },
+      { text: "What should I revise next?", feature_id: "student.recommendation.next" },
+    ];
+    expect(chips).toHaveLength(6);
+    for (const chip of chips) {
+      const resolved = resolveCoachCapability({ text: chip.text, role: "student" });
+      expect(resolved, chip.text).toEqual({ feature_id: chip.feature_id });
+    }
+  });
+
   it("free text maps to student.nova.chat (Gateway generative)", () => {
     const r = resolveCoachCapability({ text: "Write me a study tip for calculus" });
     expect("unsupported" in r).toBe(false);
@@ -231,10 +272,35 @@ describe("intent mapping / golden routes", () => {
     }
   });
 
-  it("keeps mapped intents ahead of nova.chat fallback", () => {
+  it("keeps mapped intents ahead of nova.chat fallback when not student channel", () => {
     expect(resolveCoachCapability({ text: "What is my attendance this month?" })).toEqual({
       feature_id: "student.attendance.query",
     });
+  });
+
+  it("refuses school-office intents for student role / student_app channel", () => {
+    for (const text of [
+      "What is my attendance this month?",
+      "Which homework is due tomorrow?",
+      "Show my marks in Science",
+      "Any upcoming school events or holidays?",
+      "How am I doing — explain my performance",
+    ]) {
+      const byRole = resolveCoachCapability({ text, role: "student" });
+      expect("unsupported" in byRole, text).toBe(true);
+      if ("unsupported" in byRole) {
+        expect(byRole.message).toMatch(/Class/i);
+        expect(byRole.message).not.toMatch(/Ask about attendance/i);
+      }
+      const byChannel = resolveCoachCapability({ text, channel: "student_app" });
+      expect("unsupported" in byChannel, text).toBe(true);
+    }
+    expect(
+      resolveCoachCapability({
+        feature_id: "student.attendance.query",
+        role: "student",
+      }),
+    ).toMatchObject({ unsupported: true });
   });
 
   it("skips teacher/principal capabilities for student role", () => {
@@ -265,6 +331,10 @@ describe("intent mapping / golden routes", () => {
     expect(cap?.route_class).toBe("personalised_intelligence");
     expect(cap?.model_policy).toBe("required_when_budget");
     expect(isModelAllowed(cap!)).toBe(true);
+  });
+
+  it("session memory includes student.nova.chat (edge parity)", () => {
+    expect(SESSION_MEMORY_CAPABILITIES["student.nova.chat"]).toBe("tutoring");
   });
 });
 

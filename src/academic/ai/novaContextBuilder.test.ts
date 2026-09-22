@@ -111,18 +111,6 @@ describe("Nova Context Builder", () => {
           completeness: 1,
           data_version: "prog:1",
         },
-        attendance: {
-          projection: "StudentAttendanceQuery",
-          attendance_pct: 91,
-          completeness: 1,
-          data_version: "att:1",
-        },
-        homework: {
-          projection: "StudentHomeworkDue",
-          pending_count: 1,
-          completeness: 1,
-          data_version: "hw:1",
-        },
       },
       eie: {
         algorithm_id: "eie.mastery.v1",
@@ -137,6 +125,6 @@ describe("Nova Context Builder", () => {
     expect(json).toContain("11-A");
     expect(json).toContain("study_streak");
     expect(json).toContain("Integration");
-    expect(json).not.toMatch(/Arjun|1382|Level 14|current_streak/i);
+    expect(json).not.toMatch(/attendance_pct|Arjun|1382|Level 14|current_streak/i);
   });
 });
