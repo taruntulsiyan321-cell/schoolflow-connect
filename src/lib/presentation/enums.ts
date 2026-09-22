@@ -114,6 +114,7 @@ const LABELS: Record<EnumDomain, LabelMap> = {
     draft: "Draft",
     scheduled: "Scheduled",
     published: "Published",
+    submitted: "Submitted",
     archived: "Archived",
   },
   // question_papers.status is its own two-value vocabulary and NOT test_status:
