@@ -2196,9 +2196,13 @@ export async function routeAiRequest(
         const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
           fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
         )) as Awaited<ReturnType<typeof fetchEie>>;
-        // Was missing req.actor.role, which is why the parameter had been
-        // optional. student.recommendations is reachable by staff.
-        const parentLike = await fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role);
+        // Student Nova/coach: learning-only (weak concepts + revision). Do not
+        // read school-office attendance/homework via fetchParentSummary.
+        // Parent/teacher/principal/admin keep office signals for their surfaces.
+        const isStudentActor = req.actor.role === "student";
+        const parentLike = isStudentActor
+          ? null
+          : await fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role);
         data = buildRecommendationPackage({
           studentId,
           schoolId: req.actor.schoolId,
@@ -2206,9 +2210,9 @@ export async function routeAiRequest(
           completeness: eie.completeness,
           weak_concepts: eie.weak_concepts ?? [],
           revision_priority: eie.revision_priority ?? [],
-          attendance_pct: parentLike.attendance_pct,
-          homework_completion_pct: parentLike.homework_completion_pct,
-          source_as_of: parentLike.source_as_of ?? eie.computed_at,
+          attendance_pct: isStudentActor ? null : parentLike?.attendance_pct ?? null,
+          homework_completion_pct: isStudentActor ? null : parentLike?.homework_completion_pct ?? null,
+          source_as_of: parentLike?.source_as_of ?? eie.computed_at,
         });
         decision = "answered_eie";
         provenance = {

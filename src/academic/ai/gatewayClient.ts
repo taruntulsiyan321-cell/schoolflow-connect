@@ -281,7 +281,11 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       return "No concept mastery facts are available yet for that topic.";
     }
     case "student.recommendation.next": {
-      const actions = Array.isArray(d.actions) ? d.actions : [];
+      // Student coach is learning-only — never surface office attendance/HW actions.
+      const OFFICE_REC_KINDS = new Set(["attendance_checkin", "homework_catchup"]);
+      const actions = (Array.isArray(d.actions) ? d.actions : []).filter(
+        (a: { kind?: string }) => !a?.kind || !OFFICE_REC_KINDS.has(a.kind),
+      );
       if (actions.length === 0) {
         return "**Next steps** — no recommendation seeds yet (practice a few concepts first).";
       }
