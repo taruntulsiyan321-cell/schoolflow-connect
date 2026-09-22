@@ -674,6 +674,7 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
     .from("concept_mastery")
     .select("subject, concept, mastery_score, mistake_count")
     .eq("user_id", userId)
+    .eq("school_id", schoolId)
     .order("mastery_score", { ascending: true })
     .limit(40);
 
@@ -1392,6 +1393,7 @@ async function probeProgression(admin: SupabaseClient, schoolId: string, student
       .from("concept_mastery")
       .select("subject, concept, mastery_score, mistake_count")
       .eq("user_id", userId)
+      .eq("school_id", schoolId)
       .order("mastery_score", { ascending: true })
       .limit(40),
   ]);
