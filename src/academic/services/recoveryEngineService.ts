@@ -314,6 +314,27 @@ export const RecoveryEngineService = {
   },
 
   /**
+   * How many recovery sessions this student has sat — completed, in any
+   * chapter, including chapters since recovered and gone from the queue.
+   *
+   * The Recovery screen used to add up the queue's per-chapter rounds, and a
+   * passing recovery clears its chapter out of the queue — so every chapter
+   * recovered took its sessions off the tile with it (measured: "Sessions
+   * done 2" for a student who had sat 10). Read straight from the table:
+   * the self policy already limits it to the student's own rows.
+   */
+  async countRecoverySessionsSat(ctx: ServiceContext): Promise<number> {
+    assertCanConsume(ctx, "practice");
+    const { count, error } = await getClient(toRepoContext(ctx))
+      .from("recovery_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", ctx.userId)
+      .not("completed_at", "is", null);
+    throwIfError(error, "Failed to count recovery sessions");
+    return count ?? 0;
+  },
+
+  /**
    * Revision checks this student has finished, newest first.
    *
    * The Revision screen said "Revision history is not stored yet" long after

@@ -389,5 +389,15 @@ export type ChapterState =
   | "revision_due"
   | "revision_failed";
 
+// ── Question embedding (§10.9) ─────────────────────────────────────────────
+
+/**
+ * Bank rows embedded per question-embedding-drain call. It lives in
+ * recovery_constants (20261020030000), and check:recovery-constants requires
+ * every key there to have its one home here too — it was the one missing.
+ * No component reads it; the drain function does, server-side.
+ */
+export const EMBEDDING_BATCH_SIZE = 300;
+
 /** §4.2: the ladder rungs, and what each one proves. */
 export type RecoveryTier = 0 | 1 | 2 | 3;

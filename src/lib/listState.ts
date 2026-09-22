@@ -1,16 +1,17 @@
 /**
- * A list the Practice page reads: still being read, could not be read, or read.
+ * A list read from the server: still being read, could not be read, or read.
  *
- * Measured 2026-09-22: every list on the page held only its items, so a list
- * still being read rendered its empty sentence. Every tap on a subject said
- * "No chapters in the bank for this subject yet." for the second or so the
- * chapter list took; the subject list said "No subjects in the question bank
- * yet", and the hub "No practice in the last 7 days", while they loaded. A
- * failed read said the same. Loading and failed are states of their own.
+ * Measured 2026-09-22: lists across the student panel held only their items,
+ * so a list still being read rendered its empty sentence, and so did a list
+ * whose read failed. Practice said "No chapters in the bank for this subject
+ * yet." for the second or so every chapter list took; Revision said "No
+ * revision checks taken yet" while its history loaded; Analysis said "Nothing
+ * due for revision today" when the schedule could not be read at all. Loading
+ * and failed are states of their own.
  */
 export type ListState<T> =
   | { status: "loading" }
-  | { status: "failed" }
+  | { status: "failed"; message?: string }
   | { status: "ready"; items: T[] };
 
 export const LOADING_LIST: ListState<never> = { status: "loading" };

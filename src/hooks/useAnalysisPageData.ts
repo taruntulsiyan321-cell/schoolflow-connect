@@ -279,9 +279,18 @@ export function useAnalysisPageData(enabled = true) {
           .limit(5000),
       ]);
 
-      const sessions = sessionsRes.error
-        ? []
-        : (sessionsRes.data ?? [])
+      // A FAILED READ IS NOT AN EMPTY ONE. Each of these used to be read as
+      // `count ?? 0` or `error ? [] : data`, so one query timing out — the
+      // 8-second statement timeout this database hits under load — printed
+      // "0 correct" and a 0% accuracy beside the real counts, or "No score
+      // trend data yet" for a student with forty sessions. Any failure goes to
+      // the error path below: absent figures render as a dash, and the page
+      // offers Try again. The class label is the one read allowed to miss —
+      // it is a caption, not a figure.
+      const failed = [sessionsRes, attemptsRes, correctRes, skippedRes, hoursRes].find((r) => r.error);
+      if (failed?.error) throw failed.error;
+
+      const sessions = (sessionsRes.data ?? [])
             .filter((r): r is typeof r & { finished_at: string } => r.finished_at !== null)
             // A SESSION WITH NO ATTEMPTS IS NOT A SESSION SCORED ZERO.
             //
@@ -344,6 +353,8 @@ export function useAnalysisPageData(enabled = true) {
       const correct = correctRes.count ?? 0;
       const totalAttempts = attemptsRes.count ?? 0;
       const skipped = skippedRes.count ?? 0;
+      // (`?? 0` here is only the shape of a successful head count: a failed
+      // one has already been thrown above.)
 
       // A skip is "I did not answer this", not "I got this wrong". Subtracting
       // it here is what keeps the Incorrect tile, the accuracy derived from it,
@@ -412,7 +423,7 @@ export function useAnalysisPageData(enabled = true) {
       // assigned here and read by nothing at all.
 
       const attempt_hours = hourHistogram(
-        (hoursRes.error ? [] : (hoursRes.data ?? [])).map((r) => r.created_at),
+        (hoursRes.data ?? []).map((r) => r.created_at),
       );
 
       setData({

@@ -62,6 +62,7 @@ import { toErrorMessage } from "@/lib/presentation";
 import { formatLastSeen } from "@/lib/analyticsInsights";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { pluralise } from "@/lib/plural";
+import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { accuracyWhenMeaningful, mayBeJudged, MIN_OBSERVATIONS_FOR_VERDICT } from "@/academic/metrics/thresholds";
 
 const SUBJECT_COLORS: Record<string, string> = {
@@ -167,7 +168,7 @@ const LINE_MIN_POINTS = 2;
 export default function Analysis() {
   const [tab, setTab] = useState<Tab>("overview");
   const student = useGurukulStudent();
-  const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
+  const { ctx, ready: academicReady, settled: academicSettled, studentId, classId } = useAcademicContext();
   // Rule 11: Analysis is practice-only, so it no longer subscribes to the
   // marks or examination channels — it has nothing to refresh from them.
   useAcademicLive(["profile"]);
@@ -466,13 +467,15 @@ export default function Analysis() {
         totalMin: c.total_min,
         trend: deltaPoints,
         trendState: chapterTrendState,
-        status: (accuracy == null
+          // WEAKNESSES ONLY (§6.1, §10.8). A high or near accuracy gets no
+        // badge. It used to get a green "Ready for revision" — a verdict of
+        // strength, and one that named the revision schedule while having
+        // nothing to do with it: the chapter may not be scheduled at all.
+        status: (accuracy == null || accuracyBand(accuracy) === "building"
           ? "practice-more"
           : ["high", "near"].includes(accuracyBand(accuracy))
-            ? "ready"
-            : accuracyBand(accuracy) === "building"
-              ? "practice-more"
-              : "needs-work") as "ready" | "practice-more" | "needs-work",
+            ? null
+            : "needs-work") as "practice-more" | "needs-work" | null,
       };
     });
   }, [practiceAnalytics?.by_chapter, analysis?.recent_sessions]);
@@ -792,11 +795,26 @@ export default function Analysis() {
   // did not, so the two pages were describing different worlds off different
   // tables — Analysis showing 17 items due while Revision showed the real
   // ladder.
-  const [chapterStates, setChapterStates] = useState<ChapterStateRow[]>([]);
-  const [recoveryQueue, setRecoveryQueue] = useState<RecoveryQueueRow[]>([]);
+  // AS LIST STATES — loading, failed, or read.
+  //
+  // These were bare arrays, and a failure was logged and left the arrays
+  // empty: while the schedule loaded, and whenever it could not be read, the
+  // panels said "Nothing due for revision today" and "No recovery topics yet"
+  // and the Overview card said "Check your revision queue" — claims about the
+  // student made by a network failure.
+  const [chapterStates, setChapterStates] = useState<ListState<ChapterStateRow>>(LOADING_LIST);
+  const [recoveryQueue, setRecoveryQueue] = useState<ListState<RecoveryQueueRow>>(LOADING_LIST);
+  const [engineReads, setEngineReads] = useState(0);
+  const retryEngine = useCallback(() => setEngineReads((n) => n + 1), []);
   useEffect(() => {
-    if (!academicReady || !ctx) return;
+    if (!academicReady || !ctx) {
+      setChapterStates(academicSettled ? EMPTY_LIST : LOADING_LIST);
+      setRecoveryQueue(academicSettled ? EMPTY_LIST : LOADING_LIST);
+      return;
+    }
     let cancelled = false;
+    setChapterStates(LOADING_LIST);
+    setRecoveryQueue(LOADING_LIST);
     // Both: chapter_state carries the revision ladder (next_revision_at,
     // revision_due) and the queue carries the recovery side (open_mistakes,
     // ready) including chapters with no state row yet. Neither is derivable
@@ -807,24 +825,28 @@ export default function Analysis() {
     ])
       .then(([states, queue]) => {
         if (cancelled) return;
-        setChapterStates(states);
-        setRecoveryQueue(queue);
+        setChapterStates({ status: "ready", items: states });
+        setRecoveryQueue({ status: "ready", items: queue });
       })
       .catch((e) => {
-        // Analysis is a read-only surface and every other panel stands on its
-        // own, so one failed section must not blank the page. It is logged
-        // rather than swallowed, and the panel renders its empty state.
+        // One failed section must not blank the page — every other panel
+        // stands on its own — but it says it failed, and offers to try again.
         if (!cancelled) {
-          console.warn("[Analysis] chapter states failed:", e instanceof Error ? e.message : e);
+          const message = toErrorMessage(e, "");
+          setChapterStates({ status: "failed", message });
+          setRecoveryQueue({ status: "failed", message });
         }
       });
     return () => { cancelled = true; };
-  }, [ctx, academicReady]);
+  }, [ctx, academicReady, academicSettled, engineReads]);
 
-  const recoveryProgress = useMemo(() => deriveRecoveryProgress(recoveryQueue), [recoveryQueue]);
-  const recoveryTopics = useMemo(() => deriveRecoveryTopics(recoveryQueue), [recoveryQueue]);
+  const recoveryProgress = useMemo(
+    () => deriveRecoveryProgress(listItems(recoveryQueue), listItems(chapterStates)),
+    [recoveryQueue, chapterStates],
+  );
+  const recoveryTopics = useMemo(() => deriveRecoveryTopics(listItems(recoveryQueue)), [recoveryQueue]);
 
-  const revisionData = useMemo(() => deriveRevisionData(chapterStates), [chapterStates]);
+  const revisionData = useMemo(() => deriveRevisionData(listItems(chapterStates)), [chapterStates]);
 
   // THREE TILES, ALL COUNTED FROM ROWS THAT EXIST.
   //
@@ -929,7 +951,11 @@ export default function Analysis() {
       .sort((a, b) => (b.accuracy ?? 0) - (a.accuracy ?? 0));
     const strongest = sorted[0];
     const weakest = sorted[sorted.length - 1];
-    const weakTopic = snapshot?.weak_topics?.[0];
+    // THE SAME FILTERED LIST the Topics tab and "What should I study next?"
+    // read. This took snapshot.weak_topics[0] raw, so it could name as today's
+    // priority a topic the Topics tab declines to list — one attempt behind
+    // it, or no usable label.
+    const weakTopic = topicGroups.needs_attention[0];
     const bestDay = studyActivity.bestDay;
     // CHUNK 10.7 / §10.8. Two changes, and the second is the one that matters.
     //
@@ -964,8 +990,10 @@ export default function Analysis() {
     if (weakTopic) {
       items.push({
         label: "Suggested priority today",
-        value: displayTopic(weakTopic.topic) || displayChapter(weakTopic.chapter) || displaySubject(weakTopic.subject),
-        sub: `${Math.round(weakTopic.accuracy)}% accuracy · needs review`,
+        value: displayTopic(weakTopic.topic) || displaySubject(weakTopic.subject),
+        sub: weakTopic.score == null
+          ? `${pluralise(weakTopic.practiceCount ?? 0, "attempt")} · needs review`
+          : `${weakTopic.score}% accuracy · needs review`,
         color: "hsl(var(--info))",
         icon: <ChevronRight className="w-4 h-4" />,
       });
@@ -992,7 +1020,7 @@ export default function Analysis() {
       });
     }
     return items;
-  }, [subjectData, snapshot?.weak_topics, studyActivity, subjectPace.avgSec]);
+  }, [subjectData, topicGroups.needs_attention, studyActivity, subjectPace.avgSec]);
 
   const questionCards = useMemo(() => {
     // NO CLASS RANK HERE. §6.7: analysis must never "compare the student to
@@ -1042,14 +1070,18 @@ export default function Analysis() {
       {
         q: "What should I study next?",
         a: nextTopic ? (nextTopic.topic || nextTopic.subject) : "Start a practice session",
-        sub: revisionData.dueToday.length > 0
-          ? `${pluralise(revisionData.dueToday.length, "revision item")} due today`
-          : "Check your revision queue",
+        sub: chapterStates.status === "loading"
+          ? "Reading your revision schedule…"
+          : chapterStates.status === "failed"
+            ? "Could not read your revision schedule"
+            : revisionData.dueToday.length > 0
+              ? `${pluralise(revisionData.dueToday.length, "revision item")} due today`
+              : "Check your revision queue",
         color: "hsl(var(--primary))",
         icon: <BookOpen className="w-4 h-4" />,
       },
     ];
-  }, [overview, subjectData, topicGroups.needs_attention, revisionData.dueToday.length]);
+  }, [overview, subjectData, topicGroups.needs_attention, revisionData.dueToday.length, chapterStates.status]);
 
   // FIRST POINT AGAINST LAST POINT IS NOT A TREND, and points are not percent.
   //
@@ -1152,7 +1184,7 @@ export default function Analysis() {
     <PageHeader
       eyebrow="Learning"
       title="Analysis"
-      subtitle="What your practice, tests and mistakes add up to."
+      subtitle="What your practice and your mistakes add up to."
     />
   );
 
@@ -1361,8 +1393,6 @@ export default function Analysis() {
               // "Exam readiness" was removed in the v2 redesign: a composite of
               // four measures collapsed into one number, which is the
               // no-blended-score rule and cannot be explained to a student.
-              // `exam_readiness.attendance_pct` is still read below — that is
-              // attendance, a measured figure, not the composite.
             ].map((s) => (
               <Metric key={s.label} label={s.label} value={s.value} color={s.color} />
             ))}
@@ -1553,8 +1583,7 @@ export default function Analysis() {
             ) : (
             <div className="grid sm:grid-cols-2 gap-3">
               {chapterData.map((c) => {
-                const statusLabel: Record<string, { text: string; color: string }> = {
-                  "ready":        { text: "Ready for revision", color: "hsl(var(--success))" },
+                const statusLabel: Record<"practice-more" | "needs-work", { text: string; color: string }> = {
                   "practice-more":{ text: "Practice more",      color: "hsl(var(--warning))" },
                   "needs-work":   { text: "Needs attention",    color: "hsl(var(--destructive))" },
                 };
@@ -1571,7 +1600,7 @@ export default function Analysis() {
                 // answer.
                 const meaningful = c.accuracy;
                 const judged = meaningful != null;
-                const st = statusLabel[c.status];
+                const st = c.status ? statusLabel[c.status] : null;
                 return (
                   <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
                     <div className="flex items-start justify-between gap-2 mb-2">
@@ -1579,7 +1608,7 @@ export default function Analysis() {
                         <div className="text-sm font-semibold text-foreground">{displayChapter(c.chapter)}</div>
                         <div className="text-[11px] mt-0.5" style={{ color: c.color }}>{displaySubject(c.subject)}</div>
                       </div>
-                      {judged ? (
+                      {judged && st ? (
                         <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: st.color, background: `${withAlpha(st.color, 0.07)}` }}>
                           {st.text}
                         </span>
@@ -1752,7 +1781,7 @@ export default function Analysis() {
           {/* Recovery & Revision */}
           <div className="grid sm:grid-cols-2 gap-6">
             <div>
-              <SLabel>Topics you practised again</SLabel>
+              <SLabel>Chapters in recovery</SLabel>
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-foreground">{recoveryProgress.completed}</div>
@@ -1764,16 +1793,23 @@ export default function Analysis() {
                 </div>
               </div>
               <div className="space-y-2">
-                {recoveryTopics.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No recovery topics yet</p>
+                {recoveryQueue.status === "loading" ? (
+                  <p role="status" className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
+                ) : recoveryQueue.status === "failed" ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    Could not read your recovery chapters.{" "}
+                    <button type="button" onClick={retryEngine} className="font-semibold underline">Try again</button>
+                  </p>
+                ) : recoveryTopics.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">No chapters in recovery yet</p>
                 ) : recoveryTopics.map((r) => (
-                  <div key={r.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60">
+                  <div key={r.chapter} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60">
                     {r.status === "recovered"
                       ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
                       : <Clock className={cn("w-4 h-4 shrink-0", r.status === "ready" ? "text-destructive" : "text-muted-foreground")} />
                     }
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground truncate">{displayTopic(r.topic)}</div>
+                      <div className="text-sm font-medium text-foreground truncate">{displayChapter(r.chapter)}</div>
                       <div className="text-[11px] text-muted-foreground">{displaySubject(r.subject)}</div>
                     </div>
                     {/* The count, not a percentage. The old card showed an
@@ -1814,12 +1850,19 @@ export default function Analysis() {
               </div>
               <SLabel>Due for revision today</SLabel>
               <div className="space-y-2">
-                {revisionData.dueToday.length === 0 ? (
+                {chapterStates.status === "loading" ? (
+                  <p role="status" className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
+                ) : chapterStates.status === "failed" ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    Could not read your revision schedule.{" "}
+                    <button type="button" onClick={retryEngine} className="font-semibold underline">Try again</button>
+                  </p>
+                ) : revisionData.dueToday.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">Nothing due for revision today</p>
-                ) : revisionData.dueToday.map((topic) => (
-                  <div key={topic} className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                ) : revisionData.dueToday.map((chapter) => (
+                  <div key={chapter} className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
                     <Clock className="w-4 h-4 text-primary shrink-0" />
-                    <span className="text-sm text-foreground">{displayTopic(topic)}</span>
+                    <span className="text-sm text-foreground">{displayChapter(chapter)}</span>
                     <span className="ml-auto text-[10px] text-primary font-semibold">Due today</span>
                   </div>
                 ))}
@@ -2074,7 +2117,7 @@ export default function Analysis() {
               ) : (
                 <div className="space-y-2 mt-4">
                   {slowestTopics.map((t) => (
-                    <div key={t.topic} className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-surface/60">
+                    <div key={`${t.topic}|${t.chapter ?? ""}`} className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-surface/60">
                       <Clock className="w-4 h-4 text-warning shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>

@@ -529,8 +529,19 @@ export function deriveMonthComparison(
  * The same rpc_student_recovery_queue rows the Recovery screen renders, so
  * the two pages cannot disagree. `ready` is decided server-side against
  * RECOVERY_TRIGGER_COUNT; this file does not hold a copy of the threshold.
+ *
+ * ── EXCEPT "RECOVERED", WHICH THE QUEUE CANNOT SEE ────────────────────────
+ *
+ * The queue lists chapters holding an OPEN mistake, and a recovery that
+ * passes clears every open mistake in its chapter (§4.5). So a recovered
+ * chapter leaves the very list this counted it from: the tile could only ever
+ * count recovered chapters that had since collected new mistakes. It is read
+ * from chapter_state, where the engine records the recovery.
  */
-export function deriveRecoveryProgress(queue: RecoveryQueueRow[] | null | undefined): {
+export function deriveRecoveryProgress(
+  queue: RecoveryQueueRow[] | null | undefined,
+  states: ChapterStateRow[] | null | undefined,
+): {
   totalToRevisit: number;
   completed: number;
   stillPending: number;
@@ -540,9 +551,8 @@ export function deriveRecoveryProgress(queue: RecoveryQueueRow[] | null | undefi
     // Every chapter carrying an open mistake — what is left to fix.
     totalToRevisit: rows.length,
     // §3.2 'recovered' is the engine's own word for a chapter that cleared
-    // both readiness rates. Not a mastery score over a boundary this file
-    // invented.
-    completed: rows.filter((r) => r.state === "recovered").length,
+    // both readiness rates — counted where the engine writes it.
+    completed: (states ?? []).filter((s) => s.state === "recovered").length,
     // Ready means the trigger is met and a session can be built right now.
     // A chapter three mistakes in is not "pending recovery"; it is a chapter
     // the student is still working in.
@@ -560,7 +570,8 @@ export function deriveRecoveryProgress(queue: RecoveryQueueRow[] | null | undefi
  * keyed on chapter_id and need no matching at all.
  */
 export function deriveRecoveryTopics(queue: RecoveryQueueRow[] | null | undefined): {
-  topic: string;
+  /** A chapter — the queue is keyed on chapter_id. It was called `topic`. */
+  chapter: string;
   subject: string;
   status: "ready" | "building" | "recovered" | "relearn";
   openMistakes: number;
@@ -568,11 +579,11 @@ export function deriveRecoveryTopics(queue: RecoveryQueueRow[] | null | undefine
 }[] {
   return (queue ?? [])
     .map((r) => {
-      const topic = preferRealAcademicLabel(r.chapter);
+      const chapter = preferRealAcademicLabel(r.chapter);
       const subject = preferRealAcademicLabel(r.subject);
-      if (!topic || !subject) return null;
+      if (!chapter || !subject) return null;
       return {
-        topic,
+        chapter,
         subject,
         // `relearn` is checked BEFORE `building`. A relearn chapter has
         // ready=false and a state that is not "recovered", so it used to land

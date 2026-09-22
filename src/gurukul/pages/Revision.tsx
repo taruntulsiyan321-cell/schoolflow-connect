@@ -4,10 +4,12 @@ import { toast } from "sonner";
 import { RecoveryEngineService, useAcademicContext } from "@/academic";
 import { useRevisionItems, useRevisionHistory, type RevItem } from "./useRevisionQueueV2";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
-import { displayChapter, displayConcept } from "@/lib/academicDisplay";
+import { displayChapter } from "@/lib/academicDisplay";
+import { REVISION_ENGAGEMENT_MIN, REVISION_INTERVALS_DAYS } from "@/academic/recovery/constants";
+import { listItems } from "@/lib/listState";
 import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, ProgressRing, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
-  RotateCcw, CheckCircle2, AlertCircle, Flame, History, Bookmark,
+  RotateCcw, CheckCircle2, AlertCircle, Flame, History,
   Play, Zap
 } from "lucide-react";
 import { toErrorMessage } from "@/lib/presentation";
@@ -35,8 +37,7 @@ function RevItemCard({
   /** The check's contents are being fetched from the server. */
   busy: boolean;
 }) {
-  const conceptLabel = displayConcept(item.concept);
-  const chapterLabel = displayChapter(item.chapter);
+  const chapterLabel = displayChapter(item.chapter) || item.chapter;
   return (
     <GlassCard className="p-4 hover:border-border transition-all">
       <div className="flex items-start gap-3">
@@ -44,10 +45,6 @@ function RevItemCard({
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <DueTag dueIn={item.dueIn}/>
             <SubjectBadge subject={item.subject}/>
-            {item.teacherAssigned && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Teacher</span>
-            )}
-            {item.bookmarked && <Bookmark className="w-3.5 h-3.5 text-amber-400 fill-amber-400"/>}
             {/* §5.3 made visible. The old queue had no stages to show: every
                 row was simply due today, so there was no ladder to be on. */}
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground">
@@ -64,16 +61,11 @@ function RevItemCard({
               </span>
             )}
           </div>
-          {/* The chapter line only when it says something the title does not.
-              `concept` and `chapter` are frequently the same string for a
-              revision item — "Areas Related to Circles" printed in bold and
-              then again in grey directly beneath it — and when no chapter is
-              recorded `displayChapter` returns "—", so the card rendered a
-              lone dash as its subtitle. Neither is information. */}
-          <div className="text-sm font-bold text-foreground">{conceptLabel}</div>
-          {chapterLabel && chapterLabel !== "—" && chapterLabel !== conceptLabel && (
-            <div className="text-[11px] text-muted-foreground mt-0.5">{chapterLabel}</div>
-          )}
+          {/* One line: the chapter. The card used to print the chapter as a
+              "concept" title and then again beneath it whenever the two
+              spellings differed — they were the same field, so the second line
+              was either a duplicate or a lone dash. */}
+          <div className="text-sm font-bold text-foreground">{chapterLabel}</div>
         </div>
       </div>
       <div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -117,7 +109,7 @@ function RevItemCard({
 export default function Revision() {
   const navigate = useNavigate();
   const student = useGurukulStudent();
-  const { ctx, ready: academicReady } = useAcademicContext();
+  const { ctx, ready: academicReady, settled: academicSettled } = useAcademicContext();
   const [filter, setFilter] = useState<"all"|"due"|"upcoming">("all");
   const [subjectTab, setSubjectTab] = useState("all");
   /**
@@ -133,14 +125,11 @@ export default function Revision() {
   // it was due CURRENT_DATE because nothing applied the §5.3 intervals. The
   // engine hook below owns this screen's loading and error states now, so the
   // page no longer waits on a snapshot it reads nothing else from.
-  const {
-    items: REVISION_ITEMS,
-    error,
-    loading,
-  } = useRevisionItems(ctx, academicReady);
+  const { items, reload } = useRevisionItems(ctx, academicReady, academicSettled);
+  const REVISION_ITEMS = listItems(items);
   // Its own state, deliberately: a history that fails to load must not blank
   // the queue the student came here to work through.
-  const { history, error: historyError } = useRevisionHistory(ctx, academicReady);
+  const { history, reload: reloadHistory } = useRevisionHistory(ctx, academicReady, academicSettled);
   // Study streak SSOT: Progression via shell (same as Home) — not raw snapshot xp.
   const streak = student.streak;
 
@@ -184,7 +173,7 @@ export default function Revision() {
       // as the belt-and-braces for a plan that somehow arrives empty-handed.
       if (plan.fresh === 0) {
         toast.message(
-          `There is nothing new left in ${item.chapter} to check you on yet — every question in it has already come up.`,
+          `There is nothing new left in ${displayChapter(item.chapter) || item.chapter} to check you on yet — every question in it has already come up.`,
         );
         return;
       }
@@ -215,9 +204,8 @@ export default function Revision() {
   }
 
   function openPractice(item: RevItem) {
-    const chapter = item.chapter !== "—" ? item.chapter : item.concept;
     const qs = new URLSearchParams();
-    if (chapter && chapter !== "—") qs.set("chapter", chapter);
+    qs.set("chapter", item.chapter);
     if (item.subject) qs.set("subject", item.subject);
     navigate(`/student/practice?${qs.toString()}`);
   }
@@ -234,7 +222,7 @@ export default function Revision() {
     />
   );
 
-  if (loading) {
+  if (items.status === "loading") {
     return (
       <div className="space-y-6">
         {header}
@@ -259,13 +247,20 @@ export default function Revision() {
     return <div className="space-y-6">{header}<NoStudentProfile /></div>;
   }
 
-  if (error) {
+  if (items.status === "failed") {
     return (
-      <GlassCard className="p-8 text-center">
-        <AlertCircle className="w-8 h-8 text-violet-400 mx-auto mb-2"/>
-        <p className="text-sm text-muted-foreground">Could not load revision queue</p>
-        <p className="text-xs text-muted-foreground mt-1">{error}</p>
-      </GlassCard>
+      <div className="space-y-6">
+        {header}
+        <GlassCard className="p-8 text-center">
+          <AlertCircle className="w-8 h-8 text-violet-400 mx-auto mb-2"/>
+          <p className="text-sm text-muted-foreground">Could not load your revision schedule</p>
+          {items.message && <p className="text-xs text-muted-foreground mt-1">{items.message}</p>}
+          <button type="button" onClick={reload}
+            className="mt-3 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-secondary transition-all">
+            Try again
+          </button>
+        </GlassCard>
+      </div>
     );
   }
 
@@ -280,7 +275,11 @@ export default function Revision() {
     return matchFilter && matchSub;
   });
 
-  const dueNow = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today").length;
+  const due = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today");
+  // Quick Revision starts a CHECK, so it counts and opens only due chapters
+  // that can give one. It took the first due chapter whatever its bank held,
+  // and a chapter with nothing unseen left answered the tap with a toast.
+  const dueTakeable = due.filter(r => r.freshAvailable > 0);
 
   return (
     <div className="space-y-6">
@@ -302,19 +301,17 @@ export default function Revision() {
       <div className="grid gap-3">
         <button
           type="button"
-          disabled={dueNow === 0}
-          onClick={() => {
-          const due = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today")[0];
-          if (due) startCheck(due);
-          else toast.message("Nothing due — open any chapter below to practise it.");
-        }}
+          disabled={dueTakeable.length === 0}
+          onClick={() => { void startCheck(dueTakeable[0]); }}
           className="p-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 transition-all text-left group disabled:opacity-50 disabled:pointer-events-none">
           <Zap className="w-5 h-5 text-violet-400 mb-2 group-hover:scale-110 transition-transform"/>
           <div className="text-sm font-bold text-foreground">Quick Revision</div>
           <div className="text-xs text-muted-foreground mt-0.5">
-            {dueNow > 0
-              ? `Opens first of ${dueNow} due item${dueNow === 1 ? "" : "s"} in Practice`
-              : "No items due"}
+            {dueTakeable.length > 0
+              ? `Starts the first of ${dueTakeable.length} due ${dueTakeable.length === 1 ? "check" : "checks"}`
+              : due.length > 0
+                ? "The chapters due have nothing new left to check you on"
+                : "No items due"}
           </div>
         </button>
       </div>
@@ -388,23 +385,32 @@ export default function Revision() {
           <History className="w-3.5 h-3.5"/>
           Revision History
         </div>
-        {historyError ? (
+        {history.status === "loading" ? (
+          <GlassCard className="p-6 text-center">
+            <p role="status" className="text-xs text-muted-foreground">Loading…</p>
+          </GlassCard>
+        ) : history.status === "failed" ? (
           <GlassCard className="p-6 text-center">
             <p className="text-xs text-muted-foreground">
-              Could not load revision history: {historyError}
+              Could not load revision history{history.message ? `: ${history.message}` : ""}.{" "}
+              <button type="button" onClick={reloadHistory} className="font-semibold underline">Try again</button>
             </p>
           </GlassCard>
-        ) : history.length === 0 ? (
+        ) : history.items.length === 0 ? (
           <GlassCard className="p-6 text-center">
+            {/* §5.2: the clock starts on practice as well as on recovery. This
+                said only "after you clear its recovery", which described one of
+                the two ways in and not the one most students take. */}
             <p className="text-xs text-muted-foreground">
-              No revision checks taken yet. A chapter gets its first check seven days
-              after you clear its recovery.
+              No revision checks taken yet. A chapter's first check comes{" "}
+              {REVISION_INTERVALS_DAYS[0]} days after you practise {REVISION_ENGAGEMENT_MIN} or more
+              questions in it, or clear its recovery.
             </p>
           </GlassCard>
         ) : (
           <GlassCard className="p-3">
             <ul className="divide-y divide-border/60">
-              {history.map((h) => (
+              {history.items.map((h) => (
                 <li key={h.id} className="flex items-center gap-3 px-2 py-2.5">
                   <span
                     className={cn(

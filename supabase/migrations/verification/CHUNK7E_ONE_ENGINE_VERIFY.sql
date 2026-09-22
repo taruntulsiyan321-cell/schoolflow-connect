@@ -210,12 +210,18 @@ BEGIN
   ------------------------------------------------------------------
   _snap := public.rpc_student_academic_snapshot();
 
+  -- Recounted here from the raw book, independently of the queue the snapshot
+  -- now reads: a chapter is pending recovery when its question-linked open
+  -- mistakes are at the trigger and not above the relearn boundary, where the
+  -- engine declines to drill (20261045000000).
   SELECT count(*)::int INTO _want_rec FROM (
     SELECT sm.chapter_id
       FROM public.student_mistakes sm
      WHERE sm.user_id = _uid AND sm.status = 'open' AND sm.chapter_id IS NOT NULL
+       AND sm.question_id IS NOT NULL
      GROUP BY sm.chapter_id
     HAVING count(*) >= _trigger
+       AND count(*) <= public._recovery_const('RECOVERY_WIDE_MAX_MISTAKES')::int
   ) x;
 
   SELECT count(*)::int INTO _want_rev

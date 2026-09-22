@@ -149,17 +149,29 @@ describe("deriveRecoveryProgress", () => {
       queued({ chapter_id: "a", open_mistakes: 6, ready: true }),
       queued({ chapter_id: "b", open_mistakes: 2, ready: false }),
       queued({ chapter_id: "c", open_mistakes: 1, ready: false }),
-    ]);
+    ], []);
     expect(p.stillPending).toBe(1);
     expect(p.totalToRevisit).toBe(3);
   });
 
   it("reports recovered from the engine's own state word", () => {
-    const p = deriveRecoveryProgress([
-      queued({ chapter_id: "a", state: "recovered" }),
-      queued({ chapter_id: "b", state: "has_mistakes" }),
-    ]);
+    const p = deriveRecoveryProgress(
+      [queued({ chapter_id: "a", state: "recovered" }), queued({ chapter_id: "b", state: "has_mistakes" })],
+      [state({ chapter_id: "a", state: "recovered" }), state({ chapter_id: "b", state: "has_mistakes" })],
+    );
     expect(p.completed).toBe(1);
+  });
+
+  it("counts a recovered chapter that has left the queue", () => {
+    // A passing recovery clears the chapter's open mistakes (§4.5), so the
+    // chapter drops out of the queue. Counted from the queue, the tile read
+    // 0 for a student with a chapter recovered and nothing open in it.
+    const p = deriveRecoveryProgress(
+      [queued({ chapter_id: "b", state: "has_mistakes" })],
+      [state({ chapter_id: "a", state: "recovered" }), state({ chapter_id: "b", state: "has_mistakes" })],
+    );
+    expect(p.completed).toBe(1);
+    expect(p.totalToRevisit).toBe(1);
   });
 });
 

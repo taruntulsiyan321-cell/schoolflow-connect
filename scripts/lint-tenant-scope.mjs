@@ -231,6 +231,8 @@ const ALLOWLIST = {
   // predicate to narrow that auth.uid() has not already narrowed to one user.
   rpc_student_chapter_states: "No parameters; self-scoped via auth.uid(). Reads chapter_state/chapters/curriculum_subjects for that one user only.",
   rpc_student_recovery_queue: "No parameters; self-scoped via auth.uid(). Groups the caller's own open student_mistakes and LEFT JOINs their own chapter_state.",
+  rpc_student_practice_analytics:
+    "Every one of its six aggregates filters `WHERE qa.user_id = _uid` or `WHERE sm.user_id = _uid`, with `_uid := auth.uid()` and a RAISE when it is null. It reads question_attempts and student_mistakes and returns only the caller's own rows, so it is OWNER-scoped — strictly tighter than a school predicate, which any of thousands of same-school users can satisfy. It takes no arguments at all, so there is no target parameter to point at another student. Adding same_school() would narrow nothing and would restate the fence twice (G9), and it would be the wrong fence: what this returns (per-topic accuracy, per-question times, the questions a student keeps getting wrong) is the student's alone under §10.8, not their school's. Checkable: the body must contain `_uid uuid := auth.uid()` and every FROM must be followed by a `user_id = _uid` predicate; it must NOT contain has_role, teacher_teaches_class or any _student_id/_user_id parameter. First read 2026-09-19 (20261040000000, on claude/busy-shannon-nymdhd); re-read 2026-09-22 after 20261045000000 regrouped by_topic by (topic, chapter), which added no table and no parameter.",
 
   // Takes two ids and reads them BOTH under auth.uid() before touching
   // anything: the recovery session by (id, user_id), the practice session by

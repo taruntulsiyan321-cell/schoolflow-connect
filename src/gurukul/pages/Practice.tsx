@@ -1297,10 +1297,23 @@ function Session({
         // straight away — a "Completed · 0 questions" entry in history for
         // every empty tap.
         if (mapped.length > 0) {
+          // A recovery ladder and a revision check are each ONE chapter's
+          // questions, so the row names that chapter and its subject — read
+          // off the questions themselves. They were started as subject
+          // "Mixed", chapter null, so all 13 recovery sessions and 7 checks
+          // on record said nothing of what they were for: history could not
+          // name the chapter, and its subject filter never found them.
+          const onlyOne = (vals: string[]) => {
+            const distinct = [...new Set(vals.filter(Boolean))];
+            return distinct.length === 1 ? distinct[0] : null;
+          };
+          const engineSession = Boolean(config.recovery || config.revision);
           const sid = await PracticeService.start(ctx, {
-            _subject: config.subject === "Mixed" ? "" : config.subject,
+            _subject: engineSession
+              ? onlyOne(mapped.map((q) => q.subject)) ?? ""
+              : config.subject === "Mixed" ? "" : config.subject,
             // A topic belongs to one chapter, and the picker resolved it.
-            _chapter: config.chapter || null,
+            _chapter: engineSession ? onlyOne(mapped.map((q) => q.chapter)) : config.chapter || null,
             _count: mapped.length,
             _practice_mode: config.mode,
             _difficulty: config.difficulty,

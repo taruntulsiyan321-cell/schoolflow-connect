@@ -32,42 +32,62 @@ type Props = {
 
 type Seg = { kind: "text" | "inline" | "block"; value: string };
 
+const isSpace = (c: string | undefined) => c === undefined || /\s/.test(c);
+const isDigit = (c: string | undefined) => c !== undefined && c >= "0" && c <= "9";
+
+/**
+ * Where a single-dollar math span opened at `open` closes, or -1 if it does
+ * not — the rule TeX-in-Markdown renderers use (pandoc): the opening `$` has a
+ * non-space to its right, the closing `$` a non-space to its left and no digit
+ * to its right. So "$x^2$" is math, while "$35 per ounce" and "between $10 and
+ * $20" are prose: a price is not an equation.
+ */
+function closingDollar(s: string, open: number): number {
+  if (isSpace(s[open + 1]) || s[open + 1] === "$") return -1;
+  for (let k = open + 1; k < s.length; k++) {
+    if (s[k] === "\\") { k++; continue; }
+    if (s[k] === "$" && !isSpace(s[k - 1]) && !isDigit(s[k + 1])) return k;
+  }
+  return -1;
+}
+
+/**
+ * Prose and math, in order.
+ *
+ * EVERY STEP CONSUMES INPUT. The tokenizer this replaced fell through to a
+ * prose scanner whenever a delimiter had no partner, and that scanner stopped
+ * on the very same character — so a lone `$`, `\(` or `\[` looped for ever and
+ * froze the page until the renderer died. Measured 2026-09-22: a revision
+ * check crashed the browser tab on the question "…convertible to gold at $35
+ * per ounce", and four active bank questions carry a lone dollar sign. A
+ * delimiter without its partner is prose, and `\$` is a literal dollar.
+ */
 function tokenize(input: string): Seg[] {
   const segs: Seg[] = [];
+  let prose = "";
+  const math = (kind: "inline" | "block", value: string) => {
+    if (prose) segs.push({ kind: "text", value: prose });
+    prose = "";
+    segs.push({ kind, value });
+  };
   let i = 0;
-  const push = (kind: Seg["kind"], v: string) => { if (v) segs.push({ kind, value: v }); };
   while (i < input.length) {
-    // $$ ... $$
+    if (input.startsWith("\\$", i)) { prose += "$"; i += 2; continue; }
     if (input.startsWith("$$", i)) {
       const end = input.indexOf("$$", i + 2);
-      if (end !== -1) { push("block", input.slice(i + 2, end)); i = end + 2; continue; }
+      if (end > i + 2) { math("block", input.slice(i + 2, end)); i = end + 2; continue; }
+    } else if (input.startsWith("\\[", i) || input.startsWith("\\(", i)) {
+      const close = input[i + 1] === "[" ? "\\]" : "\\)";
+      const end = input.indexOf(close, i + 2);
+      if (end > i + 2) { math(close === "\\]" ? "block" : "inline", input.slice(i + 2, end)); i = end + 2; continue; }
+    } else if (input[i] === "$") {
+      const end = closingDollar(input, i);
+      if (end !== -1) { math("inline", input.slice(i + 1, end)); i = end + 1; continue; }
     }
-    // \[ ... \]
-    if (input.startsWith("\\[", i)) {
-      const end = input.indexOf("\\]", i + 2);
-      if (end !== -1) { push("block", input.slice(i + 2, end)); i = end + 2; continue; }
-    }
-    // \( ... \)
-    if (input.startsWith("\\(", i)) {
-      const end = input.indexOf("\\)", i + 2);
-      if (end !== -1) { push("inline", input.slice(i + 2, end)); i = end + 2; continue; }
-    }
-    // $ ... $
-    if (input[i] === "$") {
-      const end = input.indexOf("$", i + 1);
-      if (end !== -1 && end - i > 1) { push("inline", input.slice(i + 1, end)); i = end + 1; continue; }
-    }
-    // plain text — accumulate until next delimiter
-    let j = i;
-    while (j < input.length) {
-      const c = input[j];
-      if (c === "$") break;
-      if (c === "\\" && (input[j + 1] === "(" || input[j + 1] === "[")) break;
-      j++;
-    }
-    push("text", input.slice(i, j));
-    i = j;
+    prose += input[i];
+    i += 1;
   }
+  if (prose) segs.push({ kind: "text", value: prose });
   return segs;
 }
 

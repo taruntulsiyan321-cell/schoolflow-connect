@@ -3238,3 +3238,112 @@ student sees today; both would, if the data moved.
   rule. Not changed here: `scope.stream` is also read by Battleground,
   FrictionlessChallenge, CommunityDoubtPortal and MistakeBook, so the change
   reaches four panels outside Practice for no measured effect today.
+
+---
+
+## 67. Recovery, Revision and Analysis — what the spec asks that is not built — OPEN
+
+Audited 2026-09-22 against `docs/recovery-revision-analysis-spec.md`, code and
+live database both, after the defects this audit found were fixed
+(20261045000000 and the list-state rewrite). What remains is missing, not
+broken:
+
+* **§6.3, the Analysis "main screen", does not exist.** The spec's chapter list
+  — one row per chapter with anything open, sorted by open mistakes, pinned by
+  `revision_failed` and by `times_wrong >= REPEATED_MISTAKE_PIN`, each row
+  showing open / repeated / accuracy / trend / oldest open / revision status —
+  is built nowhere. `REPEATED_MISTAKE_PIN` is exported and read by nothing.
+  The nearest things are Recovery's card list (open mistakes only) and the
+  Subjects & Chapters grid (attempt accuracy, the twelve weakest).
+* **§6.4 trends are computed differently from the spec.** The spec compares the
+  latest three sessions with the previous three, from `chapter_tally`. The
+  code compares the second half of the run with the first half, from
+  `practice_sessions` filtered to sessions whose single chapter matches — so a
+  chapter practised inside subject sessions never gets a trend at all.
+* **§4.4 "clear anyway, with a confirm" is missing.** The engine clears a
+  chapter itself on a READY session; on NOT READY the result offers nothing,
+  so the student cannot choose to mark it recovered as the spec's worked
+  example does.
+* **§5.4 difficulty matching is missing.** A revision check's fresh half is the
+  chapter's oldest unseen questions (`ORDER BY created_at`), whatever their
+  difficulty.
+* **§9 notifications are not built.** No function or cron job writes a
+  recovery or revision notification; the live table holds none, ever. This is
+  a locked decision ("students get notified about pending recovery and
+  revision"). Building it puts scheduled pushes on real phones, so it waits
+  for the owner.
+* **The spec document is stale on the constants.** Trigger 1 (spec 5),
+  engagement 3 (spec 10), intervals 7/7/7 + solid 30 (spec 7/21/60, solid
+  leaves the queue), and misses carried into revision checks
+  (`REVISION_MISTAKE_MAX`, spec "never the old questions") are all recorded
+  rulings with measured rationales in `recovery_constants`, and the document
+  was never updated to say so.
+* Latent: a ladder question the practice loader filters out (retired between
+  plan and sitting) is dropped without a word while its tier total still
+  counts it (0 of 249 planned questions affected today); and `_apply_chapter_state`
+  resets a SOLID chapter's 30-day clock to 7 days whenever it is practised.
+
+## 68. Students can read the practice answer key — OPEN
+
+`question_bank.correct_index` is readable by an ordinary student through
+PostgREST (checked 2026-09-22 with a minted student session). Revision checks
+and recovery ladders are drawn from that bank, so a student with the browser
+console open can pass either without knowing anything — the case §7's
+anti-gaming design exists to catch. Grading is already server-side
+(`rpc_record_question_attempt` marks against the bank); what reads the key in
+the browser is the runner's instant feedback. Moving that feedback onto the
+attempt RPC's response would let the column's read grant go.
+
+## 69. db:check-migrations cannot see a live migration that is not in this tree — OPEN
+
+It compares the tree against the ledger in one direction only. On
+`claude/question-topics-per-chapter` it reported "0 pending" while three
+migrations were live whose files existed only on `claude/busy-shannon-nymdhd`
+(20261039000000, 20261040000000, 20261041000000) — that branch's Analysis page
+was running against database functions it had never seen. (The Analysis
+commits carrying them were brought across on 2026-09-22, so the two now agree.)
+The check should also list ledger rows with no file.
+
+## 70. ~~Any page showing a lone "$" froze until the browser tab died~~ — FIXED 2026-09-22
+
+`MathText`'s tokenizer looped for ever on a `$`, `\(` or `\[` with no partner:
+it fell through to a prose scanner that stopped on that same character, so
+the index never advanced. Found when a revision check crashed the tab on
+"…convertible to gold at $35 per ounce"; four active bank questions carry a
+lone dollar sign, and MathText renders question text in Practice, the result
+review, Battleground, the Class 12 sessions and the question renderer.
+Rewritten so every step consumes input (an unpartnered delimiter is prose,
+`\$` is a literal dollar), with pandoc's single-dollar rule so prices such as
+"$10 to $20" are not typeset as a formula. `src/components/MathText.test.tsx`
+— the old tokenizer does not fail that test, it never returns (killed at 60 s).
+
+## 71. question_attempts has no index on session_id — OPEN, latent
+
+Every per-session read scans the whole table: the finish RPC's roll-up, both
+engine graders (`rpc_submit_recovery_session`, `rpc_submit_revision_session`),
+the hub's settle of abandoned sessions and the result page. At 7,113 rows
+(6.8 MB, 2026-09-22) a scan costs milliseconds and caused nothing measured —
+the 57014 timeouts seen that day came from the load spikes in 65 — but the cost
+grows with every attempt any student records. `CREATE INDEX ON
+public.question_attempts (session_id)` is the whole fix.
+
+## 72. ~~Every panel was torn down and rebuilt at each hourly token refresh~~ — FIXED 2026-09-22
+
+`AuthProvider` treated every auth event carrying a session — TOKEN_REFRESHED
+every hour, SIGNED_IN again when a tab regains focus — as a new sign-in: it set
+`loading = true` and reloaded role, profile and school. `ProtectedRoute`
+renders a spinner while loading, so whatever page any user of any role had
+open was unmounted and rebuilt from nothing. Measured in the browser: a timed
+practice session was finished as "left" with one answer at the very second its
+token was refreshed (the finishing request's JWT was issued that second), and
+the student landed back on the Practice hub. It surfaced as four "flaky"
+practice scenarios failing in the same minute — they shared one token.
+
+Fixed: an event for the user whose identity is already loaded reloads nothing
+and leaves `loading` alone; a refreshed token also keeps the same `user`
+object, so hooks keyed on it do not re-read every hour. A different user, a
+sign-out, or an explicit `refreshAuth()` (the membership switcher) still
+reloads. `src/auth/AuthProvider.refresh.test.tsx` (fails on the old provider)
+and scratchpad scenario s19, which forces a real refresh mid-session: with the
+old provider the pinned page node was disconnected and the session finished at
+q=1; with the fix it stays mounted and finishes normally with every answer.
