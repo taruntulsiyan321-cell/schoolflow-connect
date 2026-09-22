@@ -1,3 +1,48 @@
+# THE PRACTICE / ANALYSIS RELEASE — 2026-09-22 (READ FIRST IF YOU TOUCH PRACTICE, REVISION, RECOVERY OR ANALYSIS)
+
+**What happened.** The practice, revision, recovery and analysis work lived on two diverged branches —
+`claude/question-topics-per-chapter` (the practice audit, 80 commits ahead of main) and `claude/busy-shannon-nymdhd`
+(Analysis, and items 2, 6 and 16 of the owner's report) — and none of it was on main, while its migrations were
+already LIVE. Item 2 (20261049000000) dropped the policy that let students read `question_bank`, and production's app
+(main) read that table directly, so from 11:20 UTC on 2026-09-22 practice served nothing to any student.
+
+**Release branch `claude/release-practice-analysis`** = main + question-topics-per-chapter (merged; KNOWN_ISSUES
+renumbered: the practice branch keeps 57–72, main's sign-in entry became 73) + the six busy-shannon commits that were
+genuinely missing (506b7f0a, 20ccead3, 2fa40a2d, 461f14d9 ITEM 2, a97d7686 ITEM 16, e36e6fdf ITEM 6; the other 24 are
+on the practice branch already, and ac53f0d2's stale types regeneration is deliberately left out) + a merge recording
+busy-shannon as integrated + `claude/tender-goodall-kalj38` (the Riverside ruling).
+
+**The one real integration decision: no hint.** Item 2 kept a hint behind `rpc_question_hint`; the practice ruling
+of 2026-09-18 had removed the hint because the "hint" was the worked solution's first 120 characters — the whole
+answer for 39% of servable questions. The release keeps the ruling. The runner is the practice branch's (answer race
+fix, keep-alive finish on page exit, list states) with item 2's rule applied: no answer in the browser, the tick,
+cross and explanation from the server's verdict, one write per answer, a late verdict unable to mark the next question.
+
+**Verified before release** (all against the LIVE database, from a Vite server of this branch):
+* typecheck, build, lint:baseline, lint:tenant-scope (reasons corrected against live bodies, KNOWN_ISSUES 62 closed),
+  lint:render-safety, 125 unit-test files (one slow homework test flakes under load — KNOWN_ISSUES 77).
+* The practice session's harness as real students: 17 scenarios, 208 of 209 checks (s1's one miss is a stale selector
+  in the harness; the picker itself was read and is right). Subject, chapter, topic, custom, timed, failed-save,
+  revision check, recovery ladder to READY, leaving mid-session four ways, list states, Analysis figures against the
+  database, the hourly token refresh, the bookmarked/skipped/incorrect/weak modes, Class 12.
+* The harness now lives in the scratchpad of session 79bcf84c (practice/); it reads the bank's truth as the teacher,
+  because a student can no longer read it.
+* Tier 1 evidence suite, every role: 48 of 48. Three specs were stale on main itself (the test builder's picked
+  answer key and "Published to this class" line, Submit's window.confirm, and KNOWN_ISSUES 11's CSV import on the
+  Question Bank screen deleted 13 Sep); KNOWN_ISSUES 11 now drives Question Papers → Generate → bank and asserts the
+  chapter id on every row. Tier 5 (Nova, after main's learning-only commits were merged in): 12 of 12.
+* Main moved while this was built (11 Nova commits, 267b9df4); merged, one conflict (AICoach.tsx, main's file whole).
+
+**Not gates, and failing before this release:** `lint:threshold-literals` (PrincipalPortalDesign's `pct < 75` /
+`attPct < 75`, LiveHomeworkPanels' `HOMEWORK_PAGE = 100`) and `lint:metric-duplication` (PrincipalPortalDesign's
+`attPct`, and two converged BASELINE entries). `lint:client-columns` and `lint:stale-columns` are BLOCKED on the dead
+token, not passing.
+
+**Waiting on the database token (KNOWN_ISSUES 75):** dry runs of the eleven rollbacks written for this release,
+dropping `rpc_question_hint` (76), and moving the bank catalog's board onto the caller's school.
+
+---
+
 # RIVERSIDE — WHERE IT STANDS, AND EVERY TASK LEFT — 2026-09-16. READ THIS FIRST.
 
 The session that wrote this ran out of credits. Everything below is measured, not assumed.
