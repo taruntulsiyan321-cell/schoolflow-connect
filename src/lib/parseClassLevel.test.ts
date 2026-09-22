@@ -44,4 +44,11 @@ describe("parseClassLevel", () => {
   it("prefers a real class digit over an earlier room number", () => {
     expect(parseClassLevel("Room 2 — Class 10")).toBe(10);
   });
+
+  it("accepts arabic and Roman labels used on student profiles", () => {
+    expect(parseClassLevel("11-A")).toBe(11);
+    expect(parseClassLevel("XI-A")).toBe(11);
+    expect(parseClassLevel("Class XII")).toBe(12);
+    expect(parseClassLevel("Unassigned")).toBeNull();
+  });
 });

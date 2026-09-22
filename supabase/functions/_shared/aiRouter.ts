@@ -393,14 +393,20 @@ function embeddingEnvFromDeno(): Record<string, string | undefined> {
 }
 
 /**
- * Embed a retrieval query before calling retrieveKmsChunks. Never throws and
- * never blocks the request — a failed/unset embed just yields null, and
- * retrieveKmsChunks (and the ai_kms_retrieve_chunks RPC underneath it)
- * already fall back to lexical overlap when query_embedding is null.
+ * Embed a retrieval query before calling retrieveKmsChunks / Nova match.
+ * Never throws and never blocks the request — a failed/unset embed yields null
+ * so callers fall through (lexical KMS, or model generation for Nova).
+ * G10: failure must not look identical to "no similar question" in logs —
+ * previously `ok:false` was swallowed with no warn, so a dead embedding key
+ * silently disabled bank + answer-cache for every student.
  */
 async function resolveQueryEmbedding(query: string): Promise<number[] | null> {
   const result = await embedQueryText(query, { env: embeddingEnvFromDeno() });
-  return result.ok ? result.embedding : null;
+  if (!result.ok) {
+    console.warn("[embed] query embedding failed:", result.error);
+    return null;
+  }
+  return result.embedding;
 }
 
 /**
