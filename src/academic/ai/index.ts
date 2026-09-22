@@ -79,6 +79,7 @@ export {
 export {
   validateModelResponse,
   evidenceFromExplainFacts,
+  evidenceFromNovaLearningFacts,
   type ValidationResult,
   type EvidenceFacts,
 } from "./responseValidator";

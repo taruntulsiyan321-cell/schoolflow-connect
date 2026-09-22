@@ -208,7 +208,7 @@ export function validateModelResponse(
   };
 }
 
-/** Extract evidence numbers from AE+EIE fact bundle used by performance.explain / Nova. */
+/** Extract evidence numbers from AE+EIE fact bundle used by performance.explain. */
 export function evidenceFromExplainFacts(facts: {
   attendance?: { attendance_pct?: number };
   marks?: { average_pct?: number | null };
@@ -234,6 +234,36 @@ export function evidenceFromExplainFacts(facts: {
     avg_mastery: facts.eie?.avg_mastery ?? null,
     homework_pending: facts.homework?.pending_count ?? null,
     allowed_pcts: allowed,
+    xp: facts.progression?.xp ?? null,
+    level: facts.progression?.level ?? null,
+    study_streak: facts.progression?.study_streak ?? null,
+    battleground_wins: facts.progression?.battleground_wins ?? null,
+  };
+}
+
+/**
+ * Nova chat evidence — learning metrics only.
+ * Never allowlists attendance / marks / homework from office fetches or EIE risk stubs.
+ */
+export function evidenceFromNovaLearningFacts(facts: {
+  eie?: { avg_mastery?: number };
+  progression?: {
+    xp?: number;
+    level?: number;
+    study_streak?: number;
+    battleground_wins?: number;
+  };
+}): EvidenceFacts {
+  const avg =
+    typeof facts.eie?.avg_mastery === "number" && Number.isFinite(facts.eie.avg_mastery)
+      ? facts.eie.avg_mastery
+      : null;
+  return {
+    attendance_pct: null,
+    average_marks_pct: null,
+    homework_pending: null,
+    avg_mastery: avg,
+    allowed_pcts: avg != null ? [avg] : [],
     xp: facts.progression?.xp ?? null,
     level: facts.progression?.level ?? null,
     study_streak: facts.progression?.study_streak ?? null,

@@ -30,7 +30,10 @@ export type SessionMemoryRecord = {
 /** Capabilities that may inject session memory into Context Builder. */
 export const SESSION_MEMORY_CAPABILITIES: Record<string, SessionWorkflowScope> = {
   "student.concept.explain": "tutoring",
+  "student.nova.chat": "tutoring",
   "student.knowledge.retrieve": "tutoring",
+  "student.eie.mastery_summary": "tutoring",
+  "student.recommendation.next": "tutoring",
   "student.image_doubt": "tutoring",
   "student.image_doubt.submit": "tutoring",
   "student.image_doubt.solve": "tutoring",

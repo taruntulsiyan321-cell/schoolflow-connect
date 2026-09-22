@@ -2,6 +2,9 @@
  * Map free-text student intents to registered capabilities.
  * Unmapped free text falls through to student.nova.chat in resolveCoachCapability.
  * When `role` is set, skip capabilities the actor is not allowed to use.
+ *
+ * First match wins — put specific learning rules ahead of broad single-word office rules
+ * so e.g. "explain … concept" is not swallowed by /\bmarks?\b/.
  */
 
 import { getCapability } from "./capabilityCatalog";
@@ -21,69 +24,44 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
       /\bschool.?wide\b.+\b(attendance|performance|health)\b/i,
     ],
   },
-  {
-    feature_id: "student.attendance.query",
-    patterns: [
-      // Personal attendance — not school-wide / principal health briefs
-      /\b(?!school.?wide\b).*?\battendance\b/i,
-      /\bpresent\b.+\b(month|week|today|class)\b/i,
-      /\bhow many days\b.+\b(absent|present)\b/i,
-    ],
-  },
-  {
-    feature_id: "student.homework.due",
-    patterns: [
-      /\bhomework\b/i,
-      /\bassignment(s)?\b.+\b(due|pending)\b/i,
-      /\bdue\b.+\b(tomorrow|today|homework|assignment)\b/i,
-      /\bpending\b.+\bhomework\b/i,
-    ],
-  },
-  {
-    feature_id: "student.marks.summary",
-    patterns: [
-      /\bmarks?\b/i,
-      /\bscore(s)?\b/i,
-      /\bexam\b.+\bresult/i,
-      /\bhow did I (do|score)\b/i,
-    ],
-  },
-  {
-    feature_id: "student.calendar.upcoming",
-    patterns: [
-      /\bholiday(s)?\b/i,
-      /\b(school|academic)\s*calendar\b/i,
-      /\bupcoming\b.+\b(event|events)\b/i,
-      /\bschool\s*event(s)?\b/i,
-      /\bwhen('s| is)\b.+\b(holiday|break|vacation)\b/i,
-      /\bnext\b.+\b(holiday|break|vacation)\b/i,
-    ],
-  },
+  // Learning intents first (specificity) — before broad office single-word rules.
+  // mastery before concept.explain so "Explain my weak topics" stays on EIE, not tutoring.
   {
     feature_id: "student.eie.mastery_summary",
     patterns: [
       /\bmastery\b/i,
-      /\bweak\b.+\b(topic|concept|chapter)\b/i,
-      /\bstrong\b.+\b(topic|concept)\b/i,
+      // Prefer mastery for weak* (singular/plural topic|concept|chapter)
+      /\bweak(?:est)?\b.+\b(topics?|concepts?|chapters?)\b/i,
+      /\bstrong\b.+\b(topics?|concepts?)\b/i,
       /\brevision\b.+\b(priority|queue|plan)\b/i,
-      /\bwhat should I revise\b/i,
+      /\bwhat should I revise\b(?!\s+next\b)/i,
+      /\bsummaris[ee]\b.+\bweak(?:est)?\b.+\b(topics?|concepts?|chapters?)\b/i,
     ],
   },
   {
-    feature_id: "student.performance.explain",
+    feature_id: "student.recommendation.next",
     patterns: [
-      /\bexplain\b.+\b(performance|progress|marks|attendance)\b/i,
-      /\bhow am I doing\b/i,
-      /\bsummar(y|ise|ize)\b.+\b(progress|performance)\b/i,
+      /\bwhat should I (practi[sc]e|study|do next)\b/i,
+      /\bwhat should I do to improve(?:\s+them)?\b/i,
+      /\bwhat should I revise next\b/i,
+      /\brevise next\b/i,
+      /\bnext (concepts?|topics?|steps?)\b/i,
+      /\brecommend(ation)?\b/i,
+      /\bwhat to revise\b/i,
     ],
   },
   {
     feature_id: "student.concept.explain",
     patterns: [
-      /\bexplain\b.+\b(concept|topic|chapter|fractions|algebra|photosynthesis)\b/i,
-      /\bwhat (is|are|does)\b.+\b(mean|concept|topic)\b/i,
+      /\bexplain\b.+\b(concepts?|topics?|chapters?|fractions|algebra|photosynthesis)\b/i,
+      /\bwhat (is|are|does)\b.+\b(mean|concepts?|topics?)\b/i,
       /\bhelp me (understand|learn)\b/i,
       /\bteach me\b/i,
+      /\bexplain how\b.+\b(calculated|works|work)\b/i,
+      // Mistake / wrong-answer tutoring — not marks.summary (\bmarks?\b).
+      /\b(got|answered)\b.+\b(wrong|incorrect)\b/i,
+      /\bwhy\b.+\b(wrong|incorrect|mistake)\b/i,
+      /\bexplain\b.+\b(my|this|the)\b.+\b(mistake|error|wrong answer)\b/i,
     ],
   },
   {
@@ -92,22 +70,6 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
       /\b(from|in)\b.+\b(notes|textbook|syllabus|policy)\b/i,
       /\bfind\b.+\b(in|from)\b.+\b(notes|curriculum|knowledge)\b/i,
       /\bretrieve\b.+\b(knowledge|notes|chunk)\b/i,
-    ],
-  },
-  {
-    feature_id: "teacher.question_paper.generate_outline",
-    patterns: [
-      /\b(outline|draft outline)\b.+\b(question\s*paper|test paper|exam paper)\b/i,
-      /\bquestion\s*paper\b.+\boutline\b/i,
-      /\bgenerate\b.+\bpaper\b.+\boutline\b/i,
-    ],
-  },
-  {
-    feature_id: "teacher.question_paper.plan",
-    patterns: [
-      /\b(plan|blueprint)\b.+\b(question\s*paper|test paper|exam paper)\b/i,
-      /\bquestion\s*paper\b.+\b(plan|weights|blueprint)\b/i,
-      /\bcurriculum\s*weights?\b.+\b(paper|test|exam)\b/i,
     ],
   },
   {
@@ -135,20 +97,75 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
     ],
   },
   {
+    feature_id: "student.performance.explain",
+    patterns: [
+      /\bexplain\b.+\b(performance|progress|marks|attendance)\b/i,
+      /\bhow am I doing\b/i,
+      /\bsummar(y|ise|ize)\b.+\b(progress|performance)\b/i,
+    ],
+  },
+  // School-office intents (mapped for catalog/tests; student_app blocks at resolveCoachCapability)
+  {
+    feature_id: "student.attendance.query",
+    patterns: [
+      /\b(?!school.?wide\b).*?\battendance\b/i,
+      /\bpresent\b.+\b(month|week|today|class)\b/i,
+      /\bhow many days\b.+\b(absent|present)\b/i,
+    ],
+  },
+  {
+    feature_id: "student.homework.due",
+    patterns: [
+      /\bhomework\b/i,
+      /\bassignment(s)?\b.+\b(due|pending)\b/i,
+      /\bdue\b.+\b(tomorrow|today|homework|assignment)\b/i,
+      /\bpending\b.+\bhomework\b/i,
+    ],
+  },
+  {
+    feature_id: "student.marks.summary",
+    patterns: [
+      /\bmarks?\b/i,
+      /\bscore(s)?\b/i,
+      /\bexam\b.+\bresult/i,
+      /\bhow did I (do|score)\b/i,
+    ],
+  },
+  {
+    feature_id: "student.calendar.upcoming",
+    patterns: [
+      /\bholiday(s)?\b/i,
+      /\bcalendar\b/i,
+      /\b(school|academic)\s*calendar\b/i,
+      /\bupcoming\b.+\b(event|events)\b/i,
+      /\bschool\s*event(s)?\b/i,
+      /\bwhen('s| is)\b.+\b(holiday|break|vacation)\b/i,
+      /\bnext\b.+\b(holiday|break|vacation)\b/i,
+      /\bwhat('s| is)\b.+\bon\b.+\b(calendar|schedule)\b/i,
+    ],
+  },
+  {
+    feature_id: "teacher.question_paper.generate_outline",
+    patterns: [
+      /\b(outline|draft outline)\b.+\b(question\s*paper|test paper|exam paper)\b/i,
+      /\bquestion\s*paper\b.+\boutline\b/i,
+      /\bgenerate\b.+\bpaper\b.+\boutline\b/i,
+    ],
+  },
+  {
+    feature_id: "teacher.question_paper.plan",
+    patterns: [
+      /\b(plan|blueprint)\b.+\b(question\s*paper|test paper|exam paper)\b/i,
+      /\bquestion\s*paper\b.+\b(plan|weights|blueprint)\b/i,
+      /\bcurriculum\s*weights?\b.+\b(paper|test|exam)\b/i,
+    ],
+  },
+  {
     feature_id: "teacher.question_paper.marking_scheme",
     patterns: [
       /\bmarking\s*scheme\b/i,
       /\b(answer\s*key|mark\s*scheme)\b.+\b(paper|outline)\b/i,
       /\bgenerate\b.+\bmarking\b/i,
-    ],
-  },
-  {
-    feature_id: "student.recommendation.next",
-    patterns: [
-      /\bwhat should I (practi[sc]e|study|do next)\b/i,
-      /\bnext (concept|topic|step)\b/i,
-      /\brecommend(ation)?\b/i,
-      /\bwhat to revise\b/i,
     ],
   },
   {

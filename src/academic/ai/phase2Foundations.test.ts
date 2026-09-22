@@ -114,6 +114,45 @@ describe("Recommendation Engine v1", () => {
     expect(pkg.actions.some((a) => a.kind === "homework_catchup")).toBe(true);
   });
 
+  it("omits attendance/homework actions when office pcts are null (student learning-only)", () => {
+    const pkg = buildRecommendationPackage({
+      studentId: "s1-student",
+      schoolId: "sch1",
+      intelligence_version: "eie:2:1:0",
+      completeness: 0.85,
+      weak_concepts: [
+        { subject: "Math", concept: "Fractions", mastery_score: 42, band: "weak" },
+      ],
+      revision_priority: [
+        { subject: "Math", topic: "Fractions", priority: 9, reason: "weak_topic" },
+      ],
+      attendance_pct: null,
+      homework_completion_pct: null,
+    });
+    expect(pickNextConcept(pkg)?.concept_or_topic).toBe("Fractions");
+    expect(pkg.actions.some((a) => a.kind === "revision_priority")).toBe(true);
+    expect(pkg.actions.some((a) => a.kind === "attendance_checkin")).toBe(false);
+    expect(pkg.actions.some((a) => a.kind === "homework_catchup")).toBe(false);
+    expect(pkg.actions.every((a) => a.kind === "next_concept" || a.kind === "revision_priority")).toBe(
+      true,
+    );
+  });
+
+  it("still emits office checkin/catchup when pcts provided (parent/staff surfaces)", () => {
+    const pkg = buildRecommendationPackage({
+      studentId: "s1-staff",
+      schoolId: "sch1",
+      intelligence_version: "eie:1:0:0",
+      completeness: 0.7,
+      weak_concepts: [],
+      revision_priority: [],
+      attendance_pct: 70,
+      homework_completion_pct: 50,
+    });
+    expect(pkg.actions.some((a) => a.kind === "attendance_checkin")).toBe(true);
+    expect(pkg.actions.some((a) => a.kind === "homework_catchup")).toBe(true);
+  });
+
   it("returns empty actions when no seeds (honest empty)", () => {
     const pkg = buildRecommendationPackage({
       studentId: "s2",
