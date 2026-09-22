@@ -46,7 +46,7 @@ import {
   deriveImprovingChapters,
   deriveMonthComparison,
   deriveRecoveryProgress,
-  deriveRecoveryTopics,
+  deriveRecoveryChapters,
   deriveSubjectPace,
   formatSeconds,
   deriveRevisionData,
@@ -822,7 +822,7 @@ export default function Analysis() {
   }, [ctx, academicReady]);
 
   const recoveryProgress = useMemo(() => deriveRecoveryProgress(recoveryQueue), [recoveryQueue]);
-  const recoveryTopics = useMemo(() => deriveRecoveryTopics(recoveryQueue), [recoveryQueue]);
+  const recoveryChapters = useMemo(() => deriveRecoveryChapters(recoveryQueue), [recoveryQueue]);
 
   const revisionData = useMemo(() => deriveRevisionData(chapterStates), [chapterStates]);
 
@@ -1752,7 +1752,7 @@ export default function Analysis() {
           {/* Recovery & Revision */}
           <div className="grid sm:grid-cols-2 gap-6">
             <div>
-              <SLabel>Topics you practised again</SLabel>
+              <SLabel>Chapters you practised again</SLabel>
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-foreground">{recoveryProgress.completed}</div>
@@ -1764,16 +1764,16 @@ export default function Analysis() {
                 </div>
               </div>
               <div className="space-y-2">
-                {recoveryTopics.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No recovery topics yet</p>
-                ) : recoveryTopics.map((r) => (
-                  <div key={r.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60">
+                {recoveryChapters.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">No chapters in recovery yet</p>
+                ) : recoveryChapters.map((r) => (
+                  <div key={r.chapter} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60">
                     {r.status === "recovered"
                       ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
                       : <Clock className={cn("w-4 h-4 shrink-0", r.status === "ready" ? "text-destructive" : "text-muted-foreground")} />
                     }
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground truncate">{displayTopic(r.topic)}</div>
+                      <div className="text-sm font-medium text-foreground truncate">{displayChapter(r.chapter)}</div>
                       <div className="text-[11px] text-muted-foreground">{displaySubject(r.subject)}</div>
                     </div>
                     {/* The count, not a percentage. The old card showed an
