@@ -1468,24 +1468,30 @@ export const PracticeService = {
     // order without an ORDER BY, the same tap can return 3, 0 or 20 — so the
     // failure is intermittent, which is why it survived.
     //
-    // Pushed down case-insensitively. The client-side academicLabelMatches
-    // pass further down is still the precision filter; this only guarantees
-    // the window it filters actually contains candidates.
+    // Pushed down case-insensitively. The client-side pass further down is
+    // still the precision filter; this only guarantees the window it filters
+    // actually contains candidates.
+    //
+    // A COMMA IS PART OF A CHAPTER'S NAME, NOT A LIST SEPARATOR. This was a
+    // raw `or(chapter.ilike.<name>)` string, and PostgREST's or() is comma and
+    // parenthesis delimited — so any chapter carrying one had to be dropped
+    // from the narrowing rather than change the shape of the filter. Five
+    // chapters in the live bank carry commas ("Acids, Bases and Salts",
+    // "Work, Energy and Power", "Gender, Religion and Caste", "Depreciation,
+    // Provisions and Reserves", "Private, Public and Global Enterprises"), and
+    // every session on one of them read the whole subject and left the client
+    // pass to decide. `.ilike()` takes the value as a value, so the comma is
+    // just a character and the narrowing applies to every chapter.
     //
     // Only `chapter` is narrowed here: it is the one real label COLUMN. The
     // topic lives on the embedded topics row (topic_id -> topics.name) and is
     // narrowed separately below — question_bank has no `topic`, `concept` or
     // `topic_group` column (20261020010000), and naming one fails the whole
     // request with 42703, which is how practice once stopped starting.
-    const labelPredicate = (): string | null => {
-      // PostgREST's or() is comma/parenthesis delimited, so a label containing
-      // either would change the shape of the filter rather than be matched by
-      // it. Such a label falls back to the client-side pass instead.
-      const safe = (v: string | null | undefined) =>
-        v && !/[,()"\\]/.test(v) ? v.trim() : null;
-      const chapter = safe(opts.chapter);
-      return chapter ? `chapter.ilike.${chapter}` : null;
-    };
+    const chapterFilter = ((): string | null => {
+      const v = opts.chapter?.trim();
+      return v ? v : null;
+    })();
 
     /**
      * The topic, narrowed IN THE DATABASE — never picked out of a window.
@@ -1549,12 +1555,11 @@ export const PracticeService = {
       if (byIds) {
         query = query.in("id", opts.ids!);
       }
-      // The label predicate NARROWS; academicLabelMatches below is still what
-      // decides. Skipped on the fallback pass so a chapter stored under a
-      // mojibake or slugged label is still reachable the way it was before.
-      if (narrowToLabels && !byIds) {
-        const pred = labelPredicate();
-        if (pred) query = query.or(pred);
+      // The chapter NARROWS; the client-side pass below is still what decides.
+      // Skipped on the fallback pass so a chapter stored under a mojibake or
+      // slugged label is still reachable the way it was before.
+      if (narrowToLabels && !byIds && chapterFilter) {
+        query = query.ilike("chapter", chapterFilter);
       }
       if (topicId && !byIds) {
         query = query.eq("topic_id", topicId);
@@ -1627,7 +1632,7 @@ export const PracticeService = {
     // academicLabelMatches can resolve — so the narrowing must never be the
     // thing that makes a chapter unreachable. One extra round trip, and only
     // on the path that would otherwise have shown an empty screen.
-    if (!error && (data?.length ?? 0) === 0 && !byIds && (labelPredicate() || topicName)) {
+    if (!error && (data?.length ?? 0) === 0 && !byIds && (chapterFilter || topicName)) {
       const retry = await readPool(applyActiveFilter, false);
       if (!retry.error) ({ data } = retry);
     }
@@ -1647,17 +1652,41 @@ export const PracticeService = {
     // Senior stream allowlists (commerce / science 11–12) — covers null-stream legacy rows.
     rows = rows.filter((r) => isSubjectAllowedForScope(r.subject, scope.stream, classLevel));
 
+    // EQUAL CHAPTERS, NEVER ONE INSIDE THE OTHER.
+    //
+    // academicLabelMatches falls back to containment either way, which is the
+    // same defect the weak targets below were fixed for. Measured over the
+    // live bank on 2026-09-23, chapters of the SAME class and subject that
+    // contain one another — 34 ordered pairs, including:
+    //
+    //   Circles          <- Areas Related to Circles          (Maths 10)
+    //   Triangles        <- Areas of Parallelograms and Triangles (Maths 9)
+    //   Integrals        <- Application of Integrals           (Maths 12)
+    //   Motion           <- Force and Laws of Motion           (Science 9)
+    //   Resources        <- Human Resources, Mineral and Power Resources,
+    //                       Land Soil Water Natural Vegetation and Wildlife
+    //                       Resources                          (Social 8)
+    //   Introduction     <- Introduction to Macroeconomics     (Economics 12)
+    //
+    // The database narrowing hid most of it — an exact ilike returns only the
+    // chapter asked for — but the fallback pass has no narrowing, and until
+    // today neither did any chapter carrying a comma. Equality still resolves
+    // a slug, a mojibake spelling or an alias (academicMatchKey), which is
+    // what the fallback is for; it just refuses a different chapter.
     if (opts.chapter) {
-      rows = rows.filter((r) => academicLabelMatches(r.chapter, opts.chapter));
+      rows = rows.filter((r) => academicLabelEquals(r.chapter, opts.chapter));
     }
     if (topicId) {
       rows = rows.filter((r) => r.topic_id === topicId);
     } else if (opts.topic) {
       // A name: the topic's own name, or — from an old link — a chapter name.
+      // A TOPIC is matched loosely on purpose (an old link may carry a
+      // shortened or differently-punctuated name), but a CHAPTER named here
+      // is the same chapter or none.
       const needle = opts.topic;
       rows = rows.filter((r) =>
         academicLabelMatches(r.topics?.name ?? null, needle) ||
-        academicLabelMatches(r.chapter, needle),
+        academicLabelEquals(r.chapter, needle),
       );
     }
     if (opts.weakTargets && opts.weakTargets.length > 0) {
