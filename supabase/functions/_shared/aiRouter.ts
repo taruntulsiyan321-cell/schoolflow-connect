@@ -15,6 +15,13 @@ import { buildEieProjection } from "./eieProjection.ts";
 import { buildContextPack, packForModel } from "./contextBuilder.ts";
 import { dedupeSubjects, isPlaceholderLabel } from "./novaContextBuilder.ts";
 import {
+  expandSubjectsForMatch,
+  pickExactSemanticMatch,
+  resolveCacheSubject,
+  resolveNovaTutoringMode,
+  type SemanticCandidate,
+} from "./novaTutoringPolicy.ts";
+import {
   evidenceFromExplainFacts,
   evidenceFromNovaLearningFacts,
   validateModelResponse,
@@ -3843,7 +3850,7 @@ export async function routeAiRequest(
           homework_consistency: _novaOmitHomeworkConsistency,
           ...eieLearning
         } = eie;
-        const facts = {
+        const facts: Record<string, unknown> = {
           eie: eieLearning,
           progression,
           student_profile,
@@ -3869,17 +3876,10 @@ export async function routeAiRequest(
         // embedding quality.
         //
         // STAGE 1 (retrieval): broad similarity floor (0.65) across both sources.
-        // STAGE 2 (verification): the top candidate is only ever treated as EXACT — safe to
-        // return its stored answer directly — when similarity is also >= 0.78 AND every numeric
-        // value in the two questions matches exactly (numbersMatch). This second gate is not
-        // optional: verified empirically that a same-template-different-values pair can score
-        // HIGHER (0.94) than a genuine same-question paraphrase (0.79) — cosine similarity alone
-        // cannot distinguish "same question" from "same method, different numbers," and reusing
-        // a cached numeric answer for different values would silently hand a student someone
-        // else's answer. Below the EXACT bar but still >= 0.65, the candidate becomes a
-        // REFERENCE: folded into the model prompt as a worked example to reuse the method
-        // against, never as a ready-made answer — the model still calculates fresh for this
-        // student's actual values.
+        // STAGE 2 (verification): scan the retrieved pool for EXACT matches
+        // (similarity >= 0.78 AND numbersMatch). Prefer a subject-aligned exact
+        // hit over a higher-sim wrong-subject exact. Cosine alone cannot tell
+        // "same question" from "same method, different numbers."
         let queryEmbedding: number[] | null = null;
         let matchClassLevel: number | null = null;
         let matchSubjects: string[] | null = null;
@@ -3906,7 +3906,8 @@ export async function routeAiRequest(
             try {
               queryEmbedding = await resolveQueryEmbedding(question);
               if (queryEmbedding) {
-                matchSubjects = student_profile.subjects?.length ? student_profile.subjects : null;
+                // Alias-expand subjects (Maths↔Mathematics) so bank/cache filters hit.
+                matchSubjects = expandSubjectsForMatch(student_profile.subjects);
                 const [bankRes, cacheRes] = await Promise.all([
                   admin.rpc("match_question_bank", {
                     p_query_embedding: queryEmbedding,
@@ -3914,7 +3915,9 @@ export async function routeAiRequest(
                     p_school_id: req.actor.schoolId,
                     p_subjects: matchSubjects,
                     p_match_threshold: 0.65,
-                    p_match_count: 2,
+                    // Retrieve a small pool so exact-match can prefer subject-aligned hits
+                    // over a higher-sim wrong-subject row (top-1-only residual).
+                    p_match_count: 5,
                   }),
                   admin.rpc("match_ai_answer_cache", {
                     p_query_embedding: queryEmbedding,
@@ -3922,7 +3925,7 @@ export async function routeAiRequest(
                     p_school_id: req.actor.schoolId,
                     p_subjects: matchSubjects,
                     p_match_threshold: 0.65,
-                    p_match_count: 2,
+                    p_match_count: 5,
                   }),
                 ]);
                 // G10. An error from either RPC is currently indistinguishable
@@ -3952,22 +3955,37 @@ export async function routeAiRequest(
                   !cacheRes.error && Array.isArray(cacheRes.data)
                     ? (cacheRes.data as Record<string, unknown>[])
                     : [];
-                const bankCandidates: (Record<string, unknown> & { __source: "question_bank" })[] =
-                  bankRows.map((m) => ({ ...m, __source: "question_bank" as const }));
-                const cacheCandidates: (Record<string, unknown> & { __source: "ai_answer_cache" })[] =
+                const bankCandidates: SemanticCandidate[] =
+                  bankRows.map((m) => ({
+                    ...m,
+                    similarity: Number(m.similarity),
+                    question: String(m.question ?? ""),
+                    subject: typeof m.subject === "string" ? m.subject : null,
+                    __source: "question_bank" as const,
+                  }));
+                const cacheCandidates: SemanticCandidate[] =
                   cacheRows.map((m) => ({
                     ...m,
-                    question: m.original_question,
+                    similarity: Number(m.similarity),
+                    question: String(m.original_question ?? ""),
+                    subject: typeof m.subject === "string" ? m.subject : null,
                     __source: "ai_answer_cache" as const,
                   }));
-                const best = ([...bankCandidates, ...cacheCandidates] as (Record<string, unknown> & {
-                  __source: "question_bank" | "ai_answer_cache";
-                })[]).sort((a, b) => Number(b.similarity) - Number(a.similarity))[0];
+                const ranked = [...bankCandidates, ...cacheCandidates].sort(
+                  (a, b) => Number(b.similarity) - Number(a.similarity),
+                );
+                const exactBest = pickExactSemanticMatch(
+                  ranked,
+                  question,
+                  matchSubjects,
+                  numbersMatch,
+                );
+                const best = exactBest ?? ranked[0];
 
                 if (best) {
                   const similarity = Number(best.similarity);
                   const candidateQuestion = String(best.question ?? "");
-                  const isExact = similarity >= 0.78 && numbersMatch(question, candidateQuestion);
+                  const isExact = exactBest != null && exactBest === best;
 
                   if (isExact && best.__source === "question_bank") {
                     const opts: string[] = Array.isArray(best.options) ? best.options as string[] : [];
@@ -4081,6 +4099,31 @@ export async function routeAiRequest(
           }
         }
 
+        const priorSocraticAttempts = (() => {
+          const flags =
+            sessionForContext?.flags && typeof sessionForContext.flags === "object"
+              ? (sessionForContext.flags as Record<string, unknown>)
+              : {};
+          const n = Number(flags.socratic_attempts ?? 0);
+          return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+        })();
+        const tutoringResolved = resolveNovaTutoringMode({
+          question,
+          hasQuestionContext: Boolean(questionContextBlock),
+          sessionTurnCount: Number(sessionMemory?.turn_count ?? 0),
+          priorSocraticAttempts,
+        });
+        const tutoringFacts = {
+          mode: tutoringResolved.mode,
+          rule:
+            tutoringResolved.mode === "socratic"
+              ? "hint_or_one_clarifying_question_only"
+              : tutoringResolved.mode === "full"
+              ? "full_stepwise_solution_ok"
+              : "explain_mistake_then_correct_approach",
+        };
+        facts.tutoring = tutoringFacts;
+
         const pack = buildContextPack({
           capability: cap.feature_id,
           request_text: question,
@@ -4090,6 +4133,7 @@ export async function routeAiRequest(
             practice,
             mistakes,
             recovery,
+            tutoring: tutoringFacts,
           },
           eie: eieLearning,
           session_memory: sessionForContext,
@@ -4458,6 +4502,10 @@ export async function routeAiRequest(
             session_patch: buildSessionSummaryPatch({
               last_feature_id: cap.feature_id,
               last_decision: decision,
+              flags: {
+                socratic_attempts: tutoringResolved.nextSocraticAttempts,
+                tutoring_mode: tutoringResolved.mode,
+              },
             }),
           },
           conf,
@@ -4482,13 +4530,19 @@ export async function routeAiRequest(
         // embedding call) and a non-empty validated reply. Live-verified end to end: a fresh
         // question saves here, and a later differently-worded equivalent (via
         // match_ai_answer_cache) retrieves it directly with zero model cost.
+        // Only cache FULL / mistake_review answers — socratic hints must not poison the cache.
         if (
           matchClassLevel != null &&
           !images.length &&
           !questionContextBlock &&
           queryEmbedding &&
-          modelResult.text.trim()
+          modelResult.text.trim() &&
+          tutoringResolved.mode !== "socratic"
         ) {
+          const cacheSubject = resolveCacheSubject({
+            matchedSubjectHint,
+            profileSubjects: student_profile.subjects,
+          });
           admin
             .from("ai_answer_cache")
             .insert({
@@ -4496,7 +4550,7 @@ export async function routeAiRequest(
               answer: modelResult.text,
               embedding: `[${queryEmbedding.join(",")}]`,
               class_level: matchClassLevel,
-              subject: matchedSubjectHint,
+              subject: cacheSubject,
               model_id: model_id ?? null,
               request_id: req.request_id,
               school_id: req.actor.schoolId,
