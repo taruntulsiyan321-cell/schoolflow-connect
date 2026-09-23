@@ -1013,7 +1013,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           second h1 on every screen at 14px), this was the one screen left
           with none at all. Visually hidden, so the layout is unchanged and a
           screen reader still knows what it landed on. */}
-      <h1 className="sr-only">AI Coach</h1>
+      <h1 className="sr-only">Nova</h1>
 
       {/* ── Sidebar (desktop always visible, mobile overlay) ── */}
       <div className={cn(

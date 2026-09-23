@@ -287,38 +287,91 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
           surface. A student is shown what to do next, not a diagram of the
           method. Today's Mission below is that. */}
 
-      {/* Today's Mission - premium stagger */}
+      {/* Today's Mission — Practice → Analysis → Recovery → Revision → Nova.
+          Progress tiles use live snapshot counts only; Analysis/Nova are
+          navigation entries (no invented daily targets). */}
       <div className="animate-premium-enter" style={{animationDelay: "0.08s"}}>
         <SectionLabel>{"Today's Mission"}</SectionLabel>
-        <div className="grid sm:grid-cols-3 gap-4 animate-premium-stagger">
-          {[
-            { label: "Practice", done: mission.practiceDone, target: mission.practiceTarget, color: "hsl(var(--primary))", icon: <BookOpen className="w-4 h-4"/>, page: "practice" as PageKey },
-            { label: "Recovery", done: mission.recoveryDone, target: mission.recoveryTarget, color: "hsl(var(--accent))", icon: <RefreshCw className="w-4 h-4"/>, page: "recovery" as PageKey },
-            { label: "Revision", done: mission.revisionDone, target: mission.revisionTarget, color: "var(--color-chemistry)", icon: <RotateCcw className="w-4 h-4"/>, page: "revision" as PageKey },
-          ].map((m) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 animate-premium-stagger">
+          {([
+            {
+              label: "Practice",
+              kind: "progress" as const,
+              done: mission.practiceDone,
+              target: mission.practiceTarget,
+              color: "hsl(var(--primary))",
+              icon: <BookOpen className="w-4 h-4"/>,
+              page: "practice" as PageKey,
+            },
+            {
+              label: "Analysis",
+              kind: "link" as const,
+              sub: mission.mistakesLogged > 0
+                ? `${pluralise(mission.mistakesLogged, "mistake")} logged`
+                : "View insights",
+              color: "var(--color-physics)",
+              icon: <BarChart2 className="w-4 h-4"/>,
+              page: "analysis" as PageKey,
+            },
+            {
+              label: "Recovery",
+              kind: "progress" as const,
+              done: mission.recoveryDone,
+              target: mission.recoveryTarget,
+              color: "hsl(var(--accent))",
+              icon: <RefreshCw className="w-4 h-4"/>,
+              page: "recovery" as PageKey,
+            },
+            {
+              label: "Revision",
+              kind: "progress" as const,
+              done: mission.revisionDone,
+              target: mission.revisionTarget,
+              color: "var(--color-chemistry)",
+              icon: <RotateCcw className="w-4 h-4"/>,
+              page: "revision" as PageKey,
+            },
+            {
+              label: "Nova",
+              kind: "link" as const,
+              sub: "Ask your AI coach",
+              color: "hsl(var(--info))",
+              icon: <Brain className="w-4 h-4"/>,
+              page: "aicoach" as PageKey,
+            },
+          ]).map((m) => (
             <GlassCard key={m.label} className="p-4 cursor-pointer hover:border-border" onClick={() => setPage(m.page)}>
               <div className="flex items-center gap-2 mb-2">
                 <span style={{ color: m.color }}>{m.icon}</span>
                 <span className="text-xs font-semibold text-foreground">{m.label}</span>
               </div>
-              <div className="text-2xl font-black tabular-nums mb-1" style={{ color: m.color }}>
-                {m.done}<span className="text-sm text-muted-foreground font-normal">/{m.target}</span>
-              </div>
-              <ProgressBar value={m.done} max={m.target} color={m.color}/>
+              {m.kind === "progress" ? (
+                <>
+                  <div className="text-2xl font-black tabular-nums mb-1" style={{ color: m.color }}>
+                    {m.done}<span className="text-sm text-muted-foreground font-normal">/{m.target}</span>
+                  </div>
+                  <ProgressBar value={m.done} max={m.target} color={m.color}/>
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground mt-1">{m.sub}</div>
+              )}
             </GlassCard>
           ))}
         </div>
       </div>
 
-      {/* Quick Actions - premium stagger */}
+      {/* Quick Actions — student tabs first (Practice → Analysis → Recovery →
+          Revision → Nova), then Battleground. School/class surfaces stay below. */}
       <div className="animate-premium-enter" style={{animationDelay: "0.16s"}}>
         <SectionLabel>Quick Actions</SectionLabel>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-premium-stagger">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-premium-stagger">
           {[
             { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "hsl(var(--primary))", page: "practice" as PageKey },
-            { label: "AI Coach", sub: "Chat with Nova", icon: <Brain className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "aicoach" as PageKey },
-            { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "hsl(var(--warning))", page: "battleground" as PageKey },
             { label: "Analysis", sub: "View insights", icon: <BarChart2 className="w-5 h-5"/>, color: "var(--color-physics)", page: "analysis" as PageKey },
+            { label: "Recovery", sub: "Fix open mistakes", icon: <RefreshCw className="w-5 h-5"/>, color: "hsl(var(--accent))", page: "recovery" as PageKey },
+            { label: "Revision", sub: "Spaced review", icon: <RotateCcw className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "revision" as PageKey },
+            { label: "Nova", sub: "Ask your AI tutor", icon: <Brain className="w-5 h-5"/>, color: "hsl(var(--info))", page: "aicoach" as PageKey },
+            { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "hsl(var(--warning))", page: "battleground" as PageKey },
           ].map((a) => (
             <GlassCard key={a.label} className="p-4 cursor-pointer hover:border-border group" onClick={() => setPage(a.page)}>
               <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{ background: withAlpha(a.color, 0.1), color: a.color }}>
