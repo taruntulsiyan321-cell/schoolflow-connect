@@ -1357,7 +1357,12 @@ function Session({
             _difficulty: config.difficulty,
             _time_limit_sec: config.timeLimitSec,
           });
-          if (cancelled) return;
+          if (cancelled) {
+            // Start already wrote a row; settle leaves 0-attempt unfinished
+            // sessions alone, so discard here or the orphan stays forever.
+            void PracticeService.discardUnstartedSession(ctx, sid).catch(() => undefined);
+            return;
+          }
           sessionIdRef.current = sid;
           startedAtRef.current = new Date().toISOString();
         }

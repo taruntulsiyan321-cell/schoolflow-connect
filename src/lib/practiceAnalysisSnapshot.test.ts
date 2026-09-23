@@ -124,6 +124,19 @@ describe("buildPracticeAnalysisSnapshot", () => {
     }
   });
 
+  it("saves an all-correct session from totals alone when durable attempts are empty", () => {
+    // §10.8 — right answers leave no per-question row. Save still freezes the
+    // session totals so a perfect run is not refused.
+    const snap = buildPracticeAnalysisSnapshot(
+      { ...session, correct_count: 3, wrong_count: 0, skipped_count: 0, accuracy: 100, xp_earned: 40 },
+      [],
+    );
+    expect(snap.correctCount).toBe(3);
+    expect(snap.wrongCount).toBe(0);
+    expect(snap.attempts).toEqual([]);
+    expect(snap.insights.recommendations.join(" ")).toMatch(/nothing outstanding/i);
+  });
+
   it("reads options that were stored as a JSON string", () => {
     const snap = buildPracticeAnalysisSnapshot(session, [
       { ...records[0], generated_question: { question: "Q", options: JSON.stringify(["x", "y"]) } },

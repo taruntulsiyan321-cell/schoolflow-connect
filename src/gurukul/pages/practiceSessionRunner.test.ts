@@ -58,6 +58,8 @@ describe("a practice session records what the student was shown", () => {
     expect(mapped, "questions must be loaded before the row is created").toBeGreaterThan(-1);
     expect(start, "the session must still be started").toBeGreaterThan(mapped);
     expect(loader).toContain("if (mapped.length > 0)");
+    // Cancel after start must discard the orphan — settle skips 0-attempt rows.
+    expect(loader).toContain("discardUnstartedSession");
     // The patch that created a row for an empty mode and finished it at once.
     expect(SOURCE, "an empty mode must not finish a session it never started")
       .not.toContain("_attempts: [],");

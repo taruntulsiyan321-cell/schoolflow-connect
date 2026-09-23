@@ -453,6 +453,15 @@ export const PracticeService = {
     }).catch((err) => {
       console.warn("[PracticeService.finish] emitEvent failed:", err);
     });
+    const sessionId = typeof args._session_id === "string" ? args._session_id : null;
+    if (sessionId) {
+      await this.clearMistakesAfterIncorrectSession(ctx, sessionId).catch((err) => {
+        console.warn(
+          "[PracticeService.finish] clearMistakesAfterIncorrectSession failed:",
+          err instanceof Error ? err.message : err,
+        );
+      });
+    }
     broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
       studentId: ctx.studentId,
       source: "PracticeService",
@@ -840,7 +849,16 @@ export const PracticeService = {
     const session = await this.getSession(ctx, sessionId);
     if (!session) throw new Error("That practice session could not be found.");
     const attempts = await this.listSessionAttempts(ctx, sessionId);
-    if (attempts.length === 0) throw new Error("Nothing was answered in this session, so there is nothing to save.");
+    // §10.8 — listSessionAttempts returns wrong/skipped only. An all-correct
+    // session has an empty durable list, but its totals still belong on a
+    // saved snapshot. Refuse only when nothing was sat at all.
+    const sat =
+      (session.correct_count ?? 0) +
+      (session.wrong_count ?? 0) +
+      (session.skipped_count ?? 0);
+    if (sat <= 0 && attempts.length === 0) {
+      throw new Error("Nothing was answered in this session, so there is nothing to save.");
+    }
     const snapshot = buildPracticeAnalysisSnapshot(session, attempts as PracticeAttemptRecord[]);
     const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_save_practice_session", {
       _session_id: sessionId,
@@ -1320,7 +1338,29 @@ export const PracticeService = {
         return status === "wrong" ? row.question_id : row.bank_question_id;
       })
       .filter((id): id is string => Boolean(id));
-    return dedupePreservingOrder(ids).slice(0, limit);
+    const unique = dedupePreservingOrder(ids);
+    if (status === "wrong" || unique.length === 0) return unique.slice(0, limit);
+
+    // Skipped mode is self-clearing on the read path: a later non-skipped
+    // attempt (right or wrong) means the student revisited the question, so
+    // it leaves the pool. Historical skip rows stay (§10.8); only the pool
+    // membership changes.
+    const { data: recent, error: recentErr } = await client
+      .from("question_attempts")
+      .select("bank_question_id, skipped, created_at")
+      .eq("user_id", ctx.userId)
+      .in("bank_question_id", unique)
+      .order("created_at", { ascending: false });
+    throwIfError(recentErr, "Failed to resolve skipped questions");
+    const latestIsSkip = new Set<string>();
+    const seen = new Set<string>();
+    for (const row of recent ?? []) {
+      const r = row as { bank_question_id: string | null; skipped: boolean | null };
+      if (!r.bank_question_id || seen.has(r.bank_question_id)) continue;
+      seen.add(r.bank_question_id);
+      if (r.skipped) latestIsSkip.add(r.bank_question_id);
+    }
+    return unique.filter((id) => latestIsSkip.has(id)).slice(0, limit);
   },
 
   /** Wrong questions as practice-ready bank rows (honest empty if none). */
@@ -1434,9 +1474,12 @@ export const PracticeService = {
     const scope = await this.resolveCurriculumScope(ctx);
     const classLevel = opts.classLevel ?? scope.classLevel;
 
-    // Never dump all classes when class cannot be resolved (unless fetching by id).
+    // Never dump all classes when class cannot be resolved — including by-id
+    // loads (incorrect / skipped / bookmarked / recovery / revision). Those
+    // used to skip the fence when classLevel was still null and could return
+    // another class's bank rows for the same ids.
     const byIds = opts.ids && opts.ids.length > 0;
-    if (!byIds && (classLevel == null || !Number.isFinite(classLevel))) {
+    if (classLevel == null || !Number.isFinite(classLevel)) {
       return [];
     }
     if (
@@ -1874,5 +1917,66 @@ export const PracticeService = {
       studentId: ctx.studentId,
       source: "PracticeService.markMistakesCleared",
     });
+  },
+
+  /**
+   * Hub Incorrect Questions: clear open Mistake Book rows for bank questions
+   * answered correctly in this session. Mistake Book's dedicated retry still
+   * uses its ≥70% batch gate in completeMistakeRetry — sessions sourced from
+   * mistake_book are left alone here.
+   */
+  async clearMistakesAfterIncorrectSession(ctx: ServiceContext, sessionId: string): Promise<void> {
+    assertCanOwn(ctx, "practice");
+    const session = await this.getSession(ctx, sessionId);
+    if (!session || session.practice_mode !== "incorrect") return;
+    const client = getClient(toRepoContext(ctx));
+    const { data: corrects, error: attErr } = await client
+      .from("question_attempts")
+      .select("bank_question_id, source")
+      .eq("session_id", sessionId)
+      .eq("user_id", ctx.userId)
+      .eq("is_correct", true)
+      .not("bank_question_id", "is", null);
+    throwIfError(attErr, "Failed to load correct incorrect-mode attempts");
+    const rows = (corrects ?? []) as Array<{ bank_question_id: string | null; source: string | null }>;
+    if (rows.some((r) => r.source === "mistake_book")) return;
+    const bankIds = dedupePreservingOrder(
+      rows.map((r) => r.bank_question_id).filter((id): id is string => Boolean(id)),
+    );
+    if (bankIds.length === 0) return;
+    const { data: mistakes, error: mistErr } = await client
+      .from("student_mistakes")
+      .select("id")
+      .eq("user_id", ctx.userId)
+      .eq("status", "open")
+      .in("question_id", bankIds);
+    throwIfError(mistErr, "Failed to load mistakes to clear");
+    const mistakeIds = (mistakes ?? []).map((r) => (r as { id: string }).id);
+    if (mistakeIds.length) await this.markMistakesCleared(ctx, mistakeIds);
+  },
+
+  /**
+   * Drop a session row created for a start that was cancelled before the
+   * runner assigned it (navigate away while questions were loading). Settle
+   * skips 0-attempt unfinished rows on purpose — history must not gain a
+   * ghost — so the cancel path deletes the orphan instead.
+   */
+  async discardUnstartedSession(ctx: ServiceContext, sessionId: string): Promise<void> {
+    assertCanOwn(ctx, "practice");
+    const client = getClient(toRepoContext(ctx));
+    const { count, error: countErr } = await client
+      .from("question_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", sessionId)
+      .eq("user_id", ctx.userId);
+    throwIfError(countErr, "Failed to check practice attempts before discard");
+    if ((count ?? 0) > 0) return;
+    const { error } = await client
+      .from("practice_sessions")
+      .delete()
+      .eq("id", sessionId)
+      .eq("user_id", ctx.userId)
+      .is("finished_at", null);
+    throwIfError(error, "Failed to discard unstarted practice session");
   },
 };

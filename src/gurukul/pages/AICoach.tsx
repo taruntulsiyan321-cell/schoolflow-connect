@@ -696,8 +696,12 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       messages: [],
       questionContext: ctx,
     };
+    // replyViaGateway reads convosRef synchronously. setConvos alone would
+    // leave the ref on the previous render and drop questionContext on the
+    // first Explain turn.
+    convosRef.current = [newConvo, ...convosRef.current];
     activeIdRef.current = id;
-    setConvos((cs) => [newConvo, ...cs]);
+    setConvos(convosRef.current);
     setActiveId(id);
     // The student pressed Explain — they have already asked. Making them type
     // "explain this" as well is the cost this handoff exists to remove.
