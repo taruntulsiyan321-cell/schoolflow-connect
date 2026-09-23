@@ -123,7 +123,12 @@ describe("weak areas filter reaches the database", () => {
     // Chapter names carry spaces and commas ("Areas Related to Circles"), and
     // an unquoted PostgREST in.() list would split on them and match nothing —
     // reintroducing the empty-session bug through a different door.
+    // Both interpolations go through the ONE quoting helper — the chapter
+    // label used to be dropped instead of quoted when it held a comma, which
+    // left "Gender, Religion and Caste" 2 of its 40 questions.
     const build = buildQuerySection();
-    expect(build).toMatch(/const quote = /);
+    expect(build).toContain("chapters.map(postgrestQuoted)");
+    expect(SOURCE).toContain("`chapter.ilike.${postgrestQuoted(chapter)}`");
+    expect(build).not.toMatch(/const quote = /);
   });
 });

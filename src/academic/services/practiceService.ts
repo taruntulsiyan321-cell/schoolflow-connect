@@ -60,6 +60,16 @@ export function dedupePreservingOrder(ids: string[]): string[] {
   return out;
 }
 
+/**
+ * A value made safe to sit inside a PostgREST logic tree — or=(…) or in.(…) —
+ * where a bare comma or parenthesis would split it into two conditions.
+ * PostgREST reads a double-quoted value literally, with backslash escaping
+ * for a quote or backslash inside it. The one place this rule lives.
+ */
+export function postgrestQuoted(v: string): string {
+  return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 export type PracticeSessionRow = {
   id: string;
   subject: string;
@@ -1250,14 +1260,15 @@ export const PracticeService = {
     // precision filter; this only guarantees the window it filters actually
     // contains candidates.
     const labelPredicate = (): string | null => {
-      // PostgREST's or() is comma/parenthesis delimited, so a label containing
-      // either would change the shape of the filter rather than be matched by
-      // it. Such a label falls back to the client-side pass instead.
-      const safe = (v: string | null | undefined) =>
-        v && !/[,()"\\]/.test(v) ? v.trim() : null;
-      const chapter = safe(opts.chapter);
-      const topic = safe(opts.topic);
-      const concept = safe(opts.concept);
+      // PostgREST's or() is comma/parenthesis delimited, so the label is
+      // QUOTED, not dropped. It used to be dropped for any label holding a
+      // comma, and the query then fetched an arbitrary window of the class's
+      // questions: measured, "Gender, Religion and Caste" reached 2 of its 40
+      // questions and "Acids, Bases and Salts" 13 of 40, mixed with 11 other
+      // chapters. Six chapters carry a comma.
+      const chapter = opts.chapter?.trim() || null;
+      const topic = opts.topic;
+      const concept = opts.concept;
       // Only `chapter` can be narrowed here. The topic label lives on an
       // EMBEDDED row (topics.name) and PostgREST's or() applies to the parent
       // table, so a topic/concept arm would have to be an inner-join filter —
@@ -1266,7 +1277,7 @@ export const PracticeService = {
       // says, the precision filter; this only has to make the window contain
       // candidates. The old topic./concept. arms could never match anything.
       const clauses: string[] = [];
-      if (chapter) clauses.push(`chapter.ilike.${chapter}`);
+      if (chapter) clauses.push(`chapter.ilike.${postgrestQuoted(chapter)}`);
       void topic; void concept;   // narrowed on the embedded topic instead
       return clauses.length ? clauses.join(",") : null;
     };
@@ -1293,10 +1304,12 @@ export const PracticeService = {
      * the un-narrowed retry below then runs, which is exactly the old
      * behaviour.
      */
-    const topicNeedle = ((): string | null => {
-      const v = opts.topic;
-      return v && !/[,()"\\]/.test(v) ? v.trim() : null;
-    })();
+    // A plain .ilike() filter, not an or() list, so commas and parentheses in
+    // the name need no quoting here. They used to disqualify the topic from
+    // narrowing entirely — 308 topics, every one with questions, e.g. "Power
+    // of Accommodation, Near and Far Point" — leaving it to the same arbitrary
+    // window the chapter case had.
+    const topicNeedle = opts.topic?.trim() || null;
 
     const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean) => {
       const narrowTopic = narrowToLabels && !byIds && topicNeedle !== null;
@@ -1370,7 +1383,6 @@ export const PracticeService = {
       // this only guarantees the window it filters actually contains
       // candidates.
       if (opts.weakTargets && opts.weakTargets.length > 0) {
-        const quote = (v: string) => `"${v.replace(/["\\]/g, "")}"`;
         const concepts = Array.from(
           new Set(opts.weakTargets.map((w) => w.concept).filter((c): c is string => Boolean(c))),
         );
@@ -1382,7 +1394,7 @@ export const PracticeService = {
         // unit), so narrowing on chapter keeps the window tight; the
         // concept-level precision is applied client-side below.
         const clauses: string[] = [];
-        if (chapters.length) clauses.push(`chapter.in.(${chapters.map(quote).join(",")})`);
+        if (chapters.length) clauses.push(`chapter.in.(${chapters.map(postgrestQuoted).join(",")})`);
         if (clauses.length) query = query.or(clauses.join(","));
         void concepts;
       }
