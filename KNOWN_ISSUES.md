@@ -3491,3 +3491,92 @@ and the owner's approved insert still goes through.
 this machine has no Postgres, so nothing could run it. Both files parse
 against the real Postgres grammar (libpg_query); their plpgsql bodies have not
 been executed anywhere. Apply and dry-run them the moment the token is back.
+
+## 79. A finished session still STORES the questions it got right — app half fixed 2026-09-23, DATABASE HALF OPEN (needs 75, and one ruling from the owner)
+
+§10.8: "While a session is in flight, per-question correctness may exist. It is
+working state. **When the session closes, it must not persist.** What survives
+is: session or tier **totals**, plus rows for **wrong, skipped and
+bookmarked**" — and, in the same section, "**No per-question record of correct
+answers**."
+
+Measured 2026-09-23 on production:
+
+```
+finished practice sessions                                686
+  their correct per-question rows in question_attempts  1,267   <- forbidden
+  their wrong rows                                      4,256
+  their skipped rows                                    2,472
+saved analysis_snapshots                                   32
+  each froze EVERY question of its session — text, options,
+  the answer key, the explanation and the student's choice
+```
+
+**Fixed in the app (2026-09-23), so nothing serves one:**
+`PracticeService.listSessionAttempts` — the one read of a session's questions,
+behind both the result screen's review list and the snapshot a saved session
+freezes — returns the wrong and the skipped only. A snapshot is version 3 and
+holds the same; version 2 snapshots (the 32 above) keep their right answers on
+disk but the result screen filters them out on read. The concept report now
+reads the session's totals instead of counting the attempt list, which is why
+it did not start reporting every reopened session at 0% and flagging its
+chapter weak. The just-finished session on the same device still reviews in
+full, from the navigation's own state — that is the working state §10.8
+allows, and it never comes from the database.
+
+**Still open — the rows themselves.** They are the server's to remove at
+finish (`rpc_finish_practice_session`), plus a one-off purge of the 1,267 and
+a strip of the 32 snapshots. That is a migration, and the Management API token
+is dead (75), so it can be neither applied nor dry-run here. It is deliberately
+NOT written blind: it deletes production data and rewrites the hottest RPC in
+the product, and this environment cannot run it once.
+
+**And it needs one ruling first, because two specs disagree.**
+
+* §10.8 says a correct answer must leave no per-question record.
+* `docs/recovery-revision-analysis-spec.md` §5.4 builds a revision check from
+  the student's whole attempt history and requires a check to contain no
+  question they have already seen — which needs to know that a question was
+  served, including the ones answered correctly.
+
+They can both be satisfied by keeping a **"seen" row with no verdict**: at
+finish, for a correct attempt, keep `session_id`, `bank_question_id` and the
+timestamp, and null out `is_correct`, `selected_answer`, `correct_answer` and
+`generated_question`. Nothing then records that the answer was right; revision
+still knows the question was asked. The alternative — delete the rows outright
+— is simpler and stricter, and costs revision its "already seen" exclusion.
+
+Whichever way it goes, these readers move to the session totals first, because
+they count `question_attempts` today: Analysis's Overview tiles (solved,
+correct, incorrect, skipped, accuracy), `rpc_student_practice_analytics`'
+by-topic figures, and "Topics practised".
+
+## 80. The bank's answer key is not uniform: option D is right 4.5% of the time — OPEN, needs 75 and care
+
+Measured 2026-09-23 over the 21,865 active, approved bank questions that carry
+options:
+
+```
+correct_index 0 (A)   7,233   33.1%
+correct_index 1 (B)   8,051   36.8%
+correct_index 2 (C)   5,608   25.6%
+correct_index 3 (D)     973    4.5%
+```
+
+A student who always answers A or B is right about 70% of the time, and one
+who answers D is right about 1 time in 22. Found while driving a session that
+needed deliberate wrong answers: answering A five times scored 5/5, which is
+how the skew surfaced.
+
+It corrupts everything downstream that treats accuracy as knowledge: session
+accuracy, concept mastery, the weak-chapter list, recovery triggers and the
+revision ladder all read a guess that pays 70% as understanding.
+
+**Not fixable blind.** Reshuffling each question's options and rewriting its
+`correct_index` is a 21,865-row UPDATE, and `student_mistakes`,
+`question_attempts` and the practice snapshots all store option INDEXES for
+questions already answered — a reshuffle rewrites what those rows mean. The
+fix has to renumber the history with the question or leave the old rows keyed
+to a question that no longer says what they claim. That needs the database
+token (75) and a migration with its own proof; it is recorded here rather than
+attempted from the client.

@@ -14,7 +14,12 @@ import { ACCURACY_BUILDING, ACCURACY_PROCEDURAL } from "@/academic/metrics/bands
  * (practiceModeLabel), so a stored copy could only ever disagree with it.
  */
 export type PracticeAnalysisSnapshot = {
-  version: 2;
+  /**
+   * 3 since 2026-09-23: the attempts are the wrong and the skipped only
+   * (§10.8). A version 2 snapshot has the same shape and froze every question
+   * of its session, so readers filter it — see PracticeSessionResult.
+   */
+  version: 2 | 3;
   subject: string;
   chapter: string;
   practiceMode: string | null;
@@ -29,6 +34,20 @@ export type PracticeAnalysisSnapshot = {
   totalTimeMs: number | null;
   finishedAt: string | null;
   startedAt: string | null;
+  /**
+   * §10.8, the transient/durable rule: "When the session closes, it must not
+   * persist. What survives is: session or tier TOTALS, plus rows for WRONG,
+   * SKIPPED and BOOKMARKED." So a saved snapshot holds the questions that went
+   * wrong and the ones skipped, never a per-question record of a right answer.
+   *
+   * The counts above are the whole of what a correct answer leaves behind, and
+   * §10.8 allows exactly that: "Session totals are stored (attempted, correct
+   * count) so accuracy can be shown."
+   *
+   * Measured 2026-09-23: 32 saved snapshots on production held every question
+   * of their session — text, options, the answer key, the explanation and the
+   * student's choice — for correct answers as much as wrong ones.
+   */
   attempts: Array<{
     question: string;
     options: string[];
@@ -119,20 +138,25 @@ export function buildPracticeAnalysisSnapshot(
     ? session.total_time_ms
     : null;
 
-  const attempts = records.map((r) => {
-    const gq = asObject(r.generated_question);
-    const skipped = Boolean(r.skipped);
-    const explanation = typeof gq.explanation === "string" && gq.explanation.trim() ? gq.explanation : undefined;
-    return {
-      question: typeof gq.question === "string" ? gq.question : "",
-      options: asOptions(gq.options),
-      correctIndex: asIndex(asObject(r.correct_answer), "index", "correct_index") ?? -1,
-      selectedIndex: skipped ? -1 : asIndex(asObject(r.selected_answer), "index", "selected_index") ?? -1,
-      isCorrect: !skipped && r.is_correct === true,
-      skipped,
-      ...(explanation ? { explanation } : {}),
-    };
-  });
+  // What it is given is what it freezes: PracticeService.listSessionAttempts
+  // is the one read of a session's questions and it returns the wrong and the
+  // skipped only (§10.8). Filtering again here would be a second home for that
+  // rule, and the two would drift.
+  const attempts = records
+    .map((r) => {
+      const gq = asObject(r.generated_question);
+      const skipped = Boolean(r.skipped);
+      const explanation = typeof gq.explanation === "string" && gq.explanation.trim() ? gq.explanation : undefined;
+      return {
+        question: typeof gq.question === "string" ? gq.question : "",
+        options: asOptions(gq.options),
+        correctIndex: asIndex(asObject(r.correct_answer), "index", "correct_index") ?? -1,
+        selectedIndex: skipped ? -1 : asIndex(asObject(r.selected_answer), "index", "selected_index") ?? -1,
+        isCorrect: false,
+        skipped,
+        ...(explanation ? { explanation } : {}),
+      };
+    });
 
   const recommendations: string[] = [];
   if (accuracy != null && accuracy < ACCURACY_BUILDING) {
@@ -151,7 +175,7 @@ export function buildPracticeAnalysisSnapshot(
 
   const answered = correctCount + wrongCount;
   return {
-    version: 2,
+    version: 3,
     subject: session.subject ?? "",
     chapter: session.chapter ?? "",
     practiceMode: session.practice_mode ?? null,

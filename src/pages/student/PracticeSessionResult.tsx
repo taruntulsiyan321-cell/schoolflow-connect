@@ -118,9 +118,13 @@ export default function PracticeSessionResult() {
     [localState],
   );
 
+  // §10.8: a right answer leaves totals behind, not a question. Snapshots
+  // saved before 2026-09-23 (version 2) froze every question of their session,
+  // right ones included — those are filtered out here, so no screen serves a
+  // per-question record of a correct answer even where one is still stored.
   const snapshotAttempts = useMemo(() => {
     if (!snapshot?.attempts?.length) return [];
-    return snapshot.attempts.map((a, i) => ({
+    return snapshot.attempts.filter((a) => a.skipped || !a.isCorrect).map((a, i) => ({
       id: `snap-${i}`,
       generated_question: { question: a.question, options: a.options, explanation: a.explanation },
       correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
@@ -131,10 +135,25 @@ export default function PracticeSessionResult() {
     }));
   }, [snapshot]);
 
+  /**
+   * §10.8 draws the line this list follows.
+   *
+   * "While a session is in flight, per-question correctness may exist. It is
+   * working state." The session that just finished ON THIS DEVICE is still
+   * that: `localState` came through the navigation, lives in sessionStorage,
+   * and is the student reviewing what they have just done — every question,
+   * right ones included. So it is preferred while it is there.
+   *
+   * "When the session closes, it must not persist." Opened again later, or on
+   * another device, there is no local state and the list is the durable
+   * record: the wrong and the skipped, from the database or from a saved
+   * snapshot. The totals above still say how many went right.
+   */
+  const fromDurableRecord = localAttempts.length === 0;
   const displayAttempts = useMemo(() => {
+    if (localAttempts.length > 0) return localAttempts;
     if (attempts.length > 0) return attempts;
-    if (snapshotAttempts.length > 0) return snapshotAttempts;
-    return localAttempts;
+    return snapshotAttempts;
   }, [attempts, snapshotAttempts, localAttempts]);
 
   // `||`, not `??`: a session with no single subject stores "" — an empty
@@ -209,23 +228,16 @@ export default function PracticeSessionResult() {
         ? ["Every question was skipped — try the ones you skipped when you have more time."]
         : ["Keep a short daily practice going to hold this topic."]);
 
+  // The report reads the session's totals, which is the whole of what a
+  // finished session durably says about correctness (§10.8) — and the same
+  // figures this page prints above. It counted the attempt list instead, and
+  // that list no longer holds the questions answered correctly.
   const fallbackReport = useMemo(() => {
-    if (!id || displayAttempts.length === 0) return null;
-    const snaps =
-      localState?.attempts ??
-      snapshot?.attempts ??
-      displayAttempts.map((a) => ({
-        question: a.generated_question?.question ?? "",
-        options: a.generated_question?.options ?? [],
-        correctIndex: typeof a.correct_answer?.index === "number" ? a.correct_answer.index : 0,
-        selectedIndex: typeof a.selected_answer?.index === "number" ? a.selected_answer.index : 0,
-        isCorrect: !!a.is_correct,
-        skipped: !!a.skipped,
-      }));
+    if (!id || total === 0) return null;
     // null, not a floor of one minute: a session with no timing has no duration.
     const minutes = stats.totalTimeMs ? Math.round(stats.totalTimeMs / 60000) : null;
-    return buildPracticeRecoveryReport(id, subjectRaw, chapterRaw, snaps, minutes);
-  }, [id, subjectRaw, chapterRaw, localState, snapshot, displayAttempts, stats.totalTimeMs]);
+    return buildPracticeRecoveryReport(id, subjectRaw, chapterRaw, { correct, answered: correct + wrong }, minutes);
+  }, [id, subjectRaw, chapterRaw, correct, wrong, total, stats.totalTimeMs]);
 
   const retryUrl = `/student/practice`;
   const hasLocalData = displayAttempts.length > 0 || !!snapshot;
@@ -644,7 +656,16 @@ export default function PracticeSessionResult() {
         </Card>
       )}
 
-      <h3 className="font-semibold mb-3">Question review</h3>
+      {/* §10.8: what a finished session keeps is its totals and the questions
+          that went wrong or were skipped. The heading says so, because a
+          student who answered 8 of 10 and sees 2 questions here should not be
+          left wondering where the other 8 went. */}
+      <h3 className={cn("font-semibold", fromDurableRecord ? "mb-1" : "mb-3")}>Question review</h3>
+      {fromDurableRecord && (
+        <p className="text-xs text-muted-foreground mb-3">
+          Practice keeps the questions you missed or skipped — the ones you got right are counted, not stored.
+        </p>
+      )}
       <div className="space-y-4">
         {displayAttempts.map((a, i) => {
           const gq = a.generated_question ?? {};
@@ -711,9 +732,13 @@ export default function PracticeSessionResult() {
 
       {displayAttempts.length === 0 && (
         <Card className="p-6 text-center text-sm text-muted-foreground">
-          {total > 0
-            ? "The questions from this session are no longer available to review."
-            : "No question was answered in this session, so there is nothing to review."}
+          {total === 0
+            ? "No question was answered in this session, so there is nothing to review."
+            : wrong + skipped === 0
+              // Not "no longer available": nothing went wrong, so by design
+              // there is nothing kept to review (§10.8).
+              ? "Nothing went wrong in this session — every question was answered correctly, so there is nothing to review."
+              : "The questions from this session are no longer available to review."}
         </Card>
       )}
     </>

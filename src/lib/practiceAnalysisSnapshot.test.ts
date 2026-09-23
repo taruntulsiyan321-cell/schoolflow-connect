@@ -30,16 +30,15 @@ const session: PracticeSessionRecord = {
   created_at: "2026-09-17T14:27:00.000Z",
 };
 
+/**
+ * What PracticeService.listSessionAttempts hands it: the session's DURABLE
+ * per-question record, which is the wrong and the skipped (§10.8). The right
+ * answer of this three-question session is in the totals above — correct_count
+ * 1 — and nowhere else.
+ */
 const records: PracticeAttemptRecord[] = [
   {
-    generated_question: { question: "Q1", options: ["a", "b"], explanation: "because" },
-    selected_answer: { index: 0, selected_index: 0, text: "a" },
-    correct_answer: { index: 0, text: "a" },
-    is_correct: true,
-    skipped: false,
-  },
-  {
-    generated_question: { question: "Q2", options: ["a", "b"] },
+    generated_question: { question: "Q2", options: ["a", "b"], explanation: "because" },
     selected_answer: { index: 1, selected_index: 1, text: "b" },
     correct_answer: { index: 0, text: "a" },
     is_correct: false,
@@ -58,7 +57,7 @@ describe("buildPracticeAnalysisSnapshot", () => {
   it("takes its totals from the session row, not from the attempt list", () => {
     const snap = buildPracticeAnalysisSnapshot(session, records);
     expect(snap).toMatchObject({
-      version: 2,
+      version: 3,
       subject: "Mathematics",
       chapter: "Arithmetic Progressions",
       practiceMode: "chapter",
@@ -74,14 +73,26 @@ describe("buildPracticeAnalysisSnapshot", () => {
     expect(snap.statistics.avgSecPerQuestion).toBe(30);
   });
 
-  it("freezes every question, with the skip marked and no answer invented", () => {
+  it("freezes the questions it is given, with the skip marked and no answer invented", () => {
     const snap = buildPracticeAnalysisSnapshot(session, records);
-    expect(snap.attempts).toHaveLength(3);
-    expect(snap.attempts[0]).toMatchObject({ question: "Q1", correctIndex: 0, selectedIndex: 0, isCorrect: true, skipped: false, explanation: "because" });
-    expect(snap.attempts[1]).toMatchObject({ selectedIndex: 1, isCorrect: false, skipped: false });
+    expect(snap.attempts).toHaveLength(2);
+    expect(snap.attempts[0]).toMatchObject({ question: "Q2", correctIndex: 0, selectedIndex: 1, isCorrect: false, skipped: false, explanation: "because" });
     // A skip has no selected option: -1, never 0, which would read as answer A.
-    expect(snap.attempts[2]).toMatchObject({ selectedIndex: -1, isCorrect: false, skipped: true });
-    expect(snap.attempts[2].explanation).toBeUndefined();
+    expect(snap.attempts[1]).toMatchObject({ question: "Q3", selectedIndex: -1, isCorrect: false, skipped: true });
+    expect(snap.attempts[1].explanation).toBeUndefined();
+  });
+
+  /**
+   * §10.8 — "no per-question record of correct answers" — is enforced where
+   * the rows are read, in PracticeService.listSessionAttempts, so the review
+   * list and this snapshot obey one rule. That read is measured in
+   * practiceDurableRecord.test.ts; what this file pins is that the snapshot
+   * reports the session's TOTALS, which is what a right answer leaves behind.
+   */
+  it("reports a right answer only through the totals", () => {
+    const snap = buildPracticeAnalysisSnapshot(session, records);
+    expect(snap.correctCount, "the session's own count of right answers").toBe(1);
+    expect(snap.attempts.some((a) => a.isCorrect)).toBe(false);
   });
 
   it("stores no practice type label — the label comes from practice_mode", () => {
