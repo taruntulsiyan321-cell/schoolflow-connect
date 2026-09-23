@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { cn, XPBar, EASE_OUT, springSnappy, springSoft } from "./shared";
 import {
-  Home, BookOpen, Brain, Swords,
+  Home, BookOpen, Brain, Swords, BarChart2, RefreshCw, RotateCcw,
   ChevronLeft, ChevronRight, Bell, Menu, X,
   FlaskConical, GraduationCap, Settings, LogOut,
   User, Wallet, Megaphone,
@@ -20,29 +20,29 @@ import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 type NavItem  = { key: PageKey; label: string; icon: ReactNode };
 type NavEntry = { key: PageKey; label: string; icon: ReactNode };
 
-// ── Sidebar nav — a FLAT list. No expanding submenus (v2 redesign, G3) ───────
+// ── Sidebar nav — flat list matching nav.TOP_LEVEL order ─────────────────────
 //
-// Learning and Class used to expand a submenu of four and nine children. Both
-// hub pages already render every one of those destinations as a card, so the
-// submenu duplicated the page it linked to and made the sidebar the tallest
-// thing on screen. Clicking a nav item now opens its page, and nothing else.
-//
-// Chat is gone from the app entirely — the screen, its service and its route.
+// Dashboard first, then Practice → Analysis → Recovery → Revision → Nova as
+// first-class student tabs. Battleground / Learning / Class stay after that.
+// Learning hub still opens Mistake Book; Class still opens school surfaces.
 const sidebarNav: NavEntry[] = [
   { key:"dashboard",    label:"Home",         icon:<Home className="w-4 h-4"/> },
   { key:"practice",     label:"Practice",     icon:<BookOpen className="w-4 h-4"/> },
-  { key:"aicoach",      label:"AI Coach",     icon:<Brain className="w-4 h-4"/> },
+  { key:"analysis",     label:"Analysis",     icon:<BarChart2 className="w-4 h-4"/> },
+  { key:"recovery",     label:"Recovery",     icon:<RefreshCw className="w-4 h-4"/> },
+  { key:"revision",     label:"Revision",     icon:<RotateCcw className="w-4 h-4"/> },
+  { key:"aicoach",      label:"Nova",         icon:<Brain className="w-4 h-4"/> },
   { key:"battleground", label:"Battleground", icon:<Swords className="w-4 h-4"/> },
   { key:"learninghub",  label:"Learning",     icon:<GraduationCap className="w-4 h-4"/> },
   { key:"classhub",     label:"Class",        icon:<FlaskConical className="w-4 h-4"/> },
 ];
 
-// ── Mobile bottom nav — 4 tabs ───────────────────────────────────────────────
+// ── Mobile bottom nav — core learning loop (Revision + Nova in sidebar) ──────
 const bottomNav: NavItem[] = [
-  { key:"dashboard",   label:"Home",     icon:<Home className="w-5 h-5"/> },
-  { key:"practice",    label:"Practice", icon:<BookOpen className="w-5 h-5"/> },
-  { key:"learninghub", label:"Learning", icon:<GraduationCap className="w-5 h-5"/> },
-  { key:"classhub",    label:"Class",    icon:<FlaskConical className="w-5 h-5"/> },
+  { key:"dashboard", label:"Home",     icon:<Home className="w-5 h-5"/> },
+  { key:"practice",  label:"Practice", icon:<BookOpen className="w-5 h-5"/> },
+  { key:"analysis",  label:"Analysis", icon:<BarChart2 className="w-5 h-5"/> },
+  { key:"recovery",  label:"Recovery", icon:<RefreshCw className="w-5 h-5"/> },
 ];
 
 
@@ -52,7 +52,7 @@ const bottomNav: NavItem[] = [
 
 // ── Profile dropdown menu items ───────────────────────────────────────────────
 // Leaderboard and Analysis came off because each already has a home — Rankings
-// on the Class page, Analysis under Learning — and a second door to the same
+// on the Class page, Analysis as a top-level tab — and a second door to the same
 // screen is a second thing to keep in step. Achievements came off because it
 // now lives in exactly one place, the profile (v2 redesign, Screen 13).
 const profileMenuItems = [
@@ -127,6 +127,8 @@ export default function Layout({
   }, [profileOpen]);
 
   function isBottomActive(key: PageKey) {
+    // Hubs stay lit for their remaining nested children. Analysis / Recovery
+    // are exact-match only — they are no longer Learning children.
     if (key === "learninghub") return LEARNING_KEYS.includes(page);
     if (key === "classhub")    return CLASS_KEYS.includes(page);
     return page === key;

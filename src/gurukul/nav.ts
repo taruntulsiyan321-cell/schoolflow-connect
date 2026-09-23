@@ -59,11 +59,11 @@ export function legacyClassesRedirectPath(hash?: string): string {
 }
 
 /**
- * The two hub sections. Layout kept its own `LEARNING_KEYS`/`CLASS_KEYS` copies
- * of these to decide which sidebar entry stays lit; exported now so the
- * sidebar, the section eyebrow and the route resolver all read one list.
+ * Hub sections still nested under a sidebar entry. Analysis / Recovery /
+ * Revision / Nova are first-class top-level tabs now — they are NOT listed
+ * here, so Learning stays lit only for the hub page and Mistake Book.
  */
-export const LEARNING: PageKey[] = ["learninghub", "analysis", "recovery", "revision", "mistakebook"];
+export const LEARNING: PageKey[] = ["learninghub", "mistakebook"];
 export const CLASS: PageKey[] = [
   "classhub", "timetable", "calendar", "attendance", "assignments",
   "tests", "doubtportal", "leaderboard", "achievements", "resources",
@@ -107,7 +107,7 @@ export function pathToPage(pathname: string): PageKey {
 export const PAGE_TITLE: Record<PageKey, string> = {
   dashboard: "Home",
   practice: "Practice",
-  aicoach: "AI Coach",
+  aicoach: "Nova",
   analysis: "Analysis",
   recovery: "Recovery",
   revision: "Revision",
@@ -132,6 +132,23 @@ export function pageTitle(page: PageKey): string {
 }
 
 /**
+ * Primary student shell order — Dashboard first, then the learning tabs,
+ * then Nova, then kept surfaces (Battleground / Learning / Class).
+ * Layout.sidebarNav must match this order.
+ */
+export const TOP_LEVEL: PageKey[] = [
+  "dashboard",
+  "practice",
+  "analysis",
+  "recovery",
+  "revision",
+  "aicoach",
+  "battleground",
+  "learninghub",
+  "classhub",
+];
+
+/**
  * Which sidebar section a screen lives under — the header's eyebrow.
  *
  * Screens carried four different eyebrow vocabularies: "Student Panel" (2),
@@ -139,9 +156,9 @@ export function pageTitle(page: PageKey): string {
  * nothing at all (15). None of them told the student anything they could use.
  *
  * This does: it names the sidebar entry the screen sits under, so a student who
- * arrived on Recovery from a Home shortcut can see it belongs to Learning and
- * knows where to find it again. The six top-level screens are their own
- * section and get no eyebrow — the title already says it.
+ * arrived on Mistake Book from a Home shortcut can see it belongs to Learning
+ * and knows where to find it again. Top-level screens (including Analysis,
+ * Recovery, Revision, and Nova) get no eyebrow — the title already says it.
  */
 export function pageSection(page: PageKey): string | undefined {
   if (TOP_LEVEL.includes(page)) return undefined;
@@ -149,8 +166,3 @@ export function pageSection(page: PageKey): string | undefined {
   if (CLASS.includes(page)) return "Class";
   return undefined;
 }
-
-/** The six entries in the sidebar. Their own titles are the whole hierarchy. */
-const TOP_LEVEL: PageKey[] = [
-  "dashboard", "practice", "aicoach", "battleground", "learninghub", "classhub",
-];
