@@ -360,17 +360,33 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         </div>
       </div>
 
-      {/* Quick Actions — student tabs first (Practice → Analysis → Recovery →
-          Revision → Nova), then Battleground. School/class surfaces stay below. */}
+      {/* Quick Actions — Practice → Analysis → Recovery → Revision → Nova,
+          then Battleground. Page key for Nova remains aicoach. */}
       <div className="animate-premium-enter" style={{animationDelay: "0.16s"}}>
         <SectionLabel>Quick Actions</SectionLabel>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-premium-stagger">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 animate-premium-stagger">
           {[
             { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "hsl(var(--primary))", page: "practice" as PageKey },
             { label: "Analysis", sub: "View insights", icon: <BarChart2 className="w-5 h-5"/>, color: "var(--color-physics)", page: "analysis" as PageKey },
-            { label: "Recovery", sub: "Fix open mistakes", icon: <RefreshCw className="w-5 h-5"/>, color: "hsl(var(--accent))", page: "recovery" as PageKey },
-            { label: "Revision", sub: "Spaced review", icon: <RotateCcw className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "revision" as PageKey },
-            { label: "Nova", sub: "Ask your AI tutor", icon: <Brain className="w-5 h-5"/>, color: "hsl(var(--info))", page: "aicoach" as PageKey },
+            {
+              label: "Recovery",
+              sub: mission.recoveryPending > 0
+                ? `${mission.recoveryPending} pending`
+                : "Strengthen weak areas",
+              icon: <RefreshCw className="w-5 h-5"/>,
+              color: "hsl(var(--accent))",
+              page: "recovery" as PageKey,
+            },
+            {
+              label: "Revision",
+              sub: mission.revisionPending > 0
+                ? `${mission.revisionPending} due`
+                : "Review due chapters",
+              icon: <RotateCcw className="w-5 h-5"/>,
+              color: "var(--color-chemistry)",
+              page: "revision" as PageKey,
+            },
+            { label: "Nova", sub: "Ask your AI coach", icon: <Brain className="w-5 h-5"/>, color: "hsl(var(--info))", page: "aicoach" as PageKey },
             { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "hsl(var(--warning))", page: "battleground" as PageKey },
           ].map((a) => (
             <GlassCard key={a.label} className="p-4 cursor-pointer hover:border-border group" onClick={() => setPage(a.page)}>
