@@ -1,4 +1,5 @@
 ﻿import { useState, useRef, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { withAlpha } from "@/lib/colorAlpha";
 import { createPortal } from "react-dom";
 import type { PageKey } from "@/gurukul/nav";
@@ -29,6 +30,7 @@ import { NovaMarkdown } from "@/components/NovaMarkdown";
 import { useAuth } from "@/auth";
 import { novaConversationsKey } from "@/lib/clientStorage";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { NovaModeSwitch, NovaRevisionMode, type NovaMode } from "@/gurukul/nova/NovaRevisionMode";
 import {
   Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3, MoreHorizontal,
   ChevronLeft, Paperclip, Copy, Bookmark, RotateCcw, X, Loader2,
@@ -652,6 +654,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   const { data: charts } = useStudentPerformanceCharts();
   const { items: masteryItems } = useConceptMastery();
   const { data: snapshot } = useStudentAcademicSnapshot();
+  // The mode lives in the URL, so ?mode=revision is a link to Revision mode and
+  // a reload keeps the student where they were.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mode: NovaMode = searchParams.get("mode") === "revision" ? "revision" : "chat";
+  const setMode = (m: NovaMode) => setSearchParams(m === "revision" ? { mode: "revision" } : {}, { replace: true });
 
   const subjectNames = useMemo(
     () =>
@@ -1031,7 +1038,14 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   }
 
   return (
-    <div className="flex h-[calc(100vh-80px)] -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden">
+    // Nova fills the space between the header and the bottom of the screen —
+    // which, below md, is the TOP of the fixed bottom nav, not the screen edge.
+    // It was 100vh-80px everywhere, and measured at 390x844 the nav covered the
+    // bottom 63px: the chat's input bar and Revision mode's microphone sat
+    // under it. The offsets are measured, not guessed: content starts 74px down
+    // on a phone and 82px from sm up (header + page padding), and the nav is
+    // 69px tall. dvh, because a phone's URL bar is inside 100vh.
+    <div className="flex h-[calc(100dvh-143px)] sm:h-[calc(100dvh-151px)] md:h-[calc(100dvh-82px)] -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden">
       {/* AI Coach is a full-height chat and deliberately has no PageHeader —
           a title bar above it would cost the thread a line of height on a
           phone for a word the top bar already shows. But a document still
@@ -1041,8 +1055,8 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           screen reader still knows what it landed on. */}
       <h1 className="sr-only">AI Coach</h1>
 
-      {/* ── Sidebar (desktop always visible, mobile overlay) ── */}
-      <div className={cn(
+      {/* ── Sidebar (desktop always visible, mobile overlay) — chat only ── */}
+      {mode === "chat" && <div className={cn(
         "shrink-0 border-r border-border transition-all duration-300 overflow-hidden",
         "hidden lg:block",
         "w-64"
@@ -1052,10 +1066,10 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           onNew={newConversation} onDelete={deleteConvo}
           onPin={pinConvo} onStar={starConvo} onRename={startRename}
         />
-      </div>
+      </div>}
 
       {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
+      {mode === "chat" && sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden flex">
           <div className="w-72 shrink-0">
             <Sidebar convos={convos} activeId={activeId}
@@ -1069,9 +1083,15 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         </div>
       )}
 
-      {/* ── Main conversation area ── */}
+      {/* ── Main area ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <NovaModeSwitch mode={mode} onChange={setMode} />
 
+        {mode === "revision" ? (
+          <div className="flex-1 min-h-0">
+            <NovaRevisionMode weakConcepts={weakConceptLabels} />
+          </div>
+        ) : (<>
         {/* Conversation header */}
         <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-border">
           <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all lg:hidden">
@@ -1178,6 +1198,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
             disabled={isTyping}
           />
         </div>
+        </>)}
       </div>
     </div>
   );

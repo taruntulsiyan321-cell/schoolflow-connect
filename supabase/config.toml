@@ -6,6 +6,9 @@ verify_jwt = true
 [functions.ai-explain]
 verify_jwt = true
 
+[functions.ai-nova-revision]
+verify_jwt = true
+
 [functions.ai-concept-report]
 verify_jwt = true
 
