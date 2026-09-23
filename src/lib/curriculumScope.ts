@@ -150,6 +150,33 @@ export function appliesCommerceSubjectAllowlist(
 }
 
 /**
+ * The stream that may narrow CONTENT for a class — null below Class 11.
+ *
+ * A stream is a Class 11–12 idea: a Class 9 or 10 student of a
+ * commerce-tagged school studies the same secondary curriculum as everyone
+ * else. The two subject allowlists above already say so (`classLevel >= 11`),
+ * but the question pool did not: it filtered every read with
+ * `stream.eq.<school stream> OR stream.is.null` at any level, so a Class 10
+ * student of this commerce school had "commerce" applied to their bank.
+ *
+ * Measured 2026-09-23: all 15,186 active, approved questions at Classes 5–10
+ * carry a NULL stream, so nothing is being lost today — the filter is a trap
+ * waiting for the first Class 9/10 question that is tagged, which would then
+ * be invisible to exactly the students it was written for.
+ *
+ * When the class is unknown the stream still applies, which is the
+ * conservative reading the allowlists take: never widen on a guess.
+ */
+export function contentStreamForClass(
+  stream: AcademicStream | null | undefined,
+  classLevel: number | null | undefined,
+): AcademicStream | null {
+  if (!stream) return null;
+  if (classLevel != null && classLevel < 11) return null;
+  return stream;
+}
+
+/**
  * Science allowlist applies for science stream at Class 11–12 only.
  * Class ≤10 keeps general subjects (e.g. Science) even if school is science-tagged.
  */

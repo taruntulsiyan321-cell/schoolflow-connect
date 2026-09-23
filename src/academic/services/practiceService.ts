@@ -12,6 +12,7 @@ import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
 import type { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
 import {
+  contentStreamForClass,
   filterSubjectsForStream,
   inferStreamFromText,
   isSubjectAllowedForScope,
@@ -160,7 +161,9 @@ function studentBankQuery(
     .order("id");
   if (opts.activeOnly) query = query.eq("is_active", true);
   if (classLevel != null && Number.isFinite(classLevel)) query = query.eq("class_level", classLevel);
-  if (scope.stream) query = query.or(`stream.eq.${scope.stream},stream.is.null`);
+  // A stream narrows content only from Class 11 (contentStreamForClass).
+  const stream = contentStreamForClass(scope.stream, classLevel);
+  if (stream) query = query.or(`stream.eq.${stream},stream.is.null`);
   if (opts.subject && opts.subject !== "Mixed") query = query.ilike("subject", opts.subject);
   // A previous-year question is one that names the exam year it was set in.
   // The source-text guesses that stood in the pool's filter (a `pyq`
@@ -1014,7 +1017,12 @@ export const PracticeService = {
     const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_practice_bank_catalog", {
       _class_level: classLevel,
       _board: scope.board,
-      ...(scope.stream ? { _stream: scope.stream } : {}),
+      // Below Class 11 the catalog is asked without a stream, so its own
+      // stream filter cannot narrow a secondary student's bank.
+      ...((): { _stream?: string } => {
+        const stream = contentStreamForClass(scope.stream, classLevel);
+        return stream ? { _stream: stream } : {};
+      })(),
       ...(opts.subject ? { _subject: opts.subject } : {}),
     });
     throwIfError(error, "Failed to load the practice question bank");
@@ -1118,8 +1126,9 @@ export const PracticeService = {
         .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
         .order("id")
         .range(from, from + PAGE - 1);
-      if (scope.stream) {
-        query = query.or(`stream.eq.${scope.stream},stream.is.null`);
+      const topicStream = contentStreamForClass(scope.stream, classLevel);
+      if (topicStream) {
+        query = query.or(`stream.eq.${topicStream},stream.is.null`);
       }
       const { data, error } = await query;
       throwIfError(error, "Failed to load practice topics");
