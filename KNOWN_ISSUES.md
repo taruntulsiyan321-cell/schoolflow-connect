@@ -3422,7 +3422,54 @@ to the end.
 
 ---
 
-## 74. rpc_student_academic_snapshot is cancelled by the statement timeout — OPEN, measured 2026-09-22
+## 74. The database was cancelling statements because the app asked too often — LOAD FIXED 2026-09-23 (item 5); the slow RPCs remain
+
+**What it was, measured from the database's own statistics (pg_stat_statements,
+2026-09-23) — the whole project's time, ranked:**
+
+```
+rpc_ensure_featured_battles_all   13,183 calls   11,754 s   mean 892 ms   max 4.5 s
+rpc_student_academic_snapshot     29,322 calls    1,975 s   mean  67 ms   max 7.7 s
+rpc_progression_leaderboard       16,412 calls      733 s   mean  45 ms
+rpc_get_student_progression       12,779 calls      645 s   mean  51 ms
+```
+
+3.3 hours of database time went on seeding featured battles. `useBattlegroundData.reload()`
+called `ensureFeaturedAll` first thing, and reload() fires on mount, on every
+live battle/xp event and on every `student-xp-updated` — so a battle in
+progress fired it over and over, and each call runs
+`rpc_refresh_featured_battles()`, the GLOBAL hourly maintenance job (cron job
+1), plus three per-class seeds. The snapshot RPC had no sharing at all: the
+student shell, Analysis, the Practice hub and the Battleground each called it,
+and the hook re-fires on live events across seven domains.
+
+**Fixed (2026-09-23), and measured in a browser as the student over one
+Battleground visit, six XP events and a five-question session:**
+
+```
+                                    before      after
+rpc_ensure_featured_battles_all    1 per reload   0
+rpc_student_academic_snapshot      14             2
+```
+
+* The featured seed runs only when the class has no card for the current day
+  or week — which is exactly when a window rolls over — and at most once per
+  five minutes per tab (the cooldown bounds a class that cannot be seeded).
+* One shared reader for the snapshot: callers asking together share one
+  request, an answer is reused for 15 s, and a live event will not take an
+  answer older than 3 s. The shell's own direct call goes through it too.
+* `PracticeService.finish` retries what is transient — 57014, 55P03, 40001,
+  40P01, 08006, 53300 and a dropped fetch — and nothing else. The finish RPC
+  de-duplicates the attempts it is sent, which is why re-sending is safe. A
+  session refused once now saves on the retry instead of being lost.
+
+**Still true:** the two RPCs are slow in themselves — the snapshot's worst
+case was 7.7 s, and it WRITES (`_rebuild_revision_queue`) inside what every
+screen treats as a read. Making them fast is server work, blocked on 75. The
+next candidates by total time are the two progression calls above, which the
+Battleground and the shell still make per reload.
+
+**Original entry, 2026-09-22:**
 
 Driving the release in a browser as arjun.mehta (2,464 attempts), `rpc_student_academic_snapshot` returned
 `57014 canceling statement due to statement timeout` on the home and analysis screens — under the battery's load

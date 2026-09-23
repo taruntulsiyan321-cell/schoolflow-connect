@@ -6,7 +6,7 @@ import {
 } from "./context";
 import { assertStudentClassContext } from "./assertStudentContext";
 import type { Json } from "@/integrations/supabase/types";
-import { getClient, throwIfError } from "../repository/base";
+import { getClient, retryTransient, throwIfError } from "../repository/base";
 import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
@@ -413,16 +413,33 @@ export const PracticeService = {
     return data as string;
   },
 
+  /**
+   * Finish the session — retried when the database says "not now".
+   *
+   * Measured on production 2026-09-23: this returned
+   * `57014 canceling statement due to statement timeout` while the
+   * Battleground's featured-battle maintenance was running, and the session
+   * was simply lost to the student (KNOWN_ISSUES 74, item 5 of the report).
+   * `rpc_finish_practice_session` de-duplicates the attempts it is sent and
+   * then counts the session from question_attempts, so sending it again is
+   * safe — the page-exit keepalive path already depends on that.
+   *
+   * Only transient codes are retried (isTransientDbError): a refusal or a
+   * constraint fails on the first answer, as it should.
+   */
   async finish(
     ctx: ServiceContext,
     args: Record<string, unknown>,
   ) {
     assertCanOwn(ctx, "practice");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_finish_practice_session",
-      args as never,
-    );
-    throwIfError(error, "Failed to finish practice session");
+    const data = await retryTransient(async () => {
+      const { data: out, error } = await getClient(toRepoContext(ctx)).rpc(
+        "rpc_finish_practice_session",
+        args as never,
+      );
+      throwIfError(error, "Failed to finish practice session");
+      return out;
+    });
     // No payload. §10.8: practice is private to the student, and this event is
     // readable school-side. It carried the finish arguments — every question,
     // the answer chosen and whether it was right — which reached the principal,

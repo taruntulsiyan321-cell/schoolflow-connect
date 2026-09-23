@@ -23,10 +23,16 @@ vi.mock("./context", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./context")>();
   return { ...actual, assertCanOwn: () => {}, assertCanConsume: () => {} };
 });
-vi.mock("../repository/base", () => ({
-  getClient: () => ({ rpc: () => Promise.resolve({ data: { question_count: 1 }, error: null }) }),
-  throwIfError: (error: unknown, message: string) => { if (error) throw new Error(message); },
-}));
+vi.mock("../repository/base", async (importOriginal) => {
+  // The real retryTransient: this test is about what the finish EMITS, and a
+  // stub that swallowed the retry would hide a finish that never ran.
+  const actual = await importOriginal<typeof import("../repository/base")>();
+  return {
+    ...actual,
+    getClient: () => ({ rpc: () => Promise.resolve({ data: { question_count: 1 }, error: null }) }),
+    throwIfError: (error: unknown, message: string) => { if (error) throw new Error(message); },
+  };
+});
 vi.mock("../repository/eventsRepository", () => ({
   emitEvent: (_ctx: unknown, input: Record<string, unknown>) => { emitted.push(input); return Promise.resolve("e"); },
   emitEventBestEffort: () => Promise.resolve(null),
