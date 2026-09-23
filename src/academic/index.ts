@@ -141,6 +141,7 @@ export type {
   RecoveryQueueRow,
   RecoverySessionStart,
   RecoverySessionOutcome,
+  ClearAnywayOutcome,
   RevisionSessionOutcome,
   RevisionHistoryRow,
 } from "./services/recoveryEngineService";

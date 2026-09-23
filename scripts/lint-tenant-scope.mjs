@@ -285,6 +285,7 @@ const ALLOWLIST = {
   // proved to be the caller's, and chapter_state WHERE user_id = auth.uid().
   // There is no argument through which another school's row is reachable, so
   // there is nothing for a school_id predicate to narrow. Read body 2026-09-14.
+  rpc_clear_chapter_after_recovery: "Every read and write is scoped to auth.uid(): the session is looked up by id AND user_id = auth.uid(), and student_mistakes / chapter_state are updated only WHERE user_id = auth.uid() for that session's chapter. The caller supplies nothing but their own session id.",
   rpc_submit_recovery_session: "Every read and write is scoped to auth.uid() before use; the two id arguments are verified against the caller and the per-tier counts join to that session's own stored question ids.",
 
   // BEFORE INSERT/UPDATE on student_mistakes. It reads exactly one row of

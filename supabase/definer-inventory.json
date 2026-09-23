@@ -2651,6 +2651,21 @@
         "admin": "answered"
       }
     },
+    "rpc_clear_chapter_after_recovery(_session_id uuid)": {
+      "name": "rpc_clear_chapter_after_recovery",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_revision_interval_days"
+      ],
+      "justification": "§4.4 clear-anyway. Reads and writes only the caller's rows: the recovery session is looked up by id AND user_id = auth.uid(), and student_mistakes / chapter_state are updated WHERE user_id = auth.uid() for that session's chapter. Only a completed, not_ready, latest session is accepted.",
+      "verifiedBy": "Called live 2026-09-23 as student12 and teacher against the student's session (both 'recovery session not found'), as the student with a superseded session and a ready session (both refused), and with the real not_ready session (8 cleared, state recovered, stage 1, readiness kept).",
+      "reviewed": false
+    },
     "rpc_close_homework(_homework_id uuid, _early boolean)": {
       "name": "rpc_close_homework",
       "readerSet": "staff",

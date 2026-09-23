@@ -183,6 +183,11 @@ export type RecoverySessionOutcome = {
   next_revision_at: string | null;
 };
 
+/** §4.4 — what the server did when the student cleared a not-ready chapter. */
+export type ClearAnywayOutcome =
+  | { already: true; chapter_id: string }
+  | { already?: undefined; chapter_id: string; cleared: number; readiness: number | null; next_revision_at: string };
+
 export type RevisionSessionOutcome = {
   passed: boolean;
   rate: number;
@@ -465,6 +470,29 @@ export const RecoveryEngineService = {
       source: "RecoveryEngineService.submitRecoverySession",
     });
     return data as unknown as RecoverySessionOutcome;
+  },
+
+  /**
+   * §4.4 — clear a chapter whose recovery session was scored not ready.
+   *
+   * "Not a block, a speed bump": the confirm is the caller's job. The server
+   * accepts only the caller's own, completed, not_ready, LATEST session for the
+   * chapter, does the same §4.5 writes a ready result makes, and keeps the
+   * session's readiness so a premature clear stays visible — revision then
+   * catches it in seven days.
+   */
+  async clearChapterAfterRecovery(ctx: ServiceContext, sessionId: string): Promise<ClearAnywayOutcome> {
+    assertCanOwn(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_clear_chapter_after_recovery" as never,
+      { _session_id: sessionId } as never,
+    );
+    throwIfError(error, "Could not clear the chapter");
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      studentId: ctx.studentId,
+      source: "RecoveryEngineService.clearChapterAfterRecovery",
+    });
+    return data as unknown as ClearAnywayOutcome;
   },
 
   /**
