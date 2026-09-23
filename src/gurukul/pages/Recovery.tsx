@@ -348,7 +348,6 @@ export default function Recovery() {
 
   const header = (
     <PageHeader
-      eyebrow="Learning"
       title="Recovery"
       subtitle="Chapters where mistakes are piling up, and what to do about them."
     />
@@ -412,7 +411,6 @@ export default function Recovery() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Learning"
         title="Recovery"
         subtitle="Chapters where mistakes are piling up, and what to do about them."
         action={

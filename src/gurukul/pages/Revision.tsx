@@ -216,7 +216,6 @@ export default function Revision() {
   // No `action` while loading: the header's badge is a streak count.
   const header = (
     <PageHeader
-      eyebrow="Learning"
       title="Revision"
       subtitle="Spaced-repetition review to move concepts into long-term memory."
     />
@@ -285,7 +284,6 @@ export default function Revision() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        eyebrow="Learning"
         title="Revision"
         subtitle="Spaced-repetition review to move concepts into long-term memory."
         action={

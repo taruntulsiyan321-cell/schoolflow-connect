@@ -97,4 +97,13 @@ describe("student shell organization", () => {
     expect(LAYOUT).toContain('label:"Nova"');
     expect(LAYOUT).not.toContain('label:"AI Coach"');
   });
+
+  it("does not hardcode a Learning eyebrow on promoted top-level pages", () => {
+    for (const file of ["Analysis.tsx", "Recovery.tsx", "Revision.tsx"]) {
+      const src = stripComments(
+        readFileSync(join(__dirname, "pages", file), "utf8"),
+      );
+      expect(src, `${file} still nests under Learning`).not.toContain('eyebrow="Learning"');
+    }
+  });
 });

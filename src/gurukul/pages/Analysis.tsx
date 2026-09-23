@@ -1182,7 +1182,6 @@ export default function Analysis() {
   // The title needs no network either, so it no longer waits for one.
   const header = (
     <PageHeader
-      eyebrow="Learning"
       title="Analysis"
       subtitle="What your practice and your mistakes add up to."
     />
