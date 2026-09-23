@@ -3574,11 +3574,9 @@
     "rpc_refresh_featured_battles()": {
       "name": "rpc_refresh_featured_battles",
       "readerSet": "public",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "jsonb",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "_seed_featured_battle_for_class"
       ],
@@ -3633,11 +3631,9 @@
     "rpc_rotate_featured_battles()": {
       "name": "rpc_rotate_featured_battles",
       "readerSet": "public",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "jsonb",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [],
       "justification": "",
       "verifiedBy": "",

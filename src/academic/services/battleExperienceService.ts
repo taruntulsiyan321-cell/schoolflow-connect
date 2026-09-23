@@ -777,10 +777,15 @@ export const BattleExperienceService = {
       teacher: null as string | null,
     };
 
+    // NOT followed by afterExperienceWrite. This only makes sure the class's
+    // featured cards exist; it is not the student's write. Announcing it as a
+    // battle/xp write made the Battleground page — which reloads on exactly
+    // that announcement, and calls this on every reload — call it again,
+    // forever: measured at 274 calls a minute from ONE open page, each ~0.9 s
+    // of database time. That load is what made practice saves fail.
     const { data, error } = await client.rpc("rpc_ensure_featured_battles_all" as never);
     if (!error && data && typeof data === "object") {
       const row = data as Record<string, unknown>;
-      afterExperienceWrite(ctx, ["battle"]);
       return {
         daily: typeof row.daily === "string" ? row.daily : null,
         weekly: typeof row.weekly === "string" ? row.weekly : null,
@@ -789,16 +794,10 @@ export const BattleExperienceService = {
       };
     }
 
-    // Fallbacks when ensure-all not applied — NEVER call ensureFeatured here:
-    // that RPC auto-joins and pollutes My Battles Active on every home load.
-    await client.rpc("rpc_refresh_featured_battles" as never).then(
-      () => undefined,
-      () => undefined,
-    );
-    await client.rpc("rpc_rotate_featured_battles" as never).then(
-      () => undefined,
-      () => undefined,
-    );
+    // Fallback when ensure-all fails: read what is already seeded. NEVER call
+    // ensureFeatured here (it auto-joins and pollutes My Battles Active), and
+    // never the platform-wide refresh/rotate — those belong to the hourly job
+    // (cron: rpc_refresh_featured_battles at :05), not to a student's browser.
 
     const out = { ...empty };
     if (ctx.classId) {
@@ -864,7 +863,8 @@ export const BattleExperienceService = {
       }
     }
 
-    afterExperienceWrite(ctx, ["battle"]);
+    // Nothing announced here either: this path runs exactly when the database
+    // is struggling, and a write announcement would restart the reload loop.
     return out;
   },
 
