@@ -28,11 +28,16 @@ import { openMsg91Widget, closeMsg91Widget, classifyMsg91Failure, isMsg91WidgetC
 import { completeMsg91SignIn, phoneToSyntheticEmail } from "@/lib/msg91Auth";
 import { normalizePhone } from "@/lib/phone";
 import { toErrorMessage } from "@/lib/presentation";
+import { LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 
 const nameSchema = z.string().trim().min(1).max(100);
 
 /** Public self-signup is limited — school staff are provisioned by admins */
 type SignUpRole = "student" | "parent";
+
+/** One row of public.competitive_exams — the login page reads it before
+ *  anyone is signed in, so anon holds SELECT on the active ones. */
+type ExamOption = { code: string; name: string };
 
 const ROLE_OPTIONS: {
   value: SignUpRole;
@@ -216,9 +221,9 @@ export default function Auth() {
     };
   }, []);
 
-  /** Top-level account type — Organization is the only live path today;
-   *  Individual is a disabled placeholder per the current design brief. */
-  const [accountType, setAccountType] = useState<"individual" | "organization">("organization");
+  /** Top-level account type. Individual = one student preparing for one
+   *  competitive exam, with no school; Organization = a school's portal. */
+  const [accountType, setAccountType] = useState<"individual" | "organization">("individual");
   /** Password vs one-time code, under Organization → Sign in. */
   const [signInMode, setSignInMode] = useState<"password" | "otp">("password");
 
@@ -264,6 +269,35 @@ export default function Auth() {
   const [newAccountName, setNewAccountName] = useState("");
   const [newAccountRole, setNewAccountRole] = useState<SignUpRole>("student");
 
+  // The individual student's exam. It is picked BEFORE the phone is verified
+  // because it is part of which account that phone signs into: the same number
+  // holds one account per exam, and an account's exam never changes (ruling
+  // 2026-09-23). `examSignUp` is true only for the account just created here,
+  // and decides which completion the name step performs.
+  const [exams, setExams] = useState<ListState<ExamOption>>(LOADING_LIST);
+  const [examCode, setExamCode] = useState("");
+  const [examSignUp, setExamSignUp] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("competitive_exams")
+        .select("code, name")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (!alive) return;
+      if (error) {
+        setExams({ status: "failed", message: error.message });
+        return;
+      }
+      setExams({ status: "ready", items: (data ?? []) as ExamOption[] });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (loading || status === "loading") return;
     // missing_role is the expected, self-serviceable state for any brand-new
@@ -284,6 +318,12 @@ export default function Auth() {
       });
       return;
     }
+    // An exam account is authenticated the moment it signs in -- its space,
+    // its student row and its membership were all created by the verified
+    // sign-in, so `role` resolves immediately. Without this guard the effect
+    // would navigate away from the name form the instant it appeared, and the
+    // student would land on the dashboard called "Student".
+    if (profileStep === "complete_profile") return;
     if (user && role && status === "authenticated") {
       if (nextParam && canAccessPath(role, nextParam)) {
         navigate(nextParam, { replace: true });
@@ -295,7 +335,7 @@ export default function Auth() {
           : homePath || dashboardForRole(role);
       navigate(dest, { replace: true });
     }
-  }, [user, role, loading, status, navigate, from, homePath, nextParam]);
+  }, [user, role, loading, status, navigate, from, homePath, nextParam, profileStep]);
 
   /** Accepts either an email or a mobile number in one field — tries email
    *  validation first, then falls back to phone, both already-existing
@@ -336,7 +376,7 @@ export default function Auth() {
 
   /** Opens the MSG91 widget; the client never asserts a phone number — only
    *  the access-token it returns is ever sent anywhere. */
-  const handleMobileOtp = async () => {
+  const handleMobileOtp = async (forExam?: string) => {
     if (mobileBusy) return;
     if (!isMsg91WidgetConfigured()) {
       toast.error("Mobile sign-in isn't configured yet.");
@@ -345,13 +385,14 @@ export default function Auth() {
     setMobileBusy(true);
     await openMsg91Widget({
       onSuccess: async (accessToken) => {
-        const result = await completeMsg91SignIn(accessToken);
+        const result = await completeMsg91SignIn(accessToken, forExam);
         setMobileBusy(false);
         if (result.ok !== true) {
           toast.error(result.error);
           return;
         }
         if (result.is_new_user) {
+          setExamSignUp(Boolean(forExam));
           setProfileStep("complete_profile");
           toast.success(`Mobile verified (${result.verified_phone_masked}) — finish setting up your account.`);
         } else {
@@ -437,6 +478,22 @@ export default function Auth() {
     if (!nv.success) return toast.error("Enter your full name");
     setProfileBusy(true);
     try {
+      // An exam account already has its role: rpc_create_exam_account gave it
+      // an active student membership in its own space before this page ever
+      // saw a session. Claiming a second one would be a role in a school it
+      // does not belong to. Its name goes to the profile AND the student row,
+      // which is what the panel reads.
+      if (examSignUp) {
+        const { error: nameErr } = await supabase.rpc("rpc_set_my_display_name", {
+          _full_name: nv.data,
+        });
+        if (nameErr) throw nameErr;
+        setProfileStep("idle");
+        setExamSignUp(false);
+        await refreshAuth();
+        toast.success("You're all set!");
+        return;
+      }
       const { error: roleErr } = await (supabase.rpc as any)("claim_signup_role", { _role: newAccountRole });
       if (roleErr) throw roleErr;
       const { data: authData, error: userErr } = await supabase.auth.getUser();
@@ -525,10 +582,13 @@ export default function Auth() {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>I am a</Label>
-                <RolePicker value={newAccountRole} onChange={setNewAccountRole} disabled={profileBusy} />
-              </div>
+              {/* An exam account is already a student, in its own space. */}
+              {!examSignUp && (
+                <div className="space-y-2">
+                  <Label>I am a</Label>
+                  <RolePicker value={newAccountRole} onChange={setNewAccountRole} disabled={profileBusy} />
+                </div>
+              )}
               <Button type="submit" className={PRIMARY_BUTTON_CLASS} disabled={profileBusy}>
                 {profileBusy ? (
                   <>
@@ -556,11 +616,100 @@ export default function Auth() {
 
               <div key={accountType} className="animate-fade-in-300 mt-6">
                 {accountType === "individual" ? (
-                  <div className="py-10 text-center">
-                    <p className="text-sm font-semibold text-muted-foreground/70">Coming Soon</p>
-                    <p className="text-xs text-muted-foreground/50 mt-1.5 max-w-[280px] mx-auto leading-relaxed">
-                      Individual accounts aren't available yet — sign in through your school's Organization account.
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-2">
+                        Which exam are you preparing for?
+                      </p>
+                      {exams.status === "loading" ? (
+                        <p role="status" className="text-sm text-muted-foreground py-6 text-center">
+                          Loading exams…
+                        </p>
+                      ) : exams.status === "failed" ? (
+                        <div className="py-6 text-center space-y-2">
+                          <p className="text-sm text-destructive">We couldn't load the exam list.</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => window.location.reload()}
+                            className="h-9 text-sm"
+                          >
+                            Try again
+                          </Button>
+                        </div>
+                      ) : listItems(exams).length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-6 text-center">
+                          No exams are open for sign-up right now.
+                        </p>
+                      ) : (
+                        <div className="grid gap-2" role="radiogroup" aria-label="Exam">
+                          {listItems(exams).map((ex) => (
+                            <button
+                              key={ex.code}
+                              type="button"
+                              role="radio"
+                              aria-checked={examCode === ex.code}
+                              onClick={() => setExamCode(ex.code)}
+                              disabled={mobileBusy}
+                              className={cn(
+                                "w-full h-14 rounded-[14px] border px-4 text-left text-[15px] font-semibold transition-all duration-200 press disabled:opacity-50",
+                                examCode === ex.code
+                                  ? "border-primary bg-primary/5 text-primary ring-4 ring-primary/15"
+                                  : "border-border bg-muted text-foreground hover:border-primary/40",
+                              )}
+                            >
+                              {ex.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {mobileBusy
+                        ? "A secure verification window is open — finish it there, or cancel below."
+                        : "Your account is tied to the exam you pick, and can't be switched later. Preparing for another exam? Sign up again with the same number and pick that one."}
                     </p>
+
+                    <Button
+                      type="button"
+                      onClick={() => void handleMobileOtp(examCode)}
+                      className={PRIMARY_BUTTON_CLASS}
+                      disabled={!examCode || mobileBusy}
+                    >
+                      {mobileBusy ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Verifying…
+                        </>
+                      ) : (
+                        <>
+                          <Phone className="w-4 h-4 mr-2" />
+                          Continue with mobile
+                        </>
+                      )}
+                    </Button>
+                    {mobileBusy && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={handleCancelMobileOtp}
+                        disabled={mobileCancelling}
+                        className="w-full h-9 text-sm text-muted-foreground hover:text-foreground"
+                      >
+                        {mobileCancelling ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                            Closing…
+                          </>
+                        ) : (
+                          <>
+                            <X className="w-3.5 h-3.5 mr-1.5" />
+                            Cancel
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <>

@@ -3347,3 +3347,30 @@ reloads. `src/auth/AuthProvider.refresh.test.tsx` (fails on the old provider)
 and scratchpad scenario s19, which forces a real refresh mid-session: with the
 old provider the pinned page node was disconnected and the session finished at
 q=1; with the fix it stays mounted and finishes normally with every answer.
+
+## 73. ~~Every mobile sign-in was refused by the auth server~~ — FIXED 2026-09-23
+
+`src/lib/msg91Auth.ts` redeemed the magic-link token with
+`verifyOtp({ email, token_hash, type: "email" })`. GoTrue refuses a
+`/auth/v1/verify` body carrying the address beside the hash. Measured live
+2026-09-23, two freshly minted links for the same account:
+
+```
+email+token_hash+type  -> 400 {"error_code":"validation_failed",
+                              "msg":"Only the token_hash and type should be provided"}
+token_hash+type        -> 200 (session)
+```
+
+So the OTP widget verified the number, the edge function minted a token, and
+the redeem was then rejected — no session, for every phone sign-in. It is the
+ONLY sign-in an individual exam account has.
+
+The hash already names the account; the address added nothing but the refusal.
+Fixed by sending `{ token_hash, type }` alone, and the two comments in
+`supabase/functions/_shared/phoneAuthLink.ts` that documented the wrong shape
+were corrected with it. `src/lib/msg91Auth.signin.test.ts` asserts the redeem
+body has no `email` key and fails when it is put back.
+
+Not proven end to end: MSG91's own verification needs a real SMS, so the step
+before the redeem is still only exercised by its own error paths
+(`scratchpad/exam/edge-probe.mjs`, 4 assertions against the deployed function).
