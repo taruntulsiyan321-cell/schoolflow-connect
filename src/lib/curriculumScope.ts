@@ -173,6 +173,25 @@ export function isScienceAllowedSubject(subject: string): boolean {
 }
 
 /**
+ * The first class a stream means anything in. Streams (science, commerce,
+ * arts) are chosen at Class 11; below that every student takes the same
+ * subjects, whatever the school is tagged. The server holds the same number
+ * in public._stream_for_class — the one place each side keeps it.
+ */
+export const FIRST_STREAM_CLASS = 11;
+
+/**
+ * The stream that applies to a student of `classLevel`: none below Class 11.
+ * An unknown class keeps the stream, so a picker never dumps every subject on
+ * a student whose class failed to load.
+ */
+export function streamForClass<T extends string>(stream: T | null | undefined, classLevel: number | null | undefined): T | null {
+  if (!stream) return null;
+  if (classLevel != null && classLevel < FIRST_STREAM_CLASS) return null;
+  return stream;
+}
+
+/**
  * Commerce allowlist applies for commerce stream at Class 11–12.
  * Lower classes keep general secondary subjects even if the school is commerce-tagged.
  * When class is unresolved, apply allowlist conservatively (never dump science).
@@ -181,9 +200,7 @@ export function appliesCommerceSubjectAllowlist(
   stream: AcademicStream | null | undefined,
   classLevel: number | null | undefined,
 ): boolean {
-  if (stream !== "commerce") return false;
-  if (classLevel == null) return true;
-  return classLevel >= 11;
+  return streamForClass(stream, classLevel) === "commerce";
 }
 
 /**
@@ -194,9 +211,7 @@ export function appliesScienceSubjectAllowlist(
   stream: AcademicStream | null | undefined,
   classLevel: number | null | undefined,
 ): boolean {
-  if (stream !== "science") return false;
-  if (classLevel == null) return true;
-  return classLevel >= 11;
+  return streamForClass(stream, classLevel) === "science";
 }
 
 function orderAllowlist(

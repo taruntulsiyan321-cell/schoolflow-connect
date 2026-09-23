@@ -16,6 +16,7 @@ import {
   isSubjectAllowedForScope,
   normalizeStream,
   parseClassLevel,
+  streamForClass,
   type AcademicStream,
   type CurriculumScope,
 } from "@/lib/curriculumScope";
@@ -767,10 +768,13 @@ export const PracticeService = {
       classLevel = parseClassLevel(classLabel);
     }
 
-    const stream =
-      schoolStream ??
-      inferStreamFromText(classCategory, classLabel) ??
-      null;
+    // A school tagged "commerce" still has Class 9 and 10, and they have no
+    // stream. Returning the school's tag for them labelled 441 Class 10
+    // practice sessions "commerce" and put a commerce filter in every caller.
+    const stream = streamForClass(
+      schoolStream ?? inferStreamFromText(classCategory, classLabel) ?? null,
+      classLevel,
+    );
 
     return { classLevel, board, stream, classLabel };
   },
