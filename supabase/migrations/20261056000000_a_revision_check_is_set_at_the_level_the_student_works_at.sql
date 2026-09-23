@@ -47,20 +47,29 @@ COMMENT ON FUNCTION public._difficulty_rank(text) IS
   'easy 1, medium 2, hard 3 — the one ordering of difficulty (§5.4 level matching).';
 
 /**
- * The level a student has been working at in a chapter: the mean difficulty
+ * The level THE CALLER has been working at in a chapter: the mean difficulty
  * of the bank questions they have answered there, rounded to a rank.
  *
  * Their own history in the chapter first, then their history anywhere, then
  * medium. A student with no attempts at all is not assumed to be weak.
+ *
+ * IT TAKES NO USER ID. `auth.uid()` is read here rather than passed in, so
+ * there is no target parameter a caller could point at another student — the
+ * same rule `rpc_student_practice_analytics` follows, and the reason it needs
+ * no school predicate: owner-scoped is tighter than same-school.
  */
-CREATE OR REPLACE FUNCTION public._student_difficulty_rank(_uid uuid, _chapter_id uuid)
+CREATE OR REPLACE FUNCTION public._student_difficulty_rank(_chapter_id uuid)
 RETURNS integer
 LANGUAGE plpgsql
 STABLE
 SET search_path TO 'public'
 AS $function$
-DECLARE _rank numeric;
+DECLARE
+  _uid  uuid := auth.uid();
+  _rank numeric;
 BEGIN
+  IF _uid IS NULL THEN RETURN 2; END IF;   -- no caller, no history: medium
+
   SELECT avg(public._difficulty_rank(qb.difficulty))
     INTO _rank
     FROM public.question_attempts qa
@@ -113,7 +122,7 @@ BEGIN
 
   _want_fresh := public._recovery_const('REVISION_COUNT')::int;
   _want_miss  := public._recovery_const('REVISION_MISTAKE_MAX')::int;
-  _level      := public._student_difficulty_rank(_uid, _chapter_id);
+  _level      := public._student_difficulty_rank(_chapter_id);
 
   -- ── The misses ─────────────────────────────────────────────────────────
   -- Most-repeated first: a question missed four times is the one the check
@@ -219,8 +228,10 @@ DO $guard$
 DECLARE
   _hard_uid    uuid;
   _hard_chap   uuid;
+  _hard_level  int;
   _easy_uid    uuid;
   _easy_chap   uuid;
+  _easy_level  int;
   _src         text := pg_get_functiondef('public.rpc_revision_session_plan(uuid)'::regprocedure);
 BEGIN
   IF public._difficulty_rank('easy') >= public._difficulty_rank('medium')
@@ -229,7 +240,7 @@ BEGIN
     RAISE EXCEPTION 'difficulty does not rank easy < medium < hard, with the unlabelled as medium';
   END IF;
 
-  IF public._student_difficulty_rank('00000000-0000-0000-0000-000000000000'::uuid, NULL) <> 2 THEN
+  IF public._student_difficulty_rank(NULL) <> 2 THEN
     RAISE EXCEPTION 'a student with no attempts must read as medium, not as weak';
   END IF;
 
@@ -256,13 +267,21 @@ BEGIN
      AND avg(public._difficulty_rank(qb.difficulty)) <= 1.4
    LIMIT 1;
 
+  -- AS EACH STUDENT, because the level is read from auth.uid() and there is no
+  -- user-id parameter to hand it (which is the point: nothing here can be
+  -- pointed at another student). The block becomes each of them in turn, the
+  -- way an app request arrives.
   IF _hard_uid IS NOT NULL AND _easy_uid IS NOT NULL THEN
-    IF public._student_difficulty_rank(_hard_uid, _hard_chap)
-       <= public._student_difficulty_rank(_easy_uid, _easy_chap) THEN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', _hard_uid, 'role', 'authenticated')::text, true);
+    _hard_level := public._student_difficulty_rank(_hard_chap);
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', _easy_uid, 'role', 'authenticated')::text, true);
+    _easy_level := public._student_difficulty_rank(_easy_chap);
+    PERFORM set_config('request.jwt.claims', NULL, true);
+
+    IF _hard_level <= _easy_level THEN
       RAISE EXCEPTION
         'the level does not follow the student: hard-working % reads %, easy-working % reads %',
-        _hard_uid, public._student_difficulty_rank(_hard_uid, _hard_chap),
-        _easy_uid, public._student_difficulty_rank(_easy_uid, _easy_chap);
+        _hard_uid, _hard_level, _easy_uid, _easy_level;
     END IF;
   ELSE
     -- Not silently skipped: the proof says what it could not measure.

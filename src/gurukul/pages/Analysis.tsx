@@ -16,6 +16,8 @@ import { type Tab, TABS } from "./analysisTabs";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
+import { useWeakChapters } from "@/hooks/useWeakChapters";
+import { WeakChapterList } from "@/components/student/analytics/WeakChapterList";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPracticeAnalytics } from "@/hooks/useStudentPracticeAnalytics";
@@ -172,6 +174,11 @@ export default function Analysis() {
   // Rule 11: Analysis is practice-only, so it no longer subscribes to the
   // marks or examination channels — it has nothing to refresh from them.
   useAcademicLive(["profile"]);
+  // §6.3's chapter list — the main screen the section asks for, which this
+  // page did not have. Its own reads, because none of the four hooks below
+  // carries what a chapter row needs (open mistakes with their topics, the
+  // chapter tally behind the accuracy and the trend, and what was skipped).
+  const { list: weakChapters, reload: reloadWeakChapters } = useWeakChapters(academicReady, ctx?.userId ?? null);
   const { data: analysis, loading: analysisLoading, error: analysisError, reload: reloadAnalysis } = useAnalysisPageData(academicReady);
   const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts(academicReady);
   const { data: snapshot, loading: snapshotLoading, error: snapshotError, reload: reloadSnapshot } = useStudentAcademicSnapshot(academicReady);
@@ -1498,6 +1505,21 @@ export default function Analysis() {
               <p className="text-sm text-muted-foreground py-6 text-center">Practice more to unlock personal insights</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Tab: Chapters to fix (§6.3) ─── */}
+      {tab === "chapters" && (
+        <div className="space-y-4">
+          <div>
+            <SLabel>Chapters with something open</SLabel>
+            <p className="text-[11px] text-muted-foreground mb-3">
+              Ranked by how many questions are still open. A chapter whose revision check
+              failed, or whose mistakes keep coming back, sits at the top. Open one for its
+              topics, its pace and what you skipped.
+            </p>
+          </div>
+          <WeakChapterList list={weakChapters} onRetry={reloadWeakChapters} />
         </div>
       )}
 

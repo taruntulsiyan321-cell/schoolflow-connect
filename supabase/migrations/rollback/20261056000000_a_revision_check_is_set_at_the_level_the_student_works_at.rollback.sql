@@ -94,7 +94,7 @@ BEGIN
 END;
 $function$;
 
-DROP FUNCTION IF EXISTS public._student_difficulty_rank(uuid, uuid);
+DROP FUNCTION IF EXISTS public._student_difficulty_rank(uuid);
 DROP FUNCTION IF EXISTS public._difficulty_rank(text);
 
 -- Fail closed: the age ordering must be back and the helpers gone.
