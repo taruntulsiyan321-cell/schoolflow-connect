@@ -14,6 +14,10 @@ const identity: StudentAcademicIdentity = {
   classDisplayName: null,
   classCategory: null,
   classLabel: "10-A",
+  schoolKind: "school",
+  examId: null,
+  examCode: null,
+  examName: null,
 };
 
 describe("identityToServiceContext", () => {

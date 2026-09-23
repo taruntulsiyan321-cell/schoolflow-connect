@@ -2,7 +2,7 @@
 import { withAlpha } from "@/lib/colorAlpha";
 import { createPortal } from "react-dom";
 import type { PageKey } from "@/gurukul/nav";
-import { useGurukulStudent } from "@/gurukul/StudentContext";
+import { useGurukulStudent, useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -286,9 +286,11 @@ function QuestionContextCard({ ctx }: { ctx: NovaQuestionContext }) {
 function SuggestionGrid({
   onSelect,
   firstName,
+  examLabel,
 }: {
   onSelect: (text: string) => void;
   firstName: string;
+  examLabel?: string | null;
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
@@ -301,8 +303,9 @@ function SuggestionGrid({
         Hi {firstName && !isPlaceholderLabel(firstName) ? firstName : "there"}
       </h2>
       <p className="text-muted-foreground text-sm mb-8 text-center max-w-xs">
-        I'm Nova, your tutor. Bring me a concept you don't follow or a question
-        you got wrong — I'll explain it, then ask you questions back until it's clear.
+        {examLabel
+          ? `I'm Nova, your ${examLabel} tutor. Bring me a concept you don't follow or a question you got wrong — I'll explain it, then ask you questions back until it's clear.`
+          : "I'm Nova, your tutor. Bring me a concept you don't follow or a question you got wrong — I'll explain it, then ask you questions back until it's clear."}
       </p>
 
       {/* Suggestions */}
@@ -647,6 +650,9 @@ function InputBar({
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
+  const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
+  const examLabel =
+    schoolKind === "individual" ? (examName || examCode || null) : null;
   const { user, role } = useAuth();
   const { studentId, schoolId } = useAcademicContext();
   const { data: charts } = useStudentPerformanceCharts();
@@ -1137,6 +1143,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
             <SuggestionGrid
               onSelect={handleSuggestion}
               firstName={student.firstName}
+              examLabel={examLabel}
             />
           ) : (
             <div className="px-4 py-4 space-y-5 max-w-3xl mx-auto w-full">

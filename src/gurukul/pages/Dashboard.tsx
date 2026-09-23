@@ -1,14 +1,13 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
-import { useGurukulStudent, useGurukulShellReady } from "@/gurukul/StudentContext";
+import { useGurukulStudent, useGurukulShellReady, useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { EmptyState, GlassCard, PageSkeleton, ProgressBar, ProgressRing, SectionLabel, Skeleton, SkeletonCard, SkeletonStats, StatTile, XPBar } from "@/gurukul/components/shared";
 import {
   ArrowRight, Flame, BookOpen, Brain, RefreshCw, RotateCcw,
   BarChart2, Trophy, Swords, Star
 } from "lucide-react";
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
@@ -126,7 +125,8 @@ function WeeklyRing({ sessions }: { sessions: number }) {
 export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const shellReady = useGurukulShellReady();
-  const { user } = useAuth();
+  const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
+  const isIndividual = schoolKind === "individual";
   const { data: snapshot, loading: snapLoading, error: snapError, reload: reloadSnap } = useStudentAcademicSnapshot();
   const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts();
 
@@ -135,6 +135,21 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   const hasLiveData = Boolean(snapshot || charts);
   const initialLoading = loading && !hasLiveData;
   const toastedError = useRef<string | null>(null);
+
+  const heroScope = isIndividual
+    ? (examName || examCode || student.class || (shellReady ? "—" : "…"))
+    : (student.class || (shellReady ? "—" : "…"));
+
+  const quickActions = useMemo(() => {
+    const all: { label: string; sub: string; icon: ReactNode; color: string; page: PageKey }[] = [
+      { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "hsl(var(--primary))", page: "practice" },
+      { label: "AI Coach", sub: "Chat with Nova", icon: <Brain className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "aicoach" },
+      { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "hsl(var(--warning))", page: "battleground" },
+      { label: "Analysis", sub: "View insights", icon: <BarChart2 className="w-5 h-5"/>, color: "var(--color-physics)", page: "analysis" },
+    ];
+    // Battleground pairs students inside one space — a tenant of one can never find an opponent.
+    return isIndividual ? all.filter((a) => a.page !== "battleground") : all;
+  }, [isIndividual]);
 
   useEffect(() => {
     if (!loadError) {
@@ -235,7 +250,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             <h1 className="text-3xl sm:text-4xl font-black text-foreground leading-tight" style={{fontFamily:"var(--font-display)"}}>
               {student.firstName}
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">{student.class || (shellReady ? "—" : "…")}{goalLine}</p>
+            <p className="text-muted-foreground text-sm mt-1">{heroScope}{goalLine}</p>
             <div className="grid grid-cols-3 gap-3 mt-4">
               {/* This tile is PRACTICE accuracy and always was — StudentDashboard
                   fills the profile from practiceAccuracyFromSnapshot. The field
@@ -314,12 +329,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
       <div className="animate-premium-enter" style={{animationDelay: "0.16s"}}>
         <SectionLabel>Quick Actions</SectionLabel>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-premium-stagger">
-          {[
-            { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "hsl(var(--primary))", page: "practice" as PageKey },
-            { label: "AI Coach", sub: "Chat with Nova", icon: <Brain className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "aicoach" as PageKey },
-            { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "hsl(var(--warning))", page: "battleground" as PageKey },
-            { label: "Analysis", sub: "View insights", icon: <BarChart2 className="w-5 h-5"/>, color: "var(--color-physics)", page: "analysis" as PageKey },
-          ].map((a) => (
+          {quickActions.map((a) => (
             <GlassCard key={a.label} className="p-4 cursor-pointer hover:border-border group" onClick={() => setPage(a.page)}>
               <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{ background: withAlpha(a.color, 0.1), color: a.color }}>
                 {a.icon}
@@ -361,9 +371,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         )}
       </GlassCard>
 
-      {/* Bottom row — Recent Achievements came off (achievements live on the
-          profile only), so the leaderboard stands alone rather than in a
-          two-column grid with a hole in it. */}
+      {/* Class leaderboard is school-only — a tenant of one has no classmates. */}
+      {!isIndividual && (
       <div className="grid gap-4">
         <GlassCard glow="purple" className="p-5">
           <SectionLabel>Class Leaderboard</SectionLabel>
@@ -392,6 +401,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
           </div>
         </GlassCard>
       </div>
+      )}
     </div>
   );
 }

@@ -45,6 +45,8 @@ export type NovaChip = {
 
 export type NovaUiContextInput = {
   classLabel?: string | null;
+  /** Competitive exam name for individual accounts — preferred over classLabel. */
+  examName?: string | null;
   section?: string | null;
   subjects?: string[] | null;
   homeworkPending?: number | null;
@@ -163,17 +165,22 @@ export function buildNovaUiChips(input: NovaUiContextInput): NovaChip[] {
     chips.push({ id, label, color });
   };
 
-  const classBits = [input.classLabel, input.section]
-    .map((x) => (x != null ? String(x).trim() : ""))
-    .filter((x) => x && !isPlaceholderLabel(x));
-  // Avoid "Class Class 11" / duplicate section already in classLabel
-  let classLabel = "";
-  if (classBits.length) {
-    const joined = classBits.join(" · ");
-    const alreadyHasClass = /^class\b/i.test(classBits[0]!);
-    classLabel = alreadyHasClass ? joined : `Class ${joined}`;
+  const examLabel = input.examName != null ? String(input.examName).trim() : "";
+  if (examLabel && !isPlaceholderLabel(examLabel)) {
+    push("exam", examLabel, CHIP_COLORS.class);
+  } else {
+    const classBits = [input.classLabel, input.section]
+      .map((x) => (x != null ? String(x).trim() : ""))
+      .filter((x) => x && !isPlaceholderLabel(x));
+    // Avoid "Class Class 11" / duplicate section already in classLabel
+    let classLabel = "";
+    if (classBits.length) {
+      const joined = classBits.join(" · ");
+      const alreadyHasClass = /^class\b/i.test(classBits[0]!);
+      classLabel = alreadyHasClass ? joined : `Class ${joined}`;
+    }
+    if (classLabel) push("class", classLabel, CHIP_COLORS.class);
   }
-  if (classLabel) push("class", classLabel, CHIP_COLORS.class);
 
   const xp = Number(input.xp ?? 0);
   const level = Number(input.level ?? 1);

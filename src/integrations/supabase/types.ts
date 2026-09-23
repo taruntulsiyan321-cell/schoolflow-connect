@@ -10171,9 +10171,13 @@ export type Database = {
           class_id: string
           class_name: string
           class_section: string
+          exam_code: string
+          exam_id: string
+          exam_name: string
           has_student_role: boolean
           role: Database["public"]["Enums"]["app_role"]
           school_id: string
+          school_kind: string
           student_id: string
           user_id: string
         }[]

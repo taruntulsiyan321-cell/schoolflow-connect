@@ -32,6 +32,17 @@ describe("Nova Context Builder", () => {
     expect(isPlaceholderLabel("Trigonometry")).toBe(false);
   });
 
+  it("prefers exam name over class for individual accounts", () => {
+    const chips = buildNovaUiChips({
+      classLabel: "11-A",
+      examName: "CUET",
+      subjects: ["Mathematics"],
+    });
+    const labels = chips.map((c) => c.label);
+    expect(labels).toContain("CUET");
+    expect(labels.some((l) => /Class 11/i.test(l))).toBe(false);
+  });
+
   it("builds unique chips from live signals without placeholders", () => {
     const chips = buildNovaUiChips({
       classLabel: "11-A",

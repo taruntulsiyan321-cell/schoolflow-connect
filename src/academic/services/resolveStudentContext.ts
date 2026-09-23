@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { MissingSchoolContextError } from "../tenant";
 import type { ServiceContext } from "./context";
 import type { AppRole } from "@/auth/types";
+import type { SchoolKind } from "@/gurukul/nav";
 
 /** Shared student academic identity — Home, Practice, and service helpers. */
 export type StudentAcademicIdentity = {
@@ -18,6 +19,12 @@ export type StudentAcademicIdentity = {
   classCategory: string | null;
   /** Display label e.g. "10-A" or display_name — never hardcoded. */
   classLabel: string | null;
+  /** From schools.kind — null when the RPC/env has not yet returned it. */
+  schoolKind: SchoolKind | null;
+  /** Competitive exam on exam_accounts — null for organisation schools. */
+  examId: string | null;
+  examCode: string | null;
+  examName: string | null;
 };
 
 type IdentityRpcRow = {
@@ -31,7 +38,16 @@ type IdentityRpcRow = {
   class_section: string | null;
   class_display_name: string | null;
   class_category: string | null;
+  school_kind?: string | null;
+  exam_id?: string | null;
+  exam_code?: string | null;
+  exam_name?: string | null;
 };
+
+function parseSchoolKind(raw: string | null | undefined): SchoolKind | null {
+  if (raw === "school" || raw === "individual") return raw;
+  return null;
+}
 
 const ROLE_PRIORITY: AppRole[] = [
   "super_admin",
@@ -131,6 +147,10 @@ async function fetchStudentAcademicIdentity(
       classDisplayName: row.class_display_name ?? null,
       classCategory: row.class_category ?? null,
       classLabel: buildClassLabel(row),
+      schoolKind: parseSchoolKind(row.school_kind),
+      examId: row.exam_id ?? null,
+      examCode: row.exam_code ?? null,
+      examName: row.exam_name ?? null,
     };
   }
 
@@ -211,6 +231,34 @@ async function fetchStudentAcademicIdentity(
     }
   }
 
+  let schoolKind: SchoolKind | null = null;
+  let examId: string | null = null;
+  let examCode: string | null = null;
+  let examName: string | null = null;
+  if (schoolId) {
+    const { data: sch, error: schErr } = await supabase
+      .from("schools")
+      .select("kind")
+      .eq("id", schoolId)
+      .maybeSingle();
+    if (schErr) console.warn("[resolveStudentContext] schools.kind lookup failed:", schErr.message);
+    schoolKind = parseSchoolKind(sch?.kind);
+    if (schoolKind === "individual") {
+      const { data: ea, error: eaErr } = await supabase
+        .from("exam_accounts")
+        .select("exam_id, competitive_exams(code, name)")
+        .eq("school_id", schoolId)
+        .maybeSingle();
+      if (eaErr) console.warn("[resolveStudentContext] exam_accounts lookup failed:", eaErr.message);
+      examId = ea?.exam_id ?? null;
+      type ExamJoin = { code?: string | null; name?: string | null };
+      const rawExam = (ea as { competitive_exams?: ExamJoin | ExamJoin[] | null } | null)?.competitive_exams;
+      const exam = Array.isArray(rawExam) ? rawExam[0] : rawExam;
+      examCode = exam?.code ?? null;
+      examName = exam?.name ?? null;
+    }
+  }
+
   return {
     userId: user.id,
     role,
@@ -227,6 +275,10 @@ async function fetchStudentAcademicIdentity(
       class_name: className,
       class_section: classSection,
     }),
+    schoolKind,
+    examId,
+    examCode,
+    examName,
   };
 }
 

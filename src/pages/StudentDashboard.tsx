@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { PageKey } from "@/gurukul/nav";
-import { PAGE_PATH, pathToPage, legacyClassesRedirectPath } from "@/gurukul/nav";
+import { PAGE_PATH, pathToPage, legacyClassesRedirectPath, isSchoolOnlyPath } from "@/gurukul/nav";
 import Layout from "@/gurukul/components/Layout";
 import { GurukulStudentProvider } from "@/gurukul/StudentContext";
 import { EMPTY_STUDENT } from "@/gurukul/emptyStudent";
@@ -86,7 +86,17 @@ export default function StudentDashboard() {
     schoolId,
     classId,
     classLabel,
+    identity,
   } = useAcademicContext();
+  const schoolKind = identity?.schoolKind ?? null;
+  const examName = identity?.examName ?? null;
+  const examCode = identity?.examCode ?? null;
+  const examId = identity?.examId ?? null;
+  /** Organisation: class label. Individual: competitive exam name (no class/board). */
+  const scopeLabel =
+    schoolKind === "individual"
+      ? (examName || examCode || null)
+      : classLabel;
   const [progressionLoaded, setProgressionLoaded] = useState(false);
   /** Live/focus/poll refreshes must not wipe XP chrome back to placeholders. */
   const progressionLoadedRef = useRef(false);
@@ -135,15 +145,18 @@ export default function StudentDashboard() {
         };
       }
       try {
-        const lb = await ProgressionService.leaderboard(ctx, {
-          scope: "class",
-          period: "lifetime",
-          metric: "xp",
-          limit: 200,
-        });
-        totalStudents = lb.rows.length;
-        const i = lb.rows.findIndex((r) => r.user_id === user.id);
-        if (i >= 0) rank = i + 1;
+        // Class leaderboard is school-only — a tenant-of-one has no classmates.
+        if (schoolKind !== "individual") {
+          const lb = await ProgressionService.leaderboard(ctx, {
+            scope: "class",
+            period: "lifetime",
+            metric: "xp",
+            limit: 200,
+          });
+          totalStudents = lb.rows.length;
+          const i = lb.rows.findIndex((r) => r.user_id === user.id);
+          if (i >= 0) rank = i + 1;
+        }
       } catch (e) {
         // G10: rank stays unavailable rather than wrong. Logged, because a
         // silently-0 rank is indistinguishable from a genuine last place.
@@ -228,7 +241,7 @@ export default function StudentDashboard() {
     });
     progressionLoadedRef.current = true;
     setProgressionLoaded(true);
-  }, [user, academicReady, ctx, beginRun]);
+  }, [user, academicReady, ctx, beginRun, schoolKind]);
 
   useEffect(() => {
     if (!academicReady || !ctx) {
@@ -253,12 +266,20 @@ export default function StudentDashboard() {
       schoolId,
       classId,
       classLabel,
+      schoolKind,
+      examId: identity?.examId ?? null,
+      examCode: identity?.examCode ?? null,
+      examName: identity?.examName ?? null,
     }),
-    [studentId, schoolId, classId, classLabel],
+    [studentId, schoolId, classId, classLabel, schoolKind, identity?.examId, identity?.examCode, identity?.examName],
   );
 
   /** `/student/test/<id>/attempt` and nothing else. */
   const isSittingATest = /^\/student\/test\/[^/]+\/attempt\/?$/.test(location.pathname);
+
+  /** Individual exam accounts cannot open organisation-only surfaces. */
+  const blockSchoolOnly =
+    schoolKind === "individual" && isSchoolOnlyPath(location.pathname);
 
   const mergedStudent = useMemo(
     () => ({
@@ -268,10 +289,10 @@ export default function StudentDashboard() {
       // practice accuracy" — and must survive the merge. Stripping it here is
       // what turned every absent metric into a 0 before any screen saw it.
       ...Object.fromEntries(Object.entries(profile).filter(([, v]) => v !== undefined && v !== "")),
-      // Class label SSOT from AcademicContext (same as Practice curriculum scope).
-      ...(classLabel ? { class: classLabel } : {}),
+      // Scope SSOT: class for school students, exam name for individuals.
+      ...(scopeLabel ? { class: scopeLabel } : {}),
     }),
-    [profile, classLabel],
+    [profile, scopeLabel],
   );
 
   // A student sitting a test gets NO app chrome. Every other student route
@@ -293,7 +314,10 @@ export default function StudentDashboard() {
   return (
     <div className="gurukul-student min-h-screen">
       <GurukulStudentProvider value={mergedStudent} identity={academicIdentity} shellReady={shellReady}>
-      <Layout page={page} setPage={setPage} profile={{ ...profile, ...(classLabel ? { class: classLabel } : {}) }} progressionReady={shellReady}>
+      {blockSchoolOnly ? (
+        <Navigate to="/student" replace />
+      ) : (
+      <Layout page={page} setPage={setPage} profile={{ ...profile, ...(scopeLabel ? { class: scopeLabel } : {}) }} progressionReady={shellReady}>
         <Routes>
           {/* Design student panel */}
           <Route index element={<Dashboard setPage={setPage} />} />
@@ -366,6 +390,7 @@ export default function StudentDashboard() {
           <Route path="*" element={<Navigate to="/student" replace />} />
         </Routes>
       </Layout>
+      )}
       </GurukulStudentProvider>
     </div>
   );
