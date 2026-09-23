@@ -187,6 +187,17 @@ Deno.serve(async (req) => {
     .order("created_at", { ascending: true }).limit(limit);
   if (pErr) return jsonResponse({ error: pErr.message, retryable: true }, 500);
   let rows = (pending ?? []) as BankRow[];
+  // Retry prior provider failures that still have text (migration also requeues failed→pending).
+  if (rows.length < limit) {
+    const { data: failedRows, error: fErr } = await admin
+      .from("question_bank").select(cols)
+      .eq("embed_status", "failed")
+      .not("question", "is", null)
+      .order("created_at", { ascending: true })
+      .limit(limit - rows.length);
+    if (fErr) return jsonResponse({ error: fErr.message, retryable: true }, 500);
+    rows = rows.concat((failedRows ?? []) as BankRow[]);
+  }
   if (rows.length < limit) {
     const { data: stale, error: sErr } = await admin
       .from("question_bank").select(cols)
@@ -197,7 +208,7 @@ Deno.serve(async (req) => {
     rows = rows.concat((stale ?? []) as BankRow[]);
   }
 
-  let embedded = 0, refreshed = 0;
+  let embedded = 0, refreshed = 0, cacheEmbedded = 0;
   const failed: { id: string; reason: string }[] = [];
   const work = rows.filter((r) => {
     if (String(r.question ?? "").trim()) return true;
@@ -213,7 +224,7 @@ Deno.serve(async (req) => {
     const e = await embedMany(chunk.map((r) => candidates(r)[EMBEDDING_TEXT]), env);
     if (!e.ok) {
       // The provider, not the rows: stop, and let the next tick retry.
-      return jsonResponse({ basis, embedded, refreshed, failed, stopped: e.error, retryable: true }, 502);
+      return jsonResponse({ basis, embedded, refreshed, cacheEmbedded, failed, stopped: e.error, retryable: true }, 502);
     }
     for (let j = 0; j < chunk.length; j++) {
       const row = chunk[j];
@@ -223,9 +234,44 @@ Deno.serve(async (req) => {
         .eq("id", row.id)
         .eq("embed_status", row.embed_status);
       if (wErr) { failed.push({ id: row.id, reason: wErr.message }); continue; }
-      if (row.embed_status === "pending_embed") embedded++; else refreshed++;
+      if (row.embed_status === "pending_embed" || row.embed_status === "failed") embedded++;
+      else refreshed++;
     }
   }
 
-  return jsonResponse({ basis, claimed: rows.length, embedded, refreshed, failed });
+  // Backfill ai_answer_cache rows that were saved without a vector (cannot hit semantic match).
+  const cacheRoom = Math.max(0, Math.min(100, limit - work.length));
+  if (cacheRoom > 0) {
+    const { data: cacheRows, error: cErr } = await admin
+      .from("ai_answer_cache")
+      .select("id, original_question")
+      .is("embedding", null)
+      .neq("review_status", "rejected")
+      .order("created_at", { ascending: true })
+      .limit(cacheRoom);
+    if (cErr) {
+      console.error("ai_answer_cache null-embed select failed:", cErr.message);
+    } else {
+      const cacheWork = ((cacheRows ?? []) as { id: string; original_question: string | null }[])
+        .filter((r) => String(r.original_question ?? "").trim());
+      for (let i = 0; i < cacheWork.length; i += PROVIDER_CHUNK) {
+        const chunk = cacheWork.slice(i, i + PROVIDER_CHUNK);
+        const e = await embedMany(chunk.map((r) => String(r.original_question).trim()), env);
+        if (!e.ok) {
+          return jsonResponse({ basis, embedded, refreshed, cacheEmbedded, failed, stopped: e.error, retryable: true }, 502);
+        }
+        for (let j = 0; j < chunk.length; j++) {
+          const { error: wErr } = await admin
+            .from("ai_answer_cache")
+            .update({ embedding: `[${e.vectors[j].join(",")}]` })
+            .eq("id", chunk[j].id)
+            .is("embedding", null);
+          if (wErr) { failed.push({ id: chunk[j].id, reason: wErr.message }); continue; }
+          cacheEmbedded++;
+        }
+      }
+    }
+  }
+
+  return jsonResponse({ basis, claimed: rows.length, embedded, refreshed, cacheEmbedded, failed });
 });

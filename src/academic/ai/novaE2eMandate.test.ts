@@ -67,7 +67,9 @@ describe("Nova E2E mandate matrix", () => {
 
   it("prompt forbids office answers and Class redirects", () => {
     const p = getBuiltinPrompt("student.nova.chat");
+    expect(p?.version).toBe("v3");
     expect(p?.system_template).toMatch(/Refuse attendance|academic doubts/i);
+    expect(p?.system_template).toMatch(/facts\.tutoring\.mode|socratic/i);
     expect(p?.system_template).not.toMatch(/students use Class for those/i);
   });
 
