@@ -710,6 +710,19 @@ findings:**
   Shipping an index change to the busiest AI function is a larger decision than
   a shared-module refresh and is not folded in here.
 
+  **Measured again 2026-09-23, and it now blocks a feature.** Production holds
+  two modules that exist in NO branch — `_shared/novaTutoringPolicy.ts` and
+  `_shared/parseClassLevel.ts` — and four that differ (`aiRouter.ts`,
+  `contextBuilder.ts`, `promptLibrary.ts`, `responseValidator.ts`). A deploy
+  from this repo would DELETE the two and revert the four. So the individual
+  student's Nova change (`_shared/aiRouter.ts`, repo `3b5d411b5251` / prod
+  `cbb696f257a8`: Nova reading the exam instead of the class and board) is
+  written and tested but **not live, and cannot be shipped by deploying**.
+  `ai-gateway` is the only function that snapshots `aiRouter.ts`. Recovering
+  the two prod-only modules into the branch comes first — take them from the
+  MCP `get_edge_function` tool, never from the Management API `/body` bundle,
+  which is transpiled.
+
 The original finding follows.
 
 `_shared/modelRouter.ts` (repo `2cd4c73acfbd` / prod `2273dd3d509c`, 426 vs 278

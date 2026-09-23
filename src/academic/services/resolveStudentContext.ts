@@ -134,56 +134,31 @@ async function fetchStudentAcademicIdentity(
     "rpc_get_my_student_identity",
   );
   if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+    // The RPC answers with the whole identity, exam included, since
+    // 20261047000000 (applied 2026-09-23). It is read here and nowhere else:
+    // while that migration was pending this branch re-read schools and
+    // exam_accounts itself to fill school_kind and the exam, which gave "which
+    // exam is this account" a second home and cost every individual two extra
+    // round trips on an identity the RPC had already answered. The fallback
+    // below still reads those tables, because it runs only where the RPC
+    // answers nothing at all.
     const row = rpcData[0] as IdentityRpcRow;
-    let schoolKind = parseSchoolKind(row.school_kind);
-    let examId = row.exam_id ?? null;
-    let examCode = row.exam_code ?? null;
-    let examName = row.exam_name ?? null;
-    const schoolId = row.school_id ?? null;
-
-    // Pre-migration RPC succeeds without school_kind / exam_* — that is not a
-    // complete identity for an individual space. Enrich from live tables so the
-    // panel does not stay on the organisation nav until the migration lands.
-    if (schoolId && schoolKind == null) {
-      const { data: sch, error: schErr } = await supabase
-        .from("schools")
-        .select("kind")
-        .eq("id", schoolId)
-        .maybeSingle();
-      if (schErr) console.warn("[resolveStudentContext] schools.kind enrich failed:", schErr.message);
-      schoolKind = parseSchoolKind(sch?.kind) ?? schoolKind;
-      if (schoolKind === "individual" && (examId == null || examCode == null)) {
-        const { data: ea, error: eaErr } = await supabase
-          .from("exam_accounts")
-          .select("exam_id, competitive_exams(code, name)")
-          .eq("school_id", schoolId)
-          .maybeSingle();
-        if (eaErr) console.warn("[resolveStudentContext] exam_accounts enrich failed:", eaErr.message);
-        examId = ea?.exam_id ?? examId;
-        type ExamJoin = { code?: string | null; name?: string | null };
-        const rawExam = (ea as { competitive_exams?: ExamJoin | ExamJoin[] | null } | null)?.competitive_exams;
-        const exam = Array.isArray(rawExam) ? rawExam[0] : rawExam;
-        examCode = exam?.code ?? examCode;
-        examName = exam?.name ?? examName;
-      }
-    }
-
     return {
       userId: row.user_id ?? user.id,
       role: row.role ?? null,
       hasStudentRole: row.has_student_role ?? row.role === "student",
       studentId: row.student_id ?? null,
-      schoolId,
+      schoolId: row.school_id ?? null,
       classId: row.class_id ?? null,
       className: row.class_name ?? null,
       classSection: row.class_section ?? null,
       classDisplayName: row.class_display_name ?? null,
       classCategory: row.class_category ?? null,
       classLabel: buildClassLabel(row),
-      schoolKind,
-      examId,
-      examCode,
-      examName,
+      schoolKind: parseSchoolKind(row.school_kind),
+      examId: row.exam_id ?? null,
+      examCode: row.exam_code ?? null,
+      examName: row.exam_name ?? null,
     };
   }
 
