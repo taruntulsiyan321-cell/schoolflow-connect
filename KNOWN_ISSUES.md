@@ -3502,7 +3502,7 @@ it is a door nothing uses; a migration drops it once 75 is resolved.
 25,405 ms inside the full suite (2026-09-22). A unit test that slow is waiting on real timers somewhere; it is
 flaky by construction until it stops.
 
-## 78. A teacher could approve their own question on the way into the bank — FIXED in 20261053000000, NOT APPLIED (blocked by 75)
+## 78. A teacher could approve their own question on the way into the bank — FIXED in 20261054000000, NOT APPLIED (blocked by 75)
 
 Found 2026-09-23 while reading `question_bank`'s policies for the PYQ work.
 `trg_question_bank_approval_is_super_admin_only` is declared
@@ -3525,7 +3525,7 @@ board and class: one teacher could publish into every school's practice,
 mistake book and paper fill without passing the super admin's review queue —
 the queue KNOWN_ISSUES 15 exists to make work.
 
-**The fix is written** — `20261053000000_a_teacher_cannot_approve_their_own_question_on_the_way_in.sql`,
+**The fix is written** — `20261054000000_a_teacher_cannot_approve_their_own_question_on_the_way_in.sql`,
 with its rollback. The trigger fires on INSERT as well, and the insert arm
 refuses an END USER who is not a super admin (`auth.uid() IS NOT NULL`), so
 seed migrations and service-role imports, which have no JWT subject and wrote

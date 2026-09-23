@@ -1,4 +1,4 @@
--- ROLLBACK 20261053000000 — lets a teacher approve their own question again
+-- ROLLBACK 20261054000000 — lets a teacher approve their own question again
 -- by setting is_approved on the INSERT that creates it.
 --
 -- THIS RESTORES THE DEFECT: any teacher or admin could then publish straight
@@ -47,4 +47,4 @@ END
 $check$;
 
 DELETE FROM public.schema_migrations
- WHERE version = '20261053000000_a_teacher_cannot_approve_their_own_question_on_the_way_in';
+ WHERE version = '20261054000000_a_teacher_cannot_approve_their_own_question_on_the_way_in';

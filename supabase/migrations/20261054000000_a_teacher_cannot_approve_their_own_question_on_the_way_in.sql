@@ -116,7 +116,7 @@ BEGIN
     INSERT INTO public.question_bank
       (subject, class_level, chapter_id, question, options, correct_index, created_by, is_approved, is_active)
     VALUES
-      (_subject, _level, _chapter, 'migration 20261053000000 proof — approved on insert',
+      (_subject, _level, _chapter, 'migration 20261054000000 proof — approved on insert',
        '["1","2","3","4"]'::jsonb, 0, _teacher, true, false)
     RETURNING id INTO _id;
   EXCEPTION WHEN insufficient_privilege THEN
@@ -137,7 +137,7 @@ BEGIN
     INSERT INTO public.question_bank
       (subject, class_level, chapter_id, question, options, correct_index, created_by, is_approved, is_active)
     VALUES
-      (_subject, _level, _chapter, 'migration 20261053000000 control — a contribution awaiting review',
+      (_subject, _level, _chapter, 'migration 20261054000000 control — a contribution awaiting review',
        '["1","2","3","4"]'::jsonb, 0, _teacher, false, false)
     RETURNING id INTO _id;
     DELETE FROM public.question_bank WHERE id = _id;
@@ -152,18 +152,18 @@ BEGIN
   INSERT INTO public.question_bank
     (subject, class_level, chapter_id, question, options, correct_index, is_approved, is_active)
   VALUES
-    (_subject, _level, _chapter, 'migration 20261053000000 seed path — approved by the owner',
+    (_subject, _level, _chapter, 'migration 20261054000000 seed path — approved by the owner',
      '["1","2","3","4"]'::jsonb, 0, true, false)
   RETURNING id INTO _id;
   DELETE FROM public.question_bank WHERE id = _id;
 
   -- Nothing this block wrote may survive it.
-  IF EXISTS (SELECT 1 FROM public.question_bank WHERE question LIKE 'migration 20261053000000%') THEN
+  IF EXISTS (SELECT 1 FROM public.question_bank WHERE question LIKE 'migration 20261054000000%') THEN
     RAISE EXCEPTION 'the proof left rows in the bank';
   END IF;
 END
 $guard$;
 
 INSERT INTO public.schema_migrations (version)
-VALUES ('20261053000000_a_teacher_cannot_approve_their_own_question_on_the_way_in')
+VALUES ('20261054000000_a_teacher_cannot_approve_their_own_question_on_the_way_in')
 ON CONFLICT (version) DO NOTHING;

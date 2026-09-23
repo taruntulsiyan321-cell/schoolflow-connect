@@ -84,7 +84,9 @@ describe("Nova Context Pack v1", () => {
 
   it("builtin prompt tutors on learning facts only (no school records)", () => {
     const p = getBuiltinPrompt("student.nova.chat");
-    expect(p?.version).toBe("v2");
+    // v3 since 47b4be64 made Nova Socratic by default; the prompt library is
+    // the contract and this pins which version the pack tests describe.
+    expect(p?.version).toBe("v3");
     expect(p?.user_template).toContain("{{facts}}");
     expect(p?.user_template).toContain("{{question}}");
     expect(p?.system_template).toMatch(/learning facts/i);
