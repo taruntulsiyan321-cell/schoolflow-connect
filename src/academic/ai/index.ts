@@ -188,6 +188,7 @@ export {
   processOneEmbeddingJob,
   parseEmbeddingApiResponse,
   buildEmbeddingRequestBody,
+  embedQueryText,
   type EmbeddingJobClaim,
   type EmbeddingVectorResult,
 } from "./embeddingProvider";

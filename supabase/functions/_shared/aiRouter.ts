@@ -30,6 +30,7 @@ import {
   type RetrievalPack,
 } from "./vectorRetrieval.ts";
 import { embedQueryText } from "./embeddingProvider.ts";
+import { parseClassLevel } from "./parseClassLevel.ts";
 import {
   isSessionMemoryAllowed,
   redactSessionForContext,
@@ -392,14 +393,20 @@ function embeddingEnvFromDeno(): Record<string, string | undefined> {
 }
 
 /**
- * Embed a retrieval query before calling retrieveKmsChunks. Never throws and
- * never blocks the request — a failed/unset embed just yields null, and
- * retrieveKmsChunks (and the ai_kms_retrieve_chunks RPC underneath it)
- * already fall back to lexical overlap when query_embedding is null.
+ * Embed a retrieval query before calling retrieveKmsChunks / Nova match.
+ * Never throws and never blocks the request — a failed/unset embed yields null
+ * so callers fall through (lexical KMS, or model generation for Nova).
+ * G10: failure must not look identical to "no similar question" in logs —
+ * previously `ok:false` was swallowed with no warn, so a dead embedding key
+ * silently disabled bank + answer-cache for every student.
  */
 async function resolveQueryEmbedding(query: string): Promise<number[] | null> {
   const result = await embedQueryText(query, { env: embeddingEnvFromDeno() });
-  return result.ok ? result.embedding : null;
+  if (!result.ok) {
+    console.warn("[embed] query embedding failed:", result.error);
+    return null;
+  }
+  return result.embedding;
 }
 
 /**
@@ -3879,11 +3886,23 @@ export async function routeAiRequest(
         let referenceBlock: string | null = null;
         let matchedSubjectHint: string | null = null;
         if (!images.length && !questionContextBlock) {
-          const classLevelMatch = /(\d+)/.exec(
-            student_profile.class_name ?? student_profile.class_label ?? "",
+          // Digits or Roman (XI-A / Class 11) — bare /(\d+)/ misses Roman labels and
+          // skips the entire embed + bank/cache path (F6). Same parser as the client
+          // (`src/lib/parseClassLevel.ts`, parity-checked with this edge copy).
+          matchClassLevel = parseClassLevel(
+            student_profile.class_name ?? student_profile.class_label ?? null,
           );
-          matchClassLevel = classLevelMatch ? parseInt(classLevelMatch[1], 10) : null;
-          if (matchClassLevel != null && matchClassLevel >= 1 && matchClassLevel <= 12) {
+          if (matchClassLevel == null) {
+            // G10 — skip is fine; silent skip is not. Without a class filter the
+            // SQL hard-gate cannot run, so we refuse to search rather than widen.
+            console.warn(
+              "[nova] question match skipped — class_level unparseable from",
+              JSON.stringify({
+                class_name: student_profile.class_name,
+                class_label: student_profile.class_label,
+              }),
+            );
+          } else if (matchClassLevel >= 1 && matchClassLevel <= 12) {
             try {
               queryEmbedding = await resolveQueryEmbedding(question);
               if (queryEmbedding) {
@@ -4015,7 +4034,19 @@ export async function routeAiRequest(
                       evidence: { student_id: studentId, matched_cache_id: best.id, similarity, language },
                     });
                     admin.rpc("bump_ai_answer_cache_hit", { p_id: best.id }).then(
-                      () => {}, () => {},
+                      (res) => {
+                        if (res.error) {
+                          console.error(
+                            "bump_ai_answer_cache_hit failed:",
+                            JSON.stringify(res.error),
+                          );
+                        }
+                      },
+                      (e) =>
+                        console.error(
+                          "bump_ai_answer_cache_hit threw:",
+                          e instanceof Error ? e.message : String(e),
+                        ),
                     );
                     return {
                       request_id: req.request_id, feature_id: cap.feature_id, decision,
