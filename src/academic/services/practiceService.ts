@@ -186,6 +186,26 @@ function studentBankQuery(
  * The query must be ordered by id, so the pages tile it; a row that moves
  * between the first request and the rest is counted once.
  */
+/** The chapter to narrow by, or nothing. One home, so a count and a draw agree. */
+function chapterFilterOf(chapter: string | null | undefined): string | null {
+  const v = chapter?.trim();
+  return v ? v : null;
+}
+
+/** A topic picked from the list: an id, exact and per chapter (§10.22). */
+function topicIdOf(topic: string | null | undefined): string | null {
+  return topic && TOPIC_ID_RE.test(topic.trim()) ? topic.trim() : null;
+}
+
+/**
+ * A topic NAME, from an old `?topic=` link. Skipped when it carries a comma,
+ * a parenthesis or a quote: those are PostgREST's own delimiters in an
+ * embedded filter, and such a name falls through to the client-side pass.
+ */
+function topicNameOf(topic: string | null | undefined): string | null {
+  return !topicIdOf(topic) && topic && !/[,()"\\]/.test(topic) ? topic.trim() : null;
+}
+
 type PageError = { message: string; code?: string } | null;
 async function readAllPages<R extends { id: string }>(
   page: (withCount: boolean) => { range: (from: number, to: number) => PromiseLike<{ data: unknown; count?: number | null; error: PageError }> },
@@ -1497,10 +1517,7 @@ export const PracticeService = {
     // narrowed separately below — question_bank has no `topic`, `concept` or
     // `topic_group` column (20261020010000), and naming one fails the whole
     // request with 42703, which is how practice once stopped starting.
-    const chapterFilter = ((): string | null => {
-      const v = opts.chapter?.trim();
-      return v ? v : null;
-    })();
+    const chapterFilter = chapterFilterOf(opts.chapter);
 
     /**
      * The topic, narrowed IN THE DATABASE — never picked out of a window.
@@ -1529,11 +1546,8 @@ export const PracticeService = {
      *            un-narrowed retry below runs, where the client pass still
      *            accepts a value that is really a chapter name.
      */
-    const topicId = opts.topic && TOPIC_ID_RE.test(opts.topic.trim()) ? opts.topic.trim() : null;
-    const topicName = ((): string | null => {
-      const v = opts.topic;
-      return !topicId && v && !/[,()"\\]/.test(v) ? v.trim() : null;
-    })();
+    const topicId = topicIdOf(opts.topic);
+    const topicName = topicNameOf(opts.topic);
 
     // ── THE WHOLE POOL, NOT A WINDOW OF IT ─────────────────────────────────
     //
@@ -1764,6 +1778,58 @@ export const PracticeService = {
         options: q.options,
       }];
     });
+  },
+
+  /**
+   * How many questions a set of filters would actually serve.
+   *
+   * CUSTOM PRACTICE COULD BE CONFIGURED INTO A DEAD END. Subject, chapter,
+   * topic and difficulty are each optional and each narrows the bank, and the
+   * screen offered every combination of them — including the ones that hold
+   * nothing. The student picked, pressed Start, waited for a session to load,
+   * and got "No questions match those filters yet" on a screen they could
+   * only leave. Measured on the live bank 2026-09-23: 4 of 237
+   * chapter-and-difficulty pairs at Class 10 hold no question at all, and a
+   * topic narrows it further again.
+   *
+   * So the config screen asks first. Same scope as the draw
+   * (studentBankQuery) and the same chapter, topic and difficulty narrowing,
+   * so what this counts is exactly what a session would draw from — a count
+   * from a different query would be a second answer to the same question.
+   *
+   * It is a HEAD request: the count, never the rows.
+   */
+  async countBankPool(
+    ctx: ServiceContext,
+    opts: { subject?: string | null; chapter?: string | null; topic?: string | null; difficulty?: string | null } = {},
+  ): Promise<number> {
+    assertCanConsume(ctx, "practice");
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = scope.classLevel;
+    if (classLevel == null || !Number.isFinite(classLevel)) return 0;
+    if (opts.subject && opts.subject !== "Mixed" && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) {
+      return 0;
+    }
+
+    const topicId = topicIdOf(opts.topic);
+    const topicName = topicNameOf(opts.topic);
+    const chapter = chapterFilterOf(opts.chapter);
+
+    let query = studentBankQuery(
+      getClient(toRepoContext(ctx)),
+      `id, topics${topicName ? "!inner" : ""}(name)`,
+      scope,
+      classLevel,
+      { subject: opts.subject, activeOnly: true, withCount: true },
+    );
+    if (chapter) query = query.ilike("chapter", chapter);
+    if (topicId) query = query.eq("topic_id", topicId);
+    if (topicName) query = query.ilike("topics.name", topicName);
+    if (opts.difficulty && opts.difficulty !== "mixed") query = query.eq("difficulty", opts.difficulty);
+
+    const { count, error } = await query.range(0, 0);
+    throwIfError(error, "Failed to count practice questions");
+    return count ?? 0;
   },
 
   /**

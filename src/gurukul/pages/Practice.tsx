@@ -665,6 +665,28 @@ export function ConfigView({
   const retryTopics = () => setTopicReads((k) => k + 1);
   const retryPyqYears = () => setPyqReads((k) => k + 1);
 
+  // How many questions the current Custom selection would draw from. Counted
+  // from the same pool the session draws (PracticeService.countBankPool), so
+  // the number shown and the session started cannot disagree.
+  const [poolCount, setPoolCount] = useState<
+    { status: "loading" } | { status: "failed" } | { status: "ready"; count: number }
+  >({ status: "loading" });
+  useEffect(() => {
+    if (modeKey !== "custom" || !ctx || !academicReady) return;
+    let cancelled = false;
+    setPoolCount({ status: "loading" });
+    PracticeService.countBankPool(ctx, {
+      subject: selSubject,
+      chapter: selChapter,
+      topic: selTopic,
+      difficulty: selDifficulty,
+    }).then(
+      (count) => { if (!cancelled) setPoolCount({ status: "ready", count }); },
+      () => { if (!cancelled) setPoolCount({ status: "failed" }); },
+    );
+    return () => { cancelled = true; };
+  }, [modeKey, ctx, academicReady, selSubject, selChapter, selTopic, selDifficulty]);
+
   function handleStart() {
     // Custom Practice is the only mode with a time goal, and it is exclusive
     // with the question count.
@@ -807,9 +829,35 @@ export function ConfigView({
               </div>
             )}
           </div>
+
+          {/* WHAT THIS SELECTION HOLDS, BEFORE IT IS STARTED.
+              Subject, chapter, topic and difficulty each narrow the bank, and
+              every combination of them used to be offered — including the ones
+              holding nothing. The student picked, pressed Start, waited for a
+              session, and met "No questions match those filters yet" on a
+              screen they could only leave. Measured on the live bank
+              2026-09-23: 4 of 237 chapter-and-difficulty pairs at Class 10
+              hold no question at all. */}
+          <div aria-live="polite" data-testid="custom-pool-count">
+            {poolCount.status === "loading" && (
+              <p className="text-xs text-muted-foreground">Counting what matches…</p>
+            )}
+            {poolCount.status === "failed" && (
+              <p className="text-xs text-muted-foreground">
+                Could not count what matches. Start anyway — the session will say if it finds nothing.
+              </p>
+            )}
+            {poolCount.status === "ready" && (
+              <p className={cn("text-xs", poolCount.count === 0 ? "text-destructive" : "text-muted-foreground")}>
+                {poolCount.count === 0
+                  ? "Nothing in the bank matches those filters. Try a different difficulty, or clear one."
+                  : `${pluralise(poolCount.count, "question")} match — a session takes up to ${goalType === "time" ? 50 : qCount}.`}
+              </p>
+            )}
+          </div>
         </div>
         <StartButton
-          disabled={!selDifficulty || !goalReady}
+          disabled={!selDifficulty || !goalReady || (poolCount.status === "ready" && poolCount.count === 0)}
           onStart={handleStart}
         />
       </ConfigShell>

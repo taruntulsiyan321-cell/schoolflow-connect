@@ -3680,3 +3680,46 @@ the state machine asks it with the chapter's own stage.
 20261055000000 and 20261056000000 replace one function each and are safe to
 re-run; 20261057000000 schedules a cron job and unschedules it first, so it is
 too. None of their plpgsql has executed anywhere.
+
+## 82. The three "extra" practice findings — two fixed, one written and blocked
+
+**Custom Practice could be configured into a dead end — FIXED 2026-09-23.**
+Subject, chapter, topic and difficulty each narrow the bank and every
+combination was offered, including the ones holding nothing: the student
+picked, pressed Start, waited for a session to load and met "No questions
+match those filters yet" on a screen they could only leave. Measured on the
+live bank: 4 of 237 chapter-and-difficulty pairs at Class 10 hold no question
+at all, and a topic narrows it again. The config screen now counts the
+selection first (`PracticeService.countBankPool`, the same scope and the same
+chapter/topic/difficulty narrowing the draw uses, as a HEAD request) and says
+"18 questions match — a session takes up to 20", or "Nothing in the bank
+matches those filters" with Start disabled. Driven in a browser: Mathematics ·
+Trigonometry · Easy (0 in the bank) refuses and says so; Polynomials · Easy
+reports 18 and starts, and 18 is what the bank holds.
+
+**The revision tab offering checks it then refused — ALREADY FIXED, verified
+2026-09-23.** The reported 400 was `chapter is not taught to this student's
+section`; 20261044000000 added the "or practised by them" arm to
+`_recovery_chapter_is_for`, and the refusal is gone. Measured as the student
+over all 46 of their chapters: `rpc_revision_session_plan` builds a plan for
+44, and refuses 2 with "there is nothing new left in this chapter to check you
+on" — both of which the screen already shows as unstartable, because
+`rpc_student_chapter_states.revision_fresh_available` is 0 for them and the
+card disables its button and says so. In the browser: 43 cards, 41 offered, 0
+offered-but-refusable.
+
+**10 variant-keyed mistake rows — MERGE WRITTEN, NOT APPLIED (blocked by 75).**
+20261051000000 stopped new ones being written (a variant's miss marks the
+question it came from); the rows already in the book were left. Measured:
+10 rows for 1 student across 8 root questions, 2 of them variants OF variants,
+and in all 8 cases the root ALSO has its own row — so the same gap is counted
+twice, four times for the root carrying three variants, in the open-mistake
+total, the recovery trigger, the §6.3 chapter list and "of those, repeated".
+`20261058000000` merges each variant row into its root's row for the same
+(user, source): times_wrong adds, last_wrong_at is the latest, created_at the
+earliest, and the row stays open if any part was open; a variant whose root
+has no row is repointed rather than dropped. It copies every row it touches
+into `student_mistakes_variant_merge` first, so the rollback restores them
+exactly and takes the counts back out. Its proof asserts the times_wrong total
+is unchanged, that nothing is keyed on a variant afterwards, and — the control
+— that no row on an original question was touched.
