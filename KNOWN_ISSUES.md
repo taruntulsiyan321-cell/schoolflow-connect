@@ -2944,17 +2944,32 @@ panel. Its first run failed on item 9 — the check that shows it can fail.
   for a principal are not built.
 ---
 
-## 57. Previous Year Questions has no content, anywhere — OPEN, needs data
+## 57. Previous Year Questions has no content — OPEN, NEEDS A DATA SOURCE (the screen was fixed 2026-09-23)
 
-Measured 2026-09-18 on live: **0 of 21,717** servable bank questions carry
-`exam_year`, a `pyq` `source_type`, or a `source` naming a past paper. The mode
-is offered on the hub ("Board and competitive exam questions from past years"),
-its config screen offers the last six exam years, and every start of it —
-for every student, every subject, every year — reaches the honest empty state.
+Measured 2026-09-18 and again 2026-09-23 on live: **0 of 21,876** bank
+questions carry an `exam_year`, and none carries a year in its text or its
+explanation either. Every row is seeded `ncert_aligned` content
+(`seed_rbse_commerce_*`); there is no past paper anywhere in the bank and
+nothing to back-fill a year from. Inventing years would be fabricating data,
+so the data half stays open and **needs the owner**: real board papers, with
+their years and answer keys, imported under whatever licence they come with.
 
-Not a code defect: the loader's filter is correct and the empty state says so
-plainly. It stays empty until past papers are tagged or imported. Recorded here
-so the next person driving the modes does not go looking for the bug.
+**What WAS a code defect, and is fixed (2026-09-23).** The config screen
+offered the last six CALENDAR years, whatever the bank held, and "All years"
+besides — seven chips, every one of which started a session that loaded
+nothing. And "a previous-year question" had two definitions: the pool admitted
+`exam_year IS NOT NULL` **or** a `pyq` `source_type` **or** a `source` naming a
+past paper, so it could have served a question that no year chip could select.
+
+Now there is one definition — a question that names the exam year it was set
+in — applied in one place (`studentBankQuery`'s `previousYearOnly`), and the
+years come from the bank: `PracticeService.listPyqYears` reads the distinct
+years off the same scoped pool the session draws from. The screen offers
+exactly those years with their counts, and when there are none it says
+"No past-year papers have been added to the question bank for <subject> yet"
+and cannot be started. Driven in a browser as the Class 10 student: no chips,
+Start disabled; and with the years read answered with three questions across
+two years, "All years · 3 | 2024 · 2 | 2022 · 1" and Start enabled.
 
 ---
 
@@ -3439,3 +3454,40 @@ it is a door nothing uses; a migration drops it once 75 is resolved.
 `src/gurukul-teacher/LiveHomeworkPanels.test.tsx` "does not stop at a page" passed alone in 7,067 ms and failed at
 25,405 ms inside the full suite (2026-09-22). A unit test that slow is waiting on real timers somewhere; it is
 flaky by construction until it stops.
+
+## 78. A teacher could approve their own question on the way into the bank — FIXED in 20261053000000, NOT APPLIED (blocked by 75)
+
+Found 2026-09-23 while reading `question_bank`'s policies for the PYQ work.
+`trg_question_bank_approval_is_super_admin_only` is declared
+`BEFORE UPDATE OF is_approved`, so the INSERT that creates a row never reached
+it, and `qb_staff_insert`'s WITH CHECK (`created_by = auth.uid() AND
+can_author_bank_question()`) says who may write a row, not what it may claim
+about itself.
+
+Measured on production as the real teacher priya.sharma, over PostgREST (the
+row was written `is_active: false` so no student could be served it, and
+deleted in the same breath):
+
+```
+POST /rest/v1/question_bank {… is_approved: true, is_active: false}
+  -> 201  [{"is_approved": true, "is_active": false}]
+```
+
+The bank is global (G2), so an approved question reaches every school on that
+board and class: one teacher could publish into every school's practice,
+mistake book and paper fill without passing the super admin's review queue —
+the queue KNOWN_ISSUES 15 exists to make work.
+
+**The fix is written** — `20261053000000_a_teacher_cannot_approve_their_own_question_on_the_way_in.sql`,
+with its rollback. The trigger fires on INSERT as well, and the insert arm
+refuses an END USER who is not a super admin (`auth.uid() IS NOT NULL`), so
+seed migrations and service-role imports, which have no JWT subject and wrote
+all 21,876 approved rows, still work. Its proof block becomes that teacher
+(`SET LOCAL ROLE authenticated` + their JWT subject) and asserts all three:
+the approved insert is refused, the unapproved one is accepted (the control),
+and the owner's approved insert still goes through.
+
+**Not applied, and not dry-run:** the Management API token is dead (75) and
+this machine has no Postgres, so nothing could run it. Both files parse
+against the real Postgres grammar (libpg_query); their plpgsql bodies have not
+been executed anywhere. Apply and dry-run them the moment the token is back.

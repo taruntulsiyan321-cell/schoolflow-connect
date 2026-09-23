@@ -134,6 +134,75 @@ const TOPIC_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 const POOL_PAGE = 1000;
 const POOL_CAP = 10_000;
 
+/**
+ * The student bank every practice read draws from: approved, active unless a
+ * historical view asks otherwise, the student's board, class and stream, and
+ * one subject when one is named.
+ *
+ * listBankQuestions narrows it further; listPyqYears reads the exam years off
+ * it. One home for the scope, so the Previous Year Questions screen can only
+ * ever offer a year the pool would then serve.
+ */
+function studentBankQuery(
+  client: ReturnType<typeof getClient>,
+  columns: string,
+  scope: CurriculumScope,
+  classLevel: number | null,
+  opts: { subject?: string | null; activeOnly: boolean; withCount?: boolean; previousYearOnly?: boolean },
+) {
+  let query = client
+    .from("question_bank_student")
+    .select(columns, opts.withCount ? { count: "exact" } : undefined)
+    .eq("is_approved", true)
+    // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
+    // so there is no per-school arm left to filter on.
+    .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
+    .order("id");
+  if (opts.activeOnly) query = query.eq("is_active", true);
+  if (classLevel != null && Number.isFinite(classLevel)) query = query.eq("class_level", classLevel);
+  if (scope.stream) query = query.or(`stream.eq.${scope.stream},stream.is.null`);
+  if (opts.subject && opts.subject !== "Mixed") query = query.ilike("subject", opts.subject);
+  // A previous-year question is one that names the exam year it was set in.
+  // The source-text guesses that stood in the pool's filter (a `pyq`
+  // source_type, a source naming a past paper) matched none of the bank, and
+  // would have admitted a question no year could ever select.
+  if (opts.previousYearOnly) query = query.not("exam_year", "is", null);
+  return query;
+}
+
+/**
+ * Every row a paged query admits, up to POOL_CAP.
+ *
+ * The first page brings the total with it, and every other page is asked for
+ * at once. They were fetched one after another: each page is a full round
+ * trip of about a second for a thousand rows, so a Class 12 "all subjects"
+ * session (3,305 rows, four pages) waited 6.6 seconds before its first
+ * question — measured 2026-09-22 as the student. Asked for together, the pages
+ * cost one round trip after the first.
+ *
+ * The query must be ordered by id, so the pages tile it; a row that moves
+ * between the first request and the rest is counted once.
+ */
+type PageError = { message: string; code?: string } | null;
+async function readAllPages<R extends { id: string }>(
+  page: (withCount: boolean) => { range: (from: number, to: number) => PromiseLike<{ data: unknown; count?: number | null; error: PageError }> },
+): Promise<{ data: R[] | null; error: PageError }> {
+  const first = await page(true).range(0, POOL_PAGE - 1);
+  if (first.error) return { data: null, error: first.error };
+  const firstRows = (first.data ?? []) as R[];
+  const total = Math.min(first.count ?? firstRows.length, POOL_CAP);
+  const rest: Array<PromiseLike<{ data: unknown; error: PageError }>> = [];
+  for (let from = POOL_PAGE; from < total; from += POOL_PAGE) {
+    rest.push(page(false).range(from, from + POOL_PAGE - 1));
+  }
+  const pages = await Promise.all(rest);
+  const failed = pages.find((p) => p.error);
+  if (failed) return { data: null, error: failed.error };
+  const byId = new Map<string, R>();
+  for (const row of [firstRows, ...pages.map((p) => (p.data ?? []) as R[])].flat()) byId.set(row.id, row);
+  return { data: [...byId.values()], error: null };
+}
+
 /** A student's curriculum scope, shared by every question load for a minute. */
 const SCOPE_TTL_MS = 60_000;
 const scopeCache = new Map<string, { at: number; promise: Promise<CurriculumScope> }>();
@@ -1432,32 +1501,15 @@ export const PracticeService = {
     // the ones drawn.
     const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean, withCount = false) => {
       const narrowTopicName = narrowToLabels && !byIds && topicName !== null;
-      let query = client
-        .from("question_bank_student")
-        .select(
-          `id, subject, chapter, topic_id, topics${narrowTopicName ? "!inner" : ""}(name)`,
-          withCount ? { count: "exact" } : undefined,
-        )
-        .eq("is_approved", true)
-        // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-        // so there is no per-school arm left to filter on.
-        .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
-        .order("id");
-
-      if (applyActiveFilter) {
-        query = query.eq("is_active", true);
-      }
+      let query = studentBankQuery(
+        client,
+        `id, subject, chapter, topic_id, topics${narrowTopicName ? "!inner" : ""}(name)`,
+        scope,
+        classLevel,
+        { subject: opts.subject, activeOnly: applyActiveFilter, withCount, previousYearOnly: opts.pyqOnly },
+      );
       if (byIds) {
         query = query.in("id", opts.ids!);
-      }
-      if (classLevel != null && Number.isFinite(classLevel)) {
-        query = query.eq("class_level", classLevel);
-      }
-      if (scope.stream) {
-        query = query.or(`stream.eq.${scope.stream},stream.is.null`);
-      }
-      if (opts.subject && opts.subject !== "Mixed") {
-        query = query.ilike("subject", opts.subject);
       }
       // The label predicate NARROWS; academicLabelMatches below is still what
       // decides. Skipped on the fallback pass so a chapter stored under a
@@ -1514,45 +1566,15 @@ export const PracticeService = {
           if (names.length) query = query.in("topics.name", names).not("topics", "is", null);
         }
       }
-      if (opts.pyqOnly) {
-        query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
-      }
       if (opts.examYear != null && Number.isFinite(opts.examYear)) {
         query = query.eq("exam_year", opts.examYear);
       }
       return query;
     };
 
-    /**
-     * Every row the filters admit, up to POOL_CAP.
-     *
-     * The first page brings the total with it, and every other page is asked
-     * for at once. They were fetched one after another: each page is a full
-     * round trip of about a second for a thousand rows, so a Class 12 "all
-     * subjects" session (3,305 rows, four pages) waited 6.6 seconds before its
-     * first question — measured 2026-09-22 as the student. Asked for together,
-     * the pages cost one round trip after the first.
-     *
-     * Ordered by id, so the pages tile the pool; a row that moves between the
-     * first request and the rest is counted once.
-     */
-    const readPool = async (applyActiveFilter: boolean, narrowToLabels: boolean) => {
-      const first = await buildQuery(applyActiveFilter, narrowToLabels, true).range(0, POOL_PAGE - 1);
-      if (first.error) return { data: null, error: first.error };
-      const total = Math.min(first.count ?? (first.data?.length ?? 0), POOL_CAP);
-      const rest: Array<ReturnType<typeof buildQuery>> = [];
-      for (let from = POOL_PAGE; from < total; from += POOL_PAGE) {
-        rest.push(buildQuery(applyActiveFilter, narrowToLabels).range(from, from + POOL_PAGE - 1));
-      }
-      const pages = await Promise.all(rest);
-      const failed = pages.find((p) => p.error);
-      if (failed) return { data: null, error: failed.error };
-      const byId = new Map<string, unknown>();
-      for (const row of [first, ...pages].flatMap((p) => (p.data ?? []) as Array<{ id: string }>)) {
-        byId.set(row.id, row);
-      }
-      return { data: [...byId.values()], error: null };
-    };
+    /** Every row the filters admit, up to POOL_CAP (readAllPages). */
+    const readPool = (applyActiveFilter: boolean, narrowToLabels: boolean) =>
+      readAllPages<{ id: string }>((withCount) => buildQuery(applyActiveFilter, narrowToLabels, withCount));
 
     // Retired (is_active = false) questions are left out unless a historical
     // view asks for them. The column is always there; the probe that once
@@ -1666,6 +1688,46 @@ export const PracticeService = {
         options: q.options,
       }];
     });
+  },
+
+  /**
+   * The exam years Previous Year Questions can serve this student, newest
+   * first, each with the number of questions it holds.
+   *
+   * Read off the same pool the session draws from (studentBankQuery, with the
+   * same stream allowlist after it), so every year offered starts a session
+   * with questions in it. The screen used to offer the last six calendar
+   * years whatever the bank held: 0 of 21,876 questions carry an exam year
+   * (KNOWN_ISSUES 57), so every one of those chips led to an empty session.
+   * An empty list here means the bank holds no past papers for this student.
+   */
+  async listPyqYears(
+    ctx: ServiceContext,
+    opts: { subject?: string | null } = {},
+  ): Promise<Array<{ year: number; count: number }>> {
+    assertCanConsume(ctx, "practice");
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = scope.classLevel;
+    if (classLevel == null || !Number.isFinite(classLevel)) return [];
+    if (opts.subject && opts.subject !== "Mixed" && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) {
+      return [];
+    }
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await readAllPages<{ id: string; subject: string; exam_year: number | null }>((withCount) =>
+      studentBankQuery(client, "id, subject, exam_year", scope, classLevel, {
+        subject: opts.subject,
+        activeOnly: true,
+        withCount,
+        previousYearOnly: true,
+      }),
+    );
+    throwIfError(error, "Failed to load past-paper years");
+    const byYear = new Map<number, number>();
+    for (const r of data ?? []) {
+      if (r.exam_year == null || !isSubjectAllowedForScope(r.subject, scope.stream, classLevel)) continue;
+      byYear.set(r.exam_year, (byYear.get(r.exam_year) ?? 0) + 1);
+    }
+    return [...byYear.entries()].map(([year, count]) => ({ year, count })).sort((a, b) => b.year - a.year);
   },
 
   /** Clear student mistakes after a successful retry practice. */

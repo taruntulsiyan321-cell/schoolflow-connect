@@ -643,8 +643,27 @@ export function ConfigView({
     return () => { cancelled = true; };
   }, [selSubject, selChapter, ctx, academicReady, modeKey, topicReads]);
 
+  // Previous Year Questions offers the years the bank actually holds for this
+  // student and subject — never a run of calendar years (KNOWN_ISSUES 57). A
+  // year picked for one subject is cleared when the subject changes, since the
+  // next subject may not have it.
+  const [pyqYears,      setPyqYears]      = useState<ListState<{ year: number; count: number }>>(LOADING_LIST);
+  const [pyqReads,      setPyqReads]      = useState(0);
+  useEffect(() => {
+    setPyqYear(null);
+    setPyqYears(LOADING_LIST);
+    if (modeKey !== "pyq" || !ctx || !academicReady) return;
+    let cancelled = false;
+    PracticeService.listPyqYears(ctx, { subject: selSubject }).then(
+      (items) => { if (!cancelled) setPyqYears({ status: "ready", items }); },
+      () => { if (!cancelled) setPyqYears({ status: "failed" }); },
+    );
+    return () => { cancelled = true; };
+  }, [selSubject, ctx, academicReady, modeKey, pyqReads]);
+
   const retryChapters = () => setChapterReads((k) => k + 1);
   const retryTopics = () => setTopicReads((k) => k + 1);
+  const retryPyqYears = () => setPyqReads((k) => k + 1);
 
   function handleStart() {
     // Custom Practice is the only mode with a time goal, and it is exclusive
@@ -799,40 +818,46 @@ export function ConfigView({
 
   if (modeKey === "pyq") {
     // Board and class come from the student's own profile; only subject and
-    // year are chosen here.
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 6 }, (_, i) => currentYear - 1 - i);
+    // year are chosen here, and the years are the ones the bank holds.
+    const years = listItems(pyqYears);
+    const inAllYears = years.reduce((n, y) => n + y.count, 0);
+    const chip = (on: boolean) => ({
+      className: cn(
+        "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
+        on ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
+      ),
+      style: on ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {},
+    });
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <p className="text-xs text-muted-foreground">Loads past-paper / exam-year tagged questions from the bank when available.</p>
           <SubjectPicker selected={selSubject} onSelect={setSelSubject} list={subjectList} onRetry={onRetrySubjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
           <div>
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Exam year (optional)</div>
-            <div className="flex gap-2 flex-wrap">
-              <button type="button" onClick={() => setPyqYear(null)}
-                className={cn(
-                  "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                  pyqYear === null ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
-                )}
-                style={pyqYear === null ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {}}>
-                All years
-              </button>
-              {years.map(y => (
-                <button key={y} type="button" onClick={() => setPyqYear(y)}
-                  className={cn(
-                    "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                    pyqYear === y ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
-                  )}
-                  style={pyqYear === y ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {}}>
-                  {y}
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Exam year</div>
+            {pyqYears.status === "loading" && <ListLoading />}
+            {pyqYears.status === "failed" && <ListFailed onRetry={retryPyqYears} />}
+            {pyqYears.status === "ready" && years.length === 0 && (
+              <p className="text-sm text-muted-foreground" data-testid="pyq-none">
+                No past-year papers have been added to the question bank for{" "}
+                {selSubject ? displaySubject(selSubject) || selSubject : "your class"} yet, so there is nothing to practise here.
+              </p>
+            )}
+            {years.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={() => setPyqYear(null)} {...chip(pyqYear === null)}>
+                  All years · {inAllYears}
                 </button>
-              ))}
-            </div>
+                {years.map(y => (
+                  <button key={y.year} type="button" onClick={() => setPyqYear(y.year)} {...chip(pyqYear === y.year)}>
+                    {y.year} · {y.count}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+          {years.length > 0 && <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>}
         </div>
-        <StartButton onStart={handleStart}/>
+        <StartButton disabled={years.length === 0} onStart={handleStart}/>
       </ConfigShell>
     );
   }
@@ -1667,7 +1692,9 @@ function Session({
       weak: `No weak concepts tracked yet (confidence below ${WEAK_CONCEPT_THRESHOLD}%). Finish a practice session, then return here — or open Recovery.`,
       incorrect: "Nothing to retry — you have no questions currently marked wrong.",
       skipped: "You have not skipped any bank questions yet.",
-      pyq: "No previous-year / exam-tagged questions in the bank for this filter yet.",
+      // Reachable only if the year's questions were retired between the
+      // config screen counting them and this screen loading them.
+      pyq: "No previous-year questions in the bank for this filter yet.",
       bookmarked: "You have not bookmarked any questions yet. Bookmark one during practice and it stays until you remove it.",
       chapter: "No questions for this chapter in the bank yet.",
       topic: "No questions for this topic in the bank yet.",
