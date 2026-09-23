@@ -3627,3 +3627,56 @@ fix has to renumber the history with the question or leave the old rows keyed
 to a question that no longer says what they claim. That needs the database
 token (75) and a migration with its own proof; it is recorded here rather than
 attempted from the client.
+
+## 81. The three revision defects: fixes written, NOT APPLIED (blocked by 75)
+
+Items 9, 10 and 11 of the practice report. All three live in database
+functions, and the Management API token is dead (75), so all three are
+written, parse-checked against the real Postgres grammar, and unapplied. Each
+carries its rollback and a proof that can fail.
+
+**9 — nothing reminded anybody** (`20261057000000`). §4.1b asks for escalating
+reminders, at most one a day, batched across chapters, stopping when the
+student starts; §5 says an overdue revision surfaces in notifications; §9 says
+never more than one a day. None of it existed: `notifications` holds homework,
+results, exams, attendance, announcements and badges, and not one row for the
+feature the whole spec is about. `send_learning_reminders()` writes one
+batched notification per student per day, naming how many chapters are due and
+escalating when the oldest is a week or more overdue; cron
+`learning-reminders` runs it at 04:00 UTC (09:30 IST). It needs no client
+change — the notifications screen already renders what it writes. Its proof
+creates two overdue chapters for a student who has no state row for them,
+asserts exactly one reminder, that it escalates, that a second run the same
+day writes nothing, and — the control — that a student with nothing waiting is
+not reminded; then it removes only what it created.
+
+**10 — a check was set by insertion order** (`20261056000000`).
+`rpc_revision_session_plan` drew its fresh half `ORDER BY qb.created_at`: the
+eight oldest unseen rows of the chapter. The live bank is 7,498 easy, 9,847
+medium and 4,520 hard, seeded chapter by chapter, so which difficulty a
+retention check is made of was decided by which rows a seed script wrote
+first. A student working at hard could be checked on easy questions and learn
+nothing from passing; one working at easy could be handed hard ones and fail a
+chapter they were never taught to that depth. The fresh half is now ordered by
+distance from the level that student has been working at IN THAT CHAPTER
+(`_student_difficulty_rank`, mean of the difficulties they have answered
+there; their whole history next; medium for a new student), `created_at`
+breaking ties. Nearest, not equal — a chapter with two unseen questions left
+still gives a check, and `fresh_short` still reports it rather than padding.
+The plan now also returns `level`, so a screen can say what the check was set
+at instead of implying it.
+
+**11 — practising a solid chapter dragged it back to weekly**
+(`20261055000000`). `_apply_chapter_state` scheduled every engaged chapter at
+`_revision_interval_days(1)` — always 7 days — whatever stage it had reached.
+So a chapter the student had passed three checks on, on the 30-day cycle, came
+back to a check seven days later BECAUSE they practised it: the exact reverse
+of §5.2's "a student actively working on something does not need a reminder to
+revise it". `_revision_next_at(stage)` is now the one home for that date and
+the state machine asks it with the chapter's own stage.
+
+**To apply, once the token is back:** dry-run all three
+(`node scripts/local-replica/dry-run.mjs`), then apply in order 55, 56, 57.
+20261055000000 and 20261056000000 replace one function each and are safe to
+re-run; 20261057000000 schedules a cron job and unschedules it first, so it is
+too. None of their plpgsql has executed anywhere.
