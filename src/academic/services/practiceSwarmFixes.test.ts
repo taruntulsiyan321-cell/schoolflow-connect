@@ -64,3 +64,15 @@ describe("practice swarm fixes", () => {
     expect(AICOACH).toContain("convosRef.current = [newConvo, ...convosRef.current]");
   });
 });
+
+describe("practice result page keeps §10.8 on the supabase fallback", () => {
+  it("filters the raw question_attempts read the same way listSessionAttempts does", () => {
+    const RESULT = stripComments(
+      readFileSync(join(__dirname, "../../pages/student/PracticeSessionResult.tsx"), "utf8"),
+    );
+    expect(RESULT).toContain('from("question_attempts")');
+    expect(RESULT).toContain(
+      '.or("is_correct.is.false,is_correct.is.null,skipped.is.true")',
+    );
+  });
+});

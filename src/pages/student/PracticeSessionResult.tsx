@@ -288,6 +288,10 @@ export default function PracticeSessionResult() {
           .from("question_attempts")
           .select("*")
           .eq("session_id", id)
+          .eq("user_id", user.id)
+          // Same durable filter as PracticeService.listSessionAttempts (§10.8):
+          // wrong, ungraded, and skipped only — never right answers.
+          .or("is_correct.is.false,is_correct.is.null,skipped.is.true")
           .order("created_at");
 
         if (aErr) {
