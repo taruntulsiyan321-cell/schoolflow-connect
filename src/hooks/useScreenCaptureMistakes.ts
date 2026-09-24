@@ -30,6 +30,29 @@ const KNOWN_APPS: { package_name: string; label: string }[] = [
 /** Max watch frames waiting for upload — mirrors native pending SEND cap. */
 const MAX_UPLOAD_QUEUE = 8;
 
+/** §4 — first-time "PW at launch" only; empty after uncheck stays empty. */
+function allowlistTouchedKey(userId: string): string {
+  return `gurukul.capture.allowlist_touched.${userId}`;
+}
+
+function markAllowlistTouched(userId: string): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(allowlistTouchedKey(userId), "1");
+  } catch {
+    /* private mode */
+  }
+}
+
+function wasAllowlistTouched(userId: string): boolean {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    return localStorage.getItem(allowlistTouchedKey(userId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
 type AllowedAppsClient = {
   from: (t: string) => {
     upsert: (
@@ -233,11 +256,28 @@ export function useScreenCaptureMistakes(opts: {
     const handles: { remove: () => Promise<void> }[] = [];
 
     (async () => {
-      const pkgs = await loadAllowedPackages(opts.userId!);
+      const uid = opts.userId!;
+      let pkgs = await loadAllowedPackages(uid);
+      if (cancelled) return;
+      // §4 PW at launch — once. After the student has touched the list (including
+      // unchecking everything), empty stays empty and native §5.1 drops all apps.
+      if (pkgs.length === 0 && !wasAllowlistTouched(uid)) {
+        try {
+          await setAppAllowedInternal(uid, DEFAULT_PW, "Physics Wallah", true);
+          pkgs = await loadAllowedPackages(uid);
+          if (pkgs.length > 0) markAllowlistTouched(uid);
+        } catch (e) {
+          console.warn(
+            "[screen-capture] first-time PW seed failed",
+            e instanceof Error ? e.message : e,
+          );
+        }
+      } else if (pkgs.length > 0) {
+        markAllowlistTouched(uid);
+      }
       if (cancelled) return;
       setAllowedPackages(pkgs);
       allowedRef.current = pkgs;
-      // Empty list is honest — §5.1 drops everything until the student picks apps.
       await syncNativeAllowlist(pkgs);
       await refreshUsageAccess();
       if (cancelled) return;
@@ -316,14 +356,11 @@ export function useScreenCaptureMistakes(opts: {
     return () => window.clearInterval(id);
   }, [available, watching, refreshCounters]);
 
+  /** Reload DB allowlist into state + native. Never invent packages. */
   const ensurePwAllowed = useCallback(async () => {
     if (!opts.userId) return;
-    // Only seed PW when the student has never chosen an app — never re-force after uncheck.
-    const existing = await loadAllowedPackages(opts.userId);
-    if (existing.length === 0) {
-      await setAppAllowedInternal(opts.userId, DEFAULT_PW, "Physics Wallah", true);
-    }
     const pkgs = await loadAllowedPackages(opts.userId);
+    if (pkgs.length > 0) markAllowlistTouched(opts.userId);
     setAllowedPackages(pkgs);
     allowedRef.current = pkgs;
     await syncNativeAllowlist(pkgs);
@@ -336,6 +373,7 @@ export function useScreenCaptureMistakes(opts: {
         return;
       }
       try {
+        markAllowlistTouched(opts.userId);
         await setAppAllowedInternal(opts.userId, packageName, label, allowed);
         const pkgs = await loadAllowedPackages(opts.userId);
         setAllowedPackages(pkgs);
@@ -357,6 +395,10 @@ export function useScreenCaptureMistakes(opts: {
     setBusy(true);
     try {
       await ensurePwAllowed();
+      if (allowedRef.current.length === 0) {
+        toast.message("Choose at least one allowed app first");
+        return;
+      }
       const overlay = await ScreenCaptureMistake.canDrawOverlays();
       if (!overlay.allowed) {
         await ScreenCaptureMistake.requestOverlayPermission();
@@ -380,6 +422,10 @@ export function useScreenCaptureMistakes(opts: {
     setBusy(true);
     try {
       await ensurePwAllowed();
+      if (allowedRef.current.length === 0) {
+        toast.message("Choose at least one allowed app first");
+        return;
+      }
       await refreshUsageAccess();
       const usage = await ScreenCaptureMistake.hasUsageAccess();
       if (!usage.allowed) {
@@ -436,8 +482,14 @@ export function useScreenCaptureMistakes(opts: {
 
   const deleteCapture = useCallback(async (captureQuestionId: string) => {
     const ok = await deleteScreenCaptureQuestion(captureQuestionId);
-    if (ok) toast.success("Captured question deleted");
-    else toast.error("Could not delete capture");
+    if (ok) {
+      setLastResult((prev) =>
+        prev?.capture_question_id === captureQuestionId ? null : prev,
+      );
+      toast.success("Captured question deleted");
+    } else {
+      toast.error("Could not delete capture");
+    }
     return ok;
   }, []);
 

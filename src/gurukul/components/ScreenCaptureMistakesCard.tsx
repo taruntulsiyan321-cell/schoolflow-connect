@@ -55,6 +55,11 @@ export function ScreenCaptureMistakesCard({ api }: { api: ScreenCaptureMistakesA
             );
           })}
         </div>
+        {api.allowedPackages.length === 0 && (
+          <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
+            None selected — every frame is dropped on the phone until you allow an app.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2">
