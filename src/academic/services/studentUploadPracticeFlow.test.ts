@@ -20,7 +20,10 @@ type FixtureRow = {
   difficulty: string | null;
   chapter_id: string | null;
   answer_source: "file" | "ai";
-  chapters: { name?: string } | null;
+  chapters: {
+    name?: string;
+    curriculum_subjects?: { name?: string } | null;
+  } | null;
 };
 
 const FIXTURE_ROWS: FixtureRow[] = [
@@ -33,7 +36,10 @@ const FIXTURE_ROWS: FixtureRow[] = [
     difficulty: "hard",
     chapter_id: "chapter-uuid-1",
     answer_source: "file",
-    chapters: { name: "Integers" },
+    chapters: {
+      name: "Integers",
+      curriculum_subjects: { name: "Mathematics" },
+    },
   },
   {
     id: "uq-002",
@@ -139,7 +145,7 @@ describe("listForPractice mapping (§8)", () => {
       correct_index: 2,
       explanation: "7 × 8 = 56.",
       difficulty: "hard",
-      subject: null,
+      subject: "Mathematics",
       chapter: "Integers",
       chapter_id: "chapter-uuid-1",
       from_upload: true,
@@ -149,6 +155,7 @@ describe("listForPractice mapping (§8)", () => {
       id: "uq-002",
       question: "Simplify 3x + 2x.",
       difficulty: "medium",
+      subject: null,
       chapter: null,
       chapter_id: null,
       from_upload: true,
@@ -194,10 +201,25 @@ describe("attempt snapshot — upload source (§9.1)", () => {
     expect(snap).toContain("const fromUpload = Boolean(q.fromUpload)");
     expect(snap).toContain('source: fromUpload ? "upload" : "practice"');
     expect(snap).toContain("bankQuestionId: fromUpload ? null : q.id");
+    expect(snap).toContain("uploadQuestionId: fromUpload ? q.id : null");
     // Positive control: a bank attempt must still carry its id.
     expect(snap).toMatch(/bankQuestionId:\s*fromUpload\s*\?\s*null\s*:\s*q\.id/);
     // Upload id goes on sourceId — never as bank_question_id.
     expect(snap).toContain("config.upload?.uploadId");
+    // Subject comes from the question, not Mixed/General session placeholders.
+    expect(snap).toContain("subject: q.subject");
+    expect(snap).not.toMatch(/subject:\s*["']Mixed["']/);
+    expect(snap).not.toMatch(/subject:\s*["']General["']/);
+  });
+
+  it("ConfigView onUploadMode does not set subject Mixed/General", () => {
+    const start = practiceSource.indexOf("function onUploadMode(");
+    expect(start, "onUploadMode has moved").toBeGreaterThan(-1);
+    const end = practiceSource.indexOf("return (", start);
+    const block = practiceSource.slice(start, end);
+    expect(block).toContain('subject: ""');
+    expect(block).not.toMatch(/subject:\s*["']Mixed["']/);
+    expect(block).not.toMatch(/subject:\s*["']General["']/);
   });
 
   it("maps listForPractice from_upload onto BankQuestion.fromUpload", () => {

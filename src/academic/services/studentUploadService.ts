@@ -258,7 +258,7 @@ export const StudentUploadService = {
     let query = db
       .from("student_upload_questions")
       .select(
-        "id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name)",
+        "id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name, curriculum_subjects(name))",
       )
       .eq("upload_id", uploadId)
       .eq("owner_id", ctx.userId)
@@ -275,7 +275,12 @@ export const StudentUploadService = {
     throwIfError(error, "StudentUploadService.listForPractice");
 
     return (data ?? []).map((row) => {
-      const ch = row.chapters as { name?: string } | null;
+      // chapters.curriculum_subject_id → curriculum_subjects (not public.subjects).
+      // Never invent Mixed/General — Mistake Book drops those placeholders.
+      const ch = row.chapters as
+        | { name?: string; curriculum_subjects?: { name?: string } | null }
+        | null;
+      const subjectName = ch?.curriculum_subjects?.name?.trim() || null;
       return {
         id: row.id as string,
         question: row.question_text as string,
@@ -283,7 +288,7 @@ export const StudentUploadService = {
         correct_index: row.correct_index as number | null,
         explanation: (row.explanation as string | null) ?? null,
         difficulty: (row.difficulty as string | null) ?? "medium",
-        subject: null,
+        subject: subjectName,
         chapter: ch?.name ?? null,
         chapter_id: (row.chapter_id as string | null) ?? null,
         from_upload: true as const,
