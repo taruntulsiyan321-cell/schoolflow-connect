@@ -104,4 +104,30 @@ public class CaptureFunnelTest {
         )
     );
   }
+
+  @Test
+  public void duplicateSend_withinCooldown_doesNotRebill() {
+    assertEquals(
+        FunnelDecision.SEND,
+        funnel.evaluate(FrameSample.of(PW, allow(), 0.02, 0.2, true, WRONG))
+    );
+    assertEquals(
+        FunnelDecision.DROP_RECENT_DUPLICATE,
+        funnel.evaluate(FrameSample.of(PW, allow(), 0.02, 0.2, true, WRONG))
+    );
+    assertEquals(1, counters.sent);
+    assertEquals(1, counters.droppedDuplicate);
+  }
+
+  @Test
+  public void scoreOnly_withoutStudentAnswer_droppedAt54() {
+    String score =
+        "Q1. Efficiency?\nA. Waste\nB. Gain\nScore: 3/10\nOpen solutions to review";
+    assertEquals(
+        FunnelDecision.DROP_TEXT_GATE,
+        funnel.evaluate(FrameSample.of(PW, allow(), 0.02, 0.2, true, score))
+    );
+    assertEquals(0, counters.sent);
+    assertEquals(1, counters.droppedAt54);
+  }
 }

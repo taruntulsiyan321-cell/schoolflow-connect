@@ -11,6 +11,7 @@ public final class FunnelCounters {
   public int droppedAt52;
   public int droppedAt53;
   public int droppedAt54;
+  public int droppedDuplicate;
   public int sent;
   /** True if ML Kit / OCR was invoked for this session's last evaluated frame. */
   public int ocrInvocations;
@@ -23,6 +24,7 @@ public final class FunnelCounters {
     droppedAt52 = 0;
     droppedAt53 = 0;
     droppedAt54 = 0;
+    droppedDuplicate = 0;
     sent = 0;
     ocrInvocations = 0;
     sessionStartedAtMs = 0;
@@ -36,6 +38,7 @@ public final class FunnelCounters {
     c.droppedAt52 = droppedAt52;
     c.droppedAt53 = droppedAt53;
     c.droppedAt54 = droppedAt54;
+    c.droppedDuplicate = droppedDuplicate;
     c.sent = sent;
     c.ocrInvocations = ocrInvocations;
     c.sessionStartedAtMs = sessionStartedAtMs;
@@ -58,6 +61,7 @@ public final class FunnelCounters {
       + " d52=" + droppedAt52
       + " d53=" + droppedAt53
       + " d54=" + droppedAt54
+      + " dup=" + droppedDuplicate
       + " sent=" + sent
       + " ocr=" + ocrInvocations
       + " sentPerHour=" + String.format("%.2f", framesSentPerHour())

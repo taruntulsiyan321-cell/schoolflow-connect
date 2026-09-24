@@ -124,4 +124,12 @@ public class CaptureFunnelInstrumentedTest {
     funnel.evaluate(FrameSample.of(PW, allowPw(), 0.01, 0.2, true, WRONG_OCR));
     assertEquals(1, counters.sent);
   }
+
+  @Test
+  public void duplicateSend_withinCooldown_countsOnce() {
+    funnel.evaluate(FrameSample.of(PW, allowPw(), 0.01, 0.2, true, WRONG_OCR));
+    funnel.evaluate(FrameSample.of(PW, allowPw(), 0.01, 0.2, true, WRONG_OCR));
+    assertEquals(1, counters.sent);
+    assertEquals(1, counters.droppedDuplicate);
+  }
 }

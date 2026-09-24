@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { mistakeBookmarksKey } from "@/lib/clientStorage";
 import { PracticeService, StudentUploadService, useAcademicContext, useAcademicLive } from "@/academic";
+import { deleteScreenCaptureQuestion } from "@/academic/services/screenCaptureService";
 import { answerToIndex } from "@/academic/services/answerText";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayTopic, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
@@ -34,6 +35,8 @@ interface Mistake {
   questionId: string | null;
   /** Spec §6.1 — student_upload_questions.id when source=upload + AI key. */
   uploadQuestionId: string | null;
+  /** Spec §11 — student_capture_questions.id when source=screen_capture. */
+  captureQuestionId: string | null;
   aiAnswered: boolean;
 }
 
@@ -57,6 +60,7 @@ type MistakeRow = {
   difficulty?: string | null;
   /** Migration 700 column; text-join may fill legacy rows that still lack it. */
   upload_question_id?: string | null;
+  capture_question_id?: string | null;
   ai_answered?: boolean;
 };
 
@@ -78,7 +82,7 @@ function sourceLabel(source: string): string {
     practice: "Practice", tests: "Test", battleground: "Battleground",
     homework: "Homework", pyq: "PYQ", qbank: "Question Bank",
     upload: "Upload",
-    screen_capture: "Captured",
+  screen_capture: "Captured",
   };
   return labels[source] ?? source.charAt(0).toUpperCase() + source.slice(1);
 }
@@ -122,6 +126,7 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     sortDate: row.last_wrong_at,
     questionId: row.question_id ?? null,
     uploadQuestionId: row.upload_question_id ?? null,
+    captureQuestionId: row.capture_question_id ?? null,
     aiAnswered: Boolean(row.ai_answered && row.upload_question_id),
   };
 }
@@ -157,6 +162,7 @@ const SOURCE_COLORS: Record<string, { color: string; bg: string }> = {
   pyq:         { color:"hsl(var(--warning))", bg:"rgba(245,158,11,0.12)" },
   qbank:       { color:"hsl(var(--success))", bg:"rgba(52,211,153,0.12)" },
   upload:      { color:"hsl(var(--info))", bg:"rgba(34,211,238,0.12)" },
+  screen_capture: { color:"hsl(var(--warning))", bg:"rgba(245,158,11,0.12)" },
 };
 
 function SourceTag({ source, label }: { source: string; label: string }) {
@@ -179,7 +185,7 @@ function FreqBadge({ freq }: { freq: number }) {
 }
 
 function MistakeCard({
-  mistake, onRetry, onExplain, onToggleBookmark, onDispute, disputing, disputed,
+  mistake, onRetry, onExplain, onToggleBookmark, onDispute, disputing, disputed, onDeleteCapture,
 }: {
   mistake: Mistake;
   onRetry: () => void;
@@ -188,10 +194,14 @@ function MistakeCard({
   onDispute?: (m: Mistake) => void;
   disputing?: boolean;
   disputed?: boolean;
+  onDeleteCapture?: (m: Mistake) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const canDispute = Boolean(
     mistake.aiAnswered && mistake.uploadQuestionId && onDispute && !mistake.resolved,
+  );
+  const canDeleteCapture = Boolean(
+    mistake.source === "screen_capture" && mistake.captureQuestionId && onDeleteCapture,
   );
 
   return (
@@ -245,6 +255,15 @@ function MistakeCard({
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground font-semibold hover:bg-secondary transition-all disabled:opacity-50 disabled:pointer-events-none"
             >
               {disputed ? "Disputed" : disputing ? "Disputing…" : "Dispute answer"}
+            </button>
+          )}
+          {canDeleteCapture && (
+            <button
+              type="button"
+              onClick={() => onDeleteCapture?.(mistake)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs font-bold hover:bg-rose-500/20 transition-all"
+            >
+              Delete capture
             </button>
           )}
         </div>
@@ -725,6 +744,19 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     }
   }
 
+  /** §11 — delete private capture + its mistake row. */
+  async function deleteCaptureMistake(m: Mistake) {
+    if (m.source !== "screen_capture" || !m.captureQuestionId) return;
+    const ok = await deleteScreenCaptureQuestion(m.captureQuestionId);
+    if (!ok) {
+      showToast("Could not delete captured question");
+      return;
+    }
+    await supabase.from("student_mistakes").delete().eq("id", m.id);
+    setRows((prev) => prev.filter((r) => r.id !== m.id));
+    showToast("Captured question deleted");
+  }
+
   async function finishMistakePractice(payload: {
     score: number;
     attempts: MistakeRetryAttempt[];
@@ -982,7 +1014,12 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
               onToggleBookmark={toggleBookmark}
               onDispute={m.aiAnswered && m.uploadQuestionId ? disputeUploadAiAnswer : undefined}
               disputing={disputingId === m.id}
-              disputed={disputedIds.has(m.id)}/>
+              disputed={disputedIds.has(m.id)}
+              onDeleteCapture={
+                m.source === "screen_capture" && m.captureQuestionId
+                  ? deleteCaptureMistake
+                  : undefined
+              }/>
           ))
         )}
       </div>

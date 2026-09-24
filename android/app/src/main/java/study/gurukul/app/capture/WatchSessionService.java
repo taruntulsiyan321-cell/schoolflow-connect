@@ -21,11 +21,14 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.util.Base64;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.WindowManager;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import study.gurukul.app.capture.funnel.CaptureFunnel;
 import study.gurukul.app.capture.funnel.ForegroundAppResolver;
@@ -43,15 +46,20 @@ public class WatchSessionService extends Service {
   public static final String EXTRA_RESULT_CODE = "resultCode";
   public static final String EXTRA_RESULT_DATA = "resultData";
   public static final String ACTION_STOP = "study.gurukul.app.capture.WATCH_STOP";
+  public static final String ACTION_WATCH_ENDED =
+      "study.gurukul.app.capture.WATCH_ENDED";
 
+  private static final String TAG = "GurukulWatch";
   private static final String CHANNEL = "gurukul_watch_session";
   private static final int NOTIF_ID = 7703;
   /** Sample interval — not a verdict timer (§5.3). Verdict is content-triggered. */
   private static final long SAMPLE_MS = 400L;
+  /** Cap pending SENDs until JS consumes — avoid OOM / silent overwrite. */
+  private static final int MAX_PENDING_SEND = 8;
 
   private static final FunnelCounters COUNTERS = new FunnelCounters();
-  private static volatile String lastSentBase64;
-  private static volatile String lastSentPackage;
+  private static final ArrayDeque<String[]> PENDING_SEND = new ArrayDeque<>();
+  private static volatile boolean active;
 
   private MediaProjection projection;
   private VirtualDisplay display;
@@ -62,34 +70,43 @@ public class WatchSessionService extends Service {
   private CaptureFunnel funnel;
   private MlKitOcrProvider ocr;
   private ForegroundAppResolver foreground;
+  private volatile boolean ocrInFlight;
   private final Runnable tick = this::sampleOnce;
+
+  public static boolean isActive() {
+    return active;
+  }
 
   public static FunnelCounters countersSnapshot() {
     return COUNTERS.snapshot();
   }
 
   /**
-   * Hand the last SEND frame to the bridge once, then drop the in-memory copy
-   * (§11 ephemeral — do not retain PNG base64 after deliver).
+   * Pop the oldest SEND frame for the bridge (§11 ephemeral after deliver).
+   * Returns {base64, package} or {null, null} when empty.
    */
   public static synchronized String[] consumeLastSent() {
-    String b64 = lastSentBase64;
-    String pkg = lastSentPackage;
-    lastSentBase64 = null;
-    lastSentPackage = null;
-    return new String[] { b64, pkg };
+    String[] next = PENDING_SEND.pollFirst();
+    if (next == null) return new String[] { null, null };
+    return next;
+  }
+
+  public static synchronized int pendingSendCount() {
+    return PENDING_SEND.size();
   }
 
   public static void resetCountersForTests() {
     COUNTERS.reset();
-    lastSentBase64 = null;
-    lastSentPackage = null;
+    synchronized (WatchSessionService.class) {
+      PENDING_SEND.clear();
+    }
+    active = false;
   }
 
   @Override
   public int onStartCommand(Intent intent, int flags, int startId) {
     if (intent != null && ACTION_STOP.equals(intent.getAction())) {
-      stopWatching();
+      stopWatching(true);
       stopSelf();
       return START_NOT_STICKY;
     }
@@ -107,14 +124,12 @@ public class WatchSessionService extends Service {
 
     COUNTERS.reset();
     COUNTERS.sessionStartedAtMs = System.currentTimeMillis();
-    lastSentBase64 = null;
-    lastSentPackage = null;
+    synchronized (WatchSessionService.class) {
+      PENDING_SEND.clear();
+    }
     ocr = new MlKitOcrProvider();
-    funnel = new CaptureFunnel(COUNTERS, frame -> {
-      // OCR only reached after §5.1–§5.3; WatchSession supplies bitmap via thread-local.
-      Bitmap bmp = currentBitmap;
-      return bmp == null ? "" : ocr.recogniseBitmap(bmp);
-    });
+    funnel = new CaptureFunnel(COUNTERS, frame -> "");
+    funnel.resetSendCooldown();
     foreground = new ForegroundAppResolver(this);
 
     MediaProjectionManager mpm =
@@ -125,10 +140,31 @@ public class WatchSessionService extends Service {
       return START_NOT_STICKY;
     }
 
+    worker = new HandlerThread("gurukul-funnel");
+    worker.start();
+    handler = new Handler(worker.getLooper());
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      projection.registerCallback(new MediaProjection.Callback() {
+        @Override
+        public void onStop() {
+          Log.i(TAG, "MediaProjection stopped by system");
+          if (handler != null) {
+            handler.post(() -> {
+              stopWatching(true);
+              stopSelf();
+            });
+          } else {
+            stopWatching(true);
+            stopSelf();
+          }
+        }
+      }, handler);
+    }
+
     WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
     DisplayMetrics metrics = new DisplayMetrics();
     wm.getDefaultDisplay().getRealMetrics(metrics);
-    // Downscale for cost (§8.1) — funnel does not need full resolution.
     int width = Math.max(360, metrics.widthPixels / 2);
     int height = Math.max(640, metrics.heightPixels / 2);
     int density = metrics.densityDpi;
@@ -145,14 +181,10 @@ public class WatchSessionService extends Service {
         null
     );
 
-    worker = new HandlerThread("gurukul-funnel");
-    worker.start();
-    handler = new Handler(worker.getLooper());
+    active = true;
     handler.postDelayed(tick, SAMPLE_MS);
     return START_STICKY;
   }
-
-  private volatile Bitmap currentBitmap;
 
   private void sampleOnce() {
     try {
@@ -183,30 +215,66 @@ public class WatchSessionService extends Service {
           null,
           false
       );
-      currentBitmap = bmp;
-      FunnelDecision decision = funnel.evaluate(sample);
-      currentBitmap = null;
 
-      if (decision == FunnelDecision.SEND) {
-        // Ephemeral encode for the Capacitor bridge / upload — not persisted (§11).
-        lastSentPackage = pkg;
-        lastSentBase64 = bitmapToPngBase64(bmp);
-        // Notify JS listeners via broadcast; Stage 1 submit path uploads.
-        Intent ready = new Intent(ScreenCaptureMistakePlugin.ACTION_WATCH_FRAME_READY);
-        ready.setPackage(getPackageName());
-        sendBroadcast(ready);
+      Optional<FunnelDecision> early = funnel.dropThrough53(sample);
+      if (early.isPresent()) {
+        recyclePrevious(bmp);
+        scheduleNext();
+        return;
       }
 
-      if (previous != null && previous != bmp) previous.recycle();
-      previous = bmp;
-    } catch (Exception ignored) {
-      // Keep the session alive; next tick retries.
+      // Keep sampling while OCR runs so §5.1/§5.2 still drop; skip another OCR.
+      if (ocrInFlight) {
+        recyclePrevious(bmp);
+        scheduleNext();
+        return;
+      }
+
+      ocrInFlight = true;
+      final Bitmap forOcr = bmp.copy(bmp.getConfig() != null ? bmp.getConfig() : Bitmap.Config.ARGB_8888, false);
+      recyclePrevious(bmp);
+      final String pkgFinal = pkg;
+      handler.post(() -> {
+        try {
+          if (forOcr == null) return;
+          String text = ocr.recogniseBitmap(forOcr);
+          FunnelDecision decision = funnel.finishWithOcrText(text == null ? "" : text);
+          if (decision == FunnelDecision.SEND) {
+            enqueueSend(bitmapToPngBase64(forOcr), pkgFinal);
+            Intent ready = new Intent(ScreenCaptureMistakePlugin.ACTION_WATCH_FRAME_READY);
+            ready.setPackage(getPackageName());
+            sendBroadcast(ready);
+          }
+        } catch (Exception e) {
+          Log.w(TAG, "OCR/funnel tick failed", e);
+        } finally {
+          ocrInFlight = false;
+          if (forOcr != null) forOcr.recycle();
+        }
+      });
+      scheduleNext();
+      return;
+    } catch (Exception e) {
+      Log.w(TAG, "sampleOnce failed", e);
     }
     scheduleNext();
   }
 
+  private void recyclePrevious(Bitmap bmp) {
+    if (previous != null && previous != bmp) previous.recycle();
+    previous = bmp;
+  }
+
+  private static synchronized void enqueueSend(String b64, String pkg) {
+    if (PENDING_SEND.size() >= MAX_PENDING_SEND) {
+      PENDING_SEND.pollFirst();
+      Log.w(TAG, "pending SEND queue full — dropped oldest");
+    }
+    PENDING_SEND.addLast(new String[] { b64, pkg });
+  }
+
   private void scheduleNext() {
-    if (handler != null) handler.postDelayed(tick, SAMPLE_MS);
+    if (handler != null && active) handler.postDelayed(tick, SAMPLE_MS);
   }
 
   private Set<String> loadAllowedPackages() {
@@ -249,12 +317,15 @@ public class WatchSessionService extends Service {
     }
   }
 
-  private void stopWatching() {
+  private void stopWatching(boolean notifyJs) {
+    if (!active && projection == null && reader == null) return;
+    active = false;
     COUNTERS.sessionEndedAtMs = System.currentTimeMillis();
     if (handler != null) handler.removeCallbacks(tick);
     if (worker != null) {
       worker.quitSafely();
       worker = null;
+      handler = null;
     }
     if (display != null) {
       display.release();
@@ -265,7 +336,9 @@ public class WatchSessionService extends Service {
       reader = null;
     }
     if (projection != null) {
-      projection.stop();
+      try {
+        projection.stop();
+      } catch (Exception ignored) {}
       projection = null;
     }
     if (previous != null) {
@@ -273,6 +346,11 @@ public class WatchSessionService extends Service {
       previous = null;
     }
     stopForeground(true);
+    if (notifyJs) {
+      Intent ended = new Intent(ACTION_WATCH_ENDED);
+      ended.setPackage(getPackageName());
+      sendBroadcast(ended);
+    }
   }
 
   private static Bitmap imageToBitmap(Image image) {
@@ -298,7 +376,7 @@ public class WatchSessionService extends Service {
 
   @Override
   public void onDestroy() {
-    stopWatching();
+    stopWatching(false);
     super.onDestroy();
   }
 

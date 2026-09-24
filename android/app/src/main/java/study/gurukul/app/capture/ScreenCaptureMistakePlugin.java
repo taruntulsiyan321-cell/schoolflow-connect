@@ -44,15 +44,25 @@ public class ScreenCaptureMistakePlugin extends Plugin {
   private final BroadcastReceiver watchFrameReceiver = new BroadcastReceiver() {
     @Override
     public void onReceive(Context context, Intent intent) {
-      String[] sent = WatchSessionService.consumeLastSent();
-      String b64 = sent[0];
-      String pkg = sent[1];
-      if (b64 == null) return;
-      JSObject payload = new JSObject();
-      payload.put("image_base64", b64);
-      if (pkg != null) payload.put("package_name", pkg);
-      payload.put("mime_type", "image/png");
-      notifyListeners("watchFrameReady", payload);
+      // Drain the whole pending queue so slow JS never drops SENDs.
+      while (true) {
+        String[] sent = WatchSessionService.consumeLastSent();
+        String b64 = sent[0];
+        String pkg = sent[1];
+        if (b64 == null) break;
+        JSObject payload = new JSObject();
+        payload.put("image_base64", b64);
+        if (pkg != null) payload.put("package_name", pkg);
+        payload.put("mime_type", "image/png");
+        notifyListeners("watchFrameReady", payload);
+      }
+    }
+  };
+
+  private final BroadcastReceiver watchEndedReceiver = new BroadcastReceiver() {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+      notifyListeners("watchSessionEnded", new JSObject());
     }
   };
 
@@ -60,12 +70,15 @@ public class ScreenCaptureMistakePlugin extends Plugin {
   public void load() {
     IntentFilter tap = new IntentFilter(CaptureOverlayService.ACTION_TAP);
     IntentFilter watch = new IntentFilter(ACTION_WATCH_FRAME_READY);
+    IntentFilter ended = new IntentFilter(WatchSessionService.ACTION_WATCH_ENDED);
     if (Build.VERSION.SDK_INT >= 33) {
       getContext().registerReceiver(tapReceiver, tap, Context.RECEIVER_NOT_EXPORTED);
       getContext().registerReceiver(watchFrameReceiver, watch, Context.RECEIVER_NOT_EXPORTED);
+      getContext().registerReceiver(watchEndedReceiver, ended, Context.RECEIVER_NOT_EXPORTED);
     } else {
       getContext().registerReceiver(tapReceiver, tap);
       getContext().registerReceiver(watchFrameReceiver, watch);
+      getContext().registerReceiver(watchEndedReceiver, ended);
     }
   }
 
@@ -76,6 +89,9 @@ public class ScreenCaptureMistakePlugin extends Plugin {
     } catch (Exception ignored) {}
     try {
       getContext().unregisterReceiver(watchFrameReceiver);
+    } catch (Exception ignored) {}
+    try {
+      getContext().unregisterReceiver(watchEndedReceiver);
     } catch (Exception ignored) {}
     super.handleOnDestroy();
   }
@@ -164,6 +180,11 @@ public class ScreenCaptureMistakePlugin extends Plugin {
    */
   @PluginMethod
   public void captureOnce(PluginCall call) {
+    // One MediaProjection session at a time (§4.1) — tap must not steal watch.
+    if (WatchSessionService.isActive()) {
+      call.reject("watch_session_active");
+      return;
+    }
     MediaProjectionManager mpm = (MediaProjectionManager) getContext()
       .getSystemService(Activity.MEDIA_PROJECTION_SERVICE);
     if (mpm == null) {
@@ -172,6 +193,13 @@ public class ScreenCaptureMistakePlugin extends Plugin {
     }
     Intent intent = mpm.createScreenCaptureIntent();
     startActivityForResult(call, intent, "projectionResult");
+  }
+
+  @PluginMethod
+  public void isWatchSessionActive(PluginCall call) {
+    JSObject ret = new JSObject();
+    ret.put("active", WatchSessionService.isActive());
+    call.resolve(ret);
   }
 
   @ActivityCallback
@@ -220,6 +248,15 @@ public class ScreenCaptureMistakePlugin extends Plugin {
       call.reject("usage_access_required");
       return;
     }
+    // Android 15: mediaProjection FGS from background needs a visible overlay (§13).
+    if (!Settings.canDrawOverlays(getContext())) {
+      call.reject("overlay_permission_required");
+      return;
+    }
+    if (WatchSessionService.isActive()) {
+      call.resolve();
+      return;
+    }
     MediaProjectionManager mpm = (MediaProjectionManager) getContext()
         .getSystemService(Activity.MEDIA_PROJECTION_SERVICE);
     if (mpm == null) {
@@ -265,11 +302,14 @@ public class ScreenCaptureMistakePlugin extends Plugin {
     ret.put("dropped_at_5_2", c.droppedAt52);
     ret.put("dropped_at_5_3", c.droppedAt53);
     ret.put("dropped_at_5_4", c.droppedAt54);
+    ret.put("dropped_duplicate", c.droppedDuplicate);
     ret.put("sent", c.sent);
     ret.put("ocr_invocations", c.ocrInvocations);
     ret.put("frames_sent_per_hour", c.framesSentPerHour());
     ret.put("session_started_at_ms", c.sessionStartedAtMs);
     ret.put("session_ended_at_ms", c.sessionEndedAtMs);
+    ret.put("pending_send", WatchSessionService.pendingSendCount());
+    ret.put("watch_active", WatchSessionService.isActive());
     call.resolve(ret);
   }
 }

@@ -18,11 +18,14 @@ export type FunnelCountersJs = {
   dropped_at_5_2: number;
   dropped_at_5_3: number;
   dropped_at_5_4: number;
+  dropped_duplicate?: number;
   sent: number;
   ocr_invocations: number;
   frames_sent_per_hour: number;
   session_started_at_ms: number;
   session_ended_at_ms: number;
+  pending_send?: number;
+  watch_active?: boolean;
 };
 
 type ScreenCaptureMistakePlugin = {
@@ -36,9 +39,10 @@ type ScreenCaptureMistakePlugin = {
   openUsageAccessSettings(): Promise<void>;
   startWatchSession(): Promise<void>;
   stopWatchSession(): Promise<void>;
+  isWatchSessionActive(): Promise<{ active: boolean }>;
   getFunnelCounters(): Promise<FunnelCountersJs>;
   addListener(
-    eventName: "tapRequested" | "watchFrameReady",
+    eventName: "tapRequested" | "watchFrameReady" | "watchSessionEnded",
     listenerFunc: (event?: CaptureFrame) => void,
   ): Promise<PluginListenerHandle>;
 };

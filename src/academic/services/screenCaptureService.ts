@@ -1,6 +1,6 @@
 /**
  * Submit one captured frame to the Stage 1 edge function.
- * Binding: docs/screen-capture-mistakes-spec.md §7 / §9
+ * Binding: docs/screen-capture-mistakes-spec.md §7 / §9 / §11
  * Cites upload privacy: docs/custom-practice-upload-spec.md §2
  */
 import { supabase } from "@/integrations/supabase/client";
@@ -51,4 +51,28 @@ export async function submitScreenCaptureMistake(
     return { ok: false, error: error.message };
   }
   return (data ?? { ok: false, error: "empty_response" }) as ScreenCaptureSubmitResult;
+}
+
+/** §11 — student may delete any captured question (RLS owner-only). */
+export async function deleteScreenCaptureQuestion(
+  captureQuestionId: string,
+): Promise<boolean> {
+  const id = captureQuestionId.trim();
+  if (!id) return false;
+  const client = supabase as unknown as {
+    from: (t: string) => {
+      delete: () => {
+        eq: (col: string, val: string) => Promise<{ error: { message: string } | null }>;
+      };
+    };
+  };
+  const { error } = await client
+    .from("student_capture_questions")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    console.warn("[screen-capture] delete failed", error.message);
+    return false;
+  }
+  return true;
 }

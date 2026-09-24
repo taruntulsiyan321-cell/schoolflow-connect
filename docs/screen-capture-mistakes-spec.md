@@ -1,9 +1,9 @@
 # Mistakes captured from another app's screen
 
 **Status:** Stage 1 (tap) green 2026-09-24. Stage 2 (§5 on-device funnel)
-in progress — one watch session + four phone-side gates. Third of the three
-features that must exist before launch, beside
-`docs/custom-practice-upload-spec.md`.
+landed — one watch session + four phone-side gates + reliability queue /
+cooldown / overlay. Third of the three features that must exist before launch,
+beside `docs/custom-practice-upload-spec.md`.
 
 Facts marked *measured* were taken from the live database or this repository on
 2026-09-24. Facts marked **VERIFY** are platform or policy facts that move, and
@@ -354,12 +354,19 @@ a real wrong answer proves nothing.
 | Cost (§8) | **Confirmed (2026-09-24):** live path is `qwen/qwen3.7-flash` via OpenRouter at $0.03/$0.13 per 1M in/out. Order-of-magnitude ~$0.00013 per image capture → ~$0.20/mo at 50 mistakes/day (under $0.25). Streaming ~1 fps for 2h/day is an order of magnitude higher ($8–25). Prices still move — re-check the OpenRouter page before citing dollars. Funnel proof is frames-sent/hour, not the dollar string. | Instrument `sent`; report frames-sent per hour of realistic use (`measure-screen-capture-stage2-cost.mjs` + androidTest). |
 
 Stage 1 §12 must stay green while Stage 2 lands. The Stage 1 tap path is unchanged.
-On this worktree (2026-09-24): JVM `CaptureFunnelTest` **5/5 PASS**; on-device
-`CaptureFunnelInstrumentedTest` **5/5 PASS** via
+On this worktree (2026-09-24): JVM `CaptureFunnelTest` **7/7 PASS**; on-device
+`CaptureFunnelInstrumentedTest` **6/6 PASS** via
 `./gradlew :app:connectedDebugAndroidTest` on AVD `medium_phone`
 (sdk_gphone64_x86_64 / Android 16). Portable SDK/JDK under
 `%LOCALAPPDATA%\gurukul-tools\` (not committed; `android/local.properties`
 gitignored). `npx cap sync android` regenerates `capacitor.settings.gradle`.
+
+Stage 2 reliability (same day, after first instrumented green):
+- Watch SEND queue (native pending + JS upload queue) — no silent drop while busy
+- 45s OCR-fingerprint send-cooldown (`DROP_RECENT_DUPLICATE`) — §8 cost
+- Async OCR so the sample loop is not blocked for §12.1 instant windows
+- Android 15: overlay required + shown before watch FGS; tap blocked while watching
+- `MediaProjection.Callback` → `watchSessionEnded`; Profile app-list + §11 delete
 
 ### Still open
 

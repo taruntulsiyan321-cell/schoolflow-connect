@@ -1,5 +1,5 @@
 /**
- * Hook: tap + watchFrameReady → submitScreenCaptureMistake.
+ * Hook: watch upload queue + Stage 1 submit contract.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -10,6 +10,11 @@ vi.mock("@/integrations/supabase/client", () => ({
         eq: vi.fn(async () => ({ data: [{ package_name: "com.physicswallah.pw" }], error: null })),
       })),
       upsert: vi.fn(async () => ({ error: null })),
+      delete: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(async () => ({ error: null })),
+        })),
+      })),
     })),
     functions: { invoke: vi.fn() },
   },
@@ -22,14 +27,19 @@ vi.mock("@/lib/screenCaptureMistake", () => ({
 
 vi.mock("@/academic/services/screenCaptureService", () => ({
   submitScreenCaptureMistake: vi.fn(async () => ({ ok: true, captured: true })),
+  deleteScreenCaptureQuestion: vi.fn(async () => true),
 }));
 
-import { submitScreenCaptureMistake } from "@/academic/services/screenCaptureService";
+import {
+  deleteScreenCaptureQuestion,
+  submitScreenCaptureMistake,
+} from "@/academic/services/screenCaptureService";
 import type { CaptureFrame } from "@/lib/screenCaptureMistake";
 
 describe("screen-capture watch upload contract", () => {
   beforeEach(() => {
     vi.mocked(submitScreenCaptureMistake).mockClear();
+    vi.mocked(deleteScreenCaptureQuestion).mockClear();
   });
 
   it("submit payload shape matches Stage 1 edge body", async () => {
@@ -52,5 +62,10 @@ describe("screen-capture watch upload contract", () => {
         allowed_packages: ["com.physicswallah.pw"],
       }),
     );
+  });
+
+  it("deleteScreenCaptureQuestion returns true on success", async () => {
+    await expect(deleteScreenCaptureQuestion("cq-1")).resolves.toBe(true);
+    expect(deleteScreenCaptureQuestion).toHaveBeenCalledWith("cq-1");
   });
 });
