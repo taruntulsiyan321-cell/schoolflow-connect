@@ -35,7 +35,8 @@ export async function uploadStudentUploadFile(
   if (userErr || !user?.id) throw new Error("Sign in required to upload files");
 
   const mimeType = file.type || (ext === "pdf" ? "application/pdf" : "application/octet-stream");
-  const storagePath = `${user.id}/${Date.now()}-${safeFileName(file.name)}`;
+  // Include a short id so multi-file picks in the same millisecond never collide on UNIQUE(storage_path).
+  const storagePath = `${user.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeFileName(file.name)}`;
 
   const { error } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
     upsert: false,

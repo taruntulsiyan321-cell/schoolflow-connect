@@ -24,7 +24,12 @@ import { PRACTICE_HISTORY_WINDOW_DAYS, type AcademicTermRef } from "@/academic/s
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { ListFailed, ListLoading, OptionChips, SubjectPicker, type PracticeSubject } from "@/gurukul/components/PracticeLists";
 import { CustomPracticeUpload } from "@/gurukul/components/CustomPracticeUpload";
-import type { StudentUploadRow, UploadPracticeMode } from "@/academic/services/studentUploadService";
+import {
+  StudentUploadService,
+  UPLOAD_MODE_LABELS,
+  type StudentUploadRow,
+  type UploadPracticeMode,
+} from "@/academic/services/studentUploadService";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
@@ -100,6 +105,12 @@ type BankQuestion = {
   id: string;
   subject: string; chapter: string; difficulty: string;
   question: string; options: string[]; correct: number; explanation?: string;
+  /** Spec §2.1 / §9 — private upload question; never a question_bank id. */
+  fromUpload?: boolean;
+  /** Spec §6 — answer key came from the AI, not the file. */
+  aiAnswered?: boolean;
+  /** Spec §5.1 — real chapters.id when tagged; null when untagged. */
+  chapterId?: string | null;
 };
 
 function parseBankOptions(raw: unknown): string[] {
@@ -670,10 +681,21 @@ export function ConfigView({
     // docs/custom-practice-upload-spec.md); school students keep bank filters.
     const goalReady = goalType === "count" ? qCount > 0 : timeLimitMin > 0;
 
-    function onUploadMode(_upload: StudentUploadRow, _mode: UploadPracticeMode) {
-      // §5 practice-from-upload session runner lands next — modes are shown
-      // only when classification is ready (§8).
-      toast.message("Practising from your upload is next — classification path is live.");
+    function onUploadMode(upload: StudentUploadRow, mode: UploadPracticeMode) {
+      // §8 — practise modes start with SessionConfig.upload. read_notes is
+      // opened inside CustomPracticeUpload (toast / notes pane); never a session.
+      if (mode === "read_notes") return;
+      onStart({
+        mode: "custom",
+        label: UPLOAD_MODE_LABELS[mode],
+        subject: "Mixed",
+        chapter: null,
+        topic: null,
+        difficulty: "mixed",
+        qCount: 50,
+        timeLimitSec: null,
+        upload: { uploadId: upload.id, practiseMode: mode },
+      });
     }
 
     return (
@@ -1073,6 +1095,15 @@ interface SessionConfig {
     complete: boolean;
     shortfall: number;
   } | null;
+  /**
+   * Spec §8 / §9 — Custom Practice from the student's own upload.
+   * When set, the session loads student_upload_questions only — never
+   * question_bank — and attempts are written with source = 'upload'.
+   */
+  upload?: {
+    uploadId: string;
+    practiseMode: UploadPracticeMode;
+  } | null;
 }
 
 /**
@@ -1084,12 +1115,24 @@ interface SessionConfig {
 type EndReason = "completed" | "ended" | "timed_out" | "left";
 
 type BankRows = Awaited<ReturnType<typeof PracticeService.listBankQuestions>>;
+type UploadPracticeRows = Awaited<ReturnType<typeof StudentUploadService.listForPractice>>;
+/** Bank or private upload rows — Session maps both into BankQuestion. */
+type SessionQuestionRows = BankRows | UploadPracticeRows;
 
 /** The questions a session asks, decided by its mode. */
 async function loadSessionQuestions(
   ctx: NonNullable<ReturnType<typeof useAcademicContext>["ctx"]>,
   config: SessionConfig,
-): Promise<BankRows> {
+): Promise<SessionQuestionRows> {
+  // Spec §2.1 / §8 / §9 — an upload session never touches question_bank.
+  if (config.upload) {
+    return StudentUploadService.listForPractice(
+      ctx,
+      config.upload.uploadId,
+      config.upload.practiseMode,
+      config.qCount,
+    );
+  }
   const difficulty = config.difficulty || "mixed";
   if (config.recovery) {
     // §4.2 — the ladder is already built. Load exactly the questions
@@ -1296,6 +1339,7 @@ function Session({
           .map((r): BankQuestion | null => {
             const options = parseBankOptions(r.options);
             if (!r.id || !r.question || options.length < 2) return null;
+            const fromUpload = "from_upload" in r && r.from_upload === true;
             return {
               id: r.id,
               subject: r.subject || "",
@@ -1305,6 +1349,9 @@ function Session({
               options,
               correct: typeof r.correct_index === "number" ? r.correct_index : 0,
               explanation: r.explanation ?? undefined,
+              fromUpload,
+              aiAnswered: fromUpload && "ai_answered" in r ? Boolean(r.ai_answered) : false,
+              chapterId: "chapter_id" in r ? (r.chapter_id ?? null) : null,
             };
           })
           .filter((x): x is BankQuestion => x !== null);
@@ -1415,18 +1462,21 @@ function Session({
   function snapshotOf(q: BankQuestion, fields: {
     selectedIndex: number; isCorrect: boolean; skipped: boolean; timedOut?: boolean; solutionViewed?: boolean;
   }): PracticeAttemptSnapshot {
+    // Spec §9.1 — upload attempts: source = 'upload', source_id = upload id,
+    // bank_question_id null (private rows are not in question_bank).
+    const fromUpload = Boolean(q.fromUpload);
     return {
       question: q.question,
       options: q.options,
       correctIndex: q.correct,
       explanation: q.explanation,
-      bankQuestionId: q.id,
+      bankQuestionId: fromUpload ? null : q.id,
       subject: q.subject,
       chapter: q.chapter,
       difficulty: q.difficulty,
-      source: "practice",
+      source: fromUpload ? "upload" : "practice",
       practiceMode: config.mode,
-      sourceId: sessionIdRef.current,
+      sourceId: fromUpload ? (config.upload?.uploadId ?? null) : sessionIdRef.current,
       timeTakenMs: Date.now() - questionStartRef.current,
       solutionViewed: false,
       attemptNumber: ++attemptNumberRef.current,
@@ -1584,6 +1634,10 @@ function Session({
   }
 
   function toggleBookmark() {
+    // Spec §2.1 — upload questions are not in question_bank; bookmarks key on
+    // bank ids, so they do not apply here.
+    if (qs[idx]?.fromUpload) return;
+
     const nextOn = !bookmarkedRef.current.includes(idx);
     bookmarkedRef.current = nextOn
       ? [...bookmarkedRef.current, idx]
@@ -1660,8 +1714,10 @@ function Session({
         <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto"/>
         <div className="text-lg font-bold text-foreground">No questions available</div>
         <p className="text-sm text-muted-foreground">
-          {emptyByMode[config.mode] ??
-            "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions."}
+          {config.upload
+            ? "No practisable questions in this upload for that mode yet."
+            : (emptyByMode[config.mode] ??
+              "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions.")}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           {config.mode === "weak" && onNavigate && (
@@ -1717,18 +1773,20 @@ function Session({
             <span className="text-[10px] text-muted-foreground">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={toggleBookmark}
-              aria-pressed={isBookmarked}
-              title={isBookmarked
-                ? "Bookmarked — it stays in Bookmarked Questions until you remove it"
-                : "Bookmark — keep this question in Bookmarked Questions"}
-              className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                isBookmarked ? "text-info bg-info/15" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}>
-              <Bookmark className="w-3.5 h-3.5"/>
-            </button>
+            {!q.fromUpload && (
+              <button
+                type="button"
+                onClick={toggleBookmark}
+                aria-pressed={isBookmarked}
+                title={isBookmarked
+                  ? "Bookmarked — it stays in Bookmarked Questions until you remove it"
+                  : "Bookmark — keep this question in Bookmarked Questions"}
+                className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
+                  isBookmarked ? "text-info bg-info/15" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}>
+                <Bookmark className="w-3.5 h-3.5"/>
+              </button>
+            )}
           </div>
         </div>
         <div className="text-base font-semibold text-foreground leading-relaxed">
@@ -1767,6 +1825,9 @@ function Session({
           bank has no hint text, only the worked solution, and the "hint" this
           screen showed was that solution's first 120 characters — the whole
           answer for 39% of servable questions (8,557 of 21,717). */}
+      {phase === "fb" && q.aiAnswered && (
+        <p className="text-xs font-semibold text-muted-foreground">AI answered</p>
+      )}
       {phase === "fb" && q.explanation && (
         <GlassCard className="p-4 border-info/20">
           <div className="flex items-start gap-2">

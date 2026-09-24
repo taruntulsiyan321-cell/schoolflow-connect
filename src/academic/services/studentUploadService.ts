@@ -78,26 +78,58 @@ export const UPLOAD_MODE_LABELS: Record<UploadPracticeMode, string> = {
   practise_from_notes: "Practise from notes",
 };
 
+/** Spec §6.1 — result of disputing an AI-answered upload question. */
+export type DisputeAiAnswerResult = {
+  upload_question_id: string;
+  cleared_mistakes: number;
+  excluded_attempts: number;
+};
+
 export const StudentUploadService = {
-  async createFromFile(ctx: ServiceContext, file: File): Promise<StudentUploadRow> {
+  /**
+   * Intake only (§3.1 / §3.2): store each file and insert a pending student_uploads row.
+   * Does NOT invent questions/notes — extraction + sequence on student_upload_questions
+   * is the classifier's job. One row per file (multi-image pages = multiple rows in pick order).
+   * page_count: 1 for a single image; left null for PDFs (page count is measured later).
+   */
+  async create(ctx: ServiceContext, files: File | File[]): Promise<StudentUploadRow[]> {
     assertStudentContext(ctx);
-    const stored = await uploadStudentUploadFile(file);
+    const list = (Array.isArray(files) ? files : [files]).filter(Boolean);
+    if (list.length === 0) throw new Error("Choose at least one PDF or image.");
+
     const db = getClient(ctx);
-    const { data, error } = await db
-      .from("student_uploads")
-      .insert({
-        owner_id: ctx.userId,
-        school_id: ctx.schoolId,
-        storage_path: stored.storagePath,
-        original_filename: stored.originalFilename,
-        byte_size: stored.byteSize,
-        mime_type: stored.mimeType,
-        status: "pending",
-      })
-      .select("*")
-      .single();
-    throwIfError(error, "StudentUploadService.createFromFile");
-    return data as StudentUploadRow;
+    const rows: StudentUploadRow[] = [];
+
+    for (const file of list) {
+      const stored = await uploadStudentUploadFile(file);
+      const isPdf =
+        stored.mimeType === "application/pdf" ||
+        stored.originalFilename.toLowerCase().endsWith(".pdf");
+      const { data, error } = await db
+        .from("student_uploads")
+        .insert({
+          owner_id: ctx.userId,
+          school_id: ctx.schoolId,
+          storage_path: stored.storagePath,
+          original_filename: stored.originalFilename,
+          byte_size: stored.byteSize,
+          mime_type: stored.mimeType,
+          // Honest for a single image page; PDF page_count stays null until measured.
+          page_count: isPdf ? null : 1,
+          status: "pending",
+        })
+        .select("*")
+        .single();
+      throwIfError(error, "StudentUploadService.create");
+      rows.push(data as StudentUploadRow);
+    }
+
+    return rows;
+  },
+
+  async createFromFile(ctx: ServiceContext, file: File): Promise<StudentUploadRow> {
+    const [row] = await this.create(ctx, file);
+    return row;
   },
 
   async listMine(ctx: ServiceContext, limit = 20): Promise<StudentUploadRow[]> {
@@ -155,6 +187,103 @@ export const StudentUploadService = {
       .order("sequence", { ascending: true });
     throwIfError(error, "StudentUploadService.listNotes");
     return (data ?? []) as StudentUploadNoteRow[];
+  },
+
+  /**
+   * Spec §6.1 — student says "this AI answer is wrong".
+   * Clears the mistake it created and removes that attempt from accuracy
+   * via rpc_dispute_ai_upload_answer (owner-scoped SECURITY DEFINER).
+   */
+  async disputeAiAnswer(
+    ctx: ServiceContext,
+    uploadQuestionId: string,
+  ): Promise<DisputeAiAnswerResult> {
+    assertStudentContext(ctx);
+    if (!uploadQuestionId) {
+      throw new Error("upload question id is required");
+    }
+    const db = getClient(ctx);
+    const { data, error } = await db.rpc("rpc_dispute_ai_upload_answer" as never, {
+      _upload_question_id: uploadQuestionId,
+    } as never);
+    throwIfError(error, "StudentUploadService.disputeAiAnswer");
+
+    const row =
+      data && typeof data === "object" && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : {};
+    return {
+      upload_question_id:
+        typeof row.upload_question_id === "string" ? row.upload_question_id : uploadQuestionId,
+      cleared_mistakes: Number(row.cleared_mistakes ?? 0) || 0,
+      excluded_attempts: Number(row.excluded_attempts ?? 0) || 0,
+    };
+  },
+
+  /**
+   * Questions for a Custom Practice upload session (§8 modes).
+   * Shape mirrors bank rows so Session can reuse its mapper; ids are
+   * student_upload_questions.id and must NOT be passed as bank_question_id.
+   */
+  async listForPractice(
+    ctx: ServiceContext,
+    uploadId: string,
+    mode: UploadPracticeMode,
+    limit = 50,
+  ): Promise<
+    Array<{
+      id: string;
+      question: string;
+      options: unknown;
+      correct_index: number | null;
+      explanation: string | null;
+      difficulty: string | null;
+      subject: string | null;
+      chapter: string | null;
+      chapter_id: string | null;
+      from_upload: true;
+      ai_answered: boolean;
+    }>
+  > {
+    assertStudentContext(ctx);
+    if (mode === "read_notes") return [];
+
+    const db = getClient(ctx);
+    let query = db
+      .from("student_upload_questions")
+      .select(
+        "id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name)",
+      )
+      .eq("upload_id", uploadId)
+      .eq("owner_id", ctx.userId)
+      .order("sequence", { ascending: true })
+      .limit(Math.min(90, Math.max(1, limit)));
+
+    if (mode === "practise_hard") {
+      query = query.ilike("difficulty", "hard");
+    } else if (mode === "practise_by_chapter") {
+      query = query.not("chapter_id", "is", null);
+    }
+
+    const { data, error } = await query;
+    throwIfError(error, "StudentUploadService.listForPractice");
+
+    return (data ?? []).map((row) => {
+      const ch = row.chapters as { name?: string } | null;
+      return {
+        id: row.id as string,
+        question: row.question_text as string,
+        options: row.options,
+        correct_index: row.correct_index as number | null,
+        explanation: (row.explanation as string | null) ?? null,
+        difficulty: (row.difficulty as string | null) ?? "medium",
+        subject: null,
+        chapter: ch?.name ?? null,
+        chapter_id: (row.chapter_id as string | null) ?? null,
+        from_upload: true as const,
+        ai_answered: row.answer_source === "ai",
+      };
+    });
   },
 
   /** Ask the edge function to classify + extract. Never invents questions client-side. */

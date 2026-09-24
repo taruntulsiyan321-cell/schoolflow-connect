@@ -1,6 +1,9 @@
 /**
  * Custom Practice upload pane for individual (exam) students.
  * Spec: docs/custom-practice-upload-spec.md §4.3, §8
+ *
+ * §8 practise modes call `onSelectMode` so ConfigView can `onStart` with
+ * `SessionConfig.upload`. `read_notes` stays here — toast / open notes only.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -9,18 +12,27 @@ import {
   modesForVerdict,
   StudentUploadService,
   UPLOAD_MODE_LABELS,
+  type StudentUploadNoteRow,
   type StudentUploadRow,
   type UploadPracticeMode,
 } from "@/academic/services/studentUploadService";
 import { STUDENT_UPLOAD_ACCEPT } from "@/academic/storage/studentUploadFile";
 import { cn } from "@/gurukul/components/shared";
 import { withAlpha } from "@/lib/colorAlpha";
-import { FileUp, Loader2, Trash2 } from "lucide-react";
+import { FileUp, Loader2, Trash2, X } from "lucide-react";
 
 type Props = {
   accentColor: string;
+  /** Practise modes only — parent starts a session with SessionConfig.upload. */
   onSelectMode: (upload: StudentUploadRow, mode: UploadPracticeMode) => void;
 };
+
+const PRACTISE_MODES: ReadonlySet<UploadPracticeMode> = new Set([
+  "practise_all",
+  "practise_by_chapter",
+  "practise_hard",
+  "practise_from_notes",
+]);
 
 function statusLabel(row: StudentUploadRow): string {
   if (row.status === "pending") return "Waiting to classify…";
@@ -42,6 +54,12 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [notesFor, setNotesFor] = useState<{
+    uploadId: string;
+    filename: string;
+    notes: StudentUploadNoteRow[];
+  } | null>(null);
+  const [notesLoadingId, setNotesLoadingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -65,16 +83,22 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
     void refresh();
   }, [refresh]);
 
-  async function onPick(file: File | null) {
-    if (!file || !ctx) return;
+  async function onPick(fileList: FileList | null) {
+    if (!fileList?.length || !ctx) return;
+    const files = Array.from(fileList);
     setUploading(true);
     try {
-      const row = await StudentUploadService.createFromFile(ctx, file);
-      setRows((prev) => [row, ...prev]);
-      setBusyId(row.id);
-      const classify = await StudentUploadService.requestClassify(ctx, row.id);
-      if (!classify.ok) {
-        toast.message(classify.error || "Classifier is not available yet — your file is saved.");
+      // Multi-image pages → one pending row each; no questions invented client-side.
+      const created = await StudentUploadService.create(ctx, files);
+      setRows((prev) => [...created, ...prev]);
+      let classifyMiss = false;
+      for (const row of created) {
+        setBusyId(row.id);
+        const classify = await StudentUploadService.requestClassify(ctx, row.id);
+        if (!classify.ok) classifyMiss = true;
+      }
+      if (classifyMiss) {
+        toast.message("Classifier is not available yet — your file(s) are saved.");
       }
       await refresh();
     } catch (e) {
@@ -109,6 +133,30 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
     } finally {
       setBusyId(null);
     }
+  }
+
+  /** §8 — practise modes → parent onStart(upload); read_notes opens notes here. */
+  async function onModeClick(row: StudentUploadRow, mode: UploadPracticeMode) {
+    if (mode === "read_notes") {
+      if (!ctx) return;
+      setNotesLoadingId(row.id);
+      try {
+        const notes = await StudentUploadService.listNotes(ctx, row.id);
+        if (notes.length === 0) {
+          toast.message("No notes extracted from this upload yet.");
+          setNotesFor(null);
+          return;
+        }
+        setNotesFor({ uploadId: row.id, filename: row.original_filename, notes });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not open notes");
+      } finally {
+        setNotesLoadingId(null);
+      }
+      return;
+    }
+    if (!PRACTISE_MODES.has(mode)) return;
+    onSelectMode(row, mode);
   }
 
   return (
@@ -204,11 +252,38 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
                       <button
                         key={m}
                         type="button"
-                        onClick={() => onSelectMode(row, m)}
+                        disabled={notesLoadingId === row.id}
+                        onClick={() => void onModeClick(row, m)}
                         className="px-3 py-1.5 rounded-xl text-xs font-bold border border-border/70 hover:border-border text-foreground"
                       >
-                        {UPLOAD_MODE_LABELS[m]}
+                        {m === "read_notes" && notesLoadingId === row.id
+                          ? "Opening…"
+                          : UPLOAD_MODE_LABELS[m]}
                       </button>
+                    ))}
+                  </div>
+                )}
+
+                {notesFor?.uploadId === row.id && (
+                  <div className="mt-2 rounded-xl border border-border/60 bg-muted/20 p-3 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Notes — {notesFor.filename}
+                      </div>
+                      <button
+                        type="button"
+                        title="Close notes"
+                        onClick={() => setNotesFor(null)}
+                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {notesFor.notes.map((n) => (
+                      <div key={n.id} className="space-y-1">
+                        <div className="text-sm font-bold text-foreground">{n.title}</div>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{n.body}</p>
+                      </div>
                     ))}
                   </div>
                 )}
