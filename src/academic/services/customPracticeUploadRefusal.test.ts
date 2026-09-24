@@ -12,6 +12,7 @@ import {
 } from "../../../supabase/functions/custom-practice-upload/refusalGates";
 import type {
   ClassifierResult,
+  ExtractedNote,
   ExtractedQuestion,
 } from "../../../supabase/functions/custom-practice-upload/types";
 
@@ -24,7 +25,17 @@ function mcq(stem: string, correctIndex = 0): ExtractedQuestion {
     answer_source: "ai",
     explanation: "Mock explanation for the stem.",
     difficulty: "medium",
+    // Required, and null on purpose: these fixtures come from a question paper,
+    // not from notes. The field is `string | null` rather than optional so every
+    // producer has to SAY which it is (§7.1).
+    derived_from_note_title: null,
   };
+}
+
+function note(title: string, body: string): ExtractedNote {
+  // chapter/topic/subject are free-text labels the edge resolves to live ids
+  // (§5, §7). Null here: an unusable upload never gets that far.
+  return { title, body, chapter: null, topic: null, subject: null };
 }
 
 function assertZeroRows(result: ClassifierResult) {
@@ -45,7 +56,7 @@ describe("applyRefusalGates — §4.2–§4.4", () => {
         mcq("What is 3 + 3? Write the sum."),
         mcq("What is 4 + 4? Write the sum."),
       ],
-      notes: [{ title: "Scratch", body: "A long enough note body for normalize." }],
+      notes: [note("Scratch", "A long enough note body for normalize.")],
     });
 
     assertZeroRows(gated);
@@ -59,7 +70,7 @@ describe("applyRefusalGates — §4.2–§4.4", () => {
       confidence: 0.92,
       refusal_reason: "Looks like a class timetable, not practice questions or notes.",
       questions: [mcq("Period 1 Mathematics room 12")],
-      notes: [{ title: "Schedule", body: "Monday through Friday period list transcribed." }],
+      notes: [note("Schedule", "Monday through Friday period list transcribed.")],
     });
 
     assertZeroRows(gated);

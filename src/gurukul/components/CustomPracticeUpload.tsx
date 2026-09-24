@@ -17,7 +17,7 @@ import {
   type UploadPracticeMode,
 } from "@/academic/services/studentUploadService";
 import { STUDENT_UPLOAD_ACCEPT } from "@/academic/storage/studentUploadFile";
-import { cn } from "@/gurukul/components/shared";
+import { cn, LoadingState } from "@/gurukul/components/shared";
 import { withAlpha } from "@/lib/colorAlpha";
 import { FileUp, Loader2, Trash2, X } from "lucide-react";
 
@@ -197,9 +197,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
       </div>
 
       {loading ? (
-        <div className="text-sm text-muted-foreground flex items-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading your uploads…
-        </div>
+        <LoadingState label="Loading your uploads…" variant="section" />
       ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No uploads yet.</p>
       ) : (
