@@ -684,14 +684,11 @@ export function ConfigView({
     function onUploadMode(upload: StudentUploadRow, mode: UploadPracticeMode) {
       // §8 — practise modes start with SessionConfig.upload. read_notes is
       // opened inside CustomPracticeUpload (toast / notes pane); never a session.
-      // Subject stays empty here: per-question subject comes from
-      // listForPractice → chapters→curriculum_subjects. "Mixed"/"General" are
-      // placeholders Mistake Book drops (isPlaceholderAcademicLabel).
       if (mode === "read_notes") return;
       onStart({
         mode: "custom",
         label: UPLOAD_MODE_LABELS[mode],
-        subject: "",
+        subject: "Mixed",
         chapter: null,
         topic: null,
         difficulty: "mixed",
@@ -1378,10 +1375,8 @@ function Session({
             const distinct = [...new Set(vals.filter(Boolean))];
             return distinct.length === 1 ? distinct[0] : null;
           };
-          const engineSession = Boolean(config.recovery || config.revision || config.upload);
+          const engineSession = Boolean(config.recovery || config.revision);
           const sid = await PracticeService.start(ctx, {
-            // Upload: name the session from tagged questions when they agree —
-            // never "Mixed"/"General" (Mistake Book / RPC placeholder defaults).
             _subject: engineSession
               ? onlyOne(mapped.map((q) => q.subject)) ?? ""
               : config.subject === "Mixed" ? "" : config.subject,
@@ -1473,8 +1468,6 @@ function Session({
   }): PracticeAttemptSnapshot {
     // Spec §9.1 — upload attempts: source = 'upload', source_id = upload id,
     // bank_question_id null (private rows are not in question_bank).
-    // Subject/chapter come from the question (curriculum_subjects via chapter),
-    // never session placeholders Mixed/General.
     const fromUpload = Boolean(q.fromUpload);
     return {
       question: q.question,
@@ -1482,7 +1475,6 @@ function Session({
       correctIndex: q.correct,
       explanation: q.explanation,
       bankQuestionId: fromUpload ? null : q.id,
-      uploadQuestionId: fromUpload ? q.id : null,
       subject: q.subject,
       chapter: q.chapter,
       chapterId: q.chapterId ?? null,
@@ -1598,8 +1590,6 @@ function Session({
           options: snap.options,
           explanation: snap.explanation ?? "",
           bank_question_id: snap.bankQuestionId ?? null,
-          // Spec §9 — private upload row id for chapter_tally / dispute join.
-          upload_question_id: snap.uploadQuestionId ?? null,
           // `?? null`: the column is jsonb, which has a null but no undefined —
           // an undefined key would vanish from the row rather than be unset.
           subject: snap.subject ?? null,
