@@ -354,10 +354,12 @@ a real wrong answer proves nothing.
 | Cost (§8) | **Confirmed (2026-09-24):** live path is `qwen/qwen3.7-flash` via OpenRouter at $0.03/$0.13 per 1M in/out. Order-of-magnitude ~$0.00013 per image capture → ~$0.20/mo at 50 mistakes/day (under $0.25). Streaming ~1 fps for 2h/day is an order of magnitude higher ($8–25). Prices still move — re-check the OpenRouter page before citing dollars. Funnel proof is frames-sent/hour, not the dollar string. | Instrument `sent`; report frames-sent per hour of realistic use (`measure-screen-capture-stage2-cost.mjs` + androidTest). |
 
 Stage 1 §12 must stay green while Stage 2 lands. The Stage 1 tap path is unchanged.
-On this worktree (2026-09-24): funnel unit/instrumented logic runs via javac+JUnit
-(**OK 10 tests**); full `./gradlew connectedAndroidTest` needs an Android SDK +
-device/emulator (not installed here). `npx cap sync android` regenerates
-`capacitor.settings.gradle`.
+On this worktree (2026-09-24): JVM `CaptureFunnelTest` **5/5 PASS**; on-device
+`CaptureFunnelInstrumentedTest` **5/5 PASS** via
+`./gradlew :app:connectedDebugAndroidTest` on AVD `medium_phone`
+(sdk_gphone64_x86_64 / Android 16). Portable SDK/JDK under
+`%LOCALAPPDATA%\gurukul-tools\` (not committed; `android/local.properties`
+gitignored). `npx cap sync android` regenerates `capacitor.settings.gradle`.
 
 ### Still open
 
