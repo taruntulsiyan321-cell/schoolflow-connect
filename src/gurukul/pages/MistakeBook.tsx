@@ -5,7 +5,7 @@ import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { mistakeBookmarksKey } from "@/lib/clientStorage";
-import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
+import { PracticeService, StudentUploadService, useAcademicContext, useAcademicLive } from "@/academic";
 import { answerToIndex } from "@/academic/services/answerText";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayTopic, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
@@ -32,6 +32,9 @@ interface Mistake {
   aiExplanation: string; correctReason: string; studentReason: string;
   bookmarked: boolean; resolved: boolean; qType: string; sortDate: string;
   questionId: string | null;
+  /** Spec §6.1 — student_upload_questions.id when source=upload + AI key. */
+  uploadQuestionId: string | null;
+  aiAnswered: boolean;
 }
 
 type MistakeRow = {
@@ -52,6 +55,9 @@ type MistakeRow = {
   status: "open" | "cleared";
   question_id?: string | null;
   difficulty?: string | null;
+  /** Enriched from student_upload_questions — not a student_mistakes column. */
+  upload_question_id?: string | null;
+  ai_answered?: boolean;
 };
 
 function parseOptions(raw: unknown): string[] {
@@ -71,6 +77,7 @@ function sourceLabel(source: string): string {
   const labels: Record<string, string> = {
     practice: "Practice", tests: "Test", battleground: "Battleground",
     homework: "Homework", pyq: "PYQ", qbank: "Question Bank",
+    upload: "Upload",
   };
   return labels[source] ?? source.charAt(0).toUpperCase() + source.slice(1);
 }
@@ -113,6 +120,8 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     qType: row.assessment_type ?? "MCQ",
     sortDate: row.last_wrong_at,
     questionId: row.question_id ?? null,
+    uploadQuestionId: row.upload_question_id ?? null,
+    aiAnswered: Boolean(row.ai_answered && row.upload_question_id),
   };
 }
 
@@ -142,6 +151,7 @@ const SOURCE_COLORS: Record<string, { color: string; bg: string }> = {
   homework:    { color:"hsl(var(--primary))", bg:"rgba(167,139,250,0.12)" },
   pyq:         { color:"hsl(var(--warning))", bg:"rgba(245,158,11,0.12)" },
   qbank:       { color:"hsl(var(--success))", bg:"rgba(52,211,153,0.12)" },
+  upload:      { color:"hsl(var(--info))", bg:"rgba(34,211,238,0.12)" },
 };
 
 function SourceTag({ source, label }: { source: string; label: string }) {
@@ -164,14 +174,20 @@ function FreqBadge({ freq }: { freq: number }) {
 }
 
 function MistakeCard({
-  mistake, onRetry, onExplain, onToggleBookmark,
+  mistake, onRetry, onExplain, onToggleBookmark, onDispute, disputing, disputed,
 }: {
   mistake: Mistake;
   onRetry: () => void;
   onExplain: () => void;
   onToggleBookmark: (id: string) => void;
+  onDispute?: (m: Mistake) => void;
+  disputing?: boolean;
+  disputed?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const canDispute = Boolean(
+    mistake.aiAnswered && mistake.uploadQuestionId && onDispute && !mistake.resolved,
+  );
 
   return (
     <GlassCard className={cn("overflow-hidden transition-all duration-200",
@@ -184,6 +200,9 @@ function MistakeCard({
               <SubjectBadge subject={mistake.subject}/>
               <DifficultyBadge level={mistake.difficulty ?? undefined}/>
               <FreqBadge freq={mistake.frequency}/>
+              {mistake.aiAnswered && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-400/10 text-sky-300">AI answered</span>
+              )}
               {mistake.resolved && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400">Resolved</span>
               )}
@@ -200,7 +219,7 @@ function MistakeCard({
           </button>
         </div>
 
-        <div className="flex items-center gap-2 mt-3">
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
           <button onClick={() => setExpanded(e => !e)}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground font-semibold hover:bg-secondary transition-all">
             <Eye className="w-3 h-3"/> Details {expanded ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
@@ -213,6 +232,16 @@ function MistakeCard({
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/25 text-sky-300 text-xs font-bold hover:bg-sky-500/25 transition-all">
             <Brain className="w-3 h-3"/> Explain
           </button>
+          {canDispute && (
+            <button
+              type="button"
+              onClick={() => onDispute?.(mistake)}
+              disabled={disputing || disputed}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground font-semibold hover:bg-secondary transition-all disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {disputed ? "Disputed" : disputing ? "Disputing…" : "Dispute answer"}
+            </button>
+          )}
         </div>
 
         {expanded && (
@@ -466,6 +495,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [stream, setStream] = useState<AcademicStream | null>(null);
   const [classLevel, setClassLevel] = useState<number | null>(null);
   const [examId, setExamId] = useState<string | null>(null);
+  const [disputingId, setDisputingId] = useState<string | null>(null);
+  const [disputedIds, setDisputedIds] = useState<Set<string>>(new Set());
   const liveVersion = useAcademicLive(["profile", "xp"]);
 
   useEffect(() => {
@@ -538,11 +569,41 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             if (row.difficulty) difficultyByBank.set(row.id, row.difficulty);
           }
         }
+        // student_mistakes has no upload_question_id column — resolve §6.1
+        // dispute targets from private upload rows by question text + owner.
+        const uploadByText = new Map<string, { id: string; answer_source: string }>();
+        const uploadTexts = Array.from(
+          new Set(
+            base.filter((r) => r.source === "upload").map((r) => r.question_text).filter(Boolean),
+          ),
+        );
+        if (uploadTexts.length > 0) {
+          const { data: uploadQs } = await supabase
+            .from("student_upload_questions")
+            .select("id, question_text, answer_source")
+            .eq("owner_id", user.id)
+            .in("question_text", uploadTexts);
+          for (const u of uploadQs ?? []) {
+            const row = u as { id: string; question_text: string; answer_source: string };
+            if (row.question_text && !uploadByText.has(row.question_text)) {
+              uploadByText.set(row.question_text, {
+                id: row.id,
+                answer_source: row.answer_source,
+              });
+            }
+          }
+        }
+        if (cancelled) return;
         setRows(
-          base.map((r) => ({
-            ...r,
-            difficulty: (r.question_id && difficultyByBank.get(r.question_id)) || r.difficulty || null,
-          })),
+          base.map((r) => {
+            const uq = r.source === "upload" ? uploadByText.get(r.question_text) : undefined;
+            return {
+              ...r,
+              difficulty: (r.question_id && difficultyByBank.get(r.question_id)) || r.difficulty || null,
+              upload_question_id: uq?.id ?? null,
+              ai_answered: uq?.answer_source === "ai",
+            };
+          }),
         );
       }
       endLoading(setLoading);
@@ -556,6 +617,9 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         rows
           .filter(
             (r) =>
+              // Keep the global placeholder filter: write-time upload subjects
+              // come from curriculum_subjects (never Mixed/General). Do not
+              // carve an upload exception here — that would re-hide the write bug.
               (!!examId || isSubjectAllowedForScope(r.subject, stream, classLevel)) &&
               !isPlaceholderAcademicLabel(r.subject) &&
               !isPlaceholderAcademicLabel(r.concept ?? r.topic) &&
@@ -600,6 +664,27 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       studentAnswerIndex: m.chosen,
     });
     navigate("/student/aicoach");
+  }
+
+  /** Spec §6.1 — dispute AI upload key; needs upload question id + academic ctx. */
+  async function disputeUploadAiAnswer(m: Mistake) {
+    if (!ctx || !m.uploadQuestionId || !m.aiAnswered) return;
+    if (disputingId === m.id || disputedIds.has(m.id)) return;
+    setDisputingId(m.id);
+    try {
+      const result = await StudentUploadService.disputeAiAnswer(ctx, m.uploadQuestionId);
+      setDisputedIds((prev) => new Set(prev).add(m.id));
+      setRows((prev) =>
+        prev.map((r) => (r.id === m.id ? { ...r, status: "cleared" as const } : r)),
+      );
+      showToast(
+        `Answer disputed — cleared ${result.cleared_mistakes} mistake${result.cleared_mistakes === 1 ? "" : "s"}.`,
+      );
+    } catch (e) {
+      showToast(toErrorMessage(e, "Could not dispute this answer"));
+    } finally {
+      setDisputingId(null);
+    }
   }
 
   async function finishMistakePractice(payload: {
@@ -856,7 +941,10 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             <MistakeCard key={m.id} mistake={m}
               onRetry={() => { setPracticeIds([m.id]); setView("practice"); }}
               onExplain={() => askNova(m)}
-              onToggleBookmark={toggleBookmark}/>
+              onToggleBookmark={toggleBookmark}
+              onDispute={m.aiAnswered && m.uploadQuestionId ? disputeUploadAiAnswer : undefined}
+              disputing={disputingId === m.id}
+              disputed={disputedIds.has(m.id)}/>
           ))
         )}
       </div>
