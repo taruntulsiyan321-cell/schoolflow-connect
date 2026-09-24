@@ -59,8 +59,16 @@ const SYSTEM = [
   "- If the file has no key, SOLVE it and set answer_source to \"ai\", filling",
   "  correct_index/correct_answer and a short explanation (§6).",
   "- difficulty: easy | medium | hard when you can tell; else null.",
+  "- If a question was written FROM a note (not copied from the file), set",
+  '  derived_from_note_title to that note\'s title and answer_source to "ai" (§7.1/§7.2).',
   "",
-  "For notes: organise topic-wise titles with readable body text from the file only.",
+  "For notes (verdict notes or mixed):",
+  "- Organise topic-wise and chapter-wise from the file only.",
+  "- Each note: title, body, and when possible chapter / topic / subject names",
+  "  that match the exam catalog (or null — never invent a chapter).",
+  "- Also write practise questions FROM those notes (derived_from_note_title set,",
+  '  answer_source "ai") so the student can practise (§7.1).',
+  "",
   "confidence: 0..1 how sure you are of the verdict.",
 ].join("\n");
 
@@ -82,6 +90,7 @@ const RESULT_SHAPE = {
           answer_source: { type: "string", enum: ["file", "ai"] },
           explanation: { type: ["string", "null"] },
           difficulty: { type: ["string", "null"] },
+          derived_from_note_title: { type: ["string", "null"] },
         },
         required: ["question_text", "answer_source"],
       },
@@ -93,6 +102,9 @@ const RESULT_SHAPE = {
         properties: {
           title: { type: "string" },
           body: { type: "string" },
+          chapter: { type: ["string", "null"] },
+          topic: { type: ["string", "null"] },
+          subject: { type: ["string", "null"] },
         },
         required: ["title", "body"],
       },
@@ -178,6 +190,14 @@ function normalizeQuestion(raw: unknown): ExtractedQuestion | null {
       ? r.explanation.trim().slice(0, 2000)
       : null;
 
+  const derived_from_note_title =
+    typeof r.derived_from_note_title === "string" && r.derived_from_note_title.trim()
+      ? r.derived_from_note_title.trim().slice(0, 200)
+      : null;
+
+  // §7.2 — questions written from notes are AI-answered by definition.
+  if (derived_from_note_title) answer_source = "ai";
+
   return {
     question_text: question_text.slice(0, 4000),
     options: opts,
@@ -186,7 +206,14 @@ function normalizeQuestion(raw: unknown): ExtractedQuestion | null {
     answer_source,
     explanation,
     difficulty,
+    derived_from_note_title,
   };
+}
+
+function optionalLabel(v: unknown, max = 200): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t ? t.slice(0, max) : null;
 }
 
 function normalizeNote(raw: unknown): ExtractedNote | null {
@@ -195,7 +222,13 @@ function normalizeNote(raw: unknown): ExtractedNote | null {
   const title = typeof r.title === "string" ? r.title.trim() : "";
   const body = typeof r.body === "string" ? r.body.trim() : "";
   if (!title || body.length < 20) return null;
-  return { title: title.slice(0, 200), body: body.slice(0, 12_000) };
+  return {
+    title: title.slice(0, 200),
+    body: body.slice(0, 12_000),
+    chapter: optionalLabel(r.chapter),
+    topic: optionalLabel(r.topic),
+    subject: optionalLabel(r.subject),
+  };
 }
 
 function parseClassifierText(text: string): ClassifierResult {
@@ -226,12 +259,16 @@ function parseClassifierText(text: string): ClassifierResult {
   });
 }
 
-function userPromptForMedia(media: MediaPayload): string {
+function userPromptForMedia(media: MediaPayload, catalogHint?: string): string {
   const schemaHint = `Respond with ONLY JSON matching: ${JSON.stringify(RESULT_SHAPE)}`;
+  const catalogBlock = catalogHint?.trim()
+    ? ["", "EXAM CHAPTER CATALOG:", catalogHint.trim()].join("\n")
+    : "";
   if (media.kind === "text") {
     return [
       "Classify the following extracted PDF text. Do not invent questions absent from it.",
       schemaHint,
+      catalogBlock,
       "",
       "--- BEGIN FILE TEXT ---",
       media.text,
@@ -243,6 +280,7 @@ function userPromptForMedia(media: MediaPayload): string {
       "Classify the attached image(s) of a student's upload.",
       "Refuse timetables, receipts, blank/blurry pages, chat screenshots, and ordinary prose.",
       schemaHint,
+      catalogBlock,
     ].join("\n");
   }
   return [
@@ -250,6 +288,7 @@ function userPromptForMedia(media: MediaPayload): string {
     "Refuse timetables, receipts, blank/blurry pages, chat screenshots, and ordinary prose.",
     "Do not invent questions.",
     schemaHint,
+    catalogBlock,
   ].join("\n");
 }
 
@@ -328,7 +367,10 @@ export type ClassifyOutcome =
   | { ok: true; result: ClassifierResult }
   | { ok: false; error: string; status: "failed" };
 
-export async function classifyUploadMedia(media: MediaPayload): Promise<ClassifyOutcome> {
+export async function classifyUploadMedia(
+  media: MediaPayload,
+  opts?: { catalogHint?: string },
+): Promise<ClassifyOutcome> {
   if (!isOpenRouterConfigured()) {
     return {
       ok: false,
@@ -338,7 +380,7 @@ export async function classifyUploadMedia(media: MediaPayload): Promise<Classify
     };
   }
 
-  const user = userPromptForMedia(media);
+  const user = userPromptForMedia(media, opts?.catalogHint);
   let modelText: string;
 
   if (media.kind === "pdf_bytes") {

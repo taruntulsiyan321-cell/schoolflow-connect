@@ -16,11 +16,20 @@ export type ExtractedQuestion = {
   answer_source: AnswerSource;
   explanation: string | null;
   difficulty: string | null;
+  /**
+   * §7.1 — when set, this question was written from a note whose title matches
+   * (case-insensitive). Persist sets derived_from_note_id; §7.2 forces ai.
+   */
+  derived_from_note_title: string | null;
 };
 
 export type ExtractedNote = {
   title: string;
   body: string;
+  /** Free-text labels; resolved to live chapter_id / topic_id in the edge (§5 / §7). */
+  chapter: string | null;
+  topic: string | null;
+  subject: string | null;
 };
 
 export type ClassifierResult = {

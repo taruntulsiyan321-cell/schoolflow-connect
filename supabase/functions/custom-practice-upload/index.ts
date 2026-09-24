@@ -14,17 +14,21 @@ import { requireUserJwt } from "../_shared/requireAuth.ts";
 import { embedQueryText } from "../_shared/embeddingProvider.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { classifyUploadMedia } from "./classify.ts";
+import { formatCatalogHint } from "./curriculumResolve.ts";
 import { loadUploadMedia } from "./media.ts";
-import type { ClassifierResult, ExtractedNote, ExtractedQuestion } from "./types.ts";
+import {
+  loadExamCatalog,
+  noteTagsByTitleFromRows,
+  persistNotes,
+  persistQuestions,
+  tagNotesFromCatalog,
+  type NoteTagLookup,
+  type TaggedQuestion,
+} from "./persist.ts";
+import type { ClassifierResult, ExtractedQuestion } from "./types.ts";
 
 /** §5.2 — same default as match_question_bank_for_exam; confident inherit only. */
 const BANK_MATCH_THRESHOLD = 0.82;
-
-type TaggedQuestion = ExtractedQuestion & {
-  chapter_id: string | null;
-  topic_id: string | null;
-  matched_bank_question_id: string | null;
-};
 
 type BankMatchRow = {
   id?: string;
@@ -113,13 +117,13 @@ async function markUnusable(
 
 /**
  * §5.2 — embed each stem and inherit chapter/topic/difficulty from a confident
- * bank match. No match → null ids (still practisable; excluded from recovery).
- * Match does not publish the private copy (§2).
+ * bank match. Notes-derived questions (§7.1) inherit tags from the note instead.
  */
 async function tagQuestionsFromBank(
   admin: ReturnType<typeof createClient>,
   examId: string | null,
   questions: ExtractedQuestion[],
+  noteTagsByTitle: NoteTagLookup,
 ): Promise<{ tagged: TaggedQuestion[]; inherited: number }> {
   if (questions.length === 0) return { tagged: [], inherited: 0 };
 
@@ -128,20 +132,35 @@ async function tagQuestionsFromBank(
     chapter_id: null,
     topic_id: null,
     matched_bank_question_id: null,
+    derived_from_note_id: null,
   });
 
-  if (!examId) {
-    return { tagged: questions.map(untagged), inherited: 0 };
-  }
-
-  const env = Deno.env.toObject();
   const tagged: TaggedQuestion[] = [];
   let inherited = 0;
+  const env = Deno.env.toObject();
 
   for (const q of questions) {
+    const noteKey = q.derived_from_note_title?.trim().toLowerCase() ?? "";
+    if (noteKey && noteTagsByTitle.has(noteKey)) {
+      const nt = noteTagsByTitle.get(noteKey)!;
+      tagged.push({
+        ...q,
+        answer_source: "ai",
+        chapter_id: nt.chapter_id,
+        topic_id: nt.topic_id,
+        matched_bank_question_id: null,
+        derived_from_note_id: nt.note_id,
+      });
+      continue;
+    }
+
+    if (!examId) {
+      tagged.push(untagged(q));
+      continue;
+    }
+
     const emb = await embedQueryText(q.question_text, { env });
     if (!emb.ok) {
-      // Embedding unavailable — leave tags null; do not invent a chapter (§5.1).
       tagged.push(untagged(q));
       continue;
     }
@@ -183,80 +202,13 @@ async function tagQuestionsFromBank(
       chapter_id: chapterId,
       topic_id: topicId,
       matched_bank_question_id: bankId,
-      // Inherit difficulty exactly when the bank has one (§5.2).
+      derived_from_note_id: null,
       difficulty: bankDifficulty ?? q.difficulty,
     });
     inherited += 1;
   }
 
   return { tagged, inherited };
-}
-
-async function persistQuestions(
-  userClient: ReturnType<typeof createClient>,
-  uploadId: string,
-  ownerId: string,
-  schoolId: string,
-  questions: TaggedQuestion[],
-): Promise<{ error: string | null; written: number }> {
-  if (questions.length === 0) return { error: null, written: 0 };
-  // Replace any prior extract for this upload (retry-safe).
-  await userClient
-    .from("student_upload_questions")
-    .delete()
-    .eq("upload_id", uploadId)
-    .eq("owner_id", ownerId);
-
-  const rows = questions.map((q, i) => ({
-    upload_id: uploadId,
-    owner_id: ownerId,
-    school_id: schoolId,
-    sequence: i + 1,
-    question_text: q.question_text,
-    options: q.options,
-    correct_index: q.correct_index,
-    correct_answer: q.correct_answer,
-    answer_source: q.answer_source,
-    explanation: q.explanation,
-    difficulty: q.difficulty,
-    chapter_id: q.chapter_id,
-    topic_id: q.topic_id,
-    matched_bank_question_id: q.matched_bank_question_id,
-  }));
-
-  const { error } = await userClient.from("student_upload_questions").insert(rows);
-  if (error) return { error: error.message, written: 0 };
-  return { error: null, written: rows.length };
-}
-
-async function persistNotes(
-  userClient: ReturnType<typeof createClient>,
-  uploadId: string,
-  ownerId: string,
-  schoolId: string,
-  notes: ExtractedNote[],
-): Promise<{ error: string | null; written: number }> {
-  if (notes.length === 0) return { error: null, written: 0 };
-  await userClient
-    .from("student_upload_notes")
-    .delete()
-    .eq("upload_id", uploadId)
-    .eq("owner_id", ownerId);
-
-  const rows = notes.map((n, i) => ({
-    upload_id: uploadId,
-    owner_id: ownerId,
-    school_id: schoolId,
-    sequence: i + 1,
-    title: n.title,
-    body: n.body,
-    chapter_id: null,
-    topic_id: null,
-  }));
-
-  const { error } = await userClient.from("student_upload_notes").insert(rows);
-  if (error) return { error: error.message, written: 0 };
-  return { error: null, written: rows.length };
 }
 
 Deno.serve(async (req) => {
@@ -318,7 +270,19 @@ Deno.serve(async (req) => {
     return markFailed(userClient, uploadId, uid, mediaResult.error);
   }
 
-  const classified = await classifyUploadMedia(mediaResult.media);
+  // §5 / §7 — exam catalog before classify so notes can be tagged to real chapters.
+  const { data: examAccount } = await admin
+    .from("exam_accounts")
+    .select("exam_id")
+    .eq("school_id", upload.school_id)
+    .maybeSingle();
+  const examId =
+    typeof examAccount?.exam_id === "string" ? examAccount.exam_id : null;
+  const catalog = await loadExamCatalog(admin, examId);
+
+  const classified = await classifyUploadMedia(mediaResult.media, {
+    catalogHint: catalog.length ? formatCatalogHint(catalog, 48) : undefined,
+  });
   if (!classified.ok) {
     return markFailed(userClient, uploadId, uid, classified.error);
   }
@@ -341,19 +305,31 @@ Deno.serve(async (req) => {
     return markUnusable(userClient, uploadId, uid, result, pageCount);
   }
 
-  // §5.2 — resolve the individual's exam, then inherit bank tags when possible.
-  const { data: examAccount } = await admin
-    .from("exam_accounts")
-    .select("exam_id")
-    .eq("school_id", upload.school_id)
-    .maybeSingle();
-  const examId =
-    typeof examAccount?.exam_id === "string" ? examAccount.exam_id : null;
+  // §7 — resolve note labels first, persist, then link questions via title.
+  const taggedNotes = tagNotesFromCatalog(result.notes, catalog);
+  const nWrite = await persistNotes(
+    userClient,
+    uploadId,
+    uid,
+    upload.school_id as string,
+    taggedNotes,
+  );
+  if (nWrite.error) {
+    return markFailed(
+      userClient,
+      uploadId,
+      uid,
+      `Could not save extracted notes: ${nWrite.error}`,
+    );
+  }
+
+  const noteTagsByTitle = noteTagsByTitleFromRows(nWrite.rows);
 
   const { tagged, inherited } = await tagQuestionsFromBank(
     admin,
     examId,
     result.questions,
+    noteTagsByTitle,
   );
 
   const qWrite = await persistQuestions(
@@ -372,21 +348,8 @@ Deno.serve(async (req) => {
     );
   }
 
-  const nWrite = await persistNotes(
-    userClient,
-    uploadId,
-    uid,
-    upload.school_id as string,
-    result.notes,
-  );
-  if (nWrite.error) {
-    return markFailed(
-      userClient,
-      uploadId,
-      uid,
-      `Could not save extracted notes: ${nWrite.error}`,
-    );
-  }
+  const notesTagged = nWrite.rows.filter((r) => r.chapter_id != null).length;
+  const notesFromNotesQs = tagged.filter((q) => q.derived_from_note_id != null).length;
 
   const { error: readyErr } = await userClient
     .from("student_uploads")
@@ -413,6 +376,10 @@ Deno.serve(async (req) => {
     notes_written: nWrite.written,
     /** §5.2 — how many stems inherited chapter/topic from the bank. */
     bank_tags_inherited: inherited,
+    /** §7 — notes that resolved to a live chapter_id. */
+    notes_chapter_tagged: notesTagged,
+    /** §7.1 — questions linked via derived_from_note_id. */
+    notes_derived_questions: notesFromNotesQs,
     /** §6 — how many answers were AI-filled (client shows ai_answered). */
     ai_answered_count: tagged.filter((q) => q.answer_source === "ai").length,
   });
