@@ -114,7 +114,10 @@ describe("the curriculum scope is resolved once per student and class", () => {
   it("asks for the school once, however many loads need the scope", async () => {
     const [a, b] = await Promise.all([PracticeService.resolveCurriculumScope(ctx), PracticeService.resolveCurriculumScope(ctx)]);
     const c = await PracticeService.resolveCurriculumScope(ctx);
-    expect(a).toEqual({ classLevel: 12, board: "rbse", stream: "commerce", classLabel: "12-A" });
+    expect(a).toEqual({
+      classLevel: 12, board: "rbse", stream: "commerce", classLabel: "12-A",
+      examId: null, examCode: null, examName: null,
+    });
     expect(b).toEqual(a);
     expect(c).toEqual(a);
     expect(calls.schools, "each question load re-read the school").toBe(1);

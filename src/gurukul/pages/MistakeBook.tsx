@@ -465,6 +465,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [toastMsg, setToast] = useState<string|null>(null);
   const [stream, setStream] = useState<AcademicStream | null>(null);
   const [classLevel, setClassLevel] = useState<number | null>(null);
+  const [examId, setExamId] = useState<string | null>(null);
   const liveVersion = useAcademicLive(["profile", "xp"]);
 
   useEffect(() => {
@@ -490,10 +491,12 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         if (cancelled) return;
         setStream(scope.stream);
         setClassLevel(scope.classLevel);
+        setExamId(scope.examId);
       } catch {
         if (!cancelled) {
           setStream(null);
           setClassLevel(null);
+          setExamId(null);
         }
       }
     })();
@@ -553,14 +556,14 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         rows
           .filter(
             (r) =>
-              isSubjectAllowedForScope(r.subject, stream, classLevel) &&
+              (!!examId || isSubjectAllowedForScope(r.subject, stream, classLevel)) &&
               !isPlaceholderAcademicLabel(r.subject) &&
               !isPlaceholderAcademicLabel(r.concept ?? r.topic) &&
               !isPlaceholderAcademicLabel(r.chapter),
           )
           .map((r) => mapRowToMistake(r, bookmarks.has(r.id))),
       ),
-    [rows, bookmarks, stream, classLevel],
+    [rows, bookmarks, stream, classLevel, examId],
   );
 
   function showToast(msg: string) {

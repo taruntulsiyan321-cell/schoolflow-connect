@@ -104,8 +104,15 @@ export function useAcademicContext(): {
       classId,
       classLabel,
       classCategory,
+      schoolKind: identity?.schoolKind ?? null,
+      examId: identity?.examId ?? null,
+      examCode: identity?.examCode ?? null,
+      examName: identity?.examName ?? null,
     };
-  }, [user?.id, effectiveRole, role, schoolId, studentId, classId, classLabel, classCategory]);
+  }, [
+    user?.id, effectiveRole, role, schoolId, studentId, classId, classLabel, classCategory,
+    identity?.schoolKind, identity?.examId, identity?.examCode, identity?.examName,
+  ]);
 
   const settled = !loading && status !== "loading" && identityReady;
 

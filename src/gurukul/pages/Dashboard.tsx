@@ -261,7 +261,17 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 value={shellReady && student.practiceAccuracy != null ? `${student.practiceAccuracy}%` : "—"}
                 color="hsl(var(--info))"
               />
-              <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "—"} color="hsl(var(--warning))"/>
+              <StatTile
+                // Individuals have no class cohort — never label this "Class Rank".
+                // Standing stays "—" until an exam-wide league exists; do not invent #1.
+                label={isIndividual ? "Standing" : "Class Rank"}
+                value={
+                  shellReady && !isIndividual && student.rank > 0
+                    ? `#${student.rank}`
+                    : "—"
+                }
+                color="hsl(var(--warning))"
+              />
               <StatTile label="Level" value={levelLabel} color="var(--color-chemistry)"/>
             </div>
             <div className="mt-3">

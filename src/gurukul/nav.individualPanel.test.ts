@@ -73,4 +73,16 @@ describe("individual vs school student panel nav", () => {
       /const sidebarNav\s*[:=]\s*\[\s*\{\s*key\s*:\s*["']dashboard["']/,
     );
   });
+
+  it("StudentDashboard blocks school-only routes unless kind is known school", () => {
+    const dash = stripComments(
+      readFileSync(join(__dirname, "..", "pages", "StudentDashboard.tsx"), "utf8"),
+    );
+    // Must deny while kind is null/individual — not only when kind === individual
+    // (that race left CUET on Battleground until identity settled).
+    expect(dash).toMatch(/isSchoolOnlyPath\([^)]+\)\s*&&\s*schoolKind\s*!==\s*["']school["']/);
+    expect(dash).not.toMatch(
+      /schoolKind\s*===\s*["']individual["']\s*&&\s*isSchoolOnlyPath/,
+    );
+  });
 });

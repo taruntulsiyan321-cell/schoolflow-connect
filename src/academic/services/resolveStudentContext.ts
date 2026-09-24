@@ -312,6 +312,10 @@ export function identityToServiceContext(identity: StudentAcademicIdentity): Ser
     classId: identity.classId,
     classLabel: identity.classLabel,
     classCategory: identity.classCategory,
+    schoolKind: identity.schoolKind,
+    examId: identity.examId,
+    examCode: identity.examCode,
+    examName: identity.examName,
   };
 }
 

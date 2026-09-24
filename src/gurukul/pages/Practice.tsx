@@ -38,16 +38,15 @@ import { toErrorMessage } from "@/lib/presentation";
 import { ACCURACY_PROCEDURAL, ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
 import { pluralise } from "@/lib/plural";
 import { PRACTICE_MODE_LABELS, practiceModeLabel } from "@/lib/practiceModeLabel";
-
-const CLASS_UNRESOLVED_MSG =
-  "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
+import {
+  CLASS_UNRESOLVED_MSG,
+  resolvePracticeUnresolved,
+} from "@/gurukul/pages/practiceUnresolvedCopy";
 
 /* A `PremiumEmpty` component stood here — the fourth of five ways this panel
    drew an empty state, and it was never called once. Removed 2026-09-11 with
    the `.premium-empty` CSS it was the last reason to keep. Use EmptyState from
    components/shared. */
-const CLASS_LEVEL_UNRESOLVED_MSG =
-  "Your class is assigned, but its name or category does not identify a class level. Ask your school admin to use a label such as Class 10, Std 9, XI, or 12-A.";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Phase   = "hub" | "config" | "session" | "saveFailed";
@@ -569,6 +568,7 @@ export function Hub({
 // Exported for PracticeLists.test.tsx, which drives it as a student would.
 export function ConfigView({
   modeKey, onStart, onBack, subjectList, onRetrySubjects, classUnresolved, classUnresolvedMessage,
+  examScoped = false,
 }: {
   modeKey: ModeKey;
   onStart: (cfg: SessionConfig) => void;
@@ -577,6 +577,7 @@ export function ConfigView({
   onRetrySubjects: () => void;
   classUnresolved?: boolean;
   classUnresolvedMessage?: string;
+  examScoped?: boolean;
 }) {
   // Not `!`. "recovery" and "revision" have no MODES entry by design, and
   // although both jump straight to the session phase and never render this screen, an
@@ -657,7 +658,9 @@ export function ConfigView({
 
   const subjectEmptyMsg = classUnresolved
     ? classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG
-    : "No subjects in the question bank yet for your class and board.";
+    : examScoped
+      ? "No subjects in the question bank yet for your exam."
+      : "No subjects in the question bank yet for your class and board.";
 
   if (modeKey === "custom") {
     // Subject / chapter / topic are all optional here — only difficulty and a
@@ -1908,10 +1911,20 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   // through the same slow identity-resolution path, so a resolved-but-null
   // classLevel can be a premature read, not a genuine absence.
   const classLevelUnresolved = shellReady && !!curriculumScope && curriculumScope.classLevel == null;
-  const classUnresolved = classIdMissing || classLevelUnresolved;
-  const classUnresolvedMessage = classIdMissing
-    ? CLASS_UNRESOLVED_MSG
-    : CLASS_LEVEL_UNRESOLVED_MSG;
+  const examScoped = shellReady && !!curriculumScope?.examId;
+  const examUnresolved =
+    shellReady &&
+    !!curriculumScope &&
+    academicIdentity.schoolKind === "individual" &&
+    !curriculumScope.examId;
+  // Individuals practise by exam — class absence is expected, not unresolved.
+  // resolvePracticeUnresolved makes CLASS_*_MSG unreachable when examScoped.
+  const { classUnresolved, classUnresolvedMessage } = resolvePracticeUnresolved({
+    examScoped,
+    examUnresolved,
+    classIdMissing,
+    classLevelUnresolved,
+  });
 
   useEffect(() => {
     if (!ctx || !academicReady) {
@@ -1928,7 +1941,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         const scope = await PracticeService.resolveCurriculumScope(ctx);
         if (cancelled) return;
         setCurriculumScope(scope);
-        if (scope.classLevel == null) {
+        if (!scope.examId && scope.classLevel == null) {
           setSubjectList(EMPTY_LIST);
           return;
         }
@@ -2336,6 +2349,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           onRetrySubjects={() => setSubjectReads((k) => k + 1)}
           classUnresolved={classUnresolved}
           classUnresolvedMessage={classUnresolvedMessage}
+          examScoped={examScoped}
         />
       )}
       {phase === "session" && config && (

@@ -4,7 +4,7 @@ import {
   toRepoContext,
   type ServiceContext,
 } from "./context";
-import { assertStudentClassContext } from "./assertStudentContext";
+import { assertStudentClassContext, assertStudentContext } from "./assertStudentContext";
 import type { Json } from "@/integrations/supabase/types";
 import { getClient, throwIfError } from "../repository/base";
 import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
@@ -727,7 +727,10 @@ export const PracticeService = {
    * Keyed on everything the scope is derived from; a failed resolve is not kept.
    */
   resolveCurriculumScope(ctx: ServiceContext): Promise<CurriculumScope> {
-    const key = [ctx.userId, ctx.schoolId, ctx.studentId, ctx.classId, ctx.classLabel, ctx.classCategory]
+    const key = [
+      ctx.userId, ctx.schoolId, ctx.studentId, ctx.classId, ctx.classLabel, ctx.classCategory,
+      ctx.schoolKind, ctx.examId,
+    ]
       .map((v) => v ?? "").join("|");
     const hit = scopeCache.get(key);
     if (hit && Date.now() - hit.at < SCOPE_TTL_MS) return hit.promise;
@@ -749,31 +752,68 @@ export const PracticeService = {
     const client = getClient(toRepoContext(ctx));
     let board = "rbse";
     let schoolStream: AcademicStream | null = null;
+    let schoolKind: "school" | "individual" | null = ctx.schoolKind ?? null;
+    let examId: string | null = ctx.examId ?? null;
+    let examCode: string | null = ctx.examCode ?? null;
+    let examName: string | null = ctx.examName ?? null;
 
-    // Prefer board+stream; fall back to board-only if stream column not migrated yet.
+    // Prefer board+stream+kind; fall back to board-only if stream column not migrated yet.
     {
       const withStream = await client
         .from("schools")
-        .select("board, stream")
+        .select("board, stream, kind")
         .eq("id", ctx.schoolId)
         .maybeSingle();
       if (withStream.error) {
         const boardOnly = await client
           .from("schools")
-          .select("board")
+          .select("board, kind")
           .eq("id", ctx.schoolId)
           .maybeSingle();
-        const rawBoard = (boardOnly.data as { board?: string | null } | null)?.board;
+        const raw = boardOnly.data as { board?: string | null; kind?: string | null } | null;
+        const rawBoard = raw?.board;
         if (rawBoard && typeof rawBoard === "string" && rawBoard.trim()) {
           board = rawBoard.trim().toLowerCase();
         }
+        if (raw?.kind === "school" || raw?.kind === "individual") schoolKind = raw.kind;
       } else {
-        const school = withStream.data as { board?: string | null; stream?: string | null } | null;
+        const school = withStream.data as {
+          board?: string | null;
+          stream?: string | null;
+          kind?: string | null;
+        } | null;
         if (school?.board && typeof school.board === "string" && school.board.trim()) {
           board = school.board.trim().toLowerCase();
         }
         schoolStream = normalizeStream(school?.stream ?? null);
+        if (school?.kind === "school" || school?.kind === "individual") schoolKind = school.kind;
       }
+    }
+
+    // Individual: exam is the scope. Never invent rbse / a class level.
+    if (schoolKind === "individual") {
+      if (!examId) {
+        const { data: ea } = await client
+          .from("exam_accounts")
+          .select("exam_id, competitive_exams(code, name)")
+          .eq("school_id", ctx.schoolId)
+          .maybeSingle();
+        examId = ea?.exam_id ?? null;
+        type ExamJoin = { code?: string | null; name?: string | null };
+        const rawExam = (ea as { competitive_exams?: ExamJoin | ExamJoin[] | null } | null)?.competitive_exams;
+        const exam = Array.isArray(rawExam) ? rawExam[0] : rawExam;
+        examCode = exam?.code ?? null;
+        examName = exam?.name ?? null;
+      }
+      return {
+        classLevel: null,
+        board: "cuet",
+        stream: null,
+        classLabel: examName || examCode || ctx.classLabel || null,
+        examId,
+        examCode,
+        examName,
+      };
     }
 
     let classLabel: string | null = ctx.classLabel ?? null;
@@ -843,7 +883,15 @@ export const PracticeService = {
       inferStreamFromText(classCategory, classLabel) ??
       null;
 
-    return { classLevel, board, stream, classLabel };
+    return {
+      classLevel,
+      board,
+      stream,
+      classLabel,
+      examId: null,
+      examCode: null,
+      examName: null,
+    };
   },
 
   /**
@@ -862,6 +910,18 @@ export const PracticeService = {
     opts: { subject?: string | null; classLevel?: number | null } = {},
   ): Promise<{ scope: CurriculumScope; classLevel: number | null; rows: { subject: string; chapter: string | null; questions: number }[] }> {
     const scope = await this.resolveCurriculumScope(ctx);
+    // Individual exam practice: catalog by exam_id (no class required).
+    if (scope.examId) {
+      const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_practice_bank_catalog", {
+        // SQL ignores class/board when _exam_id is set; pass placeholders for the required args.
+        _class_level: 0,
+        _board: scope.board || "cuet",
+        _exam_id: scope.examId,
+        ...(opts.subject ? { _subject: opts.subject } : {}),
+      });
+      throwIfError(error, "Failed to load the practice question bank");
+      return { scope, classLevel: null, rows: data ?? [] };
+    }
     const classLevel = opts.classLevel ?? scope.classLevel;
     // Never list another class's bank when the student's class is unknown.
     if (classLevel == null || !Number.isFinite(classLevel)) return { scope, classLevel: null, rows: [] };
@@ -875,23 +935,27 @@ export const PracticeService = {
     return { scope, classLevel, rows: data ?? [] };
   },
 
-  /** Subjects the student's class can practise (class + board + stream). */
+  /** Subjects the student can practise (class+board+stream, or exam). */
   async listBankSubjects(
     ctx: ServiceContext,
     opts: { classLevel?: number | null } = {},
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
-    assertStudentClassContext(ctx);
+    assertStudentContext(ctx);
     const { scope, classLevel, rows } = await this.listBankCatalog(ctx, opts);
+    if (!scope.examId && (classLevel == null || !ctx.classId)) {
+      assertStudentClassContext(ctx);
+    }
     const seen = new Map<string, string>();
     for (const row of rows) {
       const raw = row.subject.trim();
       if (!raw) continue;
-      if (!isSubjectAllowedForScope(raw, scope.stream, classLevel)) continue;
+      if (!scope.examId && !isSubjectAllowedForScope(raw, scope.stream, classLevel)) continue;
       const label = displaySubject(raw);
       const key = label.toLowerCase();
       if (!seen.has(key)) seen.set(key, label);
     }
+    if (scope.examId) return [...seen.values()].sort((a, b) => a.localeCompare(b));
     return filterSubjectsForStream([...seen.values()], scope.stream, classLevel);
   },
 
@@ -902,8 +966,8 @@ export const PracticeService = {
   ): Promise<AcademicTermRef[]> {
     assertCanConsume(ctx, "practice");
     const { scope, classLevel, rows } = await this.listBankCatalog(ctx, opts);
-    if (classLevel == null) return [];
-    if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
+    if (!scope.examId && classLevel == null) return [];
+    if (!scope.examId && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
     const seen = new Map<string, AcademicTermRef>();
     for (const row of rows) {
@@ -951,8 +1015,8 @@ export const PracticeService = {
     const scope = await this.resolveCurriculumScope(ctx);
     const classLevel = opts.classLevel ?? scope.classLevel;
 
-    if (classLevel == null || !Number.isFinite(classLevel)) return [];
-    if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
+    if (!scope.examId && (classLevel == null || !Number.isFinite(classLevel))) return [];
+    if (!scope.examId && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
     // Paged: a whole subject can hold more servable questions than one
     // PostgREST response, and a truncated read would silently hide topics.
@@ -964,16 +1028,20 @@ export const PracticeService = {
         .select("topic_id, chapter, topics(name)")
         .eq("is_approved", true)
         .eq("is_active", true)
-        .eq("class_level", classLevel)
         .ilike("subject", opts.subject)
         .not("topic_id", "is", null)
-        // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-        // so there is no per-school arm left to filter on.
-        .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
         .order("id")
         .range(from, from + PAGE - 1);
-      if (scope.stream) {
-        query = query.or(`stream.eq.${scope.stream},stream.is.null`);
+      if (scope.examId) {
+        query = query.eq("exam_id", scope.examId);
+      } else {
+        query = query
+          .eq("class_level", classLevel!)
+          .is("exam_id", null)
+          .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
+        if (scope.stream) {
+          query = query.or(`stream.eq.${scope.stream},stream.is.null`);
+        }
       }
       const { data, error } = await query;
       throwIfError(error, "Failed to load practice topics");
@@ -1288,12 +1356,14 @@ export const PracticeService = {
     const scope = await this.resolveCurriculumScope(ctx);
     const classLevel = opts.classLevel ?? scope.classLevel;
 
-    // Never dump all classes when class cannot be resolved (unless fetching by id).
+    // Never dump all classes when class cannot be resolved (unless fetching by id
+    // or practising under an exam account).
     const byIds = opts.ids && opts.ids.length > 0;
-    if (!byIds && (classLevel == null || !Number.isFinite(classLevel))) {
+    if (!byIds && !scope.examId && (classLevel == null || !Number.isFinite(classLevel))) {
       return [];
     }
     if (
+      !scope.examId &&
       opts.subject &&
       opts.subject !== "Mixed" &&
       !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)
@@ -1400,10 +1470,16 @@ export const PracticeService = {
           withCount ? { count: "exact" } : undefined,
         )
         .eq("is_approved", true)
-        // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-        // so there is no per-school arm left to filter on.
-        .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
         .order("id");
+
+      if (scope.examId) {
+        query = query.eq("exam_id", scope.examId);
+      } else {
+        // Chunk 7A: question_bank.school_id is gone — the bank is global (G2).
+        query = query
+          .is("exam_id", null)
+          .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
+      }
 
       if (applyActiveFilter) {
         query = query.eq("is_active", true);
@@ -1411,10 +1487,10 @@ export const PracticeService = {
       if (byIds) {
         query = query.in("id", opts.ids!);
       }
-      if (classLevel != null && Number.isFinite(classLevel)) {
+      if (!scope.examId && classLevel != null && Number.isFinite(classLevel)) {
         query = query.eq("class_level", classLevel);
       }
-      if (scope.stream) {
+      if (!scope.examId && scope.stream) {
         query = query.or(`stream.eq.${scope.stream},stream.is.null`);
       }
       if (opts.subject && opts.subject !== "Mixed") {

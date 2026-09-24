@@ -277,9 +277,12 @@ export default function StudentDashboard() {
   /** `/student/test/<id>/attempt` and nothing else. */
   const isSittingATest = /^\/student\/test\/[^/]+\/attempt\/?$/.test(location.pathname);
 
-  /** Individual exam accounts cannot open organisation-only surfaces. */
+  /** Individual exam accounts cannot open organisation-only surfaces.
+   *  Deny unless we *know* this is an organisation school — while kind is
+   *  still loading (`null`), school-only URLs must not render (that race let
+   *  CUET land on Battleground/Homework before identity settled). */
   const blockSchoolOnly =
-    schoolKind === "individual" && isSchoolOnlyPath(location.pathname);
+    isSchoolOnlyPath(location.pathname) && schoolKind !== "school";
 
   const mergedStudent = useMemo(
     () => ({

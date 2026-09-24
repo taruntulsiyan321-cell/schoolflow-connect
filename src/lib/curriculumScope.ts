@@ -108,6 +108,10 @@ export type CurriculumScope = {
   board: string;
   stream: AcademicStream | null;
   classLabel: string | null;
+  /** Competitive exam — set for schools.kind=individual; null for organisation. */
+  examId: string | null;
+  examCode: string | null;
+  examName: string | null;
 };
 
 /** Parse class level from digits or Roman numerals (e.g. "Class-10", "Std 9", "XI-A", "V-B"). */

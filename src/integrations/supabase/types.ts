@@ -5484,6 +5484,7 @@ export type Database = {
           embed_status: string
           embedding: string | null
           embedding_basis: string | null
+          exam_id: string | null
           exam_year: number | null
           explanation: string | null
           id: string
@@ -5518,6 +5519,7 @@ export type Database = {
           embed_status?: string
           embedding?: string | null
           embedding_basis?: string | null
+          exam_id?: string | null
           exam_year?: number | null
           explanation?: string | null
           id?: string
@@ -5552,6 +5554,7 @@ export type Database = {
           embed_status?: string
           embedding?: string | null
           embedding_basis?: string | null
+          exam_id?: string | null
           exam_year?: number | null
           explanation?: string | null
           id?: string
@@ -5577,6 +5580,13 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_bank_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "competitive_exams"
             referencedColumns: ["id"]
           },
           {
@@ -10372,6 +10382,7 @@ export type Database = {
           _class_level: number
           _stream?: string
           _subject?: string
+          _exam_id?: string
         }
         Returns: {
           chapter: string
