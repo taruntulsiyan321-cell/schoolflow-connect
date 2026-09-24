@@ -117,6 +117,46 @@ async function markUnusable(
 }
 
 /**
+ * §7.1 — find the note a question says it came from.
+ *
+ * The model reports the link as the note's TITLE, written a second time in a
+ * different part of the same JSON response, and an exact match on that string
+ * is not something to depend on. Measured 2026-09-24: the same fixture came
+ * back as "Capital Accounts in Partnership" on one run and "Capital Accounts"
+ * on the next, so an exact lookup silently dropped every link and
+ * `practise_from_notes` had nothing behind it.
+ *
+ * Silently is the problem. Three tolerant passes, in order of confidence:
+ *   1. the exact key (unchanged behaviour when the model is consistent);
+ *   2. one title contained in the other, after normalising;
+ *   3. only when there is exactly ONE note, so "which note" cannot be wrong.
+ *
+ * Deliberately NOT a fuzzy score: a wrong note means a wrong chapter, and §5.1
+ * rules that a wrong chapter is worse than none.
+ */
+function resolveNote(
+  noteKey: string,
+  noteTagsByTitle: NoteTagLookup,
+): { chapter_id: string | null; topic_id: string | null; note_id: string | null } | null {
+  const exact = noteTagsByTitle.get(noteKey);
+  if (exact) return exact;
+
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const want = norm(noteKey);
+  if (!want) return null;
+
+  for (const [title, tags] of noteTagsByTitle) {
+    const have = norm(title);
+    if (have && (have.includes(want) || want.includes(have))) return tags;
+  }
+
+  if (noteTagsByTitle.size === 1) {
+    return noteTagsByTitle.values().next().value ?? null;
+  }
+  return null;
+}
+
+/**
  * §5.2 — embed each stem and inherit chapter/topic/difficulty from a confident
  * bank match. Notes-derived questions (§7.1) inherit tags from the note instead.
  */
@@ -142,8 +182,9 @@ async function tagQuestionsFromBank(
 
   for (const q of questions) {
     const noteKey = q.derived_from_note_title?.trim().toLowerCase() ?? "";
-    if (noteKey && noteTagsByTitle.has(noteKey)) {
-      const nt = noteTagsByTitle.get(noteKey)!;
+    const matchedNote = noteKey ? resolveNote(noteKey, noteTagsByTitle) : null;
+    if (matchedNote) {
+      const nt = matchedNote;
       tagged.push({
         ...q,
         answer_source: "ai",
