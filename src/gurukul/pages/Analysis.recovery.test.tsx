@@ -55,13 +55,15 @@ vi.mock("@/academic/services/decisionEngineService", () => ({ DecisionEngineServ
 vi.mock("@/hooks/useAnalysisPageData", () => ({
   useAnalysisPageData: () => ({
     data: { totals: { correct: 80, wrong: 50, skipped: 30, accuracy_pct: 62 },
+      // Six sessions, 40 then 70: §6.4's window is the latest THREE against
+      // the previous three, so this is a clean +30 points either side.
       recent_sessions: [
         { id: "s1", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(12) + "T10:00:00Z" },
-        { id: "s2", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 45, finished_at: iso(11) + "T10:00:00Z" },
-        { id: "s3", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 5, wrong_count: 5, measured_ms: 200000, accuracy_pct: 50, finished_at: iso(10) + "T10:00:00Z" },
+        { id: "s2", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(10) + "T10:00:00Z" },
+        { id: "s3", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(8) + "T10:00:00Z" },
         { id: "s4", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(6) + "T10:00:00Z" },
-        { id: "s5", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 75, finished_at: iso(4) + "T10:00:00Z" },
-        { id: "s6", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 8, wrong_count: 2, measured_ms: 200000, accuracy_pct: 80, finished_at: iso(2) + "T10:00:00Z" },
+        { id: "s5", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(4) + "T10:00:00Z" },
+        { id: "s6", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(2) + "T10:00:00Z" },
       ],
       attempt_hours: (() => { const h = new Array(24).fill(0); h[9] = 12; return h; })() },
     loading: false, error: null, reload: () => {},
@@ -71,11 +73,11 @@ vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
   useStudentPerformanceCharts: () => ({ data: {
     practice_trend: [
       { date: iso(12), score_pct: 40, chapter: "Algebra" },
-      { date: iso(11), score_pct: 45, chapter: "Algebra" },
-      { date: iso(10), score_pct: 50, chapter: "Algebra" },
+      { date: iso(10), score_pct: 40, chapter: "Algebra" },
+      { date: iso(8), score_pct: 40, chapter: "Algebra" },
       { date: iso(6), score_pct: 70, chapter: "Algebra" },
-      { date: iso(4), score_pct: 75, chapter: "Algebra" },
-      { date: iso(2), score_pct: 80, chapter: "Algebra" },
+      { date: iso(4), score_pct: 70, chapter: "Algebra" },
+      { date: iso(2), score_pct: 70, chapter: "Algebra" },
     ],
     weekly_activity: [ { date: iso(2), total: 5, test: 0, battles: 0 }, { date: iso(9), total: 5, test: 0, battles: 0 } ],
   }, loading: false, error: null, reload: () => {} }),
@@ -114,25 +116,20 @@ describe("Analysis — recovery, revision and trends", () => {
 
   it("reports a rise in POINTS, not percent", async () => {
     await settle();
-    // §6.4: the latest three sessions (70, 75, 80) average thirty percentage
-    // POINTS above the three before them (40, 45, 50).
-    // Thirty percent of 40 is twelve. The Overview headline and the
-    // milestone card were corrected to say "points"; the subject rows, the
-    // chapter grid and this list kept the percent sign.
-    openTab("Topics");
-    expect(screen.getByText(/\+30 pts/)).toBeInTheDocument();
+    // 40 -> 70 across six sessions is +30 percentage POINTS on the subject
+    // and chapter grids (TrendCell). The Topics-tab strengths list that
+    // used to carry the same figure is gone (§6.1 / §10.8).
+    openTab("Subjects & Chapters");
+    expect(document.body.textContent).toMatch(/30 pts/);
     expect(document.body.textContent).not.toContain("+30%");
   });
 
-  it("calls a chapter a chapter, even on the Topics tab", async () => {
+  it("does not show a strengths panel on Topics (§6.1 / §10.8)", async () => {
     await settle();
     openTab("Topics");
-    // The panel grouped practice_trend by CHAPTER, called the field `topic`
-    // and rendered it through displayTopic() under "Topics getting better".
-    // presentAcademicLabel resolves per kind, so a chapter was being looked
-    // up in the topic dictionary.
-    expect(screen.getByText("Chapters getting better")).toBeInTheDocument();
+    expect(screen.queryByText("Chapters getting better")).toBeNull();
     expect(screen.queryByText("Topics getting better")).toBeNull();
+    expect(screen.getByText("Questions you keep getting wrong")).toBeInTheDocument();
   });
 
   it("uses the same unit in the subject and chapter grids", async () => {

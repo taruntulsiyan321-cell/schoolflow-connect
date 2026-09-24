@@ -25,12 +25,16 @@ import {
   snapshotsToAttemptRows,
   type PracticeSessionResultState,
 } from "@/lib/practiceSessionSnapshot";
+import type { PracticeAnalysisSnapshot } from "@/lib/practiceAnalysisSnapshot";
 import {
-  buildPracticeAnalysisSnapshot,
-  type PracticeAnalysisSnapshot,
-} from "@/lib/practiceAnalysisSnapshot";
-import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
+  deriveSessionAccuracy,
+  formatSessionAccuracy,
+  formatSessionDuration,
+  formatSessionXp,
+  resolvePracticeSessionStats,
+} from "@/lib/practiceSessionStats";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
+import { practiceModeLabel } from "@/lib/practiceModeLabel";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
 import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
@@ -115,9 +119,13 @@ export default function PracticeSessionResult() {
     [localState],
   );
 
+  // §10.8: a right answer leaves totals behind, not a question. Snapshots
+  // saved before 2026-09-23 (version 2) froze every question of their session,
+  // right ones included — those are filtered out here, so no screen serves a
+  // per-question record of a correct answer even where one is still stored.
   const snapshotAttempts = useMemo(() => {
     if (!snapshot?.attempts?.length) return [];
-    return snapshot.attempts.map((a, i) => ({
+    return snapshot.attempts.filter((a) => a.skipped || !a.isCorrect).map((a, i) => ({
       id: `snap-${i}`,
       generated_question: { question: a.question, options: a.options, explanation: a.explanation },
       correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
@@ -128,64 +136,74 @@ export default function PracticeSessionResult() {
     }));
   }, [snapshot]);
 
+  /**
+   * §10.8 draws the line this list follows.
+   *
+   * "While a session is in flight, per-question correctness may exist. It is
+   * working state." The session that just finished ON THIS DEVICE is still
+   * that: `localState` came through the navigation, lives in sessionStorage,
+   * and is the student reviewing what they have just done — every question,
+   * right ones included. So it is preferred while it is there.
+   *
+   * "When the session closes, it must not persist." Opened again later, or on
+   * another device, there is no local state and the list is the durable
+   * record: the wrong and the skipped, from the database or from a saved
+   * snapshot. The totals above still say how many went right.
+   */
+  const fromDurableRecord = localAttempts.length === 0;
   const displayAttempts = useMemo(() => {
+    if (localAttempts.length > 0) return localAttempts;
     if (attempts.length > 0) return attempts;
-    if (snapshotAttempts.length > 0) return snapshotAttempts;
-    return localAttempts;
+    return snapshotAttempts;
   }, [attempts, snapshotAttempts, localAttempts]);
 
-  const subjectRaw = session?.subject ?? snapshot?.subject ?? localState?.subject ?? "Practice";
-  const chapterRaw = session?.chapter ?? snapshot?.chapter ?? localState?.chapter ?? "";
-  const subject = displaySubject(subjectRaw);
+  // `||`, not `??`: a session with no single subject stores "" — an empty
+  // string is an absent subject, not one to print.
+  const subjectRaw = session?.subject || snapshot?.subject || localState?.subject || "";
+  const chapterRaw = session?.chapter || snapshot?.chapter || localState?.chapter || "";
+  const subject = subjectRaw ? displaySubject(subjectRaw) : "";
   const chapter = chapterRaw ? displayChapter(chapterRaw) : "";
+  const typeLabel = practiceModeLabel(session?.practice_mode ?? snapshot?.practiceMode ?? localState?.practiceMode ?? null);
+  // A session that spans chapters is titled by what it was — "Weak Areas
+  // Practice" — not by the chapter its first question happened to come from.
+  const heading = [subject, chapter].filter(Boolean).join(" · ") || typeLabel;
 
-  // Prefer finish-RPC payload (nav/serverStats) + DB columns. Local tallies only as last resort.
-  const localCorrect = displayAttempts.filter((a) => a.is_correct).length;
-  const localSkipped = displayAttempts.filter((a) => !!(a as AttemptRow).skipped).length;
-  const localWrong = displayAttempts.filter(
-    (a) => !a.is_correct && !(a as AttemptRow).skipped,
-  ).length;
-  const overlay = snapshot ?? (localState?.serverStats
-    ? {
-        questionCount: localState.serverStats.questionCount,
-        correctCount: localState.serverStats.correctCount,
-        wrongCount: localState.serverStats.wrongCount,
-        skippedCount: localState.serverStats.skippedCount,
-        accuracy: localState.serverStats.accuracy,
-        xpEarned: localState.serverStats.xpEarned,
-        totalTimeMs: localState.serverStats.totalTimeMs,
-      }
-    : null);
+  // ONE reading of this session, from the best source there is: the finished
+  // row, else the finish RPC's own reply or a saved snapshot, else — offline,
+  // before either arrives — this device's own attempt log. Each of those used
+  // to be read with its own arithmetic here, and the local one counted a skip
+  // as a wrong answer.
+  const localOverlay = useMemo(() => {
+    if (!localState?.attempts?.length) return null;
+    const answered = localState.attempts.filter((x) => !x.skipped && !x.timedOut);
+    const correctCount = answered.filter((x) => x.isCorrect).length;
+    const ms = localState.attempts.reduce((sum, x) => sum + (x.timeTakenMs ?? 0), 0);
+    return {
+      questionCount: localState.attempts.length,
+      correctCount,
+      wrongCount: answered.length - correctCount,
+      skippedCount: localState.attempts.length - answered.length,
+      accuracy: deriveSessionAccuracy(correctCount, answered.length - correctCount),
+      totalTimeMs: ms > 0 ? ms : null,
+    };
+  }, [localState]);
+  const overlay = snapshot ?? localState?.serverStats ?? localOverlay;
   const stats = resolvePracticeSessionStats(session, overlay);
-  const hasSessionRow = Boolean(session || overlay);
-  // When finish-RPC / DB row exists, never inflate totals from local attempt array length.
-  const total = hasSessionRow
-    ? stats.questionCount
-    : Math.max(displayAttempts.length, 0);
-  const correct = hasSessionRow ? stats.correctCount : localCorrect;
-  const wrong = hasSessionRow ? stats.wrongCount : localWrong;
-  const skipped = hasSessionRow ? stats.skippedCount : localSkipped;
-  const accuracy = hasSessionRow
-    ? stats.accuracy
-    : total
-      ? Math.round((correct / total) * 100)
-      : 0;
-  const xpEarned = hasSessionRow ? stats.xpEarned : 0;
-  const xpLabel = formatSessionXp(xpEarned, hasSessionRow ? stats.xpFromDb : false);
-  const finishedMs =
-    stats.totalTimeMs ??
-    (session?.finished_at && session?.created_at
-      ? new Date(session.finished_at).getTime() - new Date(session.created_at).getTime()
-      : localState?.startedAt
-        ? Date.now() - new Date(localState.startedAt).getTime()
-        : 0);
-  const mins = Math.max(1, Math.round((finishedMs || 60000) / 60000));
+  const total = stats.questionCount;
+  const correct = stats.correctCount;
+  const wrong = stats.wrongCount;
+  const skipped = stats.skippedCount;
+  const accuracy = stats.accuracy;
+  const xpLabel = formatSessionXp(stats.xpEarned, stats.xpFromDb);
+  // A session is as long as its questions took (20261030000000) — never the
+  // wall clock from opening to finishing, and never a floor of one minute.
+  const durationLabel = formatSessionDuration(stats.totalTimeMs);
   const avgSec =
     snapshot?.statistics?.avgSecPerQuestion ??
-    (finishedMs && total ? Math.round(finishedMs / total / 1000) : null);
+    (stats.totalTimeMs && total ? Math.round(stats.totalTimeMs / total / 1000) : null);
 
   const insights = snapshot?.insights;
-  const recommendations =
+  const recommendations: string[] =
     insights?.recommendations ??
     // RULING 2, and the finding it produced. This was reported as one of three
     // "perfect-score celebrations"; it is not one. `accuracy < 100` GATES
@@ -199,31 +217,28 @@ export default function PracticeSessionResult() {
     // the advice. Rare, but it fails in the direction that hides the fix.
     (wrong > 0
       ? [
-          accuracy < ACCURACY_BUILDING ? "Review wrong answers below — they feed Mistake Book automatically." : null,
-          accuracy < ACCURACY_PROCEDURAL ? "Revise weak topics from Analysis before your next practice session." : null,
+          accuracy != null && accuracy < ACCURACY_BUILDING ? "Review wrong answers below — they feed Mistake Book automatically." : null,
+          accuracy != null && accuracy < ACCURACY_PROCEDURAL ? "Revise weak topics from Analysis before your next practice session." : null,
           'Use "Explain my mistake" on each wrong question to understand the concept.',
         ].filter(Boolean) as string[]
       // §10.8. This read "Excellent accuracy — keep momentum with a short daily
       // practice." at 100%. The rule permits the NUMBER — "session totals are
       // stored so accuracy can be shown" — and forbids the praise attached to
       // it. The next step survives; the verdict on the student does not.
-      : ["Keep a short daily practice going to hold this topic."]);
+      : skipped > 0 && correct === 0
+        ? ["Every question was skipped — try the ones you skipped when you have more time."]
+        : ["Keep a short daily practice going to hold this topic."]);
 
+  // The report reads the session's totals, which is the whole of what a
+  // finished session durably says about correctness (§10.8) — and the same
+  // figures this page prints above. It counted the attempt list instead, and
+  // that list no longer holds the questions answered correctly.
   const fallbackReport = useMemo(() => {
-    if (!id || displayAttempts.length === 0) return null;
-    const snaps =
-      localState?.attempts ??
-      snapshot?.attempts ??
-      displayAttempts.map((a) => ({
-        question: a.generated_question?.question ?? "",
-        options: a.generated_question?.options ?? [],
-        correctIndex: typeof a.correct_answer?.index === "number" ? a.correct_answer.index : 0,
-        selectedIndex: typeof a.selected_answer?.index === "number" ? a.selected_answer.index : 0,
-        isCorrect: !!a.is_correct,
-        skipped: !!a.skipped,
-      }));
-    return buildPracticeRecoveryReport(id, subjectRaw, chapterRaw, snaps, mins);
-  }, [id, subjectRaw, chapterRaw, localState, snapshot, displayAttempts, mins]);
+    if (!id || total === 0) return null;
+    // null, not a floor of one minute: a session with no timing has no duration.
+    const minutes = stats.totalTimeMs ? Math.round(stats.totalTimeMs / 60000) : null;
+    return buildPracticeRecoveryReport(id, subjectRaw, chapterRaw, { correct, answered: correct + wrong }, minutes);
+  }, [id, subjectRaw, chapterRaw, correct, wrong, total, stats.totalTimeMs]);
 
   const retryUrl = `/student/practice`;
   const hasLocalData = displayAttempts.length > 0 || !!snapshot;
@@ -302,48 +317,15 @@ export default function PracticeSessionResult() {
     }
     setSaving(true);
     try {
-      const snap = buildPracticeAnalysisSnapshot({
-        subject: subjectRaw,
-        chapter: chapterRaw,
-        practiceMode: session?.practice_mode ?? snapshot?.practiceMode ?? null,
-        practiceTypeLabel: snapshot?.practiceTypeLabel,
-        difficulty: session?.difficulty ?? snapshot?.difficulty ?? null,
-        questionCount: total,
-        correctCount: correct,
-        wrongCount: wrong,
-        skippedCount: skipped,
-        accuracy,
-        xpEarned,
-        totalTimeMs: finishedMs || null,
-        finishedAt: session?.finished_at ?? snapshot?.finishedAt ?? null,
-        startedAt: session?.created_at ?? snapshot?.startedAt ?? localState?.startedAt ?? null,
-        attempts:
-          localState?.attempts?.map((a) => ({
-            question: a.question,
-            options: a.options,
-            correctIndex: a.correctIndex,
-            selectedIndex: a.selectedIndex,
-            isCorrect: a.isCorrect,
-            skipped: a.skipped,
-            explanation: a.explanation,
-          })) ??
-          displayAttempts.map((a) => ({
-            question: a.generated_question?.question ?? "",
-            options: a.generated_question?.options ?? [],
-            correctIndex: typeof a.correct_answer?.index === "number" ? a.correct_answer.index : 0,
-            selectedIndex: typeof a.selected_answer?.index === "number" ? a.selected_answer.index : -1,
-            isCorrect: !!a.is_correct,
-            skipped: !!a.skipped,
-            explanation: a.generated_question?.explanation,
-          })),
-        bookmarked: snapshot?.statistics?.bookmarked ?? 0,
-      });
-      const res = await PracticeService.saveSession(ctx, id, snap as unknown as Record<string, unknown>);
+      // The snapshot is built by PracticeService.saveSession, from the session
+      // row and its recorded attempts. This screen used to build its own from
+      // whatever it happened to hold, and the hub built a different one.
+      const res = await PracticeService.saveSession(ctx, id);
       setSavedAt(res.saved_at);
       if (res.already_saved) toast.message("Session already saved");
       else toast.success("Session saved — find it under Saved Sessions");
     } catch (e) {
-      toast.error(toErrorMessage(e, "Could not save session"));
+      toast.error(toErrorMessage(e, "Could not save this session"));
     } finally {
       setSaving(false);
     }
@@ -381,8 +363,8 @@ export default function PracticeSessionResult() {
         <Link to="/student/practice"><ArrowLeft className="w-4 h-4" /> Practice</Link>
       </Button>
       <PageHeader
-        title={`${subject}${chapter ? ` · ${chapter}` : ""}`}
-        subtitle={`Practice analysis · ${
+        title={heading}
+        subtitle={`${typeLabel} · ${
           session?.finished_at
             ? new Date(session.finished_at).toLocaleString()
             : snapshot?.finishedAt
@@ -560,15 +542,18 @@ export default function PracticeSessionResult() {
       )}
 
       <div className="flex flex-wrap gap-2 mb-6">
-        <Button
-          size="sm"
-          onClick={() => void handleSaveSession()}
-          disabled={saving || Boolean(savedAt)}
-          className="gap-1.5"
-        >
-          <Save className="w-4 h-4" />
-          {savedAt ? "Saved" : saving ? "Saving…" : "Save Session"}
-        </Button>
+        {/* Nothing was answered — there is no analysis to freeze. */}
+        {total > 0 && (
+          <Button
+            size="sm"
+            onClick={() => void handleSaveSession()}
+            disabled={saving || Boolean(savedAt)}
+            className="gap-1.5"
+          >
+            <Save className="w-4 h-4" />
+            {savedAt ? "Saved" : saving ? "Saving…" : "Save Session"}
+          </Button>
+        )}
         <Button asChild variant="outline" size="sm">
           <Link to={retryUrl}>Back to Practice</Link>
         </Button>
@@ -588,19 +573,21 @@ export default function PracticeSessionResult() {
             <Target className="w-5 h-5 text-accent" />
             <div>
               <div className="text-xs text-muted-foreground">Accuracy</div>
-              <div className="font-bold text-lg">{accuracy}%</div>
+              {/* Over ANSWERED questions; an em dash when none was answered —
+                  "0%" would be a verdict the data does not carry. */}
+              <div className="font-bold text-lg">{formatSessionAccuracy(accuracy)}</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Timer className="w-5 h-5 text-primary" />
             <div>
               <div className="text-xs text-muted-foreground">Time</div>
-              <div className="font-bold text-lg">{mins}m</div>
+              <div className="font-bold text-lg">{durationLabel}</div>
             </div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Correct</div>
-            <div className="font-bold text-lg">{correct}/{total || displayAttempts.length}</div>
+            <div className="font-bold text-lg">{correct}/{total}</div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground">XP earned</div>
@@ -629,7 +616,7 @@ export default function PracticeSessionResult() {
           </div>
           <div className="rounded-lg border p-3">
             <div className="text-xs text-muted-foreground">Score</div>
-            <div className="font-bold text-lg">{Number(session?.score ?? correct).toFixed(0)} / {total || displayAttempts.length}</div>
+            <div className="font-bold text-lg">{correct} / {total}</div>
           </div>
         </div>
       </Card>
@@ -672,7 +659,16 @@ export default function PracticeSessionResult() {
         </Card>
       )}
 
-      <h3 className="font-semibold mb-3">Question review</h3>
+      {/* §10.8: what a finished session keeps is its totals and the questions
+          that went wrong or were skipped. The heading says so, because a
+          student who answered 8 of 10 and sees 2 questions here should not be
+          left wondering where the other 8 went. */}
+      <h3 className={cn("font-semibold", fromDurableRecord ? "mb-1" : "mb-3")}>Question review</h3>
+      {fromDurableRecord && (
+        <p className="text-xs text-muted-foreground mb-3">
+          Practice keeps the questions you missed or skipped — the ones you got right are counted, not stored.
+        </p>
+      )}
       <div className="space-y-4">
         {displayAttempts.map((a, i) => {
           const gq = a.generated_question ?? {};
@@ -739,7 +735,13 @@ export default function PracticeSessionResult() {
 
       {displayAttempts.length === 0 && (
         <Card className="p-6 text-center text-sm text-muted-foreground">
-          No question details saved for this session. Complete a new practice session after updating the app.
+          {total === 0
+            ? "No question was answered in this session, so there is nothing to review."
+            : wrong + skipped === 0
+              // Not "no longer available": nothing went wrong, so by design
+              // there is nothing kept to review (§10.8).
+              ? "Nothing went wrong in this session — every question was answered correctly, so there is nothing to review."
+              : "The questions from this session are no longer available to review."}
         </Card>
       )}
     </>

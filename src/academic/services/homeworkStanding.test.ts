@@ -1,0 +1,102 @@
+import { describe, expect, it } from "vitest";
+import { canHandIn, homeworkHasClosed, homeworkOutcome, homeworkStanding } from "@/academic/services/homeworkService";
+
+/**
+ * Where a student stands on one homework, as every screen shows it
+ * (docs/gurukul-spec-rules.md, "Homework — RULED 2026-09-13").
+ *
+ * `given` and `closed` come from `homework_student_status`, the one place the
+ * database decides them; these two functions only name the result. The rules
+ * that matter: a REJECTED hand-in is not given, and once the deadline passes
+ * everything not given is simply not handed in.
+ */
+const row = (status: "not_submitted" | "submitted" | "accepted" | "rejected", closed: boolean) => ({
+  status,
+  // As the view has it: given = submitted or accepted.
+  given: status === "submitted" || status === "accepted",
+  closed,
+});
+
+describe("homework standing", () => {
+  it("names each of the four statuses, before the deadline", () => {
+    expect(homeworkStanding(row("not_submitted", false))).toBe("to_do");
+    expect(homeworkStanding(row("submitted", false))).toBe("handed_in");
+    expect(homeworkStanding(row("accepted", false))).toBe("accepted");
+    expect(homeworkStanding(row("rejected", false))).toBe("rejected");
+  });
+
+  it("counts a rejected hand-in as not handed in once the deadline passes", () => {
+    expect(homeworkStanding(row("rejected", true))).toBe("not_handed_in");
+    expect(homeworkStanding(row("not_submitted", true))).toBe("not_handed_in");
+  });
+
+  it("keeps work that was given as given after the deadline", () => {
+    expect(homeworkStanding(row("submitted", true))).toBe("handed_in");
+    expect(homeworkStanding(row("accepted", true))).toBe("accepted");
+  });
+});
+
+/**
+ * What a homework comes to, for the counts a student's profile and a class's
+ * report show: done, missed at the deadline, or still to do.
+ */
+describe("homework outcome", () => {
+  it("counts work that was given as done, before and after the deadline", () => {
+    expect(homeworkOutcome(row("submitted", false))).toBe("done");
+    expect(homeworkOutcome(row("accepted", true))).toBe("done");
+  });
+
+  it("counts nothing handed in, or a rejection, as to do while the deadline is open", () => {
+    expect(homeworkOutcome(row("not_submitted", false))).toBe("to_do");
+    expect(homeworkOutcome(row("rejected", false))).toBe("to_do");
+  });
+
+  it("counts it as missed only once the deadline has passed", () => {
+    expect(homeworkOutcome(row("not_submitted", true))).toBe("missed");
+    expect(homeworkOutcome(row("rejected", true))).toBe("missed");
+  });
+});
+
+describe("who may hand in", () => {
+  it("allows a first hand-in, a replacement, and a hand-in after rejection, before the deadline", () => {
+    expect(canHandIn(row("not_submitted", false))).toBe(true);
+    expect(canHandIn(row("submitted", false))).toBe(true);
+    expect(canHandIn(row("rejected", false))).toBe(true);
+  });
+
+  it("allows nothing after the deadline, and nothing once accepted", () => {
+    expect(canHandIn(row("not_submitted", true))).toBe(false);
+    expect(canHandIn(row("rejected", true))).toBe(false);
+    expect(canHandIn(row("accepted", false))).toBe(false);
+  });
+});
+
+/**
+ * Released homework is closed once its deadline passes — before the closure
+ * job has resolved it, too: the job runs a minute apart and retries a homework
+ * whose charge failed, and in that wait the list offered Edit and Unpublish on
+ * work the deadline had closed.
+ */
+describe("when homework has closed", () => {
+  const NOW = Date.parse("2026-09-14T12:00:00.000Z");
+  const hw = (status: "draft" | "scheduled" | "published" | "archived", closesAt: string, resolvedAt: string | null = null) => ({
+    status,
+    closesAt,
+    resolvedAt,
+  });
+
+  it("closes released homework at its deadline, resolved or not", () => {
+    expect(homeworkHasClosed(hw("published", "2026-09-14T11:59:59.000Z"), NOW)).toBe(true);
+    expect(homeworkHasClosed(hw("published", "2026-09-14T12:00:00.000Z"), NOW)).toBe(true);
+    expect(homeworkHasClosed(hw("archived", "2026-09-10T00:00:00.000Z", "2026-09-10T00:01:00.000Z"), NOW)).toBe(true);
+  });
+
+  it("leaves released homework open until its deadline", () => {
+    expect(homeworkHasClosed(hw("published", "2026-09-14T12:00:01.000Z"), NOW)).toBe(false);
+  });
+
+  it("never closes work that was not released, whatever its deadline says", () => {
+    expect(homeworkHasClosed(hw("draft", "2026-09-01T00:00:00.000Z"), NOW)).toBe(false);
+    expect(homeworkHasClosed(hw("scheduled", "2026-09-01T00:00:00.000Z"), NOW)).toBe(false);
+  });
+});

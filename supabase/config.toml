@@ -21,13 +21,24 @@ verify_jwt = true
 [functions.embed]
 verify_jwt = true
 
+# Called by the database, not by a person: `dispatch_notification_push`
+# (20260925190000) posts to it through pg_net once a minute when notifications
+# are waiting for a phone, and the database has no user to sign a JWT for. So
+# the gateway does not check one, and the function checks something narrower
+# instead: every call without the drain secret (`x-push-drain`, the vault
+# secret `notification_push_drain` = the NOTIFICATION_PUSH_DRAIN function
+# secret) is refused 401 before anything is read.
+[functions.notification-push]
+verify_jwt = false
+
 # Functions with no entry here inherit Supabase's default verify_jwt = true,
 # which is the correct (JWT-required) setting for all of them:
 #   admin-link-account, ai-academic-coach-agent, ai-learning-pattern-agent,
 #   ai-recovery-agent, ai-revision-agent, ai-ping, send-push,
 #   verify-msg91-widget, mcp, ai-expand-questions.
 #
-# THERE IS NO LONGER A PUBLIC FUNCTION IN THIS PROJECT. `send-otp` and
+# NO FUNCTION ANSWERS AN UNAUTHENTICATED CALLER. notification-push skips the
+# gateway's JWT check (above) and refuses anything without its secret. `send-otp` and
 # `verify-otp` were `verify_jwt = false` -- reachable by anyone who knew the
 # URL -- and nothing called them: the wired OTP path is `verify-msg91-widget`
 # (src/lib/msg91Auth.ts:32). Both were DELETED from the project on 2026-09-07

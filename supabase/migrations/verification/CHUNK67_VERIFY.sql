@@ -90,16 +90,35 @@ BEGIN
   END IF;
 
 
-  -- The set the admin sees must be exactly the demo school's rows. Computed
-  -- here as the table owner (RLS bypassed) so it is an independent expectation
-  -- rather than a restatement of what the policy just returned.
+  -- The set the admin sees must be exactly the demo school's rows — less its
+  -- practice events, which §10.8 keeps from every school-side reader
+  -- (20261042000000). Computed here as the table owner (RLS bypassed) so it is
+  -- an independent expectation rather than a restatement of what the policy
+  -- just returned.
   SELECT count(*), coalesce(md5(string_agg(h, ',' ORDER BY h)), '-')
     INTO _n, _h_before
-    FROM (SELECT md5(x::text) AS h FROM public.academic_events x WHERE x.school_id = _demo) s;
+    FROM (SELECT md5(x::text) AS h FROM public.academic_events x
+           WHERE x.school_id = _demo AND x.event_type NOT LIKE 'practice.%') s;
 
   IF _h IS DISTINCT FROM _h_before THEN
     _fail := _fail ||
-      '(FAIL) item 2: the demo admin''s visible academic_events do not match the demo school''s rows exactly. ';
+      '(FAIL) item 2: the demo admin''s visible academic_events do not match the demo school''s non-practice rows exactly. ';
+  END IF;
+
+  -- ...and the exclusion is not vacuous: the demo school HAS practice events,
+  -- and the admin reads none of them.
+  IF NOT EXISTS (SELECT 1 FROM public.academic_events
+                  WHERE school_id = _demo AND event_type LIKE 'practice.%') THEN
+    _fail := _fail || '(FAIL) item 2 control: the demo school has no practice events, so their exclusion was not tested. ';
+  END IF;
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', _admin, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO _n FROM public.academic_events WHERE event_type LIKE 'practice.%';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', NULL, true);
+  IF _n > 0 THEN
+    _fail := _fail || format('(FAIL) item 2: the demo admin reads %s practice event(s); §10.8 keeps practice from the school. ', _n);
   END IF;
 
 

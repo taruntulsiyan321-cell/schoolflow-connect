@@ -4,13 +4,15 @@ import {
   toRepoContext,
   type ServiceContext,
 } from "./context";
-import { assertStudentClassContext } from "./assertStudentContext";
+import { assertStudentClassContext, assertStudentContext } from "./assertStudentContext";
 import type { Json } from "@/integrations/supabase/types";
-import { getClient, throwIfError } from "../repository/base";
+import { getClient, retryTransient, throwIfError } from "../repository/base";
 import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
+import type { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
 import {
+  contentStreamForClass,
   filterSubjectsForStream,
   inferStreamFromText,
   isSubjectAllowedForScope,
@@ -21,6 +23,7 @@ import {
   type CurriculumScope,
 } from "@/lib/curriculumScope";
 import {
+  academicLabelEquals,
   academicLabelMatches,
   academicMatchKey,
   displayChapter,
@@ -39,6 +42,12 @@ import { DecisionEngineService, type WeakAreaRecommendation } from "./decisionEn
 import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
 import { sessionAccuracy } from "../metrics/practice";
 import { valueOr } from "../metrics/types";
+import {
+  buildPracticeAnalysisSnapshot,
+  type PracticeAttemptRecord,
+} from "@/lib/practiceAnalysisSnapshot";
+import { answerToIndex } from "./answerText";
+import { listCaptureQuestionsByIds } from "./screenCaptureService";
 
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
@@ -59,16 +68,6 @@ export function dedupePreservingOrder(ids: string[]): string[] {
     out.push(id);
   }
   return out;
-}
-
-/**
- * A value made safe to sit inside a PostgREST logic tree — or=(…) or in.(…) —
- * where a bare comma or parenthesis would split it into two conditions.
- * PostgREST reads a double-quoted value literally, with backslash escaping
- * for a quote or backslash inside it. The one place this rule lives.
- */
-export function postgrestQuoted(v: string): string {
-  return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
 export type PracticeSessionRow = {
@@ -123,7 +122,129 @@ function isMissingSchema(err: unknown): boolean {
   return /does not exist|schema cache|could not find/i.test(String(e.message ?? ""));
 }
 
-let softDeleteAvailable: boolean | null = null;
+/**
+ * A topics.id. listBankTopics hands these to the topic picker; a
+ * /student/practice?topic= link carries a topic NAME instead, and
+ * listBankQuestions narrows each shape its own way.
+ */
+const TOPIC_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * listBankQuestions reads its pool a page at a time. PostgREST answers at most
+ * 1,000 rows per request; the largest pool a class can ask for today is about
+ * 3,300 (every subject of one class), so the cap is a runaway guard, not a
+ * sample size.
+ */
+const POOL_PAGE = 1000;
+const POOL_CAP = 10_000;
+
+/**
+ * The student bank every practice read draws from: approved, active unless a
+ * historical view asks otherwise, the student's board, class and stream, and
+ * one subject when one is named.
+ *
+ * listBankQuestions narrows it further; listPyqYears reads the exam years off
+ * it. One home for the scope, so the Previous Year Questions screen can only
+ * ever offer a year the pool would then serve.
+ */
+function studentBankQuery(
+  client: ReturnType<typeof getClient>,
+  columns: string,
+  scope: CurriculumScope,
+  classLevel: number | null,
+  opts: { subject?: string | null; activeOnly: boolean; withCount?: boolean; previousYearOnly?: boolean },
+) {
+  let query = client
+    .from("question_bank_student")
+    .select(columns, opts.withCount ? { count: "exact" } : undefined)
+    .eq("is_approved", true)
+    .order("id");
+  if (opts.activeOnly) query = query.eq("is_active", true);
+
+  // Individual (exam) accounts practise their exam's bank only — not the
+  // school board/class/stream cut. School accounts never set examId.
+  if (scope.examId) {
+    query = query.eq("exam_id", scope.examId);
+  } else {
+    // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
+    // so there is no per-school arm left to filter on.
+    query = query
+      .is("exam_id", null)
+      .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
+    if (classLevel != null && Number.isFinite(classLevel)) query = query.eq("class_level", classLevel);
+    // A stream narrows content only from Class 11 (contentStreamForClass).
+    const stream = contentStreamForClass(scope.stream, classLevel);
+    if (stream) query = query.or(`stream.eq.${stream},stream.is.null`);
+  }
+  if (opts.subject && opts.subject !== "Mixed") query = query.ilike("subject", opts.subject);
+  // A previous-year question is one that names the exam year it was set in.
+  // The source-text guesses that stood in the pool's filter (a `pyq`
+  // source_type, a source naming a past paper) matched none of the bank, and
+  // would have admitted a question no year could ever select.
+  if (opts.previousYearOnly) query = query.not("exam_year", "is", null);
+  return query;
+}
+
+/**
+ * Every row a paged query admits, up to POOL_CAP.
+ *
+ * The first page brings the total with it, and every other page is asked for
+ * at once. They were fetched one after another: each page is a full round
+ * trip of about a second for a thousand rows, so a Class 12 "all subjects"
+ * session (3,305 rows, four pages) waited 6.6 seconds before its first
+ * question — measured 2026-09-22 as the student. Asked for together, the pages
+ * cost one round trip after the first.
+ *
+ * The query must be ordered by id, so the pages tile it; a row that moves
+ * between the first request and the rest is counted once.
+ */
+/** The chapter to narrow by, or nothing. One home, so a count and a draw agree. */
+function chapterFilterOf(chapter: string | null | undefined): string | null {
+  const v = chapter?.trim();
+  return v ? v : null;
+}
+
+/** A topic picked from the list: an id, exact and per chapter (§10.22). */
+function topicIdOf(topic: string | null | undefined): string | null {
+  return topic && TOPIC_ID_RE.test(topic.trim()) ? topic.trim() : null;
+}
+
+/**
+ * A topic NAME, from an old `?topic=` link. Skipped when it carries a comma,
+ * a parenthesis or a quote: those are PostgREST's own delimiters in an
+ * embedded filter, and such a name falls through to the client-side pass.
+ */
+function topicNameOf(topic: string | null | undefined): string | null {
+  return !topicIdOf(topic) && topic && !/[,()"\\]/.test(topic) ? topic.trim() : null;
+}
+
+type PageError = { message: string; code?: string } | null;
+async function readAllPages<R extends { id: string }>(
+  page: (withCount: boolean) => { range: (from: number, to: number) => PromiseLike<{ data: unknown; count?: number | null; error: PageError }> },
+): Promise<{ data: R[] | null; error: PageError }> {
+  const first = await page(true).range(0, POOL_PAGE - 1);
+  if (first.error) return { data: null, error: first.error };
+  const firstRows = (first.data ?? []) as R[];
+  const total = Math.min(first.count ?? firstRows.length, POOL_CAP);
+  const rest: Array<PromiseLike<{ data: unknown; error: PageError }>> = [];
+  for (let from = POOL_PAGE; from < total; from += POOL_PAGE) {
+    rest.push(page(false).range(from, from + POOL_PAGE - 1));
+  }
+  const pages = await Promise.all(rest);
+  const failed = pages.find((p) => p.error);
+  if (failed) return { data: null, error: failed.error };
+  const byId = new Map<string, R>();
+  for (const row of [firstRows, ...pages.map((p) => (p.data ?? []) as R[])].flat()) byId.set(row.id, row);
+  return { data: [...byId.values()], error: null };
+}
+
+/** A student's curriculum scope, shared by every question load for a minute. */
+const SCOPE_TTL_MS = 60_000;
+const scopeCache = new Map<string, { at: number; promise: Promise<CurriculumScope> }>();
+
+/** A keepalive request body may not exceed 64 KB; this leaves headroom. */
+const PAGE_EXIT_BODY_LIMIT = 60_000;
+
 let confidenceAvailable: boolean | null = null;
 
 /**
@@ -214,6 +335,31 @@ async function loadWeakConceptsFromDecisionEngineV2(
     .map(({ subjectRaw: _s, conceptRaw: _c, ...row }) => row);
 }
 
+/**
+ * How far back Practice History looks when no date is chosen. Saved Sessions
+ * are how a session is kept past it; the hub states the window from here.
+ */
+export const PRACTICE_HISTORY_WINDOW_DAYS = 7;
+
+/**
+ * How long a session with no new answers is left open before it counts as
+ * walked away from. Long enough that a session being sat in another tab — or a
+ * student thinking about a hard question — is never closed underneath them.
+ */
+export const ABANDONED_AFTER_MS = 30 * 60 * 1000;
+
+/**
+ * And how stale is too stale to settle at all.
+ *
+ * Finishing a session credits XP, bumps the activity minutes and marks a study
+ * day — all of them NOW. For practice left an hour ago that is simply late. For
+ * practice left five weeks ago it would be an invention: a student who opens
+ * Practice today and answers nothing would be given today's streak for a
+ * session they sat in August. Older sessions are left as they are; they hold no
+ * lost mistakes, because every answer was already recorded as it was given.
+ */
+export const SETTLE_WITHIN_MS = 12 * 60 * 60 * 1000;
+
 const PRACTICE_SESSION_LIST_SELECT =
   "id, subject, chapter, question_count, correct_count, score, created_at, finished_at, practice_mode, skipped_count, wrong_count, total_time_ms, accuracy, saved_at, analysis_snapshot, xp_earned, difficulty, time_limit_sec";
 
@@ -267,14 +413,13 @@ export const PracticeService = {
       _chapter: string | null;
       _count?: number;
       _practice_mode?: string | null;
-      /** easy | medium | hard — persisted for resume; omitted/mixed → null in DB. */
+      /** easy | medium | hard; mixed/any/all are stored as null. */
       _difficulty?: string | null;
-      /** Timed/mock limit in seconds — persisted for honest resume; omitted → null. */
+      /** A Custom Practice time goal, in seconds; null for an untimed session. */
       _time_limit_sec?: number | null;
     },
-  ) {
+  ): Promise<string> {
     assertCanOwn(ctx, "practice");
-    const client = getClient(toRepoContext(ctx));
     const difficulty =
       args._difficulty && !["mixed", "any", "all"].includes(String(args._difficulty).toLowerCase())
         ? String(args._difficulty).toLowerCase()
@@ -283,74 +428,63 @@ export const PracticeService = {
       typeof args._time_limit_sec === "number" && args._time_limit_sec > 0
         ? Math.floor(args._time_limit_sec)
         : null;
-
-    const withTime = await client.rpc("rpc_start_practice_session", {
+    // One signature, the live one. This used to retry two older signatures on
+    // ANY error — so a network failure on the real call was reported as
+    // whatever the oldest signature said, and a pre-migration fallback wrote
+    // difficulty and time limit with a second, unchecked update.
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_start_practice_session", {
       _subject: args._subject,
-      _chapter: args._chapter,
+      // `_chapter text` has no DEFAULT, so it cannot be omitted, and the
+      // generated type cannot say it takes null — which whole-subject practice
+      // sends on purpose. This one field is cast; the rest are omitted when
+      // unset, which reaches the same DEFAULT NULL.
+      _chapter: args._chapter as string,
       _count: args._count ?? 10,
-      _practice_mode: args._practice_mode ?? null,
-      _difficulty: difficulty,
-      _time_limit_sec: timeLimit,
-    } as never);
-    if (!withTime.error) return withTime.data;
-
-    const withDiff = await client.rpc("rpc_start_practice_session", {
-      _subject: args._subject,
-      _chapter: args._chapter,
-      _count: args._count ?? 10,
-      _practice_mode: args._practice_mode ?? null,
-      _difficulty: difficulty,
-    } as never);
-    if (!withDiff.error) {
-      const sid = withDiff.data as string;
-      if (sid && timeLimit != null) {
-        await client
-          .from("practice_sessions")
-          .update({ time_limit_sec: timeLimit } as never)
-          .eq("id", sid)
-          .eq("user_id", ctx.userId);
-      }
-      return sid;
-    }
-
-    // Pre-migration: start RPC without _difficulty / _time_limit_sec.
-    const legacy = await client.rpc("rpc_start_practice_session", {
-      _subject: args._subject,
-      _chapter: args._chapter,
-      _count: args._count ?? 10,
-      _practice_mode: args._practice_mode ?? null,
-    } as never);
-    throwIfError(legacy.error ?? withDiff.error ?? withTime.error, "Failed to start practice session");
-    const sid = legacy.data as string;
-    if (sid && (difficulty || timeLimit != null)) {
-      await client
-        .from("practice_sessions")
-        .update({
-          ...(difficulty ? { difficulty } : {}),
-          ...(timeLimit != null ? { time_limit_sec: timeLimit } : {}),
-        } as never)
-        .eq("id", sid)
-        .eq("user_id", ctx.userId);
-    }
-    return sid;
+      ...(args._practice_mode ? { _practice_mode: args._practice_mode } : {}),
+      ...(difficulty ? { _difficulty: difficulty } : {}),
+      ...(timeLimit != null ? { _time_limit_sec: timeLimit } : {}),
+    });
+    throwIfError(error, "Failed to start practice session");
+    return data as string;
   },
 
+  /**
+   * Finish the session — retried when the database says "not now".
+   *
+   * Measured on production 2026-09-23: this returned
+   * `57014 canceling statement due to statement timeout` while the
+   * Battleground's featured-battle maintenance was running, and the session
+   * was simply lost to the student (KNOWN_ISSUES 74, item 5 of the report).
+   * `rpc_finish_practice_session` de-duplicates the attempts it is sent and
+   * then counts the session from question_attempts, so sending it again is
+   * safe — the page-exit keepalive path already depends on that.
+   *
+   * Only transient codes are retried (isTransientDbError): a refusal or a
+   * constraint fails on the first answer, as it should.
+   */
   async finish(
     ctx: ServiceContext,
     args: Record<string, unknown>,
   ) {
     assertCanOwn(ctx, "practice");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_finish_practice_session",
-      args as never,
-    );
-    throwIfError(error, "Failed to finish practice session");
+    const data = await retryTransient(async () => {
+      const { data: out, error } = await getClient(toRepoContext(ctx)).rpc(
+        "rpc_finish_practice_session",
+        args as never,
+      );
+      throwIfError(error, "Failed to finish practice session");
+      return out;
+    });
+    // No payload. §10.8: practice is private to the student, and this event is
+    // readable school-side. It carried the finish arguments — every question,
+    // the answer chosen and whether it was right — which reached the principal,
+    // admin, teachers, parents and other students through the activity feed.
+    // Its one consumer refreshes the student's profile and needs only who.
     await emitEvent(toRepoContext(ctx), {
       eventType: "practice.session.completed",
       entityType: "practice",
       entityId: (args._session_id as string) ?? null,
       studentId: ctx.studentId ?? null,
-      payload: args,
     }).catch((err) => {
       console.warn("[PracticeService.finish] emitEvent failed:", err);
     });
@@ -360,6 +494,55 @@ export const PracticeService = {
     });
     notifyStudentXpUpdated();
     return data;
+  },
+
+  /**
+   * The same finish, for a page that is going away — the tab closed, or Back
+   * out of the app.
+   *
+   * `finish` cannot do this: it is an ordinary request, and the browser
+   * cancels it with the page. So did the answer the student had just given,
+   * whose live write was still in flight. Measured 2026-09-22: answer twice,
+   * press Back out of the app, and the session was left open holding ONE
+   * answer, with no finish sent at all.
+   *
+   * A keepalive request outlives the page. It carries only the answers whose
+   * live write was never confirmed — rpc_finish_practice_session records the
+   * attempts it is sent (de-duplicating any that did land) and then counts the
+   * session from question_attempts, so the rest need not travel. A keepalive
+   * body is capped at 64 KB; past a safe margin the attempts are dropped and
+   * the finish counts what reached the server.
+   *
+   * Nothing is emitted and nothing is awaited: there is no page left to
+   * report to. The settle on the next visit remains the net under this.
+   */
+  finishOnPageExit(args: {
+    sessionId: string;
+    attempts: ReturnType<typeof attemptsToFinishPayload>;
+    accessToken: string;
+  }): void {
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/rpc_finish_practice_session`;
+    const params = {
+      _session_id: args.sessionId,
+      _ended_by_user: true,
+      _ended_normally: false,
+    };
+    let body = JSON.stringify({ ...params, _attempts: args.attempts.length ? args.attempts : null });
+    if (body.length > PAGE_EXIT_BODY_LIMIT) body = JSON.stringify({ ...params, _attempts: null });
+    try {
+      void fetch(url, {
+        method: "POST",
+        keepalive: true,
+        headers: {
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${args.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body,
+      }).catch(() => undefined);
+    } catch {
+      // A browser that refuses the request leaves the session to the settle.
+    }
   },
 
   /**
@@ -474,23 +657,6 @@ export const PracticeService = {
     return parseVerdict(data);
   },
 
-  /**
-   * The explanation, for one question, asked for deliberately.
-   *
-   * The practice screen shows this as a hint before the student answers.
-   * It used to come from a column the browser had already been handed for
-   * every question in the session; now it is a request per question, which
-   * is what a hint behind a reveal always was.
-   */
-  async questionHint(ctx: ServiceContext, bankQuestionId: string): Promise<string> {
-    assertCanConsume(ctx, "practice");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_question_hint", {
-      _id: bankQuestionId,
-    });
-    if (error) return "";
-    return typeof data === "string" ? data : "";
-  },
-
   async getSession(ctx: ServiceContext, sessionId: string) {
     assertCanConsume(ctx, "practice");
     const { data, error } = await getClient(toRepoContext(ctx))
@@ -502,6 +668,26 @@ export const PracticeService = {
     return data as PracticeSessionRow | null;
   },
 
+  /**
+   * A finished session's durable per-question record: the WRONG and the
+   * SKIPPED, and nothing else.
+   *
+   * §10.8's transient/durable rule — "when the session closes, it must not
+   * persist; what survives is session or tier TOTALS, plus rows for wrong,
+   * skipped and bookmarked" — with "no per-question record of correct
+   * answers". The totals live on the practice_sessions row and are what the
+   * result screen and the concept report read.
+   *
+   * The filter is HERE, in the one read of question_attempts for a session,
+   * because both things that consume it must obey the same rule: the review
+   * list on the result screen, and the snapshot a saved session freezes.
+   *
+   * Measured 2026-09-23 on production: 1,267 correct per-question rows across
+   * finished sessions, each with the question, the student's choice and the
+   * answer key. The rows themselves are the server's to remove at finish
+   * (KNOWN_ISSUES 79, blocked on the database token); until it does, nothing
+   * in the app reads one.
+   */
   async listSessionAttempts(ctx: ServiceContext, sessionId: string) {
     assertCanConsume(ctx, "practice");
     const { data, error } = await getClient(toRepoContext(ctx))
@@ -509,12 +695,20 @@ export const PracticeService = {
       .select("*")
       .eq("session_id", sessionId)
       .eq("user_id", ctx.userId)
+      .or("is_correct.is.false,is_correct.is.null,skipped.is.true")
       .order("created_at", { ascending: true });
     throwIfError(error, "Failed to load practice attempts");
     return data ?? [];
   },
 
-  /** Finished sessions for Practice History (presentation-ready fields stay in UI). */
+  /**
+   * The latest finished sessions the student actually sat, newest first.
+   *
+   * "Sat" is _practice_session_attempted's rule — something answered or
+   * skipped. A session that loaded nothing is finished too, and without this
+   * "Save latest result" would save that instead of the student's last real
+   * session.
+   */
   async listRecentFinished(ctx: ServiceContext, limit = 40) {
     assertCanConsume(ctx, "practice");
     const { data, error } = await getClient(toRepoContext(ctx))
@@ -522,18 +716,33 @@ export const PracticeService = {
       .select(PRACTICE_SESSION_LIST_SELECT)
       .eq("user_id", ctx.userId)
       .not("finished_at", "is", null)
+      .or("correct_count.gt.0,wrong_count.gt.0,skipped_count.gt.0")
       .order("finished_at", { ascending: false })
       .limit(limit);
     throwIfError(error, "Failed to load practice history");
     return (data ?? []) as PracticeSessionRow[];
   },
 
+  /**
+   * Practice History: finished sessions that were sat, newest first.
+   *
+   * History is a PRACTICE_HISTORY_WINDOW_DAYS window unless the caller names
+   * dates; a session worth keeping longer is saved (Saved Sessions has no
+   * window). The screen says so — it used to promise "your most recent 100
+   * sessions" and "every session you finish", and show a student who last
+   * practised eight days ago "No practice history yet".
+   *
+   * The RPC is the only path. A fallback query used to run on ANY error from
+   * it, with different filters and no attempted-rule, so a failure showed a
+   * different list rather than an error.
+   */
   async listHistory(
     ctx: ServiceContext,
     opts?: {
       limit?: number;
       subject?: string | null;
       practiceMode?: string | null;
+      /** ISO instants. Pass the student's LOCAL day boundaries for a day filter. */
       dateFrom?: string | null;
       dateTo?: string | null;
       search?: string | null;
@@ -547,64 +756,23 @@ export const PracticeService = {
     },
   ) {
     assertCanConsume(ctx, "practice");
-    const client = getClient(toRepoContext(ctx));
-    const limit = opts?.limit ?? 100;
-
-    // V1 retains one week of practice history. An explicit dateFrom from the
-    // caller still wins, so this is a default window and not a hard ceiling.
-    const defaultFrom = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const dateFrom = opts?.dateFrom || defaultFrom;
-
-    // Prefer server RPC (filter/search/sort beyond client window).
-    const rpc = await client.rpc("rpc_list_practice_history", {
-      _limit: limit,
-      _subject: opts?.subject?.trim() || null,
-      _practice_mode: opts?.practiceMode?.trim() || null,
+    const dateFrom =
+      opts?.dateFrom ||
+      new Date(Date.now() - PRACTICE_HISTORY_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const subject = opts?.subject?.trim();
+    const practiceMode = opts?.practiceMode?.trim();
+    const search = opts?.search?.trim();
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_list_practice_history", {
+      _limit: opts?.limit ?? 100,
       _date_from: dateFrom,
-      _date_to: opts?.dateTo || null,
-      _search: opts?.search?.trim() || null,
       _sort: opts?.sort || "finished_at_desc",
-    } as never);
-    if (!rpc.error && Array.isArray(rpc.data)) {
-      return rpc.data as PracticeSessionRow[];
-    }
-
-    // Fallback when RPC not yet applied: filtered select + client search.
-    let q = client
-      .from("practice_sessions")
-      .select(PRACTICE_SESSION_LIST_SELECT)
-      .eq("user_id", ctx.userId)
-      .not("finished_at", "is", null)
-      .order("finished_at", { ascending: false })
-      .limit(limit);
-
-    if (opts?.subject?.trim()) {
-      q = q.ilike("subject", opts.subject.trim());
-    }
-    if (opts?.practiceMode?.trim()) {
-      q = q.eq("practice_mode", opts.practiceMode.trim());
-    }
-    if (dateFrom) {
-      q = q.gte("finished_at", dateFrom);
-    }
-    if (opts?.dateTo) {
-      q = q.lte("finished_at", opts.dateTo);
-    }
-
-    const { data, error } = await q;
+      ...(subject ? { _subject: subject } : {}),
+      ...(practiceMode ? { _practice_mode: practiceMode } : {}),
+      ...(opts?.dateTo ? { _date_to: opts.dateTo } : {}),
+      ...(search ? { _search: search } : {}),
+    });
     throwIfError(error, "Failed to load practice history");
-    let rows = (data ?? []) as PracticeSessionRow[];
-    const search = opts?.search?.trim().toLowerCase();
-    if (search) {
-      rows = rows.filter((r) => {
-        const hay = [r.subject, r.chapter, r.practice_mode, r.difficulty]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return hay.includes(search);
-      });
-    }
-    return rows;
+    return (data ?? []) as PracticeSessionRow[];
   },
 
   async listSavedSessions(ctx: ServiceContext, limit = 30) {
@@ -620,37 +788,99 @@ export const PracticeService = {
     return (data ?? []) as PracticeSessionRow[];
   },
 
-  /** Unfinished sessions the student can resume (live attempts already on the row). */
-  async listIncompleteSessions(ctx: ServiceContext, limit = 8) {
-    assertCanConsume(ctx, "practice");
-    const { data, error } = await getClient(toRepoContext(ctx))
+  /**
+   * Finish the sessions this student walked away from, from the answers they
+   * already recorded.
+   *
+   * The runner finishes a session when the student navigates away in the app,
+   * but a closed tab or a lost connection takes the request with it. Without
+   * this, those sessions stay open for ever: 52 of them on 2026-09-17, holding
+   * answers that earned no XP, moved no streak, wrote no chapter tally and
+   * appeared in no history — and resuming was removed with the v2 redesign, so
+   * nothing was ever going to come back for them.
+   *
+   * Only sessions whose newest answer is older than ABANDONED_AFTER_MS: a
+   * session being sat right now, in another tab, has fresher answers than that
+   * and must not be closed underneath the student.
+   *
+   * Returns how many were settled. Best effort by design — the hub calls it on
+   * the way past, and one that fails is simply tried again next time.
+   */
+  async settleAbandonedSessions(ctx: ServiceContext): Promise<number> {
+    assertCanOwn(ctx, "practice");
+    const client = getClient(toRepoContext(ctx));
+    const { data: open, error } = await client
       .from("practice_sessions")
-      .select(PRACTICE_SESSION_LIST_SELECT)
+      .select("id")
       .eq("user_id", ctx.userId)
       .is("finished_at", null)
       .order("created_at", { ascending: false })
-      .limit(limit);
-    throwIfError(error, "Failed to load incomplete practice sessions");
-    return (data ?? []) as PracticeSessionRow[];
+      .limit(20);
+    throwIfError(error, "Failed to load unfinished practice sessions");
+    const ids = (open ?? []).map((r) => (r as { id: string }).id);
+    if (ids.length === 0) return 0;
+
+    const { data: attempts, error: attErr } = await client
+      .from("question_attempts")
+      .select("session_id, created_at")
+      .eq("user_id", ctx.userId)
+      .in("session_id", ids);
+    throwIfError(attErr, "Failed to load unfinished practice attempts");
+
+    const newest = new Map<string, number>();
+    for (const row of attempts ?? []) {
+      const r = row as { session_id: string | null; created_at: string };
+      if (!r.session_id) continue;
+      const at = new Date(r.created_at).getTime();
+      if (at > (newest.get(r.session_id) ?? 0)) newest.set(r.session_id, at);
+    }
+
+    const now = Date.now();
+    let settled = 0;
+    for (const id of ids) {
+      const last = newest.get(id);
+      // No answer at all: the student opened it and never answered. There is
+      // nothing to record, and finishing it would add a session that never
+      // happened to their history.
+      if (last == null) continue;
+      // Still warm (another tab, a long think) or too old to credit today.
+      if (last > now - ABANDONED_AFTER_MS || last < now - SETTLE_WITHIN_MS) continue;
+      try {
+        await this.finish(ctx, {
+          _session_id: id,
+          _attempts: [],
+          _ended_by_user: true,
+          _ended_normally: false,
+        });
+        settled += 1;
+      } catch (e) {
+        console.warn("[PracticeService.settleAbandonedSessions]", e instanceof Error ? e.message : e);
+      }
+    }
+    return settled;
   },
 
   /**
-   * Persist analysis snapshot for a finished session (idempotent).
-   * Duplicate saves return already_saved without rewriting the snapshot.
+   * Save a finished session, with its analysis frozen (idempotent — a second
+   * save returns already_saved and keeps the first snapshot).
+   *
+   * The snapshot is built HERE, from the session row and its recorded
+   * attempts, for every caller. It used to be built by each screen: the result
+   * page froze the questions and a "Practice" type label, the hub's "Save
+   * latest result" froze no questions at all — two saves of one session, two
+   * different records.
    */
-  async saveSession(
-    ctx: ServiceContext,
-    sessionId: string,
-    snapshot?: Record<string, unknown> | null,
-  ) {
+  async saveSession(ctx: ServiceContext, sessionId: string) {
     assertCanOwn(ctx, "practice");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_save_practice_session",
-      {
-        _session_id: sessionId,
-        _snapshot: snapshot ?? null,
-      } as never,
-    );
+    const session = await this.getSession(ctx, sessionId);
+    if (!session) throw new Error("That practice session could not be found.");
+    const attempts = await this.listSessionAttempts(ctx, sessionId);
+    if (attempts.length === 0) throw new Error("Nothing was answered in this session, so there is nothing to save.");
+    const snapshot = buildPracticeAnalysisSnapshot(session, attempts as PracticeAttemptRecord[]);
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_save_practice_session", {
+      _session_id: sessionId,
+      _snapshot: snapshot as unknown as Json,
+    });
     throwIfError(error, "Failed to save practice session");
     broadcastAcademicWrite(ctx.schoolId, ["profile"], {
       studentId: ctx.studentId,
@@ -670,40 +900,101 @@ export const PracticeService = {
   },
 
   /**
+   * The student's class level, board and stream, from the shared copy when it
+   * is fresh (SCOPE_TTL_MS). Every question load resolved it again — a round
+   * trip to schools, and sometimes students and classes, one after another
+   * before the pool could be asked for — for a scope that does not change
+   * within a visit. Measured 2026-09-22: ~300 ms of every Start Practice.
+   * Keyed on everything the scope is derived from; a failed resolve is not kept.
+   */
+  resolveCurriculumScope(ctx: ServiceContext): Promise<CurriculumScope> {
+    const key = [
+      ctx.userId, ctx.schoolId, ctx.studentId, ctx.classId, ctx.classLabel, ctx.classCategory,
+      ctx.schoolKind, ctx.examId,
+    ]
+      .map((v) => v ?? "").join("|");
+    const hit = scopeCache.get(key);
+    if (hit && Date.now() - hit.at < SCOPE_TTL_MS) return hit.promise;
+    const promise = this.computeCurriculumScope(ctx);
+    scopeCache.set(key, { at: Date.now(), promise });
+    promise.catch(() => {
+      if (scopeCache.get(key)?.promise === promise) scopeCache.delete(key);
+    });
+    return promise;
+  },
+
+  /**
    * Resolve student's class_level + school board/stream for bank filtering.
    * class_level comes from students → classes name/display (e.g. "10-A" → 10, "12-C" → 12).
    * Used for EVERY class — never dump other class levels.
    * stream from schools.stream, else class category/label (commerce/science/…).
    */
-  async resolveCurriculumScope(ctx: ServiceContext): Promise<CurriculumScope> {
+  async computeCurriculumScope(ctx: ServiceContext): Promise<CurriculumScope> {
     const client = getClient(toRepoContext(ctx));
     let board = "rbse";
     let schoolStream: AcademicStream | null = null;
+    let schoolKind: "school" | "individual" | null = ctx.schoolKind ?? null;
+    let examId: string | null = ctx.examId ?? null;
+    let examCode: string | null = ctx.examCode ?? null;
+    let examName: string | null = ctx.examName ?? null;
 
-    // Prefer board+stream; fall back to board-only if stream column not migrated yet.
+    // Prefer board+stream+kind; fall back to board-only if stream column not migrated yet.
     {
       const withStream = await client
         .from("schools")
-        .select("board, stream")
+        .select("board, stream, kind")
         .eq("id", ctx.schoolId)
         .maybeSingle();
       if (withStream.error) {
         const boardOnly = await client
           .from("schools")
-          .select("board")
+          .select("board, kind")
           .eq("id", ctx.schoolId)
           .maybeSingle();
-        const rawBoard = (boardOnly.data as { board?: string | null } | null)?.board;
+        const raw = boardOnly.data as { board?: string | null; kind?: string | null } | null;
+        const rawBoard = raw?.board;
         if (rawBoard && typeof rawBoard === "string" && rawBoard.trim()) {
           board = rawBoard.trim().toLowerCase();
         }
+        if (raw?.kind === "school" || raw?.kind === "individual") schoolKind = raw.kind;
       } else {
-        const school = withStream.data as { board?: string | null; stream?: string | null } | null;
+        const school = withStream.data as {
+          board?: string | null;
+          stream?: string | null;
+          kind?: string | null;
+        } | null;
         if (school?.board && typeof school.board === "string" && school.board.trim()) {
           board = school.board.trim().toLowerCase();
         }
         schoolStream = normalizeStream(school?.stream ?? null);
+        if (school?.kind === "school" || school?.kind === "individual") schoolKind = school.kind;
       }
+    }
+
+    // Individual: exam is the scope. Never invent rbse / a class level.
+    if (schoolKind === "individual") {
+      if (!examId) {
+        const { data: ea } = await client
+          .from("exam_accounts")
+          .select("exam_id, competitive_exams(code, name)")
+          .eq("school_id", ctx.schoolId)
+          .maybeSingle();
+        examId = ea?.exam_id ?? null;
+        type ExamJoin = { code?: string | null; name?: string | null };
+        const rawExam = (ea as { competitive_exams?: ExamJoin | ExamJoin[] | null } | null)?.competitive_exams;
+        const exam = Array.isArray(rawExam) ? rawExam[0] : rawExam;
+        examCode = exam?.code ?? null;
+        examName = exam?.name ?? null;
+      }
+      return {
+        classLevel: null,
+        board: "cuet",
+        stream: null,
+        classLabel: examName || examCode || ctx.classLabel || null,
+        examId,
+        examCode,
+        examName,
+      };
     }
 
     let classLabel: string | null = ctx.classLabel ?? null;
@@ -776,86 +1067,100 @@ export const PracticeService = {
       classLevel,
     );
 
-    return { classLevel, board, stream, classLabel };
+    return {
+      classLevel,
+      board,
+      stream,
+      classLabel,
+      examId: null,
+      examCode: null,
+      examName: null,
+    };
   },
 
-  /** Unique approved subjects from the live question bank (class + board + stream). */
+  /**
+   * The subjects and chapters a class can be served, with question counts —
+   * counted by the database (rpc_practice_bank_catalog), under the student's
+   * own read policies, in the same class / board / stream scope listBankQuestions
+   * serves from.
+   *
+   * Both pickers used to read 800 question rows in no order and list whatever
+   * subjects and chapters those rows happened to hold. Class 10 has 3,045
+   * servable rows: Social Science, with 953 questions, was never offered.
+   * Class 12 commerce lost Hindi and English.
+   */
+  async listBankCatalog(
+    ctx: ServiceContext,
+    opts: { subject?: string | null; classLevel?: number | null } = {},
+  ): Promise<{ scope: CurriculumScope; classLevel: number | null; rows: { subject: string; chapter: string | null; questions: number }[] }> {
+    const scope = await this.resolveCurriculumScope(ctx);
+    // Individual exam practice: catalog by exam_id (no class required).
+    if (scope.examId) {
+      const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_practice_bank_catalog", {
+        // SQL ignores class/board when _exam_id is set; pass placeholders for the required args.
+        _class_level: 0,
+        _board: scope.board || "cuet",
+        _exam_id: scope.examId,
+        ...(opts.subject ? { _subject: opts.subject } : {}),
+      });
+      throwIfError(error, "Failed to load the practice question bank");
+      return { scope, classLevel: null, rows: data ?? [] };
+    }
+    const classLevel = opts.classLevel ?? scope.classLevel;
+    // Never list another class's bank when the student's class is unknown.
+    if (classLevel == null || !Number.isFinite(classLevel)) return { scope, classLevel: null, rows: [] };
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_practice_bank_catalog", {
+      _class_level: classLevel,
+      _board: scope.board,
+      // Below Class 11 the catalog is asked without a stream, so its own
+      // stream filter cannot narrow a secondary student's bank.
+      ...((): { _stream?: string } => {
+        const stream = contentStreamForClass(scope.stream, classLevel);
+        return stream ? { _stream: stream } : {};
+      })(),
+      ...(opts.subject ? { _subject: opts.subject } : {}),
+    });
+    throwIfError(error, "Failed to load the practice question bank");
+    return { scope, classLevel, rows: data ?? [] };
+  },
+
+  /** Subjects the student can practise (class+board+stream, or exam). */
   async listBankSubjects(
     ctx: ServiceContext,
     opts: { classLevel?: number | null } = {},
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
-    assertStudentClassContext(ctx);
-    const client = getClient(toRepoContext(ctx));
-    const scope = await this.resolveCurriculumScope(ctx);
-    const classLevel = opts.classLevel ?? scope.classLevel;
-
-    // Never dump all classes when we cannot resolve the student's class.
-    if (classLevel == null || !Number.isFinite(classLevel)) {
-      return [];
+    assertStudentContext(ctx);
+    const { scope, classLevel, rows } = await this.listBankCatalog(ctx, opts);
+    if (!scope.examId && (classLevel == null || !ctx.classId)) {
+      assertStudentClassContext(ctx);
     }
-
-    let query = client
-      .from("question_bank_student")
-      .select("subject, stream")
-      .eq("is_approved", true)
-      .eq("class_level", classLevel)
-      // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-      // so there is no per-school arm left to filter on.
-      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
-      .limit(800);
-
-    if (scope.stream) {
-      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
-    }
-
-    const { data, error } = await query;
-    throwIfError(error, "Failed to load practice subjects");
     const seen = new Map<string, string>();
-    for (const row of data ?? []) {
-      const raw = String((row as { subject?: string }).subject ?? "").trim();
+    for (const row of rows) {
+      const raw = row.subject.trim();
       if (!raw) continue;
-      if (!isSubjectAllowedForScope(raw, scope.stream, classLevel)) continue;
+      if (!scope.examId && !isSubjectAllowedForScope(raw, scope.stream, classLevel)) continue;
       const label = displaySubject(raw);
       const key = label.toLowerCase();
       if (!seen.has(key)) seen.set(key, label);
     }
+    if (scope.examId) return [...seen.values()].sort((a, b) => a.localeCompare(b));
     return filterSubjectsForStream([...seen.values()], scope.stream, classLevel);
   },
 
-  /** Unique chapters for a subject from the live bank (`id` = DB value, `displayName` for UI). */
+  /** Chapters for a subject (`id` = the stored chapter, `displayName` for UI). */
   async listBankChapters(
     ctx: ServiceContext,
     opts: { subject: string; classLevel?: number | null },
   ): Promise<AcademicTermRef[]> {
     assertCanConsume(ctx, "practice");
-    const client = getClient(toRepoContext(ctx));
-    const scope = await this.resolveCurriculumScope(ctx);
-    const classLevel = opts.classLevel ?? scope.classLevel;
+    const { scope, classLevel, rows } = await this.listBankCatalog(ctx, opts);
+    if (!scope.examId && classLevel == null) return [];
+    if (!scope.examId && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
-    if (classLevel == null || !Number.isFinite(classLevel)) return [];
-    if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
-
-    let query = client
-      .from("question_bank_student")
-      .select("chapter")
-      .eq("is_approved", true)
-      .eq("class_level", classLevel)
-      .ilike("subject", opts.subject)
-      // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-      // so there is no per-school arm left to filter on.
-      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
-      .limit(800);
-
-    if (scope.stream) {
-      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
-    }
-
-    const { data, error } = await query;
-    throwIfError(error, "Failed to load practice chapters");
     const seen = new Map<string, AcademicTermRef>();
-    for (const row of data ?? []) {
-      const raw = String((row as { chapter?: string | null }).chapter ?? "").trim();
+    for (const row of rows) {
+      const raw = String(row.chapter ?? "").trim();
       if (!raw) continue;
       const term = toPresentedTerm(raw, "chapter");
       if (!term) continue;
@@ -880,61 +1185,73 @@ export const PracticeService = {
     return [...seen.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, "hi"));
   },
 
-  /** Unique topics/concepts for subject (+ optional chapter). */
+  /**
+   * The topics a student can practise in a subject (+ optional chapter), from
+   * the questions their class, board and stream can actually be served.
+   *
+   * `id` is the topic's id and is what listBankQuestions filters on. Topics are
+   * per chapter, so without a chapter the same name can appear once per
+   * chapter that teaches it — the chapter is then part of the label, never
+   * merged away. `chapter` is carried so a caller that started from a topic can
+   * name the session's chapter.
+   */
   async listBankTopics(
     ctx: ServiceContext,
     opts: { subject: string; chapter?: string | null; classLevel?: number | null },
-  ): Promise<AcademicTermRef[]> {
+  ): Promise<(AcademicTermRef & { chapter: string | null })[]> {
     assertCanConsume(ctx, "practice");
     const client = getClient(toRepoContext(ctx));
     const scope = await this.resolveCurriculumScope(ctx);
     const classLevel = opts.classLevel ?? scope.classLevel;
 
-    if (classLevel == null || !Number.isFinite(classLevel)) return [];
-    if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
+    if (!scope.examId && (classLevel == null || !Number.isFinite(classLevel))) return [];
+    if (!scope.examId && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
-    let query = client
-      .from("question_bank_student")
-      // Same dead columns as listBankQuestions: the label is topics.name now.
-      .select("chapter, topics(name)")
-      .eq("is_approved", true)
-      .eq("class_level", classLevel)
-      .ilike("subject", opts.subject)
-      // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-      // so there is no per-school arm left to filter on.
-      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
-      .limit(800);
-
-    if (scope.stream) {
-      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
-    }
-
-    const { data, error } = await query;
-    throwIfError(error, "Failed to load practice topics");
-    const seen = new Map<string, AcademicTermRef>();
-    for (const row of data ?? []) {
-      const r = row as { topics?: { name?: string | null } | null; chapter?: string | null };
-      if (opts.chapter && !academicLabelMatches(r.chapter, opts.chapter)) continue;
-      for (const candidate of [r.topics?.name]) {
-        const raw = String(candidate ?? "").trim();
-        if (!raw) continue;
-        const term = toPresentedTerm(raw, "concept");
-        if (!term) continue;
-        if (looksLikeUnresolvedMojibake(term.displayName)) continue;
-        const key = academicMatchKey(term.displayName) || term.displayName.toLowerCase();
-        if (!key) continue;
-        const existing = seen.get(key);
-        if (!existing) {
-          seen.set(key, {
-            id: isCleanAcademicLabel(raw) ? raw : term.displayName,
-            displayName: term.displayName,
-          });
-          continue;
-        }
-        if (!isCleanAcademicLabel(existing.id) && isCleanAcademicLabel(raw)) {
-          seen.set(key, { id: raw, displayName: term.displayName });
+    // Paged: a whole subject can hold more servable questions than one
+    // PostgREST response, and a truncated read would silently hide topics.
+    const PAGE = 1000;
+    const rows: { topic_id: string | null; chapter: string | null; topics: { name: string } | null }[] = [];
+    for (let from = 0; ; from += PAGE) {
+      let query = client
+        .from("question_bank_student")
+        .select("topic_id, chapter, topics(name)")
+        .eq("is_approved", true)
+        .eq("is_active", true)
+        .ilike("subject", opts.subject)
+        .not("topic_id", "is", null)
+        .order("id")
+        .range(from, from + PAGE - 1);
+      const topicStream = contentStreamForClass(scope.stream, classLevel);
+      if (scope.examId) {
+        query = query.eq("exam_id", scope.examId);
+      } else {
+        query = query
+          .eq("class_level", classLevel!)
+          .is("exam_id", null)
+          .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
+        if (topicStream) {
+          query = query.or(`stream.eq.${topicStream},stream.is.null`);
         }
       }
+      const { data, error } = await query;
+      throwIfError(error, "Failed to load practice topics");
+      const page = (data ?? []) as unknown as typeof rows;
+      rows.push(...page);
+      if (page.length < PAGE) break;
+    }
+
+    const seen = new Map<string, AcademicTermRef & { chapter: string | null }>();
+    for (const r of rows) {
+      if (!r.topic_id || !r.topics?.name || seen.has(r.topic_id)) continue;
+      // The chapter is a chip from listBankChapters — a label of this bank — so
+      // it is that chapter exactly: "Circles" is not "Areas Related to Circles".
+      if (opts.chapter && !academicLabelEquals(r.chapter, opts.chapter)) continue;
+      const chapterLabel = r.chapter ? displayChapter(r.chapter) || r.chapter : null;
+      seen.set(r.topic_id, {
+        id: r.topic_id,
+        displayName: opts.chapter || !chapterLabel ? r.topics.name : `${r.topics.name} · ${chapterLabel}`,
+        chapter: r.chapter,
+      });
     }
     return [...seen.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, "hi"));
   },
@@ -1116,21 +1433,269 @@ export const PracticeService = {
     return dedupePreservingOrder(ids).slice(0, limit);
   },
 
-  /** Wrong questions as practice-ready bank rows (honest empty if none). */
+  /**
+   * Wrong questions as practice-ready rows (honest empty if none).
+   *
+   * Spec §9 / Incorrect mode: bank mistakes load from question_bank; upload
+   * mistakes (source=upload) load from student_upload_questions; screen-capture
+   * mistakes (source=screen_capture) load from student_capture_questions.
+   * Never invents a question that is not on the mistake row or a private table.
+   */
   async listMistakeQuestions(
     ctx: ServiceContext,
     opts: { limit?: number; includeInactive?: boolean } = {},
   ) {
+    assertCanConsume(ctx, "practice");
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
-    const ids = await this.listQuestionIdsByStatus(ctx, "wrong", { limit: limit * 2 });
-    if (ids.length === 0) return [];
-    return this.listBankQuestions(ctx, {
-      ids: ids.slice(0, limit),
-      limit,
-      includeInactive: opts.includeInactive,
-    });
-  },
+    const client = getClient(toRepoContext(ctx));
+    const fetchWindow = Math.min(200, Math.max(limit * 4, limit));
 
+    type MistakeListRow = {
+      id: string;
+      source: string;
+      source_id: string | null;
+      question_id: string | null;
+      upload_question_id?: string | null;
+      capture_question_id?: string | null;
+      last_wrong_at: string;
+      question_text: string;
+      options: unknown;
+      correct_answer: unknown;
+      explanation: string | null;
+      difficulty: string | null;
+      subject: string;
+      chapter: string | null;
+      chapter_id: string | null;
+    };
+
+    const baseSelect =
+      "id, source, source_id, question_id, last_wrong_at, question_text, options, correct_answer, explanation, difficulty, subject, chapter, chapter_id";
+    const withPrivateSelect = `${baseSelect}, upload_question_id, capture_question_id`;
+    const withUploadSelect = `${baseSelect}, upload_question_id`;
+
+    const runSelect = (cols: string) =>
+      client
+        .from("student_mistakes")
+        .select(cols)
+        .eq("user_id", ctx.userId)
+        .eq("status", "open")
+        .order("last_wrong_at", { ascending: false })
+        .limit(fetchWindow);
+
+    let { data, error } = await runSelect(withPrivateSelect);
+    if (error && isMissingSchema(error)) {
+      ({ data, error } = await runSelect(withUploadSelect));
+    }
+    if (error && isMissingSchema(error)) {
+      ({ data, error } = await runSelect(baseSelect));
+    }
+    throwIfError(error, "Failed to load mistake questions");
+
+    const rows = (data ?? []) as unknown as MistakeListRow[];
+    if (rows.length === 0) return [];
+
+    const bankIds = dedupePreservingOrder(
+      rows
+        .filter(
+          (r) =>
+            r.source !== "upload" &&
+            r.source !== "screen_capture" &&
+            Boolean(r.question_id),
+        )
+        .map((r) => r.question_id as string),
+    );
+    const uploadQids = dedupePreservingOrder(
+      rows
+        .filter((r) => r.source === "upload")
+        .map((r) => r.upload_question_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const captureQids = dedupePreservingOrder(
+      rows
+        .filter((r) => r.source === "screen_capture")
+        .map((r) => r.capture_question_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+
+    /** PostgREST may return a many-embed as an array — same helper as upload/capture loaders. */
+    const chapterEmbed = (raw: unknown): {
+      name?: string;
+      curriculum_subjects?: { name?: string } | null;
+    } | null => {
+      if (!raw) return null;
+      if (Array.isArray(raw)) {
+        const first = raw[0];
+        return first && typeof first === "object"
+          ? (first as { name?: string; curriculum_subjects?: { name?: string } | null })
+          : null;
+      }
+      if (typeof raw === "object") {
+        return raw as { name?: string; curriculum_subjects?: { name?: string } | null };
+      }
+      return null;
+    };
+
+    type PracticeReady = {
+      id: string;
+      subject: string;
+      chapter: string | null;
+      difficulty: string | null;
+      question: string;
+      options: unknown;
+      correct_index: number;
+      explanation: string | null;
+      from_upload?: true;
+      from_capture?: true;
+      ai_answered?: boolean;
+      chapter_id?: string | null;
+      /** Spec §9.1 — student_uploads.id when from_upload. */
+      upload_id?: string | null;
+    };
+
+    const bankById = new Map<string, PracticeReady>();
+    if (bankIds.length > 0) {
+      const bankRows = await this.listBankQuestions(ctx, {
+        ids: bankIds.slice(0, fetchWindow),
+        limit: fetchWindow,
+        includeInactive: opts.includeInactive,
+      });
+      for (const q of bankRows) bankById.set(q.id, q);
+    }
+
+    const uploadById = new Map<string, PracticeReady>();
+    if (uploadQids.length > 0) {
+      const { data: uploadRows, error: uploadError } = await client
+        .from("student_upload_questions")
+        .select(
+          "id, upload_id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name, curriculum_subjects(name))",
+        )
+        .eq("owner_id", ctx.userId)
+        .in("id", uploadQids);
+      throwIfError(uploadError, "Failed to load upload mistake questions");
+      for (const row of uploadRows ?? []) {
+        const ch = chapterEmbed(row.chapters);
+        const options = row.options;
+        const correct =
+          typeof row.correct_index === "number" && Number.isInteger(row.correct_index)
+            ? row.correct_index
+            : null;
+        if (!row.id || !row.question_text || correct == null) continue;
+        if (!Array.isArray(options) || options.length < 2) continue;
+        uploadById.set(row.id as string, {
+          id: row.id as string,
+          subject: ch?.curriculum_subjects?.name?.trim() || "",
+          chapter: ch?.name ?? null,
+          difficulty: (row.difficulty as string | null) ?? "medium",
+          question: row.question_text as string,
+          options,
+          correct_index: correct,
+          explanation: (row.explanation as string | null) ?? null,
+          from_upload: true,
+          ai_answered: row.answer_source === "ai",
+          chapter_id: (row.chapter_id as string | null) ?? null,
+          upload_id: (row.upload_id as string | null) ?? null,
+        });
+      }
+    }
+
+    // Spec §7.4 / Incorrect mode — one loader for private captures (same as
+    // recovery tier-0 in Practice.tsx). Do not re-query student_capture_questions
+    // here; listCaptureQuestionsByIds owns embed shape + from_capture.
+    const captureById = new Map<string, PracticeReady>();
+    if (captureQids.length > 0) {
+      const captureRows = await listCaptureQuestionsByIds(ctx, captureQids);
+      for (const row of captureRows) {
+        captureById.set(row.id, {
+          id: row.id,
+          subject: row.subject?.trim() || "",
+          chapter: row.chapter,
+          difficulty: row.difficulty ?? "medium",
+          question: row.question,
+          options: row.options,
+          correct_index: row.correct_index as number,
+          explanation: row.explanation,
+          from_capture: true,
+          chapter_id: row.chapter_id,
+        });
+      }
+    }
+
+    const snapshotPrivate = (
+      r: MistakeListRow,
+      kind: "upload" | "capture",
+    ): PracticeReady | null => {
+      const options = r.options;
+      if (!Array.isArray(options) || options.length < 2) return null;
+      const correct = answerToIndex(r.correct_answer, options);
+      if (correct == null || !r.question_text?.trim()) return null;
+      const id =
+        kind === "upload"
+          ? r.upload_question_id || r.id
+          : r.capture_question_id || r.id;
+      return {
+        id,
+        subject: r.subject || "",
+        chapter: r.chapter,
+        difficulty: r.difficulty ?? "medium",
+        question: r.question_text,
+        options,
+        correct_index: correct,
+        explanation: r.explanation,
+        ...(kind === "upload"
+          ? {
+              from_upload: true as const,
+              ai_answered: false,
+              // Mistake source_id is the upload id when the original attempt followed §9.1.
+              upload_id: r.source_id,
+            }
+          : { from_capture: true as const }),
+        chapter_id: r.chapter_id,
+      };
+    };
+
+    const out: PracticeReady[] = [];
+    const seenBank = new Set<string>();
+    const seenUpload = new Set<string>();
+    const seenCapture = new Set<string>();
+    for (const r of rows) {
+      if (out.length >= limit) break;
+      if (r.source === "upload") {
+        const uqid = r.upload_question_id ?? null;
+        if (uqid && uploadById.has(uqid)) {
+          if (seenUpload.has(uqid)) continue;
+          seenUpload.add(uqid);
+          out.push(uploadById.get(uqid)!);
+          continue;
+        }
+        const snap = snapshotPrivate(r, "upload");
+        if (!snap) continue;
+        if (seenUpload.has(snap.id)) continue;
+        seenUpload.add(snap.id);
+        out.push(snap);
+        continue;
+      }
+      if (r.source === "screen_capture") {
+        const cqid = r.capture_question_id ?? null;
+        if (cqid && captureById.has(cqid)) {
+          if (seenCapture.has(cqid)) continue;
+          seenCapture.add(cqid);
+          out.push(captureById.get(cqid)!);
+          continue;
+        }
+        const snap = snapshotPrivate(r, "capture");
+        if (!snap) continue;
+        if (seenCapture.has(snap.id)) continue;
+        seenCapture.add(snap.id);
+        out.push(snap);
+        continue;
+      }
+      if (!r.question_id || !bankById.has(r.question_id)) continue;
+      if (seenBank.has(r.question_id)) continue;
+      seenBank.add(r.question_id);
+      out.push(bankById.get(r.question_id)!);
+    }
+    return out;
+  },
 
   /** Previously skipped questions (honest empty if none). */
   async listSkippedBankQuestions(
@@ -1197,8 +1762,11 @@ export const PracticeService = {
     opts: {
       subject?: string | null;
       chapter?: string | null;
+      /**
+       * A topic: its id (what listBankTopics offers — exact, and per chapter),
+       * or its NAME (what a /student/practice?topic= link carries).
+       */
       topic?: string | null;
-      concept?: string | null;
       difficulty?: string | null;
       classLevel?: number | null;
       limit?: number;
@@ -1206,9 +1774,10 @@ export const PracticeService = {
       /** Previous Year Questions — restrict to a single exam year. */
       examYear?: number | null;
       ids?: string[];
-      /** Skip these bank ids (session resume). */
-      excludeIds?: string[];
-      /** Match any of these chapter/concept/topic strings (weak-area mode). */
+      /**
+       * Weak-area mode: each target is a chapter, or a topic NAMED within its
+       * chapter (concept_mastery keys a topic by its name inside the chapter).
+       */
       weakTargets?: Array<{ subject?: string; chapter?: string | null; concept?: string }>;
       /**
        * Include soft-deleted (is_active=false) questions. Only for historical
@@ -1223,12 +1792,14 @@ export const PracticeService = {
     const scope = await this.resolveCurriculumScope(ctx);
     const classLevel = opts.classLevel ?? scope.classLevel;
 
-    // Never dump all classes when class cannot be resolved (unless fetching by id).
+    // Never dump all classes when class cannot be resolved (unless fetching by id
+    // or practising under an exam account).
     const byIds = opts.ids && opts.ids.length > 0;
-    if (!byIds && (classLevel == null || !Number.isFinite(classLevel))) {
+    if (!byIds && !scope.examId && (classLevel == null || !Number.isFinite(classLevel))) {
       return [];
     }
     if (
+      !scope.examId &&
       opts.subject &&
       opts.subject !== "Mixed" &&
       !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)
@@ -1257,110 +1828,100 @@ export const PracticeService = {
     // order without an ORDER BY, the same tap can return 3, 0 or 20 — so the
     // failure is intermittent, which is why it survived.
     //
-    // Pushed down as an OR across the three label columns, case-insensitively.
-    // The client-side academicLabelMatches pass further down is still the
-    // precision filter; this only guarantees the window it filters actually
-    // contains candidates.
-    const labelPredicate = (): string | null => {
-      // PostgREST's or() is comma/parenthesis delimited, so the label is
-      // QUOTED, not dropped. It used to be dropped for any label holding a
-      // comma, and the query then fetched an arbitrary window of the class's
-      // questions: measured, "Gender, Religion and Caste" reached 2 of its 40
-      // questions and "Acids, Bases and Salts" 13 of 40, mixed with 11 other
-      // chapters. Six chapters carry a comma.
-      const chapter = opts.chapter?.trim() || null;
-      const topic = opts.topic;
-      const concept = opts.concept;
-      // Only `chapter` can be narrowed here. The topic label lives on an
-      // EMBEDDED row (topics.name) and PostgREST's or() applies to the parent
-      // table, so a topic/concept arm would have to be an inner-join filter —
-      // which would also drop the 15 rows that carry no topic_id. The
-      // client-side academicLabelMatches pass below is, as the comment above
-      // says, the precision filter; this only has to make the window contain
-      // candidates. The old topic./concept. arms could never match anything.
-      const clauses: string[] = [];
-      if (chapter) clauses.push(`chapter.ilike.${postgrestQuoted(chapter)}`);
-      void topic; void concept;   // narrowed on the embedded topic instead
-      return clauses.length ? clauses.join(",") : null;
-    };
+    // Pushed down case-insensitively. The client-side pass further down is
+    // still the precision filter; this only guarantees the window it filters
+    // actually contains candidates.
+    //
+    // A COMMA IS PART OF A CHAPTER'S NAME, NOT A LIST SEPARATOR. This was a
+    // raw `or(chapter.ilike.<name>)` string, and PostgREST's or() is comma and
+    // parenthesis delimited — so any chapter carrying one had to be dropped
+    // from the narrowing rather than change the shape of the filter. Five
+    // chapters in the live bank carry commas ("Acids, Bases and Salts",
+    // "Work, Energy and Power", "Gender, Religion and Caste", "Depreciation,
+    // Provisions and Reserves", "Private, Public and Global Enterprises"), and
+    // every session on one of them read the whole subject and left the client
+    // pass to decide. `.ilike()` takes the value as a value, so the comma is
+    // just a character and the narrowing applies to every chapter.
+    //
+    // Only `chapter` is narrowed here: it is the one real label COLUMN. The
+    // topic lives on the embedded topics row (topic_id -> topics.name) and is
+    // narrowed separately below — question_bank has no `topic`, `concept` or
+    // `topic_group` column (20261020010000), and naming one fails the whole
+    // request with 42703, which is how practice once stopped starting.
+    const chapterFilter = chapterFilterOf(opts.chapter);
 
     /**
-     * The topic, narrowed IN THE DATABASE, on the embedded topics row.
+     * The topic, narrowed IN THE DATABASE — never picked out of a window.
      *
-     * Topic practice can be started without a chapter — its start button is
-     * gated on subject + topic only — so chapter narrowing does not help it,
+     * Topic practice can be started without a chapter (its start button is
+     * gated on subject + topic only), so chapter narrowing does not help it,
      * and the fetch window is 400 rows against banks that are bigger than
      * that: Mathematics class 12 holds 695 approved questions over 125 topics,
-     * Social Science class 10 holds 953. A topic sitting in the unfetched
-     * remainder came back empty and the screen said "No questions for this
-     * topic in the bank yet", which was false.
+     * Social Science class 10 holds 953. A topic in the unfetched remainder
+     * came back empty and the screen said "No questions for this topic in the
+     * bank yet", which was false.
      *
-     * `topics!inner(name)` + `topics.name=ilike` makes PostgREST filter the
-     * PARENT rows by the embedded relation. It is an inner join, so the 15
-     * rows carrying no topic_id drop out — correct here, since a question with
-     * no topic cannot be part of a named topic.
+     * Two shapes reach here, and each is narrowed the way it can be:
      *
-     * `opts.topic` is not always a topic: the client-side pass below also
-     * matches it against chapter and concept, and weak-area callers pass a
-     * chapter through it. A value that names no topic narrows to zero rows and
-     * the un-narrowed retry below then runs, which is exactly the old
-     * behaviour.
+     *   an ID    from the topic picker. topic_id = id. Exact: topics are per
+     *            chapter (§10.22), so the id is one chapter's topic and never
+     *            a same-named topic of another chapter. Applied on every pass,
+     *            because an id cannot be a mojibake or slugged spelling.
+     *
+     *   a NAME   from a ?topic= link. topics!inner(name) + topics.name=ilike
+     *            filters the PARENT rows by the embedded relation (an inner
+     *            join, so rows with no topic drop out — right, since they
+     *            cannot be in a named topic). When the link also names a
+     *            chapter, the chapter narrows it to that chapter's topic. A
+     *            name that matches no topic narrows to zero rows, and the
+     *            un-narrowed retry below runs, where the client pass still
+     *            accepts a value that is really a chapter name.
      */
-    // A plain .ilike() filter, not an or() list, so commas and parentheses in
-    // the name need no quoting here. They used to disqualify the topic from
-    // narrowing entirely — 308 topics, every one with questions, e.g. "Power
-    // of Accommodation, Near and Far Point" — leaving it to the same arbitrary
-    // window the chapter case had.
-    const topicNeedle = opts.topic?.trim() || null;
+    const topicId = topicIdOf(opts.topic);
+    const topicName = topicNameOf(opts.topic);
 
-    const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean) => {
-      const narrowTopic = narrowToLabels && !byIds && topicNeedle !== null;
-      let query = client
-        .from("question_bank_student")
-        // `topic` and `concept` are NOT columns of question_bank and have not
-        // been for some time — the taxonomy moved to topic_id -> topics.name
-        // (21,696 of 21,711 rows carry one). Selecting them returned
-        // 42703 "column question_bank.topic does not exist", which the UI
-        // renders as "Could not start practice / This feature isn't available
-        // right now", so chapter practice failed to start at all. It was
-        // survivable only while PostgREST served a stale schema cache; the
-        // first DDL that reloaded that cache broke every practice session.
-        .select(
-          `id, subject, chapter, topic_id, topics${narrowTopic ? "!inner" : ""}(name), ` +
-          "difficulty, question, options, exam_year, source, source_type, stream",
-        )
-        .eq("is_approved", true)
-        // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-        // so there is no per-school arm left to filter on.
-        .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
-        .limit(Math.min(400, Math.max(80, limit * 8)));
-
-      if (applyActiveFilter) {
-        query = query.eq("is_active", true);
-      }
+    // ── THE WHOLE POOL, NOT A WINDOW OF IT ─────────────────────────────────
+    //
+    // This query used to ask for min(400, limit x 8) FULL rows with no order,
+    // and the session was drawn from whatever came back. PostgREST returns an
+    // unordered read in the same physical order every time, so it was the SAME
+    // rows on every request. Measured 2026-09-18 as the Class 10 student:
+    //
+    //     Subject Practice, Social Science, 20 questions
+    //         -> the same 160 of 953 questions, every session
+    //     Custom Practice, all subjects, 10 questions
+    //         -> an 80-row window of 62 English, 11 Maths, 0 Social Science,
+    //            0 Hindi: "all subjects" meant English
+    //
+    // So the pool is read whole: the light columns the filters below need,
+    // paged in id order, every question the filters admit. The session is
+    // drawn from all of it, and the questions themselves are fetched only for
+    // the ones drawn.
+    const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean, withCount = false) => {
+      const narrowTopicName = narrowToLabels && !byIds && topicName !== null;
+      let query = studentBankQuery(
+        client,
+        `id, subject, chapter, topic_id, topics${narrowTopicName ? "!inner" : ""}(name)`,
+        scope,
+        classLevel,
+        { subject: opts.subject, activeOnly: applyActiveFilter, withCount, previousYearOnly: opts.pyqOnly },
+      );
       if (byIds) {
         query = query.in("id", opts.ids!);
       }
-      if (classLevel != null && Number.isFinite(classLevel)) {
-        query = query.eq("class_level", classLevel);
+      // The chapter NARROWS; the client-side pass below is still what decides.
+      // Skipped on the fallback pass so a chapter stored under a mojibake or
+      // slugged label is still reachable the way it was before.
+      if (narrowToLabels && !byIds && chapterFilter) {
+        query = query.ilike("chapter", chapterFilter);
       }
-      if (scope.stream) {
-        query = query.or(`stream.eq.${scope.stream},stream.is.null`);
-      }
-      if (opts.subject && opts.subject !== "Mixed") {
-        query = query.ilike("subject", opts.subject);
-      }
-      // The label predicate NARROWS; academicLabelMatches below is still what
-      // decides. Skipped on the fallback pass so a chapter stored under a
-      // mojibake or slugged label is still reachable the way it was before.
-      if (narrowToLabels && !byIds) {
-        const pred = labelPredicate();
-        if (pred) query = query.or(pred);
+      if (topicId && !byIds) {
+        query = query.eq("topic_id", topicId);
       }
       // Applies to the embedded relation, which the !inner above turns into a
       // filter on the parent rows rather than just on what is nested.
-      if (narrowTopic) {
-        query = query.ilike("topics.name", topicNeedle!);
+      if (narrowTopicName) {
+        query = query.ilike("topics.name", topicName!);
       }
       if (opts.difficulty && opts.difficulty !== "mixed") {
         query = query.eq("difficulty", opts.difficulty);
@@ -1379,29 +1940,28 @@ export const PracticeService = {
       // — 20-question shells auto-finished at 0% because the loader came back
       // empty. Those zeros were then averaged into Analysis.
       //
-      // So the targets are pushed down as an OR of exact chapter/concept
-      // matches. The client-side pass below still runs and is still the
-      // precision filter (it handles display-cleaned and mojibake labels);
-      // this only guarantees the window it filters actually contains
-      // candidates.
+      // So the targets' chapters are pushed down. A weak topic is always held
+      // with its chapter, so the chapter narrows the window to rows that can
+      // match; the client-side pass below then picks the topic by name INSIDE
+      // that chapter, which is where the name is unique.
+      //
+      // Pushed down only when it cannot drop a target: chapters when every
+      // target has one, topic names when none does. A mixed list is left to
+      // the client-side pass rather than narrowed in a way that loses half.
       if (opts.weakTargets && opts.weakTargets.length > 0) {
-        const concepts = Array.from(
-          new Set(opts.weakTargets.map((w) => w.concept).filter((c): c is string => Boolean(c))),
-        );
-        const chapters = Array.from(
-          new Set(opts.weakTargets.map((w) => w.chapter).filter((c): c is string => Boolean(c))),
-        );
-        // Same reason as labelPredicate: concept/topic are not columns here.
-        // A weak target names a CHAPTER as well (the chapter is the scheduling
-        // unit), so narrowing on chapter keeps the window tight; the
-        // concept-level precision is applied client-side below.
-        const clauses: string[] = [];
-        if (chapters.length) clauses.push(`chapter.in.(${chapters.map(postgrestQuoted).join(",")})`);
-        if (clauses.length) query = query.or(clauses.join(","));
-        void concepts;
-      }
-      if (opts.pyqOnly) {
-        query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
+        //
+        // `.in()` rather than a hand-built in.() string: the client library
+        // quotes values holding commas and parentheses ("Areas Related to
+        // Circles"), which a hand-built list had to remember to do itself.
+        const withChapter = opts.weakTargets.filter((w) => Boolean(w.chapter));
+        if (withChapter.length === opts.weakTargets.length) {
+          query = query.in("chapter", Array.from(new Set(withChapter.map((w) => w.chapter as string))));
+        } else if (withChapter.length === 0) {
+          const names = Array.from(
+            new Set(opts.weakTargets.map((w) => w.concept).filter((c): c is string => Boolean(c))),
+          );
+          if (names.length) query = query.in("topics.name", names).not("topics", "is", null);
+        }
       }
       if (opts.examYear != null && Number.isFinite(opts.examYear)) {
         query = query.eq("exam_year", opts.examYear);
@@ -1409,25 +1969,25 @@ export const PracticeService = {
       return query;
     };
 
-    // The soft-delete column only exists once the Practice Engine migration is
-    // applied. Filtering on a missing column fails the whole query, which would
-    // stop practice from starting, so probe once and fall back.
-    const wantActiveFilter = !opts.includeInactive && softDeleteAvailable !== false;
-    let { data, error } = await buildQuery(wantActiveFilter, true);
-    if (error && wantActiveFilter && isMissingSchema(error)) {
-      softDeleteAvailable = false;
-      ({ data, error } = await buildQuery(false, true));
-    } else if (!error && wantActiveFilter) {
-      softDeleteAvailable = true;
-    }
+    /** Every row the filters admit, up to POOL_CAP (readAllPages). */
+    const readPool = (applyActiveFilter: boolean, narrowToLabels: boolean) =>
+      readAllPages<{ id: string }>((withCount) => buildQuery(applyActiveFilter, narrowToLabels, withCount));
+
+    // Retired (is_active = false) questions are left out unless a historical
+    // view asks for them. The column is always there; the probe that once
+    // guarded against it not being migrated yet is gone.
+    const applyActiveFilter = !opts.includeInactive;
+    const first = await readPool(applyActiveFilter, true);
+    const error = first.error;
+    let data = first.data;
     // A narrowed query that found nothing is retried WITHOUT the label
     // predicate. The predicate is an exact (case-insensitive) match, and this
     // bank holds slugged and mojibake-encoded labels that only
     // academicLabelMatches can resolve — so the narrowing must never be the
     // thing that makes a chapter unreachable. One extra round trip, and only
     // on the path that would otherwise have shown an empty screen.
-    if (!error && (data?.length ?? 0) === 0 && !byIds && (labelPredicate() || topicNeedle)) {
-      const retry = await buildQuery(wantActiveFilter && softDeleteAvailable !== false, false);
+    if (!error && (data?.length ?? 0) === 0 && !byIds && (chapterFilter || topicName)) {
+      const retry = await readPool(applyActiveFilter, false);
       if (!retry.error) ({ data } = retry);
     }
     throwIfError(error, "Failed to load practice questions");
@@ -1437,62 +1997,50 @@ export const PracticeService = {
       chapter: string | null;
       topic_id: string | null;
       topics: { name: string | null } | null;
-      difficulty: string | null;
-      question: string;
-      options: unknown;
-      exam_year: number | null;
-      source: string | null;
-      source_type: string | null;
-      stream: string | null;
     };
 
-    // The bank has ONE taxonomy label per question now, and it arrives
-    // embedded. Everything downstream — the chapter/topic/concept filters, the
-    // weak-target match, the mapper — was written against `topic` and
-    // `concept` fields, and they all mean "the teachable idea this question
-    // is about". So the name is resolved once, here, and fills both rather
-    // than eight call sites each learning about the embed.
-    let rows = ((data ?? []) as unknown as BankRow[]).map((r) => ({
-      ...r,
-      topic: r.topics?.name ?? null,
-      concept: r.topics?.name ?? null,
-    })) as Array<{
-      id: string;
-      subject: string;
-      chapter: string | null;
-      topic: string | null;
-      concept: string | null;
-      difficulty: string | null;
-      question: string;
-      options: unknown;
-      exam_year: number | null;
-      source: string | null;
-      source_type: string | null;
-      stream: string | null;
-    }>;
+    // The bank has ONE taxonomy label per question, and it arrives embedded:
+    // every pass below reads `r.topics?.name` (and `r.topic_id` for an id).
+    let rows = (data ?? []) as unknown as BankRow[];
 
     // Senior stream allowlists (commerce / science 11–12) — covers null-stream legacy rows.
     rows = rows.filter((r) => isSubjectAllowedForScope(r.subject, scope.stream, classLevel));
 
-    if (opts.excludeIds && opts.excludeIds.length > 0) {
-      const skip = new Set(opts.excludeIds);
-      rows = rows.filter((r) => !skip.has(r.id));
-    }
-
+    // EQUAL CHAPTERS, NEVER ONE INSIDE THE OTHER.
+    //
+    // academicLabelMatches falls back to containment either way, which is the
+    // same defect the weak targets below were fixed for. Measured over the
+    // live bank on 2026-09-23, chapters of the SAME class and subject that
+    // contain one another — 34 ordered pairs, including:
+    //
+    //   Circles          <- Areas Related to Circles          (Maths 10)
+    //   Triangles        <- Areas of Parallelograms and Triangles (Maths 9)
+    //   Integrals        <- Application of Integrals           (Maths 12)
+    //   Motion           <- Force and Laws of Motion           (Science 9)
+    //   Resources        <- Human Resources, Mineral and Power Resources,
+    //                       Land Soil Water Natural Vegetation and Wildlife
+    //                       Resources                          (Social 8)
+    //   Introduction     <- Introduction to Macroeconomics     (Economics 12)
+    //
+    // The database narrowing hid most of it — an exact ilike returns only the
+    // chapter asked for — but the fallback pass has no narrowing, and until
+    // today neither did any chapter carrying a comma. Equality still resolves
+    // a slug, a mojibake spelling or an alias (academicMatchKey), which is
+    // what the fallback is for; it just refuses a different chapter.
     if (opts.chapter) {
-      rows = rows.filter((r) => academicLabelMatches(r.chapter, opts.chapter));
+      rows = rows.filter((r) => academicLabelEquals(r.chapter, opts.chapter));
     }
-    if (opts.topic) {
+    if (topicId) {
+      rows = rows.filter((r) => r.topic_id === topicId);
+    } else if (opts.topic) {
+      // A name: the topic's own name, or — from an old link — a chapter name.
+      // A TOPIC is matched loosely on purpose (an old link may carry a
+      // shortened or differently-punctuated name), but a CHAPTER named here
+      // is the same chapter or none.
+      const needle = opts.topic;
       rows = rows.filter((r) =>
-        academicLabelMatches(r.topic, opts.topic) ||
-        academicLabelMatches(r.concept, opts.topic) ||
-        academicLabelMatches(r.chapter, opts.topic),
-      );
-    }
-    if (opts.concept) {
-      rows = rows.filter((r) =>
-        academicLabelMatches(r.concept, opts.concept) ||
-        academicLabelMatches(r.topic, opts.concept),
+        academicLabelMatches(r.topics?.name ?? null, needle) ||
+        academicLabelEquals(r.chapter, needle),
       );
     }
     if (opts.weakTargets && opts.weakTargets.length > 0) {
@@ -1504,41 +2052,155 @@ export const PracticeService = {
         targets.some((w) => {
           const subjOk = !w.subject || r.subject.toLowerCase() === w.subject.toLowerCase();
           if (!subjOk) return false;
-          const needle = w.concept || w.chapter || "";
-          if (!needle) return subjOk;
-          return (
-            academicLabelMatches(r.concept, needle) ||
-            academicLabelMatches(r.topic, needle) ||
-            academicLabelMatches(r.chapter, needle)
-          );
+          if (!w.chapter && !w.concept) return true;
+          // Equal labels, never one inside the other. A containment match let
+          // the weak topic "Areas of Similar Triangles" stand for its chapter
+          // "Triangles", and every Triangles question into the session with it
+          // (4 of the school's 31 weak topics contain their chapter's name).
+          if (w.chapter && !academicLabelEquals(r.chapter, w.chapter)) return false;
+          // A weak topic is a name INSIDE its chapter: matched only there, so
+          // "Journal Entries" weak in one chapter does not pull another's.
+          if (w.concept) {
+            return (
+              academicLabelEquals(r.topics?.name ?? null, w.concept) ||
+              // A mastery row with no topic of its own names its chapter.
+              (!!w.chapter && academicLabelEquals(w.chapter, w.concept))
+            );
+          }
+          return Boolean(w.chapter);
         }),
       );
     }
 
-    // Shuffle client-side so repeated sessions vary when bank is large enough.
+    // Draw the session from the whole pool (Fisher-Yates), so every question
+    // the filters admit has the same chance of being asked.
     for (let i = rows.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [rows[i], rows[j]] = [rows[j], rows[i]];
     }
-    // NO ANSWER LEAVES THIS FUNCTION.
+    const drawn = rows.slice(0, limit);
+    if (drawn.length === 0) return [];
+
+    // The questions themselves, for the ones drawn and no others — and NO ANSWER.
     //
-    // correct_index and explanation used to be here, and a student could
-    // read them straight off question_bank anyway — measured 2026-09-22,
+    // correct_index and explanation used to be fetched here, and a student
+    // could read them straight off question_bank anyway: measured 2026-09-22,
     // including `?correct_index=eq.2`, which enumerates the answers by
-    // filtering on them. The rows now come from question_bank_student, which
-    // has no such columns to select.
-    //
-    // Nothing downstream needed them to GRADE: rpc_record_question_attempt
-    // re-grades every bank question server-side and returns its verdict. The
-    // feedback screen reads that. The hint reads rpc_question_hint.
-    return rows.slice(0, limit).map((r) => ({
-      id: r.id,
-      subject: displaySubject(r.subject) || r.subject,
-      chapter: r.chapter ? displayChapter(r.chapter) : r.chapter,
-      difficulty: r.difficulty,
-      question: r.question,
-      options: r.options,
-    }));
+    // filtering on them. question_bank is staff-only now (20261049000000) and
+    // question_bank_student has no such columns. Nothing here needed them to
+    // grade: rpc_record_question_attempt grades every bank question server-side
+    // and returns its verdict, which is what the feedback screen shows.
+    const { data: full, error: fullError } = await client
+      .from("question_bank_student")
+      .select("id, difficulty, question, options")
+      .in("id", drawn.map((r) => r.id));
+    throwIfError(fullError, "Failed to load practice questions");
+    type QuestionText = { id: string; difficulty: string | null; question: string; options: unknown };
+    const text = new Map(((full ?? []) as QuestionText[]).map((q) => [q.id, q]));
+    return drawn.flatMap((r) => {
+      const q = text.get(r.id);
+      if (!q) return [];
+      return [{
+        id: r.id,
+        subject: displaySubject(r.subject) || r.subject,
+        chapter: r.chapter ? displayChapter(r.chapter) : r.chapter,
+        difficulty: q.difficulty,
+        question: q.question,
+        options: q.options,
+      }];
+    });
+  },
+
+  /**
+   * How many questions a set of filters would actually serve.
+   *
+   * CUSTOM PRACTICE COULD BE CONFIGURED INTO A DEAD END. Subject, chapter,
+   * topic and difficulty are each optional and each narrows the bank, and the
+   * screen offered every combination of them — including the ones that hold
+   * nothing. The student picked, pressed Start, waited for a session to load,
+   * and got "No questions match those filters yet" on a screen they could
+   * only leave. Measured on the live bank 2026-09-23: 4 of 237
+   * chapter-and-difficulty pairs at Class 10 hold no question at all, and a
+   * topic narrows it further again.
+   *
+   * So the config screen asks first. Same scope as the draw
+   * (studentBankQuery) and the same chapter, topic and difficulty narrowing,
+   * so what this counts is exactly what a session would draw from — a count
+   * from a different query would be a second answer to the same question.
+   *
+   * It is a HEAD request: the count, never the rows.
+   */
+  async countBankPool(
+    ctx: ServiceContext,
+    opts: { subject?: string | null; chapter?: string | null; topic?: string | null; difficulty?: string | null } = {},
+  ): Promise<number> {
+    assertCanConsume(ctx, "practice");
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = scope.classLevel;
+    if (classLevel == null || !Number.isFinite(classLevel)) return 0;
+    if (opts.subject && opts.subject !== "Mixed" && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) {
+      return 0;
+    }
+
+    const topicId = topicIdOf(opts.topic);
+    const topicName = topicNameOf(opts.topic);
+    const chapter = chapterFilterOf(opts.chapter);
+
+    let query = studentBankQuery(
+      getClient(toRepoContext(ctx)),
+      `id, topics${topicName ? "!inner" : ""}(name)`,
+      scope,
+      classLevel,
+      { subject: opts.subject, activeOnly: true, withCount: true },
+    );
+    if (chapter) query = query.ilike("chapter", chapter);
+    if (topicId) query = query.eq("topic_id", topicId);
+    if (topicName) query = query.ilike("topics.name", topicName);
+    if (opts.difficulty && opts.difficulty !== "mixed") query = query.eq("difficulty", opts.difficulty);
+
+    const { count, error } = await query.range(0, 0);
+    throwIfError(error, "Failed to count practice questions");
+    return count ?? 0;
+  },
+
+  /**
+   * The exam years Previous Year Questions can serve this student, newest
+   * first, each with the number of questions it holds.
+   *
+   * Read off the same pool the session draws from (studentBankQuery, with the
+   * same stream allowlist after it), so every year offered starts a session
+   * with questions in it. The screen used to offer the last six calendar
+   * years whatever the bank held: 0 of 21,876 questions carry an exam year
+   * (KNOWN_ISSUES 57), so every one of those chips led to an empty session.
+   * An empty list here means the bank holds no past papers for this student.
+   */
+  async listPyqYears(
+    ctx: ServiceContext,
+    opts: { subject?: string | null } = {},
+  ): Promise<Array<{ year: number; count: number }>> {
+    assertCanConsume(ctx, "practice");
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = scope.classLevel;
+    if (classLevel == null || !Number.isFinite(classLevel)) return [];
+    if (opts.subject && opts.subject !== "Mixed" && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) {
+      return [];
+    }
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await readAllPages<{ id: string; subject: string; exam_year: number | null }>((withCount) =>
+      studentBankQuery(client, "id, subject, exam_year", scope, classLevel, {
+        subject: opts.subject,
+        activeOnly: true,
+        withCount,
+        previousYearOnly: true,
+      }),
+    );
+    throwIfError(error, "Failed to load past-paper years");
+    const byYear = new Map<number, number>();
+    for (const r of data ?? []) {
+      if (r.exam_year == null || !isSubjectAllowedForScope(r.subject, scope.stream, classLevel)) continue;
+      byYear.set(r.exam_year, (byYear.get(r.exam_year) ?? 0) + 1);
+    }
+    return [...byYear.entries()].map(([year, count]) => ({ year, count })).sort((a, b) => b.year - a.year);
   },
 
   /** Clear student mistakes after a successful retry practice. */

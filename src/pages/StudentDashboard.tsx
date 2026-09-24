@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { PageKey } from "@/gurukul/nav";
-import { PAGE_PATH, pathToPage, legacyClassesRedirectPath } from "@/gurukul/nav";
+import { PAGE_PATH, pathToPage, legacyClassesRedirectPath, isSchoolOnlyPath } from "@/gurukul/nav";
 import Layout from "@/gurukul/components/Layout";
 import { GurukulStudentProvider } from "@/gurukul/StudentContext";
 import { EMPTY_STUDENT } from "@/gurukul/emptyStudent";
@@ -23,6 +23,8 @@ import DoubtPortal from "@/gurukul/pages/DoubtPortal";
 import Assignments from "@/gurukul/pages/Assignments";
 import Attendance from "@/gurukul/pages/Attendance";
 import Profile from "@/gurukul/pages/Profile";
+import { useScreenCaptureMistakes } from "@/hooks/useScreenCaptureMistakes";
+import { ScreenCaptureMistakesCard } from "@/gurukul/components/ScreenCaptureMistakesCard";
 import Timetable from "@/gurukul/pages/Timetable";
 import Calendar from "@/gurukul/pages/Calendar";
 import Tests from "@/gurukul/pages/Tests";
@@ -40,7 +42,6 @@ import TestResult from "./student/TestResult";
 import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
 import BattleReportPage from "./student/BattleReportPage";
 import StudentClassesPage from "@/pages/shared/StudentClassesPage";
-import ChatPage from "./shared/ChatPage";
 import Notices from "@/gurukul/pages/Notices";
 import Notifications from "@/gurukul/pages/Notifications";
 import MyFeesPage from "./shared/MyFeesPage";
@@ -51,7 +52,7 @@ import { useLatestEffect } from "@/hooks/useLatestEffect";
 import { useAcademicContext, useAcademicLive } from "@/academic";
 import { studentShellReady } from "@/academic/services/assertStudentContext";
 import { hasPracticeAccuracy, practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
-import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { readStudentAcademicSnapshot, type AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -87,7 +88,23 @@ export default function StudentDashboard() {
     schoolId,
     classId,
     classLabel,
+    identity,
   } = useAcademicContext();
+  const schoolKind = identity?.schoolKind ?? null;
+  const examName = identity?.examName ?? null;
+  const examCode = identity?.examCode ?? null;
+  const examId = identity?.examId ?? null;
+  /** Stage 1 tap + Stage 2 watch — mount once in the shell so listeners stay alive. */
+  const screenCapture = useScreenCaptureMistakes({
+    userId: user?.id,
+    examId,
+    schoolId,
+  });
+  /** Organisation: class label. Individual: competitive exam name (no class/board). */
+  const scopeLabel =
+    schoolKind === "individual"
+      ? (examName || examCode || null)
+      : classLabel;
   const [progressionLoaded, setProgressionLoaded] = useState(false);
   /** Live/focus/poll refreshes must not wipe XP chrome back to placeholders. */
   const progressionLoadedRef = useRef(false);
@@ -136,15 +153,18 @@ export default function StudentDashboard() {
         };
       }
       try {
-        const lb = await ProgressionService.leaderboard(ctx, {
-          scope: "class",
-          period: "lifetime",
-          metric: "xp",
-          limit: 200,
-        });
-        totalStudents = lb.rows.length;
-        const i = lb.rows.findIndex((r) => r.user_id === user.id);
-        if (i >= 0) rank = i + 1;
+        // Class leaderboard is school-only — a tenant-of-one has no classmates.
+        if (schoolKind !== "individual") {
+          const lb = await ProgressionService.leaderboard(ctx, {
+            scope: "class",
+            period: "lifetime",
+            metric: "xp",
+            limit: 200,
+          });
+          totalStudents = lb.rows.length;
+          const i = lb.rows.findIndex((r) => r.user_id === user.id);
+          if (i >= 0) rank = i + 1;
+        }
       } catch (e) {
         // G10: rank stays unavailable rather than wrong. Logged, because a
         // silently-0 rank is indistinguishable from a genuine last place.
@@ -156,18 +176,27 @@ export default function StudentDashboard() {
 
     // Accuracy SSOT: rpc_student_academic_snapshot.exam_readiness only.
     // Never average chart subjects (dual path that showed 100% with XP 0).
-    const [{ data: snap, error: snapError }, { data: charts, error: chartsError }] = await Promise.all([
-      supabase.rpc("rpc_student_academic_snapshot"),
+    // Through the shared reader, not a call of its own: this shell is mounted
+    // on every student route while Analysis, the Practice hub and the
+    // Battleground each want the same snapshot, and it is the heaviest read
+    // the student panel makes (KNOWN_ISSUES 74).
+    const [snapRead, { data: charts, error: chartsError }] = await Promise.all([
+      readStudentAcademicSnapshot().then(
+        (data) => ({ data, error: null as { message: string } | null }),
+        (error: { message: string }) => ({ data: null as AcademicSnapshot | null, error }),
+      ),
       supabase.rpc("rpc_student_performance_charts"),
     ]);
+    const snapError = snapRead.error;
     if (snapError || chartsError) {
       console.warn("student dashboard snapshot/charts:", snapError?.message, chartsError?.message);
-      toast.error("Could not load your latest stats — showing what's cached.");
+      // Failed reads clear/omit those fields — do not claim a cache we do not keep.
+      toast.error("Could not load your latest stats.");
     }
 
     type ChartRow = { weekly_activity?: { date: string; total: number }[] };
 
-    const snapshot = snap as AcademicSnapshot | null;
+    const snapshot = snapRead.data;
     const chartData = charts as ChartRow | null;
 
     // PRACTICE accuracy, and null rather than 0 when there is nothing to
@@ -229,7 +258,7 @@ export default function StudentDashboard() {
     });
     progressionLoadedRef.current = true;
     setProgressionLoaded(true);
-  }, [user, academicReady, ctx, beginRun]);
+  }, [user, academicReady, ctx, beginRun, schoolKind]);
 
   useEffect(() => {
     if (!academicReady || !ctx) {
@@ -254,12 +283,23 @@ export default function StudentDashboard() {
       schoolId,
       classId,
       classLabel,
+      schoolKind,
+      examId: identity?.examId ?? null,
+      examCode: identity?.examCode ?? null,
+      examName: identity?.examName ?? null,
     }),
-    [studentId, schoolId, classId, classLabel],
+    [studentId, schoolId, classId, classLabel, schoolKind, identity?.examId, identity?.examCode, identity?.examName],
   );
 
   /** `/student/test/<id>/attempt` and nothing else. */
   const isSittingATest = /^\/student\/test\/[^/]+\/attempt\/?$/.test(location.pathname);
+
+  /** Individual exam accounts cannot open organisation-only surfaces.
+   *  Deny unless we *know* this is an organisation school — while kind is
+   *  still loading (`null`), school-only URLs must not render (that race let
+   *  CUET land on Battleground/Homework before identity settled). */
+  const blockSchoolOnly =
+    isSchoolOnlyPath(location.pathname) && schoolKind !== "school";
 
   const mergedStudent = useMemo(
     () => ({
@@ -269,10 +309,10 @@ export default function StudentDashboard() {
       // practice accuracy" — and must survive the merge. Stripping it here is
       // what turned every absent metric into a 0 before any screen saw it.
       ...Object.fromEntries(Object.entries(profile).filter(([, v]) => v !== undefined && v !== "")),
-      // Class label SSOT from AcademicContext (same as Practice curriculum scope).
-      ...(classLabel ? { class: classLabel } : {}),
+      // Scope SSOT: class for school students, exam name for individuals.
+      ...(scopeLabel ? { class: scopeLabel } : {}),
     }),
-    [profile, classLabel],
+    [profile, scopeLabel],
   );
 
   // A student sitting a test gets NO app chrome. Every other student route
@@ -294,7 +334,10 @@ export default function StudentDashboard() {
   return (
     <div className="gurukul-student min-h-screen">
       <GurukulStudentProvider value={mergedStudent} identity={academicIdentity} shellReady={shellReady}>
-      <Layout page={page} setPage={setPage} profile={{ ...profile, ...(classLabel ? { class: classLabel } : {}) }} progressionReady={shellReady}>
+      {blockSchoolOnly ? (
+        <Navigate to="/student" replace />
+      ) : (
+      <Layout page={page} setPage={setPage} profile={{ ...profile, ...(scopeLabel ? { class: scopeLabel } : {}) }} progressionReady={shellReady}>
         <Routes>
           {/* Design student panel */}
           <Route index element={<Dashboard setPage={setPage} />} />
@@ -323,7 +366,19 @@ export default function StudentDashboard() {
           <Route path="doubts" element={<DoubtPortal />} />
           <Route path="homework" element={<Assignments />} />
           <Route path="attendance" element={<Attendance />} />
-          <Route path="profile" element={<Profile setPage={setPage} />} />
+          <Route
+            path="profile"
+            element={
+              <Profile
+                setPage={setPage}
+                screenCaptureSlot={
+                  screenCapture.available ? (
+                    <ScreenCaptureMistakesCard api={screenCapture} />
+                  ) : null
+                }
+              />
+            }
+          />
           <Route path="timetable" element={<Timetable />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="tests" element={<Tests />} />
@@ -347,7 +402,7 @@ export default function StudentDashboard() {
           <Route path="test" element={<Navigate to="/student/tests" replace />} />
           <Route path="test/:id/attempt" element={<TestAttempt />} />
           <Route path="test/:id/result" element={<TestResult />} />
-          <Route path="chat" element={<ChatPage userRole="student" />} />
+          <Route path="chat" element={<Navigate to="/student/notices" replace />} />
           <Route path="notices" element={<Notices />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="fees" element={<MyFeesPage />} />
@@ -367,6 +422,7 @@ export default function StudentDashboard() {
           <Route path="*" element={<Navigate to="/student" replace />} />
         </Routes>
       </Layout>
+      )}
       </GurukulStudentProvider>
     </div>
   );

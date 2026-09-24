@@ -4,18 +4,21 @@ import {
   AcademicProfileService,
   AnalyticsService,
   AiSummaryService,
+  HOMEWORK_STANDING_LABELS,
   HomeworkService,
   MarksService,
   ProgressionService,
   TestService,
   WORK_KIND_LABELS,
-  normalizeWorkKind,
+  homeworkStanding,
   useAcademicLive,
   buildParentScheduledNarrative,
   type StudentAcademicProfile,
   type ParentNarrative,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { attachmentOfFile } from "@/academic/storage/academicFileUpload";
+import { AttachmentList } from "@/gurukul-teacher/AttachmentUI";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { localDateKey } from "@/lib/localDate";
 import { cn } from "./shared";
@@ -36,7 +39,13 @@ function Loading({ label }: { label: string }) {
   );
 }
 
-/** Parent homework from HomeworkService (no mock). */
+/**
+ * The child's homework, as the child sees it (§10.15: a parent sees everything
+ * the student sees except practice, and "the child's actual homework
+ * submission"): what was set, the deadline, where the child stands, and the file
+ * the child handed in. The teacher's comment §10.15 also names no longer exists
+ * — a teacher accepts or rejects, and the standing says which.
+ */
 export function ParentLiveHomework({ studentId }: { studentId: string }) {
   const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["homework", "profile"]);
@@ -57,45 +66,56 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="text-[9px] text-muted-foreground">HomeworkService · {rows.length} items</div>
-      {rows.map(({ homework: h, submission: s, displayStatus }) => (
-        <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-[2px]">
-          <div className="flex justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="text-xs font-bold text-foreground">{h.title}</div>
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-primary/15 text-primary">
-                  {WORK_KIND_LABELS[normalizeWorkKind(h.workKind)]}
-                </span>
+      <div className="text-[9px] text-muted-foreground">{rows.length} homework</div>
+      {rows.map(({ homework: h, standing, submission: s }) => {
+        const state = homeworkStanding(standing);
+        return (
+          <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-[2px]">
+            <div className="flex justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="text-xs font-bold text-foreground">{h.title}</div>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-primary/15 text-primary">
+                    {WORK_KIND_LABELS[h.workKind]}
+                  </span>
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {h.subject} · Deadline{" "}
+                  {new Date(h.closesAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                  {s?.submittedAt ? ` · Handed in ${new Date(s.submittedAt).toLocaleString("en-IN")}` : ""}
+                </div>
               </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {h.subject} · Due {h.dueDate ?? "—"}
-                {s?.submittedAt ? ` · Submitted ${new Date(s.submittedAt).toLocaleString()}` : ""}
-              </div>
-            </div>
-            <div
-              className={cn(
-                "text-[9px] font-bold px-2 py-1 rounded-lg h-fit capitalize",
-                displayStatus === "Completed" || displayStatus === "Reviewed"
-                  ? "bg-primary/15 text-primary"
-                  : displayStatus === "Submitted"
+              <div
+                className={cn(
+                  "text-[9px] font-bold px-2 py-1 rounded-lg h-fit",
+                  state === "accepted" || state === "handed_in"
                     ? "bg-primary/15 text-primary"
-                    : displayStatus === "Late"
+                    : state === "rejected" || state === "not_handed_in"
                       ? "bg-destructive/15 text-destructive"
                       : "bg-warning/15 text-warning",
-              )}
-            >
-              {displayStatus}
+                )}
+              >
+                {HOMEWORK_STANDING_LABELS[state]}
+              </div>
             </div>
+            {h.questionFile ? (
+              <div className="mt-2">
+                <AttachmentList items={[attachmentOfFile(h.questionFile)]} dense />
+              </div>
+            ) : (
+              h.questionText && (
+                <p className="mt-2 text-[10px] text-muted-foreground whitespace-pre-wrap">{h.questionText}</p>
+              )
+            )}
+            {s?.file && (
+              <div className="mt-2 space-y-1">
+                <div className="text-[9px] font-bold text-muted-foreground">Handed in</div>
+                <AttachmentList items={[attachmentOfFile(s.file)]} dense />
+              </div>
+            )}
           </div>
-          {s?.grade && (
-            <div className="text-[10px] text-foreground mt-2">Grade: {s.grade}</div>
-          )}
-          {s?.teacherRemarks && (
-            <div className="text-[10px] text-success mt-1">Remarks: {s.teacherRemarks}</div>
-          )}
-        </div>
-      ))}
+        );
+      })}
       {rows.length === 0 && (
         <div className="text-center py-10 text-xs text-muted-foreground">No homework assigned yet.</div>
       )}

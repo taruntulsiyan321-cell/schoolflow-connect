@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAcademicContext, useAcademicLive } from "@/academic";
 import { useLatestEffect } from "@/hooks/useLatestEffect";
 import { overallAccuracyFromSnapshot } from "@/lib/learningMetrics";
-import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { readStudentAcademicSnapshot, type AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import {
   accuracyFromXp,
   battleRatingFromXp,
@@ -147,6 +147,32 @@ function weekTruncKey(d: Date): number {
   const day = (d.getDay() + 6) % 7; // Mon=0 … Sun=6
   const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
   return monday.getTime();
+}
+
+/**
+ * How often one tab may ask the server to seed a class's featured battles.
+ *
+ * The seed only runs when a card for the current day or week is missing, so
+ * in the normal case it happens once when the window rolls over. This bounds
+ * the other case: a class that CANNOT be seeded — no questions for it, say —
+ * looks "missing" on every reload, and reload() fires on every live battle
+ * and XP event.
+ */
+export const FEATURED_SEED_COOLDOWN_MS = 5 * 60 * 1000;
+const lastFeaturedSeed = new Map<string, number>();
+
+/** True when this tab may seed for that class now; records the attempt. */
+export function maySeedFeatured(classId: string | null | undefined, now = Date.now()): boolean {
+  const key = classId ?? "no-class";
+  const last = lastFeaturedSeed.get(key) ?? 0;
+  if (now - last < FEATURED_SEED_COOLDOWN_MS) return false;
+  lastFeaturedSeed.set(key, now);
+  return true;
+}
+
+/** Test seam: forget every cooldown this tab is holding. */
+export function resetFeaturedSeedCooldown(): void {
+  lastFeaturedSeed.clear();
 }
 
 /**
@@ -289,19 +315,13 @@ export function useBattlegroundData(enabled = true) {
     if (!battles.length && !history.length && !xp) beginLoading(setLoading);
     setError(null);
     try {
-      // Warm featured: refresh period windows + ensure Daily/Weekly/NCERT (populate cards without tap).
-      // Teacher peeks from live teacher-hosted custom/manual/bank. Soft-fail leaves Tap to open.
-      try {
-        const { BattleExperienceService } = await import("@/academic");
-        await BattleExperienceService.ensureFeaturedAll(academicCtx);
-      } catch {
-        // Non-fatal
-      }
-
-      const [stuRes, matesRes, snapRes] = await Promise.all([
+      // The snapshot comes through the shared reader, not a second call of its
+      // own: reload() fires on every live battle and XP event, and this hook
+      // used to ask for it each time while Home and Analysis asked too.
+      const [stuRes, matesRes, snapshot] = await Promise.all([
         supabase.from("students").select("id, class_id, full_name").eq("user_id", user.id).maybeSingle(),
         supabase.rpc("rpc_classmates"),
-        supabase.rpc("rpc_student_academic_snapshot"),
+        readStudentAcademicSnapshot().catch(() => null),
       ]);
 
       let xpData: {
@@ -406,7 +426,7 @@ export function useBattlegroundData(enabled = true) {
 
       setProductAccuracy(
         overallAccuracyFromSnapshot(
-          (snapRes.error ? null : snapRes.data) as AcademicSnapshot | null,
+          snapshot,
         ),
       );
 
@@ -582,24 +602,62 @@ export function useBattlegroundData(enabled = true) {
       }
 
       // Featured sources (current period only) + teacher manual public
-      let featuredQ = supabase
-        .from("battles")
-        .select("*")
-        .like("source", "featured_%")
-        .in("status", ["live", "scheduled"])
-        .order("starts_at", { ascending: false })
-        .limit(20);
-      if (academicClassId) {
-        featuredQ = featuredQ.eq("class_id", academicClassId);
-      }
-      const { data: featuredRaw, error: featuredErr } = await featuredQ;
-      if (featuredErr) {
-        toast({ title: "Could not load featured battles", description: toErrorMessage(featuredErr, "Please try again."), variant: "destructive" });
-      }
+      const readFeatured = async (): Promise<BattleRow[]> => {
+        let featuredQ = supabase
+          .from("battles")
+          .select("*")
+          .like("source", "featured_%")
+          .in("status", ["live", "scheduled"])
+          .order("starts_at", { ascending: false })
+          .limit(20);
+        if (academicClassId) {
+          featuredQ = featuredQ.eq("class_id", academicClassId);
+        }
+        const { data: featuredRaw, error: featuredErr } = await featuredQ;
+        if (featuredErr) {
+          toast({ title: "Could not load featured battles", description: toErrorMessage(featuredErr, "Please try again."), variant: "destructive" });
+        }
+        return ((featuredRaw || []) as BattleRow[]).filter((b) =>
+          isCurrentPeriodFeatured(b.source, b.starts_at),
+        );
+      };
 
-      const featuredRows = ((featuredRaw || []) as BattleRow[]).filter((b) =>
-        isCurrentPeriodFeatured(b.source, b.starts_at),
+      // ── SEED ONLY WHEN THERE IS NOTHING TO SHOW ────────────────────────────
+      //
+      // `ensureFeaturedAll` used to run at the top of every reload(), and
+      // reload() fires on mount, on every live battle/xp event and on every
+      // student-xp-updated — so a battle in progress fired it over and over.
+      // Inside, it runs `rpc_refresh_featured_battles()`, the GLOBAL hourly
+      // maintenance job (cron job 1, `5 * * * *`), and then three per-class
+      // seeds.
+      //
+      // Measured on production 2026-09-23, from pg_stat_statements:
+      //
+      //     rpc_ensure_featured_battles_all   13,183 calls
+      //       11,754 s of database time — 3.3 HOURS, mean 892 ms, max 4.5 s
+      //
+      // That is the single largest consumer of this project's database time,
+      // and it is what "Battleground overloads it" meant: sessions finishing
+      // alongside it were cancelled by the statement timeout (KNOWN_ISSUES 74).
+      //
+      // The seed is what the screen actually needs, and only when the class
+      // has no card for the current day or week. A window that rolls over
+      // still seeds on the next visit, because that is exactly when the cards
+      // go missing. The cooldown bounds the other case — a class that cannot
+      // be seeded at all would otherwise ask again on every single reload.
+      let featuredRows = await readFeatured();
+      const missingFeatured = ["featured_daily", "featured_weekly", "featured_ncert"].filter(
+        (src) => !featuredRows.some((b) => (b.source || "").toLowerCase() === src),
       );
+      if (missingFeatured.length > 0 && maySeedFeatured(academicClassId)) {
+        try {
+          const { BattleExperienceService } = await import("@/academic");
+          await BattleExperienceService.ensureFeaturedAll(academicCtx);
+          featuredRows = await readFeatured();
+        } catch {
+          // Non-fatal: the strip shows what exists, and Tap to open still works.
+        }
+      }
 
       // Teacher Challenge card: latest teacher-hosted public battle (custom/manual/bank)
       let teacherRows: BattleRow[] = [];

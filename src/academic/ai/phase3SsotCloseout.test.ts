@@ -11,6 +11,7 @@ import {
   parseEmbeddingApiResponse,
   processOneEmbeddingJob,
   buildEmbeddingRequestBody,
+  embedQueryText,
 } from "./embeddingProvider";
 import {
   validateImageMetadata,
@@ -149,6 +150,30 @@ describe("Embedding provider hook", () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.embedding).toEqual([1, 0, 0]);
+  });
+
+  it("embedQueryText never invents vectors when unset or empty", async () => {
+    expect((await embedQueryText("fractions", { env: {} })).ok).toBe(false);
+    expect((await embedQueryText("  ", { env: { OPENROUTER_API_KEY: "sk" } })).ok).toBe(false);
+  });
+
+  it("embedQueryText returns provider vectors via injected fetch", async () => {
+    const result = await embedQueryText("fractions", {
+      env: { OPENROUTER_API_KEY: "sk-test" },
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            model: "openai/text-embedding-3-small",
+            data: [{ embedding: [0.2, 0.8] }],
+          }),
+          { status: 200 },
+        ),
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.embedding).toEqual([0.2, 0.8]);
+      expect(result.provider).toBe("openrouter");
+    }
   });
 });
 

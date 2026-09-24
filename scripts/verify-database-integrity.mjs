@@ -102,6 +102,39 @@ async function main() {
   //
   // Asserting the OLD ruling made this gate demand the defect back. What
   // replaces it is the rule that actually holds now, in both directions.
+  // --- Topics (20261020000000, 20261020010000) ---
+  // Every question with a chapter names one of THAT chapter's topics. The
+  // composite key refuses a cross-chapter topic outright, so what can drift is
+  // a question stored with no topic at all — a teacher path that could not
+  // name one (questionPaperService with a section narrowed to 0 or 2+ topics).
+  // Reported with the rows' sources so the writer that left it is findable.
+  await check(
+    "every chaptered question has a topic (expect 0 untopiced)",
+    `SELECT count(*), string_agg(DISTINCT COALESCE(source, 'NULL'), ', ') AS sources
+       FROM question_bank WHERE chapter_id IS NOT NULL AND topic_id IS NULL`,
+    (r) => count(r) === 0,
+  );
+  // Positive control for the check above: it can only be meaningful if topics
+  // are actually linked. An empty topics table would also make it pass.
+  await check(
+    "questions are linked to topics at all (control for the untopiced check)",
+    "SELECT count(*) FROM question_bank WHERE topic_id IS NOT NULL",
+    (r) => count(r) > 0,
+  );
+  await check(
+    "no question names a topic from another chapter (expect 0)",
+    `SELECT count(*) FROM question_bank qb JOIN topics t ON t.id = qb.topic_id
+      WHERE t.chapter_id IS DISTINCT FROM qb.chapter_id`,
+    (r) => count(r) === 0,
+  );
+  await check(
+    "question_bank carries no old topic label column (topic, concept, subconcept, subtopic, topic_group)",
+    `SELECT count(*) FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'question_bank'
+        AND column_name IN ('topic', 'concept', 'subconcept', 'subtopic', 'topic_group')`,
+    (r) => count(r) === 0,
+  );
+
   await check(
     "Class 5 questions are ACTIVE — §10.9 names Class 5 as the worked example",
     "SELECT count(*) FROM question_bank WHERE class_level=5 AND is_active=true",
@@ -159,37 +192,165 @@ async function main() {
     (r) => (r[0]?.args ?? "").includes("p_school_id"),
   );
 
-  // --- Server-side is_late enforcement ---
+  // --- Homework: one file, two decisions, one deadline (docs/gurukul-spec-rules.md,
+  // "Homework — RULED 2026-09-13"; 20260925100000–20260925150000). These fail
+  // against a database those migrations have not reached, which is the truth. ---
   await check(
-    // Chunk 5 / docs/decisions.md D1: submission locks at the due date, so
-    // is_late can never again become true and the trigger that computed it is
-    // gone. What replaces this check is that the lock itself is enforced
-    // server-side, and that the 9 historical late rows were not rewritten.
-    "homework submission locks at the due date, server-side (there is no late submission)",
-    "SELECT count(*) FROM pg_trigger WHERE tgname='trg_homework_submission_lock' AND NOT tgisinternal",
-    (r) => count(r) === 1,
+    "the deadline is one instant: homework.closes_at is required and due_date is generated from it",
+    `SELECT column_name, is_nullable, is_generated FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='homework' AND column_name IN ('closes_at','due_date','due_time')`,
+    (r) =>
+      r.length === 2 &&
+      r.some((c) => c.column_name === "closes_at" && c.is_nullable === "NO") &&
+      r.some((c) => c.column_name === "due_date" && c.is_generated === "ALWAYS"),
   );
   await check(
-    "the is_late trigger no longer fires (it could only ever write false now)",
-    "SELECT count(*) FROM pg_trigger WHERE tgname='trg_homework_is_late' AND NOT tgisinternal",
+    "nothing is handed in at or after the deadline, or once the homework is resolved — refused server-side by rpc_homework_submit",
+    "SELECT prosrc FROM pg_proc WHERE proname = 'rpc_homework_submit'",
+    (r) => (r[0]?.prosrc ?? "").includes("now() >= _hw.closes_at OR _hw.resolved_at IS NOT NULL"),
+  );
+  await check(
+    "a hand-in and a decision hold the homework FOR SHARE, so neither interleaves with the closure job",
+    `SELECT count(*) FROM pg_proc
+      WHERE oid IN ('public.rpc_homework_submit(uuid,jsonb)'::regprocedure, 'public.rpc_homework_decide(uuid,text)'::regprocedure)
+        AND prosrc ~ 'FROM public\\.homework WHERE id = [^;]* FOR SHARE;'`,
+    (r) => count(r) === 2,
+  );
+  await check(
+    "missing homework costs XP: the closure charges homework.missed where the homework costs it, and a rejection after closure does too",
+    `SELECT count(*) FROM pg_proc
+      WHERE oid IN ('public.resolve_closed_homework()'::regprocedure, 'public.rpc_homework_decide(uuid,text)'::regprocedure)
+        AND prosrc LIKE '%''homework.missed''%' AND prosrc LIKE '%missed_costs_xp%'`,
+    (r) => count(r) === 2,
+  );
+  await check(
+    "homework released before the missed-homework rule is marked, and nothing else is: homework.missed_costs_xp is NOT NULL DEFAULT true, and no teacher writes it",
+    `SELECT c.is_nullable, c.column_default,
+            has_column_privilege('authenticated', 'public.homework', 'missed_costs_xp', 'INSERT')
+         OR has_column_privilege('authenticated', 'public.homework', 'missed_costs_xp', 'UPDATE') AS writable
+       FROM information_schema.columns c
+      WHERE c.table_schema = 'public' AND c.table_name = 'homework' AND c.column_name = 'missed_costs_xp'`,
+    (r) => r[0]?.is_nullable === "NO" && r[0]?.column_default === "true" && r[0]?.writable === false,
+  );
+  await check(
+    "released homework past its deadline is closed to people before the closure job reaches it (20260925170000)",
+    "SELECT prosrc FROM pg_proc WHERE oid = 'public.tg_homework_lifecycle()'::regprocedure",
+    (r) => /OLD\.resolved_at IS NOT NULL\s+OR \(auth\.uid\(\) IS NOT NULL\s+AND \(OLD\.status = 'published' OR OLD\.published_at IS NOT NULL\)\s+AND OLD\.closes_at <= now\(\)\)/.test(r[0]?.prosrc ?? ""),
+  );
+  await check(
+    "a hand-in has one foreign key to its student, not two (20260925170000)",
+    `SELECT conname FROM pg_constraint
+      WHERE conrelid = 'public.homework_submissions'::regclass AND contype = 'f' AND confrelid = 'public.students'::regclass`,
+    (r) => r.length === 1 && r[0].conname === "homework_submissions_student_id_fkey",
+  );
+  await check(
+    "the scheduler never releases homework whose deadline has passed",
+    "SELECT prosrc FROM pg_proc WHERE oid = 'public.publish_due_scheduled_work()'::regprocedure",
+    (r) => (r[0]?.prosrc ?? "").includes("AND closes_at > now()"),
+  );
+  await check(
+    "the family is told \"Homework accepted\" or \"Homework rejected\", and no grade is routed (20260925150000)",
+    "SELECT prosrc FROM pg_proc WHERE oid = 'public.process_academic_event(uuid)'::regprocedure",
+    (r) => {
+      const src = r[0]?.prosrc ?? "";
+      return src.includes("'Homework accepted'") && src.includes("'Homework rejected'") &&
+        !/'Work (reviewed|returned|graded)'|'homework\.graded'/.test(src);
+    },
+  );
+  await check(
+    "a parent is told once: _notify_student_circle hands the parents to _notify_student_parents",
+    "SELECT prosrc FROM pg_proc WHERE oid = 'public._notify_student_circle(uuid,text,text,text,text,text)'::regprocedure",
+    (r) => (r[0]?.prosrc ?? "").includes("_notify_student_parents(") && !(r[0]?.prosrc ?? "").includes("FROM public.parent_students"),
+  );
+  await check(
+    "a parent's notification opens a parent page: _notify_student_parents sends parent_link_for(_link) (20260925180000)",
+    "SELECT prosrc FROM pg_proc WHERE oid = 'public._notify_student_parents(uuid,text,text,text,text,text)'::regprocedure",
+    (r) => (r[0]?.prosrc ?? "").includes("public.parent_link_for(_link)"),
+  );
+  await check(
+    "no notification held only by a parent points into the student panel (20260925180000)",
+    `SELECT count(*) FROM notifications n
+      WHERE n.link ~ '^/student(/|$)'
+        AND (EXISTS (SELECT 1 FROM parents p WHERE p.user_id = n.user_id)
+             OR EXISTS (SELECT 1 FROM students s WHERE s.parent_user_id = n.user_id))
+        AND NOT EXISTS (SELECT 1 FROM students s WHERE s.user_id = n.user_id)`,
+    (r) => count(r) === 0,
+  );
+  // The queue is drained every minute and anything 30 minutes old is settled,
+  // so a row waiting past 35 minutes means the dispatch has stopped running.
+  await check(
+    "every notification is sent to the phone or settled within its half hour: none has waited 35 minutes (20260925190000)",
+    "SELECT count(*) FROM notifications WHERE pushed_at IS NULL AND created_at < now() - interval '35 minutes'",
     (r) => count(r) === 0,
   );
   await check(
-    "the 9 historical late submissions are preserved, not rewritten (D1)",
-    "SELECT count(*) FROM public.homework_submissions WHERE is_late",
-    (r) => count(r) === 9,
+    "the push dispatch is scheduled every minute and active (20260925190000)",
+    "SELECT schedule, command, active FROM cron.job WHERE jobname = 'push-notifications-to-phones'",
+    (r) => r.length === 1 && r[0].schedule === "* * * * *" && r[0].active === true &&
+      r[0].command === "SELECT public.dispatch_notification_push()",
   );
   await check(
-    "homework_answers.is_correct stays NULL when nothing is gradeable (G4: never false-by-default)",
-    `SELECT column_default, is_nullable FROM information_schema.columns
-      WHERE table_schema='public' AND table_name='homework_answers' AND column_name='is_correct'`,
-    (r) => r[0]?.is_nullable === "YES" && !r[0]?.column_default,
+    "only service_role claims notifications for push, and no signed-in session dispatches them (20260925190000)",
+    `SELECT (has_function_privilege('authenticated', 'public.claim_notifications_for_push(integer)', 'EXECUTE')
+          OR has_function_privilege('anon', 'public.claim_notifications_for_push(integer)', 'EXECUTE')
+          OR has_function_privilege('authenticated', 'public.dispatch_notification_push()', 'EXECUTE')
+          OR has_function_privilege('anon', 'public.dispatch_notification_push()', 'EXECUTE')) AS open,
+            has_function_privilege('service_role', 'public.claim_notifications_for_push(integer)', 'EXECUTE') AS sender`,
+    (r) => r[0]?.open === false && r[0]?.sender === true,
   );
   await check(
-    "not_yet_due is not a stored homework completion status (it is derived from due_date)",
-    `SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
-      WHERE t.typname = 'homework_completion_status' AND e.enumlabel = 'not_yet_due'`,
+    "a hand-in is ONE image or PDF: homework_submissions_file_shape is homework_hand_in_ok()",
+    "SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'homework_submissions_file_shape'",
+    (r) => (r[0]?.def ?? "").includes("homework_hand_in_ok"),
+  );
+  await check(
+    "a submission has exactly four statuses — no graded, returned, late or pending",
+    "SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'homework_submissions_status_check'",
+    (r) => {
+      const def = r[0]?.def ?? "";
+      return ["not_submitted", "submitted", "accepted", "rejected"].every((s) => def.includes(`'${s}'`)) &&
+        !/'(graded|returned|late|pending|reviewed|completed)'/.test(def);
+    },
+  );
+  await check(
+    "no grade, marks, remark, typed content or is_late column survives on homework_submissions",
+    `SELECT column_name FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='homework_submissions'
+        AND column_name IN ('grade','marks_obtained','teacher_remarks','content','is_late','version','attachments')`,
     (r) => r.length === 0,
+  );
+  await check(
+    "no signed-in session writes a submission row directly — only the two functions do",
+    `SELECT has_table_privilege('authenticated', 'public.homework_submissions', 'INSERT, UPDATE, DELETE, TRUNCATE') AS writes`,
+    (r) => r[0]?.writes === false,
+  );
+  await check(
+    "the dead homework paths are gone: homework_answers, homework_questions, homework_completions, rpc_close_homework",
+    `SELECT to_regclass('public.homework_answers') AS a, to_regclass('public.homework_questions') AS q,
+            to_regclass('public.homework_completions') AS c, to_regprocedure('public.rpc_close_homework(uuid,boolean)') AS r`,
+    (r) => r[0] && r[0].a === null && r[0].q === null && r[0].c === null && r[0].r === null,
+  );
+  await check(
+    "the event queue is the scheduler's: no signed-in or anonymous session can drain it or replay an event (20260925120000)",
+    `SELECT has_function_privilege('authenticated', 'public.process_pending_academic_events(integer)', 'EXECUTE')
+         OR has_function_privilege('anon', 'public.process_pending_academic_events(integer)', 'EXECUTE')
+         OR has_function_privilege('authenticated', 'public.process_academic_event(uuid)', 'EXECUTE')
+         OR has_function_privilege('anon', 'public.process_academic_event(uuid)', 'EXECUTE') AS open,
+            EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'process-pending-academic-events') AS scheduled`,
+    (r) => r[0]?.open === false && r[0]?.scheduled === true,
+  );
+  await check(
+    "a handed-in or question file cannot be overwritten or deleted through storage (20260925140000)",
+    `SELECT count(*) FROM pg_policies
+      WHERE schemaname = 'storage' AND tablename = 'objects'
+        AND policyname IN ('academic files update own', 'academic files delete own')
+        AND qual LIKE '%homework_file_is_fixed%'`,
+    (r) => count(r) === 2,
+  );
+  await check(
+    "a student's standing is decided in one view, and a rejected hand-in is not given",
+    "SELECT pg_get_viewdef('public.homework_student_status'::regclass) AS def",
+    (r) => /status\s*=\s*ANY\s*\(ARRAY\['submitted'::text, 'accepted'::text\]\)/.test(r[0]?.def ?? ""),
   );
 
   // --- 2026-08-22 code-trace fixes ---
@@ -296,20 +457,10 @@ async function main() {
     (r) => r.length === 3,
   );
 
-  // --- Phase 2 audit (2026-08-22): homework late-detection forgery + IST
-  // timezone fix, mastery-score volatility fix
-  // (20260822160000_phase2_homework_late_forgery_and_tz.sql,
-  // 20260822170000_phase2_mastery_score_volatility_fix.sql) ---
-  await check(
-    "tg_homework_compute_is_late forces submitted_at server-side (no longer trusts client input)",
-    "SELECT prosrc FROM pg_proc WHERE proname = 'tg_homework_compute_is_late'",
-    (r) => (r[0]?.prosrc ?? "").includes("NEW.submitted_at := now()"),
-  );
-  await check(
-    "tg_homework_compute_is_late compares against IST wall-clock, not an implicit UTC session cast",
-    "SELECT prosrc FROM pg_proc WHERE proname = 'tg_homework_compute_is_late'",
-    (r) => (r[0]?.prosrc ?? "").includes("Asia/Kolkata"),
-  );
+  // --- Phase 2 audit (2026-08-22): mastery-score volatility fix
+  // (20260822170000_phase2_mastery_score_volatility_fix.sql). Its homework
+  // late-detection half is gone with is_late itself (20260925110000); the
+  // deadline and school-zone checks above replace it. ---
   await check(
     "_compute_mastery_score is STABLE, not mislabeled IMMUTABLE (it reads now())",
     "SELECT provolatile FROM pg_proc WHERE proname = '_compute_mastery_score'",

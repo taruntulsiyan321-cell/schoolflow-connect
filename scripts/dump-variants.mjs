@@ -82,10 +82,11 @@ const rows = await sql(`
          v.created_at, v.is_approved, v.is_active,
          o.id AS o_id, o.difficulty AS o_diff, o.question AS o_q,
          o.options AS o_opts, o.correct_index AS o_ci, o.explanation AS o_exp,
-         coalesce(c.name, v.chapter) AS chapter_name, v.topic, v.subject
+         coalesce(c.name, v.chapter) AS chapter_name, t.name AS topic, v.subject
     FROM public.question_bank v
     JOIN public.question_bank o ON o.id = v.source_question_id
     LEFT JOIN public.chapters c ON c.id = v.chapter_id
+    LEFT JOIN public.topics t ON t.id = v.topic_id
    WHERE ${where}
    ORDER BY v.created_at DESC
    LIMIT 2000`);

@@ -49,10 +49,17 @@ test.describe('Tier1-R · student', () => {
 
   test('sees their homework', async ({ page }) => {
     const text = await load(page, '/student/homework')
-    expect(text, 'the homework list rendered').toMatch(/MY HOMEWORK/i)
-    // Every seeded item carries a subject and a due date; an empty list would
-    // carry neither.
-    expect(text, 'at least one homework item is listed').toMatch(/Due \d{4}-\d{2}-\d{2}|Due:/i)
+    // Assignments' own copy, not the shell's nav label.
+    expect(text, 'the homework screen rendered').toMatch(/what you have handed in/i)
+    expect(text, 'the homework screen did not render its empty state').not.toMatch(/No homework set yet/i)
+    // Every item states its deadline — the one instant, `closes_at` — and where
+    // the student stands on it; an empty list carries neither.
+    expect(text, 'at least one homework item states its deadline').toMatch(/Deadline \d/)
+    // "To do" is also the label of a filter button, so it counts only beyond that one.
+    const standings =
+      (text.match(/To do/g) ?? []).length - 1 +
+      (text.match(/Handed in — awaiting review|Accepted|Rejected — hand in again|Not handed in/g) ?? []).length
+    expect(standings, 'at least one item states where the student stands on it').toBeGreaterThan(0)
   })
 
   test('sees their exam marks', async ({ page }) => {

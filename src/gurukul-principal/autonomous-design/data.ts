@@ -33,7 +33,7 @@ export interface Student {
     subject: string
     title: string
     dueDate: string
-    status: "submitted" | "missing" | "accepted" | "rejected"
+    status: "not_submitted" | "submitted" | "accepted" | "rejected"
   }[]
   examMarks: { examId: string; subject: string; marks: number; outOf: number }[]
   testMarks: { subject: string; title: string; date: string; marks: number; outOf: number }[]
@@ -72,17 +72,6 @@ export interface Exam {
   classTeacherComment?: string
 }
 
-export interface HomeworkItem {
-  id: string
-  subject: string
-  title: string
-  setDate: string
-  dueDate: string
-  totalStudents: number
-  submitted: number
-  reviewed: number
-}
-
 export interface ClassDef {
   id: ClassId
   name: string
@@ -92,9 +81,7 @@ export interface ClassDef {
   studentIds: StudentId[]
   todayPresent: number
   below75Count: number
-  homeworkCompletion: number
   exams: Exam[]
-  homework: HomeworkItem[]
 }
 
 export interface LeaveRequest {
@@ -217,7 +204,7 @@ function makeStudents(classId: string, prefix: string, count: number): Student[]
         subject: sub,
         title: hwBatch[si] ?? `Exercise ${si + 1}`,
         dueDate: `2026-09-${String(3 + si).padStart(2,"0")}`,
-        status: (statusR < 0.1 ? "missing" : statusR < 0.55 ? "submitted" : statusR < 0.8 ? "accepted" : "rejected") as "submitted"|"missing"|"accepted"|"rejected",
+        status: (statusR < 0.1 ? "not_submitted" : statusR < 0.55 ? "submitted" : statusR < 0.8 ? "accepted" : "rejected") as "not_submitted"|"submitted"|"accepted"|"rejected",
       }
     })
 
@@ -362,16 +349,6 @@ const examHigherUT1: Exam = {
   ],
 }
 
-function makeHW(classId: string): HomeworkItem[] {
-  return [
-    { id: "hw1", subject: "Mathematics",    title: "Chapter 4: Quadratic Equations",    setDate: "2026-09-08", dueDate: "2026-09-10", totalStudents: classStudents(classId).length, submitted: Math.round(classStudents(classId).length * 0.82), reviewed: Math.round(classStudents(classId).length * 0.60) },
-    { id: "hw2", subject: "English",        title: "Summary writing – Chapter 2",       setDate: "2026-09-07", dueDate: "2026-09-09", totalStudents: classStudents(classId).length, submitted: Math.round(classStudents(classId).length * 0.90), reviewed: Math.round(classStudents(classId).length * 0.80) },
-    { id: "hw3", subject: "Science",        title: "Lab report: Acids and Bases",       setDate: "2026-09-05", dueDate: "2026-09-08", totalStudents: classStudents(classId).length, submitted: Math.round(classStudents(classId).length * 0.72), reviewed: Math.round(classStudents(classId).length * 0.55) },
-    { id: "hw4", subject: "Social Studies", title: "Map work – Physical features",      setDate: "2026-09-03", dueDate: "2026-09-06", totalStudents: classStudents(classId).length, submitted: Math.round(classStudents(classId).length * 0.88), reviewed: Math.round(classStudents(classId).length * 0.88) },
-    { id: "hw5", subject: "Hindi",          title: "Nibandh lekhan",                   setDate: "2026-09-02", dueDate: "2026-09-05", totalStudents: classStudents(classId).length, submitted: Math.round(classStudents(classId).length * 0.78), reviewed: Math.round(classStudents(classId).length * 0.70) },
-  ]
-}
-
 // --- Teachers ---
 
 export const teachers: Record<TeacherId, Teacher> = {
@@ -392,14 +369,14 @@ export const teachers: Record<TeacherId, Teacher> = {
 // --- Classes ---
 
 export const classes: Record<ClassId, ClassDef> = {
-  "9a":    { id:"9a",    name:"9 — A",       yearGroup:9,  section:"A", formTeacherId:"T01", studentIds: classStudents("9a").map(s=>s.id),    todayPresent: todayPresent("9a",0.875),    below75Count: computeBelow75("9a"),    homeworkCompletion:0.78, exams:[examUnit1, examHY],            homework:makeHW("9a") },
-  "9b":    { id:"9b",    name:"9 — B",       yearGroup:9,  section:"B", formTeacherId:"T02", studentIds: classStudents("9b").map(s=>s.id),    todayPresent: todayPresent("9b",0.833),    below75Count: computeBelow75("9b"),    homeworkCompletion:0.72, exams:[examUnit1, examHY],            homework:makeHW("9b") },
-  "10a":   { id:"10a",   name:"10 — A",      yearGroup:10, section:"A", formTeacherId:"T03", studentIds: classStudents("10a").map(s=>s.id),   todayPresent: todayPresent("10a",0.911),   below75Count: computeBelow75("10a"),   homeworkCompletion:0.85, exams:[examUnit1, examHY],            homework:makeHW("10a") },
-  "10b":   { id:"10b",   name:"10 — B",      yearGroup:10, section:"B", formTeacherId:"T12", studentIds: classStudents("10b").map(s=>s.id),   todayPresent: todayPresent("10b",0.871),   below75Count: computeBelow75("10b"),   homeworkCompletion:0.80, exams:[examUnit1, examHY],            homework:makeHW("10b") },
-  "11sci": { id:"11sci", name:"11 — Science", yearGroup:11, section:"Science", formTeacherId:"T05", studentIds: classStudents("11sci").map(s=>s.id), todayPresent: todayPresent("11sci",0.917), below75Count: computeBelow75("11sci"), homeworkCompletion:0.88, exams:[exam11UT1],                    homework:makeHW("11sci") },
-  "11com": { id:"11com", name:"11 — Commerce",yearGroup:11, section:"Commerce", formTeacherId:"T06", studentIds: classStudents("11com").map(s=>s.id), todayPresent: todayPresent("11com",0.850), below75Count: computeBelow75("11com"), homeworkCompletion:0.75, exams:[examHigherUT1],                homework:makeHW("11com") },
-  "12sci": { id:"12sci", name:"12 — Science", yearGroup:12, section:"Science", formTeacherId:"T04", studentIds: classStudents("12sci").map(s=>s.id), todayPresent: todayPresent("12sci",0.950), below75Count: computeBelow75("12sci"), homeworkCompletion:0.90, exams:[exam11UT1],                    homework:makeHW("12sci") },
-  "12com": { id:"12com", name:"12 — Commerce",yearGroup:12, section:"Commerce", formTeacherId:"T07", studentIds: classStudents("12com").map(s=>s.id), todayPresent: todayPresent("12com",0.889), below75Count: computeBelow75("12com"), homeworkCompletion:0.82, exams:[examHigherUT1],                homework:makeHW("12com") },
+  "9a":    { id:"9a",    name:"9 — A",       yearGroup:9,  section:"A", formTeacherId:"T01", studentIds: classStudents("9a").map(s=>s.id),    todayPresent: todayPresent("9a",0.875),    below75Count: computeBelow75("9a"), exams:[examUnit1, examHY] },
+  "9b":    { id:"9b",    name:"9 — B",       yearGroup:9,  section:"B", formTeacherId:"T02", studentIds: classStudents("9b").map(s=>s.id),    todayPresent: todayPresent("9b",0.833),    below75Count: computeBelow75("9b"), exams:[examUnit1, examHY] },
+  "10a":   { id:"10a",   name:"10 — A",      yearGroup:10, section:"A", formTeacherId:"T03", studentIds: classStudents("10a").map(s=>s.id),   todayPresent: todayPresent("10a",0.911),   below75Count: computeBelow75("10a"), exams:[examUnit1, examHY] },
+  "10b":   { id:"10b",   name:"10 — B",      yearGroup:10, section:"B", formTeacherId:"T12", studentIds: classStudents("10b").map(s=>s.id),   todayPresent: todayPresent("10b",0.871),   below75Count: computeBelow75("10b"), exams:[examUnit1, examHY] },
+  "11sci": { id:"11sci", name:"11 — Science", yearGroup:11, section:"Science", formTeacherId:"T05", studentIds: classStudents("11sci").map(s=>s.id), todayPresent: todayPresent("11sci",0.917), below75Count: computeBelow75("11sci"), exams:[exam11UT1] },
+  "11com": { id:"11com", name:"11 — Commerce",yearGroup:11, section:"Commerce", formTeacherId:"T06", studentIds: classStudents("11com").map(s=>s.id), todayPresent: todayPresent("11com",0.850), below75Count: computeBelow75("11com"), exams:[examHigherUT1] },
+  "12sci": { id:"12sci", name:"12 — Science", yearGroup:12, section:"Science", formTeacherId:"T04", studentIds: classStudents("12sci").map(s=>s.id), todayPresent: todayPresent("12sci",0.950), below75Count: computeBelow75("12sci"), exams:[exam11UT1] },
+  "12com": { id:"12com", name:"12 — Commerce",yearGroup:12, section:"Commerce", formTeacherId:"T07", studentIds: classStudents("12com").map(s=>s.id), todayPresent: todayPresent("12com",0.889), below75Count: computeBelow75("12com"), exams:[examHigherUT1] },
 }
 
 const CLASS_ORDER: ClassId[] = ["9a","9b","10a","10b","11sci","11com","12sci","12com"]
@@ -462,29 +439,6 @@ export const appData: AppData = {
   schoolAttendance: computeSchoolAttendance(),
 }
 
-// Helper: get student marks for a class+exam+subject (for score distribution view)
-export function getClassSubjectMarks(classId: ClassId, examId: ExamId, subjectId: string): { studentId: string; name: string; marks: number; outOf: number }[] {
-  const cls = classes[classId]
-  if (!cls) return []
-  const exam = cls.exams.find(e => e.id === examId)
-  const sub = exam?.subjects.find(s => s.id === subjectId)
-  if (!sub) return []
-  return cls.studentIds.map(sid => {
-    const st = studentsById[sid]
-    if (!st) return null
-    // Use seeded random for marks
-    const r = sr(sid + examId + subjectId)
-    const isStruggling = r < 0.12
-    const isExcellent = r > 0.82
-    const marks = isStruggling
-      ? Math.round(r * sub.passMark * 0.9)
-      : isExcellent
-      ? Math.round(sub.outOf * (0.85 + (r - 0.82) * 0.88))
-      : Math.round(sub.outOf * (0.38 + r * 0.47))
-    return { studentId: sid, name: st.name, marks: Math.min(marks, sub.outOf), outOf: sub.outOf }
-  }).filter(Boolean) as { studentId: string; name: string; marks: number; outOf: number }[]
-}
-
 export function getAbsentsForDate(classId: ClassId, date: string): StudentId[] {
   const cls = classes[classId]
   if (!cls) return []
@@ -511,86 +465,6 @@ export function getClassPresentForDate(classId: ClassId, date: string): number {
   const basePct = cls.todayPresent / cls.studentIds.length
   const pct = Math.max(0.55, Math.min(1, basePct + (r - 0.5) * 0.12))
   return Math.round(cls.studentIds.length * pct)
-}
-
-/**
- * A class's tests, newest first, with every student's mark on each.
- *
- * Tests are stored per STUDENT (`Student.testMarks`) because that is how a
- * student's record reads them. The class needs the other axis — one test, every
- * student — so the rows are folded by (date, subject, title), which is what
- * identifies a test here. Every student in a class sits the same three, so the
- * fold is exact rather than a best guess.
- */
-export function getClassTests(classId: ClassId): {
-  key: string
-  subject: string
-  title: string
-  date: string
-  outOf: number
-  marks: { studentId: StudentId; name: string; rollNo: string; marks: number; outOf: number }[]
-}[] {
-  const cls = classes[classId]
-  if (!cls) return []
-  const byKey = new Map<string, {
-    key: string; subject: string; title: string; date: string; outOf: number
-    marks: { studentId: StudentId; name: string; rollNo: string; marks: number; outOf: number }[]
-  }>()
-  for (const sid of cls.studentIds) {
-    const st = studentsById[sid]
-    if (!st) continue
-    for (const t of st.testMarks) {
-      const key = `${t.date}|${t.subject}|${t.title}`
-      const entry = byKey.get(key) ?? { key, subject: t.subject, title: t.title, date: t.date, outOf: t.outOf, marks: [] }
-      entry.marks.push({ studentId: sid, name: st.name, rollNo: st.rollNo, marks: t.marks, outOf: t.outOf })
-      byKey.set(key, entry)
-    }
-  }
-  return [...byKey.values()].sort((a, b) => b.date.localeCompare(a.date))
-}
-
-/**
- * Every student's TOTAL across one exam, highest first.
- *
- * Summed from `getClassSubjectMarks` rather than from a second source, so a
- * student's total can never disagree with the per-subject table they came from.
- *
- * Only subjects with marks entered are counted, and `subjectsCounted` reports
- * how many that was — an exam part-way through marking produces a real ordering
- * of what HAS been marked, and the screen says so rather than presenting a
- * partial total as a final one.
- */
-export function getExamTotals(classId: ClassId, examId: ExamId): {
-  rows: { studentId: StudentId; name: string; rollNo: string; total: number; outOf: number }[]
-  subjectsCounted: number
-  subjectsTotal: number
-} {
-  const cls = classes[classId]
-  const exam = cls?.exams.find(e => e.id === examId)
-  if (!cls || !exam) return { rows: [], subjectsCounted: 0, subjectsTotal: 0 }
-
-  const marked = exam.subjects.filter(s => s.hasMarks)
-  const totals = new Map<StudentId, { total: number; outOf: number }>()
-  for (const sub of marked) {
-    for (const m of getClassSubjectMarks(classId, examId, sub.id)) {
-      const acc = totals.get(m.studentId) ?? { total: 0, outOf: 0 }
-      acc.total += m.marks
-      acc.outOf += m.outOf
-      totals.set(m.studentId, acc)
-    }
-  }
-
-  const rows = cls.studentIds
-    .map(sid => {
-      const st = studentsById[sid]
-      const acc = totals.get(sid)
-      if (!st || !acc) return null
-      return { studentId: sid, name: st.name, rollNo: st.rollNo, total: acc.total, outOf: acc.outOf }
-    })
-    .filter(Boolean) as { studentId: StudentId; name: string; rollNo: string; total: number; outOf: number }[]
-
-  rows.sort((a, b) => b.total - a.total || a.rollNo.localeCompare(b.rollNo))
-  return { rows, subjectsCounted: marked.length, subjectsTotal: exam.subjects.length }
 }
 
 export function fmtRupees(n: number): string {

@@ -1,10 +1,20 @@
 import React, { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { toEnumLabel } from "@/lib/presentation"
+// The portal's own design language, moved to one file so the live test screens
+// can use exactly the same primitives (see ../primitives.tsx).
 import {
-  appData, fmtRupees, fmtPct, getClassSubjectMarks, getAbsentsForDate, getClassPresentForDate,
-  getClassTests, getExamTotals,
-  type ClassId, type StudentId, type TeacherId, type ExamId,
+  SectionHeading, Label, Pill, BackButton, EmptyState,
+} from "../primitives"
+// The two tabs of this portal that are NOT a design. Tests: real classes,
+// real tests, real marks (2026-09-12 ruling, ../PrincipalTests.tsx). Classes:
+// each real class's homework, who did it, and its tests (2026-09-15,
+// ../PrincipalClasses.tsx).
+import PrincipalTests from "../PrincipalTests"
+import PrincipalClasses from "../PrincipalClasses"
+import {
+  appData, fmtRupees, fmtPct, getAbsentsForDate, getClassPresentForDate,
+  type ClassId, type StudentId, type TeacherId,
   type LeaveRequest, type Announcement,
 } from "./data"
 
@@ -26,17 +36,14 @@ type Screen =
   | { id: "students" }
   | { id: "student"; studentId: StudentId }
   | { id: "classes" }
-  | { id: "class"; classId: ClassId; tab?: string }
-  | { id: "class-homework"; classId: ClassId; homeworkId: string }
-  | { id: "class-test"; classId: ClassId; testKey: string }
-  | { id: "exam"; classId: ClassId; examId: ExamId }
-  | { id: "exam-subject"; classId: ClassId; examId: ExamId; subjectId: string }
+  | { id: "tests" }
   | { id: "settings" }
 
 function screenSection(s: Screen): string {
   if (s.id === "teachers" || s.id === "teacher") return "teachers"
   if (s.id === "students" || s.id === "student") return "students"
-  if (s.id === "classes" || s.id === "class" || s.id === "class-homework" || s.id === "class-test" || s.id === "exam" || s.id === "exam-subject") return "classes"
+  if (s.id === "classes") return "classes"
+  if (s.id === "tests") return "tests"
   if (s.id === "settings") return "settings"
   return "dashboard"
 }
@@ -59,13 +66,7 @@ function screenLabel(s: Screen): string {
     case "students": return "Students"
     case "student": return d.students[s.studentId]?.name ?? s.studentId
     case "classes": return "Classes"
-    case "class": return d.classes[s.classId]?.name ?? s.classId
-    case "class-homework": return "Homework"
-    // The breadcrumb names the test itself, the way `exam` names the exam —
-    // "Unit Test 2" tells the principal where they are; "Test" would not.
-    case "class-test": return getClassTests(s.classId).find(t => t.key === s.testKey)?.title ?? "Test"
-    case "exam": return d.classes[s.classId]?.exams.find(e => e.id === s.examId)?.name ?? "Exam"
-    case "exam-subject": return d.classes[s.classId]?.exams.find(e => e.id === s.examId)?.subjects.find(sub => sub.id === s.subjectId)?.name ?? "Subject"
+    case "tests": return "Tests"
     case "settings": return "Settings"
   }
 }
@@ -135,6 +136,7 @@ function Sidebar({
     { id: "teachers",  label: "Teachers",  screen: { id: "teachers" } },
     { id: "students",  label: "Students",  screen: { id: "students" } },
     { id: "classes",   label: "Classes",   screen: { id: "classes" } },
+    { id: "tests",     label: "Tests",     screen: { id: "tests" } },
   ]
   const initials = name.trim().split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "P"
   return (
@@ -222,63 +224,6 @@ function Header({
 }
 
 // ─── Shared UI components ─────────────────────────────────────────────────────
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <h1 className="font-display text-2xl font-medium text-foreground mb-1">{children}</h1>
-}
-
-function Label({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span className={`text-[10px] font-medium tracking-widest uppercase text-muted-foreground ${className}`}>
-      {children}
-    </span>
-  )
-}
-
-function Mono({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <span className={`font-mono ${className}`}>{children}</span>
-}
-
-function Pill({ children, variant = "default" }: { children: React.ReactNode; variant?: "default" | "muted" | "outline" }) {
-  const cls = {
-    default: "bg-secondary text-secondary-foreground",
-    muted: "bg-muted text-muted-foreground",
-    outline: "border border-border text-foreground",
-  }[variant]
-  return (
-    <span className={`inline-block text-[10px] font-mono px-1.5 py-0.5 rounded-[2px] ${cls}`}>
-      {children}
-    </span>
-  )
-}
-
-function BackButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 mb-4"
-    >
-      ← Back
-    </button>
-  )
-}
-
-function EmptyState({ title, detail }: { title: string; detail?: string }) {
-  return (
-    <div className="py-16 text-center">
-      <div className="text-sm text-muted-foreground">{title}</div>
-      {detail && <div className="text-xs text-muted-foreground mt-1">{detail}</div>}
-    </div>
-  )
-}
-
-function LoadingRow() {
-  return (
-    <div className="h-10 flex items-center px-4">
-      <div className="h-2 w-32 bg-muted rounded-[2px] animate-pulse" />
-    </div>
-  )
-}
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
@@ -1487,7 +1432,7 @@ function StudentRecordView({ studentId, goBack }: { studentId: StudentId; goBack
                   <div className="w-28 text-xs text-muted-foreground">{hw.subject}</div>
                   <div className="w-20 font-mono text-xs text-muted-foreground">{hw.dueDate.slice(5)}</div>
                   <div className="w-20 text-right">
-                    <span className={`text-xs ${hw.status === "missing" ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                    <span className={`text-xs ${hw.status === "not_submitted" ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                       {toEnumLabel(hw.status, "submission_status")}
                     </span>
                   </div>
@@ -1597,528 +1542,6 @@ function StudentRecordView({ studentId, goBack }: { studentId: StudentId; goBack
           )}
         </section>
 
-      </div>
-    </div>
-  )
-}
-
-// ─── Classes ──────────────────────────────────────────────────────────────────
-
-function ClassesView({ navigate }: { navigate: (s: Screen) => void }) {
-  return (
-    <div className="p-8 scroll-y h-full">
-      <Label>School</Label>
-      <SectionHeading>Classes</SectionHeading>
-      <div className="text-sm text-muted-foreground mb-6">{appData.classOrder.length} classes</div>
-
-      <div className="border border-border bg-card max-w-3xl">
-        <div className="flex items-center px-4 py-2 border-b border-border bg-secondary/40">
-          <div className="flex-1 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Class</div>
-          <div className="w-20 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Students</div>
-          <div className="w-28 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Attendance today</div>
-          <div className="w-24 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Below 75%</div>
-          <div className="w-24 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">HW completion</div>
-          <div className="w-28 text-[10px] tracking-widest uppercase text-muted-foreground font-medium pl-4">Form teacher</div>
-        </div>
-        {appData.classOrder.map(cid => {
-          const cls = appData.classes[cid]
-          const total = cls.studentIds.length
-          const ft = appData.teachers[cls.formTeacherId]
-          return (
-            <button
-              key={cid}
-              onClick={() => navigate({ id: "class", classId: cid })}
-              className="w-full flex items-center px-4 py-3 border-b border-border last:border-b-0 hover:bg-secondary/40 transition-colors text-left"
-            >
-              <div className="flex-1 text-sm font-medium">{cls.name}</div>
-              <div className="w-20 text-right font-mono text-sm">
-                {total === 0 ? <span className="text-muted-foreground">—</span> : total}
-              </div>
-              <div className="w-28 text-right font-mono text-sm">
-                {total === 0 ? <span className="text-muted-foreground">—</span> : `${fmtPct(cls.todayPresent, total)}`}
-              </div>
-              <div className="w-24 text-right font-mono text-sm text-muted-foreground">{cls.below75Count}</div>
-              <div className="w-24 text-right font-mono text-sm text-muted-foreground">
-                {(cls.homeworkCompletion * 100).toFixed(0)}%
-              </div>
-              <div className="w-28 text-xs text-muted-foreground pl-4 truncate">{ft?.name ?? "—"}</div>
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function ClassDetailView({ classId, tab: initTab = "students", navigate, goBack }: { classId: ClassId; tab?: string; navigate: (s: Screen) => void; goBack: () => void }) {
-  const cls = appData.classes[classId]
-  const [tab, setTab] = useState(initTab)
-  if (!cls) return <EmptyState title="Class not found." />
-
-  const students = cls.studentIds.map(sid => appData.students[sid]).filter(Boolean)
-  const ft = appData.teachers[cls.formTeacherId]
-  const classTests = getClassTests(classId)
-
-  return (
-    <div className="p-8 scroll-y h-full">
-      <BackButton onClick={goBack} />
-      <Label>Classes</Label>
-      <SectionHeading>{cls.name}</SectionHeading>
-      <div className="text-sm text-muted-foreground mb-5">
-        {students.length} students
-        {ft && ` · Form teacher: ${ft.name}`}
-      </div>
-
-      {/* Tests sit between homework and exams: more frequent than an exam,
-          more formal than homework, which is the order a principal reads them
-          in. */}
-      <div className="flex gap-0 border border-border w-fit mb-6">
-        {["students","homework","tests","exams"].map((t, i) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-5 py-2 text-xs capitalize ${i > 0 ? "border-l border-border" : ""} ${tab === t ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"} transition-colors`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {tab === "students" && (
-        <div className="border border-border bg-card max-w-xl">
-          <div className="flex items-center px-4 py-2 border-b border-border bg-secondary/40">
-            <div className="w-12 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Roll</div>
-            <div className="flex-1 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Name</div>
-            <div className="w-24 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Attendance</div>
-          </div>
-          {students.length === 0
-            ? <EmptyState title="No students enrolled in this class." detail="Students will appear here once they are assigned to this class." />
-            : students.map(s => {
-              const pct = s.totalDays > 0 ? (s.presentDays / s.totalDays) * 100 : 0
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => navigate({ id: "student", studentId: s.id })}
-                  className="w-full flex items-center px-4 py-2.5 border-b border-border last:border-b-0 hover:bg-secondary/40 transition-colors text-left"
-                >
-                  <div className="w-12 font-mono text-xs text-muted-foreground">{s.rollNo.slice(-3)}</div>
-                  <div className="flex-1 text-sm">{s.name}</div>
-                  <div className={`w-24 text-right font-mono text-sm ${pct < 75 ? "font-medium" : "text-muted-foreground"}`}>
-                    {pct.toFixed(1)}%
-                  </div>
-                </button>
-              )
-            })
-          }
-        </div>
-      )}
-
-      {tab === "homework" && (
-        <div className="border border-border bg-card max-w-2xl">
-          <div className="flex items-center px-4 py-2 border-b border-border bg-secondary/40">
-            <div className="flex-1 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Assignment</div>
-            <div className="w-24 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Subject</div>
-            <div className="w-16 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Due</div>
-            <div className="w-24 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Submitted</div>
-            <div className="w-24 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Reviewed</div>
-          </div>
-          {cls.homework.length === 0
-            ? <EmptyState title="No homework assigned yet." />
-            : cls.homework.map(hw => (
-              <button
-                key={hw.id}
-                onClick={() => navigate({ id: "class-homework", classId, homeworkId: hw.id })}
-                className="w-full flex items-center px-4 py-3 border-b border-border last:border-b-0 hover:bg-secondary/40 transition-colors text-left"
-              >
-                <div className="flex-1 text-sm">{hw.title}</div>
-                <div className="w-24 text-xs text-muted-foreground">{hw.subject}</div>
-                <div className="w-16 text-right font-mono text-xs text-muted-foreground">{hw.dueDate.slice(5)}</div>
-                <div className="w-24 text-right font-mono text-sm">{hw.submitted} / {hw.totalStudents}</div>
-                <div className="w-24 text-right font-mono text-sm text-muted-foreground">{hw.reviewed} / {hw.submitted}</div>
-              </button>
-            ))
-          }
-        </div>
-      )}
-
-      {tab === "tests" && (
-        <div className="space-y-3 max-w-xl">
-          {classTests.length === 0
-            ? <EmptyState title="No tests recorded for this class." detail="Tests appear here once a teacher enters marks." />
-            : classTests.map(t => {
-              const scored = t.marks.length
-              const avg = scored > 0 ? t.marks.reduce((n, m) => n + m.marks, 0) / scored : 0
-              return (
-                <button
-                  key={t.key}
-                  onClick={() => navigate({ id: "class-test", classId, testKey: t.key })}
-                  className="w-full bg-card border border-border p-4 text-left hover:border-foreground/30 transition-colors group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium">{t.title}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{t.subject} · {t.date}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-mono text-sm">{avg.toFixed(1)} / {t.outOf}</div>
-                      <div className="text-xs text-muted-foreground">class average</div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-2 group-hover:text-foreground transition-colors">View marks →</div>
-                </button>
-              )
-            })
-          }
-        </div>
-      )}
-
-      {tab === "exams" && (
-        <div className="space-y-3 max-w-xl">
-          {cls.exams.length === 0
-            ? <EmptyState title="No exams recorded for this class." />
-            : cls.exams.map(exam => {
-              const withMarks = exam.subjects.filter(s => s.hasMarks).length
-              const total = exam.subjects.length
-              return (
-                <button
-                  key={exam.id}
-                  onClick={() => navigate({ id: "exam", classId, examId: exam.id })}
-                  className="w-full bg-card border border-border p-4 text-left hover:border-foreground/30 transition-colors group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium">{exam.name}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{exam.term} · {exam.date}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-mono text-sm">{withMarks} / {total}</div>
-                      <div className="text-xs text-muted-foreground">subjects with marks</div>
-                    </div>
-                  </div>
-                  {withMarks < total && (
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      Marks pending for: {exam.subjects.filter(s => !s.hasMarks).map(s => s.name).join(", ")}
-                    </div>
-                  )}
-                  <div className="text-xs text-muted-foreground mt-2 group-hover:text-foreground transition-colors">View results →</div>
-                </button>
-              )
-            })
-          }
-        </div>
-      )}
-    </div>
-  )
-}
-
-/**
- * One test, every student's mark.
- *
- * A test's marks existed only inside a student's own record, so a principal
- * could see one student across many tests and never one test across the class.
- * This is the other axis, and it is built from the same numbers the student
- * record shows, so the two can never disagree.
- *
- * Ordered highest first, matching the per-subject exam table, and ties share a
- * position the way the attendance ranking does.
- */
-function ClassTestView({ classId, testKey, goBack }: { classId: ClassId; testKey: string; goBack: () => void }) {
-  const cls = appData.classes[classId]
-  const test = getClassTests(classId).find(t => t.key === testKey)
-  if (!cls || !test) return <EmptyState title="Test not found." />
-
-  const scored = test.marks.length
-  const avg = scored > 0 ? test.marks.reduce((n, m) => n + m.marks, 0) / scored : 0
-  const highest = scored > 0 ? Math.max(...test.marks.map(m => m.marks)) : 0
-  const lowest = scored > 0 ? Math.min(...test.marks.map(m => m.marks)) : 0
-
-  const ranked = (() => {
-    const rows = [...test.marks].sort((a, b) => b.marks - a.marks || a.rollNo.localeCompare(b.rollNo))
-    let lastMarks: number | null = null
-    let lastRank = 0
-    return rows.map((m, i) => {
-      const rank = lastMarks !== null && m.marks === lastMarks ? lastRank : i + 1
-      lastMarks = m.marks
-      lastRank = rank
-      return { ...m, rank }
-    })
-  })()
-
-  return (
-    <div className="p-8 scroll-y h-full">
-      <BackButton onClick={goBack} />
-      <Label>{cls.name} · Tests</Label>
-      <SectionHeading>{test.title}</SectionHeading>
-      <div className="text-sm text-muted-foreground mb-6">
-        {test.subject} · {test.date} · out of {test.outOf}
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 mb-8 max-w-xl">
-        <div className="bg-card border border-border p-4">
-          <Label className="block mb-2">Class average</Label>
-          <div className="font-mono text-2xl">{avg.toFixed(1)}</div>
-          <div className="text-xs text-muted-foreground mt-1">of {test.outOf}</div>
-        </div>
-        <div className="bg-card border border-border p-4">
-          <Label className="block mb-2">Highest</Label>
-          <div className="font-mono text-2xl">{highest}</div>
-          <div className="text-xs text-muted-foreground mt-1">of {test.outOf}</div>
-        </div>
-        <div className="bg-card border border-border p-4">
-          <Label className="block mb-2">Lowest</Label>
-          <div className="font-mono text-2xl">{lowest}</div>
-          <div className="text-xs text-muted-foreground mt-1">of {test.outOf}</div>
-        </div>
-      </div>
-
-      <Label className="block mb-3">All students</Label>
-      <div className="border border-border bg-card max-w-xl">
-        <div className="flex items-center px-4 py-2 border-b border-border bg-secondary/40">
-          <div className="w-8 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">#</div>
-          <div className="w-10 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Roll</div>
-          <div className="flex-1 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Student</div>
-          <div className="w-24 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Marks</div>
-          <div className="w-16 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">%</div>
-        </div>
-        {ranked.length === 0 ? (
-          <EmptyState title="No marks entered for this test yet." />
-        ) : ranked.map(m => (
-          <div key={m.studentId} className="flex items-center px-4 py-2.5 border-b border-border last:border-b-0">
-            <div className="w-8 font-mono text-xs text-muted-foreground">{m.rank}</div>
-            <div className="w-10 font-mono text-xs text-muted-foreground">{m.rollNo.slice(-3)}</div>
-            <div className="flex-1 text-sm">{m.name}</div>
-            <div className="w-24 text-right font-mono text-sm">{m.marks} / {m.outOf}</div>
-            <div className="w-16 text-right font-mono text-sm text-muted-foreground">
-              {((m.marks / m.outOf) * 100).toFixed(0)}%
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function HomeworkDetailView({ classId, homeworkId, goBack }: { classId: ClassId; homeworkId: string; goBack: () => void }) {
-  const cls = appData.classes[classId]
-  const hw = cls?.homework.find(h => h.id === homeworkId)
-  if (!cls || !hw) return <EmptyState title="Homework not found." />
-
-  const students = cls.studentIds.map(sid => appData.students[sid]).filter(Boolean)
-  const studentStatuses = students.map(s => {
-    const item = s.homework.find(h => h.subject === hw.subject)
-    return { s, status: item?.status ?? "missing" }
-  })
-
-  return (
-    <div className="p-8 scroll-y h-full">
-      <BackButton onClick={goBack} />
-      <Label>{cls.name} · Homework</Label>
-      <SectionHeading>{hw.title}</SectionHeading>
-      <div className="text-sm text-muted-foreground mb-6">{hw.subject} · Due {hw.dueDate}</div>
-
-      <div className="flex gap-3 mb-6">
-        {["submitted","accepted","rejected","missing"].map(status => {
-          const count = studentStatuses.filter(r => r.status === status).length
-          return (
-            <div key={status} className="bg-card border border-border px-3 py-2.5">
-              <Label className="block mb-1">{status}</Label>
-              <div className="font-mono text-xl">{count}</div>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="border border-border bg-card max-w-xl">
-        <div className="flex items-center px-4 py-2 border-b border-border bg-secondary/40">
-          <div className="flex-1 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Student</div>
-          <div className="w-24 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Status</div>
-        </div>
-        {studentStatuses.map(({ s, status }) => (
-          <div key={s.id} className="flex items-center px-4 py-2.5 border-b border-border last:border-b-0">
-            <div className="flex-1 text-sm">{s.name}</div>
-            <div className={`w-24 text-right text-xs ${status === "missing" ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-              {status}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ExamView({ classId, examId, navigate, goBack }: { classId: ClassId; examId: ExamId; navigate: (s: Screen) => void; goBack: () => void }) {
-  const cls = appData.classes[classId]
-  const exam = cls?.exams.find(e => e.id === examId)
-  const examTotals = getExamTotals(classId, examId)
-  // Ties share a position, as they do in the attendance ranking and the test
-  // table — two students on the same total are in the same place.
-  const rankedTotals = (() => {
-    let lastTotal: number | null = null
-    let lastRank = 0
-    return examTotals.rows.map((r, i) => {
-      const rank = lastTotal !== null && r.total === lastTotal ? lastRank : i + 1
-      lastTotal = r.total
-      lastRank = rank
-      return { ...r, rank }
-    })
-  })()
-  if (!cls || !exam) return <EmptyState title="Exam not found." />
-
-  return (
-    <div className="p-8 scroll-y h-full">
-      <BackButton onClick={goBack} />
-      <Label>{cls.name}</Label>
-      <SectionHeading>{exam.name}</SectionHeading>
-      <div className="text-sm text-muted-foreground mb-6">{exam.term} · {exam.date}</div>
-
-      {exam.subjects.filter(s => !s.hasMarks).length > 0 && (
-        <div className="bg-secondary border border-border px-4 py-3 mb-6 max-w-xl text-sm text-muted-foreground">
-          Marks not yet entered for: {exam.subjects.filter(s => !s.hasMarks).map(s => s.name).join(", ")}. Results shown below are partial.
-        </div>
-      )}
-
-      <div className="max-w-xl space-y-2 mb-8">
-        {exam.subjects.map(sub => (
-          <button
-            key={sub.id}
-            disabled={!sub.hasMarks}
-            onClick={() => navigate({ id: "exam-subject", classId, examId, subjectId: sub.id })}
-            className={`w-full bg-card border border-border p-4 text-left transition-colors group ${sub.hasMarks ? "hover:border-foreground/30 cursor-pointer" : "opacity-50 cursor-default"}`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium">{sub.name}</div>
-              <div className="text-xs text-muted-foreground">{sub.hasMarks ? "Marks in · View →" : "Marks pending"}</div>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Leaderboard — ranked on TOTAL marks across the exam.
-          Placed under the subject list because it is the whole-exam reading of
-          the same numbers: the subjects above answer "how did the class do in
-          Physics", this answers "where does each student stand overall".
-          The caption states how many subjects the total covers, so a
-          part-marked exam produces a real ordering of what HAS been marked
-          rather than a final position nobody has earned yet. */}
-      {examTotals.rows.length > 0 && (
-        <div className="max-w-xl mb-8">
-          <Label className="block mb-1">Leaderboard</Label>
-          <div className="text-xs text-muted-foreground mb-3">
-            Total across {examTotals.subjectsCounted} of {examTotals.subjectsTotal}{" "}
-            {examTotals.subjectsTotal === 1 ? "subject" : "subjects"}
-            {examTotals.subjectsCounted < examTotals.subjectsTotal ? " marked so far" : ""}
-          </div>
-          <div className="border border-border bg-card">
-            <div className="flex items-center px-4 py-2 border-b border-border bg-secondary/40">
-              <div className="w-8 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">#</div>
-              <div className="w-10 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Roll</div>
-              <div className="flex-1 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Student</div>
-              <div className="w-28 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Total</div>
-              <div className="w-16 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">%</div>
-            </div>
-            {rankedTotals.map(r => (
-              <div key={r.studentId} className="flex items-center px-4 py-2.5 border-b border-border last:border-b-0">
-                <div className="w-8 font-mono text-xs text-muted-foreground">{r.rank}</div>
-                <div className="w-10 font-mono text-xs text-muted-foreground">{r.rollNo.slice(-3)}</div>
-                <div className="flex-1 text-sm">{r.name}</div>
-                <div className="w-28 text-right font-mono text-sm">{r.total} / {r.outOf}</div>
-                <div className="w-16 text-right font-mono text-sm text-muted-foreground">
-                  {r.outOf > 0 ? ((r.total / r.outOf) * 100).toFixed(0) : "—"}%
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {exam.classTeacherComment && (
-        <div className="max-w-xl">
-          <Label className="block mb-2">Class teacher's note</Label>
-          <div className="bg-card border border-border px-4 py-3 text-sm text-muted-foreground leading-relaxed italic">
-            "{exam.classTeacherComment}"
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ExamSubjectView({ classId, examId, subjectId, goBack }: { classId: ClassId; examId: ExamId; subjectId: string; goBack: () => void }) {
-  const cls = appData.classes[classId]
-  const exam = cls?.exams.find(e => e.id === examId)
-  const sub = exam?.subjects.find(s => s.id === subjectId)
-  if (!cls || !exam || !sub) return <EmptyState title="Subject not found." />
-
-  const marks = getClassSubjectMarks(classId, examId, subjectId)
-  const passMark = sub.passMark
-  const outOf = sub.outOf
-
-  const ranges = [
-    { label: "81–100%",  min: outOf * 0.81, max: outOf },
-    { label: "61–80%",   min: outOf * 0.61, max: outOf * 0.80 },
-    { label: "41–60%",   min: outOf * 0.41, max: outOf * 0.60 },
-    { label: "Passed",   min: passMark,     max: outOf * 0.40 },
-    { label: "Failed",   min: 0,            max: passMark - 1 },
-  ]
-
-  const bucketed = ranges.map(r => ({
-    ...r,
-    count: marks.filter(m => m.marks >= r.min && m.marks <= r.max).length,
-  }))
-
-  const failCount = marks.filter(m => m.marks < passMark).length
-  const maxCount = Math.max(...bucketed.map(b => b.count), 1)
-
-  const sorted = [...marks].sort((a, b) => b.marks - a.marks)
-
-  return (
-    <div className="p-8 scroll-y h-full">
-      <BackButton onClick={goBack} />
-      <Label>{cls.name} · {exam.name}</Label>
-      <SectionHeading>{sub.name}</SectionHeading>
-      <div className="text-sm text-muted-foreground mb-8">
-        Out of {outOf} · Pass mark {passMark} · {marks.length} students
-      </div>
-
-      {/* Score distribution — the main thing */}
-      <Label className="block mb-4">Score distribution</Label>
-      <div className="max-w-md mb-2 space-y-2">
-        {bucketed.map((b, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <div className="w-16 text-xs text-muted-foreground font-mono text-right">{b.label}</div>
-            <div className="flex-1 h-6 bg-secondary relative overflow-hidden">
-              <div
-                className={`h-full transition-all ${i === bucketed.length - 1 ? "bg-foreground/30" : "bg-foreground/60"}`}
-                style={{ width: `${(b.count / maxCount) * 100}%` }}
-              />
-            </div>
-            <div className="w-6 text-xs font-mono text-muted-foreground">{b.count}</div>
-          </div>
-        ))}
-      </div>
-      <div className="text-xs text-muted-foreground mb-8">
-        <Mono>{failCount}</Mono> {failCount === 1 ? "student" : "students"} scored below the pass mark of <Mono>{passMark}</Mono>
-      </div>
-
-      {/* Per-student scores */}
-      <Label className="block mb-3">All students</Label>
-      <div className="border border-border bg-card max-w-md">
-        <div className="flex items-center px-4 py-2 border-b border-border bg-secondary/40">
-          <div className="flex-1 text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Student</div>
-          <div className="w-24 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Marks</div>
-          <div className="w-16 text-right text-[10px] tracking-widest uppercase text-muted-foreground font-medium">%</div>
-        </div>
-        {sorted.map((m, i) => (
-          <div key={m.studentId} className="flex items-center px-4 py-2.5 border-b border-border last:border-b-0">
-            <div className="flex-1 text-sm">{m.name}</div>
-            <div className={`w-24 text-right font-mono text-sm ${m.marks < passMark ? "font-medium" : ""}`}>
-              {m.marks} / {m.outOf}
-            </div>
-            <div className={`w-16 text-right font-mono text-sm text-muted-foreground`}>
-              {((m.marks / m.outOf) * 100).toFixed(0)}%
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   )
@@ -2330,17 +1753,9 @@ export default function App() {
       case "student":
         return <StudentRecordView studentId={s.studentId} goBack={nav.goBack} />
       case "classes":
-        return <ClassesView navigate={nav.navigate} />
-      case "class":
-        return <ClassDetailView classId={s.classId} tab={s.tab} navigate={nav.navigate} goBack={nav.goBack} />
-      case "class-homework":
-        return <HomeworkDetailView classId={s.classId} homeworkId={s.homeworkId} goBack={nav.goBack} />
-      case "class-test":
-        return <ClassTestView classId={s.classId} testKey={s.testKey} goBack={nav.goBack} />
-      case "exam":
-        return <ExamView classId={s.classId} examId={s.examId} navigate={nav.navigate} goBack={nav.goBack} />
-      case "exam-subject":
-        return <ExamSubjectView classId={s.classId} examId={s.examId} subjectId={s.subjectId} goBack={nav.goBack} />
+        return <PrincipalClasses />
+      case "tests":
+        return <PrincipalTests />
       case "settings":
         return <SettingsView goBack={nav.goBack} />
       default:

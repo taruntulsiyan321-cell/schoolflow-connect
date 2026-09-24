@@ -1,25 +1,66 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { withAlpha } from "@/lib/colorAlpha";
 import { ClipboardList, Loader2, Send } from "lucide-react";
-import { HomeworkService, WORK_KIND_LABELS, normalizeWorkKind, useAcademicLive } from "@/academic";
-import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
-import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
+import {
+  HOMEWORK_HAND_IN_FILE_PICKER,
+  HOMEWORK_STANDING_LABELS,
+  HomeworkService,
+  WORK_KIND_LABELS,
+  canHandIn,
+  homeworkStanding,
+  useAcademicLive,
+  type HomeworkStanding,
+  type StudentHomeworkRow,
+} from "@/academic";
+import { attachmentOfFile, type AcademicFile } from "@/academic/storage/academicFileUpload";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
-import { EmptyState, GlassCard, NoStudentProfile, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
-import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/AttachmentUI";
+import {
+  EmptyState,
+  GlassCard,
+  NoStudentProfile,
+  PageHeader,
+  PageSkeleton,
+  Skeleton,
+  SkeletonCard,
+  SkeletonList,
+  SubjectBadge,
+  subjectColor,
+} from "@/gurukul/components/shared";
+import { AttachmentList, OneFileField } from "@/gurukul-teacher/AttachmentUI";
 import { toErrorMessage } from "@/lib/presentation";
 import { StudentErrorState } from "@/components/student/StudentPanelStates";
+
+type Filter = "all" | "to_do" | "handed_in" | "missed";
+
+const FILTERS: { key: Filter; label: string; standings: HomeworkStanding[] }[] = [
+  { key: "all", label: "All", standings: ["to_do", "rejected", "handed_in", "accepted", "not_handed_in"] },
+  { key: "to_do", label: "To do", standings: ["to_do", "rejected"] },
+  { key: "handed_in", label: "Handed in", standings: ["handed_in", "accepted"] },
+  { key: "missed", label: "Missed", standings: ["not_handed_in"] },
+];
+
+const TONE: Record<HomeworkStanding, string> = {
+  to_do: "bg-warning/15 text-warning",
+  rejected: "bg-destructive/15 text-destructive",
+  handed_in: "bg-primary/15 text-primary",
+  accepted: "bg-success/15 text-success",
+  not_handed_in: "bg-destructive/15 text-destructive",
+};
 
 function subjectAccent(raw: string): string {
   const label = displaySubject(raw) || raw;
   return subjectColor[label] ?? subjectColor[raw] ?? "hsl(var(--muted-foreground))";
 }
 
+const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+
 /**
- * Student Assignments — HomeworkService list / submit / feedback (no mock).
+ * The student's homework — the one screen for it, at /student/homework and
+ * inside Classes. Hand in ONE image or PDF before the deadline; replace it, or
+ * hand in again after a rejection, until then.
  */
-export default function Assignments() {
+export default function Assignments({ embedded = false }: { embedded?: boolean }) {
   const { ctx, ready, studentId } = useAcademicContext();
   const liveVersion = useAcademicLive("homework");
   const loadedRef = useRef(false);
@@ -29,23 +70,15 @@ export default function Assignments() {
   /** Bumped by the error state's Try again, so the load effect re-runs. */
   const [reloadNonce, setReloadNonce] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "pending" | "done">("all");
+  const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [content, setContent] = useState("");
-  const [attachments, setAttachments] = useState<HomeworkAttachmentMeta[]>([]);
+  const [file, setFile] = useState<AcademicFile | null>(null);
   const [saving, setSaving] = useState(false);
 
   const reload = async () => {
     if (!ctx || !studentId) return;
-    // NO publishDueScheduled HERE. publish_due_scheduled_work() refuses a
-    // student — "Only school staff may publish scheduled work" — so this call
-    // was a guaranteed 403 on every load of a student page. The pg_cron job
-    // publish-due-scheduled-work runs it every minute, which is what makes due
-    // work appear for a student; asking the browser to do it was never the
-    // mechanism, only a fallback from before the cron existed.
-    const list = await HomeworkService.listForStudent(ctx, studentId);
-    setRows(list);
+    setRows(await HomeworkService.listForStudent(ctx, studentId));
   };
 
   useEffect(() => {
@@ -63,7 +96,7 @@ export default function Assignments() {
           loadedRef.current = true;
         }
       } catch (e) {
-        if (!cancelled) setLoadError(toErrorMessage(e, "Failed to load assignments"));
+        if (!cancelled) setLoadError(toErrorMessage(e, "Failed to load homework"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -74,74 +107,42 @@ export default function Assignments() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, ctx, studentId, liveVersion, reloadNonce]);
 
-  const pending = useMemo(
-    () => rows.filter((r) => !r.submission || ["pending", "returned"].includes(r.submission.status)),
-    [rows],
-  );
-  const completed = useMemo(
-    () =>
-      rows.filter((r) =>
-        ["submitted", "late", "reviewed", "graded", "completed"].includes(r.submission?.status ?? ""),
-      ),
+  const withStanding = useMemo(
+    () => rows.map((r) => ({ ...r, state: homeworkStanding(r.standing) })),
     [rows],
   );
 
   const visible = useMemo(() => {
-    let list = rows;
-    if (filter === "pending") list = pending;
-    if (filter === "done") list = completed;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((r) => {
-        const title = (presentAcademicLabel(r.homework.title) || r.homework.title).toLowerCase();
-        const subject = (displaySubject(r.homework.subject) || r.homework.subject).toLowerCase();
-        return title.includes(q) || subject.includes(q) || r.homework.subject.toLowerCase().includes(q);
-      });
-    }
-    return list;
-  }, [rows, filter, pending, completed, search]);
+    const allowed = FILTERS.find((f) => f.key === filter)!.standings;
+    const q = search.trim().toLowerCase();
+    return withStanding.filter((r) => {
+      if (!allowed.includes(r.state)) return false;
+      if (!q) return true;
+      const title = (presentAcademicLabel(r.homework.title) || r.homework.title).toLowerCase();
+      const subject = (displaySubject(r.homework.subject) || r.homework.subject).toLowerCase();
+      return title.includes(q) || subject.includes(q);
+    });
+  }, [withStanding, filter, search]);
 
-  const submit = async (homeworkId: string) => {
-    if (!ctx || !studentId) return;
-    // ONE UPLOADED FILE, which is what homework_submissions can hold: a
-    // single `file` object. A note has no column and neither does a link, so
-    // "a note OR a file" promised something the hand-in could not keep — and
-    // the server refuses it in as many words ("Attach the one image or PDF
-    // you uploaded"). Better to say so here than to fail after sending.
-    if (attachments.length === 0) {
-      setActionError("Attach the image or PDF you are handing in");
-      return;
-    }
+  const handIn = async (homeworkId: string) => {
+    if (!ctx || !file) return;
     setSaving(true);
     setActionError(null);
     try {
-      await HomeworkService.submit(ctx, {
-        homeworkId,
-        studentId,
-        content: content.trim(),
-        attachments,
-      });
+      await HomeworkService.submit(ctx, homeworkId, file);
       setActiveId(null);
-      setContent("");
-      setAttachments([]);
+      setFile(null);
       await reload();
     } catch (e) {
-      setActionError(toErrorMessage(e, "Submit failed"));
+      setActionError(toErrorMessage(e, "Failed to hand in homework"));
     } finally {
       setSaving(false);
     }
   };
 
-  // The title needs no network, so it no longer waits for one — it renders
-  // above every state, including the error and the not-linked ones, which used
-  // to arrive as unlabelled boxes with no way of telling which screen you were
-  // even on.
-  const header = (
-    <PageHeader
-      eyebrow="Class"
-      title="Homework"
-      subtitle="Everything your teachers have set, and what you have handed in."
-    />
+  // The title needs no network, so it renders above every state.
+  const header = embedded ? null : (
+    <PageHeader eyebrow="Class" title="Homework" subtitle="Everything your teachers have set, and what you have handed in." />
   );
 
   if (!ready || loading) {
@@ -161,7 +162,12 @@ export default function Assignments() {
   }
 
   if (!studentId) {
-    return <div className="space-y-4">{header}<NoStudentProfile /></div>;
+    return (
+      <div className="space-y-4">
+        {header}
+        <NoStudentProfile />
+      </div>
+    );
   }
 
   if (loadError) {
@@ -172,9 +178,8 @@ export default function Assignments() {
           title="Could not load your homework"
           message={loadError}
           onRetry={() => {
-            // Clear first: useInitialLoadGate suppresses the spinner on a
-            // same-subject refetch, so without this the student presses Try
-            // again and the unchanged error screen just sits there.
+            // Clear first: a same-subject refetch suppresses the spinner, so
+            // without this the unchanged error screen would just sit there.
             setLoadError(null);
             setReloadNonce((n) => n + 1);
           }}
@@ -194,16 +199,16 @@ export default function Assignments() {
       <GlassCard className="p-4 space-y-3">
         <div className="flex flex-wrap gap-2 items-center justify-between">
           <div className="flex gap-1">
-            {(["all", "pending", "done"] as const).map((f) => (
+            {FILTERS.map((f) => (
               <button
-                key={f}
+                key={f.key}
                 type="button"
-                onClick={() => setFilter(f)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold capitalize ${
-                  filter === f ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                onClick={() => setFilter(f.key)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                  filter === f.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
-                {f}
+                {f.label}
               </button>
             ))}
           </div>
@@ -220,11 +225,7 @@ export default function Assignments() {
             <EmptyState
               variant="section"
               icon={<ClipboardList className="w-5 h-5" />}
-              title={
-                filter !== "all" || search.trim()
-                  ? "No assignments match this filter"
-                  : "No homework assigned yet"
-              }
+              title={filter !== "all" || search.trim() ? "No homework matches this filter" : "No homework set yet"}
               sub={
                 filter !== "all" || search.trim()
                   ? "Clear the filter or search to see everything set for your class."
@@ -232,145 +233,106 @@ export default function Assignments() {
               }
             />
           )}
-          {visible.map(({ homework: a, submission: s, displayStatus }) => {
+          {visible.map(({ homework: a, standing, submission: s, state }) => {
             const col = subjectAccent(a.subject);
             const title = presentAcademicLabel(a.title) || a.title;
-            const canSubmit =
-              !s || ["pending", "submitted", "late", "returned"].includes(s.status);
-            const isReturned = s?.status === "returned";
+            const open = canHandIn(standing);
             return (
               <div
                 key={a.id}
-                className={`p-4 rounded-xl border bg-muted/30 hover:border-border transition-colors space-y-2 ${
-                  isReturned ? "border-amber-500/40" : "border-border/70"
+                className={`p-4 rounded-xl border bg-muted/30 space-y-2 ${
+                  state === "rejected" ? "border-destructive/40" : "border-border/70"
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ background: `${withAlpha(col, 0.08)}`, color: col }}
+                    style={{ background: withAlpha(col, 0.08), color: col }}
                   >
                     <ClipboardList className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-semibold text-foreground">{title}</span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-primary/15 text-primary">
-                        {WORK_KIND_LABELS[normalizeWorkKind(a.workKind)]}
+                        {WORK_KIND_LABELS[a.workKind]}
                       </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-400">
-                        {displayStatus}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${TONE[state]}`}>
+                        {HOMEWORK_STANDING_LABELS[state]}
                       </span>
-                      {s?.grade && !isReturned && (
-                        <span className="text-xs font-bold text-purple-400">{s.grade}</span>
-                      )}
-                      {s?.marksObtained != null && !isReturned && (
-                        <span className="text-[10px] text-muted-foreground">
-                          {s.marksObtained}
-                          {a.maxMarks != null ? ` / ${a.maxMarks}` : ""}
-                        </span>
-                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <SubjectBadge subject={a.subject} color={col} />
-                      <span className="text-[11px] text-muted-foreground">Due {a.dueDate ?? "—"}</span>
+                      <span className="text-[11px] text-muted-foreground">Deadline {when(a.closesAt)}</span>
+                      {/* The owner's ruling of 2026-09-13: not given by the deadline, it costs XP —
+                          said while there is still time, and not on homework set before the rule. */}
+                      {open && state !== "handed_in" && a.missedCostsXp && (
+                        <span className="text-[10px] font-semibold text-destructive">Missing it costs XP</span>
+                      )}
                       {s?.submittedAt && (
-                        <span className="text-[10px] text-muted-foreground">
-                          Submitted {new Date(s.submittedAt).toLocaleString()}
-                        </span>
+                        <span className="text-[10px] text-muted-foreground">Handed in {when(s.submittedAt)}</span>
                       )}
                     </div>
-                    {(a.description || a.instructions) && (
-                      <p className="text-[11px] text-muted-foreground line-clamp-3">
-                        {a.instructions || a.description}
-                      </p>
+                    {a.questionFile ? (
+                      <AttachmentList items={[attachmentOfFile(a.questionFile)]} dense />
+                    ) : (
+                      a.questionText && (
+                        <p className="text-[11px] text-muted-foreground whitespace-pre-wrap">{a.questionText}</p>
+                      )
                     )}
-                    {(a.attachments?.length ?? 0) > 0 && (
+                    {s?.file && (
                       <div className="space-y-1">
-                        <div className="text-[10px] font-bold text-muted-foreground">Teacher attachments</div>
-                        <AttachmentList items={a.attachments ?? []} dense />
+                        <div className="text-[10px] font-bold text-muted-foreground">Your file</div>
+                        <AttachmentList items={[attachmentOfFile(s.file)]} dense />
                       </div>
-                    )}
-                    {(s?.attachments?.length ?? 0) > 0 && (
-                      <div className="space-y-1">
-                        <div className="text-[10px] font-bold text-muted-foreground">Your submission files</div>
-                        <AttachmentList items={s?.attachments ?? []} dense />
-                      </div>
-                    )}
-                    {s?.teacherRemarks && (
-                      <p
-                        className={`text-[11px] ${isReturned ? "text-amber-500" : "text-success"}`}
-                      >
-                        Teacher: {s.teacherRemarks}
-                      </p>
                     )}
                   </div>
                 </div>
-                {canSubmit && (
-                  <div>
-                    {activeId === a.id ? (
-                      <div className="space-y-2">
-                        <textarea
-                          value={content}
-                          onChange={(e) => setContent(e.target.value)}
-                          placeholder={
-                            isReturned
-                              ? "Revise notes (not stored — attach the file itself)…"
-                              : "Notes (not stored — attach the file itself)"
-                          }
-                          className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[70px]"
-                        />
-                        <AttachmentComposer
-                          items={attachments}
-                          onChange={setAttachments}
-                          disabled={saving}
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => void submit(a.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-primary text-foreground"
-                          >
-                            {saving ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Send className="w-3 h-3" />
-                            )}
-                            {isReturned ? "Resubmit" : s ? "Replace submission" : "Submit"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveId(null);
-                              setContent("");
-                              setAttachments([]);
-                            }}
-                            className="px-3 py-1.5 rounded-xl text-[10px] font-bold text-muted-foreground"
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                {open &&
+                  (activeId === a.id ? (
+                    <div className="space-y-2">
+                      <OneFileField
+                        value={file}
+                        onChange={setFile}
+                        accept={HOMEWORK_HAND_IN_FILE_PICKER.accept}
+                        kinds={HOMEWORK_HAND_IN_FILE_PICKER.kinds}
+                        kindsLabel={HOMEWORK_HAND_IN_FILE_PICKER.label}
+                        disabled={saving}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={saving || !file}
+                          onClick={() => void handIn(a.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-primary text-primary-foreground disabled:opacity-50"
+                        >
+                          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                          Hand in
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveId(null);
+                            setFile(null);
+                          }}
+                          className="px-3 py-1.5 rounded-xl text-[10px] font-bold text-muted-foreground"
+                        >
+                          Cancel
+                        </button>
                       </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveId(a.id);
-                          setContent(s?.content ?? "");
-                          setAttachments(s?.attachments ?? []);
-                        }}
-                        className="text-[10px] font-bold text-primary"
-                      >
-                        {isReturned
-                          ? "Resubmit correction"
-                          : s
-                            ? "Replace submission"
-                            : "Submit homework"}
-                      </button>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveId(a.id);
+                        setFile(null);
+                      }}
+                      className="text-[10px] font-bold text-primary"
+                    >
+                      {state === "rejected" ? "Hand in again" : s?.file ? "Replace my file" : "Hand in"}
+                    </button>
+                  ))}
               </div>
             );
           })}

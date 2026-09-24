@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, BookOpen, HelpCircle, MessageCircle, Megaphone,
+  LayoutDashboard, BookOpen, HelpCircle, Megaphone,
   Calendar, User, ChevronLeft, ChevronRight, GraduationCap, Menu, LogOut,
-  Swords, Library, Brain, FolderOpen, FileText,
+  Swords, FolderOpen, FileText,
 } from "lucide-react";
 import { cn } from "./shared";
 import {
@@ -16,19 +16,14 @@ import TeacherHome from "./Dashboard";
 import MyClasses from "./MyClasses";
 import TeacherAttendancePage from "./TeacherAttendancePage";
 import Doubts from "./Doubts";
-import Communication from "./Communication";
 import Announcements from "./Announcements";
 import TeacherResources from "./Resources";
 import Leave from "./Leave";
 import TeacherProfile from "./Profile";
 import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
 import { useAuth } from "@/hooks/useAuth";
-import { MessageService, useAcademicLive } from "@/academic";
-import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import QuestionBankPage from "@/pages/shared/QuestionBankPage";
 import QuestionPapers from "./QuestionPapers";
 import TeacherTimetablePage from "@/pages/shared/TeacherTimetablePage";
-import TeacherAICoach from "./TeacherAICoach";
 import TeacherBattleground from "@/pages/teacher/TeacherBattleground";
 import BattleMonitor from "@/pages/teacher/BattleMonitor";
 import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
@@ -57,12 +52,9 @@ const navItems: NavItem[] = [
   { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
   { key: "myclasses", label: "My Classes", icon: <BookOpen className="w-4 h-4" /> },
   { key: "battleground", label: "Battles", icon: <Swords className="w-4 h-4" /> },
-  { key: "questionbank", label: "Question Bank", icon: <Library className="w-4 h-4" /> },
   { key: "questionpapers", label: "Question Papers", icon: <FileText className="w-4 h-4" /> },
   { key: "resources", label: "Resources", icon: <FolderOpen className="w-4 h-4" /> },
-  { key: "aicoach", label: "AI Coach", icon: <Brain className="w-4 h-4" /> },
   { key: "doubts", label: "Student Doubts", icon: <HelpCircle className="w-4 h-4" /> },
-  { key: "communication", label: "Communication", icon: <MessageCircle className="w-4 h-4" /> },
   { key: "announcements", label: "Announcements", icon: <Megaphone className="w-4 h-4" /> },
   { key: "leave", label: "Leave", icon: <Calendar className="w-4 h-4" /> },
   { key: "profile", label: "My Profile", icon: <User className="w-4 h-4" /> },
@@ -79,7 +71,6 @@ function Sidebar({
   displayName,
   employeeId,
   initials,
-  unreadMsg = 0,
 }: {
   page: TeacherPageKey;
   setPage: (p: TeacherPageKey) => void;
@@ -91,7 +82,6 @@ function Sidebar({
   displayName: string;
   employeeId: string;
   initials: string;
-  unreadMsg?: number;
 }) {
   return (
     /* The design's dark rail against the cream canvas. Every colour inside it
@@ -146,14 +136,7 @@ function Sidebar({
                 {item.icon}
               </div>
               {(!collapsed || mobile) && (
-                <>
-                  <span className="text-sm truncate flex-1">{item.label}</span>
-                  {item.key === "communication" && unreadMsg > 0 && (
-                    <span className="min-w-[16px] h-4 px-1 rounded-full bg-destructive text-white text-[8px] font-mono flex items-center justify-center">
-                      {unreadMsg > 9 ? "9+" : unreadMsg}
-                    </span>
-                  )}
-                </>
+                <span className="text-sm truncate flex-1">{item.label}</span>
               )}
             </button>
           );
@@ -192,32 +175,10 @@ export default function TeacherApp() {
   const location = useLocation();
   const { signOut } = useAuth();
   const identity = useTeacherIdentity();
-  const { ctx, ready } = useAcademicContext();
-  const messageLive = useAcademicLive("message");
   const page = useMemo(() => teacherPathToPage(location.pathname), [location.pathname]);
   const setPage = (p: TeacherPageKey) => navigate(TEACHER_PAGE_PATH[p]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [unreadMsg, setUnreadMsg] = useState(0);
-
-  useEffect(() => {
-    if (!ready || !ctx) {
-      setUnreadMsg(0);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const n = await MessageService.countUnread(ctx);
-        if (!cancelled) setUnreadMsg(n);
-      } catch {
-        if (!cancelled) setUnreadMsg(0);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, ctx, messageLive, page]);
 
   const displayName = identity.name || "Teacher";
   const employeeId = identity.employeeId || "—";
@@ -235,7 +196,6 @@ export default function TeacherApp() {
     employeeId,
     initials,
     onSignOut: handleSignOut,
-    unreadMsg,
   };
 
   return (
@@ -299,15 +259,16 @@ export default function TeacherApp() {
               <Route path="attendance" element={<TeacherAttendancePage />} />
               <Route path="attendance/:classId" element={<TeacherAttendancePage />} />
               <Route path="doubts" element={<Doubts />} />
-              <Route path="communication" element={<Communication />} />
               <Route path="announcements" element={<Announcements />} />
               <Route path="leave" element={<Leave />} />
               <Route path="profile" element={<TeacherProfile />} />
-              <Route path="question-bank" element={<QuestionBankPage />} />
               <Route path="question-papers" element={<QuestionPapers />} />
+              {/* The teachers' AI is the question-paper maker and nothing else, so
+                  its old address and the retired Question Bank both land there. */}
+              <Route path="ai-coach" element={<Navigate to="/teacher/question-papers" replace />} />
+              <Route path="question-bank" element={<Navigate to="/teacher/question-papers" replace />} />
+              <Route path="practice" element={<Navigate to="/teacher/question-papers" replace />} />
               <Route path="resources" element={<TeacherResources />} />
-              <Route path="ai-coach" element={<TeacherAICoach />} />
-              <Route path="practice" element={<Navigate to="/teacher/question-bank" replace />} />
               <Route path="battleground" element={<TeacherBattleground />} />
               <Route path="battleground/monitor/:id" element={<BattleMonitor />} />
               {/* A student's battle report is practice (§10.8): the student and
@@ -327,8 +288,6 @@ export default function TeacherApp() {
               <Route path="timetable" element={<TeacherTimetablePage />} />
               <Route path="performance" element={<RedirectTeacherClassTab tab="insights" />} />
               <Route path="homework" element={<RedirectTeacherClassTab tab="homework" />} />
-              <Route path="chat" element={<Navigate to="/teacher/communication" replace />} />
-              <Route path="connect" element={<Navigate to="/teacher/communication" replace />} />
               <Route path="notices" element={<Navigate to="/teacher/announcements" replace />} />
               <Route path="leaves" element={<Navigate to="/teacher/leave" replace />} />
               <Route path="insights" element={<RedirectTeacherClassTab tab="insights" />} />

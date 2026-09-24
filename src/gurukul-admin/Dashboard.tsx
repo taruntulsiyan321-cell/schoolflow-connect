@@ -3,7 +3,7 @@ import {
   GraduationCap, Users, UserCheck, Building2, Activity,
   AlertCircle, CheckCircle2, TrendingUp, TrendingDown,
   Bell, Plus, ChevronRight,
-  BarChart2, UserPlus, ClipboardEdit, Loader2,
+  BarChart2, UserPlus, ClipboardEdit, Loader2, ClipboardList,
 } from "lucide-react";
 import { cn, InitialsAvatar } from "./shared";
 import type { AdminPageKey } from "./nav";
@@ -87,6 +87,24 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
   const liveVersion = useAcademicLive(["attendance", "homework", "marks", "examination", "test", "profile"]);
 
   const [counts, setCounts] = useState({ students: 0, teachers: 0, parents: 0, classes: 0 });
+  /**
+   * How many tests the school has run, and how many papers were handed in.
+   *
+   * Ruled 2026-09-12: "For the admins, we have to build all the numbers of
+   * tests given in the school." Counts, not marks — one class's named marks are
+   * the teacher's and the principal's (`can_read_test_marks` refuses the
+   * office), and a count needs no such access: `can_read_test_row` already
+   * admits an admin to the school's test rows and
+   * `test_attempts_staff_read` to the attempts on them.
+   *
+   * `null` until measured, never 0: "no tests yet" and "we could not count"
+   * must not render the same (G4).
+   */
+  const [testCounts, setTestCounts] = useState<{
+    total: number;
+    published: number;
+    submissions: number;
+  } | null>(null);
   const [todayPresent, setTodayPresent] = useState(0);
   const [todayAbsent, setTodayAbsent] = useState(0);
   const [todayPct, setTodayPct] = useState(0);
@@ -124,6 +142,9 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           teacherCount,
           parentCount,
           classCount,
+          testCount,
+          publishedTestCount,
+          testSubmissionCount,
           recentStudentRows,
           recentTeacherRows,
           activityRows,
@@ -136,6 +157,24 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           supabase.from("teachers").select("id", { count: "exact", head: true }).eq("school_id", ctx.schoolId),
           supabase.from("parents").select("id", { count: "exact", head: true }).eq("school_id", ctx.schoolId),
           supabase.from("classes").select("id", { count: "exact", head: true }).eq("school_id", ctx.schoolId),
+          supabase
+            .from("tests")
+            .select("id", { count: "exact", head: true })
+            .eq("school_id", ctx.schoolId)
+            .is("deleted_at", null),
+          supabase
+            .from("tests")
+            .select("id", { count: "exact", head: true })
+            .eq("school_id", ctx.schoolId)
+            .is("deleted_at", null)
+            .eq("status", "published"),
+          // Submissions across the school. Counted head-only, so this stays one
+          // cheap request however many attempts there are.
+          supabase
+            .from("test_attempts")
+            .select("id", { count: "exact", head: true })
+            .eq("school_id", ctx.schoolId)
+            .eq("status", "submitted"),
           supabase
             .from("students")
             .select("id, full_name, admission_number, classes(name, section)")
@@ -180,6 +219,16 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         if (teacherCount.error) throw new Error(`Failed to load teacher count: ${teacherCount.error.message}`);
         if (parentCount.error) throw new Error(`Failed to load parent count: ${parentCount.error.message}`);
         if (classCount.error) throw new Error(`Failed to load class count: ${classCount.error.message}`);
+        // Same rule as every count above: .count is 0 on error too, and a
+        // confident zero next to a school that has run forty tests is worse
+        // than saying the number could not be read.
+        if (testCount.error) throw new Error(`Failed to load test count: ${testCount.error.message}`);
+        if (publishedTestCount.error) {
+          throw new Error(`Failed to load published test count: ${publishedTestCount.error.message}`);
+        }
+        if (testSubmissionCount.error) {
+          throw new Error(`Failed to load test submission count: ${testSubmissionCount.error.message}`);
+        }
         if (recentStudentRows.error) {
           throw new Error(`Failed to load recent students: ${recentStudentRows.error.message}`);
         }
@@ -208,6 +257,11 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           teachers: teacherCount.count ?? 0,
           parents: parentCount.count ?? 0,
           classes: classCount.count ?? 0,
+        });
+        setTestCounts({
+          total: testCount.count ?? 0,
+          published: publishedTestCount.count ?? 0,
+          submissions: testSubmissionCount.count ?? 0,
         });
 
         setRecentStudents(
@@ -309,6 +363,17 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         <StatCard label="Classes" value={counts.classes} icon={<Building2 className="w-5 h-5" />} color="#4aa87a" />
         <StatCard label="Present Today" value={todayPresent} icon={<Activity className="w-5 h-5" />} color="#c08a3a" sub="marked attendance" />
         <StatCard label="Pending Leaves" value={pendingLeaveCount} icon={<AlertCircle className="w-5 h-5" />} color="#cc5069" />
+        <StatCard
+          label="Tests Given"
+          value={testCounts == null ? "—" : testCounts.total}
+          sub={
+            testCounts == null
+              ? "not counted"
+              : `${testCounts.published} live · ${testCounts.submissions} papers handed in`
+          }
+          icon={<ClipboardList className="w-5 h-5" />}
+          color="#4b9fd4"
+        />
       </div>
 
       {/* Middle Row */}

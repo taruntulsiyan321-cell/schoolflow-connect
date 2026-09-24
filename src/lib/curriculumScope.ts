@@ -6,43 +6,22 @@
  */
 
 /**
- * EVERY class level the platform teaches. ONE home for the domain.
+ * Class-level domain lives in `./parseClassLevel` (shared with the Deno edge
+ * copy under `supabase/functions/_shared/parseClassLevel.ts`). Re-exported
+ * here so existing `@/lib/curriculumScope` imports keep working.
  *
  * §10.9 names the smallest one explicitly: "a Class 5 student is only ever
- * served Class 5 content for their own board." The seeded curriculum agrees —
- * `curriculum_classes` holds Class 5 with 4 subjects and 55 chapters, and 2,189
- * Class 5 questions sit in `question_bank`.
- *
- * IT USED TO BE 6–12, IN SIX PLACES: `parseClassLevel` below, the
- * `class_level` branches of `taxonomy/canonicalize` and `taxonomy/humanize`,
- * the `CLASS_LEVELS` array in `taxonomy/registry`,
- * `ncertSyllabus.parseClassGrade`, and the `ClassLevel` union in
- * `taxonomy/types` — each carrying its own literal `(6|7|8|9|10|11|12)`. A
- * Class 5 label therefore parsed to `null` in all six, so the tag filter §10.9
- * depends on had nothing to filter by, and `20260821120000` archived all 2,189
- * Class 5 questions on the stated grounds that they were "outside the app's
- * ClassLevel domain". The domain was the thing that was wrong.
- *
- * Ordered DESCENDING because it is joined into a regex alternation: with `\b`
- * anchors either order matches, but longest-first is the habit that survives
- * someone later removing the anchors.
+ * served Class 5 content for their own board." IT USED TO BE 6–12 in six
+ * places; Class 5 labels parsed to null and the bank was wrongly archived.
  */
-export const CLASS_LEVELS = [12, 11, 10, 9, 8, 7, 6, 5] as const;
-
-/** A class level the platform teaches. Derived — never re-listed. */
-export type ClassLevel = (typeof CLASS_LEVELS)[number];
-
-/** Ascending, for anything that renders the list to a person. */
-export const CLASS_LEVELS_ASCENDING: readonly ClassLevel[] =
-  [...CLASS_LEVELS].sort((a, b) => a - b);
-
-/** Built from CLASS_LEVELS so the pattern and the list cannot drift apart. */
-export const CLASS_LEVEL_PATTERN = new RegExp(`\\b(${CLASS_LEVELS.join("|")})\\b`);
-
-/** True when a number is a class level the platform teaches. */
-export function isClassLevel(n: unknown): n is ClassLevel {
-  return typeof n === "number" && (CLASS_LEVELS as readonly number[]).includes(n);
-}
+export {
+  CLASS_LEVELS,
+  CLASS_LEVELS_ASCENDING,
+  CLASS_LEVEL_PATTERN,
+  isClassLevel,
+  parseClassLevel,
+  type ClassLevel,
+} from "./parseClassLevel";
 
 export const COMMERCE_SUBJECT_ALLOWLIST = [
   "Accountancy",
@@ -108,23 +87,11 @@ export type CurriculumScope = {
   board: string;
   stream: AcademicStream | null;
   classLabel: string | null;
+  /** Competitive exam — set for schools.kind=individual; null for organisation. */
+  examId: string | null;
+  examCode: string | null;
+  examName: string | null;
 };
-
-/** Parse class level from digits or Roman numerals (e.g. "Class-10", "Std 9", "XI-A", "V-B"). */
-export function parseClassLevel(label?: string | null): number | null {
-  if (!label) return null;
-  const text = String(label);
-  const m = text.match(CLASS_LEVEL_PATTERN);
-  if (m) return Number(m[1]);
-  // Longest-first, and it matters: with "X" ahead of "XII" the alternation
-  // matches the X in XII and a Class 12 label reads as Class 10.
-  const roman = text.toUpperCase().match(/\b(XII|XI|IX|VIII|VII|VI|X|V)\b/);
-  if (!roman) return null;
-  const romanLevels: Record<string, number> = {
-    V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12,
-  };
-  return romanLevels[roman[1]] ?? null;
-}
 
 export function normalizeStream(raw?: string | null): AcademicStream | null {
   if (!raw || typeof raw !== "string") return null;
@@ -201,6 +168,33 @@ export function appliesCommerceSubjectAllowlist(
   classLevel: number | null | undefined,
 ): boolean {
   return streamForClass(stream, classLevel) === "commerce";
+}
+
+/**
+ * The stream that may narrow CONTENT for a class — null below Class 11.
+ *
+ * A stream is a Class 11–12 idea: a Class 9 or 10 student of a
+ * commerce-tagged school studies the same secondary curriculum as everyone
+ * else. The two subject allowlists above already say so (`classLevel >= 11`),
+ * but the question pool did not: it filtered every read with
+ * `stream.eq.<school stream> OR stream.is.null` at any level, so a Class 10
+ * student of this commerce school had "commerce" applied to their bank.
+ *
+ * Measured 2026-09-23: all 15,186 active, approved questions at Classes 5–10
+ * carry a NULL stream, so nothing is being lost today — the filter is a trap
+ * waiting for the first Class 9/10 question that is tagged, which would then
+ * be invisible to exactly the students it was written for.
+ *
+ * When the class is unknown the stream still applies, which is the
+ * conservative reading the allowlists take: never widen on a guess.
+ */
+export function contentStreamForClass(
+  stream: AcademicStream | null | undefined,
+  classLevel: number | null | undefined,
+): AcademicStream | null {
+  if (!stream) return null;
+  if (classLevel != null && classLevel < 11) return null;
+  return stream;
 }
 
 /**

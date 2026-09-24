@@ -1,42 +1,55 @@
 /**
- * Nova Context Pack v1 — unit tests (mirrors student.performance.explain grounding).
+ * Nova Context Pack v1 — unit tests (learning facts only; no school records).
  */
 import { describe, expect, it } from "vitest";
 import { buildContextPack, packForModel } from "./contextBuilder";
 import {
-  evidenceFromExplainFacts,
+  evidenceFromNovaLearningFacts,
   validateModelResponse,
 } from "./responseValidator";
 import { getBuiltinPrompt, renderPromptTemplate } from "./promptLibrary";
 import { getCapability } from "./capabilityCatalog";
 
 const AE = {
-  attendance: {
-    projection: "StudentAttendanceQuery",
-    attendance_pct: 91,
+  student_profile: {
+    projection: "StudentProfileContext",
+    class_label: "11-A",
+    subjects: ["Mathematics", "Physics"],
     completeness: 1,
-    data_version: "att:s1:10",
+    data_version: "profilectx:s1:1",
     source_as_of: "2026-08-01",
   },
-  homework: {
-    projection: "StudentHomeworkDue",
-    pending_count: 2,
+  practice: {
+    projection: "StudentPracticeHistory",
+    sessions_completed: 4,
+    subjects: ["Mathematics"],
     completeness: 1,
-    data_version: "hw:s1:2",
+    data_version: "practice:s1:4",
     source_as_of: "2026-08-02",
   },
-  marks: {
-    projection: "StudentMarksSummary",
-    average_pct: 78,
+  mistakes: {
+    projection: "StudentMistakesBook",
+    open_count: 2,
+    recent_concepts: ["Integration"],
     completeness: 1,
-    data_version: "marks:s1:3",
-    source_as_of: null,
+    data_version: "mistakes:s1:2",
+    source_as_of: "2026-08-02",
   },
-  profile: {
-    projection: "ParentChildSummary",
-    weak_topics: ["Integration"],
+  recovery: {
+    projection: "StudentRecoveryQueue",
+    pending_count: 1,
+    open_concepts: ["Limits"],
     completeness: 1,
-    data_version: "parent:s1:now",
+    data_version: "recovery:s1:1",
+    source_as_of: "2026-08-02",
+  },
+  progression: {
+    projection: "StudentProgression",
+    study_streak: 5,
+    xp: 400,
+    level: 3,
+    completeness: 1,
+    data_version: "prog:s1:1",
     source_as_of: "2026-08-01",
   },
 };
@@ -69,21 +82,28 @@ describe("Nova Context Pack v1", () => {
     expect(cap?.model_policy).toBe("required_when_budget");
   });
 
-  it("builtin prompt v2 includes facts placeholder", () => {
+  it("builtin prompt tutors on learning facts only (no school records)", () => {
     const p = getBuiltinPrompt("student.nova.chat");
-    expect(p?.version).toBe("v2");
+    // v3 since 47b4be64 made Nova Socratic by default; the prompt library is
+    // the contract and this pins which version the pack tests describe.
+    expect(p?.version).toBe("v3");
     expect(p?.user_template).toContain("{{facts}}");
     expect(p?.user_template).toContain("{{question}}");
+    expect(p?.system_template).toMatch(/learning facts/i);
+    expect(p?.system_template).toMatch(/EIE|recovery|practice|mistakes|revision/i);
+    expect(p?.system_template).toMatch(/Refuse attendance|academic doubts/i);
+    expect(p?.system_template).not.toMatch(/students use Class for those/i);
+    expect(p?.system_template).not.toMatch(/personal school metrics \(attendance/i);
     const rendered = renderPromptTemplate(p!.user_template, {
-      facts: '{"ae":{"attendance":{"attendance_pct":91}}}',
+      facts: '{"eie":{"avg_mastery":62},"practice":{"sessions_completed":4}}',
       question: "How am I doing?",
       language: "en",
     });
-    expect(rendered).toContain("91");
+    expect(rendered).toContain("62");
     expect(rendered).toContain("How am I doing?");
   });
 
-  it("buildContextPack yields non-empty facts for Prompt Library", () => {
+  it("buildContextPack yields non-empty learning facts without school records", () => {
     const pack = buildContextPack({
       capability: "student.nova.chat",
       request_text: "Help me revise",
@@ -95,24 +115,27 @@ describe("Nova Context Pack v1", () => {
     expect(pack.provenance.data_versions.length).toBeGreaterThan(0);
     const json = packForModel(pack);
     expect(json.length).toBeGreaterThan(20);
-    expect(json).toContain("91");
     expect(json).toContain("62");
+    expect(json).toContain("Integration");
+    expect(json).toContain("study_streak");
+    expect(json).not.toMatch(/attendance_pct|average_pct|pending_count.*homework|events/i);
     expect(json).not.toMatch(/Arjun|1382|Level 14/i);
   });
 
-  it("validator uses AE/EIE evidence (not empty object)", () => {
-    const evidence = evidenceFromExplainFacts({
-      attendance: { attendance_pct: 91 },
-      homework: { pending_count: 2 },
-      marks: { average_pct: 78 },
+  it("validator uses EIE/progression evidence (no attendance/marks for Nova)", () => {
+    const evidence = evidenceFromNovaLearningFacts({
       eie: { avg_mastery: 62 },
+      progression: { xp: 400, level: 3, study_streak: 5 },
     });
-    expect(evidence.attendance_pct).toBe(91);
+    expect(evidence.attendance_pct).toBeNull();
+    expect(evidence.average_marks_pct).toBeNull();
+    expect(evidence.homework_pending).toBeNull();
     expect(evidence.avg_mastery).toBe(62);
-    expect((evidence.allowed_pcts ?? []).length).toBeGreaterThan(0);
+    expect(evidence.allowed_pcts).toEqual([62]);
+    expect(evidence.xp).toBe(400);
 
     const ok = validateModelResponse(
-      "Attendance is 91%. Tracked mastery averages 62%. Focus on Integration.",
+      "Tracked mastery averages 62%. Focus on Integration.",
       evidence,
     );
     expect(ok.material_failure).toBe(false);
@@ -120,6 +143,12 @@ describe("Nova Context Pack v1", () => {
     const bad = validateModelResponse("Your mastery is 99%.", evidence);
     expect(bad.material_failure).toBe(true);
     expect(bad.codes).toContain("invented_mastery_pct");
+
+    // Invented attendance must fail even when attendance evidence is empty —
+    // Nova must not invent school records it was never given.
+    const inventedAtt = validateModelResponse("Your attendance is 91%.", evidence);
+    expect(inventedAtt.material_failure).toBe(true);
+    expect(inventedAtt.codes).toContain("invented_attendance_pct");
   });
 
   it("honest empty pack still serialises without inventing metrics", () => {
@@ -127,8 +156,9 @@ describe("Nova Context Pack v1", () => {
       capability: "student.nova.chat",
       request_text: "hi",
       ae: {
-        attendance: { attendance_pct: 0, completeness: 0, data_version: "att:empty" },
-        homework: { pending_count: 0, completeness: 0.2, data_version: "hw:empty" },
+        practice: { sessions_completed: 0, completeness: 0.2, data_version: "practice:empty" },
+        mistakes: { open_count: 0, completeness: 0.2, data_version: "mistakes:empty" },
+        recovery: { pending_count: 0, completeness: 0.2, data_version: "recovery:empty" },
       },
       eie: {
         algorithm_id: "eie.mastery.v1",
@@ -142,5 +172,6 @@ describe("Nova Context Pack v1", () => {
     const json = packForModel(pack);
     expect(json).toBeTruthy();
     expect(json).not.toMatch(/demo|Arjun|Priya/i);
+    expect(json).not.toMatch(/attendance_pct/);
   });
 });

@@ -238,13 +238,13 @@ describe("Analysis — rendered", () => {
     expect(within(slowest).getByText("\u2014")).toBeInTheDocument();
   });
 
-  it("counts activities over the same days it calls consistent", () => {
+  it("counts practice over the same days it calls consistent", () => {
     render(<Analysis />);
     openTab("Practice");
-    // The heat-map fixture has 9 activities on 3 days inside the window.
-    // "Activities in 4 weeks" used to sum a DIFFERENT table and read 0 while
-    // "Consistency" beside it read 11% off these same three days.
-    const total = screen.getByText("Activities in 4 weeks").parentElement as HTMLElement;
+    // The heat-map fixture has 9 practice sessions on 3 days inside the window.
+    // The tile used to sum a DIFFERENT table (and all activity kinds) and
+    // disagree with Consistency beside it.
+    const total = screen.getByText("Practice in 4 weeks").parentElement as HTMLElement;
     expect(within(total).getByText("9")).toBeInTheDocument();
     expect(within(total).queryByText("0")).toBeNull();
   });
@@ -279,15 +279,17 @@ describe("Analysis — rendered", () => {
     expect(document.body.textContent).not.toContain("none answered");
   });
 
-  it("counts a month's activities from the same rows as its study time", () => {
+  it("counts a month's practice from the same rows as its study time", () => {
     render(<Analysis />);
     openTab("Activity & Speed");
-    // Activities came from weekly_activity and minutes from the heat-map, so
-    // the panel showed "Activities 0" above a real study time. Both read the
-    // heat-map now.
-    const row = screen.getByText("Activities").closest("div") as HTMLElement;
-    expect(row).toBeTruthy();
-    expect(row.textContent).not.toContain("No prior month data");
+    // Practice count and minutes both come from the heat-map (rule 11:
+    // self_practice only). Pick the month-comparison label, not the tab.
+    const label = screen.getAllByText("Practice").find((el) =>
+      el.className.includes("uppercase"),
+    );
+    expect(label).toBeTruthy();
+    const card = label!.parentElement as HTMLElement;
+    expect(card.querySelector(".text-xl")).toBeTruthy();
   });
 
   it("writes one spelling of practised", () => {

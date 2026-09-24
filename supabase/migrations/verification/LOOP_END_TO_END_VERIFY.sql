@@ -186,6 +186,11 @@ BEGIN
   --       question count it became a per-question pace, so "which subject takes
   --       you longest" ranked subjects by how many questions the fixture put in
   --       a session: 54.0s for five of them, to the first decimal.
+  --
+  --       Finished sessions only, like 11 and 12: the roll-up is written by the
+  --       finish, so a session a student is sitting right now has timed answers
+  --       and no total yet. Unscoped, this failed on every open session
+  --       (2026-09-17: one, left mid-question by the drive that found it).
   SELECT count(*) INTO _n
   FROM public.practice_sessions ps
   JOIN LATERAL (
@@ -193,7 +198,8 @@ BEGIN
     FROM public.question_attempts qa
     WHERE qa.session_id = ps.id AND COALESCE(qa.time_taken_ms, 0) > 0
   ) t ON true
-  WHERE t.ms > 0 AND ps.total_time_ms IS DISTINCT FROM t.ms;
+  WHERE ps.finished_at IS NOT NULL
+    AND t.ms > 0 AND ps.total_time_ms IS DISTINCT FROM t.ms;
   _report := _report || format('%-52s %s%s', 'session time = its own questions'' timings',
                                CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
   IF _n <> 0 THEN _fails := _fails + 1; END IF;
@@ -302,6 +308,63 @@ BEGIN
   ) r ON true
   WHERE s.user_id IS NOT NULL AND r.d > 15;
   _report := _report || format('%-52s %s%s', 'active days fits inside its 14-day window',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- 19 ── the §3.1 tally is its own session's attempts, per chapter. The
+  --       denominator every Analysis figure divides by. 20261032000000 deleted
+  --       five attempts and re-synced the session but not this, so four
+  --       tallies went on counting questions that no longer existed
+  --       (fixed in 20261039300000, which is also where this check came from).
+  SELECT count(*) INTO _n
+  FROM public.chapter_tally ct
+  JOIN LATERAL (
+    SELECT count(*)::int AS attempted,
+           count(*) FILTER (WHERE qa.is_correct IS TRUE)::int AS correct
+    FROM public.question_attempts qa
+    JOIN public.question_bank qb ON qb.id = qa.bank_question_id
+    WHERE qa.session_id = ct.session_id AND qb.chapter_id = ct.chapter_id
+  ) a ON true
+  WHERE ct.attempted <> a.attempted OR ct.correct <> a.correct;
+  _report := _report || format('%-52s %s%s', 'chapter tally = its own attempts',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- 20 ── one answer, one row (20261039300000). The live answer and the
+  --       finish's re-send raced, and skipping the last question recorded it
+  --       twice — 6 of 8 times in a probe fired the way the client fires them.
+  SELECT count(*) INTO _n FROM (
+    SELECT 1 FROM public.question_attempts
+    WHERE session_id IS NOT NULL AND bank_question_id IS NOT NULL
+    GROUP BY session_id, bank_question_id HAVING count(*) > 1
+  ) d;
+  _report := _report || format('%-52s %s%s', 'an answer is on record once',
+                               CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
+  IF _n <> 0 THEN _fails := _fails + 1; END IF;
+
+  -- 21 ── a skip is not a wrong answer in topic confidence either
+  --       (20261039300000, finishing 20261021000000). Weak Areas Practice reads
+  --       this classification; a topic the student only skipped scored 0 and
+  --       was served back as weak. Read from the attempts, not from
+  --       total_attempts: the old rule wrote the skips INTO total_attempts, so
+  --       a check on that column would pass the very regression it guards.
+  SELECT count(*) INTO _n
+  FROM public.concept_mastery cm
+  WHERE cm.classification = 'weak'
+    AND EXISTS (
+      SELECT 1 FROM public.question_attempts qa
+        JOIN public.question_bank qb ON qb.id = qa.bank_question_id
+        JOIN public.topics t        ON t.id = qb.topic_id
+       WHERE qa.user_id = cm.user_id AND t.name = cm.concept
+         AND qb.chapter IS NOT DISTINCT FROM cm.chapter)
+    AND NOT EXISTS (
+      SELECT 1 FROM public.question_attempts qa
+        JOIN public.question_bank qb ON qb.id = qa.bank_question_id
+        JOIN public.topics t        ON t.id = qb.topic_id
+       WHERE qa.user_id = cm.user_id AND t.name = cm.concept
+         AND qb.chapter IS NOT DISTINCT FROM cm.chapter
+         AND NOT COALESCE(qa.skipped, false));
+  _report := _report || format('%-52s %s%s', 'no topic is weak with nothing answered',
                                CASE WHEN _n=0 THEN 'PASS' ELSE 'FAIL ('||_n||')' END, E'\n');
   IF _n <> 0 THEN _fails := _fails + 1; END IF;
 

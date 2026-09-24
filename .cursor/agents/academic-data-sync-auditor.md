@@ -19,7 +19,7 @@ Use judgment. Do not blindly only check one example field — inventory the full
 
 ## Hard rules
 
-1. **Single source of truth** = Academic Engine (`src/academic/*`) + SQL `academic_events` / SyncEngine. Do **not** invent a parallel database or SyncEngine.
+1. **Single source of truth** = Academic Engine (`src/academic/*`) + SQL `academic_events`, fanned out by `process_academic_event` and drained every minute by the `process-pending-academic-events` pg_cron job (the client-side SyncEngine is gone). Do **not** invent a parallel database, event drain or sync engine.
 2. **No demo / fake / mock academic data** on mounted product routes (see `.cursor/rules/no-demo-data.mdc`).
 3. Student/Teacher UI must **not** write raw academic tables when a service exists — route through services (`HomeworkService`, `AttendanceService`, `PracticeService`, `BattleExperienceService`, `TestService`, `MarksService`, etc.).
 4. Prefer **extend** existing events, profiles, live domains, and attempt intelligence over new one-off stores.

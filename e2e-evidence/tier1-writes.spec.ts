@@ -18,8 +18,8 @@ import { readFileSync } from 'node:fs'
  * EACH TEST RESTORES WHAT IT CHANGED, AND ASSERTS THE RESTORE. The demo tenant
  * is the only environment that exists; a test that leaves a class absent has
  * damaged the thing it was meant to protect, and an unverified restore is how a
- * suite silently rots the data it runs on. Homework is archived again, the
- * evidence exam is deleted, and both restores are asserted with a positive
+ * suite silently rots the data it runs on. Evidence homework is deleted again,
+ * the evidence exam is deleted, and both restores are asserted with a positive
  * control so a cleanup that silently matched nothing fails instead of passing.
  *
  * ATTENDANCE IS THE ONE EXCEPTION, AND IT IS DELIBERATE. §10.5 makes a day
@@ -65,13 +65,6 @@ async function bodyText(page: Page): Promise<string> {
   return (await page.evaluate(() => document.body?.innerText ?? '').catch(() => '')) || ''
 }
 
-/**
- * Archive every homework this suite has ever created, through the app's own
- * Archive action. Called before AND after the chain: "after" keeps a passing
- * run clean, "before" collects what a run that failed half way could not.
- * The Archive button is only rendered while status !== 'archived', so the loop
- * terminates on its own rather than on a counter.
- */
 /** Read one value out of the committed .env (no regex: keeps escapes out of it). */
 function envVal(key: string): string {
   for (const line of readFileSync('.env', 'utf8').split(/\r?\n/)) {
@@ -129,33 +122,38 @@ async function deleteEvidenceExams(page: Page, prefix = 'E2E exam'): Promise<num
   return deleted
 }
 
-async function archiveEvidenceHomework(teacher: Page, tag = 'E2E homework'): Promise<number> {
+/**
+ * Delete every homework this suite has ever created, through the card's own
+ * Delete action — to the trash, and out of every student's count. Called before
+ * AND after the chain: "after" keeps a passing run clean, "before" collects what
+ * a run that failed half way could not. A deleted card leaves the list, so the
+ * loop terminates on its own rather than on a counter.
+ */
+async function deleteEvidenceHomework(teacher: Page, tag = 'E2E homework'): Promise<number> {
   // Wait for the LIST before counting. Without this, "0 cards" means "the tab
   // had not rendered yet" just as readily as "nothing to clean", and the
   // caller's toHaveCount(0) then passes while the tenant keeps every row —
   // a check that cannot fail. The count returned is the positive control.
-  await expect(teacher.getByRole('button', { name: 'New Homework' })).toBeVisible({ timeout: 30000 })
-  let archived = 0
+  await expect(teacher.getByRole('button', { name: 'New homework' })).toBeVisible({ timeout: 30000 })
+  let deleted = 0
   for (let i = 0; i < 25; i++) {
     const cards = teacher
-      .locator('div.p-4.bg-surface.rounded-2xl')
+      .locator('div.p-4.bg-surface')
       .filter({ hasText: tag })
-      .filter({ has: teacher.getByRole('button', { name: 'Archive' }) })
+      .filter({ has: teacher.getByRole('button', { name: 'Delete' }) })
     const n = await cards.count()
     if (n === 0) break
-    // runHwAction sets `saving`, which disables EVERY card's buttons while one
-    // archive is in flight. Wait for the button, then wait for the effect —
-    // a fixed sleep here is what made the previous attempt click a disabled
-    // control and time out.
-    const btn = cards.last().getByRole('button', { name: 'Archive' })
+    // `run` sets `busy`, which disables EVERY card's buttons while one action
+    // is in flight. Wait for the button, then wait for the effect — a fixed
+    // sleep is what once made this click a disabled control and time out.
+    const btn = cards.last().getByRole('button', { name: 'Delete' })
     await expect(btn).toBeEnabled({ timeout: 30000 })
+    teacher.once('dialog', (d) => void d.accept())
     await btn.click()
-    await expect(cards, 'the archived card leaves the un-archived set').toHaveCount(n - 1, {
-      timeout: 30000,
-    })
-    archived++
+    await expect(cards, 'the deleted card leaves the list').toHaveCount(n - 1, { timeout: 30000 })
+    deleted++
   }
-  return archived
+  return deleted
 }
 
 test.describe('Tier1-W · teacher · attendance', () => {
@@ -272,161 +270,175 @@ test.describe('Tier1-W · teacher · attendance', () => {
 })
 
 /**
- * The homework chain, in one test because the three writes are one story: a
- * grade with no submission to grade proves nothing, and a submission against a
- * homework the teacher did not just assign is indistinguishable from seed data.
- * Two browser contexts, because the teacher and the student are two people.
+ * The homework chain, in one test because the writes are one story
+ * (docs/gurukul-spec-rules.md, "Homework — RULED 2026-09-13"): the teacher sets
+ * homework, the student hands in ONE file, the teacher rejects it, the student
+ * hands in again, and the teacher accepts it. A decision with no hand-in proves
+ * nothing, and a hand-in against homework the teacher did not just set is
+ * indistinguishable from seed data. Two browser contexts, because the teacher
+ * and the student are two people.
+ *
+ * WHAT IT CANNOT PUT BACK, said rather than hidden: accepting awards the demo
+ * student the homework XP, and the two files handed in stay in the student's
+ * storage folder — a handed-in file cannot be deleted (20260925140000), and the
+ * homework that references them goes to the trash, not away.
  */
-test.describe('Tier1-W · homework · assign → submit → grade', () => {
-  test('a teacher assigns homework, the student submits it, and the teacher grades it', async ({
+test.describe('Tier1-W · homework · set → hand in → reject → hand in again → accept', () => {
+  test('a teacher sets homework, the student hands in one file, and the teacher rejects then accepts it', async ({
     browser,
   }, testInfo) => {
     test.skip(!roleAuthed('teacher') || !roleAuthed('student'), 'teacher+student sessions required')
-    test.setTimeout(240000)
+    test.setTimeout(300000)
 
     // Unique per run so the assertions cannot match seeded homework.
     const stamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14)
     const title = `E2E homework ${stamp}`
-    const answer = `Submitted by the Tier 1 evidence run ${stamp}`
-    const gradeValue = '18'
-    const remark = `Graded by the Tier 1 evidence run ${stamp}`
+    const pdf = (n: number) => ({
+      name: `e2e-hand-in-${stamp}-${n}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: Buffer.from(`%PDF-1.4\n% Tier 1 evidence run ${stamp}, hand-in ${n}\n%%EOF\n`),
+    })
 
     const teacherCtx = await browser.newContext({ storageState: authFile('teacher') })
     const studentCtx = await browser.newContext({ storageState: authFile('student') })
     const teacher = await teacherCtx.newPage()
     const student = await studentCtx.newPage()
 
-    try {
-      // ── 1. TEACHER ASSIGNS ────────────────────────────────────────────
+    const openTeacherHomework = async () => {
       await teacher.goto('/teacher/classes', { waitUntil: 'domcontentloaded' })
       await settle(teacher)
       await teacher.getByRole('button', { name: 'Homework', exact: true }).click()
       await settle(teacher, 1500)
+    }
+    // The card is the innermost div holding the title: the screen's outer card
+    // holds every title, and comes first in document order.
+    const studentCard = () => student.locator('div.p-4.rounded-xl').filter({ hasText: title }).last()
+    const openStudentHomework = async () => {
+      await student.goto('/student/homework', { waitUntil: 'domcontentloaded' })
+      await settle(student)
+      await expect(studentCard(), 'the homework reaches the student').toBeVisible({ timeout: 45000 })
+    }
 
-      // Collect anything a previously-failed run left published.
-      await archiveEvidenceHomework(teacher)
+    /** Hand in one PDF, then reload so what is asserted came back from the database. */
+    const handIn = async (n: number, opener: 'Hand in' | 'Hand in again') => {
+      await openStudentHomework()
+      const card = studentCard()
+      await card.getByRole('button', { name: opener, exact: true }).click()
+      await card.locator('input[type="file"]').setInputFiles(pdf(n))
+      // The upload has finished when the picker offers to replace the file.
+      await expect(card.getByRole('button', { name: 'Replace file' })).toBeVisible({ timeout: 45000 })
+      await card.getByRole('button', { name: 'Hand in', exact: true }).click()
+      await settle(student, 2500)
+      await openStudentHomework()
+      await expect(studentCard(), `hand-in ${n} reads as awaiting review after a reload`).toContainText(
+        'Handed in — awaiting review',
+        { timeout: 30000 },
+      )
+      await expect(studentCard(), `the card shows the file of hand-in ${n}`).toContainText(pdf(n).name)
+    }
 
-      await teacher.getByRole('button', { name: 'New Homework' }).click()
+    /**
+     * The student is told the teacher's decision in those words, once, about
+     * this homework (20260925150000). Exactly one: a second copy is the defect
+     * that migration removed.
+     */
+    const toldAbout = async (words: 'Homework rejected' | 'Homework accepted') => {
+      await student.goto('/student/notifications', { waitUntil: 'domcontentloaded' })
+      await settle(student)
+      await expect(
+        student.getByRole('button').filter({ hasText: words }).filter({ hasText: title }),
+        `the student is told "${words}" about this homework, once`,
+      ).toHaveCount(1, { timeout: 45000 })
+    }
+
+    /** One of the teacher's two actions, on the one hand-in awaiting review. */
+    const decide = async (action: 'Accept' | 'Reject', reads: string) => {
+      await openTeacherHomework()
+      const hwCard = teacher
+        .locator('div.p-4.bg-surface')
+        .filter({ hasText: title })
+        .filter({ has: teacher.getByRole('button', { name: 'Hand-ins' }) })
+        .last()
+      await hwCard.getByRole('button', { name: 'Hand-ins' }).click()
+      const awaiting = teacher
+        .locator('div.p-3')
+        .filter({ hasText: 'Handed in — awaiting review' })
+        .filter({ has: teacher.getByRole('button', { name: action, exact: true }) })
+      // Exactly one: the homework is this run's, and one student handed in.
+      await expect(awaiting, 'the review lists the one hand-in awaiting a decision').toHaveCount(1, {
+        timeout: 45000,
+      })
+      await awaiting.getByRole('button', { name: action, exact: true }).click()
+      await expect(
+        teacher.locator('div.p-3').filter({ hasText: reads }),
+        `after ${action}, the hand-in reads ${reads}`,
+      ).toHaveCount(1, { timeout: 30000 })
+    }
+
+    try {
+      // ── 1. TEACHER SETS ───────────────────────────────────────────────
+      await openTeacherHomework()
+      // Collect anything a previously-failed run left behind.
+      await deleteEvidenceHomework(teacher)
+
+      await teacher.getByRole('button', { name: 'New homework' }).click()
       await teacher.getByPlaceholder('Title *').fill(title)
-      await teacher.getByPlaceholder('Instructions').fill('Tier 1 evidence run — assign/submit/grade.')
-      await teacher.getByPlaceholder('Max marks').fill('20')
-      // Publishing requires a due date; a week out keeps the submission on time.
-      const due = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10)
-      await teacher.locator('input[type="date"]').first().fill(due)
-      await teacher.getByRole('button', { name: 'Publish Immediately' }).click()
+      await teacher.getByPlaceholder('The question').fill('Tier 1 evidence run — set, hand in, reject, accept.')
+      // A week out keeps every hand-in before the deadline. datetime-local is
+      // the teacher's wall clock, which is the browser's zone.
+      const d = new Date(Date.now() + 7 * 24 * 3600 * 1000)
+      const pad = (x: number) => String(x).padStart(2, '0')
+      await teacher
+        .locator('input[type="datetime-local"]')
+        .first()
+        .fill(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T17:00`)
       await teacher.getByRole('button', { name: 'Publish', exact: true }).click()
 
       await expect(
-        teacher.getByText(title),
-        `the assigned homework appears in the teacher's list — ${title}`,
-      ).toBeVisible({ timeout: 45000 })
+        teacher.locator('div.p-4.bg-surface').filter({ hasText: title }).filter({
+          has: teacher.getByRole('button', { name: 'Hand-ins' }),
+        }),
+        `the published homework appears in the teacher's list — ${title}`,
+      ).toHaveCount(1, { timeout: 45000 })
 
-      // ── 2. STUDENT SUBMITS ────────────────────────────────────────────
-      await student.goto('/student/homework', { waitUntil: 'domcontentloaded' })
-      await settle(student)
+      // ── 2. STUDENT HANDS IN ONE FILE ──────────────────────────────────
+      // While it is still to do, the student is told what missing it costs.
+      await openStudentHomework()
+      await expect(studentCard(), 'open homework tells the student that missing it costs XP').toContainText(
+        'Missing it costs XP',
+      )
+      await handIn(1, 'Hand in')
+
+      // ── 3. TEACHER REJECTS; IT REACHES THE STUDENT AS NOT GIVEN ───────
+      await decide('Reject', 'Rejected — hand in again')
+      await openStudentHomework()
+      await expect(studentCard(), 'the rejection reaches the student').toContainText('Rejected — hand in again', {
+        timeout: 30000,
+      })
+      await toldAbout('Homework rejected')
+
+      // ── 4. STUDENT HANDS IN AGAIN; TEACHER ACCEPTS ────────────────────
+      await handIn(2, 'Hand in again')
+      await decide('Accept', 'Accepted')
+      await toldAbout('Homework accepted')
+
+      // ── 5. ACCEPTED IS FINAL FOR THE STUDENT ──────────────────────────
+      await openStudentHomework()
+      await expect(studentCard(), 'the acceptance reaches the student').toContainText('Accepted', { timeout: 30000 })
       await expect(
-        student.getByText(title),
-        'the newly assigned homework reaches the student',
-      ).toBeVisible({ timeout: 45000 })
+        studentCard().getByRole('button', { name: /Hand in|Replace my file/ }),
+        'an accepted hand-in offers nothing to replace',
+      ).toHaveCount(0)
 
-      // The pending card carries the submit composer; scope to that card so a
-      // second homework's textarea can never be the one filled.
-      // /student/homework renders gurukul/pages/Assignments, NOT the
-      // StudentHomeworkPage of the same name: its composer is collapsed behind
-      // a "Submit homework" button and only one opens at a time (`activeId`).
-      // The card is the innermost div holding both the title and that button —
-      // filtering on the title alone lands on the title element itself.
-      const card = student
-        .locator('div')
-        .filter({ hasText: title })
-        .filter({ has: student.getByRole('button', { name: 'Submit homework' }) })
-        .last()
-      await card.getByRole('button', { name: 'Submit homework' }).click()
-      await student.getByPlaceholder('Notes (optional if attaching files)').fill(answer)
-      await student.getByRole('button', { name: /^Submit$/ }).click()
-      await settle(student, 2500)
-
-      // There is no toast on this path — the composer closes and the list
-      // reloads. Reload anyway, so what is asserted came back from the
-      // database rather than from component state.
-      await student.reload({ waitUntil: 'domcontentloaded' })
-      await settle(student)
-
-      // The card carries no copy of the submitted note: Assignments renders the
-      // homework's instructions, not the student's answer. So the durable
-      // evidence is the status flip, and the composer button turning into
-      // "Replace submission" — which only exists once a submission does.
-      const submittedCard = student
-        .locator('div')
-        .filter({ hasText: title })
-        .filter({ has: student.getByRole('button', { name: 'Replace submission' }) })
-        .last()
-      await expect(
-        submittedCard,
-        'the homework reads as Submitted after a reload',
-      ).toContainText('Submitted', { timeout: 30000 })
-
-      // ── 3. TEACHER GRADES ─────────────────────────────────────────────
-      await teacher.reload({ waitUntil: 'domcontentloaded' })
-      await settle(teacher)
-      await teacher.getByRole('button', { name: 'Homework', exact: true }).click()
-      await settle(teacher, 1500)
-
-      const hwCard = teacher
-        .locator('div.p-4.bg-surface.rounded-2xl')
-        .filter({ hasText: title })
-        .filter({ has: teacher.getByRole('button', { name: 'Submissions' }) })
-        .last()
-      await hwCard.getByRole('button', { name: 'Submissions' }).click()
-
-      // openReview() awaits listSubmissions() and listClassStudents() AFTER
-      // setting reviewHw, so the panel exists before its rows do. Waiting a
-      // fixed interval here raced those two reads and intermittently tried to
-      // fill a Grade box that had not rendered; wait for the box itself.
-      const gradeInput = teacher.getByPlaceholder('Grade').first()
-      await expect(
-        gradeInput,
-        'the review panel loaded the submission to grade',
-      ).toBeVisible({ timeout: 45000 })
-      await gradeInput.fill(gradeValue)
-      await teacher.getByPlaceholder('Remarks').first().fill(remark)
-      await teacher.getByRole('button', { name: /^Grade$/ }).first().click()
-      await settle(teacher, 2500)
-
-      // ── 4. THE GRADE REACHES THE STUDENT ──────────────────────────────
-      await student.reload({ waitUntil: 'domcontentloaded' })
-      await settle(student)
-      // Scoped to the card: a bare page-wide search for "18" would match the
-      // XP counter in the sidebar and pass without the grade existing.
-      const gradedCard = student
-        .locator('div')
-        .filter({ hasText: title })
-        .filter({ has: student.getByRole('button', { name: 'Replace submission' }) })
-        .last()
-      await expect(
-        gradedCard,
-        'the grade the teacher entered is on the student card',
-      ).toContainText(gradeValue, { timeout: 30000 })
-      await expect(
-        gradedCard,
-        "the teacher's remark reaches the student",
-      ).toContainText(remark, { timeout: 30000 })
-
-      // ── 5. RESTORE: the demo tenant keeps no evidence homework ────────
-      await teacher.reload({ waitUntil: 'domcontentloaded' })
-      await settle(teacher)
-      await teacher.getByRole('button', { name: 'Homework', exact: true }).click()
-      await settle(teacher, 1500)
-      const archived = await archiveEvidenceHomework(teacher)
-      // POSITIVE CONTROL. The run just created one, so a cleanup that archives
+      // ── 6. RESTORE: the demo tenant keeps no evidence homework ────────
+      await openTeacherHomework()
+      const deleted = await deleteEvidenceHomework(teacher)
+      // POSITIVE CONTROL. The run just created one, so a cleanup that deletes
       // nothing means the locator stopped matching, not that nothing was there.
-      expect(archived, 'cleanup archived the homework this run created').toBeGreaterThan(0)
+      expect(deleted, 'cleanup deleted the homework this run created').toBeGreaterThan(0)
       await expect(
-        teacher
-          .locator('div.p-4.bg-surface.rounded-2xl')
-          .filter({ hasText: 'E2E homework' })
-          .filter({ has: teacher.getByRole('button', { name: 'Archive' }) }),
-        'no evidence homework is left un-archived',
+        teacher.locator('div.p-4.bg-surface').filter({ hasText: 'E2E homework' }),
+        'no evidence homework is left in the list',
       ).toHaveCount(0, { timeout: 30000 })
 
       testInfo.annotations.push({ type: 'tier1-write', description: `homework chain ok: ${title}` })
@@ -473,9 +485,19 @@ test.describe('Tier1-W · teacher · exam marks', () => {
     const examName = `E2E exam ${stamp}`
     const mark = '42'
 
-    // Exam cards render as div.p-3.bg-surface.rounded-xl (LiveClassPanels).
+    // The exam card is the innermost element holding both this sitting's name
+    // and its own "Review / publish" control: ancestors precede it in document
+    // order, and the "Pending marks" row names the exam but has no such
+    // control. Found by content, not by class — the card was located by
+    // `div.p-3.bg-surface.rounded-xl` until the panel redesign (6cb2374) made
+    // it `rounded-[2px]`, and the exam was created while this test reported
+    // that it never appeared.
     const examCard = () =>
-      page.locator('div.p-3.bg-surface.rounded-xl').filter({ hasText: examName }).last()
+      page
+        .locator('div')
+        .filter({ hasText: examName })
+        .filter({ has: page.getByRole('button', { name: 'Review / publish' }) })
+        .last()
 
     /** Open the Exams & Marks tab from a fresh page load. */
     const openExamsTab = async () => {

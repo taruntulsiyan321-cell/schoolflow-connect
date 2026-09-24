@@ -1,14 +1,11 @@
-﻿import { useState, useRef, useEffect, useMemo } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { withAlpha } from "@/lib/colorAlpha";
 import { createPortal } from "react-dom";
 import type { PageKey } from "@/gurukul/nav";
-import { useGurukulStudent } from "@/gurukul/StudentContext";
-import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
-import { useConceptMastery } from "@/hooks/useConceptMastery";
+import { useGurukulStudent, useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "@/gurukul/components/shared";
-import { displayConcept } from "@/lib/academicDisplay";
 import {
   COMING_SOON_LABEL,
   comingSoonToast,
@@ -19,17 +16,15 @@ import {
   askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue,
   type NovaRecentTurn, type NovaQuestionContext,
 } from "@/academic/ai/gatewayClient";
-import { dedupeSubjects, isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
+import { isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
 import { consumeNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import {
   processAttachmentFile, AttachmentError,
   ACCEPTED_ATTACHMENT_TYPES, MAX_ATTACHMENTS,
 } from "@/gurukul/novaAttachments";
-import { WEAK_CONCEPT_THRESHOLD } from "@/academic/eie/masteryBands";
 import { NovaMarkdown } from "@/components/NovaMarkdown";
 import { useAuth } from "@/auth";
 import { novaConversationsKey } from "@/lib/clientStorage";
-import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { NovaModeSwitch, NovaRevisionMode, type NovaMode } from "@/gurukul/nova/NovaRevisionMode";
 import {
   Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3, MoreHorizontal,
@@ -88,8 +83,9 @@ const SUGGESTIONS = [
   // Nova teaches; it is not a records lookup. The six administrative prompts
   // that used to sit here — attendance this month, homework due, marks
   // summary, school events, performance from school records, how am I doing —
-  // asked a tutor to read the office noticeboard. Those answers live on the
-  // Class page. Measured before deleting: the array held eight, of which six
+  // asked a tutor to read the office noticeboard. Nova refuses those; it only
+  // tutors concepts and academic doubts.
+  // Measured before deleting: the array held eight, of which six
   // were administrative and two were already about learning.
   { icon:<Sparkles className="w-4 h-4"/>,      text:"Explain my weak topics",                 color:"hsl(var(--warning))" },
   { icon:<AlertCircle className="w-4 h-4"/>,   text:"Which are my weakest topics?",           color:"hsl(var(--destructive))" },
@@ -118,8 +114,8 @@ function now() {
 function offlineFallback(): string {
   return (
     "I couldn’t reach the AI Gateway just now. " +
-    "Ask about attendance, homework due, marks, upcoming school events, or mastery/revision — " +
-    "or use Practice, Doubts, or Recovery for learning paths."
+    "Try again in a moment, or ask about a concept, a wrong answer, or weak topics when we’re back online. " +
+    "I don’t look up attendance, marks, homework, or the calendar."
   );
 }
 
@@ -288,9 +284,11 @@ function QuestionContextCard({ ctx }: { ctx: NovaQuestionContext }) {
 function SuggestionGrid({
   onSelect,
   firstName,
+  examLabel,
 }: {
   onSelect: (text: string) => void;
   firstName: string;
+  examLabel?: string | null;
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
@@ -303,8 +301,9 @@ function SuggestionGrid({
         Hi {firstName && !isPlaceholderLabel(firstName) ? firstName : "there"}
       </h2>
       <p className="text-muted-foreground text-sm mb-8 text-center max-w-xs">
-        I'm Nova, your tutor. Bring me a concept you don't follow or a question
-        you got wrong — I'll explain it, then ask you questions back until it's clear.
+        {examLabel
+          ? `I'm Nova, your ${examLabel} tutor. Bring me a concept you don't follow or a question you got wrong — I'll explain it, then ask you questions back until it's clear.`
+          : "I'm Nova, your tutor. Bring me a concept you don't follow or a question you got wrong — I'll explain it, then ask you questions back until it's clear."}
       </p>
 
       {/* Suggestions */}
@@ -606,7 +605,7 @@ function InputBar({
         <textarea
           ref={textareaRef}
           value={text} onChange={e => setText(e.target.value)} onKeyDown={onKey}
-          placeholder={pendingImages.length ? "Add a note (optional)…" : "Ask Nova anything…"}
+          placeholder={pendingImages.length ? "Add a note (optional)…" : "Ask about a concept or a wrong answer…"}
           rows={1} disabled={disabled}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none py-1.5 leading-relaxed"
           style={{ maxHeight:120 }}
@@ -649,39 +648,16 @@ function InputBar({
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
+  const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
+  const examLabel =
+    schoolKind === "individual" ? (examName || examCode || null) : null;
   const { user, role } = useAuth();
   const { studentId, schoolId } = useAcademicContext();
-  const { data: charts } = useStudentPerformanceCharts();
-  const { items: masteryItems } = useConceptMastery();
-  const { data: snapshot } = useStudentAcademicSnapshot();
   // The mode lives in the URL, so ?mode=revision is a link to Revision mode and
   // a reload keeps the student where they were.
   const [searchParams, setSearchParams] = useSearchParams();
   const mode: NovaMode = searchParams.get("mode") === "revision" ? "revision" : "chat";
   const setMode = (m: NovaMode) => setSearchParams(m === "revision" ? { mode: "revision" } : {}, { replace: true });
-
-  const subjectNames = useMemo(
-    () =>
-      dedupeSubjects([
-        ...(charts?.subjects ?? []).map((s) => s.name),
-        ...(snapshot?.weak_topics ?? []).map((t) => t.subject),
-        ...(masteryItems ?? []).map((m) => m.subject),
-      ]),
-    [charts?.subjects, snapshot?.weak_topics, masteryItems],
-  );
-
-  const weakConceptLabels = useMemo(
-    () =>
-      dedupeSubjects(
-        [...masteryItems]
-          .filter((m) => m.mastery_score < WEAK_CONCEPT_THRESHOLD || m.mistake_count >= 2)
-          .sort((a, b) => a.mastery_score - b.mastery_score || b.mistake_count - a.mistake_count)
-          .map((m) => displayConcept(m.concept))
-          .filter((c) => !isPlaceholderLabel(c)),
-        3,
-      ),
-    [masteryItems],
-  );
 
   const convoStorageKey = novaConversationsKey({ userId: user?.id, schoolId: schoolId ?? undefined });
   const [convos,     setConvos]     = useState<Conversation[]>(EMPTY_CONVOS);
@@ -720,32 +696,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   const msgs   = active?.messages ?? [];
   const isTyping = activeId ? pendingConvoIds.has(activeId) : false;
 
-  // One-shot handoff from a result screen ("Ask Nova about this question") — consumed once.
-  useEffect(() => {
-    const ctx = consumeNovaQuestionContext();
-    if (!ctx) return;
-    const id = genId("c");
-    const newConvo: Conversation = {
-      id,
-      title: ctx.question.slice(0, 40) || "Question",
-      preview: "Ask Nova about this question",
-      date: "Today",
-      messages: [],
-      questionContext: ctx,
-    };
-    activeIdRef.current = id;
-    setConvos((cs) => [newConvo, ...cs]);
-    setActiveId(id);
-    // The student pressed Explain — they have already asked. Making them type
-    // "explain this" as well is the cost this handoff exists to remove.
-    void replyViaGateway(
-      id,
-      ctx.studentAnswer
-        ? "I got this question wrong. Explain why my answer is wrong and walk me through the right one."
-        : "Explain this question to me, step by step.",
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Handoff is applied at most once per mount, and only after a real storage key
+  // exists. A prior split (consume on mount + overwrite from localStorage when the
+  // key arrived) wiped MistakeBook/Practice question context before the gateway
+  // call could use it.
+  const handoffAppliedRef = useRef(false);
 
   useEffect(() => {
     const controllers = abortControllersRef.current;
@@ -755,10 +710,48 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     };
   }, []);
 
-  // Load only once identity is known, so a conversation list is never read or
-  // written under a key that isn't this user's.
+  // Load stored threads once identity is known; fold in a one-shot question
+  // handoff in the same update so localStorage never races the handoff away.
   useEffect(() => {
-    setConvos(loadStoredConvos(convoStorageKey));
+    if (!convoStorageKey) {
+      setConvos(EMPTY_CONVOS);
+      setActiveId(null);
+      activeIdRef.current = null;
+      return;
+    }
+    const stored = loadStoredConvos(convoStorageKey);
+    if (handoffAppliedRef.current) {
+      setConvos(stored);
+      return;
+    }
+    handoffAppliedRef.current = true;
+    const ctx = consumeNovaQuestionContext();
+    if (!ctx) {
+      setConvos(stored);
+      return;
+    }
+    const id = genId("c");
+    const prompt = ctx.studentAnswer
+      ? "I got this question wrong. Explain why my answer is wrong and walk me through the right one."
+      : "Explain this question to me, step by step.";
+    const newConvo: Conversation = {
+      id,
+      title: ctx.question.slice(0, 40) || "Question",
+      preview: "Ask Nova about this question",
+      date: "Today",
+      // Seed the student turn so Regenerate has a last question, and so
+      // recentTurns matches a normal send (prompt is also input.text).
+      messages: [{ id: genId("m"), role: "student", text: prompt, time: now() }],
+      questionContext: ctx,
+    };
+    // Sync the ref before the gateway call — setState alone leaves convosRef
+    // on the previous render, which dropped questionContext on the first turn.
+    convosRef.current = [newConvo, ...stored];
+    activeIdRef.current = id;
+    setConvos(convosRef.current);
+    setActiveId(id);
+    void replyViaGateway(id, prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convoStorageKey]);
 
   useEffect(() => {
@@ -769,18 +762,9 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       /* ignore quota */
     }
   }, [convos, convoStorageKey]);
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior:"smooth" });
   }, [msgs, isTyping]);
-
-  function addMessage(convoId: string, msg: Omit<Message,"id">) {
-    setConvos(cs => cs.map(c => c.id === convoId
-      ? { ...c, messages:[...c.messages, { ...msg, id:genId("m") }],
-          preview: msg.text.slice(0,60) + (msg.text.length>60?"…":"") }
-      : c
-    ));
-  }
 
   function setPending(convoId: string, pending: boolean) {
     if (pending) pendingConvoIdsRef.current.add(convoId);
@@ -830,45 +814,43 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         typeof response.session_id === "string" && response.session_id.trim()
           ? response.session_id.trim()
           : existing?.sessionId;
-      setConvos((cs) =>
-        cs.map((c) =>
-          c.id === convoId
-            ? {
-                ...c,
-                sessionId: nextSessionId,
-                messages: [
-                  ...c.messages,
-                  {
-                    id: genId("m"),
-                    role: "nova",
-                    text: reply,
-                    time: now(),
-                    requestId: response.request_id,
-                    featureId: response.feature_id,
-                    feedback: null,
-                  },
-                ],
-                preview: reply.slice(0, 60) + (reply.length > 60 ? "…" : ""),
-              }
-            : c,
-        ),
+      convosRef.current = convosRef.current.map((c) =>
+        c.id === convoId
+          ? {
+              ...c,
+              sessionId: nextSessionId,
+              messages: [
+                ...c.messages,
+                {
+                  id: genId("m"),
+                  role: "nova",
+                  text: reply,
+                  time: now(),
+                  requestId: response.request_id,
+                  featureId: response.feature_id,
+                  feedback: null,
+                },
+              ],
+              preview: reply.slice(0, 60) + (reply.length > 60 ? "…" : ""),
+            }
+          : c,
       );
+      setConvos(convosRef.current);
     } catch {
       if (controller.signal.aborted) return; // cancelled, not a real failure
       toast.error("AI Gateway unavailable");
-      setConvos((cs) =>
-        cs.map((c) =>
-          c.id === convoId
-            ? {
-                ...c,
-                messages: [
-                  ...c.messages,
-                  { id: genId("m"), role: "nova", text: offlineFallback(), time: now(), isError: true },
-                ],
-              }
-            : c,
-        ),
+      convosRef.current = convosRef.current.map((c) =>
+        c.id === convoId
+          ? {
+              ...c,
+              messages: [
+                ...c.messages,
+                { id: genId("m"), role: "nova", text: offlineFallback(), time: now(), isError: true },
+              ],
+            }
+          : c,
       );
+      setConvos(convosRef.current);
     } finally {
       abortControllersRef.current.delete(convoId);
       setPending(convoId, false);
@@ -884,17 +866,33 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         preview: text.slice(0,60), date:"Today",
         messages: [{ id: genId("m"), role:"student", text, time:now(), imageCount: images?.length }],
       };
-      // Update the ref synchronously so a second send fired before this
-      // state update commits still finds this conversation instead of
-      // creating another one.
+      // Sync refs before the gateway call so replyViaGateway sees this thread
+      // (and any questionContext) on the same turn — setState alone is too late.
+      convosRef.current = [newConvo, ...convosRef.current];
       activeIdRef.current = id;
-      setConvos(cs => [newConvo, ...cs]);
+      setConvos(convosRef.current);
       setActiveId(id);
       void replyViaGateway(id, text, images);
       return;
     }
 
-    addMessage(currentId, { role:"student", text, time:now(), imageCount: images?.length });
+    const studentMsg: Message = {
+      id: genId("m"),
+      role: "student",
+      text,
+      time: now(),
+      imageCount: images?.length,
+    };
+    convosRef.current = convosRef.current.map((c) =>
+      c.id === currentId
+        ? {
+            ...c,
+            messages: [...c.messages, studentMsg],
+            preview: text.slice(0, 60) + (text.length > 60 ? "…" : ""),
+          }
+        : c,
+    );
+    setConvos(convosRef.current);
     void replyViaGateway(currentId, text, images);
   }
 
@@ -911,8 +909,12 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     abortControllersRef.current.get(id)?.abort();
     abortControllersRef.current.delete(id);
     setPending(id, false);
-    setConvos(cs => cs.filter(c => c.id !== id));
-    if (activeId === id) setActiveId(null);
+    convosRef.current = convosRef.current.filter(c => c.id !== id);
+    setConvos(convosRef.current);
+    if (activeIdRef.current === id) {
+      activeIdRef.current = null;
+      setActiveId(null);
+    }
   }
 
   function pinConvo(id: string) {
@@ -952,7 +954,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   function regenerateLast() {
     if (regenBusyRef.current) return;
     if (!activeId) return;
-    const c = convos.find(x => x.id === activeId);
+    const c = convosRef.current.find(x => x.id === activeId);
     if (!c || c.messages.length === 0) return;
     const studentMsgs = c.messages.filter(m => m.role === "student");
     const lastQ = studentMsgs[studentMsgs.length - 1];
@@ -970,10 +972,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           signal_type: "retry",
         }).catch(() => { /* best-effort telemetry — never blocks regenerate */ });
       }
-      setConvos(cs => cs.map(x => x.id === activeId
+      convosRef.current = convosRef.current.map(x => x.id === activeId
         ? { ...x, messages: x.messages.filter(m => m.id !== last.id) }
         : x
-      ));
+      );
+      setConvos(convosRef.current);
     }
     void replyViaGateway(activeId, lastQ.text).finally(() => {
       regenBusyRef.current = false;
@@ -1089,7 +1092,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
 
         {mode === "revision" ? (
           <div className="flex-1 min-h-0">
-            <NovaRevisionMode weakConcepts={weakConceptLabels} />
+            <NovaRevisionMode />
           </div>
         ) : (<>
         {/* Conversation header */}
@@ -1153,10 +1156,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
 
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto scrollbar-none">
-          {msgs.length === 0 ? (
+          {msgs.length === 0 && !(isTyping && active?.questionContext) ? (
             <SuggestionGrid
               onSelect={handleSuggestion}
               firstName={student.firstName}
+              examLabel={examLabel}
             />
           ) : (
             <div className="px-4 py-4 space-y-5 max-w-3xl mx-auto w-full">

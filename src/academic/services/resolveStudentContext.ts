@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { MissingSchoolContextError } from "../tenant";
 import type { ServiceContext } from "./context";
 import type { AppRole } from "@/auth/types";
+import type { SchoolKind } from "@/gurukul/nav";
 
 /** Shared student academic identity — Home, Practice, and service helpers. */
 export type StudentAcademicIdentity = {
@@ -18,6 +19,12 @@ export type StudentAcademicIdentity = {
   classCategory: string | null;
   /** Display label e.g. "10-A" or display_name — never hardcoded. */
   classLabel: string | null;
+  /** From schools.kind — null when the RPC/env has not yet returned it. */
+  schoolKind: SchoolKind | null;
+  /** Competitive exam on exam_accounts — null for organisation schools. */
+  examId: string | null;
+  examCode: string | null;
+  examName: string | null;
 };
 
 type IdentityRpcRow = {
@@ -31,7 +38,16 @@ type IdentityRpcRow = {
   class_section: string | null;
   class_display_name: string | null;
   class_category: string | null;
+  school_kind?: string | null;
+  exam_id?: string | null;
+  exam_code?: string | null;
+  exam_name?: string | null;
 };
+
+function parseSchoolKind(raw: string | null | undefined): SchoolKind | null {
+  if (raw === "school" || raw === "individual") return raw;
+  return null;
+}
 
 const ROLE_PRIORITY: AppRole[] = [
   "super_admin",
@@ -59,25 +75,73 @@ function buildClassLabel(row: {
 }
 
 /**
- * Load student identity via SECURITY DEFINER RPC when available.
- * Falls back to direct table reads for envs that have not applied the migration yet.
+ * One identity per signed-in student, shared by every caller for a minute.
+ *
+ * useAcademicContext is mounted by 87 components, and each mount loaded the
+ * identity afresh: a round trip to the auth server (getUser) and then
+ * rpc_get_my_student_identity, one after the other. Measured 2026-09-22 as the
+ * Class 12 student: Start Practice spent its first ~800 ms on those two calls
+ * before it could ask for a single question — for an identity the page had
+ * loaded a moment earlier. rpc_get_my_student_identity had run 13,385 times.
+ *
+ * Only a complete student identity is kept. An account that is not linked to a
+ * student yet is re-read on every call, so a portal link made a moment ago is
+ * never hidden behind a cached "no student". A failed load is not kept either.
+ * Concurrent mounts share the one request in flight.
+ */
+const IDENTITY_TTL_MS = 60_000;
+let identityCache: {
+  userId: string;
+  at: number;
+  promise: Promise<StudentAcademicIdentity | null>;
+} | null = null;
+
+/**
+ * Load the signed-in student's identity, from the shared copy when it is
+ * fresh. The session is read locally: the identity RPC itself runs under the
+ * session's token, so the server still verifies it on every load.
  */
 export async function loadStudentAcademicIdentity(
   userId?: string | null,
 ): Promise<StudentAcademicIdentity | null> {
-  const { data: auth, error: authErr } = await supabase.auth.getUser();
+  const { data: auth, error: authErr } = await supabase.auth.getSession();
   if (authErr) throw authErr;
-  const user = auth.user;
+  const user = auth.session?.user;
   if (!user) return null;
   if (userId && user.id !== userId) {
     throw new Error("Student identity user mismatch");
   }
+  const hit = identityCache;
+  if (hit && hit.userId === user.id && Date.now() - hit.at < IDENTITY_TTL_MS) return hit.promise;
+  const promise = fetchStudentAcademicIdentity(user);
+  identityCache = { userId: user.id, at: Date.now(), promise };
+  const forget = () => {
+    if (identityCache?.promise === promise) identityCache = null;
+  };
+  promise.then((loaded) => { if (!loaded?.studentId) forget(); }, forget);
+  return promise;
+}
 
+/**
+ * Load student identity via SECURITY DEFINER RPC when available.
+ * Falls back to direct table reads for envs that have not applied the migration yet.
+ */
+async function fetchStudentAcademicIdentity(
+  user: { id: string },
+): Promise<StudentAcademicIdentity | null> {
   // Prefer SSOT RPC (applies link_portal + class join as definer).
   const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
     "rpc_get_my_student_identity",
   );
   if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+    // The RPC answers with the whole identity, exam included, since
+    // 20261047000000 (applied 2026-09-23). It is read here and nowhere else:
+    // while that migration was pending this branch re-read schools and
+    // exam_accounts itself to fill school_kind and the exam, which gave "which
+    // exam is this account" a second home and cost every individual two extra
+    // round trips on an identity the RPC had already answered. The fallback
+    // below still reads those tables, because it runs only where the RPC
+    // answers nothing at all.
     const row = rpcData[0] as IdentityRpcRow;
     return {
       userId: row.user_id ?? user.id,
@@ -91,6 +155,10 @@ export async function loadStudentAcademicIdentity(
       classDisplayName: row.class_display_name ?? null,
       classCategory: row.class_category ?? null,
       classLabel: buildClassLabel(row),
+      schoolKind: parseSchoolKind(row.school_kind),
+      examId: row.exam_id ?? null,
+      examCode: row.exam_code ?? null,
+      examName: row.exam_name ?? null,
     };
   }
 
@@ -171,6 +239,34 @@ export async function loadStudentAcademicIdentity(
     }
   }
 
+  let schoolKind: SchoolKind | null = null;
+  let examId: string | null = null;
+  let examCode: string | null = null;
+  let examName: string | null = null;
+  if (schoolId) {
+    const { data: sch, error: schErr } = await supabase
+      .from("schools")
+      .select("kind")
+      .eq("id", schoolId)
+      .maybeSingle();
+    if (schErr) console.warn("[resolveStudentContext] schools.kind lookup failed:", schErr.message);
+    schoolKind = parseSchoolKind(sch?.kind);
+    if (schoolKind === "individual") {
+      const { data: ea, error: eaErr } = await supabase
+        .from("exam_accounts")
+        .select("exam_id, competitive_exams(code, name)")
+        .eq("school_id", schoolId)
+        .maybeSingle();
+      if (eaErr) console.warn("[resolveStudentContext] exam_accounts lookup failed:", eaErr.message);
+      examId = ea?.exam_id ?? null;
+      type ExamJoin = { code?: string | null; name?: string | null };
+      const rawExam = (ea as { competitive_exams?: ExamJoin | ExamJoin[] | null } | null)?.competitive_exams;
+      const exam = Array.isArray(rawExam) ? rawExam[0] : rawExam;
+      examCode = exam?.code ?? null;
+      examName = exam?.name ?? null;
+    }
+  }
+
   return {
     userId: user.id,
     role,
@@ -187,6 +283,10 @@ export async function loadStudentAcademicIdentity(
       class_name: className,
       class_section: classSection,
     }),
+    schoolKind,
+    examId,
+    examCode,
+    examName,
   };
 }
 
@@ -212,6 +312,10 @@ export function identityToServiceContext(identity: StudentAcademicIdentity): Ser
     classId: identity.classId,
     classLabel: identity.classLabel,
     classCategory: identity.classCategory,
+    schoolKind: identity.schoolKind,
+    examId: identity.examId,
+    examCode: identity.examCode,
+    examName: identity.examName,
   };
 }
 

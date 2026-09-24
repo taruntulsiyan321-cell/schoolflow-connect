@@ -2,28 +2,22 @@ export type TeacherPageKey =
   | "dashboard"
   | "myclasses"
   | "doubts"
-  | "communication"
   | "announcements"
   | "leave"
   | "profile"
   | "battleground"
-  | "questionbank"
   | "questionpapers"
-  | "aicoach"
   | "resources";
 
 export const TEACHER_PAGE_PATH: Record<TeacherPageKey, string> = {
   dashboard: "/teacher",
   myclasses: "/teacher/classes",
   doubts: "/teacher/doubts",
-  communication: "/teacher/communication",
   announcements: "/teacher/announcements",
   leave: "/teacher/leave",
   profile: "/teacher/profile",
   battleground: "/teacher/battleground",
-  questionbank: "/teacher/question-bank",
   questionpapers: "/teacher/question-papers",
-  aicoach: "/teacher/ai-coach",
   resources: "/teacher/resources",
 };
 
@@ -31,14 +25,11 @@ export const TEACHER_PAGE_TITLES: Record<TeacherPageKey, string> = {
   dashboard: "Dashboard",
   myclasses: "My Classes",
   doubts: "Student Doubts",
-  communication: "Communication",
   announcements: "Announcements",
   leave: "Leave",
   profile: "My Profile",
   battleground: "Battles Monitor",
-  questionbank: "Question Bank",
   questionpapers: "Question Papers",
-  aicoach: "AI Coach",
   resources: "Resources",
 };
 
@@ -61,23 +52,20 @@ export function teacherPathToPage(pathname: string): TeacherPageKey {
   )
     return "myclasses";
   if (p.startsWith("/teacher/doubts")) return "doubts";
-  if (
-    p.startsWith("/teacher/communication") ||
-    p.startsWith("/teacher/chat") ||
-    p.startsWith("/teacher/connect")
-  )
-    return "communication";
   if (p.startsWith("/teacher/announcements") || p.startsWith("/teacher/notices"))
     return "announcements";
   if (p.startsWith("/teacher/leave") || p.startsWith("/teacher/leaves")) return "leave";
   if (p.startsWith("/teacher/profile")) return "profile";
   if (p.startsWith("/teacher/battleground")) return "battleground";
-  // Checked BEFORE question-bank only for readability; the two prefixes
-  // diverge at "question-b" vs "question-p" and cannot shadow each other.
-  if (p.startsWith("/teacher/question-papers")) return "questionpapers";
-  if (p.startsWith("/teacher/question-bank") || p.startsWith("/teacher/practice"))
-    return "questionbank";
-  if (p.startsWith("/teacher/ai-coach")) return "aicoach";
+  // The teachers' AI makes question papers and nothing else, so /teacher/ai-coach
+  // and the retired /teacher/question-bank both land on the one page that does it.
+  if (
+    p.startsWith("/teacher/question-papers") ||
+    p.startsWith("/teacher/question-bank") ||
+    p.startsWith("/teacher/ai-coach") ||
+    p.startsWith("/teacher/practice")
+  )
+    return "questionpapers";
   if (p.startsWith("/teacher/resources")) return "resources";
   if (p === "/teacher") return "dashboard";
 

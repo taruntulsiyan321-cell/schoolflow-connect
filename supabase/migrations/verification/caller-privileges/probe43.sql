@@ -1,34 +1,34 @@
 -- probe43: the homework journey, end to end, as each real caller.
 --
--- "A teacher assigns homework to his class, the student attempts it and sends
--- it." That is the product in one sentence, and nothing had ever proved it
--- works as the actual signed-in people rather than as `postgres`.
---
--- The pieces all exist — 51 homework rows, 145 submissions, policies for
--- teacher-manage and student-own, triggers for late-marking and due-date
--- locking. What was missing is evidence that the chain HOLDS at every hop and
--- REFUSES at every boundary.
+-- docs/gurukul-spec-rules.md, "Homework — RULED 2026-09-13": the teacher sets
+-- homework for a class they teach; a student of that class hands in ONE image
+-- or PDF through `rpc_homework_submit` (no session writes a submission row);
+-- the teacher accepts or rejects it through `rpc_homework_decide`. Rewritten
+-- for 20260925110000 — the journey this probe used to walk (a typed `content`
+-- inserted straight into homework_submissions) no longer exists.
 --
 -- THE JOURNEY
---   1. a teacher assigns homework to a class they teach.       (POSITIVE CONTROL)
---   2. ...and CANNOT assign to a class they do not teach.              <- the fence
+--   1. a teacher sets homework for a class they teach.         (POSITIVE CONTROL)
+--   2. ...and CANNOT set it for a class they do not teach.             <- the fence
 --   3. a student of that class SEES it.                        (POSITIVE CONTROL)
 --   4. a student of another class does NOT.                            <- the fence
---   5. that student sends their own submission.                (POSITIVE CONTROL)
---   6. ...and CANNOT send one as a classmate.                          <- the guard
---   7. the teacher reads the submission that came back.        (POSITIVE CONTROL)
---   8. a classmate CANNOT read it.                                     <- the fence
+--   5. that student hands in one PDF of their own.             (POSITIVE CONTROL)
+--   6. ...and CANNOT write a submission row directly, for anyone.      <- the guard
+--   7. ...nor hand in a classmate's file.                              <- the guard
+--   8. the teacher reads the hand-in that came back.           (POSITIVE CONTROL)
+--   9. a classmate CANNOT read it.                                     <- the fence
+--  10. the teacher accepts it.                                 (POSITIVE CONTROL)
+--  11. the student CANNOT decide on their own hand-in.                 <- the fence
 --
--- The four positive controls are what make the four refusals mean anything: a
--- chain that inserts nothing and shows nothing satisfies every "cannot" here.
+-- The positive controls are what make the refusals mean anything: a chain that
+-- inserts nothing and shows nothing satisfies every "cannot" here.
 --
 -- FIXTURES MUST HOLD AN ACTIVE MEMBERSHIP. `teacher_teaches_class` and
 -- `is_my_student_record` both resolve through `active_membership_role()`, which
--- is NULL without one — and NULL denies. Only 12 of 52 students and 3 teachers
--- hold one, so selecting by `ORDER BY id` picks an unusable actor and every
--- refusal passes vacuously. probe42 learned this the hard way.
+-- is NULL without one — and NULL denies. Selecting by `ORDER BY id` alone picks
+-- an unusable actor and every refusal passes vacuously. probe42 learned this.
 --
--- Every write is rolled back.
+-- Every write is rolled back — the storage row for the hand-in included.
 BEGIN;
 SET LOCAL statement_timeout = '120s';
 CREATE TEMP TABLE probe(n serial, area text, role_tested text, expected text, observed text, verdict text) ON COMMIT DROP;
@@ -57,6 +57,7 @@ DECLARE
   mate_id uuid; mate_uid uuid;
   outsider_uid uuid;
   hw uuid; sub uuid;
+  own_file text; mate_file text;
   r text;
 BEGIN
   -- A teacher who holds an active teacher membership AND teaches a class that
@@ -98,7 +99,6 @@ BEGIN
                     AND m.status='active' AND m.local_person_id = s.id)
    ORDER BY s.id LIMIT 1;
 
-  -- a class this teacher does NOT teach, in the same school
   -- Genuinely untaught: not in teacher_classes AND not their class_teacher_of.
   -- `teacher_teaches_class` honours both, so excluding only the first would
   -- hand this probe a class the teacher legitimately owns and the refusal
@@ -111,10 +111,6 @@ BEGIN
      AND c.id IS DISTINCT FROM (SELECT class_teacher_of FROM public.teachers WHERE id = t_id)
    ORDER BY c.id LIMIT 1;
 
-  -- State the actors. A probe that does not say who it tested cannot be
-  -- re-checked, and the claim below turns on whether `other_class` is genuinely
-  -- untaught — including via `teachers.class_teacher_of`, which
-  -- `teacher_teaches_class` honours as a second path.
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('fixture: a genuinely UNTAUGHT class exists to test claim 2 against',
      'teacher ' || t_id::text,
@@ -124,31 +120,30 @@ BEGIN
        || ' | untaught picked=' || COALESCE(other_class::text,'(none)'),
      CASE WHEN other_class IS NOT NULL THEN 'PASS' ELSE 'FAIL' END);
 
-  -- ── 1. the teacher assigns (POSITIVE CONTROL) ──────────────────────────
+  -- ── 1. the teacher sets homework (POSITIVE CONTROL) ────────────────────
   r := pg_temp.as_user(t_uid, format(
-    $q$WITH i AS (INSERT INTO public.homework (class_id, title, due_date, school_id, created_by, subject)
-                  VALUES (%L, 'probe43 homework', current_date + 3, %L, %L, 'Mathematics')
-                  RETURNING 1) SELECT count(*)::text FROM i$q$, t_class, t_school, t_uid));
+    $q$WITH i AS (INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status)
+                  VALUES (%L, %L, 'Mathematics', 'probe43 homework', 'Solve Ex 1.1', now() + interval '3 days', 'published')
+                  RETURNING 1) SELECT count(*)::text FROM i$q$, t_school, t_class));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('a teacher assigns homework to a class they teach (positive control)','teacher','OK: 1', r,
+    ('a teacher sets homework for a class they teach (positive control)','teacher','OK: 1', r,
      CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
 
   SELECT id INTO hw FROM public.homework WHERE title = 'probe43 homework' ORDER BY created_at DESC LIMIT 1;
 
-  -- ── 2. ...but not to a class they do not teach ─────────────────────────
+  -- ── 2. ...but not for a class they do not teach ────────────────────────
   IF other_class IS NOT NULL THEN
     r := pg_temp.as_user(t_uid, format(
-      $q$WITH i AS (INSERT INTO public.homework (class_id, title, due_date, school_id, created_by, subject)
-                    VALUES (%L, 'probe43 trespass', current_date + 3, %L, %L, 'Mathematics')
-                    RETURNING 1) SELECT count(*)::text FROM i$q$, other_class, t_school, t_uid));
+      $q$WITH i AS (INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status)
+                    VALUES (%L, %L, 'Mathematics', 'probe43 trespass', 'q', now() + interval '3 days', 'published')
+                    RETURNING 1) SELECT count(*)::text FROM i$q$, t_school, other_class));
     INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-      ('...and NOT to a class they do not teach','teacher','OK: 0 or ERROR', r,
+      ('...and NOT for a class they do not teach','teacher','OK: 0 or ERROR', r,
        CASE WHEN r = 'OK: 0' OR r LIKE 'ERROR:%' THEN 'PASS' ELSE 'FAIL' END);
   END IF;
 
   -- ── 3. the student sees it (POSITIVE CONTROL) ──────────────────────────
-  r := pg_temp.as_user(s_uid, format(
-    $q$SELECT count(*)::text FROM public.homework WHERE id = %L$q$, hw));
+  r := pg_temp.as_user(s_uid, format($q$SELECT count(*)::text FROM public.homework WHERE id = %L$q$, hw));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('a student of that class sees the homework (positive control)','student','OK: 1', r,
      CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
@@ -162,51 +157,72 @@ BEGIN
                     AND m.status='active' AND m.local_person_id = s.id)
    ORDER BY s.id LIMIT 1;
   IF outsider_uid IS NOT NULL THEN
-    r := pg_temp.as_user(outsider_uid, format(
-      $q$SELECT count(*)::text FROM public.homework WHERE id = %L$q$, hw));
+    r := pg_temp.as_user(outsider_uid, format($q$SELECT count(*)::text FROM public.homework WHERE id = %L$q$, hw));
     INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
       ('a student of another class does NOT see it','student (other class)','OK: 0', r,
        CASE WHEN r = 'OK: 0' THEN 'PASS' ELSE 'FAIL' END);
   END IF;
 
-  -- ── 5. the student sends it back (POSITIVE CONTROL) ────────────────────
+  -- ── 5. the student hands in one PDF (POSITIVE CONTROL) ─────────────────
+  -- The upload itself is the Storage API's; the row it leaves is written here,
+  -- under each student's own folder, as the bucket's INSERT policy requires.
+  own_file  := s_uid::text || '/probe43-hand-in.pdf';
+  mate_file := mate_uid::text || '/probe43-hand-in.pdf';
+  INSERT INTO storage.objects (bucket_id, name) VALUES ('academic-files', own_file), ('academic-files', mate_file);
+
   r := pg_temp.as_user(s_uid, format(
-    $q$WITH i AS (INSERT INTO public.homework_submissions (homework_id, student_id, content, school_id)
-                  VALUES (%L, %L, 'probe43 answer', %L) RETURNING 1)
-       SELECT count(*)::text FROM i$q$, hw, s_id, t_school));
+    $q$SELECT (public.rpc_homework_submit(%L, %L::jsonb))->>'status'$q$,
+    hw, json_build_object('path', own_file, 'name', 'hand-in.pdf', 'mime', 'application/pdf')::text));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('the student sends their own submission (positive control)','student','OK: 1', r,
-     CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
+    ('the student hands in one PDF of their own (positive control)','student','OK: submitted', r,
+     CASE WHEN r = 'OK: submitted' THEN 'PASS' ELSE 'FAIL' END);
 
-  SELECT id INTO sub FROM public.homework_submissions
-   WHERE homework_id = hw AND student_id = s_id ORDER BY created_at DESC LIMIT 1;
+  SELECT id INTO sub FROM public.homework_submissions WHERE homework_id = hw AND student_id = s_id;
 
-  -- ── 6. ...but not on a classmate's behalf ──────────────────────────────
+  -- ── 6. no submission row is written directly, for anyone ───────────────
   IF mate_id IS NOT NULL THEN
     r := pg_temp.as_user(s_uid, format(
-      $q$WITH i AS (INSERT INTO public.homework_submissions (homework_id, student_id, content, school_id)
-                    VALUES (%L, %L, 'probe43 forged', %L) RETURNING 1)
-         SELECT count(*)::text FROM i$q$, hw, mate_id, t_school));
+      $q$WITH i AS (INSERT INTO public.homework_submissions (homework_id, student_id, school_id, status, file, submitted_at)
+                    VALUES (%L, %L, %L, 'submitted', %L::jsonb, now()) RETURNING 1)
+         SELECT count(*)::text FROM i$q$,
+      hw, mate_id, t_school, json_build_object('path', own_file, 'name', 'x.pdf', 'mime', 'application/pdf')::text));
     INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-      ('...and CANNOT send one as a classmate','student','OK: 0 or ERROR', r,
-       CASE WHEN r = 'OK: 0' OR r LIKE 'ERROR:%' THEN 'PASS' ELSE 'FAIL' END);
+      ('...and CANNOT write a submission row directly (here, as a classmate)','student','ERROR', r,
+       CASE WHEN r LIKE 'ERROR:%' THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 7. ...nor hand in a classmate's file ───────────────────────────────
+    r := pg_temp.as_user(s_uid, format(
+      $q$SELECT (public.rpc_homework_submit(%L, %L::jsonb))->>'status'$q$,
+      hw, json_build_object('path', mate_file, 'name', 'theirs.pdf', 'mime', 'application/pdf')::text));
+    INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+      ('...nor hand in a classmate''s file','student','ERROR must be one you uploaded', r,
+       CASE WHEN r LIKE 'ERROR:%one you uploaded%' THEN 'PASS' ELSE 'FAIL' END);
   END IF;
 
-  -- ── 7. the teacher reads what came back (POSITIVE CONTROL) ─────────────
+  -- ── 8. the teacher reads what came back (POSITIVE CONTROL) ─────────────
   r := pg_temp.as_user(t_uid, format(
-    $q$SELECT count(*)::text FROM public.homework_submissions WHERE id = %L$q$, sub));
+    $q$SELECT count(*)::text FROM public.homework_submissions WHERE id = %L AND file->>'path' = %L$q$, sub, own_file));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('the teacher reads the submission (positive control)','teacher','OK: 1', r,
+    ('the teacher reads the hand-in and its file (positive control)','teacher','OK: 1', r,
      CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
 
-  -- ── 8. a classmate cannot ──────────────────────────────────────────────
+  -- ── 9. a classmate cannot ──────────────────────────────────────────────
   IF mate_uid IS NOT NULL THEN
-    r := pg_temp.as_user(mate_uid, format(
-      $q$SELECT count(*)::text FROM public.homework_submissions WHERE id = %L$q$, sub));
+    r := pg_temp.as_user(mate_uid, format($q$SELECT count(*)::text FROM public.homework_submissions WHERE id = %L$q$, sub));
     INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-      ('a classmate cannot read that submission','student (classmate)','OK: 0', r,
+      ('a classmate cannot read that hand-in','student (classmate)','OK: 0', r,
        CASE WHEN r = 'OK: 0' THEN 'PASS' ELSE 'FAIL' END);
   END IF;
+
+  -- ── 10/11. the teacher decides; the student cannot ─────────────────────
+  r := pg_temp.as_user(s_uid, format($q$SELECT (public.rpc_homework_decide(%L, 'accepted'))->>'status'$q$, sub));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('the student CANNOT decide on their own hand-in','student','ERROR', r,
+     CASE WHEN r LIKE 'ERROR:%' THEN 'PASS' ELSE 'FAIL' END);
+  r := pg_temp.as_user(t_uid, format($q$SELECT (public.rpc_homework_decide(%L, 'accepted'))->>'status'$q$, sub));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('the teacher accepts the hand-in (positive control)','teacher','OK: accepted', r,
+     CASE WHEN r = 'OK: accepted' THEN 'PASS' ELSE 'FAIL' END);
 END $probe$;
 
 SELECT area, role_tested, expected, observed, verdict FROM probe ORDER BY n;

@@ -1,54 +1,20 @@
 // Send FCM push notification using HTTP v1 API
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { fcmAccessToken, sendFcm, type FcmServiceAccount } from "../_shared/fcm.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Build a Google OAuth access token from the FCM service account JSON
-async function getAccessToken(serviceAccount: any): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const claim = {
-    iss: serviceAccount.client_email,
-    scope: "https://www.googleapis.com/auth/firebase.messaging",
-    aud: "https://oauth2.googleapis.com/token",
-    iat: now,
-    exp: now + 3600,
-  };
-  const header = { alg: "RS256", typ: "JWT" };
-  const enc = (o: any) => btoa(JSON.stringify(o)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-  const unsigned = `${enc(header)}.${enc(claim)}`;
-
-  const pem = serviceAccount.private_key.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
-  const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
-  const key = await crypto.subtle.importKey("pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
-  const sig = new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned)));
-  const b64 = btoa(String.fromCharCode(...sig)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-  const jwt = `${unsigned}.${b64}`;
-
-  const r = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
-  });
-  const data = await r.json();
-  if (!r.ok) throw new Error(`Token error: ${JSON.stringify(data)}`);
-  return data.access_token;
-}
-
-async function sendToTokens(sa: any, tokens: string[], title: string, body: string): Promise<number> {
+// The OAuth exchange and the send itself live in _shared/fcm.ts, which
+// notification-push uses too.
+async function sendToTokens(sa: FcmServiceAccount, tokens: string[], title: string, body: string): Promise<number> {
   if (tokens.length === 0) return 0;
-  const accessToken = await getAccessToken(sa);
-  const projectId = sa.project_id;
+  const accessToken = await fcmAccessToken(sa);
   let sent = 0;
   for (const token of tokens) {
-    const r = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ message: { token, notification: { title, body } } }),
-    });
-    if (r.ok) sent++;
+    if ((await sendFcm(sa, accessToken, { token, title, body })).status === "sent") sent++;
   }
   return sent;
 }
@@ -81,7 +47,7 @@ Deno.serve(async (req) => {
 
     const saJson = Deno.env.get("FCM_SERVICE_ACCOUNT_JSON");
     if (!saJson) throw new Error("FCM_SERVICE_ACCOUNT_JSON secret not configured");
-    const sa = JSON.parse(saJson);
+    const sa = JSON.parse(saJson) as FcmServiceAccount;
 
     // Peer DM push: any authenticated school member may notify one same-school user
     if (audience === "user") {

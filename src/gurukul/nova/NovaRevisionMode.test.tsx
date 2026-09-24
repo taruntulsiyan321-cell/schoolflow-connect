@@ -17,15 +17,25 @@ vi.mock("@/gurukul/StudentContext", async () => {
   return { useGurukulStudent: () => value };
 });
 vi.mock("@/academic", () => {
-  const value = { ctx: { schoolId: "s", userId: "u" }, ready: true };
+  const value = { ctx: { schoolId: "s", userId: "u" }, ready: true, settled: true };
   return { useAcademicContext: () => value };
 });
-vi.mock("@/gurukul/pages/useRevisionQueueV2", () => {
+vi.mock("@/gurukul/pages/useRevisionQueueV2", async (importOriginal) => {
+  // The real due rule; only the read is faked.
+  const { isRevisionDue } = await importOriginal<typeof import("@/gurukul/pages/useRevisionQueueV2")>();
   const items = [
-    { chapter: "Triangles", subject: "Mathematics", priority: 50 },
-    { chapter: "Light - Reflection and Refraction", subject: "Science", priority: 100 },
+    { chapter: "Triangles", subject: "Mathematics", dueIn: "3 days" },
+    { chapter: "Light - Reflection and Refraction", subject: "Science", dueIn: "Now" },
   ];
-  return { useRevisionItems: () => ({ items, error: null, loading: false, reload: () => {} }) };
+  return { isRevisionDue, useRevisionItems: () => ({ items: { status: "ready", items }, reload: () => {} }) };
+});
+vi.mock("@/hooks/useConceptMastery", () => {
+  // One concept missed, one mastered: only the missed one is offered.
+  const items = [
+    { subject: "Science", concept: "Ohm's law", mastery_score: 35, mistake_count: 3, total_attempts: 6, correct_attempts: 2, recovery_attempts: 0 },
+    { subject: "Mathematics", concept: "Similar Triangles", mastery_score: 92, mistake_count: 0, total_attempts: 9, correct_attempts: 9, recovery_attempts: 0 },
+  ];
+  return { useConceptMastery: () => ({ items, loading: false, error: null }) };
 });
 import { NovaRevisionMode } from "./NovaRevisionMode";
 
@@ -53,7 +63,7 @@ function turn(over: Record<string, unknown>) {
 
 async function openGist(topic = "How cricket DRS works") {
   invoke.mockReturnValueOnce(ok({ gist: GIST }));
-  render(<NovaRevisionMode weakConcepts={["Ohm's law"]} />);
+  render(<NovaRevisionMode />);
   fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: topic } });
   fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
   await screen.findByRole("heading", { name: GIST.title });
@@ -104,11 +114,12 @@ afterEach(() => setMic(false));
 
 describe("Revision mode — choosing a topic", () => {
   it("offers the student's own revision chapters, due first, and their missed concepts", () => {
-    render(<NovaRevisionMode weakConcepts={["Ohm's law"]} />);
+    render(<NovaRevisionMode />);
     const chapters = screen.getByText("Your revision chapters").parentElement as HTMLElement;
     const buttons = within(chapters).getAllByRole("button").map((b) => b.textContent);
     expect(buttons).toEqual(["Light - Reflection and Refraction · Science · due", "Triangles · Mathematics"]);
     expect(screen.getByRole("button", { name: "Ohm's law" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Similar Triangles" })).toBeNull();
   });
 
   it("sends any topic, with the student's class, and shows the gist", async () => {
@@ -126,7 +137,7 @@ describe("Revision mode — choosing a topic", () => {
 
   it("a revision chapter chip starts straight away and carries its subject", async () => {
     invoke.mockReturnValueOnce(ok({ gist: GIST }));
-    render(<NovaRevisionMode weakConcepts={[]} />);
+    render(<NovaRevisionMode />);
     fireEvent.click(screen.getByRole("button", { name: /^Triangles/ }));
     await screen.findByRole("heading", { name: GIST.title });
     expect(invoke.mock.calls[0][1]).toMatchObject({ topic: "Triangles", subject: "Mathematics" });
@@ -134,7 +145,7 @@ describe("Revision mode — choosing a topic", () => {
 
   it("shows the server's refusal on the picker and stays there", async () => {
     invoke.mockReturnValueOnce(fail("Nova can't help with that topic here. Try a different one."));
-    render(<NovaRevisionMode weakConcepts={[]} />);
+    render(<NovaRevisionMode />);
     fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "something unsafe" } });
     fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Nova can't help with that topic here.");
@@ -149,7 +160,7 @@ describe("Revision mode — choosing a topic", () => {
         opts.signal?.addEventListener("abort", () => resolve({ data: null, error: null, usedFallback: false })),
       );
     });
-    render(<NovaRevisionMode weakConcepts={[]} />);
+    render(<NovaRevisionMode />);
     fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "Atoms" } });
     fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
     expect(screen.getByRole("status")).toHaveTextContent("Reading up on Atoms…");
@@ -162,7 +173,7 @@ describe("Revision mode — choosing a topic", () => {
 
   it("refuses a gist the screen cannot read instead of rendering a blank one", async () => {
     invoke.mockReturnValueOnce(ok({ gist: { ...GIST, key_points: [] } }));
-    render(<NovaRevisionMode weakConcepts={[]} />);
+    render(<NovaRevisionMode />);
     fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "Atoms" } });
     fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(CONTRACT_ERROR);
@@ -292,7 +303,7 @@ describe("Revision mode — a browser that cannot hear", () => {
   it("says so on the picker, and the test offers no mic and no keyboard", async () => {
     setMic(false);
     invoke.mockReturnValueOnce(ok({ gist: GIST }));
-    render(<NovaRevisionMode weakConcepts={[]} />);
+    render(<NovaRevisionMode />);
     expect(screen.getByRole("alert")).toHaveTextContent("this browser can't hear you");
     fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "Atoms" } });
     fireEvent.click(screen.getByRole("button", { name: "Start revising" }));

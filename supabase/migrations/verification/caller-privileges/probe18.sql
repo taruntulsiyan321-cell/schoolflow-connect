@@ -1,22 +1,25 @@
--- probe18: publish_due_scheduled_homework, as the caller.
+-- probe18: the scheduled publisher, as the caller.
 --
--- 20260908000000 fixed three defects on one SECURITY DEFINER function.
+-- 20260908000000 fenced `publish_due_scheduled_homework(_school_id)`; the
+-- homework ruling of 2026-09-13 (20260925100000) replaced it with
+-- `publish_due_scheduled_work()`, run every minute by pg_cron, because any
+-- signed-in session — a student's included — could call the old one, and page
+-- loads called it in place of a scheduler. This probe asserts the replacement.
 --
 -- THE CLAIMS
---   1. a STUDENT cannot publish ANOTHER SCHOOL's scheduled homework.
---      Before the fix this SUCCEEDED — the function took _school_id from the
---      caller and never checked it belonged to them.
---   2. ...and the other school's row is still scheduled afterwards.
---   3. NULL no longer means "every school": a caller passing NULL touches only
---      their own, so a school-B row survives a school-A caller's NULL sweep.
---   4. the caller's OWN school still publishes.            (positive control)
---   5. ...and the row really did become published.         (positive control)
---   6. the call no longer raises 42703 on tests.updated_at.
---   7. only ONE overload remains, so the zero-argument call is no longer
---      PGRST203-ambiguous.
---   8. tests.updated_at exists and its trigger moves it.   (positive control)
+--   1. a STUDENT cannot run the publisher.
+--   2. ...and nothing was published by that attempt.
+--   3. a TEACHER runs it for their own school.                (positive control)
+--   4. ...and their school's due homework really published.   (positive control)
+--   5. ...but another school's due homework did not.
+--   6. the scheduler (nobody signed in) publishes every school's. (positive control)
+--   7. a deleted scheduled homework is never published.
+--   8. the old publisher is gone; one zero-argument publisher remains.
+--   9. the pg_cron job exists and calls it.
+--  10. tests.updated_at exists and its trigger moves it — the publisher
+--      updates tests too, and once raised 42703 there.       (positive control)
 --
--- 4, 5 and 8 are what would catch a fence that simply broke the feature.
+-- 3, 4, 6 and 10 are what would catch a fence that simply broke the feature.
 --
 -- Every write is rolled back.
 BEGIN;
@@ -46,9 +49,11 @@ DECLARE
   sch_b   uuid := '00000000-0000-4000-8000-000000000002';
   cls_a   uuid;
   cls_b   uuid;
-  hw_b    uuid;   -- a DUE scheduled homework at school B
   hw_a    uuid;   -- a DUE scheduled homework at school A
-  n_over  int;
+  hw_b    uuid;   -- a DUE scheduled homework at school B
+  hw_del  uuid;   -- a DUE scheduled homework at school A, deleted
+  n_old   int;
+  n_new   int;
   r text;
 BEGIN
   SELECT id INTO cls_a FROM public.classes WHERE school_id = sch_a ORDER BY id LIMIT 1;
@@ -57,100 +62,90 @@ BEGIN
     RAISE EXCEPTION 'probe18: need a class in each school to hang the fixtures on';
   END IF;
 
-  -- One due scheduled homework in each school. Both are ripe: a correct
-  -- function publishes the caller's own and never the other one.
-  INSERT INTO public.homework (school_id, class_id, title, due_date, status, scheduled_publish_at)
-  VALUES (sch_b, cls_b, 'probe18 school B', current_date + 7, 'scheduled', now() - interval '1 hour')
-  RETURNING id INTO hw_b;
-  INSERT INTO public.homework (school_id, class_id, title, due_date, status, scheduled_publish_at)
-  VALUES (sch_a, cls_a, 'probe18 school A', current_date + 7, 'scheduled', now() - interval '1 hour')
+  -- Due scheduled homework in each school, written as the server (nobody
+  -- signed in). All are ripe: released an hour ago, deadline a week out.
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status, scheduled_publish_at)
+  VALUES (sch_a, cls_a, 'Mathematics', 'probe18 school A', 'q', now() + interval '7 days', 'scheduled', now() - interval '1 hour')
   RETURNING id INTO hw_a;
+  INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status, scheduled_publish_at)
+  VALUES (sch_b, cls_b, 'Mathematics', 'probe18 school B', 'q', now() + interval '7 days', 'scheduled', now() - interval '1 hour')
+  RETURNING id INTO hw_b;
+  -- Deleted AFTER it is written: the lifecycle trigger clears deleted_at on
+  -- INSERT, because a new row is never born in the trash.
+  INSERT INTO public.homework (school_id, class_id, subject, title, description, closes_at, status, scheduled_publish_at)
+  VALUES (sch_a, cls_a, 'Mathematics', 'probe18 deleted', 'q', now() + interval '7 days', 'scheduled', now() - interval '1 hour')
+  RETURNING id INTO hw_del;
+  UPDATE public.homework SET deleted_at = now() WHERE id = hw_del;
 
-  -- ── 1/2. the cross-tenant call ─────────────────────────────────────────
-  r := pg_temp.as_user(stu_a, format(
-        'SELECT public.publish_due_scheduled_homework(%L::uuid)::text', sch_b));
+  -- ── 1/2. the student is refused, and nothing moved ─────────────────────
+  r := pg_temp.as_user(stu_a, 'SELECT public.publish_due_scheduled_work()::text');
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('publish ANOTHER school''s scheduled work','student (school A)','ERROR outside your school',r,
-     CASE WHEN r LIKE 'ERROR%outside your school%' THEN 'PASS' ELSE 'FAIL' END);
-
+    ('run the scheduled publisher','student (school A)','ERROR only school staff',r,
+     CASE WHEN r LIKE 'ERROR%Only school staff%' THEN 'PASS' ELSE 'FAIL' END);
   INSERT INTO probe(area,role_tested,expected,observed,verdict)
-  SELECT 'school B row survives that call','-','scheduled', status,
+  SELECT 'school A row survives the refused call','-','scheduled', status,
          CASE WHEN status = 'scheduled' THEN 'PASS' ELSE 'FAIL' END
-    FROM public.homework WHERE id = hw_b;
+    FROM public.homework WHERE id = hw_a;
 
-  -- ── 3. NULL is no longer "every school" ────────────────────────────────
-  r := pg_temp.as_user(stu_a, 'SELECT public.publish_due_scheduled_homework(NULL::uuid)::text');
-  INSERT INTO probe(area,role_tested,expected,observed,verdict)
-  SELECT 'NULL sweeps only the caller''s own school','student (school A)',
-         'school B still scheduled', 'call: ' || r || ' / school B: ' || status,
-         CASE WHEN status = 'scheduled' THEN 'PASS' ELSE 'FAIL' END
-    FROM public.homework WHERE id = hw_b;
-
-  -- ── 4/5. the caller's own school still works (positive controls) ───────
-  r := pg_temp.as_user(t1, format(
-        'SELECT public.publish_due_scheduled_homework(%L::uuid)::text', sch_a));
+  -- ── 3/4/5. a teacher publishes their own school only ───────────────────
+  r := pg_temp.as_user(t1, 'SELECT public.publish_due_scheduled_work()::text');
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('own school publishes (positive control)','teacher (school A)','OK: a count, not ERROR',r,
-     CASE WHEN r LIKE 'OK:%' THEN 'PASS' ELSE 'FAIL' END);
-
+     CASE WHEN r LIKE 'OK:%' AND r NOT LIKE '%42703%' THEN 'PASS' ELSE 'FAIL' END);
   INSERT INTO probe(area,role_tested,expected,observed,verdict)
   SELECT 'the school A row really published (positive control)','-','published', status,
          CASE WHEN status = 'published' THEN 'PASS' ELSE 'FAIL' END
     FROM public.homework WHERE id = hw_a;
-
-  -- ── 6. the 42703 is gone ───────────────────────────────────────────────
-  -- The function UPDATEs public.tests unconditionally; before tests.updated_at
-  -- existed the whole call aborted with
-  -- 42703 column "updated_at" of relation "tests" does not exist.
-  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('no 42703 on tests.updated_at','teacher (school A)','no such error',r,
-     CASE WHEN r NOT LIKE '%42703%' AND r NOT LIKE '%updated_at%does not exist%'
-          THEN 'PASS' ELSE 'FAIL' END);
-
-  -- ── 7. the overload ambiguity ──────────────────────────────────────────
-  SELECT count(*) INTO n_over
-    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'public' AND p.proname = 'publish_due_scheduled_homework';
-  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('overload count (PGRST203 ambiguity)','-','1', n_over::text,
-     CASE WHEN n_over = 1 THEN 'PASS' ELSE 'FAIL' END);
-
-  -- ── 8. tests.updated_at and its trigger (positive control) ─────────────
   INSERT INTO probe(area,role_tested,expected,observed,verdict)
-  SELECT 'tests.updated_at exists','-','1', count(*)::text,
-         CASE WHEN count(*) = 1 THEN 'PASS' ELSE 'FAIL' END
-    FROM information_schema.columns
-   WHERE table_schema='public' AND table_name='tests' AND column_name='updated_at';
+  SELECT 'school B''s row is untouched by a school A teacher','-','scheduled', status,
+         CASE WHEN status = 'scheduled' THEN 'PASS' ELSE 'FAIL' END
+    FROM public.homework WHERE id = hw_b;
 
-  -- The column may not exist yet (that is the defect), and a STATIC reference
-  -- to it aborts the whole block at execution before anything is measured --
-  -- which is exactly what happened on the first run. Dynamic SQL so the probe
-  -- runs on both sides of the fix.
-  IF EXISTS (SELECT 1 FROM information_schema.columns
-              WHERE table_schema='public' AND table_name='tests' AND column_name='updated_at') THEN
-    DECLARE
-      tst uuid;
-      before_ts timestamptz;
-      after_ts  timestamptz;
-    BEGIN
-      EXECUTE 'SELECT id, updated_at FROM public.tests ORDER BY created_at LIMIT 1'
-        INTO tst, before_ts;
-      IF tst IS NOT NULL THEN
-        PERFORM pg_sleep(0.01);
-        EXECUTE format('UPDATE public.tests SET title = coalesce(title,$x$x$x$) WHERE id = %L', tst);
-        EXECUTE format('SELECT updated_at FROM public.tests WHERE id = %L', tst) INTO after_ts;
-        INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-          ('tests_set_updated trigger moves updated_at (positive control)','-','after > before',
-           coalesce(after_ts::text,'null'),
-           CASE WHEN after_ts IS NOT NULL AND (before_ts IS NULL OR after_ts > before_ts)
-                THEN 'PASS' ELSE 'FAIL' END);
-      END IF;
-    END;
-  ELSE
+  -- ── 6/7. the scheduler publishes every school's, never a deleted row ───
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM public.publish_due_scheduled_work();
+  INSERT INTO probe(area,role_tested,expected,observed,verdict)
+  SELECT 'the scheduler publishes school B''s row (positive control)','scheduler','published', status,
+         CASE WHEN status = 'published' THEN 'PASS' ELSE 'FAIL' END
+    FROM public.homework WHERE id = hw_b;
+  INSERT INTO probe(area,role_tested,expected,observed,verdict)
+  SELECT 'a deleted scheduled homework is never published','scheduler','scheduled', status,
+         CASE WHEN status = 'scheduled' THEN 'PASS' ELSE 'FAIL' END
+    FROM public.homework WHERE id = hw_del;
+
+  -- ── 8. one publisher ───────────────────────────────────────────────────
+  SELECT count(*) INTO n_old FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.proname = 'publish_due_scheduled_homework';
+  SELECT count(*) INTO n_new FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.proname = 'publish_due_scheduled_work' AND p.pronargs = 0;
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('old publisher gone / one zero-argument publisher','-','0 / 1', n_old || ' / ' || n_new,
+     CASE WHEN n_old = 0 AND n_new = 1 THEN 'PASS' ELSE 'FAIL' END);
+
+  -- ── 9. the job ─────────────────────────────────────────────────────────
+  INSERT INTO probe(area,role_tested,expected,observed,verdict)
+  SELECT 'pg_cron job publish-due-scheduled-work calls the publisher','-','1', count(*)::text,
+         CASE WHEN count(*) = 1 THEN 'PASS' ELSE 'FAIL' END
+    FROM cron.job WHERE jobname = 'publish-due-scheduled-work' AND command LIKE '%publish_due_scheduled_work()%';
+
+  -- ── 10. tests.updated_at and its trigger (positive control) ────────────
+  DECLARE
+    tst uuid;
+    before_ts timestamptz;
+    after_ts  timestamptz;
+  BEGIN
+    SELECT id, updated_at INTO tst, before_ts FROM public.tests ORDER BY created_at LIMIT 1;
+    IF tst IS NOT NULL THEN
+      PERFORM pg_sleep(0.01);
+      UPDATE public.tests SET title = coalesce(title, 'x') WHERE id = tst;
+      SELECT updated_at INTO after_ts FROM public.tests WHERE id = tst;
+    END IF;
     INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
       ('tests_set_updated trigger moves updated_at (positive control)','-','after > before',
-       'tests.updated_at does not exist', 'FAIL');
-  END IF;
+       coalesce(after_ts::text, 'no test row to move'),
+       CASE WHEN after_ts IS NOT NULL AND (before_ts IS NULL OR after_ts > before_ts) THEN 'PASS' ELSE 'FAIL' END);
+  END;
 END $probe$;
 
 SELECT area, role_tested, expected, observed, verdict FROM probe ORDER BY n;

@@ -40,7 +40,6 @@ export type AcademicEntityKey =
   | "teacher_reply"
   | "learning_resource"
   | "announcement"
-  | "message"
   | "notification"
   | "leave_request"
   | "teacher_remark"
@@ -219,13 +218,6 @@ export const ENTITY_REGISTRY: Record<AcademicEntityKey, EntityMapping> = {
   announcement: {
     key: "announcement",
     table: "notices",
-    tenantScoped: true,
-  },
-  message: {
-    key: "message",
-    table: "messages",
-    aliases: ["chat_conversations", "chat_participants", "message_attachments"],
-    notes: "Gurukul Chat MVP SSOT via MessageService + conversation RPCs",
     tenantScoped: true,
   },
   notification: {

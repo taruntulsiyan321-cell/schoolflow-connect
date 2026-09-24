@@ -102,7 +102,7 @@ available immediately.**
 
 | Path | Trigger | Then |
 |---|---|---|
-| **Automatic** | A practice session ends and a chapter now has `RECOVERY_TRIGGER_COUNT` (5) open mistakes | Session is built in the background, ~1–2 minutes. **No notification on completion** — it is simply there. |
+| **Automatic** | A practice session ends and a chapter now has `RECOVERY_TRIGGER_COUNT` (**1**, ruled 2026-09-15 — see §10) open mistakes | Session is built in the background, ~1–2 minutes. **No notification on completion** — it is simply there. |
 | **On demand** | The student opens **"Redo my mistakes"** (§10.8 practice mode) | Serve from cache if enough variants exist — instant. Otherwise build in the background and tell them. |
 
 **While it builds, the student sees:** *"Session complete. Your recovery session
@@ -124,8 +124,17 @@ when the same idea was asked differently, 2 of 5."*
 learns something instead of being told to wait, and it matches the standing rule
 that the app suggests and the student decides.
 
-**Why 5.** Fewer than five is not worth a session, and clearing a one-mistake
-chapter creates a false sense of progress.
+**Why 1, and not the 5 first proposed (ruled 2026-09-15).** The argument for
+five was that "fewer than five is not worth a session, and clearing a
+one-mistake chapter creates a false sense of progress". The production data
+answered it: across every open mistake in the database, five students had one
+mistake in a chapter, three had two, one had six — **one student in the whole
+database had ever reached five, and zero recovery sessions existed**. A
+threshold that excludes 8 of the 9 students who have something to recover is
+not a quality bar, it is an off switch. The false-progress worry is answered by
+the session instead: a one-mistake recovery is four questions laddered off that
+mistake (§4.2), and clearing it means clearing one mistake, which is exactly
+what it says.
 
 **Chapter size is irrelevant.** A chapter holding 8 questions where the student
 got 5 wrong still yields a full session, because the session is built from
@@ -166,10 +175,27 @@ far each step moves from the original:
 
 | Tier | What it is | What it proves | Count |
 |---|---|---|---|
-| **0 — Original** | The exact question they got wrong | Closes the specific loop | up to `RECOVERY_TIER0` (2) |
-| **1 — Near** | Same question, **different values** | They can execute the procedure | `RECOVERY_TIER1` (3) |
-| **2 — Mid** | Same concept, **different framing or structure** | They understand it, not just the steps | `RECOVERY_TIER2` (3) |
-| **3 — Far** | Same topic, **different application** | It transfers | `RECOVERY_TIER3` (2) |
+| **0 — Original** | The exact question they got wrong | Closes the specific loop | per mistake, see below |
+| **1 — Near** | Same question, **different values** | They can execute the procedure | per mistake, see below |
+| **2 — Mid** | Same concept, **different framing or structure** | They understand it, not just the steps | per mistake, see below |
+| **3 — Far** | Same topic, **different application** | It transfers | per mistake, deep shape only |
+
+**The counts are PER MISTAKE, and the shape follows how many there are**
+(ruled 2026-09-15; the fixed 2 / 3 / 3 / 2 this document first proposed assumed
+a chapter always had five mistakes to draw on, and `RECOVERY_TRIGGER_COUNT` is
+1):
+
+* **At most `RECOVERY_DEEP_MAX_MISTAKES` (2) mistakes — go deep.**
+  `RECOVERY_DEEP_PER_MISTAKE = [1, 1, 1, 1]`: every mistake climbs all four
+  rungs. A one-mistake chapter is four questions laddered off that mistake.
+* **Up to `RECOVERY_WIDE_MAX_MISTAKES` (8) — go wide.**
+  `RECOVERY_WIDE_PER_MISTAKE = [1, 1, 1, 0]`: three rungs each, so eight
+  mistakes are 24 questions rather than 32.
+* **Above `RECOVERY_RELEARN_ABOVE` (8)** the chapter is not patched: it is
+  relearnt.
+* A session is only offered when it can judge what it claims to:
+  `RECOVERY_MIN_PROCEDURAL_TO_OFFER` (2) questions at tiers 0–1 and
+  `RECOVERY_MIN_CONCEPTUAL_TO_OFFER` (2) at tiers 2–3.
 
 Tiers 1 and 2 are **AI-generated from the student's actual wrong questions**.
 Tier 3 comes from the bank where coverage allows, AI otherwise.
@@ -324,7 +350,7 @@ The clock starts on either:
 
 ```
 a) A chapter is marked recovered, OR
-b) A session in which the student attempted >= REVISION_ENGAGEMENT_MIN (10)
+b) A session in which the student attempted >= REVISION_ENGAGEMENT_MIN (3, ruled 2026-09-15 — see §10)
    questions in that chapter
 ```
 
@@ -345,15 +371,30 @@ Same session, same threshold. Only the consequence differs.
 Three checks:
 
 ```
-REVISION_INTERVALS = [7, 21, 60]   // days
+REVISION_INTERVALS_DAYS = [7, 7, 7]   // days   (ruled 2026-09-18; see below)
+REVISION_INTERVAL_SOLID = 30          // days, indefinitely, after the third pass
 ```
 
-Pass all three → `consecutive_revision_passes = 3` → the chapter leaves the
-revision queue and is considered solid. It re-enters only if new mistakes appear.
+Pass all three → `consecutive_revision_passes = 3` → the chapter is **solid**,
+and keeps a check every `REVISION_INTERVAL_SOLID` days rather than leaving the
+schedule for ever. Returning NULL past stage three dropped a chapter out
+permanently, which stops looking after exactly the students who did the work.
 
-**Why 7 / 21 / 60.** Roughly tripling, which is the shape of every effective
-spacing schedule. Seven days is past the point where short-term recall carries
-you. Sixty days spans a term, so passing the third check means it survived
+**Why weekly, three times — this supersedes the 7 / 21 / 60 below.** Tripling
+is the right shape for a deck of flashcards a student owns for years. It is
+the wrong shape for a school term: the second check would land three weeks
+later, by which point the chapter has been taught past, and the third two
+months later, which for a student sitting boards in four months is most of
+the runway. A week is past the point where short-term recall carries you and
+it matches the rhythm a school student lives in. The honest caveat, recorded
+rather than hidden: ZERO revision sessions have ever run in production, so
+none of these numbers is evidence-based yet — seven is the one worth
+defending, and 30 is a guess to revisit first.
+
+**The original argument, kept for the record — why 7 / 21 / 60.** Roughly
+tripling, which is the shape of every effective spacing schedule. Seven days is
+past the point where short-term recall carries you. Sixty days spans a term, so
+passing the third check means it survived
 genuine forgetting. Three checks is enough to distinguish learning from cramming
 without nagging a student who has clearly got it.
 
@@ -545,27 +586,52 @@ paid feature gets muted.
 
 ## 10. Constants — one module, tunable in one place
 
+**`src/academic/recovery/constants.ts` is the one home.** Every number below is
+the value that module holds today, and each one that differs from this
+document's original proposal carries the ruling that changed it, in that
+module, with the production measurement behind it. This table is a projection
+of the module, and `npm run lint:spec-constants` fails if the two ever
+disagree — the numbers here were stale for a week before that gate existed.
+
 ```
-RECOVERY_TRIGGER_COUNT      = 5      // open mistakes before building
+RECOVERY_TRIGGER_COUNT      = 1      // open mistakes before building
+                                     // RULED 2026-09-15 (was 5): one student in
+                                     // the whole database had ever reached 5, and
+                                     // zero recovery sessions existed. Five was an
+                                     // off switch, not a quality bar.
 GENERATION_TARGET_SECONDS   = 120    // build time target; degrade by taking
                                      // longer, never by failing
 GENERATION_MAX_RETRIES      = 5      // background, invisible to the student
+GENERATION_BATCH_SIZE       = 3      // variants asked of the model at once
 REMINDER_MAX_PER_DAY        = 1      // batched across chapters, stops on start
 RECOVERY_GENERATION_ROUNDS  = 3      // fresh questions added in rounds 1-3;
                                      // round 4+ draws from the accumulated pool
 
-RECOVERY_TIER0              = 2      // the original wrong questions
-RECOVERY_TIER1              = 3      // AI variants, different values
-RECOVERY_TIER2              = 3      // AI variants, different framing
-RECOVERY_TIER3              = 2      // same topic, different application
-                                     // 10 questions per session
+RECOVERY_DEEP_MAX_MISTAKES  = 2      // at or below this, ladder each mistake deep
+RECOVERY_DEEP_PER_MISTAKE   = [1,1,1,1]  // tiers 0-3 per mistake, deep shape
+RECOVERY_WIDE_MAX_MISTAKES  = 8      // above DEEP and up to here, go wide
+RECOVERY_WIDE_PER_MISTAKE   = [1,1,1,0]  // tiers 0-2 per mistake, wide shape
+RECOVERY_RELEARN_ABOVE      = 8      // past this the chapter is relearnt, not patched
+RECOVERY_MIN_PROCEDURAL_TO_OFFER = 2 // tier 0-1 questions needed to judge procedure
+RECOVERY_MIN_CONCEPTUAL_TO_OFFER = 2 // tier 2-3 questions needed to judge concept
+                                     // (the fixed 2/3/3/2 ladder this document
+                                     // first proposed became these shapes: a
+                                     // one-mistake chapter is four questions off
+                                     // that mistake, not ten off nothing)
 
 RECOVERY_PROCEDURAL_THRESHOLD = 0.80  // tiers 0 and 1
 RECOVERY_CONCEPTUAL_THRESHOLD = 0.70  // tiers 2 and 3
 
-REVISION_INTERVALS          = [7, 21, 60]   // days
-REVISION_ENGAGEMENT_MIN     = 10     // questions in a chapter that start the clock
+REVISION_INTERVALS_DAYS     = [7, 7, 7]  // days — RULED 2026-09-18 (was 7/21/60):
+                                     // tripling is a flashcard shape, not a school
+                                     // term's. §5.3 carries the argument.
+REVISION_INTERVAL_SOLID     = 30     // days, indefinitely, after the third pass
+REVISION_ENGAGEMENT_MIN     = 3      // questions in a chapter that start the clock
+                                     // RULED 2026-09-15 (was 10): no chapter in any
+                                     // session had ever reached ten, so the clock
+                                     // had never started for anybody.
 REVISION_COUNT              = 8      // fresh questions per check
+REVISION_MISTAKE_MAX        = 5      // the chapter's own open mistakes carried in
 REVISION_PASS_THRESHOLD     = 0.70
 REVISION_STAGES_TO_SOLID    = 3
 
@@ -574,6 +640,11 @@ VARIANT_CACHE_FIRST         = true   // always check the bank before generating
 TREND_MIN_SESSIONS          = 4      // before any trend is declared
 TREND_DELTA_POINTS          = 10     // accuracy change that counts as movement
 REPEATED_MISTAKE_PIN        = 3      // times_wrong that pins a chapter to top
+
+WEAK_MIN_ATTEMPTS           = 5      // before a topic may be called weak
+WEAK_MARGIN_POINTS          = 15     // below the student's own average
+WEAK_WINDOW_DAYS            = 90     // how far back weakness is read
+EMBEDDING_BATCH_SIZE        = 300    // questions embedded per drain
 ```
 
 **Every one of these is a judgment, not a law.** They are defensible starting
@@ -590,7 +661,7 @@ Ravi, Class 12 Accountancy, chapter *Cash Flow Statement*.
 The mistake book gains 6 rows. `chapter_tally` gains one row: attempted 20,
 correct 14. `chapter_state` → `has_mistakes`.
 
-6 ≥ 5, so the trigger fires. Screen reads *"Session complete. Your recovery
+6 ≥ `RECOVERY_TRIGGER_COUNT` (1), so the trigger fires. Screen reads *"Session complete. Your recovery
 session is being prepared."* Generation runs in the background.
 
 **Day 1, 4:12pm** — the session is ready. **No notification** — it is simply

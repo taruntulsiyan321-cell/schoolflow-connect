@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toErrorMessage } from "@/lib/presentation";
 import { pluralise, pluraliseWord } from "@/lib/plural";
+import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 
 /**
  * Recovery — the 7C engine, and nothing else.
@@ -35,7 +36,8 @@ import { pluralise, pluraliseWord } from "@/lib/plural";
  * eagerly, which is exactly what RECOVERY_TRIGGER_COUNT (5) exists to stop.
  *
  * The new engine works on CHAPTERS (§2 — chapter_id, never a name), triggers
- * at five open mistakes, and builds the §4.2 ladder bank-first. This screen
+ * at RECOVERY_TRIGGER_COUNT open mistakes (one, by the 2026-09-15 ruling), and
+ * builds the §4.2 ladder bank-first. This screen
  * reads rpc_student_recovery_queue and starts sessions through
  * rpc_start_recovery_session.
  *
@@ -58,6 +60,10 @@ type QueueItem = RecoveryQueueRow & {
 };
 
 function toItem(r: RecoveryQueueRow): QueueItem | null {
+  // Upload/capture §5.1 — untagged mistakes (chapter_id IS NULL) are excluded
+  // from recovery by the queue RPC. Defend here too: a null/empty chapter_id
+  // must never become a recovery card (a wrong chapter is worse than none).
+  if (!r.chapter_id) return null;
   const rawChapter = r.chapter;
   if (!rawChapter || isPlaceholderAcademicLabel(rawChapter)) return null;
   const subject = r.subject && !isPlaceholderAcademicLabel(r.subject) ? r.subject : "";
@@ -166,8 +172,8 @@ function RecoveryCard({
               so the mistake book is THE exit, and that is where this goes. */}
           <p className="text-[11px] text-muted-foreground mb-2">
             {item.open_mistakes} open mistakes is more than a set of slips, so
-            recovery stays shut here — drilling {item.open_mistakes * 3}{" "}
-            variations of them would not teach you the chapter. Work back
+            recovery stays shut here — drilling variations of every one of
+            them would not teach you the chapter. Work back
             through them in your mistake book, where each one carries its
             explanation; the ones you answer correctly there leave the book.
             Recovery opens again at {item.relearn_above} or fewer.
@@ -209,9 +215,11 @@ function RecoveryCard({
         </>
       ) : (
         <>
-          {/* Reachable only when the chapter's mistakes carry no bank question
-              id — 480 rows of a retired backfill do. There is no original to
-              ladder off, so ordinary practice is the honest offer. */}
+          {/* mode 'none': fewer open mistakes than RECOVERY_TRIGGER_COUNT. At
+              today's trigger of one no listed chapter can be here — the queue
+              lists only chapters holding an open, question-linked mistake —
+              but the trigger is a tunable constant, and above one this is the
+              honest offer: practise until recovery opens by itself. */}
           <button
             onClick={onPractise}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-muted border border-border text-xs font-semibold text-muted-foreground hover:bg-secondary transition-all"
@@ -226,11 +234,16 @@ function RecoveryCard({
 
 export default function Recovery() {
   const navigate = useNavigate();
-  const { ctx, ready: academicReady } = useAcademicContext();
+  const { ctx, ready: academicReady, settled: academicSettled } = useAcademicContext();
 
-  const [rows, setRows] = useState<RecoveryQueueRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // One state for the read: loading, failed, or read. It started as
+  // loading=true and only an effect that bailed without a context could end
+  // it, so an account the app settled without a student context sat on
+  // "Loading recovery" for ever instead of reaching NoStudentProfile.
+  const [queue, setQueue] = useState<ListState<RecoveryQueueRow>>(LOADING_LIST);
+  // Read with the queue, not derived from it: the queue loses every chapter
+  // a passing recovery clears, and with it that chapter's sessions.
+  const [sessionsSat, setSessionsSat] = useState(0);
   const [search, setSearch] = useState("");
   const [startingId, setStartingId] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -238,29 +251,35 @@ export default function Recovery() {
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    if (!academicReady || !ctx) return;
+    if (!academicReady || !ctx) {
+      // Settled without a context: nothing is coming, and the page says so.
+      setQueue(academicSettled ? EMPTY_LIST : LOADING_LIST);
+      return;
+    }
     let cancelled = false;
-    setLoading(true);
-    RecoveryEngineService.getRecoveryQueue(ctx)
-      .then((r) => {
+    setQueue(LOADING_LIST);
+    Promise.all([
+      RecoveryEngineService.getRecoveryQueue(ctx),
+      RecoveryEngineService.countRecoverySessionsSat(ctx),
+    ]).then(
+      ([rows, sat]) => {
         if (cancelled) return;
-        setRows(r);
-        setError(null);
-      })
-      .catch((e) => {
-        // No silent fallback: a swallowed failure here is indistinguishable
-        // from a student with nothing to recover.
-        if (!cancelled) setError(toErrorMessage(e, "Could not load recovery"));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+        setSessionsSat(sat);
+        setQueue({ status: "ready", items: rows });
+      },
+      // No silent fallback: a swallowed failure here is indistinguishable
+      // from a student with nothing to recover.
+      // The heading already says it could not load; the detail line is only
+      // for an error that says something more (an empty fallback otherwise,
+      // or the card printed "Could not load recovery" twice).
+      (e) => { if (!cancelled) setQueue({ status: "failed", message: toErrorMessage(e, "") }); },
+    );
     return () => { cancelled = true; };
-  }, [ctx, academicReady, nonce]);
+  }, [ctx, academicReady, academicSettled, nonce]);
 
   const items = useMemo(
-    () => rows.map(toItem).filter((r): r is QueueItem => r !== null),
-    [rows],
+    () => listItems(queue).map(toItem).filter((r): r is QueueItem => r !== null),
+    [queue],
   );
 
   async function startRecovery(item: QueueItem) {
@@ -339,7 +358,7 @@ export default function Recovery() {
     />
   );
 
-  if (loading) {
+  if (queue.status === "loading") {
     return (
       <div className="space-y-6">
         {header}
@@ -364,14 +383,18 @@ export default function Recovery() {
     return <div className="space-y-6">{header}<NoStudentProfile /></div>;
   }
 
-  if (error) {
+  if (queue.status === "failed") {
     return (
       <div className="space-y-6">
         {header}
         <GlassCard className="p-8 text-center">
           <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">Could not load recovery</p>
-          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+          {queue.message && <p className="text-xs text-muted-foreground mt-1">{queue.message}</p>}
+          <button type="button" onClick={reload}
+            className="mt-3 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-secondary transition-all">
+            Try again
+          </button>
         </GlassCard>
       </div>
     );
@@ -389,7 +412,6 @@ export default function Recovery() {
   const readyCount = items.filter((t) => t.ready).length;
   const relearnCount = items.filter((t) => t.mode === "relearn").length;
   const openTotal = items.reduce((a, t) => a + t.open_mistakes, 0);
-  const roundsTotal = items.reduce((a, t) => a + t.rounds_taken, 0);
 
   return (
     <div className="space-y-6">
@@ -413,7 +435,7 @@ export default function Recovery() {
         {[
           { label: "Chapters", value: items.length, color: "hsl(var(--warning))", icon: <RefreshCw className="w-4 h-4" /> },
           { label: "Open mistakes", value: openTotal, color: "hsl(var(--destructive))", icon: <BookOpen className="w-4 h-4" /> },
-          { label: "Sessions done", value: roundsTotal, color: "hsl(var(--success))", icon: <CheckCircle2 className="w-4 h-4" /> },
+          { label: "Sessions done", value: sessionsSat, color: "hsl(var(--success))", icon: <CheckCircle2 className="w-4 h-4" /> },
         ].map((s) => (
           <GlassCard key={s.label} className="p-4">
             <div className="flex items-center gap-2 mb-2" style={{ color: s.color }}>

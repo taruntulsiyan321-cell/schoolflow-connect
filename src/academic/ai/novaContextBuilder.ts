@@ -45,6 +45,8 @@ export type NovaChip = {
 
 export type NovaUiContextInput = {
   classLabel?: string | null;
+  /** Competitive exam name for individual accounts — preferred over classLabel. */
+  examName?: string | null;
   section?: string | null;
   subjects?: string[] | null;
   homeworkPending?: number | null;
@@ -163,34 +165,44 @@ export function buildNovaUiChips(input: NovaUiContextInput): NovaChip[] {
     chips.push({ id, label, color });
   };
 
-  const classBits = [input.classLabel, input.section]
-    .map((x) => (x != null ? String(x).trim() : ""))
-    .filter((x) => x && !isPlaceholderLabel(x));
-  // Avoid "Class Class 11" / duplicate section already in classLabel
-  let classLabel = "";
-  if (classBits.length) {
-    const joined = classBits.join(" · ");
-    const alreadyHasClass = /^class\b/i.test(classBits[0]!);
-    classLabel = alreadyHasClass ? joined : `Class ${joined}`;
+  const examLabel = input.examName != null ? String(input.examName).trim() : "";
+  if (examLabel && !isPlaceholderLabel(examLabel)) {
+    push("exam", examLabel, CHIP_COLORS.class);
+  } else {
+    const classBits = [input.classLabel, input.section]
+      .map((x) => (x != null ? String(x).trim() : ""))
+      .filter((x) => x && !isPlaceholderLabel(x));
+    // Avoid "Class Class 11" / duplicate section already in classLabel
+    let classLabel = "";
+    if (classBits.length) {
+      const joined = classBits.join(" · ");
+      const alreadyHasClass = /^class\b/i.test(classBits[0]!);
+      classLabel = alreadyHasClass ? joined : `Class ${joined}`;
+    }
+    if (classLabel) push("class", classLabel, CHIP_COLORS.class);
   }
-  if (classLabel) push("class", classLabel, CHIP_COLORS.class);
 
-  const xp = Number(input.xp ?? 0);
-  const level = Number(input.level ?? 1);
-  if (xp > 0 || level > 1) {
+  // Never default level to 1 when XP is present but level is missing — that
+  // invents a progression fact. Only chip what the caller actually supplied.
+  const xpRaw = input.xp;
+  const levelRaw = input.level;
+  const xp =
+    xpRaw != null && Number.isFinite(Number(xpRaw)) ? Number(xpRaw) : null;
+  const level =
+    levelRaw != null && Number.isFinite(Number(levelRaw)) ? Number(levelRaw) : null;
+  if (xp != null && xp > 0 && level != null && level >= 1) {
     push("progression", `Lv ${level} · ${xp.toLocaleString()} XP`, CHIP_COLORS.progression);
+  } else if (xp != null && xp > 0) {
+    push("progression", `${xp.toLocaleString()} XP`, CHIP_COLORS.progression);
+  } else if (level != null && level > 1) {
+    push("progression", `Lv ${level}`, CHIP_COLORS.progression);
   }
 
   const streak = Number(input.studyStreak ?? 0);
   if (streak > 0) push("streak", `${streak}d study streak`, CHIP_COLORS.streak);
 
-  const att = input.attendancePct;
-  if (att != null && Number.isFinite(att) && Number(att) > 0) {
-    push("attendance", `Attendance ${Math.round(Number(att))}%`, CHIP_COLORS.attendance);
-  }
-
-  const hw = Number(input.homeworkPending ?? 0);
-  if (hw > 0) push("homework", `${hw} HW pending`, CHIP_COLORS.homework);
+  // Attendance % / HW pending chips intentionally omitted — Nova UI is
+  // learning-only. Fields remain optional on NovaUiContextInput for back-compat.
 
   const practice = Number(input.practiceSessions ?? 0);
   if (practice > 0) push("practice", `${practice} practice`, CHIP_COLORS.practice);

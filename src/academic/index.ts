@@ -82,7 +82,6 @@ export {
   CurriculumService,
   AnnouncementService,
   LeaveService,
-  MessageService,
   TimetableService,
   CalendarEventsService,
   ResourceService,
@@ -106,7 +105,6 @@ export {
   TEST_KIND_LABELS,
   EXAM_TYPE_LABELS,
   assertTeacherMayManageAcademicWork,
-  isPastDue,
   normalizeWorkKind,
   loadStudentAcademicIdentity,
   identityToServiceContext,
@@ -136,6 +134,31 @@ export type {
 export type { BattleCreateOpts } from "./services/battleExperienceService";
 export type { CurriculumScope } from "./services/practiceService";
 export type { PracticeSessionRow } from "./services/practiceService";
+export {
+  StudentUploadService,
+  modesForVerdict,
+  UPLOAD_MODE_LABELS,
+  type StudentUploadRow,
+  type UploadVerdict,
+  type UploadPracticeMode,
+  type DisputeAiAnswerResult,
+} from "./services/studentUploadService";
+export {
+  canPromote,
+  hasRealChapterId,
+  hasValidVariant,
+  isNotNearDuplicate,
+  sourceNotAiAnswered,
+  type UploadPromotionInput,
+} from "./services/uploadPromotionGates";
+export {
+  uploadPromotionSource,
+  promotedUploadVariantFields,
+  enqueueUploadVariantGeneration,
+  type UploadPromotionSource,
+  type EnqueueUploadVariantResult,
+} from "./services/uploadVariantEnqueue";
+export { STUDENT_UPLOAD_ACCEPT } from "./storage/studentUploadFile";
 export type {
   ChapterStateRow,
   RecoveryQueueRow,
@@ -158,7 +181,7 @@ export type {
   CreateSectionInput,
 } from "./services/questionPaperService";
 export { assertQuestionRowsAreKeyed, REVIEW_PAGE_SIZE } from "./services/questionBankService";
-export type { CurriculumSubject, CurriculumChapter } from "./services/curriculumService";
+export type { CurriculumSubject, CurriculumChapter, CurriculumTopic } from "./services/curriculumService";
 export type {
   TeacherAnnouncementRow,
   UpsertAnnouncementInput,
@@ -167,13 +190,6 @@ export type {
 } from "./services/announcementService";
 export type { LeaveRequestRow, SchoolLeaveRequestRow, LeaveDecisionRow } from "./services/leaveService";
 export { decisionAttribution, matchesStatus } from "./services/leaveService";
-export type {
-  ChatContact,
-  ChatMessage,
-  ChatAttachment,
-  ChatSearchHit,
-} from "./services/messageService";
-
 export { AcademicLiveProvider, useAcademicLive, useAcademicLiveBump, broadcastAcademicWrite } from "./live";
 export {
   academicQueryKeys,
@@ -192,7 +208,24 @@ export type {
   ParentChildRow,
 } from "./services/attendanceService";
 
-export type { StudentHomeworkRow, SchoolHomeworkSummary, HomeworkClassStatsRow } from "./services/homeworkService";
+export type {
+  StudentHomeworkRow,
+  ReviewRow,
+  ClassHomeworkRow,
+  ManagedHomeworkRow,
+  SchoolHomeworkRow,
+  SchoolHomeworkSummary,
+  HomeworkStanding,
+} from "./services/homeworkService";
+export {
+  homeworkStanding,
+  homeworkOutcome,
+  homeworkHasClosed,
+  canHandIn,
+  HOMEWORK_STANDING_LABELS,
+  HOMEWORK_QUESTION_FILE_PICKER,
+  HOMEWORK_HAND_IN_FILE_PICKER,
+} from "./services/homeworkService";
 export type { ClassTimetableSnapshot } from "./services/timetableService";
 export type { CalendarEvent, CalendarEventType, CalendarEventAudience } from "./services/calendarEventsService";
 export type { LearningResourceRow, ResourceKind } from "./services/resourceService";
@@ -208,11 +241,6 @@ export { AnalyticsService, AiSummaryService, AuditReadService } from "./services
 
 export { useAcademicContext } from "./hooks/useAcademicContext";
 
-// syncTargetsFor / SyncTarget are already exported from "./events" above, which
-// is where they live. The sync module used to re-export them under a second
-// name (plannedTargets) alongside three RPC wrappers a browser could not call;
-// all four are gone, and with them the reason for this barrel to mention sync
-// at all.
 
 export {
   AnalyticsFoundation,

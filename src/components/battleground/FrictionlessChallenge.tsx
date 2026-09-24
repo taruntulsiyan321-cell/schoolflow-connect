@@ -129,14 +129,11 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
     let cancelled = false;
     (async () => {
       setCurriculumLoading(true);
-      // `undefined`, not `null`. _class_id is `DEFAULT NULL` in SQL, so the
-      // generated arg type is optional (`_class_id?: string`) and omitting it
-      // is how you take the default. Passing an explicit null is a different
-      // request and does not typecheck — it only compiled while the generated
-      // types were stale.
+      // `_class_id` is omitted rather than sent as null: it has a SQL default,
+      // and the generated type for a defaulted parameter is optional-non-null.
       const { data, error } = await supabase.rpc("rpc_battle_curriculum", {
         _subject: subject,
-        _class_id: classId ?? undefined,
+        ...(classId ? { _class_id: classId } : {}),
       });
 
       if (cancelled) return;

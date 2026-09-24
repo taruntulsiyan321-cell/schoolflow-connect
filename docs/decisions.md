@@ -14,6 +14,18 @@ what would have to change for it to be revisited.
 
 ## D1 — Late homework submission: enforce the lock, keep the history
 
+> **SUPERSEDED 2026-09-13 by the product owner's homework specification**
+> (`docs/gurukul-spec-rules.md`, "Homework — RULED 2026-09-13";
+> `20260925110000_homework_is_one_file_and_two_decisions.sql`). Points 1 and 2
+> stand and are now structural: `rpc_homework_submit` refuses anything at or
+> after `closes_at`, and nothing computes lateness. **Point 3 is overturned** —
+> the owner's brief said "delete `is_late`", and it is dropped together with
+> `status = 'late'`. The history is not discarded silently: the 9 late rows (and
+> every other submission) are copied into
+> `homework_submissions_pre_20260925110000` before the column goes, and the
+> rollback restores from that copy. Drop the copy only once the migration is
+> accepted on the live project.
+
 **Date:** 2026-08-26 · **Chunk:** 5 · **Decided by:** Claude Code, under
 delegation ("use it yourself from the foundation")
 

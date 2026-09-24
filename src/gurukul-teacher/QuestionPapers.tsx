@@ -23,6 +23,12 @@
  *
  * THE ANSWER KEY IS A SEPARATE SHEET, on a toggle and in its own CSV, because
  * the paper is what a student sees and the key is not.
+ *
+ * THIS IS THE WHOLE OF THE TEACHERS' AI. There was a second screen, "AI Coach",
+ * which promised a per-student diagnostic report and rendered a hard-coded
+ * example of one for a student who does not exist. It is deleted, not disabled:
+ * the teachers' AI makes question papers and puts them on a class, and that is
+ * this screen. /teacher/ai-coach redirects here.
  */
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -111,8 +117,7 @@ const emptySectionForm = () => ({
   targetCount: "5",
   difficulty: "" as PaperDifficulty | "",
   chapters: "",
-  /** `topics.id` values, not names — the column is uuid[]. */
-  topics: [] as string[],
+  topicIds: [] as string[],
 });
 
 type ClassSubjectPair = Awaited<ReturnType<typeof listTeacherClassSubjectPairs>>[number];
@@ -136,11 +141,12 @@ export default function QuestionPapers() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [sectionForm, setSectionForm] = useState(emptySectionForm);
   const [addingSection, setAddingSection] = useState(false);
-  /** The canonical topics this paper's subject/class actually has questions
-   *  for, with counts. Loaded from the bank rather than typed from memory —
-   *  the whole reason topic was unusable before is that nobody could guess
-   *  which of thirty spellings the bank stored. */
-  const [topicOptions, setTopicOptions] = useState<{ id: string; topic: string; count: number }[]>([]);
+  /** The topics this paper's subject/class actually has questions for, with
+   *  counts, keyed by topic id — two chapters can each have a topic of the
+   *  same name, and those are different topics. */
+  const [topicOptions, setTopicOptions] = useState<
+    { topicId: string; topic: string; chapter: string | null; count: number }[]
+  >([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
   const [fills, setFills] = useState<Record<string, SectionFillResult>>({});
   const [generated, setGenerated] = useState<Record<string, GenerationOutcome>>({});
@@ -306,17 +312,23 @@ export default function QuestionPapers() {
     };
   }, [addingSection, ctx, openPaper?.subject, openPaper?.class_level, sectionForm.chapters]);
 
-  // Toggles on the topic's ID, not its name. question_paper_sections.topic_ids
-  // is uuid[], so a picker that collected names was choosing something the
-  // section could never store — and it stored it anyway, because the generated
-  // types were stale enough to hide the column mismatch.
   const toggleTopic = (topicId: string) =>
     setSectionForm((f) => ({
       ...f,
-      topics: f.topics.includes(topicId)
-        ? f.topics.filter((t) => t !== topicId)
-        : [...f.topics, topicId],
+      topicIds: f.topicIds.includes(topicId)
+        ? f.topicIds.filter((t) => t !== topicId)
+        : [...f.topicIds, topicId],
     }));
+
+  // A narrowed chapter list can drop topics the teacher had already picked;
+  // a chosen id that is no longer offered must not ride along unseen.
+  useEffect(() => {
+    setSectionForm((f) => {
+      const offered = new Set(topicOptions.map((t) => t.topicId));
+      const kept = f.topicIds.filter((id) => offered.has(id));
+      return kept.length === f.topicIds.length ? f : { ...f, topicIds: kept };
+    });
+  }, [topicOptions]);
 
   const addSection = () =>
     run("Add section", async () => {
@@ -334,7 +346,7 @@ export default function QuestionPapers() {
             .split(",")
             .map((c) => c.trim())
             .filter(Boolean),
-          topicIds: sectionForm.topics,
+          topicIds: sectionForm.topicIds,
         },
         sections.length,
       );
@@ -411,7 +423,8 @@ export default function QuestionPapers() {
         <div>
           <div className="text-sm font-bold text-foreground">Question papers</div>
           <div className="text-[10px] text-muted-foreground">
-            Build the blueprint, then fill the multiple-choice sections from the question bank.
+            Build the blueprint, fill or generate the questions, then send the paper to a class
+            you teach as an online test.
           </div>
         </div>
         <button
@@ -815,13 +828,12 @@ export default function QuestionPapers() {
                           className="w-full bg-muted border border-border rounded-[2px] px-3 py-1.5 text-[11px] text-foreground"
                         />
 
-                        {/* The topic narrowing. Chosen from what the bank
-                            actually holds, never typed: the raw `topic` column
-                            carries 11,917 spellings of the same ideas, so a
-                            free-text box would ask the teacher to guess. The
-                            count on each chip is load-bearing — the median
-                            topic holds ONE question, so a topic that cannot
-                            fill the section says so before it is picked. */}
+                        {/* The topic narrowing. Chosen from the chapters' own
+                            topics, never typed. The count on each chip is
+                            load-bearing: a topic that cannot fill the section
+                            says so before it is picked. The chapter is shown
+                            because two chapters can each teach a topic of the
+                            same name. */}
                         {topicsLoading && (
                           <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
                             <Loader2 className="w-3 h-3 animate-spin" /> Loading topics…
@@ -831,18 +843,19 @@ export default function QuestionPapers() {
                           <div className="space-y-1.5">
                             <div className="text-[10px] text-muted-foreground">
                               Topics{" "}
-                              {sectionForm.topics.length > 0
-                                ? `· ${sectionForm.topics.length} chosen`
+                              {sectionForm.topicIds.length > 0
+                                ? `· ${sectionForm.topicIds.length} chosen`
                                 : "· optional, blank draws on every topic in these chapters"}
                             </div>
                             <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                               {topicOptions.map((t) => {
-                                const on = sectionForm.topics.includes(t.id);
+                                const on = sectionForm.topicIds.includes(t.topicId);
                                 return (
                                   <button
-                                    key={t.id}
+                                    key={t.topicId}
                                     type="button"
-                                    onClick={() => toggleTopic(t.id)}
+                                    title={t.chapter ? `${t.topic} — ${displayChapter(t.chapter) || t.chapter}` : t.topic}
+                                    onClick={() => toggleTopic(t.topicId)}
                                     aria-pressed={on}
                                     className={cn(
                                       "px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors",
@@ -851,22 +864,20 @@ export default function QuestionPapers() {
                                         : "bg-muted border-border/70 text-muted-foreground hover:text-foreground",
                                     )}
                                   >
-                                    {displayChapter(t.topic) || t.topic}
+                                    {t.topic}
+                                    {t.chapter && (
+                                      <span className="ml-1 opacity-60 font-normal">· {displayChapter(t.chapter) || t.chapter}</span>
+                                    )}
                                     <span className="ml-1 opacity-60">{t.count}</span>
                                   </button>
                                 );
                               })}
                             </div>
-                            {sectionForm.topics.length > 0 && (
+                            {sectionForm.topicIds.length > 0 && (
                               <div className="text-[10px] text-muted-foreground">
                                 {(() => {
-                                  // `t.id`, not `t.topic`. Both are strings, so
-                                  // the compiler accepted a name-against-id
-                                  // comparison once the picker moved to ids —
-                                  // and this count would have silently read 0
-                                  // for every selection.
                                   const available = topicOptions
-                                    .filter((t) => sectionForm.topics.includes(t.id))
+                                    .filter((t) => sectionForm.topicIds.includes(t.topicId))
                                     .reduce((n, t) => n + t.count, 0);
                                   const want = Number(sectionForm.targetCount) || 0;
                                   return available < want

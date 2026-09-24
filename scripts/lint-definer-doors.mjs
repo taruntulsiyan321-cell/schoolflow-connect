@@ -33,8 +33,8 @@
  * Four names here carry two signatures each (290 functions, 286 names).
  * Keying on the name would collapse them, and a NEW OVERLOAD of an existing
  * name would never trip UNLISTED — the one check this gate exists for.
- * publish_due_scheduled_homework has a no-arg and a _school_id uuid form, and
- * their reach is not the same.
+ * publish_due_scheduled_homework once had a no-arg and a _school_id uuid form,
+ * and their reach was not the same.
  *
  * ── G8 ────────────────────────────────────────────────────────────────────
  *

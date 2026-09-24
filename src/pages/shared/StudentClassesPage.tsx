@@ -11,7 +11,7 @@ import { BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, Notebo
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { LeaderboardPanel } from "@/components/student/LeaderboardPanel";
 import { CommunityDoubtPortal } from "@/components/community/CommunityDoubtPortal";
-import StudentHomeworkPage from "@/pages/shared/StudentHomeworkPage";
+import Assignments from "@/gurukul/pages/Assignments";
 import StudentExamsResultsPage from "@/pages/shared/StudentExamsResultsPage";
 import { cn } from "@/lib/utils";
 import { toEnumLabel } from "@/lib/presentation";
@@ -336,10 +336,10 @@ export default function StudentClassesPage() {
             <NotebookPen className="w-5 h-5 text-primary" />
             <div>
               <h3 className="font-semibold text-lg">Class Homework</h3>
-              <p className="text-sm text-muted-foreground">Assignments and submissions now live inside Classes.</p>
+              <p className="text-sm text-muted-foreground">What your teachers have set, and what you have handed in.</p>
             </div>
           </div>
-          <StudentHomeworkPage embedded />
+          <Assignments embedded />
         </section>
       )}
 

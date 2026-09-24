@@ -8,6 +8,7 @@ import {
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import { REVISION_STAGES_TO_SOLID } from "@/academic/recovery/constants";
 import { toErrorMessage } from "@/lib/presentation";
+import { EMPTY_LIST, LOADING_LIST, type ListState } from "@/lib/listState";
 
 /**
  * Revision's data source — the 7C engine, and nothing else.
@@ -31,9 +32,9 @@ import { toErrorMessage } from "@/lib/presentation";
  *
  * Neither was the engine. chapter_state is: it carries next_revision_at,
  * revision_stage and consecutive_revision_passes, and the server walks them
- * 7 → 21 → 60 with three consecutive passes to solid. So both branches are
- * gone rather than a third being added beside them — the flag too, because a
- * flag between two wrong answers is not a choice worth keeping.
+ * along the §5.3 ladder, three consecutive passes to solid. So both branches
+ * are gone rather than a third being added beside them — the flag too,
+ * because a flag between two wrong answers is not a choice worth keeping.
  *
  * ── ONE ITEM IS ONE CHAPTER ───────────────────────────────────────────────
  *
@@ -43,23 +44,24 @@ import { toErrorMessage } from "@/lib/presentation";
  * check posts its score against.
  */
 
+/**
+ * One chapter on the revision ladder, as the screen shows it.
+ *
+ * Only what the screen reads. The item used to carry `priority` (computed,
+ * read by nothing — the server already sorts soonest first), `bookmarked`,
+ * `teacherAssigned`, `source` and `notes` (constants, so the "Teacher" badge
+ * and the bookmark icon could never render), `stage` (unread) and `concept`
+ * (the chapter name a second time, formatted with the concept dictionary).
+ */
 export interface RevItem {
   /** The chapter UUID. Not a queue-row id — there is no queue row any more. */
   id: string;
-  concept: string;
-  subject: string;
   chapter: string;
+  subject: string;
   dueIn: string;
-  priority: number;
-  bookmarked: boolean;
-  teacherAssigned: boolean;
-  source: string;
-  notes?: string;
-  /** Which rung of the 7/21/60 ladder, 1-based. */
-  stage: number;
   /** Passes in a row so far. */
   passes: number;
-  /** How many are needed before the chapter leaves the queue. */
+  /** How many are needed before the chapter goes solid. */
   stagesToSolid: number;
   /** Open mistakes still recorded against this chapter. */
   openMistakes: number;
@@ -94,32 +96,25 @@ export function dueLabelFromDate(dueDate: string | null): string {
   }
 }
 
-function toRevItem(r: ChapterStateRow): RevItem | null {
-  const chapterRaw = r.chapter;
-  const subjectRaw = r.subject;
-  if (!chapterRaw || isPlaceholderAcademicLabel(chapterRaw)) return null;
-  const subject = subjectRaw && !isPlaceholderAcademicLabel(subjectRaw) ? subjectRaw : "";
-  if (!subject) return null;
+/** Due now: overdue or due today — the labels dueLabelFromDate gives those two. */
+export function isRevisionDue(r: Pick<RevItem, "dueIn">): boolean {
+  return r.dueIn === "Now" || r.dueIn === "Today";
+}
 
+function toRevItem(r: ChapterStateRow): RevItem | null {
+  const chapter = r.chapter;
+  if (!chapter || isPlaceholderAcademicLabel(chapter)) return null;
+  const subject = r.subject && !isPlaceholderAcademicLabel(r.subject) ? r.subject : "";
+  if (!subject) return null;
   return {
     id: r.chapter_id,
-    concept: chapterRaw,
+    chapter,
     subject,
-    chapter: chapterRaw,
     dueIn: dueLabelFromDate(r.next_revision_at),
-    // Due beats not-due, and among the due ones the longest-overdue sorts
-    // first. Not a stored field: the engine has no priority column, because
-    // the date already says everything priority used to approximate.
-    priority: r.revision_due ? 100 : 50,
-    bookmarked: false,
-    teacherAssigned: false,
-    source: "chapter-state",
-    stage: Math.max(r.revision_stage, 1),
     passes: r.consecutive_passes,
     // REVISION_STAGES_TO_SOLID, not a literal 3. The number lives in
     // recovery_constants, is re-exported by the TS constants module, and is
-    // checked against the database by check:recovery-constants. A 3 written
-    // here is a second home for it and would survive the constant changing.
+    // checked against the database by check:recovery-constants.
     stagesToSolid: REVISION_STAGES_TO_SOLID,
     openMistakes: r.open_mistakes,
     freshAvailable: r.revision_fresh_available,
@@ -128,98 +123,83 @@ function toRevItem(r: ChapterStateRow): RevItem | null {
 }
 
 /**
- * Chapters with a revision schedule, soonest first.
+ * One read of the engine, as a list state — loading, failed, or read.
  *
- * A chapter with no date at all is dropped: it has never been scheduled and
- * there is nothing to show. Note this is no longer the same thing as "solid" —
- * a solid chapter keeps a date, at REVISION_INTERVAL_SOLID, and stays in the
- * list. That is deliberate: dropping it is how a student who proved they knew
- * a chapter three times stopped ever being asked about it again.
+ * Both hooks below started as `loading = true` and let only an effect that
+ * bailed out without a context end it, so an account the app settled without
+ * a student context showed "Loading revision" for ever; and the history's
+ * loading flag was never read, so the screen said "No revision checks taken
+ * yet" while the history was still arriving.
  */
-export function useRevisionItems(
+function useEngineList<T>(
   ctx: ServiceContext | null,
   academicReady: boolean,
-): { items: RevItem[]; error: string | null; loading: boolean; reload: () => void } {
-  const [items, setItems] = useState<RevItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  academicSettled: boolean,
+  read: (ctx: ServiceContext) => Promise<T[]>,
+): { list: ListState<T>; reload: () => void } {
+  const [list, setList] = useState<ListState<T>>(LOADING_LIST);
   const [nonce, setNonce] = useState(0);
-
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    if (!academicReady || !ctx) return;
+    if (!academicReady || !ctx) {
+      setList(academicSettled ? EMPTY_LIST : LOADING_LIST);
+      return;
+    }
     let cancelled = false;
-    setLoading(true);
-    RecoveryEngineService.getChapterStates(ctx)
-      .then((rows) => {
-        if (cancelled) return;
-        setItems(
-          rows
-            .filter((r) => r.next_revision_at !== null)
-            .map(toRevItem)
-            .filter((r): r is RevItem => r !== null),
-        );
-        setError(null);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        // No silent fallback. A swallowed failure here looks exactly like a
-        // healthy empty queue, which is how the old V2 path hid a broken
-        // pilot for weeks.
-        setError(toErrorMessage(e, "Failed to load revision schedule"));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [ctx, academicReady, nonce]);
+    setList(LOADING_LIST);
+    read(ctx).then(
+      (items) => { if (!cancelled) setList({ status: "ready", items }); },
+      // No silent fallback. A swallowed failure looks exactly like a healthy
+      // empty list, which is how the old V2 path hid a broken pilot for weeks.
+      // The screen says it could not load; the message is only for an error
+      // that says something more than that (empty otherwise).
+      (e) => { if (!cancelled) setList({ status: "failed", message: toErrorMessage(e, "") }); },
+    );
+    return () => { cancelled = true; };
+    // `read` is a module-level constant per caller, so listing it costs
+    // nothing and keeps the dependency list honest.
+  }, [ctx, academicReady, academicSettled, nonce, read]);
 
-  return { items, error, loading, reload };
+  return { list, reload };
+}
+
+/**
+ * Chapters with a revision schedule, soonest first — the server's order.
+ *
+ * A chapter with no date at all is dropped: it has never been scheduled and
+ * there is nothing to show. That is not the same thing as "solid" — a solid
+ * chapter keeps a date, at REVISION_INTERVAL_SOLID, and stays in the list.
+ */
+const readRevisionItems = async (ctx: ServiceContext): Promise<RevItem[]> =>
+  (await RecoveryEngineService.getChapterStates(ctx))
+    .filter((r) => r.next_revision_at !== null)
+    .map(toRevItem)
+    .filter((r): r is RevItem => r !== null);
+
+export function useRevisionItems(
+  ctx: ServiceContext | null,
+  academicReady: boolean,
+  academicSettled: boolean,
+): { items: ListState<RevItem>; reload: () => void } {
+  const { list, reload } = useEngineList(ctx, academicReady, academicSettled, readRevisionItems);
+  return { items: list, reload };
 }
 
 /**
  * Revision checks already taken, newest first.
  *
- * A separate hook rather than another field on useRevisionItems: the queue is
+ * Its own read rather than another field on useRevisionItems: the queue is
  * what the student has to DO and the history is what they have done, and one
- * of them failing to load is not a reason to blank the other. The screen
- * renders each from its own state.
- *
- * No silent fallback here either — an error is surfaced, because an empty
- * history and a failed read look identical to a student.
+ * of them failing to load is not a reason to blank the other.
  */
+const readRevisionHistory = (ctx: ServiceContext) => RecoveryEngineService.getRevisionHistory(ctx, 20);
+
 export function useRevisionHistory(
   ctx: ServiceContext | null,
   academicReady: boolean,
-): { history: RevisionHistoryRow[]; error: string | null; loading: boolean } {
-  const [history, setHistory] = useState<RevisionHistoryRow[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!academicReady || !ctx) return;
-    let cancelled = false;
-    setLoading(true);
-    RecoveryEngineService.getRevisionHistory(ctx, 20)
-      .then((rows) => {
-        if (cancelled) return;
-        setHistory(rows);
-        setError(null);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(toErrorMessage(e, "Failed to load revision history"));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [ctx, academicReady]);
-
-  return { history, error, loading };
+  academicSettled: boolean,
+): { history: ListState<RevisionHistoryRow>; reload: () => void } {
+  const { list, reload } = useEngineList(ctx, academicReady, academicSettled, readRevisionHistory);
+  return { history: list, reload };
 }

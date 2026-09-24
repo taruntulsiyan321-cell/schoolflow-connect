@@ -6,11 +6,11 @@ import { type ClassInfo } from "./data";
 import { TeacherAttendanceWorkspace } from "./TeacherAttendancePage";
 import {
   LiveStudentsTab,
-  LiveAcademicWorkTab,
   LiveTestsTab,
   LiveExamsMarksTab,
   LiveInsightsTab,
 } from "./LiveClassPanels";
+import { LiveHomeworkTab } from "./LiveHomeworkPanels";
 import { AttendanceService, type AssignedClass } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toErrorMessage } from "@/lib/presentation";
@@ -255,7 +255,11 @@ export default function MyClasses() {
           <TeacherAttendanceWorkspace fixedClassId={selectedClass.id} showBackLink={false} />
         )}
         {subTab === "homework" && (
-          <LiveAcademicWorkTab classId={selectedClass.id} subject={selectedClass.subject} />
+          <LiveHomeworkTab
+            classId={selectedClass.id}
+            classLabel={toClassLabel(selectedClass.className, selectedClass.section)}
+            subject={selectedClass.subject}
+          />
         )}
         {subTab === "tests" && (
           <LiveTestsTab classId={selectedClass.id} subject={selectedClass.subject} />

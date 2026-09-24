@@ -996,7 +996,8 @@
  * an element sits on, and these rules used them to decide its colour — with
  * `!important`, so no component could ever disagree.
  *
- * MEASURED CONSEQUENCE: every letter avatar in Chat. `.chat-avatar` sets
+ * MEASURED CONSEQUENCE (on the chat screen, since removed): every letter
+ * avatar in it. `.chat-avatar` set
  * `color: #ffffff` on a dark teal ground, and the avatar also carries `text-xs`
  * for its initial — so this rule repainted the initial dark navy on dark teal,
  * 1.83:1, in eleven rows of the conversation list. The group avatar beside them

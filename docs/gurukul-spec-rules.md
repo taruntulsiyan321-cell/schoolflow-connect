@@ -104,7 +104,7 @@ These are the product owner's, given directly. They override any inference from 
 
 26. **Production is the source of truth for edge functions until a hash says otherwise.** 1 of 17 deployed functions had a known relationship to its repo source; two (`ai-expand-questions`, `mcp`) had no source on any branch. Date heuristics were wrong in both directions — only a content hash settles it. The verbatim production snapshot lives on `claude/edge-function-provenance`; it is a recovery artifact and is **not merged to main**, because the repo side contains work that may never have been deployed. A deploy-time hash gate is required before any function ships.
 
-27. **A missing-data render must not read as a data-bearing render.** `TestResult.tsx` renders every question with the correct answer and a blank student response, under copy stating wrong answers were saved to the Mistake Book. It looks functional and misrepresents. Where data is absent, say it is absent.
+27. **A missing-data render must not read as a data-bearing render.** `TestResult.tsx` rendered every question with the correct answer and a blank student response, under copy stating wrong answers were saved to the Mistake Book. It looked functional and misrepresented. Where data is absent, say it is absent. *(FIXED 2026-09-12. The honest empty state landed first, and then the CAUSE was found and removed: `rpc_test_submit` deleted `test_answers` at submit, so the responses were absent for every student after every test. The screen now reviews the real paper through `rpc_test_answer_sheet` and keeps the empty state for the case where the rows genuinely are not there — a pre-20260925000000 attempt.)*
 
 28. **`has_role/2` asks whether the caller is acting in a role; `has_role/3` asks whether an account holds one.** They can disagree about the same person at the same school, deliberately. Choose by the question, not by argument count. *(Because `memberships` is UNIQUE on `(account_id, school_id, role)`, one account can hold several roles at one institution; collapsing the two forms would blend them regardless of which is active. All 111 live policies use the two-argument form, which is correct — a policy always has a session. The three-argument form exists for callers that have none and know which institution they mean.)*
 
@@ -114,7 +114,40 @@ These are the product owner's, given directly. They override any inference from 
 
 ## Added 2026-09-06
 
-31. **Topic is not an ANALYSIS unit; chapter and subject are. It is now a
+31. **AMENDED 2026-09-15 (owner ruling) — topics are real rows, per chapter,
+    and every question carries one.** The text below this block is the
+    2026-09-10 state and is kept for the history of why; where it disagrees,
+    this block wins.
+
+    - **Topics are per chapter.** `topics` is UNIQUE (chapter_id, name): the
+      same name in two chapters is two topics ("Journal Entries" in every
+      Accountancy chapter holds only that chapter's questions). Owner: "create
+      the topics chapter wise, not standard topics, universal topics."
+    - **Every chaptered question names one topic of its own chapter**
+      (`question_bank.topic_id`, enforced by a composite key onto
+      `topics (id, chapter_id)`). All 21,695 were read and filed by hand into
+      4,583 topics across 665 chapters (`20261020000000`).
+    - **The old labels are gone** (`20261020010000`): `question_bank.topic`,
+      `concept`, `subconcept`, `subtopic` and `topic_group` are dropped; the
+      copies in attempts, mistakes, mastery and the old revision queue were
+      rewritten to the real topic's name. Owner: "don't leave the trace of old
+      topics, remove them, because they can create problems in future."
+      `scripts/classify-question-topics.mjs` (the `topic_group` job described
+      below) is deleted.
+    - **Generated questions are tagged and stored automatically — this
+      reverses "leave `topic` NULL".** An AI-written question enters the bank
+      only through `store_generated_questions` (`20261020020000`): the
+      generator names the topic it wrote for, or the source question of a
+      variant; chapter, subject, class and board are derived from the
+      curriculum, never taken from the caller. Owner: questions "get
+      automatically classified into all the labels we have and automatically
+      stored … so next time fewer tokens are spent."
+    - **What has NOT moved:** weakness, recovery and revision still roll up at
+      chapter level (the recovery engine keys on `chapter_id`). The mastery
+      engine's own text key (`concept_mastery.concept`) now holds the topic's
+      name; renaming that key to `topic_id` is a separate change.
+
+    **Topic is not an ANALYSIS unit; chapter and subject are. It is now a
     SELECTION filter, where a teacher supplies one.** Updated 2026-09-10, when
     the batch job this rule deferred was actually run.
 
@@ -192,11 +225,372 @@ of the v2 student panel pass), and the expiry was ruled against on 2026-09-11
 after it was measured. Rules 12, 13 and 15 are binding. **Rule 14 is withdrawn.**
 
 12. The test report is a separate, self-contained artifact — not an input to anything. Generated the moment the test ends, downloadable. It feeds no weak-topic surface, no Analysis tab, and no parent surface.
-13. **Marks and rank are shared within the class; per-question detail is private to each student.** The earlier wording — "their own data only … never the class's" — predated the test leaderboard and was too broad: a rank is a position among classmates and cannot be shown without comparing to them. What stays private is the per-question detail: which questions a student got wrong and which took longest is theirs alone, never another student's. **Teacher** — the class aggregate is the primary view; clicking a student's name opens that student's report, scoped via `teacher_teaches_class`. **Principal** — nothing. *(Corrected 2026-09-11 on the product owner's ruling; `rpc_test_student_report` already implements exactly this — it returns `rank` and `class_size` as positions and no other student's name or mark.)*
+13. **Marks and rank are shared within the class; per-question detail is private to each student.** The earlier wording — "their own data only … never the class's" — predated the test leaderboard and was too broad: a rank is a position among classmates and cannot be shown without comparing to them. What stays private is the per-question detail: which questions a student got wrong and which took longest is theirs alone, never another student's. **Teacher** — the class aggregate is the primary view; clicking a student's name opens that student's report, scoped via `teacher_teaches_class`. **Principal** — ~~nothing~~ **the MARKS, corrected 2026-09-12** (see the ruling below): the test and what each student scored, on the class tab. Still not the per-question detail and still not the weakest-topic report. *(Corrected 2026-09-11 on the product owner's ruling; `rpc_test_student_report` implements the private half — it returns `rank` and `class_size` as positions and no other student's name or mark — and `rpc_test_class_marks` implements the principal's half, fenced separately by `can_read_test_marks`.)*
 14. ~~Deliberately ephemeral — a 24-hour tab, then gone.~~ **WITHDRAWN 2026-09-11.** Measured first: there is no `expires_at` on any test table and no purge function for test answers, so nothing expires today, and the spec requires that it does not. §10.23 makes test answers school data that persists — "a teacher set them and a mark is the point" — and §10.25 requires "their actual wrong answers, with the topic on each" on tap, which needs them kept. Building the expiry would delete school data the spec preserves and empty the §10.25 drill-down. It would also be the more complex path by a wide margin: an `expires_at` column, a purge function, a cron entry, a guarantee that marks reach the profile *before* deletion runs, a marks-only fallback on two panels, and probes for each — against zero new code for leaving it durable. Ruled by the product owner on exactly that trade.
 15. Only the marks persist **on the student profile** as the durable summary — the profile shows marks, not the report. This is unchanged: it is about what the *profile* carries, not about deleting the report.
 
+## The test flow — RULED 2026-09-12, and built
+
+Four rulings, in the product owner's own words, and what each one settled. They
+supersede where they conflict, and the conflicts are named rather than quietly
+resolved.
+
+18. **"For the online test, only MCQ questions can be given … the test
+    automatically gets marked."** No human marks an online test, ever. Measured
+    before building: of the five formats `test_questions` admitted, only `mcq`
+    could actually be marked — `short` and `long` carry `correct IS NULL` by
+    constraint so every written answer scored zero in silence, `multi` marks a
+    correct answer wrong whenever the student's click order differs from the
+    key's, and `numerical` has no tolerance. Enforced by
+    `trg_test_question_is_a_markable_mcq` (20260925020000), not by the builder
+    alone. Question marks are whole numbers for the same reason: `tests.max_mark`
+    and `test_marks.mark` are integer columns and a half mark was being rounded
+    into what a parent and a principal read.
+
+19. **"The leaderboard shall also be dynamic: … the first student to complete the
+    test is already shown at the top. As soon as all the students start
+    submitting, the leaderboard gets updated."** This is the NAMED leaderboard
+    that 20260916030000 declined to build without a ruling. Built as
+    `rpc_test_leaderboard` (20260925030000): every submitted attempt, ranked by
+    mark, ordered so that on equal marks whoever finished FIRST is above — and
+    ties share a rank, computed identically to `rpc_test_student_report.rank` so
+    the two surfaces can never disagree. Readable by the teachers of the section,
+    the principal, and a student **who has already handed their own paper in**;
+    before that a student would be reading the class's marks for a paper they
+    have not written.
+
+20. **"For the principal … on the class tab, the principal shall be able to see
+    the test and the marks each student has got."** SUPERSEDES the 2026-09-09
+    "Admin and Principal sees nothing" ruling, for marks only. The principal
+    reads `rpc_test_class_marks` and is still refused `rpc_test_class_report`
+    (weakest topics, timing) and `rpc_test_student_report` (which questions a
+    named child got wrong) — rule 13's private half is unchanged.
+
+21. **"For the admins, we have to build all the numbers of tests given in the
+    school."** Counts, not marks: the admin dashboard's "Tests Given" card reads
+    totals over `tests` and `test_attempts`, both of which their existing
+    policies already admit. `can_read_test_marks` refuses them one class's named
+    marks, deliberately.
+
+**One instruction in that session was NOT built, and this says so rather than
+leaving it implied.** The same message asked that the report "automatically gets
+removed after 24 hours and gets added to the student's profile." The marks half
+is done and verified — `rpc_test_submit` writes `test_marks` in the same
+transaction as the grading, before any report exists, and the student profile
+reads it. The DELETION half is rule 14, which this product owner withdrew on
+2026-09-11 after it was measured, for reasons that have not changed: §10.23
+makes test answers durable school data, §10.25 needs "their actual wrong
+answers, with the topic on each" on tap, and the 2026-09-12 session's own work
+depends on those rows surviving — deleting them at 24 hours would empty the
+student's review, the teacher's drill-down and the weakest-topic ranking a day
+after every test. Building it would re-open the defect 20260925000000 closed.
+**If the expiry is wanted anyway, it needs a fresh ruling that also says what
+replaces those three surfaces afterwards.**
+
+---
+
 **A real defect this section still names:** `battle_reports` has `expires_at` and a UI gate at `BattleReportView.tsx:151`. It now also has a collector — `purge-expired-battle-reports`, cron `20 * * * *`. Battles are practice under §10.8, so an expiring battle report is correct and is **not** a precedent for tests.
+
+---
+
+## The test feature — the owner's decisions, RECORDED 2026-09-13
+
+Not yet built. Recorded here so the next session builds THIS and not its own idea of it.
+
+**A test is a delivery of a question paper, not a copy of one.** One paper, one answer
+shape, and `tests` holds only: which paper, which class, which mode, when it goes live.
+
+**The mode the student answers in is chosen FIRST**, because it decides everything after.
+Online means the student is shown MCQs with their options and simply chooses — nothing
+else appears on a phone, and it must feel effortless.
+
+**Three ways to put questions on a paper. Not four.**
+
+1. **The question bank** — proper filtering, and it must feel like **drag and drop**: the
+   teacher filters, then drags questions onto the paper.
+2. **The AI** — customised so it generates questions properly, **produces the answer key
+   with them**, and the result is uploadable into the app as a test.
+3. **The teacher types it** — types the question, enters the four options, chooses which
+   one is correct.
+
+**PDF / photo EXTRACTION IS CUT.** Ruled out on 2026-09-13. We do not read questions out
+of an uploaded paper. The obstacle was never the OCR: a question paper carries no answer
+key, so extraction can never produce an auto-markable online test on its own, and
+`src/academic/ai/multimodalPipeline.ts` is a stub in any case ("Live vendor extraction
+deferred"). Do not rebuild this without a fresh ruling.
+
+**Also ruled earlier in the same discussion and still standing:** a test that has been sat
+must be deletable and the count must drop everywhere; students are neither shown nor told
+about a test until `goes_live_at`, which is what makes that deletion window real.
+
+**Sequenced after homework.** The owner's instruction on 2026-09-13: finish the homework
+feature first.
+
+---
+
+## The teacher's test report — what it must answer, RULED 2026-09-13
+
+Four questions, and the report had honest answers to one of them.
+
+| The teacher asks | Before | Now |
+|---|---|---|
+| Where does the class stand? | a list in ROLL order with marks beside it | `rpc_test_leaderboard` — ranked by mark, ties shared, the same order and rank the students read on their own result |
+| Which question do I re-teach? | `average_seconds_per_question` — the paper's mean over its length | `rpc_test_question_breakdown` — every question with its own average and longest time, the four outcome states apart, and the student it cost the most, by name |
+| What did the class get wrong? | weakest topics | unchanged |
+| How did THIS child do? | their WRONG answers only | `rpc_test_answer_sheet` — the whole paper: every question, their answer against the key, marks awarded, and their own time on each, with their slowest marked |
+
+**Why the paper mean had to go rather than be kept alongside.** It cannot
+distinguish nineteen ten-second questions and one twelve-minute one from twenty
+forty-second ones, and only the first names something to do. Keeping it as well
+would leave two timings on one screen disagreeing about what "per question"
+means (G9). It is deleted from the teacher's report; `rpc_test_class_report`
+still returns the field and the student-facing surfaces still use it.
+
+**Why the drill-down had to change.** "Wrong answers only" is not a
+performance. A student who scored full marks opened an empty panel, and nothing
+anywhere said how long any question took them.
+
+**NULL is not zero, on every timing.** An answer written before the
+per-question clock existed carries `time_ms IS NULL`. Averaged as zero it makes
+a paper look faster the older it is, so: the average covers only the timed
+rows, `timed_count` says how many that is, and the slowest student's id, name
+and time are all NULL together or all set — a name with no time is not a fact
+(§7, G4).
+
+**The fences are unchanged and unduplicated.** The breakdown is fenced by
+`can_read_test_report`, the same function as the class report, so the principal
+is refused here exactly as they are refused there and the argument about §10.25
+stays in one place. The board is `can_read_test_leaderboard`, the drill-down
+`can_read_test_student_report`. No role check was added in any component or
+service.
+
+**Where it lives.** `src/gurukul-teacher/TestReportPanel.tsx` — its own file.
+It was inside `LiveTestsTab`, which is the test LIST and its builder.
+
+---
+
+## Chat and the teacher's Question Bank are removed — RULED 2026-09-13
+
+**The instruction, in the owner's words:** "Question Bank and communication have to
+be removed completely", "Communication was to be removed from everywhere inside
+the application", and of the teachers' AI: "Teachers' AI was only meant to create
+question papers and upload them to the classes that teach."
+
+**Chat is gone from the product, not hidden.** Removing it from one panel only
+would have left parents and students writing to teachers who have no screen to
+read them on, which is worse than either having it or not. So the whole feature
+went: `pages/shared/ChatPage.tsx`, `gurukul-teacher/Communication.tsx`,
+`gurukul-parent/Messages.tsx`, `components/chat/*`, `services/messageService.ts`,
+`storage/chatFileUpload.ts`, the `message` entity, its ownership row, its live
+domain, its query key, its two realtime subscriptions, every unread badge in
+three shells, and `messages` / `communication` from `ROLE_MODULES`. The old
+addresses redirect to the notices each role still receives rather than 404.
+
+**What the school still communicates with:** announcements (school and class) and
+the doubt portal. Both are live and unchanged.
+
+**The `messages` table and its RPCs are NOT dropped.** No migration in this change
+touches them. Deleting a school's message history is not a design decision to take
+on the way past, and an unread table costs nothing.
+
+**The teacher's Question Bank screen is gone; the bank is not.** `/teacher/question-bank`
+was a browser over the central bank, and a teacher reaches those same questions
+where they need them — picking questions for a test, and filling a paper section.
+The super admin's review queue (`/admin/question-bank-review`, §10.20) stays: it is
+the only thing that approves a question, and without it the bank every other
+surface draws on stops being fed.
+
+**The teachers' AI is the question-paper maker.** `TeacherAICoach.tsx` promised a
+per-student diagnostic report and rendered a hard-coded example of one for a
+student who does not exist — a screen that lied about having data. Deleted;
+`/teacher/ai-coach` redirects to Question Papers, which builds a paper from the
+bank or generates it, and pushes it to a class the teacher teaches as an online
+test.
+
+---
+
+## Homework — RULED 2026-09-13, released 2026-09-14
+
+**The specification, in the owner's words.** The teacher sets homework with "a heading/title
+and the usual fields"; the question is typed text OR one uploaded file (image, document or
+PDF); the teacher chooses the CLASS, sets a DEADLINE, and may SCHEDULE it. For the student,
+"THERE IS NO DIGITAL/TYPED SUBMISSION": ONE FILE, an image or a PDF. The deadline closes it
+automatically and every student is resolved to submitted or not submitted; nothing after it.
+The teacher has EXACTLY TWO ACTIONS, accept or reject — no marks, grades or remarks — and a
+REJECTED submission counts as NOT GIVEN.
+
+Ruled the same day, on being asked: **missing homework costs the student XP**, and **the
+teacher's decision reaches the family as "accepted" or "rejected"**.
+
+**Built as eight migrations, `20260925100000`–`20260925170000`, each with a rollback and a
+proof block that rolls itself back if it cannot demonstrate its own effect. The first six were
+applied to the live project on 2026-09-14; `20260925160000` (rule 45) and `20260925170000`
+(rule 35's closed-before-resolution clause) are proven against live and waiting to be
+applied** — see HANDOFF.md.
+
+33. **The deadline is one instant: `homework.closes_at`, timestamptz, NOT NULL.** The brief
+    offered "delete `closes_at`/`submission_mode`, or implement `closes_at` as the deadline".
+    `closes_at` IS the deadline: a deadline is an instant, and it was already the column that
+    meant "when this closes". `due_date` is now GENERATED from it — the school-local date,
+    decided once in `school_local_date()` — so the routines and screens that group by date keep
+    reading the column they read; `due_time` is folded in and dropped; `submission_mode` is
+    dropped. (Measured before: `closes_at` had been backfilled as `(due_date + 1)` in the UTC
+    session zone, so homework "due 15 Sep" closed at 05:30 IST on the 16th and `due_time` was
+    ignored.)
+34. **The question is typed text OR one file**, never both (`homework_question_is_text_or_file`;
+    a draft may have neither yet). The question file is an image, a Word document or a PDF
+    (`homework_question_file_ok`). §10.22 stands unchanged: the chapter is picked from the
+    class's curriculum, the topic picked from that chapter or added, and a free-text label only
+    where no chapter fits.
+35. **Release.** Published now, scheduled, or kept as a draft. Scheduled work is released by
+    pg_cron job `publish-due-scheduled-work` every minute (`publish_due_scheduled_work()`), not
+    by page loads; students and parents read a homework only once it is published and while it
+    is not deleted. **Nobody signed in can publish or schedule homework whose deadline has
+    passed, or move a released homework's deadline to a moment that has** — closing it early
+    would charge the class for work it still had time to do; extending it is allowed. **The
+    scheduler does not release homework whose deadline passed before it ran**: it stays
+    scheduled, where its teacher sees it, and a later deadline releases it on the next run. A
+    closed homework cannot go back to draft or scheduled — republishing would tell the class
+    "New homework" about work nobody can hand in. It can be archived. **Closed means the
+    deadline has passed on released work, whether or not the closure job has reached it yet**
+    (`20260925170000`): the job runs a minute apart and retries a homework whose charge failed,
+    and in that wait a teacher could unpublish it out of the job's reach or move its deadline
+    to reopen it. The teacher's list stops offering Edit and Unpublish at the deadline.
+36. **The hand-in is ONE image or PDF**, through `rpc_homework_submit` only — no session writes
+    a submission row. `homework_submissions.file` is a single jsonb object, so a second file
+    cannot be stored (`homework_hand_in_ok`); the file must exist in `academic-files` under the
+    student's own folder. **A handed-in file cannot be overwritten or deleted** through storage
+    afterwards (`homework_file_is_fixed`, 20260925140000) — before this, a student could swap
+    the bytes behind an accepted hand-in.
+37. **The deadline closes it for everyone.** Nothing is handed in at or after `closes_at`, nor
+    once the homework is resolved. pg_cron job `resolve-closed-homework`, every minute, writes a
+    `not_submitted` row for each current student of a closed homework's class, charges the
+    missed-homework XP (rule 42), and stamps `resolved_at` — all together, once: resolution
+    freezes the roster, so a student who joins later is not counted as having missed work set
+    before they arrived.
+38. **The teacher's two actions: accept or reject** (`rpc_homework_decide`), on a hand-in
+    awaiting review, by a teacher of the class or an admin of the school. No marks, no grade,
+    no remark exist anywhere in the model any more. A hand-in and a decision hold the homework
+    `FOR SHARE`, and the closure job skips a homework held that way, so neither interleaves
+    with it (proven on two connections by `scripts/local-replica/race.mjs`: without the lock a
+    rejection taken as the job runs is never charged, and a student handing in again is charged
+    for work they gave).
+39. **Four statuses:** `not_submitted`, `submitted`, `accepted`, `rejected`, and
+    `homework_submissions_state` makes each mean one thing. Lateness is not stored: nothing can
+    be late. `is_late`, `grade`, `marks_obtained`, `teacher_remarks`, the typed `content` and the
+    resubmission `version` are gone, and so is the second digital path (`homework_questions`,
+    `homework_answers`, `homework_completions`, `rpc_close_homework`) — all three tables empty.
+40. **Counting has one home.** `homework_student_status` decides a student's standing — `given`
+    is submitted or accepted, `closed` is the deadline having passed — and `homework_completion`
+    is its per-homework aggregate. Only published, undeleted homework counts, and a deleted
+    student counts for nobody. **Completion is measured at the deadline** (§10.12): the profile,
+    the leaderboard, the student snapshot and the parent digest divide by closed homework, so a
+    student is not behind on work they still have time to hand in. Archived homework leaves the
+    students' view and every count, as unpublished homework always has.
+41. **Delete is a soft delete to the trash** (`rpc_homework_delete`), drafts and published work
+    alike, by a teacher of the class or an admin; the trash restores and purges it. Everything
+    read live drops at once; the stored profiles recount through the academic event queue,
+    which pg_cron job `process-pending-academic-events` now drains every minute — the browser
+    no longer does, and no signed-in or anonymous session may drain it or replay an event.
+42. **Missing homework costs XP — RULED.** Missing means not given when the homework closes:
+    never handed in, or rejected and not handed in again. The closure job charges each current
+    student with an account the progression engine's own rule `homework.missed` (live:
+    "Missing homework", −20 XP and −5 reputation; XP never goes below 0), once per submission
+    row — the idempotency key is the row, so a second run or a later path never charges twice.
+    A hand-in rejected AFTER the homework was resolved can no longer be handed in again, so
+    `rpc_homework_decide` charges it on the same terms; a rejection before the deadline costs
+    nothing yet. Work handed in and still awaiting review at the deadline is given, and costs
+    nothing. A student who has left the school is nobody's missing work. An admin who disables
+    the rule stops the cost without touching this code. A homework whose charge cannot be
+    applied stays unresolved and is retried the next minute — never resolved without it.
+43. **Homework released before rule 42 costs nobody** (`homework.missed_costs_xp = false`, set
+    by `20260925110000` on every published or archived row, and on nothing else). It was set and
+    handed in under rules with no such cost, and its typed hand-ins become `not_submitted` in
+    this model — charging it would charge students who did hand in. It is resolved like any
+    other homework when it closes. No teacher can write the column. Measured on live
+    2026-09-13: all 19 published homework had closed; without this their first closure would
+    have charged 12 students for up to 19 homework each.
+44. **The family is told "Homework accepted" or "Homework rejected" — RULED — once each.** The
+    router's decision branch names the two decisions and no longer routes `homework.graded`,
+    which nothing emits (`20260925150000`, an in-place edit of `process_academic_event` that
+    keeps its line endings and changes nothing else in it). `_notify_student_circle` now hands a
+    student's parents to `_notify_student_parents`, so a parent linked both by
+    `students.parent_user_id` and through `parent_students` — every legacy link — is told once,
+    not twice; every other caller of the circle (remarks, badges, battles, risk alerts) stops
+    doubling with it.
+45. **Who reads a hand-in, and what it costs to ask.** The student who handed it in, their
+    parents, a teacher of the homework's CLASS, and the school's principal and admin. Authoring
+    the homework is not a door (rule 18's ruling, 20260919000000, carried from the homework to
+    its hand-ins): before `20260925160000` a teacher who set homework in a class they do not
+    teach could not read the homework but could read the files handed in to it — 3 hand-ins on
+    live. A teacher reads homework, hand-ins and the roster through the classes they teach, the
+    same set every other feature's reads use. **Every read policy on `homework`,
+    `homework_submissions` and `students` answers once per statement, not once per row**
+    (docs/rls-policy-pattern.md): per row, the homework counts took 4.5–6 s for an admin,
+    principal or parent at 13 students, and ran the production browser run out of time.
+46. **Every subject is visible to a teacher of the class; only their own subjects change.**
+    docs/locked-decisions.md ("a teacher sees all academic data for students in sections they
+    teach — all subjects … view-only outside their own subject") applied to homework: a teacher
+    of the class reads every subject's homework and hand-ins; setting, editing, releasing,
+    archiving, deleting, duplicating, accepting and rejecting are for a teacher of that subject
+    in that class (`teacher_teaches_class_subject`) or an admin. New homework is set in one of
+    the teacher's own subjects there — a teacher of several picks — and an edit keeps the
+    homework's subject: the class screen opens under one subject, and an edit made from it once
+    refiled another subject's homework under that one. The client holds the rule in one place,
+    `teacherMayManageSubject`, which the service enforces and the screens ask; the database
+    fence stays class-level, as rule 38 rules.
+47. **A parent sees the homework as their child does** (§10.15): what was set — typed or its
+    file — the deadline, where the child stands, and the file the child handed in. The teacher's
+    comment §10.15 also names does not exist any more (rule 38).
+48. **The principal sees each class's homework on the Classes tab, as it happens.** Every active
+    class with its roll, the homework released to it, the share of homework **that has closed**
+    that was handed in — no rate while nothing has closed, never 0% — and the hand-ins waiting on a
+    teacher. A class opens onto its released homework, each student's homework record and its
+    tests; a homework onto its question and every student's standing and file. The screens move
+    when homework or a hand-in changes. The principal reads; accepting and rejecting stay with the
+    subject's teachers (rule 46).
+49. **Homework has a report of who did it.** One homework's report — every student it was set to,
+    in roll order: done (`given`), standing, when handed in, when decided, the file — downloads
+    from the teacher's review screen and the principal's homework screen, built by one function. A
+    class's report — for each student: set, done, accepted, awaiting review, missed at the
+    deadline, still to do — downloads from the principal's Students tab.
+50. **Done, missed and still to do are decided once** (`homeworkOutcome`): done is `given`; missed
+    is not given once the deadline has passed; everything else is still to do, a rejection that can
+    still be handed in again included. The student's profile, the class report and every count use
+    it. The teacher's profile carries the homework they have set and the hand-ins waiting on them.
+51. **A parent's notification opens a parent page.** A notification about a child points at the
+    parent page that shows the same thing — homework and attendance on My Children, tests and marks
+    on Marks, notices on Notices, anything else on the dashboard (`parent_link_for`,
+    `20260925180000`) — and tapping it opens that page.
+52. **A notification reaches the phone.** Every notification written for someone with a registered
+    phone — student, parent or teacher — is sent to that phone within about a minute, once, and
+    tapping it opens its page; one not sent within 30 minutes is not sent at all (`20260925190000`,
+    `notification-push`). A phone registers when its owner signs in to the Android app and allows
+    notifications; the web app has no push.
+
+**Assumptions proceeded on, as the brief allowed — they are not rulings.**
+* A student may replace their file, or hand in again after a rejection, only before the
+  deadline. An ACCEPTED hand-in is final.
+* XP for homework is awarded when the teacher ACCEPTS, not at hand-in, so rejected work earns
+  nothing — exactly like work never handed in.
+* "Duplicate" opens the form as new homework with no deadline, for the teacher to set one.
+* **XP stays as it was applied.** Deleting or archiving homework takes it out of every count,
+  but the XP accepting it awarded and the XP missing it cost are progression history and are
+  not reversed — nor by a rollback. If deleting homework should refund what missing it cost,
+  that is a ruling to ask for.
+* The teacher is told on the review screen, once the deadline has passed, that rejecting now
+  counts as missed homework and costs the student XP; the student is told "Missing it costs XP"
+  on homework to do, or rejected and still open — never on homework released before rule 42.
+* The teacher's form keeps a deadline the teacher did not touch to the second. The field holds
+  minutes, and every legacy deadline is 23:59:59: saving an edit used to move it a minute earlier.
+
+**What the legacy rows become (measured on live 2026-09-13).** 51 homework — 19 published, 32
+archived, none scheduled, none deleted — all keep their typed question. 145 submissions — 108
+submitted, 28 graded, 9 late — and **not one carries a file**, so all 145 become
+`not_submitted`: typed submissions do not exist in this specification. Their content, grade and
+remark are copied first into `homework_submissions_pre_20260925110000` (and every homework row
+into `homework_pre_20260925110000`), which is what the rollback restores from. Decision D1 in
+`docs/decisions.md` is superseded accordingly.
 
 ---
 

@@ -1,6 +1,50 @@
 // Explain a quiz answer — OpenRouter (Qwen).
+//
+// ── THE CACHE LIVES HERE, NOT IN THE BROWSER ────────────────────────────────
+//
+// ai_explanations is a cache of explanations of BANK questions, which are
+// global (G2). It was written from the client, and could not work from there:
+//
+//   · the insert omitted created_by, so its own RLS policy refused it —
+//     42501, swallowed by `.then(() => {}, () => {})`, measured 2026-09-18 as
+//     0 rows in the table platform-wide;
+//   · cache_key is the PRIMARY KEY, globally unique, while the SELECT policy
+//     is per school — so even with the insert fixed, the second school to ask
+//     about a question could never read the first school's row and could never
+//     write its own. Every click would pay for a fresh model call for ever.
+//
+// So the function owns it: it looks the key up with the service key, answers
+// from the row when there is one, and stores what the model returned. That
+// also takes the payload out of the client's hands — a cache any student could
+// write is a cache any student could poison for everyone else.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders, generateStructured, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
+
+type Explanation = {
+  summary: string;
+  why_wrong: string;
+  concept: string;
+  how_to_improve: string;
+};
+
+/**
+ * The cache key: this question, and this answer to it. Same recipe the browser
+ * used (djb2 over the parts, joined by ¦), so a key is stable across clients.
+ */
+function cacheKeyFor(parts: (string | number | null | undefined)[]): string {
+  const s = parts.map((p) => (p ?? "")).join("¦");
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return "ex_" + h.toString(36) + "_" + s.length.toString(36);
+}
+
+function admin() {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  // No service key: answer without the cache rather than refuse the student.
+  return url && key ? createClient(url, key) : null;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -25,6 +69,28 @@ Deno.serve(async (req) => {
 
     if (!question || String(question).trim().length === 0) {
       return jsonResponse({ error: "A question is required" }, 400);
+    }
+
+    // One explanation per (question, the answer given to it), for everyone.
+    const cacheKey = cacheKeyFor([question, correct_index, selected_index, correct_text, selected_text]);
+    const db = admin();
+    if (db) {
+      const { data: cached, error: cacheErr } = await db
+        .from("ai_explanations")
+        .select("payload")
+        .eq("cache_key", cacheKey)
+        .maybeSingle();
+      if (cacheErr) console.warn("ai-explain: cache read failed:", cacheErr.message);
+      if (cached?.payload) {
+        const p = cached.payload as Explanation;
+        return jsonResponse({
+          summary: p.summary ?? "",
+          why_wrong: p.why_wrong ?? "",
+          concept: p.concept ?? "",
+          how_to_improve: p.how_to_improve ?? "",
+          source: "cache",
+        });
+      }
     }
 
     const optLines = Array.isArray(options) && options.length
@@ -91,13 +157,26 @@ Deno.serve(async (req) => {
 
     if (!result.ok) return jsonResponse({ error: result.error }, result.status);
 
-    return jsonResponse({
+    const payload: Explanation = {
       summary: result.data.summary ?? "",
       why_wrong: result.data.why_wrong ?? "",
       concept: result.data.concept ?? "",
       how_to_improve: result.data.how_to_improve ?? "",
-      source: result.source,
-    });
+    };
+
+    // Store it for the next student who meets this question. school_id and
+    // created_by stay NULL: the row is about a global bank question and holds
+    // nothing of the student who happened to ask first. A duplicate key means
+    // another request cached it in the meantime — that is a hit, not an error.
+    if (db) {
+      const { error: writeErr } = await db
+        .from("ai_explanations")
+        .upsert({ cache_key: cacheKey, subject: subject || null, topic: topic || null, payload },
+                { onConflict: "cache_key", ignoreDuplicates: true });
+      if (writeErr) console.warn("ai-explain: cache write failed:", writeErr.message);
+    }
+
+    return jsonResponse({ ...payload, source: result.source });
   } catch (err) {
     return jsonResponse({ error: (err as Error).message ?? "Unknown error" }, 500);
   }

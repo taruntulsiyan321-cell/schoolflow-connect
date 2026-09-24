@@ -4,54 +4,71 @@ import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { PageKey } from "@/gurukul/nav";
-import { PAGE_TITLE, LEARNING as LEARNING_KEYS, CLASS as CLASS_KEYS } from "@/gurukul/nav";
+import {
+  PAGE_TITLE,
+  LEARNING as LEARNING_KEYS,
+  CLASS as CLASS_KEYS,
+  studentNavEntries,
+  isSchoolOnlyPath,
+} from "@/gurukul/nav";
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
+import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
-import { MessageService, useAcademicLive } from "@/academic";
-import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn, XPBar, EASE_OUT, springSnappy, springSoft } from "./shared";
 import {
   Home, BookOpen, Brain, Swords,
   ChevronLeft, ChevronRight, Bell, Menu, X,
   FlaskConical, GraduationCap, Settings, LogOut,
-  User, Wallet, Megaphone,
+  User, Wallet, Megaphone, BarChart2, RefreshCw, RotateCcw,
+  AlertCircle, Trophy,
 } from "lucide-react";
 import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 
 type NavItem  = { key: PageKey; label: string; icon: ReactNode };
 type NavEntry = { key: PageKey; label: string; icon: ReactNode };
 
-// ── Sidebar nav — a FLAT list. No expanding submenus (v2 redesign, G3) ───────
-//
-// Learning and Class used to expand a submenu of four and nine children. Both
-// hub pages already render every one of those destinations as a card, so the
-// submenu duplicated the page it linked to and made the sidebar the tallest
-// thing on screen. Clicking a nav item now opens its page, and nothing else.
-//
-// Chat is cut from v1. Its route still exists — this removes the way in, not
-// the screen.
-const sidebarNav: NavEntry[] = [
-  { key:"dashboard",    label:"Home",         icon:<Home className="w-4 h-4"/> },
-  { key:"practice",     label:"Practice",     icon:<BookOpen className="w-4 h-4"/> },
-  { key:"aicoach",      label:"AI Coach",     icon:<Brain className="w-4 h-4"/> },
-  { key:"battleground", label:"Battleground", icon:<Swords className="w-4 h-4"/> },
-  { key:"learninghub",  label:"Learning",     icon:<GraduationCap className="w-4 h-4"/> },
-  { key:"classhub",     label:"Class",        icon:<FlaskConical className="w-4 h-4"/> },
-];
+/** Icon + label for every key studentNavEntries may return — one catalogue. */
+const NAV_CATALOGUE: Record<PageKey, { label: string; icon: ReactNode }> = {
+  dashboard:    { label: "Home",         icon: <Home className="w-4 h-4"/> },
+  practice:     { label: "Practice",     icon: <BookOpen className="w-4 h-4"/> },
+  aicoach:      { label: "AI Coach",     icon: <Brain className="w-4 h-4"/> },
+  battleground: { label: "Battleground", icon: <Swords className="w-4 h-4"/> },
+  learninghub:  { label: "Learning",     icon: <GraduationCap className="w-4 h-4"/> },
+  classhub:     { label: "Class",        icon: <FlaskConical className="w-4 h-4"/> },
+  analysis:     { label: "Analysis",     icon: <BarChart2 className="w-4 h-4"/> },
+  recovery:     { label: "Recovery",     icon: <RefreshCw className="w-4 h-4"/> },
+  revision:     { label: "Revision",     icon: <RotateCcw className="w-4 h-4"/> },
+  mistakebook:  { label: "Mistake Book", icon: <AlertCircle className="w-4 h-4"/> },
+  achievements: { label: "Achievements", icon: <Trophy className="w-4 h-4"/> },
+  leaderboard:  { label: "Rankings",     icon: <Trophy className="w-4 h-4"/> },
+  resources:    { label: "Resources",    icon: <BookOpen className="w-4 h-4"/> },
+  doubtportal:  { label: "Doubts",       icon: <Brain className="w-4 h-4"/> },
+  assignments:  { label: "Homework",     icon: <BookOpen className="w-4 h-4"/> },
+  attendance:   { label: "Attendance",   icon: <GraduationCap className="w-4 h-4"/> },
+  profile:      { label: "Profile",      icon: <User className="w-4 h-4"/> },
+  timetable:    { label: "Timetable",    icon: <BookOpen className="w-4 h-4"/> },
+  calendar:     { label: "Calendar",     icon: <BookOpen className="w-4 h-4"/> },
+  tests:        { label: "Tests",        icon: <FlaskConical className="w-4 h-4"/> },
+};
 
-// ── Mobile bottom nav — 4 tabs ───────────────────────────────────────────────
-const bottomNav: NavItem[] = [
-  { key:"dashboard",   label:"Home",     icon:<Home className="w-5 h-5"/> },
-  { key:"practice",    label:"Practice", icon:<BookOpen className="w-5 h-5"/> },
-  { key:"learninghub", label:"Learning", icon:<GraduationCap className="w-5 h-5"/> },
-  { key:"classhub",    label:"Class",    icon:<FlaskConical className="w-5 h-5"/> },
-];
+function navEntriesFor(keys: PageKey[]): NavEntry[] {
+  return keys.map((key) => {
+    const cat = NAV_CATALOGUE[key];
+    return { key, label: cat.label, icon: cat.icon };
+  });
+}
 
-
-// The screen-name map lived here AND in nav.ts, identical, while nav.ts's
-// exported copy was imported by nobody. One home now: nav.ts's PAGE_TITLE,
-// which PageHeader reads for the same names.
+function bottomEntriesFor(keys: PageKey[]): NavItem[] {
+  return keys.map((key) => {
+    const cat = NAV_CATALOGUE[key];
+    return {
+      key,
+      label: cat.label,
+      icon: <span className="[&>svg]:w-5 [&>svg]:h-5">{cat.icon}</span>,
+    };
+  });
+}
 
 // ── Profile dropdown menu items ───────────────────────────────────────────────
 // Leaderboard and Analysis came off because each already has a home — Rankings
@@ -90,37 +107,29 @@ export default function Layout({
   const navigate = useNavigate();
   const location = useLocation();
   const { unread } = useNotifications();
-  const { ctx, ready } = useAcademicContext();
-  const messageLive = useAcademicLive("message");
-  const [unreadMsg, setUnreadMsg] = useState(0);
+  const { schoolKind } = useGurukulAcademicIdentity();
   const student = { ...EMPTY_STUDENT, ...profile };
   const showXpChrome = progressionReady;
   const reduceMotion = useReducedMotion();
 
-  useEffect(() => {
-    if (!ready || !ctx) {
-      setUnreadMsg(0);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const n = await MessageService.countUnread(ctx);
-        if (!cancelled) setUnreadMsg(n);
-      } catch {
-        if (!cancelled) setUnreadMsg(0);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, ctx, messageLive]);
+  // ONE place: nav.ts studentNavEntries — Layout only renders the keys it returns.
+  const { sidebar: sidebarKeys, bottom: bottomKeys } = studentNavEntries(schoolKind ?? null);
+  const sidebarNav = navEntriesFor(sidebarKeys);
+  const bottomNav = bottomEntriesFor(bottomKeys);
+  const visibleProfileExtras = profileExtraLinks.filter(
+    (item) => schoolKind !== "individual" || !isSchoolOnlyPath(item.path),
+  );
+
+  // Class rank is school-only; individuals show the exam name in `student.class`.
+  const scopeLine =
+    schoolKind === "individual"
+      ? (student.class || "Exam")
+      : ([student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" · ") || "Your class");
 
   const headerTitle =
     location.pathname.startsWith("/student/notifications") ? "Notifications"
     : location.pathname.startsWith("/student/notices") ? "Notices"
     : location.pathname.startsWith("/student/fees") ? "Fees"
-    : location.pathname.startsWith("/student/chat") ? "Chat"
     : PAGE_TITLE[page];
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -163,7 +172,6 @@ export default function Layout({
     // A hub stays lit while the student is on one of the pages it leads to,
     // which is what the expanded submenu used to signal.
     const active = isBottomActive(entry.key);
-    const showChatBadge = false; // Chat is not in the sidebar (v1)
     return (
       <motion.button
         onClick={() => { setPage(entry.key); setMobileOpen(false); }}
@@ -181,20 +189,8 @@ export default function Layout({
             className="absolute inset-0 rounded-xl bg-primary shadow-lg shadow-primary/15"
           />
         )}
-        <span className="relative z-10 shrink-0">
-          {entry.icon}
-          {showChatBadge && collapsed && (
-            <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[8px] font-black flex items-center justify-center">
-              {unreadMsg > 9 ? "9+" : unreadMsg}
-            </span>
-          )}
-        </span>
+        <span className="relative z-10 shrink-0">{entry.icon}</span>
         {!collapsed && <span className="relative z-10 truncate flex-1">{entry.label}</span>}
-        {showChatBadge && !collapsed && (
-          <span className="relative z-10 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-black flex items-center justify-center shrink-0">
-            {unreadMsg > 9 ? "9+" : unreadMsg}
-          </span>
-        )}
       </motion.button>
     );
   };
@@ -405,7 +401,7 @@ export default function Layout({
                         <div className="min-w-0">
                           <div className="text-sm font-bold text-foreground truncate">{student.name}</div>
                           <div className="text-[11px] text-muted-foreground">
-                            {[student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" · ") || "Your class"}
+                            {scopeLine}
                           </div>
                         </div>
                       </div>
@@ -439,7 +435,7 @@ export default function Layout({
                           {page === item.key && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"/>}
                         </button>
                       ))}
-                      {profileExtraLinks.map(item => (
+                      {visibleProfileExtras.map(item => (
                         <button
                           key={item.path}
                           onClick={() => { navigate(item.path); setProfileOpen(false); }}
@@ -495,12 +491,11 @@ export default function Layout({
           </AnimatePresence>
         </main>
 
-        {/* Mobile bottom nav — 4 tabs */}
+        {/* Mobile bottom nav — tabs from studentNavEntries */}
         <nav className="md:hidden shrink-0 fixed bottom-0 inset-x-0 border-t border-border/70 bg-card/95 backdrop-blur-xl z-40">
           <div className="flex">
             {bottomNav.map(item => {
               const active = isBottomActive(item.key);
-              const showChatBadge = item.key === "chat" && unreadMsg > 0;
               return (
                 <motion.button key={item.key} onClick={() => setPage(item.key)}
                   whileTap={reduceMotion ? undefined : { scale: 0.92 }}
@@ -520,11 +515,6 @@ export default function Layout({
                     animate={{ scale: active ? 1.1 : 1 }}
                     transition={reduceMotion ? { duration: 0 } : springSnappy}>
                     {item.icon}
-                    {showChatBadge && (
-                      <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[8px] font-black flex items-center justify-center">
-                        {unreadMsg > 9 ? "9+" : unreadMsg}
-                      </span>
-                    )}
                   </motion.span>
                   {item.label}
                 </motion.button>

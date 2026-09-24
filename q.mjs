@@ -17,8 +17,14 @@ const env = Object.fromEntries(
 
 const token = env.SUPABASE_ACCESS_TOKEN;
 const ref = "psqxykzqfvxgsvkmgurn";
-const sqlFile = process.argv[2];
-const query = fs.readFileSync(sqlFile, "utf8");
+// `node q.mjs <file.sql>` or `node q.mjs -e "<sql>"` — the second is how
+// scripts/lint-definer-doors.mjs calls it; reading "-e" as a file name made
+// that gate fail with ENOENT before it checked anything.
+const query = process.argv[2] === "-e" ? process.argv[3] : fs.readFileSync(process.argv[2], "utf8");
+if (!query) {
+  console.error('usage: node q.mjs <file.sql> | node q.mjs -e "<sql>"');
+  process.exit(2);
+}
 
 const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
   method: "POST",

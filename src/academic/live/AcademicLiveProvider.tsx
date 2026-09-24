@@ -44,11 +44,16 @@ const ACADEMIC_NOTIF_TYPES = new Set([
   "xp",
   "doubt",
   "leave",
-  "message",
 ]);
 /**
  * Mount once under AuthProvider. Subscribes to school academic tables + bus,
- * drains pending sync events, and bumps a shared version so every portal refetches.
+ * and bumps a shared version so every portal refetches.
+ *
+ * It no longer drains the academic event queue. That drain ran from every
+ * signed-in browser, for every school, and was the only thing that ran it —
+ * the pg_cron job `process-pending-academic-events` (20260925120000) does it
+ * now, whoever is signed in. A recount it applies reaches this provider through
+ * the `student_academic_profiles` subscription below.
  */
 export function AcademicLiveProvider({ children }: { children: ReactNode }) {
   const { user, schoolId, isAuthenticated, role } = useAuth();
@@ -128,6 +133,31 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "tests", filter: `school_id=eq.${schoolId}` },
         onTable(["test", "profile"]),
+      )
+      /**
+       * A submission, as it happens (20260925080000).
+       *
+       * `tests` above catches a teacher publishing one. It does NOT catch a
+       * student handing one in, which writes `test_attempts` and `test_marks`
+       * — so the class leaderboard and the teacher's "7 of 32 handed in" only
+       * moved when their own poll came round.
+       *
+       * Realtime applies RLS per subscriber, and that decides who is woken
+       * rather than this filter: a classmate who has submitted may read
+       * `test_marks` for that test (20260925060000) and is woken; one who has
+       * not may not, and is not — which is the same answer the leaderboard
+       * itself gives them. A teacher is woken for attempts on the tests they
+       * own, through `test_attempts_staff_read`.
+       */
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "test_attempts", filter: `school_id=eq.${schoolId}` },
+        onTable(["test", "profile"]),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "test_marks", filter: `school_id=eq.${schoolId}` },
+        onTable(["test", "marks", "profile"]),
       )
       .on(
         "postgres_changes",
@@ -282,26 +312,6 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
       .on(
         "postgres_changes",
         {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `receiver_id=eq.${user.id}`,
-        },
-        onTable(["message", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `sender_id=eq.${user.id}`,
-        },
-        onTable(["message"]),
-      )
-      .on(
-        "postgres_changes",
-        {
           event: "INSERT",
           schema: "public",
           table: "notifications",
@@ -314,22 +324,6 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         },
       )
       .subscribe();
-
-    // THE CLIENT NO LONGER DRAINS THE EVENT QUEUE.
-    //
-    // This used to call SyncEngine.processPendingEvents on mount, on every tab
-    // focus, and every 90 seconds. All three returned 403 — every time, for
-    // every student — because process_pending_academic_events is not granted
-    // to `authenticated`, and correctly so: it is a cron job that processes
-    // the whole SCHOOL's queue, and a student's browser has no business
-    // draining other students' events.
-    //
-    // `.catch(() => undefined)` is what kept that invisible for however long
-    // it has been there. Found by watching the network tab on a real session.
-    //
-    // Nothing is lost by removing it: the pg_cron job
-    // `process-pending-academic-events` runs the same function every minute,
-    // and the realtime handlers above are what actually refresh this screen.
 
     return () => {
       supabase.removeChannel(channel);

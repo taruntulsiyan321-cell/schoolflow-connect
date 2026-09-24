@@ -117,7 +117,6 @@ DECLARE
   test_q2     uuid := 'd5000002-0002-4000-8000-000000000002';
   test_att    uuid := 'd5000003-0001-4000-8000-000000000001';
   hw1         uuid := 'd6000001-0001-4000-8000-000000000001';
-  hw_sub1     uuid := 'd6000002-0001-4000-8000-000000000001';
   exam1       uuid := 'd8000001-0001-4000-8000-000000000001';
   exam2       uuid := 'd8000001-0002-4000-8000-000000000002';
   _qb_id      uuid;
@@ -383,27 +382,33 @@ BEGIN
   -- ===================== HOMEWORK =====================
   -- school_id is explicit: Chunk 2.5 made homework.school_id NOT NULL, which is
   -- what closes the MATCH SIMPLE null-skip on the section_subject composite FK.
-  INSERT INTO public.homework (id, school_id, class_id, subject, title, description, due_date, created_by) VALUES
+  -- closes_at is the deadline (20260925110000); due_date is generated from it.
+  -- It must be refreshed on a re-run, not just the title: a second seed once
+  -- left homework at its ORIGINAL deadline, closed. Keep it relative to now().
+  -- Homework whose deadline has passed is history — once resolved its deadline
+  -- cannot move (tg_homework_lifecycle) — so a re-run refreshes the demo
+  -- homework only while it is open, and otherwise sets it again beside the
+  -- closed one, under a new id.
+  IF EXISTS (SELECT 1 FROM public.homework WHERE id = hw1 AND closes_at <= now()) THEN
+    hw1 := coalesce(
+      (SELECT id FROM public.homework
+        WHERE school_id = _demo_school AND class_id = c10a AND created_by = u_t_math
+          AND title = 'NCERT Ch 1 — Euclid''s Division Lemma'
+          AND closes_at > now() AND deleted_at IS NULL
+        ORDER BY closes_at DESC LIMIT 1),
+      gen_random_uuid());
+  END IF;
+  INSERT INTO public.homework (id, school_id, class_id, subject, title, description, closes_at, status, created_by) VALUES
     (hw1, _demo_school, c10a, 'Mathematics', 'NCERT Ch 1 — Euclid''s Division Lemma',
-     'Solve Ex 1.1 Q 1–5 and upload working.', _today + 3, u_t_math)
-  -- due_date must be refreshed on a re-run, not just the title. It was not,
-  -- so a second seed left the homework sitting at its ORIGINAL due date while
-  -- the submissions below went in at now() -- i.e. after it had closed. That
-  -- was invisible until Chunk 5 started enforcing the lock, at which point the
-  -- whole seed failed. Keep every date relative to _today on every run.
+     'Solve Ex 1.1 Q 1–5 and upload a photo or PDF of your working.', now() + interval '3 days', 'published', u_t_math)
   ON CONFLICT (id) DO UPDATE SET
     title       = EXCLUDED.title,
     description = EXCLUDED.description,
-    due_date    = EXCLUDED.due_date,
-    closes_at   = (EXCLUDED.due_date + 1)::timestamptz;
-
-  INSERT INTO public.homework_submissions (id, homework_id, student_id, content, status, grade, teacher_remarks, submitted_at, graded_at) VALUES
-    (hw_sub1, hw1, st1, 'Completed all five questions with steps.', 'graded', 'A', 'Neat presentation', now() - interval '1 day', now())
-  ON CONFLICT (homework_id, student_id) DO UPDATE SET status = EXCLUDED.status, grade = EXCLUDED.grade;
-
-  INSERT INTO public.homework_submissions (homework_id, student_id, content, status, submitted_at) VALUES
-    (hw1, st2, 'Submitted — pending review', 'submitted', now() - interval '2 hours')
-  ON CONFLICT (homework_id, student_id) DO NOTHING;
+    closes_at   = EXCLUDED.closes_at,
+    status      = EXCLUDED.status;
+  -- No submissions are seeded. A hand-in is ONE image or PDF the student
+  -- uploads and hands in through rpc_homework_submit, and SQL cannot upload a
+  -- file: a seeded row would point at nothing. Hand one in as the demo student.
 
   -- ===================== MESSAGES (chat) =====================
   INSERT INTO public.messages (sender_id, receiver_id, content, is_read) VALUES
@@ -588,7 +593,6 @@ BEGIN
   INSERT INTO public.notifications (user_id, type, title, body, icon, link, read) VALUES
     (u_s1, 'invite', 'Battle challenge!', 'Rohan Singh challenged you to a Physics battle.', 'swords', '/student/battleground/battle/' || b_live::text, false),
     (u_s1, 'notice', 'PTM reminder', 'Class 10-A PTM this Saturday.', 'bell', '/student/notices', false),
-    (u_s2, 'homework', 'Homework graded', 'Your Mathematics submission was graded A.', 'book', '/student/homework', true),
     (u_p1, 'fee', 'Fee reminder', 'June fees pending for Arjun.', 'wallet', '/parent/fees', false),
     (u_t_math, 'leave', 'Leave pending', 'Vikram Joshi requested medical leave.', 'calendar', '/teacher/leaves', false),
     (u_principal, 'inquiry', 'New admission inquiry', 'Amit Deshmukh — Class 9 interest.', 'inbox', '/principal/cases', false)

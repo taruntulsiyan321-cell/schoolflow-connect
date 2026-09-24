@@ -51,12 +51,7 @@ export function completePracticeSession(
   void syncPracticeSessionToServer(sessionId, state);
 }
 
-async function afterPracticeFinishFallback(sessionId: string, state: PracticeSessionResultState) {
-  const correct = state.attempts.filter((a) => a.isCorrect).length;
-  const skipped = state.attempts.filter((a) => a.skipped || a.timedOut).length;
-  const wrong = state.attempts.filter((a) => !a.isCorrect && !a.skipped && !a.timedOut).length;
-  const totalTimeMs = state.attempts.reduce((sum, a) => sum + (a.timeTakenMs ?? 0), 0);
-
+async function afterPracticeFinishFallback(sessionId: string) {
   let schoolId: string | null = null;
   let studentId: string | null = null;
   try {
@@ -83,17 +78,8 @@ async function afterPracticeFinishFallback(sessionId: string, state: PracticeSes
     _student_id: studentId,
     _class_id: null,
     _teacher_id: null,
-    _payload: {
-      session_id: sessionId,
-      correct,
-      skipped,
-      wrong,
-      total_time_ms: totalTimeMs,
-      accuracy: state.attempts.length
-        ? Math.round((correct / state.attempts.length) * 100)
-        : 0,
-      via: "practiceSessionPersistence.fallback",
-    },
+    // Nothing about how the session went: §10.8, and see PracticeService.finish.
+    _payload: {},
   } as never) as unknown as Promise<unknown>).catch(() => undefined);
 
   try {
@@ -129,7 +115,7 @@ async function syncPracticeSessionToServer(sessionId: string, state: PracticeSes
       console.error("practice finish failed", finErr.message ?? finErr);
     } else {
       // RPC awarded progression; still emit + broadcast so panels refresh.
-      await afterPracticeFinishFallback(sessionId, state);
+      await afterPracticeFinishFallback(sessionId);
     }
   }
 

@@ -12,14 +12,17 @@ import {
   Plus,
   Paperclip,
 } from "lucide-react";
-import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import {
   ACADEMIC_FILE_ACCEPT,
   academicFileUrl,
   attachmentFromLink,
+  attachmentOfFile,
   fileKindFromName,
   formatFileSize,
+  toAcademicFile,
   uploadAcademicFile,
+  type AcademicAttachment,
+  type AcademicFile,
 } from "@/academic/storage/academicFileUpload";
 import { cn } from "@/gurukul-teacher/shared";
 import { toErrorMessage } from "@/lib/presentation";
@@ -50,7 +53,7 @@ export function AttachmentList({
   emptyLabel = "No attachments",
   dense,
 }: {
-  items: HomeworkAttachmentMeta[];
+  items: AcademicAttachment[];
   onRemove?: (index: number) => void;
   emptyLabel?: string;
   dense?: boolean;
@@ -149,8 +152,8 @@ export function AttachmentComposer({
   onChange,
   disabled,
 }: {
-  items: HomeworkAttachmentMeta[];
-  onChange: (next: HomeworkAttachmentMeta[]) => void;
+  items: AcademicAttachment[];
+  onChange: (next: AcademicAttachment[]) => void;
   disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -255,6 +258,85 @@ export function AttachmentComposer({
         onRemove={disabled ? undefined : (i) => onChange(items.filter((_, idx) => idx !== i))}
         emptyLabel="No files or links attached yet"
       />
+    </div>
+  );
+}
+
+/**
+ * ONE file, never several — the homework question, or a student's hand-in.
+ *
+ * Choosing again replaces the file. `kinds` only steers the picker and gives
+ * an early word on an obviously wrong file; what a file may be is decided by
+ * the database (`homework_question_file_ok`, `homework_hand_in_ok`).
+ */
+export function OneFileField({
+  value,
+  onChange,
+  accept,
+  kinds,
+  kindsLabel,
+  disabled,
+}: {
+  value: AcademicFile | null;
+  onChange: (next: AcademicFile | null) => void;
+  accept: string;
+  kinds: readonly ReturnType<typeof fileKindFromName>[];
+  kindsLabel: string;
+  disabled?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pick = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file || disabled) return;
+    setError(null);
+    if (!kinds.includes(fileKindFromName(file.name, file.type))) {
+      setError(`Choose ${kindsLabel}.`);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+    setUploading(true);
+    try {
+      onChange(toAcademicFile(await uploadAcademicFile(file)));
+    } catch (e) {
+      setError(toErrorMessage(e, "Upload failed"));
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={disabled || uploading}
+          onClick={() => inputRef.current?.click()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary/15 text-primary disabled:opacity-50"
+        >
+          {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Paperclip className="w-3 h-3" />}
+          {uploading ? "Uploading…" : value ? "Replace file" : "Choose file"}
+        </button>
+        <span className="text-[9px] text-muted-foreground">One file · {kindsLabel} · up to 20 MB</span>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => void pick(e.target.files)}
+        />
+      </div>
+      {error && <div className="text-[10px] text-destructive">{error}</div>}
+      {value && (
+        <AttachmentList
+          items={[attachmentOfFile(value)]}
+          onRemove={disabled ? undefined : () => onChange(null)}
+          dense
+        />
+      )}
     </div>
   );
 }

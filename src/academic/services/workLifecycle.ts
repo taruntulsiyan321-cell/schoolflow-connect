@@ -70,6 +70,28 @@ export const EXAM_TYPE_LABELS: Record<string, string> = {
   final: "Annual",
 };
 
+/**
+ * Whether the caller may CHANGE work in this subject of a class they teach
+ * (docs/locked-decisions.md: a teacher sees every subject of a section they
+ * teach, and edits only their own). School operators may; a teacher may for a
+ * subject `teacher_teaches_class_subject` assigns them, or for work filed under
+ * no subject ("general"). Class ownership is the caller's to assert first.
+ *
+ * The one home of this rule on the client: the assert below enforces it, and
+ * screens ask it to decide which controls to offer.
+ */
+export async function teacherMayManageSubject(
+  ctx: ServiceContext,
+  classId: string,
+  subject: string | null | undefined,
+): Promise<boolean> {
+  if (isSchoolOperator(ctx.role)) return true;
+  if (ctx.role !== "teacher") return false;
+  const subj = subject?.trim();
+  if (!subj || subj.toLowerCase() === "general") return true;
+  return teacherAssignedToClassSubject(toRepoContext(ctx), { teacherUserId: ctx.userId, classId, subject: subj });
+}
+
 /** Teacher may manage academic work for an assigned class (and optional subject). */
 export async function assertTeacherMayManageAcademicWork(
   ctx: ServiceContext,
@@ -81,24 +103,9 @@ export async function assertTeacherMayManageAcademicWork(
     throw new ForbiddenError("Only teachers may manage academic work for a class");
   }
   await assertTeacherOwnsClass(toRepoContext(ctx), ctx.userId, classId);
-  const subj = subject?.trim();
-  if (subj && subj.toLowerCase() !== "general") {
-    const ok = await teacherAssignedToClassSubject(toRepoContext(ctx), {
-      teacherUserId: ctx.userId,
-      classId,
-      subject: subj,
-    });
-    if (!ok) {
-      throw new ForbiddenError(
-        "Teachers may only manage work for subjects assigned to their class",
-      );
-    }
+  if (!(await teacherMayManageSubject(ctx, classId, subject))) {
+    throw new ForbiddenError("Teachers may only manage work for subjects assigned to their class");
   }
-}
-
-export function isPastDue(dueDate: string | null | undefined, dueTime?: string | null): boolean {
-  if (!dueDate) return false;
-  return new Date().getTime() > new Date(`${dueDate}T${dueTime ?? "23:59:59"}`).getTime();
 }
 
 export function normalizeWorkKind(v: string | null | undefined): WorkKind {

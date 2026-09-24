@@ -1,21 +1,17 @@
-// Strict email validation with common-typo detection.
-// Catches things like `gmail.coom`, `gmial.com`, `yahoo.con`, etc.
+// Email validation for signing in: is this shaped like an email address, and is it
+// an obvious typo of a popular provider (`gmail.con`, `gmial.com`, `yahoo.coom`)?
+//
+// It does NOT decide whether an address may exist. Every caller (password sign-in,
+// password reset, email OTP — src/pages/Auth.tsx) is about an account that already
+// exists, and Supabase Auth is what knows that. This file used to hold a curated list
+// of "widely-used" domain extensions and refused anything else, which refused real
+// accounts before Supabase was asked: every Riverside Public School login
+// (`…@rps.e2e.test`, the E2E organisation) could not sign in through the form, and neither
+// could a school on any extension the list forgot. The typo check is kept — it
+// catches the mistakes the list was written for, without locking anyone out.
 
 const STRICT_EMAIL_RE =
   /^(?!.*\.\.)[A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$/;
-
-// Curated list of widely-used TLDs. If a domain ends in something not on this
-// list (e.g. `.coom`, `.cmo`, `.con`), we reject it.
-const ALLOWED_TLDS = new Set([
-  "com", "org", "net", "edu", "gov", "mil", "int",
-  "co", "io", "ai", "app", "dev", "tech", "info", "biz", "me", "us",
-  "in", "uk", "ca", "au", "nz", "de", "fr", "es", "it", "nl", "se", "no", "fi", "dk",
-  "ch", "be", "at", "pl", "pt", "ie", "gr", "cz", "ro", "ru", "ua",
-  "jp", "cn", "kr", "hk", "tw", "sg", "my", "th", "id", "ph", "vn", "pk", "bd", "lk", "np", "ae", "sa",
-  "br", "mx", "ar", "cl", "co", "pe", "za", "ng", "eg", "ke",
-  "edu.in", "ac.in", "co.in", "gov.in", "co.uk", "ac.uk", "gov.uk",
-  "school", "academy", "agency", "studio", "online", "site", "store", "shop", "blog", "news", "live", "xyz",
-]);
 
 // Common typos for popular providers — all should map to the canonical domain.
 const PROVIDER_TYPOS: Record<string, string> = {
@@ -54,24 +50,9 @@ export function validateEmail(input: string): EmailValidation {
   }
 
   const domain = email.split("@")[1];
-  if (!domain) return { ok: false, email: "", message: "Please enter a valid email address" };
-
-  // Catch common typos for popular providers with a friendly suggestion
   if (PROVIDER_TYPOS[domain]) {
     const suggestion = email.replace(`@${domain}`, `@${PROVIDER_TYPOS[domain]}`);
     return { ok: false, email: "", message: `Did you mean ${suggestion}?` };
-  }
-
-  // Verify the TLD is real (or a recognized two-level TLD like co.in / ac.uk)
-  const parts = domain.split(".");
-  const lastTwo = parts.slice(-2).join(".");
-  const last = parts[parts.length - 1];
-  if (!ALLOWED_TLDS.has(lastTwo) && !ALLOWED_TLDS.has(last)) {
-    return {
-      ok: false,
-      message: `"${"." + last}" is not a recognized domain extension. Check for typos.`,
-      email: "",
-    };
   }
 
   return { ok: true, email, message: "" };

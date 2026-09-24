@@ -100,10 +100,11 @@ if (!BASE || !KEY) {
 // was measured.
 let sources = await queryRows(`
   SELECT DISTINCT ON (qb.id)
-         qb.id, qb.question, qb.difficulty, qb.subject, qb.chapter, qb.topic,
+         qb.id, qb.question, qb.difficulty, qb.subject, qb.chapter, t.name AS topic,
          count(sm.id) OVER (PARTITION BY qb.id) AS times_missed
     FROM public.student_mistakes sm
     JOIN public.question_bank qb ON qb.id = sm.question_id
+    LEFT JOIN public.topics t ON t.id = qb.topic_id
    WHERE sm.question_id IS NOT NULL
      AND qb.is_active
      AND qb.options IS NOT NULL
@@ -115,8 +116,9 @@ let sourceOrigin = "real student mistakes";
 if (sources.length === 0) {
   sourceOrigin = "BANK FALLBACK — no student mistake points at a bank question";
   sources = await queryRows(`
-    SELECT qb.id, qb.question, qb.difficulty, qb.subject, qb.chapter, qb.topic, 0 AS times_missed
+    SELECT qb.id, qb.question, qb.difficulty, qb.subject, qb.chapter, t.name AS topic, 0 AS times_missed
       FROM public.question_bank qb
+      LEFT JOIN public.topics t ON t.id = qb.topic_id
      WHERE qb.is_active AND qb.options IS NOT NULL AND qb.correct_index IS NOT NULL
        AND qb.chapter_id IS NOT NULL AND qb.source_question_id IS NULL
      ORDER BY qb.created_at

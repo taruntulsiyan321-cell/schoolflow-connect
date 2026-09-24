@@ -1,67 +1,38 @@
--- ════════════════════════════════════════════════════════════════════════════
--- STILL ROTTED (2026-09-15) — PARTIALLY REPAIRED, AND HONEST ABOUT THE REST
--- ════════════════════════════════════════════════════════════════════════════
---
--- This file does not run. It is left in the repository, partially repaired,
--- because five of the six things stopping it were real drift with real fixes,
--- and the sixth is a redesign that needs a decision rather than a patch.
---
--- FIXED HERE (each a separate rot, each checked against the live schema):
---   1. homework.due_date is GENERATED ALWAYS AS school_local_date(closes_at),
---      so the fixtures set closes_at and let due_date follow. Midday, so a
---      timezone offset cannot round the generated date onto the neighbouring
---      day — which is exactly what items 1 and 2 turn on.
---   2. homework_question_is_text_or_file requires a published row to carry a
---      description or a question_file. The fixtures carried neither.
---   3. homework_completions was renamed homework_completion (singular).
---   4. rpc_close_homework(uuid, boolean) no longer exists. Homework closes
---      when closes_at passes, swept by resolve_closed_homework().
---   5. That sweep is REVOKEd from every client role because it is a cron job,
---      so it runs as the owner here. Impersonating a signed-in user to call it
---      would have been asserting that a student can close homework.
---
--- WHAT IS LEFT, AND WHY IT IS NOT A PATCH
---
--- homework_completion is no longer per-student rows carrying a status. It is a
--- per-homework ROLLUP:
---
---     homework_id, school_id, class_id, students, given, awaiting_review,
---     accepted, rejected, not_given, completion_pct
---
--- Items 1-3 assert against the old shape — "the future homework has zero
--- completion rows", "absent vs not_completed for three named students" — and
--- those sentences no longer describe anything. The per-student facts appear to
--- live in homework_student_status now.
---
--- Rewriting the assertions means deciding what each item MEANS under the new
--- model. Guessing would produce a file that passes while asserting the wrong
--- thing, which is worse than one that reports itself rotted. So it reports
--- itself rotted, and this note says precisely where to start.
---
--- NEXT FAILURE ON RUNNING IT: `column hc.status does not exist`, at the
--- completion-rate query in item 1+2.
--- ════════════════════════════════════════════════════════════════════════════
-
 -- =====================================================================
--- CHUNK 5 — verification, all eight items.
+-- CHUNK 5 — verification, as the homework ruling of 2026-09-13 left it.
 --
--- SAFETY: seeds a section, students, homework and questions, proves against
--- them, then RAISEs deliberately so every fixture rolls back.
+-- Chunk 5 verified eight items. The product owner's homework specification
+-- (docs/gurukul-spec-rules.md, "Homework — RULED 2026-09-13"; migrations
+-- 20260925100000–20260925140000) removed four of them, and this file says so
+-- rather than letting them disappear:
+--   3.     ABSENT vs NOT_COMPLETED — removed. `homework_completions` and its
+--          absent status are gone: every student resolves to submitted or not.
+--   4b.    "the 9 historical late rows are preserved" (D1) — removed with
+--          `is_late`. Nothing can be late; the rows live in
+--          `homework_submissions_pre_20260925110000` until that is dropped.
+--   5–7.   AUTO-GRADING, NO KEY, OVERRIDE — removed. There is no digital
+--          submission to grade: a hand-in is one image or PDF.
+-- What still holds, and is proved below:
+--   1+2.   homework whose deadline has not passed is not counted as missed;
+--          homework whose deadline has passed resolves every student, once.
+--   4.     nothing is handed in at or after the deadline.       (+ positive control)
+--   8.     soft delete: hidden from the teacher, restorable by the admin, and
+--          purged for good after 7 days by rpc_purge_expired.
+--
+-- SAFETY: seeds a section, students and homework, proves against them, then
+-- RAISEs deliberately so every fixture rolls back.
 -- =====================================================================
 
 DO $v$
 DECLARE
-  _out text := E'\n===== CHUNK 5 VERIFICATION =====\n';
+  _out text := E'\n===== CHUNK 5 VERIFICATION (homework ruling, 2026-09-13) =====\n';
   _ok boolean := true;
   _school uuid; _grp uuid; _section uuid;
   _admin uuid; _teacher_acct uuid; _teacher uuid;
   _s1 uuid; _s2 uuid; _s3 uuid;
-  _hw_future uuid; _hw_past uuid; _hw_digital uuid; _hw_del uuid;
-  _q_key uuid; _q_nokey uuid;
-  _sub uuid; _asub uuid;
-  _ans uuid;
-  _n int; _txt text; _b boolean; _due date;
-  _rate numeric;
+  _hw_future uuid; _hw_past uuid; _hw_open uuid; _hw_closed uuid; _hw_del uuid;
+  _stu uuid; _stu_user uuid; _stu_class uuid; _stu_school uuid; _file text;
+  _n int; _txt text;
 BEGIN
   SELECT id INTO _school FROM public.schools ORDER BY created_at LIMIT 1;
   SELECT id INTO _admin        FROM public.profiles WHERE email = 'admin@wisdomcampus.com';
@@ -83,192 +54,93 @@ BEGIN
   INSERT INTO public.students (school_id, full_name, admission_number, class_id, enrolment_date)
   VALUES (_school,'ZZ C5 Three','ZZC5-3',_section, current_date - 60) RETURNING id INTO _s3;
 
-  -- FINDING: question_bank.correct_index is NOT NULL and 0 of 21,696 rows lack
-  -- a key, so "if a stored correct answer exists" can never be false for a bank
-  -- question. The branch that actually occurs is a FREE-RESPONSE answer: the
-  -- key exists but cannot be applied to prose, so it stays ungraded until the
-  -- teacher acts. That is what item 6 exercises.
-  SELECT id INTO _q_key   FROM public.question_bank WHERE correct_index IS NOT NULL LIMIT 1;
-  SELECT id INTO _q_nokey FROM public.question_bank WHERE correct_index IS NOT NULL OFFSET 1 LIMIT 1;
+  -- Everything below is written as the server: nobody signed in.
+  PERFORM set_config('request.jwt.claims', '', true);
 
   -- =================================================================
-  -- 1 + 2. NOT YET DUE IS EXCLUDED; DUE YESTERDAY IS INCLUDED
+  -- 1 + 2. NOT YET DUE IS NOT MISSED; PAST THE DEADLINE RESOLVES EVERYONE ONCE
   -- =================================================================
-  _out := _out || format('%s1+2. NOT-YET-DUE vs PAST-DUE%s', E'\n', E'\n');
+  _out := _out || format('%s1+2. NOT-YET-DUE vs PAST THE DEADLINE%s', E'\n', E'\n');
 
-  INSERT INTO public.homework (school_id, class_id, title, subject, closes_at, created_by, status, description)
-  VALUES (_school, _section, 'ZZ due tomorrow', 'Mathematics', (current_date + 1)::timestamptz + interval '12 hours', _teacher_acct, 'published', 'CHUNK5 fixture — rolled back')
+  INSERT INTO public.homework (school_id, class_id, title, subject, description, closes_at, status)
+  VALUES (_school, _section, 'ZZ due tomorrow', 'Mathematics', 'q', now() + interval '1 day', 'published')
   RETURNING id INTO _hw_future;
-
-  INSERT INTO public.homework (school_id, class_id, title, subject, closes_at, created_by, status, description)
-  VALUES (_school, _section, 'ZZ due yesterday', 'Mathematics', (current_date - 1)::timestamptz + interval '12 hours', _teacher_acct, 'published', 'CHUNK5 fixture — rolled back')
+  INSERT INTO public.homework (school_id, class_id, title, subject, description, closes_at, status)
+  VALUES (_school, _section, 'ZZ due yesterday', 'Mathematics', 'q', now() - interval '1 day', 'published')
   RETURNING id INTO _hw_past;
 
-  -- Nobody has closed the future one, so it has no completions rows at all.
-  SELECT count(*) INTO _n FROM public.homework_completion WHERE homework_id = _hw_future;
-  _out := _out || format('  future homework completion rows .... %s   (expected 0 = not_yet_due)%s', _n, E'\n');
+  PERFORM public.resolve_closed_homework();
+
+  SELECT count(*) INTO _n FROM public.homework_submissions WHERE homework_id = _hw_future;
+  _out := _out || format('  future homework resolved rows ...... %s   (expected 0 — still open)%s', _n, E'\n');
+  IF _n <> 0 THEN _ok := false; END IF;
+  SELECT count(*) INTO _n FROM public.homework_student_status WHERE homework_id = _hw_future AND closed;
+  _out := _out || format('  future homework counted as closed .. %s   (expected 0)%s', _n, E'\n');
   IF _n <> 0 THEN _ok := false; END IF;
 
-  -- Close the past one: that generates the report.
-  --
-  -- rpc_close_homework(uuid, boolean) is gone. Homework now closes when
-  -- closes_at passes, swept by resolve_closed_homework() on a cron. The
-  -- fixture already sets closes_at in the past, so the sweep is what resolves
-  -- it — closer to what actually happens to a student's homework than a
-  -- teacher pressing a button ever was.
-  --
-  -- Run as the OWNER, deliberately, and not under SET ROLE authenticated: the
-  -- sweep is REVOKEd from every client role because it is a cron job, and
-  -- calling it as a signed-in user is supposed to be refused. Impersonating
-  -- one here would be asserting that a student can close homework.
-  PERFORM public.resolve_closed_homework();
-
-  SELECT count(*) INTO _n FROM public.homework_completion WHERE homework_id = _hw_past;
-  _out := _out || format('  past homework completion rows ...... %s   (expected 3 = whole section)%s', _n, E'\n');
+  SELECT count(*) INTO _n FROM public.homework_submissions WHERE homework_id = _hw_past AND status = 'not_submitted';
+  _out := _out || format('  past homework resolved rows ........ %s   (expected 3 = whole section)%s', _n, E'\n');
   IF _n <> 3 THEN _ok := false; END IF;
-
-  -- The rate counts only homework whose due date has passed.
-  SELECT round(100.0 * count(*) FILTER (WHERE hc.status = 'completed') / NULLIF(count(*),0), 1)
-    INTO _rate
-    FROM public.homework_completion hc
-    JOIN public.homework h ON h.id = hc.homework_id
-   WHERE h.school_id = _school AND h.due_date < current_date
-     AND h.due_date >= current_date - 7
-     AND h.id IN (_hw_future, _hw_past);
-  _out := _out || format('  7-day completion rate .............. %s%%   (future homework contributes nothing)%s',
-                         COALESCE(_rate::text,'—'), E'\n');
-  IF EXISTS (SELECT 1 FROM public.homework_completion WHERE homework_id = _hw_future) THEN
-    _out := _out || format('  FAIL: future homework produced completions%s', E'\n'); _ok := false;
-  END IF;
-
-  -- =================================================================
-  -- 3. ABSENT IS COUNTED SEPARATELY FROM NOT-COMPLETED
-  -- =================================================================
-  _out := _out || format('%s3. ABSENT vs NOT_COMPLETED%s', E'\n', E'\n');
-
-  _due := current_date - 2;
-  INSERT INTO public.homework (school_id, class_id, title, subject, closes_at, created_by, status, description)
-  VALUES (_school, _section, 'ZZ absence case', 'Mathematics', (_due)::timestamptz + interval '12 hours', _teacher_acct, 'published', 'CHUNK5 fixture — rolled back')
-  RETURNING id INTO _hw_digital;
-
-  -- s1 submits; s2 was absent that day; s3 simply did not do it.
-  INSERT INTO public.homework_submissions (school_id, homework_id, student_id, submitted_at, status)
-  VALUES (_school, _hw_digital, _s1, (_due)::timestamptz, 'submitted');
-
-  INSERT INTO public.attendance_submissions (school_id, section_id, date, submitted_by)
-  VALUES (_school, _section, _due, _teacher_acct) RETURNING id INTO _asub;
-  INSERT INTO public.attendance (student_id, status, school_id, marked_by, submission_id)
-  VALUES (_s1,'present',_school,_teacher_acct,_asub),
-         (_s2,'absent', _school,_teacher_acct,_asub),
-         (_s3,'present',_school,_teacher_acct,_asub);
-
-  PERFORM set_config('request.jwt.claims',
-    json_build_object('sub', _admin, 'role','authenticated','session_id', gen_random_uuid())::text, true);
-  SET LOCAL ROLE authenticated;
   PERFORM public.resolve_closed_homework();
-  RESET ROLE;
-  PERFORM set_config('request.jwt.claims', NULL, true);
-
-  SELECT string_agg(hc.status::text || '=' || cnt, ', ' ORDER BY hc.status::text) INTO _txt
-    FROM (SELECT status, count(*) cnt FROM public.homework_completion
-           WHERE homework_id = _hw_digital GROUP BY status) hc;
-  _out := _out || format('  statuses ........................... %s%s', _txt, E'\n');
-  _out := _out || format('  (expected absent=1, completed=1, not_completed=1 — three distinct facts)%s', E'\n');
-
-  SELECT count(*) INTO _n FROM public.homework_completion
-   WHERE homework_id = _hw_digital AND status = 'absent' AND student_id = _s2;
-  IF _n <> 1 THEN _ok := false; END IF;
-  SELECT count(*) INTO _n FROM public.homework_completion
-   WHERE homework_id = _hw_digital AND status = 'not_completed' AND student_id = _s3;
-  IF _n <> 1 THEN _ok := false; END IF;
+  SELECT count(*) INTO _n FROM public.homework_submissions WHERE homework_id = _hw_past;
+  _out := _out || format('  after a second closure run ......... %s   (expected 3 — once only)%s', _n, E'\n');
+  IF _n <> 3 THEN _ok := false; END IF;
+  SELECT string_agg(DISTINCT closed::text || '/' || given::text, ',') INTO _txt
+    FROM public.homework_student_status WHERE homework_id = _hw_past;
+  _out := _out || format('  past homework closed/given ......... %s   (expected true/false)%s', _txt, E'\n');
+  IF _txt IS DISTINCT FROM 'true/false' THEN _ok := false; END IF;
 
   -- =================================================================
-  -- 4. SUBMISSION AFTER THE DUE DATE IS REJECTED
+  -- 4. NOTHING IS HANDED IN AT OR AFTER THE DEADLINE
   -- =================================================================
-  _out := _out || format('%s4. LATE SUBMISSION%s', E'\n', E'\n');
+  _out := _out || format('%s4. AFTER THE DEADLINE%s', E'\n', E'\n');
 
-  BEGIN
-    INSERT INTO public.homework_submissions (school_id, homework_id, student_id, submitted_at, status)
-    VALUES (_school, _hw_past, _s2, now(), 'submitted');
-    _out := _out || format('  submitting after due_date .......... ACCEPTED   (expected rejected)%s', E'\n');
-    _ok := false;
-  EXCEPTION WHEN others THEN
-    _out := _out || format('  submitting after due_date .......... rejected%s', E'\n');
-  END;
+  -- A signed-in student with exactly one student row, so the RPC resolves them.
+  SELECT s.id, s.user_id, s.class_id, s.school_id INTO _stu, _stu_user, _stu_class, _stu_school
+    FROM public.students s
+   WHERE s.user_id IS NOT NULL AND s.deleted_at IS NULL AND s.class_id IS NOT NULL
+     AND (SELECT count(*) FROM public.students x WHERE x.user_id = s.user_id AND x.deleted_at IS NULL) = 1
+   ORDER BY s.id LIMIT 1;
+  IF _stu IS NULL THEN
+    _out := _out || format('  FAIL: no signed-in student to hand in as%s', E'\n'); _ok := false;
+  ELSE
+    INSERT INTO public.homework (school_id, class_id, title, subject, description, closes_at, status)
+    VALUES (_stu_school, _stu_class, 'ZZ closed', 'Mathematics', 'q', now() - interval '1 minute', 'published')
+    RETURNING id INTO _hw_closed;
+    INSERT INTO public.homework (school_id, class_id, title, subject, description, closes_at, status)
+    VALUES (_stu_school, _stu_class, 'ZZ open', 'Mathematics', 'q', now() + interval '1 day', 'published')
+    RETURNING id INTO _hw_open;
+    _file := _stu_user::text || '/zz-c5-hand-in.pdf';
+    INSERT INTO storage.objects (bucket_id, name) VALUES ('academic-files', _file);
 
-  SELECT count(*) INTO _n FROM public.homework_submissions WHERE is_late;
-  _out := _out || format('  historical late rows preserved ..... %s   (D1: kept, not rewritten)%s', _n, E'\n');
-  IF _n <> 9 THEN _ok := false; END IF;
-
-  -- =================================================================
-  -- 5 + 6 + 7. AUTO-GRADING, NO KEY, AND OVERRIDE
-  -- =================================================================
-  _out := _out || format('%s5+6+7. GRADING%s', E'\n', E'\n');
-
-  INSERT INTO public.homework_questions (school_id, homework_id, question_id, sequence)
-  VALUES (_school, _hw_digital, _q_key, 1), (_school, _hw_digital, _q_nokey, 2);
-
-  -- 5. With a key: graded on submission, no teacher involved.
-  INSERT INTO public.homework_answers (school_id, homework_id, student_id, question_id, answer)
-  VALUES (_school, _hw_digital, _s1, _q_key,
-          (SELECT correct_index::text FROM public.question_bank WHERE id = _q_key))
-  RETURNING id INTO _ans;
-
-  SELECT is_correct INTO _b FROM public.homework_answers WHERE id = _ans;
-  _out := _out || format('  correct answer, with key ........... is_correct=%s   (expected t, auto)%s',
-                         COALESCE(_b::text,'NULL'), E'\n');
-  IF _b IS DISTINCT FROM true THEN _ok := false; END IF;
-
-  INSERT INTO public.homework_answers (school_id, homework_id, student_id, question_id, answer)
-  VALUES (_school, _hw_digital, _s2, _q_key, '999');
-  SELECT is_correct INTO _b FROM public.homework_answers
-   WHERE homework_id = _hw_digital AND student_id = _s2 AND question_id = _q_key;
-  _out := _out || format('  wrong answer, with key ............. is_correct=%s   (expected f)%s',
-                         COALESCE(_b::text,'NULL'), E'\n');
-  IF _b IS DISTINCT FROM false THEN _ok := false; END IF;
-
-  -- 6. Nothing gradeable: stays unmarked. NULL, never false.
-  INSERT INTO public.homework_answers (school_id, homework_id, student_id, question_id, answer)
-  VALUES (_school, _hw_digital, _s1, _q_nokey, 'a written response')
-  RETURNING id INTO _ans;
-  SELECT is_correct INTO _b FROM public.homework_answers WHERE id = _ans;
-  _out := _out || format('  free-response answer ............... is_correct=%s   (expected NULL, not false)%s',
-                         COALESCE(_b::text,'NULL'), E'\n');
-  IF _b IS NOT NULL THEN _ok := false; END IF;
-
-  -- And an unanswered question is equally not-wrong.
-  INSERT INTO public.homework_answers (school_id, homework_id, student_id, question_id, answer)
-  VALUES (_school, _hw_digital, _s3, _q_key, NULL);
-  SELECT is_correct INTO _b FROM public.homework_answers
-   WHERE homework_id = _hw_digital AND student_id = _s3 AND question_id = _q_key;
-  _out := _out || format('  unanswered ......................... is_correct=%s   (expected NULL — G4)%s',
-                         COALESCE(_b::text,'NULL'), E'\n');
-  IF _b IS NOT NULL THEN _ok := false; END IF;
-
-  -- 7. Teacher overrides the auto-grade; the override is recorded.
-  UPDATE public.homework_answers
-     SET is_correct = true, graded_by = _teacher_acct
-   WHERE homework_id = _hw_digital AND student_id = _s2 AND question_id = _q_key;
-
-  SELECT is_correct, graded_by INTO _b, _ans
-    FROM public.homework_answers
-   WHERE homework_id = _hw_digital AND student_id = _s2 AND question_id = _q_key;
-  _out := _out || format('  after teacher override ............. is_correct=%s graded_by=%s%s',
-                         COALESCE(_b::text,'NULL'),
-                         CASE WHEN _ans = _teacher_acct THEN 'the teacher' ELSE COALESCE(_ans::text,'NULL') END,
-                         E'\n');
-  IF _b IS DISTINCT FROM true OR _ans IS DISTINCT FROM _teacher_acct THEN _ok := false; END IF;
-  _out := _out || format('  (the override survives the autograde trigger rather than being overwritten)%s', E'\n');
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', _stu_user, 'role', 'authenticated')::text, true);
+    SET LOCAL ROLE authenticated;
+    BEGIN
+      PERFORM public.rpc_homework_submit(_hw_closed, json_build_object('path', _file, 'name', 'w.pdf', 'mime', 'application/pdf')::jsonb);
+      _out := _out || format('  handing in after the deadline ...... ACCEPTED   (expected refused)%s', E'\n');
+      _ok := false;
+    EXCEPTION WHEN object_not_in_prerequisite_state THEN
+      _out := _out || format('  handing in after the deadline ...... refused%s', E'\n');
+    END;
+    BEGIN
+      PERFORM public.rpc_homework_submit(_hw_open, json_build_object('path', _file, 'name', 'w.pdf', 'mime', 'application/pdf')::jsonb);
+      _out := _out || format('  handing in before the deadline ..... accepted   (positive control)%s', E'\n');
+    EXCEPTION WHEN OTHERS THEN
+      _out := _out || format('  handing in before the deadline ..... FAILED: %s%s', SQLERRM, E'\n');
+      _ok := false;
+    END;
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claims', '', true);
+  END IF;
 
   -- =================================================================
   -- 8. SOFT DELETE: RESTORABLE FOR 7 DAYS, GONE AFTER
   -- =================================================================
   _out := _out || format('%s8. SOFT DELETE%s', E'\n', E'\n');
 
-  INSERT INTO public.homework (school_id, class_id, title, subject, closes_at, created_by, status, description)
-  VALUES (_school, _section, 'ZZ to delete', 'Mathematics', (current_date - 1)::timestamptz + interval '12 hours', _teacher_acct, 'published', 'CHUNK5 fixture — rolled back')
+  INSERT INTO public.homework (school_id, class_id, title, subject, description, closes_at, status)
+  VALUES (_school, _section, 'ZZ to delete', 'Mathematics', 'q', now() - interval '1 day', 'published')
   RETURNING id INTO _hw_del;
-
   UPDATE public.homework SET deleted_at = now(), deleted_by = _admin WHERE id = _hw_del;
 
   -- The teacher must not see it; the admin must, in order to restore it.
@@ -285,14 +157,16 @@ BEGIN
   SET LOCAL ROLE authenticated;
   SELECT count(*) INTO _n FROM public.homework WHERE id = _hw_del;
   RESET ROLE;
-  PERFORM set_config('request.jwt.claims', NULL, true);
+  PERFORM set_config('request.jwt.claims', '', true);
   _out := _out || format('  visible to the admin (restorable) .. %s   (expected 1)%s', _n, E'\n');
   IF _n <> 1 THEN _ok := false; END IF;
 
+  -- Deleted homework is in nobody's standing.
+  SELECT count(*) INTO _n FROM public.homework_student_status WHERE homework_id = _hw_del;
+  _out := _out || format('  standing rows for deleted homework . %s   (expected 0)%s', _n, E'\n');
+  IF _n <> 0 THEN _ok := false; END IF;
+
   -- Within 7 days the purge leaves it alone.
-  -- `rpc_purge_deleted_homework()` was dropped by 20260904130000 (the Chunk 9
-  -- trash registry) and replaced by the one `rpc_purge_expired()`, which
-  -- sweeps every registered feature rather than homework alone.
   PERFORM public.rpc_purge_expired();
   SELECT count(*) INTO _n FROM public.homework WHERE id = _hw_del;
   _out := _out || format('  after purge, still within 7 days ... %s   (expected 1)%s', _n, E'\n');
@@ -306,7 +180,7 @@ BEGIN
   IF _n <> 0 THEN _ok := false; END IF;
 
   _out := _out || format('%s===== RESULT: %s =====%s', E'\n',
-                         CASE WHEN _ok THEN 'ALL EIGHT VERIFIED' ELSE 'AT LEAST ONE CHECK FAILED' END, E'\n');
+                         CASE WHEN _ok THEN 'ALL REMAINING ITEMS VERIFIED' ELSE 'AT LEAST ONE CHECK FAILED' END, E'\n');
   _out := _out || 'Fixtures rolled back by the deliberate abort below.';
   RAISE EXCEPTION '%', _out;
 END;

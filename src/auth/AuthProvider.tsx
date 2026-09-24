@@ -101,7 +101,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       setSession(sess);
-      setUser(sess?.user ?? null);
+      // A refreshed token is the same person: keep the same user object, so
+      // nothing keyed on it re-reads every hour.
+      setUser((prev) =>
+        event === "TOKEN_REFRESHED" && prev && sess?.user?.id === prev.id ? prev : sess?.user ?? null,
+      );
 
       // Recovery sessions land on /reset-password — still restore user
       if (event === "SIGNED_OUT") {
@@ -118,6 +122,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (sess?.user) {
+        // THE SAME USER IS NOT A NEW SIGN-IN.
+        //
+        // Every event carrying a session came through here — TOKEN_REFRESHED
+        // every hour, SIGNED_IN again when a tab regains focus — and each one
+        // set loading=true and reloaded role, profile and school. While
+        // loading, ProtectedRoute renders a spinner in place of the whole
+        // panel, so every page the student had open was torn down and built
+        // again from nothing. Measured 2026-09-22: a timed practice session
+        // was finished as "left" with one answer, at the very second its
+        // token was refreshed (the request's JWT was issued that second), and
+        // the student was put back on the Practice hub. The identity already
+        // loaded is still this user's; only a different user, or an explicit
+        // refreshAuth(), reloads it.
+        if (bootstrapped.current === sess.user.id) return;
         // Keep loading=true until role/profile resolve — same as pre-refactor.
         // Without this, Auth/Index briefly see user+!role and send users to
         // /unauthorized ("No portal role") before loadAuthContext finishes.

@@ -3,14 +3,18 @@ import { toast } from "sonner";
 import { BookOpen, MessageSquare, Mic, MicOff, Sparkles, Target, X } from "lucide-react";
 import { useAcademicContext } from "@/academic";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
-import { useRevisionItems } from "@/gurukul/pages/useRevisionQueueV2";
-import { displayChapter } from "@/lib/academicDisplay";
+import { useRevisionItems, isRevisionDue } from "@/gurukul/pages/useRevisionQueueV2";
+import { displayChapter, displayConcept } from "@/lib/academicDisplay";
+import { useConceptMastery } from "@/hooks/useConceptMastery";
+import { WEAK_CONCEPT_THRESHOLD } from "@/academic/eie/masteryBands";
+import { dedupeSubjects, isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
 import { LoadingState, cn } from "@/gurukul/components/shared";
 import { REVISION_LIMITS, fetchRevisionGist, type RevisionGist, type RevisionStyle } from "./novaRevisionClient";
 import { RevisionGistView } from "./RevisionGistView";
 import { FeynmanTest, type TestOutcome } from "./FeynmanTest";
 import { RevisionSummary } from "./RevisionSummary";
 import { getRecognitionCtor } from "./useSpeechCapture";
+import { listItems } from "@/lib/listState";
 
 /**
  * Nova's Revision mode. Any topic → a gist → the Feynman test (explain it back
@@ -62,10 +66,27 @@ const LOADING_STEPS = ["Reading up on", "Picking the key ideas of", "Writing you
 type Active = { topic: string; subject: string; style: RevisionStyle; gist: RevisionGist };
 type Screen = { kind: "pick" } | { kind: "gist" } | { kind: "test"; attempt: number } | { kind: "summary"; outcome: TestOutcome };
 
-export function NovaRevisionMode({ weakConcepts }: { weakConcepts: string[] }) {
+export function NovaRevisionMode() {
   const student = useGurukulStudent();
-  const { ctx, ready } = useAcademicContext();
-  const { items: revisionItems } = useRevisionItems(ctx, ready);
+  const { ctx, ready, settled } = useAcademicContext();
+  const { items: revisionList } = useRevisionItems(ctx, ready, settled);
+  const { items: masteryItems } = useConceptMastery();
+
+  // The three concepts the student has got wrong most — their own practice,
+  // offered as topics to revise. Revision mode is the only reader, so it
+  // loads them itself.
+  const weakConcepts = useMemo(
+    () =>
+      dedupeSubjects(
+        [...masteryItems]
+          .filter((m) => m.mastery_score < WEAK_CONCEPT_THRESHOLD || m.mistake_count >= 2)
+          .sort((a, b) => a.mastery_score - b.mastery_score || b.mistake_count - a.mistake_count)
+          .map((m) => displayConcept(m.concept))
+          .filter((c) => !isPlaceholderLabel(c)),
+        3,
+      ),
+    [masteryItems],
+  );
 
   const [input, setInput] = useState("");
   const [screen, setScreen] = useState<Screen>({ kind: "pick" });
@@ -78,11 +99,12 @@ export function NovaRevisionMode({ weakConcepts }: { weakConcepts: string[] }) {
 
   const dueChapters = useMemo(
     () =>
-      [...revisionItems]
-        .sort((a, b) => b.priority - a.priority)
-        .slice(0, 6)
-        .map((r) => ({ label: displayChapter(r.chapter), subject: r.subject, due: r.priority === 100 })),
-    [revisionItems],
+      // Due first; within each group, the order the schedule came back in.
+      listItems(revisionList)
+        .map((r) => ({ label: displayChapter(r.chapter), subject: r.subject, due: isRevisionDue(r) }))
+        .sort((a, b) => Number(b.due) - Number(a.due))
+        .slice(0, 6),
+    [revisionList],
   );
 
   useEffect(() => () => abortRef.current?.abort(), []);

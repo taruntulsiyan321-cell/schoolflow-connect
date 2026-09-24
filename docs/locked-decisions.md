@@ -370,7 +370,11 @@ shows. Headlines:
 - **Readiness is two numbers, never blended** — procedural and conceptual.
   Procedural passing while conceptual fails is the most common real result.
 - **Revision starts on any substantial engagement with a chapter**, not only
-  after recovery, at 7 / 21 / 60 days. Re-engaging resets the clock.
+  after recovery — weekly, three times, then every 30 days indefinitely
+  (`REVISION_INTERVALS_DAYS = [7, 7, 7]`, `REVISION_INTERVAL_SOLID = 30`;
+  ruled 2026-09-18, superseding the 7 / 21 / 60 first proposed, because
+  tripling is a flashcard's shape and not a school term's — see
+  `docs/recovery-revision-analysis-spec.md` §5.3). Re-engaging resets the clock.
 - **The chapter tally is required** — one row per chapter per session. Analysis
   cannot be built without a denominator.
 

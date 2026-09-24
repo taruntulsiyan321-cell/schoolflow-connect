@@ -1,14 +1,13 @@
 ﻿import type { PageKey } from "@/gurukul/nav";
-import { useGurukulStudent, useGurukulShellReady } from "@/gurukul/StudentContext";
+import { useGurukulStudent, useGurukulShellReady, useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { EmptyState, GlassCard, PageSkeleton, ProgressBar, ProgressRing, SectionLabel, Skeleton, SkeletonCard, SkeletonStats, StatTile, XPBar } from "@/gurukul/components/shared";
 import {
   ArrowRight, Flame, BookOpen, Brain, RefreshCw, RotateCcw,
   BarChart2, Trophy, Swords, Star
 } from "lucide-react";
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
@@ -39,12 +38,41 @@ function timeOfDayGreeting() {
   return "Good Evening";
 }
 
-function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"]) {
-  const practiceLifetime = snapshot?.self_practice?.sessions_completed ?? 0;
+function buildMission(
+  snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"],
+  /** Individual exam accounts have no homework surface — never route them there. */
+  opts: { includeHomework: boolean },
+) {
+  // No snapshot → no mission figures. Treating missing data as "0 pending →
+  // 1/1 done" made Recovery and Revision look complete after a failed load
+  // (rule 27 / no-demo-data: absence must not read as a data-bearing render).
+  if (!snapshot) {
+    return {
+      available: false as const,
+      practiceDone: 0,
+      practiceTarget: PRACTICE_TARGET,
+      recoveryDone: 0,
+      recoveryTarget: 1,
+      revisionDone: 0,
+      revisionTarget: 1,
+      nextAction: {
+        label: "Start a practice session",
+        reason: "Mission stats are unavailable right now",
+        page: "practice" as PageKey,
+      },
+      recoveryPending: 0,
+      revisionPending: 0,
+      practiceSessions: 0,
+      practiceToday: 0,
+      mistakesLogged: 0,
+    };
+  }
+
+  const practiceLifetime = snapshot.self_practice?.sessions_completed ?? 0;
   const practiceToday = practiceSessionsToday(snapshot);
-  const recoveryPending = snapshot?.recovery_pending ?? 0;
-  const revisionPending = snapshot?.revision_due ?? 0;
-  const homeworkPending = snapshot?.homework?.pending ?? 0;
+  const recoveryPending = snapshot.recovery_pending ?? 0;
+  const revisionPending = snapshot.revision_due ?? 0;
+  const homeworkPending = opts.includeHomework ? (snapshot.homework?.pending ?? 0) : 0;
 
   const practiceDone = Math.min(practiceToday, PRACTICE_TARGET);
   const recoveryTarget = recoveryPending > 0 ? Math.max(recoveryPending, 1) : 1;
@@ -74,12 +102,13 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
   } else {
     nextAction = {
       label: practiceToday > 0 ? "Keep practicing" : "Start a practice session",
-      reason: practiceToday > 0 ? "Daily practice done - another session builds mastery" : "Build your daily practice habit",
+      reason: practiceToday > 0 ? "Daily practice done - another session builds the habit" : "Build your daily practice habit",
       page: "practice",
     };
   }
 
   return {
+    available: true as const,
     practiceDone,
     practiceTarget: PRACTICE_TARGET,
     recoveryDone,
@@ -91,14 +120,24 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
     revisionPending,
     practiceSessions: practiceLifetime,
     practiceToday,
-    mistakesLogged: snapshot?.mistake_count ?? 0,
+    mistakesLogged: snapshot.mistake_count ?? 0,
   };
 }
 
 const PRACTICE_TARGET = 1;
 
-function WeeklyRing({ sessions }: { sessions: number }) {
+function WeeklyRing({ sessions, ready }: { sessions: number; ready: boolean }) {
   const goal = 7;
+  // Not ready → neutral placeholder. A literal 0 here used to look like a real
+  // empty week while progression was still loading beside "—" level/streak.
+  if (!ready) {
+    return (
+      <ProgressRing value={0} size={120} color="hsl(var(--muted-foreground))" label="Loading sessions this week">
+        <span className="text-2xl font-black tabular-nums text-muted-foreground">—</span>
+        <span className="text-[10px] text-muted-foreground mt-0.5">/ {goal}</span>
+      </ProgressRing>
+    );
+  }
   const pct = Math.min(sessions / goal, 1);
   // Complete colours, all three rungs. This ternary was the whole G4 bug in one
   // line: two triplet tokens and one `--color-*` (already `hsl(...)`), then
@@ -126,7 +165,8 @@ function WeeklyRing({ sessions }: { sessions: number }) {
 export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const shellReady = useGurukulShellReady();
-  const { user } = useAuth();
+  const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
+  const isIndividual = schoolKind === "individual";
   const { data: snapshot, loading: snapLoading, error: snapError, reload: reloadSnap } = useStudentAcademicSnapshot();
   const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts();
 
@@ -135,6 +175,21 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   const hasLiveData = Boolean(snapshot || charts);
   const initialLoading = loading && !hasLiveData;
   const toastedError = useRef<string | null>(null);
+
+  const heroScope = isIndividual
+    ? (examName || examCode || student.class || (shellReady ? "—" : "…"))
+    : (student.class || (shellReady ? "—" : "…"));
+
+  const quickActions = useMemo(() => {
+    const all: { label: string; sub: string; icon: ReactNode; color: string; page: PageKey }[] = [
+      { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "hsl(var(--primary))", page: "practice" },
+      { label: "AI Coach", sub: "Chat with Nova", icon: <Brain className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "aicoach" },
+      { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "hsl(var(--warning))", page: "battleground" },
+      { label: "Analysis", sub: "View insights", icon: <BarChart2 className="w-5 h-5"/>, color: "var(--color-physics)", page: "analysis" },
+    ];
+    // Battleground pairs students inside one space — a tenant of one can never find an opponent.
+    return isIndividual ? all.filter((a) => a.page !== "battleground") : all;
+  }, [isIndividual]);
 
   useEffect(() => {
     if (!loadError) {
@@ -146,7 +201,10 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
     toast.error(loadError);
   }, [loadError]);
 
-  const mission = useMemo(() => buildMission(snapshot), [snapshot]);
+  const mission = useMemo(
+    () => buildMission(snapshot, { includeHomework: !isIndividual }),
+    [snapshot, isIndividual],
+  );
 
   const weeklyActivity = useMemo(
     () => mapWeeklyActivity(charts?.weekly_activity ?? []),
@@ -235,8 +293,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             <h1 className="text-3xl sm:text-4xl font-black text-foreground leading-tight" style={{fontFamily:"var(--font-display)"}}>
               {student.firstName}
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">{student.class || (shellReady ? "—" : "…")}{goalLine}</p>
-            <div className="grid grid-cols-3 gap-3 mt-4">
+            <p className="text-muted-foreground text-sm mt-1">{heroScope}{goalLine}</p>
+            <div className={`grid gap-3 mt-4 ${isIndividual ? "grid-cols-2" : "grid-cols-3"}`}>
               {/* This tile is PRACTICE accuracy and always was — StudentDashboard
                   fills the profile from practiceAccuracyFromSnapshot. The field
                   is named `practiceAccuracy` now so the label cannot drift from
@@ -246,21 +304,38 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 value={shellReady && student.practiceAccuracy != null ? `${student.practiceAccuracy}%` : "—"}
                 color="hsl(var(--info))"
               />
-              <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "—"} color="hsl(var(--warning))"/>
+              {!isIndividual && (
+              <StatTile
+                label="Class Rank"
+                value={
+                  shellReady && student.rank > 0
+                    ? `#${student.rank}`
+                    : "—"
+                }
+                color="hsl(var(--warning))"
+              />
+              )}
               <StatTile label="Level" value={levelLabel} color="var(--color-chemistry)"/>
             </div>
             <div className="mt-3">
-              <XPBar
-                xp={shellReady ? student.xp : 0}
-                level={shellReady ? student.level : 1}
-                xpIntoLevel={shellReady ? student.xpIntoLevel : 0}
-                xpToNext={shellReady ? student.xpToNext : 100}
-                progressPct={shellReady ? student.levelProgressPct : 0}
-              />
+              {shellReady ? (
+                <XPBar
+                  xp={student.xp}
+                  level={student.level}
+                  xpIntoLevel={student.xpIntoLevel}
+                  xpToNext={student.xpToNext}
+                  progressPct={student.levelProgressPct}
+                />
+              ) : (
+                // Same pulse Layout uses — never Level 1 / 0 XP as truth.
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full w-1/3 rounded-full bg-border animate-pulse" />
+                </div>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-center shrink-0">
-            <WeeklyRing sessions={shellReady ? student.sessionsThisWeek : 0}/>
+            <WeeklyRing sessions={student.sessionsThisWeek} ready={shellReady} />
             <span className="text-[11px] text-muted-foreground uppercase tracking-widest mt-2">Sessions / Week</span>
           </div>
         </div>
@@ -302,9 +377,11 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 <span className="text-xs font-semibold text-foreground">{m.label}</span>
               </div>
               <div className="text-2xl font-black tabular-nums mb-1" style={{ color: m.color }}>
-                {m.done}<span className="text-sm text-muted-foreground font-normal">/{m.target}</span>
+                {mission.available
+                  ? <>{m.done}<span className="text-sm text-muted-foreground font-normal">/{m.target}</span></>
+                  : <span className="text-muted-foreground">—</span>}
               </div>
-              <ProgressBar value={m.done} max={m.target} color={m.color}/>
+              <ProgressBar value={mission.available ? m.done : 0} max={m.target} color={m.color}/>
             </GlassCard>
           ))}
         </div>
@@ -314,12 +391,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
       <div className="animate-premium-enter" style={{animationDelay: "0.16s"}}>
         <SectionLabel>Quick Actions</SectionLabel>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-premium-stagger">
-          {[
-            { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "hsl(var(--primary))", page: "practice" as PageKey },
-            { label: "AI Coach", sub: "Chat with Nova", icon: <Brain className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "aicoach" as PageKey },
-            { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "hsl(var(--warning))", page: "battleground" as PageKey },
-            { label: "Analysis", sub: "View insights", icon: <BarChart2 className="w-5 h-5"/>, color: "var(--color-physics)", page: "analysis" as PageKey },
-          ].map((a) => (
+          {quickActions.map((a) => (
             <GlassCard key={a.label} className="p-4 cursor-pointer hover:border-border group" onClick={() => setPage(a.page)}>
               <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{ background: withAlpha(a.color, 0.1), color: a.color }}>
                 {a.icon}
@@ -361,9 +433,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         )}
       </GlassCard>
 
-      {/* Bottom row — Recent Achievements came off (achievements live on the
-          profile only), so the leaderboard stands alone rather than in a
-          two-column grid with a hole in it. */}
+      {/* Class leaderboard is school-only — a tenant of one has no classmates. */}
+      {!isIndividual && (
       <div className="grid gap-4">
         <GlassCard glow="purple" className="p-5">
           <SectionLabel>Class Leaderboard</SectionLabel>
@@ -392,6 +463,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
           </div>
         </GlassCard>
       </div>
+      )}
     </div>
   );
 }

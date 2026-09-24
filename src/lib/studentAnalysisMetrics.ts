@@ -4,16 +4,8 @@
  */
 
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
-import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { ChapterStateRow, RecoveryQueueRow } from "@/academic";
-import type {
-  PracticeTrendPoint,
-  WeeklyActivityPoint,
-  SubjectChartPoint,
-} from "@/hooks/useStudentPerformanceCharts";
-import { normalizeSubjectName } from "@/lib/curriculumScope";
-import { accuracyBand } from "@/academic/metrics/bands";
 import {
   REVISION_STAGES_TO_SOLID,
   TREND_DELTA_POINTS,
@@ -21,11 +13,9 @@ import {
   TREND_WINDOW_SESSIONS,
   type TrendState,
 } from "@/academic/recovery/constants";
-import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
   buildSubjectRadarPoints,
   dedupeSubjectChartPoints,
-  isGenericAcademicLabel,
   preferRealAcademicLabel,
 } from "@/lib/qualityGuards";
 import { mayBeJudged } from "@/academic/metrics/thresholds";
@@ -33,13 +23,6 @@ import { mayBeJudged } from "@/academic/metrics/thresholds";
 export { buildSubjectRadarPoints, dedupeSubjectChartPoints };
 
 export const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-
-function subjectSessionKey(raw: string | null | undefined): string {
-  if (!raw || isGenericAcademicLabel(raw)) return "";
-  const canon = normalizeSubjectName(raw) || raw.trim();
-  const presented = displaySubject(canon) || canon;
-  return presented ? presented.toLowerCase() : "";
-}
 
 /**
  * A date-only string ("2026-09-14") as LOCAL midnight.
@@ -88,27 +71,30 @@ function daysAgo(n: number, from = new Date()): Date {
   return d;
 }
 
-function accuracyOf(session: PracticeSessionSummary): number {
-  return session.accuracy_pct;
-}
-
-
 /**
- * §6.4: the latest TREND_WINDOW_SESSIONS sessions' average against the
- * TREND_WINDOW_SESSIONS before them, in accuracy points.
+ * §6.4: the latest sessions against the ones before them, in accuracy points.
  *
- * It used to split the WHOLE history in half: a student's first sessions ever
- * were compared with their latest, so a chapter that improved months ago and
- * has since stalled read as "improving" for ever. "The latest 3 sessions
- * average > the previous 3" is a question about now.
+ * "IMPROVING when the latest 3 sessions average > the previous 3 by >= 10
+ * points." THE WINDOW IS FIXED AT THREE. This used to split the whole run in
+ * half — at twenty sessions it compared the first ten against the last ten —
+ * which answers a different question: "is this year better than last year",
+ * not "am I improving". A student who spent a month stuck and then fixed a
+ * chapter last week read as STUCK, because their recent work was averaged
+ * against eight older sessions, and the improvement they had just made was a
+ * tenth of the window.
  *
- * Below TREND_MIN_SESSIONS there is no trend (null — NOT_ENOUGH_DATA). With
- * 4 or 5 sessions the earlier window is simply shorter than 3.
+ * Below TREND_MIN_SESSIONS there is no trend to report and this returns null
+ * — the NOT_ENOUGH_DATA state, which `trendState` names and the screen renders
+ * distinctly from "steady". Between the floor and six sessions the previous
+ * window is shorter than three (at four sessions: the latest 3 against the one
+ * before them), which is the most those sessions can say.
+ *
+ * `accuracies` must be in chronological order — oldest first.
  */
 export function latestVersusPrevious(accuracies: number[]): number | null {
   if (accuracies.length < TREND_MIN_SESSIONS) return null;
   const late = accuracies.slice(-TREND_WINDOW_SESSIONS);
-  const early = accuracies.slice(-2 * TREND_WINDOW_SESSIONS, -TREND_WINDOW_SESSIONS);
+  const early = accuracies.slice(Math.max(0, accuracies.length - TREND_WINDOW_SESSIONS * 2), accuracies.length - late.length);
   if (early.length === 0 || late.length === 0) return null;
   const avg = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
   return Math.round((avg(late) - avg(early)) * 10) / 10;
@@ -222,89 +208,6 @@ export function buildWeekComparison(
 // Removed rather than left importable: this had no caller once Analysis
 // stopped using it, and a shared derivation kept alive only by its own tests
 // is the next session's second home for a decision already made.
-
-/**
- * CHAPTERS getting better, and the name says so now.
- *
- * This grouped practice_trend and recent_sessions by their CHAPTER, called
- * the result `topic`, and Analysis rendered it through displayTopic() under
- * a heading reading "Topics getting better". presentAcademicLabel resolves
- * against a per-kind dictionary, so a chapter name was being looked up as
- * though it were a topic — three layers of one mislabel, on a page that
- * keeps displayChapter and displayTopic apart precisely because they are not
- * interchangeable.
- *
- * practice_trend is per chapter. There is no topic-level trend to show here,
- * so the panel says chapter.
- */
-export function deriveImprovingChapters(
-  practiceTrend: PracticeTrendPoint[],
-  sessions: PracticeSessionSummary[],
-): { chapter: string; subject: string; improvement: number }[] {
-  const byKey = new Map<string, { subject: string; scores: number[] }>();
-
-  const orderedTrend = [...practiceTrend].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-  );
-  for (const p of orderedTrend) {
-    const chapter = preferRealAcademicLabel(p.chapter);
-    if (!chapter) continue;
-    const key = chapter.toLowerCase();
-    const entry = byKey.get(key) ?? { subject: "", scores: [] };
-    entry.scores.push(Math.round(p.score_pct));
-    byKey.set(key, entry);
-  }
-
-  // Fill subject from sessions when trend rows lack it.
-  for (const s of sessions) {
-    const key = preferRealAcademicLabel(s.chapter).toLowerCase();
-    if (!key) continue;
-    const entry = byKey.get(key);
-    if (entry && !entry.subject) {
-      const subj = preferRealAcademicLabel(s.subject);
-      if (subj) entry.subject = subj;
-    }
-  }
-
-  // Session-only chapters not in trend.
-  const byChapterSessions = new Map<string, { subject: string; scores: number[] }>();
-  for (const s of [...sessions].sort(
-    (a, b) => new Date(a.finished_at).getTime() - new Date(b.finished_at).getTime(),
-  )) {
-    const chapter = preferRealAcademicLabel(s.chapter);
-    const subject = preferRealAcademicLabel(s.subject);
-    if (!chapter || !subject) continue;
-    const key = chapter.toLowerCase();
-    if (byKey.has(key)) continue;
-    const entry = byChapterSessions.get(key) ?? { subject, scores: [] };
-    entry.scores.push(accuracyOf(s));
-    entry.subject = subject;
-    byChapterSessions.set(key, entry);
-  }
-
-  const merged = [...byKey.entries(), ...byChapterSessions.entries()];
-  const out: { chapter: string; subject: string; improvement: number }[] = [];
-  for (const [key, { subject, scores }] of merged) {
-    // Converged onto the one §6.4 ladder. This carried its own `< 5`, a
-    // third threshold for the same judgement the subject rows and chapter
-    // rows make at TREND_DELTA_POINTS — so a chapter could be "improving"
-    // in this list and "steady" in the grid beside it, off the same numbers.
-    const { state, deltaPoints } = trendState(scores);
-    if (state !== "improving" || deltaPoints == null) continue;
-    const trend = deltaPoints;
-    const realSubject = preferRealAcademicLabel(subject);
-    if (!realSubject) continue;
-    const chapter =
-      preferRealAcademicLabel(
-        practiceTrend.find((p) => preferRealAcademicLabel(p.chapter).toLowerCase() === key)?.chapter,
-        sessions.find((s) => preferRealAcademicLabel(s.chapter).toLowerCase() === key)?.chapter,
-        key,
-      );
-    if (!chapter) continue;
-    out.push({ chapter, subject: realSubject, improvement: Math.round(trend) });
-  }
-  return out.sort((a, b) => b.improvement - a.improvement).slice(0, 8);
-}
 
 /*
  * deriveSpeedStats, SpeedStats and sessionSecPerQuestion WERE HERE, and they
@@ -463,10 +366,10 @@ export function deriveMonthComparison(
   let thisMins = 0;
   let lastMins = 0;
   for (const row of heatmap ?? []) {
-    // The same components consistencyWeeks counts, so "activities" means one
-    // thing on this page.
-    const done =
-      (row.test ?? 0) + (row.homework ?? 0) + (row.battles ?? 0) + (row.self_practice ?? 0);
+    // Practice sessions only (rule 11). Tests / homework / battles stay on
+    // their own surfaces; folding them in made "Activities" disagree with a
+    // Practice heading and with every other practice count on the page.
+    const done = row.self_practice ?? 0;
     if (inThis(row.date)) {
       thisActivities += done;
       thisMins += row.minutes ?? 0;
@@ -489,7 +392,7 @@ export function deriveMonthComparison(
 
   return [
     {
-      label: "Activities",
+      label: "Practice",
       thisM: orNull(thisActivities, thisActivities),
       lastM: orNull(lastActivities, lastActivities),
       unit: "",
@@ -530,8 +433,19 @@ export function deriveMonthComparison(
  * The same rpc_student_recovery_queue rows the Recovery screen renders, so
  * the two pages cannot disagree. `ready` is decided server-side against
  * RECOVERY_TRIGGER_COUNT; this file does not hold a copy of the threshold.
+ *
+ * ── EXCEPT "RECOVERED", WHICH THE QUEUE CANNOT SEE ────────────────────────
+ *
+ * The queue lists chapters holding an OPEN mistake, and a recovery that
+ * passes clears every open mistake in its chapter (§4.5). So a recovered
+ * chapter leaves the very list this counted it from: the tile could only ever
+ * count recovered chapters that had since collected new mistakes. It is read
+ * from chapter_state, where the engine records the recovery.
  */
-export function deriveRecoveryProgress(queue: RecoveryQueueRow[] | null | undefined): {
+export function deriveRecoveryProgress(
+  queue: RecoveryQueueRow[] | null | undefined,
+  states: ChapterStateRow[] | null | undefined,
+): {
   totalToRevisit: number;
   completed: number;
   stillPending: number;
@@ -541,9 +455,8 @@ export function deriveRecoveryProgress(queue: RecoveryQueueRow[] | null | undefi
     // Every chapter carrying an open mistake — what is left to fix.
     totalToRevisit: rows.length,
     // §3.2 'recovered' is the engine's own word for a chapter that cleared
-    // both readiness rates. Not a mastery score over a boundary this file
-    // invented.
-    completed: rows.filter((r) => r.state === "recovered").length,
+    // both readiness rates — counted where the engine writes it.
+    completed: (states ?? []).filter((s) => s.state === "recovered").length,
     // Ready means the trigger is met and a session can be built right now.
     // A chapter three mistakes in is not "pending recovery"; it is a chapter
     // the student is still working in.

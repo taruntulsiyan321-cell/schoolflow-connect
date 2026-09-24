@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { withAlpha } from "@/lib/colorAlpha";
 import {
   Search,
@@ -10,7 +10,6 @@ import {
   Send,
   Archive,
   BarChart3,
-  Download,
   Trash2,
   Lock,
   Unlock,
@@ -26,46 +25,44 @@ import {
   AttendanceService,
   AcademicProfileService,
   AnalyticsService,
+  HOMEWORK_STANDING_LABELS,
   HomeworkService,
   MarksService,
   RemarksService,
   TestService,
   ProgressionService,
   TEST_KIND_LABELS,
+  homeworkStanding,
   useAcademicLive,
   type ClassStudentRow,
   type StudentAcademicProfile,
+  type ClassHomeworkRow,
   type StudentHomeworkRow,
   type TeacherRemark,
   type TestKind,
   type TeacherProgressionInsights,
 } from "@/academic";
 import type {
+  BankQuestion,
   ManualQuestionInput,
-  ManualQuestionKind,
-  TestClassReport,
-  TestStudentReport,
+  TestListRow,
 } from "@/academic/services/testService";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
-import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
+import type { AcademicAttachment } from "@/academic/storage/academicFileUpload";
 import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
 import {
+  displaySubject,
   displayTopic,
   toCountLabel,
-  toDisplayText,
   toEnumLabel,
   toErrorMessage,
   toPercentLabel,
   toPersonName,
 } from "@/lib/presentation";
 import { exportCSV } from "@/lib/exportCsv";
-import { answerToText } from "@/academic/services/answerText";
-import {
-  classReportCsvRows,
-  studentReportCsvRows,
-} from "@/academic/services/testReportSheets";
 import { useResetOnIdentityChange } from "@/hooks/useInitialLoadGate";
+import { TestReportPanel } from "./TestReportPanel";
 import {
   ATTENDANCE_LOW,
   HOMEWORK_LOW,
@@ -78,12 +75,6 @@ import {
   HOMEWORK_HABIT_INCONSISTENT,
 } from "@/academic/metrics/bands";
 
-export {
-  LiveHomeworkTab,
-  LiveAssignmentsTab,
-  LiveAcademicWorkTab,
-} from "./LiveHomeworkPanels";
-
 type LiveStudent = ClassStudentRow & {
   attendancePct: number | null;
   examsAvgPct: number | null;
@@ -91,13 +82,23 @@ type LiveStudent = ClassStudentRow & {
   testsAvgPct: number | null;
 };
 
-const MANUAL_QUESTION_KINDS: { value: ManualQuestionKind; label: string }[] = [
-  { value: "mcq", label: "MCQ" },
-  { value: "true_false", label: "True / False" },
-  { value: "fill", label: "Fill in the blank" },
-  { value: "short", label: "Short answer" },
-  { value: "long", label: "Long answer" },
-  { value: "numerical", label: "Numerical" },
+/**
+ * The two presets the builder offers, and they are both MCQs.
+ *
+ * This list was six kinds — MCQ, True/False, fill, short, long, numerical — and
+ * three of them produced questions nothing could mark: `rpc_test_submit` marks
+ * by jsonb equality against the answer key, `correct` is NULL by constraint for
+ * a written question, and no screen in the product marks an online test by
+ * hand. A student's written answer therefore scored zero in silence and the
+ * class report then ranked its topic 100% wrong.
+ *
+ * Ruled 2026-09-12 — "for the online test, only MCQ questions can be given" —
+ * and made structural by `20260925020000`. True/False survives as what it
+ * always was underneath: a two-option MCQ.
+ */
+const QUESTION_PRESETS = [
+  { value: "mcq" as const, label: "Multiple choice", options: ["", "", "", ""] },
+  { value: "true_false" as const, label: "True / False", options: ["True", "False"] },
 ];
 
 /**
@@ -127,6 +128,7 @@ function Loading({ label }: { label: string }) {
 
 const TEST_KINDS = Object.keys(TEST_KIND_LABELS) as TestKind[];
 
+
 /**
  * A row of `public.tests`, and nothing else.
  *
@@ -148,7 +150,7 @@ type TestRow = {
   created_at?: string | null;
 };
 
-function resolveTestStatus(t: TestRow): string {
+function resolveTestStatus(t: { status?: string | null }): string {
   // `status` is NOT NULL on `tests`, so the old `is_published` fallback below
   // this line was unreachable as well as addressed to a missing column.
   return t.status ? String(t.status) : "draft";
@@ -306,21 +308,17 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     );
   }, [rows, search]);
 
+  // Not given — still to do, rejected, or missed at the deadline — against
+  // given. `homeworkStanding` is the one reading of the view's two facts.
   const pendingHomework = useMemo(
     () =>
-      homeworkRows.filter(
-        (r) => r.displayStatus === "Assigned" || r.displayStatus === "Late",
-      ),
+      homeworkRows
+        .map((r) => ({ ...r, state: homeworkStanding(r.standing) }))
+        .filter((r) => !r.standing.given),
     [homeworkRows],
   );
 
-  const submittedHomework = useMemo(
-    () =>
-      homeworkRows.filter((r) =>
-        ["Submitted", "Late", "Graded", "Reviewed", "Completed"].includes(r.displayStatus),
-      ),
-    [homeworkRows],
-  );
+  const submittedHomework = useMemo(() => homeworkRows.filter((r) => r.standing.given), [homeworkRows]);
 
   const weakSubjects = useMemo(() => {
     const m = profile?.metrics ?? {};
@@ -600,12 +598,12 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                       className="flex justify-between gap-2 text-[11px]"
                     >
                       <span className="text-foreground truncate">{r.homework.title}</span>
-                      <span className="text-[9px] text-warning shrink-0">{r.displayStatus}</span>
+                      <span className="text-[9px] text-warning shrink-0">{HOMEWORK_STANDING_LABELS[r.state]}</span>
                     </div>
                   ))
                 )}
                 <div className="text-[9px] text-muted-foreground pt-1">
-                  Submitted recently: {submittedHomework.length}
+                  Handed in: {submittedHomework.length}
                 </div>
               </div>
               <div className="bg-surface border border-border/70 rounded-[2px] p-4 space-y-2">
@@ -818,11 +816,27 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
 
 type BuilderStep = "basics" | "source" | "library" | "manual" | "upload" | "review";
 type QuestionSource = "library" | "manual" | "upload";
-type DraftQuestion = ManualQuestionInput & { localId: string };
-type PaperAttachment = HomeworkAttachmentMeta;
+/** A question on the paper being built, with where it came from. */
+type DraftQuestion = ManualQuestionInput & { localId: string; bankId?: string | null };
+type PaperAttachment = AcademicAttachment;
 
 function newLocalId() {
   return `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** One bank question, as a draft question on this paper. Marks default to 1. */
+function fromBank(b: BankQuestion): DraftQuestion {
+  return {
+    localId: newLocalId(),
+    bankId: b.id,
+    question: b.question,
+    options: b.options,
+    correctIndex: b.correctIndex,
+    marks: 1,
+    explanation: b.explanation,
+    chapter: b.chapter,
+    topic: b.topic,
+  };
 }
 
 const emptyBasics = () => ({
@@ -831,40 +845,52 @@ const emptyBasics = () => ({
   durationMin: "30",
   maxMarks: "",
   instructions: "",
+  /**
+   * Chapter and topic, and they are not decoration: §10.22 requires a test to
+   * carry its topic PER QUESTION, and `rpc_test_class_report` ranks weakest
+   * topics off `test_questions.concept` falling back to `.chapter`. A paper
+   * written without either ranks everything under "Unlabelled", which is a
+   * report that cannot be acted on. Questions taken from the bank bring their
+   * own; hand-written ones take these.
+   */
+  chapter: "",
+  topic: "",
   publishMode: "draft" as "draft" | "now" | "schedule",
   scheduledAt: "",
 });
 
+/**
+ * The question form, MCQ-shaped.
+ *
+ * `correct` was a free-text field the teacher typed the correct option's TEXT
+ * into ("Correct option text *"). A typo, a trailing space or a changed option
+ * produced an answer key naming no option — `{indexes: []}` — and then every
+ * student's answer marked wrong with nothing on screen to explain it. The
+ * correct option is now PICKED, so the mistake cannot be expressed: what
+ * travels is its index.
+ */
 const emptyQuestionForm = () => ({
-  kind: "mcq" as ManualQuestionKind,
+  preset: "mcq" as (typeof QUESTION_PRESETS)[number]["value"],
   question: "",
-  optionA: "",
-  optionB: "",
-  optionC: "",
-  optionD: "",
-  optionsCsv: "",
-  useCsv: false,
-  correct: "",
+  options: ["", "", "", ""] as string[],
+  correctIndex: null as number | null,
   marks: "1",
+  explanation: "",
 });
 
-const LIBRARY_FILTER_KEYS = [
-  "board",
-  "classLevel",
-  "subject",
-  "book",
-  "chapter",
-  "topic",
-  "kind",
-  "difficulty",
-] as const;
+const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 
 export function LiveTestsTab({ classId, subject }: { classId: string; subject: string }) {
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["test", "profile"]);
-  const [tests, setTests] = useState<TestRow[]>([]);
-  /** Counted from `test_questions`; `tests` carries no question_count column. */
-  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
+  /**
+   * One row per test, from `rpc_test_list_for_class`, carrying what this screen
+   * cannot compute: the question count (`test_questions` is closed to students,
+   * so it is read through a definer) and how many of the class have handed in.
+   * Both used to be absent — the list read `question_count` off the test row,
+   * which is not a column there, and printed "0 Q" against every test.
+   */
+  const [tests, setTests] = useState<TestListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
@@ -877,100 +903,59 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   const [questions, setQuestions] = useState<DraftQuestion[]>([]);
   const [qForm, setQForm] = useState(emptyQuestionForm);
   const [attachments, setAttachments] = useState<PaperAttachment[]>([]);
-  const [libFilters, setLibFilters] = useState<Record<(typeof LIBRARY_FILTER_KEYS)[number], string>>(
-    () =>
-      Object.fromEntries(LIBRARY_FILTER_KEYS.map((k) => [k, ""])) as Record<
-        (typeof LIBRARY_FILTER_KEYS)[number],
-        string
-      >,
-  );
-  const [libItems, setLibItems] = useState<
-    Awaited<ReturnType<typeof TestService.listQuestionLibrary>>
-  >([]);
-  const [libLoading, setLibLoading] = useState(false);
+  /**
+   * The question-bank picker. The filters are the four the bank is actually
+   * organised by — class level, subject, chapter, difficulty — plus a text
+   * search. The eight-field grid this replaces included `board` (decided by the
+   * school, not the teacher), `book` (no such column) and `kind` (every bank
+   * row is an MCQ), and fed a service call that returned `[]` unconditionally.
+   */
+  const [bankClassLevel, setBankClassLevel] = useState<string>("");
+  const [bankChapter, setBankChapter] = useState<string>("");
+  const [bankDifficulty, setBankDifficulty] = useState<string>("");
+  const [bankSearch, setBankSearch] = useState<string>("");
+  const [bankChapters, setBankChapters] = useState<{ chapter: string; count: number }[]>([]);
+  const [bankItems, setBankItems] = useState<BankQuestion[]>([]);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankError, setBankError] = useState<string | null>(null);
   const [scheduleDraftId, setScheduleDraftId] = useState<string | null>(null);
   const [scheduleAt, setScheduleAt] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editInstructions, setEditInstructions] = useState("");
-  // §10.25 — the report. Held per test id, so opening a second one closes the
-  // first rather than leaving two panels claiming to be "the" report.
-  const [reportTestId, setReportTestId] = useState<string | null>(null);
-  const [report, setReport] = useState<TestClassReport | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
-  const [reportError, setReportError] = useState<string | null>(null);
-  const [drillStudentId, setDrillStudentId] = useState<string | null>(null);
-  const [drill, setDrill] = useState<TestStudentReport | null>(null);
-  const [drillLoading, setDrillLoading] = useState(false);
-  const [drillError, setDrillError] = useState<string | null>(null);
-
-  const closeReport = () => {
-    setReportTestId(null);
-    setReport(null);
-    setReportError(null);
-    setDrillStudentId(null);
-    setDrill(null);
-    setDrillError(null);
-  };
-
   /**
-   * Load the class report. No role check here and none in the service: the
-   * whole rule lives in `can_read_test_report` (see 20260916000000). A teacher
-   * who does not teach this section gets 42501 and reads it as a sentence.
+   * Editing the QUESTIONS of a test that already exists.
+   *
+   * Until now the only editable things were the title and the instructions, so
+   * a typo in a question — or a key on the wrong option — could not be fixed:
+   * the teacher had to delete the test and rebuild it, and a test cannot be
+   * deleted once anyone has attempted it. The builder is reused rather than
+   * reimplemented, so every rule it enforces (MCQ only, a key that names a real
+   * option, whole marks) applies to an edit as well.
+   *
+   * `setQuestions` refuses outright once an attempt exists — replacing a
+   * question would delete the answers given to it — so this is offered only
+   * while nobody has handed in, and says so when they have.
    */
-  const openReport = async (testId: string) => {
-    if (!ctx) return;
-    if (reportTestId === testId) {
-      closeReport();
-      return;
-    }
-    closeReport();
-    setReportTestId(testId);
-    setReportLoading(true);
-    try {
-      setReport(await TestService.classReport(ctx, testId));
-    } catch (e) {
-      setReportError(toErrorMessage(e, "Could not load the report for this test"));
-    } finally {
-      setReportLoading(false);
-    }
-  };
-
-  const openDrill = async (testId: string, studentId: string) => {
-    if (!ctx) return;
-    if (drillStudentId === studentId) {
-      setDrillStudentId(null);
-      setDrill(null);
-      setDrillError(null);
-      return;
-    }
-    setDrillStudentId(studentId);
-    setDrill(null);
-    setDrillError(null);
-    setDrillLoading(true);
-    try {
-      setDrill(await TestService.studentReport(ctx, testId, studentId));
-    } catch (e) {
-      setDrillError(toErrorMessage(e, "Could not load this student's report"));
-    } finally {
-      setDrillLoading(false);
-    }
-  };
+  const [editQuestionsFor, setEditQuestionsFor] = useState<string | null>(null);
+  // §10.25 — WHICH report is open, and nothing else. Everything the report
+  // itself holds — the aggregate, the board, the per-question timing, the open
+  // student — lives in TestReportPanel, which is the screen that uses it. This
+  // component is the test LIST.
+  const [reportTestId, setReportTestId] = useState<string | null>(null);
+  const closeReport = () => setReportTestId(null);
+  const openReport = (testId: string) =>
+    setReportTestId((cur) => (cur === testId ? null : testId));
 
   const reload = async () => {
     if (!ctx) return;
     const quiet = loadedRef.current;
     if (!quiet) setLoading(true);
     try {
-      await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
-      const t = await TestService.listForClass(ctx, classId);
-      const rows = (t ?? []) as TestRow[];
-      setTests(rows);
-      // Counting is a second request on purpose: test_questions is closed to
-      // students (G14), so it cannot ride along in the shared list query.
-      setQuestionCounts(
-        await TestService.countQuestions(ctx, rows.map((r) => r.id)).catch(() => ({})),
-      );
+      // ONE call. This was two — the list, then a separate question count —
+      // and neither could say how many students had handed in, which is the
+      // fact a teacher opens a published test to find out.
+      setTests(await TestService.listForClassDetailed(ctx, classId));
       setError(null);
       loadedRef.current = true;
     } catch (err) {
@@ -996,52 +981,162 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveVersion]);
 
+  /**
+   * The chapters the bank actually has questions for, at this class level and
+   * subject. Offering a chapter with nothing behind it is worse than offering
+   * none: the teacher picks it, sees an empty list, and cannot tell whether the
+   * bank is empty or their filter is wrong. The count is on every option.
+   */
   useEffect(() => {
     if (!ready || !ctx || step !== "library") return;
+    const level = Number(bankClassLevel);
+    if (!Number.isFinite(level) || level <= 0 || !subject) {
+      setBankChapters([]);
+      return;
+    }
     let cancelled = false;
     (async () => {
-      setLibLoading(true);
       try {
-        const items = await TestService.listQuestionLibrary(ctx, {
-          board: libFilters.board || undefined,
-          classLevel: libFilters.classLevel || undefined,
-          subject: libFilters.subject || undefined,
-          book: libFilters.book || undefined,
-          chapter: libFilters.chapter || undefined,
-          topic: libFilters.topic || undefined,
-          kind: libFilters.kind || undefined,
-          difficulty: libFilters.difficulty || undefined,
-        });
-        if (!cancelled) setLibItems(items);
-      } catch (e) {
-        if (!cancelled) {
-          setLibItems([]);
-          setError(errMsg(e, "Failed to load question library"));
-        }
-      } finally {
-        if (!cancelled) setLibLoading(false);
+        const rows = await TestService.listBankChapters(ctx, { classLevel: level, subject });
+        if (!cancelled) setBankChapters(rows);
+      } catch {
+        if (!cancelled) setBankChapters([]);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, step, libFilters]);
+  }, [ready, ctx, step, bankClassLevel, subject]);
+
+  useEffect(() => {
+    if (!ready || !ctx || step !== "library") return;
+    const level = Number(bankClassLevel);
+    if (!Number.isFinite(level) || level <= 0) {
+      setBankItems([]);
+      setBankError(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        setBankLoading(true);
+        setBankError(null);
+        try {
+          const items = await TestService.searchQuestionBank(ctx, {
+            classLevel: level,
+            // The subject is the section-subject this tab is already scoped to
+            // (§10.22). A teacher picking Physics questions for a Maths test
+            // would file the test under the wrong subject's analysis for the
+            // rest of the year, so it is not offered as a filter.
+            subject,
+            chapter: bankChapter || null,
+            difficulty: bankDifficulty || null,
+            search: bankSearch || null,
+            limit: 40,
+          });
+          if (!cancelled) setBankItems(items);
+        } catch (e) {
+          if (!cancelled) {
+            setBankItems([]);
+            setBankError(toErrorMessage(e, "Could not search the question bank"));
+          }
+        } finally {
+          if (!cancelled) setBankLoading(false);
+        }
+      })();
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [ready, ctx, step, bankClassLevel, subject, bankChapter, bankDifficulty, bankSearch]);
 
   const resetBuilder = () => {
     setBuilderOpen(false);
     setStep("basics");
+    // Cleared FIRST in spirit: leaving it set would make the next new test's
+    // save overwrite the paper that was being edited.
+    setEditQuestionsFor(null);
     setBasics(emptyBasics());
     setSource(null);
     setQuestions([]);
     setQForm(emptyQuestionForm());
     setAttachments([]);
-    setLibItems([]);
-    setLibFilters(
-      Object.fromEntries(LIBRARY_FILTER_KEYS.map((k) => [k, ""])) as Record<
-        (typeof LIBRARY_FILTER_KEYS)[number],
-        string
-      >,
-    );
+    setBankItems([]);
+    setBankChapters([]);
+    setBankChapter("");
+    setBankDifficulty("");
+    setBankSearch("");
+    setBankError(null);
+  };
+
+  /**
+   * Open the builder on a test that already exists, with its questions in it.
+   * Saving replaces the paper through the same `setQuestions` the create path
+   * uses — one writer, one set of rules.
+   */
+  const openQuestionEditor = async (t: TestListRow) => {
+    if (!ctx) return;
+    if ((t.submitted_count ?? 0) > 0) {
+      setError(
+        "Students have already handed this test in, so its questions cannot be changed — " +
+          "replacing a question would delete the answers given to it. Create a new test instead.",
+      );
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+    setSaving(true);
+    try {
+      const existing = await TestService.listQuestionsForEditing(ctx, t.id);
+      setQuestions(existing.map((q) => ({ ...q, localId: newLocalId() })));
+      setBasics((f) => ({
+        ...f,
+        title: String(t.title ?? ""),
+        testKind: (t.test_kind as TestKind) ?? "class_test",
+        durationMin: t.duration_sec ? String(Math.round(t.duration_sec / 60)) : f.durationMin,
+        chapter: String(t.chapter ?? ""),
+        topic: String(t.topic ?? ""),
+      }));
+      setEditQuestionsFor(t.id);
+      setSource("manual");
+      setBuilderOpen(true);
+      setStep("manual");
+    } catch (e) {
+      setError(errMsg(e, "Could not load this test's questions"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Save an edited paper back onto the test it came from. */
+  const saveEditedQuestions = async () => {
+    if (!ctx || !editQuestionsFor) return;
+    if (questions.length === 0) {
+      setError("A test needs at least one question. Delete the test instead if that is the intent.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await TestService.setQuestions(
+        ctx,
+        editQuestionsFor,
+        questions.map(({ question, options, correctIndex, marks, explanation, chapter, topic }) => ({
+          question, options, correctIndex, marks, explanation, chapter, topic,
+        })),
+      );
+      if (basics.title.trim()) {
+        await TestService.update(ctx, editQuestionsFor, { title: basics.title.trim() });
+      }
+      setSuccess(`Questions updated — ${questions.length} question(s), ${questionMarksTotal} marks`);
+      resetBuilder();
+      await reload();
+    } catch (e) {
+      setError(errMsg(e, "Could not save the questions"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openBuilder = () => {
@@ -1070,60 +1165,67 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     }
   };
 
+  /**
+   * Add the question on the form to the paper.
+   *
+   * Every refusal below names what is missing. The marks floor is 1 and whole:
+   * this was `Math.max(0.5, ...)`, and a half mark cannot be represented by
+   * `tests.max_mark` or `test_marks.mark` — both integer columns — so it was
+   * silently rounded into the mark a parent and a principal read.
+   */
   const addManualQuestion = () => {
-    if (!qForm.question.trim()) {
+    const question = qForm.question.trim();
+    if (!question) {
       setError("Question text is required");
       return;
     }
-    let options: string[] | undefined;
-    let correct: ManualQuestionInput["correct"] = qForm.correct.trim() || undefined;
-
-    if (qForm.kind === "mcq") {
-      if (qForm.useCsv) {
-        options = qForm.optionsCsv
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
-      } else {
-        options = [qForm.optionA, qForm.optionB, qForm.optionC, qForm.optionD]
-          .map((s) => s.trim())
-          .filter(Boolean);
-      }
-      if (options.length < 2) {
-        setError("MCQ needs at least 2 options");
-        return;
-      }
-      if (!correct) {
-        setError("Correct answer is required for MCQ");
-        return;
-      }
-    } else if (qForm.kind === "true_false") {
-      options = ["True", "False"];
-      if (!correct) {
-        setError("Select True or False as the correct answer");
-        return;
-      }
-    } else if (qForm.kind === "numerical") {
-      const n = Number(qForm.correct);
-      if (qForm.correct.trim() === "" || Number.isNaN(n)) {
-        setError("Numerical questions need a numeric correct answer");
-        return;
-      }
-      correct = n;
+    const options = qForm.options.map((o) => o.trim());
+    const filled = options.filter(Boolean);
+    if (filled.length < 2) {
+      setError("A question needs at least two options");
+      return;
+    }
+    if (options.some((o, i) => o === "" && i < options.length && options.slice(i + 1).some(Boolean))) {
+      setError("Fill the options in order — there is a blank one above a filled one");
+      return;
+    }
+    if (qForm.correctIndex == null || !filled[qForm.correctIndex]) {
+      setError("Mark which option is the correct answer");
+      return;
+    }
+    const marks = Number(qForm.marks);
+    if (!Number.isInteger(marks) || marks < 1) {
+      setError("Marks must be a whole number of at least 1");
+      return;
     }
 
     setQuestions((prev) => [
       ...prev,
       {
         localId: newLocalId(),
-        kind: qForm.kind,
-        question: qForm.question.trim(),
-        options,
-        correct,
-        marks: Math.max(0.5, Number(qForm.marks) || 1),
+        question,
+        options: filled,
+        correctIndex: qForm.correctIndex as number,
+        marks,
+        explanation: qForm.explanation.trim() || null,
+        // The chapter and topic this tab is already scoped to. §10.22: a test
+        // carries its topic PER QUESTION, and the class report ranks weak
+        // topics off exactly this field — a question with none lands under
+        // "Unlabelled".
+        chapter: basics.chapter.trim() || null,
+        topic: basics.topic.trim() || null,
       },
     ]);
     setQForm(emptyQuestionForm());
+    setError(null);
+  };
+
+  const addBankQuestion = (b: BankQuestion) => {
+    if (questions.some((q) => q.bankId === b.id)) {
+      setError("That question is already on this paper");
+      return;
+    }
+    setQuestions((prev) => [...prev, fromBank(b)]);
     setError(null);
   };
 
@@ -1156,6 +1258,21 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     setStep(s);
   };
 
+  /**
+   * Save the paper.
+   *
+   * ── THE ORDERING, AND WHY IT CHANGED ────────────────────────────────────
+   *
+   * This used to create the test with `status: 'published'` and write the
+   * questions AFTER. Between those two awaits the test was published with no
+   * questions: a student refreshing their Tests screen was offered a paper
+   * `rpc_test_start` then refused with "test has no questions" — and if the
+   * question write failed at all, the test stayed published and empty for good.
+   *
+   * `TestService.createWithQuestions` does it in the only safe order — draft,
+   * questions, then publish or schedule — and validates the whole paper before
+   * a row exists, so a refused question costs the teacher nothing.
+   */
   const submitBuilder = async (mode: "draft" | "now" | "schedule") => {
     if (!ctx) return;
     if (!basics.title.trim()) {
@@ -1164,11 +1281,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
       return;
     }
     if ((source === "manual" || source === "library") && questions.length === 0) {
-      setError(
-        source === "library"
-          ? "Question library has no content yet — pick Manual or Upload, or add questions once the library is filled"
-          : "Add at least one question, or switch source",
-      );
+      setError("Add at least one question, or switch source");
       setStep(source);
       return;
     }
@@ -1182,54 +1295,48 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
       setStep("basics");
       return;
     }
-
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
       const durationSec = Math.max(60, Math.round(durationMin * 60));
       const maxMarksFromForm = basics.maxMarks ? Number(basics.maxMarks) : null;
-      const maxMarks =
-        source === "manual" || source === "library"
-          ? questionMarksTotal || maxMarksFromForm
-          : maxMarksFromForm;
 
-      const created = (await TestService.create(ctx, {
-        classId,
-        title: basics.title.trim(),
-        subject,
-        testKind: basics.testKind,
-        duration_sec: durationSec,
-        maxMarks: maxMarks ?? null,
-        instructions: basics.instructions.trim() || null,
-        status: mode === "now" ? "published" : mode === "schedule" ? "scheduled" : "draft",
-        scheduledPublishAt:
-          mode === "schedule" ? new Date(basics.scheduledAt).toISOString() : undefined,
-        paperAttachments: source === "upload" ? attachments : undefined,
-      })) as { id: string };
-
-      if ((source === "manual" || source === "library") && questions.length > 0) {
-        await TestService.setQuestions(
-          ctx,
-          created.id,
-          questions.map(({ kind, question, options, correct, marks, explanation }) => ({
-            kind,
-            question,
-            options,
-            correct,
-            marks,
-            explanation,
-          })),
-        );
-      }
-
-      if (mode === "schedule") {
-        await TestService.schedule(ctx, created.id, new Date(basics.scheduledAt).toISOString());
-      }
+      await TestService.createWithQuestions(
+        ctx,
+        {
+          classId,
+          title: basics.title.trim(),
+          subject,
+          testKind: basics.testKind,
+          duration_sec: durationSec,
+          maxMarks: maxMarksFromForm,
+          instructions: basics.instructions.trim() || null,
+          chapters: basics.chapter.trim() ? [basics.chapter.trim()] : undefined,
+          topics: basics.topic.trim() ? [basics.topic.trim()] : undefined,
+          paperAttachments: source === "upload" ? attachments : undefined,
+        },
+        source === "upload"
+          ? []
+          : questions.map(({ question, options, correctIndex, marks, explanation, chapter, topic }) => ({
+              question,
+              options,
+              correctIndex,
+              marks,
+              explanation,
+              chapter,
+              topic,
+            })),
+        mode === "now"
+          ? { mode: "now" }
+          : mode === "schedule"
+            ? { mode: "schedule", at: new Date(basics.scheduledAt).toISOString() }
+            : { mode: "draft" },
+      );
 
       setSuccess(
         mode === "now"
-          ? "Test published successfully"
+          ? `Published to this class — ${questions.length} question(s), ${questionMarksTotal} marks`
           : mode === "schedule"
             ? "Test scheduled successfully"
             : "Draft saved successfully",
@@ -1246,7 +1353,16 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   if (loading) return <Loading label="Loading tests…" />;
 
   if (builderOpen) {
-    const stepLabel: Record<BuilderStep, string> = {
+    const stepLabel: Record<BuilderStep, string> = editQuestionsFor
+      ? {
+          basics: "Editing · Basics",
+          source: "Editing · Source",
+          library: "Editing · Question bank",
+          manual: "Editing the questions",
+          upload: "Editing · Upload",
+          review: "Editing · Review",
+        }
+      : {
       basics: "A · Basics",
       source: "B · Source",
       library: "C · Library",
@@ -1323,6 +1439,35 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground w-24"
               />
             </div>
+            {/* The denominator every mark on this test is scored against. For a
+                built paper it is the sum of the question marks and this field
+                is ignored — saying so beats letting a teacher type 20 over a
+                10-mark paper and watch every mark come out of 20. */}
+            <div className="text-[10px] text-muted-foreground">
+              Max marks is taken from the questions you add. This field is only used for an
+              uploaded paper.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={basics.chapter}
+                onChange={(e) => setBasics((f) => ({ ...f, chapter: e.target.value }))}
+                placeholder="Chapter"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground flex-1 min-w-[140px]"
+              />
+              <input
+                value={basics.topic}
+                onChange={(e) => setBasics((f) => ({ ...f, topic: e.target.value }))}
+                placeholder="Topic"
+                className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground flex-1 min-w-[140px]"
+              />
+            </div>
+            {/* §10.22: a test carries its topic per question, and the report
+                ranks weak topics off it. Questions from the bank bring their
+                own; hand-written ones take these two. */}
+            <div className="text-[10px] text-muted-foreground">
+              The chapter and topic are what the class report ranks weak topics by. Questions taken
+              from the bank bring their own.
+            </div>
             <textarea
               value={basics.instructions}
               onChange={(e) => setBasics((f) => ({ ...f, instructions: e.target.value }))}
@@ -1377,20 +1522,20 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 {
                   key: "library" as const,
                   icon: BookOpen,
-                  title: "Gurukul Question Library",
-                  desc: "Filter NCERT / board questions (coming soon)",
+                  title: "Pick from the question bank",
+                  desc: "21,000+ board MCQs, by chapter and difficulty — answers already keyed",
                 },
                 {
                   key: "manual" as const,
                   icon: PenLine,
-                  title: "Write questions manually",
-                  desc: "MCQ, T/F, fill, short, long, numerical",
+                  title: "Write the questions yourself",
+                  desc: "Multiple choice or True / False, marked automatically",
                 },
                 {
                   key: "upload" as const,
                   icon: Upload,
-                  title: "Upload question paper",
-                  desc: "Attach PDF / image URLs (metadata only)",
+                  title: "Upload a written paper",
+                  desc: "Attach a PDF for a paper sat in class — saves as a draft, no online attempt",
                 },
               ] as const
             ).map((card) => (
@@ -1412,45 +1557,178 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
         {step === "library" && (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              {LIBRARY_FILTER_KEYS.map((key) => (
-                <input
-                  key={key}
-                  value={libFilters[key]}
-                  onChange={(e) =>
-                    setLibFilters((f) => ({ ...f, [key]: e.target.value }))
-                  }
-                  placeholder={key.replace(/([A-Z])/g, " $1")}
-                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground capitalize"
-                />
-              ))}
+            <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+              <span>
+                On this paper: <strong className="text-foreground">{questions.length}</strong>
+              </span>
+              <span>
+                Marks: <strong className="text-foreground">{questionMarksTotal}</strong>
+              </span>
+              <span>
+                Subject: <strong className="text-foreground">{subject || "—"}</strong>
+              </span>
             </div>
-            {libLoading ? (
-              <Loading label="Loading library…" />
-            ) : libItems.length > 0 ? (
+
+            <div className="bg-surface border border-border rounded-[2px] p-3 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={bankClassLevel}
+                  onChange={(e) => {
+                    setBankClassLevel(e.target.value);
+                    setBankChapter("");
+                  }}
+                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
+                >
+                  <option value="">Class level *</option>
+                  {[5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                    <option key={n} value={String(n)}>
+                      Class {n}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={bankChapter}
+                  onChange={(e) => setBankChapter(e.target.value)}
+                  disabled={bankChapters.length === 0}
+                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground disabled:opacity-50 max-w-[220px]"
+                >
+                  <option value="">All chapters</option>
+                  {bankChapters.map((c) => (
+                    <option key={c.chapter} value={c.chapter}>
+                      {c.chapter} ({c.count})
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={bankDifficulty}
+                  onChange={(e) => setBankDifficulty(e.target.value)}
+                  className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground capitalize"
+                >
+                  <option value="">Any difficulty</option>
+                  {DIFFICULTIES.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <input
+                  value={bankSearch}
+                  onChange={(e) => setBankSearch(e.target.value)}
+                  placeholder="Search the question text"
+                  className="flex-1 bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
+                />
+              </div>
+              {/* The class level is required, not defaulted: guessing it would
+                  serve a Class 6 paper to a Class 10 section, and the bank
+                  holds every level. */}
+              {!bankClassLevel && (
+                <div className="text-[10px] text-muted-foreground">
+                  Choose the class level to search. The subject is this class&apos;s own
+                  {subject ? ` (${subject})` : ""}.
+                </div>
+              )}
+            </div>
+
+            {bankError && (
+              <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+                {bankError}
+              </div>
+            )}
+
+            {bankLoading ? (
+              <Loading label="Searching the question bank…" />
+            ) : bankItems.length > 0 ? (
               <div className="space-y-2">
-                {libItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-surface border border-border/70 rounded-[2px] text-xs text-foreground"
-                  >
-                    {item.question}
-                  </div>
-                ))}
+                {bankItems.map((item) => {
+                  const already = questions.some((q) => q.bankId === item.id);
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3 bg-surface border border-border/70 rounded-[2px] space-y-2"
+                    >
+                      <div className="text-xs text-foreground">{item.question}</div>
+                      <div className="grid grid-cols-2 gap-1">
+                        {item.options.map((opt, i) => (
+                          <div
+                            key={i}
+                            className={cn(
+                              "text-[10px] px-2 py-1 rounded-[2px] border",
+                              i === item.correctIndex
+                                ? "border-success/40 bg-success/10 text-success"
+                                : "border-border/60 text-muted-foreground",
+                            )}
+                          >
+                            {String.fromCharCode(65 + i)}. {opt}
+                            {i === item.correctIndex ? " ✓" : ""}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[9px] text-muted-foreground truncate">
+                          {[item.chapter, item.topic ? displayTopic(item.topic) || item.topic : null, item.difficulty]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={already}
+                          onClick={() => addBankQuestion(item)}
+                          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-primary/20 text-primary disabled:opacity-40 shrink-0"
+                        >
+                          {already ? "On the paper" : "Add"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
-              <div className="bg-surface border border-dashed border-border rounded-[2px] p-6 text-center space-y-3">
+              <div className="bg-surface border border-dashed border-border rounded-[2px] p-6 text-center space-y-2">
                 <BookOpen className="w-8 h-8 text-muted-foreground mx-auto" />
                 <div className="text-xs text-muted-foreground">
-                  Library coming soon — NCERT content will be added later. Use Manual or Upload for
-                  now.
+                  {!bankClassLevel
+                    ? "Choose a class level to see the bank's questions for this subject."
+                    : "No approved questions match those filters for this subject and class."}
                 </div>
+              </div>
+            )}
+
+            {questions.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-border/60">
+                <div className="text-[10px] font-bold text-foreground">
+                  On this paper ({questions.length})
+                </div>
+                {questions.map((q, i) => (
+                  <div
+                    key={q.localId}
+                    className="p-2 bg-muted/40 border border-border/60 rounded-[2px] flex items-center gap-2"
+                  >
+                    <span className="text-[9px] text-muted-foreground shrink-0">{i + 1}.</span>
+                    <span className="text-[11px] text-foreground flex-1 min-w-0 truncate">
+                      {q.question}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground shrink-0">
+                      {q.marks ?? 1} mark{(q.marks ?? 1) === 1 ? "" : "s"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setQuestions((prev) => prev.filter((x) => x.localId !== q.localId))}
+                      className="p-1 rounded bg-destructive/15 text-destructive shrink-0"
+                      aria-label={`Remove question ${i + 1}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
                 <button
                   type="button"
-                  onClick={() => pickSource("manual")}
-                  className="px-3 py-1.5 rounded-[2px] text-[10px] font-bold bg-primary/20 text-primary"
+                  onClick={() => setStep("review")}
+                  className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
                 >
-                  Switch to manual
+                  Next: Review <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
@@ -1474,96 +1752,125 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
             </div>
 
             <div className="bg-surface border border-border rounded-[2px] p-4 space-y-2">
-              <select
-                value={qForm.kind}
-                onChange={(e) =>
-                  setQForm((f) => ({ ...f, kind: e.target.value as ManualQuestionKind }))
-                }
-                className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
-              >
-                {MANUAL_QUESTION_KINDS.map((k) => (
-                  <option key={k.value} value={k.value}>
-                    {k.label}
-                  </option>
+              {/* Two presets, and both are MCQs: an online test is marked by
+                  comparing the answer to its key, and nothing in the product
+                  marks prose. A written question belongs on a printed paper
+                  (/teacher/question-papers). */}
+              <div className="flex gap-1">
+                {QUESTION_PRESETS.map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() =>
+                      setQForm((f) => ({
+                        ...f,
+                        preset: preset.value,
+                        options: [...preset.options],
+                        correctIndex: null,
+                      }))
+                    }
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg text-[10px] font-bold",
+                      qForm.preset === preset.value
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {preset.label}
+                  </button>
                 ))}
-              </select>
+              </div>
+
               <textarea
                 value={qForm.question}
                 onChange={(e) => setQForm((f) => ({ ...f, question: e.target.value }))}
                 placeholder="Question text *"
                 className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground min-h-[50px]"
               />
-              {qForm.kind === "mcq" && (
-                <div className="space-y-2">
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setQForm((f) => ({ ...f, useCsv: false }))}
-                      className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        !qForm.useCsv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      4 options
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setQForm((f) => ({ ...f, useCsv: true }))}
-                      className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        qForm.useCsv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      Comma-separated
-                    </button>
-                  </div>
-                  {qForm.useCsv ? (
-                    <input
-                      value={qForm.optionsCsv}
-                      onChange={(e) => setQForm((f) => ({ ...f, optionsCsv: e.target.value }))}
-                      placeholder="Options, comma-separated"
-                      className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
-                    />
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {(["optionA", "optionB", "optionC", "optionD"] as const).map((key, i) => (
-                        <input
-                          key={key}
-                          value={qForm[key]}
-                          onChange={(e) => setQForm((f) => ({ ...f, [key]: e.target.value }))}
-                          placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                          className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
-                        />
-                      ))}
-                    </div>
-                  )}
+
+              {/* The correct answer is PICKED, never typed. It used to be a
+                  free-text "Correct option text" field: a typo produced an
+                  answer key naming no option, and then every student's answer
+                  marked wrong with nothing on screen to explain it. */}
+              <div className="space-y-1.5">
+                <div className="text-[10px] text-muted-foreground">
+                  Options — tap the circle to mark the correct one
                 </div>
-              )}
-              {qForm.kind === "true_false" ? (
-                <select
-                  value={qForm.correct}
-                  onChange={(e) => setQForm((f) => ({ ...f, correct: e.target.value }))}
-                  className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
-                >
-                  <option value="">Correct answer *</option>
-                  <option value="True">True</option>
-                  <option value="False">False</option>
-                </select>
-              ) : (
-                <input
-                  value={qForm.correct}
-                  onChange={(e) => setQForm((f) => ({ ...f, correct: e.target.value }))}
-                  placeholder={
-                    qForm.kind === "numerical"
-                      ? "Correct number *"
-                      : qForm.kind === "mcq"
-                        ? "Correct option text *"
-                        : "Correct / model answer"
-                  }
-                  className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
-                />
-              )}
+                {qForm.options.map((opt, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQForm((f) => ({ ...f, correctIndex: i }))}
+                      aria-label={`Mark option ${String.fromCharCode(65 + i)} correct`}
+                      aria-pressed={qForm.correctIndex === i}
+                      className={cn(
+                        "w-6 h-6 rounded-full border text-[10px] font-bold shrink-0 flex items-center justify-center",
+                        qForm.correctIndex === i
+                          ? "border-success bg-success/20 text-success"
+                          : "border-border text-muted-foreground",
+                      )}
+                    >
+                      {String.fromCharCode(65 + i)}
+                    </button>
+                    <input
+                      value={opt}
+                      onChange={(e) =>
+                        setQForm((f) => ({
+                          ...f,
+                          options: f.options.map((o, j) => (j === i ? e.target.value : o)),
+                        }))
+                      }
+                      disabled={qForm.preset === "true_false"}
+                      placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                      className="flex-1 bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground disabled:opacity-70"
+                    />
+                    {qForm.preset === "mcq" && qForm.options.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setQForm((f) => ({
+                            ...f,
+                            options: f.options.filter((_, j) => j !== i),
+                            correctIndex:
+                              f.correctIndex == null
+                                ? null
+                                : f.correctIndex === i
+                                  ? null
+                                  : f.correctIndex > i
+                                    ? f.correctIndex - 1
+                                    : f.correctIndex,
+                          }))
+                        }
+                        className="p-1 rounded bg-destructive/15 text-destructive shrink-0"
+                        aria-label={`Remove option ${String.fromCharCode(65 + i)}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {qForm.preset === "mcq" && qForm.options.length < 6 && (
+                  <button
+                    type="button"
+                    onClick={() => setQForm((f) => ({ ...f, options: [...f.options, ""] }))}
+                    className="text-[10px] font-bold text-primary"
+                  >
+                    + Add another option
+                  </button>
+                )}
+              </div>
+
+              <input
+                value={qForm.explanation}
+                onChange={(e) => setQForm((f) => ({ ...f, explanation: e.target.value }))}
+                placeholder="Explanation (shown to the student with their result)"
+                className="w-full bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground"
+              />
+
               <div className="flex gap-2">
                 <input
                   value={qForm.marks}
+                  inputMode="numeric"
                   onChange={(e) => setQForm((f) => ({ ...f, marks: e.target.value }))}
                   placeholder="Marks"
                   className="bg-muted border border-border rounded-[2px] px-3 py-2 text-xs text-foreground w-24"
@@ -1586,9 +1893,15 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-[9px] text-primary font-bold uppercase">
-                      {q.kind} · {q.marks ?? 1} marks
+                      {q.marks ?? 1} mark{(q.marks ?? 1) === 1 ? "" : "s"}
+                      {q.bankId ? " · from the bank" : ""}
                     </div>
                     <div className="text-xs text-foreground mt-0.5 line-clamp-2">{q.question}</div>
+                    {/* The key, on screen, as the option it names. This is the
+                        only place a teacher can check it before publishing. */}
+                    <div className="text-[9px] text-success mt-0.5 truncate">
+                      Correct: {String.fromCharCode(65 + q.correctIndex)}. {q.options[q.correctIndex]}
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1">
                     <button
@@ -1596,6 +1909,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       disabled={i === 0}
                       onClick={() => moveQuestion(i, -1)}
                       className="p-1 rounded bg-muted text-muted-foreground disabled:opacity-30"
+                      aria-label="Move up"
                     >
                       <ArrowUp className="w-3 h-3" />
                     </button>
@@ -1604,6 +1918,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       disabled={i === questions.length - 1}
                       onClick={() => moveQuestion(i, 1)}
                       className="p-1 rounded bg-muted text-muted-foreground disabled:opacity-30"
+                      aria-label="Move down"
                     >
                       <ArrowDown className="w-3 h-3" />
                     </button>
@@ -1613,6 +1928,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                         setQuestions((prev) => prev.filter((x) => x.localId !== q.localId))
                       }
                       className="p-1 rounded bg-destructive/15 text-destructive"
+                      aria-label="Remove question"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -1626,20 +1942,32 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (questions.length === 0) {
-                  setError("Add at least one question before review");
-                  return;
-                }
-                setError(null);
-                setStep("review");
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
-            >
-              Next: Review <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            {editQuestionsFor ? (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void saveEditedQuestions()}
+                className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                Save questions
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (questions.length === 0) {
+                    setError("Add at least one question before review");
+                    return;
+                  }
+                  setError(null);
+                  setStep("review");
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-bold text-primary-foreground bg-primary"
+              >
+                Next: Review <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         )}
 
@@ -1700,6 +2028,12 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               </div>
               {source === "upload" && attachments.length > 0 && (
                 <AttachmentList items={attachments} dense />
+              )}
+              {source === "upload" && (
+                <div className="text-[10px] text-warning">
+                  This paper has no online questions, so students will see it as a written paper and
+                  cannot sit it in the app. Enter their marks yourself once it is written.
+                </div>
               )}
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1763,9 +2097,21 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
       <div className="space-y-2">
         {tests.map((t) => {
           const status = resolveTestStatus(t);
-          const marks = t.total_marks;
-          const qCount = questionCounts[t.id] ?? 0;
+          const marks = t.max_mark ?? t.total_marks;
+          const qCount = t.question_count;
           const canPublish = status !== "published" && status !== "archived";
+          // A published test with no questions is one a student would be
+          // offered and then refused by `rpc_test_start` — EXCEPT when it is an
+          // uploaded written paper, which has no online questions by design and
+          // whose card tells the student exactly that.
+          //
+          // The attachment marker is read out of `instructions` because that is
+          // where `TestService.create` puts it ("[Paper attachments]"), and a
+          // sniff of the real storage beats a second column holding the same
+          // fact (G9). If attachments ever get their own column, this reads it
+          // instead and nothing else moves.
+          const isPaperUpload = String(t.instructions ?? "").includes("[Paper attachments]");
+          const publishedEmpty = status === "published" && qCount === 0 && !isPaperUpload;
           return (
             <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-[2px] space-y-2">
               <div className="flex justify-between gap-2">
@@ -1775,7 +2121,21 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     {TEST_KIND_LABELS[(t.test_kind as TestKind) ?? "class_test"] ?? t.test_kind} ·{" "}
                     {qCount} Q · {marks != null ? `${marks} marks` : "— marks"}
                     {t.duration_sec ? ` · ${Math.round(t.duration_sec / 60)} min` : ""}
+                    {t.subject ? ` · ${displaySubject(t.subject)}` : ""}
                   </div>
+                  {/* How many have handed in — the fact a teacher opens a
+                      published test to find out, and one this list could not
+                      state at all before `rpc_test_list_for_class`. */}
+                  {status === "published" && t.submitted_count != null && (
+                    <div className="text-[10px] text-primary font-bold mt-0.5">
+                      {t.submitted_count} of {t.roll_count ?? "—"} handed in
+                    </div>
+                  )}
+                  {publishedEmpty && (
+                    <div className="text-[10px] text-destructive mt-0.5">
+                      Published with no questions — students cannot sit it. Add questions or archive it.
+                    </div>
+                  )}
                 </div>
                 <span
                   className={cn(
@@ -1796,7 +2156,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 {ctx && (
                   <button
                     type="button"
-                    onClick={() => void openReport(t.id)}
+                    onClick={() => openReport(t.id)}
                     aria-expanded={reportTestId === t.id}
                     className={cn(
                       "px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1",
@@ -1845,6 +2205,21 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-muted-foreground disabled:opacity-50"
                   >
                     Edit
+                  </button>
+                )}
+                {ctx && status !== "archived" && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void openQuestionEditor(t)}
+                    title={
+                      (t.submitted_count ?? 0) > 0
+                        ? "Students have handed this in — its questions are fixed now"
+                        : "Add, remove or correct the questions"
+                    }
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-muted-foreground disabled:opacity-50"
+                  >
+                    Edit questions
                   </button>
                 )}
                 {ctx && status !== "archived" && (
@@ -1944,196 +2319,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   </div>
                 </div>
               )}
-              {reportTestId === t.id && (
-                <div className="pt-2 mt-1 border-t border-border/60 space-y-3">
-                  {reportLoading && <Loading label="Loading report" />}
-                  {reportError && (
-                    <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
-                      {reportError}
-                    </div>
-                  )}
-                  {report && (
-                    <>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="rounded-[2px] bg-muted/60 px-2 py-1.5">
-                          <div className="text-[9px] text-muted-foreground">Submitted</div>
-                          <div className="text-xs font-bold text-foreground">
-                            {toCountLabel(report.submitted_count)} of{" "}
-                            {report.students.length}
-                          </div>
-                        </div>
-                        <div className="rounded-[2px] bg-muted/60 px-2 py-1.5">
-                          <div className="text-[9px] text-muted-foreground">Class average</div>
-                          {/* NULL, not 0, when nobody has sat it — the database
-                              is deliberate about that and the screen must be
-                              too: a real class average of 0 is a different
-                              fact from an unsat test. */}
-                          <div className="text-xs font-bold text-foreground">
-                            {toCountLabel(report.class_average)}
-                            {report.class_average != null && report.max_mark != null
-                              ? ` / ${report.max_mark}`
-                              : ""}
-                          </div>
-                        </div>
-                        <div className="rounded-[2px] bg-muted/60 px-2 py-1.5">
-                          <div className="text-[9px] text-muted-foreground">Avg per question</div>
-                          <div className="text-xs font-bold text-foreground">
-                            {report.average_seconds_per_question == null
-                              ? toCountLabel(null)
-                              : `${report.average_seconds_per_question}s`}
-                          </div>
-                        </div>
-                      </div>
-
-                      {report.submitted_count === 0 && (
-                        <div className="text-[10px] text-muted-foreground">
-                          Nobody has submitted this test yet, so there is no average and no
-                          topic ranking to show.
-                        </div>
-                      )}
-
-                      {report.weakest_topics.length > 0 && (
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-bold text-foreground">
-                            Weakest topics
-                          </div>
-                          {report.weakest_topics.map((w) => (
-                            <div
-                              key={w.topic}
-                              className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2 py-1"
-                            >
-                              <span className="text-[10px] text-foreground truncate">
-                                {displayTopic(w.topic) || w.topic}
-                              </span>
-                              <span className="text-[9px] text-destructive shrink-0">
-                                {w.wrong} of {w.asked} wrong · {toPercentLabel(w.wrong_pct)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-[10px] font-bold text-foreground">Class list</div>
-                        <button
-                          type="button"
-                          onClick={() => exportCSV(`test-report-${report.test_id}`, classReportCsvRows(report))}
-                          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-muted-foreground flex items-center gap-1"
-                        >
-                          <Download className="w-3 h-3" /> CSV
-                        </button>
-                      </div>
-
-                      <div className="space-y-1">
-                        {report.students.map((s) => (
-                          <div key={s.student_id}>
-                            <button
-                              type="button"
-                              onClick={() => void openDrill(t.id, s.student_id)}
-                              aria-expanded={drillStudentId === s.student_id}
-                              className="w-full flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2 py-1 text-left"
-                            >
-                              <span className="text-[10px] text-foreground truncate">
-                                {s.roll_number != null && s.roll_number !== ""
-                                  ? `${s.roll_number}. `
-                                  : ""}
-                                {toPersonName(s.full_name, { kind: "student" })}
-                              </span>
-                              <span className="text-[9px] text-muted-foreground shrink-0">
-                                {s.submitted
-                                  ? `${toCountLabel(s.mark)}${report.max_mark != null ? ` / ${report.max_mark}` : ""}`
-                                  : "Not submitted"}
-                              </span>
-                            </button>
-                            {drillStudentId === s.student_id && (
-                              <div className="mt-1 ml-2 rounded-[2px] border border-border/60 bg-muted/20 px-2 py-2 space-y-2">
-                                {drillLoading && <Loading label="Loading" />}
-                                {drillError && (
-                                  <div className="text-[10px] text-destructive">{drillError}</div>
-                                )}
-                                {/* Three different empty states, because they
-                                    are three different facts. Rendering them
-                                    the same is the defect this whole report
-                                    was almost shipped with. */}
-                                {drill && !drill.submitted && (
-                                  <div className="text-[10px] text-muted-foreground">
-                                    This student did not sit the test, so there is nothing to
-                                    review.
-                                  </div>
-                                )}
-                                {drill && drill.submitted && drill.wrong_answers.length === 0 && (
-                                  <div className="text-[10px] text-muted-foreground">
-                                    Nothing went wrong — every question was correct.
-                                  </div>
-                                )}
-                                {drill && drill.submitted && drill.wrong_answers.length > 0 && (
-                                  <>
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="text-[10px] font-bold text-foreground">
-                                        {drill.wrong_answers.length} to review
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          exportCSV(
-                                            `test-report-${drill.test_id}-${drill.student_id}`,
-                                            studentReportCsvRows(drill),
-                                          )
-                                        }
-                                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-muted-foreground flex items-center gap-1"
-                                      >
-                                        <Download className="w-3 h-3" /> CSV
-                                      </button>
-                                    </div>
-                                    {drill.wrong_answers.map((w) => {
-                                      const theirs = answerToText(w.their_answer, w.options);
-                                      const right = answerToText(w.correct_answer, w.options);
-                                      return (
-                                        <div
-                                          key={w.question_id}
-                                          className="rounded-lg bg-surface border border-border/60 px-2 py-1.5 space-y-0.5"
-                                        >
-                                          <div className="text-[10px] text-foreground">
-                                            {toDisplayText(w.question, { fallback: "Question" })}
-                                          </div>
-                                          <div className="text-[9px] text-muted-foreground">
-                                            {displayTopic(w.topic) || w.topic}
-                                            {w.marks != null ? ` · ${w.marks} marks` : ""}
-                                          </div>
-                                          <div className="text-[9px]">
-                                            <span className="text-destructive">
-                                              {!w.answered
-                                                ? "Left blank"
-                                                : theirs != null
-                                                  ? `Answered: ${theirs}`
-                                                  : "Their answer was recorded in a form this screen cannot read"}
-                                            </span>
-                                            {right != null && (
-                                              <span className="text-success">
-                                                {" "}
-                                                · Correct: {right}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        {report.students.length === 0 && (
-                          <div className="text-[10px] text-muted-foreground">
-                            This class has no students on roll.
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+              {reportTestId === t.id && <TestReportPanel testId={t.id} />}
             </div>
           );
         })}
@@ -2419,7 +2605,7 @@ export function LiveExamsMarksTab({
           onClick={() => setActiveSubject(null)}
           className="text-[10px] font-bold text-primary"
         >
-          â† Back to exams
+          ← Back to exams
         </button>
         {error && (
           <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -2509,7 +2695,7 @@ export function LiveExamsMarksTab({
           onClick={() => setActiveSitting(null)}
           className="text-[10px] font-bold text-primary"
         >
-          â† Back to exams
+          ← Back to exams
         </button>
         {error && (
           <div className="rounded-[2px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -2773,7 +2959,7 @@ export function LiveExamsMarksTab({
   );
 }
 
-type InsightHwRow = Awaited<ReturnType<typeof HomeworkService.listForClassWithStats>>[number];
+type InsightHwRow = ClassHomeworkRow;
 type InsightTestRow = {
   id: string;
   title?: string;
@@ -2840,7 +3026,9 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   > | null>(null);
   const [profiles, setProfiles] = useState<StudentAcademicProfile[]>([]);
   const [nameById, setNameById] = useState<Map<string, string>>(new Map());
-  const [homework, setHomework] = useState<InsightHwRow[]>([]);
+  // Every published homework of the class — listPublishedForClass reads to the
+  // end, so neither count below stops at a page.
+  const [activeHomework, setActiveHomework] = useState<InsightHwRow[]>([]);
   const [tests, setTests] = useState<InsightTestRow[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
   // A pending row is { exam, subject } — one per SUBJECT still awaiting
@@ -2867,7 +3055,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           AnalyticsService.forClass(ctx, classId),
           AcademicProfileService.listForClass(ctx, classId, { limit: 200 }),
           AttendanceService.listClassStudents(ctx, classId),
-          HomeworkService.listForClassWithStats(ctx, classId, { limit: 100 }),
+          HomeworkService.listPublishedForClass(ctx, classId),
           TestService.listForClass(ctx, classId),
           MarksService.listExamsForClass(ctx, classId, { limit: 100 }),
           MarksService.listMyPendingSubjectExams(ctx, classId),
@@ -2895,7 +3083,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         setAnalytics(a);
         setProfiles(p);
         setNameById(new Map(students.map((s) => [s.id, s.fullName])));
-        setHomework(hw);
+        setActiveHomework(hw);
         setTests(tRows);
         setExams(examRows);
         setPendingExams(pending);
@@ -2926,16 +3114,6 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     nameById.get(studentId) ?? "Unknown student";
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-
-  const activeHomework = useMemo(
-    () =>
-      homework.filter((h) => {
-        if (h.archivedAt) return false;
-        const st = String(h.status ?? "").toLowerCase();
-        return st === "published" || st === "active";
-      }),
-    [homework],
-  );
 
   const activeTests = useMemo(
     () =>
@@ -2977,20 +3155,22 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     return [...byId.values()];
   }, [exams, pendingExams]);
 
+  // Completion and review backlog both come from `homework_completion`, where a
+  // rejected hand-in is not given and a deleted student is not counted.
   const lowCompletionHw = useMemo(
     () =>
-      [...activeHomework]
-        .sort((a, b) => a.completionPct - b.completionPct)
-        .filter((h) => h.totalStudents > 0)
+      activeHomework
+        .flatMap((h) => (h.completion && h.completion.students > 0 ? [{ ...h, completion: h.completion }] : []))
+        .sort((a, b) => a.completion.completionPct - b.completion.completionPct)
         .slice(0, 5),
     [activeHomework],
   );
 
-  const lateHomework = useMemo(
+  const reviewBacklogHw = useMemo(
     () =>
-      [...activeHomework]
-        .filter((h) => (h.late ?? 0) > 0)
-        .sort((a, b) => (b.late ?? 0) - (a.late ?? 0))
+      activeHomework
+        .flatMap((h) => (h.completion && h.completion.awaitingReview > 0 ? [{ ...h, completion: h.completion }] : []))
+        .sort((a, b) => b.completion.awaitingReview - a.completion.awaitingReview)
         .slice(0, 5),
     [activeHomework],
   );
@@ -3069,7 +3249,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         p,
         `${Math.round(p.homeworkCompletionPct)}% HW`,
         missing > 0
-          ? `${missing} homework missing/pending`
+          ? `${missing} homework not handed in by the deadline`
           : "Low homework completion",
       );
     }
@@ -3090,17 +3270,17 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       rows.push({
         id: `hw-low-${h.id}`,
         name: h.title || "Homework",
-        metric: `${Math.round(h.completionPct)}%`,
-        why: `${h.pending} pending · ${h.submitted}/${h.totalStudents} submitted`,
+        metric: `${Math.round(h.completion.completionPct)}%`,
+        why: `${h.completion.notGiven} not given · ${h.completion.given}/${h.completion.students} handed in`,
       });
     }
-    for (const h of lateHomework) {
+    for (const h of reviewBacklogHw) {
       if (rows.some((r) => r.id === `hw-low-${h.id}`)) continue;
       rows.push({
-        id: `hw-late-${h.id}`,
+        id: `hw-review-${h.id}`,
         name: h.title || "Homework",
-        metric: `${h.late} late`,
-        why: "Late submissions need follow-up",
+        metric: `${h.completion.awaitingReview} to review`,
+        why: "Hand-ins waiting to be accepted or rejected",
       });
     }
     for (const t of testsNeedingPublish.slice(0, 5)) {
@@ -3120,7 +3300,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       });
     }
     return rows.slice(0, 12);
-  }, [lowCompletionHw, lateHomework, testsNeedingPublish, examsAwaitingMarks]);
+  }, [lowCompletionHw, reviewBacklogHw, testsNeedingPublish, examsAwaitingMarks]);
 
   // doingWellRows removed (§10.8). It ranked the class by exam+test average and
   // took the top five — a peer-model list, which is a strength ranking of named
@@ -3180,8 +3360,8 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       ...interventionRows.filter((r) => r.metric.includes("concerns")).map((r) => r.id),
     ]);
     const itemAction =
-      lowCompletionHw.filter((h) => h.completionPct < HOMEWORK_ITEM_NEEDS_ACTION).length +
-      lateHomework.length +
+      lowCompletionHw.filter((h) => h.completion.completionPct < HOMEWORK_ITEM_NEEDS_ACTION).length +
+      reviewBacklogHw.length +
       testsNeedingPublish.length +
       examsAwaitingMarks.length;
     return {
@@ -3192,7 +3372,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     needsAttentionRows,
     interventionRows,
     lowCompletionHw,
-    lateHomework,
+    reviewBacklogHw,
     testsNeedingPublish,
     examsAwaitingMarks,
   ]);

@@ -345,11 +345,13 @@ Mounted design shell pages (`src/gurukul/pages/` via `StudentDashboard` + `src/g
 | `/student/learning` | Learning | Learning hub |
 | `/student/class` | Class | Class hub |
 
-Additional deep/legacy functional routes remain under StudentDashboard (recovery sessions, practice results, DPP attempt/result, chat, notices). Prefer extending live wiring rather than inventing parallel pages.
+Additional deep/legacy functional routes remain under StudentDashboard (recovery sessions, practice results, DPP attempt/result, notices). Prefer extending live wiring rather than inventing parallel pages.
 
 ### 11.2 Teacher (`/teacher/*`)
 
-**Live nav (7 pages):** Dashboard, My Classes (attendance nested under classes), Doubts, Communication, Announcements, Leave, Profile.
+**Live nav (9 pages):** Dashboard, My Classes (attendance nested under classes), Battles, Question Papers, Resources, Doubts, Announcements, Leave, Profile.
+
+Communication (chat) and the teacher's Question Bank browser were removed on 2026-09-13 — see `docs/gurukul-spec-rules.md`, "Chat and the teacher's Question Bank are removed". `/teacher/question-bank`, `/teacher/ai-coach` and `/teacher/practice` redirect to Question Papers, which is the whole of the teachers' AI: build or generate a paper, then send it to a class as an online test.
 
 Many legacy pathnames (`/teacher/homework`, `/exams`, `/insights`, `/battleground`, `/question-bank`, `/dpp/*`, …) currently **redirect** into those hubs—they are not separate mounted products yet.
 

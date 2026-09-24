@@ -35,7 +35,13 @@ BEGIN
     RAISE EXCEPTION 'CHUNK7C_C1_VERIFY: demo student accounts missing; cannot verify as a real role.';
   END IF;
 
-  -- A chapter this student's section actually teaches, holding real questions.
+  -- A chapter this student's section actually teaches, holding real questions,
+  -- in which the student has NO mistakes of their own. Every check below reads
+  -- the ladder built from the ONE mistake seeded here: item 1 expects tier 0 to
+  -- hold exactly it, item 7 needs deep mode. The first taught chapter used to
+  -- be taken as found, so once the student had practised and got questions
+  -- wrong there, tier 0 held those too ("tier 0 filled 2") and then the seed
+  -- itself collided with a real mistake on the same question (23505).
   SELECT ch.id INTO _chapter
     FROM public.chapters ch
     JOIN public.section_subjects ss ON ss.curriculum_subject_id = ch.curriculum_subject_id
@@ -43,24 +49,45 @@ BEGIN
    WHERE st.user_id = _arjun
      AND (SELECT count(*) FROM public.question_bank qb
            WHERE qb.chapter_id = ch.id AND qb.is_active AND qb.is_approved) >= 3
+     AND NOT EXISTS (
+       SELECT 1 FROM public.student_mistakes sm
+        WHERE sm.user_id = _arjun AND sm.chapter_id = ch.id)
+     AND NOT EXISTS (
+       SELECT 1 FROM public.student_mistakes sm
+         JOIN public.question_bank qb ON qb.id = sm.question_id
+        WHERE sm.user_id = _arjun AND qb.chapter_id = ch.id)
+   ORDER BY ch.id
    LIMIT 1;
 
   IF _chapter IS NULL THEN
-    RAISE EXCEPTION 'CHUNK7C_C1_VERIFY: no entitled chapter with 3+ approved questions; the checks below would be vacuous.';
+    RAISE EXCEPTION 'CHUNK7C_C1_VERIFY: no taught chapter with 3+ approved questions and no mistakes of the student''s own; the checks below would read someone else''s ladder.';
   END IF;
 
-  -- One chapter the student is NOT entitled to, for the filter check.
+  -- One chapter the student is NOT entitled to, for the filter check: neither
+  -- taught to their section nor practised by them. A practised chapter is
+  -- theirs since 20261044000000, so an untaught one alone no longer is.
   SELECT ch.id INTO _foreign
     FROM public.chapters ch
    WHERE NOT EXISTS (
      SELECT 1 FROM public.section_subjects ss
        JOIN public.students st ON st.class_id = ss.section_id
       WHERE ss.curriculum_subject_id = ch.curriculum_subject_id AND st.user_id = _arjun)
+     AND NOT EXISTS (
+     SELECT 1 FROM public.question_attempts qa
+       JOIN public.question_bank qb ON qb.id = qa.bank_question_id
+      WHERE qa.user_id = _arjun AND qb.chapter_id = ch.id)
    LIMIT 1;
 
-  SELECT * INTO _orig FROM public.question_bank
-   WHERE chapter_id = _chapter AND is_active AND is_approved
-   ORDER BY created_at LIMIT 1;
+  -- A question with no variants yet: item 1 expects tier 1 to start empty.
+  SELECT * INTO _orig FROM public.question_bank qb
+   WHERE qb.chapter_id = _chapter AND qb.is_active AND qb.is_approved
+     AND qb.source_question_id IS NULL
+     AND NOT EXISTS (SELECT 1 FROM public.question_bank v WHERE v.source_question_id = qb.id)
+   ORDER BY qb.created_at, qb.id LIMIT 1;
+
+  IF _orig.id IS NULL THEN
+    RAISE EXCEPTION 'CHUNK7C_C1_VERIFY: every question in chapter % already has variants; item 1 would be vacuous.', _chapter;
+  END IF;
 
   -- A difficulty that is NOT the original's, for the mirroring check.
   _other_difficulty := CASE WHEN _orig.difficulty = 'hard' THEN 'easy' ELSE 'hard' END;
@@ -244,7 +271,7 @@ BEGIN
     PERFORM set_config('request.jwt.claims', NULL, true);
 
     IF NOT _raised THEN
-      _fail := _fail || '(FAIL) 6: a chapter outside the student''s own section was planned without objection. ';
+      _fail := _fail || '(FAIL) 6: a chapter neither taught to the student''s section nor practised by them was planned without objection. ';
     END IF;
   ELSE
     _fail := _fail || '(FAIL) 6: no unentitled chapter exists to test the filter with, so this check is vacuous. ';

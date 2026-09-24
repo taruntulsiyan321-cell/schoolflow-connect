@@ -28,16 +28,27 @@ export type Msg91SignInResult =
  * session and the rest of the app (AuthProvider, role resolution, RLS)
  * behaves exactly as it does for any other sign-in method.
  */
-export async function completeMsg91SignIn(accessToken: string): Promise<Msg91SignInResult> {
+export async function completeMsg91SignIn(
+  accessToken: string,
+  examCode?: string,
+): Promise<Msg91SignInResult> {
   const { data, error } = await invokeEdgeFunction<VerifyMsg91Response>("verify-msg91-widget", {
     access_token: accessToken,
+    // Present only for an individual student. The exam is part of WHICH
+    // account this phone number signs into, not a preference set afterwards,
+    // so it travels with the verification itself.
+    ...(examCode ? { exam: examCode } : {}),
   });
   if (error || !data?.email || !data?.token_hash) {
     return { ok: false, error: error ?? "Verification succeeded but sign-in could not be completed." };
   }
 
+  // token_hash ALONE, never with the email beside it. GoTrue refuses a body
+  // carrying both — measured live 2026-09-23 against /auth/v1/verify: with
+  // email it answers 400 validation_failed, "Only the token_hash and type
+  // should be provided"; without it, 200 and a session. The hash already
+  // names the account, so the address adds nothing but the refusal.
   const { error: verifyErr } = await supabase.auth.verifyOtp({
-    email: data.email,
     token_hash: data.token_hash,
     type: "email",
   });

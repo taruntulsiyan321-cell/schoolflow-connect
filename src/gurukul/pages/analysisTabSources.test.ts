@@ -249,6 +249,28 @@ describe("G9 — per-question time has one definition", () => {
   });
 });
 
+describe("§6.1 / §10.8 — Analysis surfaces weaknesses only", () => {
+  it("does not render a chapters-getting-better strengths panel", () => {
+    expect(SOURCE).not.toContain("Chapters getting better");
+    expect(SOURCE).not.toContain("deriveImprovingChapters");
+    expect(SOURCE).not.toContain("topicGroups.improving");
+  });
+
+  it("still shows recurring mistakes, so the rule is not met by emptying Topics", () => {
+    expect(SOURCE).toContain("Questions you keep getting wrong");
+    expect(SOURCE).toContain("practiceAnalytics?.recurring");
+  });
+});
+
+describe("rule 11 — activity charts count practice only", () => {
+  it("does not sum weekly_activity.total into the monthly practice chart", () => {
+    // That column is test + homework + battle + self_practice. Counting it
+    // under a Practice heading folded school data into Analysis.
+    expect(SOURCE).not.toMatch(/byMonth\.set\([^)]+row\.total\)/);
+    expect(SOURCE).toContain("(row.self_practice ?? 0)");
+  });
+});
+
 describe("the tab list itself", () => {
   it("has a unique key per tab and a label for each", () => {
     const keys = TABS.map((t) => t.key);
@@ -256,9 +278,12 @@ describe("the tab list itself", () => {
     for (const t of TABS) expect(t.label.length).toBeGreaterThan(0);
   });
 
-  it("declares exactly the six practice-derived tabs", () => {
+  it("declares exactly the practice-derived tabs, with §6.3's chapter list second", () => {
     const expected: Tab[] = [
       "overview",
+      // §6.3 calls this 'the main screen': one row per chapter with anything
+      // open. Everything after it is detail underneath it.
+      "chapters",
       "subjects",
       "topics",
       "practice",

@@ -16,6 +16,12 @@ export type PracticeAttemptSnapshot = {
   bankQuestionId?: string | null;
   subject?: string;
   chapter?: string;
+  /** Spec §9 — real chapters.id for upload/tagged rows; drives mistake chapter_id. */
+  chapterId?: string | null;
+  /** Spec §9 — student_upload_questions.id when source=upload; never a bank id. */
+  uploadQuestionId?: string | null;
+  /** Screen-capture §7.4 — student_capture_questions.id; never a bank id. */
+  captureQuestionId?: string | null;
   concept?: string;
   topic?: string;
   difficulty?: string;
@@ -59,14 +65,19 @@ export type PracticeServerStats = {
   correctCount?: number;
   wrongCount?: number;
   skippedCount?: number;
-  accuracy?: number;
+  /** null when nothing was answered — the finish stores no accuracy then. */
+  accuracy?: number | null;
   xpEarned?: number;
   totalTimeMs?: number | null;
 };
 
 export type PracticeSessionResultState = {
+  /** Empty when the session had no single subject. */
   subject: string;
+  /** Empty when the session had no single chapter — never a guess at one. */
   chapter: string;
+  /** The session's practice_mode, which names it when it has no chapter. */
+  practiceMode?: string | null;
   attempts: PracticeAttemptSnapshot[];
   startedAt?: string;
   /** From rpc_finish_practice_session — SSOT until practice_sessions row hydrates. */
@@ -117,36 +128,50 @@ export function buildAttemptMeta(a: PracticeAttemptSnapshot): PracticeAttemptMet
   };
 }
 
+/**
+ * The concept report for a finished session, from the session's OWN TOTALS.
+ *
+ * It counted a list of attempts instead — which is why it had to change.
+ * §10.8: when a session closes, per-question correctness must not persist;
+ * what survives is the totals plus the wrong, skipped and bookmarked. A saved
+ * session therefore holds no right answers to count, and a recount would
+ * report every reopened session at 0% and flag its chapter weak. The totals
+ * are the durable record, and they are what the screen above already shows.
+ *
+ * Answered, not attempted: a skipped question is not a wrong answer
+ * (20261021000000), so `answered` excludes skips and timeouts — the caller
+ * passes correct + wrong, never the question count.
+ */
 export function buildPracticeRecoveryReport(
   sessionId: string,
   subject: string,
   chapter: string,
-  attempts: PracticeAttemptSnapshot[],
-  timeMinutes = 1,
+  totals: { correct: number; answered: number },
+  /** null when no question carried a timing — never a floor of one minute. */
+  timeMinutes: number | null = null,
 ): ConceptRecoveryReport {
-  const total = attempts.length;
-  const correct = attempts.filter((a) => a.isCorrect).length;
-  // Chunk 10. Was `total ? … : 0` — the same expression, with the same defect,
-  // in five files. A session with nothing attempted is not a session scored
-  // zero. valueOr(..., 0) keeps this snapshot's numeric shape for its callers,
-  // but the zero now comes from ONE place that knows it is standing in for
-  // no_data, instead of five that thought it was an answer.
-  const accuracyMetric = sessionAccuracy(correct, total);
+  const whole = (n: number) => (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0);
+  const answeredCount = whole(totals.answered);
+  const correct = Math.min(whole(totals.correct), answeredCount);
+  const accuracyMetric = sessionAccuracy(correct, answeredCount);
+  // The weak flag below asks the metric itself, so "nothing answered" can
+  // never read as a weak chapter; the reported figure is absent, not 0%.
   const accuracy = valueOr(accuracyMetric, 0);
+  const accuracyReported = accuracyMetric.state === "ok" ? accuracy : null;
   const concept = chapter;
 
   // The weak-topic bar IS the conceptual readiness bar; it was a bare 70.
   const weak =
-    accuracy < ACCURACY_CONCEPTUAL
+    accuracyMetric.state === "ok" && accuracy < ACCURACY_CONCEPTUAL
       ? [{ subject, chapter, concept, accuracy }]
       : [];
 
   return {
     source_type: "practice_session",
     source_id: sessionId,
-    accuracy_pct: accuracy,
+    accuracy_pct: accuracyReported,
     correct_count: correct,
-    total_count: total,
+    total_count: answeredCount,
     time_minutes: timeMinutes,
     weak_concepts: weak,
     improvement_areas: weak.map((w) => w.concept),
@@ -155,14 +180,28 @@ export function buildPracticeRecoveryReport(
 }
 
 export function snapshotsToAttemptRows(attempts: PracticeAttemptSnapshot[]) {
-  return attempts.map((a, i) => ({
-    id: `local-${i}`,
-    generated_question: { question: a.question, options: a.options },
-    correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
-    selected_answer: { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
-    is_correct: a.isCorrect,
-    created_at: new Date().toISOString(),
-  }));
+  return attempts.map((a, i) => {
+    const skipped = Boolean(a.skipped || a.timedOut);
+    return {
+      id: `local-${i}`,
+      // Spec §9 — keep upload_question_id / chapter_id on every generated_question
+      // shape (result UI + any consumer), same as attemptsToFinishPayload.
+      generated_question: {
+        question: a.question,
+        options: a.options,
+        explanation: a.explanation,
+        bank_question_id: a.bankQuestionId ?? null,
+        upload_question_id: a.uploadQuestionId ?? null,
+        capture_question_id: a.captureQuestionId ?? null,
+        chapter_id: a.chapterId ?? null,
+      },
+      correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
+      selected_answer: skipped ? null : { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
+      is_correct: skipped ? false : a.isCorrect,
+      skipped,
+      created_at: new Date().toISOString(),
+    };
+  });
 }
 
 export function persistAndGoToPracticeResult(
@@ -190,8 +229,11 @@ export function attemptsToFinishPayload(attempts: PracticeAttemptSnapshot[]) {
         options: a.options,
         explanation: a.explanation ?? "",
         bank_question_id: a.bankQuestionId ?? null,
+        upload_question_id: a.uploadQuestionId ?? null,
+        capture_question_id: a.captureQuestionId ?? null,
         subject: a.subject ?? null,
         chapter: a.chapter ?? null,
+        chapter_id: a.chapterId ?? null,
         concept: a.concept ?? a.chapter ?? null,
         topic: a.topic ?? a.concept ?? a.chapter ?? null,
         difficulty: a.difficulty ?? null,

@@ -56,16 +56,11 @@ export type QuestionBankInsertRow = {
    * the 15 retired legacy rows that have no chapter.
    */
   chapter_id?: string | null;
-  // `topic` and `concept` WERE HERE and neither is a column on question_bank.
-  //
-  // The bank keys a topic through `topic_id uuid` into `topics`; the free-text
-  // pair predates that and belonged to the retired `topic_group` model. Every
-  // save from QuestionBankPage, which sent both, was refused by PostgREST for
-  // a column that does not exist — invisible until the generated types were
-  // regenerated against production on 2026-09-19.
-  //
-  // The topic a teacher types is still used: it steers GENERATION. It is not
-  // stored as text, because there is nowhere to store it.
+  /**
+   * One of `chapter_id`'s own topics (`topics.id`). The database refuses a
+   * topic from another chapter (question_bank_topic_in_its_chapter_fkey).
+   */
+  topic_id?: string | null;
   difficulty?: string;
   question: string;
   /**
@@ -255,56 +250,56 @@ export const QuestionBankService = {
   },
 
   /**
-   * The canonical topics available for a subject/class, optionally narrowed to
-   * chapters — with how many APPROVED, ACTIVE questions each one actually has.
+   * The topics of a subject/class, optionally narrowed to chapters — each with
+   * how many APPROVED, ACTIVE questions it holds.
    *
-   * The count is the point, not decoration. A topic carrying two questions
-   * cannot fill a ten-question section, and rule 31's objection to topic as a
-   * unit is exactly that the bank's topics are thin: measured 2026-09-10, the
-   * median group holds ONE question and 62% hold exactly one. A teacher
-   * choosing blind would pick a topic and get a shortfall with no idea why.
+   * The count is the point, not decoration: a topic carrying two questions
+   * cannot fill a ten-question section, and a teacher choosing blind would get
+   * a shortfall with no idea why.
    *
-   * Reads `topic_group`, never `topic`: the raw column carries 11,917 spellings
-   * of the same teachable ideas, which is what made topic unusable as a filter
-   * in the first place (see `20260916130000`).
+   * Keyed by topic ID, never by name. Topics are per chapter (§10.22), so two
+   * chapters in one section can both have a "Journal Entries"; by name they
+   * would be one chip that fills from both.
    */
   async listTopics(
     ctx: ServiceContext,
     input: { subject: string; classLevel: number; chapters?: string[] },
-    // The ID travels with the name. question_paper_sections.topic_ids is
-    // `uuid[]`, so a picker that only knows names cannot store what it picked
-    // — which is why the section form was writing names into a uuid column.
-  ): Promise<{ id: string; topic: string; count: number }[]> {
+  ): Promise<{ topicId: string; topic: string; chapter: string | null; count: number }[]> {
     assertCanConsume(ctx, "question");
-    let query = getClient(toRepoContext(ctx))
-      .from("question_bank")
-      // `topic_group` is not a column of question_bank either — this returned
-      // 42703 on every call, so the topic list was always empty. The taxonomy
-      // is topic_id -> topics.name; rows without one are dropped below rather
-      // than by a filter on a column that does not exist.
-      .select("chapter, topic_id, topics(name)")
-      .eq("subject", input.subject)
-      .eq("class_level", input.classLevel)
-      .eq("is_active", true)
-      .eq("is_approved", true);
-    if (input.chapters?.length) query = query.in("chapter", input.chapters);
-
-    const { data, error } = await query;
-    throwIfError(error, "Failed to load topics");
-
-    // Keyed by ID, not by name: two topics may share a display name across
-    // chapters, and the column stores the id.
-    const map = new Map<string, { id: string; topic: string; count: number }>();
-    for (const r of data ?? []) {
-      const row = r as { topic_id?: string | null; topics?: { name?: string | null } | null };
-      const id = String(row.topic_id ?? "").trim();
-      const t = String(row.topics?.name ?? "").trim();
-      if (!id || !t) continue;
-      const seen = map.get(id);
-      if (seen) seen.count += 1;
-      else map.set(id, { id, topic: t, count: 1 });
+    // Paged, because one subject and class can hold more active questions than
+    // PostgREST returns in a single response, and a truncated read would
+    // undercount the very number this exists to show.
+    const PAGE = 1000;
+    const rows: { topic_id: string | null; chapter: string | null; topics: { name: string } | null }[] = [];
+    for (let from = 0; ; from += PAGE) {
+      let query = getClient(toRepoContext(ctx))
+        .from("question_bank")
+        .select("topic_id, chapter, topics(name)")
+        .eq("subject", input.subject)
+        .eq("class_level", input.classLevel)
+        .eq("is_active", true)
+        .eq("is_approved", true)
+        .not("topic_id", "is", null)
+        .order("id")
+        .range(from, from + PAGE - 1);
+      if (input.chapters?.length) query = query.in("chapter", input.chapters);
+      const { data, error } = await query;
+      throwIfError(error, "Failed to load topics");
+      const page = (data ?? []) as unknown as typeof rows;
+      rows.push(...page);
+      if (page.length < PAGE) break;
     }
-    return [...map.values()].sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic));
+
+    const byId = new Map<string, { topicId: string; topic: string; chapter: string | null; count: number }>();
+    for (const r of rows) {
+      if (!r.topic_id || !r.topics?.name) continue;
+      const hit = byId.get(r.topic_id);
+      if (hit) hit.count += 1;
+      else byId.set(r.topic_id, { topicId: r.topic_id, topic: r.topics.name, chapter: r.chapter, count: 1 });
+    }
+    return [...byId.values()].sort(
+      (a, b) => (a.chapter ?? "").localeCompare(b.chapter ?? "") || b.count - a.count || a.topic.localeCompare(b.topic),
+    );
   },
 
   async insert(

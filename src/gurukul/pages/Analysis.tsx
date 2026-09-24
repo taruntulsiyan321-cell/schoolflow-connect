@@ -16,6 +16,8 @@ import { type Tab, TABS } from "./analysisTabs";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
+import { useWeakChapters } from "@/hooks/useWeakChapters";
+import { WeakChapterList } from "@/components/student/analytics/WeakChapterList";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPracticeAnalytics } from "@/hooks/useStudentPracticeAnalytics";
@@ -43,7 +45,6 @@ import {
   weekdayLabel,
   buildWeekComparison,
   buildSubjectRadarPoints,
-  deriveImprovingChapters,
   deriveMonthComparison,
   deriveRecoveryProgress,
   deriveRecoveryChapters,
@@ -62,6 +63,7 @@ import { toErrorMessage } from "@/lib/presentation";
 import { formatLastSeen } from "@/lib/analyticsInsights";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { pluralise } from "@/lib/plural";
+import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { accuracyWhenMeaningful, mayBeJudged, MIN_OBSERVATIONS_FOR_VERDICT } from "@/academic/metrics/thresholds";
 
 const SUBJECT_COLORS: Record<string, string> = {
@@ -167,10 +169,15 @@ const LINE_MIN_POINTS = 2;
 export default function Analysis() {
   const [tab, setTab] = useState<Tab>("overview");
   const student = useGurukulStudent();
-  const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
+  const { ctx, ready: academicReady, settled: academicSettled, studentId, classId } = useAcademicContext();
   // Rule 11: Analysis is practice-only, so it no longer subscribes to the
   // marks or examination channels — it has nothing to refresh from them.
   useAcademicLive(["profile"]);
+  // §6.3's chapter list — the main screen the section asks for, which this
+  // page did not have. Its own reads, because none of the four hooks below
+  // carries what a chapter row needs (open mistakes with their topics, the
+  // chapter tally behind the accuracy and the trend, and what was skipped).
+  const { list: weakChapters, reload: reloadWeakChapters } = useWeakChapters(academicReady, ctx?.userId ?? null);
   const { data: analysis, loading: analysisLoading, error: analysisError, reload: reloadAnalysis } = useAnalysisPageData(academicReady);
   const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts(academicReady);
   const { data: snapshot, loading: snapshotLoading, error: snapshotError, reload: reloadSnapshot } = useStudentAcademicSnapshot(academicReady);
@@ -196,7 +203,7 @@ export default function Analysis() {
 
   // Decision Engine Slice 1 swap-in for topicGroups.needs_attention only
   // (see the approved plan -- the other 6 weak_topics/strong_topics read
-  // sites in this file, and the shared deriveChapterRows/deriveRecoveryTopics
+  // sites in this file, and the shared deriveChapterRows/deriveRecoveryChapters
   // library functions, are explicitly deferred). Reuses the same
   // weakAreasV2 flag already live for Practice.tsx and
   // RecoveryCompletionReportPage.tsx -- one rollout, not a per-consumer flag.
@@ -466,13 +473,15 @@ export default function Analysis() {
         totalMin: c.total_min,
         trend: deltaPoints,
         trendState: chapterTrendState,
-        status: (accuracy == null
+          // WEAKNESSES ONLY (§6.1, §10.8). A high or near accuracy gets no
+        // badge. It used to get a green "Ready for revision" — a verdict of
+        // strength, and one that named the revision schedule while having
+        // nothing to do with it: the chapter may not be scheduled at all.
+        status: (accuracy == null || accuracyBand(accuracy) === "building"
           ? "practice-more"
           : ["high", "near"].includes(accuracyBand(accuracy))
-            ? "ready"
-            : accuracyBand(accuracy) === "building"
-              ? "practice-more"
-              : "needs-work") as "ready" | "practice-more" | "needs-work",
+            ? null
+            : "needs-work") as "practice-more" | "needs-work" | null,
       };
     });
   }, [practiceAnalytics?.by_chapter, analysis?.recent_sessions]);
@@ -535,14 +544,11 @@ export default function Analysis() {
         // does not get made on one attempt. A topic below the bar still appears
         // on the tab — it just reports attempts instead of being flagged.
         .filter((t) => mayBeJudged(t.practiceCount)),
-      improving: deriveImprovingChapters(
-        charts?.practice_trend ?? [],
-        analysis?.recent_sessions ?? [],
-      ).filter(
-        (t) =>
-          preferRealAcademicLabel(t.chapter) &&
-          (t.subject === "—" || preferRealAcademicLabel(t.subject)),
-      ),
+      // "Chapters getting better" WENT HERE. §6.1 / §10.8: weaknesses only —
+      // never strengths. A dedicated improving list is a strengths panel under
+      // another name. Trend on a chapter that still needs work stays on the
+      // §6.3 list and on the subject/chapter grids; it is not a celebration.
+      //
       // `not_started` WENT WITH concept_mastery, and it could not have
       // answered its own question anyway. It listed concept rows at
       // total_attempts = 0, which is not "topics you have not started" — it is
@@ -550,7 +556,7 @@ export default function Analysis() {
       // syllabus is not in that table at all, so the panel was answering a
       // question about coverage from a table that only knows about contact.
     };
-  }, [snapshot?.weak_topics, v2WeakAreas, charts?.practice_trend, analysis?.recent_sessions]);
+  }, [snapshot?.weak_topics, v2WeakAreas, analysis?.recent_sessions]);
 
   // Four real Mon–Sun weeks ending with this one. Every cell is a date, so a
   // Tuesday is drawn under Tuesday; a day with no activity is a zero rather
@@ -621,13 +627,18 @@ export default function Analysis() {
   }, [student.streak, activityWeeks]);
 
   const practiceMonthly = useMemo(() => {
+    // PRACTICE ONLY (rule 11). weekly_activity.total is
+    // test + homework + battle + self_practice — school data folded into a
+    // chart headed "Practice activity". Count self_practice alone.
     const weekly = charts?.weekly_activity ?? [];
     const byMonth = new Map<string, number>();
     for (const row of weekly) {
       const key = new Date(row.date).toLocaleDateString(undefined, { month: "short" });
-      byMonth.set(key, (byMonth.get(key) ?? 0) + row.total);
+      byMonth.set(key, (byMonth.get(key) ?? 0) + (row.self_practice ?? 0));
     }
-    return [...byMonth.entries()].map(([month, done]) => ({ month, done }));
+    return [...byMonth.entries()]
+      .filter(([, done]) => done > 0)
+      .map(([month, done]) => ({ month, done }));
   }, [charts?.weekly_activity]);
 
   // ONE DEFINITION OF PER-QUESTION TIME ON THIS PAGE, AT EVERY LEVEL.
@@ -792,11 +803,26 @@ export default function Analysis() {
   // did not, so the two pages were describing different worlds off different
   // tables — Analysis showing 17 items due while Revision showed the real
   // ladder.
-  const [chapterStates, setChapterStates] = useState<ChapterStateRow[]>([]);
-  const [recoveryQueue, setRecoveryQueue] = useState<RecoveryQueueRow[]>([]);
+  // AS LIST STATES — loading, failed, or read.
+  //
+  // These were bare arrays, and a failure was logged and left the arrays
+  // empty: while the schedule loaded, and whenever it could not be read, the
+  // panels said "Nothing due for revision today" and "No recovery topics yet"
+  // and the Overview card said "Check your revision queue" — claims about the
+  // student made by a network failure.
+  const [chapterStates, setChapterStates] = useState<ListState<ChapterStateRow>>(LOADING_LIST);
+  const [recoveryQueue, setRecoveryQueue] = useState<ListState<RecoveryQueueRow>>(LOADING_LIST);
+  const [engineReads, setEngineReads] = useState(0);
+  const retryEngine = useCallback(() => setEngineReads((n) => n + 1), []);
   useEffect(() => {
-    if (!academicReady || !ctx) return;
+    if (!academicReady || !ctx) {
+      setChapterStates(academicSettled ? EMPTY_LIST : LOADING_LIST);
+      setRecoveryQueue(academicSettled ? EMPTY_LIST : LOADING_LIST);
+      return;
+    }
     let cancelled = false;
+    setChapterStates(LOADING_LIST);
+    setRecoveryQueue(LOADING_LIST);
     // Both: chapter_state carries the revision ladder (next_revision_at,
     // revision_due) and the queue carries the recovery side (open_mistakes,
     // ready) including chapters with no state row yet. Neither is derivable
@@ -807,24 +833,28 @@ export default function Analysis() {
     ])
       .then(([states, queue]) => {
         if (cancelled) return;
-        setChapterStates(states);
-        setRecoveryQueue(queue);
+        setChapterStates({ status: "ready", items: states });
+        setRecoveryQueue({ status: "ready", items: queue });
       })
       .catch((e) => {
-        // Analysis is a read-only surface and every other panel stands on its
-        // own, so one failed section must not blank the page. It is logged
-        // rather than swallowed, and the panel renders its empty state.
+        // One failed section must not blank the page — every other panel
+        // stands on its own — but it says it failed, and offers to try again.
         if (!cancelled) {
-          console.warn("[Analysis] chapter states failed:", e instanceof Error ? e.message : e);
+          const message = toErrorMessage(e, "");
+          setChapterStates({ status: "failed", message });
+          setRecoveryQueue({ status: "failed", message });
         }
       });
     return () => { cancelled = true; };
-  }, [ctx, academicReady]);
+  }, [ctx, academicReady, academicSettled, engineReads]);
 
-  const recoveryProgress = useMemo(() => deriveRecoveryProgress(recoveryQueue), [recoveryQueue]);
-  const recoveryChapters = useMemo(() => deriveRecoveryChapters(recoveryQueue), [recoveryQueue]);
+  const recoveryProgress = useMemo(
+    () => deriveRecoveryProgress(listItems(recoveryQueue), listItems(chapterStates)),
+    [recoveryQueue, chapterStates],
+  );
+  const recoveryChapters = useMemo(() => deriveRecoveryChapters(listItems(recoveryQueue)), [recoveryQueue]);
 
-  const revisionData = useMemo(() => deriveRevisionData(chapterStates), [chapterStates]);
+  const revisionData = useMemo(() => deriveRevisionData(listItems(chapterStates)), [chapterStates]);
 
   // THREE TILES, ALL COUNTED FROM ROWS THAT EXIST.
   //
@@ -929,7 +959,11 @@ export default function Analysis() {
       .sort((a, b) => (b.accuracy ?? 0) - (a.accuracy ?? 0));
     const strongest = sorted[0];
     const weakest = sorted[sorted.length - 1];
-    const weakTopic = snapshot?.weak_topics?.[0];
+    // THE SAME FILTERED LIST the Topics tab and "What should I study next?"
+    // read. This took snapshot.weak_topics[0] raw, so it could name as today's
+    // priority a topic the Topics tab declines to list — one attempt behind
+    // it, or no usable label.
+    const weakTopic = topicGroups.needs_attention[0];
     const bestDay = studyActivity.bestDay;
     // CHUNK 10.7 / §10.8. Two changes, and the second is the one that matters.
     //
@@ -964,8 +998,10 @@ export default function Analysis() {
     if (weakTopic) {
       items.push({
         label: "Suggested priority today",
-        value: displayTopic(weakTopic.topic) || displayChapter(weakTopic.chapter) || displaySubject(weakTopic.subject),
-        sub: `${Math.round(weakTopic.accuracy)}% accuracy · needs review`,
+        value: displayTopic(weakTopic.topic) || displaySubject(weakTopic.subject),
+        sub: weakTopic.score == null
+          ? `${pluralise(weakTopic.practiceCount ?? 0, "attempt")} · needs review`
+          : `${weakTopic.score}% accuracy · needs review`,
         color: "hsl(var(--info))",
         icon: <ChevronRight className="w-4 h-4" />,
       });
@@ -992,7 +1028,7 @@ export default function Analysis() {
       });
     }
     return items;
-  }, [subjectData, snapshot?.weak_topics, studyActivity, subjectPace.avgSec]);
+  }, [subjectData, topicGroups.needs_attention, studyActivity, subjectPace.avgSec]);
 
   const questionCards = useMemo(() => {
     // NO CLASS RANK HERE. §6.7: analysis must never "compare the student to
@@ -1042,14 +1078,18 @@ export default function Analysis() {
       {
         q: "What should I study next?",
         a: nextTopic ? (nextTopic.topic || nextTopic.subject) : "Start a practice session",
-        sub: revisionData.dueToday.length > 0
-          ? `${pluralise(revisionData.dueToday.length, "revision item")} due today`
-          : "Check your revision queue",
+        sub: chapterStates.status === "loading"
+          ? "Reading your revision schedule…"
+          : chapterStates.status === "failed"
+            ? "Could not read your revision schedule"
+            : revisionData.dueToday.length > 0
+              ? `${pluralise(revisionData.dueToday.length, "revision item")} due today`
+              : "Check your revision queue",
         color: "hsl(var(--primary))",
         icon: <BookOpen className="w-4 h-4" />,
       },
     ];
-  }, [overview, subjectData, topicGroups.needs_attention, revisionData.dueToday.length]);
+  }, [overview, subjectData, topicGroups.needs_attention, revisionData.dueToday.length, chapterStates.status]);
 
   // FIRST POINT AGAINST LAST POINT IS NOT A TREND, and points are not percent.
   //
@@ -1152,7 +1192,7 @@ export default function Analysis() {
     <PageHeader
       eyebrow="Learning"
       title="Analysis"
-      subtitle="What your practice, tests and mistakes add up to."
+      subtitle="What your practice and your mistakes add up to."
     />
   );
 
@@ -1361,8 +1401,6 @@ export default function Analysis() {
               // "Exam readiness" was removed in the v2 redesign: a composite of
               // four measures collapsed into one number, which is the
               // no-blended-score rule and cannot be explained to a student.
-              // `exam_readiness.attendance_pct` is still read below — that is
-              // attendance, a measured figure, not the composite.
             ].map((s) => (
               <Metric key={s.label} label={s.label} value={s.value} color={s.color} />
             ))}
@@ -1419,15 +1457,10 @@ export default function Analysis() {
             )}
           </Card>
 
-          {/* This week vs last week */}
-          {/* NOT QUESTIONS. buildWeekComparison sums weekly_activity.total,
-              which rpc_student_performance_charts builds as
-              test_count + homework_count + battle_count + self_practice_count.
-              This is the fourth panel on the page to have read that column as
-              questions; the other three were corrected on 2026-09-17 and this
-              one was missed because its title says it in prose rather than in
-              a dataKey. */}
-          <Card label="This week vs last week — activities">
+          {/* This week vs last week — practice sessions only (rule 11).
+              activityWeeks now counts self_practice alone, so the bars match
+              the Practice tab tiles and never fold in tests or homework. */}
+          <Card label="This week vs last week — practice">
             {weekComparison.some((d) => d.thisWeek > 0 || d.lastWeek > 0) ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -1468,6 +1501,21 @@ export default function Analysis() {
               <p className="text-sm text-muted-foreground py-6 text-center">Practice more to unlock personal insights</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Tab: Chapters to fix (§6.3) ─── */}
+      {tab === "chapters" && (
+        <div className="space-y-4">
+          <div>
+            <SLabel>Chapters with something open</SLabel>
+            <p className="text-[11px] text-muted-foreground mb-3">
+              Ranked by how many questions are still open. A chapter whose revision check
+              failed, or whose mistakes keep coming back, sits at the top. Open one for its
+              topics, its pace and what you skipped.
+            </p>
+          </div>
+          <WeakChapterList list={weakChapters} onRetry={reloadWeakChapters} />
         </div>
       )}
 
@@ -1553,8 +1601,7 @@ export default function Analysis() {
             ) : (
             <div className="grid sm:grid-cols-2 gap-3">
               {chapterData.map((c) => {
-                const statusLabel: Record<string, { text: string; color: string }> = {
-                  "ready":        { text: "Ready for revision", color: "hsl(var(--success))" },
+                const statusLabel: Record<"practice-more" | "needs-work", { text: string; color: string }> = {
                   "practice-more":{ text: "Practice more",      color: "hsl(var(--warning))" },
                   "needs-work":   { text: "Needs attention",    color: "hsl(var(--destructive))" },
                 };
@@ -1571,7 +1618,7 @@ export default function Analysis() {
                 // answer.
                 const meaningful = c.accuracy;
                 const judged = meaningful != null;
-                const st = statusLabel[c.status];
+                const st = c.status ? statusLabel[c.status] : null;
                 return (
                   <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
                     <div className="flex items-start justify-between gap-2 mb-2">
@@ -1579,7 +1626,7 @@ export default function Analysis() {
                         <div className="text-sm font-semibold text-foreground">{displayChapter(c.chapter)}</div>
                         <div className="text-[11px] mt-0.5" style={{ color: c.color }}>{displaySubject(c.subject)}</div>
                       </div>
-                      {judged ? (
+                      {judged && st ? (
                         <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: st.color, background: `${withAlpha(st.color, 0.07)}` }}>
                           {st.text}
                         </span>
@@ -1687,72 +1734,42 @@ export default function Analysis() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-6">
-            {/* Improving */}
-            <div>
-              <SLabel>Chapters getting better</SLabel>
-              <div className="space-y-2">
-                {topicGroups.improving.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No improvement trends yet</p>
-                ) : topicGroups.improving.map((t) => (
-                  <div key={t.chapter} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
-                    <TrendingUp className="w-4 h-4 text-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      {/* displayCHAPTER. presentAcademicLabel resolves against
-                          a per-kind dictionary, and these rows are grouped by
-                          chapter — formatting one as a topic asks the wrong
-                          dictionary for the name. */}
-                      <div className="text-sm font-semibold text-foreground truncate">{displayChapter(t.chapter)}</div>
-                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
+          {/* QUESTIONS THEY KEEP GETTING WRONG.
+              This slot held "Topics yet to begin" (concept_mastery at zero
+              attempts) and beside it "Chapters getting better" (§6.1 / §10.8
+              forbid strengths panels). student_mistakes.times_wrong is the
+              actionable number. */}
+          <div>
+            <SLabel>Questions you keep getting wrong</SLabel>
+            <div className="space-y-2">
+              {(practiceAnalytics?.recurring ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  Nothing has caught you out twice yet.
+                </p>
+              ) : (practiceAnalytics?.recurring ?? []).map((r, i) => (
+                <div key={`${r.topic ?? r.chapter ?? "q"}-${i}`} className="flex items-start gap-3 p-3 rounded-xl border border-destructive/12 bg-destructive/5">
+                  <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-foreground truncate">
+                      {displayTopic(r.topic ?? "") || displayChapter(r.chapter ?? "") || "This question"}
                     </div>
-                    {/* Points, not percent — the same correction as TrendCell below. */}
-                    <span className="text-sm font-black text-success shrink-0">
-                      +{t.improvement} {t.improvement === 1 ? "pt" : "pts"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* QUESTIONS THEY KEEP GETTING WRONG.
-                This slot held "Topics yet to begin", which listed
-                concept_mastery rows at zero attempts — rows that happen to
-                exist, not a syllabus. student_mistakes.times_wrong is
-                populated and is the most actionable number on the page:
-                measured, one question missed eight times and another seven,
-                and nothing anywhere showed it. */}
-            <div>
-              <SLabel>Questions you keep getting wrong</SLabel>
-              <div className="space-y-2">
-                {(practiceAnalytics?.recurring ?? []).length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    Nothing has caught you out twice yet.
-                  </p>
-                ) : (practiceAnalytics?.recurring ?? []).map((r, i) => (
-                  <div key={`${r.topic ?? r.chapter ?? "q"}-${i}`} className="flex items-start gap-3 p-3 rounded-xl border border-destructive/12 bg-destructive/5">
-                    <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground truncate">
-                        {displayTopic(r.topic ?? "") || displayChapter(r.chapter ?? "") || "This question"}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        {r.question_text ?? displaySubject(r.subject ?? "")}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-black text-destructive tabular-nums">{r.times_wrong}&times;</div>
-                      <div className="text-[10px] text-muted-foreground">{formatLastSeen(r.last_wrong_at)}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {r.question_text ?? displaySubject(r.subject ?? "")}
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-black text-destructive tabular-nums">{r.times_wrong}&times;</div>
+                    <div className="text-[10px] text-muted-foreground">{formatLastSeen(r.last_wrong_at)}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Recovery & Revision */}
           <div className="grid sm:grid-cols-2 gap-6">
             <div>
-              <SLabel>Chapters you practised again</SLabel>
+              <SLabel>Chapters in recovery</SLabel>
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-foreground">{recoveryProgress.completed}</div>
@@ -1764,7 +1781,14 @@ export default function Analysis() {
                 </div>
               </div>
               <div className="space-y-2">
-                {recoveryChapters.length === 0 ? (
+                {recoveryQueue.status === "loading" ? (
+                  <p role="status" className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
+                ) : recoveryQueue.status === "failed" ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    Could not read your recovery chapters.{" "}
+                    <button type="button" onClick={retryEngine} className="font-semibold underline">Try again</button>
+                  </p>
+                ) : recoveryChapters.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">No chapters in recovery yet</p>
                 ) : recoveryChapters.map((r) => (
                   <div key={r.chapter} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60">
@@ -1814,12 +1838,19 @@ export default function Analysis() {
               </div>
               <SLabel>Due for revision today</SLabel>
               <div className="space-y-2">
-                {revisionData.dueToday.length === 0 ? (
+                {chapterStates.status === "loading" ? (
+                  <p role="status" className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
+                ) : chapterStates.status === "failed" ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    Could not read your revision schedule.{" "}
+                    <button type="button" onClick={retryEngine} className="font-semibold underline">Try again</button>
+                  </p>
+                ) : revisionData.dueToday.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">Nothing due for revision today</p>
-                ) : revisionData.dueToday.map((topic) => (
-                  <div key={topic} className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                ) : revisionData.dueToday.map((chapter) => (
+                  <div key={chapter} className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
                     <Clock className="w-4 h-4 text-primary shrink-0" />
-                    <span className="text-sm text-foreground">{displayTopic(topic)}</span>
+                    <span className="text-sm text-foreground">{displayChapter(chapter)}</span>
                     <span className="ml-auto text-[10px] text-primary font-semibold">Due today</span>
                   </div>
                 ))}
@@ -1834,32 +1865,24 @@ export default function Analysis() {
         <div className="space-y-6">
           {/* Practice stats */}
           <div>
-            {/* weekDone sums charts.weekly_activity, which is the last 28
-                days, not a week — the RPC's key is misnamed and the label
-                inherited it. */}
+            {/* Four weeks of practice sessions — consistencyWeeks windows the
+                heat map; the RPC's "weekly_activity" name is leftover. */}
             <SLabel>Your practice — last 4 weeks</SLabel>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                // Both count ACTIVITIES — the heat map's own cells, which are
-                // tests + homework + battles + practice sessions. "Done today"
-                // sat beside "Activities in 4 weeks" naming the same unit two
-                // ways, under a heading that says practice.
-                { label: "Activities today",      value: `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
-                { label: "Activities in 4 weeks", value: `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
+                // Practice sessions only (rule 11). The heat map still carries
+                // test / homework / battle counts for other surfaces; Analysis
+                // reads self_practice alone via consistencyWeeks.
+                { label: "Practice today",      value: `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
+                { label: "Practice in 4 weeks", value: `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
                 { label: "Practice streak",   value: pluralise(practiceStats.streakDays, "day"),                        color: "hsl(var(--warning))" },
                 { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "hsl(var(--success))" },
               ].map((s) => <Metric key={s.label} label={s.label} value={s.value} color={s.color} />)}
             </div>
           </div>
 
-          {/* Practice monthly */}
-          {/* NOT QUESTIONS. practiceMonthly sums weekly_activity.total, which
-              rpc_student_performance_charts builds as
-              test_count + homework_count + battle_count + self_practice_count.
-              The heat-map tooltip two panels down was corrected to say
-              "activities" for this exact reason; the correction was made there
-              and not here, so the same table kept being read as questions. */}
-          <Card label="Practice activity each month">
+          {/* Practice monthly — self_practice only, never weekly_activity.total. */}
+          <Card label="Practice sessions each month">
             {practiceMonthly.length > 0 ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -1868,7 +1891,7 @@ export default function Analysis() {
                   <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="done" name="Activities" radius={[6, 6, 0, 0]} isAnimationActive={false}>
+                  <Bar dataKey="done" name="Practice sessions" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                     {practiceMonthly.map((_, i) => (
                       <Cell key={i} fill={i === practiceMonthly.length - 1 ? "hsl(var(--primary))" : withAlpha("hsl(var(--primary))", 0.35)} />
                     ))}
@@ -2074,7 +2097,7 @@ export default function Analysis() {
               ) : (
                 <div className="space-y-2 mt-4">
                   {slowestTopics.map((t) => (
-                    <div key={t.topic} className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-surface/60">
+                    <div key={`${t.topic}|${t.chapter ?? ""}`} className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-surface/60">
                       <Clock className="w-4 h-4 text-warning shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
