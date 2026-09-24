@@ -55,11 +55,11 @@ test.describe('Tier5 · student interactions', () => {
     await recordInteraction(page, signals, testInfo, 'T5 student · AI coach send message', async () => {
       const box = page.getByRole('textbox').first()
       await box.waitFor({ state: 'visible', timeout: 15000 })
-      await box.fill('What is my attendance percentage?')
+      await box.fill('Explain the concept of photosynthesis step by step')
       const send = page.getByRole('button', { name: /send|ask/i }).first()
       if (await send.isVisible().catch(() => false)) await send.click()
       else await box.press('Enter')
-      return 'typed a question and submitted to the coach'
+      return 'typed a learning question and submitted to the coach'
     })
   })
 

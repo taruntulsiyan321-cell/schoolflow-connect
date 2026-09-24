@@ -1,13 +1,10 @@
-﻿import { useState, useRef, useEffect, useMemo } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { withAlpha } from "@/lib/colorAlpha";
 import { createPortal } from "react-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent, useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
-import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
-import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "@/gurukul/components/shared";
-import { displayConcept } from "@/lib/academicDisplay";
 import {
   COMING_SOON_LABEL,
   comingSoonToast,
@@ -18,17 +15,15 @@ import {
   askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue,
   type NovaRecentTurn, type NovaQuestionContext,
 } from "@/academic/ai/gatewayClient";
-import { dedupeSubjects, isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
+import { isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
 import { consumeNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import {
   processAttachmentFile, AttachmentError,
   ACCEPTED_ATTACHMENT_TYPES, MAX_ATTACHMENTS,
 } from "@/gurukul/novaAttachments";
-import { WEAK_CONCEPT_THRESHOLD } from "@/academic/eie/masteryBands";
 import { NovaMarkdown } from "@/components/NovaMarkdown";
 import { useAuth } from "@/auth";
 import { novaConversationsKey } from "@/lib/clientStorage";
-import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import {
   Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3, MoreHorizontal,
   ChevronLeft, Paperclip, Copy, Bookmark, RotateCcw, X, Loader2,
@@ -86,8 +81,9 @@ const SUGGESTIONS = [
   // Nova teaches; it is not a records lookup. The six administrative prompts
   // that used to sit here — attendance this month, homework due, marks
   // summary, school events, performance from school records, how am I doing —
-  // asked a tutor to read the office noticeboard. Those answers live on the
-  // Class page. Measured before deleting: the array held eight, of which six
+  // asked a tutor to read the office noticeboard. Nova refuses those; it only
+  // tutors concepts and academic doubts.
+  // Measured before deleting: the array held eight, of which six
   // were administrative and two were already about learning.
   { icon:<Sparkles className="w-4 h-4"/>,      text:"Explain my weak topics",                 color:"hsl(var(--warning))" },
   { icon:<AlertCircle className="w-4 h-4"/>,   text:"Which are my weakest topics?",           color:"hsl(var(--destructive))" },
@@ -116,8 +112,8 @@ function now() {
 function offlineFallback(): string {
   return (
     "I couldn’t reach the AI Gateway just now. " +
-    "Ask about attendance, homework due, marks, upcoming school events, or mastery/revision — " +
-    "or use Practice, Doubts, or Recovery for learning paths."
+    "Try again in a moment, or ask about a concept, a wrong answer, or weak topics when we’re back online. " +
+    "I don’t look up attendance, marks, homework, or the calendar."
   );
 }
 
@@ -607,7 +603,7 @@ function InputBar({
         <textarea
           ref={textareaRef}
           value={text} onChange={e => setText(e.target.value)} onKeyDown={onKey}
-          placeholder={pendingImages.length ? "Add a note (optional)…" : "Ask Nova anything…"}
+          placeholder={pendingImages.length ? "Add a note (optional)…" : "Ask about a concept or a wrong answer…"}
           rows={1} disabled={disabled}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none py-1.5 leading-relaxed"
           style={{ maxHeight:120 }}
@@ -655,32 +651,6 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     schoolKind === "individual" ? (examName || examCode || null) : null;
   const { user, role } = useAuth();
   const { studentId, schoolId } = useAcademicContext();
-  const { data: charts } = useStudentPerformanceCharts();
-  const { items: masteryItems } = useConceptMastery();
-  const { data: snapshot } = useStudentAcademicSnapshot();
-
-  const subjectNames = useMemo(
-    () =>
-      dedupeSubjects([
-        ...(charts?.subjects ?? []).map((s) => s.name),
-        ...(snapshot?.weak_topics ?? []).map((t) => t.subject),
-        ...(masteryItems ?? []).map((m) => m.subject),
-      ]),
-    [charts?.subjects, snapshot?.weak_topics, masteryItems],
-  );
-
-  const weakConceptLabels = useMemo(
-    () =>
-      dedupeSubjects(
-        [...masteryItems]
-          .filter((m) => m.mastery_score < WEAK_CONCEPT_THRESHOLD || m.mistake_count >= 2)
-          .sort((a, b) => a.mastery_score - b.mastery_score || b.mistake_count - a.mistake_count)
-          .map((m) => displayConcept(m.concept))
-          .filter((c) => !isPlaceholderLabel(c)),
-        3,
-      ),
-    [masteryItems],
-  );
 
   const convoStorageKey = novaConversationsKey({ userId: user?.id, schoolId: schoolId ?? undefined });
   const [convos,     setConvos]     = useState<Conversation[]>(EMPTY_CONVOS);
@@ -1139,7 +1109,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
 
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto scrollbar-none">
-          {msgs.length === 0 ? (
+          {msgs.length === 0 && !(isTyping && active?.questionContext) ? (
             <SuggestionGrid
               onSelect={handleSuggestion}
               firstName={student.firstName}

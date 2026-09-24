@@ -2919,6 +2919,14 @@ who did it — as the owner asked, measuring each before changing it.
    `rpc_create_class_group` recorded as internal while granted to
    `authenticated`. Reconciling them is not this change's; they are written here
    so they are not rediscovered.
+9. **Both homework reports downloaded as `….csv.csv`.** Found by the production
+   browser run of this work, after release: the principal's download of a live
+   homework arrived as `homework-e2e-homework-20260914022223-2026-09-21.csv.csv`.
+   `exportCSV` adds the extension and the report's filename functions added it
+   too; the unit tests mocked `exportCSV`, so they checked the name handed to it
+   and never the file. **Fixed:** the filename functions give no extension, and
+   `e2e-evidence/tier1-homework-family.spec.ts` asserts on the file the browser
+   actually saves.
 
 **Proven:** on live — both migrations proved themselves as they applied, after
 passing together in a rolled-back dry run; the push pipeline end to end
@@ -2932,7 +2940,14 @@ ledger names, and tables another branch dropped with `recovery_assignments`). On
 the replica — both migrations round-trip exactly, and 23 of 23 broken proofs fail
 by name (plus, on live, the dispatch with its pg_net call removed). In the source
 — 19 of 19 broken rules fail their tests; the suite, 93 files and 866 tests;
-typecheck; build; the lint baseline.
+typecheck; build; the lint baseline. On production, as each role
+(`e2e-evidence/tier1-homework-family.spec.ts`): the principal's Classes tab lists
+the school's real classes, opens a class's released homework onto every
+student's standing with no decision offered, and downloads the homework's report
+and the class's; the teacher's profile carries the homework they set; the
+student's profile counts handed in / still to do / missed and opens the homework;
+a parent's notification opens a parent page and none points into the student
+panel. Its first run failed on item 9 — the check that shows it can fail.
 
 **Not done:**
 * **A real phone.** None has registered (`device_tokens` 0), so nothing arrives
@@ -2942,17 +2957,32 @@ typecheck; build; the lint baseline.
   for a principal are not built.
 ---
 
-## 57. Previous Year Questions has no content, anywhere — OPEN, needs data
+## 57. Previous Year Questions has no content — OPEN, NEEDS A DATA SOURCE (the screen was fixed 2026-09-23)
 
-Measured 2026-09-18 on live: **0 of 21,717** servable bank questions carry
-`exam_year`, a `pyq` `source_type`, or a `source` naming a past paper. The mode
-is offered on the hub ("Board and competitive exam questions from past years"),
-its config screen offers the last six exam years, and every start of it —
-for every student, every subject, every year — reaches the honest empty state.
+Measured 2026-09-18 and again 2026-09-23 on live: **0 of 21,876** bank
+questions carry an `exam_year`, and none carries a year in its text or its
+explanation either. Every row is seeded `ncert_aligned` content
+(`seed_rbse_commerce_*`); there is no past paper anywhere in the bank and
+nothing to back-fill a year from. Inventing years would be fabricating data,
+so the data half stays open and **needs the owner**: real board papers, with
+their years and answer keys, imported under whatever licence they come with.
 
-Not a code defect: the loader's filter is correct and the empty state says so
-plainly. It stays empty until past papers are tagged or imported. Recorded here
-so the next person driving the modes does not go looking for the bug.
+**What WAS a code defect, and is fixed (2026-09-23).** The config screen
+offered the last six CALENDAR years, whatever the bank held, and "All years"
+besides — seven chips, every one of which started a session that loaded
+nothing. And "a previous-year question" had two definitions: the pool admitted
+`exam_year IS NOT NULL` **or** a `pyq` `source_type` **or** a `source` naming a
+past paper, so it could have served a question that no year chip could select.
+
+Now there is one definition — a question that names the exam year it was set
+in — applied in one place (`studentBankQuery`'s `previousYearOnly`), and the
+years come from the bank: `PracticeService.listPyqYears` reads the distinct
+years off the same scoped pool the session draws from. The screen offers
+exactly those years with their counts, and when there are none it says
+"No past-year papers have been added to the question bank for <subject> yet"
+and cannot be started. Driven in a browser as the Class 10 student: no chips,
+Start disabled; and with the years read answered with three questions across
+two years, "All years · 3 | 2024 · 2 | 2022 · 1" and Start enabled.
 
 ---
 
@@ -3296,7 +3326,17 @@ broken:
   counts it (0 of 249 planned questions affected today); and `_apply_chapter_state`
   resets a SOLID chapter's 30-day clock to 7 days whenever it is practised.
 
-## 68. Students can read the practice answer key — OPEN
+## 68. ~~Students can read the practice answer key~~ — FIXED 2026-09-22 (item 2: 20261046–20261050), released 2026-09-22
+
+**Fixed:** students read `question_bank_student`, a view with no `correct_index`, `explanation` or answer;
+`qb_select_approved_board` is dropped, so the base table is staff-only; `rpc_record_question_attempt` returns the
+server's verdict and the runner draws the tick, the cross and the explanation from it; `rpc_question_review` gives
+the answer only for a question the caller has attempted. Measured live: a student's
+`GET /question_bank?correct_index=eq.2` returns zero rows. The release (branch
+`claude/release-practice-analysis`) put the client half live — until then production's app read the base table and
+its practice was empty for every student from the moment 20261049 applied.
+
+**Original entry:**
 
 `question_bank.correct_index` is readable by an ordinary student through
 PostgREST (checked 2026-09-22 with a minted student session). Revision checks
@@ -3330,7 +3370,12 @@ Rewritten so every step consumes input (an unpartnered delimiter is prose,
 "$10 to $20" are not typeset as a formula. `src/components/MathText.test.tsx`
 — the old tokenizer does not fail that test, it never returns (killed at 60 s).
 
-## 71. question_attempts has no index on session_id — OPEN, latent
+## 71. ~~question_attempts has no index on session_id~~ — FIXED 2026-09-22 (item 6: 20261052000000)
+
+The template-path idempotency lookup went from a 95 ms sequential scan to a 0.9 ms index scan (measured on
+production at 7,445 rows); the migration's guard EXPLAINs the lookup and refuses a plan that still scans.
+
+**Original entry:**
 
 Every per-session read scans the whole table: the finish RPC's roll-up, both
 engine graders (`rpc_submit_recovery_session`, `rpc_submit_revision_session`),
@@ -3360,6 +3405,7 @@ reloads. `src/auth/AuthProvider.refresh.test.tsx` (fails on the old provider)
 and scratchpad scenario s19, which forces a real refresh mid-session: with the
 old provider the pinned page node was disconnected and the session finished at
 q=1; with the fix it stays mounted and finishes normally with every answer.
+
 
 ## 73. ~~Every mobile sign-in was refused by the auth server~~ — FIXED 2026-09-23
 
@@ -3406,22 +3452,347 @@ with `upload_question_id` set / `question_id` null → recovery tier 0
 `rpc_record_question_attempt` from raising on unassigned `_tm` for
 upload/no-template attempts.
 
-## 74. ~~Upload-sourced variant jobs enqueue but are never dispatched — SKIP until generator accepts them~~ — FIXED
+## 73. The sign-in form refused real accounts on domain extensions it did not list — FIXED 2026-09-15
 
-**Found:** 2026-09-24 (worktree review of `20261068000000`).
-**Fixed:** 2026-09-24 — `ai-recovery-variants` accepts exactly one of
-`source_question_id` / `source_upload_question_id` (loads upload text +
-chapter/topic, keeps §6.2 / §10.2.4 AI-answer refusal and chapter gate, stores
-upload provenance). Migration `20261076000000_dispatch_upload_variants_and_caps`
-removes the bank-only filter in `dispatch_variant_generation`. Measured
+**Found:** 2026-09-15, by the first run of `e2e-evidence/zz-riverside-homework.spec.ts`
+against production, right after Riverside Public School (20260925200000) was
+applied. teacher01@rps.e2e.test typed the right password into /auth and stayed
+there; no request reached Supabase Auth (the trace holds none). Supabase itself
+accepted all four Riverside logins tried directly, each resolving to its role.
+
+`validateEmail` (src/lib/emailValidation.ts) refused any address whose extension
+was missing from a curated list of "widely-used" TLDs — `.test` was not on it —
+and the sign-in handler then reported "Enter a valid email or mobile number".
+Every caller (password sign-in, password reset, email OTP) is about an account
+that already exists, which Supabase is the authority on; the list could only lock
+real accounts out — all 26 Riverside logins, and a school on any extension it
+forgot. The provisioning script's own login check had passed only because it
+called Supabase Auth directly, around the form.
+
+**Fixed:** the list is gone; the shape check and the popular-provider typo
+suggestions ("Did you mean …@gmail.com?") stay, and both sign-in modes now show
+that message for an input with an "@" instead of one about mobile numbers.
+`src/lib/emailValidation.test.ts` fails against the old validator (2 of 4).
+**Proven on production:** after the deploy, the same spec signed teacher01, student
+8A-01 and the Riverside principal in through /auth and ran the whole homework story
+to the end.
+
+---
+
+## 74. The database was cancelling statements because the app asked too often — LOAD FIXED 2026-09-23 (item 5); the slow RPCs remain
+
+**What it was, measured from the database's own statistics (pg_stat_statements,
+2026-09-23) — the whole project's time, ranked:**
+
+```
+rpc_ensure_featured_battles_all   13,183 calls   11,754 s   mean 892 ms   max 4.5 s
+rpc_student_academic_snapshot     29,322 calls    1,975 s   mean  67 ms   max 7.7 s
+rpc_progression_leaderboard       16,412 calls      733 s   mean  45 ms
+rpc_get_student_progression       12,779 calls      645 s   mean  51 ms
+```
+
+3.3 hours of database time went on seeding featured battles. `useBattlegroundData.reload()`
+called `ensureFeaturedAll` first thing, and reload() fires on mount, on every
+live battle/xp event and on every `student-xp-updated` — so a battle in
+progress fired it over and over, and each call runs
+`rpc_refresh_featured_battles()`, the GLOBAL hourly maintenance job (cron job
+1), plus three per-class seeds. The snapshot RPC had no sharing at all: the
+student shell, Analysis, the Practice hub and the Battleground each called it,
+and the hook re-fires on live events across seven domains.
+
+**Fixed (2026-09-23), and measured in a browser as the student over one
+Battleground visit, six XP events and a five-question session:**
+
+```
+                                    before      after
+rpc_ensure_featured_battles_all    1 per reload   0
+rpc_student_academic_snapshot      14             2
+```
+
+* The featured seed runs only when the class has no card for the current day
+  or week — which is exactly when a window rolls over — and at most once per
+  five minutes per tab (the cooldown bounds a class that cannot be seeded).
+* One shared reader for the snapshot: callers asking together share one
+  request, an answer is reused for 15 s, and a live event will not take an
+  answer older than 3 s. The shell's own direct call goes through it too.
+* `PracticeService.finish` retries what is transient — 57014, 55P03, 40001,
+  40P01, 08006, 53300 and a dropped fetch — and nothing else. The finish RPC
+  de-duplicates the attempts it is sent, which is why re-sending is safe. A
+  session refused once now saves on the retry instead of being lost.
+
+**Still true:** the two RPCs are slow in themselves — the snapshot's worst
+case was 7.7 s, and it WRITES (`_rebuild_revision_queue`) inside what every
+screen treats as a read. Making them fast is server work, blocked on 75. The
+next candidates by total time are the two progression calls above, which the
+Battleground and the shell still make per reload.
+
+**Original entry, 2026-09-22:**
+
+Driving the release in a browser as arjun.mehta (2,464 attempts), `rpc_student_academic_snapshot` returned
+`57014 canceling statement due to statement timeout` on the home and analysis screens — under the battery's load
+five times, and once more on a quiet database (pg_stat_activity showed nothing else running). During the load spike
+`rpc_record_question_attempt`, `rpc_student_performance_charts` and `rpc_finish_practice_session` were cancelled
+too, ten attempts in one session. That is item 5 of the practice report ("session save fails when the DB is busy"),
+now measured. The screens fail to a message rather than to a wrong figure, and the runner resends unsaved answers
+at finish, so nothing was lost — but a student waits and sees an error.
+
+## 75. The Management API token is dead: no migration, dry run or ledger read — OPEN, needs the owner
+
+`SUPABASE_ACCESS_TOKEN` in `.env.local` answers 401 (2026-09-22), so `apply-one-migration`, every dry run,
+`check-foreign-migrations` (BLOCKED) and `mint-role-sessions` cannot run. The Supabase MCP still reads live, as
+`supabase_read_only_user`. Waiting on it: the eleven rollbacks written on 2026-09-22 (never dry-run), dropping the
+now-unused `rpc_question_hint`, and deriving `rpc_practice_bank_catalog`'s board from the caller's school instead of
+a parameter (lint-tenant-scope's entry for it says why). The owner renews the token in the Supabase dashboard
+(Account → Access Tokens) and puts it in `.env.local`.
+
+## 76. rpc_question_hint is live and unused — OPEN, waiting on 75
+
+Item 2 (on claude/busy-shannon-nymdhd) kept a hint behind a per-question RPC; the practice ruling of 2026-09-18
+(claude/question-topics-per-chapter) had already removed the hint, because the bank has no hint text and the "hint"
+was the worked solution's first 120 characters — the whole answer for 39% of servable questions. The release kept
+the ruling and deleted the client call. The function reads only question_bank by primary key and is harmless, but
+it is a door nothing uses; a migration drops it once 75 is resolved.
+
+## 77. ~~LiveHomeworkTab's paging test takes 7 s and times out under a full run~~ — FIXED 2026-09-24
+
+**Cause:** `HOMEWORK_PAGE = 100` forced the paging test to paint 100+ cards in
+jsdom while the whole suite shared the machine — past the default budget
+(measured alone 7,067 ms; under full suite 25,405 ms on 2026-09-22).
+**Fix:** page size is **25** (still a full page for "Show older homework");
+test timeout 10s. Named reason, not a blind raise of the number.
+
+## 78. A teacher could approve their own question on the way into the bank — FIXED in 20261054000000, NOT APPLIED (blocked by 75)
+
+Found 2026-09-23 while reading `question_bank`'s policies for the PYQ work.
+`trg_question_bank_approval_is_super_admin_only` is declared
+`BEFORE UPDATE OF is_approved`, so the INSERT that creates a row never reached
+it, and `qb_staff_insert`'s WITH CHECK (`created_by = auth.uid() AND
+can_author_bank_question()`) says who may write a row, not what it may claim
+about itself.
+
+Measured on production as the real teacher priya.sharma, over PostgREST (the
+row was written `is_active: false` so no student could be served it, and
+deleted in the same breath):
+
+```
+POST /rest/v1/question_bank {… is_approved: true, is_active: false}
+  -> 201  [{"is_approved": true, "is_active": false}]
+```
+
+The bank is global (G2), so an approved question reaches every school on that
+board and class: one teacher could publish into every school's practice,
+mistake book and paper fill without passing the super admin's review queue —
+the queue KNOWN_ISSUES 15 exists to make work.
+
+**The fix is written** — `20261054000000_a_teacher_cannot_approve_their_own_question_on_the_way_in.sql`,
+with its rollback. The trigger fires on INSERT as well, and the insert arm
+refuses an END USER who is not a super admin (`auth.uid() IS NOT NULL`), so
+seed migrations and service-role imports, which have no JWT subject and wrote
+all 21,876 approved rows, still work. Its proof block becomes that teacher
+(`SET LOCAL ROLE authenticated` + their JWT subject) and asserts all three:
+the approved insert is refused, the unapproved one is accepted (the control),
+and the owner's approved insert still goes through.
+
+**Not applied, and not dry-run:** the Management API token is dead (75) and
+this machine has no Postgres, so nothing could run it. Both files parse
+against the real Postgres grammar (libpg_query); their plpgsql bodies have not
+been executed anywhere. Apply and dry-run them the moment the token is back.
+
+## 79. A finished session still STORES the questions it got right — app half fixed 2026-09-23, DATABASE HALF OPEN (needs 75, and one ruling from the owner)
+
+§10.8: "While a session is in flight, per-question correctness may exist. It is
+working state. **When the session closes, it must not persist.** What survives
+is: session or tier **totals**, plus rows for **wrong, skipped and
+bookmarked**" — and, in the same section, "**No per-question record of correct
+answers**."
+
+Measured 2026-09-23 on production:
+
+```
+finished practice sessions                                686
+  their correct per-question rows in question_attempts  1,267   <- forbidden
+  their wrong rows                                      4,256
+  their skipped rows                                    2,472
+saved analysis_snapshots                                   32
+  each froze EVERY question of its session — text, options,
+  the answer key, the explanation and the student's choice
+```
+
+**Fixed in the app (2026-09-23), so nothing serves one:**
+`PracticeService.listSessionAttempts` — the one read of a session's questions,
+behind both the result screen's review list and the snapshot a saved session
+freezes — returns the wrong and the skipped only. A snapshot is version 3 and
+holds the same; version 2 snapshots (the 32 above) keep their right answers on
+disk but the result screen filters them out on read. The concept report now
+reads the session's totals instead of counting the attempt list, which is why
+it did not start reporting every reopened session at 0% and flagging its
+chapter weak. The just-finished session on the same device still reviews in
+full, from the navigation's own state — that is the working state §10.8
+allows, and it never comes from the database.
+
+**Still open — the rows themselves.** They are the server's to remove at
+finish (`rpc_finish_practice_session`), plus a one-off purge of the 1,267 and
+a strip of the 32 snapshots. That is a migration, and the Management API token
+is dead (75), so it can be neither applied nor dry-run here. It is deliberately
+NOT written blind: it deletes production data and rewrites the hottest RPC in
+the product, and this environment cannot run it once.
+
+**And it needs one ruling first, because two specs disagree.**
+
+* §10.8 says a correct answer must leave no per-question record.
+* `docs/recovery-revision-analysis-spec.md` §5.4 builds a revision check from
+  the student's whole attempt history and requires a check to contain no
+  question they have already seen — which needs to know that a question was
+  served, including the ones answered correctly.
+
+They can both be satisfied by keeping a **"seen" row with no verdict**: at
+finish, for a correct attempt, keep `session_id`, `bank_question_id` and the
+timestamp, and null out `is_correct`, `selected_answer`, `correct_answer` and
+`generated_question`. Nothing then records that the answer was right; revision
+still knows the question was asked. The alternative — delete the rows outright
+— is simpler and stricter, and costs revision its "already seen" exclusion.
+
+Whichever way it goes, these readers move to the session totals first, because
+they count `question_attempts` today: Analysis's Overview tiles (solved,
+correct, incorrect, skipped, accuracy), `rpc_student_practice_analytics`'
+by-topic figures, and "Topics practised".
+
+## 80. The bank's answer key is not uniform: option D is right 4.5% of the time — OPEN, needs 75 and care
+
+Measured 2026-09-23 over the 21,865 active, approved bank questions that carry
+options:
+
+```
+correct_index 0 (A)   7,233   33.1%
+correct_index 1 (B)   8,051   36.8%
+correct_index 2 (C)   5,608   25.6%
+correct_index 3 (D)     973    4.5%
+```
+
+A student who always answers A or B is right about 70% of the time, and one
+who answers D is right about 1 time in 22. Found while driving a session that
+needed deliberate wrong answers: answering A five times scored 5/5, which is
+how the skew surfaced.
+
+It corrupts everything downstream that treats accuracy as knowledge: session
+accuracy, concept mastery, the weak-chapter list, recovery triggers and the
+revision ladder all read a guess that pays 70% as understanding.
+
+**Not fixable blind.** Reshuffling each question's options and rewriting its
+`correct_index` is a 21,865-row UPDATE, and `student_mistakes`,
+`question_attempts` and the practice snapshots all store option INDEXES for
+questions already answered — a reshuffle rewrites what those rows mean. The
+fix has to renumber the history with the question or leave the old rows keyed
+to a question that no longer says what they claim. That needs the database
+token (75) and a migration with its own proof; it is recorded here rather than
+attempted from the client.
+
+## 81. The three revision defects: fixes written, NOT APPLIED (blocked by 75)
+
+Items 9, 10 and 11 of the practice report. All three live in database
+functions, and the Management API token is dead (75), so all three are
+written, parse-checked against the real Postgres grammar, and unapplied. Each
+carries its rollback and a proof that can fail.
+
+**9 — nothing reminded anybody** (`20261057000000`). §4.1b asks for escalating
+reminders, at most one a day, batched across chapters, stopping when the
+student starts; §5 says an overdue revision surfaces in notifications; §9 says
+never more than one a day. None of it existed: `notifications` holds homework,
+results, exams, attendance, announcements and badges, and not one row for the
+feature the whole spec is about. `send_learning_reminders()` writes one
+batched notification per student per day, naming how many chapters are due and
+escalating when the oldest is a week or more overdue; cron
+`learning-reminders` runs it at 04:00 UTC (09:30 IST). It needs no client
+change — the notifications screen already renders what it writes. Its proof
+creates two overdue chapters for a student who has no state row for them,
+asserts exactly one reminder, that it escalates, that a second run the same
+day writes nothing, and — the control — that a student with nothing waiting is
+not reminded; then it removes only what it created.
+
+**10 — a check was set by insertion order** (`20261056000000`).
+`rpc_revision_session_plan` drew its fresh half `ORDER BY qb.created_at`: the
+eight oldest unseen rows of the chapter. The live bank is 7,498 easy, 9,847
+medium and 4,520 hard, seeded chapter by chapter, so which difficulty a
+retention check is made of was decided by which rows a seed script wrote
+first. A student working at hard could be checked on easy questions and learn
+nothing from passing; one working at easy could be handed hard ones and fail a
+chapter they were never taught to that depth. The fresh half is now ordered by
+distance from the level that student has been working at IN THAT CHAPTER
+(`_student_difficulty_rank`, mean of the difficulties they have answered
+there; their whole history next; medium for a new student), `created_at`
+breaking ties. Nearest, not equal — a chapter with two unseen questions left
+still gives a check, and `fresh_short` still reports it rather than padding.
+The plan now also returns `level`, so a screen can say what the check was set
+at instead of implying it.
+
+**11 — practising a solid chapter dragged it back to weekly**
+(`20261055000000`). `_apply_chapter_state` scheduled every engaged chapter at
+`_revision_interval_days(1)` — always 7 days — whatever stage it had reached.
+So a chapter the student had passed three checks on, on the 30-day cycle, came
+back to a check seven days later BECAUSE they practised it: the exact reverse
+of §5.2's "a student actively working on something does not need a reminder to
+revise it". `_revision_next_at(stage)` is now the one home for that date and
+the state machine asks it with the chapter's own stage.
+
+**To apply, once the token is back:** dry-run all three
+(`node scripts/local-replica/dry-run.mjs`), then apply in order 55, 56, 57.
+20261055000000 and 20261056000000 replace one function each and are safe to
+re-run; 20261057000000 schedules a cron job and unschedules it first, so it is
+too. None of their plpgsql has executed anywhere.
+
+## 82. The three "extra" practice findings — two fixed, one written and blocked
+
+**Custom Practice could be configured into a dead end — FIXED 2026-09-23.**
+Subject, chapter, topic and difficulty each narrow the bank and every
+combination was offered, including the ones holding nothing: the student
+picked, pressed Start, waited for a session to load and met "No questions
+match those filters yet" on a screen they could only leave. Measured on the
+live bank: 4 of 237 chapter-and-difficulty pairs at Class 10 hold no question
+at all, and a topic narrows it again. The config screen now counts the
+selection first (`PracticeService.countBankPool`, the same scope and the same
+chapter/topic/difficulty narrowing the draw uses, as a HEAD request) and says
+"18 questions match — a session takes up to 20", or "Nothing in the bank
+matches those filters" with Start disabled. Driven in a browser: Mathematics ·
+Trigonometry · Easy (0 in the bank) refuses and says so; Polynomials · Easy
+reports 18 and starts, and 18 is what the bank holds.
+
+**The revision tab offering checks it then refused — ALREADY FIXED, verified
+2026-09-23.** The reported 400 was `chapter is not taught to this student's
+section`; 20261044000000 added the "or practised by them" arm to
+`_recovery_chapter_is_for`, and the refusal is gone. Measured as the student
+over all 46 of their chapters: `rpc_revision_session_plan` builds a plan for
+44, and refuses 2 with "there is nothing new left in this chapter to check you
+on" — both of which the screen already shows as unstartable, because
+`rpc_student_chapter_states.revision_fresh_available` is 0 for them and the
+card disables its button and says so. In the browser: 43 cards, 41 offered, 0
+offered-but-refusable.
+
+**10 variant-keyed mistake rows — MERGE WRITTEN, NOT APPLIED (blocked by 75).**
+20261051000000 stopped new ones being written (a variant's miss marks the
+question it came from); the rows already in the book were left. Measured:
+10 rows for 1 student across 8 root questions, 2 of them variants OF variants,
+and in all 8 cases the root ALSO has its own row — so the same gap is counted
+twice, four times for the root carrying three variants, in the open-mistake
+total, the recovery trigger, the §6.3 chapter list and "of those, repeated".
+`20261058000000` merges each variant row into its root's row for the same
+(user, source): times_wrong adds, last_wrong_at is the latest, created_at the
+earliest, and the row stays open if any part was open; a variant whose root
+has no row is repointed rather than dropped. It copies every row it touches
+into `student_mistakes_variant_merge` first, so the rollback restores them
+exactly and takes the counts back out. Its proof asserts the times_wrong total
+is unchanged, that nothing is keyed on a variant afterwards, and — the control
+— that no row on an original question was touched.
+
+## 83. ~~Upload-sourced variant jobs enqueue but are never dispatched~~ — FIXED 2026-09-24
+
+**Found:** 2026-09-24 on `claude/question-topics-per-chapter` (was KI74 on that tip;
+renumbered on merge with main, which already used 74 for DB load).
+**Fixed:** `ai-recovery-variants` accepts exactly one of `source_question_id` /
+`source_upload_question_id` (loads upload text + chapter/topic, keeps §6.2 /
+§10.2.4 AI-answer refusal and chapter gate, stores upload provenance).
+Migration `20261076000000_dispatch_upload_variants_and_caps` removes the
+bank-only filter in `dispatch_variant_generation`. Measured
 `node scripts/measure-upload-promotion-12-5-real.mjs`: 1 positive into
 `question_bank` with §10.4 provenance + 4 gate negatives each stay private
 (rollback txn). Both edges redeployed.
 
-## 77. Homework paging unit test timed out under the full vitest suite — FIXED
-
-**Found:** 2026-09-24 (brief / `LiveHomeworkPanels.test.tsx`).
-**Cause:** `HOMEWORK_PAGE = 100` forced the paging test to paint 100+ cards in
-jsdom while the whole suite shared the machine — past the default budget.
-**Fix:** page size is **25** (still a full page for "Show older homework");
-test timeout back to 10s. Named reason, not a blind raise of the number.

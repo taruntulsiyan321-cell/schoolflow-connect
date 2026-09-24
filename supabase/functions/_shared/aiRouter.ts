@@ -15,7 +15,15 @@ import { buildEieProjection } from "./eieProjection.ts";
 import { buildContextPack, packForModel } from "./contextBuilder.ts";
 import { dedupeSubjects, isPlaceholderLabel } from "./novaContextBuilder.ts";
 import {
+  expandSubjectsForMatch,
+  pickExactSemanticMatch,
+  resolveCacheSubject,
+  resolveNovaTutoringMode,
+  type SemanticCandidate,
+} from "./novaTutoringPolicy.ts";
+import {
   evidenceFromExplainFacts,
+  evidenceFromNovaLearningFacts,
   validateModelResponse,
 } from "./responseValidator.ts";
 import { applyConfidencePolicy, scoreConfidence } from "./confidenceEngine.ts";
@@ -29,6 +37,7 @@ import {
   type RetrievalPack,
 } from "./vectorRetrieval.ts";
 import { embedQueryText } from "./embeddingProvider.ts";
+import { parseClassLevel } from "./parseClassLevel.ts";
 import {
   isSessionMemoryAllowed,
   redactSessionForContext,
@@ -391,14 +400,20 @@ function embeddingEnvFromDeno(): Record<string, string | undefined> {
 }
 
 /**
- * Embed a retrieval query before calling retrieveKmsChunks. Never throws and
- * never blocks the request — a failed/unset embed just yields null, and
- * retrieveKmsChunks (and the ai_kms_retrieve_chunks RPC underneath it)
- * already fall back to lexical overlap when query_embedding is null.
+ * Embed a retrieval query before calling retrieveKmsChunks / Nova match.
+ * Never throws and never blocks the request — a failed/unset embed yields null
+ * so callers fall through (lexical KMS, or model generation for Nova).
+ * G10: failure must not look identical to "no similar question" in logs —
+ * previously `ok:false` was swallowed with no warn, so a dead embedding key
+ * silently disabled bank + answer-cache for every student.
  */
 async function resolveQueryEmbedding(query: string): Promise<number[] | null> {
   const result = await embedQueryText(query, { env: embeddingEnvFromDeno() });
-  return result.ok ? result.embedding : null;
+  if (!result.ok) {
+    console.warn("[embed] query embedding failed:", result.error);
+    return null;
+  }
+  return result.embedding;
 }
 
 /**
@@ -673,6 +688,7 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
     .from("concept_mastery")
     .select("subject, concept, mastery_score, mistake_count")
     .eq("user_id", userId)
+    .eq("school_id", schoolId)
     .order("mastery_score", { ascending: true })
     .limit(40);
 
@@ -748,7 +764,9 @@ async function fetchEie(
   schoolId: string,
   studentId: string,
   actorRole: string,
+  opts?: { learningOnly?: boolean },
 ) {
+  const learningOnly = !!opts?.learningOnly;
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -783,6 +801,7 @@ async function fetchEie(
       .from("concept_mastery")
       .select("subject, chapter, concept, mastery_score, mistake_count, updated_at")
       .eq("user_id", userId)
+      .eq("school_id", schoolId)
       .limit(200);
     mastery = (masteryRows ?? []) as typeof mastery;
 
@@ -790,29 +809,40 @@ async function fetchEie(
       .from("revision_queue")
       .select("subject, chapter, topic, reason, priority, due_date, completed")
       .eq("user_id", userId)
+      .eq("school_id", schoolId)
       .eq("completed", false)
       .order("priority", { ascending: false })
       .limit(40);
     revision = (revRows ?? []) as typeof revision;
   }
 
-  const { data: profile } = await admin
-    .from("student_academic_profiles")
-    .select("attendance_pct, homework_completion_pct")
-    .eq("student_id", studentId)
-    .eq("school_id", schoolId)
-    .maybeSingle();
+  // Nova / student learning paths must never read school-office attendance or
+  // homework % — omit-from-pack is not never-read. Parent / performance.explain
+  // / staff keep the profile read for risk stubs.
+  let attendance_pct: number | null = null;
+  let homework_completion_pct: number | null = null;
+  if (!learningOnly) {
+    const { data: profile } = await admin
+      .from("student_academic_profiles")
+      .select("attendance_pct, homework_completion_pct")
+      .eq("student_id", studentId)
+      .eq("school_id", schoolId)
+      .maybeSingle();
+    attendance_pct =
+      profile?.attendance_pct != null ? Number(profile.attendance_pct) : null;
+    homework_completion_pct =
+      profile?.homework_completion_pct != null
+        ? Number(profile.homework_completion_pct)
+        : null;
+  }
 
   return buildEieProjection({
     studentId,
     schoolId,
     mastery,
     revisionQueue: revision,
-    attendance_pct: profile?.attendance_pct != null ? Number(profile.attendance_pct) : null,
-    homework_completion_pct:
-      profile?.homework_completion_pct != null
-        ? Number(profile.homework_completion_pct)
-        : null,
+    attendance_pct,
+    homework_completion_pct,
   });
 }
 
@@ -858,9 +888,8 @@ function pickConceptFromEie(
  * fetchRecoveryQueue, fetchProgression, probeEie) carries one.
  *
  * Reachable as parent, principal or admin via parent.child.summary and
- * parent.child.narrative, and as teacher, principal or admin via
- * student.nova.chat, where the result is returned to the client as
- * data.facts.profile AND fed to the model.
+ * parent.child.narrative. Not loaded for student.nova.chat (Nova tutors on
+ * private learning facts only — EIE/practice/mistakes/recovery/progression).
  *
  * The residual metrics are purged by migration 20260828220000; this is the
  * read side, so that a profile written by any future path cannot leak the
@@ -1220,9 +1249,10 @@ async function fetchRecoveryQueue(admin: SupabaseClient, schoolId: string, stude
 
 /**
  * Upcoming school-wide academic calendar events (holidays, exams, meetings, sports,
- * cultural, deadlines) for Nova. Admin/principal/teacher manage `school_calendar_events`
- * via the app; this is read-only. School-wide events (audience 'all'/'students') plus
- * the student's own class events are included; past events are excluded.
+ * cultural, deadlines) for student.calendar.upcoming. Admin/principal/teacher manage
+ * `school_calendar_events` via the app; this is read-only. School-wide events
+ * (audience 'all'/'students') plus the student's own class events are included;
+ * past events are excluded. Not loaded for student.nova.chat.
  */
 async function fetchUpcomingEvents(admin: SupabaseClient, schoolId: string, studentId: string) {
   const { data: student } = await admin
@@ -1345,7 +1375,9 @@ async function probeEie(
   schoolId: string,
   studentId: string,
   actorRole: string,
+  opts?: { learningOnly?: boolean },
 ): Promise<string> {
+  const learningOnly = !!opts?.learningOnly;
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -1357,19 +1389,29 @@ async function probeEie(
   // Same gate as fetchEie. The probe builds the cache key, so without it a
   // student's EIE version string could be computed — and cached — for a parent.
   if (actorRole !== "student") return `eie:notstudent:${studentId}`;
+  const masteryQ = admin
+    .from("concept_mastery")
+    .select("subject, chapter, concept, mastery_score, mistake_count, updated_at")
+    .eq("user_id", userId)
+    .eq("school_id", schoolId)
+    .limit(200);
+  const revisionQ = admin
+    .from("revision_queue")
+    .select("subject, chapter, topic, reason, priority, due_date, completed")
+    .eq("user_id", userId)
+    .eq("school_id", schoolId)
+    .eq("completed", false)
+    .order("priority", { ascending: false })
+    .limit(40);
+  // Learning-only probes must not hash office attendance/HW % into the cache
+  // key (and must not read the profile row at all).
+  if (learningOnly) {
+    const [{ data: mastery }, { data: revision }] = await Promise.all([masteryQ, revisionQ]);
+    return `eie:${await hashRows(mastery)}:${await hashRows(revision)}:learning`;
+  }
   const [{ data: mastery }, { data: revision }, { data: profile }] = await Promise.all([
-    admin
-      .from("concept_mastery")
-      .select("subject, chapter, concept, mastery_score, mistake_count, updated_at")
-      .eq("user_id", userId)
-      .limit(200),
-    admin
-      .from("revision_queue")
-      .select("subject, chapter, topic, reason, priority, due_date, completed")
-      .eq("user_id", userId)
-      .eq("completed", false)
-      .order("priority", { ascending: false })
-      .limit(40),
+    masteryQ,
+    revisionQ,
     admin
       .from("student_academic_profiles")
       .select("attendance_pct, homework_completion_pct")
@@ -1399,6 +1441,7 @@ async function probeProgression(admin: SupabaseClient, schoolId: string, student
       .from("concept_mastery")
       .select("subject, concept, mastery_score, mistake_count")
       .eq("user_id", userId)
+      .eq("school_id", schoolId)
       .order("mastery_score", { ascending: true })
       .limit(40),
   ]);
@@ -1722,10 +1765,11 @@ export async function routeAiRequest(
     const cacheKeyBase = `${cap.feature_id}:${studentId ?? "school"}`;
     // fetchParentSummary's exams_avg_pct depends on the ACTOR's role (staff see
     // pre-publish figures, student/parent don't) -- cacheKeyBase alone has no
-    // actor component, so without this suffix a capability reachable by both
-    // tiers for the same studentId (e.g. student.nova.chat) could serve a
+    // actor component, so without this suffix a capability that still loads
+    // parent.child.summary / narrative for the same studentId could serve a
     // staff-scoped cache entry to a student/parent request within the TTL
     // window, silently defeating the role filter in fetchParentSummary.
+    // (student.nova.chat no longer loads parent summary / marks.)
     const examsVisibilityTier =
       req.actor.role === "student" || req.actor.role === "parent" ? "self" : "staff";
 
@@ -1836,14 +1880,29 @@ export async function routeAiRequest(
             message: "Student target required", route_class: cap.route_class,
           });
         }
-        data = await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
-          fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
-        );
+        const masteryLearningOnly = req.actor.role === "student";
+        const eieOpts = masteryLearningOnly ? { learningOnly: true as const } : undefined;
+        const masteryEie = (await withCache(
+          await probeEie(admin, req.actor.schoolId, studentId, req.actor.role, eieOpts),
+          () => fetchEie(admin, req.actor.schoolId, studentId, req.actor.role, eieOpts),
+        )) as Awaited<ReturnType<typeof fetchEie>>;
+        // Student coach chips hit this cap — omit office-risk stubs derived from
+        // attendance/homework so the payload stays learning-only for students.
+        if (masteryLearningOnly) {
+          const {
+            attendance_risk: _omitAttRisk,
+            homework_consistency: _omitHwCons,
+            ...learningOnly
+          } = masteryEie;
+          data = learningOnly;
+        } else {
+          data = masteryEie;
+        }
         decision = "answered_eie";
         provenance = {
-          algorithm_id: (data as { algorithm_id?: string })?.algorithm_id,
-          completeness: (data as { completeness?: number })?.completeness,
-          data_version: (data as { source_data_version?: string })?.source_data_version,
+          algorithm_id: masteryEie.algorithm_id,
+          completeness: masteryEie.completeness,
+          data_version: masteryEie.source_data_version,
         };
         break;
       }
@@ -2225,12 +2284,19 @@ export async function routeAiRequest(
             route_class: cap.route_class,
           });
         }
-        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
-          fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
+        const isStudentActor = req.actor.role === "student";
+        const eieOpts = isStudentActor ? { learningOnly: true as const } : undefined;
+        const eie = (await withCache(
+          await probeEie(admin, req.actor.schoolId, studentId, req.actor.role, eieOpts),
+          () => fetchEie(admin, req.actor.schoolId, studentId, req.actor.role, eieOpts),
         )) as Awaited<ReturnType<typeof fetchEie>>;
-        // Was missing req.actor.role, which is why the parameter had been
-        // optional. student.recommendations is reachable by staff.
-        const parentLike = await fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role);
+        // Student Nova/coach: learning-only (weak concepts + revision). Do not
+        // read school-office attendance/homework via fetchParentSummary or
+        // student_academic_profiles. Parent/teacher/principal/admin keep office
+        // signals for their surfaces.
+        const parentLike = isStudentActor
+          ? null
+          : await fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role);
         data = buildRecommendationPackage({
           studentId,
           schoolId: req.actor.schoolId,
@@ -2238,9 +2304,9 @@ export async function routeAiRequest(
           completeness: eie.completeness,
           weak_concepts: eie.weak_concepts ?? [],
           revision_priority: eie.revision_priority ?? [],
-          attendance_pct: parentLike.attendance_pct,
-          homework_completion_pct: parentLike.homework_completion_pct,
-          source_as_of: parentLike.source_as_of ?? eie.computed_at,
+          attendance_pct: isStudentActor ? null : parentLike?.attendance_pct ?? null,
+          homework_completion_pct: isStudentActor ? null : parentLike?.homework_completion_pct ?? null,
+          source_as_of: parentLike?.source_as_of ?? eie.computed_at,
         });
         decision = "answered_eie";
         provenance = {
@@ -3640,6 +3706,14 @@ export async function routeAiRequest(
             correctIdx != null && options[correctIdx] != null
               ? `${String.fromCharCode(65 + correctIdx)}. ${String(options[correctIdx]).slice(0, 300)}`
               : null;
+          const studentAnsIdx =
+            typeof q.student_answer_index === "number" ? q.student_answer_index : null;
+          const studentAnsText =
+            typeof q.student_answer === "string" ? q.student_answer.trim().slice(0, 300) : "";
+          const studentLabel =
+            studentAnsIdx != null && options[studentAnsIdx] != null
+              ? `${String.fromCharCode(65 + studentAnsIdx)}. ${String(options[studentAnsIdx]).slice(0, 300)}`
+              : studentAnsText || null;
           const subjBits = [q.subject, q.chapter, q.topic].filter(
             (v): v is string => typeof v === "string" && v.trim().length > 0,
           );
@@ -3648,6 +3722,7 @@ export async function routeAiRequest(
             (subjBits.length ? ` (${subjBits.join(" · ")})` : "") +
             `:\n"${qText}"` +
             (optsLine ? `\nOptions: ${optsLine}` : "") +
+            (studentLabel ? `\nStudent's answer: ${studentLabel}` : "") +
             (correctLabel ? `\nCorrect answer: ${correctLabel}` : "")
           );
         })();
@@ -3714,106 +3789,75 @@ export async function routeAiRequest(
           };
         }
 
+        // Nova tutors on private learning facts only — never attendance, homework due,
+        // exam marks, parent exam summary, or school calendar events. Those stay on
+        // dedicated feature_ids (student.attendance.query, etc.).
+        const novaEieOpts = { learningOnly: true as const };
         const factsVersionSeed = await combineProbes([
-          probeAttendance(admin, req.actor.schoolId, studentId),
-          probeHomework(admin, req.actor.schoolId, studentId),
-          probeMarks(admin, req.actor.schoolId, studentId),
-          probeEie(admin, req.actor.schoolId, studentId, req.actor.role),
-          probeParentSummary(admin, req.actor.schoolId, studentId),
+          probeEie(admin, req.actor.schoolId, studentId, req.actor.role, novaEieOpts),
           probeProgression(admin, req.actor.schoolId, studentId),
           probeStudentProfile(admin, req.actor.schoolId, studentId),
           probePracticeHistory(admin, req.actor.schoolId, studentId),
           probeMistakesBook(admin, req.actor.schoolId, studentId),
           probeRecoveryQueue(admin, req.actor.schoolId, studentId),
-          probeUpcomingEvents(admin, req.actor.schoolId, studentId),
         ]);
-        // The actor role is part of the key: the bundle now differs by role (practice
+        // The actor role is part of the key: the bundle differs by role (practice
         // facts are student-only), so a student-built bundle must never be replayed
         // to a parent or teacher out of the cache.
-        const factsBundle = (await withCache(`${factsVersionSeed}:${examsVisibilityTier}:${req.actor.role}`, async () => {
+        const factsBundle = (await withCache(`${factsVersionSeed}:${req.actor.role}`, async () => {
           const [
-            attendance,
-            homework,
-            marks,
             eie,
-            profile,
             progression,
             student_profile,
             practice,
             mistakes,
             recovery,
-            events,
           ] = await Promise.all([
-            fetchAttendance(admin, req.actor.schoolId, studentId),
-            fetchHomeworkDue(admin, req.actor.schoolId, studentId),
-            fetchMarksSummary(admin, req.actor.schoolId, studentId),
-            fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
-            fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role),
+            fetchEie(admin, req.actor.schoolId, studentId, req.actor.role, novaEieOpts),
             fetchProgression(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchStudentProfileContext(admin, req.actor.schoolId, studentId),
             fetchPracticeHistory(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchMistakesBook(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchRecoveryQueue(admin, req.actor.schoolId, studentId, req.actor.role),
-            fetchUpcomingEvents(admin, req.actor.schoolId, studentId),
           ]);
-          // Merge enrolled subjects with practice/marks subjects (deduped).
+          // Merge enrolled subjects with practice/mistakes/recovery subjects (deduped).
           const subjects = dedupeSubjects([
             ...student_profile.subjects,
             ...practice.subjects,
-            ...marks.subjects.map((s) => s.subject),
             ...mistakes.subjects,
             ...recovery.subjects,
           ]);
           return {
-            attendance,
-            homework,
-            marks,
             eie,
-            profile,
             progression,
             student_profile: { ...student_profile, subjects },
             practice,
             mistakes,
             recovery,
-            events,
-            data_version: `nova:${attendance.data_version}:${homework.data_version}:${marks.data_version}:${eie.data_version}:${profile.data_version}:${progression.data_version}:${student_profile.data_version}:${practice.data_version}:${mistakes.data_version}:${recovery.data_version}:${events.data_version}`,
+            data_version: `nova:${eie.data_version}:${progression.data_version}:${student_profile.data_version}:${practice.data_version}:${mistakes.data_version}:${recovery.data_version}`,
             source_as_of: (() => {
               const stamps = [
-                attendance.source_as_of,
-                homework.source_as_of,
-                marks.source_as_of,
                 eie.computed_at,
-                profile.source_as_of,
                 progression.source_as_of,
                 student_profile.source_as_of,
                 practice.source_as_of,
                 mistakes.source_as_of,
                 recovery.source_as_of,
-                events.source_as_of,
               ].filter((v): v is string => typeof v === "string" && v.length > 0);
               stamps.sort();
               return stamps.length ? stamps[stamps.length - 1] : null;
             })(),
             completeness:
-              (attendance.completeness +
-                homework.completeness +
-                marks.completeness +
-                eie.completeness +
-                profile.completeness +
+              (eie.completeness +
                 progression.completeness +
                 student_profile.completeness +
                 practice.completeness +
                 mistakes.completeness +
-                recovery.completeness +
-                events.completeness) /
-              11,
+                recovery.completeness) /
+              6,
           };
         })) as {
-          attendance: Awaited<ReturnType<typeof fetchAttendance>>;
-          homework: Awaited<ReturnType<typeof fetchHomeworkDue>>;
-          marks: Awaited<ReturnType<typeof fetchMarksSummary>>;
           eie: Awaited<ReturnType<typeof fetchEie>>;
-          profile: Awaited<ReturnType<typeof fetchParentSummary>>;
           progression: Awaited<ReturnType<typeof fetchProgression>>;
           student_profile: Awaited<ReturnType<typeof fetchStudentProfileContext>> & {
             subjects: string[];
@@ -3821,42 +3865,36 @@ export async function routeAiRequest(
           practice: Awaited<ReturnType<typeof fetchPracticeHistory>>;
           mistakes: Awaited<ReturnType<typeof fetchMistakesBook>>;
           recovery: Awaited<ReturnType<typeof fetchRecoveryQueue>>;
-          events: Awaited<ReturnType<typeof fetchUpcomingEvents>>;
           data_version: string;
           source_as_of: string | null;
           completeness: number;
         };
 
         const {
-          attendance,
-          homework,
-          marks,
           eie,
-          profile,
           progression,
           student_profile,
           practice,
           mistakes,
           recovery,
-          events,
         } = factsBundle;
-        const facts = {
-          attendance,
-          homework,
-          marks,
-          eie,
-          profile,
+        // learningOnly fetchEie never reads office %; strip residual risk keys if present.
+        const {
+          attendance_risk: _novaOmitAttendanceRisk,
+          homework_consistency: _novaOmitHomeworkConsistency,
+          ...eieLearning
+        } = eie;
+        const facts: Record<string, unknown> = {
+          eie: eieLearning,
           progression,
           student_profile,
           practice,
           mistakes,
           recovery,
-          events,
         };
         const factsEmpty =
           factsBundle.completeness < 0.25 &&
           !(eie.weak_concepts?.length || eie.strong_concepts?.length) &&
-          !profile.weak_topics?.length &&
           // practice_sessions is present only for the student themselves; for a
           // parent or teacher its absence is not evidence of emptiness, so it only
           // counts toward "no facts" when it was actually supplied.
@@ -3872,32 +3910,38 @@ export async function routeAiRequest(
         // embedding quality.
         //
         // STAGE 1 (retrieval): broad similarity floor (0.65) across both sources.
-        // STAGE 2 (verification): the top candidate is only ever treated as EXACT — safe to
-        // return its stored answer directly — when similarity is also >= 0.78 AND every numeric
-        // value in the two questions matches exactly (numbersMatch). This second gate is not
-        // optional: verified empirically that a same-template-different-values pair can score
-        // HIGHER (0.94) than a genuine same-question paraphrase (0.79) — cosine similarity alone
-        // cannot distinguish "same question" from "same method, different numbers," and reusing
-        // a cached numeric answer for different values would silently hand a student someone
-        // else's answer. Below the EXACT bar but still >= 0.65, the candidate becomes a
-        // REFERENCE: folded into the model prompt as a worked example to reuse the method
-        // against, never as a ready-made answer — the model still calculates fresh for this
-        // student's actual values.
+        // STAGE 2 (verification): scan the retrieved pool for EXACT matches
+        // (similarity >= 0.78 AND numbersMatch). Prefer a subject-aligned exact
+        // hit over a higher-sim wrong-subject exact. Cosine alone cannot tell
+        // "same question" from "same method, different numbers."
         let queryEmbedding: number[] | null = null;
         let matchClassLevel: number | null = null;
         let matchSubjects: string[] | null = null;
         let referenceBlock: string | null = null;
         let matchedSubjectHint: string | null = null;
         if (!images.length && !questionContextBlock) {
-          const classLevelMatch = /(\d+)/.exec(
-            student_profile.class_name ?? student_profile.class_label ?? "",
+          // Digits or Roman (XI-A / Class 11) — bare /(\d+)/ misses Roman labels and
+          // skips the entire embed + bank/cache path (F6). Same parser as the client
+          // (`src/lib/parseClassLevel.ts`, parity-checked with this edge copy).
+          matchClassLevel = parseClassLevel(
+            student_profile.class_name ?? student_profile.class_label ?? null,
           );
-          matchClassLevel = classLevelMatch ? parseInt(classLevelMatch[1], 10) : null;
-          if (matchClassLevel != null && matchClassLevel >= 1 && matchClassLevel <= 12) {
+          if (matchClassLevel == null) {
+            // G10 — skip is fine; silent skip is not. Without a class filter the
+            // SQL hard-gate cannot run, so we refuse to search rather than widen.
+            console.warn(
+              "[nova] question match skipped — class_level unparseable from",
+              JSON.stringify({
+                class_name: student_profile.class_name,
+                class_label: student_profile.class_label,
+              }),
+            );
+          } else if (matchClassLevel >= 1 && matchClassLevel <= 12) {
             try {
               queryEmbedding = await resolveQueryEmbedding(question);
               if (queryEmbedding) {
-                matchSubjects = student_profile.subjects?.length ? student_profile.subjects : null;
+                // Alias-expand subjects (Maths↔Mathematics) so bank/cache filters hit.
+                matchSubjects = expandSubjectsForMatch(student_profile.subjects);
                 const [bankRes, cacheRes] = await Promise.all([
                   admin.rpc("match_question_bank", {
                     p_query_embedding: queryEmbedding,
@@ -3905,7 +3949,9 @@ export async function routeAiRequest(
                     p_school_id: req.actor.schoolId,
                     p_subjects: matchSubjects,
                     p_match_threshold: 0.65,
-                    p_match_count: 2,
+                    // Retrieve a small pool so exact-match can prefer subject-aligned hits
+                    // over a higher-sim wrong-subject row (top-1-only residual).
+                    p_match_count: 5,
                   }),
                   admin.rpc("match_ai_answer_cache", {
                     p_query_embedding: queryEmbedding,
@@ -3913,7 +3959,7 @@ export async function routeAiRequest(
                     p_school_id: req.actor.schoolId,
                     p_subjects: matchSubjects,
                     p_match_threshold: 0.65,
-                    p_match_count: 2,
+                    p_match_count: 5,
                   }),
                 ]);
                 // G10. An error from either RPC is currently indistinguishable
@@ -3943,22 +3989,37 @@ export async function routeAiRequest(
                   !cacheRes.error && Array.isArray(cacheRes.data)
                     ? (cacheRes.data as Record<string, unknown>[])
                     : [];
-                const bankCandidates: (Record<string, unknown> & { __source: "question_bank" })[] =
-                  bankRows.map((m) => ({ ...m, __source: "question_bank" as const }));
-                const cacheCandidates: (Record<string, unknown> & { __source: "ai_answer_cache" })[] =
+                const bankCandidates: SemanticCandidate[] =
+                  bankRows.map((m) => ({
+                    ...m,
+                    similarity: Number(m.similarity),
+                    question: String(m.question ?? ""),
+                    subject: typeof m.subject === "string" ? m.subject : null,
+                    __source: "question_bank" as const,
+                  }));
+                const cacheCandidates: SemanticCandidate[] =
                   cacheRows.map((m) => ({
                     ...m,
-                    question: m.original_question,
+                    similarity: Number(m.similarity),
+                    question: String(m.original_question ?? ""),
+                    subject: typeof m.subject === "string" ? m.subject : null,
                     __source: "ai_answer_cache" as const,
                   }));
-                const best = ([...bankCandidates, ...cacheCandidates] as (Record<string, unknown> & {
-                  __source: "question_bank" | "ai_answer_cache";
-                })[]).sort((a, b) => Number(b.similarity) - Number(a.similarity))[0];
+                const ranked = [...bankCandidates, ...cacheCandidates].sort(
+                  (a, b) => Number(b.similarity) - Number(a.similarity),
+                );
+                const exactBest = pickExactSemanticMatch(
+                  ranked,
+                  question,
+                  matchSubjects,
+                  numbersMatch,
+                );
+                const best = exactBest ?? ranked[0];
 
                 if (best) {
                   const similarity = Number(best.similarity);
                   const candidateQuestion = String(best.question ?? "");
-                  const isExact = similarity >= 0.78 && numbersMatch(question, candidateQuestion);
+                  const isExact = exactBest != null && exactBest === best;
 
                   if (isExact && best.__source === "question_bank") {
                     const opts: string[] = Array.isArray(best.options) ? best.options as string[] : [];
@@ -4025,7 +4086,19 @@ export async function routeAiRequest(
                       evidence: { student_id: studentId, matched_cache_id: best.id, similarity, language },
                     });
                     admin.rpc("bump_ai_answer_cache_hit", { p_id: best.id }).then(
-                      () => {}, () => {},
+                      (res) => {
+                        if (res.error) {
+                          console.error(
+                            "bump_ai_answer_cache_hit failed:",
+                            JSON.stringify(res.error),
+                          );
+                        }
+                      },
+                      (e) =>
+                        console.error(
+                          "bump_ai_answer_cache_hit threw:",
+                          e instanceof Error ? e.message : String(e),
+                        ),
                     );
                     return {
                       request_id: req.request_id, feature_id: cap.feature_id, decision,
@@ -4060,22 +4133,43 @@ export async function routeAiRequest(
           }
         }
 
+        const priorSocraticAttempts = (() => {
+          const flags =
+            sessionForContext?.flags && typeof sessionForContext.flags === "object"
+              ? (sessionForContext.flags as Record<string, unknown>)
+              : {};
+          const n = Number(flags.socratic_attempts ?? 0);
+          return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+        })();
+        const tutoringResolved = resolveNovaTutoringMode({
+          question,
+          hasQuestionContext: Boolean(questionContextBlock),
+          sessionTurnCount: Number(sessionMemory?.turn_count ?? 0),
+          priorSocraticAttempts,
+        });
+        const tutoringFacts = {
+          mode: tutoringResolved.mode,
+          rule:
+            tutoringResolved.mode === "socratic"
+              ? "hint_or_one_clarifying_question_only"
+              : tutoringResolved.mode === "full"
+              ? "full_stepwise_solution_ok"
+              : "explain_mistake_then_correct_approach",
+        };
+        facts.tutoring = tutoringFacts;
+
         const pack = buildContextPack({
           capability: cap.feature_id,
           request_text: question,
           ae: {
-            attendance,
-            homework,
-            marks,
-            profile,
             progression,
             student_profile,
             practice,
             mistakes,
             recovery,
-            events,
+            tutoring: tutoringFacts,
           },
-          eie,
+          eie: eieLearning,
           session_memory: sessionForContext,
           tier_signals: {
             facts_complete: !factsEmpty,
@@ -4093,7 +4187,7 @@ export async function routeAiRequest(
           "AI temporarily unavailable (billing/credits). Deterministic help still works.";
         const factsJson = packForModel(pack);
         const honestEmptyMsg =
-          "I do not have enough Academic Engine / mastery records for you yet, so I cannot cite personal attendance, marks, or mastery. Ask about a study concept, or check attendance / homework / marks once your school data is synced.";
+          "I do not have enough mastery / practice records for you yet, so I cannot cite personal learning stats. Ask about a study concept, or try practice, mistakes book, or recovery once your learning data is synced.";
 
         if (!mayCallModel) {
           const conf = scoreConfidence({
@@ -4311,7 +4405,7 @@ export async function routeAiRequest(
               ? billingUnavailableMsg
               : factsEmpty
               ? honestEmptyMsg
-              : "Nova could not reach the AI model right now. Try attendance, homework, marks, or mastery — those still work without generative credits.",
+              : "Nova could not reach the AI model right now. Try again shortly, or open practice / recovery / mastery for live learning facts.",
             error_code: billing ? "openrouter_billing" : "model_degraded",
             provenance: {
               algorithm_id: eie.algorithm_id,
@@ -4326,7 +4420,12 @@ export async function routeAiRequest(
           };
         }
 
-        const evidence = evidenceFromExplainFacts(facts);
+        // Learning-only evidence: attendance_pct / average_marks_pct / homework_pending
+        // stay null; allowed_pcts is mastery (+ progression ints) — never office fetches.
+        const evidence = evidenceFromNovaLearningFacts({
+          eie: facts.eie,
+          progression: facts.progression,
+        });
         const validation = validateModelResponse(modelResult.text, evidence, {
           max_chars: pack.token_budget.output * 6,
           system_template: modelResult.prompt?.system_template,
@@ -4403,7 +4502,7 @@ export async function routeAiRequest(
             cache_hit,
             data,
             message: validation.material_failure
-              ? "Nova drafted a reply that looked unreliable (possible invented scores). Please rephrase, or ask about attendance / homework / marks for live school records."
+              ? "Nova drafted a reply that looked unreliable (possible invented scores). Please rephrase, or ask about mastery, practice, or recovery for live learning facts."
               : factsEmpty
               ? honestEmptyMsg
               : undefined,
@@ -4437,6 +4536,10 @@ export async function routeAiRequest(
             session_patch: buildSessionSummaryPatch({
               last_feature_id: cap.feature_id,
               last_decision: decision,
+              flags: {
+                socratic_attempts: tutoringResolved.nextSocraticAttempts,
+                tutoring_mode: tutoringResolved.mode,
+              },
             }),
           },
           conf,
@@ -4461,13 +4564,19 @@ export async function routeAiRequest(
         // embedding call) and a non-empty validated reply. Live-verified end to end: a fresh
         // question saves here, and a later differently-worded equivalent (via
         // match_ai_answer_cache) retrieves it directly with zero model cost.
+        // Only cache FULL / mistake_review answers — socratic hints must not poison the cache.
         if (
           matchClassLevel != null &&
           !images.length &&
           !questionContextBlock &&
           queryEmbedding &&
-          modelResult.text.trim()
+          modelResult.text.trim() &&
+          tutoringResolved.mode !== "socratic"
         ) {
+          const cacheSubject = resolveCacheSubject({
+            matchedSubjectHint,
+            profileSubjects: student_profile.subjects,
+          });
           admin
             .from("ai_answer_cache")
             .insert({
@@ -4475,7 +4584,7 @@ export async function routeAiRequest(
               answer: modelResult.text,
               embedding: `[${queryEmbedding.join(",")}]`,
               class_level: matchClassLevel,
-              subject: matchedSubjectHint,
+              subject: cacheSubject,
               model_id: model_id ?? null,
               request_id: req.request_id,
               school_id: req.actor.schoolId,

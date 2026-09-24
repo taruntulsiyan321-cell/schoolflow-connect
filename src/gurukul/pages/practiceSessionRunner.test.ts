@@ -77,7 +77,7 @@ describe("a practice session records what the student was shown", () => {
   it("waits for answers still in flight before rolling the session up", () => {
     const finish = section("async function finish(reason: EndReason)", "function answer(");
     expect(finish).toContain("await Promise.allSettled([...pendingWrites.current])");
-    const record = section("function record(snap: PracticeAttemptSnapshot)", "async function finish(");
+    const record = section("function record(snap: PracticeAttemptSnapshot, onVerdict?: (v: AttemptVerdict) => void)", "async function finish(");
     expect(record).toContain("pendingWrites.current.add(write)");
   });
 
@@ -85,8 +85,24 @@ describe("a practice session records what the student was shown", () => {
     for (const dead of ["hintPreview", "hintRevealed", "revealHint", "hintUsedRef"]) {
       expect(SOURCE, `${dead} is the hint that gave the answer away`).not.toContain(dead);
     }
-    // The explanation still appears, after answering.
-    expect(SOURCE).toContain('phase === "fb" && q.explanation');
+    expect(SOURCE, "no hint is fetched either").not.toContain("questionHint");
+    // The explanation still appears, after answering — from the server's verdict.
+    expect(SOURCE).toContain('phase === "fb" && verdict?.explanation');
+  });
+
+  it("holds no answer: the tick, the cross and the count come from the server's verdict", () => {
+    // question_bank_student has no correct_index or explanation (20261046000000); a
+    // question in this browser carries neither, and nothing grades against one.
+    expect(SOURCE).not.toMatch(/\bq\.correct\b/);
+    expect(SOURCE).not.toMatch(/\bq\.explanation\b/);
+    expect(SOURCE).toContain("verdict?.correctIndex === i");
+    expect(SOURCE).toContain("const isRight = verdict?.isCorrect === true;");
+    // One write per answer: the verdict rides on the write record() already makes.
+    const answer = section("function answer(i: number)", "function next(");
+    expect(answer).not.toContain("persistAttemptLive(");
+    expect(answer).toContain("record(snap, (v) =>");
+    // A late verdict must not mark the question after it.
+    expect(answer).toContain("if (onScreenRef.current === snap) setVerdict(v);");
   });
 
   it("asks history for the student's own day, not the UTC day", () => {

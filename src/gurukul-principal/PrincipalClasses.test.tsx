@@ -238,7 +238,7 @@ describe("the principal's Classes tab", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Download report/ }));
     expect(exportCSV).toHaveBeenCalledTimes(1);
     const [filename, rows] = exportCSV.mock.calls[0] as [string, Record<string, string>[]];
-    expect(filename).toBe("homework-real-numbers-2026-09-10.csv");
+    expect(filename).toBe("homework-real-numbers-2026-09-10");
     expect(rows.map((r) => [r.Student, r.Done, r.File])).toEqual([
       ["Arjun Mehta", "Yes", "arjun-work.pdf"],
       ["Bhavna Rao", "No", ""],
@@ -256,7 +256,7 @@ describe("the principal's Classes tab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Download class report/ }));
     const [filename, rows] = exportCSV.mock.calls[0] as [string, Record<string, string>[]];
-    expect(filename).toMatch(/^homework-10-a-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(filename).toMatch(/^homework-10-a-\d{4}-\d{2}-\d{2}$/);
     expect(rows[1]).toMatchObject({ Student: "Bhavna Rao", Done: "0", "Missed at the deadline": "1", "Still to do": "1" });
   });
 

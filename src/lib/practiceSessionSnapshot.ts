@@ -126,20 +126,32 @@ export function buildAttemptMeta(a: PracticeAttemptSnapshot): PracticeAttemptMet
   };
 }
 
+/**
+ * The concept report for a finished session, from the session's OWN TOTALS.
+ *
+ * It counted a list of attempts instead — which is why it had to change.
+ * §10.8: when a session closes, per-question correctness must not persist;
+ * what survives is the totals plus the wrong, skipped and bookmarked. A saved
+ * session therefore holds no right answers to count, and a recount would
+ * report every reopened session at 0% and flag its chapter weak. The totals
+ * are the durable record, and they are what the screen above already shows.
+ *
+ * Answered, not attempted: a skipped question is not a wrong answer
+ * (20261021000000), so `answered` excludes skips and timeouts — the caller
+ * passes correct + wrong, never the question count.
+ */
 export function buildPracticeRecoveryReport(
   sessionId: string,
   subject: string,
   chapter: string,
-  attempts: PracticeAttemptSnapshot[],
+  totals: { correct: number; answered: number },
   /** null when no question carried a timing — never a floor of one minute. */
   timeMinutes: number | null = null,
 ): ConceptRecoveryReport {
-  // Answered, not attempted: a skipped question is not a wrong answer
-  // (20261021000000). This report counted every skip as a miss, so a session
-  // skipped end to end flagged its chapter weak at 0%.
-  const answered = attempts.filter((a) => !a.skipped && !a.timedOut);
-  const correct = answered.filter((a) => a.isCorrect).length;
-  const accuracyMetric = sessionAccuracy(correct, answered.length);
+  const whole = (n: number) => (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0);
+  const answeredCount = whole(totals.answered);
+  const correct = Math.min(whole(totals.correct), answeredCount);
+  const accuracyMetric = sessionAccuracy(correct, answeredCount);
   // The weak flag below asks the metric itself, so "nothing answered" can
   // never read as a weak chapter; the reported figure is absent, not 0%.
   const accuracy = valueOr(accuracyMetric, 0);
@@ -157,7 +169,7 @@ export function buildPracticeRecoveryReport(
     source_id: sessionId,
     accuracy_pct: accuracyReported,
     correct_count: correct,
-    total_count: answered.length,
+    total_count: answeredCount,
     time_minutes: timeMinutes,
     weak_concepts: weak,
     improvement_areas: weak.map((w) => w.concept),

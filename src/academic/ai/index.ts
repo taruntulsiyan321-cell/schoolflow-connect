@@ -79,6 +79,7 @@ export {
 export {
   validateModelResponse,
   evidenceFromExplainFacts,
+  evidenceFromNovaLearningFacts,
   type ValidationResult,
   type EvidenceFacts,
 } from "./responseValidator";
@@ -187,6 +188,7 @@ export {
   processOneEmbeddingJob,
   parseEmbeddingApiResponse,
   buildEmbeddingRequestBody,
+  embedQueryText,
   type EmbeddingJobClaim,
   type EmbeddingVectorResult,
 } from "./embeddingProvider";

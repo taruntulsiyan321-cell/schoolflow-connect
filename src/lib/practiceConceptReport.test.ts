@@ -21,41 +21,45 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { stripComments } from "@/test/stripComments";
-import { buildPracticeRecoveryReport, type PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
-
-const attempt = (over: Partial<PracticeAttemptSnapshot> = {}): PracticeAttemptSnapshot => ({
-  question: "q", options: ["a", "b"], correctIndex: 0, selectedIndex: 0, isCorrect: true, ...over,
-});
+import { buildPracticeRecoveryReport } from "@/lib/practiceSessionSnapshot";
 
 describe("the practice concept report reports only what was answered", () => {
   it("has no accuracy, and no weak chapter, when every question was skipped", () => {
-    const report = buildPracticeRecoveryReport("s1", "Mathematics", "Triangles", [
-      attempt({ skipped: true, isCorrect: false }),
-      attempt({ skipped: true, isCorrect: false }),
-    ]);
+    // Two questions, both skipped: nothing was answered, so the session's
+    // totals carry no correct and no wrong.
+    const report = buildPracticeRecoveryReport("s1", "Mathematics", "Triangles", { correct: 0, answered: 0 });
     expect(report.accuracy_pct, "a skipped session has no accuracy — 0% is a verdict it cannot make").toBeNull();
     expect(report.total_count).toBe(0);
     expect(report.weak_concepts, "a chapter nobody answered is not a weak chapter").toEqual([]);
   });
 
   it("POSITIVE CONTROL: it does report an accuracy, and a weak chapter, when questions were answered", () => {
-    const report = buildPracticeRecoveryReport("s2", "Mathematics", "Triangles", [
-      attempt({ isCorrect: true }),
-      attempt({ isCorrect: false }),
-      attempt({ skipped: true, isCorrect: false }),
-    ]);
-    // Over the two ANSWERED, not the three shown.
+    // One right, one wrong, one skipped: over the two ANSWERED, not the three sat.
+    const report = buildPracticeRecoveryReport("s2", "Mathematics", "Triangles", { correct: 1, answered: 2 });
     expect(report.accuracy_pct).toBe(50);
     expect(report.correct_count).toBe(1);
     expect(report.total_count).toBe(2);
     expect(report.weak_concepts.map((w) => w.chapter)).toEqual(["Triangles"]);
   });
 
+  /**
+   * §10.8: a finished session keeps its totals and the questions that went
+   * wrong or were skipped — never a record of a right answer. The report used
+   * to count the attempt list, so once that list stopped holding right
+   * answers it would have reported every reopened session at 0% and flagged
+   * its chapter weak. It reads the totals, which say 5 of 5.
+   */
+  it("reports a perfect session from its totals, with no attempt list to count", () => {
+    const report = buildPracticeRecoveryReport("s5", "Mathematics", "Triangles", { correct: 5, answered: 5 });
+    expect(report.accuracy_pct).toBe(100);
+    expect(report.weak_concepts, "a session with no wrong answer is not a weak chapter").toEqual([]);
+  });
+
   it("gives no duration unless one was measured", () => {
-    const attempts = [attempt()];
-    expect(buildPracticeRecoveryReport("s3", "Maths", "Ch", attempts).time_minutes,
+    const totals = { correct: 1, answered: 1 };
+    expect(buildPracticeRecoveryReport("s3", "Maths", "Ch", totals).time_minutes,
       "a floor of one minute reported a seven-second session as a minute").toBeNull();
-    expect(buildPracticeRecoveryReport("s4", "Maths", "Ch", attempts, 4).time_minutes).toBe(4);
+    expect(buildPracticeRecoveryReport("s4", "Maths", "Ch", totals, 4).time_minutes).toBe(4);
   });
 });
 

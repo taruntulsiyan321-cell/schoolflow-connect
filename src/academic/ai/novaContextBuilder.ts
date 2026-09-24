@@ -191,13 +191,8 @@ export function buildNovaUiChips(input: NovaUiContextInput): NovaChip[] {
   const streak = Number(input.studyStreak ?? 0);
   if (streak > 0) push("streak", `${streak}d study streak`, CHIP_COLORS.streak);
 
-  const att = input.attendancePct;
-  if (att != null && Number.isFinite(att) && Number(att) > 0) {
-    push("attendance", `Attendance ${Math.round(Number(att))}%`, CHIP_COLORS.attendance);
-  }
-
-  const hw = Number(input.homeworkPending ?? 0);
-  if (hw > 0) push("homework", `${hw} HW pending`, CHIP_COLORS.homework);
+  // Attendance % / HW pending chips intentionally omitted — Nova UI is
+  // learning-only. Fields remain optional on NovaUiContextInput for back-compat.
 
   const practice = Number(input.practiceSessions ?? 0);
   if (practice > 0) push("practice", `${practice} practice`, CHIP_COLORS.practice);

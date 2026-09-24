@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { TestService, TEST_KIND_LABELS, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { TestClassMarks, TestListRow } from "@/academic/services/testService";
-import { displaySubject, toCountLabel, toErrorMessage, toPersonName } from "@/lib/presentation";
+import { displaySubject, toCountLabel, toEnumLabel, toErrorMessage, toPersonName } from "@/lib/presentation";
 import { BackButton, EmptyState, Label, LoadingRow, Pill, SectionHeading } from "./primitives";
 import { classLabel, useSchoolClasses, type ClassRow } from "./useSchoolClasses";
 
@@ -218,7 +218,7 @@ export function ClassTestsTable({ classId, onOpenTest }: { classId: string; onOp
                 </div>
               </div>
               <div className="w-28">
-                <Pill variant={t.status === "published" ? "default" : "muted"}>{t.status}</Pill>
+                <Pill variant={t.status === "published" ? "default" : "muted"}>{toEnumLabel(t.status, "test_status")}</Pill>
               </div>
               {/* "7 of 32", not "7": the count alone hides whether the class
                   has sat it. Both halves come from the same RPC. */}

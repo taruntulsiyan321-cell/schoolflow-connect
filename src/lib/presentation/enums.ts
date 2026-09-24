@@ -54,11 +54,23 @@ export type EnumDomain =
   | "academic_event_status"
   | "featured_kind"
   | "budget_forecast_status"
+  | "chapter_state"
   | "severity";
 
 type LabelMap = Record<string, string>;
 
 const LABELS: Record<EnumDomain, LabelMap> = {
+  // public.chapter_state.state — where a chapter stands for one student
+  // (§4, §5). "Recovered" is the engine word; to the student it is the
+  // chapter they have got back, and revision keeps asking.
+  chapter_state: {
+    untouched: "Not started",
+    has_mistakes: "Has mistakes",
+    in_recovery: "In recovery",
+    recovered: "Recovered",
+    revision_due: "Revision due",
+    revision_failed: "Revision failed",
+  },
   attendance_status: {
     present: "Present",
     absent: "Absent",
@@ -114,6 +126,7 @@ const LABELS: Record<EnumDomain, LabelMap> = {
     draft: "Draft",
     scheduled: "Scheduled",
     published: "Published",
+    submitted: "Submitted",
     archived: "Archived",
   },
   // question_papers.status is its own two-value vocabulary and NOT test_status:

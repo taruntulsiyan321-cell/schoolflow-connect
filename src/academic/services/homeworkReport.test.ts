@@ -77,11 +77,12 @@ describe("the homework report", () => {
     expect(report.some((r) => r.Student.startsWith("Student s3"))).toBe(true);
   });
 
-  it("names the file after the homework and its deadline", () => {
+  // No extension: exportCSV adds ".csv", and a name carrying one downloaded as "….csv.csv".
+  it("names the file after the homework and its deadline, leaving the extension to exportCSV", () => {
     expect(homeworkReportFilename({ title: "Real numbers: Ex 1.2!", dueDate: "2026-09-20" })).toBe(
-      "homework-real-numbers-ex-1-2-2026-09-20.csv",
+      "homework-real-numbers-ex-1-2-2026-09-20",
     );
-    expect(homeworkReportFilename({ title: "!!!", dueDate: "2026-09-20" })).toBe("homework-report-2026-09-20.csv");
+    expect(homeworkReportFilename({ title: "!!!", dueDate: "2026-09-20" })).toBe("homework-report-2026-09-20");
   });
 });
 
@@ -133,7 +134,7 @@ describe("the class homework report", () => {
     });
   });
 
-  it("names the file after the class and the day it was taken", () => {
-    expect(classHomeworkReportFilename("10 A", new Date(2026, 8, 15, 23, 30))).toBe("homework-10-a-2026-09-15.csv");
+  it("names the file after the class and the day it was taken, leaving the extension to exportCSV", () => {
+    expect(classHomeworkReportFilename("10 A", new Date(2026, 8, 15, 23, 30))).toBe("homework-10-a-2026-09-15");
   });
 });

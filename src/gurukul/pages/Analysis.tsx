@@ -16,6 +16,8 @@ import { type Tab, TABS } from "./analysisTabs";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
+import { useWeakChapters } from "@/hooks/useWeakChapters";
+import { WeakChapterList } from "@/components/student/analytics/WeakChapterList";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPracticeAnalytics } from "@/hooks/useStudentPracticeAnalytics";
@@ -46,7 +48,7 @@ import {
   deriveImprovingChapters,
   deriveMonthComparison,
   deriveRecoveryProgress,
-  deriveRecoveryTopics,
+  deriveRecoveryChapters,
   deriveSubjectPace,
   formatSeconds,
   deriveRevisionData,
@@ -172,6 +174,11 @@ export default function Analysis() {
   // Rule 11: Analysis is practice-only, so it no longer subscribes to the
   // marks or examination channels — it has nothing to refresh from them.
   useAcademicLive(["profile"]);
+  // §6.3's chapter list — the main screen the section asks for, which this
+  // page did not have. Its own reads, because none of the four hooks below
+  // carries what a chapter row needs (open mistakes with their topics, the
+  // chapter tally behind the accuracy and the trend, and what was skipped).
+  const { list: weakChapters, reload: reloadWeakChapters } = useWeakChapters(academicReady, ctx?.userId ?? null);
   const { data: analysis, loading: analysisLoading, error: analysisError, reload: reloadAnalysis } = useAnalysisPageData(academicReady);
   const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts(academicReady);
   const { data: snapshot, loading: snapshotLoading, error: snapshotError, reload: reloadSnapshot } = useStudentAcademicSnapshot(academicReady);
@@ -197,7 +204,7 @@ export default function Analysis() {
 
   // Decision Engine Slice 1 swap-in for topicGroups.needs_attention only
   // (see the approved plan -- the other 6 weak_topics/strong_topics read
-  // sites in this file, and the shared deriveChapterRows/deriveRecoveryTopics
+  // sites in this file, and the shared deriveChapterRows/deriveRecoveryChapters
   // library functions, are explicitly deferred). Reuses the same
   // weakAreasV2 flag already live for Practice.tsx and
   // RecoveryCompletionReportPage.tsx -- one rollout, not a per-consumer flag.
@@ -844,7 +851,7 @@ export default function Analysis() {
     () => deriveRecoveryProgress(listItems(recoveryQueue), listItems(chapterStates)),
     [recoveryQueue, chapterStates],
   );
-  const recoveryTopics = useMemo(() => deriveRecoveryTopics(listItems(recoveryQueue)), [recoveryQueue]);
+  const recoveryChapters = useMemo(() => deriveRecoveryChapters(listItems(recoveryQueue)), [recoveryQueue]);
 
   const revisionData = useMemo(() => deriveRevisionData(listItems(chapterStates)), [chapterStates]);
 
@@ -1501,6 +1508,21 @@ export default function Analysis() {
         </div>
       )}
 
+      {/* ── Tab: Chapters to fix (§6.3) ─── */}
+      {tab === "chapters" && (
+        <div className="space-y-4">
+          <div>
+            <SLabel>Chapters with something open</SLabel>
+            <p className="text-[11px] text-muted-foreground mb-3">
+              Ranked by how many questions are still open. A chapter whose revision check
+              failed, or whose mistakes keep coming back, sits at the top. Open one for its
+              topics, its pace and what you skipped.
+            </p>
+          </div>
+          <WeakChapterList list={weakChapters} onRetry={reloadWeakChapters} />
+        </div>
+      )}
+
       {/* ── Tab: Subjects & Chapters ────── */}
       {tab === "subjects" && (
         <div className="space-y-6">
@@ -1800,9 +1822,9 @@ export default function Analysis() {
                     Could not read your recovery chapters.{" "}
                     <button type="button" onClick={retryEngine} className="font-semibold underline">Try again</button>
                   </p>
-                ) : recoveryTopics.length === 0 ? (
+                ) : recoveryChapters.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">No chapters in recovery yet</p>
-                ) : recoveryTopics.map((r) => (
+                ) : recoveryChapters.map((r) => (
                   <div key={r.chapter} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60">
                     {r.status === "recovered"
                       ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />

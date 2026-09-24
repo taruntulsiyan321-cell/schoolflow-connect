@@ -81,7 +81,7 @@ export default defineConfig({
       //                    12/12 when run without it. Last means nothing it does
       //                    to a session can reach a spec that has not run yet.
       //   custom-practice  Individual (exam) Custom Practice §12 — needs setup-exam.
-      testMatch: /(aa-reachability|tier\d(-writes|-reads|-panels)?|custom-practice|zz-known-issues)\.spec\.ts/,
+      testMatch: /(aa-reachability|tier\d(-writes|-reads|-panels|-homework-family)?|custom-practice|zz-known-issues|zz-riverside-(homework|school))\.spec\.ts/,
       dependencies: ['setup', 'setup-exam'],
       use: { ...devices['Desktop Chrome'] },
     },

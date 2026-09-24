@@ -6,12 +6,13 @@ import {
 } from "./context";
 import { assertStudentClassContext, assertStudentContext } from "./assertStudentContext";
 import type { Json } from "@/integrations/supabase/types";
-import { getClient, throwIfError } from "../repository/base";
+import { getClient, retryTransient, throwIfError } from "../repository/base";
 import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
 import type { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
 import {
+  contentStreamForClass,
   filterSubjectsForStream,
   inferStreamFromText,
   isSubjectAllowedForScope,
@@ -134,6 +135,106 @@ const TOPIC_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
  */
 const POOL_PAGE = 1000;
 const POOL_CAP = 10_000;
+
+/**
+ * The student bank every practice read draws from: approved, active unless a
+ * historical view asks otherwise, the student's board, class and stream, and
+ * one subject when one is named.
+ *
+ * listBankQuestions narrows it further; listPyqYears reads the exam years off
+ * it. One home for the scope, so the Previous Year Questions screen can only
+ * ever offer a year the pool would then serve.
+ */
+function studentBankQuery(
+  client: ReturnType<typeof getClient>,
+  columns: string,
+  scope: CurriculumScope,
+  classLevel: number | null,
+  opts: { subject?: string | null; activeOnly: boolean; withCount?: boolean; previousYearOnly?: boolean },
+) {
+  let query = client
+    .from("question_bank_student")
+    .select(columns, opts.withCount ? { count: "exact" } : undefined)
+    .eq("is_approved", true)
+    .order("id");
+  if (opts.activeOnly) query = query.eq("is_active", true);
+
+  // Individual (exam) accounts practise their exam's bank only — not the
+  // school board/class/stream cut. School accounts never set examId.
+  if (scope.examId) {
+    query = query.eq("exam_id", scope.examId);
+  } else {
+    // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
+    // so there is no per-school arm left to filter on.
+    query = query
+      .is("exam_id", null)
+      .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
+    if (classLevel != null && Number.isFinite(classLevel)) query = query.eq("class_level", classLevel);
+    // A stream narrows content only from Class 11 (contentStreamForClass).
+    const stream = contentStreamForClass(scope.stream, classLevel);
+    if (stream) query = query.or(`stream.eq.${stream},stream.is.null`);
+  }
+  if (opts.subject && opts.subject !== "Mixed") query = query.ilike("subject", opts.subject);
+  // A previous-year question is one that names the exam year it was set in.
+  // The source-text guesses that stood in the pool's filter (a `pyq`
+  // source_type, a source naming a past paper) matched none of the bank, and
+  // would have admitted a question no year could ever select.
+  if (opts.previousYearOnly) query = query.not("exam_year", "is", null);
+  return query;
+}
+
+/**
+ * Every row a paged query admits, up to POOL_CAP.
+ *
+ * The first page brings the total with it, and every other page is asked for
+ * at once. They were fetched one after another: each page is a full round
+ * trip of about a second for a thousand rows, so a Class 12 "all subjects"
+ * session (3,305 rows, four pages) waited 6.6 seconds before its first
+ * question — measured 2026-09-22 as the student. Asked for together, the pages
+ * cost one round trip after the first.
+ *
+ * The query must be ordered by id, so the pages tile it; a row that moves
+ * between the first request and the rest is counted once.
+ */
+/** The chapter to narrow by, or nothing. One home, so a count and a draw agree. */
+function chapterFilterOf(chapter: string | null | undefined): string | null {
+  const v = chapter?.trim();
+  return v ? v : null;
+}
+
+/** A topic picked from the list: an id, exact and per chapter (§10.22). */
+function topicIdOf(topic: string | null | undefined): string | null {
+  return topic && TOPIC_ID_RE.test(topic.trim()) ? topic.trim() : null;
+}
+
+/**
+ * A topic NAME, from an old `?topic=` link. Skipped when it carries a comma,
+ * a parenthesis or a quote: those are PostgREST's own delimiters in an
+ * embedded filter, and such a name falls through to the client-side pass.
+ */
+function topicNameOf(topic: string | null | undefined): string | null {
+  return !topicIdOf(topic) && topic && !/[,()"\\]/.test(topic) ? topic.trim() : null;
+}
+
+type PageError = { message: string; code?: string } | null;
+async function readAllPages<R extends { id: string }>(
+  page: (withCount: boolean) => { range: (from: number, to: number) => PromiseLike<{ data: unknown; count?: number | null; error: PageError }> },
+): Promise<{ data: R[] | null; error: PageError }> {
+  const first = await page(true).range(0, POOL_PAGE - 1);
+  if (first.error) return { data: null, error: first.error };
+  const firstRows = (first.data ?? []) as R[];
+  const total = Math.min(first.count ?? firstRows.length, POOL_CAP);
+  const rest: Array<PromiseLike<{ data: unknown; error: PageError }>> = [];
+  for (let from = POOL_PAGE; from < total; from += POOL_PAGE) {
+    rest.push(page(false).range(from, from + POOL_PAGE - 1));
+  }
+  const pages = await Promise.all(rest);
+  const failed = pages.find((p) => p.error);
+  if (failed) return { data: null, error: failed.error };
+  const byId = new Map<string, R>();
+  for (const row of [firstRows, ...pages.map((p) => (p.data ?? []) as R[])].flat()) byId.set(row.id, row);
+  return { data: [...byId.values()], error: null };
+}
 
 /** A student's curriculum scope, shared by every question load for a minute. */
 const SCOPE_TTL_MS = 60_000;
@@ -261,6 +362,36 @@ const PRACTICE_SESSION_LIST_SELECT =
   "id, subject, chapter, question_count, correct_count, score, created_at, finished_at, practice_mode, skipped_count, wrong_count, total_time_ms, accuracy, saved_at, analysis_snapshot, xp_earned, difficulty, time_limit_sec";
 
 /**
+ * What the SERVER says about an attempt, returned by
+ * rpc_record_question_attempt.
+ *
+ * correctIndex is null when the server has no answer of its own to give —
+ * a template or AI question with no bank row behind it, the one path where
+ * the client's claim is still what gets stored.
+ */
+export type AttemptVerdict = {
+  attemptId: string | null;
+  isCorrect: boolean;
+  skipped: boolean;
+  correctIndex: number | null;
+  correctText: string;
+  explanation: string;
+};
+
+function parseVerdict(raw: unknown): AttemptVerdict {
+  const v = (raw ?? {}) as Record<string, unknown>;
+  const idx = Number(v.correct_index);
+  return {
+    attemptId: typeof v.attempt_id === "string" ? v.attempt_id : null,
+    isCorrect: v.is_correct === true,
+    skipped: v.skipped === true,
+    correctIndex: Number.isInteger(idx) ? idx : null,
+    correctText: typeof v.correct_text === "string" ? v.correct_text : "",
+    explanation: typeof v.explanation === "string" ? v.explanation : "",
+  };
+}
+
+/**
  * PracticeService — wraps practice session RPCs + finish path.
  * AI/practice modules should call this instead of raw RPCs where practical.
  */
@@ -315,16 +446,33 @@ export const PracticeService = {
     return data as string;
   },
 
+  /**
+   * Finish the session — retried when the database says "not now".
+   *
+   * Measured on production 2026-09-23: this returned
+   * `57014 canceling statement due to statement timeout` while the
+   * Battleground's featured-battle maintenance was running, and the session
+   * was simply lost to the student (KNOWN_ISSUES 74, item 5 of the report).
+   * `rpc_finish_practice_session` de-duplicates the attempts it is sent and
+   * then counts the session from question_attempts, so sending it again is
+   * safe — the page-exit keepalive path already depends on that.
+   *
+   * Only transient codes are retried (isTransientDbError): a refusal or a
+   * constraint fails on the first answer, as it should.
+   */
   async finish(
     ctx: ServiceContext,
     args: Record<string, unknown>,
   ) {
     assertCanOwn(ctx, "practice");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_finish_practice_session",
-      args as never,
-    );
-    throwIfError(error, "Failed to finish practice session");
+    const data = await retryTransient(async () => {
+      const { data: out, error } = await getClient(toRepoContext(ctx)).rpc(
+        "rpc_finish_practice_session",
+        args as never,
+      );
+      throwIfError(error, "Failed to finish practice session");
+      return out;
+    });
     // No payload. §10.8: practice is private to the student, and this event is
     // readable school-side. It carried the finish arguments — every question,
     // the answer chosen and whether it was right — which reached the principal,
@@ -495,7 +643,16 @@ export const PracticeService = {
       studentId: ctx.studentId,
       source: "PracticeService.recordAttempt",
     });
-    return data as string;
+    // THE SERVER'S VERDICT, not the client's. rpc_record_question_attempt
+    // re-grades every bank question off question_bank.correct_index and
+    // returns what it found; the `_is_correct` this call sent is discarded
+    // there. Proved live 2026-09-22: a wrong answer submitted as
+    // `_is_correct: true` came back is_correct false.
+    //
+    // The old `return data as string` handed back a bare attempt id that no
+    // caller read. This is what the feedback screen needs so the browser
+    // never has to be told the answer in advance.
+    return parseVerdict(data);
   },
 
   async getSession(ctx: ServiceContext, sessionId: string) {
@@ -509,6 +666,26 @@ export const PracticeService = {
     return data as PracticeSessionRow | null;
   },
 
+  /**
+   * A finished session's durable per-question record: the WRONG and the
+   * SKIPPED, and nothing else.
+   *
+   * §10.8's transient/durable rule — "when the session closes, it must not
+   * persist; what survives is session or tier TOTALS, plus rows for wrong,
+   * skipped and bookmarked" — with "no per-question record of correct
+   * answers". The totals live on the practice_sessions row and are what the
+   * result screen and the concept report read.
+   *
+   * The filter is HERE, in the one read of question_attempts for a session,
+   * because both things that consume it must obey the same rule: the review
+   * list on the result screen, and the snapshot a saved session freezes.
+   *
+   * Measured 2026-09-23 on production: 1,267 correct per-question rows across
+   * finished sessions, each with the question, the student's choice and the
+   * answer key. The rows themselves are the server's to remove at finish
+   * (KNOWN_ISSUES 79, blocked on the database token); until it does, nothing
+   * in the app reads one.
+   */
   async listSessionAttempts(ctx: ServiceContext, sessionId: string) {
     assertCanConsume(ctx, "practice");
     const { data, error } = await getClient(toRepoContext(ctx))
@@ -516,6 +693,7 @@ export const PracticeService = {
       .select("*")
       .eq("session_id", sessionId)
       .eq("user_id", ctx.userId)
+      .or("is_correct.is.false,is_correct.is.null,skipped.is.true")
       .order("created_at", { ascending: true });
     throwIfError(error, "Failed to load practice attempts");
     return data ?? [];
@@ -929,7 +1107,12 @@ export const PracticeService = {
     const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_practice_bank_catalog", {
       _class_level: classLevel,
       _board: scope.board,
-      ...(scope.stream ? { _stream: scope.stream } : {}),
+      // Below Class 11 the catalog is asked without a stream, so its own
+      // stream filter cannot narrow a secondary student's bank.
+      ...((): { _stream?: string } => {
+        const stream = contentStreamForClass(scope.stream, classLevel);
+        return stream ? { _stream: stream } : {};
+      })(),
       ...(opts.subject ? { _subject: opts.subject } : {}),
     });
     throwIfError(error, "Failed to load the practice question bank");
@@ -1025,7 +1208,7 @@ export const PracticeService = {
     const rows: { topic_id: string | null; chapter: string | null; topics: { name: string } | null }[] = [];
     for (let from = 0; ; from += PAGE) {
       let query = client
-        .from("question_bank")
+        .from("question_bank_student")
         .select("topic_id, chapter, topics(name)")
         .eq("is_approved", true)
         .eq("is_active", true)
@@ -1033,6 +1216,7 @@ export const PracticeService = {
         .not("topic_id", "is", null)
         .order("id")
         .range(from, from + PAGE - 1);
+      const topicStream = contentStreamForClass(scope.stream, classLevel);
       if (scope.examId) {
         query = query.eq("exam_id", scope.examId);
       } else {
@@ -1040,8 +1224,8 @@ export const PracticeService = {
           .eq("class_level", classLevel!)
           .is("exam_id", null)
           .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
-        if (scope.stream) {
-          query = query.or(`stream.eq.${scope.stream},stream.is.null`);
+        if (topicStream) {
+          query = query.or(`stream.eq.${topicStream},stream.is.null`);
         }
       }
       const { data, error } = await query;
@@ -1557,24 +1741,27 @@ export const PracticeService = {
     // order without an ORDER BY, the same tap can return 3, 0 or 20 — so the
     // failure is intermittent, which is why it survived.
     //
-    // Pushed down case-insensitively. The client-side academicLabelMatches
-    // pass further down is still the precision filter; this only guarantees
-    // the window it filters actually contains candidates.
+    // Pushed down case-insensitively. The client-side pass further down is
+    // still the precision filter; this only guarantees the window it filters
+    // actually contains candidates.
+    //
+    // A COMMA IS PART OF A CHAPTER'S NAME, NOT A LIST SEPARATOR. This was a
+    // raw `or(chapter.ilike.<name>)` string, and PostgREST's or() is comma and
+    // parenthesis delimited — so any chapter carrying one had to be dropped
+    // from the narrowing rather than change the shape of the filter. Five
+    // chapters in the live bank carry commas ("Acids, Bases and Salts",
+    // "Work, Energy and Power", "Gender, Religion and Caste", "Depreciation,
+    // Provisions and Reserves", "Private, Public and Global Enterprises"), and
+    // every session on one of them read the whole subject and left the client
+    // pass to decide. `.ilike()` takes the value as a value, so the comma is
+    // just a character and the narrowing applies to every chapter.
     //
     // Only `chapter` is narrowed here: it is the one real label COLUMN. The
     // topic lives on the embedded topics row (topic_id -> topics.name) and is
     // narrowed separately below — question_bank has no `topic`, `concept` or
     // `topic_group` column (20261020010000), and naming one fails the whole
     // request with 42703, which is how practice once stopped starting.
-    const labelPredicate = (): string | null => {
-      // PostgREST's or() is comma/parenthesis delimited, so a label containing
-      // either would change the shape of the filter rather than be matched by
-      // it. Such a label falls back to the client-side pass instead.
-      const safe = (v: string | null | undefined) =>
-        v && !/[,()"\\]/.test(v) ? v.trim() : null;
-      const chapter = safe(opts.chapter);
-      return chapter ? `chapter.ilike.${chapter}` : null;
-    };
+    const chapterFilter = chapterFilterOf(opts.chapter);
 
     /**
      * The topic, narrowed IN THE DATABASE — never picked out of a window.
@@ -1603,11 +1790,8 @@ export const PracticeService = {
      *            un-narrowed retry below runs, where the client pass still
      *            accepts a value that is really a chapter name.
      */
-    const topicId = opts.topic && TOPIC_ID_RE.test(opts.topic.trim()) ? opts.topic.trim() : null;
-    const topicName = ((): string | null => {
-      const v = opts.topic;
-      return !topicId && v && !/[,()"\\]/.test(v) ? v.trim() : null;
-    })();
+    const topicId = topicIdOf(opts.topic);
+    const topicName = topicNameOf(opts.topic);
 
     // ── THE WHOLE POOL, NOT A WINDOW OF IT ─────────────────────────────────
     //
@@ -1628,45 +1812,21 @@ export const PracticeService = {
     // the ones drawn.
     const buildQuery = (applyActiveFilter: boolean, narrowToLabels: boolean, withCount = false) => {
       const narrowTopicName = narrowToLabels && !byIds && topicName !== null;
-      let query = client
-        .from("question_bank")
-        .select(
-          `id, subject, chapter, topic_id, topics${narrowTopicName ? "!inner" : ""}(name)`,
-          withCount ? { count: "exact" } : undefined,
-        )
-        .eq("is_approved", true)
-        .order("id");
-
-      if (scope.examId) {
-        query = query.eq("exam_id", scope.examId);
-      } else {
-        // Chunk 7A: question_bank.school_id is gone — the bank is global (G2).
-        query = query
-          .is("exam_id", null)
-          .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
-      }
-
-      if (applyActiveFilter) {
-        query = query.eq("is_active", true);
-      }
+      let query = studentBankQuery(
+        client,
+        `id, subject, chapter, topic_id, topics${narrowTopicName ? "!inner" : ""}(name)`,
+        scope,
+        classLevel,
+        { subject: opts.subject, activeOnly: applyActiveFilter, withCount, previousYearOnly: opts.pyqOnly },
+      );
       if (byIds) {
         query = query.in("id", opts.ids!);
       }
-      if (!scope.examId && classLevel != null && Number.isFinite(classLevel)) {
-        query = query.eq("class_level", classLevel);
-      }
-      if (!scope.examId && scope.stream) {
-        query = query.or(`stream.eq.${scope.stream},stream.is.null`);
-      }
-      if (opts.subject && opts.subject !== "Mixed") {
-        query = query.ilike("subject", opts.subject);
-      }
-      // The label predicate NARROWS; academicLabelMatches below is still what
-      // decides. Skipped on the fallback pass so a chapter stored under a
-      // mojibake or slugged label is still reachable the way it was before.
-      if (narrowToLabels && !byIds) {
-        const pred = labelPredicate();
-        if (pred) query = query.or(pred);
+      // The chapter NARROWS; the client-side pass below is still what decides.
+      // Skipped on the fallback pass so a chapter stored under a mojibake or
+      // slugged label is still reachable the way it was before.
+      if (narrowToLabels && !byIds && chapterFilter) {
+        query = query.ilike("chapter", chapterFilter);
       }
       if (topicId && !byIds) {
         query = query.eq("topic_id", topicId);
@@ -1716,45 +1876,15 @@ export const PracticeService = {
           if (names.length) query = query.in("topics.name", names).not("topics", "is", null);
         }
       }
-      if (opts.pyqOnly) {
-        query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
-      }
       if (opts.examYear != null && Number.isFinite(opts.examYear)) {
         query = query.eq("exam_year", opts.examYear);
       }
       return query;
     };
 
-    /**
-     * Every row the filters admit, up to POOL_CAP.
-     *
-     * The first page brings the total with it, and every other page is asked
-     * for at once. They were fetched one after another: each page is a full
-     * round trip of about a second for a thousand rows, so a Class 12 "all
-     * subjects" session (3,305 rows, four pages) waited 6.6 seconds before its
-     * first question — measured 2026-09-22 as the student. Asked for together,
-     * the pages cost one round trip after the first.
-     *
-     * Ordered by id, so the pages tile the pool; a row that moves between the
-     * first request and the rest is counted once.
-     */
-    const readPool = async (applyActiveFilter: boolean, narrowToLabels: boolean) => {
-      const first = await buildQuery(applyActiveFilter, narrowToLabels, true).range(0, POOL_PAGE - 1);
-      if (first.error) return { data: null, error: first.error };
-      const total = Math.min(first.count ?? (first.data?.length ?? 0), POOL_CAP);
-      const rest: Array<ReturnType<typeof buildQuery>> = [];
-      for (let from = POOL_PAGE; from < total; from += POOL_PAGE) {
-        rest.push(buildQuery(applyActiveFilter, narrowToLabels).range(from, from + POOL_PAGE - 1));
-      }
-      const pages = await Promise.all(rest);
-      const failed = pages.find((p) => p.error);
-      if (failed) return { data: null, error: failed.error };
-      const byId = new Map<string, unknown>();
-      for (const row of [first, ...pages].flatMap((p) => (p.data ?? []) as Array<{ id: string }>)) {
-        byId.set(row.id, row);
-      }
-      return { data: [...byId.values()], error: null };
-    };
+    /** Every row the filters admit, up to POOL_CAP (readAllPages). */
+    const readPool = (applyActiveFilter: boolean, narrowToLabels: boolean) =>
+      readAllPages<{ id: string }>((withCount) => buildQuery(applyActiveFilter, narrowToLabels, withCount));
 
     // Retired (is_active = false) questions are left out unless a historical
     // view asks for them. The column is always there; the probe that once
@@ -1769,7 +1899,7 @@ export const PracticeService = {
     // academicLabelMatches can resolve — so the narrowing must never be the
     // thing that makes a chapter unreachable. One extra round trip, and only
     // on the path that would otherwise have shown an empty screen.
-    if (!error && (data?.length ?? 0) === 0 && !byIds && (labelPredicate() || topicName)) {
+    if (!error && (data?.length ?? 0) === 0 && !byIds && (chapterFilter || topicName)) {
       const retry = await readPool(applyActiveFilter, false);
       if (!retry.error) ({ data } = retry);
     }
@@ -1789,17 +1919,41 @@ export const PracticeService = {
     // Senior stream allowlists (commerce / science 11–12) — covers null-stream legacy rows.
     rows = rows.filter((r) => isSubjectAllowedForScope(r.subject, scope.stream, classLevel));
 
+    // EQUAL CHAPTERS, NEVER ONE INSIDE THE OTHER.
+    //
+    // academicLabelMatches falls back to containment either way, which is the
+    // same defect the weak targets below were fixed for. Measured over the
+    // live bank on 2026-09-23, chapters of the SAME class and subject that
+    // contain one another — 34 ordered pairs, including:
+    //
+    //   Circles          <- Areas Related to Circles          (Maths 10)
+    //   Triangles        <- Areas of Parallelograms and Triangles (Maths 9)
+    //   Integrals        <- Application of Integrals           (Maths 12)
+    //   Motion           <- Force and Laws of Motion           (Science 9)
+    //   Resources        <- Human Resources, Mineral and Power Resources,
+    //                       Land Soil Water Natural Vegetation and Wildlife
+    //                       Resources                          (Social 8)
+    //   Introduction     <- Introduction to Macroeconomics     (Economics 12)
+    //
+    // The database narrowing hid most of it — an exact ilike returns only the
+    // chapter asked for — but the fallback pass has no narrowing, and until
+    // today neither did any chapter carrying a comma. Equality still resolves
+    // a slug, a mojibake spelling or an alias (academicMatchKey), which is
+    // what the fallback is for; it just refuses a different chapter.
     if (opts.chapter) {
-      rows = rows.filter((r) => academicLabelMatches(r.chapter, opts.chapter));
+      rows = rows.filter((r) => academicLabelEquals(r.chapter, opts.chapter));
     }
     if (topicId) {
       rows = rows.filter((r) => r.topic_id === topicId);
     } else if (opts.topic) {
       // A name: the topic's own name, or — from an old link — a chapter name.
+      // A TOPIC is matched loosely on purpose (an old link may carry a
+      // shortened or differently-punctuated name), but a CHAPTER named here
+      // is the same chapter or none.
       const needle = opts.topic;
       rows = rows.filter((r) =>
         academicLabelMatches(r.topics?.name ?? null, needle) ||
-        academicLabelMatches(r.chapter, needle),
+        academicLabelEquals(r.chapter, needle),
       );
     }
     if (opts.weakTargets && opts.weakTargets.length > 0) {
@@ -1840,16 +1994,21 @@ export const PracticeService = {
     const drawn = rows.slice(0, limit);
     if (drawn.length === 0) return [];
 
-    // The questions themselves, for the ones drawn and no others.
+    // The questions themselves, for the ones drawn and no others — and NO ANSWER.
+    //
+    // correct_index and explanation used to be fetched here, and a student
+    // could read them straight off question_bank anyway: measured 2026-09-22,
+    // including `?correct_index=eq.2`, which enumerates the answers by
+    // filtering on them. question_bank is staff-only now (20261049000000) and
+    // question_bank_student has no such columns. Nothing here needed them to
+    // grade: rpc_record_question_attempt grades every bank question server-side
+    // and returns its verdict, which is what the feedback screen shows.
     const { data: full, error: fullError } = await client
-      .from("question_bank")
-      .select("id, difficulty, question, options, correct_index, explanation")
+      .from("question_bank_student")
+      .select("id, difficulty, question, options")
       .in("id", drawn.map((r) => r.id));
     throwIfError(fullError, "Failed to load practice questions");
-    type QuestionText = {
-      id: string; difficulty: string | null; question: string; options: unknown;
-      correct_index: number; explanation: string | null;
-    };
+    type QuestionText = { id: string; difficulty: string | null; question: string; options: unknown };
     const text = new Map(((full ?? []) as QuestionText[]).map((q) => [q.id, q]));
     return drawn.flatMap((r) => {
       const q = text.get(r.id);
@@ -1861,10 +2020,100 @@ export const PracticeService = {
         difficulty: q.difficulty,
         question: q.question,
         options: q.options,
-        correct_index: q.correct_index,
-        explanation: q.explanation,
       }];
     });
+  },
+
+  /**
+   * How many questions a set of filters would actually serve.
+   *
+   * CUSTOM PRACTICE COULD BE CONFIGURED INTO A DEAD END. Subject, chapter,
+   * topic and difficulty are each optional and each narrows the bank, and the
+   * screen offered every combination of them — including the ones that hold
+   * nothing. The student picked, pressed Start, waited for a session to load,
+   * and got "No questions match those filters yet" on a screen they could
+   * only leave. Measured on the live bank 2026-09-23: 4 of 237
+   * chapter-and-difficulty pairs at Class 10 hold no question at all, and a
+   * topic narrows it further again.
+   *
+   * So the config screen asks first. Same scope as the draw
+   * (studentBankQuery) and the same chapter, topic and difficulty narrowing,
+   * so what this counts is exactly what a session would draw from — a count
+   * from a different query would be a second answer to the same question.
+   *
+   * It is a HEAD request: the count, never the rows.
+   */
+  async countBankPool(
+    ctx: ServiceContext,
+    opts: { subject?: string | null; chapter?: string | null; topic?: string | null; difficulty?: string | null } = {},
+  ): Promise<number> {
+    assertCanConsume(ctx, "practice");
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = scope.classLevel;
+    if (classLevel == null || !Number.isFinite(classLevel)) return 0;
+    if (opts.subject && opts.subject !== "Mixed" && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) {
+      return 0;
+    }
+
+    const topicId = topicIdOf(opts.topic);
+    const topicName = topicNameOf(opts.topic);
+    const chapter = chapterFilterOf(opts.chapter);
+
+    let query = studentBankQuery(
+      getClient(toRepoContext(ctx)),
+      `id, topics${topicName ? "!inner" : ""}(name)`,
+      scope,
+      classLevel,
+      { subject: opts.subject, activeOnly: true, withCount: true },
+    );
+    if (chapter) query = query.ilike("chapter", chapter);
+    if (topicId) query = query.eq("topic_id", topicId);
+    if (topicName) query = query.ilike("topics.name", topicName);
+    if (opts.difficulty && opts.difficulty !== "mixed") query = query.eq("difficulty", opts.difficulty);
+
+    const { count, error } = await query.range(0, 0);
+    throwIfError(error, "Failed to count practice questions");
+    return count ?? 0;
+  },
+
+  /**
+   * The exam years Previous Year Questions can serve this student, newest
+   * first, each with the number of questions it holds.
+   *
+   * Read off the same pool the session draws from (studentBankQuery, with the
+   * same stream allowlist after it), so every year offered starts a session
+   * with questions in it. The screen used to offer the last six calendar
+   * years whatever the bank held: 0 of 21,876 questions carry an exam year
+   * (KNOWN_ISSUES 57), so every one of those chips led to an empty session.
+   * An empty list here means the bank holds no past papers for this student.
+   */
+  async listPyqYears(
+    ctx: ServiceContext,
+    opts: { subject?: string | null } = {},
+  ): Promise<Array<{ year: number; count: number }>> {
+    assertCanConsume(ctx, "practice");
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = scope.classLevel;
+    if (classLevel == null || !Number.isFinite(classLevel)) return [];
+    if (opts.subject && opts.subject !== "Mixed" && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) {
+      return [];
+    }
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await readAllPages<{ id: string; subject: string; exam_year: number | null }>((withCount) =>
+      studentBankQuery(client, "id, subject, exam_year", scope, classLevel, {
+        subject: opts.subject,
+        activeOnly: true,
+        withCount,
+        previousYearOnly: true,
+      }),
+    );
+    throwIfError(error, "Failed to load past-paper years");
+    const byYear = new Map<number, number>();
+    for (const r of data ?? []) {
+      if (r.exam_year == null || !isSubjectAllowedForScope(r.subject, scope.stream, classLevel)) continue;
+      byYear.set(r.exam_year, (byYear.get(r.exam_year) ?? 0) + 1);
+    }
+    return [...byYear.entries()].map(([year, count]) => ({ year, count })).sort((a, b) => b.year - a.year);
   },
 
   /** Clear student mistakes after a successful retry practice. */

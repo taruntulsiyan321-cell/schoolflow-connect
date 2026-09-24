@@ -26,7 +26,11 @@ vi.mock("./context", async (importOriginal) => {
 let sessionRows: Array<{ id: string }> = [];
 let attemptRows: Array<{ session_id: string; created_at: string }> = [];
 
-vi.mock("../repository/base", () => {
+vi.mock("../repository/base", async (importOriginal) => {
+  // The real retryTransient comes through: settling calls finish, and a stub
+  // that dropped the retry would make this test pass over a finish that is
+  // not there at all.
+  const actual = await importOriginal<typeof import("../repository/base")>();
   const chain = (rows: unknown[]) => {
     const self: Record<string, unknown> = {};
     for (const m of ["select", "eq", "is", "in", "order", "limit", "not", "or", "gte", "lte"]) {
@@ -37,6 +41,7 @@ vi.mock("../repository/base", () => {
     return self;
   };
   return {
+    ...actual,
     getClient: () => ({
       from: (table: string) => chain(table === "practice_sessions" ? sessionRows : attemptRows),
       rpc: (name: string, args: Record<string, unknown>) => {

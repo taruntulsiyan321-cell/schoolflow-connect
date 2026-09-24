@@ -50,7 +50,7 @@ import { useLatestEffect } from "@/hooks/useLatestEffect";
 import { useAcademicContext, useAcademicLive } from "@/academic";
 import { studentShellReady } from "@/academic/services/assertStudentContext";
 import { hasPracticeAccuracy, practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
-import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { readStudentAcademicSnapshot, type AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -168,10 +168,18 @@ export default function StudentDashboard() {
 
     // Accuracy SSOT: rpc_student_academic_snapshot.exam_readiness only.
     // Never average chart subjects (dual path that showed 100% with XP 0).
-    const [{ data: snap, error: snapError }, { data: charts, error: chartsError }] = await Promise.all([
-      supabase.rpc("rpc_student_academic_snapshot"),
+    // Through the shared reader, not a call of its own: this shell is mounted
+    // on every student route while Analysis, the Practice hub and the
+    // Battleground each want the same snapshot, and it is the heaviest read
+    // the student panel makes (KNOWN_ISSUES 74).
+    const [snapRead, { data: charts, error: chartsError }] = await Promise.all([
+      readStudentAcademicSnapshot().then(
+        (data) => ({ data, error: null as { message: string } | null }),
+        (error: { message: string }) => ({ data: null as AcademicSnapshot | null, error }),
+      ),
       supabase.rpc("rpc_student_performance_charts"),
     ]);
+    const snapError = snapRead.error;
     if (snapError || chartsError) {
       console.warn("student dashboard snapshot/charts:", snapError?.message, chartsError?.message);
       toast.error("Could not load your latest stats — showing what's cached.");
@@ -179,7 +187,7 @@ export default function StudentDashboard() {
 
     type ChartRow = { weekly_activity?: { date: string; total: number }[] };
 
-    const snapshot = snap as AcademicSnapshot | null;
+    const snapshot = snapRead.data;
     const chartData = charts as ChartRow | null;
 
     // PRACTICE accuracy, and null rather than 0 when there is nothing to

@@ -23,7 +23,7 @@
  * read anything else.
  */
 import { describe, expect, it } from "vitest";
-import { deriveRevisionData, deriveRecoveryProgress, deriveRecoveryTopics } from "@/lib/studentAnalysisMetrics";
+import { deriveRevisionData, deriveRecoveryProgress, deriveRecoveryChapters } from "@/lib/studentAnalysisMetrics";
 import type { ChapterStateRow, RecoveryQueueRow } from "@/academic";
 
 function state(p: Partial<ChapterStateRow>): ChapterStateRow {
@@ -175,9 +175,15 @@ describe("deriveRecoveryProgress", () => {
   });
 });
 
-describe("deriveRecoveryTopics", () => {
+/**
+ * Renamed from deriveRecoveryTopics on 2026-09-22. The recovery queue is
+ * keyed by chapter_id and every row is a chapter; the old name, its `topic`
+ * field and the displayTopic() it was rendered through all asked the topic
+ * dictionary for a chapter's name.
+ */
+describe("deriveRecoveryChapters", () => {
   it("separates ready, building and recovered", () => {
-    const rows = deriveRecoveryTopics([
+    const rows = deriveRecoveryChapters([
       queued({ chapter_id: "a", chapter: "Circles", ready: true, open_mistakes: 6 }),
       queued({ chapter_id: "b", chapter: "Polynomials", ready: false, open_mistakes: 2 }),
       queued({ chapter_id: "c", chapter: "Trigonometry", state: "recovered" }),
@@ -189,7 +195,7 @@ describe("deriveRecoveryTopics", () => {
     // The old card rendered "+N%" built by comparing a mastery score against a
     // weak-topic accuracy from a different table. These are the numbers the
     // engine actually turns on.
-    const [row] = deriveRecoveryTopics([queued({ open_mistakes: 2, trigger_count: 5 })]);
+    const [row] = deriveRecoveryChapters([queued({ open_mistakes: 2, trigger_count: 5 })]);
     expect(row.openMistakes).toBe(2);
     expect(row.triggerCount).toBe(5);
   });
@@ -197,6 +203,6 @@ describe("deriveRecoveryTopics", () => {
   it("drops a row with no real chapter label", () => {
     // weak_topics on the snapshot can carry a null topic AND a null chapter —
     // measured live. A nameless card is not information.
-    expect(deriveRecoveryTopics([queued({ chapter: null })])).toEqual([]);
+    expect(deriveRecoveryChapters([queued({ chapter: null })])).toEqual([]);
   });
 });

@@ -344,6 +344,12 @@ export default function Auth() {
     e.preventDefault();
     if (busy) return;
     const ev = validateEmail(siIdentifier);
+    // Something with an "@" is an email: say what is wrong with it ("Did you
+    // mean …@gmail.com?") rather than a message about mobile numbers.
+    if (!ev.ok && siIdentifier.includes("@")) {
+      toast.error(ev.message);
+      return;
+    }
     const resolvedEmail = ev.ok ? ev.email : phoneToSyntheticEmail(siIdentifier);
     if (!resolvedEmail) {
       toast.error("Enter a valid email or mobile number");
@@ -458,6 +464,11 @@ export default function Auth() {
     const ev = validateEmail(otpIdentifier);
     if (ev.ok) {
       await handleEmailOtp(ev.email);
+      return;
+    }
+    // As in password sign-in: an "@" means an email, so say what is wrong with it.
+    if (otpIdentifier.includes("@")) {
+      toast.error(ev.message);
       return;
     }
     if (normalizePhone(otpIdentifier)) {

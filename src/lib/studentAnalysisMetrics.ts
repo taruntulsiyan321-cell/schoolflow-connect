@@ -92,22 +92,33 @@ function accuracyOf(session: PracticeSessionSummary): number {
 }
 
 
+/** §6.4's window: "the latest 3 sessions … the previous 3". */
+export const TREND_WINDOW_SESSIONS = 3;
+
 /**
- * Average accuracy of the first half vs second half of chronologically
- * ordered sessions, in accuracy points.
+ * §6.4: the latest sessions against the ones before them, in accuracy points.
  *
- * §6.4 / TREND_MIN_SESSIONS: "Declaring a trend from two sessions is noise
- * dressed as insight." This used to compute a delta from as few as TWO
- * sessions and hand it straight to the screen, which drew a green up-arrow
- * and a percentage off one session against one other. Below the floor there
- * is no trend to report and this returns null — the NOT_ENOUGH_DATA state,
- * which `trendState` names and the screen renders distinctly from "steady".
+ * "IMPROVING when the latest 3 sessions average > the previous 3 by >= 10
+ * points." THE WINDOW IS FIXED AT THREE. This used to split the whole run in
+ * half — at twenty sessions it compared the first ten against the last ten —
+ * which answers a different question: "is this year better than last year",
+ * not "am I improving". A student who spent a month stuck and then fixed a
+ * chapter last week read as STUCK, because their recent work was averaged
+ * against eight older sessions, and the improvement they had just made was a
+ * tenth of the window.
+ *
+ * Below TREND_MIN_SESSIONS there is no trend to report and this returns null
+ * — the NOT_ENOUGH_DATA state, which `trendState` names and the screen renders
+ * distinctly from "steady". Between the floor and six sessions the previous
+ * window is shorter than three (at four sessions: the latest 3 against the one
+ * before them), which is the most those sessions can say.
+ *
+ * `accuracies` must be in chronological order — oldest first.
  */
 export function halfWindowTrend(accuracies: number[]): number | null {
   if (accuracies.length < TREND_MIN_SESSIONS) return null;
-  const mid = Math.floor(accuracies.length / 2);
-  const early = accuracies.slice(0, mid);
-  const late = accuracies.slice(mid);
+  const late = accuracies.slice(-TREND_WINDOW_SESSIONS);
+  const early = accuracies.slice(Math.max(0, accuracies.length - TREND_WINDOW_SESSIONS * 2), accuracies.length - late.length);
   if (early.length === 0 || late.length === 0) return null;
   const avg = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
   return Math.round((avg(late) - avg(early)) * 10) / 10;
@@ -561,16 +572,16 @@ export function deriveRecoveryProgress(
 }
 
 /**
- * The chapters the Recovery panel lists, from the same rows Recovery uses.
+ * CHAPTERS in recovery, and the name says so now.
  *
- * Replaces a version that matched `snapshot.weak_topics` against
- * concept_mastery by comparing display labels — string matching across two
- * tables, which is the free-text coupling §2 forbids and the reason the old
- * revision_queue filled with rows pointing at 'Chapter 3'. These rows are
- * keyed on chapter_id and need no matching at all.
+ * The recovery queue is keyed by chapter_id and every row is a chapter, but
+ * this mapped r.chapter into a field called `topic`, Analysis rendered it
+ * through displayTopic() and the panel was headed "Topics you practised
+ * again". The same three-layer mislabel deriveImprovingChapters carried, and
+ * with the same consequence: presentAcademicLabel resolves against a
+ * per-kind dictionary, so a chapter name was being looked up as a topic.
  */
-export function deriveRecoveryTopics(queue: RecoveryQueueRow[] | null | undefined): {
-  /** A chapter — the queue is keyed on chapter_id. It was called `topic`. */
+export function deriveRecoveryChapters(queue: RecoveryQueueRow[] | null | undefined): {
   chapter: string;
   subject: string;
   status: "ready" | "building" | "recovered" | "relearn";

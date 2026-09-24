@@ -79,7 +79,8 @@ describe("the runner sends it on pagehide, and only what the server has not conf
 
   it("resends only the answers whose live write was never confirmed", () => {
     expect(SOURCE).toContain("attemptLog.current.filter((a) => !confirmedRef.current.has(a))");
-    expect(SOURCE).toContain("if (saved) confirmedRef.current.add(snap)");
-    expect(SOURCE).toContain("async function persistAttemptLive(snap: PracticeAttemptSnapshot): Promise<boolean>");
+    // Confirmed means the server answered with its verdict; a failed write stays unconfirmed.
+    expect(SOURCE).toMatch(/if \(!v\) return;\s*confirmedRef\.current\.add\(snap\);/);
+    expect(SOURCE).toContain("async function persistAttemptLive(snap: PracticeAttemptSnapshot): Promise<AttemptVerdict | null>");
   });
 });

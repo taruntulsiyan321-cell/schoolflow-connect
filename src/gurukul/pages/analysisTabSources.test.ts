@@ -256,9 +256,12 @@ describe("the tab list itself", () => {
     for (const t of TABS) expect(t.label.length).toBeGreaterThan(0);
   });
 
-  it("declares exactly the six practice-derived tabs", () => {
+  it("declares exactly the practice-derived tabs, with §6.3's chapter list second", () => {
     const expected: Tab[] = [
       "overview",
+      // §6.3 calls this 'the main screen': one row per chapter with anything
+      // open. Everything after it is detail underneath it.
+      "chapters",
       "subjects",
       "topics",
       "practice",

@@ -32,6 +32,7 @@
 
 export type Tab =
   | "overview"
+  | "chapters"
   | "subjects"
   | "topics"
   | "practice"
@@ -40,6 +41,10 @@ export type Tab =
 
 export const TABS: { key: Tab; label: string }[] = [
   { key: "overview",    label: "Overview" },
+  // §6.3 calls this "the main screen": one row per chapter with anything
+  // open, ranked by open mistakes. It sits directly after Overview because
+  // everything else on this page is detail underneath it.
+  { key: "chapters",    label: "Chapters to fix" },
   { key: "subjects",    label: "Subjects & Chapters" },
   { key: "topics",      label: "Topics" },
   { key: "practice",    label: "Practice" },

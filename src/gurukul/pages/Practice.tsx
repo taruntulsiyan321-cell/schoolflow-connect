@@ -20,7 +20,7 @@ import {
   formatSessionXp,
   resolvePracticeSessionStats,
 } from "@/lib/practiceSessionStats";
-import { PRACTICE_HISTORY_WINDOW_DAYS, type AcademicTermRef } from "@/academic/services/practiceService";
+import { PRACTICE_HISTORY_WINDOW_DAYS, type AcademicTermRef, type AttemptVerdict } from "@/academic/services/practiceService";
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { ListFailed, ListLoading, OptionChips, SubjectPicker, type PracticeSubject } from "@/gurukul/components/PracticeLists";
 import { CustomPracticeUpload } from "@/gurukul/components/CustomPracticeUpload";
@@ -101,10 +101,22 @@ function subjectColor(name: string, index: number) {
   return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
+/**
+ * A QUESTION, AS A STUDENT MAY HOLD IT. No `correct`, no `explanation`.
+ *
+ * Both used to be here, fetched with the question, and a student could read
+ * them off question_bank directly anyway — measured 2026-09-22, including
+ * `?correct_index=eq.2`, which enumerates the answers by filtering on them.
+ *
+ * The answer now arrives only after the student commits, in the verdict
+ * rpc_record_question_attempt returns. There is no hint: the bank has none,
+ * and what this screen once called one was the worked solution's opening —
+ * the whole answer for 39% of servable questions.
+ */
 type BankQuestion = {
   id: string;
   subject: string; chapter: string; difficulty: string;
-  question: string; options: string[]; correct: number; explanation?: string;
+  question: string; options: string[];
   /** Spec §2.1 / §9 — private upload question; never a question_bank id. */
   fromUpload?: boolean;
   /** Spec §6 — answer key came from the AI, not the file. */
@@ -645,8 +657,49 @@ export function ConfigView({
     return () => { cancelled = true; };
   }, [selSubject, selChapter, ctx, academicReady, modeKey, topicReads]);
 
+  // Previous Year Questions offers the years the bank actually holds for this
+  // student and subject — never a run of calendar years (KNOWN_ISSUES 57). A
+  // year picked for one subject is cleared when the subject changes, since the
+  // next subject may not have it.
+  const [pyqYears,      setPyqYears]      = useState<ListState<{ year: number; count: number }>>(LOADING_LIST);
+  const [pyqReads,      setPyqReads]      = useState(0);
+  useEffect(() => {
+    setPyqYear(null);
+    setPyqYears(LOADING_LIST);
+    if (modeKey !== "pyq" || !ctx || !academicReady) return;
+    let cancelled = false;
+    PracticeService.listPyqYears(ctx, { subject: selSubject }).then(
+      (items) => { if (!cancelled) setPyqYears({ status: "ready", items }); },
+      () => { if (!cancelled) setPyqYears({ status: "failed" }); },
+    );
+    return () => { cancelled = true; };
+  }, [selSubject, ctx, academicReady, modeKey, pyqReads]);
+
   const retryChapters = () => setChapterReads((k) => k + 1);
   const retryTopics = () => setTopicReads((k) => k + 1);
+  const retryPyqYears = () => setPyqReads((k) => k + 1);
+
+  // How many questions the current Custom selection would draw from. Counted
+  // from the same pool the session draws (PracticeService.countBankPool), so
+  // the number shown and the session started cannot disagree.
+  const [poolCount, setPoolCount] = useState<
+    { status: "loading" } | { status: "failed" } | { status: "ready"; count: number }
+  >({ status: "loading" });
+  useEffect(() => {
+    if (modeKey !== "custom" || !ctx || !academicReady) return;
+    let cancelled = false;
+    setPoolCount({ status: "loading" });
+    PracticeService.countBankPool(ctx, {
+      subject: selSubject,
+      chapter: selChapter,
+      topic: selTopic,
+      difficulty: selDifficulty,
+    }).then(
+      (count) => { if (!cancelled) setPoolCount({ status: "ready", count }); },
+      () => { if (!cancelled) setPoolCount({ status: "failed" }); },
+    );
+    return () => { cancelled = true; };
+  }, [modeKey, ctx, academicReady, selSubject, selChapter, selTopic, selDifficulty]);
 
   function handleStart() {
     // Custom Practice is the only mode with a time goal, and it is exclusive
@@ -818,9 +871,35 @@ export function ConfigView({
               </div>
             )}
           </div>
+
+          {/* WHAT THIS SELECTION HOLDS, BEFORE IT IS STARTED.
+              Subject, chapter, topic and difficulty each narrow the bank, and
+              every combination of them used to be offered — including the ones
+              holding nothing. The student picked, pressed Start, waited for a
+              session, and met "No questions match those filters yet" on a
+              screen they could only leave. Measured on the live bank
+              2026-09-23: 4 of 237 chapter-and-difficulty pairs at Class 10
+              hold no question at all. */}
+          <div aria-live="polite" data-testid="custom-pool-count">
+            {poolCount.status === "loading" && (
+              <p className="text-xs text-muted-foreground">Counting what matches…</p>
+            )}
+            {poolCount.status === "failed" && (
+              <p className="text-xs text-muted-foreground">
+                Could not count what matches. Start anyway — the session will say if it finds nothing.
+              </p>
+            )}
+            {poolCount.status === "ready" && (
+              <p className={cn("text-xs", poolCount.count === 0 ? "text-destructive" : "text-muted-foreground")}>
+                {poolCount.count === 0
+                  ? "Nothing in the bank matches those filters. Try a different difficulty, or clear one."
+                  : `${pluralise(poolCount.count, "question")} match — a session takes up to ${goalType === "time" ? 50 : qCount}.`}
+              </p>
+            )}
+          </div>
         </div>
         <StartButton
-          disabled={!selDifficulty || !goalReady}
+          disabled={!selDifficulty || !goalReady || (poolCount.status === "ready" && poolCount.count === 0)}
           onStart={handleStart}
         />
       </ConfigShell>
@@ -829,40 +908,46 @@ export function ConfigView({
 
   if (modeKey === "pyq") {
     // Board and class come from the student's own profile; only subject and
-    // year are chosen here.
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 6 }, (_, i) => currentYear - 1 - i);
+    // year are chosen here, and the years are the ones the bank holds.
+    const years = listItems(pyqYears);
+    const inAllYears = years.reduce((n, y) => n + y.count, 0);
+    const chip = (on: boolean) => ({
+      className: cn(
+        "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
+        on ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
+      ),
+      style: on ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {},
+    });
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <p className="text-xs text-muted-foreground">Loads past-paper / exam-year tagged questions from the bank when available.</p>
           <SubjectPicker selected={selSubject} onSelect={setSelSubject} list={subjectList} onRetry={onRetrySubjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
           <div>
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Exam year (optional)</div>
-            <div className="flex gap-2 flex-wrap">
-              <button type="button" onClick={() => setPyqYear(null)}
-                className={cn(
-                  "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                  pyqYear === null ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
-                )}
-                style={pyqYear === null ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {}}>
-                All years
-              </button>
-              {years.map(y => (
-                <button key={y} type="button" onClick={() => setPyqYear(y)}
-                  className={cn(
-                    "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                    pyqYear === y ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
-                  )}
-                  style={pyqYear === y ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {}}>
-                  {y}
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Exam year</div>
+            {pyqYears.status === "loading" && <ListLoading />}
+            {pyqYears.status === "failed" && <ListFailed onRetry={retryPyqYears} />}
+            {pyqYears.status === "ready" && years.length === 0 && (
+              <p className="text-sm text-muted-foreground" data-testid="pyq-none">
+                No past-year papers have been added to the question bank for{" "}
+                {selSubject ? displaySubject(selSubject) || selSubject : "your class"} yet, so there is nothing to practise here.
+              </p>
+            )}
+            {years.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={() => setPyqYear(null)} {...chip(pyqYear === null)}>
+                  All years · {inAllYears}
                 </button>
-              ))}
-            </div>
+                {years.map(y => (
+                  <button key={y.year} type="button" onClick={() => setPyqYear(y.year)} {...chip(pyqYear === y.year)}>
+                    {y.year} · {y.count}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+          {years.length > 0 && <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>}
         </div>
-        <StartButton onStart={handleStart}/>
+        <StartButton disabled={years.length === 0} onStart={handleStart}/>
       </ConfigShell>
     );
   }
@@ -1283,6 +1368,9 @@ function Session({
   const [idx,       setIdx]       = useState(0);
   const [chosen,    setChosen]    = useState<number | null>(null);
   const [phase,     setPhase]     = useState<"q" | "fb">("q");
+  // WHAT THE SERVER SAID. Null until the attempt has been recorded, which is
+  // also the first moment this browser is allowed to know the answer.
+  const [verdict,   setVerdict]   = useState<AttemptVerdict | null>(null);
   const [correct,   setCorrect]   = useState(0);
   const [answered,  setAnswered]  = useState(0);
   const [bookmarked,setBookmarked]= useState<number[]>([]);
@@ -1361,8 +1449,6 @@ function Session({
               difficulty: r.difficulty || "medium",
               question: r.question,
               options,
-              correct: typeof r.correct_index === "number" ? r.correct_index : 0,
-              explanation: r.explanation ?? undefined,
               fromUpload,
               aiAnswered: fromUpload && "ai_answered" in r ? Boolean(r.ai_answered) : false,
               chapterId: "chapter_id" in r ? (r.chapter_id ?? null) : null,
@@ -1486,8 +1572,10 @@ function Session({
     return {
       question: q.question,
       options: q.options,
-      correctIndex: q.correct,
-      explanation: q.explanation,
+      // Unknown here, and deliberately: the server grades and says. The
+      // verdict fills both in on this snapshot when it lands (record below).
+      correctIndex: -1,
+      explanation: undefined,
       bankQuestionId: fromUpload ? null : q.id,
       uploadQuestionId: fromUpload ? q.id : null,
       subject: q.subject,
@@ -1506,10 +1594,23 @@ function Session({
     };
   }
 
-  function record(snap: PracticeAttemptSnapshot) {
+  /** The snapshot of the question on screen, so a late verdict cannot mark the next question. */
+  const onScreenRef = useRef<PracticeAttemptSnapshot | null>(null);
+
+  function record(snap: PracticeAttemptSnapshot, onVerdict?: (v: AttemptVerdict) => void) {
     attemptLog.current.push(snap);
-    const write = persistAttemptLive(snap).then((saved) => {
-      if (saved) confirmedRef.current.add(snap);
+    const write = persistAttemptLive(snap).then((v) => {
+      if (!v) return;
+      confirmedRef.current.add(snap);
+      // What the server found is what this session's record says from now on:
+      // the summary and the review read these snapshots.
+      snap.isCorrect = v.isCorrect;
+      if (v.correctIndex != null) snap.correctIndex = v.correctIndex;
+      if (v.explanation) {
+        snap.explanation = v.explanation;
+        if (!snap.skipped) snap.solutionViewed = true;
+      }
+      onVerdict?.(v);
     });
     pendingWrites.current.add(write);
     void write.finally(() => pendingWrites.current.delete(write));
@@ -1574,30 +1675,39 @@ function Session({
     const q = qs[idx];
     if (!q || phase !== "q" || finishedRef.current) return;
     setChosen(i);
-    const ok = i === q.correct;
     setAnswered((n) => n + 1);
-    if (ok) {
-      correctRef.current += 1;
-      setCorrect(correctRef.current);
-    }
-    // The explanation is shown with the feedback, so it has been viewed.
-    record(snapshotOf(q, { selectedIndex: i, isCorrect: ok, skipped: false, solutionViewed: Boolean(q.explanation) }));
+    // THE CLIENT DOES NOT GRADE. It reports what was chosen, once; the server
+    // grades against the bank and its verdict drives the tick, the cross, the
+    // explanation and the running count. Until it lands the options stay
+    // neutral — the browser genuinely does not know yet.
+    const snap = snapshotOf(q, { selectedIndex: i, isCorrect: false, skipped: false });
+    onScreenRef.current = snap;
+    record(snap, (v) => {
+      if (v.isCorrect) {
+        correctRef.current += 1;
+        setCorrect(correctRef.current);
+      }
+      if (onScreenRef.current === snap) setVerdict(v);
+    });
     setPhase("fb");
   }
 
   function next() {
     if (idx + 1 >= qs.length) { void finish("completed"); return; }
     setIdx(i => i + 1); setChosen(null); setPhase("q");
+    // The last verdict belongs to the last question.
+    onScreenRef.current = null;
+    setVerdict(null);
     questionStartRef.current = Date.now();
   }
 
-  /** True when the server recorded the answer; false leaves it for the finish to send. */
-  async function persistAttemptLive(snap: PracticeAttemptSnapshot): Promise<boolean> {
+  /** The server's verdict when it recorded the answer; null leaves it for the finish to send. */
+  async function persistAttemptLive(snap: PracticeAttemptSnapshot): Promise<AttemptVerdict | null> {
     const sid = sessionIdRef.current;
     const context = ctxRef.current;
-    if (!sid || !context) return false;
+    if (!sid || !context) return null;
     try {
-      await PracticeService.recordAttempt(context, {
+      return await PracticeService.recordAttempt(context, {
         sessionId: sid,
         bankQuestionId: snap.bankQuestionId ?? null,
         generatedQuestion: {
@@ -1642,10 +1752,9 @@ function Session({
         answeredAt: snap.answeredAt ?? null,
         schoolId: snap.schoolId ?? context.schoolId ?? null,
       });
-      return true;
     } catch (e) {
       toast.error(toErrorMessage(e, "Could not save this answer — it will be sent again when you finish"));
-      return false;
+      return null;
     }
   }
 
@@ -1708,7 +1817,10 @@ function Session({
   }
 
   const q       = qs[idx];
-  const isRight = chosen === q?.correct;
+  // FROM THE SERVER, not from a copy of the answer this browser was handed.
+  // Null while the verdict is in flight, which is why the options below stay
+  // neutral until it lands.
+  const isRight = verdict?.isCorrect === true;
   const subj    = subjects.find(s => s.name === q?.subject);
   const timed   = config.timeLimitSec !== null;
   const mm      = Math.floor(timeLeft / 60).toString().padStart(2,"0");
@@ -1741,7 +1853,9 @@ function Session({
       weak: `No weak concepts tracked yet (confidence below ${WEAK_CONCEPT_THRESHOLD}%). Finish a practice session, then return here — or open Recovery.`,
       incorrect: "Nothing to retry — you have no questions currently marked wrong.",
       skipped: "You have not skipped any bank questions yet.",
-      pyq: "No previous-year / exam-tagged questions in the bank for this filter yet.",
+      // Reachable only if the year's questions were retired between the
+      // config screen counting them and this screen loading them.
+      pyq: "No previous-year questions in the bank for this filter yet.",
       bookmarked: "You have not bookmarked any questions yet. Bookmark one during practice and it stays until you remove it.",
       chapter: "No questions for this chapter in the bank yet.",
       topic: "No questions for this topic in the bank yet.",
@@ -1842,7 +1956,9 @@ function Session({
       <div className="space-y-2.5">
         {q.options.map((opt, i) => {
           const isChosen = chosen === i;
-          const isCorrect = i === q.correct;
+          // Only once the server has said so. Before the verdict lands
+          // nothing is marked, because nothing is known.
+          const isCorrect = verdict?.correctIndex === i;
           let bg = "border-border/70 text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted";
           if (phase === "fb") {
             // The fill, the border and the mark say which is right; the text
@@ -1886,13 +2002,13 @@ function Session({
           </button>
         </div>
       )}
-      {phase === "fb" && q.explanation && (
+      {phase === "fb" && verdict?.explanation && (
         <GlassCard className="p-4 border-info/20">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
             <div className="text-sm text-muted-foreground leading-relaxed">
               <span className="font-semibold text-foreground">Explanation: </span>
-              <MathText text={q.explanation} />
+              <MathText text={verdict.explanation} />
             </div>
           </div>
         </GlassCard>

@@ -112,6 +112,19 @@ jobs:
       # ambiguous": the debt is written down in lint-baseline.json with a
       # number, and nothing may add to it.
       - run: npm run lint:baseline
+      # THE SPEC'S NUMBERS MUST BE THE MODULE'S NUMBERS.
+      #
+      # src/academic/recovery/constants.ts is the one home for every recovery,
+      # revision and analysis threshold, and §10 of
+      # docs/recovery-revision-analysis-spec.md restates them so the rules can
+      # be read in one place. A restatement rots: on 2026-09-23 the spec still
+      # said recovery starts at 5 open mistakes (it is 1, ruled 2026-09-15 off
+      # production data) and that revision runs 7 / 21 / 60 days (it is
+      # 7 / 7 / 7 then 30, ruled 2026-09-18) -- two numbers a reader would have
+      # acted on. The self-test runs first, so a gate that cannot fail is
+      # caught before its pass means anything.
+      - run: npm run lint:spec-constants:self-test
+      - run: npm run lint:spec-constants
       #
       # NOT yet enabled as gates. All FOUR read the live schema and need a
       # SUPABASE_ACCESS_TOKEN this repo's GitHub Actions secrets don't have
