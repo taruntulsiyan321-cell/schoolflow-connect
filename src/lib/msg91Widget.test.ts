@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractAccessToken, classifyMsg91Failure } from "./msg91Widget";
+import { extractAccessToken, extractAccessTokenMeta, classifyMsg91Failure } from "./msg91Widget";
 import { phoneToSyntheticEmail } from "./msg91Auth";
 
 describe("extractAccessToken", () => {
@@ -54,6 +54,40 @@ describe("extractAccessToken", () => {
 
   it("trims whitespace around a valid token", () => {
     expect(extractAccessToken({ message: "  padded-token  " })).toBe("padded-token");
+  });
+});
+
+describe("extractAccessTokenMeta", () => {
+  const jwt =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig";
+
+  it("returns token plus keys / jwt_shaped / length fingerprint", () => {
+    const meta = extractAccessTokenMeta({
+      message: "336870744532313134323444",
+      "access-token": jwt,
+    });
+    expect(meta).toEqual({
+      token: jwt,
+      keys: ["access-token", "message"],
+      jwt_shaped: true,
+      length: jwt.length,
+    });
+  });
+
+  it("marks non-JWT tokens as jwt_shaped: false", () => {
+    const meta = extractAccessTokenMeta({ token: "req-id-only" });
+    expect(meta).toEqual({
+      token: "req-id-only",
+      keys: ["token"],
+      jwt_shaped: false,
+      length: "req-id-only".length,
+    });
+  });
+
+  it("returns null when extractAccessToken would", () => {
+    expect(extractAccessTokenMeta(null)).toBeNull();
+    expect(extractAccessTokenMeta({})).toBeNull();
+    expect(extractAccessTokenMeta({ message: "" })).toBeNull();
   });
 });
 

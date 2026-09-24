@@ -71,6 +71,22 @@ describe("completeMsg91SignIn", () => {
     expect("exam" in payload).toBe(false);
   });
 
+  it("sends token_meta fingerprint when provided", async () => {
+    const meta = { keys: ["access-token", "message"], jwt_shaped: true, length: 80 };
+    await completeMsg91SignIn("access-token", "cuet", meta);
+    expect(invokeEdgeFunction).toHaveBeenCalledWith("verify-msg91-widget", {
+      access_token: "access-token",
+      exam: "cuet",
+      token_meta: meta,
+    });
+  });
+
+  it("omits token_meta when not provided", async () => {
+    await completeMsg91SignIn("access-token");
+    const payload = invokeEdgeFunction.mock.calls[0][1] as Record<string, unknown>;
+    expect("token_meta" in payload).toBe(false);
+  });
+
   it("reports the verification failure rather than a session", async () => {
     invokeEdgeFunction.mockResolvedValue({ data: null, error: "That exam is not one we offer." });
     const res = await completeMsg91SignIn("access-token", "nope");
