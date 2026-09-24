@@ -50,19 +50,37 @@ export function loadMsg91WidgetScript(): Promise<void> {
 
 export type Msg91WidgetSuccessData = Record<string, unknown>;
 
+function isLikelyJwt(value: string): boolean {
+  // MSG91 access tokens are JWTs. reqIds from sendOTP share the `message`
+  // field in some SDK responses — those are short opaque ids, not JWTs.
+  return value.startsWith("eyJ") && value.includes(".");
+}
+
 /**
- * MSG91's own documentation does not consistently pin one field name for
- * the access token across widget/SDK versions (variously referenced as
- * `message`, `access-token`, or `token` in different docs/examples) — check
- * every documented candidate rather than assume a single one silently.
+ * MSG91's success payload is not consistent across widget/SDK versions.
+ * Documented shapes:
+ *   - completion: `message` holds the access-token (JWT)
+ *   - invisible OTP / some SDKs: `access-token` is the JWT and `message` is
+ *     the reqId — preferring `message` first sent the reqId to
+ *     verifyAccessToken and every live attempt failed as invalid_or_expired.
+ * Prefer explicit access-token fields, then any JWT-shaped candidate, then
+ * a bare `message`/`token` string as last resort.
  */
 export function extractAccessToken(data: Msg91WidgetSuccessData | null | undefined): string | null {
   if (!data) return null;
-  const candidates = [data.message, data["access-token"], data.token, data.accessToken];
-  for (const c of candidates) {
-    if (typeof c === "string" && c.trim()) return c.trim();
-  }
-  return null;
+  const ordered = [data["access-token"], data.accessToken, data.token, data.message];
+  const strings = ordered
+    .filter((c): c is string => typeof c === "string" && Boolean(c.trim()))
+    .map((c) => c.trim());
+  if (strings.length === 0) return null;
+  const jwt = strings.find(isLikelyJwt);
+  if (jwt) return jwt;
+  // Prefer the first non-message candidate when nothing looks like a JWT —
+  // still better than grabbing a reqId from `message` when another field exists.
+  const nonMessage = [data["access-token"], data.accessToken, data.token]
+    .filter((c): c is string => typeof c === "string" && Boolean(c.trim()))
+    .map((c) => c.trim());
+  return nonMessage[0] ?? strings[0] ?? null;
 }
 
 export type Msg91FailureReason = "cancelled" | "timeout" | "unknown";
