@@ -7,6 +7,7 @@
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizePhone } from "@/lib/phone";
+import type { Msg91AccessTokenMeta } from "@/lib/msg91Widget";
 
 type VerifyMsg91Response = {
   success?: boolean;
@@ -21,6 +22,9 @@ export type Msg91SignInResult =
   | { ok: true; is_new_user: boolean; verified_phone_masked: string }
   | { ok: false; error: string };
 
+/** Safe fingerprint sent with the access-token — keys / shape / length only. */
+export type Msg91TokenMetaPayload = Pick<Msg91AccessTokenMeta, "keys" | "jwt_shaped" | "length">;
+
 /**
  * Verifies the MSG91 access-token server-side (never trusts a phone number
  * from the client) and, on success, completes the resulting magic-link sign
@@ -31,6 +35,7 @@ export type Msg91SignInResult =
 export async function completeMsg91SignIn(
   accessToken: string,
   examCode?: string,
+  tokenMeta?: Msg91TokenMetaPayload,
 ): Promise<Msg91SignInResult> {
   const { data, error } = await invokeEdgeFunction<VerifyMsg91Response>("verify-msg91-widget", {
     access_token: accessToken,
@@ -38,6 +43,8 @@ export async function completeMsg91SignIn(
     // account this phone number signs into, not a preference set afterwards,
     // so it travels with the verification itself.
     ...(examCode ? { exam: examCode } : {}),
+    // Diagnostic fingerprint only (no token value) — logged server-side on failure.
+    ...(tokenMeta ? { token_meta: tokenMeta } : {}),
   });
   if (error || !data?.email || !data?.token_hash) {
     return { ok: false, error: error ?? "Verification succeeded but sign-in could not be completed." };
