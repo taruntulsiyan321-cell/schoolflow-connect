@@ -198,4 +198,7 @@ BEGIN
   END IF;
 END $prove$;
 
+DELETE FROM public.schema_migrations
+ WHERE version = '20261070000000_upload_mistakes_know_their_question';
+
 COMMIT;

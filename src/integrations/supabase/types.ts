@@ -7193,6 +7193,7 @@ export type Database = {
           subject: string
           times_wrong: number
           topic: string | null
+          upload_question_id: string | null
           user_id: string
         }
         Insert: {
@@ -7222,6 +7223,7 @@ export type Database = {
           subject?: string
           times_wrong?: number
           topic?: string | null
+          upload_question_id?: string | null
           user_id: string
         }
         Update: {
@@ -7251,6 +7253,7 @@ export type Database = {
           subject?: string
           times_wrong?: number
           topic?: string | null
+          upload_question_id?: string | null
           user_id?: string
         }
         Relationships: [

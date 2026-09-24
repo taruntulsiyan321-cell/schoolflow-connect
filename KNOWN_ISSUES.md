@@ -3388,6 +3388,21 @@ Not proven end to end: MSG91's own verification needs a real SMS, so the step
 before the redeem is still only exercised by its own error paths
 (`scratchpad/exam/edge-probe.mjs`, 4 assertions against the deployed function).
 
+## 75. Upload mistakes write `upload_question_id`, but recovery still ladders on bank `question_id` only — OPEN
+
+`20261070000000_upload_mistakes_know_their_question` lands the §9.1 write path:
+nullable `student_mistakes.upload_question_id` (XOR with bank `question_id`),
+and `rpc_record_question_attempt` passes `generated_question.upload_question_id`
+into `rpc_record_concept_mistake`.
+
+Still open: `_recovery_session_plan_for`, `_apply_chapter_state`, and
+`rpc_student_recovery_queue` still require `question_id IS NOT NULL` and treat it
+as `question_bank.id`. Upload-only mistakes therefore still miss the recovery
+queue / trigger / tier-0 plan. Tier 0 must also list `from_upload` and Practice
+must hydrate those ids from `student_upload_questions` (today
+`loadSessionQuestions` only calls `listBankQuestions`). Do not put upload ids
+into `from_bank` — that would score them as bank questions.
+
 ## 74. Upload-sourced variant jobs enqueue but are never dispatched — SKIP until generator accepts them — OPEN
 
 **Found:** 2026-09-24 (worktree review of `20261068000000`).
