@@ -441,11 +441,17 @@ export const RecoveryEngineService = {
     // question first, the transfer question last.
     const tierByQuestionId: Record<string, 0 | 1 | 2 | 3> = {};
     for (const tier of [0, 1, 2, 3] as const) {
-      const fromBank = started.plan?.tiers?.[String(tier)]?.from_bank;
-      if (!Array.isArray(fromBank)) continue;
-      for (const id of fromBank) {
-        if (typeof id === "string" && id && !(id in tierByQuestionId)) {
-          tierByQuestionId[id] = tier;
+      const tierPlan = started.plan?.tiers?.[String(tier)] as
+        | { from_bank?: unknown; from_upload?: unknown }
+        | undefined;
+      const fromBank = tierPlan?.from_bank;
+      const fromUpload = tierPlan?.from_upload;
+      for (const bag of [fromBank, fromUpload]) {
+        if (!Array.isArray(bag)) continue;
+        for (const id of bag) {
+          if (typeof id === "string" && id && !(id in tierByQuestionId)) {
+            tierByQuestionId[id] = tier;
+          }
         }
       }
     }

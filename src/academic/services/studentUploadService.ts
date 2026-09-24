@@ -80,6 +80,56 @@ export const UPLOAD_MODE_LABELS: Record<UploadPracticeMode, string> = {
   practise_from_notes: "Practise from notes",
 };
 
+type UploadQuestionSelectRow = {
+  id: string;
+  question_text: string;
+  options: unknown;
+  correct_index: number | null;
+  explanation: string | null;
+  difficulty: string | null;
+  chapter_id: string | null;
+  answer_source: string;
+  // PostgREST may type the embed as an array; normalize at the call site.
+  chapters?: unknown;
+};
+
+function chapterEmbed(raw: unknown): {
+  name?: string;
+  curriculum_subjects?: { name?: string } | null;
+} | null {
+  if (!raw) return null;
+  if (Array.isArray(raw)) {
+    const first = raw[0];
+    return first && typeof first === "object"
+      ? (first as { name?: string; curriculum_subjects?: { name?: string } | null })
+      : null;
+  }
+  if (typeof raw === "object") {
+    return raw as { name?: string; curriculum_subjects?: { name?: string } | null };
+  }
+  return null;
+}
+
+function mapUploadQuestionRow(row: UploadQuestionSelectRow) {
+  // chapters.curriculum_subject_id → curriculum_subjects (not public.subjects).
+  // Never invent Mixed/General — Mistake Book drops those placeholders.
+  const ch = chapterEmbed(row.chapters);
+  const subjectName = ch?.curriculum_subjects?.name?.trim() || null;
+  return {
+    id: row.id,
+    question: row.question_text,
+    options: row.options,
+    correct_index: row.correct_index,
+    explanation: row.explanation ?? null,
+    difficulty: row.difficulty ?? "medium",
+    subject: subjectName,
+    chapter: ch?.name ?? null,
+    chapter_id: row.chapter_id ?? null,
+    from_upload: true as const,
+    ai_answered: row.answer_source === "ai",
+  };
+}
+
 /** Normalize a single file or multi-page image pick into a non-empty File[]. */
 export function normalizeUploadFiles(files: File | File[]): File[] {
   const list = (Array.isArray(files) ? files : [files]).filter(Boolean);
@@ -280,27 +330,44 @@ export const StudentUploadService = {
     const { data, error } = await query;
     throwIfError(error, "StudentUploadService.listForPractice");
 
-    return (data ?? []).map((row) => {
-      // chapters.curriculum_subject_id → curriculum_subjects (not public.subjects).
-      // Never invent Mixed/General — Mistake Book drops those placeholders.
-      const ch = row.chapters as
-        | { name?: string; curriculum_subjects?: { name?: string } | null }
-        | null;
-      const subjectName = ch?.curriculum_subjects?.name?.trim() || null;
-      return {
-        id: row.id as string,
-        question: row.question_text as string,
-        options: row.options,
-        correct_index: row.correct_index as number | null,
-        explanation: (row.explanation as string | null) ?? null,
-        difficulty: (row.difficulty as string | null) ?? "medium",
-        subject: subjectName,
-        chapter: ch?.name ?? null,
-        chapter_id: (row.chapter_id as string | null) ?? null,
-        from_upload: true as const,
-        ai_answered: row.answer_source === "ai",
-      };
-    });
+    return (data ?? []).map((row) => mapUploadQuestionRow(row));
+  },
+
+  /**
+   * Load private upload questions by id — recovery tier-0 from_upload (§9 / 720).
+   * Ids are student_upload_questions.id; never treat as bank ids.
+   */
+  async listByIds(
+    ctx: ServiceContext,
+    ids: string[],
+  ): Promise<
+    Array<{
+      id: string;
+      question: string;
+      options: unknown;
+      correct_index: number | null;
+      explanation: string | null;
+      difficulty: string | null;
+      subject: string | null;
+      chapter: string | null;
+      chapter_id: string | null;
+      from_upload: true;
+      ai_answered: boolean;
+    }>
+  > {
+    assertStudentContext(ctx);
+    const unique = Array.from(new Set(ids.filter(Boolean)));
+    if (unique.length === 0) return [];
+    const db = getClient(ctx);
+    const { data, error } = await db
+      .from("student_upload_questions")
+      .select(
+        "id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name, curriculum_subjects(name))",
+      )
+      .eq("owner_id", ctx.userId)
+      .in("id", unique);
+    throwIfError(error, "StudentUploadService.listByIds");
+    return (data ?? []).map((row) => mapUploadQuestionRow(row));
   },
 
   /** Ask the edge function to classify + extract. Never invents questions client-side. */

@@ -1119,8 +1119,8 @@ type EndReason = "completed" | "ended" | "timed_out" | "left";
 
 type BankRows = Awaited<ReturnType<typeof PracticeService.listBankQuestions>>;
 type UploadPracticeRows = Awaited<ReturnType<typeof StudentUploadService.listForPractice>>;
-/** Bank or private upload rows — Session maps both into BankQuestion. */
-type SessionQuestionRows = BankRows | UploadPracticeRows;
+/** Bank, private upload, or a recovery mix of both. */
+type SessionQuestionRows = BankRows | UploadPracticeRows | Array<BankRows[number] | UploadPracticeRows[number]>;
 
 /** The questions a session asks, decided by its mode. */
 async function loadSessionQuestions(
@@ -1143,9 +1143,16 @@ async function loadSessionQuestions(
     // topping the session up from the bank would put questions into it that no
     // tier accounts for, and the per-tier score would then be taken over a
     // different set than the totals recorded at start.
+    // Spec §9 / migration 720 — tier 0 may also carry private upload originals.
     const tierOf = config.recovery.tierByQuestionId;
     const ids = Object.keys(tierOf);
-    const byId = new Map((await PracticeService.listBankQuestions(ctx, { ids, limit: ids.length })).map((r) => [r.id, r]));
+    const [bankRows, uploadRows] = await Promise.all([
+      PracticeService.listBankQuestions(ctx, { ids, limit: ids.length }),
+      StudentUploadService.listByIds(ctx, ids),
+    ]);
+    const byId = new Map<string, (typeof bankRows)[number] | (typeof uploadRows)[number]>();
+    for (const r of bankRows) byId.set(r.id, r);
+    for (const r of uploadRows) byId.set(r.id, r);
     return ids
       .map((id) => byId.get(id))
       .filter((r): r is NonNullable<typeof r> => r != null)
