@@ -1,6 +1,6 @@
 import { ACCURACY_BUILDING, ACCURACY_PROCEDURAL } from "@/academic/metrics/bands";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, TestService, resolveStudentServiceContext } from "@/academic";
 import { Card } from "@/components/ui/card";
@@ -27,7 +27,7 @@ import {
 } from "@/academic/services/testReportSheets";
 import { exportCSV } from "@/lib/exportCsv";
 import { answerToText } from "@/academic/services/answerText";
-
+import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 
 /**
  * A test carries no subject column: it anchors on section_subject (§10.22), so
@@ -41,6 +41,7 @@ function testSubject(row: Record<string, unknown> | null): string {
 
 export default function TestResult() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { ctx, ready: academicReady } = useAcademicContext();
   const [test, setTest] = useState<Record<string, unknown> | null>(null);
@@ -464,6 +465,18 @@ export default function TestResult() {
                   subject={testSubject(test)}
                   topic={displayTopic(row.topic) || row.topic}
                   wasCorrect={row.is_correct}
+                  onAskNova={() => {
+                    setNovaQuestionContext({
+                      question: row.question,
+                      options: opts,
+                      correctIndex: correctIdx != null && correctIdx >= 0 ? correctIdx : null,
+                      subject: testSubject(test),
+                      topic: displayTopic(row.topic) || row.topic || undefined,
+                      studentAnswer: theirs ?? null,
+                      studentAnswerIndex: selectedIdx != null && selectedIdx >= 0 ? selectedIdx : null,
+                    });
+                    navigate("/student/aicoach");
+                  }}
                 />
               </Card>
             );

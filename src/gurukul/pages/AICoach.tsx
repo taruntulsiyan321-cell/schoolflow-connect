@@ -689,32 +689,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   const msgs   = active?.messages ?? [];
   const isTyping = activeId ? pendingConvoIds.has(activeId) : false;
 
-  // One-shot handoff from a result screen ("Ask Nova about this question") — consumed once.
-  useEffect(() => {
-    const ctx = consumeNovaQuestionContext();
-    if (!ctx) return;
-    const id = genId("c");
-    const newConvo: Conversation = {
-      id,
-      title: ctx.question.slice(0, 40) || "Question",
-      preview: "Ask Nova about this question",
-      date: "Today",
-      messages: [],
-      questionContext: ctx,
-    };
-    activeIdRef.current = id;
-    setConvos((cs) => [newConvo, ...cs]);
-    setActiveId(id);
-    // The student pressed Explain — they have already asked. Making them type
-    // "explain this" as well is the cost this handoff exists to remove.
-    void replyViaGateway(
-      id,
-      ctx.studentAnswer
-        ? "I got this question wrong. Explain why my answer is wrong and walk me through the right one."
-        : "Explain this question to me, step by step.",
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Handoff is applied at most once per mount, and only after a real storage key
+  // exists. A prior split (consume on mount + overwrite from localStorage when the
+  // key arrived) wiped MistakeBook/Practice question context before the gateway
+  // call could use it.
+  const handoffAppliedRef = useRef(false);
 
   useEffect(() => {
     const controllers = abortControllersRef.current;
@@ -724,10 +703,48 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     };
   }, []);
 
-  // Load only once identity is known, so a conversation list is never read or
-  // written under a key that isn't this user's.
+  // Load stored threads once identity is known; fold in a one-shot question
+  // handoff in the same update so localStorage never races the handoff away.
   useEffect(() => {
-    setConvos(loadStoredConvos(convoStorageKey));
+    if (!convoStorageKey) {
+      setConvos(EMPTY_CONVOS);
+      setActiveId(null);
+      activeIdRef.current = null;
+      return;
+    }
+    const stored = loadStoredConvos(convoStorageKey);
+    if (handoffAppliedRef.current) {
+      setConvos(stored);
+      return;
+    }
+    handoffAppliedRef.current = true;
+    const ctx = consumeNovaQuestionContext();
+    if (!ctx) {
+      setConvos(stored);
+      return;
+    }
+    const id = genId("c");
+    const prompt = ctx.studentAnswer
+      ? "I got this question wrong. Explain why my answer is wrong and walk me through the right one."
+      : "Explain this question to me, step by step.";
+    const newConvo: Conversation = {
+      id,
+      title: ctx.question.slice(0, 40) || "Question",
+      preview: "Ask Nova about this question",
+      date: "Today",
+      // Seed the student turn so Regenerate has a last question, and so
+      // recentTurns matches a normal send (prompt is also input.text).
+      messages: [{ id: genId("m"), role: "student", text: prompt, time: now() }],
+      questionContext: ctx,
+    };
+    // Sync the ref before the gateway call — setState alone leaves convosRef
+    // on the previous render, which dropped questionContext on the first turn.
+    convosRef.current = [newConvo, ...stored];
+    activeIdRef.current = id;
+    setConvos(convosRef.current);
+    setActiveId(id);
+    void replyViaGateway(id, prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convoStorageKey]);
 
   useEffect(() => {
@@ -738,18 +755,9 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       /* ignore quota */
     }
   }, [convos, convoStorageKey]);
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior:"smooth" });
   }, [msgs, isTyping]);
-
-  function addMessage(convoId: string, msg: Omit<Message,"id">) {
-    setConvos(cs => cs.map(c => c.id === convoId
-      ? { ...c, messages:[...c.messages, { ...msg, id:genId("m") }],
-          preview: msg.text.slice(0,60) + (msg.text.length>60?"…":"") }
-      : c
-    ));
-  }
 
   function setPending(convoId: string, pending: boolean) {
     if (pending) pendingConvoIdsRef.current.add(convoId);
@@ -799,45 +807,43 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         typeof response.session_id === "string" && response.session_id.trim()
           ? response.session_id.trim()
           : existing?.sessionId;
-      setConvos((cs) =>
-        cs.map((c) =>
-          c.id === convoId
-            ? {
-                ...c,
-                sessionId: nextSessionId,
-                messages: [
-                  ...c.messages,
-                  {
-                    id: genId("m"),
-                    role: "nova",
-                    text: reply,
-                    time: now(),
-                    requestId: response.request_id,
-                    featureId: response.feature_id,
-                    feedback: null,
-                  },
-                ],
-                preview: reply.slice(0, 60) + (reply.length > 60 ? "…" : ""),
-              }
-            : c,
-        ),
+      convosRef.current = convosRef.current.map((c) =>
+        c.id === convoId
+          ? {
+              ...c,
+              sessionId: nextSessionId,
+              messages: [
+                ...c.messages,
+                {
+                  id: genId("m"),
+                  role: "nova",
+                  text: reply,
+                  time: now(),
+                  requestId: response.request_id,
+                  featureId: response.feature_id,
+                  feedback: null,
+                },
+              ],
+              preview: reply.slice(0, 60) + (reply.length > 60 ? "…" : ""),
+            }
+          : c,
       );
+      setConvos(convosRef.current);
     } catch {
       if (controller.signal.aborted) return; // cancelled, not a real failure
       toast.error("AI Gateway unavailable");
-      setConvos((cs) =>
-        cs.map((c) =>
-          c.id === convoId
-            ? {
-                ...c,
-                messages: [
-                  ...c.messages,
-                  { id: genId("m"), role: "nova", text: offlineFallback(), time: now(), isError: true },
-                ],
-              }
-            : c,
-        ),
+      convosRef.current = convosRef.current.map((c) =>
+        c.id === convoId
+          ? {
+              ...c,
+              messages: [
+                ...c.messages,
+                { id: genId("m"), role: "nova", text: offlineFallback(), time: now(), isError: true },
+              ],
+            }
+          : c,
       );
+      setConvos(convosRef.current);
     } finally {
       abortControllersRef.current.delete(convoId);
       setPending(convoId, false);
@@ -853,17 +859,33 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         preview: text.slice(0,60), date:"Today",
         messages: [{ id: genId("m"), role:"student", text, time:now(), imageCount: images?.length }],
       };
-      // Update the ref synchronously so a second send fired before this
-      // state update commits still finds this conversation instead of
-      // creating another one.
+      // Sync refs before the gateway call so replyViaGateway sees this thread
+      // (and any questionContext) on the same turn — setState alone is too late.
+      convosRef.current = [newConvo, ...convosRef.current];
       activeIdRef.current = id;
-      setConvos(cs => [newConvo, ...cs]);
+      setConvos(convosRef.current);
       setActiveId(id);
       void replyViaGateway(id, text, images);
       return;
     }
 
-    addMessage(currentId, { role:"student", text, time:now(), imageCount: images?.length });
+    const studentMsg: Message = {
+      id: genId("m"),
+      role: "student",
+      text,
+      time: now(),
+      imageCount: images?.length,
+    };
+    convosRef.current = convosRef.current.map((c) =>
+      c.id === currentId
+        ? {
+            ...c,
+            messages: [...c.messages, studentMsg],
+            preview: text.slice(0, 60) + (text.length > 60 ? "…" : ""),
+          }
+        : c,
+    );
+    setConvos(convosRef.current);
     void replyViaGateway(currentId, text, images);
   }
 
@@ -880,8 +902,12 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     abortControllersRef.current.get(id)?.abort();
     abortControllersRef.current.delete(id);
     setPending(id, false);
-    setConvos(cs => cs.filter(c => c.id !== id));
-    if (activeId === id) setActiveId(null);
+    convosRef.current = convosRef.current.filter(c => c.id !== id);
+    setConvos(convosRef.current);
+    if (activeIdRef.current === id) {
+      activeIdRef.current = null;
+      setActiveId(null);
+    }
   }
 
   function pinConvo(id: string) {
@@ -921,7 +947,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   function regenerateLast() {
     if (regenBusyRef.current) return;
     if (!activeId) return;
-    const c = convos.find(x => x.id === activeId);
+    const c = convosRef.current.find(x => x.id === activeId);
     if (!c || c.messages.length === 0) return;
     const studentMsgs = c.messages.filter(m => m.role === "student");
     const lastQ = studentMsgs[studentMsgs.length - 1];
@@ -939,10 +965,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           signal_type: "retry",
         }).catch(() => { /* best-effort telemetry — never blocks regenerate */ });
       }
-      setConvos(cs => cs.map(x => x.id === activeId
+      convosRef.current = convosRef.current.map(x => x.id === activeId
         ? { ...x, messages: x.messages.filter(m => m.id !== last.id) }
         : x
-      ));
+      );
+      setConvos(convosRef.current);
     }
     void replyViaGateway(activeId, lastQ.text).finally(() => {
       regenBusyRef.current = false;

@@ -182,10 +182,20 @@ export function buildNovaUiChips(input: NovaUiContextInput): NovaChip[] {
     if (classLabel) push("class", classLabel, CHIP_COLORS.class);
   }
 
-  const xp = Number(input.xp ?? 0);
-  const level = Number(input.level ?? 1);
-  if (xp > 0 || level > 1) {
+  // Never default level to 1 when XP is present but level is missing — that
+  // invents a progression fact. Only chip what the caller actually supplied.
+  const xpRaw = input.xp;
+  const levelRaw = input.level;
+  const xp =
+    xpRaw != null && Number.isFinite(Number(xpRaw)) ? Number(xpRaw) : null;
+  const level =
+    levelRaw != null && Number.isFinite(Number(levelRaw)) ? Number(levelRaw) : null;
+  if (xp != null && xp > 0 && level != null && level >= 1) {
     push("progression", `Lv ${level} · ${xp.toLocaleString()} XP`, CHIP_COLORS.progression);
+  } else if (xp != null && xp > 0) {
+    push("progression", `${xp.toLocaleString()} XP`, CHIP_COLORS.progression);
+  } else if (level != null && level > 1) {
+    push("progression", `Lv ${level}`, CHIP_COLORS.progression);
   }
 
   const streak = Number(input.studyStreak ?? 0);
