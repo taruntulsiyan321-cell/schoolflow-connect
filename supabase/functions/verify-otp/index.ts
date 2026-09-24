@@ -65,7 +65,9 @@ Deno.serve(async (req) => {
     }
     await admin.from("phone_otps").update({ consumed: true }).eq("id", otp.id);
 
-    const result = await linkOrCreatePhoneUser(admin, phone);
+    // user_id is for this function's own use (the exam path needs it); the
+    // response stays exactly what it was.
+    const { user_id: _unused, ...result } = await linkOrCreatePhoneUser(admin, phone);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

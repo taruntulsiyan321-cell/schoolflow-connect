@@ -3154,6 +3154,33 @@ export type Database = {
           },
         ]
       }
+      competitive_exams: {
+        Row: {
+          code: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       concept_mastery: {
         Row: {
           chapter: string | null
@@ -3345,6 +3372,49 @@ export type Database = {
             foreignKeyName: "device_tokens_school_id_fkey"
             columns: ["school_id"]
             isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_accounts: {
+        Row: {
+          account_id: string
+          created_at: string
+          exam_id: string
+          school_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          exam_id: string
+          school_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          exam_id?: string
+          school_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_accounts_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "competitive_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_accounts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: true
             referencedRelation: "schools"
             referencedColumns: ["id"]
           },
@@ -6531,6 +6601,7 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          kind: string
           logo_url: string | null
           name: string
           phone: string | null
@@ -6552,6 +6623,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          kind?: string
           logo_url?: string | null
           name: string
           phone?: string | null
@@ -6573,6 +6645,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          kind?: string
           logo_url?: string | null
           name?: string
           phone?: string | null
@@ -9844,6 +9917,15 @@ export type Database = {
         }
         Returns: string
       }
+      rpc_create_exam_account: {
+        Args: {
+          _account_id: string
+          _exam_code: string
+          _full_name?: string
+          _phone?: string
+        }
+        Returns: Json
+      }
       rpc_create_open_battle: {
         Args: {
           _chapter?: string
@@ -10586,6 +10668,7 @@ export type Database = {
         Args: { _badges: string[] }
         Returns: undefined
       }
+      rpc_set_my_display_name: { Args: { _full_name: string }; Returns: string }
       rpc_start_practice_session: {
         Args: {
           _chapter: string
