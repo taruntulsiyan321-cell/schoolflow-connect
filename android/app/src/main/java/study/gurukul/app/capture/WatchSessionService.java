@@ -30,6 +30,9 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import study.gurukul.app.capture.funnel.CaptureFunnel;
 import study.gurukul.app.capture.funnel.ForegroundAppResolver;
 import study.gurukul.app.capture.funnel.FrameSample;
@@ -66,11 +69,12 @@ public class WatchSessionService extends Service {
   private ImageReader reader;
   private HandlerThread worker;
   private Handler handler;
+  private ExecutorService ocrPool;
   private Bitmap previous;
   private CaptureFunnel funnel;
   private MlKitOcrProvider ocr;
   private ForegroundAppResolver foreground;
-  private volatile boolean ocrInFlight;
+  private final AtomicBoolean ocrInFlight = new AtomicBoolean(false);
   private final Runnable tick = this::sampleOnce;
 
   public static boolean isActive() {
@@ -143,6 +147,11 @@ public class WatchSessionService extends Service {
     worker = new HandlerThread("gurukul-funnel");
     worker.start();
     handler = new Handler(worker.getLooper());
+    ocrPool = Executors.newSingleThreadExecutor(r -> {
+      Thread t = new Thread(r, "gurukul-ocr");
+      t.setDaemon(true);
+      return t;
+    });
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       projection.registerCallback(new MediaProjection.Callback() {
@@ -223,32 +232,44 @@ public class WatchSessionService extends Service {
         return;
       }
 
-      // Keep sampling while OCR runs so §5.1/§5.2 still drop; skip another OCR.
-      if (ocrInFlight) {
+      // Keep sampling on the funnel thread while OCR runs on ocrPool (§12.1).
+      if (!ocrInFlight.compareAndSet(false, true)) {
         recyclePrevious(bmp);
         scheduleNext();
         return;
       }
 
-      ocrInFlight = true;
-      final Bitmap forOcr = bmp.copy(bmp.getConfig() != null ? bmp.getConfig() : Bitmap.Config.ARGB_8888, false);
+      final Bitmap forOcr = bmp.copy(
+          bmp.getConfig() != null ? bmp.getConfig() : Bitmap.Config.ARGB_8888,
+          false
+      );
       recyclePrevious(bmp);
       final String pkgFinal = pkg;
-      handler.post(() -> {
+      final ExecutorService pool = ocrPool;
+      if (pool == null || forOcr == null) {
+        ocrInFlight.set(false);
+        if (forOcr != null) forOcr.recycle();
+        scheduleNext();
+        return;
+      }
+      pool.execute(() -> {
         try {
-          if (forOcr == null) return;
+          if (!active) return;
           String text = ocr.recogniseBitmap(forOcr);
+          funnel.recordOcrInvocation();
           FunnelDecision decision = funnel.finishWithOcrText(text == null ? "" : text);
-          if (decision == FunnelDecision.SEND) {
-            enqueueSend(bitmapToPngBase64(forOcr), pkgFinal);
-            Intent ready = new Intent(ScreenCaptureMistakePlugin.ACTION_WATCH_FRAME_READY);
-            ready.setPackage(getPackageName());
-            sendBroadcast(ready);
+          if (decision == FunnelDecision.SEND && active) {
+            if (enqueueSend(bitmapToPngBase64(forOcr), pkgFinal)) {
+              funnel.commitSend();
+              Intent ready = new Intent(ScreenCaptureMistakePlugin.ACTION_WATCH_FRAME_READY);
+              ready.setPackage(getPackageName());
+              sendBroadcast(ready);
+            }
           }
         } catch (Exception e) {
           Log.w(TAG, "OCR/funnel tick failed", e);
         } finally {
-          ocrInFlight = false;
+          ocrInFlight.set(false);
           if (forOcr != null) forOcr.recycle();
         }
       });
@@ -265,12 +286,14 @@ public class WatchSessionService extends Service {
     previous = bmp;
   }
 
-  private static synchronized void enqueueSend(String b64, String pkg) {
+  /** @return false if the queue was full and this frame was refused (not counted as sent). */
+  private static synchronized boolean enqueueSend(String b64, String pkg) {
     if (PENDING_SEND.size() >= MAX_PENDING_SEND) {
-      PENDING_SEND.pollFirst();
-      Log.w(TAG, "pending SEND queue full — dropped oldest");
+      Log.w(TAG, "pending SEND queue full — refusing new frame");
+      return false;
     }
     PENDING_SEND.addLast(new String[] { b64, pkg });
+    return true;
   }
 
   private void scheduleNext() {
@@ -318,10 +341,14 @@ public class WatchSessionService extends Service {
   }
 
   private void stopWatching(boolean notifyJs) {
-    if (!active && projection == null && reader == null) return;
+    boolean wasActive = active;
     active = false;
     COUNTERS.sessionEndedAtMs = System.currentTimeMillis();
     if (handler != null) handler.removeCallbacks(tick);
+    if (ocrPool != null) {
+      ocrPool.shutdownNow();
+      ocrPool = null;
+    }
     if (worker != null) {
       worker.quitSafely();
       worker = null;
@@ -346,7 +373,7 @@ public class WatchSessionService extends Service {
       previous = null;
     }
     stopForeground(true);
-    if (notifyJs) {
+    if (notifyJs && wasActive) {
       Intent ended = new Intent(ACTION_WATCH_ENDED);
       ended.setPackage(getPackageName());
       sendBroadcast(ended);
@@ -359,13 +386,15 @@ public class WatchSessionService extends Service {
     int pixelStride = planes[0].getPixelStride();
     int rowStride = planes[0].getRowStride();
     int rowPadding = rowStride - pixelStride * image.getWidth();
-    Bitmap bitmap = Bitmap.createBitmap(
+    Bitmap padded = Bitmap.createBitmap(
         image.getWidth() + rowPadding / pixelStride,
         image.getHeight(),
         Bitmap.Config.ARGB_8888
     );
-    bitmap.copyPixelsFromBuffer(buffer);
-    return Bitmap.createBitmap(bitmap, 0, 0, image.getWidth(), image.getHeight());
+    padded.copyPixelsFromBuffer(buffer);
+    Bitmap cropped = Bitmap.createBitmap(padded, 0, 0, image.getWidth(), image.getHeight());
+    if (padded != cropped) padded.recycle();
+    return cropped;
   }
 
   private static String bitmapToPngBase64(Bitmap bitmap) {
@@ -376,7 +405,7 @@ public class WatchSessionService extends Service {
 
   @Override
   public void onDestroy() {
-    stopWatching(false);
+    stopWatching(true);
     super.onDestroy();
   }
 

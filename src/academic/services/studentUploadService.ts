@@ -222,7 +222,7 @@ export const StudentUploadService = {
     const { data, error } = await db
       .from("student_upload_questions")
       .select(
-        "id, upload_id, sequence, question_text, options, correct_index, correct_answer, answer_source, explanation, difficulty, chapter_id, topic_id",
+        "id, upload_id, sequence, question_text, options, correct_index, correct_answer, answer_source, explanation, difficulty, chapter_id, topic_id, derived_from_note_id",
       )
       .eq("upload_id", uploadId)
       .eq("owner_id", ctx.userId)

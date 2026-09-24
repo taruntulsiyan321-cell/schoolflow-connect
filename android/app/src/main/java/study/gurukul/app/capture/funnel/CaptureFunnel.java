@@ -65,6 +65,8 @@ public final class CaptureFunnel {
   public void resetSendCooldown() {
     lastSentFingerprint = "";
     lastSentAtMs = 0L;
+    pendingFingerprint = "";
+    pendingSentAtMs = 0L;
   }
 
   /**
@@ -91,7 +93,9 @@ public final class CaptureFunnel {
         counters.ocrInvocations += 1;
       }
     }
-    return finishWithOcrText(text == null ? "" : text);
+    FunnelDecision decision = finishWithOcrText(text == null ? "" : text);
+    if (decision == FunnelDecision.SEND) commitSend();
+    return decision;
   }
 
   /**
@@ -126,6 +130,7 @@ public final class CaptureFunnel {
   /**
    * §5.4 + send-cooldown. Does <strong>not</strong> increment framesSeen
    * (caller already counted via {@link #dropThrough53}).
+   * Does <strong>not</strong> increment {@code sent} until {@link #commitSend()}.
    */
   public FunnelDecision finishWithOcrText(String text) {
     synchronized (counters) {
@@ -142,12 +147,30 @@ public final class CaptureFunnel {
         counters.droppedDuplicate += 1;
         return FunnelDecision.DROP_RECENT_DUPLICATE;
       }
-      lastSentFingerprint = fp;
-      lastSentAtMs = now;
-      counters.sent += 1;
+      pendingFingerprint = fp;
+      pendingSentAtMs = now;
       return FunnelDecision.SEND;
     }
   }
+
+  /** Count a SEND only after the frame is queued for delivery (§8 honesty). */
+  public void commitSend() {
+    synchronized (counters) {
+      lastSentFingerprint = pendingFingerprint;
+      lastSentAtMs = pendingSentAtMs;
+      counters.sent += 1;
+    }
+  }
+
+  /** Watch path: OCR ran outside {@link #evaluate}. */
+  public void recordOcrInvocation() {
+    synchronized (counters) {
+      counters.ocrInvocations += 1;
+    }
+  }
+
+  private String pendingFingerprint = "";
+  private long pendingSentAtMs = 0L;
 
   /** Normalise OCR for duplicate cooldown (§7.3 / §8). */
   public static String sendFingerprint(String text) {

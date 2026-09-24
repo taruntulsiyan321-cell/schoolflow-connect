@@ -32,9 +32,12 @@ Binding: `docs/custom-practice-upload-spec.md` (§4–§7, §13).
 5. **§5.2** For each extracted question: embed the stem and call
    `match_question_bank_for_exam` (threshold 0.82). On a hit, inherit
    `chapter_id` / `topic_id` / `difficulty` and set `matched_bank_question_id`.
-   No hit or no embedding → leave chapter/topic null (still practisable).
-6. Missing model key / download / parse failure → status `failed` with an honest
-   reason — never demo questions. Never routes through `ai-gateway`.
+   On a miss, resolve the model's free-text chapter/topic/subject labels against
+   the exam catalog (`resolveCurriculumLabels`). Still unresolved →
+   `chapter_id` null (practisable; excluded from recovery/revision per §5.1).
+6. Missing model key / download / transport failure → status `failed` with an honest
+   reason — never demo questions. Classifier JSON parse failure → `unusable` (§4.1
+   refuse rather than invent). Never routes through `ai-gateway`.
 
 ## Env
 

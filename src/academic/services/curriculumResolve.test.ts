@@ -56,6 +56,17 @@ describe("resolveCurriculumLabels (§5.1 / §7)", () => {
   it("formatCatalogHint lists subject › chapter and refuses inventing", () => {
     const hint = formatCatalogHint(CATALOG, 5);
     expect(hint).toContain("Accountancy › Accounting for Partnership");
+    expect(hint).toMatch(/questions and notes/i);
     expect(hint).toMatch(/do not invent/i);
+  });
+
+  it("resolves question free-text labels the same way as notes (§5.2 miss path)", () => {
+    // Bank miss → AI chapter/topic strings → live ids only when catalog matches.
+    expect(
+      resolveCurriculumLabels(CATALOG, "Accounting for Partnership", "Capital Accounts", "Accountancy"),
+    ).toEqual({ chapter_id: "ch-partnership", topic_id: "t-cap" });
+    expect(
+      resolveCurriculumLabels(CATALOG, "Not A Real Chapter", "Capital Accounts", "Accountancy"),
+    ).toEqual({ chapter_id: null, topic_id: null });
   });
 });

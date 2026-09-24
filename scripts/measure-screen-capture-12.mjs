@@ -296,6 +296,13 @@ const bankBeforeRows = await sql(`SELECT count(*)::int AS c FROM public.question
 const bankBefore = bankBeforeRows[0]?.c ?? -1;
 if (bankBefore < 0) fail("could not count question_bank");
 
+// Server allowlist is DB-only (never body.allowed_packages). Seed PW for this student.
+await sql(
+  `INSERT INTO public.student_capture_allowed_apps (owner_id, package_name, label)
+   VALUES ('${auth.uid}'::uuid, '${PW}', 'Physics Wallah')
+   ON CONFLICT (owner_id, package_name) DO NOTHING`,
+);
+
 // §12.7 live: unlisted app — must not read
 {
   const { body } = await invokeCapture("must-wrong-instant.png", {

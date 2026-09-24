@@ -88,7 +88,7 @@ export function formatCatalogHint(catalog: CurriculumChapter[], limit = 40): str
   if (!catalog.length) return "";
   const lines = catalog.slice(0, limit).map((c) => `${c.subject_name} › ${c.chapter_name}`);
   return [
-    "Prefer chapter/topic names from this exam catalog when tagging notes.",
+    "Prefer chapter/topic names from this exam catalog when tagging questions and notes.",
     "If nothing fits, leave chapter and topic null — do not invent a chapter.",
     ...lines,
   ].join("\n");

@@ -64,6 +64,9 @@ const SYSTEM = [
   "- If the file has no key, SOLVE it and set answer_source to \"ai\", filling",
   "  correct_index/correct_answer and a short explanation (§6).",
   "- difficulty: easy | medium | hard when you can tell; else null.",
+  "- Also set chapter / topic / subject names from the exam catalog when you can",
+  "  tell (§5.2 fallback after bank match). If nothing fits, leave them null —",
+  "  never invent a chapter name that is not study content from the file.",
   "- If a question was written FROM a note (not copied from the file), set",
   '  derived_from_note_title to that note\'s title and answer_source to "ai" (§7.1/§7.2).',
   "",
@@ -99,6 +102,9 @@ const RESULT_SHAPE = {
           answer_source: { type: "string", enum: ["file", "ai"] },
           explanation: { type: ["string", "null"] },
           difficulty: { type: ["string", "null"] },
+          chapter: { type: ["string", "null"] },
+          topic: { type: ["string", "null"] },
+          subject: { type: ["string", "null"] },
           derived_from_note_title: { type: ["string", "null"] },
         },
         required: ["question_text", "answer_source"],
@@ -215,6 +221,9 @@ function normalizeQuestion(raw: unknown): ExtractedQuestion | null {
     answer_source,
     explanation,
     difficulty,
+    chapter: optionalLabel(r.chapter),
+    topic: optionalLabel(r.topic),
+    subject: optionalLabel(r.subject),
     derived_from_note_title,
   };
 }
@@ -421,10 +430,18 @@ export async function classifyUploadMedia(
     return { ok: true, result: parseClassifierText(modelText) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "parse failure";
+    // §4.1 — when in doubt, refuse. Garbage JSON must not invent questions;
+    // that is an unusable verdict, not a transport failure.
     return {
-      ok: false,
-      error: `Classifier response could not be parsed (${msg}). No questions were invented.`,
-      status: "failed",
+      ok: true,
+      result: {
+        verdict: "unusable",
+        confidence: 0,
+        refusal_reason:
+          `Classifier response could not be parsed (${msg}). No questions were invented.`,
+        questions: [],
+        notes: [],
+      },
     };
   }
 }

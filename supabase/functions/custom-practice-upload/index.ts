@@ -25,6 +25,10 @@ import {
   type NoteTagLookup,
   type TaggedQuestion,
 } from "./persist.ts";
+import {
+  resolveCurriculumLabels,
+  type CurriculumChapter,
+} from "./curriculumResolve.ts";
 import type { ClassifierResult, ExtractedQuestion } from "./types.ts";
 import { UPLOAD_MAX_BYTES, UPLOAD_MAX_PAGES } from "./refusalGates.ts";
 
@@ -158,26 +162,33 @@ function resolveNote(
 
 /**
  * §5.2 — embed each stem and inherit chapter/topic/difficulty from a confident
- * bank match. Notes-derived questions (§7.1) inherit tags from the note instead.
+ * bank match. On a miss, resolve the model's free-text labels against the exam
+ * catalog (never invent an id — unresolved stays null). Notes-derived questions
+ * (§7.1) inherit tags from the note instead.
  */
 async function tagQuestionsFromBank(
   admin: ReturnType<typeof createClient>,
   examId: string | null,
+  catalog: CurriculumChapter[],
   questions: ExtractedQuestion[],
   noteTagsByTitle: NoteTagLookup,
-): Promise<{ tagged: TaggedQuestion[]; inherited: number }> {
-  if (questions.length === 0) return { tagged: [], inherited: 0 };
+): Promise<{ tagged: TaggedQuestion[]; inherited: number; catalog_tagged: number }> {
+  if (questions.length === 0) return { tagged: [], inherited: 0, catalog_tagged: 0 };
 
-  const untagged = (q: ExtractedQuestion): TaggedQuestion => ({
-    ...q,
-    chapter_id: null,
-    topic_id: null,
-    matched_bank_question_id: null,
-    derived_from_note_id: null,
-  });
+  const fromCatalog = (q: ExtractedQuestion): TaggedQuestion => {
+    const resolved = resolveCurriculumLabels(catalog, q.chapter, q.topic, q.subject);
+    return {
+      ...q,
+      chapter_id: resolved.chapter_id,
+      topic_id: resolved.topic_id,
+      matched_bank_question_id: null,
+      derived_from_note_id: null,
+    };
+  };
 
   const tagged: TaggedQuestion[] = [];
   let inherited = 0;
+  let catalog_tagged = 0;
   const env = Deno.env.toObject();
 
   for (const q of questions) {
@@ -197,13 +208,17 @@ async function tagQuestionsFromBank(
     }
 
     if (!examId) {
-      tagged.push(untagged(q));
+      const catalogHit = fromCatalog(q);
+      if (catalogHit.chapter_id) catalog_tagged += 1;
+      tagged.push(catalogHit);
       continue;
     }
 
     const emb = await embedQueryText(q.question_text, { env });
     if (!emb.ok) {
-      tagged.push(untagged(q));
+      const catalogHit = fromCatalog(q);
+      if (catalogHit.chapter_id) catalog_tagged += 1;
+      tagged.push(catalogHit);
       continue;
     }
 
@@ -217,10 +232,12 @@ async function tagQuestionsFromBank(
 
     if (error) {
       console.error(
-        "match_question_bank_for_exam failed — tags left null:",
+        "match_question_bank_for_exam failed — falling back to catalog labels:",
         JSON.stringify(error),
       );
-      tagged.push(untagged(q));
+      const catalogHit = fromCatalog(q);
+      if (catalogHit.chapter_id) catalog_tagged += 1;
+      tagged.push(catalogHit);
       continue;
     }
 
@@ -230,7 +247,10 @@ async function tagQuestionsFromBank(
     const topicId = typeof top?.topic_id === "string" ? top.topic_id : null;
 
     if (!bankId || !chapterId) {
-      tagged.push(untagged(q));
+      // §5.2 — no confident bank match: AI labels → live catalog ids, or null.
+      const catalogHit = fromCatalog(q);
+      if (catalogHit.chapter_id) catalog_tagged += 1;
+      tagged.push(catalogHit);
       continue;
     }
 
@@ -250,7 +270,7 @@ async function tagQuestionsFromBank(
     inherited += 1;
   }
 
-  return { tagged, inherited };
+  return { tagged, inherited, catalog_tagged };
 }
 
 Deno.serve(async (req) => {
@@ -402,9 +422,10 @@ Deno.serve(async (req) => {
 
   const noteTagsByTitle = noteTagsByTitleFromRows(nWrite.rows);
 
-  const { tagged, inherited } = await tagQuestionsFromBank(
+  const { tagged, inherited, catalog_tagged } = await tagQuestionsFromBank(
     admin,
     examId,
+    catalog,
     result.questions,
     noteTagsByTitle,
   );
@@ -453,6 +474,8 @@ Deno.serve(async (req) => {
     notes_written: nWrite.written,
     /** §5.2 — how many stems inherited chapter/topic from the bank. */
     bank_tags_inherited: inherited,
+    /** §5.2 — stems tagged from AI labels → live catalog ids after a bank miss. */
+    catalog_tags_resolved: catalog_tagged,
     /** §7 — notes that resolved to a live chapter_id. */
     notes_chapter_tagged: notesTagged,
     /** §7.1 — questions linked via derived_from_note_id. */

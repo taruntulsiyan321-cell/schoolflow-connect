@@ -372,18 +372,17 @@ Stage 2 reliability (same day, after first instrumented green):
 
 ### Still open
 
-- Which model reads the frames. Note that `ai-gateway` **cannot be deployed
-  from this repo** — production holds two `_shared` modules that exist in no
-  branch (KNOWN_ISSUES, edge-drift entry). Stage 1 uses a dedicated
-  `screen-capture-mistake` function instead.
+- Which model reads the frames. **Partial (2026-09-24):** live path is
+  `qwen/qwen3.7-flash` via dedicated `screen-capture-mistake` (not undeployable
+  `ai-gateway`). Still open as a product ruling string in this section.
 - The confidence thresholds in §5.2 and §5.4 are **measured 2026-09-24** against
-  §12 PW-shaped fixtures (`scripts/measure-screen-capture-funnel-thresholds.mjs`):
+  §12 PW-shaped fixtures (`npm run measure:screen-capture-funnel`):
   - `LECTURE_DELTA_MIN = 0.12` (live video motion; still fixtures differ ~0.05)
   - `LECTURE_TEXT_MAX = 0.04` / `QUESTION_TEXT_MIN = 0.008` after dark/light-aware
     glyph density (dark chrome must not count as ink — was ~0.97 before the fix)
-  - §5.4 remains OCR `looksLikeQuestionWithVerdict` (question + verdict + Your answer)
+  - §5.4 remains OCR `looksLikeQuestionWithVerdict` (question + wrong evidence + Your answer)
   - Owner still re-tunes on real PW video (§10.4)
-- Unacademy and the rest. The §6.3 rule should carry, but no one has looked at
-  their screens yet. Do not assume.
+- Unacademy and the rest. Allowlist UI can opt them in; no screen fixtures yet.
 - PW will redesign their app. Expect it; build §5.3 and §7.1 on what a screen
   *means* rather than where PW puts it today.
+- iOS (§3.3) deferred until Android proves §6/§7 — no `ios/` project yet.

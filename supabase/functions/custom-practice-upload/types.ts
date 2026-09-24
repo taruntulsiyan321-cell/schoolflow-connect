@@ -17,6 +17,13 @@ export type ExtractedQuestion = {
   explanation: string | null;
   difficulty: string | null;
   /**
+   * Free-text labels for §5.2 when bank match misses. Edge resolves to live
+   * chapter_id / topic_id via the exam catalog — never invents an id.
+   */
+  chapter: string | null;
+  topic: string | null;
+  subject: string | null;
+  /**
    * §7.1 — when set, this question was written from a note whose title matches
    * (case-insensitive). Persist sets derived_from_note_id; §7.2 forces ai.
    */

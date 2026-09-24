@@ -29,6 +29,10 @@ function mcq(stem: string, correctIndex = 0): ExtractedQuestion {
     // not from notes. The field is `string | null` rather than optional so every
     // producer has to SAY which it is (§7.1).
     derived_from_note_title: null,
+    // §5.2 free-text labels — null here; gates do not invent chapters.
+    chapter: null,
+    topic: null,
+    subject: null,
   };
 }
 

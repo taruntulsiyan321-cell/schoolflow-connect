@@ -1,7 +1,8 @@
 # Custom Practice — the student's own upload
 
-**Status:** ruled 2026-09-24 by the owner. Not built. This document is the
-source of truth for the feature; code cites it by section (`§4.2`), the way
+**Status:** Stage 1 landed 2026-09-24 (edge `custom-practice-upload`, private
+tables, Custom Practice UI, mistake-book / Incorrect practice). This document
+remains the source of truth; code cites it by section (`§4.2`), the way
 `docs/recovery-revision-analysis-spec.md` is cited by the recovery engine.
 
 **Sister spec:** `docs/screen-capture-mistakes-spec.md` — mistakes captured

@@ -70,7 +70,14 @@
     "lint:client-columns": "node scripts/lint-client-columns.mjs",
     "lint:client-columns:self-test": "node scripts/lint-client-columns.mjs --self-test",
     "verify:test-flow": "bash scripts/local-replica/run.sh",
-    "db:apply-release": "node scripts/apply-release-migrations.mjs"
+    "db:apply-release": "node scripts/apply-release-migrations.mjs",
+    "measure:screen-capture-12": "node scripts/measure-screen-capture-12.mjs",
+    "measure:screen-capture-funnel": "node scripts/measure-screen-capture-funnel-thresholds.mjs",
+    "measure:screen-capture-stage2-cost": "node scripts/measure-screen-capture-stage2-cost.mjs",
+    "measure:custom-practice-12-1": "node scripts/measure-custom-practice-12-1.mjs",
+    "measure:custom-practice-privacy": "node scripts/measure-custom-practice-12-4-privacy.mjs",
+    "measure:custom-practice-notes": "node scripts/measure-custom-practice-12-3-notes.mjs",
+    "measure:custom-practice-dispute": "node scripts/measure-custom-practice-12-6-dispute.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

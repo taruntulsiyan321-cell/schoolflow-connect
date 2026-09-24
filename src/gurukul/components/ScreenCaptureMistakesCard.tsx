@@ -16,7 +16,7 @@ export function ScreenCaptureMistakesCard({ api }: { api: ScreenCaptureMistakesA
       <p className="text-xs text-muted-foreground mb-3">
         Tap when you get one wrong, or start a watch session. Frames from apps
         you have not allowed never leave the phone. In test mode, open the
-        solutions so Gurukul can see which ones were wrong.
+        solutions and Gurukul will pick up your mistakes.
       </p>
 
       {api.usageAccess === false && (
