@@ -53,16 +53,8 @@ function pngRgb(width, height, paint) {
   ]);
 }
 
-// ── Six refuse fixtures ─────────────────────────────────────────────────────
-writeFileSync(
-  join(OUT, "refuse-timetable.png"),
-  pngRgb(640, 480, (x, y) => {
-    // Grid like a timetable
-    if (x % 80 < 2 || y % 60 < 2) return [40, 40, 40];
-    if (y < 40) return [200, 220, 255];
-    return [245, 245, 245];
-  }),
-);
+// ── Two genuinely contentless fixtures ──────────────────────────────────────
+// These two hold no information at all, by nature. Drawn as raw pixels.
 
 writeFileSync(
   join(OUT, "refuse-blurry-dark.png"),
@@ -73,42 +65,131 @@ writeFileSync(
 );
 
 writeFileSync(
-  join(OUT, "refuse-prose.png"),
-  pngRgb(600, 800, (x, y) => {
-    // Horizontal text-like bars (paragraphs), not MCQ options
-    if (y > 80 && y < 700 && x > 40 && x < 560 && y % 28 > 8 && y % 28 < 18) return [30, 30, 30];
-    return [252, 252, 248];
-  }),
-);
-
-writeFileSync(
-  join(OUT, "refuse-receipt.png"),
-  pngRgb(400, 700, (x, y) => {
-    if (y < 50) return [20, 20, 20];
-    if (y > 80 && y < 120 && x > 20 && x < 380) return [20, 20, 20];
-    if (y > 200 && y % 22 < 10 && x > 20 && x < 200) return [40, 40, 40];
-    if (y > 200 && y % 22 < 10 && x > 250 && x < 360) return [40, 40, 40];
-    return [255, 255, 255];
-  }),
-);
-
-writeFileSync(
   join(OUT, "refuse-blank.png"),
   pngRgb(512, 640, () => [255, 255, 255]),
 );
 
-writeFileSync(
-  join(OUT, "refuse-chat.png"),
-  pngRgb(480, 800, (x, y) => {
-    // Chat bubbles
-    const row = Math.floor((y - 40) / 70);
-    if (row < 0 || row > 9) return [230, 230, 235];
-    const left = row % 2 === 0;
-    if (left && x > 20 && x < 280 && y % 70 > 10 && y % 70 < 50) return [220, 248, 198];
-    if (!left && x > 200 && x < 460 && y % 70 > 10 && y % 70 < 50) return [255, 255, 255];
-    return [230, 230, 235];
-  }),
+// ── Four fixtures that carry REAL TEXT ──────────────────────────────────────
+//
+// These were drawn as bars and blocks, and every one of them was refused for
+// the wrong reason. Measured 2026-09-24, the live classifier's own words:
+// "blank grid ... with no text", "only horizontal black bars", "abstract
+// coloured bars and blocks with no readable text".
+//
+// So the battery proved the classifier rejects pictures with nothing written
+// on them — which is not what §4.5 exists to prove. The dangerous upload is a
+// page DENSE with real words that are not practice questions: a student
+// photographing their actual timetable, full of subject names and times. That
+// is the input a model is tempted to invent questions from, and it was never
+// being asked.
+//
+// Rendered from HTML through the browser this repo already has, so the words
+// are really on the page and really readable.
+
+const { chromium } = await import("playwright");
+const browser = await chromium.launch();
+
+async function shot(name, width, height, html) {
+  const page = await browser.newPage({ viewport: { width, height } });
+  await page.setContent(
+    `<html><body style="margin:0;font-family:Segoe UI,Arial,sans-serif">${html}</body></html>`,
+    { waitUntil: "load" },
+  );
+  await page.screenshot({ path: join(OUT, name) });
+  await page.close();
+}
+
+const PERIODS = [
+  ["1", "08:00", "Mathematics", "Mrs Sharma", "Room 12"],
+  ["2", "08:50", "Physics", "Mr Iyer", "Lab 2"],
+  ["3", "09:40", "Accountancy", "Mrs Nair", "Room 07"],
+  ["4", "10:50", "Business Studies", "Mr Khan", "Room 09"],
+  ["5", "11:40", "English", "Ms D'Souza", "Room 04"],
+  ["6", "12:30", "Economics", "Mr Bose", "Room 11"],
+];
+await shot(
+  "refuse-timetable.png",
+  760,
+  620,
+  `<h2 style="padding:12px 16px;margin:0;background:#1e3a8a;color:#fff">Class XII-A — Weekly Timetable</h2>
+   <p style="padding:8px 16px;margin:0;color:#334155">Term 2 · Effective 1 September 2026</p>
+   <table style="width:100%;border-collapse:collapse;font-size:15px">
+     <tr style="background:#e2e8f0"><th style="border:1px solid #94a3b8;padding:8px">Period</th><th style="border:1px solid #94a3b8;padding:8px">Time</th><th style="border:1px solid #94a3b8;padding:8px">Subject</th><th style="border:1px solid #94a3b8;padding:8px">Teacher</th><th style="border:1px solid #94a3b8;padding:8px">Room</th></tr>
+     ${PERIODS.map(
+       (r) =>
+         `<tr>${r.map((c) => `<td style="border:1px solid #cbd5e1;padding:8px">${c}</td>`).join("")}</tr>`,
+     ).join("")}
+   </table>
+   <p style="padding:12px 16px;color:#475569">Assembly every Monday at 07:45. Games period on Friday after Period 6.</p>`,
 );
+
+await shot(
+  "refuse-prose.png",
+  700,
+  860,
+  `<div style="padding:40px;font-size:17px;line-height:1.7;color:#111">
+   <h3>The Monsoon and the Indian Economy</h3>
+   <p>For most of the last century the monsoon has set the rhythm of rural India. A late arrival in June
+   pushes back sowing across the northern plains, and a weak August can decide whether a family sells its
+   surplus or borrows against next year's crop.</p>
+   <p>Irrigation has softened this dependence without removing it. Canal networks reach a minority of
+   cultivated land, and groundwater, which carried much of the growth after the Green Revolution, is now
+   falling faster than it is replenished in several states.</p>
+   <p>Economists therefore read the rainfall figures as a forecast of demand. When the rains are good,
+   tractor sales rise, rural wages hold, and the consumption that follows reaches far beyond farming.</p>
+   </div>`,
+);
+
+await shot(
+  "refuse-receipt.png",
+  420,
+  700,
+  `<div style="padding:24px;font-family:Consolas,monospace;font-size:15px;color:#111">
+   <div style="text-align:center"><b>SHREE GENERAL STORE</b><br/>Shop 14, Mahavir Nagar<br/>GSTIN 27AABCS1429B1Z</div>
+   <hr/>
+   <div>Bill No: 40921 &nbsp; 24/09/2026 18:42</div><hr/>
+   <table style="width:100%">
+     <tr><td>Toor Dal 1kg</td><td align="right">184.00</td></tr>
+     <tr><td>Sunflower Oil 1L</td><td align="right">142.50</td></tr>
+     <tr><td>Atta 5kg</td><td align="right">265.00</td></tr>
+     <tr><td>Milk 500ml x4</td><td align="right">108.00</td></tr>
+     <tr><td>Notebook A4</td><td align="right">60.00</td></tr>
+   </table>
+   <hr/>
+   <table style="width:100%">
+     <tr><td>Subtotal</td><td align="right">759.50</td></tr>
+     <tr><td>CGST 2.5%</td><td align="right">18.99</td></tr>
+     <tr><td><b>TOTAL</b></td><td align="right"><b>797.48</b></td></tr>
+   </table>
+   <div style="text-align:center;margin-top:18px">Thank you. Goods once sold are not returnable.</div>
+   </div>`,
+);
+
+const CHAT = [
+  ["them", "did you finish the accounts homework"],
+  ["me", "half of it only, partnership one is long"],
+  ["them", "same. are we meeting at the library tomorrow"],
+  ["me", "yes 4pm, bring your notes"],
+  ["them", "ok. also ma'am said test is on monday"],
+  ["me", "monday?? i thought wednesday"],
+  ["them", "she changed it today in class"],
+];
+await shot(
+  "refuse-chat.png",
+  480,
+  760,
+  `<div style="background:#e5ddd5;height:100%;padding:12px">
+   <div style="background:#075e54;color:#fff;margin:-12px -12px 12px;padding:12px 16px"><b>Ananya</b><br/><span style="font-size:12px">online</span></div>
+   ${CHAT.map(
+     ([who, text]) =>
+       `<div style="display:flex;justify-content:${who === "me" ? "flex-end" : "flex-start"};margin:8px 0">
+          <div style="max-width:70%;background:${who === "me" ? "#dcf8c6" : "#fff"};padding:8px 12px;border-radius:8px;font-size:15px">${text}</div>
+        </div>`,
+   ).join("")}
+   </div>`,
+);
+
+await browser.close();
 
 // ── Positive control: multi-question MCQ as PDF text bytes ──────────────────
 // A minimal PDF with extractable text (unpdf path). Enough questions for §4.4.
