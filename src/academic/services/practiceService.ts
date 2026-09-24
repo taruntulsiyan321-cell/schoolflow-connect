@@ -44,6 +44,7 @@ import {
   buildPracticeAnalysisSnapshot,
   type PracticeAttemptRecord,
 } from "@/lib/practiceAnalysisSnapshot";
+import { answerToIndex } from "./answerText";
 
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
@@ -1245,21 +1246,185 @@ export const PracticeService = {
     return dedupePreservingOrder(ids).slice(0, limit);
   },
 
-  /** Wrong questions as practice-ready bank rows (honest empty if none). */
+  /**
+   * Wrong questions as practice-ready rows (honest empty if none).
+   *
+   * Spec §9 / Incorrect mode: bank mistakes load from question_bank; upload
+   * mistakes (source=upload) load from student_upload_questions via
+   * upload_question_id when that column exists, otherwise from the snapshotted
+   * text already on student_mistakes. Never invents a question that is not on
+   * the mistake row or the private upload table.
+   */
   async listMistakeQuestions(
     ctx: ServiceContext,
     opts: { limit?: number; includeInactive?: boolean } = {},
   ) {
+    assertCanConsume(ctx, "practice");
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
-    const ids = await this.listQuestionIdsByStatus(ctx, "wrong", { limit: limit * 2 });
-    if (ids.length === 0) return [];
-    return this.listBankQuestions(ctx, {
-      ids: ids.slice(0, limit),
-      limit,
-      includeInactive: opts.includeInactive,
-    });
-  },
+    const client = getClient(toRepoContext(ctx));
+    const fetchWindow = Math.min(200, Math.max(limit * 4, limit));
 
+    type MistakeListRow = {
+      id: string;
+      source: string;
+      question_id: string | null;
+      upload_question_id?: string | null;
+      last_wrong_at: string;
+      question_text: string;
+      options: unknown;
+      correct_answer: unknown;
+      explanation: string | null;
+      difficulty: string | null;
+      subject: string;
+      chapter: string | null;
+      chapter_id: string | null;
+    };
+
+    const baseSelect =
+      "id, source, question_id, last_wrong_at, question_text, options, correct_answer, explanation, difficulty, subject, chapter, chapter_id";
+    const withUploadSelect = `${baseSelect}, upload_question_id`;
+
+    const runSelect = (cols: string) =>
+      client
+        .from("student_mistakes")
+        .select(cols)
+        .eq("user_id", ctx.userId)
+        .eq("status", "open")
+        .order("last_wrong_at", { ascending: false })
+        .limit(fetchWindow);
+
+    let { data, error } = await runSelect(withUploadSelect);
+    if (error && isMissingSchema(error)) {
+      ({ data, error } = await runSelect(baseSelect));
+    }
+    throwIfError(error, "Failed to load mistake questions");
+
+    const rows = (data ?? []) as unknown as MistakeListRow[];
+    if (rows.length === 0) return [];
+
+    const bankIds = dedupePreservingOrder(
+      rows
+        .filter((r) => r.source !== "upload" && Boolean(r.question_id))
+        .map((r) => r.question_id as string),
+    );
+    const uploadQids = dedupePreservingOrder(
+      rows
+        .filter((r) => r.source === "upload")
+        .map((r) => r.upload_question_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+
+    type PracticeReady = {
+      id: string;
+      subject: string;
+      chapter: string | null;
+      difficulty: string | null;
+      question: string;
+      options: unknown;
+      correct_index: number;
+      explanation: string | null;
+      from_upload?: true;
+      ai_answered?: boolean;
+      chapter_id?: string | null;
+    };
+
+    const bankById = new Map<string, PracticeReady>();
+    if (bankIds.length > 0) {
+      const bankRows = await this.listBankQuestions(ctx, {
+        ids: bankIds.slice(0, fetchWindow),
+        limit: fetchWindow,
+        includeInactive: opts.includeInactive,
+      });
+      for (const q of bankRows) bankById.set(q.id, q);
+    }
+
+    const uploadById = new Map<string, PracticeReady>();
+    if (uploadQids.length > 0) {
+      const { data: uploadRows, error: uploadError } = await client
+        .from("student_upload_questions")
+        .select(
+          "id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name, curriculum_subjects(name))",
+        )
+        .eq("owner_id", ctx.userId)
+        .in("id", uploadQids);
+      throwIfError(uploadError, "Failed to load upload mistake questions");
+      for (const row of uploadRows ?? []) {
+        const ch = row.chapters as
+          | { name?: string; curriculum_subjects?: { name?: string } | null }
+          | null;
+        const options = row.options;
+        const correct =
+          typeof row.correct_index === "number" && Number.isInteger(row.correct_index)
+            ? row.correct_index
+            : null;
+        if (!row.id || !row.question_text || correct == null) continue;
+        if (!Array.isArray(options) || options.length < 2) continue;
+        uploadById.set(row.id as string, {
+          id: row.id as string,
+          subject: ch?.curriculum_subjects?.name?.trim() || "",
+          chapter: ch?.name ?? null,
+          difficulty: (row.difficulty as string | null) ?? "medium",
+          question: row.question_text as string,
+          options,
+          correct_index: correct,
+          explanation: (row.explanation as string | null) ?? null,
+          from_upload: true,
+          ai_answered: row.answer_source === "ai",
+          chapter_id: (row.chapter_id as string | null) ?? null,
+        });
+      }
+    }
+
+    const snapshotUpload = (r: MistakeListRow): PracticeReady | null => {
+      const options = r.options;
+      if (!Array.isArray(options) || options.length < 2) return null;
+      const correct = answerToIndex(r.correct_answer, options);
+      if (correct == null || !r.question_text?.trim()) return null;
+      // Prefer a real upload question id when present; otherwise the mistake
+      // id keeps the session row addressable without inventing bank content.
+      const id = r.upload_question_id || r.id;
+      return {
+        id,
+        subject: r.subject || "",
+        chapter: r.chapter,
+        difficulty: r.difficulty ?? "medium",
+        question: r.question_text,
+        options,
+        correct_index: correct,
+        explanation: r.explanation,
+        from_upload: true,
+        ai_answered: false,
+        chapter_id: r.chapter_id,
+      };
+    };
+
+    const out: PracticeReady[] = [];
+    const seenBank = new Set<string>();
+    const seenUpload = new Set<string>();
+    for (const r of rows) {
+      if (out.length >= limit) break;
+      if (r.source === "upload") {
+        const uqid = r.upload_question_id ?? null;
+        if (uqid && uploadById.has(uqid)) {
+          if (seenUpload.has(uqid)) continue;
+          seenUpload.add(uqid);
+          out.push(uploadById.get(uqid)!);
+          continue;
+        }
+        const snap = snapshotUpload(r);
+        if (!snap) continue;
+        if (seenUpload.has(snap.id)) continue;
+        seenUpload.add(snap.id);
+        out.push(snap);
+        continue;
+      }
+      if (!r.question_id || !bankById.has(r.question_id)) continue;
+      if (seenBank.has(r.question_id)) continue;
+      seenBank.add(r.question_id);
+      out.push(bankById.get(r.question_id)!);
+    }
+    return out;
+  },
 
   /** Previously skipped questions (honest empty if none). */
   async listSkippedBankQuestions(
