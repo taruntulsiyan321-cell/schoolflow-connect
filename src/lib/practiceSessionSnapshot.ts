@@ -20,6 +20,8 @@ export type PracticeAttemptSnapshot = {
   chapterId?: string | null;
   /** Spec §9 — student_upload_questions.id when source=upload; never a bank id. */
   uploadQuestionId?: string | null;
+  /** Screen-capture §7.4 — student_capture_questions.id; never a bank id. */
+  captureQuestionId?: string | null;
   concept?: string;
   topic?: string;
   difficulty?: string;
@@ -190,6 +192,7 @@ export function snapshotsToAttemptRows(attempts: PracticeAttemptSnapshot[]) {
         explanation: a.explanation,
         bank_question_id: a.bankQuestionId ?? null,
         upload_question_id: a.uploadQuestionId ?? null,
+        capture_question_id: a.captureQuestionId ?? null,
         chapter_id: a.chapterId ?? null,
       },
       correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
@@ -227,6 +230,7 @@ export function attemptsToFinishPayload(attempts: PracticeAttemptSnapshot[]) {
         explanation: a.explanation ?? "",
         bank_question_id: a.bankQuestionId ?? null,
         upload_question_id: a.uploadQuestionId ?? null,
+        capture_question_id: a.captureQuestionId ?? null,
         subject: a.subject ?? null,
         chapter: a.chapter ?? null,
         chapter_id: a.chapterId ?? null,

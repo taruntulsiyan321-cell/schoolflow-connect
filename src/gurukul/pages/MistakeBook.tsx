@@ -61,6 +61,8 @@ type MistakeRow = {
   /** Migration 700 column; text-join may fill legacy rows that still lack it. */
   upload_question_id?: string | null;
   capture_question_id?: string | null;
+  /** Spec §5.1 — real chapters.id when tagged; null when untagged. */
+  chapter_id?: string | null;
   ai_answered?: boolean;
 };
 
@@ -107,8 +109,10 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     // questions wrong however the student answered.
     correct: answerToIndex(row.correct_answer, options),
     chosen: answerToIndex(row.student_answer, options),
-    subject: row.subject,
-    chapter: displayChapter(row.chapter) || "—",
+    subject: isPlaceholderAcademicLabel(row.subject)
+      ? (row.capture_question_id || row.source === "screen_capture" ? "Untagged" : row.subject)
+      : row.subject,
+    chapter: displayChapter(row.chapter) || (row.capture_question_id || row.source === "screen_capture" ? "Untagged" : "—"),
     topic: displayTopic(row.concept ?? row.topic) || "—",
     chapterRaw,
     conceptRaw,
@@ -139,7 +143,9 @@ function dedupeMistakes(list: Mistake[]): Mistake[] {
       ? `q:${m.questionId}`
       : m.uploadQuestionId
         ? `uq:${m.uploadQuestionId}`
-        : `id:${m.id}`;
+        : m.captureQuestionId
+          ? `cq:${m.captureQuestionId}`
+          : `id:${m.id}`;
     const prev = byKey.get(key);
     if (!prev) {
       byKey.set(key, m);
@@ -672,16 +678,32 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     () =>
       dedupeMistakes(
         rows
-          .filter(
-            (r) =>
-              // Keep the global placeholder filter: write-time upload subjects
-              // come from curriculum_subjects (never Mixed/General). Do not
-              // carve an upload exception here — that would re-hide the write bug.
+          .filter((r) => {
+            // Upload §5.1 / capture §7.4 — private originals with no chapter_id
+            // stay practisable and must appear in the book. They are excluded
+            // from recovery/revision by the writer, not hidden here.
+            const untaggedPrivate =
+              (r.source === "screen_capture" || r.source === "upload") &&
+              !r.chapter_id &&
+              Boolean(r.capture_question_id || r.upload_question_id || r.question_text);
+            if (untaggedPrivate) {
+              if (
+                !examId &&
+                r.subject &&
+                !isPlaceholderAcademicLabel(r.subject) &&
+                !isSubjectAllowedForScope(r.subject, stream, classLevel)
+              ) {
+                return false;
+              }
+              return true;
+            }
+            return (
               (!!examId || isSubjectAllowedForScope(r.subject, stream, classLevel)) &&
               !isPlaceholderAcademicLabel(r.subject) &&
               !isPlaceholderAcademicLabel(r.concept ?? r.topic) &&
-              !isPlaceholderAcademicLabel(r.chapter),
-          )
+              !isPlaceholderAcademicLabel(r.chapter)
+            );
+          })
           .map((r) => mapRowToMistake(r, bookmarks.has(r.id))),
       ),
     [rows, bookmarks, stream, classLevel, examId],
@@ -744,7 +766,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     }
   }
 
-  /** §11 — delete private capture + its mistake row. */
+  /** §11 — delete private capture (+ linked mistakes via service). */
   async function deleteCaptureMistake(m: Mistake) {
     if (m.source !== "screen_capture" || !m.captureQuestionId) return;
     const ok = await deleteScreenCaptureQuestion(m.captureQuestionId);
@@ -752,8 +774,11 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       showToast("Could not delete captured question");
       return;
     }
-    await supabase.from("student_mistakes").delete().eq("id", m.id);
-    setRows((prev) => prev.filter((r) => r.id !== m.id));
+    setRows((prev) =>
+      prev.filter(
+        (r) => r.id !== m.id && r.capture_question_id !== m.captureQuestionId,
+      ),
+    );
     showToast("Captured question deleted");
   }
 

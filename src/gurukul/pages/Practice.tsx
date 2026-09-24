@@ -30,6 +30,7 @@ import {
   type StudentUploadRow,
   type UploadPracticeMode,
 } from "@/academic/services/studentUploadService";
+import { listCaptureQuestionsByIds } from "@/academic/services/screenCaptureService";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
@@ -119,6 +120,8 @@ type BankQuestion = {
   question: string; options: string[];
   /** Spec §2.1 / §9 — private upload question; never a question_bank id. */
   fromUpload?: boolean;
+  /** Screen-capture-mistakes-spec §7.4 — private capture; never a bank id. */
+  fromCapture?: boolean;
   /** Spec §6 — answer key came from the AI, not the file. */
   aiAnswered?: boolean;
   /** Spec §5.1 — real chapters.id when tagged; null when untagged. */
@@ -1204,8 +1207,13 @@ type EndReason = "completed" | "ended" | "timed_out" | "left";
 
 type BankRows = Awaited<ReturnType<typeof PracticeService.listBankQuestions>>;
 type UploadPracticeRows = Awaited<ReturnType<typeof StudentUploadService.listForPractice>>;
-/** Bank, private upload, or a recovery mix of both. */
-type SessionQuestionRows = BankRows | UploadPracticeRows | Array<BankRows[number] | UploadPracticeRows[number]>;
+type CapturePracticeRows = Awaited<ReturnType<typeof listCaptureQuestionsByIds>>;
+/** Bank, private upload/capture, or a recovery mix. */
+type SessionQuestionRows =
+  | BankRows
+  | UploadPracticeRows
+  | CapturePracticeRows
+  | Array<BankRows[number] | UploadPracticeRows[number] | CapturePracticeRows[number]>;
 
 /** The questions a session asks, decided by its mode. */
 async function loadSessionQuestions(
@@ -1228,16 +1236,21 @@ async function loadSessionQuestions(
     // topping the session up from the bank would put questions into it that no
     // tier accounts for, and the per-tier score would then be taken over a
     // different set than the totals recorded at start.
-    // Spec §9 / migration 720 — tier 0 may also carry private upload originals.
+    // Spec §9 / migration 720+770 — tier 0 may carry upload or capture originals.
     const tierOf = config.recovery.tierByQuestionId;
     const ids = Object.keys(tierOf);
-    const [bankRows, uploadRows] = await Promise.all([
+    const [bankRows, uploadRows, captureRows] = await Promise.all([
       PracticeService.listBankQuestions(ctx, { ids, limit: ids.length }),
       StudentUploadService.listByIds(ctx, ids),
+      listCaptureQuestionsByIds(ctx, ids),
     ]);
-    const byId = new Map<string, (typeof bankRows)[number] | (typeof uploadRows)[number]>();
+    const byId = new Map<
+      string,
+      (typeof bankRows)[number] | (typeof uploadRows)[number] | (typeof captureRows)[number]
+    >();
     for (const r of bankRows) byId.set(r.id, r);
     for (const r of uploadRows) byId.set(r.id, r);
+    for (const r of captureRows) byId.set(r.id, r);
     return ids
       .map((id) => byId.get(id))
       .filter((r): r is NonNullable<typeof r> => r != null)
@@ -1442,6 +1455,7 @@ function Session({
             const options = parseBankOptions(r.options);
             if (!r.id || !r.question || options.length < 2) return null;
             const fromUpload = "from_upload" in r && r.from_upload === true;
+            const fromCapture = "from_capture" in r && r.from_capture === true;
             return {
               id: r.id,
               subject: r.subject || "",
@@ -1450,6 +1464,7 @@ function Session({
               question: r.question,
               options,
               fromUpload,
+              fromCapture,
               aiAnswered: fromUpload && "ai_answered" in r ? Boolean(r.ai_answered) : false,
               chapterId: "chapter_id" in r ? (r.chapter_id ?? null) : null,
             };
@@ -1566,9 +1581,12 @@ function Session({
   }): PracticeAttemptSnapshot {
     // Spec §9.1 — upload attempts: source = 'upload', source_id = upload id,
     // bank_question_id null (private rows are not in question_bank).
+    // Screen-capture §7.4 — same shape with source = 'screen_capture'.
     // Subject/chapter come from the question (curriculum_subjects via chapter),
     // never session placeholders Mixed/General.
     const fromUpload = Boolean(q.fromUpload);
+    const fromCapture = Boolean(q.fromCapture);
+    const privateQ = fromUpload || fromCapture;
     return {
       question: q.question,
       options: q.options,
@@ -1576,15 +1594,20 @@ function Session({
       // verdict fills both in on this snapshot when it lands (record below).
       correctIndex: -1,
       explanation: undefined,
-      bankQuestionId: fromUpload ? null : q.id,
+      bankQuestionId: privateQ ? null : q.id,
       uploadQuestionId: fromUpload ? q.id : null,
+      captureQuestionId: fromCapture ? q.id : null,
       subject: q.subject,
       chapter: q.chapter,
       chapterId: q.chapterId ?? null,
       difficulty: q.difficulty,
-      source: fromUpload ? "upload" : "practice",
+      source: fromUpload ? "upload" : fromCapture ? "screen_capture" : "practice",
       practiceMode: config.mode,
-      sourceId: fromUpload ? (config.upload?.uploadId ?? null) : sessionIdRef.current,
+      sourceId: fromUpload
+        ? (config.upload?.uploadId ?? null)
+        : fromCapture
+          ? q.id
+          : sessionIdRef.current,
       timeTakenMs: Date.now() - questionStartRef.current,
       solutionViewed: false,
       attemptNumber: ++attemptNumberRef.current,
@@ -1717,6 +1740,8 @@ function Session({
           bank_question_id: snap.bankQuestionId ?? null,
           // Spec §9 — private upload row id for chapter_tally / dispute join.
           upload_question_id: snap.uploadQuestionId ?? null,
+          // Screen-capture §7.4 — private capture original id.
+          capture_question_id: snap.captureQuestionId ?? null,
           // `?? null`: the column is jsonb, which has a null but no undefined —
           // an undefined key would vanish from the row rather than be unset.
           subject: snap.subject ?? null,
@@ -1769,7 +1794,7 @@ function Session({
   function toggleBookmark() {
     // Spec §2.1 — upload questions are not in question_bank; bookmarks key on
     // bank ids, so they do not apply here.
-    if (qs[idx]?.fromUpload) return;
+    if (qs[idx]?.fromUpload || qs[idx]?.fromCapture) return;
 
     const nextOn = !bookmarkedRef.current.includes(idx);
     bookmarkedRef.current = nextOn
@@ -1931,7 +1956,7 @@ function Session({
             <span className="text-[10px] text-muted-foreground">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {!q.fromUpload && (
+            {!(q.fromUpload || q.fromCapture) && (
               <button
                 type="button"
                 onClick={toggleBookmark}

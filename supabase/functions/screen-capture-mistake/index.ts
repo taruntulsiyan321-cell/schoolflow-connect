@@ -133,20 +133,15 @@ async function handle(req: Request): Promise<Response> {
   const exam_id =
     typeof examAccount?.exam_id === "string" ? examAccount.exam_id : "";
 
-  // Allowlist: body.allowed_packages OR rows the student saved.
-  let allowed: string[] = [];
-  if (Array.isArray(body.allowed_packages)) {
-    allowed = body.allowed_packages
-      .map((p) => (typeof p === "string" ? p.trim() : ""))
-      .filter(Boolean);
-  }
-  if (allowed.length === 0) {
-    const { data: rows } = await userClient
-      .from("student_capture_allowed_apps")
-      .select("package_name")
-      .eq("owner_id", uid);
-    allowed = (rows ?? []).map((r) => String(r.package_name));
-  }
+  // Allowlist: ALWAYS from the student's saved rows (§4 / §5.1). Never trust
+  // body.allowed_packages — a JWT caller could otherwise gate-pass any package.
+  const { data: allowRows } = await userClient
+    .from("student_capture_allowed_apps")
+    .select("package_name")
+    .eq("owner_id", uid);
+  const allowed = (allowRows ?? [])
+    .map((r) => String(r.package_name ?? "").trim())
+    .filter(Boolean);
 
   const intake = applyIntakeGates({
     package_name,
@@ -331,7 +326,9 @@ async function handle(req: Request): Promise<Response> {
   }
 
   // Subject label for mistake book — prefer chapter's subject when inherited.
-  let subject = "General";
+  // Upload §5.1 / capture §7.2: never invent "General" — wrong chapter is worse
+  // than none; placeholder subjects are dropped by the Mistake Book filter.
+  let subject = "";
   let chapterName: string | null = null;
   if (chapter_id) {
     const { data: ch } = await admin

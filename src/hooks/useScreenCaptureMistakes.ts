@@ -110,6 +110,7 @@ async function loadAllowedPackages(userId: string): Promise<string[]> {
 export function useScreenCaptureMistakes(opts: {
   userId: string | undefined;
   examId: string | null | undefined;
+  schoolId?: string | null;
 }): ScreenCaptureMistakesApi {
   const available = isNativeScreenCaptureAvailable();
   const [watching, setWatching] = useState(false);
@@ -122,20 +123,26 @@ export function useScreenCaptureMistakes(opts: {
   const uploadQueue = useRef<{ frame: CaptureFrame; source: "tap" | "watch" }[]>([]);
   const allowedRef = useRef<string[]>([]);
   const examRef = useRef(opts.examId);
+  const schoolRef = useRef(opts.schoolId);
   const watchingRef = useRef(false);
+  const stopToastFromUi = useRef(false);
+
+  const setWatchingSync = useCallback((v: boolean) => {
+    watchingRef.current = v;
+    setWatching(v);
+  }, []);
 
   useEffect(() => {
     examRef.current = opts.examId;
   }, [opts.examId]);
 
   useEffect(() => {
-    allowedRef.current = allowedPackages;
-  }, [allowedPackages]);
+    schoolRef.current = opts.schoolId;
+  }, [opts.schoolId]);
 
   useEffect(() => {
-    watchingRef.current = watching;
-  }, [watching]);
-
+    allowedRef.current = allowedPackages;
+  }, [allowedPackages]);
   const syncNativeAllowlist = useCallback(async (packages: string[]) => {
     if (!available) return;
     await ScreenCaptureMistake.setAllowedPackages({ packages });
@@ -146,11 +153,11 @@ export function useScreenCaptureMistakes(opts: {
     try {
       const c = await ScreenCaptureMistake.getFunnelCounters();
       setCounters(c);
-      if (typeof c.watch_active === "boolean") setWatching(c.watch_active);
+      if (typeof c.watch_active === "boolean") setWatchingSync(c.watch_active);
     } catch {
       /* not mid-session */
     }
-  }, [available]);
+  }, [available, setWatchingSync]);
 
   const refreshUsageAccess = useCallback(async () => {
     if (!available) return;
@@ -170,15 +177,16 @@ export function useScreenCaptureMistakes(opts: {
       while (uploadQueue.current.length > 0) {
         const job = uploadQueue.current.shift();
         if (!job?.frame.image_base64) continue;
-        const pkg = (job.frame.package_name ?? "").trim() || DEFAULT_PW;
-        const allow = allowedRef.current.length > 0 ? allowedRef.current : [DEFAULT_PW];
+        const pkg = (job.frame.package_name ?? "").trim();
+        if (!pkg) continue;
+        // Server loads allowlist from DB — do not invent DEFAULT_PW here.
         try {
           const result = await submitScreenCaptureMistake({
             image_base64: job.frame.image_base64,
             mime_type: job.frame.mime_type ?? "image/png",
             package_name: pkg,
-            allowed_packages: allow,
             exam_id: examRef.current ?? null,
+            school_id: schoolRef.current ?? null,
           });
           setLastResult(result);
           if (!result.ok) {
@@ -210,6 +218,7 @@ export function useScreenCaptureMistakes(opts: {
       if (!frame.image_base64) return;
       if (uploadQueue.current.length >= MAX_UPLOAD_QUEUE) {
         uploadQueue.current.shift();
+        toast.message("Capture queue full — oldest frame dropped");
       }
       uploadQueue.current.push({ frame, source });
       void processUploadQueue();
@@ -227,8 +236,11 @@ export function useScreenCaptureMistakes(opts: {
       const pkgs = await loadAllowedPackages(opts.userId!);
       if (cancelled) return;
       setAllowedPackages(pkgs);
-      await syncNativeAllowlist(pkgs.length > 0 ? pkgs : [DEFAULT_PW]);
+      allowedRef.current = pkgs;
+      // Empty list is honest — §5.1 drops everything until the student picks apps.
+      await syncNativeAllowlist(pkgs);
       await refreshUsageAccess();
+      if (cancelled) return;
 
       const tap = await ScreenCaptureMistake.addListener("tapRequested", async () => {
         if (watchingRef.current) {
@@ -243,6 +255,10 @@ export function useScreenCaptureMistakes(opts: {
           toast.error(msg.includes("watch_session") ? "Stop watching first" : msg);
         }
       });
+      if (cancelled) {
+        void tap.remove();
+        return;
+      }
       handles.push(tap);
 
       const watch = await ScreenCaptureMistake.addListener(
@@ -252,13 +268,24 @@ export function useScreenCaptureMistakes(opts: {
           enqueueUpload(event, "watch");
         },
       );
+      if (cancelled) {
+        void watch.remove();
+        return;
+      }
       handles.push(watch);
 
       const ended = await ScreenCaptureMistake.addListener("watchSessionEnded", () => {
-        setWatching(false);
+        setWatchingSync(false);
         void refreshCounters();
-        toast.message("Mistake watch stopped");
+        if (!stopToastFromUi.current) {
+          toast.message("Mistake watch stopped");
+        }
+        stopToastFromUi.current = false;
       });
+      if (cancelled) {
+        void ended.remove();
+        return;
+      }
       handles.push(ended);
     })();
 
@@ -266,43 +293,54 @@ export function useScreenCaptureMistakes(opts: {
       cancelled = true;
       for (const h of handles) void h.remove();
     };
-  }, [available, opts.userId, syncNativeAllowlist, enqueueUpload, refreshCounters, refreshUsageAccess]);
+  }, [available, opts.userId, syncNativeAllowlist, enqueueUpload, refreshCounters, refreshUsageAccess, setWatchingSync]);
 
-  // Live counters while watching; resume usage-access after Settings.
+  // Resume usage-access after Settings; live counters while watching.
+  useEffect(() => {
+    if (!available) return;
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        void refreshUsageAccess();
+        if (watchingRef.current) void refreshCounters();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [available, refreshCounters, refreshUsageAccess]);
+
   useEffect(() => {
     if (!available || !watching) return;
     const id = window.setInterval(() => {
       void refreshCounters();
     }, 4000);
-    const onVis = () => {
-      if (document.visibilityState === "visible") {
-        void refreshUsageAccess();
-        void refreshCounters();
-      }
-    };
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, [available, watching, refreshCounters, refreshUsageAccess]);
+    return () => window.clearInterval(id);
+  }, [available, watching, refreshCounters]);
 
   const ensurePwAllowed = useCallback(async () => {
     if (!opts.userId) return;
-    await setAppAllowedInternal(opts.userId, DEFAULT_PW, "Physics Wallah", true);
+    // Only seed PW when the student has never chosen an app — never re-force after uncheck.
+    const existing = await loadAllowedPackages(opts.userId);
+    if (existing.length === 0) {
+      await setAppAllowedInternal(opts.userId, DEFAULT_PW, "Physics Wallah", true);
+    }
     const pkgs = await loadAllowedPackages(opts.userId);
     setAllowedPackages(pkgs);
+    allowedRef.current = pkgs;
     await syncNativeAllowlist(pkgs);
   }, [opts.userId, syncNativeAllowlist]);
 
   const setAppAllowed = useCallback(
     async (packageName: string, label: string, allowed: boolean) => {
-      if (!opts.userId) return;
+      if (!opts.userId) {
+        toast.error("Sign in to change allowed apps");
+        return;
+      }
       try {
         await setAppAllowedInternal(opts.userId, packageName, label, allowed);
         const pkgs = await loadAllowedPackages(opts.userId);
         setAllowedPackages(pkgs);
-        await syncNativeAllowlist(pkgs.length > 0 ? pkgs : [DEFAULT_PW]);
+        allowedRef.current = pkgs;
+        await syncNativeAllowlist(pkgs);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not update app list");
       }
@@ -359,8 +397,14 @@ export function useScreenCaptureMistakes(opts: {
         return;
       }
       await ScreenCaptureMistake.showTapOverlay();
-      await ScreenCaptureMistake.startWatchSession();
-      setWatching(true);
+      // Block tap immediately — overlay is up before MediaProjection consent returns.
+      setWatchingSync(true);
+      try {
+        await ScreenCaptureMistake.startWatchSession();
+      } catch (e) {
+        setWatchingSync(false);
+        throw e;
+      }
       toast.message("Watching for mistakes — only allowlisted apps, on-device filter");
       await refreshCounters();
     } catch (e) {
@@ -371,22 +415,24 @@ export function useScreenCaptureMistakes(opts: {
     } finally {
       setBusy(false);
     }
-  }, [available, ensurePwAllowed, refreshCounters, refreshUsageAccess]);
+  }, [available, ensurePwAllowed, refreshCounters, refreshUsageAccess, setWatchingSync]);
 
   const stopWatch = useCallback(async () => {
     if (!available) return;
     setBusy(true);
     try {
+      stopToastFromUi.current = true;
       await ScreenCaptureMistake.stopWatchSession();
-      setWatching(false);
+      setWatchingSync(false);
       await refreshCounters();
       toast.message("Mistake watch stopped");
     } catch (e) {
+      stopToastFromUi.current = false;
       toast.error(e instanceof Error ? e.message : "Could not stop watch");
     } finally {
       setBusy(false);
     }
-  }, [available, refreshCounters]);
+  }, [available, refreshCounters, setWatchingSync]);
 
   const deleteCapture = useCallback(async (captureQuestionId: string) => {
     const ok = await deleteScreenCaptureQuestion(captureQuestionId);

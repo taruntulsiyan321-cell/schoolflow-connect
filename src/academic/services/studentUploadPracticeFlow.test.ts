@@ -210,11 +210,15 @@ describe("attempt snapshot — upload source (§9.1)", () => {
   it("writes source=upload and bankQuestionId null for fromUpload questions", () => {
     const snap = section("function snapshotOf(", "function record(");
     expect(snap).toContain("const fromUpload = Boolean(q.fromUpload)");
-    expect(snap).toContain('source: fromUpload ? "upload" : "practice"');
-    expect(snap).toContain("bankQuestionId: fromUpload ? null : q.id");
+    expect(snap).toContain("const fromCapture = Boolean(q.fromCapture)");
+    expect(snap).toContain(
+      'source: fromUpload ? "upload" : fromCapture ? "screen_capture" : "practice"',
+    );
+    expect(snap).toContain("bankQuestionId: privateQ ? null : q.id");
     expect(snap).toContain("uploadQuestionId: fromUpload ? q.id : null");
+    expect(snap).toContain("captureQuestionId: fromCapture ? q.id : null");
     // Positive control: a bank attempt must still carry its id.
-    expect(snap).toMatch(/bankQuestionId:\s*fromUpload\s*\?\s*null\s*:\s*q\.id/);
+    expect(snap).toMatch(/bankQuestionId:\s*privateQ\s*\?\s*null\s*:\s*q\.id/);
     // Upload id goes on sourceId — never as bank_question_id.
     expect(snap).toContain("config.upload?.uploadId");
     // Subject comes from the question, not Mixed/General session placeholders.

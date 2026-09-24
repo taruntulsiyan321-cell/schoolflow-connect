@@ -442,11 +442,12 @@ export const RecoveryEngineService = {
     const tierByQuestionId: Record<string, 0 | 1 | 2 | 3> = {};
     for (const tier of [0, 1, 2, 3] as const) {
       const tierPlan = started.plan?.tiers?.[String(tier)] as
-        | { from_bank?: unknown; from_upload?: unknown }
+        | { from_bank?: unknown; from_upload?: unknown; from_capture?: unknown }
         | undefined;
       const fromBank = tierPlan?.from_bank;
       const fromUpload = tierPlan?.from_upload;
-      for (const bag of [fromBank, fromUpload]) {
+      const fromCapture = tierPlan?.from_capture;
+      for (const bag of [fromBank, fromUpload, fromCapture]) {
         if (!Array.isArray(bag)) continue;
         for (const id of bag) {
           if (typeof id === "string" && id && !(id in tierByQuestionId)) {

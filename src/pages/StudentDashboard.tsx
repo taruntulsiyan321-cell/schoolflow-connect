@@ -98,6 +98,7 @@ export default function StudentDashboard() {
   const screenCapture = useScreenCaptureMistakes({
     userId: user?.id,
     examId,
+    schoolId,
   });
   /** Organisation: class label. Individual: competitive exam name (no class/board). */
   const scopeLabel =

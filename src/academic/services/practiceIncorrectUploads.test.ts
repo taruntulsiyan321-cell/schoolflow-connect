@@ -55,17 +55,27 @@ describe("incorrect mode includes upload mistakes", () => {
     // Prefer the live private row when upload_question_id is set; snapshot only
     // when the column is absent or the id cannot be hydrated.
     expect(body).toMatch(/uploadById\.has\(uqid\)/);
-    expect(body).toMatch(/snapshotUpload\s*\(/);
+    expect(body).toMatch(/snapshotPrivate\s*\(/);
+  });
+
+  it("loads private screen-capture questions the same way as uploads", () => {
+    const body = listMistakeBody();
+    expect(body).toContain('source === "screen_capture"');
+    expect(body).toContain('.from("student_capture_questions")');
+    expect(body).toContain("capture_question_id");
+    expect(body).toContain("from_capture: true");
+    expect(body).toMatch(/captureById\.has\(cqid\)/);
   });
 
   it("prefers selecting upload_question_id and degrades when the column is missing", () => {
     const body = listMistakeBody();
-    // First select asks for the column; isMissingSchema retries without it so
-    // Incorrect mode keeps working before migration 20261070000000 lands.
+    // First select asks for private columns; isMissingSchema retries without
+    // them so Incorrect mode keeps working before migrations land.
     expect(body).toMatch(/upload_question_id/);
+    expect(body).toMatch(/capture_question_id/);
     expect(body).toMatch(/isMissingSchema\s*\(/);
     expect(body).toMatch(/baseSelect/);
-    expect(body).toMatch(/withUploadSelect/);
+    expect(body).toMatch(/withPrivateSelect|withUploadSelect/);
   });
 
   it("still loads bank mistakes through listBankQuestions", () => {
