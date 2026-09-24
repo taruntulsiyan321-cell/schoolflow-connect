@@ -170,7 +170,16 @@ export function snapshotsToAttemptRows(attempts: PracticeAttemptSnapshot[]) {
     const skipped = Boolean(a.skipped || a.timedOut);
     return {
       id: `local-${i}`,
-      generated_question: { question: a.question, options: a.options, explanation: a.explanation },
+      // Spec §9 — keep upload_question_id / chapter_id on every generated_question
+      // shape (result UI + any consumer), same as attemptsToFinishPayload.
+      generated_question: {
+        question: a.question,
+        options: a.options,
+        explanation: a.explanation,
+        bank_question_id: a.bankQuestionId ?? null,
+        upload_question_id: a.uploadQuestionId ?? null,
+        chapter_id: a.chapterId ?? null,
+      },
       correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
       selected_answer: skipped ? null : { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
       is_correct: skipped ? false : a.isCorrect,
