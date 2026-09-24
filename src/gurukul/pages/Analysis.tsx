@@ -45,7 +45,6 @@ import {
   weekdayLabel,
   buildWeekComparison,
   buildSubjectRadarPoints,
-  deriveImprovingChapters,
   deriveMonthComparison,
   deriveRecoveryProgress,
   deriveRecoveryChapters,
@@ -545,14 +544,11 @@ export default function Analysis() {
         // does not get made on one attempt. A topic below the bar still appears
         // on the tab — it just reports attempts instead of being flagged.
         .filter((t) => mayBeJudged(t.practiceCount)),
-      improving: deriveImprovingChapters(
-        charts?.practice_trend ?? [],
-        analysis?.recent_sessions ?? [],
-      ).filter(
-        (t) =>
-          preferRealAcademicLabel(t.chapter) &&
-          (t.subject === "—" || preferRealAcademicLabel(t.subject)),
-      ),
+      // "Chapters getting better" WENT HERE. §6.1 / §10.8: weaknesses only —
+      // never strengths. A dedicated improving list is a strengths panel under
+      // another name. Trend on a chapter that still needs work stays on the
+      // §6.3 list and on the subject/chapter grids; it is not a celebration.
+      //
       // `not_started` WENT WITH concept_mastery, and it could not have
       // answered its own question anyway. It listed concept rows at
       // total_attempts = 0, which is not "topics you have not started" — it is
@@ -560,7 +556,7 @@ export default function Analysis() {
       // syllabus is not in that table at all, so the panel was answering a
       // question about coverage from a table that only knows about contact.
     };
-  }, [snapshot?.weak_topics, v2WeakAreas, charts?.practice_trend, analysis?.recent_sessions]);
+  }, [snapshot?.weak_topics, v2WeakAreas, analysis?.recent_sessions]);
 
   // Four real Mon–Sun weeks ending with this one. Every cell is a date, so a
   // Tuesday is drawn under Tuesday; a day with no activity is a zero rather
@@ -631,13 +627,18 @@ export default function Analysis() {
   }, [student.streak, activityWeeks]);
 
   const practiceMonthly = useMemo(() => {
+    // PRACTICE ONLY (rule 11). weekly_activity.total is
+    // test + homework + battle + self_practice — school data folded into a
+    // chart headed "Practice activity". Count self_practice alone.
     const weekly = charts?.weekly_activity ?? [];
     const byMonth = new Map<string, number>();
     for (const row of weekly) {
       const key = new Date(row.date).toLocaleDateString(undefined, { month: "short" });
-      byMonth.set(key, (byMonth.get(key) ?? 0) + row.total);
+      byMonth.set(key, (byMonth.get(key) ?? 0) + (row.self_practice ?? 0));
     }
-    return [...byMonth.entries()].map(([month, done]) => ({ month, done }));
+    return [...byMonth.entries()]
+      .filter(([, done]) => done > 0)
+      .map(([month, done]) => ({ month, done }));
   }, [charts?.weekly_activity]);
 
   // ONE DEFINITION OF PER-QUESTION TIME ON THIS PAGE, AT EVERY LEVEL.
@@ -1456,15 +1457,10 @@ export default function Analysis() {
             )}
           </Card>
 
-          {/* This week vs last week */}
-          {/* NOT QUESTIONS. buildWeekComparison sums weekly_activity.total,
-              which rpc_student_performance_charts builds as
-              test_count + homework_count + battle_count + self_practice_count.
-              This is the fourth panel on the page to have read that column as
-              questions; the other three were corrected on 2026-09-17 and this
-              one was missed because its title says it in prose rather than in
-              a dataKey. */}
-          <Card label="This week vs last week — activities">
+          {/* This week vs last week — practice sessions only (rule 11).
+              activityWeeks now counts self_practice alone, so the bars match
+              the Practice tab tiles and never fold in tests or homework. */}
+          <Card label="This week vs last week — practice">
             {weekComparison.some((d) => d.thisWeek > 0 || d.lastWeek > 0) ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -1738,65 +1734,35 @@ export default function Analysis() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-6">
-            {/* Improving */}
-            <div>
-              <SLabel>Chapters getting better</SLabel>
-              <div className="space-y-2">
-                {topicGroups.improving.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No improvement trends yet</p>
-                ) : topicGroups.improving.map((t) => (
-                  <div key={t.chapter} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
-                    <TrendingUp className="w-4 h-4 text-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      {/* displayCHAPTER. presentAcademicLabel resolves against
-                          a per-kind dictionary, and these rows are grouped by
-                          chapter — formatting one as a topic asks the wrong
-                          dictionary for the name. */}
-                      <div className="text-sm font-semibold text-foreground truncate">{displayChapter(t.chapter)}</div>
-                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
+          {/* QUESTIONS THEY KEEP GETTING WRONG.
+              This slot held "Topics yet to begin" (concept_mastery at zero
+              attempts) and beside it "Chapters getting better" (§6.1 / §10.8
+              forbid strengths panels). student_mistakes.times_wrong is the
+              actionable number. */}
+          <div>
+            <SLabel>Questions you keep getting wrong</SLabel>
+            <div className="space-y-2">
+              {(practiceAnalytics?.recurring ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  Nothing has caught you out twice yet.
+                </p>
+              ) : (practiceAnalytics?.recurring ?? []).map((r, i) => (
+                <div key={`${r.topic ?? r.chapter ?? "q"}-${i}`} className="flex items-start gap-3 p-3 rounded-xl border border-destructive/12 bg-destructive/5">
+                  <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-foreground truncate">
+                      {displayTopic(r.topic ?? "") || displayChapter(r.chapter ?? "") || "This question"}
                     </div>
-                    {/* Points, not percent — the same correction as TrendCell below. */}
-                    <span className="text-sm font-black text-success shrink-0">
-                      +{t.improvement} {t.improvement === 1 ? "pt" : "pts"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* QUESTIONS THEY KEEP GETTING WRONG.
-                This slot held "Topics yet to begin", which listed
-                concept_mastery rows at zero attempts — rows that happen to
-                exist, not a syllabus. student_mistakes.times_wrong is
-                populated and is the most actionable number on the page:
-                measured, one question missed eight times and another seven,
-                and nothing anywhere showed it. */}
-            <div>
-              <SLabel>Questions you keep getting wrong</SLabel>
-              <div className="space-y-2">
-                {(practiceAnalytics?.recurring ?? []).length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    Nothing has caught you out twice yet.
-                  </p>
-                ) : (practiceAnalytics?.recurring ?? []).map((r, i) => (
-                  <div key={`${r.topic ?? r.chapter ?? "q"}-${i}`} className="flex items-start gap-3 p-3 rounded-xl border border-destructive/12 bg-destructive/5">
-                    <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground truncate">
-                        {displayTopic(r.topic ?? "") || displayChapter(r.chapter ?? "") || "This question"}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        {r.question_text ?? displaySubject(r.subject ?? "")}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-black text-destructive tabular-nums">{r.times_wrong}&times;</div>
-                      <div className="text-[10px] text-muted-foreground">{formatLastSeen(r.last_wrong_at)}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {r.question_text ?? displaySubject(r.subject ?? "")}
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-black text-destructive tabular-nums">{r.times_wrong}&times;</div>
+                    <div className="text-[10px] text-muted-foreground">{formatLastSeen(r.last_wrong_at)}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1899,32 +1865,24 @@ export default function Analysis() {
         <div className="space-y-6">
           {/* Practice stats */}
           <div>
-            {/* weekDone sums charts.weekly_activity, which is the last 28
-                days, not a week — the RPC's key is misnamed and the label
-                inherited it. */}
+            {/* Four weeks of practice sessions — consistencyWeeks windows the
+                heat map; the RPC's "weekly_activity" name is leftover. */}
             <SLabel>Your practice — last 4 weeks</SLabel>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                // Both count ACTIVITIES — the heat map's own cells, which are
-                // tests + homework + battles + practice sessions. "Done today"
-                // sat beside "Activities in 4 weeks" naming the same unit two
-                // ways, under a heading that says practice.
-                { label: "Activities today",      value: `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
-                { label: "Activities in 4 weeks", value: `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
+                // Practice sessions only (rule 11). The heat map still carries
+                // test / homework / battle counts for other surfaces; Analysis
+                // reads self_practice alone via consistencyWeeks.
+                { label: "Practice today",      value: `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
+                { label: "Practice in 4 weeks", value: `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
                 { label: "Practice streak",   value: pluralise(practiceStats.streakDays, "day"),                        color: "hsl(var(--warning))" },
                 { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "hsl(var(--success))" },
               ].map((s) => <Metric key={s.label} label={s.label} value={s.value} color={s.color} />)}
             </div>
           </div>
 
-          {/* Practice monthly */}
-          {/* NOT QUESTIONS. practiceMonthly sums weekly_activity.total, which
-              rpc_student_performance_charts builds as
-              test_count + homework_count + battle_count + self_practice_count.
-              The heat-map tooltip two panels down was corrected to say
-              "activities" for this exact reason; the correction was made there
-              and not here, so the same table kept being read as questions. */}
-          <Card label="Practice activity each month">
+          {/* Practice monthly — self_practice only, never weekly_activity.total. */}
+          <Card label="Practice sessions each month">
             {practiceMonthly.length > 0 ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -1933,7 +1891,7 @@ export default function Analysis() {
                   <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="done" name="Activities" radius={[6, 6, 0, 0]} isAnimationActive={false}>
+                  <Bar dataKey="done" name="Practice sessions" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                     {practiceMonthly.map((_, i) => (
                       <Cell key={i} fill={i === practiceMonthly.length - 1 ? "hsl(var(--primary))" : withAlpha("hsl(var(--primary))", 0.35)} />
                     ))}

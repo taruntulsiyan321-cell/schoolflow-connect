@@ -4,27 +4,17 @@
  */
 
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
-import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { ChapterStateRow, RecoveryQueueRow } from "@/academic";
-import type {
-  PracticeTrendPoint,
-  WeeklyActivityPoint,
-  SubjectChartPoint,
-} from "@/hooks/useStudentPerformanceCharts";
-import { normalizeSubjectName } from "@/lib/curriculumScope";
-import { accuracyBand } from "@/academic/metrics/bands";
 import {
   REVISION_STAGES_TO_SOLID,
   TREND_DELTA_POINTS,
   TREND_MIN_SESSIONS,
   type TrendState,
 } from "@/academic/recovery/constants";
-import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
   buildSubjectRadarPoints,
   dedupeSubjectChartPoints,
-  isGenericAcademicLabel,
   preferRealAcademicLabel,
 } from "@/lib/qualityGuards";
 import { mayBeJudged } from "@/academic/metrics/thresholds";
@@ -32,13 +22,6 @@ import { mayBeJudged } from "@/academic/metrics/thresholds";
 export { buildSubjectRadarPoints, dedupeSubjectChartPoints };
 
 export const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-
-function subjectSessionKey(raw: string | null | undefined): string {
-  if (!raw || isGenericAcademicLabel(raw)) return "";
-  const canon = normalizeSubjectName(raw) || raw.trim();
-  const presented = displaySubject(canon) || canon;
-  return presented ? presented.toLowerCase() : "";
-}
 
 /**
  * A date-only string ("2026-09-14") as LOCAL midnight.
@@ -86,11 +69,6 @@ function daysAgo(n: number, from = new Date()): Date {
   d.setDate(d.getDate() - n);
   return d;
 }
-
-function accuracyOf(session: PracticeSessionSummary): number {
-  return session.accuracy_pct;
-}
-
 
 /** §6.4's window: "the latest 3 sessions … the previous 3". */
 export const TREND_WINDOW_SESSIONS = 3;
@@ -232,89 +210,6 @@ export function buildWeekComparison(
 // Removed rather than left importable: this had no caller once Analysis
 // stopped using it, and a shared derivation kept alive only by its own tests
 // is the next session's second home for a decision already made.
-
-/**
- * CHAPTERS getting better, and the name says so now.
- *
- * This grouped practice_trend and recent_sessions by their CHAPTER, called
- * the result `topic`, and Analysis rendered it through displayTopic() under
- * a heading reading "Topics getting better". presentAcademicLabel resolves
- * against a per-kind dictionary, so a chapter name was being looked up as
- * though it were a topic — three layers of one mislabel, on a page that
- * keeps displayChapter and displayTopic apart precisely because they are not
- * interchangeable.
- *
- * practice_trend is per chapter. There is no topic-level trend to show here,
- * so the panel says chapter.
- */
-export function deriveImprovingChapters(
-  practiceTrend: PracticeTrendPoint[],
-  sessions: PracticeSessionSummary[],
-): { chapter: string; subject: string; improvement: number }[] {
-  const byKey = new Map<string, { subject: string; scores: number[] }>();
-
-  const orderedTrend = [...practiceTrend].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-  );
-  for (const p of orderedTrend) {
-    const chapter = preferRealAcademicLabel(p.chapter);
-    if (!chapter) continue;
-    const key = chapter.toLowerCase();
-    const entry = byKey.get(key) ?? { subject: "", scores: [] };
-    entry.scores.push(Math.round(p.score_pct));
-    byKey.set(key, entry);
-  }
-
-  // Fill subject from sessions when trend rows lack it.
-  for (const s of sessions) {
-    const key = preferRealAcademicLabel(s.chapter).toLowerCase();
-    if (!key) continue;
-    const entry = byKey.get(key);
-    if (entry && !entry.subject) {
-      const subj = preferRealAcademicLabel(s.subject);
-      if (subj) entry.subject = subj;
-    }
-  }
-
-  // Session-only chapters not in trend.
-  const byChapterSessions = new Map<string, { subject: string; scores: number[] }>();
-  for (const s of [...sessions].sort(
-    (a, b) => new Date(a.finished_at).getTime() - new Date(b.finished_at).getTime(),
-  )) {
-    const chapter = preferRealAcademicLabel(s.chapter);
-    const subject = preferRealAcademicLabel(s.subject);
-    if (!chapter || !subject) continue;
-    const key = chapter.toLowerCase();
-    if (byKey.has(key)) continue;
-    const entry = byChapterSessions.get(key) ?? { subject, scores: [] };
-    entry.scores.push(accuracyOf(s));
-    entry.subject = subject;
-    byChapterSessions.set(key, entry);
-  }
-
-  const merged = [...byKey.entries(), ...byChapterSessions.entries()];
-  const out: { chapter: string; subject: string; improvement: number }[] = [];
-  for (const [key, { subject, scores }] of merged) {
-    // Converged onto the one §6.4 ladder. This carried its own `< 5`, a
-    // third threshold for the same judgement the subject rows and chapter
-    // rows make at TREND_DELTA_POINTS — so a chapter could be "improving"
-    // in this list and "steady" in the grid beside it, off the same numbers.
-    const { state, deltaPoints } = trendState(scores);
-    if (state !== "improving" || deltaPoints == null) continue;
-    const trend = deltaPoints;
-    const realSubject = preferRealAcademicLabel(subject);
-    if (!realSubject) continue;
-    const chapter =
-      preferRealAcademicLabel(
-        practiceTrend.find((p) => preferRealAcademicLabel(p.chapter).toLowerCase() === key)?.chapter,
-        sessions.find((s) => preferRealAcademicLabel(s.chapter).toLowerCase() === key)?.chapter,
-        key,
-      );
-    if (!chapter) continue;
-    out.push({ chapter, subject: realSubject, improvement: Math.round(trend) });
-  }
-  return out.sort((a, b) => b.improvement - a.improvement).slice(0, 8);
-}
 
 /*
  * deriveSpeedStats, SpeedStats and sessionSecPerQuestion WERE HERE, and they
@@ -473,10 +368,10 @@ export function deriveMonthComparison(
   let thisMins = 0;
   let lastMins = 0;
   for (const row of heatmap ?? []) {
-    // The same components consistencyWeeks counts, so "activities" means one
-    // thing on this page.
-    const done =
-      (row.test ?? 0) + (row.homework ?? 0) + (row.battles ?? 0) + (row.self_practice ?? 0);
+    // Practice sessions only (rule 11). Tests / homework / battles stay on
+    // their own surfaces; folding them in made "Activities" disagree with a
+    // Practice heading and with every other practice count on the page.
+    const done = row.self_practice ?? 0;
     if (inThis(row.date)) {
       thisActivities += done;
       thisMins += row.minutes ?? 0;
@@ -499,7 +394,7 @@ export function deriveMonthComparison(
 
   return [
     {
-      label: "Activities",
+      label: "Practice",
       thisM: orNull(thisActivities, thisActivities),
       lastM: orNull(lastActivities, lastActivities),
       unit: "",
