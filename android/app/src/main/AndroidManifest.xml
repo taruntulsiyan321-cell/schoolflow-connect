@@ -34,7 +34,7 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
 
-        <!-- Stage 1 screen-capture mistakes (§4 / §10.1). No Stage 2 watcher. -->
+        <!-- Stage 1 tap (§10.1) — unchanged. -->
         <service
             android:name=".capture.CaptureOverlayService"
             android:exported="false"
@@ -47,6 +47,11 @@
             android:name=".capture.OneShotCaptureService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+        <!-- Stage 2 — one watch session + §5 on-device funnel. -->
+        <service
+            android:name=".capture.WatchSessionService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
     </application>
 
     <uses-permission android:name="android.permission.INTERNET" />
@@ -55,4 +60,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- §5.1 — Settings grant, not a runtime dialog. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
 </manifest>

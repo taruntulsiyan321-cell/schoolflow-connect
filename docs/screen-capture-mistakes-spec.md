@@ -1,8 +1,8 @@
 # Mistakes captured from another app's screen
 
-**Status:** Stage 1 (tap) built 2026-09-24. Stage 2 automatic watching is
-**not** started — blocked until Stage 1 §12 acceptance stays green (§10.1).
-Third of the three features that must exist before launch, beside
+**Status:** Stage 1 (tap) green 2026-09-24. Stage 2 (§5 on-device funnel)
+in progress — one watch session + four phone-side gates. Third of the three
+features that must exist before launch, beside
 `docs/custom-practice-upload-spec.md`.
 
 Facts marked *measured* were taken from the live database or this repository on
@@ -340,7 +340,16 @@ a real wrong answer proves nothing.
 | Usage access | Still required for Stage 2 §5.1 foreground-app filtering. **Stage 1 tap does not need it** — the student chooses the moment; the phone still sends `package_name` when known, and the server/client allowlist drops unlisted apps before any read. | Do not request usage-access until Stage 2. |
 | Android 15 | Media-projection stop chip / tighter stop UX — treat as product copy, not a blocker for Stage 1. | — |
 
-Stage 2 automatic watching (§5 funnel, usage access) remains **blocked** until Stage 1 §12 acceptance passes (§10.1).
+### VERIFY — Stage 2 usage-access + watching (checked 2026-09-24 against current docs)
+
+| fact | result | implication for §5 |
+|---|---|---|
+| `PACKAGE_USAGE_STATS` | **Confirmed:** special (AppOps) permission — declare in manifest; user grants via `Settings.ACTION_USAGE_ACCESS_SETTINGS`, not a runtime dialog. Required to query other apps' foreground state via `UsageStatsManager`. | Stage 2 §5.1: open Settings once; refuse to start the watch session until granted. |
+| Play / sensitive APIs | **Confirmed:** Play's Permissions Declaration Form targets listed high-risk permissions (SMS, Call Log, etc.). `PACKAGE_USAGE_STATS` is not on that form, but it is a **sensitive API** under "Permissions and APIs that access sensitive information" — must be necessary for a promoted core feature, user-consented, not used for undisclosed purposes. MediaProjection FGS still needs the Play Console FGS declaration above. | Justify usage-access only for "which allowlisted study app is in front"; never for ads or profiling. Keep the capture notification visible. |
+| One session (§4.1) | **Reconfirmed:** Android 14+ MediaProjection consent is per session; cannot start from background. Android 15: `BOOT_COMPLETED` cannot start `mediaProjection` FGS; starting an FGS from the background while holding `SYSTEM_ALERT_WINDOW` requires a **visible** overlay window first. | Student starts **one** watch session from the app (consent + FGS). Keep the Stage 1 overlay visible so Android 15 allows the FGS. Filtering decides what is looked at — never "start silent when PW opens". |
+| Cost (§8) | Prices still VERIFY; design target unchanged: well under $0.25/student/month via the on-device funnel; streaming ~$8–10. | Instrument `sent`; report frames-sent per hour of realistic use. |
+
+Stage 1 §12 must stay green while Stage 2 lands. The Stage 1 tap path is unchanged.
 
 ### Still open
 

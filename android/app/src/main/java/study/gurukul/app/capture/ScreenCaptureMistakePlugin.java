@@ -22,15 +22,17 @@ import java.util.List;
 import org.json.JSONException;
 
 /**
- * Stage 1 tap capture — docs/screen-capture-mistakes-spec.md §4, §10.1.
- * MediaProjection consent per session (Android 14+); overlay for the tap button.
- * Automatic watching (Stage 2) is intentionally absent.
+ * Stage 1 tap + Stage 2 watch session — docs/screen-capture-mistakes-spec.md §4, §5, §10.
+ * MediaProjection consent per session (Android 14+). Stage 1 overlay tap unchanged.
+ * Stage 2: one watch session; §5 funnel drops frames on-device before the network.
  */
 @CapacitorPlugin(name = "ScreenCaptureMistake")
 public class ScreenCaptureMistakePlugin extends Plugin {
 
   public static final String PREFS = "gurukul_capture";
   public static final String KEY_ALLOWED = "allowed_packages";
+  public static final String ACTION_WATCH_FRAME_READY =
+      "study.gurukul.app.capture.WATCH_FRAME_READY";
 
   private final BroadcastReceiver tapReceiver = new BroadcastReceiver() {
     @Override
@@ -39,13 +41,29 @@ public class ScreenCaptureMistakePlugin extends Plugin {
     }
   };
 
+  private final BroadcastReceiver watchFrameReceiver = new BroadcastReceiver() {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+      JSObject payload = new JSObject();
+      String b64 = WatchSessionService.lastSentBase64OrNull();
+      String pkg = WatchSessionService.lastSentPackageOrNull();
+      if (b64 != null) payload.put("image_base64", b64);
+      if (pkg != null) payload.put("package_name", pkg);
+      payload.put("mime_type", "image/png");
+      notifyListeners("watchFrameReady", payload);
+    }
+  };
+
   @Override
   public void load() {
-    IntentFilter filter = new IntentFilter(CaptureOverlayService.ACTION_TAP);
+    IntentFilter tap = new IntentFilter(CaptureOverlayService.ACTION_TAP);
+    IntentFilter watch = new IntentFilter(ACTION_WATCH_FRAME_READY);
     if (Build.VERSION.SDK_INT >= 33) {
-      getContext().registerReceiver(tapReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+      getContext().registerReceiver(tapReceiver, tap, Context.RECEIVER_NOT_EXPORTED);
+      getContext().registerReceiver(watchFrameReceiver, watch, Context.RECEIVER_NOT_EXPORTED);
     } else {
-      getContext().registerReceiver(tapReceiver, filter);
+      getContext().registerReceiver(tapReceiver, tap);
+      getContext().registerReceiver(watchFrameReceiver, watch);
     }
   }
 
@@ -53,6 +71,9 @@ public class ScreenCaptureMistakePlugin extends Plugin {
   protected void handleOnDestroy() {
     try {
       getContext().unregisterReceiver(tapReceiver);
+    } catch (Exception ignored) {}
+    try {
+      getContext().unregisterReceiver(watchFrameReceiver);
     } catch (Exception ignored) {}
     super.handleOnDestroy();
   }
@@ -166,5 +187,87 @@ public class ScreenCaptureMistakePlugin extends Plugin {
     } else {
       getContext().startService(svc);
     }
+  }
+
+  // ── Stage 2 watch session (§4.1 / §5) ─────────────────────────────────────
+
+  @PluginMethod
+  public void hasUsageAccess(PluginCall call) {
+    study.gurukul.app.capture.funnel.ForegroundAppResolver resolver =
+        new study.gurukul.app.capture.funnel.ForegroundAppResolver(getContext());
+    JSObject ret = new JSObject();
+    ret.put("allowed", resolver.hasUsageAccess());
+    call.resolve(ret);
+  }
+
+  @PluginMethod
+  public void openUsageAccessSettings(PluginCall call) {
+    study.gurukul.app.capture.funnel.ForegroundAppResolver resolver =
+        new study.gurukul.app.capture.funnel.ForegroundAppResolver(getContext());
+    Intent intent = resolver.usageAccessSettingsIntent();
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    getContext().startActivity(intent);
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void startWatchSession(PluginCall call) {
+    study.gurukul.app.capture.funnel.ForegroundAppResolver resolver =
+        new study.gurukul.app.capture.funnel.ForegroundAppResolver(getContext());
+    if (!resolver.hasUsageAccess()) {
+      call.reject("usage_access_required");
+      return;
+    }
+    MediaProjectionManager mpm = (MediaProjectionManager) getContext()
+        .getSystemService(Activity.MEDIA_PROJECTION_SERVICE);
+    if (mpm == null) {
+      call.reject("media_projection_unavailable");
+      return;
+    }
+    Intent intent = mpm.createScreenCaptureIntent();
+    startActivityForResult(call, intent, "watchProjectionResult");
+  }
+
+  @ActivityCallback
+  private void watchProjectionResult(PluginCall call, ActivityResult result) {
+    if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
+      call.reject("capture_consent_denied");
+      return;
+    }
+    Intent svc = new Intent(getContext(), WatchSessionService.class);
+    svc.putExtra(WatchSessionService.EXTRA_RESULT_CODE, result.getResultCode());
+    svc.putExtra(WatchSessionService.EXTRA_RESULT_DATA, result.getData());
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      getContext().startForegroundService(svc);
+    } else {
+      getContext().startService(svc);
+    }
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void stopWatchSession(PluginCall call) {
+    Intent i = new Intent(getContext(), WatchSessionService.class);
+    i.setAction(WatchSessionService.ACTION_STOP);
+    getContext().startService(i);
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void getFunnelCounters(PluginCall call) {
+    study.gurukul.app.capture.funnel.FunnelCounters c =
+        WatchSessionService.countersSnapshot();
+    JSObject ret = new JSObject();
+    ret.put("frames_seen", c.framesSeen);
+    ret.put("dropped_at_5_1", c.droppedAt51);
+    ret.put("dropped_at_5_2", c.droppedAt52);
+    ret.put("dropped_at_5_3", c.droppedAt53);
+    ret.put("dropped_at_5_4", c.droppedAt54);
+    ret.put("sent", c.sent);
+    ret.put("ocr_invocations", c.ocrInvocations);
+    ret.put("frames_sent_per_hour", c.framesSentPerHour());
+    ret.put("session_started_at_ms", c.sessionStartedAtMs);
+    ret.put("session_ended_at_ms", c.sessionEndedAtMs);
+    call.resolve(ret);
   }
 }
