@@ -141,6 +141,7 @@ export {
   type StudentUploadRow,
   type UploadVerdict,
   type UploadPracticeMode,
+  type DisputeAiAnswerResult,
 } from "./services/studentUploadService";
 export { STUDENT_UPLOAD_ACCEPT } from "./storage/studentUploadFile";
 export type {
