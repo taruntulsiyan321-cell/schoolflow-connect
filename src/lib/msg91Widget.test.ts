@@ -1,26 +1,46 @@
 import { describe, expect, it } from "vitest";
-import { extractAccessToken, classifyMsg91Failure } from "./msg91Widget";
+import { extractAccessToken, extractAccessTokenMeta, classifyMsg91Failure } from "./msg91Widget";
 import { phoneToSyntheticEmail } from "./msg91Auth";
 
 describe("extractAccessToken", () => {
-  it("reads the token from data.message (the documented common case)", () => {
+  it("reads the token from data.message when that is the only field", () => {
     expect(extractAccessToken({ message: "abc123" })).toBe("abc123");
   });
 
-  it("falls back to data['access-token']", () => {
+  it("reads data['access-token']", () => {
     expect(extractAccessToken({ "access-token": "xyz789" })).toBe("xyz789");
   });
 
-  it("falls back to data.token", () => {
+  it("reads data.token", () => {
     expect(extractAccessToken({ token: "tok-1" })).toBe("tok-1");
   });
 
-  it("falls back to data.accessToken", () => {
+  it("reads data.accessToken", () => {
     expect(extractAccessToken({ accessToken: "tok-2" })).toBe("tok-2");
   });
 
-  it("prefers message over the other candidates when several are present", () => {
-    expect(extractAccessToken({ message: "first", token: "second" })).toBe("first");
+  it("prefers access-token over message when both are present (invisible OTP / SDK shape)", () => {
+    // Real MSG91 invisible-OTP success: message is the reqId, access-token is the JWT.
+    const jwt =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig";
+    expect(
+      extractAccessToken({
+        message: "336870744532313134323444",
+        "access-token": jwt,
+      }),
+    ).toBe(jwt);
+  });
+
+  it("prefers a JWT-shaped message over a non-JWT sibling field", () => {
+    const jwt =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig";
+    expect(extractAccessToken({ message: jwt, token: "req-id-not-jwt" })).toBe(jwt);
+  });
+
+  it("prefers access-token / token over a non-JWT message", () => {
+    expect(extractAccessToken({ message: "req-id-only", token: "tok-from-field" })).toBe(
+      "tok-from-field",
+    );
   });
 
   it("returns null for missing/empty/non-string values", () => {
@@ -34,6 +54,40 @@ describe("extractAccessToken", () => {
 
   it("trims whitespace around a valid token", () => {
     expect(extractAccessToken({ message: "  padded-token  " })).toBe("padded-token");
+  });
+});
+
+describe("extractAccessTokenMeta", () => {
+  const jwt =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig";
+
+  it("returns token plus keys / jwt_shaped / length fingerprint", () => {
+    const meta = extractAccessTokenMeta({
+      message: "336870744532313134323444",
+      "access-token": jwt,
+    });
+    expect(meta).toEqual({
+      token: jwt,
+      keys: ["access-token", "message"],
+      jwt_shaped: true,
+      length: jwt.length,
+    });
+  });
+
+  it("marks non-JWT tokens as jwt_shaped: false", () => {
+    const meta = extractAccessTokenMeta({ token: "req-id-only" });
+    expect(meta).toEqual({
+      token: "req-id-only",
+      keys: ["token"],
+      jwt_shaped: false,
+      length: "req-id-only".length,
+    });
+  });
+
+  it("returns null when extractAccessToken would", () => {
+    expect(extractAccessTokenMeta(null)).toBeNull();
+    expect(extractAccessTokenMeta({})).toBeNull();
+    expect(extractAccessTokenMeta({ message: "" })).toBeNull();
   });
 });
 

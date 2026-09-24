@@ -21,33 +21,53 @@ export type PracticeUnresolvedInput = {
   examUnresolved: boolean;
   classIdMissing: boolean;
   classLevelUnresolved: boolean;
+  /**
+   * schools.kind from identity. Class-admin copy is only for confirmed
+   * organisation schools — never for individual, and never while kind is still null.
+   */
+  schoolKind?: "school" | "individual" | null;
 };
 
 /**
  * Returns whether Practice should block on unresolved scope, and which message.
  * When `examScoped` is true, class-missing / class-level gaps are ignored —
  * individuals never have a class_id, so CLASS_*_MSG is unreachable.
+ * While `schoolKind` is null/individual, CLASS_*_MSG is also unreachable
+ * (unknown kind must not look like a school with a missing class).
  */
 export function resolvePracticeUnresolved(input: PracticeUnresolvedInput): {
   classUnresolved: boolean;
   classUnresolvedMessage: string | undefined;
 } {
-  const { examScoped, examUnresolved, classIdMissing, classLevelUnresolved } = input;
+  const {
+    examScoped,
+    examUnresolved,
+    classIdMissing,
+    classLevelUnresolved,
+    schoolKind = null,
+  } = input;
 
   if (examScoped) {
     return { classUnresolved: false, classUnresolvedMessage: undefined };
   }
 
-  const classUnresolved = examUnresolved || classIdMissing || classLevelUnresolved;
+  if (examUnresolved) {
+    return { classUnresolved: true, classUnresolvedMessage: EXAM_UNRESOLVED_MSG };
+  }
+
+  // Class-admin language only after we know this is an organisation school.
+  if (schoolKind !== "school") {
+    return { classUnresolved: false, classUnresolvedMessage: undefined };
+  }
+
+  const classUnresolved = classIdMissing || classLevelUnresolved;
   if (!classUnresolved) {
     return { classUnresolved: false, classUnresolvedMessage: undefined };
   }
 
-  const classUnresolvedMessage = examUnresolved
-    ? EXAM_UNRESOLVED_MSG
-    : classIdMissing
-      ? CLASS_UNRESOLVED_MSG
-      : CLASS_LEVEL_UNRESOLVED_MSG;
+  const classUnresolvedMessage = classIdMissing
+    ? CLASS_UNRESOLVED_MSG
+    : CLASS_LEVEL_UNRESOLVED_MSG;
 
   return { classUnresolved: true, classUnresolvedMessage };
 }

@@ -50,19 +50,73 @@ export function loadMsg91WidgetScript(): Promise<void> {
 
 export type Msg91WidgetSuccessData = Record<string, unknown>;
 
+function isLikelyJwt(value: string): boolean {
+  // MSG91 access tokens are JWTs. reqIds from sendOTP share the `message`
+  // field in some SDK responses — those are short opaque ids, not JWTs.
+  return value.startsWith("eyJ") && value.includes(".");
+}
+
 /**
- * MSG91's own documentation does not consistently pin one field name for
- * the access token across widget/SDK versions (variously referenced as
- * `message`, `access-token`, or `token` in different docs/examples) — check
- * every documented candidate rather than assume a single one silently.
+ * MSG91's success payload is not consistent across widget/SDK versions.
+ * Documented shapes:
+ *   - completion: `message` holds the access-token (JWT)
+ *   - invisible OTP / some SDKs: `access-token` is the JWT and `message` is
+ *     the reqId — preferring `message` first sent the reqId to
+ *     verifyAccessToken and every live attempt failed as invalid_or_expired.
+ * Prefer explicit access-token fields, then any JWT-shaped candidate, then
+ * a bare `message`/`token` string as last resort.
  */
 export function extractAccessToken(data: Msg91WidgetSuccessData | null | undefined): string | null {
+  return extractAccessTokenMeta(data)?.token ?? null;
+}
+
+/** Keys we inspect for an MSG91 access-token, in preference order. */
+const ACCESS_TOKEN_KEYS = ["access-token", "accessToken", "token", "message"] as const;
+
+export type Msg91AccessTokenMeta = {
+  token: string;
+  /** Payload keys that held a non-empty string (fingerprint only — no values). */
+  keys: string[];
+  jwt_shaped: boolean;
+  length: number;
+};
+
+/**
+ * Same token selection as extractAccessToken, plus a safe fingerprint for
+ * server-side diagnostics (keys present / JWT shape / length — never the
+ * token value itself beyond what verify already receives as access_token).
+ */
+export function extractAccessTokenMeta(
+  data: Msg91WidgetSuccessData | null | undefined,
+): Msg91AccessTokenMeta | null {
   if (!data) return null;
-  const candidates = [data.message, data["access-token"], data.token, data.accessToken];
-  for (const c of candidates) {
-    if (typeof c === "string" && c.trim()) return c.trim();
+  const presentKeys = ACCESS_TOKEN_KEYS.filter((k) => {
+    const v = data[k];
+    return typeof v === "string" && Boolean(v.trim());
+  });
+  if (presentKeys.length === 0) return null;
+
+  const ordered = [data["access-token"], data.accessToken, data.token, data.message];
+  const strings = ordered
+    .filter((c): c is string => typeof c === "string" && Boolean(c.trim()))
+    .map((c) => c.trim());
+  const jwt = strings.find(isLikelyJwt);
+  let token: string | null = jwt ?? null;
+  if (!token) {
+    // Prefer the first non-message candidate when nothing looks like a JWT —
+    // still better than grabbing a reqId from `message` when another field exists.
+    const nonMessage = [data["access-token"], data.accessToken, data.token]
+      .filter((c): c is string => typeof c === "string" && Boolean(c.trim()))
+      .map((c) => c.trim());
+    token = nonMessage[0] ?? strings[0] ?? null;
   }
-  return null;
+  if (!token) return null;
+  return {
+    token,
+    keys: presentKeys,
+    jwt_shaped: isLikelyJwt(token),
+    length: token.length,
+  };
 }
 
 export type Msg91FailureReason = "cancelled" | "timeout" | "unknown";
@@ -109,7 +163,7 @@ let bodyChildrenBeforeOpen: Set<Element> | null = null;
  * confirmed server-side via verifyAccessToken).
  */
 export async function openMsg91Widget(handlers: {
-  onSuccess: (accessToken: string) => void;
+  onSuccess: (accessToken: string, tokenMeta?: Pick<Msg91AccessTokenMeta, "keys" | "jwt_shaped" | "length">) => void;
   onFailure: (error: unknown) => void;
 }): Promise<void> {
   const widgetId = import.meta.env.VITE_MSG91_WIDGET_ID as string | undefined;
@@ -138,12 +192,16 @@ export async function openMsg91Widget(handlers: {
     tokenAuth,
     exposeMethods: false,
     success: (data: Msg91WidgetSuccessData) => {
-      const token = extractAccessToken(data);
-      if (!token) {
+      const meta = extractAccessTokenMeta(data);
+      if (!meta) {
         handlers.onFailure(new Error("MSG91 did not return a usable verification token."));
         return;
       }
-      handlers.onSuccess(token);
+      handlers.onSuccess(meta.token, {
+        keys: meta.keys,
+        jwt_shaped: meta.jwt_shaped,
+        length: meta.length,
+      });
     },
     failure: (error: unknown) => {
       handlers.onFailure(error);

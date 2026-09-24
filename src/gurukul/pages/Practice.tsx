@@ -2284,6 +2284,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     examUnresolved,
     classIdMissing,
     classLevelUnresolved,
+    schoolKind: academicIdentity.schoolKind ?? null,
   });
 
   useEffect(() => {
