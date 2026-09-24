@@ -82,6 +82,8 @@ export const UPLOAD_MODE_LABELS: Record<UploadPracticeMode, string> = {
 
 type UploadQuestionSelectRow = {
   id: string;
+  /** Spec §9.1 — student_uploads.id for attempt source_id. */
+  upload_id: string;
   question_text: string;
   options: unknown;
   correct_index: number | null;
@@ -117,6 +119,7 @@ function mapUploadQuestionRow(row: UploadQuestionSelectRow) {
   const subjectName = ch?.curriculum_subjects?.name?.trim() || null;
   return {
     id: row.id,
+    upload_id: row.upload_id,
     question: row.question_text,
     options: row.options,
     correct_index: row.correct_index,
@@ -291,6 +294,7 @@ export const StudentUploadService = {
   ): Promise<
     Array<{
       id: string;
+      upload_id: string;
       question: string;
       options: unknown;
       correct_index: number | null;
@@ -310,7 +314,7 @@ export const StudentUploadService = {
     let query = db
       .from("student_upload_questions")
       .select(
-        "id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, derived_from_note_id, chapters(name, curriculum_subjects(name))",
+        "id, upload_id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, derived_from_note_id, chapters(name, curriculum_subjects(name))",
       )
       .eq("upload_id", uploadId)
       .eq("owner_id", ctx.userId)
@@ -343,6 +347,7 @@ export const StudentUploadService = {
   ): Promise<
     Array<{
       id: string;
+      upload_id: string;
       question: string;
       options: unknown;
       correct_index: number | null;
@@ -362,7 +367,7 @@ export const StudentUploadService = {
     const { data, error } = await db
       .from("student_upload_questions")
       .select(
-        "id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name, curriculum_subjects(name))",
+        "id, upload_id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name, curriculum_subjects(name))",
       )
       .eq("owner_id", ctx.userId)
       .in("id", unique);

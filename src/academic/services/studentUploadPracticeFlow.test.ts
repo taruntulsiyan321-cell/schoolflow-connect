@@ -13,6 +13,7 @@ import { stripComments } from "@/test/stripComments";
 
 type FixtureRow = {
   id: string;
+  upload_id: string;
   question_text: string;
   options: string[] | null;
   correct_index: number | null;
@@ -29,6 +30,7 @@ type FixtureRow = {
 const FIXTURE_ROWS: FixtureRow[] = [
   {
     id: "uq-001",
+    upload_id: "upload-uuid-1",
     question_text: "What is the value of 7 × 8?",
     options: ["48", "54", "56", "64"],
     correct_index: 2,
@@ -43,6 +45,7 @@ const FIXTURE_ROWS: FixtureRow[] = [
   },
   {
     id: "uq-002",
+    upload_id: "upload-uuid-1",
     question_text: "Simplify 3x + 2x.",
     options: ["5x", "6x", "x", "3x"],
     correct_index: 0,
@@ -140,6 +143,7 @@ describe("listForPractice mapping (§8)", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toEqual({
       id: "uq-001",
+      upload_id: "upload-uuid-1",
       question: "What is the value of 7 × 8?",
       options: ["48", "54", "56", "64"],
       correct_index: 2,
@@ -153,6 +157,7 @@ describe("listForPractice mapping (§8)", () => {
     });
     expect(rows[1]).toMatchObject({
       id: "uq-002",
+      upload_id: "upload-uuid-1",
       question: "Simplify 3x + 2x.",
       difficulty: "medium",
       subject: null,
@@ -219,12 +224,21 @@ describe("attempt snapshot — upload source (§9.1)", () => {
     expect(snap).toContain("captureQuestionId: fromCapture ? q.id : null");
     // Positive control: a bank attempt must still carry its id.
     expect(snap).toMatch(/bankQuestionId:\s*privateQ\s*\?\s*null\s*:\s*q\.id/);
-    // Upload id goes on sourceId — never as bank_question_id.
-    expect(snap).toContain("config.upload?.uploadId");
+    // Upload id on sourceId — Custom Practice config OR Incorrect row uploadId.
+    expect(snap).toContain("q.uploadId ?? config.upload?.uploadId");
     // Subject comes from the question, not Mixed/General session placeholders.
     expect(snap).toContain("subject: q.subject");
     expect(snap).not.toMatch(/subject:\s*["']Mixed["']/);
     expect(snap).not.toMatch(/subject:\s*["']General["']/);
+  });
+
+  it("grades private upload/capture from the owner-readable key (§9 / §7.4)", () => {
+    const ans = section("function answer(", "function next(");
+    // Bank path still starts isCorrect false; private computes from correctIndex.
+    expect(ans).toContain("const privateQ = Boolean(q.fromUpload || q.fromCapture)");
+    expect(ans).toContain("q.correctIndex");
+    expect(ans).toMatch(/i\s*===\s*knownCorrect/);
+    expect(ans).toContain("snap.correctIndex = knownCorrect");
   });
 
   it("ConfigView onUploadMode does not set subject Mixed/General", () => {

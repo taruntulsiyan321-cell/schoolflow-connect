@@ -103,16 +103,13 @@ function subjectColor(name: string, index: number) {
 }
 
 /**
- * A QUESTION, AS A STUDENT MAY HOLD IT. No `correct`, no `explanation`.
+ * A QUESTION, AS A STUDENT MAY HOLD IT. No bank `correct` / `explanation`.
  *
- * Both used to be here, fetched with the question, and a student could read
- * them off question_bank directly anyway — measured 2026-09-22, including
- * `?correct_index=eq.2`, which enumerates the answers by filtering on them.
- *
- * The answer now arrives only after the student commits, in the verdict
- * rpc_record_question_attempt returns. There is no hint: the bank has none,
- * and what this screen once called one was the worked solution's opening —
- * the whole answer for 39% of servable questions.
+ * Bank rows omit the key on purpose (fetched and graded server-side). Private
+ * upload / capture rows already expose correct_index to the owner via RLS; the
+ * attempt RPC trusts client `_is_correct` when there is no bank id, so those
+ * keys travel here only so Custom Practice and Incorrect mode can grade
+ * honestly. Never map them onto bank questions.
  */
 type BankQuestion = {
   id: string;
@@ -126,6 +123,12 @@ type BankQuestion = {
   aiAnswered?: boolean;
   /** Spec §5.1 — real chapters.id when tagged; null when untagged. */
   chapterId?: string | null;
+  /** Spec §9.1 — student_uploads.id when fromUpload (Incorrect + Custom). */
+  uploadId?: string | null;
+  /** Private rows only — owner-readable key for non-bank grading. */
+  correctIndex?: number | null;
+  /** Private rows only — shown when the verdict has no bank explanation. */
+  explanation?: string | null;
 };
 
 function parseBankOptions(raw: unknown): string[] {
@@ -1180,7 +1183,7 @@ interface SessionConfig {
   recovery?: {
     sessionId: string;
     chapterId: string;
-    /** bank question id -> tier. Order of the keys is the order asked. */
+    /** Question id -> tier (bank, upload, or capture on tier 0). Order of keys is ask order. */
     tierByQuestionId: Record<string, 0 | 1 | 2 | 3>;
     /** False when generation could not fill every tier — the screen says so. */
     complete: boolean;
@@ -1456,6 +1459,22 @@ function Session({
             if (!r.id || !r.question || options.length < 2) return null;
             const fromUpload = "from_upload" in r && r.from_upload === true;
             const fromCapture = "from_capture" in r && r.from_capture === true;
+            const privateQ = fromUpload || fromCapture;
+            const correctRaw =
+              privateQ && "correct_index" in r ? (r as { correct_index?: unknown }).correct_index : null;
+            const correctIndex =
+              typeof correctRaw === "number" && Number.isInteger(correctRaw) ? correctRaw : null;
+            // Private rows must carry a usable key — the attempt RPC trusts
+            // client is_correct when bank_question_id is null.
+            if (privateQ && correctIndex == null) return null;
+            const explanation =
+              privateQ && "explanation" in r
+                ? ((r as { explanation?: string | null }).explanation ?? null)
+                : null;
+            const uploadId =
+              fromUpload && "upload_id" in r
+                ? ((r as { upload_id?: string | null }).upload_id ?? null)
+                : null;
             return {
               id: r.id,
               subject: r.subject || "",
@@ -1467,6 +1486,9 @@ function Session({
               fromCapture,
               aiAnswered: fromUpload && "ai_answered" in r ? Boolean(r.ai_answered) : false,
               chapterId: "chapter_id" in r ? (r.chapter_id ?? null) : null,
+              uploadId,
+              correctIndex: privateQ ? correctIndex : null,
+              explanation: privateQ ? explanation : null,
             };
           })
           .filter((x): x is BankQuestion => x !== null);
@@ -1590,8 +1612,9 @@ function Session({
     return {
       question: q.question,
       options: q.options,
-      // Unknown here, and deliberately: the server grades and says. The
-      // verdict fills both in on this snapshot when it lands (record below).
+      // Unknown here for bank questions — the server grades and fills in.
+      // Private upload/capture: answer() may set correctIndex / isCorrect
+      // before record, because the RPC trusts client _is_correct without a bank id.
       correctIndex: -1,
       explanation: undefined,
       bankQuestionId: privateQ ? null : q.id,
@@ -1603,8 +1626,10 @@ function Session({
       difficulty: q.difficulty,
       source: fromUpload ? "upload" : fromCapture ? "screen_capture" : "practice",
       practiceMode: config.mode,
+      // Spec §9.1 — upload attempts carry the upload id, including Incorrect
+      // mode reattempts where config.upload is unset.
       sourceId: fromUpload
-        ? (config.upload?.uploadId ?? null)
+        ? (q.uploadId ?? config.upload?.uploadId ?? null)
         : fromCapture
           ? q.id
           : sessionIdRef.current,
@@ -1699,11 +1724,29 @@ function Session({
     if (!q || phase !== "q" || finishedRef.current) return;
     setChosen(i);
     setAnswered((n) => n + 1);
-    // THE CLIENT DOES NOT GRADE. It reports what was chosen, once; the server
-    // grades against the bank and its verdict drives the tick, the cross, the
-    // explanation and the running count. Until it lands the options stay
-    // neutral — the browser genuinely does not know yet.
-    const snap = snapshotOf(q, { selectedIndex: i, isCorrect: false, skipped: false });
+    // Bank: THE CLIENT DOES NOT GRADE — server re-grades off question_bank.
+    // Private upload/capture (§9 / §7.4): no bank id, so the RPC trusts
+    // `_is_correct`. The owner-readable key was loaded with the row; send it.
+    const privateQ = Boolean(q.fromUpload || q.fromCapture);
+    const knownCorrect =
+      privateQ && typeof q.correctIndex === "number" && Number.isInteger(q.correctIndex)
+        ? q.correctIndex
+        : null;
+    const isCorrect = knownCorrect != null ? i === knownCorrect : false;
+    const snap = snapshotOf(q, { selectedIndex: i, isCorrect, skipped: false });
+    if (knownCorrect != null) {
+      snap.correctIndex = knownCorrect;
+      if (q.explanation) snap.explanation = q.explanation;
+      // Optimistic: non-bank RPC trusts what we send; don't flash "wrong" while waiting.
+      setVerdict({
+        attemptId: null,
+        isCorrect,
+        skipped: false,
+        correctIndex: knownCorrect,
+        correctText: q.options[knownCorrect] ?? "",
+        explanation: q.explanation ?? "",
+      });
+    }
     onScreenRef.current = snap;
     record(snap, (v) => {
       if (v.isCorrect) {
@@ -1846,6 +1889,14 @@ function Session({
   // Null while the verdict is in flight, which is why the options below stay
   // neutral until it lands.
   const isRight = verdict?.isCorrect === true;
+  // Private keys are owner-readable; fall back when the verdict omits index
+  // (non-bank path stores what we sent — still cover empty/legacy shapes).
+  const markedCorrectIndex =
+    verdict?.correctIndex != null && verdict.correctIndex >= 0
+      ? verdict.correctIndex
+      : q && (q.fromUpload || q.fromCapture) && typeof q.correctIndex === "number"
+        ? q.correctIndex
+        : null;
   const subj    = subjects.find(s => s.name === q?.subject);
   const timed   = config.timeLimitSec !== null;
   const mm      = Math.floor(timeLeft / 60).toString().padStart(2,"0");
@@ -1983,7 +2034,7 @@ function Session({
           const isChosen = chosen === i;
           // Only once the server has said so. Before the verdict lands
           // nothing is marked, because nothing is known.
-          const isCorrect = verdict?.correctIndex === i;
+          const isCorrect = markedCorrectIndex === i;
           let bg = "border-border/70 text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted";
           if (phase === "fb") {
             // The fill, the border and the mark say which is right; the text
@@ -2027,13 +2078,13 @@ function Session({
           </button>
         </div>
       )}
-      {phase === "fb" && verdict?.explanation && (
+      {phase === "fb" && (verdict?.explanation || q.explanation) && (
         <GlassCard className="p-4 border-info/20">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
             <div className="text-sm text-muted-foreground leading-relaxed">
               <span className="font-semibold text-foreground">Explanation: </span>
-              <MathText text={verdict.explanation} />
+              <MathText text={verdict?.explanation || q.explanation || ""} />
             </div>
           </div>
         </GlassCard>

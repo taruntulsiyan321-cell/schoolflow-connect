@@ -50,12 +50,15 @@ describe("incorrect mode includes upload mistakes", () => {
     expect(body).toContain('source === "upload"');
     expect(body).toContain('.from("student_upload_questions")');
     expect(body).toContain("upload_question_id");
+    expect(body).toContain("upload_id");
     expect(body).toContain("answerToIndex");
     expect(body).toContain("from_upload: true");
     // Prefer the live private row when upload_question_id is set; snapshot only
     // when the column is absent or the id cannot be hydrated.
     expect(body).toMatch(/uploadById\.has\(uqid\)/);
     expect(body).toMatch(/snapshotPrivate\s*\(/);
+    // PostgREST many-embeds must be normalized (same as Custom Practice loader).
+    expect(body).toContain("chapterEmbed");
   });
 
   it("loads private screen-capture questions via listCaptureQuestionsByIds", () => {

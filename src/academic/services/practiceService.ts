@@ -1451,6 +1451,7 @@ export const PracticeService = {
     type MistakeListRow = {
       id: string;
       source: string;
+      source_id: string | null;
       question_id: string | null;
       upload_question_id?: string | null;
       capture_question_id?: string | null;
@@ -1466,7 +1467,7 @@ export const PracticeService = {
     };
 
     const baseSelect =
-      "id, source, question_id, last_wrong_at, question_text, options, correct_answer, explanation, difficulty, subject, chapter, chapter_id";
+      "id, source, source_id, question_id, last_wrong_at, question_text, options, correct_answer, explanation, difficulty, subject, chapter, chapter_id";
     const withPrivateSelect = `${baseSelect}, upload_question_id, capture_question_id`;
     const withUploadSelect = `${baseSelect}, upload_question_id`;
 
@@ -1514,6 +1515,24 @@ export const PracticeService = {
         .filter((id): id is string => Boolean(id)),
     );
 
+    /** PostgREST may return a many-embed as an array — same helper as upload/capture loaders. */
+    const chapterEmbed = (raw: unknown): {
+      name?: string;
+      curriculum_subjects?: { name?: string } | null;
+    } | null => {
+      if (!raw) return null;
+      if (Array.isArray(raw)) {
+        const first = raw[0];
+        return first && typeof first === "object"
+          ? (first as { name?: string; curriculum_subjects?: { name?: string } | null })
+          : null;
+      }
+      if (typeof raw === "object") {
+        return raw as { name?: string; curriculum_subjects?: { name?: string } | null };
+      }
+      return null;
+    };
+
     type PracticeReady = {
       id: string;
       subject: string;
@@ -1527,6 +1546,8 @@ export const PracticeService = {
       from_capture?: true;
       ai_answered?: boolean;
       chapter_id?: string | null;
+      /** Spec §9.1 — student_uploads.id when from_upload. */
+      upload_id?: string | null;
     };
 
     const bankById = new Map<string, PracticeReady>();
@@ -1544,15 +1565,13 @@ export const PracticeService = {
       const { data: uploadRows, error: uploadError } = await client
         .from("student_upload_questions")
         .select(
-          "id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name, curriculum_subjects(name))",
+          "id, upload_id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name, curriculum_subjects(name))",
         )
         .eq("owner_id", ctx.userId)
         .in("id", uploadQids);
       throwIfError(uploadError, "Failed to load upload mistake questions");
       for (const row of uploadRows ?? []) {
-        const ch = row.chapters as
-          | { name?: string; curriculum_subjects?: { name?: string } | null }
-          | null;
+        const ch = chapterEmbed(row.chapters);
         const options = row.options;
         const correct =
           typeof row.correct_index === "number" && Number.isInteger(row.correct_index)
@@ -1572,6 +1591,7 @@ export const PracticeService = {
           from_upload: true,
           ai_answered: row.answer_source === "ai",
           chapter_id: (row.chapter_id as string | null) ?? null,
+          upload_id: (row.upload_id as string | null) ?? null,
         });
       }
     }
@@ -1620,7 +1640,12 @@ export const PracticeService = {
         correct_index: correct,
         explanation: r.explanation,
         ...(kind === "upload"
-          ? { from_upload: true as const, ai_answered: false }
+          ? {
+              from_upload: true as const,
+              ai_answered: false,
+              // Mistake source_id is the upload id when the original attempt followed §9.1.
+              upload_id: r.source_id,
+            }
           : { from_capture: true as const }),
         chapter_id: r.chapter_id,
       };
