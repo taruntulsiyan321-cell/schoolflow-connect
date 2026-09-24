@@ -684,11 +684,14 @@ export function ConfigView({
     function onUploadMode(upload: StudentUploadRow, mode: UploadPracticeMode) {
       // §8 — practise modes start with SessionConfig.upload. read_notes is
       // opened inside CustomPracticeUpload (toast / notes pane); never a session.
+      // Subject stays empty here: per-question subject comes from
+      // listForPractice → chapters→curriculum_subjects. "Mixed"/"General" are
+      // placeholders Mistake Book drops (isPlaceholderAcademicLabel).
       if (mode === "read_notes") return;
       onStart({
         mode: "custom",
         label: UPLOAD_MODE_LABELS[mode],
-        subject: "Mixed",
+        subject: "",
         chapter: null,
         topic: null,
         difficulty: "mixed",
@@ -1278,6 +1281,10 @@ function Session({
   const [bookmarked,setBookmarked]= useState<number[]>([]);
   const [timeLeft,  setTimeLeft]  = useState(config.timeLimitSec ?? 0);
   const [finishing, setFinishing] = useState(false);
+  /** Spec §6.1 — dispute in flight for this upload question id. */
+  const [disputingId, setDisputingId] = useState<string | null>(null);
+  /** Spec §6.1 — upload question ids already successfully disputed this session. */
+  const [disputedIds, setDisputedIds] = useState<Set<string>>(() => new Set());
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
   const loadedRef = useRef(false);
@@ -1371,8 +1378,10 @@ function Session({
             const distinct = [...new Set(vals.filter(Boolean))];
             return distinct.length === 1 ? distinct[0] : null;
           };
-          const engineSession = Boolean(config.recovery || config.revision);
+          const engineSession = Boolean(config.recovery || config.revision || config.upload);
           const sid = await PracticeService.start(ctx, {
+            // Upload: name the session from tagged questions when they agree —
+            // never "Mixed"/"General" (Mistake Book / RPC placeholder defaults).
             _subject: engineSession
               ? onlyOne(mapped.map((q) => q.subject)) ?? ""
               : config.subject === "Mixed" ? "" : config.subject,
@@ -1464,6 +1473,8 @@ function Session({
   }): PracticeAttemptSnapshot {
     // Spec §9.1 — upload attempts: source = 'upload', source_id = upload id,
     // bank_question_id null (private rows are not in question_bank).
+    // Subject/chapter come from the question (curriculum_subjects via chapter),
+    // never session placeholders Mixed/General.
     const fromUpload = Boolean(q.fromUpload);
     return {
       question: q.question,
@@ -1471,6 +1482,7 @@ function Session({
       correctIndex: q.correct,
       explanation: q.explanation,
       bankQuestionId: fromUpload ? null : q.id,
+      uploadQuestionId: fromUpload ? q.id : null,
       subject: q.subject,
       chapter: q.chapter,
       chapterId: q.chapterId ?? null,
@@ -1586,6 +1598,8 @@ function Session({
           options: snap.options,
           explanation: snap.explanation ?? "",
           bank_question_id: snap.bankQuestionId ?? null,
+          // Spec §9 — private upload row id for chapter_tally / dispute join.
+          upload_question_id: snap.uploadQuestionId ?? null,
           // `?? null`: the column is jsonb, which has a null but no undefined —
           // an undefined key would vanish from the row rather than be unset.
           subject: snap.subject ?? null,
@@ -1666,6 +1680,24 @@ function Session({
         setBookmarked([...bookmarkedRef.current]);
         toast.error("Could not save bookmark. Please try again.");
       });
+  }
+
+  async function disputeAiAnswer() {
+    const q = qs[idx];
+    if (!q?.aiAnswered || !q.fromUpload || !ctx) return;
+    if (disputingId === q.id || disputedIds.has(q.id)) return;
+    setDisputingId(q.id);
+    try {
+      const result = await StudentUploadService.disputeAiAnswer(ctx, q.id);
+      setDisputedIds((prev) => new Set(prev).add(q.id));
+      toast.success(
+        `Answer disputed — cleared ${result.cleared_mistakes} mistake${result.cleared_mistakes === 1 ? "" : "s"}, excluded ${result.excluded_attempts} attempt${result.excluded_attempts === 1 ? "" : "s"}.`,
+      );
+    } catch (e) {
+      toast.error(toErrorMessage(e, "Could not dispute this answer"));
+    } finally {
+      setDisputingId(null);
+    }
   }
 
   const q       = qs[idx];
@@ -1829,7 +1861,21 @@ function Session({
           screen showed was that solution's first 120 characters — the whole
           answer for 39% of servable questions (8,557 of 21,717). */}
       {phase === "fb" && q.aiAnswered && (
-        <p className="text-xs font-semibold text-muted-foreground">AI answered</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-semibold text-muted-foreground">AI answered</p>
+          <button
+            type="button"
+            onClick={() => void disputeAiAnswer()}
+            disabled={disputingId === q.id || disputedIds.has(q.id) || !ctx}
+            className="text-xs px-2.5 py-1 rounded-lg border border-border/70 text-muted-foreground hover:text-foreground hover:border-border transition-all disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {disputedIds.has(q.id)
+              ? "Disputed"
+              : disputingId === q.id
+                ? "Disputing…"
+                : "Dispute answer"}
+          </button>
+        </div>
       )}
       {phase === "fb" && q.explanation && (
         <GlassCard className="p-4 border-info/20">
