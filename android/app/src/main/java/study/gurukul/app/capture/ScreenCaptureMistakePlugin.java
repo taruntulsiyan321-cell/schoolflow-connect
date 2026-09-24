@@ -44,10 +44,12 @@ public class ScreenCaptureMistakePlugin extends Plugin {
   private final BroadcastReceiver watchFrameReceiver = new BroadcastReceiver() {
     @Override
     public void onReceive(Context context, Intent intent) {
+      String[] sent = WatchSessionService.consumeLastSent();
+      String b64 = sent[0];
+      String pkg = sent[1];
+      if (b64 == null) return;
       JSObject payload = new JSObject();
-      String b64 = WatchSessionService.lastSentBase64OrNull();
-      String pkg = WatchSessionService.lastSentPackageOrNull();
-      if (b64 != null) payload.put("image_base64", b64);
+      payload.put("image_base64", b64);
       if (pkg != null) payload.put("package_name", pkg);
       payload.put("mime_type", "image/png");
       notifyListeners("watchFrameReady", payload);

@@ -68,12 +68,16 @@ public class WatchSessionService extends Service {
     return COUNTERS.snapshot();
   }
 
-  public static String lastSentBase64OrNull() {
-    return lastSentBase64;
-  }
-
-  public static String lastSentPackageOrNull() {
-    return lastSentPackage;
+  /**
+   * Hand the last SEND frame to the bridge once, then drop the in-memory copy
+   * (§11 ephemeral — do not retain PNG base64 after deliver).
+   */
+  public static synchronized String[] consumeLastSent() {
+    String b64 = lastSentBase64;
+    String pkg = lastSentPackage;
+    lastSentBase64 = null;
+    lastSentPackage = null;
+    return new String[] { b64, pkg };
   }
 
   public static void resetCountersForTests() {
