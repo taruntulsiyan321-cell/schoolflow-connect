@@ -7379,6 +7379,7 @@ export type Database = {
           correct_answer: string | null
           correct_index: number | null
           created_at: string
+          derived_from_note_id: string | null
           difficulty: string | null
           explanation: string | null
           id: string
@@ -7397,6 +7398,7 @@ export type Database = {
           correct_answer?: string | null
           correct_index?: number | null
           created_at?: string
+          derived_from_note_id?: string | null
           difficulty?: string | null
           explanation?: string | null
           id?: string
@@ -7415,6 +7417,7 @@ export type Database = {
           correct_answer?: string | null
           correct_index?: number | null
           created_at?: string
+          derived_from_note_id?: string | null
           difficulty?: string | null
           explanation?: string | null
           id?: string
