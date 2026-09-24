@@ -74,6 +74,41 @@ export function syntheticEmailForExamAccount(phoneDigits: string, examCode: stri
   return `${phoneDigits}.${examCode}@exam.vidyalaya.local`;
 }
 
+/**
+ * O(1) lookup via GoTrue admin filters. Paging `listUsers` is the old path and
+ * gets slower with every account on the project — that is what made mobile
+ * sign-in hang after OTP (every verify walked the user directory).
+ *
+ * Returns null when env is unavailable (unit tests) so the listUsers fallback
+ * still exercises the same matching rules against the mock.
+ */
+async function findUserViaAdminFilter(params: {
+  email?: string;
+  phone?: string;
+}): Promise<{ id: string } | null> {
+  const base = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!base || !key) return null;
+
+  const qs = new URLSearchParams();
+  if (params.email) qs.set("email", params.email);
+  if (params.phone) qs.set("phone", params.phone);
+  if (![...qs.keys()].length) return null;
+
+  const res = await fetch(`${base}/auth/v1/admin/users?${qs.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${key}`,
+      apikey: key,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) return null;
+  const body = await res.json().catch(() => null);
+  const users = Array.isArray(body?.users) ? body.users : Array.isArray(body) ? body : [];
+  const first = users[0];
+  return first?.id ? { id: String(first.id) } : null;
+}
+
 /** phoneDigits must already be normalizePhone()'d -- this normalizes each
  *  candidate's stored auth.users.phone the same way before comparing, so an
  *  older account created before the canonical-format fix (e.g. via
@@ -89,6 +124,16 @@ async function findExistingPhoneUser(
   email: string,
   phoneDigits: string,
 ): Promise<{ id: string } | null> {
+  // Fast path: filtered admin API (email is unique for both school + exam
+  // synthetic addresses). Exam sign-in never scans by phone.
+  const byEmail = await findUserViaAdminFilter({ email });
+  if (byEmail) return byEmail;
+  if (phoneDigits) {
+    const byPhone = await findUserViaAdminFilter({ phone: phoneDigits });
+    if (byPhone) return byPhone;
+  }
+
+  // Fallback for tests / older runtimes without the filter endpoint.
   let page = 1;
   const perPage = 200;
   while (page < 50) {

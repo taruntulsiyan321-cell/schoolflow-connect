@@ -126,26 +126,14 @@ Deno.serve(async (req) => {
       console.error("[verify-msg91-widget] client token_meta:", tokenMeta);
     }
 
+    // Official MSG91 contract: authkey in the header, body is only the JWT.
+    // One round-trip — the body+header retry doubled latency on every verify.
     let msg91Res: Response;
     let msg91Data: Record<string, unknown> | null;
     try {
-      const first = await callMsg91Verify(MSG91_AUTH_KEY, access_token, "body");
-      msg91Res = first.res;
-      msg91Data = first.data;
-      if (!msg91Res.ok || !msg91Data || msg91Data.type !== "success") {
-        const retry = await callMsg91Verify(MSG91_AUTH_KEY, access_token, "header");
-        if (retry.res.ok && retry.data && retry.data.type === "success") {
-          msg91Res = retry.res;
-          msg91Data = retry.data;
-        } else {
-          const firstReason = String(msg91Data?.message ?? `HTTP ${msg91Res.status}`);
-          const secondReason = String(retry.data?.message ?? `HTTP ${retry.res.status}`);
-          if (secondReason.length > firstReason.length) {
-            msg91Res = retry.res;
-            msg91Data = retry.data;
-          }
-        }
-      }
+      const verified = await callMsg91Verify(MSG91_AUTH_KEY, access_token, "header");
+      msg91Res = verified.res;
+      msg91Data = verified.data;
     } catch (_networkErr) {
       await logAttempt(admin, ip, false, "msg91_unreachable");
       return json(
