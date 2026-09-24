@@ -216,19 +216,23 @@ done inside Gurukul.
 
 ## §8 Cost
 
-The design decides the cost, not the model. **VERIFY the prices** — these are
-the per-million figures recorded for this project on 2026-09-08 and they move.
+The design decides the cost, not the model. **Prices move** — re-check before
+billing claims. Figures below are for the model Stage 1 actually calls
+(`qwen/qwen3.7-flash` via OpenRouter), checked **2026-09-24** against
+https://openrouter.ai/qwen/qwen3.7-flash: **$0.03 / $0.13 per 1M** input/output
+tokens. Earlier 2026-09-08 per-million notes in this section are superseded.
 
-| path | per captured question |
+| path | per captured question (order of magnitude) |
 |---|---|
-| Text only (question, options, the student's answer, tagging back) | ~$0.000044 |
-| With the image, where layout or notation demands it | ~$0.00008 |
+| Text-heavy read (~1.5k in + ~0.4k out) | ~$0.0001 |
+| With a downscaled screenshot (~2.5k in incl. image tokens + ~0.4k out) | ~$0.00013 |
 
-A student capturing 50 mistakes a day, every day: **well under $0.25 a month.**
+A student capturing 50 mistakes a day, every day: **well under $0.25 a month**
+(~$0.20 at the image rate above).
 
 Streaming frames to the AI instead — one a second for two hours a day — is
-roughly **$8–10 per student per month**. That is the same feature built without
-§5, and it is the difference between a business and a bill.
+roughly **$8–25 per student per month** at these rates (same feature without
+§5). The funnel is what keeps the bill in the first band.
 
 **§8.1 The student's mobile data matters more than our bill.** Sending images
 costs *them*. On-device filtering means a few kilobytes an hour instead of
@@ -347,7 +351,7 @@ a real wrong answer proves nothing.
 | `PACKAGE_USAGE_STATS` | **Confirmed:** special (AppOps) permission — declare in manifest; user grants via `Settings.ACTION_USAGE_ACCESS_SETTINGS`, not a runtime dialog. Required to query other apps' foreground state via `UsageStatsManager`. | Stage 2 §5.1: open Settings once; refuse to start the watch session until granted. |
 | Play / sensitive APIs | **Confirmed:** Play's Permissions Declaration Form targets listed high-risk permissions (SMS, Call Log, etc.). `PACKAGE_USAGE_STATS` is not on that form, but it is a **sensitive API** under "Permissions and APIs that access sensitive information" — must be necessary for a promoted core feature, user-consented, not used for undisclosed purposes. MediaProjection FGS still needs the Play Console FGS declaration above. | Justify usage-access only for "which allowlisted study app is in front"; never for ads or profiling. Keep the capture notification visible. |
 | One session (§4.1) | **Reconfirmed:** Android 14+ MediaProjection consent is per session; cannot start from background. Android 15: `BOOT_COMPLETED` cannot start `mediaProjection` FGS; starting an FGS from the background while holding `SYSTEM_ALERT_WINDOW` requires a **visible** overlay window first. | Student starts **one** watch session from the app (consent + FGS). Keep the Stage 1 overlay visible so Android 15 allows the FGS. Filtering decides what is looked at — never "start silent when PW opens". |
-| Cost (§8) | Prices still VERIFY; design target unchanged: well under $0.25/student/month via the on-device funnel; streaming ~$8–10. | Instrument `sent`; report frames-sent per hour of realistic use. |
+| Cost (§8) | **Confirmed (2026-09-24):** live path is `qwen/qwen3.7-flash` via OpenRouter at $0.03/$0.13 per 1M in/out. Order-of-magnitude ~$0.00013 per image capture → ~$0.20/mo at 50 mistakes/day (under $0.25). Streaming ~1 fps for 2h/day is an order of magnitude higher ($8–25). Prices still move — re-check the OpenRouter page before citing dollars. Funnel proof is frames-sent/hour, not the dollar string. | Instrument `sent`; report frames-sent per hour of realistic use (`measure-screen-capture-stage2-cost.mjs` + androidTest). |
 
 Stage 1 §12 must stay green while Stage 2 lands. The Stage 1 tap path is unchanged.
 
