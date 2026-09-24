@@ -130,4 +130,28 @@ public class CaptureFunnelTest {
     assertEquals(0, counters.sent);
     assertEquals(1, counters.droppedAt54);
   }
+
+  @Test
+  public void correctAnswer_droppedAt54_section124() {
+    String correct =
+        "Q1. Efficiency means?\nA. Waste\nB. Gain\nYour answer: B Correct\nCorrect answer: B";
+    assertEquals(
+        FunnelDecision.DROP_TEXT_GATE,
+        funnel.evaluate(FrameSample.of(PW, allow(), 0.02, 0.2, true, correct))
+    );
+    assertEquals(0, counters.sent);
+    assertEquals(1, counters.droppedAt54);
+  }
+
+  @Test
+  public void teacherSolve_withoutYourAnswer_droppedAt54() {
+    String teacher =
+        "Q. Management is a process.\nA. Planning\nCorrect answer: B\nSir is solving on the board";
+    assertEquals(
+        FunnelDecision.DROP_TEXT_GATE,
+        funnel.evaluate(FrameSample.of(PW, allow(), 0.02, 0.2, true, teacher))
+    );
+    assertEquals(0, counters.sent);
+    assertEquals(1, counters.droppedAt54);
+  }
 }

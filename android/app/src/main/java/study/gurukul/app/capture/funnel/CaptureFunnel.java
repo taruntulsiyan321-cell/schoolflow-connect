@@ -29,6 +29,15 @@ public final class CaptureFunnel {
   private static final Pattern VERDICT_WORDS = Pattern.compile(
       "(?i)(your\\s*answer|correct\\s*answer|incorrect|wrong|solution|\\bcorrect\\b|\\bincorrect\\b)"
   );
+  private static final Pattern WRONG_VERDICT = Pattern.compile(
+      "(?i)(\\bincorrect\\b|\\bwrong\\b|not\\s+correct)"
+  );
+  private static final Pattern YOUR_CHOICE = Pattern.compile(
+      "(?i)your\\s*answer\\s*[:.\\-]?\\s*([a-d0-9])"
+  );
+  private static final Pattern CORRECT_CHOICE = Pattern.compile(
+      "(?i)correct\\s*answer\\s*[:.\\-]?\\s*([a-d0-9])"
+  );
   private static final Pattern QUESTION_MARKERS = Pattern.compile(
       "(?i)(^|\\n)\\s*(q\\.?\\s*\\d+|question\\s*\\d+|\\d+[.)]|which |what |how |why |who )"
   );
@@ -146,16 +155,35 @@ public final class CaptureFunnel {
     return text.toLowerCase(Locale.US).replaceAll("\\s+", " ").trim();
   }
 
-  /** §5.4 / §6.3 — question-shaped text and a student-attached verdict. */
+  /** §5.4 / §6.3 / §12.4 — question + student answer + evidence they were wrong. */
   public static boolean looksLikeQuestionWithVerdict(String text) {
     if (text == null) return false;
     String t = text.trim();
     if (t.length() < 24) return false;
-    boolean hasVerdict = VERDICT_WORDS.matcher(t).find();
     boolean hasStudent = STUDENT_ANSWER.matcher(t).find();
     boolean hasQuestion = QUESTION_MARKERS.matcher(t).find()
         || t.contains("?")
         || OPTION_MARKERS.matcher(t).find();
-    return hasQuestion && hasVerdict && hasStudent;
+    if (!hasQuestion || !hasStudent) return false;
+    // §12.4 — correct answers must not leave the phone (cost + mistake-book trust).
+    if (!studentLooksWrong(t)) return false;
+    // Still require a verdict-shaped screen (not a bare "Your answer" draft).
+    return VERDICT_WORDS.matcher(t).find();
+  }
+
+  /**
+   * True when OCR shows the student was wrong: explicit incorrect/wrong, or
+   * Your answer ≠ Correct answer letters.
+   */
+  static boolean studentLooksWrong(String text) {
+    if (WRONG_VERDICT.matcher(text).find()) return true;
+    java.util.regex.Matcher yours = YOUR_CHOICE.matcher(text);
+    java.util.regex.Matcher correct = CORRECT_CHOICE.matcher(text);
+    if (yours.find() && correct.find()) {
+      String a = yours.group(1).toLowerCase(Locale.US);
+      String b = correct.group(1).toLowerCase(Locale.US);
+      return !a.equals(b);
+    }
+    return false;
   }
 }

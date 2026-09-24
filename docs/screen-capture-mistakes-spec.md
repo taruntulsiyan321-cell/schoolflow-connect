@@ -354,8 +354,8 @@ a real wrong answer proves nothing.
 | Cost (§8) | **Confirmed (2026-09-24):** live path is `qwen/qwen3.7-flash` via OpenRouter at $0.03/$0.13 per 1M in/out. Order-of-magnitude ~$0.00013 per image capture → ~$0.20/mo at 50 mistakes/day (under $0.25). Streaming ~1 fps for 2h/day is an order of magnitude higher ($8–25). Prices still move — re-check the OpenRouter page before citing dollars. Funnel proof is frames-sent/hour, not the dollar string. | Instrument `sent`; report frames-sent per hour of realistic use (`measure-screen-capture-stage2-cost.mjs` + androidTest). |
 
 Stage 1 §12 must stay green while Stage 2 lands. The Stage 1 tap path is unchanged.
-On this worktree (2026-09-24): JVM `CaptureFunnelTest` **7/7 PASS**; on-device
-`CaptureFunnelInstrumentedTest` **6/6 PASS** via
+On this worktree (2026-09-24): JVM `CaptureFunnelTest` **9/9 PASS**; on-device
+`CaptureFunnelInstrumentedTest` **9/9 PASS** via
 `./gradlew :app:connectedDebugAndroidTest` on AVD `medium_phone`
 (sdk_gphone64_x86_64 / Android 16). Portable SDK/JDK under
 `%LOCALAPPDATA%\gurukul-tools\` (not committed; `android/local.properties`
@@ -367,6 +367,8 @@ Stage 2 reliability (same day, after first instrumented green):
 - Async OCR so the sample loop is not blocked for §12.1 instant windows
 - Android 15: overlay required + shown before watch FGS; tap blocked while watching
 - `MediaProjection.Callback` → `watchSessionEnded`; Profile app-list + §11 delete
+- §12.4/§12.5/§12.8 on-device: correct / teacher-solve / score-only drop at §5.4
+  (wrong = Incorrect/wrong words OR Your answer letter ≠ Correct answer letter)
 
 ### Still open
 

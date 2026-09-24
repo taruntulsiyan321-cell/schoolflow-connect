@@ -132,4 +132,42 @@ public class CaptureFunnelInstrumentedTest {
     assertEquals(1, counters.sent);
     assertEquals(1, counters.droppedDuplicate);
   }
+
+  @Test
+  public void scoreOnly_droppedAt54_nothingSent() {
+    String score =
+        "Q1. Efficiency?\nA. Waste\nB. Gain\nScore: 3/10\nOpen solutions to review";
+    assertEquals(
+        FunnelDecision.DROP_TEXT_GATE,
+        funnel.evaluate(FrameSample.of(PW, allowPw(), 0.02, 0.2, true, score))
+    );
+    assertEquals(0, counters.sent);
+    assertEquals(1, counters.droppedAt54);
+  }
+
+  @Test
+  public void correctAnswer_droppedAt54_section124() {
+    String correct =
+        "Q. Which is a function of management?\n"
+            + "A. Cooking\nB. Planning\n"
+            + "Your answer: B  Correct\n"
+            + "Correct answer: B";
+    assertEquals(
+        FunnelDecision.DROP_TEXT_GATE,
+        funnel.evaluate(FrameSample.of(PW, allowPw(), 0.02, 0.2, true, correct))
+    );
+    assertEquals(0, counters.sent);
+  }
+
+  @Test
+  public void teacherSolve_withoutYourAnswer_droppedAt54() {
+    String teacher =
+        "Q. Management is a process.\nCorrect answer: B\nSir is solving on the board now";
+    assertEquals(
+        FunnelDecision.DROP_TEXT_GATE,
+        funnel.evaluate(FrameSample.of(PW, allowPw(), 0.02, 0.2, true, teacher))
+    );
+    assertEquals(0, counters.sent);
+    assertEquals(0, counters.ocrInvocations);
+  }
 }
