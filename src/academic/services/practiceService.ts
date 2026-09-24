@@ -1576,58 +1576,24 @@ export const PracticeService = {
       }
     }
 
+    // Spec §7.4 / Incorrect mode — one loader for private captures (same as
+    // recovery tier-0 in Practice.tsx). Do not re-query student_capture_questions
+    // here; listCaptureQuestionsByIds owns embed shape + from_capture.
     const captureById = new Map<string, PracticeReady>();
     if (captureQids.length > 0) {
-      // Migration 770 table — may lag generated Supabase types.
-      type CaptureRow = {
-        id: string;
-        question_text: string;
-        options: unknown;
-        correct_index: number | null;
-        difficulty: string | null;
-        chapter_id: string | null;
-        chapters: { name?: string; curriculum_subjects?: { name?: string } | null } | null;
-      };
-      const capClient = client as unknown as {
-        from: (t: string) => {
-          select: (c: string) => {
-            eq: (a: string, b: string) => {
-              in: (
-                col: string,
-                vals: string[],
-              ) => Promise<{ data: CaptureRow[] | null; error: { message: string } | null }>;
-            };
-          };
-        };
-      };
-      const { data: captureRows, error: captureError } = await capClient
-        .from("student_capture_questions")
-        .select(
-          "id, question_text, options, correct_index, difficulty, chapter_id, chapters(name, curriculum_subjects(name))",
-        )
-        .eq("owner_id", ctx.userId)
-        .in("id", captureQids);
-      throwIfError(captureError, "Failed to load capture mistake questions");
-      for (const row of captureRows ?? []) {
-        const ch = row.chapters;
-        const options = row.options;
-        const correct =
-          typeof row.correct_index === "number" && Number.isInteger(row.correct_index)
-            ? row.correct_index
-            : null;
-        if (!row.id || !row.question_text || correct == null) continue;
-        if (!Array.isArray(options) || options.length < 2) continue;
+      const captureRows = await listCaptureQuestionsByIds(ctx, captureQids);
+      for (const row of captureRows) {
         captureById.set(row.id, {
           id: row.id,
-          subject: ch?.curriculum_subjects?.name?.trim() || "",
-          chapter: ch?.name ?? null,
+          subject: row.subject?.trim() || "",
+          chapter: row.chapter,
           difficulty: row.difficulty ?? "medium",
-          question: row.question_text,
-          options,
-          correct_index: correct,
-          explanation: null,
+          question: row.question,
+          options: row.options,
+          correct_index: row.correct_index as number,
+          explanation: row.explanation,
           from_capture: true,
-          chapter_id: row.chapter_id ?? null,
+          chapter_id: row.chapter_id,
         });
       }
     }

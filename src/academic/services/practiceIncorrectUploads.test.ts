@@ -58,13 +58,15 @@ describe("incorrect mode includes upload mistakes", () => {
     expect(body).toMatch(/snapshotPrivate\s*\(/);
   });
 
-  it("loads private screen-capture questions the same way as uploads", () => {
+  it("loads private screen-capture questions via listCaptureQuestionsByIds", () => {
     const body = listMistakeBody();
     expect(body).toContain('source === "screen_capture"');
-    expect(body).toContain('.from("student_capture_questions")');
     expect(body).toContain("capture_question_id");
+    expect(body).toContain("listCaptureQuestionsByIds");
     expect(body).toContain("from_capture: true");
     expect(body).toMatch(/captureById\.has\(cqid\)/);
+    // Must not re-open the private table here — the shared loader owns it.
+    expect(body).not.toContain('.from("student_capture_questions")');
   });
 
   it("prefers selecting upload_question_id and degrades when the column is missing", () => {
