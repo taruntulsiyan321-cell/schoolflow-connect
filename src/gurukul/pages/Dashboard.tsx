@@ -31,6 +31,24 @@ function practiceSessionsToday(snapshot: ReturnType<typeof useStudentAcademicSna
   return row?.self_practice ?? 0;
 }
 
+function MissionCard({ label, color, icon, onClick, children }: {
+  label: string; color: string; icon: ReactNode; onClick: () => void; children: ReactNode;
+}) {
+  return (
+    <GlassCard className="p-4 cursor-pointer hover:border-border" onClick={onClick}>
+      <div className="flex items-center gap-2 mb-2">
+        <span style={{ color }}>{icon}</span>
+        <span className="text-xs font-semibold text-foreground">{label}</span>
+      </div>
+      {children}
+    </GlassCard>
+  );
+}
+
+function Big({ color, children }: { color?: string; children: ReactNode }) {
+  return <div className="text-2xl font-black tabular-nums mb-1" style={color ? { color } : undefined}>{children}</div>;
+}
+
 function timeOfDayGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good Morning";
@@ -51,10 +69,6 @@ function buildMission(
       available: false as const,
       practiceDone: 0,
       practiceTarget: PRACTICE_TARGET,
-      recoveryDone: 0,
-      recoveryTarget: 1,
-      revisionDone: 0,
-      revisionTarget: 1,
       nextAction: {
         label: "Start a practice session",
         reason: "Mission stats are unavailable right now",
@@ -75,10 +89,6 @@ function buildMission(
   const homeworkPending = opts.includeHomework ? (snapshot.homework?.pending ?? 0) : 0;
 
   const practiceDone = Math.min(practiceToday, PRACTICE_TARGET);
-  const recoveryTarget = recoveryPending > 0 ? Math.max(recoveryPending, 1) : 1;
-  const recoveryDone = recoveryPending === 0 ? 1 : Math.max(0, recoveryTarget - recoveryPending);
-  const revisionTarget = revisionPending > 0 ? Math.max(revisionPending, 1) : 1;
-  const revisionDone = revisionPending === 0 ? 1 : Math.max(0, revisionTarget - revisionPending);
 
   let nextAction: { label: string; reason: string; page: PageKey };
   if (recoveryPending > 0) {
@@ -111,10 +121,6 @@ function buildMission(
     available: true as const,
     practiceDone,
     practiceTarget: PRACTICE_TARGET,
-    recoveryDone,
-    recoveryTarget,
-    revisionDone,
-    revisionTarget,
     nextAction,
     recoveryPending,
     revisionPending,
@@ -366,23 +372,34 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
       <div className="animate-premium-enter" style={{animationDelay: "0.08s"}}>
         <SectionLabel>{"Today's Mission"}</SectionLabel>
         <div className="grid sm:grid-cols-3 gap-4 animate-premium-stagger">
+          {/* Practice is a count of sessions done today against a target.
+              Recovery and Revision are what is WAITING: nothing here records
+              a recovery or a revision done today, so they show how many
+              chapters are due, and "Nothing due" when none are. They used to
+              read "1/1" with a full bar whenever nothing was due, which told a
+              student who had never practised that they had finished both. */}
+          <MissionCard label="Practice" color="hsl(var(--primary))" icon={<BookOpen className="w-4 h-4"/>} onClick={() => setPage("practice")}>
+            {mission.available
+              ? <><Big color="hsl(var(--primary))">{mission.practiceDone}<span className="text-sm text-muted-foreground font-normal">/{mission.practiceTarget}</span></Big>
+                  <ProgressBar value={mission.practiceDone} max={mission.practiceTarget} color="hsl(var(--primary))"/></>
+              : <Big><span className="text-muted-foreground">—</span></Big>}
+          </MissionCard>
           {[
-            { label: "Practice", done: mission.practiceDone, target: mission.practiceTarget, color: "hsl(var(--primary))", icon: <BookOpen className="w-4 h-4"/>, page: "practice" as PageKey },
-            { label: "Recovery", done: mission.recoveryDone, target: mission.recoveryTarget, color: "hsl(var(--accent))", icon: <RefreshCw className="w-4 h-4"/>, page: "recovery" as PageKey },
-            { label: "Revision", done: mission.revisionDone, target: mission.revisionTarget, color: "var(--color-chemistry)", icon: <RotateCcw className="w-4 h-4"/>, page: "revision" as PageKey },
+            { label: "Recovery", pending: mission.recoveryPending, color: "hsl(var(--accent))", icon: <RefreshCw className="w-4 h-4"/>, page: "recovery" as PageKey },
+            { label: "Revision", pending: mission.revisionPending, color: "var(--color-chemistry)", icon: <RotateCcw className="w-4 h-4"/>, page: "revision" as PageKey },
           ].map((m) => (
-            <GlassCard key={m.label} className="p-4 cursor-pointer hover:border-border" onClick={() => setPage(m.page)}>
-              <div className="flex items-center gap-2 mb-2">
-                <span style={{ color: m.color }}>{m.icon}</span>
-                <span className="text-xs font-semibold text-foreground">{m.label}</span>
-              </div>
-              <div className="text-2xl font-black tabular-nums mb-1" style={{ color: m.color }}>
-                {mission.available
-                  ? <>{m.done}<span className="text-sm text-muted-foreground font-normal">/{m.target}</span></>
-                  : <span className="text-muted-foreground">—</span>}
-              </div>
-              <ProgressBar value={mission.available ? m.done : 0} max={m.target} color={m.color}/>
-            </GlassCard>
+            <MissionCard key={m.label} label={m.label} color={m.color} icon={m.icon} onClick={() => setPage(m.page)}>
+              <Big color={m.color}>
+                {!mission.available
+                  ? <span className="text-muted-foreground">—</span>
+                  : m.pending > 0
+                    ? <>{m.pending}<span className="text-sm text-muted-foreground font-normal"> due</span></>
+                    : <span className="text-base font-semibold text-muted-foreground">Nothing due</span>}
+              </Big>
+              {mission.available && m.pending > 0 && (
+                <div className="text-[11px] text-muted-foreground">{m.pending === 1 ? "chapter" : "chapters"} waiting</div>
+              )}
+            </MissionCard>
           ))}
         </div>
       </div>

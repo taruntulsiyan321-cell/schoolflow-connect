@@ -18,6 +18,7 @@
  */
 
 import { completeWithQwen } from "./modelRouter.ts";
+import { schemaShape } from "./schemaShape.ts";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,9 +34,10 @@ export const jsonResponse = (body: unknown, status = 200) =>
 export type StructuredAiRequest = {
   system: string;
   user: string;
-  /** JSON Schema object (properties + required) — folded into the prompt as
-   *  an instruction; OpenRouter/Qwen chat completions has no native
-   *  responseSchema enforcement, so this is advisory, not enforced. */
+  /** JSON Schema object (properties + required), or an example of the answer.
+   *  Folded into the prompt AS AN EXAMPLE (schemaShape): OpenRouter/Qwen has
+   *  no native responseSchema enforcement, and shown the schema itself the
+   *  model answers in its shape. Advisory, not enforced. */
   schema: Record<string, unknown>;
   /** Retained for caller-compatibility with the pre-migration signature; unused. */
   toolName?: string;
@@ -81,8 +83,9 @@ async function callStructured<T>(
 ): Promise<AiResult<T>> {
   const system =
     `${req.system}\n\n${jsonInstruction}\n` +
-    `Respond with ONLY a single JSON object matching this shape (no markdown fences, no commentary): ` +
-    JSON.stringify(req.schema);
+    `Respond with ONLY a single JSON object shaped like this example, with your own values ` +
+    `(no markdown fences, no commentary): ` +
+    JSON.stringify(schemaShape(req.schema));
 
   const result = await completeWithQwen({
     system,

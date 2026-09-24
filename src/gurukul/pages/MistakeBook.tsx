@@ -20,6 +20,7 @@ import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
 import { pluralise } from "@/lib/plural";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
+import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 
 type MBView = "list" | "practice" | "results";
 
@@ -493,6 +494,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const navigate = useNavigate();
   const { user } = useAuth();
   const { ctx, ready: academicReady } = useAcademicContext();
+  // An exam account sits no school tests; its mistakes come from practice.
+  const { schoolKind } = useGurukulAcademicIdentity();
   const bookmarksKey = mistakeBookmarksKey({ userId: user?.id, schoolId: ctx?.schoolId ?? undefined });
   const [view, setView] = useState<MBView>("list");
   const [practiceIds, setPracticeIds] = useState<string[]>([]);
@@ -1021,7 +1024,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
               <EmptyState
                 icon={<AlertCircle className="w-6 h-6" />}
                 title="No mistakes saved yet"
-                sub="Wrong answers from practice and tests appear here automatically."
+                sub={schoolKind === "individual" ? "Wrong answers from your practice appear here automatically." : "Wrong answers from practice and tests appear here automatically."}
               />
             ) : (
               <EmptyState

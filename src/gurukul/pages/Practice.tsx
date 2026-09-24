@@ -1366,7 +1366,7 @@ async function completeSession(
 }
 
 // ── Session (question-solving) ───────────────────────────────────────────────
-function Session({
+export function Session({
   config, onFinish, onBack, onNavigate, subjects, classUnresolved, classUnresolvedMessage,
 }: {
   config: SessionConfig;
@@ -1387,6 +1387,10 @@ function Session({
   // WHAT THE SERVER SAID. Null until the attempt has been recorded, which is
   // also the first moment this browser is allowed to know the answer.
   const [verdict,   setVerdict]   = useState<AttemptVerdict | null>(null);
+  /** The on-screen answer's write came back without a verdict (the finish resends it). */
+  const [verdictMissing, setVerdictMissing] = useState(false);
+  // Both counted from VERDICTS, so "x/y correct" never counts an answer the
+  // server has not marked yet as a wrong one.
   const [correct,   setCorrect]   = useState(0);
   const [answered,  setAnswered]  = useState(0);
   const [bookmarked,setBookmarked]= useState<number[]>([]);
@@ -1645,10 +1649,14 @@ function Session({
   /** The snapshot of the question on screen, so a late verdict cannot mark the next question. */
   const onScreenRef = useRef<PracticeAttemptSnapshot | null>(null);
 
-  function record(snap: PracticeAttemptSnapshot, onVerdict?: (v: AttemptVerdict) => void) {
+  function record(
+    snap: PracticeAttemptSnapshot,
+    onVerdict?: (v: AttemptVerdict) => void,
+    onNoVerdict?: () => void,
+  ) {
     attemptLog.current.push(snap);
     const write = persistAttemptLive(snap).then((v) => {
-      if (!v) return;
+      if (!v) { onNoVerdict?.(); return; }
       confirmedRef.current.add(snap);
       // What the server found is what this session's record says from now on:
       // the summary and the review read these snapshots.
@@ -1723,7 +1731,6 @@ function Session({
     const q = qs[idx];
     if (!q || phase !== "q" || finishedRef.current) return;
     setChosen(i);
-    setAnswered((n) => n + 1);
     // Bank: THE CLIENT DOES NOT GRADE — server re-grades off question_bank.
     // Private upload/capture (§9 / §7.4): no bank id, so the RPC trusts
     // `_is_correct`. The owner-readable key was loaded with the row; send it.
@@ -1748,13 +1755,18 @@ function Session({
       });
     }
     onScreenRef.current = snap;
-    record(snap, (v) => {
-      if (v.isCorrect) {
-        correctRef.current += 1;
-        setCorrect(correctRef.current);
-      }
-      if (onScreenRef.current === snap) setVerdict(v);
-    });
+    record(
+      snap,
+      (v) => {
+        setAnswered((n) => n + 1);
+        if (v.isCorrect) {
+          correctRef.current += 1;
+          setCorrect(correctRef.current);
+        }
+        if (onScreenRef.current === snap) setVerdict(v);
+      },
+      () => { if (onScreenRef.current === snap) setVerdictMissing(true); },
+    );
     setPhase("fb");
   }
 
@@ -1764,6 +1776,7 @@ function Session({
     // The last verdict belongs to the last question.
     onScreenRef.current = null;
     setVerdict(null);
+    setVerdictMissing(false);
     questionStartRef.current = Date.now();
   }
 
@@ -1889,6 +1902,12 @@ function Session({
   // Null while the verdict is in flight, which is why the options below stay
   // neutral until it lands.
   const isRight = verdict?.isCorrect === true;
+  // Answered, and the server has not said yet. Nothing is marked right or
+  // wrong in this state: the choice is only shown as chosen. It used to be
+  // drawn as WRONG (red, with a cross) until the verdict landed — measured
+  // 2026-09-24, a correct first answer whose verdict took over 2.5 s stayed
+  // marked wrong on screen while the server recorded it right.
+  const checking = phase === "fb" && verdict === null;
   // Private keys are owner-readable; fall back when the verdict omits index
   // (non-bank path stores what we sent — still cover empty/legacy shapes).
   const markedCorrectIndex =
@@ -2040,6 +2059,7 @@ function Session({
             // The fill, the border and the mark say which is right; the text
             // stays the foreground. text-success on its own tint read 4.13:1.
             if (isCorrect)              bg = "border-success/50 bg-success/10 text-foreground";
+            else if (isChosen && checking) bg = "border-primary/50 bg-primary/5 text-foreground";
             else if (isChosen && !isRight) bg = "border-destructive/50 bg-destructive/10 text-foreground";
             else                        bg = "border-border text-muted-foreground opacity-60";
           }
@@ -2051,11 +2071,19 @@ function Session({
               </span>
               <span className="flex-1"><MathText text={opt} /></span>
               {phase === "fb" && isCorrect && <CheckCircle2 className="w-4 h-4 text-success shrink-0"/>}
-              {phase === "fb" && isChosen && !isRight && <XCircle className="w-4 h-4 text-destructive shrink-0"/>}
+              {phase === "fb" && isChosen && !checking && !isRight && <XCircle className="w-4 h-4 text-destructive shrink-0"/>}
             </button>
           );
         })}
       </div>
+
+      {checking && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {verdictMissing
+            ? "Couldn't check this answer right now. It will be marked when you finish."
+            : "Checking your answer…"}
+        </p>
+      )}
 
       {/* Explanation, once answered. There is no hint before answering: the
           bank has no hint text, only the worked solution, and the "hint" this

@@ -16,7 +16,12 @@
 --
 -- Fix: union from_bank + from_upload + from_capture per tier; match attempts
 -- by bank_question_id OR generated_question upload/capture id.
--- Keeps §4.5 mistake clear on ready (030).
+-- Keeps §4.5 mistake clear on ready (030), and keeps #17 (20261054000000):
+-- each tier counts only the planned questions the student could still be
+-- shown — an approved bank row, or an upload/capture original that still
+-- exists — for the numerator AND the denominator, and the stored tierN_total
+-- is what could actually be asked. (This file was first written from a body
+-- that predated #17 and would have put it back.)
 --
 -- ROLLBACK: rollback/20261081000000_recovery_submit_scores_upload_and_capture.rollback.sql
 -- ===========================================================================
@@ -36,6 +41,7 @@ DECLARE
   _uid       uuid := auth.uid();
   _rs        public.recovery_sessions%ROWTYPE;
   _corr      int[] := ARRAY[0,0,0,0];
+  _tot       int[] := ARRAY[0,0,0,0];
   _i         int;
   _n         int;
   _ids_bank  uuid[];
@@ -87,6 +93,17 @@ BEGIN
       FROM jsonb_array_elements_text(
              COALESCE(_rs.plan->'tiers'->(_i::text)->'from_capture', '[]'::jsonb)) AS v;
 
+    -- #17: a planned question the student can no longer be shown — a bank row
+    -- withdrawn after planning, an upload or capture since deleted — is
+    -- neither right nor wrong. It leaves the tier.
+    SELECT COALESCE(array_agg(q.id), ARRAY[]::uuid[]) INTO _ids_bank
+      FROM public.question_bank q WHERE q.id = ANY(_ids_bank) AND q.is_approved;
+    SELECT COALESCE(array_agg(u.id), ARRAY[]::uuid[]) INTO _ids_up
+      FROM public.student_upload_questions u WHERE u.id = ANY(_ids_up) AND u.owner_id = _uid;
+    SELECT COALESCE(array_agg(c.id), ARRAY[]::uuid[]) INTO _ids_cap
+      FROM public.student_capture_questions c WHERE c.id = ANY(_ids_cap) AND c.owner_id = _uid;
+    _tot[_i + 1] := cardinality(_ids_bank) + cardinality(_ids_up) + cardinality(_ids_cap);
+
     SELECT count(*)::int INTO _n
       FROM public.question_attempts qa
      WHERE qa.session_id = _practice_session_id
@@ -110,15 +127,13 @@ BEGIN
   END LOOP;
 
   FOR _i IN 0..3 LOOP
-    _corr[_i + 1] := LEAST(_corr[_i + 1],
-      CASE _i WHEN 0 THEN _rs.tier0_total WHEN 1 THEN _rs.tier1_total
-              WHEN 2 THEN _rs.tier2_total ELSE _rs.tier3_total END);
+    _corr[_i + 1] := LEAST(_corr[_i + 1], _tot[_i + 1]);
   END LOOP;
 
   _proc_n := _corr[1] + _corr[2];
-  _proc_d := _rs.tier0_total + _rs.tier1_total;
+  _proc_d := _tot[1] + _tot[2];
   _conc_n := _corr[3] + _corr[4];
-  _conc_d := _rs.tier2_total + _rs.tier3_total;
+  _conc_d := _tot[3] + _tot[4];
 
   _proc := CASE WHEN _proc_d > 0 THEN round(_proc_n::numeric / _proc_d, 4) END;
   _conc := CASE WHEN _conc_d > 0 THEN round(_conc_n::numeric / _conc_d, 4) END;
@@ -135,6 +150,7 @@ BEGIN
   END;
 
   UPDATE public.recovery_sessions SET
+    tier0_total = _tot[1], tier1_total = _tot[2], tier2_total = _tot[3], tier3_total = _tot[4],
     tier0_correct = _corr[1], tier1_correct = _corr[2],
     tier2_correct = _corr[3], tier3_correct = _corr[4],
     procedural_rate = _proc, conceptual_rate = _conc,
@@ -206,6 +222,10 @@ BEGIN
   -- Positive control: bank-only path must remain.
   IF position('from_bank' IN _src) = 0 THEN
     RAISE EXCEPTION 'VERIFY FAILED: submit lost from_bank';
+  END IF;
+  -- #17 must survive: only what could be shown is counted.
+  IF position('q.is_approved' IN _src) = 0 OR position('tier0_total = _tot[1]' IN _src) = 0 THEN
+    RAISE EXCEPTION 'VERIFY FAILED: #17 (a question nobody could see is not a wrong answer) lost';
   END IF;
   -- §4.5 clear must still run on ready.
   IF position('status = ''cleared''' IN _src) = 0 THEN
