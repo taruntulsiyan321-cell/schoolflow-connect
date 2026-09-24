@@ -143,6 +143,21 @@ export {
   type UploadPracticeMode,
   type DisputeAiAnswerResult,
 } from "./services/studentUploadService";
+export {
+  canPromote,
+  hasRealChapterId,
+  hasValidVariant,
+  isNotNearDuplicate,
+  sourceNotAiAnswered,
+  type UploadPromotionInput,
+} from "./services/uploadPromotionGates";
+export {
+  uploadPromotionSource,
+  promotedUploadVariantFields,
+  enqueueUploadVariantGeneration,
+  type UploadPromotionSource,
+  type EnqueueUploadVariantResult,
+} from "./services/uploadVariantEnqueue";
 export { STUDENT_UPLOAD_ACCEPT } from "./storage/studentUploadFile";
 export type {
   ChapterStateRow,
