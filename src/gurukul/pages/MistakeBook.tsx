@@ -78,6 +78,7 @@ function sourceLabel(source: string): string {
     practice: "Practice", tests: "Test", battleground: "Battleground",
     homework: "Homework", pyq: "PYQ", qbank: "Question Bank",
     upload: "Upload",
+    screen_capture: "Captured",
   };
   return labels[source] ?? source.charAt(0).toUpperCase() + source.slice(1);
 }

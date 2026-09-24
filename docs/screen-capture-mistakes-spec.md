@@ -1,7 +1,8 @@
 # Mistakes captured from another app's screen
 
-**Status:** ruled 2026-09-24 by the owner. Not built. Third of the three
-features that must exist before launch, beside
+**Status:** Stage 1 (tap) built 2026-09-24. Stage 2 automatic watching is
+**not** started — blocked until Stage 1 §12 acceptance stays green (§10.1).
+Third of the three features that must exist before launch, beside
 `docs/custom-practice-upload-spec.md`.
 
 Facts marked *measured* were taken from the live database or this repository on
@@ -327,16 +328,29 @@ a real wrong answer proves nothing.
 
 ---
 
-## §13 Still open
+## §13 Still open / measured
 
-- **VERIFY** current Android screen-capture and usage-access rules, and current
-  Play Store policy, before designing §4. Google tightens both regularly, and a
-  rejected app is a worse outcome than a slower one.
+### VERIFY — Android + Play (checked 2026-09-24 against current docs)
+
+| fact | result | implication for §4 / Stage 1 |
+|---|---|---|
+| MediaProjection consent | **Confirmed:** Android 14+ requires user grant via `createScreenCaptureIntent()` before a `mediaProjection` FGS may start; consent is per capture session, not a one-time install grant. Apps cannot start projection from the background. | Stage 1 tap: request consent on first tap (or when starting overlay session), then one-shot capture. Do not design “silent start when PW opens”. |
+| FGS type | **Confirmed:** declare `FOREGROUND_SERVICE_MEDIA_PROJECTION`, service `android:foregroundServiceType="mediaProjection"`, start typed FGS *after* grant, then `getMediaProjection()`. | Manifest + one-shot capture service. |
+| Play Console | **Confirmed:** apps targeting Android 14+ must declare the Media Projection FGS use on App content (Policy), with user-beneficial / user-initiated / stoppable justification and a demo video. Device and Network Abuse policy applies. | Ship Stage 1 as explicit tap-initiated capture; keep the system capture notification visible (§11). |
+| Usage access | Still required for Stage 2 §5.1 foreground-app filtering. **Stage 1 tap does not need it** — the student chooses the moment; the phone still sends `package_name` when known, and the server/client allowlist drops unlisted apps before any read. | Do not request usage-access until Stage 2. |
+| Android 15 | Media-projection stop chip / tighter stop UX — treat as product copy, not a blocker for Stage 1. | — |
+
+Stage 2 automatic watching (§5 funnel, usage access) remains **blocked** until Stage 1 §12 acceptance passes (§10.1).
+
+### Still open
+
 - Which model reads the frames. Note that `ai-gateway` **cannot be deployed
   from this repo** — production holds two `_shared` modules that exist in no
-  branch (KNOWN_ISSUES, edge-drift entry). A new function avoids it.
+  branch (KNOWN_ISSUES, edge-drift entry). Stage 1 uses a dedicated
+  `screen-capture-mistake` function instead.
 - The confidence thresholds in §5.2 and §5.4 are numbers nobody has measured.
-  Pick, then tune against §12, then record them here.
+  Stage 1 records intake defaults in code comments; tune against §12, then
+  record them here.
 - Unacademy and the rest. The §6.3 rule should carry, but no one has looked at
   their screens yet. Do not assume.
 - PW will redesign their app. Expect it; build §5.3 and §7.1 on what a screen
