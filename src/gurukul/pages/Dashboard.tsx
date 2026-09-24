@@ -38,12 +38,41 @@ function timeOfDayGreeting() {
   return "Good Evening";
 }
 
-function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"]) {
-  const practiceLifetime = snapshot?.self_practice?.sessions_completed ?? 0;
+function buildMission(
+  snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"],
+  /** Individual exam accounts have no homework surface — never route them there. */
+  opts: { includeHomework: boolean },
+) {
+  // No snapshot → no mission figures. Treating missing data as "0 pending →
+  // 1/1 done" made Recovery and Revision look complete after a failed load
+  // (rule 27 / no-demo-data: absence must not read as a data-bearing render).
+  if (!snapshot) {
+    return {
+      available: false as const,
+      practiceDone: 0,
+      practiceTarget: PRACTICE_TARGET,
+      recoveryDone: 0,
+      recoveryTarget: 1,
+      revisionDone: 0,
+      revisionTarget: 1,
+      nextAction: {
+        label: "Start a practice session",
+        reason: "Mission stats are unavailable right now",
+        page: "practice" as PageKey,
+      },
+      recoveryPending: 0,
+      revisionPending: 0,
+      practiceSessions: 0,
+      practiceToday: 0,
+      mistakesLogged: 0,
+    };
+  }
+
+  const practiceLifetime = snapshot.self_practice?.sessions_completed ?? 0;
   const practiceToday = practiceSessionsToday(snapshot);
-  const recoveryPending = snapshot?.recovery_pending ?? 0;
-  const revisionPending = snapshot?.revision_due ?? 0;
-  const homeworkPending = snapshot?.homework?.pending ?? 0;
+  const recoveryPending = snapshot.recovery_pending ?? 0;
+  const revisionPending = snapshot.revision_due ?? 0;
+  const homeworkPending = opts.includeHomework ? (snapshot.homework?.pending ?? 0) : 0;
 
   const practiceDone = Math.min(practiceToday, PRACTICE_TARGET);
   const recoveryTarget = recoveryPending > 0 ? Math.max(recoveryPending, 1) : 1;
@@ -79,6 +108,7 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
   }
 
   return {
+    available: true as const,
     practiceDone,
     practiceTarget: PRACTICE_TARGET,
     recoveryDone,
@@ -90,14 +120,24 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
     revisionPending,
     practiceSessions: practiceLifetime,
     practiceToday,
-    mistakesLogged: snapshot?.mistake_count ?? 0,
+    mistakesLogged: snapshot.mistake_count ?? 0,
   };
 }
 
 const PRACTICE_TARGET = 1;
 
-function WeeklyRing({ sessions }: { sessions: number }) {
+function WeeklyRing({ sessions, ready }: { sessions: number; ready: boolean }) {
   const goal = 7;
+  // Not ready → neutral placeholder. A literal 0 here used to look like a real
+  // empty week while progression was still loading beside "—" level/streak.
+  if (!ready) {
+    return (
+      <ProgressRing value={0} size={120} color="hsl(var(--muted-foreground))" label="Loading sessions this week">
+        <span className="text-2xl font-black tabular-nums text-muted-foreground">—</span>
+        <span className="text-[10px] text-muted-foreground mt-0.5">/ {goal}</span>
+      </ProgressRing>
+    );
+  }
   const pct = Math.min(sessions / goal, 1);
   // Complete colours, all three rungs. This ternary was the whole G4 bug in one
   // line: two triplet tokens and one `--color-*` (already `hsl(...)`), then
@@ -161,7 +201,10 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
     toast.error(loadError);
   }, [loadError]);
 
-  const mission = useMemo(() => buildMission(snapshot), [snapshot]);
+  const mission = useMemo(
+    () => buildMission(snapshot, { includeHomework: !isIndividual }),
+    [snapshot, isIndividual],
+  );
 
   const weeklyActivity = useMemo(
     () => mapWeeklyActivity(charts?.weekly_activity ?? []),
@@ -275,17 +318,24 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
               <StatTile label="Level" value={levelLabel} color="var(--color-chemistry)"/>
             </div>
             <div className="mt-3">
-              <XPBar
-                xp={shellReady ? student.xp : 0}
-                level={shellReady ? student.level : 1}
-                xpIntoLevel={shellReady ? student.xpIntoLevel : 0}
-                xpToNext={shellReady ? student.xpToNext : 100}
-                progressPct={shellReady ? student.levelProgressPct : 0}
-              />
+              {shellReady ? (
+                <XPBar
+                  xp={student.xp}
+                  level={student.level}
+                  xpIntoLevel={student.xpIntoLevel}
+                  xpToNext={student.xpToNext}
+                  progressPct={student.levelProgressPct}
+                />
+              ) : (
+                // Same pulse Layout uses — never Level 1 / 0 XP as truth.
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full w-1/3 rounded-full bg-border animate-pulse" />
+                </div>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-center shrink-0">
-            <WeeklyRing sessions={shellReady ? student.sessionsThisWeek : 0}/>
+            <WeeklyRing sessions={student.sessionsThisWeek} ready={shellReady} />
             <span className="text-[11px] text-muted-foreground uppercase tracking-widest mt-2">Sessions / Week</span>
           </div>
         </div>
@@ -327,9 +377,11 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 <span className="text-xs font-semibold text-foreground">{m.label}</span>
               </div>
               <div className="text-2xl font-black tabular-nums mb-1" style={{ color: m.color }}>
-                {m.done}<span className="text-sm text-muted-foreground font-normal">/{m.target}</span>
+                {mission.available
+                  ? <>{m.done}<span className="text-sm text-muted-foreground font-normal">/{m.target}</span></>
+                  : <span className="text-muted-foreground">—</span>}
               </div>
-              <ProgressBar value={m.done} max={m.target} color={m.color}/>
+              <ProgressBar value={mission.available ? m.done : 0} max={m.target} color={m.color}/>
             </GlassCard>
           ))}
         </div>

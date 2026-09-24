@@ -190,7 +190,8 @@ export default function StudentDashboard() {
     const snapError = snapRead.error;
     if (snapError || chartsError) {
       console.warn("student dashboard snapshot/charts:", snapError?.message, chartsError?.message);
-      toast.error("Could not load your latest stats — showing what's cached.");
+      // Failed reads clear/omit those fields — do not claim a cache we do not keep.
+      toast.error("Could not load your latest stats.");
     }
 
     type ChartRow = { weekly_activity?: { date: string; total: number }[] };
