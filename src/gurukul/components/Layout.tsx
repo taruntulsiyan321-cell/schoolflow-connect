@@ -478,17 +478,25 @@ export default function Layout({
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto bg-background">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={page}
-              initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.18, ease: EASE_OUT }}
-              className="p-4 sm:p-6 max-w-5xl mx-auto pb-24 md:pb-6">
-              {children}
-            </motion.div>
-          </AnimatePresence>
+          {/* The page ENTERS; it does not exit. This was an AnimatePresence
+              with an exit animation, which keeps the old container mounted
+              while it plays — and that container renders {children}, the
+              router, which already resolves to the NEW location. So every
+              navigation mounted the destination twice: a throwaway copy in
+              the leaving container, then the real one. The throwaway copy
+              consumed anything meant to be read once — a ?mode= deep link, the
+              router-state hand-off that starts a recovery or revision
+              session — and the real page came up on its hub. Measured
+              2026-09-24: Analysis's "Try the ones you skipped" started the
+              session in the throwaway copy and showed the Practice hub. */}
+          <motion.div
+            key={page}
+            initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: EASE_OUT }}
+            className="p-4 sm:p-6 max-w-5xl mx-auto pb-24 md:pb-6">
+            {children}
+          </motion.div>
         </main>
 
         {/* Mobile bottom nav — tabs from studentNavEntries */}

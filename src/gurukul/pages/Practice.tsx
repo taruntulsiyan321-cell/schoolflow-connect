@@ -42,7 +42,7 @@ import {
   Save, Bookmark, BookMarked, Lightbulb,
   RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle, Filter,
 } from "lucide-react";
-import { toErrorMessage } from "@/lib/presentation";
+import { isUuid, toErrorMessage } from "@/lib/presentation";
 import { ACCURACY_PROCEDURAL, ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
 import { pluralise } from "@/lib/plural";
 import { PRACTICE_MODE_LABELS, practiceModeLabel } from "@/lib/practiceModeLabel";
@@ -1119,6 +1119,13 @@ function StartButton({ disabled=false, onStart, label="Start Practice" }: {
 interface SessionConfig {
   mode: ModeKey; label: string; subject: string;
   chapter?: string | null; topic?: string | null;
+  /**
+   * Skipped mode for ONE chapter — Analysis's "Try the ones you skipped" on
+   * that chapter's row (§6.6). By id, because rpc_my_skipped_questions
+   * narrows on question_bank.chapter_id; the row's count comes from the same
+   * function, so the session holds the questions the row counted.
+   */
+  skippedChapterId?: string | null;
   difficulty: string; qCount: number; timeLimitSec: number | null;
   /** Previous Year Questions only — restricts to one exam year. */
   pyqYear?: number | null;
@@ -1272,7 +1279,7 @@ async function loadSessionQuestions(
     case "incorrect":
       return PracticeService.listMistakeQuestions(ctx, { limit: config.qCount });
     case "skipped":
-      return PracticeService.listSkippedBankQuestions(ctx, { limit: config.qCount });
+      return PracticeService.listSkippedBankQuestions(ctx, { limit: config.qCount, chapterId: config.skippedChapterId ?? null });
     case "bookmarked":
       return PracticeService.listBookmarkedQuestions(ctx, { limit: config.qCount });
     case "weak": {
@@ -2502,12 +2509,16 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       return;
     }
 
-    // ?mode=<instant mode> — used by Mistake Book's "Practice again".
+    // ?mode=<instant mode> — used by Mistake Book's "Practice again", and
+    // ?mode=skipped&chapter_id=<uuid> by Analysis's chapter rows.
     const modeRaw = searchParams.get("mode");
     if (modeRaw && (INSTANT as string[]).includes(modeRaw)) {
       deepLinkHandled.current = true;
+      const chapterIdRaw = searchParams.get("chapter_id");
+      const skippedChapterId =
+        modeRaw === "skipped" && isUuid(chapterIdRaw) ? chapterIdRaw : null;
       setSearchParams({}, { replace: true });
-      handleMode(modeRaw as ModeKey);
+      handleMode(modeRaw as ModeKey, { skippedChapterId });
       return;
     }
 
@@ -2568,7 +2579,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     setPhase("session");
   }
 
-  function handleMode(key: ModeKey) {
+  function handleMode(key: ModeKey, opts: { skippedChapterId?: string | null } = {}) {
     setModeKey(key);
     if (INSTANT.includes(key)) {
       const mode = MODES.find(m => m.key === key)!;
@@ -2581,6 +2592,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         difficulty: "mixed",
         qCount: 20,
         timeLimitSec: null,
+        skippedChapterId: opts.skippedChapterId ?? null,
       });
     } else {
       setPhase("config");

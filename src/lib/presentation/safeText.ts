@@ -217,6 +217,11 @@ export function isDisplaySafe(value: unknown, options?: DisplayTextOptions): boo
 }
 
 /** True for values that are identifiers rather than content. */
+/** A canonical UUID — e.g. an id arriving in a link, before it is sent anywhere. */
+export function isUuid(value: unknown): boolean {
+  return typeof value === "string" && UUID_RE.test(value.trim());
+}
+
 export function isIdentifierLike(value: unknown): boolean {
   if (typeof value !== "string") return false;
   const s = value.trim();

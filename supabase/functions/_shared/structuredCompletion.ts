@@ -18,7 +18,7 @@
  */
 
 import { completeWithQwen } from "./modelRouter.ts";
-import { schemaShape } from "./schemaShape.ts";
+import { extractJson, INVALID_JSON, schemaShape } from "./structuredJson.ts";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,12 +70,6 @@ export type AiResult<T> =
 
 const DEFAULT_MAX_TOKENS = 1200;
 
-function extractJson<T>(text: string): T {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return JSON.parse(fenced ? fenced[1] : trimmed) as T;
-}
-
 async function callStructured<T>(
   req: StructuredAiRequest,
   opts: GenerateStructuredOptions | undefined,
@@ -112,7 +106,20 @@ async function callStructured<T>(
       usage: result.usage,
     };
   } catch {
-    return { ok: false, error: "Model returned invalid JSON", status: 502 };
+    // Say WHY it did not parse: an answer cut off at max_tokens and an answer
+    // that is not JSON need different retries, and neither is visible from
+    // "invalid JSON" alone.
+    // The reply's opening words go with it: they show whether the model
+    // wrote prose, a schema, or JSON that ran long.
+    const cutOff = result.finish_reason === "length";
+    const began = JSON.stringify(result.text.slice(0, 100));
+    return {
+      ok: false,
+      error: cutOff
+        ? `${INVALID_JSON} (cut off at max_tokens ${opts?.max_tokens ?? DEFAULT_MAX_TOKENS}; began ${began})`
+        : `${INVALID_JSON} (began ${began})`,
+      status: 502,
+    };
   }
 }
 
@@ -141,6 +148,10 @@ export async function generateStructuredWithFallback<T>(
 ): Promise<AiResult<T>> {
   const strict = await generateStructured<T>(req, opts);
   if (strict.ok) return strict;
-  if (strict.error !== "Model returned invalid JSON") return strict;
-  return generateJsonRelaxed<T>(req, opts);
+  if (!strict.error.startsWith(INVALID_JSON)) return strict;
+  // Cut off: the same budget cuts it off again, so the retry gets twice the
+  // room (capped). Otherwise the same budget, with the stricter instruction.
+  const cutOff = strict.error.includes("cut off at max_tokens");
+  const max = opts?.max_tokens ?? DEFAULT_MAX_TOKENS;
+  return generateJsonRelaxed<T>(req, cutOff ? { ...opts, max_tokens: Math.min(4000, max * 2) } : opts);
 }

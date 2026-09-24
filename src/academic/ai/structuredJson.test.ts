@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { schemaShape } from "../../../supabase/functions/_shared/schemaShape.ts";
+import { extractJson, schemaShape } from "../../../supabase/functions/_shared/structuredJson.ts";
 
 /**
  * A structured prompt shows the model an example of the answer, never the
@@ -60,5 +60,20 @@ describe("schemaShape — the model is shown an answer, not a schema", () => {
     // An example whose own field is NAMED "type" is still an example.
     const withTypeField = { type: { label: "" }, answer: "" };
     expect(schemaShape(withTypeField)).toBe(withTypeField);
+  });
+});
+
+describe("extractJson — the object in a reply, whatever is wrapped around it", () => {
+  const answer = { answers: [{ n: 0, working: "5 × 3 = 15", correct_index: 2, exactly_one_correct: true }] };
+
+  it("reads a clean reply, a fenced one, and one with a sentence either side", () => {
+    expect(extractJson(JSON.stringify(answer))).toEqual(answer);
+    expect(extractJson("```json\n" + JSON.stringify(answer) + "\n```")).toEqual(answer);
+    expect(extractJson("Here is the JSON:\n" + JSON.stringify(answer) + "\nLet me know if you need more.")).toEqual(answer);
+  });
+
+  it("POSITIVE CONTROL: a reply that is not JSON, or is cut off, still fails", () => {
+    expect(() => extractJson("I could not solve this question.")).toThrow();
+    expect(() => extractJson(JSON.stringify(answer).slice(0, 40))).toThrow();
   });
 });

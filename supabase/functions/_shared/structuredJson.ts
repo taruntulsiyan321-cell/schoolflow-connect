@@ -1,4 +1,9 @@
 /**
+ * The two pure halves of a structured completion, kept free of Deno so they
+ * can be tested: what the prompt shows the model, and how the reply is read.
+ */
+
+/**
  * What a structured prompt shows the model: an EXAMPLE of the answer, not the
  * JSON Schema that describes it.
  *
@@ -59,3 +64,26 @@ function exampleOf(schema: unknown): Json {
 export function schemaShape(schema: Record<string, unknown>): Json {
   return isSchema(schema) ? exampleOf(schema) : (schema as Json);
 }
+
+/**
+ * The JSON object in a reply. A model asked for "ONLY JSON" still sometimes
+ * wraps it — a fence, a sentence before it, a note after — and each of those
+ * failed the whole call as "invalid JSON". The object is the span from the
+ * first "{" to the last "}"; anything outside it is not part of the answer.
+ */
+export function extractJson<T>(text: string): T {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  const body = fenced ? fenced[1] : trimmed;
+  try {
+    return JSON.parse(body) as T;
+  } catch (e) {
+    const start = body.indexOf("{");
+    const end = body.lastIndexOf("}");
+    if (start < 0 || end <= start) throw e;
+    return JSON.parse(body.slice(start, end + 1)) as T;
+  }
+}
+
+/** Every "could not parse" starts with this; the cause follows in brackets. */
+export const INVALID_JSON = "Model returned invalid JSON";

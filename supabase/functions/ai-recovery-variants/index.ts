@@ -288,9 +288,10 @@ async function solveBack(
   context: { subject: string; chapter: string; classLevel: string },
 ): Promise<{ verdicts: ({ ok: true } | { ok: false; why: string })[]; usage: unknown }> {
   const system =
-    "You are a careful mathematics and science examiner for Indian school students " +
-    "(CBSE/RBSE, NCERT syllabus). You are given multiple-choice questions and you SOLVE them.\n\n" +
-    "For each question: work it out step by step, then say which option index (0-3) is correct.\n\n" +
+    "You are a careful examiner for Indian students — school boards (CBSE/RBSE) and entrance " +
+    "exams such as CUET, on the NCERT syllabus, in any subject. You are given multiple-choice " +
+    "questions and you SOLVE them.\n\n" +
+    "For each question: work it out, then say which option index (0-3) is correct.\n\n" +
     "HARD RULES:\n" +
     "- Do the arithmetic. Do not assume the question is well-posed.\n" +
     "- If your worked answer is NOT among the four options, return correct_index -1. " +
@@ -298,7 +299,12 @@ async function solveBack(
     "- If the question as worded has NO valid solution (a count that is not a whole number, " +
     "a contradictory condition), return correct_index -1.\n" +
     "- Set exactly_one_correct false if two or more options satisfy the question as worded, " +
-    "even when one of them is the intended answer.";
+    "even when one of them is the intended answer.\n" +
+    // Measured 2026-09-24: left unbounded, `working` became a markdown essay
+    // and the answer was cut off at 2,400 tokens before it closed — every
+    // such check failed as invalid JSON, and so did the variant.
+    "- Keep `working` short: the deciding calculation or reason in at most 4 lines and 60 words, " +
+    "plain text, no headings or markdown.";
 
   const user = [
     `Subject: ${context.subject}`,
@@ -509,7 +515,8 @@ Deno.serve(async (req) => {
         : "(not recorded)";
 
     const system =
-      "You write multiple-choice questions for Indian school students (CBSE/RBSE, NCERT syllabus). " +
+      "You write multiple-choice questions for Indian students — school boards (CBSE/RBSE) and " +
+      "entrance exams such as CUET, on the NCERT syllabus. " +
       "You are given ONE question a student got wrong, and you produce transfer variants of it.\n\n" +
       TIER_RULES[tier] +
       "\n\nHARD RULES:\n" +
@@ -518,7 +525,8 @@ Deno.serve(async (req) => {
       "- Match the difficulty of the original. §4.2: if they failed an easy question, a hard " +
       "variant teaches nothing but discouragement.\n" +
       "- Stay inside the same chapter and topic.\n" +
-      "- Write the explanation so it teaches the step the student most likely missed.\n" +
+      "- Write the explanation so it teaches the step the student most likely missed, in under " +
+      "80 words of plain text — no headings or markdown.\n" +
       "- If you cannot write a genuine variant at this tier, return fewer. Returning a reworded " +
       "copy to fill the count is worse than returning nothing.";
 

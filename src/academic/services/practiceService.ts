@@ -1409,8 +1409,8 @@ export const PracticeService = {
       // answer by this student was a skip. This read every skipped row, so a
       // question skipped once and answered since came back in Skipped mode,
       // and Analysis's "you skipped 6 questions in this chapter" would have
-      // opened a session of more. rpc_student_chapter_analysis counts from
-      // the same function.
+      // opened a session of more. rpc_my_skipped_by_chapter, which Analysis
+      // counts from, reads the same function.
       const { data, error } = await client.rpc("rpc_my_skipped_questions" as never, {
         _chapter_id: opts.chapterId ?? null,
         _limit: limit,

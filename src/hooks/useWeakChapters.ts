@@ -11,7 +11,8 @@ import { deriveWeakChapters, type WeakChapterRow } from "@/lib/weakChapters";
  *   rpc_student_chapter_states  the chapters, their names and revision state
  *   chapter_tally               a session's work in a chapter — accuracy, trend
  *   student_mistakes            open, repeated, oldest, and mistakes by topic
- *   question_attempts           what was skipped, and how long questions took
+ *   question_attempts           how long questions took
+ *   rpc_my_skipped_by_chapter   what is still skipped — Skipped mode's questions
  *
  * `chapter_tally` is what makes §6.4's trend work for a chapter practised
  * inside a WHOLE-SUBJECT session: the tally is per chapter per session, so a
@@ -65,16 +66,18 @@ export function useWeakChapters(enabled = true, userId?: string | null) {
 
     (async () => {
       try {
-        const [statesRes, tallies, mistakes, attempts] = await Promise.all([
+        const [statesRes, skippedRes, tallies, mistakes, attempts] = await Promise.all([
           supabase.rpc("rpc_student_chapter_states"),
+          supabase.rpc("rpc_my_skipped_by_chapter" as never),
           readAll<{ chapter_id: string | null; attempted: number | null; correct: number | null; created_at: string | null }>(
             "chapter_tally", "chapter_id, attempted, correct, created_at", userId),
           readAll<{ chapter_id: string | null; status: string | null; times_wrong: number | null; created_at: string | null; topic: string | null }>(
             "student_mistakes", "chapter_id, status, times_wrong, created_at, topic", userId),
-          readAll<{ bank_question_id: string | null; topic: string | null; skipped: boolean | null; time_taken_ms: number | null }>(
-            "question_attempts", "bank_question_id, topic, skipped, time_taken_ms, created_at", userId),
+          readAll<{ bank_question_id: string | null; time_taken_ms: number | null }>(
+            "question_attempts", "bank_question_id, time_taken_ms, created_at", userId),
         ]);
         if (statesRes.error) throw statesRes.error;
+        if (skippedRes.error) throw skippedRes.error;
 
         // Chapter for each attempt, from the bank itself. Asked for in pages,
         // because a student can hold more attempts than one response returns.
@@ -95,10 +98,9 @@ export function useWeakChapters(enabled = true, userId?: string | null) {
           mistakes,
           attempts: attempts.map((a) => ({
             chapter_id: a.bank_question_id ? chapterOf.get(a.bank_question_id) ?? null : null,
-            topic: a.topic,
-            skipped: a.skipped,
             time_taken_ms: a.time_taken_ms,
           })),
+          skipped: (skippedRes.data ?? []) as unknown as Parameters<typeof deriveWeakChapters>[0]["skipped"],
         });
         if (!cancelled) setList({ status: "ready", items: rows });
       } catch (e) {
