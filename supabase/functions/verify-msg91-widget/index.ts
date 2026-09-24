@@ -63,9 +63,19 @@ Deno.serve(async (req) => {
   const ip = clientIp(req);
 
   try {
-    const { access_token } = await req.json().catch(() => ({}));
+    const { access_token, exam } = await req.json().catch(() => ({}));
     if (!access_token || typeof access_token !== "string") {
       return json({ error: "access_token is required", error_code: "missing_access_token" }, 400);
+    }
+
+    // The individual student's sign-in names the exam they chose on the login
+    // page. Its shape is checked here and its EXISTENCE in the database below
+    // (rpc_create_exam_account) -- this string becomes part of an account's
+    // permanent identity, so a typo must not silently mint a second account
+    // on the same phone. Absent = the school sign-in, unchanged.
+    const examCode = typeof exam === "string" ? exam.trim().toLowerCase() : "";
+    if (exam !== undefined && exam !== null && !/^[a-z0-9_]{2,32}$/.test(examCode)) {
+      return json({ error: "That exam is not one we offer.", error_code: "unknown_exam" }, 400);
     }
 
     // Rate-limit by caller IP -- an access-token is single-use/short-lived on
@@ -123,7 +133,43 @@ Deno.serve(async (req) => {
 
     // From here on, verifiedPhone is the ONLY phone number this function
     // trusts — it came from MSG91's own response, never from the request body.
-    const result = await linkOrCreatePhoneUser(admin, verifiedPhone);
+    const { user_id, ...result } = await linkOrCreatePhoneUser(
+      admin,
+      verifiedPhone,
+      examCode || undefined,
+    );
+
+    // The exam account's own space is opened BEFORE the sign-in token is
+    // handed back, and the token is withheld if it cannot be. The first thing
+    // the app does with a session is call get_auth_context(), which runs
+    // link_portal_on_auth() — and that absorbs any account whose profile
+    // names no school into the first institution with a matching portal row.
+    // A student who signed in first and got their space second would be
+    // exposed for exactly that window. Opening it is idempotent, so a retry
+    // after a failure here resolves to the same account.
+    if (examCode) {
+      const { error: spaceErr } = await admin.rpc("rpc_create_exam_account", {
+        _account_id: user_id,
+        _exam_code: examCode,
+        _phone: verifiedPhone,
+        _full_name: "",
+      });
+      if (spaceErr) {
+        console.error("[verify-msg91-widget] could not open the exam account:", spaceErr.message);
+        await logAttempt(admin, ip, false, "exam_account_not_opened");
+        const unknown = /no active exam/i.test(spaceErr.message);
+        return json(
+          {
+            error: unknown
+              ? "That exam is not one we offer."
+              : "We could not finish setting up your account. Please try again.",
+            error_code: unknown ? "unknown_exam" : "exam_account_not_opened",
+          },
+          unknown ? 400 : 500,
+        );
+      }
+    }
+
     await logAttempt(admin, ip, true);
 
     return json({ ...result, verified_phone_masked: maskPhone(verifiedPhone) });

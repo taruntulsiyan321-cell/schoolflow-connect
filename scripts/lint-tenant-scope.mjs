@@ -59,6 +59,10 @@ const SCHOOL_SCOPED_TABLES = [
 // school_id reference -- each entry MUST say why, and the why must still be
 // true (re-check on any change to the function or its callers).
 const ALLOWLIST = {
+  // --- An exam is an account, 2026-09-23 ---
+  rpc_set_my_display_name:
+    "OWNER-scoped, which is strictly tighter than an institution predicate: `_uid uuid := auth.uid()` with a RAISE when it is null, and both writes are keyed on that one person -- `UPDATE public.profiles ... WHERE id = _uid` and `UPDATE public.students ... WHERE user_id = _uid`. It takes ONE argument, the name itself, so there is no target parameter to point at another student; same_school() would admit thousands of accounts where auth.uid() admits one, so adding it would widen the check, not narrow it, and would restate a fence the owner predicate already imposes (G9). It writes nothing but full_name, and reads nothing back. EXECUTE is revoked from PUBLIC and anon and granted to authenticated only (20261046000000). Checkable: the body must contain `auth.uid()` and both `WHERE id = _uid` and `WHERE user_id = _uid`, and must NOT contain has_role, same_school, or any _student_id/_user_id parameter. It exists because an individual exam account's name has two homes the panel reads -- the profile and the student row -- and writing one without the other is the two-sources-of-truth shape. Read body 2026-09-23.",
+
   ai_embedding_jobs_process_batch:
     "Confirmed 2026-08-21: a single shared service-role-only batch worker (analogous to a cron job), not a per-tenant request handler. FOR UPDATE SKIP LOCKED prevents cross-worker double-claim races; each returned job is already tagged with its own school_id so no cross-tenant data mixing occurs downstream.",
   bump_ai_answer_cache_hit:
