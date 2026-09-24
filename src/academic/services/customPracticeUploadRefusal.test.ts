@@ -2,28 +2,18 @@
  * §4 refusal gates for Custom Practice uploads.
  * Binding: docs/custom-practice-upload-spec.md §4.2–§4.4
  *
- * Mock-model responses only — no live OpenRouter, no demo student names.
- * Unusable verdicts must leave zero question/note rows (§4.3).
+ * Imports only Deno-free refusalGates + types — never classify/modelRouter.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ClassifierResult, ExtractedQuestion } from "../../../supabase/functions/custom-practice-upload/types";
-
-const { completeWithQwenMock } = vi.hoisted(() => ({
-  completeWithQwenMock: vi.fn(),
-}));
-
-vi.mock("../../../supabase/functions/_shared/modelRouter.ts", () => ({
-  completeWithQwen: completeWithQwenMock,
-  getConfiguredModelId: () => "mock/qwen-test",
-  isOpenRouterConfigured: () => true,
-}));
-
+import { describe, expect, it } from "vitest";
 import {
   applyRefusalGates,
-  classifyUploadMedia,
   CONFIDENCE_THRESHOLD,
   MIN_USABLE_QUESTIONS,
-} from "../../../supabase/functions/custom-practice-upload/classify";
+} from "../../../supabase/functions/custom-practice-upload/refusalGates";
+import type {
+  ClassifierResult,
+  ExtractedQuestion,
+} from "../../../supabase/functions/custom-practice-upload/types";
 
 function mcq(stem: string, correctIndex = 0): ExtractedQuestion {
   return {
@@ -35,22 +25,6 @@ function mcq(stem: string, correctIndex = 0): ExtractedQuestion {
     explanation: "Mock explanation for the stem.",
     difficulty: "medium",
   };
-}
-
-function modelPayload(partial: {
-  verdict: ClassifierResult["verdict"];
-  confidence: number;
-  refusal_reason?: string | null;
-  questions?: ExtractedQuestion[];
-  notes?: ClassifierResult["notes"];
-}): string {
-  return JSON.stringify({
-    verdict: partial.verdict,
-    confidence: partial.confidence,
-    refusal_reason: partial.refusal_reason ?? null,
-    questions: partial.questions ?? [],
-    notes: partial.notes ?? [],
-  });
 }
 
 function assertZeroRows(result: ClassifierResult) {
@@ -140,89 +114,5 @@ describe("applyRefusalGates — §4.2–§4.4", () => {
     expect(gated.refusal_reason).toBeNull();
     expect(gated.questions).toHaveLength(3);
     expect(gated.notes).toEqual([]);
-  });
-});
-
-describe("classifyUploadMedia — mocked model §4 refusal", () => {
-  beforeEach(() => {
-    completeWithQwenMock.mockReset();
-  });
-
-  it("low-confidence model JSON → unusable, zero rows", async () => {
-    completeWithQwenMock.mockResolvedValue({
-      ok: true,
-      text: modelPayload({
-        verdict: "questions",
-        confidence: 0.4,
-        questions: [
-          mcq("Mock stem alpha for low confidence."),
-          mcq("Mock stem beta for low confidence."),
-          mcq("Mock stem gamma for low confidence."),
-        ],
-      }),
-      model_id: "mock/qwen-test",
-      source: "openrouter_qwen",
-    });
-
-    const outcome = await classifyUploadMedia({
-      kind: "text",
-      text: "blurry scan of a worksheet",
-      page_count: 1,
-    });
-
-    expect(outcome.ok).toBe(true);
-    if (!outcome.ok) return;
-    assertZeroRows(outcome.result);
-  });
-
-  it("non-question model verdict → unusable, zero rows", async () => {
-    completeWithQwenMock.mockResolvedValue({
-      ok: true,
-      text: modelPayload({
-        verdict: "unusable",
-        confidence: 0.91,
-        refusal_reason: "This is a chat screenshot, not study questions or notes.",
-        questions: [],
-        notes: [],
-      }),
-      model_id: "mock/qwen-test",
-      source: "openrouter_qwen",
-    });
-
-    const outcome = await classifyUploadMedia({
-      kind: "text",
-      text: "WhatsApp export: hey are you free after school?",
-      page_count: 1,
-    });
-
-    expect(outcome.ok).toBe(true);
-    if (!outcome.ok) return;
-    assertZeroRows(outcome.result);
-    expect(outcome.result.refusal_reason).toMatch(/chat/i);
-  });
-
-  it("fewer than 3 extracted questions → unusable, zero rows", async () => {
-    completeWithQwenMock.mockResolvedValue({
-      ok: true,
-      text: modelPayload({
-        verdict: "questions",
-        confidence: 0.86,
-        questions: [mcq("Only one real question on this page.")],
-        notes: [],
-      }),
-      model_id: "mock/qwen-test",
-      source: "openrouter_qwen",
-    });
-
-    const outcome = await classifyUploadMedia({
-      kind: "text",
-      text: "Q1. Only one real question on this page.",
-      page_count: 1,
-    });
-
-    expect(outcome.ok).toBe(true);
-    if (!outcome.ok) return;
-    assertZeroRows(outcome.result);
-    expect(outcome.result.refusal_reason).toMatch(/Only 1 usable/);
   });
 });
