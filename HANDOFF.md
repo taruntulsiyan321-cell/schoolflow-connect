@@ -1,3 +1,25 @@
+# Custom Practice uploads — 2026-09-24 session leave-behind
+
+**Branch:** `claude/question-topics-per-chapter`. Do not open a PR unless asked. Do not promote `main` until the owner says so.
+
+## Measured this session
+
+- **§12.1** PASS — `node scripts/measure-custom-practice-12-1.mjs` (6 refuse + 1 accept; zero downstream rows). Fixtures in `e2e-evidence/fixtures/custom-practice/`. Exam harness: refresh_token ? `e2e-evidence/auth.exam.setup.ts` (no OTP backdoor).
+- **§13** ruled — confidence 0.55; model `qwen/qwen3.7-flash`; 20 MiB / 20 pages / 40 keep (one server home each). See spec §13.
+- **§12.5 + KI74** PASS — `ai-recovery-variants` XOR upload source; migration `20261076000000` applied live; `node scripts/measure-upload-promotion-12-5-real.mjs` 7/7. Edges `ai-recovery-variants` + `custom-practice-upload` redeployed.
+- **KI77** FIXED — `HOMEWORK_PAGE` 100?25.
+
+## Still open / blocked
+
+- **§12.2 / §12.3 / §12.6** browser E2E as the individual student — harness exists; full UI path not finished this session.
+- **§12.4** blocked — need `E2E_EXAM_SECOND_REFRESH_TOKEN` (same phone, second exam). Owner must mint; no backdoor.
+- `scripts/local-replica/dry-run.mjs` is not in the repo; used `scripts/dry-run-one-migration.mjs` (BEGIN/ROLLBACK via Management API) instead.
+
+## Standing rule (HANDOFF §2)
+
+Do not use sub-agents or workflows for Custom Practice finish work unless the owner lifts this.
+
+---
 # Gurukul â€” session handoff
 
 Written 2026-09-09, updated the same day after Â§4's UI landed. Read this top to

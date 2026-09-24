@@ -26,6 +26,7 @@ import {
   type TaggedQuestion,
 } from "./persist.ts";
 import type { ClassifierResult, ExtractedQuestion } from "./types.ts";
+import { UPLOAD_MAX_BYTES, UPLOAD_MAX_PAGES } from "./refusalGates.ts";
 
 /** §5.2 — same default as match_question_bank_for_exam; confident inherit only. */
 const BANK_MATCH_THRESHOLD = 0.82;
@@ -232,7 +233,7 @@ Deno.serve(async (req) => {
 
   const { data: upload, error: loadErr } = await userClient
     .from("student_uploads")
-    .select("id, owner_id, school_id, status, storage_path, mime_type")
+    .select("id, owner_id, school_id, status, storage_path, mime_type, byte_size")
     .eq("id", uploadId)
     .eq("owner_id", uid)
     .maybeSingle();
@@ -268,6 +269,41 @@ Deno.serve(async (req) => {
   );
   if (!mediaResult.ok) {
     return markFailed(userClient, uploadId, uid, mediaResult.error);
+  }
+
+  // §13 — page and size limits. Storage already caps bytes; re-check here so a
+  // misconfigured bucket cannot spend a classify call. Client only mirrors.
+  const declaredBytes = Number(upload.byte_size ?? 0);
+  if (declaredBytes > UPLOAD_MAX_BYTES) {
+    return markUnusable(
+      userClient,
+      uploadId,
+      uid,
+      {
+        verdict: "unusable",
+        confidence: 1,
+        refusal_reason: `File exceeds the ${UPLOAD_MAX_BYTES / (1024 * 1024)} MB upload limit.`,
+        questions: [],
+        notes: [],
+      },
+      mediaResult.media.page_count,
+    );
+  }
+  const pages = mediaResult.media.page_count;
+  if (pages != null && pages > UPLOAD_MAX_PAGES) {
+    return markUnusable(
+      userClient,
+      uploadId,
+      uid,
+      {
+        verdict: "unusable",
+        confidence: 1,
+        refusal_reason: `This file has ${pages} pages; the limit is ${UPLOAD_MAX_PAGES}.`,
+        questions: [],
+        notes: [],
+      },
+      pages,
+    );
   }
 
   // §5 / §7 — exam catalog before classify so notes can be tagged to real chapters.

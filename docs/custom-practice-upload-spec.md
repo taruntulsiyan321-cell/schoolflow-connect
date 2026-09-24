@@ -336,31 +336,90 @@ it fail.
 
 1. **The refusal battery (§4.5)** — six files that must be refused, and one
    real question paper that must be accepted.
+   *Measured 2026-09-24:* `node scripts/measure-custom-practice-12-1.mjs` as
+   CUET exam account — 6/6 unusable with one-line reasons and zero downstream
+   rows; accept paper → `ready/questions`, 6 questions. Fixtures under
+   `e2e-evidence/fixtures/custom-practice/`. Playwright twin:
+   `e2e-evidence/custom-practice.spec.ts` (testMatch).
 2. **A question paper end to end** — upload, questions extracted and tagged to
    real chapters, practise them, answer one wrong deliberately; then that
    mistake appears in the mistake book, recovery counts its chapter, revision
    schedules it, and analysis stops saying "not recorded yet".
+   *Status 2026-09-24:* prior live probes on this branch covered wrong→mistake
+   →`from_upload`; full browser §12.2 as the signed-in individual is still
+   pending the Playwright exam harness against vite `:8099`.
 3. **A notes file end to end** — upload, notes produced topic-wise and
    chapter-wise, questions written from them, practised.
+   *Status 2026-09-24:* notes path wired (`persistNotes` + chapter resolve);
+   browser E2E pending same harness as §12.2.
 4. **The privacy fence** — a second account (the same phone, a different exam)
    can read none of it: not the file, not the questions, not the notes, not the
    attempts. Each "cannot see" paired with a "can see" on the same query as its
    owner, or the check proves nothing.
+   *Blocked 2026-09-24:* only CUET is active for the harness phone; no
+   `exam_second` without MSG91 OTP. Owner must mint
+   `E2E_EXAM_SECOND_REFRESH_TOKEN` (no backdoor).
 5. **The promotion gates** — one variant that passes all four gates and reaches
    the bank; and one variant failing **each** gate in turn that does not. Four
    negative cases, not one.
+   *Measured 2026-09-24:* `node scripts/measure-upload-promotion-12-5-real.mjs`
+   — PASS (1 positive + 4 negatives + dispatch upload body + §10.4 provenance).
+   KI74 closed.
 6. **The AI-answered marker (§6)** — visible in practice and in the mistake
    book; disputing it clears the mistake and removes the attempt from accuracy.
+   *Status 2026-09-24:* dispute-by-`upload_question_id` shipped (750); browser
+   accuracy before/after still pending the exam Playwright harness.
 
 ---
 
-## §13 Still open
+## §13 Settled (ruled 2026-09-24, measured against §12.1 battery)
 
-- The confidence threshold in §4.2 is a number nobody has measured yet. Pick
-  one, then tune it against the §4.5 battery — and record the measurement here.
-- Which model reads the uploads. `ai-gateway` already holds an image path
-  (`imageDoubtSolve.ts`), but *measured 2026-09-24:* production holds two
-  `_shared` modules that exist in no branch, so **ai-gateway cannot be deployed
-  from this repo** until that is reconciled (KNOWN_ISSUES, edge-drift entry).
-  A new function avoids that blocker entirely.
-- Page and size limits per upload, and how many uploads an account may keep.
+### Confidence threshold (§4.2) — **ruled: 0.55**
+
+Same number as `IMAGE_DOUBT_CONFIDENCE_THRESHOLD` / `CONFIDENCE_THRESHOLD` in
+`refusalGates.ts`. Measured 2026-09-24 against the §4.5 / §12.1 battery
+(`node scripts/measure-custom-practice-12-1.mjs`):
+
+| Fixture | Verdict | Confidence path |
+|---|---|---|
+| refuse-timetable.png | unusable | refused (blank grid / no study content) |
+| refuse-blurry-dark.png | unusable | refused (black / unreadable) |
+| refuse-prose.png | unusable | refused (no readable study content) |
+| refuse-receipt.png | unusable | refused (no study content) |
+| refuse-blank.png | unusable | refused (blank page) |
+| refuse-chat.png | unusable | refused (no readable study content) |
+| accept-real-mcq-paper.pdf | ready / questions | **accepted**, 6 questions written |
+
+All six refusals left **zero** rows in `student_upload_questions`,
+`student_upload_notes`, `question_attempts`, and `student_mistakes`. The accept
+paper is the positive control. 0.55 did not false-refuse the accept paper and
+did not false-accept any refuse fixture in this battery.
+
+### Model that reads uploads — **ruled: `qwen/qwen3.7-flash` via OpenRouter**
+
+`custom-practice-upload` classifies through `_shared/modelRouter.ts`
+(`MODEL = "qwen/qwen3.7-flash"`). Why not `ai-gateway`: production still holds
+two `_shared` modules that exist in no branch, so **ai-gateway cannot be
+deployed from this repo** until that is reconciled (KNOWN_ISSUES edge-drift).
+A dedicated function avoids that blocker (§13 original note).
+
+### Page / size / keep limits — **ruled; one home each**
+
+| Limit | Value | Home (enforced) | Client |
+|---|---|---|---|
+| Bytes per object | 20 MiB (`20971520`) | `storage.buckets.file_size_limit` on `student-uploads` + edge re-check after download | `uploadLimits.UPLOAD_MAX_BYTES` / `studentUploadFile.ts` mirrors only |
+| Pages per upload | 20 | `custom-practice-upload` after media load (`UPLOAD_MAX_PAGES`) | mirrors only |
+| Uploads kept per account | 40 | BEFORE INSERT trigger `_student_uploads_enforce_keep_cap` (migration `20261076000000`) | mirrors only |
+
+Constants live in `src/academic/services/uploadLimits.ts` and
+`supabase/functions/custom-practice-upload/refusalGates.ts` (Deno cannot import
+from `src/`). Changing a limit means changing the **server home** first.
+
+### Still needs the owner
+
+- **§12.4 second exam account:** live currently has only CUET as an active exam
+  for the harness phone. Automating MSG91 OTP needs a real SMS or a backdoor —
+  we do neither. Owner must mint `E2E_EXAM_SECOND_REFRESH_TOKEN` for the same
+  phone on a second exam (when that exam exists) so the privacy fence can be
+  measured as specified.
+- Promoting **main** onto this branch tip — leave pushed until the owner says so.

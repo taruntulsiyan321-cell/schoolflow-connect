@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
+import { UPLOAD_MAX_BYTES } from "@/academic/services/uploadLimits";
 
 const BUCKET = "student-uploads";
-const MAX_BYTES = 20 * 1024 * 1024;
 
 /** Spec §3.1 — PDF or image of the student's own material. */
 export const STUDENT_UPLOAD_ACCEPT =
@@ -21,7 +21,9 @@ export async function uploadStudentUploadFile(
   file: File,
 ): Promise<{ storagePath: string; mimeType: string; byteSize: number; originalFilename: string }> {
   if (file.size <= 0) throw new Error("That file is empty.");
-  if (file.size > MAX_BYTES) throw new Error(`"${file.name}" is larger than 20 MB`);
+  if (file.size > UPLOAD_MAX_BYTES) {
+    throw new Error(`"${file.name}" is larger than ${UPLOAD_MAX_BYTES / (1024 * 1024)} MB`);
+  }
 
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   if (ext && !ALLOWED_EXT.has(ext)) {

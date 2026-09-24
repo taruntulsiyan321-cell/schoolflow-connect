@@ -11,7 +11,7 @@ import type { ManagedHomeworkRow } from "@/academic";
  *    button the service then refused. Those cards are view-only now.
  * 2. CLOSED HOMEWORK OFFERED EDIT AND UNPUBLISH until the closure job had run —
  *    a minute, or for as long as a failed charge keeps it unresolved.
- * 3. THE LIST STOPPED AT 100 without a word. Older homework is a click away,
+ * 3. THE LIST STOPPED AT THE PAGE without a word. Older homework is a click away,
  *    and a reload after an action keeps every page on screen.
  *
  * Each absence is asserted beside a presence on the same screen.
@@ -146,9 +146,10 @@ describe("LiveHomeworkTab", () => {
     expect(screen.getByText(`${HOMEWORK_PAGE + 1} homework`)).toBeTruthy();
     // The second page was short: there is nothing older to offer.
     await waitFor(() => expect(screen.queryByRole("button", { name: "Show older homework" })).toBeNull());
-    // A full page is the point of the test: 100 cards, then 101, rendered in
-    // jsdom — past the default 5 s once the whole suite shares the machine.
-  }, 20000);
+    // A full page is the point of the test: HOMEWORK_PAGE cards, then +1,
+    // rendered in jsdom. Page size is 25 so this stays under the default
+    // vitest budget when the whole suite shares the machine (KI 77).
+  }, 10000);
 
   it("offers no older homework when the first page is not full", async () => {
     listForClass.mockResolvedValue([row({ title: "Only homework" })]);

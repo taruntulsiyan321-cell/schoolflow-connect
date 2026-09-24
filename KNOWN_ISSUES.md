@@ -3406,41 +3406,22 @@ with `upload_question_id` set / `question_id` null → recovery tier 0
 `rpc_record_question_attempt` from raising on unassigned `_tm` for
 upload/no-template attempts.
 
-## 74. Upload-sourced variant jobs enqueue but are never dispatched — SKIP until generator accepts them — OPEN
+## 74. ~~Upload-sourced variant jobs enqueue but are never dispatched — SKIP until generator accepts them~~ — FIXED
 
 **Found:** 2026-09-24 (worktree review of `20261068000000`).
+**Fixed:** 2026-09-24 — `ai-recovery-variants` accepts exactly one of
+`source_question_id` / `source_upload_question_id` (loads upload text +
+chapter/topic, keeps §6.2 / §10.2.4 AI-answer refusal and chapter gate, stores
+upload provenance). Migration `20261076000000_dispatch_upload_variants_and_caps`
+removes the bank-only filter in `dispatch_variant_generation`. Measured
+`node scripts/measure-upload-promotion-12-5-real.mjs`: 1 positive into
+`question_bank` with §10.4 provenance + 4 gate negatives each stay private
+(rollback txn). Both edges redeployed.
 
-Spec §10 + migration `20261068000000_enqueue_upload_variant_and_promote.sql`
-wire three halves of the promotion path:
+## 77. Homework paging unit test timed out under the full vitest suite — FIXED
 
-1. `variant_generation_queue.source_upload_question_id` (from 660) + owner
-   RPC `rpc_enqueue_upload_variant_generation` — **works**. Jobs land with
-   `source_question_id` null and the upload FK set.
-2. `store_generated_questions` accepts `source_upload_question_id` and writes
-   bank provenance with `source_question_id` null — **works**, service_role.
-3. `dispatch_variant_generation` **resolves** upload-sourced jobs when a
-   matching active bank row already exists, but **dispatches bank-sourced
-   jobs only** (`WHERE … AND q.source_question_id IS NOT NULL`). Comment in
-   680: *"Bank-sourced jobs only until ai-recovery-variants accepts upload
-   sources."*
-
-Measured against `supabase/functions/ai-recovery-variants/index.ts`: the
-edge still requires `source_question_id`, loads only from `question_bank`,
-and stores with `source_question_id`. It has no `source_upload_question_id`
-branch, no read of `student_upload_questions`, and no §6.2 / §10.2.4 AI-
-answer refusal on that path.
-
-Consequence: an enqueued upload job stays `pending` forever. Attempts are
-never incremented (it is filtered out of the drain loop), so
-`GENERATION_MAX_RETRIES` never retires it either. Bank jobs are unaffected
-— the `LIMIT` still only picks rows with a bank source.
-
-**Not fixed here.** Flipping the drain filter without teaching the edge
-would spend drain attempts on 400s (`source_question_id is required`) and
-still produce no variants. Teaching the edge is a real feature (load
-upload text + chapter/topic labels, XOR body shape, store upload
-provenance, keep §6.2 / chapter gates), and CI edge deploys are already
-broken (see "Edge function deploy pipeline is broken" above). Re-open
-when `ai-recovery-variants` accepts exactly one of
-`source_question_id` / `source_upload_question_id`; then remove the bank-
-only filter in `dispatch_variant_generation` in the same change.
+**Found:** 2026-09-24 (brief / `LiveHomeworkPanels.test.tsx`).
+**Cause:** `HOMEWORK_PAGE = 100` forced the paging test to paint 100+ cards in
+jsdom while the whole suite shared the machine — past the default budget.
+**Fix:** page size is **25** (still a full page for "Show older homework");
+test timeout back to 10s. Named reason, not a blind raise of the number.

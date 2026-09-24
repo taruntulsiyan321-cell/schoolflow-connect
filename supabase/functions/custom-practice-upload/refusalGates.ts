@@ -10,6 +10,12 @@ import type { ClassifierResult } from "./types.ts";
 /** §4.2 — below this the verdict is forced to unusable. */
 export const CONFIDENCE_THRESHOLD = 0.55;
 
+/** §13 — max pages per upload. Enforced in custom-practice-upload after media load. */
+export const UPLOAD_MAX_PAGES = 20;
+
+/** §13 — max bytes. Storage bucket is the home; edge re-checks after download. */
+export const UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
+
 /** §4.4 — a one-question "session" is worse than an honest refusal. */
 export const MIN_USABLE_QUESTIONS = 3;
 

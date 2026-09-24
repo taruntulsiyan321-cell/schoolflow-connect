@@ -34,6 +34,23 @@ export const ROLES: RoleAccount[] = [
   { role: 'super_admin', email: env('E2E_SUPERADMIN_EMAIL', 'superadmin@wisdomcampus.com'), password: env('E2E_SUPERADMIN_PASSWORD', P), home: /\/admin/, reachable: true },
   // Seeded dual-role teacher+parent; lands in teacher by precedence, switches to parent.
   { role: 'dual_teacher_parent', email: env('E2E_DUAL_EMAIL', 'dual.role@wisdomcampus.com'), password: env('E2E_DUAL_PASSWORD', P), home: /\/(teacher|parent)/, reachable: true },
+  // Individual exam accounts — minted by auth.exam.setup.ts via refresh_token
+  // (MSG91 OTP cannot be automated without a backdoor). Password /auth cannot
+  // reach them: it resolves mobile → @phone.vidyalaya.local, not @exam.…
+  {
+    role: 'exam_cuet',
+    email: env('E2E_EXAM_CUET_EMAIL', '919999900123.cuet@exam.vidyalaya.local'),
+    password: '',
+    home: /\/student/,
+    reachable: true,
+  },
+  {
+    role: 'exam_second',
+    email: env('E2E_EXAM_SECOND_EMAIL', ''),
+    password: '',
+    home: /\/student/,
+    reachable: Boolean(env('E2E_EXAM_SECOND_REFRESH_TOKEN', '')),
+  },
 ]
 
 export const authFile = (role: string) => `e2e-evidence/.auth/${role}.json`
