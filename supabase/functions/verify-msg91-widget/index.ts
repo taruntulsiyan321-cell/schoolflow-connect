@@ -53,6 +53,26 @@ async function logAttempt(
   if (error) console.error("[verify-msg91-widget] failed to log attempt:", error.message);
 }
 
+async function callMsg91Verify(
+  authKey: string,
+  accessToken: string,
+  mode: "body" | "header",
+): Promise<{ res: Response; data: Record<string, unknown> | null }> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const payload =
+    mode === "body"
+      ? { authkey: authKey, "access-token": accessToken }
+      : { "access-token": accessToken };
+  if (mode === "header") headers.authkey = authKey;
+  const res = await fetch(MSG91_VERIFY_URL, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => null);
+  return { res, data: data && typeof data === "object" ? (data as Record<string, unknown>) : null };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -63,7 +83,10 @@ Deno.serve(async (req) => {
   const ip = clientIp(req);
 
   try {
-    const { access_token, exam } = await req.json().catch(() => ({}));
+    const bodyJson = await req.json().catch(() => ({} as Record<string, unknown>));
+    const access_token = bodyJson.access_token;
+    const exam = bodyJson.exam;
+    const tokenMeta = bodyJson.token_meta;
     if (!access_token || typeof access_token !== "string") {
       return json({ error: "access_token is required", error_code: "missing_access_token" }, 400);
     }
@@ -98,14 +121,32 @@ Deno.serve(async (req) => {
       throw new Error("MSG91 not configured — set MSG91_AUTH_KEY secret");
     }
 
+    const jwtShaped = access_token.startsWith("eyJ") && access_token.includes(".");
+    if (tokenMeta && typeof tokenMeta === "object") {
+      console.error("[verify-msg91-widget] client token_meta:", tokenMeta);
+    }
+
     let msg91Res: Response;
+    let msg91Data: Record<string, unknown> | null;
     try {
-      msg91Res = await fetch(MSG91_VERIFY_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ authkey: MSG91_AUTH_KEY, "access-token": access_token }),
-      });
-    } catch (networkErr) {
+      const first = await callMsg91Verify(MSG91_AUTH_KEY, access_token, "body");
+      msg91Res = first.res;
+      msg91Data = first.data;
+      if (!msg91Res.ok || !msg91Data || msg91Data.type !== "success") {
+        const retry = await callMsg91Verify(MSG91_AUTH_KEY, access_token, "header");
+        if (retry.res.ok && retry.data && retry.data.type === "success") {
+          msg91Res = retry.res;
+          msg91Data = retry.data;
+        } else {
+          const firstReason = String(msg91Data?.message ?? `HTTP ${msg91Res.status}`);
+          const secondReason = String(retry.data?.message ?? `HTTP ${retry.res.status}`);
+          if (secondReason.length > firstReason.length) {
+            msg91Res = retry.res;
+            msg91Data = retry.data;
+          }
+        }
+      }
+    } catch (_networkErr) {
       await logAttempt(admin, ip, false, "msg91_unreachable");
       return json(
         { error: "Could not reach the verification service. Please try again.", error_code: "msg91_unreachable" },
@@ -113,22 +154,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    const msg91Data = await msg91Res.json().catch(() => null);
     if (!msg91Res.ok || !msg91Data || msg91Data.type !== "success") {
-      const reason = msg91Data?.message ?? `HTTP ${msg91Res.status}`;
-      // Fingerprint only — never log the token. Distinguishes "we sent a
-      // reqId / garbage" (no JWT shape) from "MSG91 rejected a real JWT"
-      // (auth-key mismatch or expired single-use token).
-      const tokenFp = {
+      const reasonRaw = String(msg91Data?.message ?? `HTTP ${msg91Res.status}`);
+      const reasonTrunc = reasonRaw.replace(/\|/g, "/").slice(0, 40);
+      const errorCode = `${jwtShaped ? "bad_token_jwt" : "bad_token_raw"}|m=${reasonTrunc}`;
+      console.error("[verify-msg91-widget] MSG91 verifyAccessToken failed:", {
+        reason: reasonRaw.slice(0, 80),
+        jwt_shaped: jwtShaped,
         length: access_token.length,
-        jwt_shaped: access_token.startsWith("eyJ") && access_token.includes("."),
         msg91_http: msg91Res.status,
         msg91_type: msg91Data?.type ?? null,
-      };
-      console.error("[verify-msg91-widget] MSG91 verifyAccessToken failed:", reason, tokenFp);
-      await logAttempt(admin, ip, false, "invalid_or_expired_token");
+        error_code: errorCode,
+      });
+      await logAttempt(admin, ip, false, errorCode);
       return json(
-        { error: "That verification could not be confirmed — it may have expired. Please try again.", error_code: "invalid_or_expired_token" },
+        {
+          error: "That verification could not be confirmed — it may have expired. Please try again.",
+          error_code: errorCode,
+        },
         400,
       );
     }
