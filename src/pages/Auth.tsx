@@ -24,7 +24,12 @@ import {
 import { toast } from "sonner";
 import { validateEmail } from "@/lib/emailValidation";
 import { cn } from "@/lib/utils";
-import { openMsg91Widget, closeMsg91Widget, classifyMsg91Failure, isMsg91WidgetConfigured } from "@/lib/msg91Widget";
+import {
+  openMsg91Widget,
+  closeMsg91Widget,
+  classifyMsg91Failure,
+  isMsg91WidgetConfigured,
+} from "@/lib/msg91Widget";
 import { completeMsg91SignIn, phoneToSyntheticEmail } from "@/lib/msg91Auth";
 import { normalizePhone } from "@/lib/phone";
 import { toErrorMessage } from "@/lib/presentation";
@@ -394,8 +399,8 @@ export default function Auth() {
     }
     setMobileBusy(true);
     await openMsg91Widget({
-      onSuccess: async (accessToken) => {
-        const result = await completeMsg91SignIn(accessToken, forExam);
+      onSuccess: async (accessToken, tokenMeta) => {
+        const result = await completeMsg91SignIn(accessToken, forExam, tokenMeta);
         setMobileBusy(false);
         if (result.ok !== true) {
           toast.error(result.error);
