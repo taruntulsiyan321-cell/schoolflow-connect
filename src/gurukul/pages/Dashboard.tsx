@@ -102,7 +102,7 @@ function buildMission(
   } else {
     nextAction = {
       label: practiceToday > 0 ? "Keep practicing" : "Start a practice session",
-      reason: practiceToday > 0 ? "Daily practice done - another session builds mastery" : "Build your daily practice habit",
+      reason: practiceToday > 0 ? "Daily practice done - another session builds the habit" : "Build your daily practice habit",
       page: "practice",
     };
   }

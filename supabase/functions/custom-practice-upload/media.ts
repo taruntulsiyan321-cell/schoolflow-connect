@@ -61,13 +61,28 @@ export type LoadMediaResult =
 
 /**
  * Load the owner's file from the private bucket and shape it for the classifier.
+ * `ownerId` must own the path (`{ownerId}/…`) — service_role download must never
+ * follow an unbound storage_path (confused-deputy / orphan claim).
  */
 export async function loadUploadMedia(
   admin: SupabaseClient,
   storagePath: string,
   mimeType: string,
+  ownerId: string,
 ): Promise<LoadMediaResult> {
-  const { data, error } = await admin.storage.from(BUCKET).download(storagePath);
+  const path = (storagePath || "").trim();
+  const uid = (ownerId || "").trim();
+  if (!uid) {
+    return { ok: false, error: "Upload owner is missing." };
+  }
+  if (!path.startsWith(`${uid}/`) || path.includes("..")) {
+    return {
+      ok: false,
+      error: "Upload file path does not belong to this account.",
+    };
+  }
+
+  const { data, error } = await admin.storage.from(BUCKET).download(path);
   if (error || !data) {
     return {
       ok: false,
@@ -80,7 +95,7 @@ export async function loadUploadMedia(
     return { ok: false, error: "The uploaded file is empty." };
   }
 
-  const mime = mimeFromPath(storagePath, mimeType);
+  const mime = mimeFromPath(path, mimeType);
 
   if (mime.startsWith("image/")) {
     if (buf.byteLength > MAX_IMAGE_BYTES) {

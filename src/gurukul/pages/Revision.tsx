@@ -71,7 +71,7 @@ function RevItemCard({
       <div className="flex items-center gap-2 mt-3 flex-wrap">
         <button onClick={onRevise}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-bold hover:bg-violet-500/30 transition-all">
-          <Play className="w-3 h-3"/> Practice topic
+          <Play className="w-3 h-3"/> Practice chapter
         </button>
         {/* DISABLED WHEN THERE IS NOTHING TO CHECK ON. The note below already
             said "nothing new left in this chapter" and the button stayed live

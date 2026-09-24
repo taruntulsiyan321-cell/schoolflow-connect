@@ -327,6 +327,7 @@ Deno.serve(async (req) => {
     admin,
     upload.storage_path as string,
     (upload.mime_type as string) || "",
+    uid,
   );
   if (!mediaResult.ok) {
     return markFailed(userClient, uploadId, uid, mediaResult.error);

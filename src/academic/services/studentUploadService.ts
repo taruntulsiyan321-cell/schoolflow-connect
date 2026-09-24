@@ -156,6 +156,21 @@ export const StudentUploadService = {
    */
   async create(ctx: ServiceContext, files: File | File[]): Promise<StudentUploadRow[]> {
     assertStudentContext(ctx);
+    // Spec §11 / edge: Custom Practice is individual exam accounts only.
+    let kind = ctx.schoolKind ?? null;
+    if (kind == null) {
+      const db = getClient(ctx);
+      const { data: school, error: kindErr } = await db
+        .from("schools")
+        .select("kind")
+        .eq("id", ctx.schoolId)
+        .maybeSingle();
+      throwIfError(kindErr, "StudentUploadService.create.kind");
+      kind = school?.kind === "individual" || school?.kind === "school" ? school.kind : null;
+    }
+    if (kind !== "individual") {
+      throw new Error("Custom Practice uploads are only for individual exam accounts.");
+    }
     const list = normalizeUploadFiles(files);
 
     const db = getClient(ctx);
