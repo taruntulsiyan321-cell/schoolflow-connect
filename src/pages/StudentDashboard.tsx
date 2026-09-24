@@ -154,7 +154,8 @@ export default function StudentDashboard() {
       }
       try {
         // Class leaderboard is school-only — a tenant-of-one has no classmates.
-        if (schoolKind !== "individual") {
+        // Require known organisation kind; null must not fetch/show class rank.
+        if (schoolKind === "school") {
           const lb = await ProgressionService.leaderboard(ctx, {
             scope: "class",
             period: "lifetime",

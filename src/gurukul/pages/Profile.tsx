@@ -49,8 +49,10 @@ export default function Profile({
   const { ctx, ready, studentId } = useAcademicContext();
   const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
   // null while identity loads keeps school surfaces (same as nav) — only a
-  // confirmed individual tenant hides homework / class tests / class rank.
-  const isSchool = schoolKind !== "individual";
+  // School homework / class tests / class rank only for a confirmed organisation.
+  // null (kind still loading) must not look like school — that painted Class rank
+  // and "ask your school admin" on exam accounts.
+  const isSchool = schoolKind === "school";
   const { earned, loading: badgesLoading } = useStudentBadges(user?.id);
   const [name, setName] = useState("Student");
   const [classLabel, setClassLabel] = useState("");

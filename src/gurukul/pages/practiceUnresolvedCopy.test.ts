@@ -40,11 +40,35 @@ describe("resolvePracticeUnresolved", () => {
       examUnresolved: false,
       classIdMissing: true,
       classLevelUnresolved: false,
+      schoolKind: "school",
     });
     expect(result).toEqual({
       classUnresolved: true,
       classUnresolvedMessage: CLASS_UNRESOLVED_MSG,
     });
+  });
+
+  it("never asks school-admin while kind is still unknown", () => {
+    const result = resolvePracticeUnresolved({
+      examScoped: false,
+      examUnresolved: false,
+      classIdMissing: true,
+      classLevelUnresolved: true,
+      schoolKind: null,
+    });
+    expect(result.classUnresolved).toBe(false);
+    expect(result.classUnresolvedMessage).toBeUndefined();
+  });
+
+  it("never asks school-admin for an individual with no class", () => {
+    const result = resolvePracticeUnresolved({
+      examScoped: false,
+      examUnresolved: false,
+      classIdMissing: true,
+      classLevelUnresolved: false,
+      schoolKind: "individual",
+    });
+    expect(result.classUnresolved).toBe(false);
   });
 
   it("asks school students with an unreadable class level to see their admin", () => {
@@ -53,6 +77,7 @@ describe("resolvePracticeUnresolved", () => {
       examUnresolved: false,
       classIdMissing: false,
       classLevelUnresolved: true,
+      schoolKind: "school",
     });
     expect(result).toEqual({
       classUnresolved: true,
@@ -67,6 +92,7 @@ describe("resolvePracticeUnresolved", () => {
         examUnresolved: false,
         classIdMissing: false,
         classLevelUnresolved: false,
+        schoolKind: "school",
       }),
     ).toEqual({ classUnresolved: false, classUnresolvedMessage: undefined });
   });

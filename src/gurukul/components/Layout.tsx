@@ -10,6 +10,7 @@ import {
   CLASS as CLASS_KEYS,
   studentNavEntries,
   isSchoolOnlyPath,
+  isOrganisationSchool,
 } from "@/gurukul/nav";
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
 import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
@@ -117,14 +118,13 @@ export default function Layout({
   const sidebarNav = navEntriesFor(sidebarKeys);
   const bottomNav = bottomEntriesFor(bottomKeys);
   const visibleProfileExtras = profileExtraLinks.filter(
-    (item) => schoolKind !== "individual" || !isSchoolOnlyPath(item.path),
+    (item) => isOrganisationSchool(schoolKind) || !isSchoolOnlyPath(item.path),
   );
 
-  // Class rank is school-only; individuals show the exam name in `student.class`.
-  const scopeLine =
-    schoolKind === "individual"
-      ? (student.class || "Exam")
-      : ([student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" · ") || "Your class");
+  // Class rank is school-only; individuals (and unknown kind) show exam / scope label.
+  const scopeLine = isOrganisationSchool(schoolKind)
+    ? ([student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" · ") || "Your class")
+    : (student.class || "Exam");
 
   const headerTitle =
     location.pathname.startsWith("/student/notifications") ? "Notifications"
@@ -205,8 +205,10 @@ export default function Layout({
         </div>
         {!collapsed && (
           <div>
-            <div className="text-sm font-black text-foreground leading-none" style={{fontFamily:"var(--font-display)"}}>Wisdom</div>
-            <div className="text-[10px] text-muted-foreground leading-none mt-0.5">Campus</div>
+            <div className="text-sm font-black text-foreground leading-none" style={{fontFamily:"var(--font-display)"}}>Gurukul</div>
+            <div className="text-[10px] text-muted-foreground leading-none mt-0.5">
+              {schoolKind === "individual" ? "Exam prep" : "Student"}
+            </div>
           </div>
         )}
       </div>

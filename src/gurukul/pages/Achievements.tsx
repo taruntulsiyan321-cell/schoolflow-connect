@@ -25,7 +25,8 @@ export default function Achievements() {
   const { user } = useAuth();
   const { ctx, ready } = useAcademicContext();
   const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
-  const isIndividual = schoolKind === "individual";
+  // Treat unknown kind like individual so Class eyebrow / school badges never flash.
+  const isIndividual = schoolKind !== "school";
   const { earned, equipped, loading, saving, equip } = useStudentBadges(user?.id);
   const [featured, setFeatured] = useState<string[]>([]);
   const [achievements, setAchievements] = useState<ProgressionSnapshot["achievements"]>([]);

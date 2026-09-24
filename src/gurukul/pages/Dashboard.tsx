@@ -166,7 +166,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   const student = useGurukulStudent();
   const shellReady = useGurukulShellReady();
   const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
-  const isIndividual = schoolKind === "individual";
+  // School chrome only when kind is known organisation — null must not look like school.
+  const isIndividual = schoolKind !== "school";
   const { data: snapshot, loading: snapLoading, error: snapError, reload: reloadSnap } = useStudentAcademicSnapshot();
   const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts();
 

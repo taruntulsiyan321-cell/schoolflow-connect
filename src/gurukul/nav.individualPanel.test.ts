@@ -53,16 +53,23 @@ describe("individual vs school student panel nav", () => {
     expect(bottom).toEqual(["dashboard", "practice", "analysis", "recovery"]);
   });
 
-  it("school (and null while loading) still includes classhub and battleground", () => {
-    for (const kind of ["school", null] as const) {
-      const { sidebar, bottom } = studentNavEntries(kind);
-      expect(sidebar).toContain("classhub");
-      expect(sidebar).toContain("battleground");
-      expect(sidebar).toContain("learninghub");
-      expect(bottom).toContain("classhub");
-      expect(bottom).toContain("learninghub");
-      expect(bottom).not.toContain("battleground");
-    }
+  it("null kind (loading) uses individual-safe nav — never Class/Battleground", () => {
+    // School-default while loading painted CUET with classmates that do not exist.
+    const { sidebar, bottom } = studentNavEntries(null);
+    expect(sidebar).not.toContain("classhub");
+    expect(sidebar).not.toContain("battleground");
+    expect(bottom).not.toContain("classhub");
+    expect(sidebar).toContain("analysis");
+  });
+
+  it("school nav still includes classhub and battleground", () => {
+    const { sidebar, bottom } = studentNavEntries("school");
+    expect(sidebar).toContain("classhub");
+    expect(sidebar).toContain("battleground");
+    expect(sidebar).toContain("learninghub");
+    expect(bottom).toContain("classhub");
+    expect(bottom).toContain("learninghub");
+    expect(bottom).not.toContain("battleground");
   });
 
   it("Layout filters through studentNavEntries — not a second kind switch on nav keys", () => {
@@ -92,13 +99,15 @@ describe("individual vs school student panel nav", () => {
     );
     expect(home).toMatch(/includeHomework:\s*!isIndividual/);
     expect(home).toMatch(/buildMission\([^,]+,\s*\{\s*includeHomework/);
+    // Unknown kind must not paint Class Rank — only confirmed school does.
+    expect(home).toMatch(/schoolKind\s*!==\s*["']school["']/);
   });
 
-  it("Profile hides school homework/tests/rank for individual accounts", () => {
+  it("Profile hides school homework/tests/rank unless kind is known school", () => {
     const profile = stripComments(
       readFileSync(join(__dirname, "pages", "Profile.tsx"), "utf8"),
     );
-    expect(profile).toMatch(/schoolKind\s*!==\s*["']individual["']/);
+    expect(profile).toMatch(/schoolKind\s*===\s*["']school["']/);
     expect(profile).toMatch(/isSchool\s*&&\s*\(/);
   });
 });

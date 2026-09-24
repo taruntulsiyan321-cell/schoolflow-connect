@@ -241,15 +241,23 @@ const INDIVIDUAL_BOTTOM: PageKey[] = [
 ];
 
 /**
- * The one place that decides which nav keys a student shell shows.
- * `null` (identity still loading) keeps the school layout so chrome does not
- * flicker from individual → school when the kind arrives.
+ * Organisation chrome (Class hub, Battleground, …) only when kind is known
+ * `school`. `null` (identity still loading) and `individual` share the
+ * individual layout — otherwise a CUET session paints Class Rank / Battleground
+ * / "ask your school admin" until kind arrives, or forever if kind never does.
+ * A school student may briefly miss those entries; that is cheaper than an
+ * exam account seeing classmates that do not exist.
  */
 export function studentNavEntries(
   kind: SchoolKind | null,
 ): { sidebar: PageKey[]; bottom: PageKey[] } {
-  if (kind === "individual") {
-    return { sidebar: [...INDIVIDUAL_SIDEBAR], bottom: [...INDIVIDUAL_BOTTOM] };
+  if (kind === "school") {
+    return { sidebar: [...SCHOOL_SIDEBAR], bottom: [...SCHOOL_BOTTOM] };
   }
-  return { sidebar: [...SCHOOL_SIDEBAR], bottom: [...SCHOOL_BOTTOM] };
+  return { sidebar: [...INDIVIDUAL_SIDEBAR], bottom: [...INDIVIDUAL_BOTTOM] };
+}
+
+/** True only for a confirmed organisation school — never for null/individual. */
+export function isOrganisationSchool(kind: SchoolKind | null | undefined): boolean {
+  return kind === "school";
 }
