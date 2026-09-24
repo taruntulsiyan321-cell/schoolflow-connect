@@ -181,6 +181,17 @@ describe("listForPractice mapping (§8)", () => {
     await StudentUploadService.listForPractice(ctx, "upload-uuid-1", "practise_by_chapter");
     expect(queryCalls.not).toEqual(["chapter_id", "is"]);
   });
+
+  it("narrows practise_from_notes to derived_from_note_id — never like practise_all", async () => {
+    await StudentUploadService.listForPractice(ctx, "upload-uuid-1", "practise_from_notes");
+    expect(queryCalls.table).toBe("student_upload_questions");
+    expect(queryCalls.not).toEqual(["derived_from_note_id", "is"]);
+    expect(queryCalls.ilike).toBeNull();
+    // Positive control: practise_all must NOT add that filter.
+    queryCalls.not = null;
+    await StudentUploadService.listForPractice(ctx, "upload-uuid-1", "practise_all");
+    expect(queryCalls.not).toBeNull();
+  });
 });
 
 describe("attempt snapshot — upload source (§9.1)", () => {
@@ -226,6 +237,12 @@ describe("attempt snapshot — upload source (§9.1)", () => {
     const mapped = section("const mapped = rows", ".filter((x): x is BankQuestion => x !== null)");
     expect(mapped).toContain('"from_upload" in r && r.from_upload === true');
     expect(mapped).toContain("fromUpload,");
+  });
+
+  it("honest empty for practise_from_notes when no notes-derived questions", () => {
+    const empty = section("if (qs.length === 0)", "if (!q) return null;");
+    expect(empty).toContain('practiseMode === "practise_from_notes"');
+    expect(empty).toContain("No questions written from these notes yet.");
   });
 });
 

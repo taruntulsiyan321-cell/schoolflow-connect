@@ -1750,7 +1750,9 @@ function Session({
         <div className="text-lg font-bold text-foreground">No questions available</div>
         <p className="text-sm text-muted-foreground">
           {config.upload
-            ? "No practisable questions in this upload for that mode yet."
+            ? config.upload.practiseMode === "practise_from_notes"
+              ? "No questions written from these notes yet."
+              : "No practisable questions in this upload for that mode yet."
             : (emptyByMode[config.mode] ??
               "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions.")}
         </p>

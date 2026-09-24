@@ -40,6 +40,8 @@ export type StudentUploadQuestionRow = {
   difficulty: string | null;
   chapter_id: string | null;
   topic_id: string | null;
+  /** §7.1 — set when the question was written from a note; null = file-extracted. */
+  derived_from_note_id: string | null;
 };
 
 export type StudentUploadNoteRow = {
@@ -258,7 +260,7 @@ export const StudentUploadService = {
     let query = db
       .from("student_upload_questions")
       .select(
-        "id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name, curriculum_subjects(name))",
+        "id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, derived_from_note_id, chapters(name, curriculum_subjects(name))",
       )
       .eq("upload_id", uploadId)
       .eq("owner_id", ctx.userId)
@@ -269,6 +271,10 @@ export const StudentUploadService = {
       query = query.ilike("difficulty", "hard");
     } else if (mode === "practise_by_chapter") {
       query = query.not("chapter_id", "is", null);
+    } else if (mode === "practise_from_notes") {
+      // §7.1 / §8 — notes-derived only. Never fall through to practise_all.
+      // No derived rows → honest empty (Session shows the upload empty state).
+      query = query.not("derived_from_note_id", "is", null);
     }
 
     const { data, error } = await query;
