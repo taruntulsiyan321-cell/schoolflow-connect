@@ -5534,6 +5534,7 @@ export type Database = {
           source?: string | null
           source_question_id?: string | null
           source_type?: string | null
+          source_upload_question_id?: string | null
           stream?: string | null
           subject: string
           topic_id?: string | null
@@ -5569,6 +5570,7 @@ export type Database = {
           source?: string | null
           source_question_id?: string | null
           source_type?: string | null
+          source_upload_question_id?: string | null
           stream?: string | null
           subject?: string
           topic_id?: string | null
@@ -5609,6 +5611,13 @@ export type Database = {
             columns: ["source_question_id"]
             isOneToOne: false
             referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_bank_source_upload_question_id_fkey"
+            columns: ["source_upload_question_id"]
+            isOneToOne: false
+            referencedRelation: "student_upload_questions"
             referencedColumns: ["id"]
           },
           {
@@ -8669,7 +8678,8 @@ export type Database = {
           id: string
           last_error: string | null
           resolved_at: string | null
-          source_question_id: string
+          source_question_id: string | null
+          source_upload_question_id: string | null
           status: string
           tier: number
         }
@@ -8680,7 +8690,8 @@ export type Database = {
           id?: string
           last_error?: string | null
           resolved_at?: string | null
-          source_question_id: string
+          source_question_id?: string | null
+          source_upload_question_id?: string | null
           status?: string
           tier: number
         }
@@ -8691,7 +8702,8 @@ export type Database = {
           id?: string
           last_error?: string | null
           resolved_at?: string | null
-          source_question_id?: string
+          source_question_id?: string | null
+          source_upload_question_id?: string | null
           status?: string
           tier?: number
         }
@@ -8708,6 +8720,13 @@ export type Database = {
             columns: ["source_question_id"]
             isOneToOne: false
             referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variant_generation_queue_source_upload_question_id_fkey"
+            columns: ["source_upload_question_id"]
+            isOneToOne: false
+            referencedRelation: "student_upload_questions"
             referencedColumns: ["id"]
           },
         ]
@@ -9126,6 +9145,10 @@ export type Database = {
         Returns: string
       }
       _enqueue_variant_generation: { Args: { _plan: Json }; Returns: number }
+      rpc_enqueue_upload_variant_generation: {
+        Args: { _upload_question_id: string; _tier?: number }
+        Returns: string | null
+      }
       _ensure_recovery_session: {
         Args: {
           _chapter_id: string
