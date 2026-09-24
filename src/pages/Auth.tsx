@@ -54,7 +54,8 @@ const ROLE_OPTIONS: {
   { value: "parent", label: "Parent", desc: "Track your child's progress", icon: Users },
 ];
 
-const FEATURE_HIGHLIGHTS = ["Smart Learning", "School ERP", "AI Teachers"];
+const FEATURE_HIGHLIGHTS_ORG = ["Smart Learning", "School ERP", "AI Teachers"] as const;
+const FEATURE_HIGHLIGHTS_INDIVIDUAL = ["Smart Learning", "Exam prep", "AI Coach"] as const;
 
 const FIELD_CLASS =
   "h-14 pl-11 rounded-[14px] border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none";
@@ -559,9 +560,13 @@ export default function Auth() {
           <h1 className="text-[32px] font-semibold tracking-tight text-foreground leading-[1.15] text-balance">
             The Future of Learning Starts Here
           </h1>
-          <p className="text-base text-muted-foreground mt-3">AI-powered education platform for schools.</p>
+          <p className="text-base text-muted-foreground mt-3">
+            {accountType === "individual"
+              ? "AI-powered exam prep for competitive exams."
+              : "AI-powered education platform for schools."}
+          </p>
           <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            {FEATURE_HIGHLIGHTS.map((f) => (
+            {(accountType === "individual" ? FEATURE_HIGHLIGHTS_INDIVIDUAL : FEATURE_HIGHLIGHTS_ORG).map((f) => (
               <li key={f} className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Check className="w-4 h-4 text-primary" strokeWidth={2.5} />
                 {f}
@@ -889,9 +894,19 @@ export default function Auth() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
-          By continuing, you agree to your school's portal policies.
-          <br className="hidden sm:inline" />
-          <span className="sm:ml-1">Need help? Contact your school administrator.</span>
+          {accountType === "individual" ? (
+            <>
+              By continuing, you agree to Gurukul&apos;s terms of use.
+              <br className="hidden sm:inline" />
+              <span className="sm:ml-1">Need help? Reach us from your profile after you sign in.</span>
+            </>
+          ) : (
+            <>
+              By continuing, you agree to your school&apos;s portal policies.
+              <br className="hidden sm:inline" />
+              <span className="sm:ml-1">Need help? Contact your school administrator.</span>
+            </>
+          )}
         </p>
       </div>
     </div>
