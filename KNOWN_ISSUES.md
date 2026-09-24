@@ -3387,3 +3387,42 @@ body has no `email` key and fails when it is put back.
 Not proven end to end: MSG91's own verification needs a real SMS, so the step
 before the redeem is still only exercised by its own error paths
 (`scratchpad/exam/edge-probe.mjs`, 4 assertions against the deployed function).
+
+## 74. Upload-sourced variant jobs enqueue but are never dispatched — SKIP until generator accepts them — OPEN
+
+**Found:** 2026-09-24 (worktree review of `20261068000000`).
+
+Spec §10 + migration `20261068000000_enqueue_upload_variant_and_promote.sql`
+wire three halves of the promotion path:
+
+1. `variant_generation_queue.source_upload_question_id` (from 660) + owner
+   RPC `rpc_enqueue_upload_variant_generation` — **works**. Jobs land with
+   `source_question_id` null and the upload FK set.
+2. `store_generated_questions` accepts `source_upload_question_id` and writes
+   bank provenance with `source_question_id` null — **works**, service_role.
+3. `dispatch_variant_generation` **resolves** upload-sourced jobs when a
+   matching active bank row already exists, but **dispatches bank-sourced
+   jobs only** (`WHERE … AND q.source_question_id IS NOT NULL`). Comment in
+   680: *"Bank-sourced jobs only until ai-recovery-variants accepts upload
+   sources."*
+
+Measured against `supabase/functions/ai-recovery-variants/index.ts`: the
+edge still requires `source_question_id`, loads only from `question_bank`,
+and stores with `source_question_id`. It has no `source_upload_question_id`
+branch, no read of `student_upload_questions`, and no §6.2 / §10.2.4 AI-
+answer refusal on that path.
+
+Consequence: an enqueued upload job stays `pending` forever. Attempts are
+never incremented (it is filtered out of the drain loop), so
+`GENERATION_MAX_RETRIES` never retires it either. Bank jobs are unaffected
+— the `LIMIT` still only picks rows with a bank source.
+
+**Not fixed here.** Flipping the drain filter without teaching the edge
+would spend drain attempts on 400s (`source_question_id is required`) and
+still produce no variants. Teaching the edge is a real feature (load
+upload text + chapter/topic labels, XOR body shape, store upload
+provenance, keep §6.2 / chapter gates), and CI edge deploys are already
+broken (see "Edge function deploy pipeline is broken" above). Re-open
+when `ai-recovery-variants` accepts exactly one of
+`source_question_id` / `source_upload_question_id`; then remove the bank-
+only filter in `dispatch_variant_generation` in the same change.
