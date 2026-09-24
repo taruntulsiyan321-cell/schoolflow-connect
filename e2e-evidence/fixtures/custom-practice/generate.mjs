@@ -123,20 +123,28 @@ await shot(
    <p style="padding:12px 16px;color:#475569">Assembly every Monday at 07:45. Games period on Friday after Period 6.</p>`,
 );
 
+// Deliberately NOT about a CUET subject. The first version of this fixture was
+// an article on the monsoon and the Indian economy, and the classifier was
+// right to hesitate: for an Accountancy/Economics student that IS study
+// material, and §7 says study material becomes notes. It was accepted on one
+// run and refused on the next — a fixture that is genuinely ambiguous tests
+// nothing except which way the coin landed. Ordinary prose means prose with no
+// exam subject in it at all.
 await shot(
   "refuse-prose.png",
   700,
   860,
   `<div style="padding:40px;font-size:17px;line-height:1.7;color:#111">
-   <h3>The Monsoon and the Indian Economy</h3>
-   <p>For most of the last century the monsoon has set the rhythm of rural India. A late arrival in June
-   pushes back sowing across the northern plains, and a weak August can decide whether a family sells its
-   surplus or borrows against next year's crop.</p>
-   <p>Irrigation has softened this dependence without removing it. Canal networks reach a minority of
-   cultivated land, and groundwater, which carried much of the growth after the Green Revolution, is now
-   falling faster than it is replenished in several states.</p>
-   <p>Economists therefore read the rainfall figures as a forecast of demand. When the rains are good,
-   tractor sales rise, rural wages hold, and the consumption that follows reaches far beyond farming.</p>
+   <h3>The Long Way Round</h3>
+   <p>Ravi had promised himself he would leave before the rain came, and of course he did not. By the
+   time the bus wheezed into the depot the windows were streaked and the man beside him had fallen
+   asleep on his shoulder twice, each time waking to apologise in a language neither of them spoke well.</p>
+   <p>His aunt would be waiting at the far gate with an umbrella she refused to share, complaining about
+   the traffic on the ring road and about his mother, in roughly that order. He had rehearsed his
+   answers on the journey and forgotten every one of them somewhere past the toll plaza.</p>
+   <p>The dog at the tea stall remembered him, which was more than could be said for the tea seller.
+   It followed him to the gate, hopeful and unhurried, and turned back only when the umbrella came down
+   between them like a verdict.</p>
    </div>`,
 );
 

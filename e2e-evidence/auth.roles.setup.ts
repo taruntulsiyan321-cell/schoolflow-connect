@@ -46,6 +46,11 @@ for (const account of ROLES) {
       return
     }
     await page.goto('/auth')
+    // The login page opens on Individual (exam accounts) since 2026-09-23.
+    // Staff and school families sign in under Organization, and the
+    // email/password form only exists there — without this click every role
+    // setup times out waiting for a field that is not on screen.
+    await page.getByRole('tab', { name: 'Organization' }).click()
     await page.getByLabel('Email or Mobile').fill(account.email)
     await page.locator('#signin-password').fill(account.password)
     await page.getByRole('button', { name: 'Sign in' }).click()

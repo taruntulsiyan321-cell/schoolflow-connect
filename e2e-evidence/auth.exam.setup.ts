@@ -139,6 +139,19 @@ for (const account of EXAMS) {
     await expect(page).toHaveURL(account.home, { timeout: 45000 });
     await expect(page).not.toHaveURL(/\/auth(\?|$)/);
     // Positive control: must not be a school-student empty panel crash.
+    //
+    // Wait for the shell to RENDER, do not sample it once. The first page
+    // after a session is injected pays for the auth bootstrap, the identity
+    // RPC and the shell's own reads, and until those land it draws a skeleton
+    // with no text in it at all. Measured 2026-09-24: reading immediately
+    // returned 38 characters and failed this check on a panel that was
+    // perfectly healthy a second later. A timeout here is still a real
+    // failure — a shell that never renders never satisfies the wait.
+    await page
+      .waitForFunction(() => (document.body?.innerText ?? "").trim().length > 80, null, {
+        timeout: 45000,
+      })
+      .catch(() => {});
     const body = (await page.textContent("body")) ?? "";
     expect(body.length, "student shell rendered content").toBeGreaterThan(80);
     expect(body, "not unauthorized").not.toMatch(/No portal role|unauthorized/i);
