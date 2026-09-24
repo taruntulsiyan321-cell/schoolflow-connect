@@ -38,8 +38,11 @@
 
 ## Still open
 
-- **§12.2 / §12.6** browser E2E as the individual student — harness exists;
-  full UI path not finished.
+- **§12.2 full Practice UI** in the browser as the individual student — API/RPC
+  path measured (`scripts/measure-custom-practice-12-2.mjs` + Playwright
+  `custom-practice.spec.ts` §12.2). UI click-through still a harness gap.
+- **§12.6** browser accuracy before/after dispute — RPC measure exists;
+  UI path not finished.
 - Recovery ladders on bank questions only past tier 0 for upload mistakes.
 - `scripts/local-replica/dry-run.mjs` is not in the repo; used
   `scripts/dry-run-one-migration.mjs` instead.
