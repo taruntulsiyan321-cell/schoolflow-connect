@@ -12,10 +12,18 @@ import java.util.regex.Pattern;
 public final class CaptureFunnel {
   /** §5.2 — video motion: mean abs pixel delta above this looks like a lecture. */
   public static final double LECTURE_DELTA_MIN = 0.12;
-  /** §5.2 — lecture frames carry little text. */
+  /**
+   * §5.2 — after dark/light-aware text density (see MlKitOcrProvider), lecture
+   * frames stay at or below this. Measured 2026-09-24 on §12 PW-shaped fixtures:
+   * wrong≈0.011, review≈0.010, lecture-still≈0.018 — live video is separated by
+   * delta; this caps glyph fraction on motion frames.
+   */
   public static final double LECTURE_TEXT_MAX = 0.04;
-  /** §5.2 — a still question is mostly text. */
-  public static final double QUESTION_TEXT_MIN = 0.06;
+  /**
+   * §5.2 / §5.3 — still frame with at least this glyph fraction is a question
+   * candidate. Measured 2026-09-24: PW dark-theme wrong instant ≈0.0105.
+   */
+  public static final double QUESTION_TEXT_MIN = 0.008;
 
   private static final Pattern VERDICT_WORDS = Pattern.compile(
       "(?i)(your\\s*answer|correct\\s*answer|incorrect|wrong|solution|\\bcorrect\\b|\\bincorrect\\b)"

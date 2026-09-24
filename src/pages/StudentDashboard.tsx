@@ -23,6 +23,8 @@ import DoubtPortal from "@/gurukul/pages/DoubtPortal";
 import Assignments from "@/gurukul/pages/Assignments";
 import Attendance from "@/gurukul/pages/Attendance";
 import Profile from "@/gurukul/pages/Profile";
+import { useScreenCaptureMistakes } from "@/hooks/useScreenCaptureMistakes";
+import { ScreenCaptureMistakesCard } from "@/gurukul/components/ScreenCaptureMistakesCard";
 import Timetable from "@/gurukul/pages/Timetable";
 import Calendar from "@/gurukul/pages/Calendar";
 import Tests from "@/gurukul/pages/Tests";
@@ -92,6 +94,11 @@ export default function StudentDashboard() {
   const examName = identity?.examName ?? null;
   const examCode = identity?.examCode ?? null;
   const examId = identity?.examId ?? null;
+  /** Stage 1 tap + Stage 2 watch — mount once in the shell so listeners stay alive. */
+  const screenCapture = useScreenCaptureMistakes({
+    userId: user?.id,
+    examId,
+  });
   /** Organisation: class label. Individual: competitive exam name (no class/board). */
   const scopeLabel =
     schoolKind === "individual"
@@ -357,7 +364,19 @@ export default function StudentDashboard() {
           <Route path="doubts" element={<DoubtPortal />} />
           <Route path="homework" element={<Assignments />} />
           <Route path="attendance" element={<Attendance />} />
-          <Route path="profile" element={<Profile setPage={setPage} />} />
+          <Route
+            path="profile"
+            element={
+              <Profile
+                setPage={setPage}
+                screenCaptureSlot={
+                  screenCapture.available ? (
+                    <ScreenCaptureMistakesCard api={screenCapture} />
+                  ) : null
+                }
+              />
+            }
+          />
           <Route path="timetable" element={<Timetable />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="tests" element={<Tests />} />

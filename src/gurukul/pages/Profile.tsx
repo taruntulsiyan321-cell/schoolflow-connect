@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { GlassCard, LoadingState, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, XPBar, cn } from "@/gurukul/components/shared";
 import { ArrowRight } from "lucide-react";
@@ -36,7 +36,14 @@ function formatDayMonthYear(iso: string) {
  * Level/XP/league/streak/reputation from ProgressionService (rpc_get_student_progression).
  * Milestones from live student_badges + featured badges from progression snapshot.
  */
-export default function Profile({ setPage }: { setPage?: (p: PageKey) => void }) {
+export default function Profile({
+  setPage,
+  screenCaptureSlot,
+}: {
+  setPage?: (p: PageKey) => void;
+  /** Android-only Stage 1/2 capture controls (mounted from StudentDashboard). */
+  screenCaptureSlot?: ReactNode;
+}) {
   const { user, signOut } = useAuth();
   const { ctx, ready, studentId } = useAcademicContext();
   const { earned, loading: badgesLoading } = useStudentBadges(user?.id);
@@ -489,6 +496,8 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         that could not do it. Last card on the page, because it ends the session
         rather than telling you anything about yourself.
       */}
+      {screenCaptureSlot}
+
       <GlassCard className="p-5">
         <SectionLabel>Account</SectionLabel>
         <div className="flex items-center justify-between gap-3">

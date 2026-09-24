@@ -354,6 +354,10 @@ a real wrong answer proves nothing.
 | Cost (§8) | **Confirmed (2026-09-24):** live path is `qwen/qwen3.7-flash` via OpenRouter at $0.03/$0.13 per 1M in/out. Order-of-magnitude ~$0.00013 per image capture → ~$0.20/mo at 50 mistakes/day (under $0.25). Streaming ~1 fps for 2h/day is an order of magnitude higher ($8–25). Prices still move — re-check the OpenRouter page before citing dollars. Funnel proof is frames-sent/hour, not the dollar string. | Instrument `sent`; report frames-sent per hour of realistic use (`measure-screen-capture-stage2-cost.mjs` + androidTest). |
 
 Stage 1 §12 must stay green while Stage 2 lands. The Stage 1 tap path is unchanged.
+On this worktree (2026-09-24): funnel unit/instrumented logic runs via javac+JUnit
+(**OK 10 tests**); full `./gradlew connectedAndroidTest` needs an Android SDK +
+device/emulator (not installed here). `npx cap sync android` regenerates
+`capacitor.settings.gradle`.
 
 ### Still open
 
@@ -361,9 +365,13 @@ Stage 1 §12 must stay green while Stage 2 lands. The Stage 1 tap path is unchan
   from this repo** — production holds two `_shared` modules that exist in no
   branch (KNOWN_ISSUES, edge-drift entry). Stage 1 uses a dedicated
   `screen-capture-mistake` function instead.
-- The confidence thresholds in §5.2 and §5.4 are numbers nobody has measured.
-  Stage 1 records intake defaults in code comments; tune against §12, then
-  record them here.
+- The confidence thresholds in §5.2 and §5.4 are **measured 2026-09-24** against
+  §12 PW-shaped fixtures (`scripts/measure-screen-capture-funnel-thresholds.mjs`):
+  - `LECTURE_DELTA_MIN = 0.12` (live video motion; still fixtures differ ~0.05)
+  - `LECTURE_TEXT_MAX = 0.04` / `QUESTION_TEXT_MIN = 0.008` after dark/light-aware
+    glyph density (dark chrome must not count as ink — was ~0.97 before the fix)
+  - §5.4 remains OCR `looksLikeQuestionWithVerdict` (question + verdict + Your answer)
+  - Owner still re-tunes on real PW video (§10.4)
 - Unacademy and the rest. The §6.3 rule should carry, but no one has looked at
   their screens yet. Do not assume.
 - PW will redesign their app. Expect it; build §5.3 and §7.1 on what a screen

@@ -631,5 +631,5 @@ if (bankAfter !== bankBefore) {
 console.log("PASS §12.12 question_bank count unchanged:", bankBefore);
 
 await cleanup();
-console.log("\nALL §12 Stage-1 measures passed (cleanup done). Stage 2 automatic watching NOT built.");
+console.log("\nALL §12 Stage-1 measures passed (cleanup done). Stage 2 on-device funnel is separate (androidTest + measure-screen-capture-funnel-thresholds.mjs).");
 process.exit(0);

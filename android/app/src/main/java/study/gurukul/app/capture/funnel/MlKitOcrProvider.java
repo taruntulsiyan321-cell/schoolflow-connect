@@ -59,17 +59,26 @@ public final class MlKitOcrProvider implements OcrProvider {
     int w = bmp.getWidth();
     int h = bmp.getHeight();
     int step = Math.max(1, Math.min(w, h) / 80);
-    int ink = 0;
+    int dark = 0;
+    int bright = 0;
     int n = 0;
     for (int y = 0; y < h; y += step) {
       for (int x = 0; x < w; x += step) {
         int c = bmp.getPixel(x, y);
         int lum = (Color.red(c) + Color.green(c) + Color.blue(c)) / 3;
-        if (lum < 90) ink++;
+        if (lum < 90) dark++;
+        if (lum > 180) bright++;
         n++;
       }
     }
-    return n == 0 ? 0 : (ink * 1.0) / n;
+    if (n == 0) return 0;
+    double darkFrac = dark * 1.0 / n;
+    double brightFrac = bright * 1.0 / n;
+    // Dark PW chrome is mostly dark pixels — that is background, not text.
+    // Light paper is mostly bright — text is the dark ink. Take the minority.
+    if (darkFrac > 0.55) return brightFrac;
+    if (brightFrac > 0.55) return darkFrac;
+    return Math.max(darkFrac, brightFrac);
   }
 
   /** Red/green verdict chips common on PW review screens. */
