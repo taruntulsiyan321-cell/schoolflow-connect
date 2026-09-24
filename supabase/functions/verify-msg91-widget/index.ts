@@ -116,7 +116,16 @@ Deno.serve(async (req) => {
     const msg91Data = await msg91Res.json().catch(() => null);
     if (!msg91Res.ok || !msg91Data || msg91Data.type !== "success") {
       const reason = msg91Data?.message ?? `HTTP ${msg91Res.status}`;
-      console.error("[verify-msg91-widget] MSG91 verifyAccessToken failed:", reason);
+      // Fingerprint only — never log the token. Distinguishes "we sent a
+      // reqId / garbage" (no JWT shape) from "MSG91 rejected a real JWT"
+      // (auth-key mismatch or expired single-use token).
+      const tokenFp = {
+        length: access_token.length,
+        jwt_shaped: access_token.startsWith("eyJ") && access_token.includes("."),
+        msg91_http: msg91Res.status,
+        msg91_type: msg91Data?.type ?? null,
+      };
+      console.error("[verify-msg91-widget] MSG91 verifyAccessToken failed:", reason, tokenFp);
       await logAttempt(admin, ip, false, "invalid_or_expired_token");
       return json(
         { error: "That verification could not be confirmed — it may have expired. Please try again.", error_code: "invalid_or_expired_token" },

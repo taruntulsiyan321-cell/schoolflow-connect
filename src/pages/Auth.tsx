@@ -291,7 +291,11 @@ export default function Auth() {
         setExams({ status: "failed", message: toErrorMessage(error, "Could not load exams") });
         return;
       }
-      setExams({ status: "ready", items: (data ?? []) as ExamOption[] });
+      const items = (data ?? []) as ExamOption[];
+      setExams({ status: "ready", items });
+      // One exam open → select it. Leaving Continue disabled until a click
+      // when CUET is the only tile reads as "OTP is broken".
+      if (items.length === 1) setExamCode(items[0].code);
     })();
     return () => {
       alive = false;
