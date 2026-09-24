@@ -3388,20 +3388,23 @@ Not proven end to end: MSG91's own verification needs a real SMS, so the step
 before the redeem is still only exercised by its own error paths
 (`scratchpad/exam/edge-probe.mjs`, 4 assertions against the deployed function).
 
-## 75. Upload mistakes write `upload_question_id`, but recovery still ladders on bank `question_id` only — OPEN
+## 75. ~~Upload mistakes write `upload_question_id`, but recovery still ladders on bank `question_id` only~~ — FIXED
 
-`20261070000000_upload_mistakes_know_their_question` lands the §9.1 write path:
-nullable `student_mistakes.upload_question_id` (XOR with bank `question_id`),
-and `rpc_record_question_attempt` passes `generated_question.upload_question_id`
-into `rpc_record_concept_mistake`.
+**Fixed:** 2026-09-24 on `claude/question-topics-per-chapter`.
 
-Still open: `_recovery_session_plan_for`, `_apply_chapter_state`, and
-`rpc_student_recovery_queue` still require `question_id IS NOT NULL` and treat it
-as `question_bank.id`. Upload-only mistakes therefore still miss the recovery
-queue / trigger / tier-0 plan. Tier 0 must also list `from_upload` and Practice
-must hydrate those ids from `student_upload_questions` (today
-`loadSessionQuestions` only calls `listBankQuestions`). Do not put upload ids
-into `from_bank` — that would score them as bank questions.
+`20261070000000` lands `student_mistakes.upload_question_id` (XOR with bank
+`question_id`). `20261071000000_recovery_plan_serves_upload_originals` rewrites
+`_recovery_session_plan_for` / queue / chapter-state / start-session so upload
+mistakes count and tier 0 lists them in `from_upload` (never `from_bank`).
+Practice `loadSessionQuestions` hydrates recovery ids via
+`StudentUploadService.listByIds` beside `listBankQuestions`.
+`recoveryEngineService` flattens `from_upload` into `tierByQuestionId`.
+
+Measured live 2026-09-24 (§12.2 as exam_cuet): wrong upload attempt → mistake
+with `upload_question_id` set / `question_id` null → recovery tier 0
+`from_upload` contains that id. Also `20261074000000` stops
+`rpc_record_question_attempt` from raising on unassigned `_tm` for
+upload/no-template attempts.
 
 ## 74. Upload-sourced variant jobs enqueue but are never dispatched — SKIP until generator accepts them — OPEN
 
