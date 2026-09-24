@@ -5498,6 +5498,7 @@ export type Database = {
           source: string | null
           source_question_id: string | null
           source_type: string | null
+          source_upload_question_id: string | null
           stream: string | null
           subject: string
           topic_id: string | null

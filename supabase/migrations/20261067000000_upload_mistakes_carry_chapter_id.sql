@@ -180,9 +180,11 @@ BEGIN
     RETURN;
   END IF;
 
+  -- Live shape (post-bank/upload mistake id rewrite) uses _mistake_qid, not
+  -- the older _bank_id-only call. Match what pg_get_functiondef returns.
   _new := replace(_def,
     '    PERFORM public.rpc_record_concept_mistake(
-      ''practice'', _session_id, _bank_id,
+      ''practice'', _session_id, _mistake_qid,
       _subject, _chapter, _concept_f, _sub_f, _class,
       COALESCE(_generated_question->>''question'', ''''),
       COALESCE(_generated_question->''options'', ''[]''::jsonb),
@@ -192,7 +194,7 @@ BEGIN
     );',
     '    PERFORM public.rpc_record_concept_mistake(
       CASE WHEN _src = ''upload'' THEN ''upload'' ELSE ''practice'' END,
-      _session_id, _bank_id,
+      _session_id, _mistake_qid,
       _subject, _chapter, _concept_f, _sub_f, _class,
       COALESCE(_generated_question->>''question'', ''''),
       COALESCE(_generated_question->''options'', ''[]''::jsonb),

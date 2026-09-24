@@ -8,12 +8,31 @@
  *
  * §4.1 The refusal is the feature. Never invent questions from a timetable,
  * receipt, blank page, chat screenshot, or low-confidence read.
+ * §5.2 Embed + match_question_bank_for_exam before inventing chapter tags.
  */
 import { requireUserJwt } from "../_shared/requireAuth.ts";
+import { embedQueryText } from "../_shared/embeddingProvider.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { classifyUploadMedia } from "./classify.ts";
 import { loadUploadMedia } from "./media.ts";
 import type { ClassifierResult, ExtractedNote, ExtractedQuestion } from "./types.ts";
+
+/** §5.2 — same default as match_question_bank_for_exam; confident inherit only. */
+const BANK_MATCH_THRESHOLD = 0.82;
+
+type TaggedQuestion = ExtractedQuestion & {
+  chapter_id: string | null;
+  topic_id: string | null;
+  matched_bank_question_id: string | null;
+};
+
+type BankMatchRow = {
+  id?: string;
+  chapter_id?: string | null;
+  topic_id?: string | null;
+  difficulty?: string | null;
+  similarity?: number;
+};
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -92,12 +111,93 @@ async function markUnusable(
   });
 }
 
+/**
+ * §5.2 — embed each stem and inherit chapter/topic/difficulty from a confident
+ * bank match. No match → null ids (still practisable; excluded from recovery).
+ * Match does not publish the private copy (§2).
+ */
+async function tagQuestionsFromBank(
+  admin: ReturnType<typeof createClient>,
+  examId: string | null,
+  questions: ExtractedQuestion[],
+): Promise<{ tagged: TaggedQuestion[]; inherited: number }> {
+  if (questions.length === 0) return { tagged: [], inherited: 0 };
+
+  const untagged = (q: ExtractedQuestion): TaggedQuestion => ({
+    ...q,
+    chapter_id: null,
+    topic_id: null,
+    matched_bank_question_id: null,
+  });
+
+  if (!examId) {
+    return { tagged: questions.map(untagged), inherited: 0 };
+  }
+
+  const env = Deno.env.toObject();
+  const tagged: TaggedQuestion[] = [];
+  let inherited = 0;
+
+  for (const q of questions) {
+    const emb = await embedQueryText(q.question_text, { env });
+    if (!emb.ok) {
+      // Embedding unavailable — leave tags null; do not invent a chapter (§5.1).
+      tagged.push(untagged(q));
+      continue;
+    }
+
+    const { data, error } = await admin.rpc("match_question_bank_for_exam", {
+      p_query_embedding: JSON.stringify(emb.embedding),
+      p_exam_id: examId,
+      p_subjects: null,
+      p_match_threshold: BANK_MATCH_THRESHOLD,
+      p_match_count: 1,
+    });
+
+    if (error) {
+      console.error(
+        "match_question_bank_for_exam failed — tags left null:",
+        JSON.stringify(error),
+      );
+      tagged.push(untagged(q));
+      continue;
+    }
+
+    const top = (Array.isArray(data) && data.length > 0 ? data[0] : null) as BankMatchRow | null;
+    const bankId = typeof top?.id === "string" ? top.id : null;
+    const chapterId = typeof top?.chapter_id === "string" ? top.chapter_id : null;
+    const topicId = typeof top?.topic_id === "string" ? top.topic_id : null;
+
+    if (!bankId || !chapterId) {
+      tagged.push(untagged(q));
+      continue;
+    }
+
+    const bankDifficulty =
+      typeof top?.difficulty === "string" && /^(easy|medium|hard)$/i.test(top.difficulty.trim())
+        ? top.difficulty.trim().toLowerCase()
+        : null;
+
+    tagged.push({
+      ...q,
+      chapter_id: chapterId,
+      topic_id: topicId,
+      matched_bank_question_id: bankId,
+      // Inherit difficulty exactly when the bank has one (§5.2).
+      difficulty: bankDifficulty ?? q.difficulty,
+    });
+    inherited += 1;
+  }
+
+  return { tagged, inherited };
+}
+
 async function persistQuestions(
   userClient: ReturnType<typeof createClient>,
   uploadId: string,
   ownerId: string,
   schoolId: string,
-  questions: ExtractedQuestion[],
+  questions: TaggedQuestion[],
 ): Promise<{ error: string | null; written: number }> {
   if (questions.length === 0) return { error: null, written: 0 };
   // Replace any prior extract for this upload (retry-safe).
@@ -119,8 +219,9 @@ async function persistQuestions(
     answer_source: q.answer_source,
     explanation: q.explanation,
     difficulty: q.difficulty,
-    chapter_id: null,
-    topic_id: null,
+    chapter_id: q.chapter_id,
+    topic_id: q.topic_id,
+    matched_bank_question_id: q.matched_bank_question_id,
   }));
 
   const { error } = await userClient.from("student_upload_questions").insert(rows);
@@ -240,12 +341,27 @@ Deno.serve(async (req) => {
     return markUnusable(userClient, uploadId, uid, result, pageCount);
   }
 
+  // §5.2 — resolve the individual's exam, then inherit bank tags when possible.
+  const { data: examAccount } = await admin
+    .from("exam_accounts")
+    .select("exam_id")
+    .eq("school_id", upload.school_id)
+    .maybeSingle();
+  const examId =
+    typeof examAccount?.exam_id === "string" ? examAccount.exam_id : null;
+
+  const { tagged, inherited } = await tagQuestionsFromBank(
+    admin,
+    examId,
+    result.questions,
+  );
+
   const qWrite = await persistQuestions(
     userClient,
     uploadId,
     uid,
     upload.school_id as string,
-    result.questions,
+    tagged,
   );
   if (qWrite.error) {
     return markFailed(
@@ -295,7 +411,9 @@ Deno.serve(async (req) => {
     confidence: result.confidence,
     questions_written: qWrite.written,
     notes_written: nWrite.written,
+    /** §5.2 — how many stems inherited chapter/topic from the bank. */
+    bank_tags_inherited: inherited,
     /** §6 — how many answers were AI-filled (client shows ai_answered). */
-    ai_answered_count: result.questions.filter((q) => q.answer_source === "ai").length,
+    ai_answered_count: tagged.filter((q) => q.answer_source === "ai").length,
   });
 });

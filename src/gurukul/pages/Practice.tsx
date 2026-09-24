@@ -1473,6 +1473,7 @@ function Session({
       bankQuestionId: fromUpload ? null : q.id,
       subject: q.subject,
       chapter: q.chapter,
+      chapterId: q.chapterId ?? null,
       difficulty: q.difficulty,
       source: fromUpload ? "upload" : "practice",
       practiceMode: config.mode,
@@ -1589,6 +1590,8 @@ function Session({
           // an undefined key would vanish from the row rather than be unset.
           subject: snap.subject ?? null,
           chapter: snap.chapter ?? null,
+          // Spec §9 / migration 202610670 — attempt RPC reads chapter_id from here.
+          chapter_id: snap.chapterId ?? null,
           difficulty: snap.difficulty ?? null,
           practice_mode: snap.practiceMode ?? null,
         },

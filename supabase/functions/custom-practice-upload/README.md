@@ -12,6 +12,8 @@ Binding: `docs/custom-practice-upload-spec.md` (§4–§7, §13).
   receipt, blank page, or low-confidence read.
 - **§4.2–§4.4** Confidence below threshold → `unusable`; fewer than 3 usable
   questions and no notes → `unusable`.
+- **§5.2** Bank-first tags via `match_question_bank_for_exam`; never guess a
+  chapter. Unresolved → `chapter_id` null.
 - **§6** File answer key when present (`answer_source = file`); otherwise AI
   solves and marks `answer_source = ai` (client: `ai_answered`).
 - **§11** Individual (exam) accounts only.
@@ -27,8 +29,12 @@ Binding: `docs/custom-practice-upload-spec.md` (§4–§7, §13).
 4. Apply §4 gates; persist `student_upload_questions` / `student_upload_notes`
    only when the verdict is usable; otherwise status `unusable` with a one-line
    reason and **zero** downstream rows.
-5. Missing key / download / parse failure → status `failed` with an honest
-   reason — never demo questions.
+5. **§5.2** For each extracted question: embed the stem and call
+   `match_question_bank_for_exam` (threshold 0.82). On a hit, inherit
+   `chapter_id` / `topic_id` / `difficulty` and set `matched_bank_question_id`.
+   No hit or no embedding → leave chapter/topic null (still practisable).
+6. Missing model key / download / parse failure → status `failed` with an honest
+   reason — never demo questions. Never routes through `ai-gateway`.
 
 ## Env
 

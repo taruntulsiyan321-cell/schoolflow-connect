@@ -16,6 +16,8 @@ export type PracticeAttemptSnapshot = {
   bankQuestionId?: string | null;
   subject?: string;
   chapter?: string;
+  /** Spec §9 — real chapters.id for upload/tagged rows; drives mistake chapter_id. */
+  chapterId?: string | null;
   concept?: string;
   topic?: string;
   difficulty?: string;
@@ -203,6 +205,7 @@ export function attemptsToFinishPayload(attempts: PracticeAttemptSnapshot[]) {
         bank_question_id: a.bankQuestionId ?? null,
         subject: a.subject ?? null,
         chapter: a.chapter ?? null,
+        chapter_id: a.chapterId ?? null,
         concept: a.concept ?? a.chapter ?? null,
         topic: a.topic ?? a.concept ?? a.chapter ?? null,
         difficulty: a.difficulty ?? null,
