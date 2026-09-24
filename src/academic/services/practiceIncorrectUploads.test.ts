@@ -52,6 +52,20 @@ describe("incorrect mode includes upload mistakes", () => {
     expect(body).toContain("upload_question_id");
     expect(body).toContain("answerToIndex");
     expect(body).toContain("from_upload: true");
+    // Prefer the live private row when upload_question_id is set; snapshot only
+    // when the column is absent or the id cannot be hydrated.
+    expect(body).toMatch(/uploadById\.has\(uqid\)/);
+    expect(body).toMatch(/snapshotUpload\s*\(/);
+  });
+
+  it("prefers selecting upload_question_id and degrades when the column is missing", () => {
+    const body = listMistakeBody();
+    // First select asks for the column; isMissingSchema retries without it so
+    // Incorrect mode keeps working before migration 20261070000000 lands.
+    expect(body).toMatch(/upload_question_id/);
+    expect(body).toMatch(/isMissingSchema\s*\(/);
+    expect(body).toMatch(/baseSelect/);
+    expect(body).toMatch(/withUploadSelect/);
   });
 
   it("still loads bank mistakes through listBankQuestions", () => {
