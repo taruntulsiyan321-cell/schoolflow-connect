@@ -79,7 +79,7 @@ function RevItemCard({
             question, and rpc_submit_revision_session threw the sitting away
             for having no unseen half (§5.4). Measured live on two chapters,
             at 80% and 100%.
-            `freshAvailable` is rpc_student_revision_queue's own count, not a
+            `freshAvailable` is rpc_student_chapter_states' own count, not a
             rule restated in the browser: the server decides what a check
             needs and this reflects the answer. */}
         <button onClick={onCheck} disabled={busy || item.freshAvailable === 0}
