@@ -75,7 +75,12 @@ await shot(
     <h3 style="margin:16px 0 8px">Teacher: Let us solve — Nature of Management</h3>
     <p style="line-height:1.5">Sir: Option B is right because management is a continuous process. Watch carefully…</p>
     <div style="margin-top:20px;height:120px;background:linear-gradient(90deg,#334155,#1e293b);border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:.8">▶ Lecture video playing</div>
-    <p style="margin-top:12px;opacity:.7;font-size:13px">No student answer · No Your answer marker</p>
+    <!-- This fixture used to print "No student answer · No Your answer marker"
+         on itself, which told the reader the verdict instead of making it work
+         it out. §6.4 is the hardest discrimination in the feature — a teacher
+         solving a question on screen IS a question, and is NOT the student's
+         mistake — so the fixture must look exactly like a real lecture and say
+         nothing about what it is. -->
    </div>`,
 );
 

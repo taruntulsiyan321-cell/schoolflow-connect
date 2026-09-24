@@ -84,7 +84,8 @@ async function handle(req: Request): Promise<Response> {
       : "image/png";
   const package_name =
     typeof body.package_name === "string" ? body.package_name.trim() : "";
-  const exam_id = typeof body.exam_id === "string" ? body.exam_id.trim() : "";
+  // exam_id is NOT taken from the body. It is resolved below from the
+  // caller's own exam_accounts row (§2 — identity comes from the server).
   const is_lecture_suspect = body.is_lecture_suspect === true;
 
   const userClient = auth.value.userClient;
@@ -113,6 +114,24 @@ async function handle(req: Request): Promise<Response> {
   if (school?.kind !== "individual") {
     return jsonResponse({ error: "individual_accounts_only" }, 403);
   }
+
+  // §7.2 — the exam this account prepares for, read from ITS OWN exam_accounts
+  // row, exactly as custom-practice-upload resolves it.
+  //
+  // It used to be read from the request body. Two things were wrong with that.
+  // A caller that simply omitted it silently lost bank matching altogether —
+  // the whole block below is guarded on exam_id, so §7.2's chapter inheritance
+  // vanished without a word, which is how it was failing. And a caller that
+  // sent a DIFFERENT exam's id would have had its capture matched against, and
+  // tagged from, that exam's bank. Which exam an account is, is the server's
+  // fact: it is on exam_accounts and nothing the client says can change it.
+  const { data: examAccount } = await admin
+    .from("exam_accounts")
+    .select("exam_id")
+    .eq("school_id", student.school_id)
+    .maybeSingle();
+  const exam_id =
+    typeof examAccount?.exam_id === "string" ? examAccount.exam_id : "";
 
   // Allowlist: body.allowed_packages OR rows the student saved.
   let allowed: string[] = [];
