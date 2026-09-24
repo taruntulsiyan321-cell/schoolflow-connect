@@ -377,8 +377,3 @@ export async function classifyUploadMedia(media: MediaPayload): Promise<Classify
     };
   }
 }
-r: `Classifier response could not be parsed (${msg}). No questions were invented.`,
-      status: "failed",
-    };
-  }
-}
