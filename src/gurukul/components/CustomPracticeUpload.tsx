@@ -166,14 +166,16 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
           Your material
         </div>
         <p className="text-sm text-muted-foreground mb-3">
-          Upload a PDF or photo of a question paper, worksheet, or notes. Only you can see it.
+          Upload a PDF or photos of a question paper, worksheet, or notes (multiple pages
+          welcome). Only you can see it.
         </p>
         <input
           ref={inputRef}
           type="file"
           accept={STUDENT_UPLOAD_ACCEPT}
+          multiple
           className="hidden"
-          onChange={(e) => void onPick(e.target.files?.[0] ?? null)}
+          onChange={(e) => void onPick(e.target.files)}
         />
         <button
           type="button"
@@ -190,7 +192,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
           }}
         >
           {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-          {uploading ? "Uploading…" : "Upload PDF or image"}
+          {uploading ? "Uploading…" : "Upload PDF or images"}
         </button>
       </div>
 
