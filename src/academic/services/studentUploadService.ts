@@ -78,6 +78,13 @@ export const UPLOAD_MODE_LABELS: Record<UploadPracticeMode, string> = {
   practise_from_notes: "Practise from notes",
 };
 
+/** Normalize a single file or multi-page image pick into a non-empty File[]. */
+export function normalizeUploadFiles(files: File | File[]): File[] {
+  const list = (Array.isArray(files) ? files : [files]).filter(Boolean);
+  if (list.length === 0) throw new Error("Choose at least one PDF or image.");
+  return list;
+}
+
 /** Spec §6.1 — result of disputing an AI-answered upload question. */
 export type DisputeAiAnswerResult = {
   upload_question_id: string;
@@ -94,8 +101,7 @@ export const StudentUploadService = {
    */
   async create(ctx: ServiceContext, files: File | File[]): Promise<StudentUploadRow[]> {
     assertStudentContext(ctx);
-    const list = (Array.isArray(files) ? files : [files]).filter(Boolean);
-    if (list.length === 0) throw new Error("Choose at least one PDF or image.");
+    const list = normalizeUploadFiles(files);
 
     const db = getClient(ctx);
     const rows: StudentUploadRow[] = [];
