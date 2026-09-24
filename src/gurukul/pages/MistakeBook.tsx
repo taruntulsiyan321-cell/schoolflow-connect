@@ -55,7 +55,7 @@ type MistakeRow = {
   status: "open" | "cleared";
   question_id?: string | null;
   difficulty?: string | null;
-  /** Enriched from student_upload_questions — not a student_mistakes column. */
+  /** Migration 700 column; text-join may fill legacy rows that still lack it. */
   upload_question_id?: string | null;
   ai_answered?: boolean;
 };
@@ -125,11 +125,15 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
   };
 }
 
-/** One row per bank question_id (keep highest frequency / latest); rows without question_id stay unique by id. */
+/** One row per bank / upload question id (keep highest frequency / latest); otherwise unique by id. */
 function dedupeMistakes(list: Mistake[]): Mistake[] {
   const byKey = new Map<string, Mistake>();
   for (const m of list) {
-    const key = m.questionId ? `q:${m.questionId}` : `id:${m.id}`;
+    const key = m.questionId
+      ? `q:${m.questionId}`
+      : m.uploadQuestionId
+        ? `uq:${m.uploadQuestionId}`
+        : `id:${m.id}`;
     const prev = byKey.get(key);
     if (!prev) {
       byKey.set(key, m);
@@ -569,20 +573,42 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             if (row.difficulty) difficultyByBank.set(row.id, row.difficulty);
           }
         }
-        // student_mistakes has no upload_question_id column — resolve §6.1
-        // dispute targets from private upload rows by question text + owner.
-        const uploadByText = new Map<string, { id: string; answer_source: string }>();
-        const uploadTexts = Array.from(
+        // Migration 700: prefer student_mistakes.upload_question_id (§9.1).
+        // Text-join enrichment only for legacy upload rows that still lack it.
+        const uploadMetaById = new Map<string, string>();
+        const knownUploadIds = Array.from(
           new Set(
-            base.filter((r) => r.source === "upload").map((r) => r.question_text).filter(Boolean),
+            base
+              .map((r) => r.upload_question_id)
+              .filter((id): id is string => Boolean(id)),
           ),
         );
-        if (uploadTexts.length > 0) {
+        if (knownUploadIds.length > 0) {
+          const { data: uploadQs } = await supabase
+            .from("student_upload_questions")
+            .select("id, answer_source")
+            .eq("owner_id", user.id)
+            .in("id", knownUploadIds);
+          for (const u of uploadQs ?? []) {
+            const row = u as { id: string; answer_source: string };
+            if (row.id) uploadMetaById.set(row.id, row.answer_source);
+          }
+        }
+        const uploadByText = new Map<string, { id: string; answer_source: string }>();
+        const legacyUploadTexts = Array.from(
+          new Set(
+            base
+              .filter((r) => r.source === "upload" && !r.upload_question_id)
+              .map((r) => r.question_text)
+              .filter(Boolean),
+          ),
+        );
+        if (legacyUploadTexts.length > 0) {
           const { data: uploadQs } = await supabase
             .from("student_upload_questions")
             .select("id, question_text, answer_source")
             .eq("owner_id", user.id)
-            .in("question_text", uploadTexts);
+            .in("question_text", legacyUploadTexts);
           for (const u of uploadQs ?? []) {
             const row = u as { id: string; question_text: string; answer_source: string };
             if (row.question_text && !uploadByText.has(row.question_text)) {
@@ -596,12 +622,20 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         if (cancelled) return;
         setRows(
           base.map((r) => {
-            const uq = r.source === "upload" ? uploadByText.get(r.question_text) : undefined;
+            const fromCol = r.upload_question_id ?? null;
+            const fromText =
+              !fromCol && r.source === "upload"
+                ? uploadByText.get(r.question_text)
+                : undefined;
+            const uploadId = fromCol ?? fromText?.id ?? null;
+            const answerSource = fromCol
+              ? uploadMetaById.get(fromCol)
+              : fromText?.answer_source;
             return {
               ...r,
               difficulty: (r.question_id && difficultyByBank.get(r.question_id)) || r.difficulty || null,
-              upload_question_id: uq?.id ?? null,
-              ai_answered: uq?.answer_source === "ai",
+              upload_question_id: uploadId,
+              ai_answered: answerSource === "ai",
             };
           }),
         );
