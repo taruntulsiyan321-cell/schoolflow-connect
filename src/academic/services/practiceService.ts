@@ -1075,45 +1075,43 @@ export const PracticeService = {
    * migration that drops practice_skipped.
    *
    * Reading `skipped = true` surfaces no correctness, so §10.8 is untouched.
-   * Rows are deduped newest-first here rather than in SQL: PostgREST has no
-   * DISTINCT ON, and a student who skips the same question in three sessions
-   * has three rows.
+   * Skips are now resolved on the server (rpc_my_skipped_questions): a
+   * question counts while its LATEST answer is a skip, which needs DISTINCT
+   * ON — PostgREST has none — and must match what Analysis counts.
    */
   async listQuestionIdsByStatus(
     ctx: ServiceContext,
     status: "wrong" | "skipped",
-    opts: { limit?: number } = {},
+    opts: { limit?: number; chapterId?: string | null } = {},
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
     const limit = Math.min(200, Math.max(1, opts.limit ?? 60));
     const client = getClient(toRepoContext(ctx));
-    const { data, error } =
-      status === "wrong"
-        ? await client
-            .from("student_mistakes")
-            .select("question_id, last_wrong_at")
-            .eq("user_id", ctx.userId)
-            .eq("status", "open")
-            .not("question_id", "is", null)
-            .order("last_wrong_at", { ascending: false })
-            .limit(limit)
-        : await client
-            .from("question_attempts")
-            .select("bank_question_id, created_at")
-            .eq("user_id", ctx.userId)
-            .eq("skipped", true)
-            .not("bank_question_id", "is", null)
-            .order("created_at", { ascending: false })
-            // Over-fetch: the limit applies to rows, and duplicates collapse
-            // below, so limiting to `limit` rows would under-fill the mode for
-            // a student who re-skips the same questions.
-            .limit(Math.min(400, limit * 4));
-    throwIfError(error, `Failed to load ${status} questions`);
+    if (status === "skipped") {
+      // ONE definition of "a question you skipped", on the server: its LATEST
+      // answer by this student was a skip. This read every skipped row, so a
+      // question skipped once and answered since came back in Skipped mode,
+      // and Analysis's "you skipped 6 questions in this chapter" would have
+      // opened a session of more. rpc_student_chapter_analysis counts from
+      // the same function.
+      const { data, error } = await client.rpc("rpc_my_skipped_questions" as never, {
+        _chapter_id: opts.chapterId ?? null,
+        _limit: limit,
+      } as never);
+      throwIfError(error, "Failed to load skipped questions");
+      return Array.isArray(data) ? (data as unknown[]).filter((id): id is string => typeof id === "string") : [];
+    }
+    const { data, error } = await client
+      .from("student_mistakes")
+      .select("question_id, last_wrong_at")
+      .eq("user_id", ctx.userId)
+      .eq("status", "open")
+      .not("question_id", "is", null)
+      .order("last_wrong_at", { ascending: false })
+      .limit(limit);
+    throwIfError(error, "Failed to load wrong questions");
     const ids = (data ?? [])
-      .map((r) => {
-        const row = r as { question_id?: string | null; bank_question_id?: string | null };
-        return status === "wrong" ? row.question_id : row.bank_question_id;
-      })
+      .map((r) => (r as { question_id?: string | null }).question_id)
       .filter((id): id is string => Boolean(id));
     return dedupePreservingOrder(ids).slice(0, limit);
   },
@@ -1137,10 +1135,10 @@ export const PracticeService = {
   /** Previously skipped questions (honest empty if none). */
   async listSkippedBankQuestions(
     ctx: ServiceContext,
-    opts: { limit?: number } = {},
+    opts: { limit?: number; chapterId?: string | null } = {},
   ) {
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
-    const ids = await this.listQuestionIdsByStatus(ctx, "skipped", { limit: limit * 2 });
+    const ids = await this.listQuestionIdsByStatus(ctx, "skipped", { limit: limit * 2, chapterId: opts.chapterId });
     if (ids.length === 0) return [];
     return this.listBankQuestions(ctx, { ids: ids.slice(0, limit), limit });
   },

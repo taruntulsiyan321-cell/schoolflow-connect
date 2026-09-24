@@ -56,10 +56,12 @@ vi.mock("@/hooks/useAnalysisPageData", () => ({
   useAnalysisPageData: () => ({
     data: { totals: { correct: 80, wrong: 50, skipped: 30, accuracy_pct: 62 },
       recent_sessions: [
-        { id: "s1", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(8) + "T10:00:00Z" },
-        { id: "s2", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 5, wrong_count: 5, measured_ms: 200000, accuracy_pct: 50, finished_at: iso(6) + "T10:00:00Z" },
-        { id: "s3", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(4) + "T10:00:00Z" },
-        { id: "s4", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 8, wrong_count: 2, measured_ms: 200000, accuracy_pct: 80, finished_at: iso(2) + "T10:00:00Z" },
+        { id: "s1", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(12) + "T10:00:00Z" },
+        { id: "s2", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 45, finished_at: iso(11) + "T10:00:00Z" },
+        { id: "s3", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 5, wrong_count: 5, measured_ms: 200000, accuracy_pct: 50, finished_at: iso(10) + "T10:00:00Z" },
+        { id: "s4", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(6) + "T10:00:00Z" },
+        { id: "s5", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 75, finished_at: iso(4) + "T10:00:00Z" },
+        { id: "s6", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 8, wrong_count: 2, measured_ms: 200000, accuracy_pct: 80, finished_at: iso(2) + "T10:00:00Z" },
       ],
       attempt_hours: (() => { const h = new Array(24).fill(0); h[9] = 12; return h; })() },
     loading: false, error: null, reload: () => {},
@@ -68,9 +70,11 @@ vi.mock("@/hooks/useAnalysisPageData", () => ({
 vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
   useStudentPerformanceCharts: () => ({ data: {
     practice_trend: [
-      { date: iso(8), score_pct: 40, chapter: "Algebra" },
-      { date: iso(6), score_pct: 50, chapter: "Algebra" },
-      { date: iso(4), score_pct: 70, chapter: "Algebra" },
+      { date: iso(12), score_pct: 40, chapter: "Algebra" },
+      { date: iso(11), score_pct: 45, chapter: "Algebra" },
+      { date: iso(10), score_pct: 50, chapter: "Algebra" },
+      { date: iso(6), score_pct: 70, chapter: "Algebra" },
+      { date: iso(4), score_pct: 75, chapter: "Algebra" },
       { date: iso(2), score_pct: 80, chapter: "Algebra" },
     ],
     weekly_activity: [ { date: iso(2), total: 5, test: 0, battles: 0 }, { date: iso(9), total: 5, test: 0, battles: 0 } ],
@@ -110,7 +114,8 @@ describe("Analysis — recovery, revision and trends", () => {
 
   it("reports a rise in POINTS, not percent", async () => {
     await settle();
-    // 40 -> 80 across four sessions is a rise of thirty percentage POINTS.
+    // §6.4: the latest three sessions (70, 75, 80) average thirty percentage
+    // POINTS above the three before them (40, 45, 50).
     // Thirty percent of 40 is twelve. The Overview headline and the
     // milestone card were corrected to say "points"; the subject rows, the
     // chapter grid and this list kept the percent sign.
@@ -179,7 +184,7 @@ describe("Analysis — recovery, revision and trends", () => {
     const row = Array.from(document.querySelectorAll("div")).find((d) =>
       (d.textContent ?? "").startsWith("Practice sessions"),
     );
-    // self_practice.sessions_completed is 31; recent_sessions has 4 rows.
+    // self_practice.sessions_completed is 31; recent_sessions has 6 rows.
     expect(row?.textContent).toContain("31");
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildWeekComparison,
-  halfWindowTrend,
+  latestVersusPrevious,
   trendState,
   deriveSubjectPace,
   formatSeconds,
@@ -55,9 +55,23 @@ describe("studentAnalysisMetrics", () => {
     expect(fri?.lastWeek).toBe(2);
   });
 
-  it("computes half-window accuracy trend", () => {
-    expect(halfWindowTrend([50, 50, 80, 80])).toBe(30);
-    expect(halfWindowTrend([90])).toBeNull();
+  it("compares the latest 3 sessions with the 3 before them (§6.4)", () => {
+    // Four sessions: latest three [50, 80, 80] against the one before [50].
+    expect(latestVersusPrevious([50, 50, 80, 80])).toBe(20);
+    expect(latestVersusPrevious([90])).toBeNull();
+  });
+
+  it("ignores sessions older than the two windows — the old half-split did not", () => {
+    // Improved long ago (20 -> 80), then flat for six sessions. The half-split
+    // compared [20,20,20,80] with [80,80,80,80] and called it +45, improving.
+    // Latest 3 vs previous 3 are both 80: stuck.
+    const history = [20, 20, 20, 80, 80, 80, 80, 80, 80, 80];
+    expect(latestVersusPrevious(history)).toBe(0);
+    expect(trendState(history).state).toBe("stuck");
+  });
+
+  it("uses only the 3 before the latest 3, not everything before", () => {
+    expect(latestVersusPrevious([0, 0, 0, 0, 60, 60, 60, 90, 90, 90])).toBe(30);
   });
 
   // ── §6.4, the trend floor and the three states ──────────────────────────
@@ -72,16 +86,16 @@ describe("studentAnalysisMetrics", () => {
   it("refuses a trend below TREND_MIN_SESSIONS sessions", () => {
     // Three sessions moving 40 points is still not a trend — the floor is a
     // count of sessions, not a size of movement.
-    expect(halfWindowTrend([50, 90, 90])).toBeNull();
+    expect(latestVersusPrevious([50, 90, 90])).toBeNull();
     expect(trendState([50, 90, 90])).toEqual({ state: "not_enough_data", deltaPoints: null });
     // And the boundary itself is inclusive: four sessions IS enough.
-    expect(halfWindowTrend([50, 50, 90, 90])).toBe(40);
+    expect(latestVersusPrevious([50, 50, 90, 90])).toBeCloseTo(26.7, 1);
   });
 
   it("calls small movement stuck, not improving", () => {
     // +2 points across four sessions. The old code returned 2 and the screen
     // drew a green up-arrow reading "2%".
-    const t = trendState([50, 50, 52, 52]);
+    const t = trendState([50, 50, 50, 52, 52, 52]);
     expect(t.state).toBe("stuck");
     expect(t.deltaPoints).toBe(2);
   });
@@ -93,10 +107,10 @@ describe("studentAnalysisMetrics", () => {
   });
 
   it("names direction only once movement clears TREND_DELTA_POINTS", () => {
-    expect(trendState([40, 40, 60, 60]).state).toBe("improving");
-    expect(trendState([60, 60, 40, 40]).state).toBe("worsening");
+    expect(trendState([40, 40, 40, 60, 60, 60]).state).toBe("improving");
+    expect(trendState([60, 60, 60, 40, 40, 40]).state).toBe("worsening");
     // Exactly at the threshold counts as movement, not as stuck.
-    expect(trendState([40, 40, 50, 50]).state).toBe("improving");
+    expect(trendState([40, 40, 40, 50, 50, 50]).state).toBe("improving");
   });
 
   it("ranks subjects by time only once enough questions were timed", () => {

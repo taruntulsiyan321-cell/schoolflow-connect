@@ -18,6 +18,7 @@ import {
   REVISION_STAGES_TO_SOLID,
   TREND_DELTA_POINTS,
   TREND_MIN_SESSIONS,
+  TREND_WINDOW_SESSIONS,
   type TrendState,
 } from "@/academic/recovery/constants";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
@@ -93,21 +94,21 @@ function accuracyOf(session: PracticeSessionSummary): number {
 
 
 /**
- * Average accuracy of the first half vs second half of chronologically
- * ordered sessions, in accuracy points.
+ * §6.4: the latest TREND_WINDOW_SESSIONS sessions' average against the
+ * TREND_WINDOW_SESSIONS before them, in accuracy points.
  *
- * §6.4 / TREND_MIN_SESSIONS: "Declaring a trend from two sessions is noise
- * dressed as insight." This used to compute a delta from as few as TWO
- * sessions and hand it straight to the screen, which drew a green up-arrow
- * and a percentage off one session against one other. Below the floor there
- * is no trend to report and this returns null — the NOT_ENOUGH_DATA state,
- * which `trendState` names and the screen renders distinctly from "steady".
+ * It used to split the WHOLE history in half: a student's first sessions ever
+ * were compared with their latest, so a chapter that improved months ago and
+ * has since stalled read as "improving" for ever. "The latest 3 sessions
+ * average > the previous 3" is a question about now.
+ *
+ * Below TREND_MIN_SESSIONS there is no trend (null — NOT_ENOUGH_DATA). With
+ * 4 or 5 sessions the earlier window is simply shorter than 3.
  */
-export function halfWindowTrend(accuracies: number[]): number | null {
+export function latestVersusPrevious(accuracies: number[]): number | null {
   if (accuracies.length < TREND_MIN_SESSIONS) return null;
-  const mid = Math.floor(accuracies.length / 2);
-  const early = accuracies.slice(0, mid);
-  const late = accuracies.slice(mid);
+  const late = accuracies.slice(-TREND_WINDOW_SESSIONS);
+  const early = accuracies.slice(-2 * TREND_WINDOW_SESSIONS, -TREND_WINDOW_SESSIONS);
   if (early.length === 0 || late.length === 0) return null;
   const avg = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
   return Math.round((avg(late) - avg(early)) * 10) / 10;
@@ -136,7 +137,7 @@ export function trendState(accuracies: number[]): {
   state: TrendState;
   deltaPoints: number | null;
 } {
-  const delta = halfWindowTrend(accuracies);
+  const delta = latestVersusPrevious(accuracies);
   if (delta == null) return { state: "not_enough_data", deltaPoints: null };
   if (Math.abs(delta) < TREND_DELTA_POINTS) return { state: "stuck", deltaPoints: delta };
   return { state: delta > 0 ? "improving" : "worsening", deltaPoints: delta };

@@ -286,6 +286,9 @@ const ALLOWLIST = {
   // There is no argument through which another school's row is reachable, so
   // there is nothing for a school_id predicate to narrow. Read body 2026-09-14.
   rpc_clear_chapter_after_recovery: "Every read and write is scoped to auth.uid(): the session is looked up by id AND user_id = auth.uid(), and student_mistakes / chapter_state are updated only WHERE user_id = auth.uid() for that session's chapter. The caller supplies nothing but their own session id.",
+  _still_skipped_questions: "Internal (REVOKEd from anon/authenticated). Reads question_attempts WHERE user_id = its _uid argument only; its two callers (rpc_my_skipped_questions, rpc_student_chapter_analysis) pass auth.uid() and nothing else.",
+  rpc_my_skipped_questions: "Scoped to auth.uid(): passes it to _still_skipped_questions; the only other table is question_bank, which is G2 GLOBAL (no school_id). _chapter_id only narrows the caller's own rows.",
+  rpc_student_chapter_analysis: "Every per-student table is read WHERE user_id = auth.uid() (question_attempts, student_mistakes, chapter_state, and _still_skipped_questions(auth.uid())); chapters, topics and question_bank are global catalogue tables with no school_id. Takes no arguments.",
   rpc_submit_recovery_session: "Every read and write is scoped to auth.uid() before use; the two id arguments are verified against the caller and the per-tier counts join to that session's own stored question ids.",
 
   // BEFORE INSERT/UPDATE on student_mistakes. It reads exactly one row of

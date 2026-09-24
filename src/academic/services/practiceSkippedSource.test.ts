@@ -44,11 +44,15 @@ function skippedBranch(): string {
   const start = SOURCE.indexOf("async listQuestionIdsByStatus");
   expect(start, "listQuestionIdsByStatus has been renamed or removed").toBeGreaterThan(-1);
   const body = SOURCE.slice(start, SOURCE.indexOf("async listMistakeQuestions", start));
-  // Everything after the ternary's `:` is the skipped arm.
-  const colon = body.indexOf(': await client');
-  expect(colon, "the wrong/skipped ternary has been restructured").toBeGreaterThan(-1);
-  return body.slice(colon);
+  const arm = body.indexOf('if (status === "skipped")');
+  expect(arm, "the skipped arm has been restructured").toBeGreaterThan(-1);
+  return body.slice(arm, body.indexOf("return Array.isArray(data)", arm));
 }
+
+/** The server's one definition of a skipped question (20261057000000). */
+const STILL_SKIPPED = stripComments(
+  readFileSync(join(__dirname, "..", "..", "..", "supabase", "migrations", "20261057000000_the_chapter_list_analysis_is_built_on.sql"), "utf8"),
+);
 
 function tsFilesUnder(dir: string): string[] {
   const out: string[] = [];
@@ -62,17 +66,22 @@ function tsFilesUnder(dir: string): string[] {
 }
 
 describe("skipped questions read question_attempts, not practice_skipped", () => {
-  it("selects skipped rows from question_attempts", () => {
-    const branch = skippedBranch();
-    expect(branch).toContain('.from("question_attempts")');
-    expect(branch).toContain('.eq("skipped", true)');
+  it("asks the server's one definition, which reads question_attempts", () => {
+    // The client no longer reads the table itself: "skipped" means the
+    // LATEST answer was a skip, which needs DISTINCT ON, and Analysis counts
+    // from the same server function. The authority is unchanged.
+    expect(skippedBranch()).toContain('client.rpc("rpc_my_skipped_questions"');
+    const fn = STILL_SKIPPED.slice(STILL_SKIPPED.indexOf("FUNCTION public._still_skipped_questions"));
+    expect(fn).toContain("FROM public.question_attempts qa");
+    expect(fn).toContain("DISTINCT ON (qa.bank_question_id)");
+    expect(fn).toContain("WHERE l.skipped");
   });
 
   it("takes the bank question id and never a null one", () => {
-    const branch = skippedBranch();
     // A skip on a template question has no bank id; including those rows
     // would put `null` into the id list the mode loads questions by.
-    expect(branch).toContain('.not("bank_question_id", "is", null)');
+    const fn = STILL_SKIPPED.slice(STILL_SKIPPED.indexOf("FUNCTION public._still_skipped_questions"));
+    expect(fn).toContain("qa.bank_question_id IS NOT NULL");
   });
 
   it("leaves practice_skipped with no reader anywhere in src", () => {
