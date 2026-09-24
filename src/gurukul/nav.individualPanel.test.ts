@@ -85,4 +85,20 @@ describe("individual vs school student panel nav", () => {
       /schoolKind\s*===\s*["']individual["']\s*&&\s*isSchoolOnlyPath/,
     );
   });
+
+  it("Dashboard never sends an individual next-action to homework", () => {
+    const home = stripComments(
+      readFileSync(join(__dirname, "pages", "Dashboard.tsx"), "utf8"),
+    );
+    expect(home).toMatch(/includeHomework:\s*!isIndividual/);
+    expect(home).toMatch(/buildMission\([^,]+,\s*\{\s*includeHomework/);
+  });
+
+  it("Profile hides school homework/tests/rank for individual accounts", () => {
+    const profile = stripComments(
+      readFileSync(join(__dirname, "pages", "Profile.tsx"), "utf8"),
+    );
+    expect(profile).toMatch(/schoolKind\s*!==\s*["']individual["']/);
+    expect(profile).toMatch(/isSchool\s*&&\s*\(/);
+  });
 });

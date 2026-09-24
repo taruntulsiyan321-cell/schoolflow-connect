@@ -294,7 +294,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
               {student.firstName}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">{heroScope}{goalLine}</p>
-            <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className={`grid gap-3 mt-4 ${isIndividual ? "grid-cols-2" : "grid-cols-3"}`}>
               {/* This tile is PRACTICE accuracy and always was — StudentDashboard
                   fills the profile from practiceAccuracyFromSnapshot. The field
                   is named `practiceAccuracy` now so the label cannot drift from
@@ -304,17 +304,17 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 value={shellReady && student.practiceAccuracy != null ? `${student.practiceAccuracy}%` : "—"}
                 color="hsl(var(--info))"
               />
+              {!isIndividual && (
               <StatTile
-                // Individuals have no class cohort — never label this "Class Rank".
-                // Standing stays "—" until an exam-wide league exists; do not invent #1.
-                label={isIndividual ? "Standing" : "Class Rank"}
+                label="Class Rank"
                 value={
-                  shellReady && !isIndividual && student.rank > 0
+                  shellReady && student.rank > 0
                     ? `#${student.rank}`
                     : "—"
                 }
                 color="hsl(var(--warning))"
               />
+              )}
               <StatTile label="Level" value={levelLabel} color="var(--color-chemistry)"/>
             </div>
             <div className="mt-3">

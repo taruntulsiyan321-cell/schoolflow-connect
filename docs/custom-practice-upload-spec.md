@@ -346,9 +346,14 @@ it fail.
    real chapters, practise them, answer one wrong deliberately; then that
    mistake appears in the mistake book, recovery counts its chapter, revision
    schedules it, and analysis stops saying "not recorded yet".
-   *Status 2026-09-24:* prior live probes on this branch covered wrong→mistake
-   →`from_upload`; full browser §12.2 as the signed-in individual is still
-   pending the Playwright exam harness against vite `:8099`.
+   *Measured 2026-09-24:* `node scripts/measure-custom-practice-12-2.mjs` as
+   CUET exam account — wrong upload attempt → open mistake with
+   `upload_question_id` / bank null → recovery tier 0 `from_upload` →
+   `revision_queue` reason `upload_wrong` → `practice_accuracy_pct` recorded.
+   Blocker fixed live: `20261082000000` extends `_recovery_chapter_is_for` so
+   upload/capture-practised chapters are entitled (KI58 was bank-only).
+   Playwright twin: `e2e-evidence/custom-practice.spec.ts` §12.2 (API path;
+   full Practice UI still a separate harness gap).
 3. **A notes file end to end** — upload, notes produced topic-wise and
    chapter-wise, questions written from them, practised.
    *Status 2026-09-24:* notes path wired (`persistNotes` + chapter resolve);

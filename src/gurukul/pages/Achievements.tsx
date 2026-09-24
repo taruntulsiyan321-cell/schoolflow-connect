@@ -3,12 +3,13 @@ import { EmptyState, GlassCard, PageHeader, PageSkeleton, SectionLabel, Skeleton
 import { Lock, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
-import { BADGES, getBadge, TIER_CLASS } from "@/lib/badges";
+import { BADGES, getBadge, TIER_CLASS, badgeForIndividualCatalog } from "@/lib/badges";
 import { ProgressionService, type ProgressionSnapshot, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { toErrorMessage } from "@/lib/presentation";
+import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 
 const MAX_FEATURED = 5;
 
@@ -23,6 +24,8 @@ function formatEarnedDate(iso: string) {
 export default function Achievements() {
   const { user } = useAuth();
   const { ctx, ready } = useAcademicContext();
+  const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
+  const isIndividual = schoolKind === "individual";
   const { earned, equipped, loading, saving, equip } = useStudentBadges(user?.id);
   const [featured, setFeatured] = useState<string[]>([]);
   const [achievements, setAchievements] = useState<ProgressionSnapshot["achievements"]>([]);
@@ -62,17 +65,21 @@ export default function Achievements() {
 
   const { unlocked, locked, visibleCatalogCount } = useMemo(() => {
     const earnedCodes = new Set(earned.map((e) => e.badge_code));
+    const catalog = Object.values(BADGES).filter((b) =>
+      isIndividual ? badgeForIndividualCatalog(b) : true,
+    );
     const unlockedItems = earned
       .map((e) => {
         const meta = getBadge(e.badge_code);
         if (!meta) return null;
+        // Still show an earned badge even if it is school-only (legacy award).
         return { ...meta, earned_at: e.earned_at };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
-    const lockedItems = Object.values(BADGES).filter((b) => !earnedCodes.has(b.code) && !b.hidden);
-    const catalogCount = Object.values(BADGES).filter((b) => !b.hidden || earnedCodes.has(b.code)).length;
+    const lockedItems = catalog.filter((b) => !earnedCodes.has(b.code) && !b.hidden);
+    const catalogCount = catalog.filter((b) => !b.hidden || earnedCodes.has(b.code)).length;
     return { unlocked: unlockedItems, locked: lockedItems, visibleCatalogCount: catalogCount };
-  }, [earned]);
+  }, [earned, isIndividual]);
 
   const toggleFeatured = async (code: string) => {
     if (!ctx || !ready) return;
@@ -100,7 +107,7 @@ export default function Achievements() {
   // The title needs no network, so it no longer waits for one.
   const header = (
     <PageHeader
-      eyebrow="Class"
+      eyebrow={isIndividual ? (examName || examCode || "Exam") : "Class"}
       title="Achievements"
       subtitle="Milestones you have reached, and the ones still ahead."
     />
@@ -193,7 +200,11 @@ export default function Achievements() {
             variant="section"
             icon={<Star className="w-5 h-5" />}
             title="No milestones reached yet"
-            sub="Keep learning and battling to earn badges."
+            sub={
+              isIndividual
+                ? "Keep practising, recovering and revising to earn badges."
+                : "Keep learning and battling to earn badges."
+            }
           />
         ) : (
           <>

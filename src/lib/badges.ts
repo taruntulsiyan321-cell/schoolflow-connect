@@ -132,6 +132,41 @@ export function getBadge(code: string | null | undefined): BadgeMeta | null {
   return BADGES[code] ?? null;
 }
 
+/**
+ * Badges that require a school cohort / arena / attendance. Individual exam
+ * accounts must not see these as forever-locked catalog bait.
+ */
+const SCHOOL_ONLY_BADGE_GROUPS = new Set<BadgeGroup>([
+  "battleground",
+  "attendance",
+  "leaderboard",
+  "test",
+]);
+
+const SCHOOL_ONLY_BADGE_CODES = new Set<string>([
+  "win_streak_3",
+  "win_streak_5",
+  "win_streak_10",
+  "sharp_shooter",
+  "high_scorer",
+  "unstoppable",
+  "fast_solver",
+  "topper",
+  "explorer",
+  "math_master",
+  "science_master",
+  "night_owl",
+  "early_bird",
+  "comeback_king",
+]);
+
+/** Whether this catalog entry belongs on an individual (exam) student's Achievements. */
+export function badgeForIndividualCatalog(b: BadgeMeta): boolean {
+  if (SCHOOL_ONLY_BADGE_GROUPS.has(b.group)) return false;
+  if (SCHOOL_ONLY_BADGE_CODES.has(b.code)) return false;
+  return true;
+}
+
 export function badgesByGroup(): Record<BadgeGroup, BadgeMeta[]> {
   const out = {} as Record<BadgeGroup, BadgeMeta[]>;
   GROUP_ORDER.forEach((g) => { out[g] = []; });
