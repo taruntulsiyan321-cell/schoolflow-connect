@@ -7,7 +7,7 @@
 - **§12.1** PASS — 
 ode scripts/measure-custom-practice-12-1.mjs (6 refuse + 1 accept; zero downstream rows). Fixtures in e2e-evidence/fixtures/custom-practice/. Exam harness: refresh_token → e2e-evidence/auth.exam.setup.ts (no OTP backdoor).
 - **§13** ruled — confidence 0.55; model qwen/qwen3.7-flash; 20 MiB / 20 pages / 40 keep (one server home each). See spec §13.
-- **§12.5 + KI74** PASS — i-recovery-variants XOR upload source; migration 20261076000000 applied live; 
+- **§12.5 + KI83** PASS — i-recovery-variants XOR upload source; migration 20261076000000 applied live; 
 ode scripts/measure-upload-promotion-12-5-real.mjs 7/7. Edges redeployed.
 - **KI77** FIXED — HOMEWORK_PAGE 100→25.
 

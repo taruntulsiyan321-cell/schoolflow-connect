@@ -288,7 +288,7 @@ export default function Auth() {
         .order("display_order", { ascending: true });
       if (!alive) return;
       if (error) {
-        setExams({ status: "failed", message: error.message });
+        setExams({ status: "failed", message: toErrorMessage(error, "Could not load exams") });
         return;
       }
       setExams({ status: "ready", items: (data ?? []) as ExamOption[] });

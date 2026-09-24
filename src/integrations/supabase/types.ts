@@ -8855,6 +8855,7 @@ export type Database = {
           class_level: number | null
           created_at: string | null
           difficulty: string | null
+          exam_id: string | null
           exam_year: number | null
           id: string | null
           is_active: boolean | null
@@ -8877,6 +8878,7 @@ export type Database = {
           class_level?: number | null
           created_at?: string | null
           difficulty?: string | null
+          exam_id?: string | null
           exam_year?: number | null
           id?: string | null
           is_active?: boolean | null
@@ -8899,6 +8901,7 @@ export type Database = {
           class_level?: number | null
           created_at?: string | null
           difficulty?: string | null
+          exam_id?: string | null
           exam_year?: number | null
           id?: string | null
           is_active?: boolean | null

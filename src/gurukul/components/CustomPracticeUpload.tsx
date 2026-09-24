@@ -19,6 +19,7 @@ import {
 import { STUDENT_UPLOAD_ACCEPT } from "@/academic/storage/studentUploadFile";
 import { cn, LoadingState } from "@/gurukul/components/shared";
 import { withAlpha } from "@/lib/colorAlpha";
+import { toErrorMessage } from "@/lib/presentation";
 import { FileUp, Loader2, Trash2, X } from "lucide-react";
 
 type Props = {
@@ -72,7 +73,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
     try {
       setRows(await StudentUploadService.listMine(ctx));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not load your uploads");
+      toast.error(toErrorMessage(e, "Could not load your uploads"));
       setRows([]);
     } finally {
       setLoading(false);
@@ -102,7 +103,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
       }
       await refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+      toast.error(toErrorMessage(e, "Upload failed"));
     } finally {
       setUploading(false);
       setBusyId(null);
@@ -117,7 +118,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
       await StudentUploadService.remove(ctx, id);
       setRows((prev) => prev.filter((r) => r.id !== id));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not delete upload");
+      toast.error(toErrorMessage(e, "Could not delete upload"));
     } finally {
       setBusyId(null);
     }
@@ -149,7 +150,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
         }
         setNotesFor({ uploadId: row.id, filename: row.original_filename, notes });
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not open notes");
+        toast.error(toErrorMessage(e, "Could not open notes"));
       } finally {
         setNotesLoadingId(null);
       }

@@ -39,7 +39,7 @@ vi.mock("../repository/base", async (importOriginal) => {
     const keep: Array<(r: Row) => boolean> = [];
     const self: Record<string, unknown> = {};
     self.select = (s: string, opts?: { count?: string }) => { select = s; wantCount = opts?.count === "exact"; return self; };
-    for (const m of ["eq", "ilike", "not", "in", "order"]) self[m] = () => self;
+    for (const m of ["eq", "ilike", "not", "in", "order", "is"]) self[m] = () => self;
     self.or = (expr: string) => {
       orFilters.push(expr);
       // `stream.eq.commerce,stream.is.null` — the only or() this test is about.
@@ -86,6 +86,7 @@ const ctx = { schoolId: "00000000-0000-4000-8000-000000000001", userId: "u", stu
 const atClass = (classLevel: number) =>
   vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
     classLevel, board: "rbse", stream: "commerce", classLabel: `${classLevel}-A`,
+    examId: null, examCode: null, examName: null,
   });
 
 beforeEach(() => {

@@ -51,6 +51,7 @@ vi.mock("../repository/base", async (importOriginal) => {
     self.eq = () => self;
     self.not = () => self;
     self.in = () => self;
+    self.is = () => self;
     self.order = () => self;
     self.or = (expr: string) => { orCalls.push(expr); return self; };
     self.ilike = (col: string, value: string) => {
@@ -99,7 +100,7 @@ beforeEach(() => {
     q("metals-1", "Metals and Non-metals", "Science"),
   ];
   vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
-    classLevel: 10, board: "rbse", stream: null, classLabel: "10-A",
+    classLevel: 10, board: "rbse", stream: null, classLabel: "10-A", examId: null, examCode: null, examName: null,
   });
 });
 
