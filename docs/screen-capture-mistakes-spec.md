@@ -1,0 +1,343 @@
+# Mistakes captured from another app's screen
+
+**Status:** ruled 2026-09-24 by the owner. Not built. Third of the three
+features that must exist before launch, beside
+`docs/custom-practice-upload-spec.md`.
+
+Facts marked *measured* were taken from the live database or this repository on
+2026-09-24. Facts marked **VERIFY** are platform or policy facts that move, and
+must be re-checked against the current Android release and current Play policy
+before anything is designed on top of them — they are the author's knowledge,
+not a measurement.
+
+---
+
+## §1 What this is
+
+A student preparing for CUET does most of their solving somewhere else — on
+Physics Wallah, on Unacademy. Gurukul cannot see any of it, so their mistake
+book, their recovery and their revision know nothing about the work they
+actually did.
+
+This feature closes that. The student turns Gurukul on once; from then on,
+**every question they get wrong inside PW lands in their Gurukul mistake book
+by itself**, tagged, and feeding recovery, revision and analysis exactly like a
+question they answered inside Gurukul.
+
+They do nothing else. That is the whole product promise, and every decision
+below is in service of it being *true* rather than nearly true.
+
+---
+
+## §2 What this shares with the upload feature — do not restate it
+
+This feature and `docs/custom-practice-upload-spec.md` produce **the same
+thing**: a question that is private to one student, tagged to a real chapter,
+flowing into the mistake book. Only the intake differs — a file there, a screen
+here.
+
+So the rules below are defined **once**, in the upload spec, and this feature
+obeys them without a second copy:
+
+| rule | lives at |
+|---|---|
+| The privacy rule — an upload belongs to the account it came from | upload spec §2 |
+| Why private questions are not in `question_bank` / `ai_kms_documents` | upload spec §2.1, §2.2 |
+| Tagging, and resolving to a **real** `chapter_id` rather than guessing | upload spec §5, §5.1 |
+| Marking an AI-derived answer, and letting the student dispute it | upload spec §6 |
+| How mistakes, recovery, revision and analysis consume it | upload spec §9 |
+
+A second copy of any of those in this document, or in code, is the defect RULE
+0 exists to prevent. Cite them; do not repeat them.
+
+---
+
+## §3 Platform reality
+
+**§3.1 This cannot be a web feature.** A web page can capture a screen only on
+a desktop browser. On a phone, a website can never see another app. That is an
+operating-system rule, not something to engineer around.
+
+**§3.2 Android first.** *Measured:* this repo already ships a native shell —
+`@capacitor/android`, `@capacitor/ios` and `@capacitor/push-notifications` are
+dependencies, `capacitor.config.ts` exists, and an `android/` project is
+present. There is **no `ios/` project**. Android screen capture
+(`MediaProjection`) can see other apps.
+
+**§3.3 iOS is possible and is version two.** The mechanism is a **ReplayKit
+Broadcast Upload Extension** — the same one Zoom and Discord use; it genuinely
+sees other apps and is App Store sanctioned. Two constraints shape it: the
+extension runs in a **~50 MB memory process**, so frames must be downscaled and
+handed off rather than processed in place; and the student must start the
+broadcast themselves each session, with a visible indicator. It is native Swift
+work in a new Xcode target, not a plugin install. **VERIFY** before building.
+
+**§3.4 Do not start iOS until Android has proved §6 and §7.** The hard part is
+reading a screen correctly, and it is identical on both. Debugging a 50 MB
+process and an unproven reader at the same time is two unknowns at once.
+
+---
+
+## §4 What the student turns on
+
+**Once**, not per session:
+
+- **Screen capture** — Android shows a system consent dialog and a persistent
+  notification while it is active. The notification cannot be hidden and should
+  not be.
+- **Usage access** — the permission granted in Settings that lets an app see
+  which app is in the foreground. The same one screen-time and parental-control
+  apps use.
+- **The app list** — the student picks which apps this applies to. PW at
+  launch. Nothing captures from an app they did not choose.
+
+**§4.1 Why one consent and not one per app-open.** **VERIFY:** from Android 14,
+each screen-capture session needs its own user consent, and an app cannot start
+one from the background. So "start capturing when PW opens" would mean a system
+dialog every time the student opens PW. The design is therefore: **one capture
+session, and the filtering decides what is looked at** (§5) — not one session
+per app.
+
+---
+
+## §5 The funnel on the phone — and everything here is free
+
+Nothing in this section costs money, uses the network, or leaves the device.
+This is the section that decides whether the feature costs pennies or dollars
+per student (§8).
+
+**§5.1 Which app is in front.** Not on the student's list → the frame is
+dropped immediately. Not read, not text-recognised, not stored, not sent.
+WhatsApp, the gallery, a banking app: never examined at all.
+
+**§5.2 Is this a lecture?** Students watch classes in PW as much as they solve
+in it. A playing video **changes constantly and carries very little text**; a
+question **sits still and is mostly text**. Frame-to-frame difference plus a
+text count separates them, with no AI. Lectures never leave the phone.
+
+This is also the largest cost saving in the feature: moving video produces a
+new distinct frame every moment, so lectures are precisely the frames that
+would otherwise dominate the bill.
+
+**§5.3 The verdict trigger — not a timer.** The capture moment is **the moment
+a right/wrong verdict appears next to the student's own answer**. Detect it as
+a screen change where red/green appears, or where verdict words appear
+("Correct answer", "Your answer", "Solution", a score line).
+
+A fixed timer is wrong here. In PW's instant mode (§6.1) a wrong answer may be
+on screen for only a second or two before the student taps Next, and a
+three-second timer would miss it. Missing mistakes is the one failure this
+feature cannot afford.
+
+**§5.4 Does the text look like a question with a verdict?** On-device text
+recognition (Android ML Kit — free, offline, no AI cost) reads the frame. If
+the text does not look like a question **and** a verdict, it is dropped here.
+
+Only what survives all four gates goes any further.
+
+---
+
+## §6 The two shapes of PW — from the owner, who uses it daily
+
+**§6.1 Instant.** The student answers, and PW shows right or wrong immediately,
+on that question. The verdict screen appears on its own — nothing depends on
+the student choosing to open anything. **This is the better case**, and §5.3's
+trigger exists for it.
+
+**§6.2 Test.** The student answers ten, submits, and the answers come
+afterwards on a review screen. Everything needed is on that screen at once:
+question, their answer, the correct answer, the verdict.
+
+**§6.3 The one rule that covers both**, and will cover other apps without a
+rewrite:
+
+> Capture the screen that shows **the student's own answer** and a
+> **right/wrong verdict** at the same time.
+
+**§6.4 What must NOT be captured.** During a lecture, a teacher often solves a
+question on screen. That is a question, but it is **not the student's mistake**.
+Capturing it fills the mistake book with questions they never attempted, and
+recovery then sends them to revise something they never got wrong — destroying
+trust in the feature this one exists to feed. The verdict must be attached to
+**the student's own answer**, not merely present on screen.
+
+Likewise: if PW shows a DPP as a PDF with no marking at all, **nothing is
+captured**. That gap is what the upload feature and the tap (§10) are for.
+
+**§6.5 If the student never opens the solutions** in test mode, we see the
+score but not which questions were wrong. Capture **nothing**, and say so
+plainly — "open the solutions and Gurukul will pick up your mistakes". Guessing
+which ones were wrong poisons the mistake book.
+
+---
+
+## §7 What the server does
+
+**§7.1 Extract and confirm.** The AI reads the surviving frame and returns: the
+question, the option the student chose, the correct option, and whether they
+were wrong. It **confirms** a verdict the phone already suspected; it does not
+decide from scratch.
+
+**§7.2 Match our own bank first — this is the biggest accuracy win available.**
+*Measured 2026-09-24:* **26,153 bank questions carry an embedding, and all
+4,267 CUET questions do** (`embed_status = 'embedded'`). A vector search
+function already exists: `match_question_bank(p_query_embedding vector,
+p_class_level integer, p_school_id uuid, p_subjects text[], p_match_threshold
+double precision, p_match_count integer)`.
+
+So: embed the captured question and search the bank. **On a confident match,
+inherit that question's chapter, topic and difficulty exactly** — no guessing
+at all. Only with no match does the AI tag it fresh, under upload spec §5.
+
+Upload spec §5.1 rules that a wrong chapter is worse than no chapter. This is
+the cheapest way to be right rather than plausible, and it should be tried
+before the AI is asked to classify anything.
+
+*Note for the builder:* `match_question_bank` takes `p_class_level` and
+`p_school_id` — it was written for school students. It needs an exam-scoped
+path for CUET. Small, but not free.
+
+**§7.3 Collapse duplicates.** In test mode the student scrolls, and the same
+question appears in dozens of frames. Fingerprint the normalised question text
+and keep one.
+
+Against the existing mistake book, a repeat is **not a new row**: it increments
+`times_wrong` and moves `last_wrong_at`. *Measured 2026-09-24:* the existing
+code already behaves this way — a question Riya got wrong twice sits at
+`times_wrong = 2` with one row.
+
+**§7.4 Then it is simply a mistake.** Same table, same recovery, same revision,
+same analysis, per upload spec §9. Attempts and mistakes are written with a
+`source` that names this feature, so it can always be told apart from practice
+done inside Gurukul.
+
+---
+
+## §8 Cost
+
+The design decides the cost, not the model. **VERIFY the prices** — these are
+the per-million figures recorded for this project on 2026-09-08 and they move.
+
+| path | per captured question |
+|---|---|
+| Text only (question, options, the student's answer, tagging back) | ~$0.000044 |
+| With the image, where layout or notation demands it | ~$0.00008 |
+
+A student capturing 50 mistakes a day, every day: **well under $0.25 a month.**
+
+Streaming frames to the AI instead — one a second for two hours a day — is
+roughly **$8–10 per student per month**. That is the same feature built without
+§5, and it is the difference between a business and a bill.
+
+**§8.1 The student's mobile data matters more than our bill.** Sending images
+costs *them*. On-device filtering means a few kilobytes an hour instead of
+megabytes. For a student on a limited pack, this is a reason to uninstall, and
+it is the strongest argument for §5.
+
+**§8.2 The real cost is one-off:** the native Android work. The running cost,
+built this way, is close to nothing.
+
+---
+
+## §9 Promotion is OFF for this feature
+
+The upload spec (§10) allows a *generated variant* of a student's own uploaded
+question to enter the shared bank behind four gates. **That does not apply
+here, at all.**
+
+Questions captured from PW are another company's paid content. Keeping them
+private to the one student who was already looking at them is defensible.
+Feeding anything derived from them into a bank served to every school is not.
+
+**Nothing captured by this feature, and nothing generated from it, ever enters
+`public.question_bank`.** No gates, no exceptions, no review queue. If that
+ruling is ever revisited, it is revisited here and nowhere else.
+
+---
+
+## §10 Build order
+
+**§10.1 The tap comes first.** Before any automatic watching: a floating
+Gurukul button over other apps, or the share sheet. The student taps when they
+get one wrong; that frame is captured and goes through §7 unchanged.
+
+This is not a lesser version. It is how §6 and §7 get proved cheaply, because a
+student-chosen frame is *certainly* the right screen, while automatic watching
+must find the few frames that matter among thousands. Running an unproven
+reader automatically fills the mistake book with junk, and **a wrong mistake
+book is worse than a thin one** — it corrupts recovery and revision, the exact
+features this exists to feed.
+
+**§10.2 Then automatic watching**, over a pipeline already known to be right.
+
+**§10.3 Keep the tap afterwards**, for students who would rather nothing
+watched at all.
+
+**§10.4 The owner is the tester.** He solves PW daily and will notice a missed
+mistake faster than any written test. Automated checks in §12 are the floor,
+not the ceiling.
+
+---
+
+## §11 Privacy — what is never stored
+
+- **Raw frames are never persisted.** The extracted question is kept; the
+  picture of the student's screen is not. Cheaper, and the difference between
+  holding a question and holding a recording of someone's phone.
+- Frames from apps not on the list are dropped before they are read at all
+  (§5.1).
+- Lecture frames never leave the device (§5.2).
+- The capture notification stays visible the whole time it is active.
+- The student can turn it off, and can delete any captured question.
+
+---
+
+## §12 Acceptance
+
+Every check needs something that can make it fail. A suite that only ever sees
+a real wrong answer proves nothing.
+
+**Must be captured:**
+1. A wrong answer in PW **instant** mode, on screen for under two seconds.
+2. A wrong answer in PW **test** mode, from the review screen after submitting.
+3. A question that matches our CUET bank — and it must inherit that question's
+   chapter, **not** a freshly guessed one (§7.2).
+
+**Must NOT be captured — these are the real test:**
+4. A **correct** answer.
+5. A question a **teacher solves during a lecture** (§6.4).
+6. Anything at all while a **lecture is playing** (§5.2).
+7. Anything at all from an app **not on the student's list** — open WhatsApp
+   and a gallery mid-session and assert nothing was read, not merely that
+   nothing was stored (§5.1).
+8. A score-only screen with no per-question verdict (§6.5).
+
+**Must behave:**
+9. Scrolling a ten-question review produces **ten** mistake entries, not
+   dozens (§7.3).
+10. The same question wrong twice produces **one row with `times_wrong = 2`**,
+    not two rows.
+11. A captured mistake appears in the mistake book, is counted by recovery,
+    scheduled by revision, and included in analysis — each asserted on
+    content, as the student, not on a row count. *(A count that stays the same
+    cannot tell a correct increment from a silent write failure — that
+    happened in the 2026-09-24 acceptance run.)*
+12. **Nothing** reached `public.question_bank` (§9). Assert the count before
+    and after a full session.
+
+---
+
+## §13 Still open
+
+- **VERIFY** current Android screen-capture and usage-access rules, and current
+  Play Store policy, before designing §4. Google tightens both regularly, and a
+  rejected app is a worse outcome than a slower one.
+- Which model reads the frames. Note that `ai-gateway` **cannot be deployed
+  from this repo** — production holds two `_shared` modules that exist in no
+  branch (KNOWN_ISSUES, edge-drift entry). A new function avoids it.
+- The confidence thresholds in §5.2 and §5.4 are numbers nobody has measured.
+  Pick, then tune against §12, then record them here.
+- Unacademy and the rest. The §6.3 rule should carry, but no one has looked at
+  their screens yet. Do not assume.
+- PW will redesign their app. Expect it; build §5.3 and §7.1 on what a screen
+  *means* rather than where PW puts it today.

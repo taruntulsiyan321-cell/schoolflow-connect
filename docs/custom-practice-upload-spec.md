@@ -4,6 +4,14 @@
 source of truth for the feature; code cites it by section (`§4.2`), the way
 `docs/recovery-revision-analysis-spec.md` is cited by the recovery engine.
 
+**Sister spec:** `docs/screen-capture-mistakes-spec.md` — mistakes captured
+from another app's screen. The two features produce the same thing (a private,
+tagged question feeding the mistake book) and differ only in intake. **§2, §5,
+§6 and §9 of this document are the shared rules**, and the screen-capture spec
+cites them rather than keeping a second copy. Change them here, once.
+One rule is deliberately NOT shared: promotion to the shared bank (§10) is
+allowed here and is **off entirely** for screen capture — see that spec's §9.
+
 Every fact marked *measured* was taken from the live database on 2026-09-24.
 Everything else is a decision, and a decision can only be changed here.
 
@@ -163,6 +171,30 @@ curriculum, it is still practisable, but it is recorded with
 `chapter_id IS NULL` and **excluded from recovery and revision**, not given a
 guessed chapter. A wrong chapter is worse than no chapter: it sends the
 student to revise something they never got wrong.
+
+### §5.2 Ask our own bank before asking the AI
+
+*Measured 2026-09-24:* **26,153 questions in `question_bank` carry an
+embedding, and all 4,267 CUET questions do** (`embed_status = 'embedded'`). A
+vector search already exists: `match_question_bank(p_query_embedding vector,
+p_class_level integer, p_school_id uuid, p_subjects text[], p_match_threshold
+double precision, p_match_count integer)`.
+
+An uploaded question is very often a question we already hold — past papers and
+coaching sheets recycle the same items. So **embed the extracted question and
+search the bank first. On a confident match, inherit that question's chapter,
+topic and difficulty exactly.** Only with no match does the AI classify.
+
+This is the cheapest way to satisfy §5.1: inheriting a known chapter is
+*right*, where classifying is only ever *plausible*.
+
+*Note for the builder:* `match_question_bank` takes `p_class_level` and
+`p_school_id` — it was written for school students and needs an exam-scoped
+path for CUET. The same note appears in the screen-capture spec §7.2; the two
+features need the same thing, so build it once.
+
+**A match does not make the question ours.** The student's uploaded copy stays
+private under §2 either way; matching only borrows the tags.
 
 ---
 
