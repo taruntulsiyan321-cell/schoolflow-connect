@@ -134,6 +134,15 @@ export type {
 export type { BattleCreateOpts } from "./services/battleExperienceService";
 export type { CurriculumScope } from "./services/practiceService";
 export type { PracticeSessionRow } from "./services/practiceService";
+export {
+  StudentUploadService,
+  modesForVerdict,
+  UPLOAD_MODE_LABELS,
+  type StudentUploadRow,
+  type UploadVerdict,
+  type UploadPracticeMode,
+} from "./services/studentUploadService";
+export { STUDENT_UPLOAD_ACCEPT } from "./storage/studentUploadFile";
 export type {
   ChapterStateRow,
   RecoveryQueueRow,

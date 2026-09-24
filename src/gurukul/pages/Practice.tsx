@@ -23,6 +23,8 @@ import {
 import { PRACTICE_HISTORY_WINDOW_DAYS, type AcademicTermRef } from "@/academic/services/practiceService";
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { ListFailed, ListLoading, OptionChips, SubjectPicker, type PracticeSubject } from "@/gurukul/components/PracticeLists";
+import { CustomPracticeUpload } from "@/gurukul/components/CustomPracticeUpload";
+import type { StudentUploadRow, UploadPracticeMode } from "@/academic/services/studentUploadService";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
@@ -664,11 +666,23 @@ export function ConfigView({
 
   if (modeKey === "custom") {
     // Subject / chapter / topic are all optional here — only difficulty and a
-    // goal are required.
+    // goal are required. Individuals also get §1 upload intake (spec
+    // docs/custom-practice-upload-spec.md); school students keep bank filters.
     const goalReady = goalType === "count" ? qCount > 0 : timeLimitMin > 0;
+
+    function onUploadMode(_upload: StudentUploadRow, _mode: UploadPracticeMode) {
+      // §5 practice-from-upload session runner lands next — modes are shown
+      // only when classification is ready (§8).
+      toast.message("Practising from your upload is next — classification path is live.");
+    }
+
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
+          {examScoped && (
+            <CustomPracticeUpload accentColor={mode.color} onSelectMode={onUploadMode} />
+          )}
+
           <SubjectPicker
             selected={selSubject}
             onSelect={setSelSubject}
@@ -676,7 +690,7 @@ export function ConfigView({
             onRetry={onRetrySubjects}
             emptyMessage={subjectEmptyMsg}
             allowAll
-            label="1. Subject (optional)"
+            label={examScoped ? "Or practise from the bank — subject (optional)" : "1. Subject (optional)"}
           />
           {selSubject && (
             <OptionChips

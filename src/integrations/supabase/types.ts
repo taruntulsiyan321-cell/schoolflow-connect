@@ -7320,6 +7320,153 @@ export type Database = {
           },
         ]
       }
+      student_upload_notes: {
+        Row: {
+          body: string
+          chapter_id: string | null
+          created_at: string
+          id: string
+          owner_id: string
+          school_id: string
+          sequence: number
+          title: string
+          topic_id: string | null
+          upload_id: string
+        }
+        Insert: {
+          body: string
+          chapter_id?: string | null
+          created_at?: string
+          id?: string
+          owner_id: string
+          school_id: string
+          sequence: number
+          title: string
+          topic_id?: string | null
+          upload_id: string
+        }
+        Update: {
+          body?: string
+          chapter_id?: string | null
+          created_at?: string
+          id?: string
+          owner_id?: string
+          school_id?: string
+          sequence?: number
+          title?: string
+          topic_id?: string | null
+          upload_id?: string
+        }
+        Relationships: []
+      }
+      student_upload_questions: {
+        Row: {
+          answer_source: string
+          chapter_id: string | null
+          correct_answer: string | null
+          correct_index: number | null
+          created_at: string
+          difficulty: string | null
+          explanation: string | null
+          id: string
+          matched_bank_question_id: string | null
+          options: Json | null
+          owner_id: string
+          question_text: string
+          school_id: string
+          sequence: number
+          topic_id: string | null
+          upload_id: string
+        }
+        Insert: {
+          answer_source: string
+          chapter_id?: string | null
+          correct_answer?: string | null
+          correct_index?: number | null
+          created_at?: string
+          difficulty?: string | null
+          explanation?: string | null
+          id?: string
+          matched_bank_question_id?: string | null
+          options?: Json | null
+          owner_id: string
+          question_text: string
+          school_id: string
+          sequence: number
+          topic_id?: string | null
+          upload_id: string
+        }
+        Update: {
+          answer_source?: string
+          chapter_id?: string | null
+          correct_answer?: string | null
+          correct_index?: number | null
+          created_at?: string
+          difficulty?: string | null
+          explanation?: string | null
+          id?: string
+          matched_bank_question_id?: string | null
+          options?: Json | null
+          owner_id?: string
+          question_text?: string
+          school_id?: string
+          sequence?: number
+          topic_id?: string | null
+          upload_id?: string
+        }
+        Relationships: []
+      }
+      student_uploads: {
+        Row: {
+          byte_size: number
+          confidence: number | null
+          created_at: string
+          id: string
+          mime_type: string
+          original_filename: string
+          owner_id: string
+          page_count: number | null
+          refusal_reason: string | null
+          school_id: string
+          status: string
+          storage_path: string
+          updated_at: string
+          verdict: string | null
+        }
+        Insert: {
+          byte_size: number
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          mime_type: string
+          original_filename: string
+          owner_id: string
+          page_count?: number | null
+          refusal_reason?: string | null
+          school_id: string
+          status?: string
+          storage_path: string
+          updated_at?: string
+          verdict?: string | null
+        }
+        Update: {
+          byte_size?: number
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          mime_type?: string
+          original_filename?: string
+          owner_id?: string
+          page_count?: number | null
+          refusal_reason?: string | null
+          school_id?: string
+          status?: string
+          storage_path?: string
+          updated_at?: string
+          verdict?: string | null
+        }
+        Relationships: []
+      }
       student_xp: {
         Row: {
           ai_sessions_count: number
@@ -9754,6 +9901,29 @@ export type Database = {
         Returns: {
           chapter: string
           correct_index: number
+          explanation: string
+          id: string
+          options: Json
+          question: string
+          similarity: number
+          subject: string
+          topic: string
+          topic_id: string
+        }[]
+      }
+      match_question_bank_for_exam: {
+        Args: {
+          p_exam_id: string
+          p_match_count?: number
+          p_match_threshold?: number
+          p_query_embedding: string
+          p_subjects?: string[]
+        }
+        Returns: {
+          chapter: string
+          chapter_id: string
+          correct_index: number
+          difficulty: string
           explanation: string
           id: string
           options: Json
