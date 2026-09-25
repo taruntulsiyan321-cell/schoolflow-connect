@@ -1,110 +1,29 @@
 /**
- * Persist + catalog helpers for custom-practice-upload.
+ * Persist helpers for custom-practice-upload.
  * Kept out of index.ts so the serve handler stays under 500 lines.
  */
 import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import {
-  readAllPages,
-  resolveCurriculumLabels,
-  type CurriculumChapter,
-} from "./curriculumResolve.ts";
 import type { ExtractedNote, ExtractedQuestion } from "./types.ts";
 
-export type AdminClient = ReturnType<typeof createClient>;
 export type UserClient = ReturnType<typeof createClient>;
 
+/** Always filed under a syllabus chapter (_shared/syllabusTagger.ts). */
 export type TaggedQuestion = ExtractedQuestion & {
-  chapter_id: string | null;
+  chapter_id: string;
   topic_id: string | null;
   matched_bank_question_id: string | null;
   derived_from_note_id: string | null;
 };
 
 export type TaggedNote = ExtractedNote & {
-  chapter_id: string | null;
+  chapter_id: string;
   topic_id: string | null;
 };
 
 export type NoteTagLookup = Map<
   string,
-  { chapter_id: string | null; topic_id: string | null; note_id: string | null }
+  { chapter_id: string; topic_id: string | null; note_id: string }
 >;
-
-/** Load distinct chapters (and their topics) that the exam bank already uses. */
-export async function loadExamCatalog(
-  admin: AdminClient,
-  examId: string | null,
-): Promise<CurriculumChapter[]> {
-  if (!examId) return [];
-
-  let chapterIds: string[];
-  try {
-    const rows = await readAllPages<{ chapter_id: string | null }>((from, to) =>
-      admin
-        .from("question_bank")
-        .select("chapter_id")
-        .eq("exam_id", examId)
-        .eq("is_approved", true)
-        .not("chapter_id", "is", null)
-        .order("id")
-        .range(from, to)
-    );
-    chapterIds = [...new Set(rows.map((r) => r.chapter_id).filter((id): id is string => typeof id === "string"))];
-  } catch (bankErr) {
-    console.error("loadExamCatalog bank:", JSON.stringify(bankErr));
-    return [];
-  }
-  if (!chapterIds.length) return [];
-
-  const { data: chapters, error: chErr } = await admin
-    .from("chapters")
-    .select("id, name, curriculum_subjects(name)")
-    .in("id", chapterIds);
-  if (chErr || !chapters?.length) {
-    if (chErr) console.error("loadExamCatalog chapters:", JSON.stringify(chErr));
-    return [];
-  }
-
-  let topics: Array<{ id: string; name: string; chapter_id: string }> = [];
-  try {
-    topics = await readAllPages<{ id: string; name: string; chapter_id: string }>((from, to) =>
-      admin.from("topics").select("id, name, chapter_id").in("chapter_id", chapterIds).order("id").range(from, to)
-    );
-  } catch (tErr) {
-    console.error("loadExamCatalog topics:", JSON.stringify(tErr));
-  }
-
-  const topicsByChapter = new Map<string, Array<{ topic_id: string; topic_name: string }>>();
-  for (const t of topics) {
-    const list = topicsByChapter.get(t.chapter_id) ?? [];
-    list.push({ topic_id: t.id, topic_name: t.name });
-    topicsByChapter.set(t.chapter_id, list);
-  }
-
-  const out: CurriculumChapter[] = [];
-  for (const ch of chapters) {
-    const subj = ch.curriculum_subjects as { name?: string } | null;
-    out.push({
-      chapter_id: ch.id as string,
-      chapter_name: ch.name as string,
-      subject_name: typeof subj?.name === "string" ? subj.name : "General",
-      topics: topicsByChapter.get(ch.id as string) ?? [],
-    });
-  }
-  return out.sort((a, b) =>
-    `${a.subject_name}:${a.chapter_name}`.localeCompare(`${b.subject_name}:${b.chapter_name}`),
-  );
-}
-
-export function tagNotesFromCatalog(
-  notes: ExtractedNote[],
-  catalog: CurriculumChapter[],
-): TaggedNote[] {
-  return notes.map((n) => {
-    const resolved = resolveCurriculumLabels(catalog, n.chapter, n.topic, n.subject);
-    return { ...n, chapter_id: resolved.chapter_id, topic_id: resolved.topic_id };
-  });
-}
 
 export async function persistQuestions(
   userClient: UserClient,
@@ -152,7 +71,7 @@ export async function persistNotes(
 ): Promise<{
   error: string | null;
   written: number;
-  rows: Array<{ id: string; title: string; chapter_id: string | null; topic_id: string | null }>;
+  rows: Array<{ id: string; title: string; chapter_id: string; topic_id: string | null }>;
 }> {
   if (notes.length === 0) return { error: null, written: 0, rows: [] };
   await userClient
@@ -180,14 +99,14 @@ export async function persistNotes(
   const rows = (data ?? []).map((r) => ({
     id: r.id as string,
     title: r.title as string,
-    chapter_id: (r.chapter_id as string | null) ?? null,
+    chapter_id: r.chapter_id as string,
     topic_id: (r.topic_id as string | null) ?? null,
   }));
   return { error: null, written: rows.length, rows };
 }
 
 export function noteTagsByTitleFromRows(
-  rows: Array<{ id: string; title: string; chapter_id: string | null; topic_id: string | null }>,
+  rows: Array<{ id: string; title: string; chapter_id: string; topic_id: string | null }>,
 ): NoteTagLookup {
   const map: NoteTagLookup = new Map();
   for (const row of rows) {

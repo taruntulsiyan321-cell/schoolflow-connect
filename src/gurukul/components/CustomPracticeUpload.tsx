@@ -39,7 +39,8 @@ function statusLabel(row: StudentUploadRow): string {
   if (row.status === "pending") return "Waiting to classify…";
   if (row.status === "processing") return "Reading your file…";
   if (row.status === "failed") return row.refusal_reason || "Could not process this file.";
-  if (row.status === "unusable") return row.refusal_reason || "This file could not be used for practice.";
+  // The reason is shown once, in the refusal box under the file name.
+  if (row.status === "unusable") return "Not used for practice";
   if (row.status === "ready") {
     if (row.verdict === "questions") return "Questions ready";
     if (row.verdict === "notes") return "Notes ready";
@@ -93,13 +94,23 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
       const created = await StudentUploadService.create(ctx, files);
       setRows((prev) => [...created, ...prev]);
       let classifyMiss = false;
+      let outside = 0;
+      const outsideSubjects = new Set<string>();
       for (const row of created) {
         setBusyId(row.id);
         const classify = await StudentUploadService.requestClassify(ctx, row.id);
         if (!classify.ok) classifyMiss = true;
+        outside += classify.outside?.count ?? 0;
+        classify.outside?.subjects.forEach((s) => outsideSubjects.add(s));
       }
       if (classifyMiss) {
         toast.message("Classifier is not available yet — your file(s) are saved.");
+      }
+      // A file wholly outside the stream says so on its own card; one that is
+      // partly outside needs telling what was left out.
+      if (outside > 0) {
+        const which = outsideSubjects.size ? [...outsideSubjects].join(", ") : "another subject";
+        toast.message(`${outside} item${outside === 1 ? "" : "s"} from ${which} not saved — not one of your exam subjects.`);
       }
       await refresh();
     } catch (e) {

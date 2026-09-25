@@ -167,11 +167,22 @@ For a `questions` or `mixed` upload, each extracted question is tagged with:
 guess means those two screens have nothing to group by, and the feature is
 half of what was asked for.
 
-If a question cannot be resolved to a chapter in the student's exam
-curriculum, it is still practisable, but it is recorded with
-`chapter_id IS NULL` and **excluded from recovery and revision**, not given a
-guessed chapter. A wrong chapter is worse than no chapter: it sends the
-student to revise something they never got wrong.
+**Ruled 2026-09-25 — no question is left untagged.** A question without a
+chapter reaches neither recovery nor revision, which demolishes what the
+feature is for. Every question and note is filed under a chapter of the
+student's **stream syllabus** (`exam_syllabus_chapters`; CUET Commerce is
+Accountancy, Business Studies, Economics, Mathematics / Applied Mathematics,
+English and the General Aptitude Test, chapters from the NTA 2026 syllabi):
+the bank first (§5.2), otherwise the model chooses a syllabus chapter *of the
+question's own subject* (`_shared/syllabusTagger.ts`).
+
+A question whose subject is **outside the stream** — a Chemistry question a
+commerce student opened by mistake — is not the student's CUET work and is
+**not saved**; the student is told which subject it was. A wrong chapter is
+still worse than none, which is why the subject decides first and a question
+is never forced into another subject's chapter. The database refuses an
+upload question, note or captured question without a chapter
+(20261096000000).
 
 ### §5.2 Ask our own bank before asking the AI
 

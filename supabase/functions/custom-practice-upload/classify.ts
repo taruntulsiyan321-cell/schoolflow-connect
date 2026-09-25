@@ -17,6 +17,7 @@ import {
   isOpenRouterConfigured,
 } from "../_shared/modelRouter.ts";
 import { applyRefusalGates } from "./refusalGates.ts";
+import { stripOptionLabels } from "../_shared/optionLabels.ts";
 import type {
   AnswerSource,
   ClassifierResult,
@@ -64,16 +65,12 @@ const SYSTEM = [
   "- If the file has no key, SOLVE it and set answer_source to \"ai\", filling",
   "  correct_index/correct_answer and a short explanation (§6).",
   "- difficulty: easy | medium | hard when you can tell; else null.",
-  "- Also set chapter / topic / subject names from the exam catalog when you can",
-  "  tell (§5.2 fallback after bank match). If nothing fits, leave them null —",
-  "  never invent a chapter name that is not study content from the file.",
   "- If a question was written FROM a note (not copied from the file), set",
   '  derived_from_note_title to that note\'s title and answer_source to "ai" (§7.1/§7.2).',
   "",
   "For notes (verdict notes or mixed):",
   "- Organise topic-wise and chapter-wise from the file only.",
-  "- Each note: title, body, and when possible chapter / topic / subject names",
-  "  that match the exam catalog (or null — never invent a chapter).",
+  "- Each note: title and body.",
   "- REQUIRED (§7.1): write AT LEAST 3 practice questions FROM those notes, so",
   "  the student can practise material they uploaded as notes. For each one set",
   '  derived_from_note_title to the exact title of the note it came from, and',
@@ -102,9 +99,6 @@ const RESULT_SHAPE = {
           answer_source: { type: "string", enum: ["file", "ai"] },
           explanation: { type: ["string", "null"] },
           difficulty: { type: ["string", "null"] },
-          chapter: { type: ["string", "null"] },
-          topic: { type: ["string", "null"] },
-          subject: { type: ["string", "null"] },
           derived_from_note_title: { type: ["string", "null"] },
         },
         required: ["question_text", "answer_source"],
@@ -117,9 +111,6 @@ const RESULT_SHAPE = {
         properties: {
           title: { type: "string" },
           body: { type: "string" },
-          chapter: { type: ["string", "null"] },
-          topic: { type: ["string", "null"] },
-          subject: { type: ["string", "null"] },
         },
         required: ["title", "body"],
       },
@@ -159,7 +150,7 @@ function normalizeQuestion(raw: unknown): ExtractedQuestion | null {
         .filter(Boolean)
         .slice(0, 8)
     : null;
-  const opts = options && options.length >= 2 ? options : null;
+  const opts = options && options.length >= 2 ? stripOptionLabels(options) : null;
 
   let correct_index =
     typeof r.correct_index === "number" && Number.isFinite(r.correct_index)
@@ -221,17 +212,8 @@ function normalizeQuestion(raw: unknown): ExtractedQuestion | null {
     answer_source,
     explanation,
     difficulty,
-    chapter: optionalLabel(r.chapter),
-    topic: optionalLabel(r.topic),
-    subject: optionalLabel(r.subject),
     derived_from_note_title,
   };
-}
-
-function optionalLabel(v: unknown, max = 200): string | null {
-  if (typeof v !== "string") return null;
-  const t = v.trim();
-  return t ? t.slice(0, max) : null;
 }
 
 function normalizeNote(raw: unknown): ExtractedNote | null {
@@ -243,9 +225,6 @@ function normalizeNote(raw: unknown): ExtractedNote | null {
   return {
     title: title.slice(0, 200),
     body: body.slice(0, 12_000),
-    chapter: optionalLabel(r.chapter),
-    topic: optionalLabel(r.topic),
-    subject: optionalLabel(r.subject),
   };
 }
 
@@ -277,16 +256,12 @@ function parseClassifierText(text: string): ClassifierResult {
   });
 }
 
-function userPromptForMedia(media: MediaPayload, catalogHint?: string): string {
+function userPromptForMedia(media: MediaPayload): string {
   const schemaHint = `Respond with ONLY JSON matching: ${JSON.stringify(RESULT_SHAPE)}`;
-  const catalogBlock = catalogHint?.trim()
-    ? ["", "EXAM CHAPTER CATALOG:", catalogHint.trim()].join("\n")
-    : "";
   if (media.kind === "text") {
     return [
       "Classify the following extracted PDF text. Do not invent questions absent from it.",
       schemaHint,
-      catalogBlock,
       "",
       "--- BEGIN FILE TEXT ---",
       media.text,
@@ -298,7 +273,6 @@ function userPromptForMedia(media: MediaPayload, catalogHint?: string): string {
       "Classify the attached image(s) of a student's upload.",
       "Refuse timetables, receipts, blank/blurry pages, chat screenshots, and ordinary prose.",
       schemaHint,
-      catalogBlock,
     ].join("\n");
   }
   return [
@@ -306,7 +280,6 @@ function userPromptForMedia(media: MediaPayload, catalogHint?: string): string {
     "Refuse timetables, receipts, blank/blurry pages, chat screenshots, and ordinary prose.",
     "Do not invent questions.",
     schemaHint,
-    catalogBlock,
   ].join("\n");
 }
 
@@ -385,10 +358,9 @@ export type ClassifyOutcome =
   | { ok: true; result: ClassifierResult }
   | { ok: false; error: string; status: "failed" };
 
-export async function classifyUploadMedia(
-  media: MediaPayload,
-  opts?: { catalogHint?: string },
-): Promise<ClassifyOutcome> {
+/** Reads the file and extracts its questions and notes. Filing them under the
+ *  student's syllabus is the tagger's job (_shared/syllabusTagger.ts). */
+export async function classifyUploadMedia(media: MediaPayload): Promise<ClassifyOutcome> {
   if (!isOpenRouterConfigured()) {
     return {
       ok: false,
@@ -398,7 +370,7 @@ export async function classifyUploadMedia(
     };
   }
 
-  const user = userPromptForMedia(media, opts?.catalogHint);
+  const user = userPromptForMedia(media);
   let modelText: string;
 
   if (media.kind === "pdf_bytes") {

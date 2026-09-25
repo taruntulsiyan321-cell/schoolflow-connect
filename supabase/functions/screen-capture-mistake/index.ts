@@ -10,7 +10,8 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
-import { embedQueryText } from "../_shared/embeddingProvider.ts";
+import { fileUnderSyllabus, loadStudentSyllabus } from "../_shared/syllabusTagger.ts";
+import { outsideMessage } from "../_shared/syllabusTag.ts";
 import { extractFrame } from "./extract.ts";
 import {
   applyIntakeGates,
@@ -24,9 +25,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/** Same threshold as custom-practice-upload §5.2 / match_question_bank_for_exam default. */
-const BANK_MATCH_THRESHOLD = 0.82;
-
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -38,13 +36,6 @@ function toDataUri(image_base64: string, mime: string): string {
   const b64 = image_base64.replace(/^data:[^;]+;base64,/, "");
   return `data:${mime};base64,${b64}`;
 }
-
-type BankMatchRow = {
-  id?: string;
-  chapter_id?: string | null;
-  topic_id?: string | null;
-  difficulty?: string | null;
-};
 
 Deno.serve(async (req) => {
   try {
@@ -115,23 +106,13 @@ async function handle(req: Request): Promise<Response> {
     return jsonResponse({ error: "individual_accounts_only" }, 403);
   }
 
-  // §7.2 — the exam this account prepares for, read from ITS OWN exam_accounts
-  // row, exactly as custom-practice-upload resolves it.
-  //
-  // It used to be read from the request body. Two things were wrong with that.
-  // A caller that simply omitted it silently lost bank matching altogether —
-  // the whole block below is guarded on exam_id, so §7.2's chapter inheritance
-  // vanished without a word, which is how it was failing. And a caller that
-  // sent a DIFFERENT exam's id would have had its capture matched against, and
-  // tagged from, that exam's bank. Which exam an account is, is the server's
-  // fact: it is on exam_accounts and nothing the client says can change it.
-  const { data: examAccount } = await admin
-    .from("exam_accounts")
-    .select("exam_id")
-    .eq("school_id", student.school_id)
-    .maybeSingle();
-  const exam_id =
-    typeof examAccount?.exam_id === "string" ? examAccount.exam_id : "";
+  // The syllabus this account's stream studies, from ITS OWN exam_accounts
+  // row — never from the request body, which once let a caller skip bank
+  // matching by omitting the exam or match against another exam's bank.
+  const syllabus = await loadStudentSyllabus(admin, student.school_id);
+  if (!syllabus) {
+    return jsonResponse({ error: "exam_syllabus_required" }, 403);
+  }
 
   // Allowlist: ALWAYS from the student's saved rows (§4 / §5.1). Never trust
   // body.allowed_packages — a JWT caller could otherwise gate-pass any package.
@@ -227,44 +208,30 @@ async function handle(req: Request): Promise<Response> {
     });
   }
 
-  // §7.2 bank-first inherit (upload §5.2) — never invent a chapter.
-  let chapter_id: string | null = null;
-  let topic_id: string | null = null;
-  let matched_bank_question_id: string | null = null;
-  let difficulty: string | null = null;
-  let inherited = false;
-
-  if (exam_id) {
-    const emb = await embedQueryText(qText, { env: Deno.env.toObject() });
-    if (emb.ok) {
-      const { data, error } = await admin.rpc("match_question_bank_for_exam", {
-        p_query_embedding: JSON.stringify(emb.embedding),
-        p_exam_id: exam_id,
-        p_subjects: null,
-        p_match_threshold: BANK_MATCH_THRESHOLD,
-        p_match_count: 1,
-      });
-      if (!error) {
-        const top = (Array.isArray(data) && data.length > 0
-          ? data[0]
-          : null) as BankMatchRow | null;
-        const bankId = typeof top?.id === "string" ? top.id : null;
-        const ch = typeof top?.chapter_id === "string" ? top.chapter_id : null;
-        if (bankId && ch) {
-          matched_bank_question_id = bankId;
-          chapter_id = ch;
-          topic_id = typeof top?.topic_id === "string" ? top.topic_id : null;
-          difficulty =
-            typeof top?.difficulty === "string" &&
-            /^(easy|medium|hard)$/i.test(top.difficulty.trim())
-              ? top.difficulty.trim().toLowerCase()
-              : null;
-          inherited = true;
-        }
-      }
-    }
+  // Filed under the student's syllabus: the bank first, then the model. A
+  // question from outside the stream's subjects is not the student's CUET work
+  // and is not saved; nothing is saved without a chapter (ruled 2026-09-25).
+  const filed = await fileUnderSyllabus(admin, syllabus, [
+    { index: 0, question: qText, options: ex.options ?? null },
+  ]);
+  if (!filed.ok) {
+    return jsonResponse({ ok: false, captured: false, read: true, reason: "tag_failed", error: filed.error }, 502);
   }
-  // No AI chapter invent when bank misses — upload §5.1: wrong chapter worse than none.
+  const tag = filed.tags.get(0)!;
+  if (tag.kind === "outside") {
+    return jsonResponse({
+      ok: true,
+      captured: false,
+      read: true,
+      reason: "outside_stream",
+      pipeline_stage: "stream_drop",
+      subject: tag.subject,
+      message: outsideMessage(tag.subject, syllabus.label),
+    });
+  }
+  const { chapter_id, topic_id, matched_bank_question_id, subject, chapter: chapterName } = tag;
+  const difficulty = tag.bank_difficulty;
+  const inherited = matched_bank_question_id != null;
 
   const optionsJson = ex.options ? ex.options : null;
   const answer_source = ex.answer_source ?? "screen";
@@ -287,9 +254,9 @@ async function handle(req: Request): Promise<Response> {
         times_seen: timesSeen,
         updated_at: new Date().toISOString(),
         student_chosen_index: ex.student_chosen_index,
-        chapter_id: chapter_id ?? undefined,
-        topic_id: topic_id ?? undefined,
-        matched_bank_question_id: matched_bank_question_id ?? undefined,
+        chapter_id,
+        topic_id,
+        matched_bank_question_id,
         difficulty: difficulty ?? undefined,
         source_package: package_name,
       })
@@ -323,31 +290,6 @@ async function handle(req: Request): Promise<Response> {
       return jsonResponse({ error: insErr?.message ?? "insert_failed" }, 500);
     }
     captureId = inserted.id;
-  }
-
-  // Subject label for mistake book — prefer chapter's subject when inherited.
-  // Upload §5.1 / capture §7.2: never invent "General" — wrong chapter is worse
-  // than none; placeholder subjects are dropped by the Mistake Book filter.
-  let subject = "";
-  let chapterName: string | null = null;
-  if (chapter_id) {
-    const { data: ch } = await admin
-      .from("chapters")
-      .select("name, curriculum_subjects(name)")
-      .eq("id", chapter_id)
-      .maybeSingle();
-    if (ch) {
-      chapterName = typeof ch.name === "string" ? ch.name : null;
-      const sub = ch.curriculum_subjects as
-        | { name?: string }
-        | { name?: string }[]
-        | null;
-      if (sub && !Array.isArray(sub) && typeof sub.name === "string") {
-        subject = sub.name;
-      } else if (Array.isArray(sub) && typeof sub[0]?.name === "string") {
-        subject = sub[0].name!;
-      }
-    }
   }
 
   const studentAnswer =

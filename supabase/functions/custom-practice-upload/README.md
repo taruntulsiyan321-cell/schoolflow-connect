@@ -29,12 +29,14 @@ Binding: `docs/custom-practice-upload-spec.md` (§4–§7, §13).
 4. Apply §4 gates; persist `student_upload_questions` / `student_upload_notes`
    only when the verdict is usable; otherwise status `unusable` with a one-line
    reason and **zero** downstream rows.
-5. **§5.2** For each extracted question: embed the stem and call
-   `match_question_bank_for_exam` (threshold 0.82). On a hit, inherit
-   `chapter_id` / `topic_id` / `difficulty` and set `matched_bank_question_id`.
-   On a miss, resolve the model's free-text chapter/topic/subject labels against
-   the exam catalog (`resolveCurriculumLabels`). Still unresolved →
-   `chapter_id` null (practisable; excluded from recovery/revision per §5.1).
+5. File every question and note under the student's stream syllabus
+   (`exam_syllabus_chapters`, via `_shared/syllabusTagger.ts`): a confident
+   `match_question_bank_for_exam` hit (0.82) inherits its chapter, topic and
+   difficulty; otherwise the model must choose a syllabus chapter code. A
+   question or note whose subject is outside the stream is **not saved**; a file
+   with nothing from the stream is `unusable`, naming the subject. Nothing is
+   saved without a chapter — a question the tagger cannot file fails the upload
+   for a retry.
 6. Missing model key / download / transport failure → status `failed` with an honest
    reason — never demo questions. Classifier JSON parse failure → `unusable` (§4.1
    refuse rather than invent). Never routes through `ai-gateway`.
