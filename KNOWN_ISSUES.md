@@ -3509,6 +3509,12 @@ screen treats as a read. Making them fast is server work, blocked on 75. The
 next candidates by total time are the two progression calls above, which the
 Battleground and the shell still make per reload.
 
+**Seen again 2026-09-25**, once, on www.gurukul.study as the CUET audit
+account: the home screen read "Some live stats failed to refresh: canceling
+statement due to statement timeout" while a practice session was finishing in
+another tab. Not reproduced afterwards in 29 calls, 20 of them concurrent
+(0.5–2.6 s each). The server log is behind 75.
+
 **Original entry, 2026-09-22:**
 
 Driving the release in a browser as arjun.mehta (2,464 attempts), `rpc_student_academic_snapshot` returned
@@ -3527,6 +3533,15 @@ at finish, so nothing was lost — but a student waits and sees an error.
 now-unused `rpc_question_hint`, and deriving `rpc_practice_bank_catalog`'s board from the caller's school instead of
 a parameter (lint-tenant-scope's entry for it says why). The owner renews the token in the Supabase dashboard
 (Account → Access Tokens) and puts it in `.env.local`.
+
+**The CI deploy is dead the same way (measured 2026-09-25).** The repo secret `SUPABASE_ACCESS_TOKEN` used by
+Deploy Edge Functions answers `401 Unauthorized` on the first function, so every run on main fails and no edge
+function change on main reaches production. Waiting on it: the Revision-mode gist prompt that writes a topic sent
+with its subject as that subject teaches it (`_shared/novaRevision.ts`; the client half is live and sends the
+subject). Also waiting on the token: `20261099000000_a_cut_off_copy_is_not_served` — 34 active CUET questions are
+cut-off copies whose stem lost its last line (the ask); written, dry-run proved (bank changed on apply, restored by
+the rollback, `{"retired": 34, "with_complete": 30}`), not applied. Renew the repo secret under GitHub → Settings →
+Secrets → Actions as well as `.env.local`.
 
 ## 76. ~~rpc_question_hint is live and unused~~ — FIXED 2026-09-25, dropped by 20261107000000
 
