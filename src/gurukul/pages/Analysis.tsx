@@ -63,6 +63,7 @@ import { toErrorMessage } from "@/lib/presentation";
 import { formatLastSeen } from "@/lib/analyticsInsights";
 import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { pluralise } from "@/lib/plural";
+import { improveHeadline, improveSubline } from "./analysisImproveCard";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { accuracyWhenMeaningful, mayBeJudged, MIN_OBSERVATIONS_FOR_VERDICT } from "@/academic/metrics/thresholds";
 
@@ -1043,9 +1044,7 @@ export default function Analysis() {
     const weakSubjects = subjectData
       .filter((s) => s.status === "needs-attention")
       .map((s) => s.name);
-    const improveText = weakSubjects.length > 0
-      ? weakSubjects.join(" & ")
-      : subjectData.length > 0 ? "Keep building consistency" : "Start practising to see insights";
+    const improveText = improveHeadline(weakSubjects, subjectData.length > 0);
     // THE SAME FILTERED SET THE TOPICS TAB SHOWS, for the same reason as the
     // tile above. "What should I study next?" read weak_topics[0] raw, so the
     // page could name a topic as the one thing to work on and then decline to
@@ -1066,12 +1065,7 @@ export default function Analysis() {
       {
         q: "What should I improve?",
         a: improveText,
-        // "1 topic need attention" — the noun was pluralised and the VERB was
-        // not, so the singular case was ungrammatical on screen. pluralise()
-        // handles the noun; the verb has to agree with it.
-        sub: weakCount > 0
-          ? `${pluralise(weakCount, "topic")} ${weakCount === 1 ? "needs" : "need"} attention`
-          : "No weak topics flagged yet",
+        sub: improveSubline(weakCount, weakSubjects.length),
         color: "hsl(var(--warning))",
         icon: <Target className="w-4 h-4" />,
       },

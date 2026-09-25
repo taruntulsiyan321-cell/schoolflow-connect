@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatCatalogHint,
+  readAllPages,
   resolveCurriculumLabels,
   type CurriculumChapter,
 } from "../../../supabase/functions/custom-practice-upload/curriculumResolve.ts";
@@ -68,5 +69,31 @@ describe("resolveCurriculumLabels (§5.1 / §7)", () => {
     expect(
       resolveCurriculumLabels(CATALOG, "Not A Real Chapter", "Capital Accounts", "Accountancy"),
     ).toEqual({ chapter_id: null, topic_id: null });
+  });
+});
+
+describe("readAllPages — the exam catalog sees the whole bank", () => {
+  // 4,292 rows, as the CUET bank held on 2026-09-25; the last chapter's rows
+  // sit past the first 1,000, where one capped request never reached.
+  const bank = Array.from({ length: 4292 }, (_, i) => ({ chapter_id: i < 4000 ? `ch-${i % 30}` : "ch-late" }));
+  const capped = (from: number, to: number) =>
+    Promise.resolve({ data: bank.slice(from, Math.min(to, from + 999) + 1), error: null });
+
+  it("reads past the API's 1,000-row cap", async () => {
+    const rows = await readAllPages(capped);
+    expect(rows).toHaveLength(4292);
+    expect(new Set(rows.map((r) => r.chapter_id))).toContain("ch-late");
+  });
+
+  it("CONTROL: one capped request misses the late chapter", async () => {
+    const { data } = await capped(0, 1999);
+    expect(new Set(data.map((r) => r.chapter_id))).not.toContain("ch-late");
+  });
+
+  it("stops on a short page, and passes an error on", async () => {
+    let calls = 0;
+    await readAllPages((from, to) => { calls += 1; return Promise.resolve({ data: bank.slice(from, Math.min(to + 1, 1500)), error: null }); });
+    expect(calls).toBe(2);
+    await expect(readAllPages(() => Promise.resolve({ data: null, error: new Error("boom") }))).rejects.toThrow("boom");
   });
 });

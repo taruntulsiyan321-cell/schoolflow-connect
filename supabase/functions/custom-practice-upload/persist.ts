@@ -4,6 +4,7 @@
  */
 import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
+  readAllPages,
   resolveCurriculumLabels,
   type CurriculumChapter,
 } from "./curriculumResolve.ts";
@@ -36,23 +37,23 @@ export async function loadExamCatalog(
 ): Promise<CurriculumChapter[]> {
   if (!examId) return [];
 
-  const { data: bankRows, error: bankErr } = await admin
-    .from("question_bank")
-    .select("chapter_id")
-    .eq("exam_id", examId)
-    .eq("is_approved", true)
-    .not("chapter_id", "is", null)
-    .limit(2000);
-  if (bankErr || !bankRows?.length) {
-    if (bankErr) console.error("loadExamCatalog bank:", JSON.stringify(bankErr));
+  let chapterIds: string[];
+  try {
+    const rows = await readAllPages<{ chapter_id: string | null }>((from, to) =>
+      admin
+        .from("question_bank")
+        .select("chapter_id")
+        .eq("exam_id", examId)
+        .eq("is_approved", true)
+        .not("chapter_id", "is", null)
+        .order("id")
+        .range(from, to)
+    );
+    chapterIds = [...new Set(rows.map((r) => r.chapter_id).filter((id): id is string => typeof id === "string"))];
+  } catch (bankErr) {
+    console.error("loadExamCatalog bank:", JSON.stringify(bankErr));
     return [];
   }
-
-  const chapterIds = [...new Set(
-    bankRows
-      .map((r) => r.chapter_id as string | null)
-      .filter((id): id is string => typeof id === "string"),
-  )];
   if (!chapterIds.length) return [];
 
   const { data: chapters, error: chErr } = await admin
@@ -64,18 +65,20 @@ export async function loadExamCatalog(
     return [];
   }
 
-  const { data: topics, error: tErr } = await admin
-    .from("topics")
-    .select("id, name, chapter_id")
-    .in("chapter_id", chapterIds);
-  if (tErr) console.error("loadExamCatalog topics:", JSON.stringify(tErr));
+  let topics: Array<{ id: string; name: string; chapter_id: string }> = [];
+  try {
+    topics = await readAllPages<{ id: string; name: string; chapter_id: string }>((from, to) =>
+      admin.from("topics").select("id, name, chapter_id").in("chapter_id", chapterIds).order("id").range(from, to)
+    );
+  } catch (tErr) {
+    console.error("loadExamCatalog topics:", JSON.stringify(tErr));
+  }
 
   const topicsByChapter = new Map<string, Array<{ topic_id: string; topic_name: string }>>();
-  for (const t of topics ?? []) {
-    const cid = t.chapter_id as string;
-    const list = topicsByChapter.get(cid) ?? [];
-    list.push({ topic_id: t.id as string, topic_name: t.name as string });
-    topicsByChapter.set(cid, list);
+  for (const t of topics) {
+    const list = topicsByChapter.get(t.chapter_id) ?? [];
+    list.push({ topic_id: t.id, topic_name: t.name });
+    topicsByChapter.set(t.chapter_id, list);
   }
 
   const out: CurriculumChapter[] = [];
