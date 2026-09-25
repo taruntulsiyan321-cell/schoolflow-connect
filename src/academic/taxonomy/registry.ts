@@ -1,6 +1,6 @@
 import type { AcademicLabelKind, TaxonomyKind, TaxonomyTerm } from "./types";
 import { CLASS_LEVELS_ASCENDING } from "@/lib/curriculumScope";
-import { canonicalizeConceptId, slugifyAcademicId } from "./canonicalize";
+import { canonicalizeConceptId, looksLikeAcademicSlug, slugifyAcademicId } from "./canonicalize";
 import {
   BOARD_DISPLAY,
   CONCEPT_DISPLAY_DICTIONARY,
@@ -39,9 +39,23 @@ const CLASS_LEVEL_TERMS: TaxonomyTerm[] = CLASS_LEVELS_ASCENDING.map((n) => ({
   classLevel: n,
 }));
 
+/**
+ * TWO KEYS, KEPT APART: a NAME and an ID.
+ *
+ * A name is what a person wrote — a display name, or an alias written into a
+ * seed ("BRS", "Marketing Mix"). An id is what a bank stored — `planning`,
+ * `cash_book`. They used to share one map, keyed by the lower-cased string, so
+ * a title that lower-cased to an id took that id's display name: the Business
+ * Studies chapter "Planning" rendered as the Economics bank's "Economic
+ * Planning", "Revaluation" as "Revaluation Account", "Environment" as
+ * "Business Environment" (measured 2026-09-25: 44 renames across the 4,056
+ * CUET chapter and topic names). A name now resolves only by a name; an id by
+ * an id, or by the name it slugs to.
+ */
 function buildRegistry(): {
   byId: Map<string, TaxonomyTerm>;
-  byAlias: Map<string, string>;
+  byName: Map<string, string>;
+  byIdKey: Map<string, string>;
   all: TaxonomyTerm[];
 } {
   const all: TaxonomyTerm[] = [
@@ -55,24 +69,19 @@ function buildRegistry(): {
   // Ensure every dictionary concept is registered even if seed missed it
   for (const [id, displayName] of Object.entries(CONCEPT_DISPLAY_DICTIONARY)) {
     if (!all.some((t) => t.kind === "concept" && t.id === id)) {
-      all.push({
-        id,
-        displayName,
-        aliases: [displayName, id.replace(/_/g, " ")],
-        kind: "concept",
-      });
+      all.push({ id, displayName, aliases: [displayName], kind: "concept" });
     }
   }
 
   const byId = new Map<string, TaxonomyTerm>();
-  const byAlias = new Map<string, string>();
+  const byName = new Map<string, string>();
+  const byIdKey = new Map<string, string>();
 
-  const rememberAlias = (alias: string, id: string, force = false) => {
-    const key = alias.trim().toLowerCase();
-    if (!key) return;
-    if (force || !byAlias.has(key)) byAlias.set(key, id);
-    const slug = slugifyAcademicId(alias);
-    if (slug && (force || !byAlias.has(slug))) byAlias.set(slug, id);
+  // Both maps are keyed by the slug, so "Financial Statements – I" and
+  // "Financial Statements - I" are one name. First registration wins unless forced.
+  const remember = (map: Map<string, string>, label: string, id: string, force = false) => {
+    const key = slugifyAcademicId(label);
+    if (key && (force || !map.has(key))) map.set(key, id);
   };
 
   for (const term of all) {
@@ -83,19 +92,18 @@ function buildRegistry(): {
     if (!byId.has(term.id)) {
       byId.set(term.id, term);
     }
-    rememberAlias(term.id, term.id);
-    rememberAlias(term.displayName, term.id);
-    for (const a of term.aliases) rememberAlias(a, term.id);
+    remember(byIdKey, term.id, term.id);
+    remember(byName, term.displayName, term.id);
+    for (const a of term.aliases) remember(byName, a, term.id);
   }
 
   // Explicit high-value aliases (force — win over near-match concept ids like brs_purpose)
-  rememberAlias("BRS", "bank_reconciliation_statement", true);
-  rememberAlias("brs", "bank_reconciliation_statement", true);
-  rememberAlias("Bank Reconciliation", "bank_reconciliation_statement", true);
-  rememberAlias("Proper Journal", "journal_proper", true);
-  rememberAlias("Double Entry System", "double_entry", true);
+  remember(byName, "BRS", "bank_reconciliation_statement", true);
+  remember(byName, "Bank Reconciliation", "bank_reconciliation_statement", true);
+  remember(byName, "Proper Journal", "journal_proper", true);
+  remember(byName, "Double Entry System", "double_entry", true);
 
-  return { byId, byAlias, all };
+  return { byId, byName, byIdKey, all };
 }
 
 const REG = buildRegistry();
@@ -111,17 +119,19 @@ export function getTaxonomyTerm(
 ): TaxonomyTerm | null {
   if (idOrAlias == null || !String(idOrAlias).trim()) return null;
   const raw = String(idOrAlias).trim();
-  const lower = raw.toLowerCase();
+  const slug = slugifyAcademicId(raw);
+  // A name a person wrote resolves by a name only (see buildRegistry).
+  const isId = looksLikeAcademicSlug(raw);
 
-  if (kind) {
-    const keyed = REG.byId.get(`${kind}:${raw}`) ?? REG.byId.get(`${kind}:${lower}`);
+  if (kind && isId) {
+    const keyed = REG.byId.get(`${kind}:${raw}`);
     if (keyed) return keyed;
-    const canon = kind === "concept" || kind === "topic" ? canonicalizeConceptId(raw) : slugifyAcademicId(raw);
+    const canon = kind === "concept" || kind === "topic" ? canonicalizeConceptId(raw) : slug;
     const byCanon = REG.byId.get(`${kind}:${canon}`);
     if (byCanon) return byCanon;
   }
 
-  const aliasId = REG.byAlias.get(lower) ?? REG.byAlias.get(slugifyAcademicId(raw));
+  const aliasId = (isId ? REG.byIdKey.get(slug) : undefined) ?? REG.byName.get(slug);
   if (aliasId) {
     if (kind) {
       const typed = REG.byId.get(`${kind}:${aliasId}`);
@@ -129,13 +139,14 @@ export function getTaxonomyTerm(
     }
     return REG.byId.get(aliasId) ?? null;
   }
+  if (!isId) return null;
 
   if (kind === "concept" || kind === "topic") {
     const canon = canonicalizeConceptId(raw);
     return REG.byId.get(`concept:${canon}`) ?? REG.byId.get(canon) ?? null;
   }
 
-  return REG.byId.get(raw) ?? REG.byId.get(lower) ?? null;
+  return REG.byId.get(raw) ?? null;
 }
 
 /** Lookup display name from registry without humanize fallback. */
@@ -157,7 +168,7 @@ export function lookupDisplayName(
   if (kind === "question_type") {
     if (QUESTION_TYPE_DISPLAY[slug]) return QUESTION_TYPE_DISPLAY[slug];
   }
-  if (kind === "concept" || kind === "topic" || !kind) {
+  if ((kind === "concept" || kind === "topic" || !kind) && looksLikeAcademicSlug(idOrAlias)) {
     const canon = canonicalizeConceptId(idOrAlias);
     if (CONCEPT_DISPLAY_DICTIONARY[canon]) return CONCEPT_DISPLAY_DICTIONARY[canon];
   }
@@ -165,18 +176,18 @@ export function lookupDisplayName(
 }
 
 export function searchTaxonomyByAlias(query: string, kind?: TaxonomyKind): TaxonomyTerm[] {
-  const q = query.trim().toLowerCase();
+  const q = slugifyAcademicId(query);
   if (!q) return [];
   const hits: TaxonomyTerm[] = [];
   const seen = new Set<string>();
-  for (const [alias, id] of REG.byAlias) {
-    if (!alias.includes(q) && q !== alias) continue;
+  for (const [key, id] of [...REG.byName, ...REG.byIdKey]) {
+    if (!key.includes(q)) continue;
     const term = (kind ? REG.byId.get(`${kind}:${id}`) : null) ?? REG.byId.get(id);
     if (!term) continue;
     if (kind && term.kind !== kind) continue;
-    const key = `${term.kind}:${term.id}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const k = `${term.kind}:${term.id}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
     hits.push(term);
   }
   return hits;

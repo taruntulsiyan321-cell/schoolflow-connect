@@ -62,6 +62,19 @@ describe("Previous Year Questions offers only what the bank holds", () => {
     expect(screen.queryByRole("button", { name: /All years/ })).toBeNull();
   });
 
+  it("names the exam, not a class, on an exam account", async () => {
+    // Measured 2026-09-25 on www.gurukul.study: a CUET account read "…for your class yet".
+    listPyqYears.mockResolvedValue([]);
+    render(<ConfigView modeKey="pyq" onStart={() => {}} onBack={() => {}} subjectList={SUBJECTS} onRetrySubjects={() => {}} examScoped />);
+    expect(await screen.findByText(/question bank for your exam yet/)).toBeInTheDocument();
+  });
+
+  it("CONTROL: a school account still reads \"your class\"", async () => {
+    listPyqYears.mockResolvedValue([]);
+    renderPyq();
+    expect(await screen.findByText(/question bank for your class yet/)).toBeInTheDocument();
+  });
+
   it("POSITIVE CONTROL: offers each year the bank holds, with its count, and starts on the one picked", async () => {
     listPyqYears.mockResolvedValue([{ year: 2024, count: 12 }, { year: 2022, count: 3 }]);
     const onStart = vi.fn();

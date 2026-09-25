@@ -25,6 +25,7 @@ export {
   canonicalizeConceptId,
   chapterTermId,
   kindFromColumn,
+  looksLikeAcademicSlug,
   mergeDuplicateLabels,
   normalizeIncomingAcademicTerm,
   slugifyAcademicId,
@@ -58,7 +59,6 @@ export {
   fixMojibake,
   humanizeAcademicLabel,
   isPlaceholderAcademicLabel,
-  looksLikeAcademicSlug,
   presentAcademicLabel,
   toPresentedTerm,
 } from "./humanize";

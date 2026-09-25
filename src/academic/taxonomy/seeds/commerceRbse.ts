@@ -255,8 +255,9 @@ export function buildCommerceConceptTerms(): Concept[] {
 function buildConceptAliases(id: string, displayName: string): string[] {
   const aliases = new Set<string>();
   aliases.add(displayName);
-  aliases.add(displayName.toLowerCase());
-  aliases.add(id.replace(/_/g, " "));
+  // Not the id with spaces for underscores: an id is not a name, and
+  // "planning" spelt as a title is the Business Studies chapter, not the
+  // Economics bank's `planning` (see registry buildRegistry).
   if (id === "bank_reconciliation_statement") {
     aliases.add("BRS");
     aliases.add("brs");

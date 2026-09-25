@@ -27,6 +27,31 @@ export function slugifyAcademicId(raw: string | null | undefined): string {
 }
 
 /**
+ * True for internal taxonomy ids: snake_case, kebab-case, or bare lowercase tokens
+ * (e.g. industry, 4ps, cash_book). Human titles with spaces / capitals are false.
+ */
+export function looksLikeAcademicSlug(raw: string): boolean {
+  const s = raw.trim();
+  if (!s) return false;
+  if (/\s/.test(s)) return false;
+  // Devanagari / other scripts are human lesson titles, not slugs.
+  //
+  // The class is "outside ASCII", and ASCII starts at the NUL code point. The
+  // control characters no-control-regex warns about are not what this matches
+  // FOR; they are the lower bound of the range being matched AGAINST. Starting
+  // the range at 0x20 instead would call a tab a non-ASCII script and start
+  // humanising every slug that contains one.
+  // eslint-disable-next-line no-control-regex -- see above
+  if (/[^\u0000-\u007f]/.test(s) && !/[_-]/.test(s)) return false;
+  if (s !== s.toLowerCase()) return false;
+  if (/[_-]/.test(s)) {
+    return /^[a-z0-9]+(?:[_-][a-z0-9]+)+$/.test(s);
+  }
+  // Bare lowercase bank topic ids (industry, risk, fayol, 4ps, nCr → after lower)
+  return /^[a-z][a-z0-9]{0,24}$/.test(s) || /^\d+[a-z]{0,3}$/.test(s);
+}
+
+/**
  * Stable chapter term id — unique across subject + class when titles repeat
  * (e.g. Introduction 11/12, Thermodynamics physics/chemistry).
  */

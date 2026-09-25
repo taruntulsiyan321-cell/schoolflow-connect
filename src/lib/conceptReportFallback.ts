@@ -1,3 +1,5 @@
+import { displayChapter, displayConcept } from "@/lib/academicDisplay";
+
 export type ConceptRecoveryReport = {
   source_type: string;
   source_id: string;
@@ -49,10 +51,32 @@ export type ConceptAiReport = {
   source: "ai" | "rule";
 };
 
-/** A weak concept is only nameable if something actually named it. */
-function conceptName(w: { concept: string | null }): string | null {
-  const name = (w.concept ?? "").trim();
-  return name && name.toLowerCase() !== "null" ? name : null;
+type WeakConcept = ConceptRecoveryReport["weak_concepts"][number];
+
+/**
+ * What each weak concept is CALLED — the one home of it, for the report's
+ * chips and for its sentences alike.
+ *
+ * Null when nothing named it: a question never tagged with a concept, whose
+ * name used to reach the student as "null". A name two rows share carries its
+ * chapter, because the rows are different — the report groups by chapter AND
+ * concept — and a list reading "Marketing · 0%, Marketing · 0%" (measured
+ * 2026-09-25, a Business Studies session: one question from Directing, one
+ * from Consumer Protection, both tagged Marketing) looks like one concept
+ * counted twice.
+ */
+export function weakConceptLabels(weak: WeakConcept[]): (string | null)[] {
+  const names = weak.map((w) => {
+    const raw = (w.concept ?? "").trim();
+    return raw && raw.toLowerCase() !== "null" ? displayConcept(raw) || null : null;
+  });
+  const uses = new Map<string, number>();
+  for (const n of names) if (n) uses.set(n, (uses.get(n) ?? 0) + 1);
+  return names.map((n, i) => {
+    if (!n || (uses.get(n) ?? 0) < 2) return n;
+    const chapter = displayChapter(weak[i].chapter);
+    return chapter && chapter !== n ? `${n} (${chapter})` : n;
+  });
 }
 
 export function buildRuleConceptReport(report: ConceptRecoveryReport): ConceptAiReport {
@@ -66,7 +90,8 @@ export function buildRuleConceptReport(report: ConceptRecoveryReport): ConceptAi
    * with no name still counts towards "you have weak areas"; it just cannot be
    * the subject of a sentence about which area to re-read.
    */
-  const named = weak.filter((w) => conceptName(w) !== null);
+  const labels = weakConceptLabels(weak);
+  const named = weak.flatMap((w, i) => (labels[i] ? [{ ...w, name: labels[i] as string }] : []));
   const accuracy = report.accuracy_pct;
   const headline =
     accuracy == null
@@ -86,7 +111,7 @@ export function buildRuleConceptReport(report: ConceptRecoveryReport): ConceptAi
 
   if (named.length > 0) {
     bullets.push(
-      `Weak concepts: ${named.slice(0, 4).map((w) => `${conceptName(w)} (${w.accuracy}%)`).join(", ")}.`,
+      `Weak concepts: ${named.slice(0, 4).map((w) => `${w.name} (${w.accuracy}%)`).join(", ")}.`,
     );
   } else if (weak.length > 0) {
     // Weak areas exist but none of the questions carried a concept tag. Say
@@ -103,10 +128,10 @@ export function buildRuleConceptReport(report: ConceptRecoveryReport): ConceptAi
 
   const next_steps: string[] = [];
   if (named.length > 0) {
-    next_steps.push(`Re-read NCERT section for ${conceptName(named[0])} (${named[0].subject}).`);
-    next_steps.push(`Complete recovery questions for ${conceptName(named[0])} before your next test.`);
+    next_steps.push(`Re-read NCERT section for ${named[0].name} (${named[0].subject}).`);
+    next_steps.push(`Complete recovery questions for ${named[0].name} before your next test.`);
     if (named.length > 1) {
-      next_steps.push(`Schedule revision for ${conceptName(named[1])} within 48 hours.`);
+      next_steps.push(`Schedule revision for ${named[1].name} within 48 hours.`);
     }
   } else if (weak.length > 0) {
     // Advice that can still be acted on without a concept name.

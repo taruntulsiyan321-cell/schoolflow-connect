@@ -164,3 +164,23 @@ describe("academicLabelMatches", () => {
     ).toBe(true);
   });
 });
+
+describe("a name a person wrote is shown as written", () => {
+  // Measured 2026-09-25 on www.gurukul.study: a Business Studies practice
+  // report listed its "Planning" chapter as "Economic Planning" — the
+  // Economics bank's id `planning`, reached because the title lower-cases to it.
+  it("does not take the display name of an id it happens to spell", () => {
+    expect(displayConcept("Planning")).toBe("Planning");
+    expect(displayConcept("Revaluation")).toBe("Revaluation");
+    expect(displayTopic("Environment")).toBe("Environment");
+    expect(displayChapter("Fixed Capital")).toBe("Fixed Capital");
+    expect(displayConcept("काव्य सौंदर्य")).toBe("काव्य सौंदर्य");
+  });
+
+  it("CONTROL: an id is still translated, and so is a declared alias", () => {
+    expect(displayConcept("planning")).toBe("Economic Planning");
+    expect(displayConcept("revaluation")).toMatch(/Revaluation Account/);
+    expect(displayConcept("Marketing Mix")).toBe("4Ps (Marketing Mix)");
+    expect(displayConcept("काव्य_सौंदर्य")).not.toMatch(/_/);
+  });
+});

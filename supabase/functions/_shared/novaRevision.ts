@@ -262,7 +262,13 @@ export function buildGistPrompt(req: GistRequest): { system: string; user: strin
 
   const user = [
     `Topic: ${req.topic}`,
-    req.subject ? `Subject area (a hint, may be empty): ${req.subject}` : "",
+    // A subject is sent only when the topic is one of the student's own
+    // chapters in it. As a bare hint the model still wrote "Planning" as
+    // planning a road trip for a Business Studies student (measured
+    // 2026-09-25); the topic is to be written as that subject teaches it.
+    req.subject
+      ? `Subject: ${req.subject}. This topic is part of the student's ${req.subject} syllabus: write it as ${req.subject} teaches it — its own definitions, features, types and terms — not in its everyday sense.`
+      : "",
   ].filter(Boolean).join("\n");
 
   const schema = GIST_SHAPE;

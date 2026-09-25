@@ -1,4 +1,5 @@
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import { academicLabelEquals } from "@/academic/taxonomy";
 import {
   REVISION_LIMITS,
   type RevisionGist,
@@ -57,6 +58,20 @@ export function parseTurn(data: unknown, pointCount: number): RevisionTurnResult
     return null;
   }
   return t as unknown as RevisionTurnResult;
+}
+
+/**
+ * The subject a typed topic belongs to, when the topic IS one of the student's
+ * own chapters and only one subject has a chapter by that name; "" otherwise.
+ *
+ * Revision takes any topic, and a topic with no subject is written up in its
+ * everyday sense. Measured 2026-09-25 on www.gurukul.study: a CUET Business
+ * Studies student typed "Planning" and got planning a road trip — "Creating a
+ * Timeline" as a key idea — not the chapter they are examined on.
+ */
+export function subjectForTopic(topic: string, chapters: { subject: string; chapter: string | null }[]): string {
+  const subjects = new Set(chapters.filter((c) => academicLabelEquals(c.chapter, topic)).map((c) => c.subject));
+  return subjects.size === 1 ? [...subjects][0] : "";
 }
 
 export async function fetchRevisionGist(

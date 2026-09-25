@@ -18,7 +18,12 @@ vi.mock("@/gurukul/StudentContext", async () => {
 });
 vi.mock("@/academic", () => {
   const value = { ctx: { schoolId: "s", userId: "u" }, ready: true, settled: true };
-  return { useAcademicContext: () => value };
+  // The student's own chapters, as the practice catalog lists them.
+  const rows = [{ subject: "Business Studies", chapter: "Planning", questions: 40 }];
+  return {
+    useAcademicContext: () => value,
+    PracticeService: { listBankCatalog: () => Promise.resolve({ rows }) },
+  };
 });
 vi.mock("@/gurukul/pages/useRevisionQueueV2", async (importOriginal) => {
   // The real due rule; only the read is faked.
@@ -141,6 +146,18 @@ describe("Revision mode — choosing a topic", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Triangles/ }));
     await screen.findByRole("heading", { name: GIST.title });
     expect(invoke.mock.calls[0][1]).toMatchObject({ topic: "Triangles", subject: "Mathematics" });
+  });
+
+  it("a typed topic that is one of the student's chapters carries its subject", async () => {
+    // Measured 2026-09-25: "Planning" typed by a CUET Business Studies student
+    // was sent with no subject and came back as planning a road trip.
+    invoke.mockReturnValueOnce(ok({ gist: GIST }));
+    render(<NovaRevisionMode />);
+    await act(async () => {}); // the catalog read
+    fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "planning" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
+    await screen.findByRole("heading", { name: GIST.title });
+    expect(invoke.mock.calls[0][1]).toMatchObject({ topic: "planning", subject: "Business Studies" });
   });
 
   it("shows the server's refusal on the picker and stays there", async () => {

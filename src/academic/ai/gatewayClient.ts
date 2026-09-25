@@ -478,7 +478,14 @@ export async function askAiCoach(input: {
 }): Promise<{ text: string; response: AiGatewayResponse } | null> {
   const role = input.role ?? "student";
   const resolved = resolveCoachCapability({
-    feature_id: input.feature_id,
+    // A turn about a question the student opened Nova from is tutoring chat,
+    // whatever its words: student.nova.chat is the only feature that reads
+    // question_context. Measured 2026-09-25 on www.gurukul.study: Mistake
+    // Book's Explain sent "…Explain why my answer is wrong…", the word
+    // "Explain" routed it to student.concept.explain, which looked up a
+    // concept with no name and answered "No concept mastery facts are
+    // available yet for that topic" beside the question it was handed.
+    feature_id: input.feature_id ?? (input.questionContext ? "student.nova.chat" : undefined),
     text: input.text,
     role,
     channel: input.channel ?? "student_app",
