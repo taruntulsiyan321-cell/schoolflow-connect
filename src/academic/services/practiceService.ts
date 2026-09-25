@@ -2137,8 +2137,16 @@ export const PracticeService = {
     assertCanConsume(ctx, "practice");
     const scope = await this.resolveCurriculumScope(ctx);
     const classLevel = scope.classLevel;
-    if (classLevel == null || !Number.isFinite(classLevel)) return 0;
-    if (opts.subject && opts.subject !== "Mixed" && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) {
+    // An exam account has no class: its pool is its exam's bank
+    // (studentBankQuery narrows on exam_id), exactly as the session loader
+    // draws it. This returned 0 for every exam account, so Custom Practice
+    // said "Nothing in the bank matches" over 4,268 CUET questions.
+    if (!scope.examId && (classLevel == null || !Number.isFinite(classLevel))) return 0;
+    if (
+      !scope.examId &&
+      opts.subject && opts.subject !== "Mixed" &&
+      !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)
+    ) {
       return 0;
     }
 
@@ -2181,8 +2189,13 @@ export const PracticeService = {
     assertCanConsume(ctx, "practice");
     const scope = await this.resolveCurriculumScope(ctx);
     const classLevel = scope.classLevel;
-    if (classLevel == null || !Number.isFinite(classLevel)) return [];
-    if (opts.subject && opts.subject !== "Mixed" && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) {
+    // Same pool as the session: an exam account's is its exam's bank.
+    if (!scope.examId && (classLevel == null || !Number.isFinite(classLevel))) return [];
+    if (
+      !scope.examId &&
+      opts.subject && opts.subject !== "Mixed" &&
+      !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)
+    ) {
       return [];
     }
     const client = getClient(toRepoContext(ctx));
@@ -2197,7 +2210,8 @@ export const PracticeService = {
     throwIfError(error, "Failed to load past-paper years");
     const byYear = new Map<number, number>();
     for (const r of data ?? []) {
-      if (r.exam_year == null || !isSubjectAllowedForScope(r.subject, scope.stream, classLevel)) continue;
+      if (r.exam_year == null) continue;
+      if (!scope.examId && !isSubjectAllowedForScope(r.subject, scope.stream, classLevel)) continue;
       byYear.set(r.exam_year, (byYear.get(r.exam_year) ?? 0) + 1);
     }
     return [...byYear.entries()].map(([year, count]) => ({ year, count })).sort((a, b) => b.year - a.year);

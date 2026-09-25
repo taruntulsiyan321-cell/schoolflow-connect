@@ -120,4 +120,15 @@ describe("what a Custom selection holds", () => {
     });
     expect(await PracticeService.countBankPool(ctx, {})).toBe(0);
   });
+
+  it("counts an exam account's pool — it has no class, and its bank is its exam's", async () => {
+    // A CUET account: no class level, an exam id. This returned 0 for every
+    // exam account, so Custom Practice said "Nothing in the bank matches"
+    // over 4,268 CUET questions (live, 2026-09-25).
+    vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
+      classLevel: null, board: "cuet", stream: null, classLabel: null, examId: "exam-cuet", examCode: "cuet", examName: "CUET",
+    });
+    expect(await PracticeService.countBankPool(ctx, {})).toBe(5);
+    expect(await PracticeService.countBankPool(ctx, { subject: "Mathematics", difficulty: "easy" })).toBe(2);
+  });
 });
