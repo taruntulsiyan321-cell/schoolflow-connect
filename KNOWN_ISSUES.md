@@ -2721,7 +2721,13 @@ the 330 live rows. Nothing about homework depends on it.
 
 ---
 
-## 52. Practice reads a table live no longer has — OPEN, cross-branch
+## 52. ~~Practice reads a table live no longer has~~ — CLOSED 2026-09-25, the branch reached main
+
+Re-measured 2026-09-25: no code reads `practice_skipped` (practiceService.ts
+reads skips from `question_attempts` and says why), the generated types have no
+such table, live answers PGRST205 for it, and Skipped Questions served a session
+on www.gurukul.study as the CUET audit account. Original entry below.
+
 
 **Found:** 2026-09-14, regenerating the types from live after the release.
 
@@ -3253,6 +3259,11 @@ warm itself should run on a schedule, not on every client reload.
 ---
 
 ## 66. Two latent practice-scope risks — OPEN, no live effect measured
+
+**CUET, measured 2026-09-25:** neither reaches an exam account. Of the 29
+chapters in the CUET practice catalog, none contains another's name and none
+holds a comma, parenthesis, quote or backslash; the stream risk is Class 9/10
+only.
 
 Found while driving the practice lists on 2026-09-22. Neither changes what a
 student sees today; both would, if the data moved.
