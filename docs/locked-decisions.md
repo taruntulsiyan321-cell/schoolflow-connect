@@ -320,10 +320,19 @@ point*. A battle produces XP and a winner, not marks.
   not. This is the transient rule applied, and it also fixes the stats reading 0%
   after a battle ends.
 
+> **RULED 2026-09-25 by the owner — practice keeps its right answers.** For a
+> student's own practice, recovery and revision sessions, a finished session
+> keeps every question's record, right answers included: "keep the record of
+> right answer also". The accuracy, topic, trend and time figures on Analysis
+> and the revision check's "never seen" rule are built on those rows. The
+> "must not persist" bullet above and the two bullets below no longer apply to
+> these sessions; battles keep the aggregate-then-purge rule above.
+
 **What is stored — the governing rule:**
 - **Only what went wrong.** Per-question records exist for **wrong**, **skipped**
-  and **bookmarked** answers only.
-- **No per-question record of correct answers.**
+  and **bookmarked** answers only. *(Not for practice — see the ruling above.)*
+- **No per-question record of correct answers.** *(Not for practice — see the
+  ruling above.)*
 - Session totals are stored (attempted, correct count) so accuracy can be shown.
 - **Strong areas are never shown anywhere in the app.** The product surfaces
   weaknesses only.

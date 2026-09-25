@@ -15,11 +15,12 @@ import { ACCURACY_BUILDING, ACCURACY_PROCEDURAL } from "@/academic/metrics/bands
  */
 export type PracticeAnalysisSnapshot = {
   /**
-   * 3 since 2026-09-23: the attempts are the wrong and the skipped only
-   * (§10.8). A version 2 snapshot has the same shape and froze every question
-   * of its session, so readers filter it — see PracticeSessionResult.
+   * 4 since 2026-09-25: every question of the session. Version 3
+   * (2026-09-23 to 09-25) held the wrong and the skipped only, under a §10.8
+   * rule the owner has since withdrawn; version 2 held every question. All
+   * three have the same shape.
    */
-  version: 2 | 3;
+  version: 2 | 3 | 4;
   subject: string;
   chapter: string;
   practiceMode: string | null;
@@ -35,18 +36,8 @@ export type PracticeAnalysisSnapshot = {
   finishedAt: string | null;
   startedAt: string | null;
   /**
-   * §10.8, the transient/durable rule: "When the session closes, it must not
-   * persist. What survives is: session or tier TOTALS, plus rows for WRONG,
-   * SKIPPED and BOOKMARKED." So a saved snapshot holds the questions that went
-   * wrong and the ones skipped, never a per-question record of a right answer.
-   *
-   * The counts above are the whole of what a correct answer leaves behind, and
-   * §10.8 allows exactly that: "Session totals are stored (attempted, correct
-   * count) so accuracy can be shown."
-   *
-   * Measured 2026-09-23: 32 saved snapshots on production held every question
-   * of their session — text, options, the answer key, the explanation and the
-   * student's choice — for correct answers as much as wrong ones.
+   * Every question of the session, as it was answered (ruled 2026-09-25: a
+   * finished session keeps its right answers too).
    */
   attempts: Array<{
     question: string;
@@ -139,9 +130,7 @@ export function buildPracticeAnalysisSnapshot(
     : null;
 
   // What it is given is what it freezes: PracticeService.listSessionAttempts
-  // is the one read of a session's questions and it returns the wrong and the
-  // skipped only (§10.8). Filtering again here would be a second home for that
-  // rule, and the two would drift.
+  // is the one read of a session's questions.
   const attempts = records
     .map((r) => {
       const gq = asObject(r.generated_question);
@@ -152,7 +141,7 @@ export function buildPracticeAnalysisSnapshot(
         options: asOptions(gq.options),
         correctIndex: asIndex(asObject(r.correct_answer), "index", "correct_index") ?? -1,
         selectedIndex: skipped ? -1 : asIndex(asObject(r.selected_answer), "index", "selected_index") ?? -1,
-        isCorrect: false,
+        isCorrect: !skipped && r.is_correct === true,
         skipped,
         ...(explanation ? { explanation } : {}),
       };
@@ -175,7 +164,7 @@ export function buildPracticeAnalysisSnapshot(
 
   const answered = correctCount + wrongCount;
   return {
-    version: 3,
+    version: 4,
     subject: session.subject ?? "",
     chapter: session.chapter ?? "",
     practiceMode: session.practice_mode ?? null,

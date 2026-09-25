@@ -1,21 +1,16 @@
 /**
- * What a finished practice session durably says about its questions.
+ * What a finished practice session keeps about its questions: every one.
  *
- * §10.8, the transient/durable rule: "While a session is in flight,
- * per-question correctness may exist. It is working state. When the session
- * closes, it must not persist. What survives is: session or tier TOTALS, plus
- * rows for WRONG, SKIPPED and BOOKMARKED" — and "no per-question record of
- * correct answers".
+ * Ruled by the owner on 2026-09-25: a finished session keeps the record of
+ * its right answers too (the "no per-question record of correct answers" part
+ * of §10.8 is withdrawn). From 2026-09-23 this read had filtered them out, so
+ * reopening a session showed only what went wrong. PracticeService.
+ * listSessionAttempts is the ONE read of a session's questions — the review
+ * list on the result screen and the snapshot a saved session freezes both
+ * come through it.
  *
- * Measured 2026-09-23 on production: 1,267 correct per-question rows across
- * finished sessions, each holding the question, the options, the answer key
- * and the student's choice, and 32 saved snapshots that had frozen the same.
- * PracticeService.listSessionAttempts is the ONE read of a session's questions
- * — the review list on the result screen and the snapshot a saved session
- * freezes both come through it — so the rule is applied there.
- *
- * The stub below applies the filter it is given, exactly as PostgREST would.
- * A stub that ignored it would pass every assertion here.
+ * The stub applies any filter it is given, exactly as PostgREST would, so a
+ * read that still narrowed the rows would fail here.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -80,30 +75,16 @@ beforeEach(() => {
   ];
 });
 
-describe("a finished session's per-question record", () => {
-  it("is the wrong and the skipped — never a question the student got right", async () => {
+describe("a finished session's questions", () => {
+  it("are every question, right answers included", async () => {
     const got = (await PracticeService.listSessionAttempts(ctx, "session-1")) as unknown as Row[];
-    expect(got.map((r) => r.id).sort()).toEqual(["skipped-1", "skipped-2", "ungraded-1", "wrong-1"]);
-    expect(
-      got.some((r) => r.is_correct === true),
-      "a right answer came back — §10.8 says it does not survive the session",
-    ).toBe(false);
+    expect(got.map((r) => r.id).sort()).toEqual(["right-1", "right-2", "skipped-1", "skipped-2", "ungraded-1", "wrong-1"]);
   });
 
-  it("POSITIVE CONTROL: without the rule, the same read returns the right answers too", async () => {
-    // The rule is one filter. Take it out and the two correct rows come back,
-    // which is what the read did before 2026-09-23 — so the assertion above
-    // measures the filter, not an empty table.
-    expect(rows.filter((r) => r.is_correct === true), "the stub's table does hold right answers").toHaveLength(2);
+  it("CONTROL: the stub does narrow when asked, so the read above asked for no narrowing", async () => {
     await PracticeService.listSessionAttempts(ctx, "session-1");
-    expect(orFilters, "the read must narrow in the DATABASE, not in the browser").toEqual([
-      "is_correct.is.false,is_correct.is.null,skipped.is.true",
-    ]);
-  });
-
-  it("returns every question of a session in which nothing went right", async () => {
-    rows = rows.filter((r) => r.is_correct !== true);
-    const got = await PracticeService.listSessionAttempts(ctx, "session-2");
-    expect(got).toHaveLength(4);
+    expect(orFilters, "the read no longer filters the session's rows").toEqual([]);
+    const narrowed = rows.filter(orPredicate("is_correct.is.false,is_correct.is.null,skipped.is.true"));
+    expect(narrowed.some((r) => r.is_correct === true), "the old filter really did drop right answers").toBe(false);
   });
 });
