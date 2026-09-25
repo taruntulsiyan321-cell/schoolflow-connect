@@ -68,9 +68,10 @@ export type ChapterStateRow = {
   revision_due: boolean;
   recovered_at: string | null;
   /**
-   * §4.4. The accuracy the last recovery was cleared at, so a later failure can
-   * be reported honestly against it. Null when no recovery has been taken,
-   * which is a DIFFERENT statement from a readiness of zero.
+   * §4.4. The readiness of the last recovery round, passed or failed —
+   * rpc_submit_recovery_session writes it on both — so a later failure can be
+   * reported honestly against it. Null when no recovery has been taken, which
+   * is a DIFFERENT statement from a readiness of zero.
    */
   last_recovery_readiness: number | null;
   open_mistakes: number;

@@ -94,6 +94,26 @@ describe("Recovery", () => {
     expect(label.parentElement?.parentElement?.textContent).toContain("10");
   });
 
+  it("quotes a failed round's readiness as the last round, not as a clearing", async () => {
+    // Submit records readiness on every round. Live 2026-09-25, a chapter in
+    // round 2 after a 0% round read "Last cleared at 0% readiness."
+    signedIn();
+    h.engine.getRecoveryQueue.mockResolvedValue([
+      { ...queueRow, state: "in_recovery", in_recovery: true, last_recovery_readiness: 0, rounds_taken: 1 },
+    ]);
+    page(<Recovery />);
+    expect(await screen.findByText("Your last round reached 0% readiness.")).toBeInTheDocument();
+    expect(screen.queryByText(/cleared at/i)).toBeNull();
+  });
+
+  it("CONTROL: says nothing about readiness before any round", async () => {
+    signedIn();
+    h.engine.getRecoveryQueue.mockResolvedValue([queueRow]);
+    page(<Recovery />);
+    expect(await screen.findByText("Circles")).toBeInTheDocument();
+    expect(screen.queryByText(/readiness/i)).toBeNull();
+  });
+
   it("never shows an untagged chapter_id (upload §5.1)", async () => {
     // Spec: chapter_id IS NULL is practisable but excluded from recovery.
     signedIn();

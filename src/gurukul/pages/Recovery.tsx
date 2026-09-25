@@ -189,10 +189,12 @@ function RecoveryCard({
         <>
           {/* §4.4 — a readiness quoted back only when one was actually
               recorded. Null means no recovery has been taken, which is a
-              different statement from a readiness of zero. */}
+              different statement from a readiness of zero. Submit records
+              every round, passed or not, so this is the last round — not a
+              clearing: a chapter in round 2 once read "Last cleared at 0%". */}
           {item.last_recovery_readiness != null && (
             <p className="text-[11px] text-muted-foreground mb-2">
-              Last cleared at {Math.round(item.last_recovery_readiness * 100)}% readiness.
+              Your last round reached {Math.round(item.last_recovery_readiness * 100)}% readiness.
             </p>
           )}
           {/* The real length, from the server's own plan. A fixed "10
