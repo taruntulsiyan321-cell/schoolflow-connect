@@ -90,8 +90,8 @@ function timeAgo(iso: string) {
 export default function Notifications() {
   const { items, unread, loading, error, markRead, markAllRead, remove } = useNotifications();
   const navigate = useNavigate();
-  // An exam account has no homework and no battles; a badge is the one
-  // notification it can be sent.
+  // An exam account has no homework and no battles; it is sent badges and the
+  // daily revision/recovery reminder (send_learning_reminders).
   const { schoolKind } = useGurukulAcademicIdentity();
 
   const open = (n: AppNotification) => {
@@ -141,7 +141,7 @@ export default function Notifications() {
           <EmptyState
             icon={<Bell className="w-6 h-6" />}
             title="No notifications yet"
-            sub={schoolKind === "individual" ? "Badges you earn will show up here." : "Homework, battles, and badges will show up here."}
+            sub={schoolKind === "individual" ? "Revision and recovery reminders, and badges you earn, will show up here." : "Homework, battles, revision reminders and badges will show up here."}
           />
         </GlassCard>
       ) : (
