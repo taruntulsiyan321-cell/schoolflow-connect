@@ -133,38 +133,26 @@ export function getBadge(code: string | null | undefined): BadgeMeta | null {
 }
 
 /**
- * Badges that require a school cohort / arena / attendance. Individual exam
- * accounts must not see these as forever-locked catalog bait.
+ * The badges an individual (exam) account can actually be awarded — the ones
+ * whose award path is practice or activity: _award_engagement_badges' three
+ * streaks and polymath (3+ topics at 80%+ over 5+ attempts).
+ *
+ * This was a list of what to HIDE, and it let through six badges nothing ever
+ * awards to an exam account — speed_master, lightning, academic_beast,
+ * rising_star and scholar have no award path at all, and flawless is awarded
+ * only when a battle finishes — so the page showed them locked for ever.
+ * Checked 2026-09-25 against every _award_badge call in the database.
  */
-const SCHOOL_ONLY_BADGE_GROUPS = new Set<BadgeGroup>([
-  "battleground",
-  "attendance",
-  "leaderboard",
-  "test",
-]);
-
-const SCHOOL_ONLY_BADGE_CODES = new Set<string>([
-  "win_streak_3",
-  "win_streak_5",
-  "win_streak_10",
-  "sharp_shooter",
-  "high_scorer",
-  "unstoppable",
-  "fast_solver",
-  "topper",
-  "explorer",
-  "math_master",
-  "science_master",
-  "night_owl",
-  "early_bird",
-  "comeback_king",
+const INDIVIDUAL_BADGE_CODES = new Set<string>([
+  "streak_starter",
+  "consistency",
+  "streak_legend",
+  "polymath",
 ]);
 
 /** Whether this catalog entry belongs on an individual (exam) student's Achievements. */
 export function badgeForIndividualCatalog(b: BadgeMeta): boolean {
-  if (SCHOOL_ONLY_BADGE_GROUPS.has(b.group)) return false;
-  if (SCHOOL_ONLY_BADGE_CODES.has(b.code)) return false;
-  return true;
+  return INDIVIDUAL_BADGE_CODES.has(b.code);
 }
 
 export function badgesByGroup(): Record<BadgeGroup, BadgeMeta[]> {

@@ -145,13 +145,13 @@ export default function Achievements() {
           <div className="text-2xl font-black text-amber-400" style={{ fontFamily: "var(--font-display)" }}>
             {unlocked.length}
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Milestones reached</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Badges earned</div>
         </div>
         <div className="p-4 rounded-2xl border border-border/70 bg-surface/70 text-center">
           <div className="text-2xl font-black text-primary" style={{ fontFamily: "var(--font-display)" }}>
             {visibleCatalogCount || "—"}
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Total in catalog</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Badges to earn</div>
         </div>
       </div>
 
@@ -195,12 +195,15 @@ export default function Achievements() {
       )}
 
       <GlassCard glow="amber" className="p-5">
-        <SectionLabel>Milestones reached</SectionLabel>
+        {/* Badges, counted as badges. The progression achievements above
+            are a separate record; calling this "Milestones reached — 0"
+            under an earned "First Practice" read as a contradiction. */}
+        <SectionLabel>Badges earned</SectionLabel>
         {unlocked.length === 0 ? (
           <EmptyState
             variant="section"
             icon={<Star className="w-5 h-5" />}
-            title="No milestones reached yet"
+            title="No badges earned yet"
             sub={
               isIndividual
                 ? "Keep practising, recovering and revising to earn badges."
