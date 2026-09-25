@@ -202,7 +202,7 @@ const MODES: Mode[] = [
     icon:<Target className="w-5 h-5"/>,     color:"hsl(var(--success))", cat:"content",  badge:"By topic" },
   { key:"custom",     label:PRACTICE_MODE_LABELS.custom,        desc:"Choose difficulty and either a question count or a time limit",
     icon:<BarChart2 className="w-5 h-5"/>,  color:"hsl(var(--info))", cat:"type",    badge:"Your rules" },
-  { key:"pyq",        label:PRACTICE_MODE_LABELS.pyq,desc:"Board and competitive exam questions from past years",
+  { key:"pyq",        label:PRACTICE_MODE_LABELS.pyq,desc:"Questions from past years' exam papers",
     icon:<FileText className="w-5 h-5"/>,   color:"hsl(var(--destructive))", cat:"source",  badge:"Past papers" },
   { key:"weak",       label:PRACTICE_MODE_LABELS.weak,    desc:`Auto-generated from concepts where your confidence is below ${WEAK_CONCEPT_THRESHOLD}%`,
     icon:<TrendingDown className="w-5 h-5"/>, color:"hsl(var(--destructive))", cat:"targeted", badge:"Weak areas", instant:true, hot:true },
