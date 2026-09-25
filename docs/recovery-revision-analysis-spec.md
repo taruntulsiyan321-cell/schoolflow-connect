@@ -639,6 +639,7 @@ VARIANT_CACHE_FIRST         = true   // always check the bank before generating
 
 TREND_MIN_SESSIONS          = 4      // before any trend is declared
 TREND_DELTA_POINTS          = 10     // accuracy change that counts as movement
+TREND_WINDOW_SESSIONS       = 3      // §6.4: the latest 3 sessions against the previous 3 (ruled 2026-09-23, item 20)
 REPEATED_MISTAKE_PIN        = 3      // times_wrong that pins a chapter to top
 
 WEAK_MIN_ATTEMPTS           = 5      // before a topic may be called weak

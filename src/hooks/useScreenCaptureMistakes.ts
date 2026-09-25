@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { toErrorMessage } from "@/lib/presentation";
 import { supabase } from "@/integrations/supabase/client";
 import {
   deleteScreenCaptureQuestion,
@@ -226,7 +227,7 @@ export function useScreenCaptureMistakes(opts: {
           }
           if (job.source === "watch") await refreshCounters();
         } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Capture upload failed");
+          toast.error(toErrorMessage(e, "Capture upload failed"));
         }
       }
     } finally {
@@ -292,7 +293,7 @@ export function useScreenCaptureMistakes(opts: {
           enqueueUpload(frame, "tap");
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          toast.error(msg.includes("watch_session") ? "Stop watching first" : msg);
+          toast.error(msg.includes("watch_session") ? "Stop watching first" : toErrorMessage(e, "Could not capture the screen"));
         }
       });
       if (cancelled) {
@@ -380,7 +381,7 @@ export function useScreenCaptureMistakes(opts: {
         allowedRef.current = pkgs;
         await syncNativeAllowlist(pkgs);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not update app list");
+        toast.error(toErrorMessage(e, "Could not update app list"));
       }
     },
     [opts.userId, syncNativeAllowlist],
@@ -406,7 +407,7 @@ export function useScreenCaptureMistakes(opts: {
       await ScreenCaptureMistake.showTapOverlay();
       toast.message("Tap the Gurukul button when you get one wrong");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not show tap control");
+      toast.error(toErrorMessage(e, "Could not show tap control"));
     } finally {
       setBusy(false);
     }
@@ -457,7 +458,7 @@ export function useScreenCaptureMistakes(opts: {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("usage_access")) toast.error("Usage access required");
       else if (msg.includes("overlay")) toast.error("Overlay permission required");
-      else toast.error(msg);
+      else toast.error(toErrorMessage(e, "Could not start watching"));
     } finally {
       setBusy(false);
     }
@@ -474,7 +475,7 @@ export function useScreenCaptureMistakes(opts: {
       toast.message("Mistake watch stopped");
     } catch (e) {
       stopToastFromUi.current = false;
-      toast.error(e instanceof Error ? e.message : "Could not stop watch");
+      toast.error(toErrorMessage(e, "Could not stop watch"));
     } finally {
       setBusy(false);
     }
