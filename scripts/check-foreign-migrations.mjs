@@ -32,6 +32,9 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { queryRows, connectionMode, describeConnection, closeConnection } from "./lib/readonly-db.mjs";
+import {
+  migrationName, unappliedFiles, ledgerRowsWithoutFile, rollbackCovers, sharedStamps,
+} from "./lib/migration-ledger.mjs";
 
 // The project ref now comes from scripts/lib/readonly-db.mjs.
 const MIG_DIR = "supabase/migrations";
@@ -112,32 +115,23 @@ async function main() {
 
   console.log(`Read the ledger via ${describeConnection()}.`);
 
-  // The ledger holds a mix of bare timestamps and full filenames, so match on the
-  // leading timestamp rather than on the whole string.
-  const stamp = (s) => (s.match(/^(\d{14})/) ?? [])[1] ?? s;
-
-  const applied = new Map();               // timestamp -> ledger version string
-  for (const r of rows) applied.set(stamp(r.version), r.version);
-
+  // By full name, never by timestamp: 14 timestamps are shared by two files,
+  // and matching on the stamp let a file pass on its neighbour's ledger row
+  // (scripts/lib/migration-ledger.mjs).
+  const ledger = rows.map((r) => String(r.version));
   const localFiles = existsSync(MIG_DIR)
     ? readdirSync(MIG_DIR).filter((f) => f.endsWith(".sql"))
     : [];
-  const localByStamp = new Map();          // timestamp -> filename
-  for (const f of localFiles) localByStamp.set(stamp(f), f);
+  const shared = sharedStamps(localFiles);
 
-  // A rollback file covers its own timestamp AND every version named inside it.
-  // 20260828110000_chunk67_batch1_down.sql reverses three migrations in one file
-  // because they are one logical change taken in three measurements; matching on
-  // filename alone called two of them unreversed.
-  const rollbacks = new Set();
-  if (existsSync(ROLLBACK_DIR)) {
-    for (const f of readdirSync(ROLLBACK_DIR).filter((x) => x.endsWith(".sql"))) {
-      rollbacks.add(stamp(f));
-      for (const m of readFileSync(`${ROLLBACK_DIR}/${f}`, "utf8").matchAll(/(?<!\d)(\d{14})(?!\d)/g)) {
-        rollbacks.add(m[1]);
-      }
-    }
-  }
+  // A rollback covers what it names: `<name>.rollback.sql`, the name in its
+  // text, or — for older rollbacks — a timestamp no other migration carries.
+  // 20260828110000_chunk67_batch1_down.sql reverses three migrations in one
+  // file because they are one logical change taken in three measurements.
+  const rollbacks = existsSync(ROLLBACK_DIR)
+    ? readdirSync(ROLLBACK_DIR).filter((x) => x.endsWith(".sql"))
+        .map((file) => ({ file, text: readFileSync(`${ROLLBACK_DIR}/${file}`, "utf8") }))
+    : [];
 
   // Rollbacks that were never written — acknowledged with the date they were
   // found, not quietly excused. They are PRINTED on every run. The point is that
@@ -167,24 +161,27 @@ async function main() {
       .map((l) => l.slice(3).trim().replace(/^"|"$/g, "").split("/").pop()),
   );
 
-  const noFile = [], uncommitted = [], noRollback = [], notApplied = [];
+  const noFile = ledgerRowsWithoutFile(localFiles, ledger);
+  const notApplied = unappliedFiles(localFiles, ledger);
+  const uncommitted = [], noRollback = [];
+  const applied = new Set(ledger);
 
-  for (const [ts, version] of applied) {
-    const file = localByStamp.get(ts);
-    if (!file) { noFile.push(version); continue; }
+  for (const file of localFiles) {
+    const name = migrationName(file);
+    if (!applied.has(name)) continue;
     if (!tracked.has(file) || dirty.has(file)) { uncommitted.push(file); continue; }
     // "Migrations must be reversible" is a rule of THIS build, not a retroactive
     // judgement on 290 migrations written before it existed. Demanding rollbacks
     // for all of them buried the two real findings in noise the first time this
     // ran — a gate whose output nobody can read is a gate nobody reads.
-    if (ts >= FOUNDATION_BUILD_BEGAN && !rollbacks.has(ts) && !KNOWN_MISSING_ROLLBACKS.has(ts)) {
+    const ts = name.slice(0, 14);
+    if (ts >= FOUNDATION_BUILD_BEGAN && !KNOWN_MISSING_ROLLBACKS.has(ts) && !rollbackCovers(name, rollbacks, shared)) {
       noRollback.push(file);
     }
   }
-  for (const [ts, file] of localByStamp) if (!applied.has(ts)) notApplied.push(file);
 
   const line = (s) => console.log("  " + s);
-  console.log(`ledger: ${applied.size} applied · tree: ${localByStamp.size} migration file(s) · ${rollbacks.size} rollback script(s)\n`);
+  console.log(`ledger: ${ledger.length} applied · tree: ${localFiles.length} migration file(s) · ${rollbacks.length} rollback script(s)\n`);
 
   if (noFile.length) {
     console.log(`APPLIED WITH NO FILE IN THIS TREE — ${noFile.length}`);
@@ -210,7 +207,7 @@ async function main() {
     console.log();
   }
 
-  const acknowledged = [...KNOWN_MISSING_ROLLBACKS].filter(([ts]) => applied.has(ts));
+  const acknowledged = [...KNOWN_MISSING_ROLLBACKS].filter(([ts]) => ledger.some((v) => v.startsWith(ts)));
   if (acknowledged.length) {
     console.log(`KNOWN MISSING ROLLBACKS — ${acknowledged.length} (acknowledged debt, still owed)`);
     for (const [ts, why] of acknowledged) line(`${ts}  ${why}`);
