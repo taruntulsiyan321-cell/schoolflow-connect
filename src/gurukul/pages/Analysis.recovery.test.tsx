@@ -27,13 +27,13 @@ const CHAPTER_STATES = [
 ];
 const RECOVERY_QUEUE = [
   { chapter_id: "c3", chapter: "Circles", subject: "Mathematics", open_mistakes: 4, trigger_count: 3,
-    ready: true, mode: "deep", planned_size: 12, relearn_above: 10, state: "in_recovery",
+    ready: true, mode: "deep", planned_size: 12, startable: true, blocked_reason: null, relearn_above: 10, state: "in_recovery",
     in_recovery: true, last_recovery_readiness: null, recovered_at: null, rounds_taken: 0 },
   { chapter_id: "c4", chapter: "Statistics", subject: "Mathematics", open_mistakes: 2, trigger_count: 3,
-    ready: false, mode: "wide", planned_size: 6, relearn_above: 10, state: "has_mistakes",
+    ready: false, mode: "wide", planned_size: 6, startable: true, blocked_reason: null, relearn_above: 10, state: "has_mistakes",
     in_recovery: false, last_recovery_readiness: null, recovered_at: null, rounds_taken: 0 },
   { chapter_id: "c1", chapter: "Algebra", subject: "Mathematics", open_mistakes: 0, trigger_count: 3,
-    ready: false, mode: "none", planned_size: 0, relearn_above: 10, state: "recovered",
+    ready: false, mode: "none", planned_size: 0, startable: true, blocked_reason: null, relearn_above: 10, state: "recovered",
     in_recovery: false, last_recovery_readiness: 0.82, recovered_at: iso(9), rounds_taken: 2 },
 ];
 

@@ -79,7 +79,7 @@ beforeEach(() => {
     row("m-2018-class9", "Mathematics", 2018, { class_level: 9 }),
   ];
   vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
-    classLevel: 10, board: "rbse", stream: null, classLabel: "10-A", examId: null, examCode: null, examName: null,
+    classLevel: 10, board: "rbse", stream: null, classLabel: "10-A", examId: null, examCode: null, examName: null, syllabusChapterIds: null,
   });
 });
 

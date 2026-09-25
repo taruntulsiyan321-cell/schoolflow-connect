@@ -391,10 +391,14 @@ export const StudentUploadService = {
   },
 
   /** Ask the edge function to classify + extract. Never invents questions client-side. */
+  /**
+   * Classify and file an upload. `outside` counts the questions and notes not
+   * saved because their subject is outside the student's stream syllabus.
+   */
   async requestClassify(
     ctx: ServiceContext,
     uploadId: string,
-  ): Promise<{ ok: boolean; error?: string }> {
+  ): Promise<{ ok: boolean; error?: string; outside?: { count: number; subjects: string[] } }> {
     assertStudentContext(ctx);
     const db = getClient(ctx);
     const { data, error } = await db.functions.invoke("custom-practice-upload", {
@@ -406,7 +410,10 @@ export const StudentUploadService = {
     if (data && typeof data === "object" && "error" in data && data.error) {
       return { ok: false, error: String((data as { error: unknown }).error) };
     }
-    return { ok: true };
+    const d = (data ?? {}) as { outside_stream?: unknown; outside_subjects?: unknown };
+    const count = typeof d.outside_stream === "number" ? d.outside_stream : 0;
+    const subjects = Array.isArray(d.outside_subjects) ? d.outside_subjects.map(String) : [];
+    return count > 0 ? { ok: true, outside: { count, subjects } } : { ok: true };
   },
 
   async remove(ctx: ServiceContext, uploadId: string): Promise<void> {

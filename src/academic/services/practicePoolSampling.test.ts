@@ -107,7 +107,7 @@ beforeEach(() => {
   calls.textFetches = [];
   vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
     classLevel: 10, board: "rbse", stream: null, classLabel: "10-A",
-    examId: null, examCode: null, examName: null,
+    examId: null, examCode: null, examName: null, syllabusChapterIds: null,
   });
   // What the student has answered is practiceDraw's concern, tested there.
   vi.spyOn(PracticeService, "lastSeenBankQuestions").mockResolvedValue(new Map());

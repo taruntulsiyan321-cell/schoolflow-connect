@@ -77,9 +77,10 @@ function parseDifficulty(raw: string | null | undefined): "easy" | "medium" | "h
   return null;
 }
 
-/** A question nobody could place — a capture or an upload outside the exam's
- *  chapters — has no subject or chapter. It is filed as "Untagged", whatever
- *  its source, so it never shows as a blank row, chip or label. */
+/** A mistake with no subject or chapter is filed as "Untagged", whatever its
+ *  source, so it never shows as a blank row, chip or label. Uploads and
+ *  captures always carry a chapter (20261096000000); older rows of other
+ *  sources may not. */
 const UNTAGGED = "Untagged";
 
 export function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {

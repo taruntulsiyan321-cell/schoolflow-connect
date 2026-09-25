@@ -34,6 +34,8 @@ import {
   deleteScreenCaptureQuestion,
   submitScreenCaptureMistake,
 } from "@/academic/services/screenCaptureService";
+import { supabase } from "@/integrations/supabase/client";
+import { setCaptureAppAllowed } from "./useScreenCaptureMistakes";
 import type { CaptureFrame } from "@/lib/screenCaptureMistake";
 
 describe("screen-capture watch upload contract", () => {
@@ -79,5 +81,25 @@ describe("allowlist honesty (§4 / §5.1)", () => {
     localStorage.setItem(key, "1");
     expect(localStorage.getItem(key)).toBe("1");
     localStorage.removeItem(key);
+  });
+});
+
+describe("adding an app to the capture list", () => {
+  it("inserts or leaves it — never an update, which students are not granted", async () => {
+    // A merging upsert failed for every student with 42501 (permission denied
+    // for UPDATE), so nothing could be put on the list and every captured
+    // frame was dropped as app_not_allowed (live, 2026-09-25).
+    const upsert = vi.fn(async () => ({ error: null }));
+    vi.mocked(supabase.from).mockReturnValueOnce({ upsert } as never);
+    await setCaptureAppAllowed("u-1", "com.physicswallah.pw", "Physics Wallah", true);
+    expect(upsert).toHaveBeenCalledWith(
+      { owner_id: "u-1", package_name: "com.physicswallah.pw", label: "Physics Wallah" },
+      { onConflict: "owner_id,package_name", ignoreDuplicates: true },
+    );
+  });
+
+  it("CONTROL: a failed write is reported, not swallowed", async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce({ upsert: async () => ({ error: { message: "permission denied" } }) } as never);
+    await expect(setCaptureAppAllowed("u-1", "com.physicswallah.pw", "Physics Wallah", true)).rejects.toThrow("permission denied");
   });
 });

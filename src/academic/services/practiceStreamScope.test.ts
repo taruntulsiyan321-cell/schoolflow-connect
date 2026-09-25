@@ -86,7 +86,7 @@ const ctx = { schoolId: "00000000-0000-4000-8000-000000000001", userId: "u", stu
 const atClass = (classLevel: number) =>
   vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
     classLevel, board: "rbse", stream: "commerce", classLabel: `${classLevel}-A`,
-    examId: null, examCode: null, examName: null,
+    examId: null, examCode: null, examName: null, syllabusChapterIds: null,
   });
 
 beforeEach(() => {

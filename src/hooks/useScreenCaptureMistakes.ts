@@ -58,7 +58,7 @@ type AllowedAppsClient = {
   from: (t: string) => {
     upsert: (
       row: { owner_id: string; package_name: string; label: string },
-      opts: { onConflict: string },
+      opts: { onConflict: string; ignoreDuplicates: boolean },
     ) => Promise<{ error: { message: string } | null }>;
     delete: () => {
       eq: (a: string, b: string) => {
@@ -68,7 +68,7 @@ type AllowedAppsClient = {
   };
 };
 
-async function setAppAllowedInternal(
+export async function setCaptureAppAllowed(
   userId: string,
   packageName: string,
   label: string,
@@ -76,9 +76,13 @@ async function setAppAllowedInternal(
 ) {
   const client = supabase as unknown as AllowedAppsClient;
   if (allowed) {
+    // ON CONFLICT DO NOTHING: an app already on the list stays as it is. A
+    // merging upsert is an UPDATE, which students are not granted on this
+    // table, so every "allow PW" failed with 42501 and every captured frame
+    // was then dropped as app_not_allowed (measured 2026-09-25).
     const { error } = await client.from("student_capture_allowed_apps").upsert(
       { owner_id: userId, package_name: packageName, label },
-      { onConflict: "owner_id,package_name" },
+      { onConflict: "owner_id,package_name", ignoreDuplicates: true },
     );
     if (error) throw new Error(error.message);
   } else {
@@ -264,7 +268,7 @@ export function useScreenCaptureMistakes(opts: {
       // unchecking everything), empty stays empty and native §5.1 drops all apps.
       if (pkgs.length === 0 && !wasAllowlistTouched(uid)) {
         try {
-          await setAppAllowedInternal(uid, DEFAULT_PW, "Physics Wallah", true);
+          await setCaptureAppAllowed(uid, DEFAULT_PW, "Physics Wallah", true);
           pkgs = await loadAllowedPackages(uid);
           if (pkgs.length > 0) markAllowlistTouched(uid);
         } catch (e) {
@@ -375,7 +379,7 @@ export function useScreenCaptureMistakes(opts: {
       }
       try {
         markAllowlistTouched(opts.userId);
-        await setAppAllowedInternal(opts.userId, packageName, label, allowed);
+        await setCaptureAppAllowed(opts.userId, packageName, label, allowed);
         const pkgs = await loadAllowedPackages(opts.userId);
         setAllowedPackages(pkgs);
         allowedRef.current = pkgs;

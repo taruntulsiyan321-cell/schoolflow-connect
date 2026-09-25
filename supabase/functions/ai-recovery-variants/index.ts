@@ -65,6 +65,7 @@
 // per-question `topic`/`concept` strings — which made every generator its own
 // authority on what a stored question is labelled. A variant the door skips
 // (a repeat of a question already in the bank, say) is reported, not faked.
+import { stripOptionLabels } from "../_shared/optionLabels.ts";
 import { corsHeaders, generateStructuredWithFallback, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -181,7 +182,11 @@ function validate(v: GeneratedVariant, original: string): { ok: true; value: {
   if (q.length < 12) return { ok: false, why: "question missing or too short" };
 
   if (!Array.isArray(v.options)) return { ok: false, why: "options not an array" };
-  const options = v.options.map((o) => (typeof o === "string" ? o.trim() : "")).filter((o) => o.length > 0);
+  // The model sometimes letters its options ("A. 12:8:5"); the app letters
+  // them itself, so a stored label shows twice ("AA. 12:8:5", 2026-09-25).
+  const options = stripOptionLabels(
+    v.options.map((o) => (typeof o === "string" ? o.trim() : "")).filter((o) => o.length > 0),
+  );
   if (options.length !== 4) return { ok: false, why: `expected 4 non-empty options, got ${options.length}` };
   if (new Set(options.map((o) => o.toLowerCase())).size !== 4) {
     return { ok: false, why: "duplicate options — the distractors are not distinct" };

@@ -59,6 +59,8 @@ function queued(p: Partial<RecoveryQueueRow>): RecoveryQueueRow {
     ready: p.ready ?? false,
     mode: p.mode ?? "deep",
     planned_size: p.planned_size ?? 4,
+    startable: p.startable ?? true,
+    blocked_reason: p.blocked_reason ?? null,
     relearn_above: p.relearn_above ?? 8,
     state: p.state ?? "has_mistakes",
     in_recovery: p.in_recovery ?? false,

@@ -34,7 +34,7 @@ const IN_RECOVERY = {
 };
 const QUEUE_ROW = {
   chapter_id: "c3", chapter: "Circles", subject: "Mathematics", open_mistakes: 4, trigger_count: 1,
-  ready: true, mode: "wide", planned_size: 12, relearn_above: 8, state: "in_recovery",
+  ready: true, mode: "wide", planned_size: 12, startable: true, blocked_reason: null, relearn_above: 8, state: "in_recovery",
   in_recovery: true, last_recovery_readiness: null, recovered_at: null, rounds_taken: 0,
 };
 
