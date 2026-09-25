@@ -151,13 +151,6 @@ export {
   sourceNotAiAnswered,
   type UploadPromotionInput,
 } from "./services/uploadPromotionGates";
-export {
-  uploadPromotionSource,
-  promotedUploadVariantFields,
-  enqueueUploadVariantGeneration,
-  type UploadPromotionSource,
-  type EnqueueUploadVariantResult,
-} from "./services/uploadVariantEnqueue";
 export { STUDENT_UPLOAD_ACCEPT } from "./storage/studentUploadFile";
 export type {
   ChapterStateRow,

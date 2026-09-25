@@ -328,6 +328,17 @@ promotion gate that carries that risk, not the upload. A promoted row records
 that it came from a generated variant, so a decision to withdraw them later is
 possible. **The owner accepted this on 2026-09-24.**
 
+**§10.5 When variants are asked for, and what fills recovery meanwhile
+(2026-09-25).** The owner-driven enqueue never had a caller, so no upload
+variant was ever generated. Variants are now queued where bank variants are —
+at the end of practice, for a chapter a recovery session is being prepared for
+(20261105000000): an upload answered from its file gets its own; an
+AI-answered upload gets none of its own (§6.2), but when it was matched to a
+bank question at filing, that bank question's variants are asked for. Until
+they exist, an upload's recovery rungs are filled from the bank — its own
+variants first, then the matched bank question's, then the chapter's questions,
+its topic first (`_recovery_step_pool`, 20261104000000).
+
 ---
 
 ## §11 Not in scope

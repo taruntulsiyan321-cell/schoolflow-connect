@@ -258,6 +258,16 @@ Feeding anything derived from them into a bank served to every school is not.
 `public.question_bank`.** No gates, no exceptions, no review queue. If that
 ruling is ever revisited, it is revisited here and nowhere else.
 
+**§9.1 Recovery for a captured mistake (ruled 2026-09-25, "Option A").** A
+recovery session needs procedural and conceptual rungs beyond the captured
+question itself, and none may be generated from it. They come from the bank
+instead (`_recovery_step_pool`, 20261104000000): the variants of the bank
+question the capture was matched to when it was filed, that question itself,
+then the chapter's own bank questions, the capture's topic first. A matched
+bank question's variants are asked for (20261105000000) — they are generated
+from the bank question, not from the capture, and serve every student who
+fails it.
+
 ---
 
 ## §10 Build order
