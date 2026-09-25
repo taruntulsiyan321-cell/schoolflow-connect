@@ -3035,7 +3035,7 @@ and the practice read must gain the `section_subjects` predicate instead.
 
 ---
 
-## 59. A finished practice session still keeps per-question correctness — OPEN, a §10.8 ruling
+## 59. ~~A finished practice session still keeps per-question correctness~~ — CLOSED 2026-09-25: the owner ruled to keep it (see 79)
 
 §10.8's transient rule: "While a session is in flight, per-question correctness
 may exist… When the session closes, it must not persist. What survives is
@@ -3581,7 +3581,18 @@ this machine has no Postgres, so nothing could run it. Both files parse
 against the real Postgres grammar (libpg_query); their plpgsql bodies have not
 been executed anywhere. Apply and dry-run them the moment the token is back.
 
-## 79. A finished session still STORES the questions it got right — app half fixed 2026-09-23, DATABASE HALF OPEN (needs 75, and one ruling from the owner)
+## 79. ~~A finished session still STORES the questions it got right~~ — CLOSED 2026-09-25 by the owner's ruling: keep them
+
+The owner ruled: "keep the record of right answer also". The per-question rows
+stay, and the app half of the old rule is undone rather than left beside the
+ruling: PracticeService.listSessionAttempts returns every question again, the
+result screen reviews every question (its "the ones you got right are counted,
+not stored" note is gone), and a saved snapshot is version 4 and freezes every
+question with its real verdict — the snapshot writer had hard-coded
+`isCorrect: false`, which a new test caught. docs/locked-decisions.md §10.8
+carries the ruling. The history below is kept for the record.
+
+### Before the ruling
 
 §10.8: "While a session is in flight, per-question correctness may exist. It is
 working state. **When the session closes, it must not persist.** What survives

@@ -670,24 +670,14 @@ export const PracticeService = {
   },
 
   /**
-   * A finished session's durable per-question record: the WRONG and the
-   * SKIPPED, and nothing else.
+   * A finished session's questions — every one, right answers included.
    *
-   * §10.8's transient/durable rule — "when the session closes, it must not
-   * persist; what survives is session or tier TOTALS, plus rows for wrong,
-   * skipped and bookmarked" — with "no per-question record of correct
-   * answers". The totals live on the practice_sessions row and are what the
-   * result screen and the concept report read.
-   *
-   * The filter is HERE, in the one read of question_attempts for a session,
-   * because both things that consume it must obey the same rule: the review
-   * list on the result screen, and the snapshot a saved session freezes.
-   *
-   * Measured 2026-09-23 on production: 1,267 correct per-question rows across
-   * finished sessions, each with the question, the student's choice and the
-   * answer key. The rows themselves are the server's to remove at finish
-   * (KNOWN_ISSUES 79, blocked on the database token); until it does, nothing
-   * in the app reads one.
+   * Ruled by the owner on 2026-09-25: a finished session keeps the record of
+   * its right answers too. §10.8's "no per-question record of correct answers"
+   * is withdrawn; Analysis's accuracy, topic, trend and time figures, and the
+   * revision check's "never seen" rule, are all built on these rows. This is
+   * the one read of a session's questions: the result screen's review list and
+   * the snapshot a saved session freezes both come through it.
    */
   async listSessionAttempts(ctx: ServiceContext, sessionId: string) {
     assertCanConsume(ctx, "practice");
@@ -696,7 +686,6 @@ export const PracticeService = {
       .select("*")
       .eq("session_id", sessionId)
       .eq("user_id", ctx.userId)
-      .or("is_correct.is.false,is_correct.is.null,skipped.is.true")
       .order("created_at", { ascending: true });
     throwIfError(error, "Failed to load practice attempts");
     return data ?? [];
