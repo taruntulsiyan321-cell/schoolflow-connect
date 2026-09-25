@@ -83,6 +83,26 @@ export function resolveCurriculumLabels(
   return { chapter_id, topic_id };
 }
 
+/** One page of a query, rows [from, to] inclusive. */
+export type RowPage<T> = (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>;
+
+/**
+ * Every row of a query, read page by page until a short page. The API returns
+ * at most 1,000 rows per request whatever limit is asked for, and the CUET bank
+ * alone holds 4,292 questions — a single request saw a quarter of the bank, and
+ * a chapter outside that quarter could never be tagged. The query must be
+ * ordered, or pages can overlap and skip.
+ */
+export async function readAllPages<T>(page: RowPage<T>, pageSize = 1000): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await page(from, from + pageSize - 1);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if (!data || data.length < pageSize) return out;
+  }
+}
+
 /** Compact catalog lines for the classifier prompt (subject › chapter). */
 export function formatCatalogHint(catalog: CurriculumChapter[], limit = 40): string {
   if (!catalog.length) return "";
