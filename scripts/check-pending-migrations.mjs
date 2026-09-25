@@ -56,12 +56,10 @@ import {
   describeConnection,
   closeConnection,
 } from "./lib/readonly-db.mjs";
+import { unappliedFiles, ledgerRowsWithoutFile } from "./lib/migration-ledger.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const MIG_DIR = join(ROOT, "supabase", "migrations");
-
-/** The ledger holds a mix of bare timestamps and full filenames. Match on the stamp. */
-const stamp = (s) => (s.match(/^(\d{14})/) ?? [])[1] ?? s;
 
 async function main() {
   if (connectionMode() === "none") {
@@ -106,14 +104,15 @@ async function main() {
     return 2;
   }
 
-  const applied = new Set(rows.map((r) => stamp(String(r.version))));
-  const pending = files.filter((f) => !applied.has(stamp(f))).sort();
-  const matched = files.length - pending.length;
-  const orphanCount = applied.size - matched;
+  // By full name: a file is applied only when a ledger row names IT, not a
+  // neighbour that shares its timestamp (scripts/lib/migration-ledger.mjs).
+  const ledger = rows.map((r) => String(r.version));
+  const pending = unappliedFiles(files, ledger);
+  const orphanCount = ledgerRowsWithoutFile(files, ledger).length;
 
   console.log(`Read the ledger via ${describeConnection()}.`);
   console.log(
-    `ledger: ${applied.size} applied · tree: ${files.length} migration file(s) · ${pending.length} pending`,
+    `ledger: ${ledger.length} applied · tree: ${files.length} migration file(s) · ${pending.length} pending`,
   );
 
   if (orphanCount > 0) {
