@@ -55,7 +55,7 @@ const state = (id: string, chapter: string, fresh: number) => ({
 });
 const queueRow = {
   chapter_id: "c1", chapter: "Circles", subject: "Mathematics", open_mistakes: 3, trigger_count: 1,
-  ready: true, mode: "wide", planned_size: 9, relearn_above: 8, state: "has_mistakes",
+  ready: true, mode: "wide", planned_size: 9, startable: true, blocked_reason: null, relearn_above: 8, state: "has_mistakes",
   in_recovery: false, last_recovery_readiness: null, recovered_at: null, rounds_taken: 0,
 };
 
@@ -112,6 +112,26 @@ describe("Recovery", () => {
     page(<Recovery />);
     expect(await screen.findByText("Circles")).toBeInTheDocument();
     expect(screen.queryByText(/readiness/i)).toBeNull();
+  });
+
+  it("does not offer Start on a chapter whose session cannot be built, and says why", async () => {
+    // Live 2026-09-25: a card said "8 questions" and "Start recovery", and the
+    // tap was refused with a toast — its mistakes had no variants to build on.
+    signedIn();
+    h.engine.getRecoveryQueue.mockResolvedValue([
+      { ...queueRow, startable: false, planned_size: 3, blocked_reason: "no conceptual questions exist for these mistakes yet" },
+    ]);
+    page(<Recovery />);
+    expect(await screen.findByText(/Recovery can't start here yet: no conceptual questions exist/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Start recovery/ })).toBeNull();
+  });
+
+  it("CONTROL: a startable chapter is offered, with the plan's size", async () => {
+    signedIn();
+    h.engine.getRecoveryQueue.mockResolvedValue([queueRow]);
+    page(<Recovery />);
+    expect(await screen.findByRole("button", { name: /Start recovery/ })).toBeInTheDocument();
+    expect(screen.getByText(/^9 questions/)).toBeInTheDocument();
   });
 
   it("never shows an untagged chapter_id (upload §5.1)", async () => {

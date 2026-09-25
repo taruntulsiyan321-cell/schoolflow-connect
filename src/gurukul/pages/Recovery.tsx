@@ -185,6 +185,20 @@ function RecoveryCard({
             <BookOpen className="w-3 h-3" /> Open these in your mistake book
           </button>
         </>
+      ) : item.ready && !item.startable ? (
+        // A card that offers Start must be able to start. The plan says why
+        // this one cannot yet — the tap used to be answered with a toast.
+        <>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            Recovery can't start here yet: {item.blocked_reason ?? "there is not enough to build a session from."}
+          </p>
+          <button
+            onClick={onClearBook}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-muted border border-border text-xs font-semibold text-muted-foreground hover:bg-secondary transition-all"
+          >
+            <BookOpen className="w-3 h-3" /> Work on these in your mistake book
+          </button>
+        </>
       ) : item.ready ? (
         <>
           {/* §4.4 — a readiness quoted back only when one was actually
@@ -411,7 +425,7 @@ export default function Recovery() {
       )
     : items;
 
-  const readyCount = items.filter((t) => t.ready).length;
+  const readyCount = items.filter((t) => t.ready && t.startable).length;
   const relearnCount = items.filter((t) => t.mode === "relearn").length;
   const openTotal = items.reduce((a, t) => a + t.open_mistakes, 0);
 

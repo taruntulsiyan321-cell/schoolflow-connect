@@ -117,11 +117,14 @@ export type RecoveryQueueRow = {
    */
   mode: "deep" | "wide" | "relearn" | "none";
   /**
-   * How many questions the session will actually hold, so the tab can say
-   * "12 questions" instead of a fixed ten that stopped being true. Zero in
-   * relearn mode, where no session is offered.
+   * How many questions the session would hold if started now — the server's
+   * plan, not a formula (20261092000000). Zero when no session can start.
    */
   planned_size: number;
+  /** A session can be started now (rpc_start_recovery_session would offer it). */
+  startable: boolean;
+  /** Why a ready chapter cannot start yet, in the plan's words; null otherwise. */
+  blocked_reason: string | null;
   /** Mistakes above which the app refuses to drill, returned as data. */
   relearn_above: number;
   state: ChapterStateRow["state"];
