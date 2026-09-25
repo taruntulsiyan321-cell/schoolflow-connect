@@ -21,6 +21,57 @@
     <meta name="twitter:description" content="Gurukul is the AI learning engine that practices with you, analyzes your weaknesses, and cross-questions until you truly understand.">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
+
+    <!--
+      BOOT GUARD. A script file that fails to load — a dropped connection, or a
+      tab left open across a deploy asking for a file that no longer exists —
+      left the page blank, with nothing to press (measured 2026-09-25 on
+      www.gurukul.study: one 502 on the app's main file, a white screen). This
+      is the one home of "reload once": it reloads at most once in 30 seconds,
+      and after that says what happened and offers Try again. The app's error
+      boundary (AppErrorBoundary) asks it too, for a file that fails later.
+    -->
+    <script>
+      (function () {
+        var KEY = "gurukul:auto-reload-at";
+        function reloadOnce() {
+          try {
+            var last = Number(sessionStorage.getItem(KEY) || 0);
+            if (Date.now() - last < 30000) return false;
+            sessionStorage.setItem(KEY, String(Date.now()));
+          } catch (e) {
+            return false;
+          }
+          location.reload();
+          return true;
+        }
+        function showFailure() {
+          var root = document.getElementById("root");
+          if (!root || root.childElementCount > 0) return;
+          root.innerHTML =
+            '<div role="alert" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;font-family:Inter,system-ui,sans-serif;text-align:center;color:#0f172a">' +
+            '<p style="font-size:18px;font-weight:700;margin:0">Gurukul couldn’t load</p>' +
+            '<p style="font-size:14px;color:#475569;margin:0">Check your connection, then try again.</p>' +
+            '<button type="button" onclick="location.reload()" style="padding:10px 20px;border-radius:10px;border:0;background:#17687a;color:#fff;font-weight:600;font-size:14px">Try again</button>' +
+            "</div>";
+        }
+        window.__gurukulReloadOnce = reloadOnce;
+        window.addEventListener(
+          "error",
+          function (e) {
+            var t = e.target;
+            var root = document.getElementById("root");
+            if (t && t.tagName === "SCRIPT" && (!root || root.childElementCount === 0)) {
+              if (!reloadOnce()) showFailure();
+            }
+          },
+          true,
+        );
+        window.addEventListener("vite:preloadError", function (e) {
+          if (reloadOnce()) e.preventDefault();
+        });
+      })();
+    </script>
 </head>
 
   <body>
