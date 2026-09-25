@@ -148,7 +148,7 @@ export function WeakChapterList({ list, onRetry }: { list: ListState<WeakChapter
               <div className="border-t border-border/60 p-3 space-y-3 bg-muted/20">
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-muted-foreground">
                   {neglected != null && (
-                    <span>Oldest open mistake: <span className="text-foreground">{pluralise(neglected, "day")} ago</span></span>
+                    <span>Oldest open mistake: <span className="text-foreground">{neglected === 0 ? "today" : `${pluralise(neglected, "day")} ago`}</span></span>
                   )}
                   {row.trend !== "not_enough_data" && row.trendDeltaPoints != null && (
                     <span>

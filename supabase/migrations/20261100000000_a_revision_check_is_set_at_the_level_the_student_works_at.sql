@@ -30,6 +30,10 @@
 -- ties, and the length is unchanged — so "short is reported, never padded"
 -- (the `fresh_short` contract) still holds exactly as before.
 
+-- ROLLBACK: rollback/20261100000000_a_revision_check_is_set_at_the_level_the_student_works_at.rollback.sql
+
+BEGIN;
+
 CREATE OR REPLACE FUNCTION public._difficulty_rank(_difficulty text)
 RETURNS integer
 LANGUAGE sql
@@ -151,7 +155,7 @@ BEGIN
   --     arrive in the "fresh" half and be counted as new material.
   --
   -- Ordered by distance from the level this student works at in this chapter,
-  -- then by age. Insertion order alone decided this until 20261056000000.
+  -- then by age. Insertion order alone decided this until 20261100000000.
   SELECT array_agg(qid) INTO _fresh FROM (
     SELECT qb.id AS qid
       FROM public.question_bank qb
@@ -298,6 +302,4 @@ BEGIN
 END
 $guard$;
 
-INSERT INTO public.schema_migrations (version)
-VALUES ('20261056000000_a_revision_check_is_set_at_the_level_the_student_works_at')
-ON CONFLICT (version) DO NOTHING;
+COMMIT;

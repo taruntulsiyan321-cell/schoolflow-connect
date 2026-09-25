@@ -3284,47 +3284,30 @@ student sees today; both would, if the data moved.
 
 ---
 
-## 67. Recovery, Revision and Analysis — what the spec asks that is not built — OPEN
+## 67. ~~Recovery, Revision and Analysis — what the spec asks that is not built~~ — ALL BUILT (2026-09-25)
 
-Audited 2026-09-22 against `docs/recovery-revision-analysis-spec.md`, code and
-live database both, after the defects this audit found were fixed
-(20261045000000 and the list-state rewrite). What remains is missing, not
-broken:
+Audited 2026-09-22 against `docs/recovery-revision-analysis-spec.md`. Every
+item is now built and measured; where each landed:
 
-* **§6.3, the Analysis "main screen", does not exist.** The spec's chapter list
-  — one row per chapter with anything open, sorted by open mistakes, pinned by
-  `revision_failed` and by `times_wrong >= REPEATED_MISTAKE_PIN`, each row
-  showing open / repeated / accuracy / trend / oldest open / revision status —
-  is built nowhere. `REPEATED_MISTAKE_PIN` is exported and read by nothing.
-  The nearest things are Recovery's card list (open mistakes only) and the
-  Subjects & Chapters grid (attempt accuracy, the twelve weakest).
-* **§6.4 trends are computed differently from the spec.** The spec compares the
-  latest three sessions with the previous three, from `chapter_tally`. The
-  code compares the second half of the run with the first half, from
-  `practice_sessions` filtered to sessions whose single chapter matches — so a
-  chapter practised inside subject sessions never gets a trend at all.
-* **§4.4 "clear anyway, with a confirm" is missing.** The engine clears a
-  chapter itself on a READY session; on NOT READY the result offers nothing,
-  so the student cannot choose to mark it recovered as the spec's worked
-  example does.
-* **§5.4 difficulty matching is missing.** A revision check's fresh half is the
-  chapter's oldest unseen questions (`ORDER BY created_at`), whatever their
-  difficulty.
-* **§9 notifications are not built.** No function or cron job writes a
-  recovery or revision notification; the live table holds none, ever. This is
-  a locked decision ("students get notified about pending recovery and
-  revision"). Building it puts scheduled pushes on real phones, so it waits
-  for the owner.
-* **The spec document is stale on the constants.** Trigger 1 (spec 5),
-  engagement 3 (spec 10), intervals 7/7/7 + solid 30 (spec 7/21/60, solid
-  leaves the queue), and misses carried into revision checks
-  (`REVISION_MISTAKE_MAX`, spec "never the old questions") are all recorded
-  rulings with measured rationales in `recovery_constants`, and the document
-  was never updated to say so.
-* Latent: a ladder question the practice loader filters out (retired between
-  plan and sitting) is dropped without a word while its tier total still
-  counts it (0 of 249 planned questions affected today); and `_apply_chapter_state`
-  resets a SOLID chapter's 30-day clock to 7 days whenever it is practised.
+* **§6.3 the Analysis main screen** — "Chapters to fix" (`WeakChapterList`,
+  `useWeakChapters`): one row per chapter with anything open, pinned by a failed
+  revision or repeated mistakes, showing open / repeated / accuracy with its
+  denominator / trend / oldest open / revision state; a row opens onto §6.5 —
+  mistakes by topic, the topics skipped most, pace against the student's own
+  average, and "try the ones you skipped". Checked on www.gurukul.study against
+  the database on 2026-09-25 (Principles of Management: 3 open, 2 repeated, 2
+  of 8 = 25%, 2 sessions — every figure matches).
+* **§6.4 trends** — the latest three sessions against the three before, from
+  `chapter_tally` (4d230aca, 20261059000000).
+* **§4.4 clear anyway, with a confirm** — `rpc_clear_chapter_after_recovery`
+  (20261053000000), "Mark as recovered anyway" on a not-ready result.
+* **§5.4 difficulty matching** — 20261100000000 (KNOWN_ISSUES 81).
+* **§9 notifications** — 20261102000000/03/06 (KNOWN_ISSUES 81).
+* **The spec document's constants** — trigger 1, engagement 3, 7/7/7 + solid
+  30, misses carried into checks: all stated in the spec with their rulings.
+* Latent: a withdrawn ladder question is neither planned nor scored
+  (20261093000000); a solid chapter's clock returning to 7 days on practice is
+  the owner's rule, not a defect (KNOWN_ISSUES 81).
 
 ## 68. ~~Students can read the practice answer key~~ — FIXED 2026-09-22 (item 2: 20261046–20261050), released 2026-09-22
 
@@ -3545,7 +3528,7 @@ now-unused `rpc_question_hint`, and deriving `rpc_practice_bank_catalog`'s board
 a parameter (lint-tenant-scope's entry for it says why). The owner renews the token in the Supabase dashboard
 (Account → Access Tokens) and puts it in `.env.local`.
 
-## 76. rpc_question_hint is live and unused — OPEN, waiting on 75
+## 76. ~~rpc_question_hint is live and unused~~ — FIXED 2026-09-25, dropped by 20261107000000
 
 Item 2 (on claude/busy-shannon-nymdhd) kept a hint behind a per-question RPC; the practice ruling of 2026-09-18
 (claude/question-topics-per-chapter) had already removed the hint, because the bank has no hint text and the "hint"
@@ -3687,58 +3670,45 @@ to a question that no longer says what they claim. That needs the database
 token (75) and a migration with its own proof; it is recorded here rather than
 attempted from the client.
 
-## 81. The three revision defects: fixes written, NOT APPLIED (blocked by 75)
+## 81. ~~The three revision defects~~ — 9, 10 and 13 FIXED and applied 2026-09-25; 11 CLOSED by the owner's ruling
 
-Items 9, 10 and 11 of the practice report. All three live in database
-functions, and the Management API token is dead (75), so all three are
-written, parse-checked against the real Postgres grammar, and unapplied. Each
-carries its rollback and a proof that can fail.
+Written 2026-09-23 as 20261055/56/57000000 while the token was dead (75), never
+applied, and rebased on the live schema on 2026-09-25 before anything ran —
+`_apply_chapter_state` had been rewritten twice since (20261071000000,
+20261077000000), so applying the old files would have undone both.
 
-**9 — nothing reminded anybody** (`20261057000000`). §4.1b asks for escalating
-reminders, at most one a day, batched across chapters, stopping when the
-student starts; §5 says an overdue revision surfaces in notifications; §9 says
-never more than one a day. None of it existed: `notifications` holds homework,
-results, exams, attendance, announcements and badges, and not one row for the
-feature the whole spec is about. `send_learning_reminders()` writes one
-batched notification per student per day, naming how many chapters are due and
-escalating when the oldest is a week or more overdue; cron
-`learning-reminders` runs it at 04:00 UTC (09:30 IST). It needs no client
-change — the notifications screen already renders what it writes. Its proof
-creates two overdue chapters for a student who has no state row for them,
-asserts exactly one reminder, that it escalates, that a second run the same
-day writes nothing, and — the control — that a student with nothing waiting is
-not reminded; then it removes only what it created.
+**10 — a check was set by insertion order — FIXED, `20261100000000`.** The
+revision plan's fresh half was the chapter's oldest unseen rows. It is now
+drawn nearest the level the student works at in that chapter
+(`_student_difficulty_rank`: the mean difficulty of what they answered there,
+then anywhere, then medium), and the plan reports `level`. Rebased cleanly: the
+live function was exactly the version the fix was written against. Measured on
+the CUET audit account: Reconstitution of Partnership (bank: 45 hard, 12
+medium, 16 easy) gives a medium-level student 8 medium fresh questions.
 
-**10 — a check was set by insertion order** (`20261056000000`).
-`rpc_revision_session_plan` drew its fresh half `ORDER BY qb.created_at`: the
-eight oldest unseen rows of the chapter. The live bank is 7,498 easy, 9,847
-medium and 4,520 hard, seeded chapter by chapter, so which difficulty a
-retention check is made of was decided by which rows a seed script wrote
-first. A student working at hard could be checked on easy questions and learn
-nothing from passing; one working at easy could be handed hard ones and fail a
-chapter they were never taught to that depth. The fresh half is now ordered by
-distance from the level that student has been working at IN THAT CHAPTER
-(`_student_difficulty_rank`, mean of the difficulties they have answered
-there; their whole history next; medium for a new student), `created_at`
-breaking ties. Nearest, not equal — a chapter with two unseen questions left
-still gives a check, and `fresh_short` still reports it rather than padding.
-The plan now also returns `level`, so a screen can say what the check was set
-at instead of implying it.
+**9 and 13 — nothing reminded anybody — FIXED, `20261102000000` +
+`20261103000000`.** `send_learning_reminders()`, cron `learning-reminders` at
+04:00 UTC (09:30 IST): one batched reminder per student per day, overdue
+revisions first. The 2026-09-23 draft could not have worked and would have done
+harm: it counted recovery as `started_at IS NULL`, which is never true (the
+column defaults to now() at build), and its proof ran the job for every student
+inside the migration and kept what it wrote — a push to real phones at
+whatever hour it ran. Now recovery is read from what the Recovery card offers
+(`_recovery_queue_for`, 20261101000000, which also gave "startable" one home in
+place of three copies), and the proof rolls back everything it writes. First
+reminder, sent to the CUET audit account only: "10 chapters are ready to
+review", opening Recovery with 10 ready. Then brought to the spec's cadence
+(`20261106000000`): that first version would have repeated every morning for
+as long as anything waited. Now revision is reminded on the due date and a
+week overdue, recovery after 1, 3 and 7 days unsolved (nothing at creation,
+§4.1b), naming the chapter and when it was worked on (§5); and "one a day" is a
+20-hour window, because a 24-hour one skipped every other daily run.
 
-**11 — practising a solid chapter dragged it back to weekly**
-(`20261055000000`). `_apply_chapter_state` scheduled every engaged chapter at
-`_revision_interval_days(1)` — always 7 days — whatever stage it had reached.
-So a chapter the student had passed three checks on, on the 30-day cycle, came
-back to a check seven days later BECAUSE they practised it: the exact reverse
-of §5.2's "a student actively working on something does not need a reminder to
-revise it". `_revision_next_at(stage)` is now the one home for that date and
-the state machine asks it with the chapter's own stage.
-
-**To apply, once the token is back:** dry-run all three
-(`node scripts/local-replica/dry-run.mjs`), then apply in order 55, 56, 57.
-20261055000000 and 20261056000000 replace one function each and are safe to
-re-run; 20261057000000 schedules a cron job and unschedules it first, so it is
-too. None of their plpgsql has executed anywhere.
+**11 — practising a solid chapter brings its check back to 7 days — CLOSED,
+not a defect.** The owner's rule (2026-09-24): a revision is set a week after
+every practice session. `_apply_chapter_state` does exactly that; the draft
+that kept a solid chapter on its 30-day clock contradicted the rule and was
+deleted unapplied.
 
 ## 82. The three "extra" practice findings — two fixed, one written and blocked
 

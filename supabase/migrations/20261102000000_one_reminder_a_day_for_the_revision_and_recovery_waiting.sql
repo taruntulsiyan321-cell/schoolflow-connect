@@ -27,13 +27,33 @@
 --     how long, and that is the line the student sees first.
 --   * It stops on its own: a chapter stops being due the moment the check is
 --     sat (rpc_submit_revision_session moves next_revision_at), and a recovery
---     chapter leaves the queue when its session is started. Nothing has to
---     remember to cancel a reminder.
+--     chapter stops being waiting when its session is finished. Nothing has
+--     to remember to cancel a reminder.
 --   * Nothing is sent to a student with nothing waiting.
 --
 -- The school's own link is used, not a deep link per chapter: the student
 -- lands on Revision (or Recovery, when that is all there is) and picks, which
 -- is the "app suggests, student decides" rule §10.8 sets.
+--
+-- WHAT COUNTS AS WAITING — the same thing the screens say:
+--   revision  a chapter whose next check date has passed (the Revision page's
+--             "due").
+--   recovery  a chapter the Recovery card offers "Start recovery" on — read
+--             from _recovery_queue_for, the card's own home (20261101000000).
+--             A chapter the card says cannot start yet is not advertised.
+--
+-- Written 2026-09-23 as 20261057000000 and never applied; rewritten on
+-- 2026-09-25 against the live schema. The first draft counted recovery as
+-- `started_at IS NULL`, which is never true (the column defaults to now() at
+-- build time), so no recovery reminder could ever have been sent; and its proof
+-- ran the job for every student inside the migration and kept what it wrote —
+-- a push to real phones at whatever hour the migration ran. The proof below
+-- rolls back everything it writes.
+--
+-- ROLLBACK: rollback/20261102000000_one_reminder_a_day_for_the_revision_and_recovery_waiting.rollback.sql
+
+BEGIN;
+
 
 CREATE OR REPLACE FUNCTION public.send_learning_reminders()
 RETURNS jsonb
@@ -50,6 +70,7 @@ DECLARE
   _title        text;
   _body         text;
   _link         text;
+  _icon         text;
 BEGIN
   FOR _r IN
     WITH due AS (
@@ -64,14 +85,18 @@ BEGIN
          AND cs.next_revision_at <= now()
        GROUP BY cs.user_id
     ),
+    students AS (
+      SELECT DISTINCT sm.user_id
+        FROM public.student_mistakes sm
+       WHERE sm.status = 'open' AND sm.chapter_id IS NOT NULL
+    ),
     ready AS (
-      -- Recovery sessions that are built and have not been started. Starting
-      -- one is what stops its reminder (§4.1b).
-      SELECT rs.user_id, count(*)::int AS ready_count
-        FROM public.recovery_sessions rs
-       WHERE rs.started_at IS NULL
-         AND rs.completed_at IS NULL
-       GROUP BY rs.user_id
+      -- Exactly the chapters the Recovery card offers "Start recovery" on.
+      SELECT st.user_id, count(*)::int AS ready_count
+        FROM students st
+        CROSS JOIN LATERAL jsonb_array_elements(public._recovery_queue_for(st.user_id)) q
+       WHERE (q->>'ready')::boolean AND (q->>'startable')::boolean
+       GROUP BY st.user_id
     )
     SELECT COALESCE(d.user_id, r.user_id) AS user_id,
            COALESCE(d.due_count, 0)       AS due_count,
@@ -112,6 +137,7 @@ BEGIN
                         THEN ' ' || _r.ready_count || ' recovery session(s) are ready too.'
                         ELSE '' END;
       _link  := '/student/revision';
+      _icon  := 'calendar-check';
     ELSIF _r.due_count > 0 THEN
       _title := CASE WHEN _r.due_count = 1
                      THEN '1 chapter is ready for its revision check'
@@ -121,17 +147,19 @@ BEGIN
                         THEN ' ' || _r.ready_count || ' recovery session(s) are ready too.'
                         ELSE '' END;
       _link  := '/student/revision';
+      _icon  := 'calendar-check';
     ELSIF _r.ready_count > 0 THEN
       _title := CASE WHEN _r.ready_count = 1
                      THEN '1 chapter is ready to review'
                      ELSE _r.ready_count || ' chapters are ready to review' END;
       _body  := 'Your recovery session is built and waiting.';
       _link  := '/student/recovery';
+      _icon  := 'book-open';
     ELSE
       CONTINUE;   -- nothing waiting: say nothing
     END IF;
 
-    PERFORM public._notify(_r.user_id, 'learning.reminder', _title, _body, 'sparkles', _link);
+    PERFORM public._notify(_r.user_id, 'learning.reminder', _title, _body, _icon, _link);
     _sent := _sent + 1;
   END LOOP;
 
@@ -164,49 +192,30 @@ SELECT cron.schedule('learning-reminders', '0 4 * * *', $$SELECT public.send_lea
 
 -- ── THE PROOF ────────────────────────────────────────────────────────────
 --
--- It runs the job against live data and then puts back exactly what it wrote.
--- Four assertions, and they fail in four different ways:
+-- Runs the job on rows this block creates, measures, and then ROLLS BACK
+-- everything the job wrote — for the probe student and for anyone else it
+-- reached — by raising inside a sub-block. Nothing it does survives, so
+-- nothing is pushed to a phone. Five assertions, failing five ways:
 --
---   1. A student with a chapter due gets a reminder — proved on a chapter
---      state this block creates for a real student and removes again.
---   2. ONE a day: the second run writes nothing for that student.
---   3. The batch is one notification for both chapters, not two.
---   4. CONTROL: with the due dates removed, the same run writes nothing —
---      so assertion 1 is measuring the reminder and not a function that
---      notifies everybody.
+--   1. A student with two overdue chapters gets exactly ONE reminder (batched).
+--   2. It escalates: the title says overdue.
+--   3. It uses an icon the Notifications screen knows.
+--   4. ONE a day: a second run the same day writes nothing more.
+--   5. CONTROL: with the due dates gone, a fresh run writes nothing — so 1 is
+--      measuring the reminder, not a job that notifies everybody.
 DO $guard$
 DECLARE
-  _uid      uuid;
-  _sid      uuid;
-  _school   uuid;
-  _chap_a   uuid;
-  _chap_b   uuid;
-  _before   int;
-  _after    int;
-  _second   int;
-  _control  int;
-  _out      jsonb;
+  _uid uuid; _sid uuid; _school uuid; _chap_a uuid; _chap_b uuid;
+  _first int; _escalated boolean; _icon text; _second int; _control int;
 BEGIN
-  -- A student who has NOT been reminded today (every student, the first time
-  -- this runs) — so assertion 2 measures the one-a-day rule rather than
-  -- something this block had to clear out of the way. Nothing belonging to a
-  -- student is deleted or overwritten anywhere in this proof.
   SELECT s.user_id, s.id, s.school_id INTO _uid, _sid, _school
-    FROM public.students s
-    JOIN public.profiles p ON p.id = s.user_id
+    FROM public.students s JOIN public.profiles p ON p.id = s.user_id
    WHERE s.user_id IS NOT NULL
-     AND NOT EXISTS (
-       SELECT 1 FROM public.notifications n
-        WHERE n.user_id = s.user_id AND n.type = 'learning.reminder'
-          AND n.created_at > now() - interval '1 day')
-   ORDER BY s.created_at
-   LIMIT 1;
-  IF _uid IS NULL THEN
-    RAISE EXCEPTION 'no student without a reminder today to prove this with';
-  END IF;
+     AND NOT EXISTS (SELECT 1 FROM public.chapter_state cs WHERE cs.user_id = s.user_id AND cs.next_revision_at <= now())
+     AND NOT EXISTS (SELECT 1 FROM public.student_mistakes sm WHERE sm.user_id = s.user_id AND sm.status = 'open')
+   ORDER BY s.created_at LIMIT 1;
+  IF _uid IS NULL THEN RAISE EXCEPTION 'no student with nothing waiting to prove this with'; END IF;
 
-  -- Chapters this student has NO state row for, so the rows below are this
-  -- block's own and removing them restores exactly what was there.
   SELECT id INTO _chap_a FROM public.chapters c
    WHERE NOT EXISTS (SELECT 1 FROM public.chapter_state cs WHERE cs.user_id = _uid AND cs.chapter_id = c.id)
    ORDER BY created_at LIMIT 1;
@@ -214,74 +223,41 @@ BEGIN
    WHERE c.id <> _chap_a
      AND NOT EXISTS (SELECT 1 FROM public.chapter_state cs WHERE cs.user_id = _uid AND cs.chapter_id = c.id)
    ORDER BY created_at LIMIT 1;
-  IF _chap_a IS NULL OR _chap_b IS NULL THEN
-    RAISE EXCEPTION 'two unscheduled chapters are needed to prove the batching without touching this student''s own';
-  END IF;
 
-  SELECT count(*)::int INTO _before FROM public.notifications
-   WHERE user_id = _uid AND type = 'learning.reminder';
+  BEGIN
+    DELETE FROM public.notifications WHERE user_id = _uid AND type = 'learning.reminder';
+    INSERT INTO public.chapter_state (user_id, student_id, school_id, chapter_id, state, next_revision_at, revision_stage)
+    VALUES (_uid, _sid, _school, _chap_a, 'untouched', now() - interval '9 days', 1),
+           (_uid, _sid, _school, _chap_b, 'untouched', now() - interval '2 days', 1);
 
-  -- Two chapters, both overdue, on rows this block owns.
-  INSERT INTO public.chapter_state (user_id, student_id, school_id, chapter_id, state, next_revision_at, revision_stage)
-  VALUES (_uid, _sid, _school, _chap_a, 'untouched', now() - interval '9 days', 1),
-         (_uid, _sid, _school, _chap_b, 'untouched', now() - interval '2 days', 1);
+    PERFORM public.send_learning_reminders();
+    SELECT count(*)::int, bool_or(title LIKE '%overdue%'), min(icon)
+      INTO _first, _escalated, _icon
+      FROM public.notifications WHERE user_id = _uid AND type = 'learning.reminder';
 
-  _out := public.send_learning_reminders();
+    PERFORM public.send_learning_reminders();
+    SELECT count(*)::int INTO _second FROM public.notifications WHERE user_id = _uid AND type = 'learning.reminder';
 
-  SELECT count(*)::int INTO _after FROM public.notifications
-   WHERE user_id = _uid AND type = 'learning.reminder'
-     AND created_at > now() - interval '1 minute';
-  IF _after <> 1 THEN
-    RAISE EXCEPTION 'a student with two overdue chapters got % reminders, expected exactly 1 (%)', _after, _out;
-  END IF;
+    DELETE FROM public.notifications WHERE user_id = _uid AND type = 'learning.reminder';
+    DELETE FROM public.chapter_state WHERE user_id = _uid AND chapter_id IN (_chap_a, _chap_b);
+    PERFORM public.send_learning_reminders();
+    SELECT count(*)::int INTO _control FROM public.notifications WHERE user_id = _uid AND type = 'learning.reminder';
 
-  IF NOT EXISTS (
-    SELECT 1 FROM public.notifications n
-     WHERE n.user_id = _uid AND n.type = 'learning.reminder'
-       AND n.created_at > now() - interval '1 minute'
-       AND n.title LIKE '%overdue%'
-  ) THEN
-    RAISE EXCEPTION 'the reminder did not escalate for a chapter nine days overdue';
-  END IF;
+    RAISE EXCEPTION 'proof_rollback';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'proof_rollback' THEN RAISE; END IF;
+  END;
 
-  PERFORM public.send_learning_reminders();
-  SELECT count(*)::int INTO _second FROM public.notifications
-   WHERE user_id = _uid AND type = 'learning.reminder'
-     AND created_at > now() - interval '1 minute';
-  IF _second <> 1 THEN
-    RAISE EXCEPTION 'a second run the same day wrote another reminder (% now)', _second;
-  END IF;
+  IF _first <> 1 THEN RAISE EXCEPTION 'two overdue chapters gave % reminders, expected exactly 1', _first; END IF;
+  IF NOT _escalated THEN RAISE EXCEPTION 'a chapter nine days overdue did not escalate'; END IF;
+  IF _icon IS DISTINCT FROM 'calendar-check' THEN RAISE EXCEPTION 'the reminder carries icon %, which the screen does not draw', _icon; END IF;
+  IF _second <> 1 THEN RAISE EXCEPTION 'a second run the same day left % reminders', _second; END IF;
+  IF _control <> 0 THEN RAISE EXCEPTION 'CONTROL FAILED: nothing waiting, and % reminder(s) written', _control; END IF;
 
-  -- CONTROL: nothing waiting, nothing said. Only this block's own rows are
-  -- cleared — the two chapter states it created, and the reminder it caused.
-  DELETE FROM public.notifications
-   WHERE user_id = _uid AND type = 'learning.reminder'
-     AND created_at > now() - interval '1 minute';
-  DELETE FROM public.chapter_state
-   WHERE user_id = _uid AND chapter_id IN (_chap_a, _chap_b);
-
-  PERFORM public.send_learning_reminders();
-  SELECT count(*)::int INTO _control FROM public.notifications
-   WHERE user_id = _uid AND type = 'learning.reminder'
-     AND created_at > now() - interval '1 minute';
-  IF _control <> 0 THEN
-    RAISE EXCEPTION 'CONTROL FAILED: a student with nothing waiting was reminded % time(s)', _control;
-  END IF;
-
-  -- Put the world back: the count of this student's reminders must be what it
-  -- was before (their chapter states went with the control above).
-  DELETE FROM public.notifications
-   WHERE user_id = _uid AND type = 'learning.reminder'
-     AND created_at > now() - interval '5 minutes';
-
-  SELECT count(*)::int INTO _after FROM public.notifications
-   WHERE user_id = _uid AND type = 'learning.reminder';
-  IF _after <> _before THEN
-    RAISE WARNING 'the proof left this student with % learning reminders, started with %', _after, _before;
+  IF EXISTS (SELECT 1 FROM public.notifications WHERE type = 'learning.reminder' AND created_at > now() - interval '1 minute') THEN
+    RAISE EXCEPTION 'the proof left a reminder behind';
   END IF;
 END
 $guard$;
 
-INSERT INTO public.schema_migrations (version)
-VALUES ('20261057000000_one_reminder_a_day_for_the_revision_and_recovery_waiting')
-ON CONFLICT (version) DO NOTHING;
+COMMIT;

@@ -413,12 +413,24 @@ what make it land.
 ### 5.4 What the session contains
 
 ```
-REVISION_COUNT (default 8) fresh questions
-same chapter, never seen by this student, difficulty matched
+up to REVISION_MISTAKE_MAX (5) of the chapter's open mistakes, most-repeated first
++ REVISION_COUNT (8) fresh questions: same chapter, never seen by this student,
+  drawn nearest the level they work at in that chapter
 ```
 
-**Never the old questions.** Including them would test memory of specific
-questions, which is precisely what revision exists to rule out.
+**The fresh half is never the old questions** — only questions this student has
+never answered and never got wrong. Including seen ones there would test memory
+of specific questions, which is what the fresh half exists to rule out.
+
+**The misses are carried in on purpose** (ruled 2026-09-18, `REVISION_MISTAKE_MAX`):
+fresh-only cannot tell the student whether the specific things they got wrong
+have stuck. The two halves are reported separately.
+
+**Level (20261100000000).** The fresh half is ordered by distance from the mean
+difficulty of what the student has answered in that chapter (then anywhere, then
+medium for a new student), oldest first among equals. Nearest, not equal: a
+chapter with few unseen questions left still gives a check, and a short one is
+reported as short (`fresh_short`), never padded.
 
 ### 5.5 Pass and fail
 
@@ -573,10 +585,20 @@ suggestions; it never leaves.
 
 Locked decision: students get notified about pending recovery and revision.
 
-- **Recovery due:** once, when the trigger fires. **Not repeated.**
+- **Recovery ready:** nothing when the session is built (§4.1b); if it goes
+  unsolved, a reminder after **1, 3 and 7 days**, then silent. "Ready" is what
+  the Recovery card offers "Start recovery" on, counted from its last finished
+  round or its oldest open mistake, whichever is later. *(This reconciles §4.1b
+  with the earlier "once, when the trigger fires", which contradicted §4.1b's
+  no-ping-at-creation rule. Ruled 2026-09-25.)*
 - **Revision due:** once on the due date, once again after 7 days overdue, then
-  silent. It remains visible in analysis.
+  silent. It remains visible in analysis. It names the chapter and when it was
+  worked on (§5.3): *"Time to check Cash Flow Statement stuck — You worked on
+  Cash Flow Statement 7 days ago."*
 - **Daily practice reminder** is separate (§10.12) and switchable off.
+
+Built: `send_learning_reminders()`, cron `learning-reminders` at 04:00 UTC
+(09:30 IST) — 20261102000000, 20261106000000.
 
 **Never more than one recovery or revision notification a day**, regardless of how
 many chapters qualify. Batch them: *"3 chapters need review."* Nagging is how a

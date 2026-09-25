@@ -24,11 +24,13 @@ const sessionFor = (id: string, token = "t1") => ({ access_token: token, user: {
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     auth: {
+      // As the real client does: every new listener is sent INITIAL_SESSION
+      // with the stored session, straight after it subscribes.
       onAuthStateChange: (cb: (event: string, session: unknown) => void) => {
         h.listener = cb;
+        queueMicrotask(() => cb("INITIAL_SESSION", sessionFor("u1")));
         return { data: { subscription: { unsubscribe: () => {} } } };
       },
-      getSession: () => Promise.resolve({ data: { session: sessionFor("u1") } }),
     },
   },
 }));
@@ -76,6 +78,29 @@ describe("AuthProvider — the same user's auth events", () => {
     expect(screen.queryByText("spinner")).toBeNull();
     expect(h.mounts, "the page was torn down and built again").toBe(mountsAfterBoot);
     expect(h.loadAuthContext).toHaveBeenCalledTimes(loadsAfterBoot);
+  });
+
+  it("a cold start loads the context once, whatever events arrive while it loads", async () => {
+    // Measured 2026-09-25: INITIAL_SESSION, then SIGNED_IN and TOKEN_REFRESHED
+    // inside the same second, each started the whole role/profile/school chain.
+    let finish: (v: unknown) => void = () => {};
+    h.loadAuthContext.mockImplementation(() => new Promise((r) => { finish = r; }));
+    render(<AuthProvider><Gate /></AuthProvider>);
+    await waitFor(() => expect(h.loadAuthContext).toHaveBeenCalledTimes(1));
+    act(() => { h.listener?.("SIGNED_IN", sessionFor("u1", "t2")); });
+    act(() => { h.listener?.("TOKEN_REFRESHED", sessionFor("u1", "t3")); });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(h.loadAuthContext).toHaveBeenCalledTimes(1);
+    await act(async () => { finish(context("u1")); });
+    expect(await screen.findByText("page for u1")).toBeInTheDocument();
+    expect(h.loadAuthContext).toHaveBeenCalledTimes(1);
+  });
+
+  it("a signed-out start shows no spinner and loads nothing", async () => {
+    render(<AuthProvider><Gate /></AuthProvider>);
+    await screen.findByText("page for u1"); // the mock's stored session
+    act(() => { h.listener?.("SIGNED_OUT", null); });
+    expect(await screen.findByText("page for")).toBeInTheDocument();
   });
 
   it("POSITIVE CONTROL: a different user signing in does reload", async () => {

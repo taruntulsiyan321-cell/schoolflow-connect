@@ -60,6 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ctx, setCtx] = useState<AuthContextData | null>(null);
   const [loading, setLoading] = useState(true);
   const bootstrapped = useRef<string | null>(null);
+  /** The user whose context is loading now — an event for them waits for it. */
+  const loadingFor = useRef<string | null>(null);
   /** Monotonic id so a slower loadAuthContext cannot overwrite a newer session. */
   const contextRequestId = useRef(0);
 
@@ -72,9 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       setCtx(null);
       bootstrapped.current = null;
+      loadingFor.current = null;
       setLoading(false);
       return;
     }
+    loadingFor.current = uid;
     setLoading(true);
     try {
       const data = await Promise.race([
@@ -94,7 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("[auth] failed to load context", err);
       setCtx(null);
     } finally {
-      if (id === contextRequestId.current) setLoading(false);
+      if (id === contextRequestId.current) {
+        loadingFor.current = null;
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -112,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         contextRequestId.current += 1;
         setCtx(null);
         bootstrapped.current = null;
+        loadingFor.current = null;
         // Also fires on token expiry, another tab signing out, and server-side
         // revocation — not just the signOut() button — so the caches have to be
         // dropped here too or the next user on this device reads them.
@@ -135,7 +143,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // the student was put back on the Practice hub. The identity already
         // loaded is still this user's; only a different user, or an explicit
         // refreshAuth(), reloads it.
-        if (bootstrapped.current === sess.user.id) return;
+        //
+        // Nor is a second event while their context is STILL LOADING. A cold
+        // start delivers INITIAL_SESSION and then SIGNED_IN or TOKEN_REFRESHED
+        // within the same second, and `bootstrapped` is only set once a load
+        // finishes — so each event started the whole chain again. Measured
+        // 2026-09-25 on www.gurukul.study: link_portal_on_auth, rpc_start_session,
+        // get_my_role and get_auth_context each ran three times, one after the
+        // other, before the first page query left at +4.9 s.
+        if (bootstrapped.current === sess.user.id || loadingFor.current === sess.user.id) return;
         // Keep loading=true until role/profile resolve — same as pre-refactor.
         // Without this, Auth/Index briefly see user+!role and send users to
         // /unauthorized ("No portal role") before loadAuthContext finishes.
@@ -147,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // it again for itself and wrongly treat itself as the newest
         // request, resurrecting stale profile/role state right after logout.
         const requestId = ++contextRequestId.current;
+        loadingFor.current = sess.user.id;
         setTimeout(() => {
           void applyContext(sess.user.id, requestId);
         }, 0);
@@ -154,19 +171,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         contextRequestId.current += 1;
         setCtx(null);
         bootstrapped.current = null;
+        loadingFor.current = null;
         setLoading(false);
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        void applyContext(s.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
+    // No separate getSession() here. The client emits INITIAL_SESSION to every
+    // new listener — with the stored session, or null — so the handler above
+    // is the one place a session starts loading; a second starter was one of
+    // the three chains a cold start ran.
 
     return () => sub.subscription.unsubscribe();
   }, [applyContext, queryClient]);
