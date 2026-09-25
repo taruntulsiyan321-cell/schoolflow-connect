@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRuleConceptReport, type ConceptRecoveryReport } from "./conceptReportFallback";
+import { buildRuleConceptReport, weakConceptLabels, type ConceptRecoveryReport } from "./conceptReportFallback";
 
 /**
  * The word "null" reached a student's test report.
@@ -141,5 +141,32 @@ describe("the rule-based concept report never shows a student a placeholder", ()
     expect(text).toContain("Arithmetic Progressions (20%)");
     // And the accuracy still chooses the advice.
     expect(out.headline).toContain("Focus recovery");
+  });
+});
+
+describe("a weak concept is called one thing, everywhere", () => {
+  // Measured 2026-09-25 on www.gurukul.study, a Business Studies session: the
+  // report listed "Marketing · 0%" twice — one question from Directing, one
+  // from Consumer Protection — and its "Planning" chapter as "Economic Planning".
+  const weak = [
+    { subject: "Business Studies", chapter: "Directing", concept: "Marketing", accuracy: 0 },
+    { subject: "Business Studies", chapter: "Planning", concept: "Planning", accuracy: 0 },
+    { subject: "Business Studies", chapter: "Consumer Protection", concept: "Marketing", accuracy: 0 },
+  ];
+
+  it("a name two rows share carries its chapter; a name of its own does not", () => {
+    expect(weakConceptLabels(weak)).toEqual(["Marketing (Directing)", "Planning", "Marketing (Consumer Protection)"]);
+  });
+
+  it("the sentences use the same names as the chips", () => {
+    const out = buildRuleConceptReport(report({ weak_concepts: weak }));
+    expect(out.bullets.join(" ")).toContain("Marketing (Directing) (0%), Planning (0%), Marketing (Consumer Protection) (0%)");
+  });
+
+  it("CONTROL: one row per name is left as it is, and an untagged row has no name", () => {
+    expect(weakConceptLabels([
+      { subject: "Physics", chapter: "Optics", concept: "Refraction", accuracy: 40 },
+      { subject: "Physics", chapter: "Optics", concept: null, accuracy: 0 },
+    ])).toEqual(["Refraction", null]);
   });
 });
