@@ -3545,7 +3545,7 @@ now-unused `rpc_question_hint`, and deriving `rpc_practice_bank_catalog`'s board
 a parameter (lint-tenant-scope's entry for it says why). The owner renews the token in the Supabase dashboard
 (Account → Access Tokens) and puts it in `.env.local`.
 
-## 76. rpc_question_hint is live and unused — OPEN, waiting on 75
+## 76. ~~rpc_question_hint is live and unused~~ — FIXED 2026-09-25, dropped by 20261107000000
 
 Item 2 (on claude/busy-shannon-nymdhd) kept a hint behind a per-question RPC; the practice ruling of 2026-09-18
 (claude/question-topics-per-chapter) had already removed the hint, because the bank has no hint text and the "hint"
@@ -3714,7 +3714,12 @@ whatever hour it ran. Now recovery is read from what the Recovery card offers
 (`_recovery_queue_for`, 20261101000000, which also gave "startable" one home in
 place of three copies), and the proof rolls back everything it writes. First
 reminder, sent to the CUET audit account only: "10 chapters are ready to
-review", opening Recovery with 10 ready.
+review", opening Recovery with 10 ready. Then brought to the spec's cadence
+(`20261106000000`): that first version would have repeated every morning for
+as long as anything waited. Now revision is reminded on the due date and a
+week overdue, recovery after 1, 3 and 7 days unsolved (nothing at creation,
+§4.1b), naming the chapter and when it was worked on (§5); and "one a day" is a
+20-hour window, because a 24-hour one skipped every other daily run.
 
 **11 — practising a solid chapter brings its check back to 7 days — CLOSED,
 not a defect.** The owner's rule (2026-09-24): a revision is set a week after
