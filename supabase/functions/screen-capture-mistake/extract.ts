@@ -7,6 +7,7 @@ import {
   isOpenRouterConfigured,
 } from "../_shared/modelRouter.ts";
 import type { FrameExtraction } from "./gates.ts";
+import { stripOptionLabels } from "../_shared/optionLabels.ts";
 
 const SYSTEM = [
   "You read ONE screenshot from a student's exam-prep app (e.g. Physics Wallah).",
@@ -26,7 +27,8 @@ const SYSTEM = [
   "- score_only: boolean",
   "- teacher_solve: boolean",
   "- question_text: string or null",
-  "- options: string[] or null (MCQ choices in order)",
+  "- options: string[] or null (MCQ choices in order, each as its text only —",
+  "  without the (A)/(B)/1./a) label the screen prints before it)",
   "- student_chosen_index: 0-based index of the student's choice, or null",
   "- correct_index: 0-based correct option when visible, or null",
   "- correct_answer: string when non-MCQ / when index unavailable",
@@ -53,7 +55,7 @@ function parseExtraction(text: string): FrameExtraction | null {
 
   const optionsRaw = obj.options;
   const options = Array.isArray(optionsRaw)
-    ? optionsRaw.map((o) => String(o)).filter((s) => s.trim().length > 0)
+    ? stripOptionLabels(optionsRaw.map((o) => String(o)).filter((s) => s.trim().length > 0))
     : null;
 
   const idx = (v: unknown): number | null => {
