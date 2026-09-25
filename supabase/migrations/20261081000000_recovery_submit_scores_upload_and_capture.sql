@@ -64,6 +64,8 @@ BEGIN
     RETURN jsonb_build_object('already', true, 'session_id', _rs.id, 'outcome', _rs.outcome);
   END IF;
 
+  -- A session started before the ladder was stored cannot be scored from
+  -- evidence, and guessing is exactly what this function exists to stop.
   IF _rs.plan IS NULL THEN
     RAISE EXCEPTION 'this recovery session predates evidence-based scoring; start a new one';
   END IF;
@@ -79,6 +81,9 @@ BEGIN
   -- §4.2b — each tier counted from the answers given to ITS questions.
   -- Tier 0 may mix bank (from_bank), private uploads (from_upload) and
   -- captures (from_capture). Higher tiers stay bank-only variants.
+  -- A skipped question counts as not-correct for its tier: it was asked and
+  -- not answered, which is the same evidence as answering it wrongly for the
+  -- purpose of "is this idea solid".
   ------------------------------------------------------------------
   FOR _i IN 0..3 LOOP
     SELECT COALESCE(array_agg((v)::uuid), ARRAY[]::uuid[]) INTO _ids_bank
@@ -126,6 +131,8 @@ BEGIN
     _corr[_i + 1] := _n;
   END LOOP;
 
+  -- Still clamped to what was ASKED. The counts are derived now, so this can
+  -- only fire if a tier's stored total disagrees with its own question list.
   FOR _i IN 0..3 LOOP
     _corr[_i + 1] := LEAST(_corr[_i + 1], _tot[_i + 1]);
   END LOOP;
@@ -135,6 +142,7 @@ BEGIN
   _conc_n := _corr[3] + _corr[4];
   _conc_d := _tot[3] + _tot[4];
 
+  -- A rate over zero questions is not 0, it is absent.
   _proc := CASE WHEN _proc_d > 0 THEN round(_proc_n::numeric / _proc_d, 4) END;
   _conc := CASE WHEN _conc_d > 0 THEN round(_conc_n::numeric / _conc_d, 4) END;
   _ready := CASE WHEN (_proc_d + _conc_d) > 0
@@ -143,6 +151,8 @@ BEGIN
   _p_thr := public._recovery_const('RECOVERY_PROCEDURAL_THRESHOLD')::numeric;
   _c_thr := public._recovery_const('RECOVERY_CONCEPTUAL_THRESHOLD')::numeric;
 
+  -- §4.2b: both, independently. Never a blend, never one standing in for the
+  -- other.
   _outcome := CASE
     WHEN _proc IS NOT NULL AND _conc IS NOT NULL
      AND _proc >= _p_thr AND _conc >= _c_thr THEN 'ready'
@@ -162,7 +172,12 @@ BEGIN
   _interval := public._revision_interval_days(1);
 
   IF _outcome = 'ready' THEN
-    -- §4.5 — clear this chapter's open mistakes on a pass (030).
+    -- §4.5: "Those rows -> status = 'cleared', cleared_at set." Without it the
+    -- chapter stays above RECOVERY_TRIGGER_COUNT after being recovered, so it
+    -- is offered for recovery again immediately and for ever, and
+    -- recovery_pending never falls. Only the chapter's OWN open rows, and only
+    -- on a pass. §5.5 keeps previously cleared entries cleared; this is the
+    -- other half of that sentence.
     UPDATE public.student_mistakes SET
       status = 'cleared', cleared_at = now()
     WHERE user_id = _uid AND chapter_id = _rs.chapter_id AND status = 'open';
@@ -175,6 +190,7 @@ BEGIN
       last_recovery_readiness = _ready, updated_at = now()
     WHERE user_id = _uid AND chapter_id = _rs.chapter_id;
   ELSE
+    -- §4.6 lets them go again; the round counter records the repeat.
     UPDATE public.chapter_state SET
       state = 'in_recovery', last_recovery_readiness = _ready, updated_at = now()
     WHERE user_id = _uid AND chapter_id = _rs.chapter_id;
