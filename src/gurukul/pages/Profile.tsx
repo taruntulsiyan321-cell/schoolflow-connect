@@ -34,7 +34,7 @@ function formatDayMonthYear(iso: string) {
 
 /**
  * Student Profile — academic metrics from Academic Engine.
- * Level/XP/league/streak/reputation from ProgressionService (rpc_get_student_progression).
+ * Level/XP/league/streak from ProgressionService (rpc_get_student_progression); helper points from community_reputation.
  * Milestones from live student_badges + featured badges from progression snapshot.
  */
 export default function Profile({
@@ -77,7 +77,7 @@ export default function Profile({
   const [levelProgressPct, setLevelProgressPct] = useState(0);
   const [league, setLeague] = useState("");
   const [streak, setStreak] = useState(0);
-  const [reputation, setReputation] = useState(0);
+  const [helperPoints, setHelperPoints] = useState(0);
   const [featured, setFeatured] = useState<string[]>([]);
   const [classRank, setClassRank] = useState<number | null>(null);
 
@@ -127,6 +127,11 @@ export default function Profile({
         isSchool ? MarksService.listForStudent(ctx, studentId, { limit: 50 }) : Promise.resolve([]),
         isSchool ? HomeworkService.listForStudent(ctx, studentId) : Promise.resolve([]),
         isSchool ? RemarksService.listForStudent(ctx, studentId) : Promise.resolve([]),
+        // Helper points are the Doubt Portal's own record, and the portal is
+        // school-only, so an exam account has none to read.
+        isSchool && user?.id
+          ? supabase.from("community_reputation").select("points").eq("user_id", user.id).maybeSingle()
+          : Promise.resolve(null),
       ]);
       const sRes = settled[0].status === "fulfilled" ? settled[0].value : null;
       const s = sRes?.data;
@@ -197,6 +202,9 @@ export default function Profile({
         setHwToDo(hwOutcomes.filter((o) => o === "to_do").length);
         setHwMissing(hwOutcomes.filter((o) => o === "missed").length);
 
+        const cr = settled[7].status === "fulfilled" ? settled[7].value : null;
+        setHelperPoints(Number((cr?.data as { points?: number } | null)?.points ?? 0));
+
         const rm = settled[6].status === "fulfilled" ? settled[6].value : [];
         setRemarks(
           (Array.isArray(rm) ? rm : []).map((r) => ({
@@ -220,7 +228,6 @@ export default function Profile({
         setLevelProgressPct(prog.level_progress_pct ?? derived.levelProgressPct);
         setLeague(prog.league?.label ?? prog.league?.code ?? "");
         setStreak(prog.study_streak);
-        setReputation(prog.reputation);
         setFeatured(Array.isArray(prog.featured_badges) ? prog.featured_badges : []);
       }
     } catch (e) {
@@ -321,18 +328,19 @@ export default function Profile({
               {rollNumber ? ` · Roll ${rollNumber}` : ""}
             </div>
             {/*
-              "Rep 8" was unexplained and had never been specced. Measured before
-              touching it: it is COMMUNITY reputation, earned in the Doubt Portal
-              — answers x20, upvotes x5, accepted answers x80, computed by
-              `_community_refresh_reputation` and written by three RPCs. It is
-              live and earned (nine students at 10, one at 24, one at 130), so it
-              stays. It just says what it is now.
+              Helper points are the Doubt Portal's: answers x20, upvotes x5,
+              accepted answers x80, kept in community_reputation by
+              _community_refresh_reputation. This line used to show
+              student_xp.reputation under that name — a different number that
+              every practice session, login, recovery and revision moves
+              (progression_xp_rules.reputation_delta) — so an exam account with
+              no Doubt Portal read "12 helper points" after five sessions.
             */}
             <div className="text-xs text-primary mt-0.5">
               Level {level}
               {league ? ` · ${league}` : ""}
               {` · ${xp} XP · Streak ${streak}d`}
-              {reputation > 0 ? ` · ${reputation} helper points` : ""}
+              {helperPoints > 0 ? ` · ${helperPoints} helper points` : ""}
               {isSchool && classRank != null ? ` · Class rank #${classRank}` : ""}
             </div>
             {/*
