@@ -93,6 +93,18 @@ describe("Recovery", () => {
     const label = await screen.findByText("Sessions done");
     expect(label.parentElement?.parentElement?.textContent).toContain("10");
   });
+
+  it("never shows an untagged chapter_id (upload §5.1)", async () => {
+    // Spec: chapter_id IS NULL is practisable but excluded from recovery.
+    signedIn();
+    h.engine.getRecoveryQueue.mockResolvedValue([
+      { ...queueRow, chapter_id: "", chapter: "Orphan" },
+      queueRow,
+    ]);
+    page(<Recovery />);
+    expect(await screen.findByText("Circles")).toBeInTheDocument();
+    expect(screen.queryByText("Orphan")).toBeNull();
+  });
 });
 
 describe("Revision", () => {

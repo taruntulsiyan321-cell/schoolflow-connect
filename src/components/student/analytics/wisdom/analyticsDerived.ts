@@ -137,7 +137,11 @@ export function consistencyWeeks(
   const byDate = new Map<string, { total: number; minutes: number }>();
   for (const d of heatmap ?? []) {
     const key = String(d.date).slice(0, 10);
-    const total = (d.test ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0);
+    // PRACTICE ONLY. Analysis is rule-11 practice-fed; counting test /
+    // homework / battle here put school work into "Practice today" and the
+    // week-vs-week bars. Other surfaces that want all activity kinds still
+    // read the raw heatmap components themselves.
+    const total = d.self_practice ?? 0;
     const prev = byDate.get(key);
     // Summed rather than overwritten: one date should appear once, and if it
     // ever appears twice, losing one of them silently is the worse failure.

@@ -37,6 +37,7 @@ vi.mock("../repository/base", async (importOriginal) => {
     self.or = () => self;
     self.not = () => self;
     self.in = () => self;
+    self.is = () => self;
     self.eq = (col: string, v: unknown) => {
       if (col === "difficulty" || col === "topic_id") keep.push((r) => (r as unknown as Record<string, unknown>)[col] === v);
       return self;
@@ -80,7 +81,7 @@ beforeEach(() => {
     q("s-medium-1", { subject: "Science", chapter: "Life Processes" }),
   ];
   vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
-    classLevel: 10, board: "rbse", stream: null, classLabel: "10-A",
+    classLevel: 10, board: "rbse", stream: null, classLabel: "10-A", examId: null, examCode: null, examName: null,
   });
 });
 
@@ -115,7 +116,7 @@ describe("what a Custom selection holds", () => {
 
   it("is zero when the class cannot be resolved, rather than counting another class's bank", async () => {
     vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
-      classLevel: null, board: "rbse", stream: null, classLabel: null,
+      classLevel: null, board: "rbse", stream: null, classLabel: null, examId: null, examCode: null, examName: null,
     });
     expect(await PracticeService.countBankPool(ctx, {})).toBe(0);
   });

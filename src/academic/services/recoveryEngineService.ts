@@ -157,11 +157,14 @@ export type RecoverySessionStart =
       shortfall: number;
       session_size: number;
       /**
-       * bank question id -> tier, flattened from the plan.
+       * Question id -> tier, flattened from the plan.
        *
-       * Derived here so no screen has to read the plan's internal shape. The
-       * runner needs it because recovery is scored PER TIER (§4.2b) and a bare
-       * list of question ids cannot say which rate an answer belongs to.
+       * Tier 0 may mix bank, private upload (`from_upload`) and private capture
+       * (`from_capture`) ids — never treat every key as a bank id. Higher tiers
+       * are bank variants only. Derived here so no screen has to read the
+       * plan's internal shape. The runner needs it because recovery is scored
+       * PER TIER (§4.2b) and a bare list of ids cannot say which rate an answer
+       * belongs to.
        */
       tierByQuestionId: Record<string, 0 | 1 | 2 | 3>;
     };
@@ -182,6 +185,11 @@ export type RecoverySessionOutcome = {
   readiness: number | null;
   next_revision_at: string | null;
 };
+
+/** §4.4 — what the server did when the student cleared a not-ready chapter. */
+export type ClearAnywayOutcome =
+  | { already: true; chapter_id: string }
+  | { already?: undefined; chapter_id: string; cleared: number; readiness: number | null; next_revision_at: string };
 
 export type RevisionSessionOutcome = {
   passed: boolean;
@@ -277,6 +285,41 @@ export type RevisionSessionPlan = {
   /** False for a chapter with no chapter_state row — an early check is allowed. */
   scheduled: boolean;
 };
+
+type RecoveryTierBags = {
+  from_bank?: unknown;
+  from_upload?: unknown;
+  from_capture?: unknown;
+};
+
+/**
+ * Flatten plan.tiers[n].{from_bank,from_upload,from_capture} into one id → tier
+ * map. Exported so the bag merge can be tested without mocking RPCs.
+ *
+ * Tier order is preserved by inserting 0→3 in sequence: the runner asks in key
+ * order, and §4.2 is a LADDER — the student's own wrong question first. Within
+ * a tier, bank then upload then capture (same order as the SQL plan builder).
+ */
+export function flattenRecoveryPlanTiers(
+  plan:
+    | { tiers?: Record<string, RecoveryTierBags | undefined> }
+    | null
+    | undefined,
+): Record<string, 0 | 1 | 2 | 3> {
+  const tierByQuestionId: Record<string, 0 | 1 | 2 | 3> = {};
+  for (const tier of [0, 1, 2, 3] as const) {
+    const tierPlan = plan?.tiers?.[String(tier)];
+    for (const bag of [tierPlan?.from_bank, tierPlan?.from_upload, tierPlan?.from_capture]) {
+      if (!Array.isArray(bag)) continue;
+      for (const id of bag) {
+        if (typeof id === "string" && id && !(id in tierByQuestionId)) {
+          tierByQuestionId[id] = tier;
+        }
+      }
+    }
+  }
+  return tierByQuestionId;
+}
 
 export const RecoveryEngineService = {
   /**
@@ -427,28 +470,14 @@ export const RecoveryEngineService = {
     const raw = data as unknown as
       | Extract<RecoverySessionStart, { started: false }>
       | (Omit<Extract<RecoverySessionStart, { started: true }>, "tierByQuestionId"> & {
-          plan?: { tiers?: Record<string, { from_bank?: unknown }> };
+          plan?: { tiers?: Record<string, RecoveryTierBags | undefined> };
         });
 
     if (!raw || raw.started !== true) {
       return raw as Extract<RecoverySessionStart, { started: false }>;
     }
     const started = raw;
-
-    // Flatten plan.tiers[n].from_bank into one id -> tier map. Tier order is
-    // preserved by inserting 0,1,2,3 in sequence: the runner asks the
-    // questions in key order, and §4.2 is a LADDER — the student's own wrong
-    // question first, the transfer question last.
-    const tierByQuestionId: Record<string, 0 | 1 | 2 | 3> = {};
-    for (const tier of [0, 1, 2, 3] as const) {
-      const fromBank = started.plan?.tiers?.[String(tier)]?.from_bank;
-      if (!Array.isArray(fromBank)) continue;
-      for (const id of fromBank) {
-        if (typeof id === "string" && id && !(id in tierByQuestionId)) {
-          tierByQuestionId[id] = tier;
-        }
-      }
-    }
+    const tierByQuestionId = flattenRecoveryPlanTiers(started.plan);
     return { ...started, tierByQuestionId } as RecoverySessionStart;
   },
 
@@ -486,6 +515,29 @@ export const RecoveryEngineService = {
       source: "RecoveryEngineService.submitRecoverySession",
     });
     return data as unknown as RecoverySessionOutcome;
+  },
+
+  /**
+   * §4.4 — clear a chapter whose recovery session was scored not ready.
+   *
+   * "Not a block, a speed bump": the confirm is the caller's job. The server
+   * accepts only the caller's own, completed, not_ready, LATEST session for the
+   * chapter, does the same §4.5 writes a ready result makes, and keeps the
+   * session's readiness so a premature clear stays visible — revision then
+   * catches it in seven days.
+   */
+  async clearChapterAfterRecovery(ctx: ServiceContext, sessionId: string): Promise<ClearAnywayOutcome> {
+    assertCanOwn(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_clear_chapter_after_recovery" as never,
+      { _session_id: sessionId } as never,
+    );
+    throwIfError(error, "Could not clear the chapter");
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      studentId: ctx.studentId,
+      source: "RecoveryEngineService.clearChapterAfterRecovery",
+    });
+    return data as unknown as ClearAnywayOutcome;
   },
 
   /**

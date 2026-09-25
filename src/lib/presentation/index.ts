@@ -34,6 +34,7 @@ export {
   toCountLabel,
   isDisplaySafe,
   isIdentifierLike,
+  isUuid,
   type DisplayKind,
   type DisplayTextOptions,
   type DisplayTextResult,

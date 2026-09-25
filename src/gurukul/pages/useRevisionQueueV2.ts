@@ -96,6 +96,11 @@ export function dueLabelFromDate(dueDate: string | null): string {
   }
 }
 
+/** Due now: overdue or due today — the labels dueLabelFromDate gives those two. */
+export function isRevisionDue(r: Pick<RevItem, "dueIn">): boolean {
+  return r.dueIn === "Now" || r.dueIn === "Today";
+}
+
 function toRevItem(r: ChapterStateRow): RevItem | null {
   const chapter = r.chapter;
   if (!chapter || isPlaceholderAcademicLabel(chapter)) return null;

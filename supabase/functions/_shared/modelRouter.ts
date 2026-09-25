@@ -47,6 +47,9 @@ export type ModelRouterResult =
       source: "openrouter_qwen";
       budget_tier?: ReasoningTier;
       usage?: { prompt_tokens?: number; completion_tokens?: number };
+      /** OpenRouter's finish_reason. "length" means the text was cut off at
+       *  max_tokens — a JSON answer that ends there cannot parse. */
+      finish_reason?: string;
       recovery_attempts?: number;
       fallback_used?: boolean;
     }
@@ -181,6 +184,7 @@ async function invokeOpenRouterOnce(input: {
       // passes it through to its response and `ai_usage` records it.
       source: "openrouter_qwen",
       budget_tier: input.budget_tier,
+      finish_reason: typeof json?.choices?.[0]?.finish_reason === "string" ? json.choices[0].finish_reason : undefined,
       usage: json?.usage
         ? {
             prompt_tokens: json.usage.prompt_tokens,

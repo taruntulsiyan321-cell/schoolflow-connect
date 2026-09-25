@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildWeekComparison,
-  halfWindowTrend,
+  latestVersusPrevious,
   trendState,
   deriveSubjectPace,
   formatSeconds,
@@ -10,7 +10,6 @@ import {
   formatHour,
   deriveMonthComparison,
   scoreAxisDomain,
-  deriveImprovingChapters,
   deriveRevisionData,
 } from "@/lib/studentAnalysisMetrics";
 import { REVISION_STAGES_TO_SOLID } from "@/academic/recovery/constants";
@@ -55,26 +54,28 @@ describe("studentAnalysisMetrics", () => {
     expect(fri?.lastWeek).toBe(2);
   });
 
-  /**
-   * §6.4: "the latest 3 sessions … the previous 3". The window is fixed at
-   * three either side, not half the run — at twenty sessions the old rule
-   * compared the first ten against the last ten, which answers "is this year
-   * better than last year", not "am I improving".
-   */
-  it("compares the latest three sessions with the previous three", () => {
-    expect(halfWindowTrend([40, 40, 40, 70, 70, 70])).toBe(30);
-    // Ten sessions: only the last six count, so a month spent stuck before a
-    // week of good work still reads as the improvement it is.
-    expect(halfWindowTrend([10, 10, 10, 10, 40, 40, 40, 70, 70, 70])).toBe(30);
-    // The old half-window on the same run: early five average 22, late five
-    // average 58 — a different, slower number off the same sessions.
-    expect(halfWindowTrend([10, 10, 10, 10, 40, 40, 40, 70, 70, 70])).not.toBe(36);
-    expect(halfWindowTrend([90])).toBeNull();
+  it("compares the latest 3 sessions with the 3 before them (§6.4)", () => {
+    // Four sessions: latest three [50, 80, 80] against the one before [50].
+    expect(latestVersusPrevious([50, 50, 80, 80])).toBe(20);
+    expect(latestVersusPrevious([90])).toBeNull();
+  });
+
+  it("ignores sessions older than the two windows — the old half-split did not", () => {
+    // Improved long ago (20 -> 80), then flat for six sessions. The half-split
+    // compared [20,20,20,80] with [80,80,80,80] and called it +45, improving.
+    // Latest 3 vs previous 3 are both 80: stuck.
+    const history = [20, 20, 20, 80, 80, 80, 80, 80, 80, 80];
+    expect(latestVersusPrevious(history)).toBe(0);
+    expect(trendState(history).state).toBe("stuck");
+  });
+
+  it("uses only the 3 before the latest 3, not everything before", () => {
+    expect(latestVersusPrevious([0, 0, 0, 0, 60, 60, 60, 90, 90, 90])).toBe(30);
   });
 
   it("uses what there is when fewer than six sessions exist", () => {
     // Four sessions: the latest three against the one before them.
-    expect(halfWindowTrend([40, 70, 70, 70])).toBe(30);
+    expect(latestVersusPrevious([40, 70, 70, 70])).toBe(30);
   });
 
   // ── §6.4, the trend floor and the three states ──────────────────────────
@@ -89,11 +90,11 @@ describe("studentAnalysisMetrics", () => {
   it("refuses a trend below TREND_MIN_SESSIONS sessions", () => {
     // Three sessions moving 40 points is still not a trend — the floor is a
     // count of sessions, not a size of movement.
-    expect(halfWindowTrend([50, 90, 90])).toBeNull();
+    expect(latestVersusPrevious([50, 90, 90])).toBeNull();
     expect(trendState([50, 90, 90])).toEqual({ state: "not_enough_data", deltaPoints: null });
     // And the boundary itself is inclusive: four sessions IS enough — the
     // latest three (50, 90, 90) against the one before them.
-    expect(halfWindowTrend([50, 50, 90, 90])).toBe(26.7);
+    expect(latestVersusPrevious([50, 50, 90, 90])).toBe(26.7);
   });
 
   it("calls small movement stuck, not improving", () => {
@@ -223,13 +224,15 @@ describe("studentAnalysisMetrics", () => {
       ],
       now,
     );
-    expect(rows[0]).toMatchObject({ label: "Activities", thisM: 4, lastM: 2 });
+    expect(rows[0]).toMatchObject({ label: "Practice", thisM: 1, lastM: null });
     // Pooled: 4 correct of 10 answered = 40%. The mean of the session rates
     // would be (100 + 33)/2 = 67, which is what this used to report.
     expect(rows[1]).toMatchObject({ label: "Accuracy", thisM: 40, lastM: 60 });
     // MINUTES, not hours. Rounding to hours here is what printed "0h" for
     // every real total under thirty minutes.
-    expect(rows[2]).toMatchObject({ label: "Study time", thisM: 120, lastM: 60 });
+    // lastM study time is null: July had battles but no practice sessions,
+    // so the month is "nothing practised" for Analysis (rule 11).
+    expect(rows[2]).toMatchObject({ label: "Study time", thisM: 120, lastM: null });
   });
 
   it("month comparison reports a month with no answered questions as null, not 0%", () => {
@@ -283,40 +286,12 @@ describe("studentAnalysisMetrics", () => {
     expect(scoreAxisDomain([40, 55, 70])[0]).toBeLessThanOrEqual(40);
   });
 
-  it("improving topics require real half-window lift", () => {
-    // A chapter present in practiceTrend is scored from THOSE points — the
-    // session path is skipped for it — so the lift has to be expressed there.
-    const improving = deriveImprovingChapters(
-      [
-        { date: "2026-07-01", score_pct: 40, chapter: "Integration" },
-        { date: "2026-07-05", score_pct: 40, chapter: "Integration" },
-        { date: "2026-07-10", score_pct: 70, chapter: "Integration" },
-        { date: "2026-07-15", score_pct: 70, chapter: "Integration" },
-      ],
-      [
-        session({ id: "1", subject: "Math", chapter: "Integration", accuracy_pct: 40, finished_at: "2026-07-01T10:00:00Z" }),
-      ],
-    );
-    expect(improving.some((t) => t.chapter === "Integration" && t.improvement >= 5)).toBe(true);
-  });
-
-  it("drops a chapter that lifted by less than TREND_DELTA_POINTS", () => {
-    // The control for the assertion above: same shape, movement of 4 points.
-    // This list used to run on its own `< 5` threshold, so a 6-point lift was
-    // "improving" here while the chapter grid beside it read "steady".
-    const improving = deriveImprovingChapters(
-      [
-        { date: "2026-07-01", score_pct: 40, chapter: "Integration" },
-        { date: "2026-07-05", score_pct: 40, chapter: "Integration" },
-        { date: "2026-07-10", score_pct: 46, chapter: "Integration" },
-        { date: "2026-07-15", score_pct: 46, chapter: "Integration" },
-      ],
-      [
-        session({ id: "1", subject: "Math", chapter: "Integration", accuracy_pct: 40, finished_at: "2026-07-01T10:00:00Z" }),
-      ],
-    );
-    expect(improving.some((t) => t.chapter === "Integration")).toBe(false);
-  });
+  /*
+   * "deriveImprovingChapters" WAS HERE. It fed the Topics-tab "Chapters
+   * getting better" panel, which §6.1 / §10.8 forbid (weaknesses only).
+   * Trend on chapters that still need work lives on the §6.3 list and the
+   * subject/chapter grids — not as a strengths celebration.
+   */
 
   /*
    * "deriveSubjectRows collapses Maths aliases and drops Subject/Daily" WAS

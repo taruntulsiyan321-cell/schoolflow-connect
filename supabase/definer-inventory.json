@@ -2709,6 +2709,21 @@
         "admin": "answered"
       }
     },
+    "rpc_clear_chapter_after_recovery(_session_id uuid)": {
+      "name": "rpc_clear_chapter_after_recovery",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_revision_interval_days"
+      ],
+      "justification": "§4.4 clear-anyway. Reads and writes only the caller's rows: the recovery session is looked up by id AND user_id = auth.uid(), and student_mistakes / chapter_state are updated WHERE user_id = auth.uid() for that session's chapter. Only a completed, not_ready, latest session is accepted.",
+      "verifiedBy": "Called live 2026-09-23 as student12 and teacher against the student's session (both 'recovery session not found'), as the student with a superseded session and a ready session (both refused), and with the real not_ready session (8 cleared, state recovered, stage 1, readiness kept).",
+      "reviewed": false
+    },
     "rpc_complete_recovery_assignment(_assignment_id uuid, _questions_completed integer, _questions_correct integer)": {
       "name": "rpc_complete_recovery_assignment",
       "readerSet": "self",
@@ -3506,6 +3521,21 @@
       "verifiedBy": "",
       "reviewed": false
     },
+    "rpc_practice_bank_catalog(_class_level integer, _board text, _stream text, _subject text, _exam_id uuid)": {
+      "name": "rpc_practice_bank_catalog",
+      "readerSet": "public",
+      "callability": "granted",
+      "returns": "TABLE(subject text, chapter text, questions integer)",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "get_my_school_id"
+      ],
+      "justification": "Returns subject, chapter and a question count only — no question text and no answer. The school bank is global (G2), so the school arm has no tenant to isolate. The exam arm counts only when _exam_id is the caller's own exam_accounts.exam_id, the fence qb_select_approved_board enforced before it was dropped (20261080000000).",
+      "verifiedBy": "Applied 2026-09-24 with an in-migration proof run as a real Class 10 student and a real CUET exam account: each read 0 question_bank rows and a non-empty own catalog; the exam account counted 0 for another exam and the school student 0 for an exam. Live REST after apply: student, student12 and parent read */0 from question_bank (was 21,886 rows with correct_index), teacher still 26,154, catalog 200 with rows for Class 10 and 12.",
+      "reviewed": false
+    },
     "rpc_principal_school_health()": {
       "name": "rpc_principal_school_health",
       "readerSet": "staff",
@@ -3637,11 +3667,9 @@
     "rpc_refresh_featured_battles()": {
       "name": "rpc_refresh_featured_battles",
       "readerSet": "public",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "jsonb",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [
         "_seed_featured_battle_for_class"
       ],
@@ -3696,11 +3724,9 @@
     "rpc_rotate_featured_battles()": {
       "name": "rpc_rotate_featured_battles",
       "readerSet": "public",
-      "callability": "granted",
+      "callability": "internal",
       "returns": "jsonb",
-      "grants": [
-        "authenticated"
-      ],
+      "grants": [],
       "calls": [],
       "justification": "",
       "verifiedBy": "",
@@ -4743,6 +4769,12 @@
       "readerSet": "public",
       "justification": "",
       "verifiedBy": "",
+      "reviewed": false
+    },
+    "ai-nova-revision": {
+      "readerSet": "none",
+      "justification": "Reads no table. Takes the caller's own topic, key ideas and spoken answer from the request body, sends them to the model, and returns the model's gist or judgement. requireUserJwt only rejects anonymous callers, to stop credit burn.",
+      "verifiedBy": "src/gurukul/nova/novaRevisionServer.test.ts (request and model-output validation) and a live probe as the student role on 2026-09-23",
       "reviewed": false
     },
     "ai-recovery-agent": {

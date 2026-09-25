@@ -4,7 +4,7 @@ import {
   toRepoContext,
   type ServiceContext,
 } from "./context";
-import { assertStudentClassContext } from "./assertStudentContext";
+import { assertStudentClassContext, assertStudentContext } from "./assertStudentContext";
 import type { Json } from "@/integrations/supabase/types";
 import { getClient, retryTransient, throwIfError } from "../repository/base";
 import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
@@ -18,6 +18,7 @@ import {
   isSubjectAllowedForScope,
   normalizeStream,
   parseClassLevel,
+  streamForClass,
   type AcademicStream,
   type CurriculumScope,
 } from "@/lib/curriculumScope";
@@ -45,6 +46,8 @@ import {
   buildPracticeAnalysisSnapshot,
   type PracticeAttemptRecord,
 } from "@/lib/practiceAnalysisSnapshot";
+import { answerToIndex } from "./answerText";
+import { listCaptureQuestionsByIds } from "./screenCaptureService";
 
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
@@ -155,15 +158,24 @@ function studentBankQuery(
     .from("question_bank_student")
     .select(columns, opts.withCount ? { count: "exact" } : undefined)
     .eq("is_approved", true)
-    // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-    // so there is no per-school arm left to filter on.
-    .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
     .order("id");
   if (opts.activeOnly) query = query.eq("is_active", true);
-  if (classLevel != null && Number.isFinite(classLevel)) query = query.eq("class_level", classLevel);
-  // A stream narrows content only from Class 11 (contentStreamForClass).
-  const stream = contentStreamForClass(scope.stream, classLevel);
-  if (stream) query = query.or(`stream.eq.${stream},stream.is.null`);
+
+  // Individual (exam) accounts practise their exam's bank only — not the
+  // school board/class/stream cut. School accounts never set examId.
+  if (scope.examId) {
+    query = query.eq("exam_id", scope.examId);
+  } else {
+    // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
+    // so there is no per-school arm left to filter on.
+    query = query
+      .is("exam_id", null)
+      .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
+    if (classLevel != null && Number.isFinite(classLevel)) query = query.eq("class_level", classLevel);
+    // A stream narrows content only from Class 11 (contentStreamForClass).
+    const stream = contentStreamForClass(scope.stream, classLevel);
+    if (stream) query = query.or(`stream.eq.${stream},stream.is.null`);
+  }
   if (opts.subject && opts.subject !== "Mixed") query = query.ilike("subject", opts.subject);
   // A previous-year question is one that names the exam year it was set in.
   // The source-text guesses that stood in the pool's filter (a `pyq`
@@ -896,7 +908,10 @@ export const PracticeService = {
    * Keyed on everything the scope is derived from; a failed resolve is not kept.
    */
   resolveCurriculumScope(ctx: ServiceContext): Promise<CurriculumScope> {
-    const key = [ctx.userId, ctx.schoolId, ctx.studentId, ctx.classId, ctx.classLabel, ctx.classCategory]
+    const key = [
+      ctx.userId, ctx.schoolId, ctx.studentId, ctx.classId, ctx.classLabel, ctx.classCategory,
+      ctx.schoolKind, ctx.examId,
+    ]
       .map((v) => v ?? "").join("|");
     const hit = scopeCache.get(key);
     if (hit && Date.now() - hit.at < SCOPE_TTL_MS) return hit.promise;
@@ -918,31 +933,68 @@ export const PracticeService = {
     const client = getClient(toRepoContext(ctx));
     let board = "rbse";
     let schoolStream: AcademicStream | null = null;
+    let schoolKind: "school" | "individual" | null = ctx.schoolKind ?? null;
+    let examId: string | null = ctx.examId ?? null;
+    let examCode: string | null = ctx.examCode ?? null;
+    let examName: string | null = ctx.examName ?? null;
 
-    // Prefer board+stream; fall back to board-only if stream column not migrated yet.
+    // Prefer board+stream+kind; fall back to board-only if stream column not migrated yet.
     {
       const withStream = await client
         .from("schools")
-        .select("board, stream")
+        .select("board, stream, kind")
         .eq("id", ctx.schoolId)
         .maybeSingle();
       if (withStream.error) {
         const boardOnly = await client
           .from("schools")
-          .select("board")
+          .select("board, kind")
           .eq("id", ctx.schoolId)
           .maybeSingle();
-        const rawBoard = (boardOnly.data as { board?: string | null } | null)?.board;
+        const raw = boardOnly.data as { board?: string | null; kind?: string | null } | null;
+        const rawBoard = raw?.board;
         if (rawBoard && typeof rawBoard === "string" && rawBoard.trim()) {
           board = rawBoard.trim().toLowerCase();
         }
+        if (raw?.kind === "school" || raw?.kind === "individual") schoolKind = raw.kind;
       } else {
-        const school = withStream.data as { board?: string | null; stream?: string | null } | null;
+        const school = withStream.data as {
+          board?: string | null;
+          stream?: string | null;
+          kind?: string | null;
+        } | null;
         if (school?.board && typeof school.board === "string" && school.board.trim()) {
           board = school.board.trim().toLowerCase();
         }
         schoolStream = normalizeStream(school?.stream ?? null);
+        if (school?.kind === "school" || school?.kind === "individual") schoolKind = school.kind;
       }
+    }
+
+    // Individual: exam is the scope. Never invent rbse / a class level.
+    if (schoolKind === "individual") {
+      if (!examId) {
+        const { data: ea } = await client
+          .from("exam_accounts")
+          .select("exam_id, competitive_exams(code, name)")
+          .eq("school_id", ctx.schoolId)
+          .maybeSingle();
+        examId = ea?.exam_id ?? null;
+        type ExamJoin = { code?: string | null; name?: string | null };
+        const rawExam = (ea as { competitive_exams?: ExamJoin | ExamJoin[] | null } | null)?.competitive_exams;
+        const exam = Array.isArray(rawExam) ? rawExam[0] : rawExam;
+        examCode = exam?.code ?? null;
+        examName = exam?.name ?? null;
+      }
+      return {
+        classLevel: null,
+        board: "cuet",
+        stream: null,
+        classLabel: examName || examCode || ctx.classLabel || null,
+        examId,
+        examCode,
+        examName,
+      };
     }
 
     let classLabel: string | null = ctx.classLabel ?? null;
@@ -1007,12 +1059,23 @@ export const PracticeService = {
       classLevel = parseClassLevel(classLabel);
     }
 
-    const stream =
-      schoolStream ??
-      inferStreamFromText(classCategory, classLabel) ??
-      null;
+    // A school tagged "commerce" still has Class 9 and 10, and they have no
+    // stream. Returning the school's tag for them labelled 441 Class 10
+    // practice sessions "commerce" and put a commerce filter in every caller.
+    const stream = streamForClass(
+      schoolStream ?? inferStreamFromText(classCategory, classLabel) ?? null,
+      classLevel,
+    );
 
-    return { classLevel, board, stream, classLabel };
+    return {
+      classLevel,
+      board,
+      stream,
+      classLabel,
+      examId: null,
+      examCode: null,
+      examName: null,
+    };
   },
 
   /**
@@ -1031,6 +1094,18 @@ export const PracticeService = {
     opts: { subject?: string | null; classLevel?: number | null } = {},
   ): Promise<{ scope: CurriculumScope; classLevel: number | null; rows: { subject: string; chapter: string | null; questions: number }[] }> {
     const scope = await this.resolveCurriculumScope(ctx);
+    // Individual exam practice: catalog by exam_id (no class required).
+    if (scope.examId) {
+      const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_practice_bank_catalog", {
+        // SQL ignores class/board when _exam_id is set; pass placeholders for the required args.
+        _class_level: 0,
+        _board: scope.board || "cuet",
+        _exam_id: scope.examId,
+        ...(opts.subject ? { _subject: opts.subject } : {}),
+      });
+      throwIfError(error, "Failed to load the practice question bank");
+      return { scope, classLevel: null, rows: data ?? [] };
+    }
     const classLevel = opts.classLevel ?? scope.classLevel;
     // Never list another class's bank when the student's class is unknown.
     if (classLevel == null || !Number.isFinite(classLevel)) return { scope, classLevel: null, rows: [] };
@@ -1049,23 +1124,27 @@ export const PracticeService = {
     return { scope, classLevel, rows: data ?? [] };
   },
 
-  /** Subjects the student's class can practise (class + board + stream). */
+  /** Subjects the student can practise (class+board+stream, or exam). */
   async listBankSubjects(
     ctx: ServiceContext,
     opts: { classLevel?: number | null } = {},
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
-    assertStudentClassContext(ctx);
+    assertStudentContext(ctx);
     const { scope, classLevel, rows } = await this.listBankCatalog(ctx, opts);
+    if (!scope.examId && (classLevel == null || !ctx.classId)) {
+      assertStudentClassContext(ctx);
+    }
     const seen = new Map<string, string>();
     for (const row of rows) {
       const raw = row.subject.trim();
       if (!raw) continue;
-      if (!isSubjectAllowedForScope(raw, scope.stream, classLevel)) continue;
+      if (!scope.examId && !isSubjectAllowedForScope(raw, scope.stream, classLevel)) continue;
       const label = displaySubject(raw);
       const key = label.toLowerCase();
       if (!seen.has(key)) seen.set(key, label);
     }
+    if (scope.examId) return [...seen.values()].sort((a, b) => a.localeCompare(b));
     return filterSubjectsForStream([...seen.values()], scope.stream, classLevel);
   },
 
@@ -1076,8 +1155,8 @@ export const PracticeService = {
   ): Promise<AcademicTermRef[]> {
     assertCanConsume(ctx, "practice");
     const { scope, classLevel, rows } = await this.listBankCatalog(ctx, opts);
-    if (classLevel == null) return [];
-    if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
+    if (!scope.examId && classLevel == null) return [];
+    if (!scope.examId && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
     const seen = new Map<string, AcademicTermRef>();
     for (const row of rows) {
@@ -1125,8 +1204,8 @@ export const PracticeService = {
     const scope = await this.resolveCurriculumScope(ctx);
     const classLevel = opts.classLevel ?? scope.classLevel;
 
-    if (classLevel == null || !Number.isFinite(classLevel)) return [];
-    if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
+    if (!scope.examId && (classLevel == null || !Number.isFinite(classLevel))) return [];
+    if (!scope.examId && !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
     // Paged: a whole subject can hold more servable questions than one
     // PostgREST response, and a truncated read would silently hide topics.
@@ -1138,17 +1217,21 @@ export const PracticeService = {
         .select("topic_id, chapter, topics(name)")
         .eq("is_approved", true)
         .eq("is_active", true)
-        .eq("class_level", classLevel)
         .ilike("subject", opts.subject)
         .not("topic_id", "is", null)
-        // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-        // so there is no per-school arm left to filter on.
-        .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
         .order("id")
         .range(from, from + PAGE - 1);
       const topicStream = contentStreamForClass(scope.stream, classLevel);
-      if (topicStream) {
-        query = query.or(`stream.eq.${topicStream},stream.is.null`);
+      if (scope.examId) {
+        query = query.eq("exam_id", scope.examId);
+      } else {
+        query = query
+          .eq("class_level", classLevel!)
+          .is("exam_id", null)
+          .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
+        if (topicStream) {
+          query = query.or(`stream.eq.${topicStream},stream.is.null`);
+        }
       }
       const { data, error } = await query;
       throwIfError(error, "Failed to load practice topics");
@@ -1309,72 +1392,318 @@ export const PracticeService = {
    * migration that drops practice_skipped.
    *
    * Reading `skipped = true` surfaces no correctness, so §10.8 is untouched.
-   * Rows are deduped newest-first here rather than in SQL: PostgREST has no
-   * DISTINCT ON, and a student who skips the same question in three sessions
-   * has three rows.
+   * Skips are now resolved on the server (rpc_my_skipped_questions): a
+   * question counts while its LATEST answer is a skip, which needs DISTINCT
+   * ON — PostgREST has none — and must match what Analysis counts.
    */
   async listQuestionIdsByStatus(
     ctx: ServiceContext,
     status: "wrong" | "skipped",
-    opts: { limit?: number } = {},
+    opts: { limit?: number; chapterId?: string | null } = {},
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
     const limit = Math.min(200, Math.max(1, opts.limit ?? 60));
     const client = getClient(toRepoContext(ctx));
-    const { data, error } =
-      status === "wrong"
-        ? await client
-            .from("student_mistakes")
-            .select("question_id, last_wrong_at")
-            .eq("user_id", ctx.userId)
-            .eq("status", "open")
-            .not("question_id", "is", null)
-            .order("last_wrong_at", { ascending: false })
-            .limit(limit)
-        : await client
-            .from("question_attempts")
-            .select("bank_question_id, created_at")
-            .eq("user_id", ctx.userId)
-            .eq("skipped", true)
-            .not("bank_question_id", "is", null)
-            .order("created_at", { ascending: false })
-            // Over-fetch: the limit applies to rows, and duplicates collapse
-            // below, so limiting to `limit` rows would under-fill the mode for
-            // a student who re-skips the same questions.
-            .limit(Math.min(400, limit * 4));
-    throwIfError(error, `Failed to load ${status} questions`);
+    if (status === "skipped") {
+      // ONE definition of "a question you skipped", on the server: its LATEST
+      // answer by this student was a skip. This read every skipped row, so a
+      // question skipped once and answered since came back in Skipped mode,
+      // and Analysis's "you skipped 6 questions in this chapter" would have
+      // opened a session of more. rpc_my_skipped_by_chapter, which Analysis
+      // counts from, reads the same function.
+      const { data, error } = await client.rpc("rpc_my_skipped_questions" as never, {
+        _chapter_id: opts.chapterId ?? null,
+        _limit: limit,
+      } as never);
+      throwIfError(error, "Failed to load skipped questions");
+      return Array.isArray(data) ? (data as unknown[]).filter((id): id is string => typeof id === "string") : [];
+    }
+    const { data, error } = await client
+      .from("student_mistakes")
+      .select("question_id, last_wrong_at")
+      .eq("user_id", ctx.userId)
+      .eq("status", "open")
+      .not("question_id", "is", null)
+      .order("last_wrong_at", { ascending: false })
+      .limit(limit);
+    throwIfError(error, "Failed to load wrong questions");
     const ids = (data ?? [])
-      .map((r) => {
-        const row = r as { question_id?: string | null; bank_question_id?: string | null };
-        return status === "wrong" ? row.question_id : row.bank_question_id;
-      })
+      .map((r) => (r as { question_id?: string | null }).question_id)
       .filter((id): id is string => Boolean(id));
     return dedupePreservingOrder(ids).slice(0, limit);
   },
 
-  /** Wrong questions as practice-ready bank rows (honest empty if none). */
+  /**
+   * Wrong questions as practice-ready rows (honest empty if none).
+   *
+   * Spec §9 / Incorrect mode: bank mistakes load from question_bank; upload
+   * mistakes (source=upload) load from student_upload_questions; screen-capture
+   * mistakes (source=screen_capture) load from student_capture_questions.
+   * Never invents a question that is not on the mistake row or a private table.
+   */
   async listMistakeQuestions(
     ctx: ServiceContext,
     opts: { limit?: number; includeInactive?: boolean } = {},
   ) {
+    assertCanConsume(ctx, "practice");
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
-    const ids = await this.listQuestionIdsByStatus(ctx, "wrong", { limit: limit * 2 });
-    if (ids.length === 0) return [];
-    return this.listBankQuestions(ctx, {
-      ids: ids.slice(0, limit),
-      limit,
-      includeInactive: opts.includeInactive,
-    });
-  },
+    const client = getClient(toRepoContext(ctx));
+    const fetchWindow = Math.min(200, Math.max(limit * 4, limit));
 
+    type MistakeListRow = {
+      id: string;
+      source: string;
+      source_id: string | null;
+      question_id: string | null;
+      upload_question_id?: string | null;
+      capture_question_id?: string | null;
+      last_wrong_at: string;
+      question_text: string;
+      options: unknown;
+      correct_answer: unknown;
+      explanation: string | null;
+      difficulty: string | null;
+      subject: string;
+      chapter: string | null;
+      chapter_id: string | null;
+    };
+
+    const baseSelect =
+      "id, source, source_id, question_id, last_wrong_at, question_text, options, correct_answer, explanation, difficulty, subject, chapter, chapter_id";
+    const withPrivateSelect = `${baseSelect}, upload_question_id, capture_question_id`;
+    const withUploadSelect = `${baseSelect}, upload_question_id`;
+
+    const runSelect = (cols: string) =>
+      client
+        .from("student_mistakes")
+        .select(cols)
+        .eq("user_id", ctx.userId)
+        .eq("status", "open")
+        .order("last_wrong_at", { ascending: false })
+        .limit(fetchWindow);
+
+    let { data, error } = await runSelect(withPrivateSelect);
+    if (error && isMissingSchema(error)) {
+      ({ data, error } = await runSelect(withUploadSelect));
+    }
+    if (error && isMissingSchema(error)) {
+      ({ data, error } = await runSelect(baseSelect));
+    }
+    throwIfError(error, "Failed to load mistake questions");
+
+    const rows = (data ?? []) as unknown as MistakeListRow[];
+    if (rows.length === 0) return [];
+
+    const bankIds = dedupePreservingOrder(
+      rows
+        .filter(
+          (r) =>
+            r.source !== "upload" &&
+            r.source !== "screen_capture" &&
+            Boolean(r.question_id),
+        )
+        .map((r) => r.question_id as string),
+    );
+    const uploadQids = dedupePreservingOrder(
+      rows
+        .filter((r) => r.source === "upload")
+        .map((r) => r.upload_question_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const captureQids = dedupePreservingOrder(
+      rows
+        .filter((r) => r.source === "screen_capture")
+        .map((r) => r.capture_question_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+
+    /** PostgREST may return a many-embed as an array — same helper as upload/capture loaders. */
+    const chapterEmbed = (raw: unknown): {
+      name?: string;
+      curriculum_subjects?: { name?: string } | null;
+    } | null => {
+      if (!raw) return null;
+      if (Array.isArray(raw)) {
+        const first = raw[0];
+        return first && typeof first === "object"
+          ? (first as { name?: string; curriculum_subjects?: { name?: string } | null })
+          : null;
+      }
+      if (typeof raw === "object") {
+        return raw as { name?: string; curriculum_subjects?: { name?: string } | null };
+      }
+      return null;
+    };
+
+    type PracticeReady = {
+      id: string;
+      subject: string;
+      chapter: string | null;
+      difficulty: string | null;
+      question: string;
+      options: unknown;
+      correct_index: number;
+      explanation: string | null;
+      from_upload?: true;
+      from_capture?: true;
+      ai_answered?: boolean;
+      chapter_id?: string | null;
+      /** Spec §9.1 — student_uploads.id when from_upload. */
+      upload_id?: string | null;
+    };
+
+    const bankById = new Map<string, PracticeReady>();
+    if (bankIds.length > 0) {
+      const bankRows = await this.listBankQuestions(ctx, {
+        ids: bankIds.slice(0, fetchWindow),
+        limit: fetchWindow,
+        includeInactive: opts.includeInactive,
+      });
+      for (const q of bankRows) bankById.set(q.id, q);
+    }
+
+    const uploadById = new Map<string, PracticeReady>();
+    if (uploadQids.length > 0) {
+      const { data: uploadRows, error: uploadError } = await client
+        .from("student_upload_questions")
+        .select(
+          "id, upload_id, question_text, options, correct_index, explanation, difficulty, chapter_id, answer_source, chapters(name, curriculum_subjects(name))",
+        )
+        .eq("owner_id", ctx.userId)
+        .in("id", uploadQids);
+      throwIfError(uploadError, "Failed to load upload mistake questions");
+      for (const row of uploadRows ?? []) {
+        const ch = chapterEmbed(row.chapters);
+        const options = row.options;
+        const correct =
+          typeof row.correct_index === "number" && Number.isInteger(row.correct_index)
+            ? row.correct_index
+            : null;
+        if (!row.id || !row.question_text || correct == null) continue;
+        if (!Array.isArray(options) || options.length < 2) continue;
+        uploadById.set(row.id as string, {
+          id: row.id as string,
+          subject: ch?.curriculum_subjects?.name?.trim() || "",
+          chapter: ch?.name ?? null,
+          difficulty: (row.difficulty as string | null) ?? "medium",
+          question: row.question_text as string,
+          options,
+          correct_index: correct,
+          explanation: (row.explanation as string | null) ?? null,
+          from_upload: true,
+          ai_answered: row.answer_source === "ai",
+          chapter_id: (row.chapter_id as string | null) ?? null,
+          upload_id: (row.upload_id as string | null) ?? null,
+        });
+      }
+    }
+
+    // Spec §7.4 / Incorrect mode — one loader for private captures (same as
+    // recovery tier-0 in Practice.tsx). Do not re-query student_capture_questions
+    // here; listCaptureQuestionsByIds owns embed shape + from_capture.
+    const captureById = new Map<string, PracticeReady>();
+    if (captureQids.length > 0) {
+      const captureRows = await listCaptureQuestionsByIds(ctx, captureQids);
+      for (const row of captureRows) {
+        captureById.set(row.id, {
+          id: row.id,
+          subject: row.subject?.trim() || "",
+          chapter: row.chapter,
+          difficulty: row.difficulty ?? "medium",
+          question: row.question,
+          options: row.options,
+          correct_index: row.correct_index as number,
+          explanation: row.explanation,
+          from_capture: true,
+          chapter_id: row.chapter_id,
+        });
+      }
+    }
+
+    const snapshotPrivate = (
+      r: MistakeListRow,
+      kind: "upload" | "capture",
+    ): PracticeReady | null => {
+      const options = r.options;
+      if (!Array.isArray(options) || options.length < 2) return null;
+      const correct = answerToIndex(r.correct_answer, options);
+      if (correct == null || !r.question_text?.trim()) return null;
+      const id =
+        kind === "upload"
+          ? r.upload_question_id || r.id
+          : r.capture_question_id || r.id;
+      return {
+        id,
+        subject: r.subject || "",
+        chapter: r.chapter,
+        difficulty: r.difficulty ?? "medium",
+        question: r.question_text,
+        options,
+        correct_index: correct,
+        explanation: r.explanation,
+        ...(kind === "upload"
+          ? {
+              from_upload: true as const,
+              ai_answered: false,
+              // Mistake source_id is the upload id when the original attempt followed §9.1.
+              upload_id: r.source_id,
+            }
+          : { from_capture: true as const }),
+        chapter_id: r.chapter_id,
+      };
+    };
+
+    const out: PracticeReady[] = [];
+    const seenBank = new Set<string>();
+    const seenUpload = new Set<string>();
+    const seenCapture = new Set<string>();
+    for (const r of rows) {
+      if (out.length >= limit) break;
+      if (r.source === "upload") {
+        const uqid = r.upload_question_id ?? null;
+        if (uqid && uploadById.has(uqid)) {
+          if (seenUpload.has(uqid)) continue;
+          seenUpload.add(uqid);
+          out.push(uploadById.get(uqid)!);
+          continue;
+        }
+        const snap = snapshotPrivate(r, "upload");
+        if (!snap) continue;
+        if (seenUpload.has(snap.id)) continue;
+        seenUpload.add(snap.id);
+        out.push(snap);
+        continue;
+      }
+      if (r.source === "screen_capture") {
+        const cqid = r.capture_question_id ?? null;
+        if (cqid && captureById.has(cqid)) {
+          if (seenCapture.has(cqid)) continue;
+          seenCapture.add(cqid);
+          out.push(captureById.get(cqid)!);
+          continue;
+        }
+        const snap = snapshotPrivate(r, "capture");
+        if (!snap) continue;
+        if (seenCapture.has(snap.id)) continue;
+        seenCapture.add(snap.id);
+        out.push(snap);
+        continue;
+      }
+      if (!r.question_id || !bankById.has(r.question_id)) continue;
+      if (seenBank.has(r.question_id)) continue;
+      seenBank.add(r.question_id);
+      out.push(bankById.get(r.question_id)!);
+    }
+    return out;
+  },
 
   /** Previously skipped questions (honest empty if none). */
   async listSkippedBankQuestions(
     ctx: ServiceContext,
-    opts: { limit?: number } = {},
+    opts: { limit?: number; chapterId?: string | null } = {},
   ) {
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
-    const ids = await this.listQuestionIdsByStatus(ctx, "skipped", { limit: limit * 2 });
+    const ids = await this.listQuestionIdsByStatus(ctx, "skipped", { limit: limit * 2, chapterId: opts.chapterId });
     if (ids.length === 0) return [];
     return this.listBankQuestions(ctx, { ids: ids.slice(0, limit), limit });
   },
@@ -1463,12 +1792,14 @@ export const PracticeService = {
     const scope = await this.resolveCurriculumScope(ctx);
     const classLevel = opts.classLevel ?? scope.classLevel;
 
-    // Never dump all classes when class cannot be resolved (unless fetching by id).
+    // Never dump all classes when class cannot be resolved (unless fetching by id
+    // or practising under an exam account).
     const byIds = opts.ids && opts.ids.length > 0;
-    if (!byIds && (classLevel == null || !Number.isFinite(classLevel))) {
+    if (!byIds && !scope.examId && (classLevel == null || !Number.isFinite(classLevel))) {
       return [];
     }
     if (
+      !scope.examId &&
       opts.subject &&
       opts.subject !== "Mixed" &&
       !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)

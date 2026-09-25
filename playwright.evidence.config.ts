@@ -1,4 +1,21 @@
 import { defineConfig, devices } from '@playwright/test'
+import { readFileSync, existsSync } from 'node:fs'
+
+// Load .env.local into process.env so evidence specs / exam setup see anon + token
+// without printing them. Cloud containers may already have them; local worktrees
+// keep them only in .env.local (not in git).
+for (const f of ['.env.local', '.env']) {
+  if (!existsSync(f)) continue
+  for (const line of readFileSync(f, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/)
+    if (!m || process.env[m[1]] !== undefined) continue
+    let v = m[2].trim()
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+      v = v.slice(1, -1)
+    }
+    process.env[m[1]] = v
+  }
+}
 
 /**
  * Evidence harness config — SEPARATE from playwright.config.ts so it does not
@@ -7,7 +24,7 @@ import { defineConfig, devices } from '@playwright/test'
  * exist in CI/cloud). Test dir is e2e-evidence/ so the two suites never glob
  * each other's files.
  *
- * Run: npm run test:e2e:evidence   (dev server must be up on :8080)
+ * Run: npm run test:e2e:evidence   (dev server must be up on :8099 for this worktree)
  *
  * `known-issues.spec.ts` is matched alongside the tier files: it verifies
  * specific KNOWN_ISSUES fixes end to end rather than a role's surfaces.
@@ -16,7 +33,7 @@ import { defineConfig, devices } from '@playwright/test'
  * answers at all, so a network outage reads as one red line at the top instead
  * of a hundred plausible-looking product regressions underneath it.
  */
-const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080'
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8099'
 
 export default defineConfig({
   testDir: './e2e-evidence',
@@ -44,6 +61,11 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
+      name: 'setup-exam',
+      testMatch: /auth\.exam\.setup\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
       name: 'evidence',
       // FILE ORDER IS LOAD-BEARING — Playwright runs spec files alphabetically,
       // and two names exploit that deliberately:
@@ -58,8 +80,9 @@ export default defineConfig({
       //                    never touches, passed every time; tier1-reads passed
       //                    12/12 when run without it. Last means nothing it does
       //                    to a session can reach a spec that has not run yet.
-      testMatch: /(aa-reachability|tier\d(-writes|-reads|-panels|-homework-family)?|zz-known-issues|zz-riverside-(homework|school))\.spec\.ts/,
-      dependencies: ['setup'],
+      //   custom-practice  Individual (exam) Custom Practice §12 — needs setup-exam.
+      testMatch: /(aa-reachability|tier\d(-writes|-reads|-panels|-homework-family)?|custom-practice|zz-known-issues|zz-riverside-(homework|school))\.spec\.ts/,
+      dependencies: ['setup', 'setup-exam'],
       use: { ...devices['Desktop Chrome'] },
     },
   ],

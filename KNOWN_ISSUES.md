@@ -710,6 +710,19 @@ findings:**
   Shipping an index change to the busiest AI function is a larger decision than
   a shared-module refresh and is not folded in here.
 
+  **Measured again 2026-09-23, and it now blocks a feature.** Production holds
+  two modules that exist in NO branch — `_shared/novaTutoringPolicy.ts` and
+  `_shared/parseClassLevel.ts` — and four that differ (`aiRouter.ts`,
+  `contextBuilder.ts`, `promptLibrary.ts`, `responseValidator.ts`). A deploy
+  from this repo would DELETE the two and revert the four. So the individual
+  student's Nova change (`_shared/aiRouter.ts`, repo `3b5d411b5251` / prod
+  `cbb696f257a8`: Nova reading the exam instead of the class and board) is
+  written and tested but **not live, and cannot be shipped by deploying**.
+  `ai-gateway` is the only function that snapshots `aiRouter.ts`. Recovering
+  the two prod-only modules into the branch comes first — take them from the
+  MCP `get_edge_function` tool, never from the Management API `/body` bundle,
+  which is transpiled.
+
 The original finding follows.
 
 `_shared/modelRouter.ts` (repo `2cd4c73acfbd` / prod `2273dd3d509c`, 426 vs 278
@@ -3393,7 +3406,51 @@ and scratchpad scenario s19, which forces a real refresh mid-session: with the
 old provider the pinned page node was disconnected and the session finished at
 q=1; with the fix it stays mounted and finishes normally with every answer.
 
----
+
+## 73. ~~Every mobile sign-in was refused by the auth server~~ — FIXED 2026-09-23
+
+`src/lib/msg91Auth.ts` redeemed the magic-link token with
+`verifyOtp({ email, token_hash, type: "email" })`. GoTrue refuses a
+`/auth/v1/verify` body carrying the address beside the hash. Measured live
+2026-09-23, two freshly minted links for the same account:
+
+```
+email+token_hash+type  -> 400 {"error_code":"validation_failed",
+                              "msg":"Only the token_hash and type should be provided"}
+token_hash+type        -> 200 (session)
+```
+
+So the OTP widget verified the number, the edge function minted a token, and
+the redeem was then rejected — no session, for every phone sign-in. It is the
+ONLY sign-in an individual exam account has.
+
+The hash already names the account; the address added nothing but the refusal.
+Fixed by sending `{ token_hash, type }` alone, and the two comments in
+`supabase/functions/_shared/phoneAuthLink.ts` that documented the wrong shape
+were corrected with it. `src/lib/msg91Auth.signin.test.ts` asserts the redeem
+body has no `email` key and fails when it is put back.
+
+Not proven end to end: MSG91's own verification needs a real SMS, so the step
+before the redeem is still only exercised by its own error paths
+(`scratchpad/exam/edge-probe.mjs`, 4 assertions against the deployed function).
+
+## 75. ~~Upload mistakes write `upload_question_id`, but recovery still ladders on bank `question_id` only~~ — FIXED
+
+**Fixed:** 2026-09-24 on `claude/question-topics-per-chapter`.
+
+`20261070000000` lands `student_mistakes.upload_question_id` (XOR with bank
+`question_id`). `20261071000000_recovery_plan_serves_upload_originals` rewrites
+`_recovery_session_plan_for` / queue / chapter-state / start-session so upload
+mistakes count and tier 0 lists them in `from_upload` (never `from_bank`).
+Practice `loadSessionQuestions` hydrates recovery ids via
+`StudentUploadService.listByIds` beside `listBankQuestions`.
+`recoveryEngineService` flattens `from_upload` into `tierByQuestionId`.
+
+Measured live 2026-09-24 (§12.2 as exam_cuet): wrong upload attempt → mistake
+with `upload_question_id` set / `question_id` null → recovery tier 0
+`from_upload` contains that id. Also `20261074000000` stops
+`rpc_record_question_attempt` from raising on unassigned `_tm` for
+upload/no-template attempts.
 
 ## 73. The sign-in form refused real accounts on domain extensions it did not list — FIXED 2026-09-15
 
@@ -3496,11 +3553,13 @@ was the worked solution's first 120 characters — the whole answer for 39% of s
 the ruling and deleted the client call. The function reads only question_bank by primary key and is harmless, but
 it is a door nothing uses; a migration drops it once 75 is resolved.
 
-## 77. LiveHomeworkTab's paging test takes 7 s and times out under a full run — OPEN
+## 77. ~~LiveHomeworkTab's paging test takes 7 s and times out under a full run~~ — FIXED 2026-09-24
 
-`src/gurukul-teacher/LiveHomeworkPanels.test.tsx` "does not stop at a page" passed alone in 7,067 ms and failed at
-25,405 ms inside the full suite (2026-09-22). A unit test that slow is waiting on real timers somewhere; it is
-flaky by construction until it stops.
+**Cause:** `HOMEWORK_PAGE = 100` forced the paging test to paint 100+ cards in
+jsdom while the whole suite shared the machine — past the default budget
+(measured alone 7,067 ms; under full suite 25,405 ms on 2026-09-22).
+**Fix:** page size is **25** (still a full page for "Show older homework");
+test timeout 10s. Named reason, not a blind raise of the number.
 
 ## 78. A teacher could approve their own question on the way into the bank — FIXED in 20261054000000, NOT APPLIED (blocked by 75)
 
@@ -3723,3 +3782,17 @@ into `student_mistakes_variant_merge` first, so the rollback restores them
 exactly and takes the counts back out. Its proof asserts the times_wrong total
 is unchanged, that nothing is keyed on a variant afterwards, and — the control
 — that no row on an original question was touched.
+
+## 83. ~~Upload-sourced variant jobs enqueue but are never dispatched~~ — FIXED 2026-09-24
+
+**Found:** 2026-09-24 on `claude/question-topics-per-chapter` (was KI74 on that tip;
+renumbered on merge with main, which already used 74 for DB load).
+**Fixed:** `ai-recovery-variants` accepts exactly one of `source_question_id` /
+`source_upload_question_id` (loads upload text + chapter/topic, keeps §6.2 /
+§10.2.4 AI-answer refusal and chapter gate, stores upload provenance).
+Migration `20261076000000_dispatch_upload_variants_and_caps` removes the
+bank-only filter in `dispatch_variant_generation`. Measured
+`node scripts/measure-upload-promotion-12-5-real.mjs`: 1 positive into
+`question_bank` with §10.4 provenance + 4 gate negatives each stay private
+(rollback txn). Both edges redeployed.
+

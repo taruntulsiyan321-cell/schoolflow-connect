@@ -23,6 +23,14 @@ import {
 import { PRACTICE_HISTORY_WINDOW_DAYS, type AcademicTermRef, type AttemptVerdict } from "@/academic/services/practiceService";
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { ListFailed, ListLoading, OptionChips, SubjectPicker, type PracticeSubject } from "@/gurukul/components/PracticeLists";
+import { CustomPracticeUpload } from "@/gurukul/components/CustomPracticeUpload";
+import {
+  StudentUploadService,
+  UPLOAD_MODE_LABELS,
+  type StudentUploadRow,
+  type UploadPracticeMode,
+} from "@/academic/services/studentUploadService";
+import { listCaptureQuestionsByIds } from "@/academic/services/screenCaptureService";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
@@ -34,20 +42,19 @@ import {
   Save, Bookmark, BookMarked, Lightbulb,
   RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle, Filter,
 } from "lucide-react";
-import { toErrorMessage } from "@/lib/presentation";
+import { isUuid, toErrorMessage } from "@/lib/presentation";
 import { ACCURACY_PROCEDURAL, ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
 import { pluralise } from "@/lib/plural";
 import { PRACTICE_MODE_LABELS, practiceModeLabel } from "@/lib/practiceModeLabel";
-
-const CLASS_UNRESOLVED_MSG =
-  "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
+import {
+  CLASS_UNRESOLVED_MSG,
+  resolvePracticeUnresolved,
+} from "@/gurukul/pages/practiceUnresolvedCopy";
 
 /* A `PremiumEmpty` component stood here — the fourth of five ways this panel
    drew an empty state, and it was never called once. Removed 2026-09-11 with
    the `.premium-empty` CSS it was the last reason to keep. Use EmptyState from
    components/shared. */
-const CLASS_LEVEL_UNRESOLVED_MSG =
-  "Your class is assigned, but its name or category does not identify a class level. Ask your school admin to use a label such as Class 10, Std 9, XI, or 12-A.";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Phase   = "hub" | "config" | "session" | "saveFailed";
@@ -96,21 +103,32 @@ function subjectColor(name: string, index: number) {
 }
 
 /**
- * A QUESTION, AS A STUDENT MAY HOLD IT. No `correct`, no `explanation`.
+ * A QUESTION, AS A STUDENT MAY HOLD IT. No bank `correct` / `explanation`.
  *
- * Both used to be here, fetched with the question, and a student could read
- * them off question_bank directly anyway — measured 2026-09-22, including
- * `?correct_index=eq.2`, which enumerates the answers by filtering on them.
- *
- * The answer now arrives only after the student commits, in the verdict
- * rpc_record_question_attempt returns. There is no hint: the bank has none,
- * and what this screen once called one was the worked solution's opening —
- * the whole answer for 39% of servable questions.
+ * Bank rows omit the key on purpose (fetched and graded server-side). Private
+ * upload / capture rows already expose correct_index to the owner via RLS; the
+ * attempt RPC trusts client `_is_correct` when there is no bank id, so those
+ * keys travel here only so Custom Practice and Incorrect mode can grade
+ * honestly. Never map them onto bank questions.
  */
 type BankQuestion = {
   id: string;
   subject: string; chapter: string; difficulty: string;
   question: string; options: string[];
+  /** Spec §2.1 / §9 — private upload question; never a question_bank id. */
+  fromUpload?: boolean;
+  /** Screen-capture-mistakes-spec §7.4 — private capture; never a bank id. */
+  fromCapture?: boolean;
+  /** Spec §6 — answer key came from the AI, not the file. */
+  aiAnswered?: boolean;
+  /** Spec §5.1 — real chapters.id when tagged; null when untagged. */
+  chapterId?: string | null;
+  /** Spec §9.1 — student_uploads.id when fromUpload (Incorrect + Custom). */
+  uploadId?: string | null;
+  /** Private rows only — owner-readable key for non-bank grading. */
+  correctIndex?: number | null;
+  /** Private rows only — shown when the verdict has no bank explanation. */
+  explanation?: string | null;
 };
 
 function parseBankOptions(raw: unknown): string[] {
@@ -581,6 +599,7 @@ export function Hub({
 // Exported for PracticeLists.test.tsx, which drives it as a student would.
 export function ConfigView({
   modeKey, onStart, onBack, subjectList, onRetrySubjects, classUnresolved, classUnresolvedMessage,
+  examScoped = false,
 }: {
   modeKey: ModeKey;
   onStart: (cfg: SessionConfig) => void;
@@ -589,6 +608,7 @@ export function ConfigView({
   onRetrySubjects: () => void;
   classUnresolved?: boolean;
   classUnresolvedMessage?: string;
+  examScoped?: boolean;
 }) {
   // Not `!`. "recovery" and "revision" have no MODES entry by design, and
   // although both jump straight to the session phase and never render this screen, an
@@ -710,15 +730,43 @@ export function ConfigView({
 
   const subjectEmptyMsg = classUnresolved
     ? classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG
-    : "No subjects in the question bank yet for your class and board.";
+    : examScoped
+      ? "No subjects in the question bank yet for your exam."
+      : "No subjects in the question bank yet for your class and board.";
 
   if (modeKey === "custom") {
     // Subject / chapter / topic are all optional here — only difficulty and a
-    // goal are required.
+    // goal are required. Individuals also get §1 upload intake (spec
+    // docs/custom-practice-upload-spec.md); school students keep bank filters.
     const goalReady = goalType === "count" ? qCount > 0 : timeLimitMin > 0;
+
+    function onUploadMode(upload: StudentUploadRow, mode: UploadPracticeMode) {
+      // §8 — practise modes start with SessionConfig.upload. read_notes is
+      // opened inside CustomPracticeUpload (toast / notes pane); never a session.
+      // Subject stays empty here: per-question subject comes from
+      // listForPractice → chapters→curriculum_subjects. "Mixed"/"General" are
+      // placeholders Mistake Book drops (isPlaceholderAcademicLabel).
+      if (mode === "read_notes") return;
+      onStart({
+        mode: "custom",
+        label: UPLOAD_MODE_LABELS[mode],
+        subject: "",
+        chapter: null,
+        topic: null,
+        difficulty: "mixed",
+        qCount: 50,
+        timeLimitSec: null,
+        upload: { uploadId: upload.id, practiseMode: mode },
+      });
+    }
+
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
+          {examScoped && (
+            <CustomPracticeUpload accentColor={mode.color} onSelectMode={onUploadMode} />
+          )}
+
           <SubjectPicker
             selected={selSubject}
             onSelect={setSelSubject}
@@ -726,7 +774,7 @@ export function ConfigView({
             onRetry={onRetrySubjects}
             emptyMessage={subjectEmptyMsg}
             allowAll
-            label="1. Subject (optional)"
+            label={examScoped ? "Or practise from the bank — subject (optional)" : "1. Subject (optional)"}
           />
           {selSubject && (
             <OptionChips
@@ -1071,6 +1119,13 @@ function StartButton({ disabled=false, onStart, label="Start Practice" }: {
 interface SessionConfig {
   mode: ModeKey; label: string; subject: string;
   chapter?: string | null; topic?: string | null;
+  /**
+   * Skipped mode for ONE chapter — Analysis's "Try the ones you skipped" on
+   * that chapter's row (§6.6). By id, because rpc_my_skipped_questions
+   * narrows on question_bank.chapter_id; the row's count comes from the same
+   * function, so the session holds the questions the row counted.
+   */
+  skippedChapterId?: string | null;
   difficulty: string; qCount: number; timeLimitSec: number | null;
   /** Previous Year Questions only — restricts to one exam year. */
   pyqYear?: number | null;
@@ -1135,11 +1190,20 @@ interface SessionConfig {
   recovery?: {
     sessionId: string;
     chapterId: string;
-    /** bank question id -> tier. Order of the keys is the order asked. */
+    /** Question id -> tier (bank, upload, or capture on tier 0). Order of keys is ask order. */
     tierByQuestionId: Record<string, 0 | 1 | 2 | 3>;
     /** False when generation could not fill every tier — the screen says so. */
     complete: boolean;
     shortfall: number;
+  } | null;
+  /**
+   * Spec §8 / §9 — Custom Practice from the student's own upload.
+   * When set, the session loads student_upload_questions only — never
+   * question_bank — and attempts are written with source = 'upload'.
+   */
+  upload?: {
+    uploadId: string;
+    practiseMode: UploadPracticeMode;
   } | null;
 }
 
@@ -1152,12 +1216,29 @@ interface SessionConfig {
 type EndReason = "completed" | "ended" | "timed_out" | "left";
 
 type BankRows = Awaited<ReturnType<typeof PracticeService.listBankQuestions>>;
+type UploadPracticeRows = Awaited<ReturnType<typeof StudentUploadService.listForPractice>>;
+type CapturePracticeRows = Awaited<ReturnType<typeof listCaptureQuestionsByIds>>;
+/** Bank, private upload/capture, or a recovery mix. */
+type SessionQuestionRows =
+  | BankRows
+  | UploadPracticeRows
+  | CapturePracticeRows
+  | Array<BankRows[number] | UploadPracticeRows[number] | CapturePracticeRows[number]>;
 
 /** The questions a session asks, decided by its mode. */
 async function loadSessionQuestions(
   ctx: NonNullable<ReturnType<typeof useAcademicContext>["ctx"]>,
   config: SessionConfig,
-): Promise<BankRows> {
+): Promise<SessionQuestionRows> {
+  // Spec §2.1 / §8 / §9 — an upload session never touches question_bank.
+  if (config.upload) {
+    return StudentUploadService.listForPractice(
+      ctx,
+      config.upload.uploadId,
+      config.upload.practiseMode,
+      config.qCount,
+    );
+  }
   const difficulty = config.difficulty || "mixed";
   if (config.recovery) {
     // §4.2 — the ladder is already built. Load exactly the questions
@@ -1165,9 +1246,21 @@ async function loadSessionQuestions(
     // topping the session up from the bank would put questions into it that no
     // tier accounts for, and the per-tier score would then be taken over a
     // different set than the totals recorded at start.
+    // Spec §9 / migration 720+770 — tier 0 may carry upload or capture originals.
     const tierOf = config.recovery.tierByQuestionId;
     const ids = Object.keys(tierOf);
-    const byId = new Map((await PracticeService.listBankQuestions(ctx, { ids, limit: ids.length })).map((r) => [r.id, r]));
+    const [bankRows, uploadRows, captureRows] = await Promise.all([
+      PracticeService.listBankQuestions(ctx, { ids, limit: ids.length }),
+      StudentUploadService.listByIds(ctx, ids),
+      listCaptureQuestionsByIds(ctx, ids),
+    ]);
+    const byId = new Map<
+      string,
+      (typeof bankRows)[number] | (typeof uploadRows)[number] | (typeof captureRows)[number]
+    >();
+    for (const r of bankRows) byId.set(r.id, r);
+    for (const r of uploadRows) byId.set(r.id, r);
+    for (const r of captureRows) byId.set(r.id, r);
     return ids
       .map((id) => byId.get(id))
       .filter((r): r is NonNullable<typeof r> => r != null)
@@ -1186,7 +1279,7 @@ async function loadSessionQuestions(
     case "incorrect":
       return PracticeService.listMistakeQuestions(ctx, { limit: config.qCount });
     case "skipped":
-      return PracticeService.listSkippedBankQuestions(ctx, { limit: config.qCount });
+      return PracticeService.listSkippedBankQuestions(ctx, { limit: config.qCount, chapterId: config.skippedChapterId ?? null });
     case "bookmarked":
       return PracticeService.listBookmarkedQuestions(ctx, { limit: config.qCount });
     case "weak": {
@@ -1280,7 +1373,7 @@ async function completeSession(
 }
 
 // ── Session (question-solving) ───────────────────────────────────────────────
-function Session({
+export function Session({
   config, onFinish, onBack, onNavigate, subjects, classUnresolved, classUnresolvedMessage,
 }: {
   config: SessionConfig;
@@ -1301,11 +1394,19 @@ function Session({
   // WHAT THE SERVER SAID. Null until the attempt has been recorded, which is
   // also the first moment this browser is allowed to know the answer.
   const [verdict,   setVerdict]   = useState<AttemptVerdict | null>(null);
+  /** The on-screen answer's write came back without a verdict (the finish resends it). */
+  const [verdictMissing, setVerdictMissing] = useState(false);
+  // Both counted from VERDICTS, so "x/y correct" never counts an answer the
+  // server has not marked yet as a wrong one.
   const [correct,   setCorrect]   = useState(0);
   const [answered,  setAnswered]  = useState(0);
   const [bookmarked,setBookmarked]= useState<number[]>([]);
   const [timeLeft,  setTimeLeft]  = useState(config.timeLimitSec ?? 0);
   const [finishing, setFinishing] = useState(false);
+  /** Spec §6.1 — dispute in flight for this upload question id. */
+  const [disputingId, setDisputingId] = useState<string | null>(null);
+  /** Spec §6.1 — upload question ids already successfully disputed this session. */
+  const [disputedIds, setDisputedIds] = useState<Set<string>>(() => new Set());
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
   const loadedRef = useRef(false);
@@ -1367,6 +1468,24 @@ function Session({
           .map((r): BankQuestion | null => {
             const options = parseBankOptions(r.options);
             if (!r.id || !r.question || options.length < 2) return null;
+            const fromUpload = "from_upload" in r && r.from_upload === true;
+            const fromCapture = "from_capture" in r && r.from_capture === true;
+            const privateQ = fromUpload || fromCapture;
+            const correctRaw =
+              privateQ && "correct_index" in r ? (r as { correct_index?: unknown }).correct_index : null;
+            const correctIndex =
+              typeof correctRaw === "number" && Number.isInteger(correctRaw) ? correctRaw : null;
+            // Private rows must carry a usable key — the attempt RPC trusts
+            // client is_correct when bank_question_id is null.
+            if (privateQ && correctIndex == null) return null;
+            const explanation =
+              privateQ && "explanation" in r
+                ? ((r as { explanation?: string | null }).explanation ?? null)
+                : null;
+            const uploadId =
+              fromUpload && "upload_id" in r
+                ? ((r as { upload_id?: string | null }).upload_id ?? null)
+                : null;
             return {
               id: r.id,
               subject: r.subject || "",
@@ -1374,6 +1493,13 @@ function Session({
               difficulty: r.difficulty || "medium",
               question: r.question,
               options,
+              fromUpload,
+              fromCapture,
+              aiAnswered: fromUpload && "ai_answered" in r ? Boolean(r.ai_answered) : false,
+              chapterId: "chapter_id" in r ? (r.chapter_id ?? null) : null,
+              uploadId,
+              correctIndex: privateQ ? correctIndex : null,
+              explanation: privateQ ? explanation : null,
             };
           })
           .filter((x): x is BankQuestion => x !== null);
@@ -1393,7 +1519,9 @@ function Session({
             const distinct = [...new Set(vals.filter(Boolean))];
             return distinct.length === 1 ? distinct[0] : null;
           };
-          const engineSession = Boolean(config.recovery || config.revision);
+          // Upload: name the session from tagged questions when they agree —
+          // never "Mixed"/"General" (Mistake Book / RPC placeholder defaults).
+          const engineSession = Boolean(config.recovery || config.revision || config.upload);
           const sid = await PracticeService.start(ctx, {
             _subject: engineSession
               ? onlyOne(mapped.map((q) => q.subject)) ?? ""
@@ -1484,20 +1612,38 @@ function Session({
   function snapshotOf(q: BankQuestion, fields: {
     selectedIndex: number; isCorrect: boolean; skipped: boolean; timedOut?: boolean; solutionViewed?: boolean;
   }): PracticeAttemptSnapshot {
+    // Spec §9.1 — upload attempts: source = 'upload', source_id = upload id,
+    // bank_question_id null (private rows are not in question_bank).
+    // Screen-capture §7.4 — same shape with source = 'screen_capture'.
+    // Subject/chapter come from the question (curriculum_subjects via chapter),
+    // never session placeholders Mixed/General.
+    const fromUpload = Boolean(q.fromUpload);
+    const fromCapture = Boolean(q.fromCapture);
+    const privateQ = fromUpload || fromCapture;
     return {
       question: q.question,
       options: q.options,
-      // Unknown here, and deliberately: the server grades and says. The
-      // verdict fills both in on this snapshot when it lands (record below).
+      // Unknown here for bank questions — the server grades and fills in.
+      // Private upload/capture: answer() may set correctIndex / isCorrect
+      // before record, because the RPC trusts client _is_correct without a bank id.
       correctIndex: -1,
       explanation: undefined,
-      bankQuestionId: q.id,
+      bankQuestionId: privateQ ? null : q.id,
+      uploadQuestionId: fromUpload ? q.id : null,
+      captureQuestionId: fromCapture ? q.id : null,
       subject: q.subject,
       chapter: q.chapter,
+      chapterId: q.chapterId ?? null,
       difficulty: q.difficulty,
-      source: "practice",
+      source: fromUpload ? "upload" : fromCapture ? "screen_capture" : "practice",
       practiceMode: config.mode,
-      sourceId: sessionIdRef.current,
+      // Spec §9.1 — upload attempts carry the upload id, including Incorrect
+      // mode reattempts where config.upload is unset.
+      sourceId: fromUpload
+        ? (q.uploadId ?? config.upload?.uploadId ?? null)
+        : fromCapture
+          ? q.id
+          : sessionIdRef.current,
       timeTakenMs: Date.now() - questionStartRef.current,
       solutionViewed: false,
       attemptNumber: ++attemptNumberRef.current,
@@ -1510,10 +1656,14 @@ function Session({
   /** The snapshot of the question on screen, so a late verdict cannot mark the next question. */
   const onScreenRef = useRef<PracticeAttemptSnapshot | null>(null);
 
-  function record(snap: PracticeAttemptSnapshot, onVerdict?: (v: AttemptVerdict) => void) {
+  function record(
+    snap: PracticeAttemptSnapshot,
+    onVerdict?: (v: AttemptVerdict) => void,
+    onNoVerdict?: () => void,
+  ) {
     attemptLog.current.push(snap);
     const write = persistAttemptLive(snap).then((v) => {
-      if (!v) return;
+      if (!v) { onNoVerdict?.(); return; }
       confirmedRef.current.add(snap);
       // What the server found is what this session's record says from now on:
       // the summary and the review read these snapshots.
@@ -1588,20 +1738,42 @@ function Session({
     const q = qs[idx];
     if (!q || phase !== "q" || finishedRef.current) return;
     setChosen(i);
-    setAnswered((n) => n + 1);
-    // THE CLIENT DOES NOT GRADE. It reports what was chosen, once; the server
-    // grades against the bank and its verdict drives the tick, the cross, the
-    // explanation and the running count. Until it lands the options stay
-    // neutral — the browser genuinely does not know yet.
-    const snap = snapshotOf(q, { selectedIndex: i, isCorrect: false, skipped: false });
+    // Bank: THE CLIENT DOES NOT GRADE — server re-grades off question_bank.
+    // Private upload/capture (§9 / §7.4): no bank id, so the RPC trusts
+    // `_is_correct`. The owner-readable key was loaded with the row; send it.
+    const privateQ = Boolean(q.fromUpload || q.fromCapture);
+    const knownCorrect =
+      privateQ && typeof q.correctIndex === "number" && Number.isInteger(q.correctIndex)
+        ? q.correctIndex
+        : null;
+    const isCorrect = knownCorrect != null ? i === knownCorrect : false;
+    const snap = snapshotOf(q, { selectedIndex: i, isCorrect, skipped: false });
+    if (knownCorrect != null) {
+      snap.correctIndex = knownCorrect;
+      if (q.explanation) snap.explanation = q.explanation;
+      // Optimistic: non-bank RPC trusts what we send; don't flash "wrong" while waiting.
+      setVerdict({
+        attemptId: null,
+        isCorrect,
+        skipped: false,
+        correctIndex: knownCorrect,
+        correctText: q.options[knownCorrect] ?? "",
+        explanation: q.explanation ?? "",
+      });
+    }
     onScreenRef.current = snap;
-    record(snap, (v) => {
-      if (v.isCorrect) {
-        correctRef.current += 1;
-        setCorrect(correctRef.current);
-      }
-      if (onScreenRef.current === snap) setVerdict(v);
-    });
+    record(
+      snap,
+      (v) => {
+        setAnswered((n) => n + 1);
+        if (v.isCorrect) {
+          correctRef.current += 1;
+          setCorrect(correctRef.current);
+        }
+        if (onScreenRef.current === snap) setVerdict(v);
+      },
+      () => { if (onScreenRef.current === snap) setVerdictMissing(true); },
+    );
     setPhase("fb");
   }
 
@@ -1611,6 +1783,7 @@ function Session({
     // The last verdict belongs to the last question.
     onScreenRef.current = null;
     setVerdict(null);
+    setVerdictMissing(false);
     questionStartRef.current = Date.now();
   }
 
@@ -1628,10 +1801,16 @@ function Session({
           options: snap.options,
           explanation: snap.explanation ?? "",
           bank_question_id: snap.bankQuestionId ?? null,
+          // Spec §9 — private upload row id for chapter_tally / dispute join.
+          upload_question_id: snap.uploadQuestionId ?? null,
+          // Screen-capture §7.4 — private capture original id.
+          capture_question_id: snap.captureQuestionId ?? null,
           // `?? null`: the column is jsonb, which has a null but no undefined —
           // an undefined key would vanish from the row rather than be unset.
           subject: snap.subject ?? null,
           chapter: snap.chapter ?? null,
+          // Spec §9 / migration 202610670 — attempt RPC reads chapter_id from here.
+          chapter_id: snap.chapterId ?? null,
           difficulty: snap.difficulty ?? null,
           practice_mode: snap.practiceMode ?? null,
         },
@@ -1676,6 +1855,10 @@ function Session({
   }
 
   function toggleBookmark() {
+    // Spec §2.1 — upload questions are not in question_bank; bookmarks key on
+    // bank ids, so they do not apply here.
+    if (qs[idx]?.fromUpload || qs[idx]?.fromCapture) return;
+
     const nextOn = !bookmarkedRef.current.includes(idx);
     bookmarkedRef.current = nextOn
       ? [...bookmarkedRef.current, idx]
@@ -1703,11 +1886,43 @@ function Session({
       });
   }
 
+  async function disputeAiAnswer() {
+    const q = qs[idx];
+    if (!q?.aiAnswered || !q.fromUpload || !ctx) return;
+    if (disputingId === q.id || disputedIds.has(q.id)) return;
+    setDisputingId(q.id);
+    try {
+      const result = await StudentUploadService.disputeAiAnswer(ctx, q.id);
+      setDisputedIds((prev) => new Set(prev).add(q.id));
+      toast.success(
+        `Answer disputed — cleared ${result.cleared_mistakes} mistake${result.cleared_mistakes === 1 ? "" : "s"}, excluded ${result.excluded_attempts} attempt${result.excluded_attempts === 1 ? "" : "s"}.`,
+      );
+    } catch (e) {
+      toast.error(toErrorMessage(e, "Could not dispute this answer"));
+    } finally {
+      setDisputingId(null);
+    }
+  }
+
   const q       = qs[idx];
   // FROM THE SERVER, not from a copy of the answer this browser was handed.
   // Null while the verdict is in flight, which is why the options below stay
   // neutral until it lands.
   const isRight = verdict?.isCorrect === true;
+  // Answered, and the server has not said yet. Nothing is marked right or
+  // wrong in this state: the choice is only shown as chosen. It used to be
+  // drawn as WRONG (red, with a cross) until the verdict landed — measured
+  // 2026-09-24, a correct first answer whose verdict took over 2.5 s stayed
+  // marked wrong on screen while the server recorded it right.
+  const checking = phase === "fb" && verdict === null;
+  // Private keys are owner-readable; fall back when the verdict omits index
+  // (non-bank path stores what we sent — still cover empty/legacy shapes).
+  const markedCorrectIndex =
+    verdict?.correctIndex != null && verdict.correctIndex >= 0
+      ? verdict.correctIndex
+      : q && (q.fromUpload || q.fromCapture) && typeof q.correctIndex === "number"
+        ? q.correctIndex
+        : null;
   const subj    = subjects.find(s => s.name === q?.subject);
   const timed   = config.timeLimitSec !== null;
   const mm      = Math.floor(timeLeft / 60).toString().padStart(2,"0");
@@ -1757,8 +1972,12 @@ function Session({
         <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto"/>
         <div className="text-lg font-bold text-foreground">No questions available</div>
         <p className="text-sm text-muted-foreground">
-          {emptyByMode[config.mode] ??
-            "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions."}
+          {config.upload
+            ? config.upload.practiseMode === "practise_from_notes"
+              ? "No questions written from these notes yet."
+              : "No practisable questions in this upload for that mode yet."
+            : (emptyByMode[config.mode] ??
+              "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions.")}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           {config.mode === "weak" && onNavigate && (
@@ -1814,18 +2033,20 @@ function Session({
             <span className="text-[10px] text-muted-foreground">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={toggleBookmark}
-              aria-pressed={isBookmarked}
-              title={isBookmarked
-                ? "Bookmarked — it stays in Bookmarked Questions until you remove it"
-                : "Bookmark — keep this question in Bookmarked Questions"}
-              className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                isBookmarked ? "text-info bg-info/15" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}>
-              <Bookmark className="w-3.5 h-3.5"/>
-            </button>
+            {!(q.fromUpload || q.fromCapture) && (
+              <button
+                type="button"
+                onClick={toggleBookmark}
+                aria-pressed={isBookmarked}
+                title={isBookmarked
+                  ? "Bookmarked — it stays in Bookmarked Questions until you remove it"
+                  : "Bookmark — keep this question in Bookmarked Questions"}
+                className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
+                  isBookmarked ? "text-info bg-info/15" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}>
+                <Bookmark className="w-3.5 h-3.5"/>
+              </button>
+            )}
           </div>
         </div>
         <div className="text-base font-semibold text-foreground leading-relaxed">
@@ -1839,12 +2060,13 @@ function Session({
           const isChosen = chosen === i;
           // Only once the server has said so. Before the verdict lands
           // nothing is marked, because nothing is known.
-          const isCorrect = verdict?.correctIndex === i;
+          const isCorrect = markedCorrectIndex === i;
           let bg = "border-border/70 text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted";
           if (phase === "fb") {
             // The fill, the border and the mark say which is right; the text
             // stays the foreground. text-success on its own tint read 4.13:1.
             if (isCorrect)              bg = "border-success/50 bg-success/10 text-foreground";
+            else if (isChosen && checking) bg = "border-primary/50 bg-primary/5 text-foreground";
             else if (isChosen && !isRight) bg = "border-destructive/50 bg-destructive/10 text-foreground";
             else                        bg = "border-border text-muted-foreground opacity-60";
           }
@@ -1856,23 +2078,48 @@ function Session({
               </span>
               <span className="flex-1"><MathText text={opt} /></span>
               {phase === "fb" && isCorrect && <CheckCircle2 className="w-4 h-4 text-success shrink-0"/>}
-              {phase === "fb" && isChosen && !isRight && <XCircle className="w-4 h-4 text-destructive shrink-0"/>}
+              {phase === "fb" && isChosen && !checking && !isRight && <XCircle className="w-4 h-4 text-destructive shrink-0"/>}
             </button>
           );
         })}
       </div>
 
+      {checking && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {verdictMissing
+            ? "Couldn't check this answer right now. It will be marked when you finish."
+            : "Checking your answer…"}
+        </p>
+      )}
+
       {/* Explanation, once answered. There is no hint before answering: the
           bank has no hint text, only the worked solution, and the "hint" this
           screen showed was that solution's first 120 characters — the whole
           answer for 39% of servable questions (8,557 of 21,717). */}
-      {phase === "fb" && verdict?.explanation && (
+      {phase === "fb" && q.aiAnswered && (
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-semibold text-muted-foreground">AI answered</p>
+          <button
+            type="button"
+            onClick={() => void disputeAiAnswer()}
+            disabled={disputingId === q.id || disputedIds.has(q.id) || !ctx}
+            className="text-xs px-2.5 py-1 rounded-lg border border-border/70 text-muted-foreground hover:text-foreground hover:border-border transition-all disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {disputedIds.has(q.id)
+              ? "Disputed"
+              : disputingId === q.id
+                ? "Disputing…"
+                : "Dispute answer"}
+          </button>
+        </div>
+      )}
+      {phase === "fb" && (verdict?.explanation || q.explanation) && (
         <GlassCard className="p-4 border-info/20">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
             <div className="text-sm text-muted-foreground leading-relaxed">
               <span className="font-semibold text-foreground">Explanation: </span>
-              <MathText text={verdict.explanation} />
+              <MathText text={verdict?.explanation || q.explanation || ""} />
             </div>
           </div>
         </GlassCard>
@@ -2024,10 +2271,21 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   // through the same slow identity-resolution path, so a resolved-but-null
   // classLevel can be a premature read, not a genuine absence.
   const classLevelUnresolved = shellReady && !!curriculumScope && curriculumScope.classLevel == null;
-  const classUnresolved = classIdMissing || classLevelUnresolved;
-  const classUnresolvedMessage = classIdMissing
-    ? CLASS_UNRESOLVED_MSG
-    : CLASS_LEVEL_UNRESOLVED_MSG;
+  const examScoped = shellReady && !!curriculumScope?.examId;
+  const examUnresolved =
+    shellReady &&
+    !!curriculumScope &&
+    academicIdentity.schoolKind === "individual" &&
+    !curriculumScope.examId;
+  // Individuals practise by exam — class absence is expected, not unresolved.
+  // resolvePracticeUnresolved makes CLASS_*_MSG unreachable when examScoped.
+  const { classUnresolved, classUnresolvedMessage } = resolvePracticeUnresolved({
+    examScoped,
+    examUnresolved,
+    classIdMissing,
+    classLevelUnresolved,
+    schoolKind: academicIdentity.schoolKind ?? null,
+  });
 
   useEffect(() => {
     if (!ctx || !academicReady) {
@@ -2044,7 +2302,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         const scope = await PracticeService.resolveCurriculumScope(ctx);
         if (cancelled) return;
         setCurriculumScope(scope);
-        if (scope.classLevel == null) {
+        if (!scope.examId && scope.classLevel == null) {
           setSubjectList(EMPTY_LIST);
           return;
         }
@@ -2252,12 +2510,16 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       return;
     }
 
-    // ?mode=<instant mode> — used by Mistake Book's "Practice again".
+    // ?mode=<instant mode> — used by Mistake Book's "Practice again", and
+    // ?mode=skipped&chapter_id=<uuid> by Analysis's chapter rows.
     const modeRaw = searchParams.get("mode");
     if (modeRaw && (INSTANT as string[]).includes(modeRaw)) {
       deepLinkHandled.current = true;
+      const chapterIdRaw = searchParams.get("chapter_id");
+      const skippedChapterId =
+        modeRaw === "skipped" && isUuid(chapterIdRaw) ? chapterIdRaw : null;
       setSearchParams({}, { replace: true });
-      handleMode(modeRaw as ModeKey);
+      handleMode(modeRaw as ModeKey, { skippedChapterId });
       return;
     }
 
@@ -2318,7 +2580,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     setPhase("session");
   }
 
-  function handleMode(key: ModeKey) {
+  function handleMode(key: ModeKey, opts: { skippedChapterId?: string | null } = {}) {
     setModeKey(key);
     if (INSTANT.includes(key)) {
       const mode = MODES.find(m => m.key === key)!;
@@ -2331,6 +2593,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         difficulty: "mixed",
         qCount: 20,
         timeLimitSec: null,
+        skippedChapterId: opts.skippedChapterId ?? null,
       });
     } else {
       setPhase("config");
@@ -2452,6 +2715,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           onRetrySubjects={() => setSubjectReads((k) => k + 1)}
           classUnresolved={classUnresolved}
           classUnresolvedMessage={classUnresolvedMessage}
+          examScoped={examScoped}
         />
       )}
       {phase === "session" && config && (

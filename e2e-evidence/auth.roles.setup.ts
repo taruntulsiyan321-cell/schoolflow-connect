@@ -27,6 +27,18 @@ setup.beforeAll(() => {
 
 for (const account of ROLES) {
   setup(`auth ${account.role}`, async ({ page }) => {
+    // Exam accounts are minted by auth.exam.setup.ts (refresh_token), not the
+    // email+password form — password resolves to the wrong synthetic domain.
+    if (!account.password) {
+      status[account.role] = {
+        reachable: false,
+        authed: false,
+        note: "exam account — see auth.exam.setup.ts",
+      };
+      writeFileSync("e2e-evidence/.auth/status.json", JSON.stringify(status, null, 2));
+      setup.skip(true, `${account.role}: minted by auth.exam.setup, not password form`);
+      return;
+    }
     if (!account.reachable) {
       status[account.role] = { reachable: false, authed: false, note: 'no credentials (not in demo seed; supply via env)' }
       writeFileSync('e2e-evidence/.auth/status.json', JSON.stringify(status, null, 2))
@@ -34,6 +46,11 @@ for (const account of ROLES) {
       return
     }
     await page.goto('/auth')
+    // The login page opens on Individual (exam accounts) since 2026-09-23.
+    // Staff and school families sign in under Organization, and the
+    // email/password form only exists there — without this click every role
+    // setup times out waiting for a field that is not on screen.
+    await page.getByRole('tab', { name: 'Organization' }).click()
     await page.getByLabel('Email or Mobile').fill(account.email)
     await page.locator('#signin-password').fill(account.password)
     await page.getByRole('button', { name: 'Sign in' }).click()

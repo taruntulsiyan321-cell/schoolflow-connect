@@ -1,226 +1,57 @@
-# THE PRACTICE / ANALYSIS RELEASE — 2026-09-22 (READ FIRST IF YOU TOUCH PRACTICE, REVISION, RECOVERY OR ANALYSIS)
+# Custom Practice uploads — 2026-09-24 session leave-behind
 
-**What happened.** The practice, revision, recovery and analysis work lived on two diverged branches —
-`claude/question-topics-per-chapter` (the practice audit, 80 commits ahead of main) and `claude/busy-shannon-nymdhd`
-(Analysis, and items 2, 6 and 16 of the owner's report) — and none of it was on main, while its migrations were
-already LIVE. Item 2 (20261049000000) dropped the policy that let students read `question_bank`, and production's app
-(main) read that table directly, so from 11:20 UTC on 2026-09-22 practice served nothing to any student.
+**Branch:** claude/question-topics-per-chapter. Do not open a PR unless asked. Do not promote main until the owner says so.
 
-**Release branch `claude/release-practice-analysis`** = main + question-topics-per-chapter (merged; KNOWN_ISSUES
-renumbered: the practice branch keeps 57–72, main's sign-in entry became 73) + the six busy-shannon commits that were
-genuinely missing (506b7f0a, 20ccead3, 2fa40a2d, 461f14d9 ITEM 2, a97d7686 ITEM 16, e36e6fdf ITEM 6; the other 24 are
-on the practice branch already, and ac53f0d2's stale types regeneration is deliberately left out) + a merge recording
-busy-shannon as integrated + `claude/tender-goodall-kalj38` (the Riverside ruling).
+## Measured this session
 
-**The one real integration decision: no hint.** Item 2 kept a hint behind `rpc_question_hint`; the practice ruling
-of 2026-09-18 had removed the hint because the "hint" was the worked solution's first 120 characters — the whole
-answer for 39% of servable questions. The release keeps the ruling. The runner is the practice branch's (answer race
-fix, keep-alive finish on page exit, list states) with item 2's rule applied: no answer in the browser, the tick,
-cross and explanation from the server's verdict, one write per answer, a late verdict unable to mark the next question.
+- **§12.1** PASS — `node scripts/measure-custom-practice-12-1.mjs` (6 refuse + 1 accept; zero downstream rows). Fixtures in e2e-evidence/fixtures/custom-practice/. Exam harness: refresh_token → e2e-evidence/auth.exam.setup.ts (no OTP backdoor).
+- **§13** ruled — confidence 0.55; model qwen/qwen3.7-flash; 20 MiB / 20 pages / 40 keep (one server home each). See spec §13.
+- **§12.5 + KI83** PASS — `ai-recovery-variants` XOR upload source; migration 20261076000000 applied live; `node scripts/measure-upload-promotion-12-5-real.mjs` 7/7. Edges redeployed.
+- **KI77** FIXED — HOMEWORK_PAGE 100→25.
 
-**Verified before release** (all against the LIVE database, from a Vite server of this branch):
-* typecheck, build, lint:baseline, lint:tenant-scope (reasons corrected against live bodies, KNOWN_ISSUES 62 closed),
-  lint:render-safety, 125 unit-test files (one slow homework test flakes under load — KNOWN_ISSUES 77).
-* The practice session's harness as real students: 17 scenarios, 208 of 209 checks (s1's one miss is a stale selector
-  in the harness; the picker itself was read and is right). Subject, chapter, topic, custom, timed, failed-save,
-  revision check, recovery ladder to READY, leaving mid-session four ways, list states, Analysis figures against the
-  database, the hourly token refresh, the bookmarked/skipped/incorrect/weak modes, Class 12.
-* The harness now lives in the scratchpad of session 79bcf84c (practice/); it reads the bank's truth as the teacher,
-  because a student can no longer read it.
-* Tier 1 evidence suite, every role: 48 of 48. Three specs were stale on main itself (the test builder's picked
-  answer key and "Published to this class" line, Submit's window.confirm, and KNOWN_ISSUES 11's CSV import on the
-  Question Bank screen deleted 13 Sep); KNOWN_ISSUES 11 now drives Question Papers → Generate → bank and asserts the
-  chapter id on every row. Tier 5 (Nova, after main's learning-only commits were merged in): 12 of 12.
-* Main moved while this was built (11 Nova commits, 267b9df4); merged, one conflict (AICoach.tsx, main's file whole).
+## Closed since — 2026-09-24, later the same day
 
-**Not gates, and failing before this release:** `lint:threshold-literals` (PrincipalPortalDesign's `pct < 75` /
-`attPct < 75`, LiveHomeworkPanels' `HOMEWORK_PAGE = 100`) and `lint:metric-duplication` (PrincipalPortalDesign's
-`attPct`, and two converged BASELINE entries). `lint:client-columns` and `lint:stale-columns` are BLOCKED on the dead
-token, not passing.
+- **§12.1 re-measured against fixtures that have WORDS on them.** The six
+  refuse files were drawn as bars and blocks by a pixel routine with no font
+  renderer, so every refusal read "no readable text" — the battery could be
+  passed by a classifier that only asks whether anything is written on the
+  page. They are now rendered from HTML: a Class XII-A timetable with subjects,
+  teachers and rooms; an article excerpt; a shop receipt; a chat about
+  homework. Still 6/6 refused, 1 accepted, and the reasons are now the right
+  ones ("a class timetable/schedule", "a retail receipt/bill").
+- **§12.3 notes path — PASS 11/11**, `node scripts/measure-custom-practice-12-3-notes.mjs`.
+  It had never run, and it found two real defects: the prompt forbade inventing
+  questions in capitals and then asked for questions from notes in passing, so
+  the model returned none; and the question→note link was an exact match on a
+  title the model writes twice and does not write the same way twice, which
+  dropped every link silently. Both fixed, function redeployed.
+- **§12.4 — PASS 12/12**, `node scripts/measure-custom-practice-12-4-privacy.mjs`.
+  It was NOT blocked: the Management token reads the service key, and
+  `rpc_create_exam_account` opens the second exam account on the same phone.
+  Every "cannot see" is paired with a "can see" as the owner.
+- **§12.5 re-run and verified** — 7/7, the four negative gates each refusing
+  for their own reason. The measure is `BEGIN … ROLLBACK`, so nothing persists.
+- This file had been written through PowerShell, which ate every backtick in
+  the section above (`` `n `` became a newline, `` `a `` a BEL that swallowed
+  the "a" of `ai-recovery-variants`) and left 298 mojibake sequences. Repaired.
+  **Do not write this file from PowerShell.**
 
-**Waiting on the database token (KNOWN_ISSUES 75):** dry runs of the eleven rollbacks written for this release,
-dropping `rpc_question_hint` (76), and moving the bank catalog's board onto the caller's school.
+## Still open
+
+- **§12.2 full Practice UI** in the browser as the individual student — API/RPC
+  path measured (`scripts/measure-custom-practice-12-2.mjs` + Playwright
+  `custom-practice.spec.ts` §12.2). UI click-through still a harness gap.
+- **§12.6** browser accuracy before/after dispute — RPC measure exists;
+  UI path not finished.
+- Recovery ladders on bank questions only past tier 0 for upload mistakes.
+- `scripts/local-replica/dry-run.mjs` is not in the repo; used
+  `scripts/dry-run-one-migration.mjs` instead.
+
+## Standing rule (HANDOFF §2)
+
+Do not use sub-agents or workflows for Custom Practice finish work unless the owner lifts this.
 
 ---
-
-# RIVERSIDE — WHERE IT STANDS, AND EVERY TASK LEFT — 2026-09-16. READ THIS FIRST.
-
-The session that wrote this ran out of credits. Everything below is measured, not assumed.
-
-## 0. The owner's rulings that govern this work
-
-1. **A real school, not a demo.** "We just want to create a real-life school environment so that we can
-   find the bugs and glitches. It shall look raw and real-life, like how a real school environment is going
-   to work." A failing step is an APP BUG to fix — never a script to bend.
-2. **Its people are created BY THE ADMIN, THROUGH THE APP.** "You have to create student, teacher, and
-   parent accounts with an admin account only, not a demo account added to a school. Only then can we check
-   that everything is connected properly and working properly." No migration, script or SQL may write a
-   teacher, student or parent into the school again.
-3. **Keep the structure and the admin; remove every SQL-made person** (answered 2026-09-16). Done — see §1.
-4. **Real classes first:** teachers for two sections, their ~40 students and their parents, added through
-   the admin screens; run the school-life checks on them; grow the school after.
-5. **First sign-in: whatever is quickest now, more ways later.** "Just use any way you can to log in quickly
-   and check everything." The owner is turning OFF "Confirm email" in the Supabase dashboard
-   (Authentication → Sign In / Providers → Email). Until then, and for speed, the agreed path is:
-   the admin records the person AND their email through the app → the login for that email is created
-   directly (§3) → the app's own trigger (`handle_new_user` → `link_portal_on_auth`) links that login to
-   the record the admin made. Nothing about school, class or role is written by hand.
-6. **Nothing is tidied away.** A real school keeps the tests its children sat, the exams it published and
-   the notices it posted. Only the homework story deletes its homework, because deleting is what it checks.
-7. Standing rules of §2 of this file still apply (no secrets, no `strip-demo-tenants --apply`, no PR unless
-   asked, migrations ship a rollback and an in-migration proof with positive controls).
-
-## 1. LIVE STATE (2026-09-16)
-
-* **Riverside Public School (`00000000-0000-4000-8000-000000000003`) is GONE from live.** Both
-  `20260925200000` (the pasted roster: 12 teachers, 224 students, 26 SQL logins) and `20260925210000`
-  (every other login, 216 parents, the subject teachers) were rolled back through their own rollback files
-  — dry-run on live first, then applied — and their ledger rows deleted. Verified after:
-  `schools` 0, `auth.users LIKE '%@rps.e2e.test'` 0, `schema_migrations LIKE '202609252%'` 0.
-* No other school moved: each rollback's proof compares every other school's row counts before and after.
-* **Auth settings on live:** `mailer_autoconfirm` FALSE, `rate_limit_email_sent` 2 per hour, Google OFF,
-  phone OFF, `site_url` https://www.gurukul.study. Check before relying on sign-up:
-  `GET https://api.supabase.com/v1/projects/psqxykzqfvxgsvkmgurn/config/auth` with SUPABASE_ACCESS_TOKEN.
-* Wisdom Campus (the demo tenant) is untouched and still carries the shared `.auth` evidence sessions.
-
-## 2. REPO STATE (branch `claude/tender-goodall-kalj38`; main is at d1b3f0e)
-
-* **Deleted:** both Riverside migrations and their rollbacks. They wrote people by SQL, which ruling 2 forbids.
-* **New, PROVEN ON THE REPLICA, NOT YET APPLIED TO LIVE:**
-  `supabase/migrations/20260925220000_riverside_public_school_awaits_its_people.sql` and its rollback.
-  Structure only — the school, the 2025-26 year, five class groups on the RBSE curriculum, the twelve
-  sections (8-A, 8-B, 9-A, 9-B, 10-A, 10-B, 10-C, 11-A, 11-B, 12-A, 12-B, 12-C) with their seats and NO
-  class teacher, and the two logins a school is handed over with: `admin@rps.e2e.test` (Ravi Krishnan) and
-  `principal@rps.e2e.test` (Sunita Menon), password `E2eSchool123!`. No teacher, student, parent, subject.
-* `scripts/apply-e2e-school.mjs` applies/removes exactly that migration (`npm run db:seed:e2e-school[:remove]`)
-  and signs the two leaders in afterwards.
-* `scripts/local-replica/` gained the proof tools this work used: `tpl.mjs` (save/load a template database),
-  `one.mjs` (apply one file with psql semantics), `rt220.mjs` (the round trip below), `rps-use-220.sql`
-  (the school used as the owner ruled), `dry-run.mjs` (run files against LIVE in one transaction that always
-  rolls back), `stray.mjs` (sweep the empty root files the shell hook leaves — run before every commit).
-* `e2e-evidence/riverside.ts` (one home for signing a Riverside person in, opening a class tab, waiting for a
-  queued notification), `zz-riverside-homework.spec.ts` (rewritten: the parent now follows the homework), and
-  `zz-riverside-school.spec.ts` (attendance, a class test, an exam, a notice, a family of two).
-  **Both specs name people who do not exist yet.** They are the target state for after §4, not runnable today.
-* `playwright.evidence.config.ts` testMatch includes `zz-riverside-school`.
-* Commit `c8e3ab4` restored four garbled characters on screen (← ⭐ ✍ ⏱). Commit `19b0636` is the
-  whole-school migration that ruling 2 superseded; its files are deleted in the working tree.
-
-### The proof that exists for 20260925220000
-
-`node scripts/local-replica/rt220.mjs` (replica Postgres on 127.0.0.1:5433, template `tpl_r18`) —
-M applies and proves itself → USE (`rps-use-220.sql`: the ADMIN, under their own row security, adds a
-teacher and a student and reserves the student's login through `admin_connect_student_account`; the two
-logins are then created, and the app's own trigger links both to the records the admin made; the teacher
-sets homework) → R (the school, everyone added into it and all four accounts gone; no other school moved)
-→ M again rebuilds the identical school. **PASSES.**
-
-## 3. TASK 1 — prove and apply the structure migration
-
-1. The replica lives at `%TEMP%\gkpg` and dies with the session that started it; `scripts/local-replica/run.sh`
-   rebuilds it. Templates: `tpl_r18` = live schema + demo data.
-2. **Mutation proof (NOT DONE).** Every check in 20260925220000's proof must be shown able to fail, by name.
-   Copy the shape used before (a script that loads the template, writes a mutated copy of the migration,
-   applies it, and asserts the proof refuses it with the expected message). At least: a section missing; a
-   section that already has a class teacher; the logins carrying another password; a third login; a stray
-   teacher or student row; the admin probe unable to add a student.
-3. **Live dry runs** (both must print `DRY RUN PASSED`):
-   `node scripts/local-replica/dry-run.mjs supabase/migrations/20260925220000_riverside_public_school_awaits_its_people.sql`
-   then the same command with `supabase/migrations/rollback/20260925220000_riverside_public_school_awaits_its_people.rollback.sql` appended.
-4. **Apply:** `npm run db:seed:e2e-school` — it applies through `scripts/apply-one-migration.mjs` (the one
-   applier and ledger writer) and then signs admin and principal in through Supabase Auth.
-5. `npm run preflight` must be clean (it fails on anything applied that this tree cannot reproduce).
-
-## 4. TASK 2 — the admission: the admin builds 8-A and 11-A through the app
-
-Do this against production (https://schoolflow-connect.vercel.app) as `admin@rps.e2e.test`, driving the real
-screens with Playwright, and treat every failure as a defect to fix (§5). Suggested file:
-`e2e-evidence/zz-riverside-admission.spec.ts` (sorts before the other zz-riverside specs), idempotent — if a
-person is already listed, check their state instead of adding them again.
-
-The school to build (real, with the messiness kept):
-
-* **8-A** — 20 students, subjects English, Hindi, Mathematics, Science, Social Science.
-* **11-A** — 25 students (science), subjects English, Physics, Chemistry, Mathematics, Biology.
-* **Teachers (8):** Mathematics and English each teach both sections; Science, Social Science, Hindi teach
-  8-A; Physics, Chemistry, Biology teach 11-A. One class teacher per section, and a class teacher must teach
-  a subject in their own section or they cannot set homework (`teacher_teaches_class_subject`).
-* **Parents:** one per student, and at least two families with a child in each section, to exercise the
-  two-children parent. Emails `parent.<class><section>.<roll>@rps.e2e.test`.
-* Keep the emails predictable so the other specs can name them:
-  `teacher01@rps.e2e.test` …, `student.8a.01@rps.e2e.test` …, `parent.8a.01@rps.e2e.test` ….
-
-The screens: Add Teacher (`/admin/teachers`) → name, subject, email, Is Class Teacher + its section, and the
-sections they teach; Add Student (`/admin/students`) → name, admission number, roll, class, date of birth,
-parent name and mobile, and "Link account" with the student's email; the student's Edit → Account Access →
-"Parent" + the parent's email; Add Parent (`/admin/parents`) → name, email, phone, linked children.
-
-**Creating the login for an email the admin recorded** (the agreed shortcut of ruling 5 — credential only):
-insert into `auth.users` (id, instance_id `00000000-0000-0000-0000-000000000000`, aud/role `authenticated`,
-email, `encrypted_password = extensions.crypt('E2eSchool123!', extensions.gen_salt('bf'))`,
-`email_confirmed_at = now()`, the four empty token columns) plus the matching `auth.identities` row — the
-pattern is in `scripts/local-replica/rps-use-220.sql`. The `handle_new_user` trigger then calls
-`link_portal_on_auth`, which binds the login to the teacher/student/parent record and grants the membership.
-Nothing else may be written by hand. If a person ends up unlinked, THAT is the bug to fix.
-
-## 5. TASK 3 — the defects already found (fix these; they block §4)
-
-1. **The admin cannot give a teacher their classes.** `src/pages/admin/TeachersAdmin.tsx:57`
-   (`persistAssignments`) inserts `teacher_classes` rows with no `school_id`, and the table's admin policy is
-   `has_role(admin) AND same_school(school_id)` — a NULL school fails it. Measured on the replica: `new row
-   violates row-level security policy for table "teacher_classes"`. The admin sees "Teacher saved, but class
-   assignments failed to save" and the teacher teaches nothing. Suggested fix, one home: a BEFORE INSERT OR
-   UPDATE trigger on `teacher_classes` that fills `school_id` from the teacher and refuses a class of another
-   school (mirroring `tg_section_subjects_same_institution`); Postgres checks RLS against the row as the
-   trigger leaves it. Backfill any existing NULL `school_id` rows.
-2. **The admin cannot add a student.** `src/pages/admin/StudentsAdmin.tsx:57` posts `roll_number` in the
-   `students` payload; `public.students` has no such column (roll lives on `student_enrolments.roll_number`),
-   so PostgREST refuses the insert. Fix the form to write the roll where it belongs.
-3. **A student added through the app has no enrolment.** Nothing creates a `student_enrolments` row, so the
-   student has no roll and no section for the current year; everything reading enrolments (rolls in reports,
-   `students_current`) is blind to them. Decide one home — a trigger on `students` that opens the current-year
-   enrolment when `class_id` is set, or an admin RPC that writes both — and make the form use it.
-4. **A parent added on the Parents page can never sign in as that parent.** `link_portal_on_auth` matches a
-   parent by `students.parent_portal_email` / `parent_mobile` only; `parents.email` is never consulted, so a
-   parent created at `/admin/parents` with an email gets no membership when their login appears. The other
-   path (student → Account Access → Parent) writes `parent_portal_email` and does link, but leaves
-   `memberships.local_person_id` NULL, so `my_guardian_student_ids()` returns nothing and only the
-   `parent_user_id` branch of `students_read` works. Two admin paths, neither complete: make them one.
-5. **The teacher "Connect" button creates a login nobody can use.** `AccountAccess` in TeachersAdmin calls the
-   `admin-link-account` edge function, which creates an auth user with NO password (Google/magic-link only) —
-   and Google and phone are off, email confirmation is on, and only 2 emails an hour can be sent. The RPC
-   `admin_connect_teacher_account` does the correct rendezvous instead (record the email, let the first
-   sign-in link it). Two homes for one decision; pick the rendezvous, or give the admin a first password.
-6. **The mojibake guards cannot see a whole class of corruption.** `scripts/lint-render-safety.mjs`
-   (`source-mojibake`) matches a hand-written list of leads (`â€`, `Â·`, `Ã…`), and
-   `scripts/repair-source-mojibake.cjs` ends a run at an undefined CP1252 byte (0x81, 0x8D, 0x8F, 0x90), so
-   neither could see `â†` (←), `â­` (⭐), `âœ` (✍) or `â±` (⏱) — all four were live on screen until c8e3ab4.
-   Rewrite the detection once (decode-based, treating U+0080–U+009F as run characters) and have the linter and
-   the repair script share it.
-
-## 6. TASK 4 — check everything on the school the admin built
-
-Rewrite `e2e-evidence/zz-riverside-homework.spec.ts` and `zz-riverside-school.spec.ts` for the people §4
-created (they are written for exactly this shape already), then run against production:
-
-```
-PLAYWRIGHT_BASE_URL=https://schoolflow-connect.vercel.app npx playwright test --config=playwright.evidence.config.ts --project=evidence --no-deps e2e-evidence/zz-riverside-admission.spec.ts e2e-evidence/zz-riverside-homework.spec.ts e2e-evidence/zz-riverside-school.spec.ts
-```
-
-`--no-deps` skips the shared-session setup: these specs sign their own people in. What they cover: homework
-set → handed in → accepted → the parent told and following it → the principal's Classes tab and both reports
-→ both profiles → deleted; attendance taken by the class teacher and seen by student and parent; a class test
-set, sat and marked; an exam created, marked, finalised, published and read by student and parent; a notice
-posted to 8-A, read by that class and NOT by a parent of another class; a parent of two seeing both children.
-Fix what fails in the app.
-
-## 7. TASK 5 — close out
-
-* KNOWN_ISSUES.md: add every defect of §5 that is still open, with what was measured.
-* This file: replace §1–§2 with the state you leave behind.
-* Memory: `riverside-e2e-organisation.md` describes the ruling and the live state — keep it true.
-* Commit on `claude/tender-goodall-kalj38`, sweep `node scripts/local-replica/stray.mjs .` first, and push.
-  Do not open a pull request unless the owner asks.
 
 ---
 # Gurukul — session handoff
@@ -403,7 +234,7 @@ section below, then push `main` and run the evidence suite against production.
    The pre-clean deleting 25 old evidence homework spent the budget. The cause was the read
    policies on `homework`, `homework_submissions` and `students`, which asked a function once
    per row — the shape docs/rls-policy-pattern.md exists to remove, never applied to these
-   three tables — multiplied by the counting views' homework × students join. KNOWN_ISSUES 53.
+   three tables — multiplied by the counting views' homework Ã— students join. KNOWN_ISSUES 53.
    * **Fix: `20260925160000_homework_is_counted_without_asking_once_per_row`** — every read
      policy on the three tables in the once-per-statement shape; `can_read_student_row` and
      `can_manage_homework` retired; the teacher write policies split out of FOR ALL, unchanged;
@@ -416,9 +247,9 @@ section below, then push `main` and run the evidence suite against production.
      7 of 7 mutations of the proof caught, 4 of 4 of the rollback's guards, the round trip
      restores the exact signature and re-applies, and `run.sh` 408/450 applied, 160 claims
      passed, 0 failed, race 3 of 3.
-   * **Measured on live, inside the rolled-back dry run:** admin completion 4,537 → 93 ms,
-     principal 6,053 → 81, parent standings 4,840 → 116, student 3,871 → 100, an admin reading
-     every hand-in 4,694 → 16.
+   * **Measured on live, inside the rolled-back dry run:** admin completion 4,537 â†’ 93 ms,
+     principal 6,053 â†’ 81, parent standings 4,840 â†’ 116, student 3,871 â†’ 100, an admin reading
+     every hand-in 4,694 â†’ 16.
    * **NOT APPLIED.** `node scripts/apply-release-migrations.mjs` (it skips the sixteen already
      in the ledger) was refused by this session's permission gate. Live still has the per-row
      policies; the homework chain will keep running out of time on production until it is
@@ -499,7 +330,7 @@ grades and remarks kept in the snapshot table. D1 is superseded (see `docs/decis
 * **A break battery** (outside the repo) applied each migration with a deliberate break for every
   check and required THAT check to fire: **119 of 119 proven able to fail**, the rollbacks'
   own checks included, `20260925150000` against both router shapes.
-* **Round trip:** base + legacy fixtures → the six migrations → activity as each role →
+* **Round trip:** base + legacy fixtures â†’ the six migrations â†’ activity as each role â†’
   the six rollbacks in reverse; every rollback restores the exact schema signature (public
   objects, grants, policies, storage policies, cron jobs) and untouched rows byte for byte;
   closing the legacy homework charged nobody. `20260925150000`'s own round trip restores both
@@ -758,7 +589,7 @@ The user has been told to call 121.
 
 | Host | Works? | Why |
 |---|---|---|
-| `api.supabase.com` | **YES** | has an AAAA record → routes over IPv6 |
+| `api.supabase.com` | **YES** | has an AAAA record â†’ routes over IPv6 |
 | `github.com` | no | **no AAAA record**, IPv4 only |
 | `psqxykzqfvxgsvkmgurn.supabase.co` | no | **no AAAA record**, IPv4 only |
 
@@ -845,8 +676,8 @@ curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 https://github.com
 ### Committed in `f9187a6` (local only)
 
 **§1 branding + housekeeping**
-* `src/gurukul/pages/Practice.tsx:325` — "Wisdom Campus" → "Gurukul"
-* `capacitor.config.ts:5` — `appName: 'Vidyalaya'` → `'Gurukul'`
+* `src/gurukul/pages/Practice.tsx:325` — "Wisdom Campus" â†’ "Gurukul"
+* `capacitor.config.ts:5` — `appName: 'Vidyalaya'` â†’ `'Gurukul'`
 * `KNOWN_ISSUES.md` — 19 headings whose bodies said FIXED are now struck.
   **File now reads 3 open**, and only #23 is a real outstanding defect
   (the other two are a standing caveat and a housekeeping note).
@@ -950,12 +781,12 @@ run** — treat their first result as a finding, not a regression.
 ### 5.3 §5 — Question paper UI — **BUILT, minus the two AI halves**
 
 The brief: teacher supplies the blueprint first (class, subject, chapters,
-per-section type/count/marks/difficulty). MCQ bank-first via `embed` →
+per-section type/count/marks/difficulty). MCQ bank-first via `embed` â†’
 `match_question_bank`, generate the shortfall. Short/long generated with
 answers. Answer key a separate sheet. **Only all-MCQ papers can be pushed as
 online tests.**
 
-**WHAT LANDED.** `/teacher/question-papers` (nav: Question Papers) →
+**WHAT LANDED.** `/teacher/question-papers` (nav: Question Papers) â†’
 `src/gurukul-teacher/QuestionPapers.tsx`, over
 `src/academic/services/questionPaperService.ts`. Blueprint first: paper
 (title, subject, class 6-12, duration), then sections (format, count, marks
@@ -1132,7 +963,7 @@ Deploying one never updates another.
 
 > Class average · weakest topics ranked · average time per question
 > Full student list with marks
-> Tap a student → their actual wrong answers, with the topic on each
+> Tap a student â†’ their actual wrong answers, with the topic on each
 > **Generated automatically as soon as grading completes**
 > **Visible to:** teacher · **principal** · the student themselves ·
 > **parent, for their own child's part only.**
@@ -1166,7 +997,7 @@ Two more points the next session should not re-derive:
 ### What §4 needs, per the user's brief
 
 * Class aggregate is the primary view, scoped via `teacher_teaches_class`.
-* Click a student name → that student's individual report.
+* Click a student name â†’ that student's individual report.
 * Generated when the test ends. Downloadable.
 * Assertions required: teacher refused another class's report; student refused
   another student's; principal refused entirely; **each still able to reach
@@ -1378,13 +1209,13 @@ believing it.
 | G5 accuracy | ONE source. Fixed TWICE — the second time is the real one: Home and Analysis were counting different populations (`question_attempts` vs `concept_mastery`, 17% vs 63% for one student). Both now count `question_attempts`. 5 guard assertions |
 | Screen 1 Home | Subject Performance + Recent Achievements out, with 8 dead imports behind them |
 | Screen 2 Practice | Resume Session band out (see the caveat below) |
-| Screen 3 Nova | chips, Jump-to, 6 admin prompts, ContextPill out; intro + prompts rewritten; mojibake and 💋 fixed; **question context now shown and auto-asked** |
+| Screen 3 Nova | chips, Jump-to, 6 admin prompts, ContextPill out; intro + prompts rewritten; mojibake and ðŸ’‹ fixed; **question context now shown and auto-asked** |
 | Screen 4 Battleground | Featured Battles + Daily + Championship out |
 | Screen 5 Learning | bottom charts out |
-| Screen 6 Analysis | exam readiness out; accuracy fixed; study hours → em dash |
+| Screen 6 Analysis | exam readiness out; accuracy fixed; study hours â†’ em dash |
 | Screen 7 Recovery | both filter rows + priority badges out |
 | Screen 8 Revision | all six removals |
-| Screen 9 Mistake Book | 4 stat boxes + Add to Recovery out; **Explain** added; 3 chip rows → 1 |
+| Screen 9 Mistake Book | 4 stat boxes + Add to Recovery out; **Explain** added; 3 chip rows â†’ 1 |
 | Screen 10 Class | bottom widgets + Achievements card out; subtitle rewritten |
 | Screen 11 Notifications | **duplicate EMISSION found and fixed** — see below |
 | Screen 12 Profile | rebuilt: 4 averages out, real marks/counts in, Rep explained |
@@ -1406,7 +1237,7 @@ is_my_student_record(_id) =
   AND _id = active_local_person_id()
 ```
 
-No membership → NULL → **every policy keyed on it denies**. It gates five
+No membership â†’ NULL â†’ **every policy keyed on it denies**. It gates five
 surfaces: `fees`, `homework_answers`, `homework_completions`,
 `homework_submissions`, and the function `can_read_test`.
 

@@ -77,7 +77,7 @@ describe("a practice session records what the student was shown", () => {
   it("waits for answers still in flight before rolling the session up", () => {
     const finish = section("async function finish(reason: EndReason)", "function answer(");
     expect(finish).toContain("await Promise.allSettled([...pendingWrites.current])");
-    const record = section("function record(snap: PracticeAttemptSnapshot, onVerdict?: (v: AttemptVerdict) => void)", "async function finish(");
+    const record = section("function record(\n    snap: PracticeAttemptSnapshot,", "async function finish(");
     expect(record).toContain("pendingWrites.current.add(write)");
   });
 
@@ -86,21 +86,25 @@ describe("a practice session records what the student was shown", () => {
       expect(SOURCE, `${dead} is the hint that gave the answer away`).not.toContain(dead);
     }
     expect(SOURCE, "no hint is fetched either").not.toContain("questionHint");
-    // The explanation still appears, after answering — from the server's verdict.
-    expect(SOURCE).toContain('phase === "fb" && verdict?.explanation');
+    // The explanation still appears after answering — verdict first, private
+    // row explanation as fallback (non-bank path has no bank explanation).
+    expect(SOURCE).toContain('phase === "fb" && (verdict?.explanation || q.explanation)');
   });
 
   it("holds no answer: the tick, the cross and the count come from the server's verdict", () => {
-    // question_bank_student has no correct_index or explanation (20261046000000); a
-    // question in this browser carries neither, and nothing grades against one.
+    // Bank questions still carry no `.correct` — private upload/capture may
+    // hold owner-readable correctIndex because the RPC trusts client is_correct
+    // without a bank id (spec §9 / screen-capture §7.4).
     expect(SOURCE).not.toMatch(/\bq\.correct\b/);
-    expect(SOURCE).not.toMatch(/\bq\.explanation\b/);
-    expect(SOURCE).toContain("verdict?.correctIndex === i");
+    expect(SOURCE).toContain("markedCorrectIndex === i");
     expect(SOURCE).toContain("const isRight = verdict?.isCorrect === true;");
     // One write per answer: the verdict rides on the write record() already makes.
     const answer = section("function answer(i: number)", "function next(");
     expect(answer).not.toContain("persistAttemptLive(");
-    expect(answer).toContain("record(snap, (v) =>");
+    expect(answer).toMatch(/record\(\s*snap,\s*\(v\) =>/);
+    // Bank path does not invent correctness; private grades from knownCorrect.
+    expect(answer).toContain("const privateQ = Boolean(q.fromUpload || q.fromCapture)");
+    expect(answer).toMatch(/isCorrect:\s*false|isCorrect,\s*skipped: false/);
     // A late verdict must not mark the question after it.
     expect(answer).toContain("if (onScreenRef.current === snap) setVerdict(v);");
   });

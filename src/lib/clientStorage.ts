@@ -43,6 +43,11 @@ export function recoverySuccessHistoryKey(identity: Partial<StorageIdentity>): s
   return scopedKey("recovery.success.v1", identity);
 }
 
+/** A device preference, not personal data: whether Nova reads its revision questions aloud. */
+export function novaVoiceMutedKey(): string {
+  return `${NS}nova.voice.muted.v1`;
+}
+
 /** School-scoped, not user-scoped: this caches school configuration, not personal data. */
 export function appSettingsKey(schoolId?: string | null): string | null {
   return schoolId ? `${NS}app-settings.v1:${schoolId}` : null;

@@ -68,7 +68,24 @@
 import { corsHeaders, generateStructuredWithFallback, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-type SourceQuestion = {
+/** Normalised source for generation — bank row or private upload question. */
+type SourceForGeneration = {
+  /** Exactly one provenance key is set (§10.3 / KI74). */
+  source_question_id: string | null;
+  source_upload_question_id: string | null;
+  topic_id: string;
+  class_level: number | null;
+  subject: string | null;
+  chapter: string | null;
+  topic_name: string | null;
+  difficulty: string | null;
+  question: string;
+  options: unknown;
+  correct_index: number | null;
+  explanation: string | null;
+};
+
+type BankSourceRow = {
   id: string;
   class_level: number | null;
   subject: string | null;
@@ -80,6 +97,26 @@ type SourceQuestion = {
   options: unknown;
   correct_index: number | null;
   explanation: string | null;
+};
+
+type UploadSourceRow = {
+  id: string;
+  question_text: string;
+  options: unknown;
+  correct_index: number | null;
+  explanation: string | null;
+  difficulty: string | null;
+  answer_source: string;
+  chapter_id: string | null;
+  topic_id: string | null;
+  chapters: {
+    name: string;
+    curriculum_subjects: {
+      name: string;
+      curriculum_classes: { level: number } | null;
+    } | null;
+  } | null;
+  topics: { name: string } | null;
 };
 
 type StoreResult = {
@@ -251,9 +288,10 @@ async function solveBack(
   context: { subject: string; chapter: string; classLevel: string },
 ): Promise<{ verdicts: ({ ok: true } | { ok: false; why: string })[]; usage: unknown }> {
   const system =
-    "You are a careful mathematics and science examiner for Indian school students " +
-    "(CBSE/RBSE, NCERT syllabus). You are given multiple-choice questions and you SOLVE them.\n\n" +
-    "For each question: work it out step by step, then say which option index (0-3) is correct.\n\n" +
+    "You are a careful examiner for Indian students — school boards (CBSE/RBSE) and entrance " +
+    "exams such as CUET, on the NCERT syllabus, in any subject. You are given multiple-choice " +
+    "questions and you SOLVE them.\n\n" +
+    "For each question: work it out, then say which option index (0-3) is correct.\n\n" +
     "HARD RULES:\n" +
     "- Do the arithmetic. Do not assume the question is well-posed.\n" +
     "- If your worked answer is NOT among the four options, return correct_index -1. " +
@@ -261,7 +299,12 @@ async function solveBack(
     "- If the question as worded has NO valid solution (a count that is not a whole number, " +
     "a contradictory condition), return correct_index -1.\n" +
     "- Set exactly_one_correct false if two or more options satisfy the question as worded, " +
-    "even when one of them is the intended answer.";
+    "even when one of them is the intended answer.\n" +
+    // Measured 2026-09-24: left unbounded, `working` became a markdown essay
+    // and the answer was cut off at 2,400 tokens before it closed — every
+    // such check failed as invalid JSON, and so did the variant.
+    "- Keep `working` short: the deciding calculation or reason in at most 4 lines and 60 words, " +
+    "plain text, no headings or markdown.";
 
   const user = [
     `Subject: ${context.subject}`,
@@ -352,12 +395,20 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const sourceQuestionId = String(body.source_question_id ?? "");
+    const sourceQuestionId = String(body.source_question_id ?? "").trim();
+    const sourceUploadQuestionId = String(body.source_upload_question_id ?? "").trim();
     const tier = Number(body.tier);
     const count = Math.max(1, Math.min(5, Number(body.count ?? 1)));
     const dryRun = body.dry_run === true;
 
-    if (!sourceQuestionId) return jsonResponse({ error: "source_question_id is required" }, 400);
+    // KI74 / §10.3 — exactly one source. Neither and both are refusals.
+    const hasBank = sourceQuestionId.length > 0;
+    const hasUpload = sourceUploadQuestionId.length > 0;
+    if (hasBank === hasUpload) {
+      return jsonResponse({
+        error: "set exactly one of source_question_id / source_upload_question_id",
+      }, 400);
+    }
     // 1 or 2 only — see the header. question_bank_variant_tier_check would
     // refuse anything else anyway; refusing it here says why.
     if (![1, 2].includes(tier)) {
@@ -366,19 +417,94 @@ Deno.serve(async (req) => {
       }, 400);
     }
 
-    const { data: src, error: srcErr } = await admin
-      .from("question_bank")
-      .select(
-        "id, class_level, subject, chapter, topic_id, topics(name), difficulty, question, options, correct_index, explanation",
-      )
-      .eq("id", sourceQuestionId)
-      .single<SourceQuestion>();
+    let src: SourceForGeneration;
 
-    if (srcErr || !src) return jsonResponse({ error: `source question not found: ${srcErr?.message ?? "no row"}` }, 404);
-    // A source with no topic cannot give one to its variant, and the door would
-    // refuse every row. Said now, before a paid call is spent on it.
-    if (!src.topic_id) {
-      return jsonResponse({ error: "the source question has no topic, so a variant could not be filed", retryable: false }, 422);
+    if (hasBank) {
+      const { data: row, error: srcErr } = await admin
+        .from("question_bank")
+        .select(
+          "id, class_level, subject, chapter, topic_id, topics(name), difficulty, question, options, correct_index, explanation",
+        )
+        .eq("id", sourceQuestionId)
+        .single<BankSourceRow>();
+
+      if (srcErr || !row) {
+        return jsonResponse({ error: `source question not found: ${srcErr?.message ?? "no row"}` }, 404);
+      }
+      if (!row.topic_id) {
+        return jsonResponse({
+          error: "the source question has no topic, so a variant could not be filed",
+          retryable: false,
+        }, 422);
+      }
+      src = {
+        source_question_id: row.id,
+        source_upload_question_id: null,
+        topic_id: row.topic_id,
+        class_level: row.class_level,
+        subject: row.subject,
+        chapter: row.chapter,
+        topic_name: row.topics?.name ?? null,
+        difficulty: row.difficulty,
+        question: row.question,
+        options: row.options,
+        correct_index: row.correct_index,
+        explanation: row.explanation,
+      };
+    } else {
+      // Private upload question — load chapter/topic labels for the prompt;
+      // store_generated_questions inherits taxonomy from topic_id + provenance.
+      const { data: row, error: upErr } = await admin
+        .from("student_upload_questions")
+        .select(
+          "id, question_text, options, correct_index, explanation, difficulty, answer_source, chapter_id, topic_id, chapters(name, curriculum_subjects(name, curriculum_classes(level))), topics(name)",
+        )
+        .eq("id", sourceUploadQuestionId)
+        .single<UploadSourceRow>();
+
+      if (upErr || !row) {
+        return jsonResponse({
+          error: `upload source question not found: ${upErr?.message ?? "no row"}`,
+        }, 404);
+      }
+      // §6.2 / §10.2.4 — AI-answered never promotes; refuse before a paid call.
+      if (row.answer_source === "ai") {
+        return jsonResponse({
+          error: "AI-answered upload questions are not eligible for promotion (§6.2 / §10.2.4)",
+          retryable: false,
+        }, 422);
+      }
+      // §10.2.1 — no real chapter → cannot clear the promotion gate.
+      if (!row.chapter_id) {
+        return jsonResponse({
+          error: "upload source has no chapter_id — not eligible for promotion (§10.2.1)",
+          retryable: false,
+        }, 422);
+      }
+      if (!row.topic_id) {
+        return jsonResponse({
+          error: "upload source has no topic_id, so a variant could not be filed",
+          retryable: false,
+        }, 422);
+      }
+
+      const subject = row.chapters?.curriculum_subjects?.name ?? null;
+      const classLevel = row.chapters?.curriculum_subjects?.curriculum_classes?.level ?? null;
+
+      src = {
+        source_question_id: null,
+        source_upload_question_id: row.id,
+        topic_id: row.topic_id,
+        class_level: classLevel,
+        subject,
+        chapter: row.chapters?.name ?? null,
+        topic_name: row.topics?.name ?? null,
+        difficulty: row.difficulty,
+        question: row.question_text,
+        options: row.options,
+        correct_index: row.correct_index,
+        explanation: row.explanation,
+      };
     }
 
     // §4.2a's input list, and nothing beyond it.
@@ -389,7 +515,8 @@ Deno.serve(async (req) => {
         : "(not recorded)";
 
     const system =
-      "You write multiple-choice questions for Indian school students (CBSE/RBSE, NCERT syllabus). " +
+      "You write multiple-choice questions for Indian students — school boards (CBSE/RBSE) and " +
+      "entrance exams such as CUET, on the NCERT syllabus. " +
       "You are given ONE question a student got wrong, and you produce transfer variants of it.\n\n" +
       TIER_RULES[tier] +
       "\n\nHARD RULES:\n" +
@@ -398,13 +525,14 @@ Deno.serve(async (req) => {
       "- Match the difficulty of the original. §4.2: if they failed an easy question, a hard " +
       "variant teaches nothing but discouragement.\n" +
       "- Stay inside the same chapter and topic.\n" +
-      "- Write the explanation so it teaches the step the student most likely missed.\n" +
+      "- Write the explanation so it teaches the step the student most likely missed, in under " +
+      "80 words of plain text — no headings or markdown.\n" +
       "- If you cannot write a genuine variant at this tier, return fewer. Returning a reworded " +
       "copy to fill the count is worse than returning nothing.";
 
     const user = [
       `Chapter: ${src.chapter ?? "(unknown)"}`,
-      `Topic: ${src.topics?.name ?? "(unknown)"}`,
+      `Topic: ${src.topic_name ?? "(unknown)"}`,
       `Subject: ${src.subject ?? "(unknown)"}`,
       `Class: ${src.class_level ?? "(unknown)"}`,
       `Difficulty to match: ${src.difficulty ?? "(unknown)"}`,
@@ -474,10 +602,15 @@ Deno.serve(async (req) => {
       answer_check: checkUsage,
     };
 
+    const provenance = {
+      source_question_id: src.source_question_id,
+      source_upload_question_id: src.source_upload_question_id,
+    };
+
     if (dryRun) {
       return jsonResponse({
         dry_run: true,
-        source_question_id: src.id,
+        ...provenance,
         tier,
         requested: count,
         well_formed: wellFormed.length,
@@ -490,25 +623,27 @@ Deno.serve(async (req) => {
 
     if (accepted.length === 0) {
       return jsonResponse({
-        source_question_id: src.id,
+        ...provenance,
         tier,
         requested: count,
         inserted: 0,
         skipped,
         usage,
         well_formed: wellFormed.length,
-      note: wellFormed.length > 0
-        ? "nothing was written — every well-formed variant failed the answer check (see skipped)"
-        : "nothing was written — a variant that cannot be generated is skipped, not faked (§4.2a)",
+        note: wellFormed.length > 0
+          ? "nothing was written — every well-formed variant failed the answer check (see skipped)"
+          : "nothing was written — a variant that cannot be generated is skipped, not faked (§4.2a)",
       });
     }
 
     // Only what this function actually knows. Topic, chapter, subject, class,
     // board, stream and difficulty (§4.2: variants mirror what was failed) are
     // inherited from the source by the database; approval and activity are the
-    // door's rule, per the header.
+    // door's rule, per the header. Upload provenance leaves source_question_id null.
     const rows = accepted.map((v) => ({
-      source_question_id: src.id,
+      ...(src.source_question_id
+        ? { source_question_id: src.source_question_id }
+        : { source_upload_question_id: src.source_upload_question_id }),
       variant_tier: tier,
       question: v.question,
       question_format: "mcq",
@@ -528,7 +663,7 @@ Deno.serve(async (req) => {
     for (const s of result.skipped ?? []) skipped.push(`not stored: ${s.reason}`);
 
     return jsonResponse({
-      source_question_id: src.id,
+      ...provenance,
       tier,
       requested: count,
       well_formed: wellFormed.length,

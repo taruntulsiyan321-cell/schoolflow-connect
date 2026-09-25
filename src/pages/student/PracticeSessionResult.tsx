@@ -38,6 +38,7 @@ import { practiceModeLabel } from "@/lib/practiceModeLabel";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
 import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
+import { RecoveryClearAnyway } from "@/components/student/RecoveryClearAnyway";
 import { revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
@@ -435,6 +436,8 @@ export default function PracticeSessionResult() {
               </div>
             ))}
           </div>
+
+          {recovery.outcome === "not_ready" && <RecoveryClearAnyway sessionId={recovery.session_id} />}
 
           {recovery.outcome === "ready" && recovery.next_revision_at && (
             <p className="text-[11px] text-muted-foreground mt-3">

@@ -4,8 +4,16 @@ import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { PageKey } from "@/gurukul/nav";
-import { PAGE_TITLE, LEARNING as LEARNING_KEYS, CLASS as CLASS_KEYS } from "@/gurukul/nav";
+import {
+  PAGE_TITLE,
+  LEARNING as LEARNING_KEYS,
+  CLASS as CLASS_KEYS,
+  studentNavEntries,
+  isSchoolOnlyPath,
+  isOrganisationSchool,
+} from "@/gurukul/nav";
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
+import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { cn, XPBar, EASE_OUT, springSnappy, springSoft } from "./shared";
@@ -13,42 +21,55 @@ import {
   Home, BookOpen, Brain, Swords,
   ChevronLeft, ChevronRight, Bell, Menu, X,
   FlaskConical, GraduationCap, Settings, LogOut,
-  User, Wallet, Megaphone,
+  User, Wallet, Megaphone, BarChart2, RefreshCw, RotateCcw,
+  AlertCircle, Trophy,
 } from "lucide-react";
 import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 
 type NavItem  = { key: PageKey; label: string; icon: ReactNode };
 type NavEntry = { key: PageKey; label: string; icon: ReactNode };
 
-// ── Sidebar nav — a FLAT list. No expanding submenus (v2 redesign, G3) ───────
-//
-// Learning and Class used to expand a submenu of four and nine children. Both
-// hub pages already render every one of those destinations as a card, so the
-// submenu duplicated the page it linked to and made the sidebar the tallest
-// thing on screen. Clicking a nav item now opens its page, and nothing else.
-//
-// Chat is gone from the app entirely — the screen, its service and its route.
-const sidebarNav: NavEntry[] = [
-  { key:"dashboard",    label:"Home",         icon:<Home className="w-4 h-4"/> },
-  { key:"practice",     label:"Practice",     icon:<BookOpen className="w-4 h-4"/> },
-  { key:"aicoach",      label:"AI Coach",     icon:<Brain className="w-4 h-4"/> },
-  { key:"battleground", label:"Battleground", icon:<Swords className="w-4 h-4"/> },
-  { key:"learninghub",  label:"Learning",     icon:<GraduationCap className="w-4 h-4"/> },
-  { key:"classhub",     label:"Class",        icon:<FlaskConical className="w-4 h-4"/> },
-];
+/** Icon + label for every key studentNavEntries may return — one catalogue. */
+const NAV_CATALOGUE: Record<PageKey, { label: string; icon: ReactNode }> = {
+  dashboard:    { label: "Home",         icon: <Home className="w-4 h-4"/> },
+  practice:     { label: "Practice",     icon: <BookOpen className="w-4 h-4"/> },
+  aicoach:      { label: "AI Coach",     icon: <Brain className="w-4 h-4"/> },
+  battleground: { label: "Battleground", icon: <Swords className="w-4 h-4"/> },
+  learninghub:  { label: "Learning",     icon: <GraduationCap className="w-4 h-4"/> },
+  classhub:     { label: "Class",        icon: <FlaskConical className="w-4 h-4"/> },
+  analysis:     { label: "Analysis",     icon: <BarChart2 className="w-4 h-4"/> },
+  recovery:     { label: "Recovery",     icon: <RefreshCw className="w-4 h-4"/> },
+  revision:     { label: "Revision",     icon: <RotateCcw className="w-4 h-4"/> },
+  mistakebook:  { label: "Mistake Book", icon: <AlertCircle className="w-4 h-4"/> },
+  achievements: { label: "Achievements", icon: <Trophy className="w-4 h-4"/> },
+  leaderboard:  { label: "Rankings",     icon: <Trophy className="w-4 h-4"/> },
+  resources:    { label: "Resources",    icon: <BookOpen className="w-4 h-4"/> },
+  doubtportal:  { label: "Doubts",       icon: <Brain className="w-4 h-4"/> },
+  assignments:  { label: "Homework",     icon: <BookOpen className="w-4 h-4"/> },
+  attendance:   { label: "Attendance",   icon: <GraduationCap className="w-4 h-4"/> },
+  profile:      { label: "Profile",      icon: <User className="w-4 h-4"/> },
+  timetable:    { label: "Timetable",    icon: <BookOpen className="w-4 h-4"/> },
+  calendar:     { label: "Calendar",     icon: <BookOpen className="w-4 h-4"/> },
+  tests:        { label: "Tests",        icon: <FlaskConical className="w-4 h-4"/> },
+};
 
-// ── Mobile bottom nav — 4 tabs ───────────────────────────────────────────────
-const bottomNav: NavItem[] = [
-  { key:"dashboard",   label:"Home",     icon:<Home className="w-5 h-5"/> },
-  { key:"practice",    label:"Practice", icon:<BookOpen className="w-5 h-5"/> },
-  { key:"learninghub", label:"Learning", icon:<GraduationCap className="w-5 h-5"/> },
-  { key:"classhub",    label:"Class",    icon:<FlaskConical className="w-5 h-5"/> },
-];
+function navEntriesFor(keys: PageKey[]): NavEntry[] {
+  return keys.map((key) => {
+    const cat = NAV_CATALOGUE[key];
+    return { key, label: cat.label, icon: cat.icon };
+  });
+}
 
-
-// The screen-name map lived here AND in nav.ts, identical, while nav.ts's
-// exported copy was imported by nobody. One home now: nav.ts's PAGE_TITLE,
-// which PageHeader reads for the same names.
+function bottomEntriesFor(keys: PageKey[]): NavItem[] {
+  return keys.map((key) => {
+    const cat = NAV_CATALOGUE[key];
+    return {
+      key,
+      label: cat.label,
+      icon: <span className="[&>svg]:w-5 [&>svg]:h-5">{cat.icon}</span>,
+    };
+  });
+}
 
 // ── Profile dropdown menu items ───────────────────────────────────────────────
 // Leaderboard and Analysis came off because each already has a home — Rankings
@@ -87,9 +108,23 @@ export default function Layout({
   const navigate = useNavigate();
   const location = useLocation();
   const { unread } = useNotifications();
+  const { schoolKind } = useGurukulAcademicIdentity();
   const student = { ...EMPTY_STUDENT, ...profile };
   const showXpChrome = progressionReady;
   const reduceMotion = useReducedMotion();
+
+  // ONE place: nav.ts studentNavEntries — Layout only renders the keys it returns.
+  const { sidebar: sidebarKeys, bottom: bottomKeys } = studentNavEntries(schoolKind ?? null);
+  const sidebarNav = navEntriesFor(sidebarKeys);
+  const bottomNav = bottomEntriesFor(bottomKeys);
+  const visibleProfileExtras = profileExtraLinks.filter(
+    (item) => isOrganisationSchool(schoolKind) || !isSchoolOnlyPath(item.path),
+  );
+
+  // Class rank is school-only; individuals (and unknown kind) show exam / scope label.
+  const scopeLine = isOrganisationSchool(schoolKind)
+    ? ([student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" · ") || "Your class")
+    : (student.class || "Exam");
 
   const headerTitle =
     location.pathname.startsWith("/student/notifications") ? "Notifications"
@@ -170,8 +205,10 @@ export default function Layout({
         </div>
         {!collapsed && (
           <div>
-            <div className="text-sm font-black text-foreground leading-none" style={{fontFamily:"var(--font-display)"}}>Wisdom</div>
-            <div className="text-[10px] text-muted-foreground leading-none mt-0.5">Campus</div>
+            <div className="text-sm font-black text-foreground leading-none" style={{fontFamily:"var(--font-display)"}}>Gurukul</div>
+            <div className="text-[10px] text-muted-foreground leading-none mt-0.5">
+              {schoolKind === "individual" ? "Exam prep" : "Student"}
+            </div>
           </div>
         )}
       </div>
@@ -366,7 +403,7 @@ export default function Layout({
                         <div className="min-w-0">
                           <div className="text-sm font-bold text-foreground truncate">{student.name}</div>
                           <div className="text-[11px] text-muted-foreground">
-                            {[student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" · ") || "Your class"}
+                            {scopeLine}
                           </div>
                         </div>
                       </div>
@@ -400,7 +437,7 @@ export default function Layout({
                           {page === item.key && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"/>}
                         </button>
                       ))}
-                      {profileExtraLinks.map(item => (
+                      {visibleProfileExtras.map(item => (
                         <button
                           key={item.path}
                           onClick={() => { navigate(item.path); setProfileOpen(false); }}
@@ -443,20 +480,28 @@ export default function Layout({
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto bg-background">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={page}
-              initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.18, ease: EASE_OUT }}
-              className="p-4 sm:p-6 max-w-5xl mx-auto pb-24 md:pb-6">
-              {children}
-            </motion.div>
-          </AnimatePresence>
+          {/* The page ENTERS; it does not exit. This was an AnimatePresence
+              with an exit animation, which keeps the old container mounted
+              while it plays — and that container renders {children}, the
+              router, which already resolves to the NEW location. So every
+              navigation mounted the destination twice: a throwaway copy in
+              the leaving container, then the real one. The throwaway copy
+              consumed anything meant to be read once — a ?mode= deep link, the
+              router-state hand-off that starts a recovery or revision
+              session — and the real page came up on its hub. Measured
+              2026-09-24: Analysis's "Try the ones you skipped" started the
+              session in the throwaway copy and showed the Practice hub. */}
+          <motion.div
+            key={page}
+            initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: EASE_OUT }}
+            className="p-4 sm:p-6 max-w-5xl mx-auto pb-24 md:pb-6">
+            {children}
+          </motion.div>
         </main>
 
-        {/* Mobile bottom nav — 4 tabs */}
+        {/* Mobile bottom nav — tabs from studentNavEntries */}
         <nav className="md:hidden shrink-0 fixed bottom-0 inset-x-0 border-t border-border/70 bg-card/95 backdrop-blur-xl z-40">
           <div className="flex">
             {bottomNav.map(item => {

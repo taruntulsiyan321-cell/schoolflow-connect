@@ -16,6 +16,12 @@ export type PracticeAttemptSnapshot = {
   bankQuestionId?: string | null;
   subject?: string;
   chapter?: string;
+  /** Spec §9 — real chapters.id for upload/tagged rows; drives mistake chapter_id. */
+  chapterId?: string | null;
+  /** Spec §9 — student_upload_questions.id when source=upload; never a bank id. */
+  uploadQuestionId?: string | null;
+  /** Screen-capture §7.4 — student_capture_questions.id; never a bank id. */
+  captureQuestionId?: string | null;
   concept?: string;
   topic?: string;
   difficulty?: string;
@@ -178,7 +184,17 @@ export function snapshotsToAttemptRows(attempts: PracticeAttemptSnapshot[]) {
     const skipped = Boolean(a.skipped || a.timedOut);
     return {
       id: `local-${i}`,
-      generated_question: { question: a.question, options: a.options, explanation: a.explanation },
+      // Spec §9 — keep upload_question_id / chapter_id on every generated_question
+      // shape (result UI + any consumer), same as attemptsToFinishPayload.
+      generated_question: {
+        question: a.question,
+        options: a.options,
+        explanation: a.explanation,
+        bank_question_id: a.bankQuestionId ?? null,
+        upload_question_id: a.uploadQuestionId ?? null,
+        capture_question_id: a.captureQuestionId ?? null,
+        chapter_id: a.chapterId ?? null,
+      },
       correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
       selected_answer: skipped ? null : { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
       is_correct: skipped ? false : a.isCorrect,
@@ -213,8 +229,11 @@ export function attemptsToFinishPayload(attempts: PracticeAttemptSnapshot[]) {
         options: a.options,
         explanation: a.explanation ?? "",
         bank_question_id: a.bankQuestionId ?? null,
+        upload_question_id: a.uploadQuestionId ?? null,
+        capture_question_id: a.captureQuestionId ?? null,
         subject: a.subject ?? null,
         chapter: a.chapter ?? null,
+        chapter_id: a.chapterId ?? null,
         concept: a.concept ?? a.chapter ?? null,
         topic: a.topic ?? a.concept ?? a.chapter ?? null,
         difficulty: a.difficulty ?? null,

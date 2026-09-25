@@ -86,8 +86,10 @@ async function findUserViaAdminFilter(params: {
   email?: string;
   phone?: string;
 }): Promise<{ id: string } | null> {
-  const base = Deno.env.get("SUPABASE_URL");
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  // Edge runtime only — vitest imports this file under Node where `Deno` is absent.
+  const deno = (globalThis as { Deno?: { env: { get(k: string): string | undefined } } }).Deno;
+  const base = deno?.env.get("SUPABASE_URL");
+  const key = deno?.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!base || !key) return null;
 
   const qs = new URLSearchParams();

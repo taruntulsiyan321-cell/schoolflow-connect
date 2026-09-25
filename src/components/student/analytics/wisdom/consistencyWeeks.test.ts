@@ -62,13 +62,13 @@ describe("consistencyWeeks", () => {
     expect(last.days[0].total).toBe(0);
   });
 
-  it("counts all four activity kinds, because the grid is about activity", () => {
+  it("counts practice sessions only — Analysis is practice-fed (rule 11)", () => {
     const weeks = consistencyWeeks(
       [row("2026-09-15", { test: 1, homework: 2, battles: 1, self_practice: 4 })],
       4,
       TODAY,
     );
-    expect(weeks[weeks.length - 1].days[1].total).toBe(8);
+    expect(weeks[weeks.length - 1].days[1].total).toBe(4);
   });
 
   it("drops a day outside the window rather than folding it into the edge", () => {

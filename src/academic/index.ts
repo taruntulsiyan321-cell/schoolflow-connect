@@ -134,11 +134,37 @@ export type {
 export type { BattleCreateOpts } from "./services/battleExperienceService";
 export type { CurriculumScope } from "./services/practiceService";
 export type { PracticeSessionRow } from "./services/practiceService";
+export {
+  StudentUploadService,
+  modesForVerdict,
+  UPLOAD_MODE_LABELS,
+  type StudentUploadRow,
+  type UploadVerdict,
+  type UploadPracticeMode,
+  type DisputeAiAnswerResult,
+} from "./services/studentUploadService";
+export {
+  canPromote,
+  hasRealChapterId,
+  hasValidVariant,
+  isNotNearDuplicate,
+  sourceNotAiAnswered,
+  type UploadPromotionInput,
+} from "./services/uploadPromotionGates";
+export {
+  uploadPromotionSource,
+  promotedUploadVariantFields,
+  enqueueUploadVariantGeneration,
+  type UploadPromotionSource,
+  type EnqueueUploadVariantResult,
+} from "./services/uploadVariantEnqueue";
+export { STUDENT_UPLOAD_ACCEPT } from "./storage/studentUploadFile";
 export type {
   ChapterStateRow,
   RecoveryQueueRow,
   RecoverySessionStart,
   RecoverySessionOutcome,
+  ClearAnywayOutcome,
   RevisionSessionOutcome,
   RevisionHistoryRow,
 } from "./services/recoveryEngineService";

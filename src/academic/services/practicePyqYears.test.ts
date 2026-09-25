@@ -40,6 +40,7 @@ vi.mock("../repository/base", () => {
       return self;
     };
     self.in = (col: keyof Row, vs: unknown[]) => { keep.push((r) => vs.includes(r[col])); return self; };
+    self.is = () => self;
     for (const m of ["or", "order"]) self[m] = () => self;   // board and stream: every row here is in scope
     self.range = (a: number, b: number) => { range = [a, b]; return self; };
     self.then = (resolve: (v: unknown) => unknown) => {
@@ -78,7 +79,7 @@ beforeEach(() => {
     row("m-2018-class9", "Mathematics", 2018, { class_level: 9 }),
   ];
   vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
-    classLevel: 10, board: "rbse", stream: null, classLabel: "10-A",
+    classLevel: 10, board: "rbse", stream: null, classLabel: "10-A", examId: null, examCode: null, examName: null,
   });
 });
 

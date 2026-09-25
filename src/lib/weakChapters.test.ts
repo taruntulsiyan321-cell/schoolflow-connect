@@ -20,9 +20,11 @@ const tally = (chapter_id: string, attempted: number, correct: number, day: numb
 const mistake = (chapter_id: string, over: Partial<{ status: string; times_wrong: number; created_at: string; topic: string }> = {}) => ({
   chapter_id, status: "open", times_wrong: 1, created_at: "2026-09-01T10:00:00Z", topic: null, ...over,
 });
-const attempt = (chapter_id: string, over: Partial<{ topic: string; skipped: boolean; time_taken_ms: number }> = {}) => ({
-  chapter_id, topic: null, skipped: false, time_taken_ms: null, ...over,
+const attempt = (chapter_id: string, over: Partial<{ time_taken_ms: number }> = {}) => ({
+  chapter_id, time_taken_ms: null, ...over,
 });
+/** Questions still skipped, as rpc_my_skipped_by_chapter returns them. */
+const skip = (chapter_id: string, questions: number, topic: string | null = null) => ({ chapter_id, topic, questions });
 
 describe("which chapters the list holds", () => {
   it("is weaknesses only: a chapter with nothing open is not a row", () => {
@@ -31,6 +33,7 @@ describe("which chapters the list holds", () => {
       tallies: [tally("open", 10, 4, 1), tally("clean", 10, 10, 1)],
       mistakes: [mistake("open"), mistake("open")],
       attempts: [attempt("clean")],
+      skipped: [],
     });
     expect(rows.map((r) => r.chapterId)).toEqual(["open"]);
   });
@@ -40,7 +43,8 @@ describe("which chapters the list holds", () => {
       states: [state({ chapter_id: "skips", state: "untouched" })],
       tallies: [tally("skips", 10, 10, 1)],
       mistakes: [],
-      attempts: [attempt("skips", { skipped: true }), attempt("skips", { skipped: true })],
+      attempts: [],
+      skipped: [skip("skips", 2)],
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].skipped).toBe(2);
@@ -60,9 +64,10 @@ describe("the signals, side by side and never blended (§6.2)", () => {
     ],
     attempts: [
       attempt("c1", { time_taken_ms: 40000 }),
-      attempt("c1", { skipped: true, topic: "Euclid's Lemma", time_taken_ms: 5000 }),
+      attempt("c1", { time_taken_ms: 5000 }),
       attempt("other", { time_taken_ms: 10000 }),
     ],
+    skipped: [skip("c1", 1, "Euclid's Lemma")],
   });
 
   it("counts the open mistakes, and the repeated ones inside them", () => {
@@ -112,6 +117,7 @@ describe("the trend (§6.4)", () => {
       tallies: [tally("c1", 10, 4, 1), tally("c1", 10, 4, 2), tally("c1", 10, 8, 3), tally("c1", 10, 8, 4)],
       mistakes: [mistake("c1")],
       attempts: [],
+      skipped: [],
     });
     expect(rows[0].sessions).toBe(4);
     expect(rows[0].trend).toBe("improving");
@@ -124,6 +130,7 @@ describe("the trend (§6.4)", () => {
       tallies: [tally("c1", 10, 2, 1), tally("c1", 10, 9, 2)],
       mistakes: [mistake("c1")],
       attempts: [],
+      skipped: [],
     });
     expect(rows[0].sessions).toBeLessThan(TREND_MIN_SESSIONS);
     expect(rows[0].trend).toBe("not_enough_data");
@@ -144,6 +151,7 @@ describe("the order (§6.3)", () => {
       tallies: [],
       mistakes: [...many, ...repeated, mistake("failed")],
       attempts: [],
+      skipped: [],
     });
     expect(rows.map((r) => r.chapterId)).toEqual(["failed", "repeats", "most"]);
     expect(rows[0].pin).toBe("revision_failed");
@@ -152,5 +160,33 @@ describe("the order (§6.3)", () => {
     // CONTROL: without the pins this is the order, so the pins are what moved them.
     expect([...rows].sort((a, b) => b.openMistakes - a.openMistakes).map((r) => r.chapterId))
       .toEqual(["most", "repeats", "failed"]);
+  });
+});
+
+describe("a skip is a question still skipped, not a skip attempt (§6.6)", () => {
+  it("counts what Skipped mode would serve, and says nothing of repeat skips", () => {
+    // The server reports 3 questions still skipped in the chapter (one topic
+    // with 2, one with 1). Nothing else here can add to that number: the
+    // pace attempts carry no skip flag at all any more.
+    const rows = deriveWeakChapters({
+      states: [state({ chapter_id: "c1", state: "untouched" })],
+      tallies: [],
+      mistakes: [],
+      attempts: [attempt("c1", { time_taken_ms: 3000 }), attempt("c1", { time_taken_ms: 3000 }), attempt("c1", { time_taken_ms: 3000 })],
+      skipped: [skip("c1", 2, "HCF and LCM"), skip("c1", 1, null), skip("c2", 9, "Other chapter")],
+    });
+    expect(rows[0].skipped).toBe(3);
+    expect(rows[0].skippedTopics).toEqual([{ topic: "HCF and LCM", count: 2 }]);
+  });
+
+  it("POSITIVE CONTROL: with nothing still skipped and nothing open, the chapter is not a row", () => {
+    const rows = deriveWeakChapters({
+      states: [state({ chapter_id: "c1", state: "untouched" })],
+      tallies: [],
+      mistakes: [],
+      attempts: [attempt("c1", { time_taken_ms: 3000 })],
+      skipped: [],
+    });
+    expect(rows).toEqual([]);
   });
 });

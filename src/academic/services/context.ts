@@ -26,6 +26,12 @@ export interface ServiceContext {
   classLabel?: string | null;
   /** Optional class category (commerce/science/…) for curriculum stream */
   classCategory?: string | null;
+  /** schools.kind — organisation vs tenant-of-one */
+  schoolKind?: "school" | "individual" | null;
+  /** Competitive exam on exam_accounts — individual only */
+  examId?: string | null;
+  examCode?: string | null;
+  examName?: string | null;
 }
 
 export function toRepoContext(ctx: ServiceContext): RepoContext {

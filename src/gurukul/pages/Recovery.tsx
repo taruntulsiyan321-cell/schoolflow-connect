@@ -60,6 +60,10 @@ type QueueItem = RecoveryQueueRow & {
 };
 
 function toItem(r: RecoveryQueueRow): QueueItem | null {
+  // Upload/capture §5.1 — untagged mistakes (chapter_id IS NULL) are excluded
+  // from recovery by the queue RPC. Defend here too: a null/empty chapter_id
+  // must never become a recovery card (a wrong chapter is worse than none).
+  if (!r.chapter_id) return null;
   const rawChapter = r.chapter;
   if (!rawChapter || isPlaceholderAcademicLabel(rawChapter)) return null;
   const subject = r.subject && !isPlaceholderAcademicLabel(r.subject) ? r.subject : "";

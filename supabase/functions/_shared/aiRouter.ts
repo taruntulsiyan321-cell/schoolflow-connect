@@ -965,7 +965,8 @@ async function fetchParentSummary(
   };
 }
 
-/** Profile + class + enrolled subjects for Nova (deduped, no placeholders). */
+/** Profile + class + enrolled subjects for Nova (deduped, no placeholders).
+ * Individual (schools.kind=individual): exam name replaces class_label. */
 async function fetchStudentProfileContext(admin: SupabaseClient, schoolId: string, studentId: string) {
   const empty = {
     projection: "StudentProfileContext",
@@ -978,6 +979,9 @@ async function fetchStudentProfileContext(admin: SupabaseClient, schoolId: strin
     class_name: null as string | null,
     section: null as string | null,
     class_label: null as string | null,
+    school_kind: null as string | null,
+    exam_code: null as string | null,
+    exam_name: null as string | null,
     subjects: [] as string[],
     source_as_of: null as string | null,
     data_version: `profilectx:${studentId}:none`,
@@ -992,6 +996,28 @@ async function fetchStudentProfileContext(admin: SupabaseClient, schoolId: strin
     .maybeSingle();
   if (!student) return empty;
 
+  const { data: schoolRow } = await admin
+    .from("schools")
+    .select("kind")
+    .eq("id", schoolId)
+    .maybeSingle();
+  const school_kind = schoolRow?.kind ? String(schoolRow.kind) : null;
+
+  let exam_code: string | null = null;
+  let exam_name: string | null = null;
+  if (school_kind === "individual") {
+    const { data: ea } = await admin
+      .from("exam_accounts")
+      .select("competitive_exams(code, name)")
+      .eq("school_id", schoolId)
+      .maybeSingle();
+    type ExamJoin = { code?: string | null; name?: string | null };
+    const rawExam = (ea as { competitive_exams?: ExamJoin | ExamJoin[] | null } | null)?.competitive_exams;
+    const exam = Array.isArray(rawExam) ? rawExam[0] : rawExam;
+    exam_code = exam?.code ? String(exam.code) : null;
+    exam_name = exam?.name ? String(exam.name) : null;
+  }
+
   const rawClasses = student.classes as
     | { name?: string; section?: string }
     | { name?: string; section?: string }[]
@@ -1000,11 +1026,16 @@ async function fetchStudentProfileContext(admin: SupabaseClient, schoolId: strin
   const clsObj = Array.isArray(rawClasses) ? rawClasses[0] : rawClasses;
   const class_name = clsObj?.name ? String(clsObj.name).trim() : null;
   const section = clsObj?.section ? String(clsObj.section).trim() : null;
-  const class_label =
+  const schoolClassLabel =
     class_name || section
       ? `${class_name ?? ""}${class_name && section ? "-" : ""}${section ?? ""}`.replace(/^-|-$/g, "") ||
         null
       : null;
+  // Individual has no class — Nova reads the exam instead of inventing a board/class.
+  const class_label =
+    school_kind === "individual"
+      ? (exam_name || exam_code || null)
+      : schoolClassLabel;
 
   let subjects: string[] = [];
   if (student.class_id) {
@@ -1025,13 +1056,16 @@ async function fetchStudentProfileContext(admin: SupabaseClient, schoolId: strin
     full_name: student.full_name ? String(student.full_name) : null,
     roll_number: student.roll_number ? String(student.roll_number) : null,
     class_id: student.class_id ? String(student.class_id) : null,
-    class_name,
-    section,
+    class_name: school_kind === "individual" ? null : class_name,
+    section: school_kind === "individual" ? null : section,
     class_label,
+    school_kind,
+    exam_code,
+    exam_name,
     subjects,
-    source_as_of: null,
-    data_version: `profilectx:${studentId}:${class_label ?? "none"}:${subjects.length}`,
-    completeness: hasIdentity ? 1 : 0.2,
+    source_as_of: null as string | null,
+    data_version: `profilectx:${studentId}:${class_label ?? "none"}:${exam_code ?? "none"}:${subjects.length}`,
+    completeness: hasIdentity ? 1 : 0.3,
   };
 }
 

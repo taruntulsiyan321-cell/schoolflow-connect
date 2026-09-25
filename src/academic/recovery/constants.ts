@@ -308,7 +308,17 @@ export const TREND_MIN_SESSIONS = 4;
 /** §6.4: accuracy points of movement that count as a trend rather than noise. */
 export const TREND_DELTA_POINTS = 10;
 
-/** §6.3: times_wrong that pins a chapter to the top of the analysis list. */
+/**
+ * §6.4: "the latest 3 sessions average > the previous 3". The trend compares
+ * the latest this-many sessions against the this-many before them — not the
+ * first half of a history against the second, which is what it did before.
+ */
+export const TREND_WINDOW_SESSIONS = 3;
+
+/**
+ * §6.3: a chapter whose COUNT of repeated mistakes (open, times_wrong > 1)
+ * reaches this is pinned to the top of the analysis list.
+ */
 export const REPEATED_MISTAKE_PIN = 3;
 
 // ── Weak areas (§6.2) ──────────────────────────────────────────────────────

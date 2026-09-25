@@ -33,12 +33,23 @@ export type ChapterMistake = {
   topic: string | null;
 };
 
-/** One answered or skipped question, already resolved to its chapter. */
+/** One answered or skipped question, already resolved to its chapter — its pace. */
 export type ChapterAttempt = {
   chapter_id: string | null;
-  topic: string | null;
-  skipped: boolean | null;
   time_taken_ms: number | null;
+};
+
+/**
+ * Questions still skipped — their latest answer was a skip — per chapter and
+ * topic, from rpc_my_skipped_by_chapter. The same questions Skipped mode
+ * serves: counting skip ATTEMPTS instead made a question skipped three times
+ * count 3, and one skipped and answered since still count (2,211 against
+ * 1,051 for one student, measured 2026-09-24).
+ */
+export type ChapterSkipped = {
+  chapter_id: string | null;
+  topic: string | null;
+  questions: number;
 };
 
 export type ChapterStateRow = {
@@ -87,12 +98,12 @@ export type WeakChapterRow = {
   pin: "revision_failed" | "repeated_mistakes" | null;
 };
 
-function countTopics(rows: Array<{ topic: string | null }>): TopicCount[] {
+function countTopics(rows: Array<{ topic: string | null; questions?: number }>): TopicCount[] {
   const byTopic = new Map<string, number>();
   for (const r of rows) {
     const topic = (r.topic ?? "").trim();
     if (!topic) continue;
-    byTopic.set(topic, (byTopic.get(topic) ?? 0) + 1);
+    byTopic.set(topic, (byTopic.get(topic) ?? 0) + (r.questions ?? 1));
   }
   return [...byTopic.entries()]
     .map(([topic, count]) => ({ topic, count }))
@@ -124,8 +135,9 @@ export function deriveWeakChapters(input: {
   tallies: ChapterTally[];
   mistakes: ChapterMistake[];
   attempts: ChapterAttempt[];
+  skipped: ChapterSkipped[];
 }): WeakChapterRow[] {
-  const { states, tallies, mistakes, attempts } = input;
+  const { states, tallies, mistakes, attempts, skipped: stillSkipped } = input;
 
   const byChapter = <T extends { chapter_id: string | null }>(rows: T[]) => {
     const map = new Map<string, T[]>();
@@ -141,6 +153,7 @@ export function deriveWeakChapters(input: {
   const talliesOf = byChapter(tallies);
   const mistakesOf = byChapter(mistakes);
   const attemptsOf = byChapter(attempts);
+  const skippedOf = byChapter(stillSkipped);
   const ownAvgSec = avgSeconds(attempts);
 
   const rows: WeakChapterRow[] = [];
@@ -152,7 +165,8 @@ export function deriveWeakChapters(input: {
     const chapterMistakes = mistakesOf.get(state.chapter_id) ?? [];
     const open = chapterMistakes.filter((m) => (m.status ?? "open") === "open");
     const chapterAttempts = attemptsOf.get(state.chapter_id) ?? [];
-    const skipped = chapterAttempts.filter((a) => a.skipped === true);
+    const chapterSkipped = skippedOf.get(state.chapter_id) ?? [];
+    const skipped = chapterSkipped.reduce((n, s) => n + s.questions, 0);
 
     const attempted = chapterTallies.reduce((s, t) => s + (t.attempted ?? 0), 0);
     const correct = chapterTallies.reduce((s, t) => s + (t.correct ?? 0), 0);
@@ -177,7 +191,7 @@ export function deriveWeakChapters(input: {
     // §6.1: this list is what needs work. A chapter with nothing open, nothing
     // skipped and no failed revision does not appear at all.
     const hasSomethingOpen =
-      openMistakes > 0 || skipped.length > 0 || state.state === "revision_failed";
+      openMistakes > 0 || skipped > 0 || state.state === "revision_failed";
     if (!hasSomethingOpen) continue;
 
     rows.push({
@@ -195,9 +209,9 @@ export function deriveWeakChapters(input: {
       revisionState: state.state ?? null,
       revisionDue: state.revision_due === true,
       nextRevisionAt: state.next_revision_at ?? null,
-      skipped: skipped.length,
+      skipped,
       mistakeTopics: countTopics(open),
-      skippedTopics: countTopics(skipped),
+      skippedTopics: countTopics(chapterSkipped),
       avgSecPerQuestion: avgSeconds(chapterAttempts),
       ownAvgSecPerQuestion: ownAvgSec,
       pin:

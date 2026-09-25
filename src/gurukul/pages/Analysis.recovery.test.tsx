@@ -116,24 +116,20 @@ describe("Analysis — recovery, revision and trends", () => {
 
   it("reports a rise in POINTS, not percent", async () => {
     await settle();
-    // 40 -> 80 across four sessions is a rise of thirty percentage POINTS.
-    // Thirty percent of 40 is twelve. The Overview headline and the
-    // milestone card were corrected to say "points"; the subject rows, the
-    // chapter grid and this list kept the percent sign.
-    openTab("Topics");
-    expect(screen.getByText(/\+30 pts/)).toBeInTheDocument();
+    // 40 -> 70 across six sessions is +30 percentage POINTS on the subject
+    // and chapter grids (TrendCell). The Topics-tab strengths list that
+    // used to carry the same figure is gone (§6.1 / §10.8).
+    openTab("Subjects & Chapters");
+    expect(document.body.textContent).toMatch(/30 pts/);
     expect(document.body.textContent).not.toContain("+30%");
   });
 
-  it("calls a chapter a chapter, even on the Topics tab", async () => {
+  it("does not show a strengths panel on Topics (§6.1 / §10.8)", async () => {
     await settle();
     openTab("Topics");
-    // The panel grouped practice_trend by CHAPTER, called the field `topic`
-    // and rendered it through displayTopic() under "Topics getting better".
-    // presentAcademicLabel resolves per kind, so a chapter was being looked
-    // up in the topic dictionary.
-    expect(screen.getByText("Chapters getting better")).toBeInTheDocument();
+    expect(screen.queryByText("Chapters getting better")).toBeNull();
     expect(screen.queryByText("Topics getting better")).toBeNull();
+    expect(screen.getByText("Questions you keep getting wrong")).toBeInTheDocument();
   });
 
   it("uses the same unit in the subject and chapter grids", async () => {
@@ -185,7 +181,7 @@ describe("Analysis — recovery, revision and trends", () => {
     const row = Array.from(document.querySelectorAll("div")).find((d) =>
       (d.textContent ?? "").startsWith("Practice sessions"),
     );
-    // self_practice.sessions_completed is 31; recent_sessions has 4 rows.
+    // self_practice.sessions_completed is 31; recent_sessions has 6 rows.
     expect(row?.textContent).toContain("31");
   });
 });

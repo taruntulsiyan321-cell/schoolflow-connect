@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { GlassCard, LoadingState, PageHeader, PageSkeleton, SectionLabel, Skeleton, SkeletonCard, XPBar, cn } from "@/gurukul/components/shared";
 import { ArrowRight } from "lucide-react";
@@ -16,6 +16,7 @@ import { getBadge, TIER_CLASS } from "@/lib/badges";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
+import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 
 /**
  * One date format for this screen. Named for what it renders rather than for
@@ -36,9 +37,22 @@ function formatDayMonthYear(iso: string) {
  * Level/XP/league/streak/reputation from ProgressionService (rpc_get_student_progression).
  * Milestones from live student_badges + featured badges from progression snapshot.
  */
-export default function Profile({ setPage }: { setPage?: (p: PageKey) => void }) {
+export default function Profile({
+  setPage,
+  screenCaptureSlot,
+}: {
+  setPage?: (p: PageKey) => void;
+  /** Android-only Stage 1/2 capture controls (mounted from StudentDashboard). */
+  screenCaptureSlot?: ReactNode;
+}) {
   const { user, signOut } = useAuth();
   const { ctx, ready, studentId } = useAcademicContext();
+  const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
+  // null while identity loads keeps school surfaces (same as nav) — only a
+  // School homework / class tests / class rank only for a confirmed organisation.
+  // null (kind still loading) must not look like school — that painted Class rank
+  // and "ask your school admin" on exam accounts.
+  const isSchool = schoolKind === "school";
   const { earned, loading: badgesLoading } = useStudentBadges(user?.id);
   const [name, setName] = useState("Student");
   const [classLabel, setClassLabel] = useState("");
@@ -92,6 +106,8 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
     }
     beginLoading(setLoading);
     try {
+      // School-only loads stay off for individual exam accounts — no classmates,
+      // homework, class tests, or school exam marks to show.
       const settled = await Promise.allSettled([
         supabase
           .from("students_current")
@@ -99,82 +115,102 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           .eq("id", studentId)
           .maybeSingle(),
         ProgressionService.getSnapshot(ctx, user?.id ?? undefined),
-        ProgressionService.leaderboard(ctx, {
-          scope: "class",
-          period: "lifetime",
-          metric: "xp",
-          limit: 200,
-        }),
-        TestService.listMarksForStudent(ctx, studentId, 10),
-        MarksService.listForStudent(ctx, studentId, { limit: 50 }),
-        HomeworkService.listForStudent(ctx, studentId),
-        RemarksService.listForStudent(ctx, studentId),
+        isSchool
+          ? ProgressionService.leaderboard(ctx, {
+              scope: "class",
+              period: "lifetime",
+              metric: "xp",
+              limit: 200,
+            })
+          : Promise.resolve(null),
+        isSchool ? TestService.listMarksForStudent(ctx, studentId, 10) : Promise.resolve([]),
+        isSchool ? MarksService.listForStudent(ctx, studentId, { limit: 50 }) : Promise.resolve([]),
+        isSchool ? HomeworkService.listForStudent(ctx, studentId) : Promise.resolve([]),
+        isSchool ? RemarksService.listForStudent(ctx, studentId) : Promise.resolve([]),
       ]);
       const sRes = settled[0].status === "fulfilled" ? settled[0].value : null;
       const s = sRes?.data;
       const prog = settled[1].status === "fulfilled" ? settled[1].value : null;
       const lb = settled[2].status === "fulfilled" ? settled[2].value : null;
       setName(s?.full_name ?? "Student");
-      const cls = s?.classes as { name?: string; section?: string } | null;
-      setClassLabel(cls ? `${cls.name ?? ""} ${cls.section ?? ""}`.trim() : "");
+      if (isSchool) {
+        const cls = s?.classes as { name?: string; section?: string } | null;
+        setClassLabel(cls ? `${cls.name ?? ""} ${cls.section ?? ""}`.trim() : "");
+      } else {
+        setClassLabel(examName || examCode || "");
+      }
       setRollNumber(s?.roll_number != null ? String(s.roll_number) : null);
       setParentName(s?.parent_name ? String(s.parent_name) : null);
       setParentPhone(s?.parent_mobile ? String(s.parent_mobile) : null);
 
-      const tm = settled[3].status === "fulfilled" ? settled[3].value : [];
-      setTestMarks(Array.isArray(tm) ? tm : []);
+      if (!isSchool) {
+        setTestMarks([]);
+        setExamMarks([]);
+        setHwDone(0);
+        setHwToDo(0);
+        setHwMissing(0);
+        setRemarks([]);
+        setClassRank(null);
+      } else {
+        const tm = settled[3].status === "fulfilled" ? settled[3].value : [];
+        setTestMarks(Array.isArray(tm) ? tm : []);
 
-      // MarksRecord carries examId and nothing readable, so the exam's own name
-      // and maximum are resolved here. `exams_read` already fences this to the
-      // student's own school.
-      const em = settled[4].status === "fulfilled" ? settled[4].value : [];
-      const emRows = Array.isArray(em) ? em : [];
-      const examIds = [...new Set(emRows.map((m) => m.examId).filter(Boolean))];
-      const examMeta = new Map<string, { name: string; max: number | null }>();
-      if (examIds.length) {
-        const { data: exRows, error: exErr } = await supabase
-          .from("exams")
-          .select("id, name, subject, max_marks")
-          .in("id", examIds);
-        if (exErr) console.warn("[profile] exam names:", exErr.message);
-        for (const e of (exRows ?? []) as Record<string, unknown>[]) {
-          examMeta.set(String(e.id), {
-            name: String(e.subject ?? e.name ?? "Exam"),
-            max: e.max_marks == null ? null : Number(e.max_marks),
-          });
+        // MarksRecord carries examId and nothing readable, so the exam's own name
+        // and maximum are resolved here. `exams_read` already fences this to the
+        // student's own school.
+        const em = settled[4].status === "fulfilled" ? settled[4].value : [];
+        const emRows = Array.isArray(em) ? em : [];
+        const examIds = [...new Set(emRows.map((m) => m.examId).filter(Boolean))];
+        const examMeta = new Map<string, { name: string; max: number | null }>();
+        if (examIds.length) {
+          const { data: exRows, error: exErr } = await supabase
+            .from("exams")
+            .select("id, name, subject, max_marks")
+            .in("id", examIds);
+          if (exErr) console.warn("[profile] exam names:", exErr.message);
+          for (const e of (exRows ?? []) as Record<string, unknown>[]) {
+            examMeta.set(String(e.id), {
+              name: String(e.subject ?? e.name ?? "Exam"),
+              max: e.max_marks == null ? null : Number(e.max_marks),
+            });
+          }
+        }
+        setExamMarks(
+          emRows.map((m) => ({
+            id: m.id,
+            label: examMeta.get(m.examId)?.name ?? "Exam",
+            // NULL is "not marked" and is never 0 (§7).
+            obtained: m.marksObtained == null ? null : Number(m.marksObtained),
+            max: examMeta.get(m.examId)?.max ?? null,
+          })),
+        );
+
+        // Counts, not a percentage (v2 Screen 12). `given` and `closed` come from
+        // homework_student_status, and `homeworkOutcome` is the one place they
+        // become done / missed / to do (G9). A rejected hand-in is not given, and
+        // missed is measured at the deadline (§10.12): homework the student still
+        // has time to hand in is to do — it used to count as "Not submitted" the
+        // moment it was set.
+        const hw = settled[5].status === "fulfilled" ? settled[5].value : [];
+        const hwOutcomes = (Array.isArray(hw) ? hw : []).map((h) => homeworkOutcome(h.standing));
+        setHwDone(hwOutcomes.filter((o) => o === "done").length);
+        setHwToDo(hwOutcomes.filter((o) => o === "to_do").length);
+        setHwMissing(hwOutcomes.filter((o) => o === "missed").length);
+
+        const rm = settled[6].status === "fulfilled" ? settled[6].value : [];
+        setRemarks(
+          (Array.isArray(rm) ? rm : []).map((r) => ({
+            id: r.id,
+            text: r.body,
+            author: r.remarkType || "Remark",
+            at: r.createdAt ?? null,
+          })),
+        );
+        if (lb && user?.id) {
+          const i = lb.rows.findIndex((r) => r.user_id === user.id);
+          setClassRank(i >= 0 ? i + 1 : null);
         }
       }
-      setExamMarks(
-        emRows.map((m) => ({
-          id: m.id,
-          label: examMeta.get(m.examId)?.name ?? "Exam",
-          // NULL is "not marked" and is never 0 (§7).
-          obtained: m.marksObtained == null ? null : Number(m.marksObtained),
-          max: examMeta.get(m.examId)?.max ?? null,
-        })),
-      );
-
-      // Counts, not a percentage (v2 Screen 12). `given` and `closed` come from
-      // homework_student_status, and `homeworkOutcome` is the one place they
-      // become done / missed / to do (G9). A rejected hand-in is not given, and
-      // missed is measured at the deadline (§10.12): homework the student still
-      // has time to hand in is to do — it used to count as "Not submitted" the
-      // moment it was set.
-      const hw = settled[5].status === "fulfilled" ? settled[5].value : [];
-      const hwOutcomes = (Array.isArray(hw) ? hw : []).map((h) => homeworkOutcome(h.standing));
-      setHwDone(hwOutcomes.filter((o) => o === "done").length);
-      setHwToDo(hwOutcomes.filter((o) => o === "to_do").length);
-      setHwMissing(hwOutcomes.filter((o) => o === "missed").length);
-
-      const rm = settled[6].status === "fulfilled" ? settled[6].value : [];
-      setRemarks(
-        (Array.isArray(rm) ? rm : []).map((r) => ({
-          id: r.id,
-          text: r.body,
-          author: r.remarkType || "Remark",
-          at: r.createdAt ?? null,
-        })),
-      );
       if (prog) {
         const derived = progressionLevelProgress(prog.xp, prog.level);
         setLevel(prog.level);
@@ -187,10 +223,6 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         setReputation(prog.reputation);
         setFeatured(Array.isArray(prog.featured_badges) ? prog.featured_badges : []);
       }
-      if (lb && user?.id) {
-        const i = lb.rows.findIndex((r) => r.user_id === user.id);
-        setClassRank(i >= 0 ? i + 1 : null);
-      }
     } catch (e) {
       // G10: was `/* empty */`. Non-fatal — the profile renders without a rank —
       // but the failure is now identifiable.
@@ -198,7 +230,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
     } finally {
       endLoading(setLoading);
     }
-  }, [ready, ctx, studentId, user?.id, beginLoading, endLoading]);
+  }, [ready, ctx, studentId, user?.id, beginLoading, endLoading, isSchool, examName, examCode]);
 
   useEffect(() => {
     void loadProfile();
@@ -214,7 +246,14 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
 
   // The title needs no network, so it no longer waits for one.
   const header = (
-    <PageHeader title="Profile" subtitle="Your record, your marks and your milestones." />
+    <PageHeader
+      title="Profile"
+      subtitle={
+        isSchool
+          ? "Your record, your marks and your milestones."
+          : "Your record, your progress and your milestones."
+      }
+    />
   );
 
   if (showLoading(loading)) {
@@ -294,7 +333,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
               {league ? ` · ${league}` : ""}
               {` · ${xp} XP · Streak ${streak}d`}
               {reputation > 0 ? ` · ${reputation} helper points` : ""}
-              {classRank != null ? ` · Class rank #${classRank}` : ""}
+              {isSchool && classRank != null ? ` · Class rank #${classRank}` : ""}
             </div>
             {/*
               Parent contact. Present for 10 of 223 students today, so it is
@@ -327,12 +366,11 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
       </GlassCard>
 
       {/*
-        THE FOUR AVERAGES ARE GONE (v2 Screen 12): Attendance 100%, Exam avg 80%,
-        Homework 90%, Tests avg 0%. The last one is the reason the rule exists —
-        the student had taken no tests, and "0%" claims they took them and scored
-        nothing. Averages are banned product-wide; the profile shows the actual
-        marks and honest counts instead.
+        THE FOUR AVERAGES ARE GONE (v2 Screen 12). School-only blocks below —
+        individual exam accounts have no homework, class tests, or class rank.
       */}
+      {isSchool && (
+        <>
       <div className="grid sm:grid-cols-3 gap-3">
         <div className="p-4 rounded-2xl border border-border/70 bg-surface/70">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Homework handed in</div>
@@ -363,12 +401,6 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           <div className="text-xs text-muted-foreground">No tests marked yet.</div>
         ) : (
           <div className="space-y-2">
-            {/* The date was fetched and thrown away.
-                `takenAt` came back on every row and nothing rendered it, so ten
-                tests were ten identical-looking lines of title-plus-number with
-                no way to tell which was recent, and two tests a teacher named
-                similarly were indistinguishable. A mark means nothing without
-                when it was taken. */}
             {testMarks.map((t) => (
               <div key={t.testId} className="flex items-center gap-3 text-sm">
                 <div className="flex-1 min-w-0">
@@ -404,15 +436,6 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         )}
       </GlassCard>
 
-      {/*
-        TEACHER REMARKS. Rendered only when there are some.
-
-        `teacher_remarks` holds ZERO rows platform-wide and no teacher-facing
-        screen writes to it, so an always-visible panel would be permanently
-        blank for every student at every school — which reads as a broken app,
-        not an empty one. Rendering on presence means it appears by itself the
-        day a teacher can write one, with no second change needed here.
-      */}
       {remarks.length > 0 && (
         <GlassCard className="p-5">
           <SectionLabel>Teacher remarks</SectionLabel>
@@ -442,13 +465,13 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           )}
         </div>
         <div className="text-xs text-muted-foreground">
-          {/* The fallback named ProgressionService to the student. Same defect
-              as KNOWN_ISSUES 24, which was fixed for the parent panel. */}
           {classRank != null
             ? `Your class XP rank is #${classRank}.`
             : "You'll get a class rank once you've earned some XP. See where you stand on Rankings."}
         </div>
       </GlassCard>
+        </>
+      )}
 
       <GlassCard className="p-5">
         <SectionLabel>Recent milestones</SectionLabel>
@@ -489,6 +512,8 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         that could not do it. Last card on the page, because it ends the session
         rather than telling you anything about yourself.
       */}
+      {screenCaptureSlot}
+
       <GlassCard className="p-5">
         <SectionLabel>Account</SectionLabel>
         <div className="flex items-center justify-between gap-3">

@@ -32,6 +32,17 @@ describe("Nova Context Builder", () => {
     expect(isPlaceholderLabel("Trigonometry")).toBe(false);
   });
 
+  it("prefers exam name over class for individual accounts", () => {
+    const chips = buildNovaUiChips({
+      classLabel: "11-A",
+      examName: "CUET",
+      subjects: ["Mathematics"],
+    });
+    const labels = chips.map((c) => c.label);
+    expect(labels).toContain("CUET");
+    expect(labels.some((l) => /Class 11/i.test(l))).toBe(false);
+  });
+
   it("builds unique chips from live signals without placeholders", () => {
     const chips = buildNovaUiChips({
       classLabel: "11-A",
@@ -68,6 +79,32 @@ describe("Nova Context Builder", () => {
       weakConcepts: [],
     });
     expect(empty).toEqual([]);
+  });
+
+  it("does not invent Lv 1 when XP is present but level is missing", () => {
+    const chips = buildNovaUiChips({ xp: 400, subjects: [] });
+    const labels = chips.map((c) => c.label);
+    expect(labels.some((l) => /Lv\s*1/i.test(l))).toBe(false);
+    expect(labels.some((l) => /400/.test(l) && /XP/i.test(l))).toBe(true);
+  });
+
+  it("Ask Nova handoff is one-shot via sessionStorage", async () => {
+    const { setNovaQuestionContext, consumeNovaQuestionContext } = await import(
+      "@/gurukul/novaQuestionContext"
+    );
+    sessionStorage.clear();
+    setNovaQuestionContext({
+      question: "What is 2+2?",
+      options: ["3", "4"],
+      correctIndex: 1,
+      studentAnswer: "3",
+      studentAnswerIndex: 0,
+      subject: "Mathematics",
+    });
+    const ctx = consumeNovaQuestionContext();
+    expect(ctx?.question).toBe("What is 2+2?");
+    expect(ctx?.studentAnswer).toBe("3");
+    expect(consumeNovaQuestionContext()).toBeNull();
   });
 
   it("packs enriched AE facts for Nova without inventing metrics", () => {

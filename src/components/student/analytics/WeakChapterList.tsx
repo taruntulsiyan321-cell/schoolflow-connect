@@ -191,7 +191,7 @@ export function WeakChapterList({ list, onRetry }: { list: ListState<WeakChapter
                       You skipped {pluralise(row.skipped, "question")} in {displayChapter(row.chapter)}.
                     </span>
                     <Link
-                      to="/student/practice?mode=skipped"
+                      to={`/student/practice?mode=skipped&chapter_id=${encodeURIComponent(row.chapterId)}`}
                       className="ml-auto text-[11px] font-bold text-primary hover:underline"
                     >
                       Try the ones you skipped

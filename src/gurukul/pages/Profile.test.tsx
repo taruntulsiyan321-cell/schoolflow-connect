@@ -38,6 +38,13 @@ vi.mock("@/hooks/useStudentBadges", () => {
   const value = { earned: [], loading: false };
   return { useStudentBadges: () => value };
 });
+vi.mock("@/gurukul/StudentContext", () => ({
+  useGurukulAcademicIdentity: () => ({
+    schoolKind: "school",
+    examName: null,
+    examCode: null,
+  }),
+}));
 vi.mock("@/components/battleground/EquippedBadge", () => ({ EquippedBadge: () => null }));
 vi.mock("@/integrations/supabase/client", () => {
   const chain: Record<string, unknown> = {};
