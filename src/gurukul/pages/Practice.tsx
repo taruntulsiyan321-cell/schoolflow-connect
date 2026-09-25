@@ -935,7 +935,7 @@ export function ConfigView({
             {pyqYears.status === "ready" && years.length === 0 && (
               <p className="text-sm text-muted-foreground" data-testid="pyq-none">
                 No past-year papers have been added to the question bank for{" "}
-                {selSubject ? displaySubject(selSubject) || selSubject : "your class"} yet, so there is nothing to practise here.
+                {selSubject ? displaySubject(selSubject) || selSubject : examScoped ? "your exam" : "your class"} yet, so there is nothing to practise here.
               </p>
             )}
             {years.length > 0 && (
