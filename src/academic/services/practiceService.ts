@@ -165,7 +165,7 @@ function studentBankQuery(
   // Individual (exam) accounts practise their exam's bank only — not the
   // school board/class/stream cut. School accounts never set examId.
   if (scope.examId) {
-    query = query.eq("exam_id", scope.examId);
+    query = query.eq("exam_id", scope.examId).in("chapter_id", scope.syllabusChapterIds ?? []);
   } else {
     // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
     // so there is no per-school arm left to filter on.
@@ -987,6 +987,19 @@ export const PracticeService = {
         examCode = exam?.code ?? null;
         examName = exam?.name ?? null;
       }
+      // The stream's syllabus: what this account studies, and all it is served.
+      const { data: acct } = await client
+        .from("exam_accounts")
+        .select("stream")
+        .eq("school_id", ctx.schoolId)
+        .maybeSingle();
+      const { data: syllabus } = examId && acct?.stream
+        ? await client
+          .from("exam_syllabus_chapters")
+          .select("chapter_id")
+          .eq("exam_id", examId)
+          .eq("stream", acct.stream)
+        : { data: [] as Array<{ chapter_id: string }> };
       return {
         classLevel: null,
         board: "cuet",
@@ -995,6 +1008,7 @@ export const PracticeService = {
         examId,
         examCode,
         examName,
+        syllabusChapterIds: (syllabus ?? []).map((r) => r.chapter_id as string),
       };
     }
 
@@ -1076,6 +1090,7 @@ export const PracticeService = {
       examId: null,
       examCode: null,
       examName: null,
+      syllabusChapterIds: null,
     };
   },
 

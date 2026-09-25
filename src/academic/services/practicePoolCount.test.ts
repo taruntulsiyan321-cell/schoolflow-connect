@@ -14,13 +14,13 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type Row = { id: string; subject: string; chapter: string; difficulty: string; topic_id: string | null };
+type Row = { id: string; subject: string; chapter: string; difficulty: string; topic_id: string | null; chapter_id: string };
 
 let bank: Row[] = [];
 let headRange: Array<[number, number]> = [];
 
 const q = (id: string, over: Partial<Row> = {}): Row =>
-  ({ id, subject: "Mathematics", chapter: "Real Numbers", difficulty: "medium", topic_id: null, ...over });
+  ({ id, subject: "Mathematics", chapter: "Real Numbers", difficulty: "medium", topic_id: null, chapter_id: "ch-1", ...over });
 
 vi.mock("./context", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./context")>();
@@ -36,7 +36,10 @@ vi.mock("../repository/base", async (importOriginal) => {
     self.order = () => self;
     self.or = () => self;
     self.not = () => self;
-    self.in = () => self;
+    self.in = (col: string, v: string[]) => {
+      if (col === "chapter_id") keep.push((r) => v.includes(r.chapter_id));
+      return self;
+    };
     self.is = () => self;
     self.eq = (col: string, v: unknown) => {
       if (col === "difficulty" || col === "topic_id") keep.push((r) => (r as unknown as Record<string, unknown>)[col] === v);
@@ -81,7 +84,7 @@ beforeEach(() => {
     q("s-medium-1", { subject: "Science", chapter: "Life Processes" }),
   ];
   vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
-    classLevel: 10, board: "rbse", stream: null, classLabel: "10-A", examId: null, examCode: null, examName: null,
+    classLevel: 10, board: "rbse", stream: null, classLabel: "10-A", examId: null, examCode: null, examName: null, syllabusChapterIds: null,
   });
 });
 
@@ -116,7 +119,7 @@ describe("what a Custom selection holds", () => {
 
   it("is zero when the class cannot be resolved, rather than counting another class's bank", async () => {
     vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
-      classLevel: null, board: "rbse", stream: null, classLabel: null, examId: null, examCode: null, examName: null,
+      classLevel: null, board: "rbse", stream: null, classLabel: null, examId: null, examCode: null, examName: null, syllabusChapterIds: null,
     });
     expect(await PracticeService.countBankPool(ctx, {})).toBe(0);
   });
@@ -126,9 +129,30 @@ describe("what a Custom selection holds", () => {
     // exam account, so Custom Practice said "Nothing in the bank matches"
     // over 4,268 CUET questions (live, 2026-09-25).
     vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
-      classLevel: null, board: "cuet", stream: null, classLabel: null, examId: "exam-cuet", examCode: "cuet", examName: "CUET",
+      classLevel: null, board: "cuet", stream: null, classLabel: null, examId: "exam-cuet", examCode: "cuet", examName: "CUET", syllabusChapterIds: ["ch-1"],
     });
     expect(await PracticeService.countBankPool(ctx, {})).toBe(5);
     expect(await PracticeService.countBankPool(ctx, { subject: "Mathematics", difficulty: "easy" })).toBe(2);
+  });
+
+  it("counts only its stream's syllabus — a Chemistry question in the exam's bank is not a commerce student's", () => {
+    bank.push(q("chem-1", { subject: "Chemistry", chapter: "Solutions", chapter_id: "ch-chemistry" }));
+    vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
+      classLevel: null, board: "cuet", stream: null, classLabel: null, examId: "exam-cuet", examCode: "cuet", examName: "CUET",
+      syllabusChapterIds: ["ch-1"],
+    });
+    return Promise.all([
+      expect(PracticeService.countBankPool(ctx, {})).resolves.toBe(5),
+      expect(PracticeService.countBankPool(ctx, { subject: "Chemistry" })).resolves.toBe(0),
+    ]);
+  });
+
+  it("CONTROL: with that chapter in the syllabus, the same question counts", async () => {
+    bank.push(q("chem-1", { subject: "Chemistry", chapter: "Solutions", chapter_id: "ch-chemistry" }));
+    vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
+      classLevel: null, board: "cuet", stream: null, classLabel: null, examId: "exam-cuet", examCode: "cuet", examName: "CUET",
+      syllabusChapterIds: ["ch-1", "ch-chemistry"],
+    });
+    expect(await PracticeService.countBankPool(ctx, {})).toBe(6);
   });
 });

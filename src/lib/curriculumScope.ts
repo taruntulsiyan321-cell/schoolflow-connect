@@ -91,6 +91,11 @@ export type CurriculumScope = {
   examId: string | null;
   examCode: string | null;
   examName: string | null;
+  /**
+   * The chapters the exam account's stream studies (exam_syllabus_chapters).
+   * Every bank read of an exam account is limited to them; null for schools.
+   */
+  syllabusChapterIds: string[] | null;
 };
 
 export function normalizeStream(raw?: string | null): AcademicStream | null {

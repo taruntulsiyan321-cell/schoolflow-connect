@@ -3278,6 +3278,96 @@ export type Database = {
           },
         ]
       }
+      cuet_bank_repair_20261084: {
+        Row: {
+          action: string
+          kept_id: string | null
+          old_embed_status: string | null
+          old_is_active: boolean
+          old_options: Json
+          old_question: string
+          old_replaced_by: string | null
+          question_id: string
+        }
+        Insert: {
+          action: string
+          kept_id?: string | null
+          old_embed_status?: string | null
+          old_is_active: boolean
+          old_options: Json
+          old_question: string
+          old_replaced_by?: string | null
+          question_id: string
+        }
+        Update: {
+          action?: string
+          kept_id?: string | null
+          old_embed_status?: string | null
+          old_is_active?: boolean
+          old_options?: Json
+          old_question?: string
+          old_replaced_by?: string | null
+          question_id?: string
+        }
+        Relationships: []
+      }
+      cuet_chapter_rebuild_20261090: {
+        Row: {
+          column_name: string | null
+          kind: string
+          new_value: string | null
+          old_value: string | null
+          payload: Json | null
+          row_id: string | null
+          seq: number
+          table_name: string | null
+        }
+        Insert: {
+          column_name?: string | null
+          kind: string
+          new_value?: string | null
+          old_value?: string | null
+          payload?: Json | null
+          row_id?: string | null
+          seq?: number
+          table_name?: string | null
+        }
+        Update: {
+          column_name?: string | null
+          kind?: string
+          new_value?: string | null
+          old_value?: string | null
+          payload?: Json | null
+          row_id?: string | null
+          seq?: number
+          table_name?: string | null
+        }
+        Relationships: []
+      }
+      cuet_ref_repoint_20261084: {
+        Row: {
+          inserted: boolean
+          new_question_id: string
+          old_question_id: string
+          ref_key: string
+          ref_table: string
+        }
+        Insert: {
+          inserted?: boolean
+          new_question_id: string
+          old_question_id: string
+          ref_key: string
+          ref_table: string
+        }
+        Update: {
+          inserted?: boolean
+          new_question_id?: string
+          old_question_id?: string
+          ref_key?: string
+          ref_table?: string
+        }
+        Relationships: []
+      }
       curriculum_classes: {
         Row: {
           board_id: string
@@ -3383,18 +3473,21 @@ export type Database = {
           created_at: string
           exam_id: string
           school_id: string
+          stream: string
         }
         Insert: {
           account_id: string
           created_at?: string
           exam_id: string
           school_id: string
+          stream?: string
         }
         Update: {
           account_id?: string
           created_at?: string
           exam_id?: string
           school_id?: string
+          stream?: string
         }
         Relationships: [
           {
@@ -3472,6 +3565,42 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "section_subjects"
             referencedColumns: ["id", "school_id"]
+          },
+        ]
+      }
+      exam_syllabus_chapters: {
+        Row: {
+          chapter_id: string
+          exam_id: string
+          sequence: number
+          stream: string
+        }
+        Insert: {
+          chapter_id: string
+          exam_id: string
+          sequence: number
+          stream: string
+        }
+        Update: {
+          chapter_id?: string
+          exam_id?: string
+          sequence?: number
+          stream?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_syllabus_chapters_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_syllabus_chapters_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "competitive_exams"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -4839,6 +4968,21 @@ export type Database = {
         }
         Relationships: []
       }
+      placeholder_variants_20261089: {
+        Row: {
+          old_question: string
+          question_id: string
+        }
+        Insert: {
+          old_question: string
+          question_id: string
+        }
+        Update: {
+          old_question?: string
+          question_id?: string
+        }
+        Relationships: []
+      }
       practice_bookmarks: {
         Row: {
           created_at: string
@@ -5323,6 +5467,7 @@ export type Database = {
           correct_answer: Json
           created_at: string
           difficulty: string | null
+          excluded_from_accuracy: boolean
           generated_question: Json
           hint_used: boolean
           id: string
@@ -5358,6 +5503,7 @@ export type Database = {
           correct_answer: Json
           created_at?: string
           difficulty?: string | null
+          excluded_from_accuracy?: boolean
           generated_question: Json
           hint_used?: boolean
           id?: string
@@ -5393,6 +5539,7 @@ export type Database = {
           correct_answer?: Json
           created_at?: string
           difficulty?: string | null
+          excluded_from_accuracy?: boolean
           generated_question?: Json
           hint_used?: boolean
           id?: string
@@ -5614,17 +5761,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "question_bank_source_upload_question_id_fkey"
-            columns: ["source_upload_question_id"]
-            isOneToOne: false
-            referencedRelation: "student_upload_questions"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "question_bank_source_question_id_fkey"
             columns: ["source_question_id"]
             isOneToOne: false
             referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_bank_source_upload_question_id_fkey"
+            columns: ["source_upload_question_id"]
+            isOneToOne: false
+            referencedRelation: "student_upload_questions"
             referencedColumns: ["id"]
           },
           {
@@ -7049,6 +7196,129 @@ export type Database = {
           },
         ]
       }
+      student_capture_allowed_apps: {
+        Row: {
+          created_at: string
+          label: string | null
+          owner_id: string
+          package_name: string
+        }
+        Insert: {
+          created_at?: string
+          label?: string | null
+          owner_id: string
+          package_name: string
+        }
+        Update: {
+          created_at?: string
+          label?: string | null
+          owner_id?: string
+          package_name?: string
+        }
+        Relationships: []
+      }
+      student_capture_questions: {
+        Row: {
+          answer_source: string
+          chapter_id: string | null
+          correct_answer: string | null
+          correct_index: number | null
+          created_at: string
+          difficulty: string | null
+          explanation: string | null
+          fingerprint: string
+          id: string
+          matched_bank_question_id: string | null
+          options: Json | null
+          owner_id: string
+          question_text: string
+          school_id: string
+          source_package: string | null
+          student_chosen_index: number | null
+          times_seen: number
+          topic_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          answer_source: string
+          chapter_id?: string | null
+          correct_answer?: string | null
+          correct_index?: number | null
+          created_at?: string
+          difficulty?: string | null
+          explanation?: string | null
+          fingerprint: string
+          id?: string
+          matched_bank_question_id?: string | null
+          options?: Json | null
+          owner_id: string
+          question_text: string
+          school_id: string
+          source_package?: string | null
+          student_chosen_index?: number | null
+          times_seen?: number
+          topic_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answer_source?: string
+          chapter_id?: string | null
+          correct_answer?: string | null
+          correct_index?: number | null
+          created_at?: string
+          difficulty?: string | null
+          explanation?: string | null
+          fingerprint?: string
+          id?: string
+          matched_bank_question_id?: string | null
+          options?: Json | null
+          owner_id?: string
+          question_text?: string
+          school_id?: string
+          source_package?: string | null
+          student_chosen_index?: number | null
+          times_seen?: number
+          topic_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_capture_questions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_capture_questions_matched_bank_question_id_fkey"
+            columns: ["matched_bank_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_capture_questions_matched_bank_question_id_fkey"
+            columns: ["matched_bank_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_capture_questions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_capture_questions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_enrolments: {
         Row: {
           academic_year_id: string
@@ -7168,6 +7438,7 @@ export type Database = {
       student_mistakes: {
         Row: {
           assessment_type: string | null
+          capture_question_id: string | null
           chapter: string | null
           chapter_id: string | null
           class_level: number | null
@@ -7198,6 +7469,7 @@ export type Database = {
         }
         Insert: {
           assessment_type?: string | null
+          capture_question_id?: string | null
           chapter?: string | null
           chapter_id?: string | null
           class_level?: number | null
@@ -7228,6 +7500,7 @@ export type Database = {
         }
         Update: {
           assessment_type?: string | null
+          capture_question_id?: string | null
           chapter?: string | null
           chapter_id?: string | null
           class_level?: number | null
@@ -7258,6 +7531,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "student_mistakes_capture_question_id_fkey"
+            columns: ["capture_question_id"]
+            isOneToOne: false
+            referencedRelation: "student_capture_questions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "student_mistakes_chapter_id_fkey"
             columns: ["chapter_id"]
             isOneToOne: false
@@ -7283,6 +7563,13 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students_current"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_mistakes_upload_question_id_fkey"
+            columns: ["upload_question_id"]
+            isOneToOne: false
+            referencedRelation: "student_upload_questions"
             referencedColumns: ["id"]
           },
         ]
@@ -7370,7 +7657,36 @@ export type Database = {
           topic_id?: string | null
           upload_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "student_upload_notes_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_upload_notes_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_upload_notes_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_upload_notes_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "student_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_upload_questions: {
         Row: {
@@ -7430,7 +7746,57 @@ export type Database = {
           topic_id?: string | null
           upload_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "student_upload_questions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_upload_questions_derived_from_note_id_fkey"
+            columns: ["derived_from_note_id"]
+            isOneToOne: false
+            referencedRelation: "student_upload_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_upload_questions_matched_bank_question_id_fkey"
+            columns: ["matched_bank_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_upload_questions_matched_bank_question_id_fkey"
+            columns: ["matched_bank_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_upload_questions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_upload_questions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_upload_questions_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "student_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_uploads: {
         Row: {
@@ -7481,7 +7847,15 @@ export type Database = {
           updated_at?: string
           verdict?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "student_uploads_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_xp: {
         Row: {
@@ -8926,6 +9300,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "question_bank_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "competitive_exams"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "question_bank_topic_in_its_chapter_fkey"
             columns: ["topic_id", "chapter_id"]
             isOneToOne: false
@@ -9154,10 +9535,6 @@ export type Database = {
         Returns: string
       }
       _enqueue_variant_generation: { Args: { _plan: Json }; Returns: number }
-      rpc_enqueue_upload_variant_generation: {
-        Args: { _upload_question_id: string; _tier?: number }
-        Returns: string | null
-      }
       _ensure_recovery_session: {
         Args: {
           _chapter_id: string
@@ -10272,6 +10649,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      rpc_dispute_ai_upload_answer: {
+        Args: { _upload_question_id: string }
+        Returns: Json
+      }
+      rpc_enqueue_upload_variant_generation: {
+        Args: { _tier?: number; _upload_question_id: string }
+        Returns: string
+      }
       rpc_ensure_attendance_submission: {
         Args: { _date: string; _section_id: string }
         Returns: string
@@ -10514,6 +10899,14 @@ export type Database = {
         Args: { _participant_id: string; _question_id: string }
         Returns: string
       }
+      rpc_my_skipped_by_chapter: {
+        Args: never
+        Returns: {
+          chapter_id: string
+          questions: number
+          topic: string
+        }[]
+      }
       rpc_my_skipped_questions: {
         Args: { _chapter_id?: string; _limit?: number }
         Returns: string[]
@@ -10583,9 +10976,9 @@ export type Database = {
         Args: {
           _board: string
           _class_level: number
+          _exam_id?: string
           _stream?: string
           _subject?: string
-          _exam_id?: string
         }
         Returns: {
           chapter: string
@@ -10650,7 +11043,9 @@ export type Database = {
       rpc_record_concept_mistake: {
         Args: {
           _assessment_type: string
+          _capture_question_id?: string
           _chapter?: string
+          _chapter_id?: string
           _class_level?: number
           _concept?: string
           _correct_answer?: Json
@@ -10662,6 +11057,7 @@ export type Database = {
           _student_answer?: Json
           _subconcept?: string
           _subject?: string
+          _upload_question_id?: string
         }
         Returns: string
       }
@@ -10936,7 +11332,6 @@ export type Database = {
         Args: { _student_id: string; _uid: string }
         Returns: Json
       }
-      rpc_student_chapter_analysis: { Args: never; Returns: Json }
       rpc_student_chapter_states: { Args: never; Returns: Json }
       rpc_student_concept_mastery: { Args: never; Returns: Json }
       rpc_student_improvement_plans: { Args: never; Returns: Json }

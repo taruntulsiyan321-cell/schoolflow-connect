@@ -116,7 +116,7 @@ describe("the curriculum scope is resolved once per student and class", () => {
     const c = await PracticeService.resolveCurriculumScope(ctx);
     expect(a).toEqual({
       classLevel: 12, board: "rbse", stream: "commerce", classLabel: "12-A",
-      examId: null, examCode: null, examName: null,
+      examId: null, examCode: null, examName: null, syllabusChapterIds: null,
     });
     expect(b).toEqual(a);
     expect(c).toEqual(a);
