@@ -61,9 +61,9 @@ function buildQuerySection(): string {
 function precisionPass(): string {
   const start = SOURCE.indexOf("let rows = (data ?? [])");
   expect(start, "the precision pass has moved").toBeGreaterThan(-1);
-  // SOURCE has its comments stripped, so the anchor is the shuffle's code.
-  const end = SOURCE.indexOf("for (let i = rows.length - 1", start);
-  expect(end, "the precision pass no longer ends at the shuffle").toBeGreaterThan(start);
+  // SOURCE has its comments stripped, so the anchor is the draw's code.
+  const end = SOURCE.indexOf("const drawn = byIds", start);
+  expect(end, "the precision pass no longer ends at the draw").toBeGreaterThan(start);
   return SOURCE.slice(start, end);
 }
 
@@ -135,7 +135,7 @@ describe("practice filters reach the database", () => {
     // topic name shared by two chapters would match both.
     const start = SOURCE.indexOf("targets.some((w) => {");
     expect(start, "the weak-target pass has moved").toBeGreaterThan(-1);
-    const pass = SOURCE.slice(start, SOURCE.indexOf("for (let i = rows.length - 1", start));
+    const pass = SOURCE.slice(start, SOURCE.indexOf("const drawn = byIds", start));
     const chapterCheck = pass.indexOf("academicLabelEquals(r.chapter, w.chapter)");
     const topicCheck = pass.indexOf("academicLabelEquals(r.topics?.name ?? null, w.concept)");
     expect(chapterCheck, "the precision pass no longer checks the chapter").toBeGreaterThan(-1);
@@ -150,7 +150,7 @@ describe("practice filters reach the database", () => {
     // Bisector Theorem" question in a Weak Areas session, a topic with no
     // mastery row at all.
     const start = SOURCE.indexOf("targets.some((w) => {");
-    const pass = SOURCE.slice(start, SOURCE.indexOf("for (let i = rows.length - 1", start));
+    const pass = SOURCE.slice(start, SOURCE.indexOf("const drawn = byIds", start));
     expect(pass, "a containment match widens a weak topic to its whole chapter").not.toContain("academicLabelMatches");
     expect(pass).toContain("academicLabelEquals(w.chapter, w.concept)");
   });

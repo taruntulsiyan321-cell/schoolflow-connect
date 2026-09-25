@@ -48,6 +48,7 @@ import {
 } from "@/lib/practiceAnalysisSnapshot";
 import { answerToIndex } from "./answerText";
 import { listCaptureQuestionsByIds } from "./screenCaptureService";
+import { drawFreshFirst, lastSeenFromAttempts, type LastSeen } from "./practiceDraw";
 
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
@@ -1757,6 +1758,30 @@ export const PracticeService = {
     }
   },
   /** Approved bank questions for student practice sessions (honest empty if none). */
+  /**
+   * When this student last answered each bank question — what a new session
+   * draws around. Read from their own attempts (RLS: user_id = auth.uid()).
+   * A failed read costs freshness, not the session: it draws as if nothing
+   * had been seen.
+   */
+  async lastSeenBankQuestions(ctx: ServiceContext): Promise<LastSeen> {
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await readAllPages<{ id: string; bank_question_id: string | null; created_at: string }>(
+      (withCount) =>
+        client
+          .from("question_attempts")
+          .select("id, bank_question_id, created_at", withCount ? { count: "exact" } : undefined)
+          .eq("user_id", ctx.userId)
+          .not("bank_question_id", "is", null)
+          .order("id"),
+    );
+    if (error) {
+      console.warn("[practice] could not read answered questions; drawing without them", error);
+      return new Map();
+    }
+    return lastSeenFromAttempts(data ?? []);
+  },
+
   async listBankQuestions(
     ctx: ServiceContext,
     opts: {
@@ -2072,13 +2097,11 @@ export const PracticeService = {
       );
     }
 
-    // Draw the session from the whole pool (Fisher-Yates), so every question
-    // the filters admit has the same chance of being asked.
-    for (let i = rows.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [rows[i], rows[j]] = [rows[j], rows[i]];
-    }
-    const drawn = rows.slice(0, limit);
+    // Unseen questions first; a repeat only when the unseen pool runs short
+    // (practiceDraw.ts). A list asked for by id is served as asked.
+    const drawn = byIds
+      ? rows.slice(0, limit)
+      : drawFreshFirst(rows, await this.lastSeenBankQuestions(ctx), limit);
     if (drawn.length === 0) return [];
 
     // The questions themselves, for the ones drawn and no others — and NO ANSWER.
