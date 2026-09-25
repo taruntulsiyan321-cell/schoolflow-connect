@@ -134,6 +134,14 @@ describe("prompts", () => {
     expect(user).toBe("Topic: How cricket DRS works");
   });
 
+  it("a topic sent with its subject is written as that subject teaches it", () => {
+    // Measured 2026-09-25: "Planning" for a CUET Business Studies student came
+    // back as planning a road trip, with the subject sent only as a hint.
+    const { user } = buildGistPrompt({ mode: "gist", topic: "Planning", subject: "Business Studies", grade: "", style: "standard" });
+    expect(user).toContain("part of the student's Business Studies syllabus");
+    expect(user).toContain("not in its everyday sense");
+  });
+
   it("the simpler style changes the instruction", () => {
     const standard = buildGistPrompt({ mode: "gist", topic: "Atoms", subject: "", grade: "", style: "standard" }).system;
     const simpler = buildGistPrompt({ mode: "gist", topic: "Atoms", subject: "", grade: "", style: "simpler" }).system;

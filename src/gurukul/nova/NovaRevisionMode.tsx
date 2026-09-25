@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BookOpen, MessageSquare, Mic, MicOff, Sparkles, Target, X } from "lucide-react";
-import { useAcademicContext } from "@/academic";
+import { PracticeService, useAcademicContext } from "@/academic";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useRevisionItems, isRevisionDue } from "@/gurukul/pages/useRevisionQueueV2";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
@@ -9,7 +9,7 @@ import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { WEAK_CONCEPT_THRESHOLD } from "@/academic/eie/masteryBands";
 import { dedupeSubjects, isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
 import { LoadingState, cn } from "@/gurukul/components/shared";
-import { REVISION_LIMITS, fetchRevisionGist, type RevisionGist, type RevisionStyle } from "./novaRevisionClient";
+import { REVISION_LIMITS, fetchRevisionGist, subjectForTopic, type RevisionGist, type RevisionStyle } from "./novaRevisionClient";
 import { RevisionGistView } from "./RevisionGistView";
 import { FeynmanTest, type TestOutcome } from "./FeynmanTest";
 import { RevisionSummary } from "./RevisionSummary";
@@ -116,7 +116,17 @@ export function NovaRevisionMode() {
     return () => timers.forEach(clearTimeout);
   }, [loading]);
 
-  async function loadGist(topic: string, subject: string, style: RevisionStyle, reload: boolean) {
+  // The student's chapters, read once, so a typed topic that names one is
+  // revised as that chapter (subjectForTopic).
+  const [catalog, setCatalog] = useState<{ subject: string; chapter: string | null }[]>([]);
+  useEffect(() => {
+    if (!ctx) return;
+    let live = true;
+    PracticeService.listBankCatalog(ctx).then((c) => { if (live) setCatalog(c.rows); }, () => {});
+    return () => { live = false; };
+  }, [ctx]);
+
+  async function loadGist(topic: string, given: string, style: RevisionStyle, reload: boolean) {
     const clean = topic.replace(/\s+/g, " ").trim();
     if (!clean) return;
     abortRef.current?.abort();
@@ -124,6 +134,7 @@ export function NovaRevisionMode() {
     abortRef.current = controller;
     setError("");
     setLoading({ topic: clean, reload });
+    const subject = given || subjectForTopic(clean, [...listItems(revisionList), ...catalog]);
     const result = await fetchRevisionGist({ topic: clean, subject, grade, style }, controller.signal);
     if (!result) return; // cancelled
     setLoading(null);
