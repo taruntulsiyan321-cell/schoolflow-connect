@@ -3284,47 +3284,30 @@ student sees today; both would, if the data moved.
 
 ---
 
-## 67. Recovery, Revision and Analysis — what the spec asks that is not built — OPEN
+## 67. ~~Recovery, Revision and Analysis — what the spec asks that is not built~~ — ALL BUILT (2026-09-25)
 
-Audited 2026-09-22 against `docs/recovery-revision-analysis-spec.md`, code and
-live database both, after the defects this audit found were fixed
-(20261045000000 and the list-state rewrite). What remains is missing, not
-broken:
+Audited 2026-09-22 against `docs/recovery-revision-analysis-spec.md`. Every
+item is now built and measured; where each landed:
 
-* **§6.3, the Analysis "main screen", does not exist.** The spec's chapter list
-  — one row per chapter with anything open, sorted by open mistakes, pinned by
-  `revision_failed` and by `times_wrong >= REPEATED_MISTAKE_PIN`, each row
-  showing open / repeated / accuracy / trend / oldest open / revision status —
-  is built nowhere. `REPEATED_MISTAKE_PIN` is exported and read by nothing.
-  The nearest things are Recovery's card list (open mistakes only) and the
-  Subjects & Chapters grid (attempt accuracy, the twelve weakest).
-* **§6.4 trends are computed differently from the spec.** The spec compares the
-  latest three sessions with the previous three, from `chapter_tally`. The
-  code compares the second half of the run with the first half, from
-  `practice_sessions` filtered to sessions whose single chapter matches — so a
-  chapter practised inside subject sessions never gets a trend at all.
-* **§4.4 "clear anyway, with a confirm" is missing.** The engine clears a
-  chapter itself on a READY session; on NOT READY the result offers nothing,
-  so the student cannot choose to mark it recovered as the spec's worked
-  example does.
-* **§5.4 difficulty matching is missing.** A revision check's fresh half is the
-  chapter's oldest unseen questions (`ORDER BY created_at`), whatever their
-  difficulty.
-* **§9 notifications are not built.** No function or cron job writes a
-  recovery or revision notification; the live table holds none, ever. This is
-  a locked decision ("students get notified about pending recovery and
-  revision"). Building it puts scheduled pushes on real phones, so it waits
-  for the owner.
-* **The spec document is stale on the constants.** Trigger 1 (spec 5),
-  engagement 3 (spec 10), intervals 7/7/7 + solid 30 (spec 7/21/60, solid
-  leaves the queue), and misses carried into revision checks
-  (`REVISION_MISTAKE_MAX`, spec "never the old questions") are all recorded
-  rulings with measured rationales in `recovery_constants`, and the document
-  was never updated to say so.
-* Latent: a ladder question the practice loader filters out (retired between
-  plan and sitting) is dropped without a word while its tier total still
-  counts it (0 of 249 planned questions affected today); and `_apply_chapter_state`
-  resets a SOLID chapter's 30-day clock to 7 days whenever it is practised.
+* **§6.3 the Analysis main screen** — "Chapters to fix" (`WeakChapterList`,
+  `useWeakChapters`): one row per chapter with anything open, pinned by a failed
+  revision or repeated mistakes, showing open / repeated / accuracy with its
+  denominator / trend / oldest open / revision state; a row opens onto §6.5 —
+  mistakes by topic, the topics skipped most, pace against the student's own
+  average, and "try the ones you skipped". Checked on www.gurukul.study against
+  the database on 2026-09-25 (Principles of Management: 3 open, 2 repeated, 2
+  of 8 = 25%, 2 sessions — every figure matches).
+* **§6.4 trends** — the latest three sessions against the three before, from
+  `chapter_tally` (4d230aca, 20261059000000).
+* **§4.4 clear anyway, with a confirm** — `rpc_clear_chapter_after_recovery`
+  (20261053000000), "Mark as recovered anyway" on a not-ready result.
+* **§5.4 difficulty matching** — 20261100000000 (KNOWN_ISSUES 81).
+* **§9 notifications** — 20261102000000/03/06 (KNOWN_ISSUES 81).
+* **The spec document's constants** — trigger 1, engagement 3, 7/7/7 + solid
+  30, misses carried into checks: all stated in the spec with their rulings.
+* Latent: a withdrawn ladder question is neither planned nor scored
+  (20261093000000); a solid chapter's clock returning to 7 days on practice is
+  the owner's rule, not a defect (KNOWN_ISSUES 81).
 
 ## 68. ~~Students can read the practice answer key~~ — FIXED 2026-09-22 (item 2: 20261046–20261050), released 2026-09-22
 
