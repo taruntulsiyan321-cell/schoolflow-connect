@@ -3543,6 +3543,14 @@ cut-off copies whose stem lost its last line (the ask); written, dry-run proved 
 the rollback, `{"retired": 34, "with_complete": 30}`), not applied. Renew the repo secret under GitHub → Settings →
 Secrets → Actions as well as `.env.local`.
 
+**Before renewing the repo secret, read this.** The workflow deploys EVERY function on disk, and
+`edge-drift-baseline.json` accepts 21 function files where production differs from the repo on purpose —
+`ai-gateway`'s `aiRouter.ts` (Nova chat), `ai-concept-report` and `dpp-generate-questions`' `index.ts`, and the
+`_shared/promptLibrary.ts` 13 functions bundle. The first run with a working secret overwrites all of them with the
+repo's copy. Safe order: with the renewed token, run `npm run check:edge-drift` and read each diff, deploy only
+`ai-nova-revision` (`supabase functions deploy ai-nova-revision --project-ref psqxykzqfvxgsvkmgurn --use-api`),
+and put the token in the repo secret only once the repo is meant to be production for every function.
+
 ## 76. ~~rpc_question_hint is live and unused~~ — FIXED 2026-09-25, dropped by 20261107000000
 
 Item 2 (on claude/busy-shannon-nymdhd) kept a hint behind a per-question RPC; the practice ruling of 2026-09-18
