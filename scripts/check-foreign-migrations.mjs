@@ -150,6 +150,21 @@ async function main() {
     ["20260827150000", "marks_policy_dispatch — applied by another session"],
   ]);
 
+  // Ledger rows for files that were renamed or merged AFTER they were applied,
+  // each with the file in this tree that carries its content. The schema is
+  // reproducible from the tree; the ledger simply remembers the old names.
+  // PRINTED on every run, like the missing rollbacks above: acknowledged, not
+  // hidden. Traced 2026-09-25 through git history (b56fa287, 6a21517a,
+  // 34dec5fc) and the ledger's applied_at order.
+  const SUPERSEDED_LEDGER_ROWS = new Map([
+    ["20261071000000_upload_questions_know_their_note",
+      "re-applied as 20261073000000_upload_questions_know_their_note (renumbered off a collision)"],
+    ["20261072000000_recovery_admits_upload_mistakes",
+      "superseded by 20261071000000_recovery_plan_serves_upload_originals, which carries it"],
+    ["20261072500000_recovery_plan_serves_upload_originals",
+      "re-applied as 20261071000000_recovery_plan_serves_upload_originals (the fuller version)"],
+  ]);
+
   // Tracked-and-clean is the only state that means "this repo actually has it".
   const tracked = new Set(
     execSync("git ls-files supabase/migrations", { encoding: "utf8" })
@@ -161,7 +176,7 @@ async function main() {
       .map((l) => l.slice(3).trim().replace(/^"|"$/g, "").split("/").pop()),
   );
 
-  const noFile = ledgerRowsWithoutFile(localFiles, ledger);
+  const noFile = ledgerRowsWithoutFile(localFiles, ledger).filter((v) => !SUPERSEDED_LEDGER_ROWS.has(v));
   const notApplied = unappliedFiles(localFiles, ledger);
   const uncommitted = [], noRollback = [];
   const applied = new Set(ledger);
@@ -204,6 +219,13 @@ async function main() {
   if (notApplied.length) {
     console.log(`PRESENT BUT NOT APPLIED — ${notApplied.length} (reported, not a failure)`);
     notApplied.forEach(line);
+    console.log();
+  }
+
+  const superseded = [...SUPERSEDED_LEDGER_ROWS].filter(([v]) => ledger.includes(v));
+  if (superseded.length) {
+    console.log(`SUPERSEDED LEDGER ROWS — ${superseded.length} (renamed after applying; content is in the tree)`);
+    for (const [v, why] of superseded) line(`${v}  ${why}`);
     console.log();
   }
 

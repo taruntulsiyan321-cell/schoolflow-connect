@@ -4680,6 +4680,24 @@ export type Database = {
           },
         ]
       }
+      mistake_copy_repair_20261098: {
+        Row: {
+          before: Json
+          kind: string
+          mistake_id: string
+        }
+        Insert: {
+          before: Json
+          kind: string
+          mistake_id: string
+        }
+        Update: {
+          before?: Json
+          kind?: string
+          mistake_id?: string
+        }
+        Relationships: []
+      }
       notices: {
         Row: {
           attachment_url: string | null
@@ -9032,6 +9050,30 @@ export type Database = {
           },
         ]
       }
+      untagged_cleanup_20261096: {
+        Row: {
+          kind: string
+          payload: Json
+          row_id: string
+          seq: number
+          table_name: string
+        }
+        Insert: {
+          kind: string
+          payload: Json
+          row_id: string
+          seq?: number
+          table_name: string
+        }
+        Update: {
+          kind?: string
+          payload?: Json
+          row_id?: string
+          seq?: number
+          table_name?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -9110,6 +9152,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      variant_option_letters_20261095: {
+        Row: {
+          old_options: Json
+          question_id: string
+        }
+        Insert: {
+          old_options: Json
+          question_id: string
+        }
+        Update: {
+          old_options?: Json
+          question_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -9468,6 +9525,7 @@ export type Database = {
         Returns: number
       }
       _concept_severity: { Args: { _accuracy: number }; Returns: string }
+      _difficulty_rank: { Args: { _difficulty: string }; Returns: number }
       _dim_consistency: {
         Args: {
           _chapter: string
@@ -9763,10 +9821,16 @@ export type Database = {
         Returns: boolean
       }
       _recovery_const: { Args: { _key: string }; Returns: number }
+      _recovery_plan_startable: { Args: { _plan: Json }; Returns: boolean }
       _recovery_question_count: { Args: { _severity: string }; Returns: number }
+      _recovery_queue_for: { Args: { _uid: string }; Returns: Json }
       _recovery_session_plan_for: {
         Args: { _chapter_id: string; _uid: string }
         Returns: Json
+      }
+      _recovery_step_pool: {
+        Args: { _chapter_id: string; _src: Json; _tier: number; _uid: string }
+        Returns: string[]
       }
       _recovery_variant_pool: {
         Args: {
@@ -9775,6 +9839,10 @@ export type Database = {
           _tier: number
         }
         Returns: string[]
+      }
+      _reminder_milestone: {
+        Args: { _days: number[]; _since: string }
+        Returns: boolean
       }
       _repair_utf8_mojibake: { Args: { t: string }; Returns: string }
       _revision_interval_days: { Args: { _stage: number }; Returns: number }
@@ -9842,6 +9910,10 @@ export type Database = {
       _stream_for_class: {
         Args: { _class: number; _stream: string }
         Returns: string
+      }
+      _student_difficulty_rank: {
+        Args: { _chapter_id: string }
+        Returns: number
       }
       _test_was_sat_by: {
         Args: { _student_id: string; _test_id: string }
@@ -11018,7 +11090,6 @@ export type Database = {
           subject: string
         }[]
       }
-      rpc_question_hint: { Args: { _id: string }; Returns: string }
       rpc_question_paper_to_test: {
         Args: {
           _duration_sec?: number
@@ -11440,6 +11511,7 @@ export type Database = {
       }
       same_school: { Args: { _school_id: string }; Returns: boolean }
       school_local_date: { Args: { _at: string }; Returns: string }
+      send_learning_reminders: { Args: never; Returns: Json }
       storage_object_owner_school_id: {
         Args: { _object_name: string }
         Returns: string
