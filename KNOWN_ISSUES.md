@@ -3560,7 +3560,10 @@ file read, the REPO is the newer side: `modelRouter.ts` (adds finish_reason) and
 reply did not parse, retries a cut-off reply with more room) in 12 functions; `ai-gateway`'s `aiRouter.ts` gives Nova
 the student's exam instead of a class on an individual account; `ai-concept-report` stops calling an unanswered
 session "0%"; `dpp-generate-questions` moved its prompt into `_shared/questionGenerator.ts`. None of production's
-extra lines is a change the repo lacks. Deploying stays the owner's call under ruling 5c.
+extra lines is a change the repo lacks. **The owner ruled 2026-09-26: deploy `ai-gateway` and
+`ai-concept-report`** — both deployed and matching the repo (baseline 31 findings, 22 functions). Checking the
+coach live found its prompt wrong (below); rewritten into `_shared/conceptReportPrompt.ts` and redeployed. The rest
+stays the owner's call under ruling 5c.
 
 **Before renewing the repo secret, read this.** The workflow deploys EVERY function on disk, and
 `edge-drift-baseline.json` accepts 38 findings across 22 functions where production differs from the repo —
