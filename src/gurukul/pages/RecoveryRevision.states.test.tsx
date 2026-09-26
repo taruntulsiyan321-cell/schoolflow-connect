@@ -124,6 +124,9 @@ describe("Recovery", () => {
     page(<Recovery />);
     expect(await screen.findByText(/Recovery can't start here yet: no conceptual questions exist/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Start recovery/ })).toBeNull();
+    // …and the header does not count it as ready: Home's "chapters ready to
+    // recover" is the same count (snapshot recovery_pending, 20261109000000).
+    expect(screen.queryByText(/\d+ ready/)).toBeNull();
   });
 
   it("CONTROL: a startable chapter is offered, with the plan's size", async () => {
@@ -132,6 +135,7 @@ describe("Recovery", () => {
     page(<Recovery />);
     expect(await screen.findByRole("button", { name: /Start recovery/ })).toBeInTheDocument();
     expect(screen.getByText(/^9 questions/)).toBeInTheDocument();
+    expect(screen.getByText("1 ready")).toBeInTheDocument();
   });
 
   it("never shows an untagged chapter_id (upload §5.1)", async () => {
