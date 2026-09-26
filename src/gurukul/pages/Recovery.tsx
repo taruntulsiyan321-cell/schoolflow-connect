@@ -425,7 +425,11 @@ export default function Recovery() {
       )
     : items;
 
-  const readyCount = items.filter((t) => t.ready && t.startable).length;
+  // A chapter is "ready" here when a round can start — the server sets
+  // `startable` only on a ready chapter whose plan can be built. The snapshot's
+  // recovery_pending, which Home, Analysis and Learning show, counts the same
+  // field (20261109000000).
+  const readyCount = items.filter((t) => t.startable).length;
   const relearnCount = items.filter((t) => t.mode === "relearn").length;
   const openTotal = items.reduce((a, t) => a + t.open_mistakes, 0);
 
