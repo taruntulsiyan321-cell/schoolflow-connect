@@ -3547,20 +3547,27 @@ a parameter (lint-tenant-scope's entry for it says why). The owner renews the to
 
 **The CI deploy is dead the same way (measured 2026-09-25).** The repo secret `SUPABASE_ACCESS_TOKEN` used by
 Deploy Edge Functions answers `401 Unauthorized` on the first function, so every run on main fails and no edge
-function change on main reaches production. Waiting on it: the Revision-mode gist prompt that writes a topic sent
-with its subject as that subject teaches it (`_shared/novaRevision.ts`; the client half is live and sends the
-subject). Also waiting on the token: `20261099000000_a_cut_off_copy_is_not_served` — 34 active CUET questions are
-cut-off copies whose stem lost its last line (the ask); written, dry-run proved (bank changed on apply, restored by
-the rollback, `{"retired": 34, "with_complete": 30}`), not applied. Renew the repo secret under GitHub → Settings →
-Secrets → Actions as well as `.env.local`.
+function change on main reaches production.
+
+**Done 2026-09-26 with a token the owner gave inline:** `20261099000000_a_cut_off_copy_is_not_served` re-proved on
+the day's data and applied (ledgered) — 0 active CUET cut-off copies afterwards, the control finds all 34 retired,
+1,122 active CUET questions, the Equity copy `b236bdc9` retired. `ai-nova-revision` deployed alone and now matches
+the repo (drift check clean for it); a typed "Planning" with its subject comes back as Business Studies' Planning,
+a topic with no subject is unchanged, and the function still answers 401 without a sign-in.
+
+**What a full deploy would change (surveyed 2026-09-26, baseline re-recorded: 38 findings, 22 functions).** In every
+file read, the REPO is the newer side: `modelRouter.ts` (adds finish_reason) and `structuredCompletion.ts` (says why a
+reply did not parse, retries a cut-off reply with more room) in 12 functions; `ai-gateway`'s `aiRouter.ts` gives Nova
+the student's exam instead of a class on an individual account; `ai-concept-report` stops calling an unanswered
+session "0%"; `dpp-generate-questions` moved its prompt into `_shared/questionGenerator.ts`. None of production's
+extra lines is a change the repo lacks. Deploying stays the owner's call under ruling 5c.
 
 **Before renewing the repo secret, read this.** The workflow deploys EVERY function on disk, and
-`edge-drift-baseline.json` accepts 21 function files where production differs from the repo on purpose —
+`edge-drift-baseline.json` accepts 38 findings across 22 functions where production differs from the repo —
 `ai-gateway`'s `aiRouter.ts` (Nova chat), `ai-concept-report` and `dpp-generate-questions`' `index.ts`, and the
 `_shared/promptLibrary.ts` 13 functions bundle. The first run with a working secret overwrites all of them with the
-repo's copy. Safe order: with the renewed token, run `npm run check:edge-drift` and read each diff, deploy only
-`ai-nova-revision` (`supabase functions deploy ai-nova-revision --project-ref psqxykzqfvxgsvkmgurn --use-api`),
-and put the token in the repo secret only once the repo is meant to be production for every function.
+repo's copy — which the survey above found to be the newer side everywhere. Run `npm run check:edge-drift`
+first, and put the token in the repo secret once the repo is meant to be production for every function.
 
 ## 76. ~~rpc_question_hint is live and unused~~ — FIXED 2026-09-25, dropped by 20261107000000
 
