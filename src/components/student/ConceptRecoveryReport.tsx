@@ -113,10 +113,7 @@ export function ConceptRecoveryReport({
   const fetchAi = async () => {
     if (!report) return;
     setAiLoading(true);
-    const { data, error: err } = await invokeEdgeFunction<ConceptAiReport>("ai-concept-report", {
-      report,
-      display_name: "Student",
-    });
+    const { data, error: err } = await invokeEdgeFunction<ConceptAiReport>("ai-concept-report", { report });
     if (data && !err) {
       setInsights({ ...data, source: "ai" });
       setAiLoading(false);
