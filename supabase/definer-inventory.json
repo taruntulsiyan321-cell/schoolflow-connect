@@ -4782,6 +4782,24 @@
       "justification": "",
       "verifiedBy": "",
       "reviewed": false
+    },
+    "premium-checkout": {
+      "readerSet": "self",
+      "justification": "Signed-in individual buyer only (verify_jwt on). Makes the buyer's own order through premium_begin_order, which takes price, plan and validity from premium_products — never from the request — and refuses while sales are closed, without the current terms and the 18+/guardian confirmation, for a school student, or for a lower plan over a higher one. Runs as service_role only to call that function and to write the Razorpay order id onto the buyer's own order. Returns the buyer's own order and the public Razorpay key id; never another account's data.",
+      "verifiedBy": "Deployed 2026-09-27: unauthenticated 401; with no Razorpay keys set it refuses 503 payments_not_configured. premium_begin_order proved in 20261113000000 (closed sales, consent, school student, downgrade all refused).",
+      "reviewed": false
+    },
+    "premium-verify": {
+      "readerSet": "self",
+      "justification": "Signed-in buyer only (verify_jwt on). Reads only the caller's own order (account_id = auth user). Grants nothing on the app's word: checks Checkout's HMAC signature when sent, then reads the payment from Razorpay with the key secret and fulfils only a captured payment of that order through premium_fulfil_payment (amount/currency checked there, once per payment). Records a summary with no card or contact details.",
+      "verifiedBy": "Deployed 2026-09-27: unauthenticated 401; no keys 503. premium_fulfil_payment proved in 20261113000000 with six mutants caught; signature helper by src/lib/razorpaySignature.test.ts.",
+      "reviewed": false
+    },
+    "premium-webhook": {
+      "readerSet": "none",
+      "justification": "Called by Razorpay, which has no JWT (verify_jwt off). X-Razorpay-Signature, HMAC-SHA256 of the raw body with RAZORPAY_WEBHOOK_SECRET, is checked before the body is read; anything else is refused 401 and no event id is refused 400. premium_handle_provider_event records the event id and acts in one transaction. Returns only the outcome of that event; reads no user data for the caller.",
+      "verifiedBy": "Run locally against production 2026-09-27 with a throwaway secret: unsigned 401, wrong secret 401, body changed after signing 401, no event id 400; a signed capture granted one Starter plan and its redelivery was recognised as a duplicate; nothing left behind. Deployed: 503 while the secret is unset.",
+      "reviewed": false
     }
   }
 }
