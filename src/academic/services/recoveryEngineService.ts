@@ -37,6 +37,7 @@
 
 import { assertCanConsume, assertCanOwn, toRepoContext, type ServiceContext } from "./context";
 import { getClient, throwIfError } from "../repository/base";
+import { REVISION_INTERVALS_DAYS } from "../recovery/constants";
 import { broadcastAcademicWrite } from "../live";
 
 /** One chapter, as the engine currently sees it. */
@@ -486,6 +487,70 @@ export const RecoveryEngineService = {
       source: "RecoveryEngineService.submitRecoverySession",
     });
     return data as unknown as RecoverySessionOutcome;
+  },
+
+  /**
+   * The student says the chapter is recovered anyway (§4.4).
+   *
+   * "Locked decision: the student is responsible for clearing their own
+   * mistake book… If not ready, marking the chapter recovered requires an
+   * extra confirm — not a block, a speed bump. Whatever they choose, revision
+   * will catch it: a chapter cleared prematurely fails its 7-day check and
+   * returns. Do not block. Advise, then catch it downstream."
+   *
+   * There was no way to do it at all. A student who sat the ladder and was
+   * told "not solid yet" had one option — sit it again — and their own
+   * mistake book was, on this screen, not theirs.
+   *
+   * What it does is §4.5's list, and only for this chapter: the chapter's own
+   * open mistakes are cleared, the chapter reads `recovered`, and revision is
+   * scheduled at the first interval so the check comes round. The readiness
+   * the session measured is left exactly where the engine put it
+   * (`last_recovery_readiness`), which is what lets Analysis say later
+   * "cleared at 52% readiness, failed revision".
+   *
+   * It is the student's own rows: both tables carry a `user_id = auth.uid()`
+   * policy, and nothing here touches anybody else's.
+   */
+  async markChapterRecovered(
+    ctx: ServiceContext,
+    chapterId: string,
+  ): Promise<{ clearedMistakes: number; nextRevisionAt: string }> {
+    assertCanOwn(ctx, "practice");
+    if (!ctx.userId) throw new Error("No signed-in student to mark this for.");
+    const client = getClient(toRepoContext(ctx));
+
+    const { data: cleared, error: clearError } = await client
+      .from("student_mistakes")
+      .update({ status: "cleared", cleared_at: new Date().toISOString() })
+      .eq("user_id", ctx.userId)
+      .eq("chapter_id", chapterId)
+      .eq("status", "open")
+      .select("id");
+    throwIfError(clearError, "Could not clear this chapter's mistakes");
+
+    // §4.5: recovered, and the revision clock starts at the first interval.
+    const nextRevisionAt = new Date(
+      Date.now() + REVISION_INTERVALS_DAYS[0] * 86400000,
+    ).toISOString();
+    const { error: stateError } = await client
+      .from("chapter_state")
+      .update({
+        state: "recovered",
+        recovered_at: new Date().toISOString(),
+        next_revision_at: nextRevisionAt,
+        revision_stage: 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", ctx.userId)
+      .eq("chapter_id", chapterId);
+    throwIfError(stateError, "Could not mark this chapter recovered");
+
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      studentId: ctx.studentId,
+      source: "RecoveryEngineService.markChapterRecovered",
+    });
+    return { clearedMistakes: cleared?.length ?? 0, nextRevisionAt };
   },
 
   /**

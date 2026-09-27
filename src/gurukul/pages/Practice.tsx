@@ -1241,7 +1241,7 @@ async function completeSession(
   sessionId: string,
   attempts: PracticeAttemptSnapshot[],
   reason: EndReason,
-): Promise<Pick<SessionResults, "serverStats" | "recovery" | "revision">> {
+): Promise<Pick<SessionResults, "serverStats" | "recovery" | "revision" | "recoveryChapterId">> {
   const fin = ((await PracticeService.finish(ctx, {
     _session_id: sessionId,
     _attempts: attemptsToFinishPayload(attempts),
@@ -1249,7 +1249,7 @@ async function completeSession(
     _ended_normally: reason !== "left",
   })) ?? {}) as Record<string, unknown>;
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
-  const out: Pick<SessionResults, "serverStats" | "recovery" | "revision"> = {
+  const out: Pick<SessionResults, "serverStats" | "recovery" | "revision" | "recoveryChapterId"> = {
     serverStats: {
       questionCount: num(fin.total),
       correctCount: num(fin.correct_count),
@@ -1265,6 +1265,7 @@ async function completeSession(
   if (config.recovery) {
     try {
       out.recovery = await RecoveryEngineService.submitRecoverySession(ctx, config.recovery.sessionId, sessionId);
+      out.recoveryChapterId = config.recovery.chapterId;
     } catch (e) {
       toast.error(toErrorMessage(e, "Practice saved, but the recovery result was not recorded"));
     }
@@ -1926,6 +1927,8 @@ interface SessionResults {
    * solid yet" rather than a bare percentage.
    */
   recovery?: import("@/academic").RecoverySessionOutcome;
+  /** The chapter that recovery session was for — §4.4 needs to know which. */
+  recoveryChapterId?: string | null;
   serverStats?: {
     questionCount?: number;
     correctCount?: number;
@@ -2403,6 +2406,9 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       startedAt: res.startedAt,
       serverStats: res.serverStats ?? null,
       recovery: res.recovery ?? null,
+      // §4.4: the result screen needs the chapter to offer the student the
+      // last word on it, and the verdict alone does not carry one.
+      recoveryChapterId: res.recoveryChapterId ?? res.config.recovery?.chapterId ?? null,
       revision: res.revision ?? null,
     });
   }

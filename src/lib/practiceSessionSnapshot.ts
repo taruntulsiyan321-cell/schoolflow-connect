@@ -88,6 +88,15 @@ export type PracticeSessionResultState = {
    */
   recovery?: import("@/academic").RecoverySessionOutcome | null;
   /**
+   * The chapter that recovery session was for.
+   *
+   * Carried because §4.4 gives the student the last word — "marking the
+   * chapter recovered requires an extra confirm, not a block" — and the
+   * result screen cannot offer that without knowing which chapter it is
+   * talking about. The verdict above says how it went; this says what it was.
+   */
+  recoveryChapterId?: string | null;
+  /**
    * Present only when the session was a §5.4 revision check.
    *
    * Carried for the same reason `recovery` is: §5.5 decides pass or fail

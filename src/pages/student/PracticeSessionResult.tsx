@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicContext, PracticeService } from "@/academic";
+import { useAcademicContext, PracticeService, RecoveryEngineService } from "@/academic";
+import { REVISION_INTERVALS_DAYS } from "@/academic/recovery/constants";
+import { pluralise } from "@/lib/plural";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, ArrowLeft, BarChart2, Check, CheckCircle2, Lightbulb, Save, Target, Timer, X } from "lucide-react";
@@ -99,6 +101,7 @@ export default function PracticeSessionResult() {
   // it is the engine's verdict on the session that just finished, not a fact
   // about the practice_sessions row, so it is never re-read from the database.
   const recovery = localState?.recovery ?? null;
+  const recoveryChapterId = localState?.recoveryChapterId ?? null;
 
   // Same rule, same reason: §5.5 decided pass or fail and §5.3 scheduled the
   // next date, both server-side. This screen quotes them.
@@ -109,9 +112,41 @@ export default function PracticeSessionResult() {
   const [dbLoading, setDbLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // §4.4 — the student's own decision about their own mistake book, behind one
+  // confirm. Null until they take it; then what it did, so the card can say so.
+  const [markingRecovered, setMarkingRecovered] = useState(false);
+  const [markedRecovered, setMarkedRecovered] = useState<
+    { clearedMistakes: number; nextRevisionAt: string } | null
+  >(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const snapshot = session?.analysis_snapshot ?? null;
+
+  /**
+   * §4.4 — "marking the chapter recovered requires an extra confirm — not a
+   * block, a speed bump", and the confirm names the readiness the session
+   * measured so the student is choosing with the number in front of them.
+   */
+  const markRecoveredAnyway = async () => {
+    if (!ctx || !recoveryChapterId || markingRecovered) return;
+    const readiness = recovery?.readiness == null ? null : Math.round(recovery.readiness * 100);
+    const confirmed = window.confirm(
+      (readiness == null
+        ? "This session did not say the chapter is solid yet. "
+        : `This session put you at ${readiness}% readiness. `) +
+        "Mark it recovered anyway? Its open mistakes are cleared, and a revision check " +
+        `in ${pluralise(REVISION_INTERVALS_DAYS[0], "day")} will say whether it stayed.`,
+    );
+    if (!confirmed) return;
+    setMarkingRecovered(true);
+    try {
+      setMarkedRecovered(await RecoveryEngineService.markChapterRecovered(ctx, recoveryChapterId));
+    } catch (e) {
+      toast.error(toErrorMessage(e, "Could not mark this chapter recovered"));
+    } finally {
+      setMarkingRecovered(false);
+    }
+  };
 
   const localAttempts = useMemo(
     () => (localState ? snapshotsToAttemptRows(localState.attempts) : []),
@@ -444,6 +479,45 @@ export default function PracticeSessionResult() {
               })}
               .
             </p>
+          )}
+
+          {/* §4.4 — THE STUDENT DECIDES, THE APP ADVISES.
+              "Locked decision: the student is responsible for clearing their
+              own mistake book… If not ready, marking the chapter recovered
+              requires an extra confirm — not a block, a speed bump. Whatever
+              they choose, revision will catch it." There was no way to do it
+              at all: a student told "not solid yet" could only sit the ladder
+              again, and their own mistake book was not theirs on this screen. */}
+          {recovery.outcome !== "ready" && recoveryChapterId && (
+            <div className="mt-4 pt-3 border-t border-border/60">
+              {markedRecovered ? (
+                <p className="text-[11px] text-muted-foreground">
+                  Marked recovered. {markedRecovered.clearedMistakes > 0
+                    ? `${pluralise(markedRecovered.clearedMistakes, "mistake")} cleared. `
+                    : ""}
+                  A revision check comes round on{" "}
+                  {new Date(markedRecovered.nextRevisionAt).toLocaleDateString(undefined, {
+                    day: "numeric", month: "short",
+                  })}
+                  , and it will say whether it stayed.
+                </p>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={markingRecovered}
+                    onClick={() => void markRecoveredAnyway()}
+                    className="text-[11px] font-bold text-primary hover:underline disabled:opacity-50"
+                  >
+                    {markingRecovered ? "Marking…" : "Mark this chapter recovered anyway"}
+                  </button>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    It is your mistake book. Revision will check the chapter in{" "}
+                    {pluralise(REVISION_INTERVALS_DAYS[0], "day")} either way.
+                  </p>
+                </>
+              )}
+            </div>
           )}
         </GlassCard>
       )}
