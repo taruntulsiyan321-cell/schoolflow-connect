@@ -3959,19 +3959,25 @@ says so ("chat, Explain my mistake, and the Revision chat"). But it is the one p
 feature draws on a counted one, and the student is not told. Either is defensible; it needs saying out
 loud, and if it stands, the Revision screen should show what it will cost before the first turn.
 
-## 88. The premium migrations' definer functions are not in `definer-inventory.json` — will FAIL the gate the day they are applied
+## 88. The premium definer functions are LIVE and not in `definer-inventory.json` — the gate fails as soon as it can run
 
-Measured 2026-09-27: the inventory holds no key matching `premium`. 20261111000000–20261113000000 create
-around a dozen SECURITY DEFINER functions (`_premium_decide`, `_premium_require`, `_premium_tier`,
-`premium_consume`, `premium_grant`, `rpc_my_premium`, the payment functions …). `lint-definer-doors` fails
-on any definer the inventory does not name — that is the one check it exists for — so the first run after
-those migrations are applied will report every one of them as UNLISTED.
+Measured 2026-09-27: the inventory holds no key matching `premium`, while 20261111000000–20261113000000
+— which create around a dozen SECURITY DEFINER functions (`_premium_decide`, `_premium_require`,
+`_premium_tier`, `premium_consume`, `premium_grant`, `rpc_my_premium`, the payment functions …) — were
+applied to production earlier the same day. `lint-definer-doors` fails on any definer the inventory does
+not name; that is the one check it exists for, so it will report every one of them as UNLISTED.
 
-Not fixable blind: two of its fields (`callability`, `grants`) are facts read from the catalogue and
-compared, so writing them by hand before the functions exist would trade one failure for another. After
-applying, run `node scripts/lint-definer-doors.mjs --generate` then `--sync`, and write the `readerSet` and
-`justification` judgements per function. 20261115000000's own fourteen doors ARE in the inventory, written
-from the SQL that creates them.
+It cannot report anything at all today: the gate reads the live catalogue through `q.mjs` and exits 2 with
+"query failed: Unauthorized" (item 75). So this is a gate that is failing silently — the worst kind —
+until a working token makes it speak.
+
+Not fixable from here: two of its fields (`callability` and `grants`) are facts the gate reads from the
+catalogue and compares, so hand-writing them without being able to read the catalogue would trade one
+failure for another. With a working token: `node scripts/lint-definer-doors.mjs --generate`, then `--sync`,
+then write the `readerSet` and `justification` judgements per function. 20261115000000's own fourteen doors
+ARE in the inventory, written from the SQL that creates them — including the two facts, which the same
+migration's proof asserts (`has_function_privilege` on every door and every helper), so they can be
+compared the moment the gate runs.
 
 ## 89. Mock tests will be offered for at most two CUET subjects until the bank spreads — OPEN, same content gap as 84
 
