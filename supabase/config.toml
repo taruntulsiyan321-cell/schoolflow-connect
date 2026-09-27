@@ -44,13 +44,19 @@ verify_jwt = false
 [functions.question-embedding-drain]
 verify_jwt = false
 
+# Called by Razorpay, which has no user to sign a JWT for. The function checks
+# X-Razorpay-Signature (HMAC-SHA256 of the raw body with RAZORPAY_WEBHOOK_SECRET)
+# before it reads anything, and refuses 401 without it.
+[functions.premium-webhook]
+verify_jwt = false
+
 # Functions with no entry here inherit Supabase's default verify_jwt = true,
 # which is the correct (JWT-required) setting for all of them:
-#   admin-link-account, custom-practice-upload, screen-capture-mistake,
-#   verify-msg91-widget.
+#   admin-link-account, custom-practice-upload, premium-checkout,
+#   premium-verify, screen-capture-mistake, verify-msg91-widget.
 #
-# NO FUNCTION ANSWERS AN UNAUTHENTICATED CALLER. The three above that skip the
-# gateway's JWT check refuse anything without their secret. `send-otp` and
+# NO FUNCTION ANSWERS AN UNAUTHENTICATED CALLER. The four above that skip the
+# gateway's JWT check refuse anything without their secret or signature. `send-otp` and
 # `verify-otp` were `verify_jwt = false` -- reachable by anyone who knew the
 # URL -- and nothing called them: the wired OTP path is `verify-msg91-widget`
 # (src/lib/msg91Auth.ts:32). Both were DELETED from the project on 2026-09-07
