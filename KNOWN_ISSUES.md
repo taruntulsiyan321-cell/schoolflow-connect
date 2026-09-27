@@ -3536,7 +3536,26 @@ too, ten attempts in one session. That is item 5 of the practice report ("sessio
 now measured. The screens fail to a message rather than to a wrong figure, and the runner resends unsaved answers
 at finish, so nothing was lost — but a student waits and sees an error.
 
-## 75. The Management API token is dead: no migration, dry run or ledger read — OPEN, needs the owner
+## 75. The Management API token is dead: no migration, dry run or ledger read — OPEN for the CI secret only, needs the owner
+
+**State 2026-09-27.** A live Management token is in the rulings-artifact worktree's `.env.local` (the main
+checkout's and the threshold-rulings worktree's still answer 401 — pass the live one per command, see
+`scripts/apply-one-migration.mjs`'s loader). With it: 78 and 82's variant merge are applied, the eight dead
+functions are deleted, and the eleven 2026-09-22 rollbacks are dry-run (below). **Still waiting on the owner:**
+the GitHub repo secret for Deploy Edge Functions (below), and `rpc_practice_bank_catalog`'s board — the one-home
+fix drafted on 2026-09-22 derives it from the caller's school, but since then an exam account (CUET) studies an
+exam and a stream, not a board (20261091000000), so which home is right is a ruling, not a token.
+
+**The eleven 2026-09-22 rollbacks, dry-run against live 2026-09-27** (each in its own rolled-back transaction):
+four run clean — `20260905130000`, `20260914070000`, `20260916130000`, `20261011000000_down`; two refuse through
+their own guard, as written — `20260914030000` (4,263 questions carry a review record) and `20261003000000`
+(a later migration's edit is still in the function); four cannot run ALONE on today's schema because a later
+migration redefined the same function, so Postgres refuses the signature change before the rollback's logic
+starts — `20260830160001` (`match_question_bank`, redefined by 20260831100000 and three more),
+`20260914050000` (`rpc_test_questions_for_attempt`, by 20260914060000), `20260914060000` (`rpc_test_submit`,
+by 20260916140000 and 20260925000000), `20261050000000` (`rpc_practice_bank_catalog`, by 20261080000000 and
+20261091000000). In each of those, the rollback's signature is the one its own forward created; they can only be
+proven in reverse order, after the later rollbacks, which is replica work.
 
 `SUPABASE_ACCESS_TOKEN` in `.env.local` answers 401 (2026-09-22), so `apply-one-migration`, every dry run,
 `check-foreign-migrations` (BLOCKED) and `mint-role-sessions` cannot run. The Supabase MCP still reads live, as
@@ -3568,20 +3587,25 @@ stays the owner's call under ruling 5c.
 **Dead-code removal, 2026-09-27.** Ten edge functions with no caller were removed from the repo (no
 app, database, cron, Auth-hook or function caller, and zero invocations in production's last day):
 `ai-academic-coach-agent`, `ai-expand-questions`, `ai-learning-pattern-agent`, `ai-ping`, `ai-recovery-agent`,
-`ai-revision-agent`, `mcp`, `send-push`, and the never-deployed `send-otp` / `verify-otp`. **Eight of them are still
-deployed** — deleting a production function was held for the owner. They are harmless (nothing calls them) but are
-now deployed code with no source here (`NO-REPO-SOURCE` in the baseline). To finish:
-`supabase functions delete <slug> --project-ref psqxykzqfvxgsvkmgurn` for each, then
-`npm run check:edge-drift:update`. The same removal took unused declarations out of `_shared`; production still runs
-the older bundles, which behave identically, so the baseline's DRIFT count rose to 97 until each function's next
-deploy.
+`ai-revision-agent`, `mcp`, `send-push`, and the never-deployed `send-otp` / `verify-otp`. The eight that were
+still deployed were **DELETED from production 2026-09-27**, after re-measuring that nothing calls them: no function
+body, trigger argument, view or cron job names any of them (the same query finds `notification-push`'s real
+caller), every Auth hook is off, and six days of edge logs show only two 401'd `ai-ping` probes from a developer's
+PowerShell. Each deployed bundle was downloaded first; their source is also in git before ce2fc79b. Production now
+runs exactly the repo's 14 functions (the deleted URLs answer 404, a live one 401), and the baseline is re-recorded:
+98 findings across 14 functions, none of them NO-REPO-SOURCE. The same removal took unused declarations out of
+`_shared`; production still runs the older bundles, which behave identically, so those DRIFT findings stay until
+each function's next deploy.
 
 **Before renewing the repo secret, read this.** The workflow deploys EVERY function on disk, and
-`edge-drift-baseline.json` accepts 38 findings across 22 functions where production differs from the repo —
-`ai-gateway`'s `aiRouter.ts` (Nova chat), `ai-concept-report` and `dpp-generate-questions`' `index.ts`, and the
-`_shared/promptLibrary.ts` 13 functions bundle. The first run with a working secret overwrites all of them with the
-repo's copy — which the survey above found to be the newer side everywhere. Run `npm run check:edge-drift`
-first, and put the token in the repo secret once the repo is meant to be production for every function.
+`edge-drift-baseline.json` accepts 98 findings across 14 functions where production differs from the repo. The
+first run with a working secret overwrites all of them with the repo's copy — which the survey above found to be
+the newer side everywhere. Run `npm run check:edge-drift` first, and put the token in the repo secret once the repo
+is meant to be production for every function. **Fixed 2026-09-27 so that deploy does not break the drains:**
+`ai-recovery-variants` and `question-embedding-drain` are called by pg_net with the drain secret and no JWT, and
+production runs them with `verify_jwt = false`, but `supabase/config.toml` had no entry for either — a deploy from
+it would have switched the gateway's JWT check on and refused every variant and embedding job. Both are now
+declared; config.toml and production agree for all 14 functions.
 
 ## 76. ~~rpc_question_hint is live and unused~~ — FIXED 2026-09-25, dropped by 20261107000000
 
@@ -3599,7 +3623,15 @@ jsdom while the whole suite shared the machine — past the default budget
 **Fix:** page size is **25** (still a full page for "Show older homework");
 test timeout 10s. Named reason, not a blind raise of the number.
 
-## 78. A teacher could approve their own question on the way into the bank — FIXED in 20261054000000, NOT APPLIED (blocked by 75)
+## 78. ~~A teacher could approve their own question on the way into the bank~~ — FIXED, 20261054000000 applied 2026-09-27
+
+**Applied 2026-09-27.** Live still held the 20260914030000 body and an
+UPDATE-only trigger — exactly what the rollback restores — so the file went on
+as written. Its proof block run ALONE against the unfixed live trigger (rolled
+back) failed with "a teacher still inserted an APPROVED question", so the hole
+was open in production that morning and the proof can see it; the dry run of
+the whole migration passed; after the apply the same proof passes, the trigger
+reads `BEFORE INSERT OR UPDATE OF is_approved`, and no proof row survived.
 
 Found 2026-09-23 while reading `question_bank`'s policies for the PYQ work.
 `trg_question_bank_approval_is_super_admin_only` is declared
@@ -3631,7 +3663,7 @@ all 21,876 approved rows, still work. Its proof block becomes that teacher
 the approved insert is refused, the unapproved one is accepted (the control),
 and the owner's approved insert still goes through.
 
-**Not applied, and not dry-run:** the Management API token is dead (75) and
+**Not applied, and not dry-run (2026-09-23):** the Management API token is dead (75) and
 this machine has no Postgres, so nothing could run it. Both files parse
 against the real Postgres grammar (libpg_query); their plpgsql bodies have not
 been executed anywhere. Apply and dry-run them the moment the token is back.
@@ -3776,7 +3808,7 @@ every practice session. `_apply_chapter_state` does exactly that; the draft
 that kept a solid chapter on its 30-day clock contradicted the rule and was
 deleted unapplied.
 
-## 82. The three "extra" practice findings — two fixed, one written and blocked
+## 82. ~~The three "extra" practice findings~~ — all three FIXED; the variant merge applied 2026-09-27
 
 **Custom Practice could be configured into a dead end — FIXED 2026-09-23.**
 Subject, chapter, topic and difficulty each narrow the bank and every
@@ -3803,7 +3835,24 @@ on" — both of which the screen already shows as unstartable, because
 card disables its button and says so. In the browser: 43 cards, 41 offered, 0
 offered-but-refusable.
 
-**10 variant-keyed mistake rows — MERGE WRITTEN, NOT APPLIED (blocked by 75).**
+**10 variant-keyed mistake rows — MERGED, applied 2026-09-27.** Re-measured
+first: still 10 rows, 1 student, 8 roots, every root with its own row. The
+draft's rollback was NOT exact, and was rewritten before anything ran: it
+subtracted times_wrong back out of each root, but the merge also moves
+last_wrong_at (3 of the 8 roots) and created_at (1), which it could never
+restore; and a cleared root absorbing an open variant would have been set
+`open` with its cleared_at still set, which `student_mistakes_cleared_at_agrees`
+refuses (0 such cases today). Now every row it changes — the 10 variant rows
+AND the 8 roots — is backed up whole (`kind` = variant / absorber), the
+rollback restores each row as it stood and checks it byte for byte, and the
+control fingerprints every row outside the merge. Proved in one rolled-back
+transaction on live: forward changed the table, rollback returned all 361 rows
+to an identical fingerprint; the old draft run the same way failed ("NOT
+EXACT"). Applied: 351 rows, times_wrong total 611 before and after, 0 keyed on
+a variant, backup 10 + 8 with no anon/authenticated access. The original
+record follows.
+
+**As written 2026-09-23 — MERGE WRITTEN, NOT APPLIED (blocked by 75).**
 20261051000000 stopped new ones being written (a variant's miss marks the
 question it came from); the rows already in the book were left. Measured:
 10 rows for 1 student across 8 root questions, 2 of them variants OF variants,

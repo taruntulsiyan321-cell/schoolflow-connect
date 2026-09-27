@@ -324,6 +324,9 @@ const liveKeys = new Set(dbRows.map((r) => keyOf(r.name, r.args)));
 for (const k of Object.keys(inventory.definers)) {
   if (!liveKeys.has(k)) failures.push(`STALE inventory entry: ${k} is listed but no longer exists in the database.`);
 }
+for (const name of Object.keys(inventory.edge)) {
+  if (!edgeFns.includes(name)) failures.push(`STALE inventory entry: edge function ${name} is listed but has no directory in ${EDGE_DIR}.`);
+}
 
 const byKey = Object.fromEntries(dbRows.map((r) => [keyOf(r.name, r.args), r]));
 /** A call site names a function, not a signature. Resolve to every overload. */

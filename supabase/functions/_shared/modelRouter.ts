@@ -75,7 +75,7 @@ function getPrimaryModelId(): string {
 /**
  * The same model as the primary unless an operator has deliberately configured
  * a second one. Kept as a separate accessor because the vision path and
- * `ai-ping` both call it by name.
+ * `custom-practice-upload`'s classifier both call it by name.
  */
 export function getConfiguredModelId(): string {
   return Deno.env.get("OPENROUTER_MODEL")?.trim() || MODEL;

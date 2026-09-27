@@ -23,16 +23,23 @@
 --   * last_wrong_at is the LATEST and created_at the EARLIEST, because the
 --     gap opened when it first showed and it is as recent as the last miss;
 --   * the row is OPEN if any of its parts was open: a cleared variant does
---     not clear the mistake the student still has;
+--     not clear the mistake the student still has — and an open row has no
+--     cleared_at (student_mistakes_cleared_at_agrees);
 --   * a variant row whose root has no row of its own is REPOINTED rather than
 --     deleted, so nothing is lost when the original was never missed directly.
 --
--- Every row this touches is copied into `student_mistakes_variant_merge`
--- first, which is what makes the rollback exact rather than approximate.
+-- Every row this touches — the variant rows AND the root rows that absorb
+-- them — is copied whole into `student_mistakes_variant_merge` first, which is
+-- what makes the rollback exact rather than approximate. (The first draft
+-- backed up only the variant rows and had the rollback subtract times_wrong
+-- back out of each root; re-measured 2026-09-27, the merge also moves
+-- last_wrong_at on 3 of the 8 roots and created_at on 1, which that rollback
+-- could never have put back.)
 
 CREATE TABLE IF NOT EXISTS public.student_mistakes_variant_merge (
   backed_up_at    timestamptz NOT NULL DEFAULT now(),
-  merged_into     uuid,                 -- the root row that absorbed it, when it was absorbed
+  kind            text        NOT NULL CHECK (kind IN ('variant', 'absorber')),
+  merged_into     uuid,                 -- for a variant row: the root row that absorbed it, when one did
   row_data        jsonb       NOT NULL  -- the whole row, exactly as it stood
 );
 
@@ -49,6 +56,8 @@ DECLARE
   _repointed     int := 0;
   _before_total  bigint;
   _after_total   bigint;
+  _untouched_before text;
+  _untouched_after  text;
   _r             record;
 BEGIN
   -- Every mistake keyed on a question that came from another question, with
@@ -75,13 +84,37 @@ BEGIN
   SELECT count(*) INTO _variant_rows FROM _to_merge;
   SELECT coalesce(sum(times_wrong), 0) INTO _before_total FROM public.student_mistakes;
 
-  -- Everything about to change, kept whole.
-  INSERT INTO public.student_mistakes_variant_merge (merged_into, row_data)
-  SELECT (SELECT root.id FROM public.student_mistakes root
+  -- The root rows that will absorb a variant: the student's own row on the
+  -- original question, from the same source.
+  CREATE TEMP TABLE _absorbers ON COMMIT DROP AS
+  SELECT DISTINCT root.id
+    FROM _to_merge m
+    JOIN public.student_mistakes sm   ON sm.id = m.mistake_id
+    JOIN public.student_mistakes root ON root.user_id = m.user_id
+                                     AND root.source = sm.source
+                                     AND root.question_id = m.root_id;
+
+  -- Everything about to change, kept whole: the variant rows, and the rows
+  -- that absorb them.
+  INSERT INTO public.student_mistakes_variant_merge (kind, merged_into, row_data)
+  SELECT 'variant',
+         (SELECT root.id FROM public.student_mistakes root
            WHERE root.user_id = m.user_id AND root.source = sm.source AND root.question_id = m.root_id LIMIT 1),
          to_jsonb(sm)
     FROM _to_merge m
     JOIN public.student_mistakes sm ON sm.id = m.mistake_id;
+
+  INSERT INTO public.student_mistakes_variant_merge (kind, merged_into, row_data)
+  SELECT 'absorber', NULL, to_jsonb(sm)
+    FROM public.student_mistakes sm
+   WHERE sm.id IN (SELECT id FROM _absorbers);
+
+  -- The control's baseline: every row this must NOT touch, fingerprinted.
+  SELECT md5(coalesce(string_agg(to_jsonb(sm)::text, '|' ORDER BY sm.id), ''))
+    INTO _untouched_before
+    FROM public.student_mistakes sm
+   WHERE sm.id NOT IN (SELECT mistake_id FROM _to_merge)
+     AND sm.id NOT IN (SELECT id FROM _absorbers);
 
   -- ONE ROW PER (user, source, root question), because that is the key the
   -- table itself enforces (student_mistakes_user_source_q). A mistake made in
@@ -144,7 +177,8 @@ BEGIN
            SET times_wrong   = r.times_wrong + COALESCE(_add_wrong, 0),
                last_wrong_at = GREATEST(COALESCE(r.last_wrong_at, _latest), COALESCE(_latest, r.last_wrong_at)),
                created_at    = LEAST(r.created_at, COALESCE(_earliest, r.created_at)),
-               status        = CASE WHEN _any_open THEN 'open' ELSE r.status END
+               status        = CASE WHEN _any_open THEN 'open' ELSE r.status END,
+               cleared_at    = CASE WHEN _any_open THEN NULL ELSE r.cleared_at END
          WHERE r.id = _keep;
         _merged := _merged + 1;
       END IF;
@@ -159,9 +193,10 @@ BEGIN
   -- ── THE PROOF ──────────────────────────────────────────────────────────
   --
   -- Nothing is lost and nothing is invented: every miss the student made is
-  -- still counted, and no mistake is keyed on a variant any more. The third
-  -- assertion is the control — a mistake on an ORIGINAL question must be
-  -- exactly as it was, so this cannot have rewritten the book wholesale.
+  -- still counted, and no mistake is keyed on a variant any more. The last
+  -- assertion is the control — every row that was neither a variant nor the
+  -- root absorbing one must be byte-for-byte as it was, so this cannot have
+  -- rewritten the book wholesale.
   IF _after_total <> _before_total THEN
     RAISE EXCEPTION 'times_wrong total changed: % before, % after — a merge must move misses, never mint or lose them',
       _before_total, _after_total;
@@ -175,19 +210,23 @@ BEGIN
     RAISE EXCEPTION 'a mistake is still keyed on a variant';
   END IF;
 
-  IF (SELECT count(*) FROM public.student_mistakes_variant_merge) <> _variant_rows THEN
-    RAISE EXCEPTION 'the backup holds % rows for % merged', (SELECT count(*) FROM public.student_mistakes_variant_merge), _variant_rows;
+  IF (SELECT count(*) FROM public.student_mistakes_variant_merge WHERE kind = 'variant') <> _variant_rows
+     OR (SELECT count(*) FROM public.student_mistakes_variant_merge WHERE kind = 'absorber')
+        <> (SELECT count(*) FROM _absorbers) THEN
+    RAISE EXCEPTION 'the backup does not hold every row this changed: % variant of %, % absorber of %',
+      (SELECT count(*) FROM public.student_mistakes_variant_merge WHERE kind = 'variant'), _variant_rows,
+      (SELECT count(*) FROM public.student_mistakes_variant_merge WHERE kind = 'absorber'),
+      (SELECT count(*) FROM _absorbers);
   END IF;
 
-  -- CONTROL: a row on an original question is untouched by all of this.
-  IF EXISTS (
-    SELECT 1 FROM public.student_mistakes_variant_merge b
-     WHERE (b.row_data ->> 'id')::uuid IN (
-       SELECT sm.id FROM public.student_mistakes sm
-         JOIN public.question_bank qb ON qb.id = sm.question_id
-        WHERE qb.source_question_id IS NULL)
-  ) THEN
-    RAISE EXCEPTION 'the merge touched a mistake that was never keyed on a variant';
+  -- CONTROL: every row outside the merge is exactly as it was.
+  SELECT md5(coalesce(string_agg(to_jsonb(sm)::text, '|' ORDER BY sm.id), ''))
+    INTO _untouched_after
+    FROM public.student_mistakes sm
+   WHERE sm.id NOT IN (SELECT mistake_id FROM _to_merge)
+     AND sm.id NOT IN (SELECT id FROM _absorbers);
+  IF _untouched_after IS DISTINCT FROM _untouched_before THEN
+    RAISE EXCEPTION 'the merge changed a mistake that was neither a variant nor the root absorbing one';
   END IF;
 
   RAISE NOTICE 'variant mistakes: % found, % roots absorbed them, % repointed, times_wrong total % unchanged',

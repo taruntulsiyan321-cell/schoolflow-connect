@@ -4735,12 +4735,6 @@
       "verifiedBy": "",
       "reviewed": false
     },
-    "ai-academic-coach-agent": {
-      "readerSet": "public",
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
     "ai-battle-report": {
       "readerSet": "public",
       "justification": "",
@@ -4765,28 +4759,10 @@
       "verifiedBy": "",
       "reviewed": false
     },
-    "ai-learning-pattern-agent": {
-      "readerSet": "public",
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
     "ai-nova-revision": {
       "readerSet": "none",
       "justification": "Reads no table. Takes the caller's own topic, key ideas and spoken answer from the request body, sends them to the model, and returns the model's gist or judgement. requireUserJwt only rejects anonymous callers, to stop credit burn.",
       "verifiedBy": "src/gurukul/nova/novaRevisionServer.test.ts (request and model-output validation) and a live probe as the student role on 2026-09-23",
-      "reviewed": false
-    },
-    "ai-recovery-agent": {
-      "readerSet": "public",
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "ai-revision-agent": {
-      "readerSet": "public",
-      "justification": "",
-      "verifiedBy": "",
       "reviewed": false
     },
     "ai-recovery-variants": {
@@ -4795,31 +4771,13 @@
       "verifiedBy": "code: service-key equality check before any work. NOT yet verified by calling as each role, because the function is written but not deployed.",
       "reviewed": true
     },
-    "send-otp": {
-      "readerSet": "public",
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
     "notification-push": {
       "readerSet": "public",
       "justification": "Called only by dispatch_notification_push through pg_net. verify_jwt is off (the database has no user to sign for) and every call without the drain secret (x-push-drain = NOTIFICATION_PUSH_DRAIN = vault notification_push_drain) is refused 401 before anything is read. Runs as service_role: claims waiting notifications of every school and sends each to its recipient's FCM tokens; answers with counts and FCM's error text, never notification content.",
       "verifiedBy": "push-e2e on live 2026-09-15: no secret 401, a wrong secret of the right length 401; a queued probe notification was claimed within the cron minute and reached FCM with the service account accepted",
       "reviewed": true
     },
-    "send-push": {
-      "readerSet": "public",
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
     "verify-msg91-widget": {
-      "readerSet": "public",
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "verify-otp": {
       "readerSet": "public",
       "justification": "",
       "verifiedBy": "",
