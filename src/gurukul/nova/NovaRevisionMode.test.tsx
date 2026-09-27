@@ -16,13 +16,17 @@ vi.mock("@/gurukul/StudentContext", async () => {
   const value = { ...EMPTY_STUDENT, class: "Class 10-A" };
   return { useGurukulStudent: () => value };
 });
+// The student's own chapters, as the practice catalog lists them. `catalog.read`
+// is swapped per test to control when the read answers.
+const catalog = vi.hoisted(() => ({
+  rows: [{ subject: "Business Studies", chapter: "Planning", questions: 40 }],
+  read: null as null | (() => Promise<{ rows: unknown[] }>),
+}));
 vi.mock("@/academic", () => {
   const value = { ctx: { schoolId: "s", userId: "u" }, ready: true, settled: true };
-  // The student's own chapters, as the practice catalog lists them.
-  const rows = [{ subject: "Business Studies", chapter: "Planning", questions: 40 }];
   return {
     useAcademicContext: () => value,
-    PracticeService: { listBankCatalog: () => Promise.resolve({ rows }) },
+    PracticeService: { listBankCatalog: () => (catalog.read ? catalog.read() : Promise.resolve({ rows: catalog.rows })) },
   };
 });
 vi.mock("@/gurukul/pages/useRevisionQueueV2", async (importOriginal) => {
@@ -160,6 +164,23 @@ describe("Revision mode — choosing a topic", () => {
     expect(invoke.mock.calls[0][1]).toMatchObject({ topic: "planning", subject: "Business Studies" });
   });
 
+  it("a topic sent before the catalog has answered waits for it, and still carries its subject", async () => {
+    // Measured 2026-09-27: the catalog answered ~8 s after the screen opened,
+    // and "Planning" sent before then went with no subject.
+    let answer: (v: { rows: unknown[] }) => void = () => {};
+    catalog.read = () => new Promise((r) => { answer = r; });
+    invoke.mockReturnValueOnce(ok({ gist: GIST }));
+    render(<NovaRevisionMode />);
+    fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "planning" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
+    await act(async () => {});
+    expect(invoke).not.toHaveBeenCalled(); // waiting on the catalog, not guessing
+    await act(async () => { answer({ rows: catalog.rows }); });
+    await screen.findByRole("heading", { name: GIST.title });
+    expect(invoke.mock.calls[0][1]).toMatchObject({ topic: "planning", subject: "Business Studies" });
+    catalog.read = null;
+  });
+
   it("shows the server's refusal on the picker and stays there", async () => {
     invoke.mockReturnValueOnce(fail("Nova can't help with that topic here. Try a different one."));
     render(<NovaRevisionMode />);
@@ -181,6 +202,7 @@ describe("Revision mode — choosing a topic", () => {
     fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "Atoms" } });
     fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
     expect(screen.getByRole("status")).toHaveTextContent("Reading up on Atoms…");
+    await waitFor(() => expect(invoke).toHaveBeenCalled()); // the request is out
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(seenSignal?.aborted).toBe(true);
