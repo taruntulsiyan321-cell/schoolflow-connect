@@ -123,6 +123,11 @@ type StudentPracticeAnalytics = {
   by_difficulty: DifficultyAnalyticsRow[];
   effort: EffortAnalytics | null;
   recurring: RecurringMistakeRow[];
+  /**
+   * PLANS (20261112000000): the plan does not include topic-wise analysis, so
+   * the server sent by_topic empty. An empty list is then not "no topics yet".
+   */
+  topic_analysis_locked: boolean;
 };
 
 
@@ -248,6 +253,7 @@ function parseAnalytics(payload: unknown): { data: StudentPracticeAnalytics; ok:
         last_wrong_at: strOrNull(r.last_wrong_at),
         question_text: strOrNull(r.question_text),
       })),
+      topic_analysis_locked: p.topic_analysis_locked === true,
     },
   };
 }

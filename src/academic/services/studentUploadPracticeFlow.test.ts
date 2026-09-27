@@ -252,7 +252,7 @@ describe("attempt snapshot — upload source (§9.1)", () => {
   });
 
   it("maps listForPractice from_upload onto BankQuestion.fromUpload", () => {
-    const mapped = section("const mapped = rows", ".filter((x): x is BankQuestion => x !== null)");
+    const mapped = section("let mapped = rows", ".filter((x): x is BankQuestion => x !== null)");
     expect(mapped).toContain('"from_upload" in r && r.from_upload === true');
     expect(mapped).toContain("fromUpload,");
   });

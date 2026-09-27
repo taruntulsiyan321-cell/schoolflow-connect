@@ -1,3 +1,4 @@
+import { PlanLimitError, planLimitFrom } from "@/lib/premium";
 import {
   assertCanOwn,
   assertCanConsume,
@@ -639,6 +640,10 @@ export const PracticeService = {
       _source: args.source ?? "practice",
       _meta: meta,
     });
+    // A plan refusal keeps its decision, so the screen can show the plan notice
+    // (throwIfError would keep only the message).
+    const refused = planLimitFrom(error);
+    if (refused) throw new PlanLimitError(refused);
     throwIfError(error, "Failed to record practice attempt");
     broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
       studentId: ctx.studentId,

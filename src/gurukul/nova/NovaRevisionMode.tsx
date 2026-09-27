@@ -15,6 +15,9 @@ import { FeynmanTest, type TestOutcome } from "./FeynmanTest";
 import { RevisionSummary } from "./RevisionSummary";
 import { getRecognitionCtor } from "./useSpeechCapture";
 import { listItems } from "@/lib/listState";
+import type { PlanLimit } from "@/lib/premium";
+import { premiumChanged } from "@/hooks/usePremiumStatus";
+import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 
 /**
  * Nova's Revision mode. Any topic → a gist → the Feynman test (explain it back
@@ -95,6 +98,7 @@ export function NovaRevisionMode() {
   const [loading, setLoading] = useState<{ topic: string; reload: boolean } | null>(null);
   const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState("");
+  const [planLimit, setPlanLimit] = useState<PlanLimit | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const grade = student.class;
 
@@ -140,6 +144,7 @@ export function NovaRevisionMode() {
     const controller = new AbortController();
     abortRef.current = controller;
     setError("");
+    setPlanLimit(null);
     setLoading({ topic: clean, reload });
     const chapters = given ? [] : await catalog.rows;
     if (controller.signal.aborted) return; // cancelled while the catalog was read
@@ -148,7 +153,10 @@ export function NovaRevisionMode() {
     if (!result) return; // cancelled
     setLoading(null);
     if (!result.ok) {
-      if (reload) toast.error(result.error);
+      if (result.planLimit) {
+        setPlanLimit(result.planLimit);
+        premiumChanged();
+      } else if (reload) toast.error(result.error);
       else setError(result.error);
       return;
     }
@@ -255,6 +263,7 @@ export function NovaRevisionMode() {
           >
             Start revising
           </button>
+          {planLimit && <PlanLimitNotice limit={planLimit} />}
           {error && <p role="alert" className="text-center text-sm text-destructive">{error}</p>}
         </form>
 

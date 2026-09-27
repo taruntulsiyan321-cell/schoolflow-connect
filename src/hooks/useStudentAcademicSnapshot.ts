@@ -28,6 +28,12 @@ export type AcademicSnapshot = {
     attempts?: number; correct?: number; thin?: boolean;
   }[];
   /**
+   * PLANS (20261112000000): set when the plan does not include topic-wise
+   * analysis. weak_topics then arrives empty, and an empty list is not
+   * "nothing flagged".
+   */
+  topic_analysis_locked?: boolean;
+  /**
    * Chapters whose §5.3 revision date has arrived, from chapter_state — the
    * same source the Revision screen reads.
    *

@@ -4,6 +4,7 @@
  */
 import { GlassCard, SectionLabel, cn } from "@/gurukul/components/shared";
 import type { ScreenCaptureMistakesApi } from "@/hooks/useScreenCaptureMistakes";
+import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 
 export function ScreenCaptureMistakesCard({ api }: { api: ScreenCaptureMistakesApi }) {
   if (!api.available) return null;
@@ -18,6 +19,8 @@ export function ScreenCaptureMistakesCard({ api }: { api: ScreenCaptureMistakesA
         you have not allowed never leave the phone. In test mode, open the
         solutions and Gurukul will pick up your mistakes.
       </p>
+
+      {api.planLimit && <PlanLimitNotice limit={api.planLimit} className="mb-3" />}
 
       {api.usageAccess === false && (
         <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-3">

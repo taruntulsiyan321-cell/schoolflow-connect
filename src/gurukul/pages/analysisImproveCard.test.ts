@@ -20,4 +20,9 @@ describe("What should I improve?", () => {
     expect(improveSubline(1, 1)).toBe("1 topic needs attention");
     expect(improveSubline(2, 1)).toBe("2 topics need attention");
   });
+
+  it("says the plan does not cover topics, rather than that none are weak", () => {
+    expect(improveSubline(null, 3)).toBe("Topic-wise analysis is not in your plan.");
+    expect(improveSubline(null, 0)).toBe("Topic-wise analysis is not in your plan.");
+  });
 });

@@ -93,15 +93,24 @@ export async function premiumRelease(admin: SupabaseClient, accountId: string, d
   if (error) console.error("premium_release failed", decision.feature, error.message ?? error);
 }
 
-const FEATURE_NAMES: Record<string, string> = {
-  "practice.question": "practice questions",
-  "analysis.topic": "topic-wise analysis",
-  "nova.message": "Nova messages",
-  "mistake.explain": "Explain my mistake",
-  "insights.report": "the insights coach",
-  "custom_practice.upload": "Custom Practice uploads",
-  "screen_capture.mistake": "screen captures",
-  "mock_test.start": "mock tests",
+/**
+ * How each feature is named in a refusal: [name, one use, several uses, whether
+ * the name takes "are"]. The same sentences src/lib/premium.ts shows (a vitest
+ * pins them together): this one reaches the student wherever the app shows the
+ * raw error, and custom-practice-upload stores it on the upload row.
+ *
+ * No "Upgrade…" — the Android build may not point at a purchase (Play billing),
+ * and a stored sentence cannot know which build will read it.
+ */
+const REFUSAL_WORDS: Record<PremiumFeature, [string, string, string, boolean]> = {
+  "practice.question": ["Practice questions", "practice question", "practice questions", true],
+  "analysis.topic": ["Topic-wise analysis", "topic-wise analysis", "topic-wise analysis", false],
+  "nova.message": ["Nova AI tutor messages", "Nova message", "Nova messages", true],
+  "mistake.explain": ["Explain my mistake", "Explain my mistake", "Explain my mistake", false],
+  "insights.report": ["AI insights coach", "AI insights coach", "AI insights coach", false],
+  "custom_practice.upload": ["Custom Practice uploads", "Custom Practice upload", "Custom Practice uploads", true],
+  "screen_capture.mistake": ["Mistakes captured from other apps", "screen capture", "screen captures", true],
+  "mock_test.start": ["Full CUET mock tests", "mock test", "mock tests", true],
 };
 
 const PERIOD_NAMES: Record<string, string> = {
@@ -112,12 +121,11 @@ const PERIOD_NAMES: Record<string, string> = {
 
 /** The sentence a student reads when a plan refuses. */
 export function planLimitMessage(d: PremiumDecision): string {
-  const what = FEATURE_NAMES[d.feature] ?? d.feature;
+  const [name, one, many, plural] = REFUSAL_WORDS[d.feature as PremiumFeature] ?? [d.feature, d.feature, d.feature, false];
   if (d.reason === "limit_reached" && typeof d.limit === "number") {
-    const period = PERIOD_NAMES[d.period ?? ""] ?? "your";
-    return `You've used ${period} ${d.limit} ${what}. Upgrade your plan for more.`;
+    return `You've used ${PERIOD_NAMES[d.period ?? ""] ?? "your"} ${d.limit} ${d.limit === 1 ? one : many}.`;
   }
-  return `${what.charAt(0).toUpperCase()}${what.slice(1)} ${what.endsWith("s") ? "are" : "is"} not in your plan. Upgrade to use ${what === "Explain my mistake" ? "it" : "them"}.`;
+  return `${name} ${plural ? "are" : "is"} not in your plan.`;
 }
 
 /** The one refusal every gated function sends. */

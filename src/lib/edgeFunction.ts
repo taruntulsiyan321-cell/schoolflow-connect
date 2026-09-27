@@ -1,10 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { FunctionsError } from "@supabase/supabase-js";
+import { planLimitFrom, type PlanLimit } from "@/lib/premium";
 
 type EdgeInvokeResult<T> = {
   data: T | null;
   error: string | null;
   usedFallback: boolean;
+  /** Set when the function refused because of the caller's plan (402 plan_limit). */
+  planLimit?: PlanLimit | null;
 };
 
 /** Strip vendor names from messages shown in the app UI. Keep "AI" (billing copy). */
@@ -81,6 +84,7 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
   if (error) {
     const fnErr = error as FunctionsError;
     let message = fnErr.message ?? "Edge function failed";
+    let planLimit: PlanLimit | null = null;
 
     const ctx = (fnErr as { context?: Response }).context;
     if (ctx && typeof ctx.json === "function") {
@@ -93,11 +97,13 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
         if (parsed && typeof parsed === "object") {
           const fromBody = messageFromErrorBody(parsed as Record<string, unknown>);
           if (fromBody) message = fromBody;
+          planLimit = planLimitFrom(parsed);
         }
       } catch {
         /* ignore */
       }
     }
+    if (planLimit) return { data: null, error: planLimit.message, usedFallback: false, planLimit };
 
     if (message.includes("Failed to send") || message.includes("FunctionsFetchError")) {
       message = "Learning service unavailable. Please retry.";

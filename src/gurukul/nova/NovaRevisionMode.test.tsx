@@ -408,3 +408,41 @@ describe("Revision mode — stopping talking sends the answer", () => {
     await screen.findByText("And ball-tracking?");
   });
 });
+
+describe("Revision mode — a plan refusal", () => {
+  const refusal = async () => {
+    const { planLimitFrom } = await import("@/lib/premium");
+    const planLimit = planLimitFrom({
+      error_code: "plan_limit",
+      premium: { ok: false, applies: true, enforced: true, tier: "free", feature: "nova.message", period: "day", limit: 5, used: 5, remaining: 0, reason: "limit_reached" },
+    });
+    return Promise.resolve({ data: null, error: planLimit!.message, usedFallback: false, planLimit });
+  };
+
+  it("shows the plan notice on the picker, not an error, and stays there", async () => {
+    const { MemoryRouter } = await import("react-router-dom");
+    invoke.mockReturnValueOnce(refusal());
+    render(<MemoryRouter><NovaRevisionMode /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "Partnership" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
+    await screen.findByText("You've used today's 5 Nova messages.");
+    expect(screen.getByRole("button", { name: "See plans" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: "Start revising" })).toBeTruthy();
+  });
+
+  it("in the Feynman test shows the plan notice instead of 'Nova couldn't reply'", async () => {
+    const { MemoryRouter } = await import("react-router-dom");
+    invoke.mockReturnValueOnce(ok({ gist: GIST }));
+    render(<MemoryRouter><NovaRevisionMode /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "How cricket DRS works" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
+    await screen.findByRole("heading", { name: GIST.title });
+    fireEvent.click(screen.getByRole("button", { name: /Start Feynman Test/ }));
+    await screen.findByText(GIST.opening_question);
+    invoke.mockReturnValueOnce(refusal());
+    await speak("teams can challenge the umpire");
+    await screen.findByText("You've used today's 5 Nova messages.");
+    expect(screen.queryByText(/Nova couldn't reply/)).toBeNull();
+  });
+});

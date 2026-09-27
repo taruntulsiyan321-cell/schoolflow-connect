@@ -105,3 +105,62 @@ describe("describeAllowance and formatRupees", () => {
     expect(formatRupees(19950)).toBe("₹199.50");
   });
 });
+
+describe("which practice the allowance counts", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { PRACTICE_MODES_NOT_COUNTED, practiceSessionIsCounted } = await import("./premium");
+
+  it("names exactly the modes the server's gate exempts (pinned to 20261111000000)", () => {
+    const sql = readFileSync(join(__dirname, "../../supabase/migrations/20261111000000_premium_plans_for_individual_accounts.sql"), "utf8");
+    const gate = sql.match(/IF _src = 'practice' AND COALESCE\(_practice_mode, ''\) NOT IN \(([^)]*)\) THEN\s+PERFORM public\._premium_require\(_uid, 'practice\.question', 1\);/);
+    expect(gate, "the gate's SQL moved: re-pin this list to it").not.toBeNull();
+    const server = gate![1].split(",").map((s) => s.trim().replace(/'/g, "")).sort();
+    expect([...PRACTICE_MODES_NOT_COUNTED].sort()).toEqual(server);
+  });
+
+  it("counts new practice, and never Recovery, Revision, reattempts or uploads", () => {
+    for (const mode of ["subject", "chapter", "topic", "custom", "pyq", "weak", "skipped", "bookmarked"]) {
+      expect(practiceSessionIsCounted({ mode }), mode).toBe(true);
+    }
+    expect(practiceSessionIsCounted({ mode: "incorrect" })).toBe(false);
+    expect(practiceSessionIsCounted({ mode: "recovery" })).toBe(false);
+    expect(practiceSessionIsCounted({ mode: "chapter", revision: { chapterId: "c" } })).toBe(false);
+    expect(practiceSessionIsCounted({ mode: "custom", recovery: { sessionId: "s" } })).toBe(false);
+    expect(practiceSessionIsCounted({ mode: "custom", upload: { uploadId: "u" } })).toBe(false);
+  });
+});
+
+describe("the refusal sentences", () => {
+  it("say 'is' or 'are' by the word, not its last letter", async () => {
+    const { notInPlan } = await import("./premium");
+    // "Topic-wise analysis are not in your plan." — the last letter decided it.
+    expect(notInPlan("analysis.topic").message).toBe("Topic-wise analysis is not in your plan.");
+    expect(notInPlan("mock_test.start").message).toBe("Full CUET mock tests are not in your plan.");
+  });
+
+  it("are the ones the edge functions send (supabase/functions/_shared/premium.ts)", async () => {
+    // The server's own planLimitMessage, run — not its source read. It is
+    // Deno code, so it is transpiled here with its one import removed (the
+    // function never touches it).
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const ts = (await import("typescript")).default;
+    const src = readFileSync(join(__dirname, "../../supabase/functions/_shared/premium.ts"), "utf8")
+      .replace(/^import .*esm.sh.*$/m, "");
+    const js = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+    const server = {} as { planLimitMessage: (d: unknown) => string };
+    new Function("exports", "require", js)(server, () => ({}));
+
+    const { FEATURE_ORDER, notInPlan } = await import("./premium");
+    for (const f of FEATURE_ORDER) {
+      expect(server.planLimitMessage({ ok: false, feature: f, reason: "not_in_plan" })).toBe(notInPlan(f).message);
+      for (const [period, limit] of [["day", 1], ["month", 5], ["lifetime", 1]] as const) {
+        const d = { ok: false, feature: f, reason: "limit_reached", limit, period };
+        expect(server.planLimitMessage(d)).toBe(planLimitFrom({ error_code: "plan_limit", premium: d })?.message);
+      }
+    }
+    // CONTROL: the comparison is not vacuous.
+    expect(server.planLimitMessage({ ok: false, feature: "analysis.topic", reason: "not_in_plan" })).toBe("Topic-wise analysis is not in your plan.");
+  });
+});

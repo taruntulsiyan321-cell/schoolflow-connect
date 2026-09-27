@@ -20,6 +20,9 @@ import { STUDENT_UPLOAD_ACCEPT } from "@/academic/storage/studentUploadFile";
 import { cn, LoadingState } from "@/gurukul/components/shared";
 import { withAlpha } from "@/lib/colorAlpha";
 import { toErrorMessage } from "@/lib/presentation";
+import { fetchPremiumStatus, refusalFor, usesLeft, type PlanLimit } from "@/lib/premium";
+import { premiumChanged, usePremiumStatus } from "@/hooks/usePremiumStatus";
+import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 import { FileUp, Loader2, Trash2, X } from "lucide-react";
 
 type Props = {
@@ -63,6 +66,12 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
   } | null>(null);
   const [notesLoadingId, setNotesLoadingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // PLANS (20261111000000): Custom Practice is in the paid plans, counted per
+  // upload a month. The plan is read up front so a student whose plan refuses
+  // it sees why before choosing files; `planRefusal` is a refusal met since.
+  const { status: premium } = usePremiumStatus();
+  const [planRefusal, setPlanRefusal] = useState<PlanLimit | null>(null);
+  const planLimit = planRefusal ?? refusalFor(premium, "custom_practice.upload");
 
   const refresh = useCallback(async () => {
     if (!ctx || !academicReady) {
@@ -90,6 +99,19 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
     const files = Array.from(fileList);
     setUploading(true);
     try {
+      // Read the allowance before anything is sent to storage: each file is
+      // one upload, counted when it is classified.
+      const status = await fetchPremiumStatus().catch(() => null);
+      const refusal = refusalFor(status, "custom_practice.upload");
+      if (refusal) {
+        setPlanRefusal(refusal);
+        return;
+      }
+      const allowance = usesLeft(status, "custom_practice.upload");
+      if (allowance && files.length > allowance.left) {
+        toast.error(`${allowance.note} Choose ${allowance.left === 1 ? "one file" : `${allowance.left} files or fewer`}.`);
+        return;
+      }
       // Multi-image pages → one pending row each; no questions invented client-side.
       const created = await StudentUploadService.create(ctx, files);
       setRows((prev) => [...created, ...prev]);
@@ -99,6 +121,12 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
       for (const row of created) {
         setBusyId(row.id);
         const classify = await StudentUploadService.requestClassify(ctx, row.id);
+        if (classify.planLimit) {
+          // The rest would be refused too; they stay saved and can be
+          // classified again when the allowance comes back.
+          setPlanRefusal(classify.planLimit);
+          break;
+        }
         if (!classify.ok) classifyMiss = true;
         outside += classify.outside?.count ?? 0;
         classify.outside?.subjects.forEach((s) => outsideSubjects.add(s));
@@ -112,6 +140,8 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
         const which = outsideSubjects.size ? [...outsideSubjects].join(", ") : "another subject";
         toast.message(`${outside} item${outside === 1 ? "" : "s"} from ${which} not saved — not one of your exam subjects.`);
       }
+      // The month's count moved (or a refusal was met): the plan is read again.
+      premiumChanged();
       await refresh();
     } catch (e) {
       toast.error(toErrorMessage(e, "Upload failed"));
@@ -140,7 +170,9 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
     setBusyId(id);
     try {
       const r = await StudentUploadService.requestClassify(ctx, id);
-      if (!r.ok) toast.error(r.error || "Classifier failed");
+      if (r.planLimit) setPlanRefusal(r.planLimit);
+      else if (!r.ok) toast.error(r.error || "Classifier failed");
+      premiumChanged();
       await refresh();
     } finally {
       setBusyId(null);
@@ -189,9 +221,10 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
           className="hidden"
           onChange={(e) => void onPick(e.target.files)}
         />
+        {planLimit && <PlanLimitNotice limit={planLimit} className="mb-3" />}
         <button
           type="button"
-          disabled={uploading || !ctx}
+          disabled={uploading || !ctx || planLimit !== null}
           onClick={() => inputRef.current?.click()}
           className={cn(
             "w-full flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-bold transition-all",

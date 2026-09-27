@@ -14,6 +14,9 @@ import {
 import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import "@/components/student/analytics/wisdom/wisdom-analytics.css";
 import { toAiLine } from "@/lib/presentation";
+import type { PlanLimit } from "@/lib/premium";
+import { premiumChanged } from "@/hooks/usePremiumStatus";
+import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 
 /**
  * ── THIS CARD DOES NOT REPORT THE SESSION'S FIGURES ────────────────────────
@@ -53,6 +56,11 @@ export function ConceptRecoveryReport({
   const [loading, setLoading] = useState(!fallbackReport);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The AI step's own outcome. It used to set `error`, which is the REPORT's
+  // load failure — so a failed "Get insights" replaced the whole card, the
+  // report the student already had included, with "unavailable".
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiPlanLimit, setAiPlanLimit] = useState<PlanLimit | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,13 +121,17 @@ export function ConceptRecoveryReport({
   const fetchAi = async () => {
     if (!report) return;
     setAiLoading(true);
-    const { data, error: err } = await invokeEdgeFunction<ConceptAiReport>("ai-concept-report", { report });
+    setAiError(null);
+    setAiPlanLimit(null);
+    const { data, error: err, planLimit } = await invokeEdgeFunction<ConceptAiReport>("ai-concept-report", { report });
     if (data && !err) {
       setInsights({ ...data, source: "ai" });
-      setAiLoading(false);
-      return;
+    } else if (planLimit) {
+      setAiPlanLimit(planLimit);
+      premiumChanged();
+    } else {
+      setAiError(err ?? "Insights could not be generated. Please try again.");
     }
-    if (err) setError(err);
     setAiLoading(false);
   };
 
@@ -180,6 +192,13 @@ export function ConceptRecoveryReport({
         </Button>
       </div>
 
+
+      {aiPlanLimit && <PlanLimitNotice limit={aiPlanLimit} className="mb-4" />}
+      {aiError && (
+        <p role="alert" className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <AlertTriangle className="h-3.5 w-3.5 text-warning" /> {aiError}
+        </p>
+      )}
 
       {weak.length > 0 && (
         <div className="mb-4">

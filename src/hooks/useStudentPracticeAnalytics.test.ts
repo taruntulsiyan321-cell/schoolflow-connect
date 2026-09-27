@@ -82,4 +82,11 @@ describe("parseAnalytics", () => {
     expect(data.recurring[0].times_wrong).toBe(3);
     expect(parseAnalytics({}).data.effort).toBeNull();
   });
+
+  it("carries the plan's topic lock (20261112000000), and only a real true", () => {
+    expect(parseAnalytics({ by_topic: [], topic_analysis_locked: true }).data.topic_analysis_locked).toBe(true);
+    // CONTROL: absent, or anything that is not the boolean, is not a lock.
+    expect(parseAnalytics({ by_topic: [] }).data.topic_analysis_locked).toBe(false);
+    expect(parseAnalytics({ topic_analysis_locked: "true" }).data.topic_analysis_locked).toBe(false);
+  });
 });

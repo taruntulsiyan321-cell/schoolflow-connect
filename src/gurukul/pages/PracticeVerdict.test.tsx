@@ -37,6 +37,11 @@ vi.mock("@/academic", async (importOriginal) => {
     },
   };
 });
+// No plan in force: the session is not sized (PracticeAllowance.test.tsx covers that).
+vi.mock("@/lib/premium", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/premium")>()),
+  fetchPremiumStatus: async () => null,
+}));
 
 const { Session } = await import("@/gurukul/pages/Practice");
 

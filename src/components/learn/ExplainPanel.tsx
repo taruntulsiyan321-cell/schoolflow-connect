@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, Brain, Lightbulb, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import type { PlanLimit } from "@/lib/premium";
+import { premiumChanged } from "@/hooks/usePremiumStatus";
+import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 import { displayConcept, fixMojibake } from "@/lib/academicDisplay";
 
 type Explanation = {
@@ -108,6 +111,8 @@ export function ExplainPanel(props: Props) {
   const [data, setData] = useState<Explanation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The plan does not include Explain my mistake: the saved answer shows, with the notice. */
+  const [planLimit, setPlanLimit] = useState<PlanLimit | null>(null);
   const [open, setOpen] = useState(autoLoad);
   const fetched = useRef(false);
   const answerContext = buildAnswerContext({ options, correctIndex, selectedIndex, correctText, selectedText });
@@ -137,7 +142,7 @@ export function ExplainPanel(props: Props) {
       // swallowed, so ai_explanations held 0 rows and every click paid for a
       // model call. It now lives where the payload comes from the model, not
       // from a browser that could write anything into it.
-      const { data: res, error: fnErr } = await invokeEdgeFunction<Explanation & { source?: string }>("ai-explain", {
+      const { data: res, error: fnErr, planLimit: refused } = await invokeEdgeFunction<Explanation & { source?: string }>("ai-explain", {
         question, options, correct_index: correctIndex, selected_index: selectedIndex,
         correct_text: correctText, selected_text: selectedText,
         subject, chapter, topic, grade: String(grade ?? ""),
@@ -151,6 +156,14 @@ export function ExplainPanel(props: Props) {
           how_to_improve: res.how_to_improve ?? "",
         };
         setData(payload);
+        return;
+      }
+
+      if (refused) {
+        // Not retried: the plan will say the same until it changes.
+        setPlanLimit(refused);
+        premiumChanged();
+        setData(fallbackExplanation);
         return;
       }
 
@@ -228,6 +241,8 @@ export function ExplainPanel(props: Props) {
               <button onClick={() => { setError(null); setData(null); fetched.current = false; load(); }} className="underline ml-1">Retry</button>
             </div>
           )}
+
+          {planLimit && <PlanLimitNotice limit={planLimit} className="mb-3" />}
 
           {error && data && (
             <p className="mb-3 text-xs text-muted-foreground flex items-center gap-1.5">

@@ -54,7 +54,7 @@ describe("a practice session records what the student was shown", () => {
   it("starts the session row only once there are questions to sit", () => {
     const loader = section("const rows = await loadSessionQuestions(ctx, config);", "} catch (e) {");
     const start = loader.indexOf("PracticeService.start(");
-    const mapped = loader.indexOf("const mapped");
+    const mapped = loader.indexOf("let mapped = rows");
     expect(mapped, "questions must be loaded before the row is created").toBeGreaterThan(-1);
     expect(start, "the session must still be started").toBeGreaterThan(mapped);
     expect(loader).toContain("if (mapped.length > 0)");

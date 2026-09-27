@@ -8,6 +8,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { toErrorMessage } from "@/lib/presentation";
+import { fetchPremiumStatus, refusalFor, type PlanLimit } from "@/lib/premium";
+import { premiumChanged } from "@/hooks/usePremiumStatus";
 import { supabase } from "@/integrations/supabase/client";
 import {
   deleteScreenCaptureQuestion,
@@ -104,6 +106,8 @@ export type ScreenCaptureMistakesApi = {
   knownApps: typeof KNOWN_APPS;
   counters: FunnelCountersJs | null;
   lastResult: ScreenCaptureSubmitResult | null;
+  /** The plan refused captures (none left today, or none in the plan). */
+  planLimit: PlanLimit | null;
   ensurePwAllowed: () => Promise<void>;
   setAppAllowed: (packageName: string, label: string, allowed: boolean) => Promise<void>;
   showTap: () => Promise<void>;
@@ -147,6 +151,7 @@ export function useScreenCaptureMistakes(opts: {
   const [allowedPackages, setAllowedPackages] = useState<string[]>([]);
   const [counters, setCounters] = useState<FunnelCountersJs | null>(null);
   const [lastResult, setLastResult] = useState<ScreenCaptureSubmitResult | null>(null);
+  const [planLimit, setPlanLimit] = useState<PlanLimit | null>(null);
   const uploading = useRef(false);
   const uploadQueue = useRef<{ frame: CaptureFrame; source: "tap" | "watch" }[]>([]);
   const allowedRef = useRef<string[]>([]);
@@ -187,6 +192,18 @@ export function useScreenCaptureMistakes(opts: {
     }
   }, [available, setWatchingSync]);
 
+  /**
+   * PLANS (20261111000000): captures are counted per day. Asked before the tap
+   * button or a watch session starts, so the phone does not film and upload
+   * frames the server will refuse. The server still decides (fail closed).
+   */
+  const refusedByPlan = useCallback(async () => {
+    const refusal = refusalFor(await fetchPremiumStatus().catch(() => null), "screen_capture.mistake");
+    setPlanLimit(refusal);
+    if (refusal) toast.error(refusal.message);
+    return refusal !== null;
+  }, []);
+
   const refreshUsageAccess = useCallback(async () => {
     if (!available) return;
     try {
@@ -217,6 +234,21 @@ export function useScreenCaptureMistakes(opts: {
             school_id: schoolRef.current ?? null,
           });
           setLastResult(result);
+          if (result.planLimit) {
+            // Every frame after this one would be refused too: stop filming
+            // and drop what is queued, rather than upload each to be told no.
+            setPlanLimit(result.planLimit);
+            premiumChanged();
+            toast.error(result.planLimit.message);
+            uploadQueue.current.length = 0;
+            if (watchingRef.current) {
+              stopToastFromUi.current = true;
+              await ScreenCaptureMistake.stopWatchSession().catch(() => undefined);
+              setWatchingSync(false);
+            }
+            await ScreenCaptureMistake.hideTapOverlay().catch(() => undefined);
+            break;
+          }
           if (!result.ok) {
             toast.error(result.error ?? result.message ?? "Capture upload failed");
           } else if (result.captured === false) {
@@ -239,7 +271,7 @@ export function useScreenCaptureMistakes(opts: {
       setBusy(false);
       if (uploadQueue.current.length > 0) void processUploadQueue();
     }
-  }, [refreshCounters]);
+  }, [refreshCounters, setWatchingSync]);
 
   const enqueueUpload = useCallback(
     (frame: CaptureFrame, source: "tap" | "watch") => {
@@ -399,6 +431,7 @@ export function useScreenCaptureMistakes(opts: {
     }
     setBusy(true);
     try {
+      if (await refusedByPlan()) return;
       await ensurePwAllowed();
       if (allowedRef.current.length === 0) {
         toast.message("Choose at least one allowed app first");
@@ -415,7 +448,7 @@ export function useScreenCaptureMistakes(opts: {
     } finally {
       setBusy(false);
     }
-  }, [available, ensurePwAllowed]);
+  }, [available, ensurePwAllowed, refusedByPlan]);
 
   const hideTap = useCallback(async () => {
     if (!available) return;
@@ -426,6 +459,7 @@ export function useScreenCaptureMistakes(opts: {
     if (!available) return;
     setBusy(true);
     try {
+      if (await refusedByPlan()) return;
       await ensurePwAllowed();
       if (allowedRef.current.length === 0) {
         toast.message("Choose at least one allowed app first");
@@ -466,7 +500,7 @@ export function useScreenCaptureMistakes(opts: {
     } finally {
       setBusy(false);
     }
-  }, [available, ensurePwAllowed, refreshCounters, refreshUsageAccess, setWatchingSync]);
+  }, [available, ensurePwAllowed, refreshCounters, refreshUsageAccess, refusedByPlan, setWatchingSync]);
 
   const stopWatch = useCallback(async () => {
     if (!available) return;
@@ -507,6 +541,7 @@ export function useScreenCaptureMistakes(opts: {
     knownApps: KNOWN_APPS,
     counters,
     lastResult,
+    planLimit,
     ensurePwAllowed,
     setAppAllowed,
     showTap,

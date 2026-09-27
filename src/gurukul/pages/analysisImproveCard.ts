@@ -7,6 +7,7 @@
  * 2026-09-25), which read as the card contradicting itself.
  */
 import { pluralise } from "@/lib/plural";
+import { notInPlan } from "@/lib/premium";
 
 /** "A", "A & B", "A, B & C" — "A & B & C" read as a stammer. */
 export function improveHeadline(weakSubjects: string[], hasSubjects: boolean): string {
@@ -15,7 +16,9 @@ export function improveHeadline(weakSubjects: string[], hasSubjects: boolean): s
   return `${weakSubjects.slice(0, -1).join(", ")} & ${weakSubjects[weakSubjects.length - 1]}`;
 }
 
-export function improveSubline(weakTopics: number, weakSubjects: number): string {
+/** weakTopics is null when the plan does not include topic-wise analysis. */
+export function improveSubline(weakTopics: number | null, weakSubjects: number): string {
+  if (weakTopics === null) return notInPlan("analysis.topic").message;
   // "1 topic need attention" — the noun was pluralised and the verb was not.
   if (weakTopics > 0) return `${pluralise(weakTopics, "topic")} ${weakTopics === 1 ? "needs" : "need"} attention`;
   if (weakSubjects > 0) return "No single topic stands out yet";

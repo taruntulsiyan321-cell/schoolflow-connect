@@ -32,6 +32,8 @@ import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import { formatSessionAccuracy, resolvePracticeSessionStats } from "@/lib/practiceSessionStats";
 import { toDisplayText } from "@/lib/presentation";
 import { pluralise } from "@/lib/plural";
+import { notInPlan } from "@/lib/premium";
+import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 
 /* Mode chrome only — not academic stats */
 const PRACTICE_MODES = [
@@ -212,7 +214,13 @@ export default function PracticeHubPage() {
     });
   }, [bankSubjects, mastery]);
 
+  // PLANS (20261112000000): without topic-wise analysis in the plan the
+  // snapshot's weak_topics is empty and flagged. Concept mastery is the same
+  // analysis by another road, so the fallback below is not taken either.
+  const topicLock = snapshot?.topic_analysis_locked ? notInPlan("analysis.topic") : null;
+
   const weakTopics = useMemo(() => {
+    if (snapshot?.topic_analysis_locked) return [];
     const fromSnap = (snapshot?.weak_topics ?? [])
       .map((t) => {
         const topic = preferRealAcademicLabel(t.topic, t.chapter);
@@ -445,7 +453,9 @@ export default function PracticeHubPage() {
             <Flame className="w-3.5 h-3.5" /> Weak topics — practice these
           </p>
           <div className="space-y-3">
-            {weakTopics.length === 0 ? (
+            {topicLock ? (
+              <PlanLimitNotice limit={topicLock} />
+            ) : weakTopics.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">No weak topics tracked yet.</p>
             ) : (
               weakTopics.map((t) => (

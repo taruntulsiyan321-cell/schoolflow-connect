@@ -8,6 +8,8 @@ import { broadcastAcademicWrite } from "../live";
 import { getClient, throwIfError } from "../repository/base";
 import type { ServiceContext } from "./context";
 import { assertStudentContext } from "./assertStudentContext";
+import { edgeFunctionErrorMessage } from "@/lib/edgeFunctionError";
+import { planLimitFromInvokeError, type PlanLimit } from "@/lib/premium";
 
 type ScreenCaptureSubmitInput = {
   image_base64: string;
@@ -38,6 +40,8 @@ export type ScreenCaptureSubmitResult = {
   bank_count_after?: number | null;
   promoted_to_question_bank?: boolean;
   error?: string;
+  /** The plan refused the capture (402): the day's captures are used, or the plan has none. */
+  planLimit?: PlanLimit;
 };
 
 type CapturePracticeRow = {
@@ -84,7 +88,9 @@ export async function submitScreenCaptureMistake(
     },
   });
   if (error) {
-    return { ok: false, error: error.message };
+    const planLimit = await planLimitFromInvokeError(error);
+    if (planLimit) return { ok: false, error: planLimit.message, planLimit };
+    return { ok: false, error: await edgeFunctionErrorMessage(error, "Capture upload failed") };
   }
   const result = (data ?? { ok: false, error: "empty_response" }) as ScreenCaptureSubmitResult;
   // Spec §12.11 — Mistake Book / Recovery / Revision listen on profile.

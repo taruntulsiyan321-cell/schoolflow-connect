@@ -9,6 +9,9 @@ import {
 } from "./novaRevisionClient";
 import { useSpeechCapture, type CaptureError } from "./useSpeechCapture";
 import { useNovaSpeaker } from "./useNovaSpeaker";
+import type { PlanLimit } from "@/lib/premium";
+import { premiumChanged } from "@/hooks/usePremiumStatus";
+import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 
 /**
  * Step 2 of revision mode: the Feynman test. Nova asks, the student explains
@@ -62,6 +65,7 @@ export function FeynmanTest({
   const [corrections, setCorrections] = useState<string[]>([]);
   const [status, setStatus] = useState<"ready" | "thinking" | "error" | "complete">("ready");
   const [errorText, setErrorText] = useState("");
+  const [planLimit, setPlanLimit] = useState<PlanLimit | null>(null);
   const [notice, setNotice] = useState("");
   const pendingRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -91,6 +95,7 @@ export function FeynmanTest({
     abortRef.current = controller;
     setStatus("thinking");
     setErrorText("");
+    setPlanLimit(null);
     const result = await sendRevisionAnswer(
       { topic: gist.title, subject, grade, points: gist.key_points, covered, history, answer },
       controller.signal,
@@ -99,6 +104,10 @@ export function FeynmanTest({
     if (!result.ok) {
       setStatus("error");
       setErrorText(result.error);
+      if (result.planLimit) {
+        setPlanLimit(result.planLimit);
+        premiumChanged();
+      }
       return;
     }
     const turn = result.value;
@@ -248,7 +257,8 @@ export function FeynmanTest({
             </div>
           )}
 
-          {status === "error" && (
+          {status === "error" && planLimit && <PlanLimitNotice limit={planLimit} />}
+          {status === "error" && !planLimit && (
             <div role="alert" className="space-y-2 rounded-2xl border border-warning/30 bg-warning/10 p-4 text-sm text-foreground">
               <p>Nova couldn't reply: {errorText}</p>
               <button type="button" onClick={retry} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">

@@ -6,6 +6,8 @@ import type { ServiceContext } from "./context";
 import { assertStudentContext } from "./assertStudentContext";
 import { getClient, throwIfError } from "../repository/base";
 import { uploadStudentUploadFile } from "../storage/studentUploadFile";
+import { edgeFunctionErrorMessage } from "@/lib/edgeFunctionError";
+import { planLimitFromInvokeError, type PlanLimit } from "@/lib/premium";
 
 export type UploadVerdict = "questions" | "notes" | "mixed" | "unusable";
 export type UploadStatus = "pending" | "processing" | "ready" | "unusable" | "failed";
@@ -398,14 +400,18 @@ export const StudentUploadService = {
   async requestClassify(
     ctx: ServiceContext,
     uploadId: string,
-  ): Promise<{ ok: boolean; error?: string; outside?: { count: number; subjects: string[] } }> {
+  ): Promise<{ ok: boolean; error?: string; planLimit?: PlanLimit; outside?: { count: number; subjects: string[] } }> {
     assertStudentContext(ctx);
     const db = getClient(ctx);
     const { data, error } = await db.functions.invoke("custom-practice-upload", {
       body: { upload_id: uploadId },
     });
     if (error) {
-      return { ok: false, error: error.message || "Classifier could not be reached" };
+      // The plan refused it (402), or the function's own words — not the
+      // client's "Edge Function returned a non-2xx status code".
+      const planLimit = await planLimitFromInvokeError(error);
+      if (planLimit) return { ok: false, error: planLimit.message, planLimit };
+      return { ok: false, error: await edgeFunctionErrorMessage(error, "Classifier could not be reached") };
     }
     if (data && typeof data === "object" && "error" in data && data.error) {
       return { ok: false, error: String((data as { error: unknown }).error) };

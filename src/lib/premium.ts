@@ -88,16 +88,27 @@ export type PlanLimit = {
   decision: PremiumDecision;
 };
 
-export const FEATURE_NAMES: Record<PremiumFeature, string> = {
-  "practice.question": "Practice questions",
-  "analysis.topic": "Topic-wise analysis",
-  "nova.message": "Nova AI tutor messages",
-  "mistake.explain": "Explain my mistake",
-  "insights.report": "AI insights coach",
-  "custom_practice.upload": "Custom Practice uploads",
-  "screen_capture.mistake": "Mistakes captured from other apps",
-  "mock_test.start": "Full CUET mock tests",
+/**
+ * How each feature is named: [name, one use, several uses, whether the name
+ * takes "are"]. The same rows the edge functions refuse with
+ * (supabase/functions/_shared/premium.ts, pinned by premium.test.ts). Stated
+ * per feature because the last letter guessed it once: "Topic-wise analysis
+ * are not in your plan."
+ */
+const FEATURE_WORDS: Record<PremiumFeature, [string, string, string, boolean]> = {
+  "practice.question": ["Practice questions", "practice question", "practice questions", true],
+  "analysis.topic": ["Topic-wise analysis", "topic-wise analysis", "topic-wise analysis", false],
+  "nova.message": ["Nova AI tutor messages", "Nova message", "Nova messages", true],
+  "mistake.explain": ["Explain my mistake", "Explain my mistake", "Explain my mistake", false],
+  "insights.report": ["AI insights coach", "AI insights coach", "AI insights coach", false],
+  "custom_practice.upload": ["Custom Practice uploads", "Custom Practice upload", "Custom Practice uploads", true],
+  "screen_capture.mistake": ["Mistakes captured from other apps", "screen capture", "screen captures", true],
+  "mock_test.start": ["Full CUET mock tests", "mock test", "mock tests", true],
 };
+
+export const FEATURE_NAMES = Object.fromEntries(
+  Object.entries(FEATURE_WORDS).map(([f, [name]]) => [f, name]),
+) as Record<PremiumFeature, string>;
 
 /** The order the plans screen lists features in. */
 export const FEATURE_ORDER: PremiumFeature[] = [
@@ -122,22 +133,12 @@ export function describeAllowance(period: PremiumPeriod | undefined, limit: numb
 
 const PERIOD_WORD: Record<string, string> = { day: "today's", month: "this month's", lifetime: "your" };
 
-/** What a counted feature is counted in: "5 Nova messages". */
-const COUNT_NOUNS: Partial<Record<PremiumFeature, [string, string]>> = {
-  "practice.question": ["practice question", "practice questions"],
-  "nova.message": ["Nova message", "Nova messages"],
-  "custom_practice.upload": ["Custom Practice upload", "Custom Practice uploads"],
-  "screen_capture.mistake": ["screen capture", "screen captures"],
-  "mock_test.start": ["mock test", "mock tests"],
-};
-
 function messageFor(d: PremiumDecision): string {
-  const name = FEATURE_NAMES[d.feature as PremiumFeature] ?? d.feature;
+  const [name, one, many, plural] = FEATURE_WORDS[d.feature as PremiumFeature] ?? [d.feature, d.feature, d.feature, false];
   if (d.reason === "limit_reached" && typeof d.limit === "number") {
-    const [one, many] = COUNT_NOUNS[d.feature as PremiumFeature] ?? [name, name];
     return `You've used ${PERIOD_WORD[d.period ?? ""] ?? "your"} ${d.limit} ${d.limit === 1 ? one : many}.`;
   }
-  return `${name} ${name.endsWith("s") ? "are" : "is"} not in your plan.`;
+  return `${name} ${plural ? "are" : "is"} not in your plan.`;
 }
 
 function asDecision(v: unknown): PremiumDecision | null {
@@ -149,6 +150,15 @@ function asDecision(v: unknown): PremiumDecision | null {
 function limitFromDecision(d: PremiumDecision | null): PlanLimit | null {
   if (!d || d.ok || (d.reason !== "not_in_plan" && d.reason !== "limit_reached")) return null;
   return { feature: d.feature, reason: d.reason, message: messageFor(d), decision: d };
+}
+
+/**
+ * A refusal the server states as a flag on a read rather than as a decision —
+ * `topic_analysis_locked` on the snapshot and the practice analytics.
+ */
+export function notInPlan(feature: PremiumFeature): PlanLimit {
+  const d: PremiumDecision = { ok: false, feature, reason: "not_in_plan" };
+  return { feature, reason: "not_in_plan", message: messageFor(d), decision: d };
 }
 
 /**
@@ -184,6 +194,32 @@ export function planLimitFrom(value: unknown): PlanLimit | null {
   return null;
 }
 
+/** A plan refusal thrown by a service call, so a screen can show the notice. */
+export class PlanLimitError extends Error {
+  constructor(readonly planLimit: PlanLimit) {
+    super(planLimit.message);
+    this.name = "PlanLimitError";
+  }
+}
+
+/**
+ * Practice modes the server never counts against the daily allowance —
+ * rpc_record_question_attempt's `_practice_mode NOT IN (...)` in
+ * 20261111000000, pinned to that SQL by premium.test.ts. The screen only
+ * uses this to size a session; the server is what refuses.
+ */
+export const PRACTICE_MODES_NOT_COUNTED = ["recovery", "revision", "incorrect"] as const;
+
+/**
+ * Whether a practice session's answers count as new practice questions.
+ * Uploaded questions go in with source 'upload' (their own limit), and a
+ * Recovery session or Revision check is free whatever its mode says.
+ */
+export function practiceSessionIsCounted(s: { mode: string; recovery?: unknown; revision?: unknown; upload?: unknown }): boolean {
+  if (s.upload || s.recovery || s.revision) return false;
+  return !(PRACTICE_MODES_NOT_COUNTED as readonly string[]).includes(s.mode);
+}
+
 /** The refusal carried by a failed `supabase.functions.invoke`, if it is one. */
 export async function planLimitFromInvokeError(error: unknown): Promise<PlanLimit | null> {
   const failure = await readEdgeFunctionError(error);
@@ -200,6 +236,28 @@ export async function fetchPremiumStatus(): Promise<PremiumStatus> {
 export function featureDecision(status: PremiumStatus | null, feature: PremiumFeature): PremiumDecision | null {
   if (!status || !status.individual) return null;
   return status.features.find((f) => f.feature === feature) ?? null;
+}
+
+/**
+ * The notice for a feature the plan refuses now, from a status already read —
+ * null while it is allowed, while plans are not enforced, or for a school's
+ * student. A screen checks this before work the server would refuse.
+ */
+export function refusalFor(status: PremiumStatus | null, feature: PremiumFeature): PlanLimit | null {
+  return limitFromDecision(featureDecision(status, feature));
+}
+
+const LEFT_WHEN: Record<string, string> = { day: " today", month: " this month" };
+
+/**
+ * The uses of a counted feature left under a plan in force, and the sentence
+ * that says so — null when nothing limits it (unlimited, or not enforced).
+ */
+export function usesLeft(status: PremiumStatus | null, feature: PremiumFeature): { left: number; note: string } | null {
+  const d = featureDecision(status, feature);
+  if (!d?.enforced || !d.ok || typeof d.remaining !== "number") return null;
+  const [, one, many] = FEATURE_WORDS[feature];
+  return { left: d.remaining, note: `${d.remaining} ${d.remaining === 1 ? one : many} left${LEFT_WHEN[d.period ?? ""] ?? ""} on your plan.` };
 }
 
 /**

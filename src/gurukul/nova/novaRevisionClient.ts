@@ -1,4 +1,5 @@
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import type { PlanLimit } from "@/lib/premium";
 import { academicLabelEquals } from "@/academic/taxonomy";
 import {
   REVISION_LIMITS,
@@ -21,7 +22,8 @@ import {
 export { REVISION_LIMITS };
 export type { RevisionGist, RevisionStyle, RevisionTurn };
 
-type Result<T> = { ok: true; value: T } | { ok: false; error: string };
+/** planLimit is set when the student's plan refused the request (shown as the plan notice). */
+type Result<T> = { ok: true; value: T } | { ok: false; error: string; planLimit?: PlanLimit | null };
 
 export const CONTRACT_ERROR = "Nova sent a reply this screen can't read. Please try again.";
 const GIST_TIMEOUT_MS = 60_000;
@@ -78,13 +80,13 @@ export async function fetchRevisionGist(
   input: { topic: string; subject?: string; grade?: string; style?: RevisionStyle },
   signal?: AbortSignal,
 ): Promise<Result<RevisionGist> | null> {
-  const { data, error } = await invokeEdgeFunction<Record<string, unknown>>(
+  const { data, error, planLimit } = await invokeEdgeFunction<Record<string, unknown>>(
     "ai-nova-revision",
     { mode: "gist", topic: input.topic, subject: input.subject ?? "", grade: input.grade ?? "", style: input.style ?? "standard" },
     { signal, timeoutMs: GIST_TIMEOUT_MS },
   );
   if (signal?.aborted) return null;
-  if (error) return { ok: false, error };
+  if (error) return { ok: false, error, planLimit };
   const gist = parseGist(data);
   return gist ? { ok: true, value: gist } : { ok: false, error: CONTRACT_ERROR };
 }
@@ -101,7 +103,7 @@ export async function sendRevisionAnswer(
   },
   signal?: AbortSignal,
 ): Promise<Result<RevisionTurnResult> | null> {
-  const { data, error } = await invokeEdgeFunction<Record<string, unknown>>(
+  const { data, error, planLimit } = await invokeEdgeFunction<Record<string, unknown>>(
     "ai-nova-revision",
     {
       mode: "turn",
@@ -118,7 +120,7 @@ export async function sendRevisionAnswer(
     { signal, timeoutMs: TURN_TIMEOUT_MS },
   );
   if (signal?.aborted) return null;
-  if (error) return { ok: false, error };
+  if (error) return { ok: false, error, planLimit };
   const turn = parseTurn(data, input.points.length);
   return turn ? { ok: true, value: turn } : { ok: false, error: CONTRACT_ERROR };
 }

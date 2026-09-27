@@ -63,6 +63,8 @@ import { toErrorMessage } from "@/lib/presentation";
 import { formatLastSeen } from "@/lib/analyticsInsights";
 import { pluralise } from "@/lib/plural";
 import { improveHeadline, improveSubline } from "./analysisImproveCard";
+import { notInPlan } from "@/lib/premium";
+import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { accuracyWhenMeaningful, mayBeJudged, MIN_OBSERVATIONS_FOR_VERDICT } from "@/academic/metrics/thresholds";
 
@@ -195,6 +197,15 @@ export default function Analysis() {
     error: practiceAnalyticsError,
     reload: reloadPracticeAnalytics,
   } = useStudentPracticeAnalytics(academicReady);
+
+  // PLANS (20261112000000): topic-wise analysis is from the first paid plan.
+  // Without it the server sends weak_topics and by_topic empty with
+  // topic_analysis_locked, and every topic panel says so instead of reading
+  // the empty list as "nothing flagged yet".
+  const topicLock = useMemo(
+    () => (snapshot?.topic_analysis_locked || practiceAnalytics?.topic_analysis_locked ? notInPlan("analysis.topic") : null),
+    [snapshot?.topic_analysis_locked, practiceAnalytics?.topic_analysis_locked],
+  );
 
   // Decision Engine Slice 1 swap-in for topicGroups.needs_attention only
   // (see the approved plan -- the other 6 weak_topics/strong_topics read
@@ -875,7 +886,7 @@ export default function Analysis() {
       openMistakes: snapshot?.mistake_count ?? null,
       // Null when the analytics could not be read at all. An empty list is
       // a real "no topics yet"; a missing payload is not.
-      topicsPractised: practiceAnalytics ? practiceAnalytics.by_topic.length : null,
+      topicsPractised: practiceAnalytics && !topicLock ? practiceAnalytics.by_topic.length : null,
       // THE TILE COUNTS WHAT THE LIST BENEATH IT SHOWS.
       //
       // This was snapshot.weak_topics.length — the RAW array — while the
@@ -883,13 +894,13 @@ export default function Analysis() {
       // rows with no usable topic or subject label and rows under the
       // evidence floor (G7). The tile therefore counted topics the tab
       // refused to display, on the same screen, at the same moment.
-      needAttention: topicGroups.needs_attention.length,
+      needAttention: topicLock ? null : topicGroups.needs_attention.length,
     }),
     // practiceAnalytics ITSELF, not practiceAnalytics?.by_topic. The memo
     // distinguishes a null payload from an empty list, so it has to re-run
     // when the payload goes from an object to null even though by_topic
     // reads undefined either way.
-    [snapshot?.mistake_count, topicGroups.needs_attention, practiceAnalytics],
+    [snapshot?.mistake_count, topicGroups.needs_attention, practiceAnalytics, topicLock],
   );
 
   const milestones = useMemo(() => {
@@ -1059,7 +1070,7 @@ export default function Analysis() {
       {
         q: "What should I improve?",
         a: improveText,
-        sub: improveSubline(weakCount, weakSubjects.length),
+        sub: improveSubline(topicLock ? null : weakCount, weakSubjects.length),
         color: "hsl(var(--warning))",
         icon: <Target className="w-4 h-4" />,
       },
@@ -1077,7 +1088,7 @@ export default function Analysis() {
         icon: <BookOpen className="w-4 h-4" />,
       },
     ];
-  }, [overview, subjectData, topicGroups.needs_attention, revisionData.dueToday.length, chapterStates.status]);
+  }, [overview, subjectData, topicGroups.needs_attention, revisionData.dueToday.length, chapterStates.status, topicLock]);
 
   // FIRST POINT AGAINST LAST POINT IS NOT A TREND, and points are not percent.
   //
@@ -1668,7 +1679,7 @@ export default function Analysis() {
             {[
               { label: "Open mistakes",    value: learningProgress.openMistakes ?? "—", color: "hsl(var(--destructive))", icon: <AlertCircle className="w-5 h-5" /> },
               { label: "Topics practised",  value: learningProgress.topicsPractised ?? "—", color: "hsl(var(--info))", icon: <BookOpen className="w-5 h-5" /> },
-              { label: "Need attention",    value: learningProgress.needAttention,   color: "hsl(var(--warning))", icon: <Target className="w-5 h-5" /> },
+              { label: "Need attention",    value: learningProgress.needAttention ?? "—", color: "hsl(var(--warning))", icon: <Target className="w-5 h-5" /> },
             ].map((item) => (
               <div key={item.label} className="p-4 rounded-xl border border-border/70 bg-surface/60 text-center">
                 <div className="flex justify-center mb-2" style={{ color: item.color }}>{item.icon}</div>
@@ -1684,7 +1695,9 @@ export default function Analysis() {
             <div>
               <SLabel>Topics that need your attention</SLabel>
               <div className="space-y-2">
-                {topicGroups.needs_attention.length === 0 ? (
+                {topicLock ? (
+                  <PlanLimitNotice limit={topicLock} />
+                ) : topicGroups.needs_attention.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">
                     Nothing flagged yet — a topic needs a few attempts behind it
                     before we call it weak.
@@ -2078,7 +2091,9 @@ export default function Analysis() {
           {/* ── What takes longest ────────────────────────────────── */}
           <div className="grid sm:grid-cols-2 gap-6">
             <Card label="Topics that take you longest (seconds per question)">
-              {slowestTopics.length === 0 ? (
+              {topicLock ? (
+                <PlanLimitNotice limit={topicLock} className="mt-4" />
+              ) : slowestTopics.length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
                   No topic has {MIN_OBSERVATIONS_FOR_VERDICT} answered, timed questions behind it yet.
                 </p>

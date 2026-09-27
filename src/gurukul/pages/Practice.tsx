@@ -8,6 +8,9 @@ import type { PracticeSessionRow } from "@/academic";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
 import { toast } from "sonner";
+import { PlanLimitError, fetchPremiumStatus, practiceSessionIsCounted, refusalFor, usesLeft, type PlanLimit } from "@/lib/premium";
+import { premiumChanged } from "@/hooks/usePremiumStatus";
+import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 import {
   displayChapter,
   displaySubject,
@@ -1388,6 +1391,10 @@ export function Session({
   const [qs, setQs] = useState<BankQuestion[]>([]);
   const [loadingQs, setLoadingQs] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  /** The plan refused practice: before the session (none left today) or mid-way. */
+  const [planLimit, setPlanLimit] = useState<PlanLimit | null>(null);
+  /** Set when the session was shortened to what is left of today's allowance. */
+  const [allowanceNote, setAllowanceNote] = useState<string | null>(null);
   const [idx,       setIdx]       = useState(0);
   const [chosen,    setChosen]    = useState<number | null>(null);
   const [phase,     setPhase]     = useState<"q" | "fb">("q");
@@ -1464,7 +1471,7 @@ export function Session({
         }
         const rows = await loadSessionQuestions(ctx, config);
         if (cancelled) return;
-        const mapped = rows
+        let mapped = rows
           .map((r): BankQuestion | null => {
             const options = parseBankOptions(r.options);
             if (!r.id || !r.question || options.length < 2) return null;
@@ -1503,6 +1510,27 @@ export function Session({
             };
           })
           .filter((x): x is BankQuestion => x !== null);
+
+        // PLANS (20261111000000): a plan may allow only so many new practice
+        // questions a day. The server refuses the one past it; here the session
+        // is sized to what is left, so a student is not handed questions they
+        // cannot answer. Recovery, Revision, reattempts and uploads are free.
+        if (mapped.length > 0 && practiceSessionIsCounted(config)) {
+          const status = await fetchPremiumStatus().catch(() => null);
+          if (cancelled) return;
+          const refusal = refusalFor(status, "practice.question");
+          if (refusal) {
+            setPlanLimit(refusal);
+            loadedRef.current = true;
+            setQs([]);
+            return;
+          }
+          const allowance = usesLeft(status, "practice.question");
+          if (allowance && mapped.length > allowance.left) {
+            mapped = mapped.slice(0, allowance.left);
+            setAllowanceNote(allowance.note);
+          }
+        }
 
         // The session row is created only once there is something to sit. It
         // used to be created first and, when the mode had nothing, finished
@@ -1841,6 +1869,11 @@ export function Session({
         schoolId: snap.schoolId ?? context.schoolId ?? null,
       });
     } catch (e) {
+      if (e instanceof PlanLimitError) {
+        setPlanLimit(e.planLimit);
+        premiumChanged();
+        return null;
+      }
       toast.error(toErrorMessage(e, "Could not save this answer — it will be sent again when you finish"));
       return null;
     }
@@ -1950,6 +1983,18 @@ export function Session({
     );
   }
 
+  if (qs.length === 0 && planLimit) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 space-y-4">
+        <PlanLimitNotice limit={planLimit} />
+        <button onClick={onBack}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-all">
+          <ArrowLeft className="w-4 h-4"/> Back to Practice
+        </button>
+      </div>
+    );
+  }
+
   if (qs.length === 0) {
     const emptyByMode: Partial<Record<ModeKey, string>> = {
       weak: `No weak concepts tracked yet (confidence below ${WEAK_CONCEPT_THRESHOLD}%). Finish a practice session, then return here — or open Recovery.`,
@@ -2003,6 +2048,18 @@ export function Session({
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
+      {planLimit && (
+        <div className="space-y-2">
+          <PlanLimitNotice limit={planLimit} />
+          <button type="button" onClick={() => void finish("completed")} disabled={finishing}
+            className="text-xs font-semibold text-primary">
+            Finish with the questions you answered
+          </button>
+        </div>
+      )}
+      {!planLimit && allowanceNote && (
+        <p className="text-xs text-muted-foreground">{allowanceNote}</p>
+      )}
       {/* Header bar */}
       <div className="flex items-center gap-3">
         <div className="flex-1">
