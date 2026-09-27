@@ -51,7 +51,7 @@ vi.mock("@/academic", () => ({ useAcademicLive: () => 0, RecoveryEngineService: 
 vi.mock("@/academic/services/decisionEngineService", () => ({ DecisionEngineService: { getWeakAreasV2: () => Promise.resolve([]) } }));
 vi.mock("@/hooks/useAnalysisPageData", () => ({
   useAnalysisPageData: () => ({
-    data: { totals: { correct: 80, wrong: 50, skipped: 0, accuracy_pct: 62 }, recent_sessions: [], attempt_hours: new Array(24).fill(0) },
+    data: { totals: { correct: 80, wrong: 50, skipped: 0, accuracy_pct: 62 }, recent_sessions: [] },
     loading: false, error: null, reload: () => {},
   }),
 }));
@@ -68,6 +68,12 @@ vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
     ],
     activity_heatmap: [],
   }, loading: false, error: null, reload: () => {} }),
+}));
+vi.mock("@/hooks/useStudentPracticeTime", () => ({
+  useStudentPracticeTime: () => ({
+    data: { from: "2026-08-01", today: "2026-09-27", days: [], hours: new Array(24).fill(0) },
+    loading: false, error: null, reload: () => {},
+  }),
 }));
 vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   useStudentPracticeAnalytics: () => ({ data: {

@@ -7,13 +7,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
  * The banner used to end "Showing available stats as zeros where missing",
  * which is the opposite of what the page does and instructs the reader to
  * make exactly the misreading every null-handling fix on this page exists to
- * prevent. It also offered nothing to press: all four hooks expose reload()
+ * prevent. It also offered nothing to press: every hook exposes reload()
  * and none was wired, so a transient failure meant navigating away and back.
  *
  * A retry that re-renders but never re-fetches looks identical to a working
  * one in a screenshot and identical to a working one to tsc, so this asserts
- * the loaders RAN AGAIN — all four of them, because loadError is the first
- * non-null of four and the others are just as likely to be down.
+ * the loaders RAN AGAIN — all five of them, because loadError is the first
+ * non-null of five and the others are just as likely to be down.
  */
 class RO { observe() {} unobserve() {} disconnect() {} }
 (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = RO;
@@ -22,6 +22,7 @@ const reloadAnalysis = vi.fn();
 const reloadCharts = vi.fn();
 const reloadSnapshot = vi.fn();
 const reloadAnalytics = vi.fn();
+const reloadPracticeTime = vi.fn();
 
 vi.mock("@/gurukul/StudentContext", async () => {
   const { EMPTY_STUDENT } = await import("@/gurukul/emptyStudent");
@@ -57,6 +58,9 @@ vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
 vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
   useStudentAcademicSnapshot: () => ({ data: null, loading: false, error: null, reload: reloadSnapshot }),
 }));
+vi.mock("@/hooks/useStudentPracticeTime", () => ({
+  useStudentPracticeTime: () => ({ data: null, loading: false, error: null, reload: reloadPracticeTime }),
+}));
 vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   useStudentPracticeAnalytics: () => ({ data: null, loading: false, error: null, reload: reloadAnalytics }),
 }));
@@ -77,6 +81,7 @@ describe("Analysis — a load that failed", () => {
     reloadCharts.mockClear();
     reloadSnapshot.mockClear();
     reloadAnalytics.mockClear();
+    reloadPracticeTime.mockClear();
     render(<Analysis />);
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     // All four, not just the one whose error happened to surface.
@@ -84,6 +89,7 @@ describe("Analysis — a load that failed", () => {
     expect(reloadCharts).toHaveBeenCalledTimes(1);
     expect(reloadSnapshot).toHaveBeenCalledTimes(1);
     expect(reloadAnalytics).toHaveBeenCalledTimes(1);
+    expect(reloadPracticeTime).toHaveBeenCalledTimes(1);
   });
 
   it("still renders the page rather than blanking it", () => {

@@ -34,6 +34,7 @@ import {
   resolvePracticeSessionStats,
 } from "@/lib/practiceSessionStats";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
+import { formatSeconds, paceOverAnswers } from "@/lib/studentAnalysisMetrics";
 import { practiceModeLabel } from "@/lib/practiceModeLabel";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
@@ -60,6 +61,8 @@ type AttemptRow = {
   is_correct: boolean | null;
   created_at: string;
   skipped?: boolean | null;
+  /** Time on this question alone — question_attempts.time_taken_ms. */
+  time_taken_ms?: number | null;
 };
 
 type SessionRow = {
@@ -132,6 +135,8 @@ export default function PracticeSessionResult() {
       is_correct: a.isCorrect,
       created_at: snapshot.finishedAt ?? new Date().toISOString(),
       skipped: a.skipped ?? false,
+      // Absent on snapshots saved before version 5: no time, not zero.
+      time_taken_ms: a.timeTakenMs ?? null,
     }));
   }, [snapshot]);
 
@@ -188,9 +193,13 @@ export default function PracticeSessionResult() {
   // A session is as long as its questions took (20261030000000) — never the
   // wall clock from opening to finishing, and never a floor of one minute.
   const durationLabel = formatSessionDuration(stats.totalTimeMs);
-  const avgSec =
-    snapshot?.statistics?.avgSecPerQuestion ??
-    (stats.totalTimeMs && total ? Math.round(stats.totalTimeMs / total / 1000) : null);
+  // Seconds per ANSWER, off the questions below — the rule Analysis uses
+  // (paceOverAnswers / avg_sec). It was total ÷ question count, and saved
+  // sessions froze that figure: skips, taken in a second or two, pulled the
+  // average down, and the list of times beside it could not reproduce it.
+  const { avgSec } = paceOverAnswers(
+    displayAttempts.map((a) => ({ timeMs: a.time_taken_ms, skipped: Boolean(a.skipped) })),
+  );
 
   const insights = snapshot?.insights;
   const recommendations: string[] =
@@ -599,8 +608,8 @@ export default function PracticeSessionResult() {
             <div className="font-bold text-lg">{skipped}</div>
           </div>
           <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">Avg / question</div>
-            <div className="font-bold text-lg">{avgSec != null ? `${avgSec}s` : "—"}</div>
+            <div className="text-xs text-muted-foreground">Avg / answer</div>
+            <div className="font-bold text-lg">{avgSec != null ? formatSeconds(avgSec) : "—"}</div>
           </div>
           <div className="rounded-lg border p-3">
             <div className="text-xs text-muted-foreground">Score</div>
@@ -660,7 +669,17 @@ export default function PracticeSessionResult() {
 
           return (
             <Card key={a.id} className="p-5 transition-shadow hover:shadow-sm">
-              <div className="text-xs text-muted-foreground mb-2">Q{i + 1}</div>
+              <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground mb-2">
+                <span>Q{i + 1}{a.skipped ? " · Skipped" : ""}</span>
+                {/* Time on this question alone. Nothing when it was not
+                    timed — a blank is not a zero. */}
+                {typeof a.time_taken_ms === "number" && a.time_taken_ms > 0 && (
+                  <span className="inline-flex items-center gap-1 tabular-nums" data-testid="question-time">
+                    <Timer className="w-3.5 h-3.5" aria-hidden />
+                    {formatSessionDuration(a.time_taken_ms)}
+                  </span>
+                )}
+              </div>
               <MathText block className="text-base leading-relaxed font-medium mb-4" text={questionText} />
               <div className="space-y-2 mb-4">
                 {opts.map((opt, oi) => {

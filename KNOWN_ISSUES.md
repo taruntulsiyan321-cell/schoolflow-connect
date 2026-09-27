@@ -3832,3 +3832,25 @@ bank-only filter in `dispatch_variant_generation`. Measured
 `question_bank` with §10.4 provenance + 4 gate negatives each stay private
 (rollback txn). Both edges redeployed.
 
+
+## 84. The Class 12 Maths practice hub still reads study time from the old minutes column — OPEN
+
+**Found:** 2026-09-27, while moving Analysis and the session report onto
+`rpc_student_practice_time` (20261115000000).
+
+`src/components/student/practice/PracticeHubPage.tsx` (the live route
+`/student/practice/math12`, through `Class12MathPractice.tsx`) sums
+`snapshot.activity_heatmap[].minutes` into its practice-time label. That column,
+`academic_daily_activity.practice_minutes`, is the one Analysis stopped reading:
+
+* each finished session adds `round(total_time_ms / 60000)` floored at one
+  minute (20260928000000), so a 20-second session is a minute;
+* `rpc_test_submit` adds a test's minutes to it (20260925000000);
+* its day is `CURRENT_DATE` on a UTC database, so work done 00:00–05:30 IST is
+  the day before — and the hub's own `todayKey` is `toISOString().slice(0, 10)`,
+  a UTC date, for the same reason.
+
+**Fix, when this screen is in scope:** read `useStudentPracticeTime` (the days
+it returns carry `ms` per local day) and format with `formatSessionDuration`,
+as Analysis does. Not changed here: the request was Analysis and the session
+report only.

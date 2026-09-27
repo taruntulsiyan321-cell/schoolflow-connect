@@ -4726,6 +4726,19 @@
       "justification": "Reads one tuning constant from recovery_constants, which is G2 shared reference data with no school_id and no per-student content — reach is 'none' because it returns nobody's data. Granted to authenticated because client-side screens need the same thresholds the server uses, and §10 requires exactly one home for each; a second copy in a component is what the rule forbids. Raises rather than defaulting when a key is absent: a trigger count silently defaulting to 0 would fire on every chapter.",
       "verifiedBy": "CHUNK7C_VERIFY item 7-sql — all 18 §10 constants present",
       "reviewed": true
+    },
+    "rpc_student_practice_time(_tz text)": {
+      "name": "rpc_student_practice_time",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [],
+      "justification": "The caller's own practice time per day of their calendar and per hour, from question_attempts and practice_sessions filtered to user_id = auth.uid(); it raises for a null caller. Its one argument is an IANA time zone checked against pg_timezone_names, never a user id. EXECUTE revoked from PUBLIC and anon (20261115000000).",
+      "verifiedBy": "20261115000000 proof: as a real student the days sum to that student's question_attempts time and finished sessions, the hours to their last 28 days of attempts; an unknown zone raises 22023; a null identity raises; anon has no EXECUTE.",
+      "reviewed": false
     }
   },
   "edge": {

@@ -1,5 +1,6 @@
 import { REPEATED_MISTAKE_PIN, type TrendState } from "@/academic/recovery/constants";
-import { trendState } from "@/lib/studentAnalysisMetrics";
+import { paceOverAnswers, trendState } from "@/lib/studentAnalysisMetrics";
+import { mayBeJudged } from "@/academic/metrics/thresholds";
 
 /**
  * §6.3, the chapter list — "the main screen" of Analysis, and it did not
@@ -37,6 +38,8 @@ type ChapterMistake = {
 type ChapterAttempt = {
   chapter_id: string | null;
   time_taken_ms: number | null;
+  /** Read for PACE only: a skip is not solving. Skip counts come from `skipped`. */
+  skipped: boolean;
 };
 
 /**
@@ -110,24 +113,22 @@ function countTopics(rows: Array<{ topic: string | null; questions?: number }>):
     .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic));
 }
 
-function mean(values: number[]): number | null {
-  if (values.length === 0) return null;
-  return values.reduce((s, v) => s + v, 0) / values.length;
-}
-
 /**
- * Seconds per question, from the timings that exist.
+ * Seconds per ANSWER, one decimal — paceOverAnswers, the rule every pace on
+ * Analysis follows (rpc_student_practice_analytics.avg_sec) — or null below
+ * MIN_OBSERVATIONS_FOR_VERDICT timed answers.
  *
- * A question with no timing is left out rather than counted as zero: an
- * untimed attempt is not an instant one, and averaging zeros in would make
- * every chapter look faster than the student is.
+ * Both halves were missing. Skips were averaged in, so a chapter answered at
+ * forty seconds and skipped through at one read as twenty; and with no floor,
+ * one answer left open on a tab printed "About 579s a question here … this
+ * chapter takes you 560s longer". An untimed attempt is left out, never
+ * counted as an instant one.
  */
 function avgSeconds(attempts: ChapterAttempt[]): number | null {
-  const timed = attempts
-    .map((a) => a.time_taken_ms)
-    .filter((ms): ms is number => typeof ms === "number" && ms > 0);
-  const avg = mean(timed);
-  return avg == null ? null : Math.round(avg / 100) / 10;
+  const { avgSec, timed } = paceOverAnswers(
+    attempts.map((a) => ({ timeMs: a.time_taken_ms, skipped: a.skipped })),
+  );
+  return avgSec != null && mayBeJudged(timed) ? Math.round(avgSec * 10) / 10 : null;
 }
 
 export function deriveWeakChapters(input: {

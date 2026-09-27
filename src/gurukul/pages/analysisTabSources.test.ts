@@ -242,10 +242,24 @@ describe("G9 — per-question time has one definition", () => {
   it("does not sum the heat-map raw behind a label that says four weeks", () => {
     // Study time, average per day, most active day and the day-of-week bars
     // all say "last 4 weeks" and all used to reduce over whatever span the
-    // snapshot returned. They read activityWeeks now, which consistencyWeeks
-    // windows, so the label and the arithmetic cannot drift apart.
+    // snapshot returned. They are summed over the dates of activityWeeks,
+    // which consistencyWeeks windows, so the label and the arithmetic cannot
+    // drift apart.
     expect(SOURCE).not.toContain("activity_heatmap ?? []");
-    expect(SOURCE).toContain("consistencyWeeks(snapshot?.activity_heatmap, 4)");
+    expect(SOURCE).toContain("consistencyWeeks(practiceTime?.days, 4)");
+    expect(SOURCE).toContain("activityWeeks.flatMap((w) => w.days.map((d) => d.date))");
+  });
+
+  it("reads study time from the student's own days, never the heat-map's minutes", () => {
+    // academic_daily_activity.practice_minutes floors every session at a
+    // minute, folds a test's minutes in and dates it in UTC (20261115000000).
+    // Every time figure on the page is question_attempts, through
+    // rpc_student_practice_time, now; the snapshot's heat-map is not read.
+    expect(SOURCE).toContain("deriveStudyTime(");
+    expect(SOURCE).toContain("deriveMonthComparison(practiceTime)");
+    expect(SOURCE).not.toContain("snapshot?.activity_heatmap");
+    expect(SOURCE).not.toMatch(/\b(?:d|cell|row)\.minutes\b/);
+    expect(SOURCE).not.toContain("attempt_hours");
   });
 });
 

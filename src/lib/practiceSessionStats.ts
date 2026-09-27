@@ -117,16 +117,26 @@ export function formatSessionAccuracy(accuracy: number | null): string {
 }
 
 /**
- * A session's length: the time spent on its questions (total_time_ms), never
- * the wall clock between opening and finishing. Seconds under a minute — a
- * floor of "1m" reported a seven-second session as a minute. An em dash when
- * no question carried a timing.
+ * A length of time on questions, for display — a session's (total_time_ms),
+ * one question's (time_taken_ms), or a day's or month's study time. One
+ * format for all of them, so a question's "1m 40s" and the session's total
+ * read in the same units.
+ *
+ * Seconds under a minute — a floor of "1m" reported a seven-second session as
+ * a minute. Minutes AND seconds under an hour: "2m" for 1m 40s rounded away
+ * a third of the figure, and a list of per-question times would not have
+ * added up to the total above it. An em dash when nothing carried a timing.
  */
 export function formatSessionDuration(ms: number | null | undefined): string {
   if (typeof ms !== "number" || !(ms > 0)) return "—";
-  if (ms < 60000) return `${Math.max(1, Math.round(ms / 1000))}s`;
-  const mins = Math.round(ms / 60000);
-  if (mins < 60) return `${mins}m`;
+  const secs = Math.max(1, Math.round(ms / 1000));
+  if (secs < 60) return `${secs}s`;
+  if (secs < 3600) {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+  const mins = Math.round(secs / 60);
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;

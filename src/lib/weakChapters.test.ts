@@ -20,8 +20,8 @@ const tally = (chapter_id: string, attempted: number, correct: number, day: numb
 const mistake = (chapter_id: string, over: Partial<{ status: string; times_wrong: number; created_at: string; topic: string }> = {}) => ({
   chapter_id, status: "open", times_wrong: 1, created_at: "2026-09-01T10:00:00Z", topic: null, ...over,
 });
-const attempt = (chapter_id: string, over: Partial<{ time_taken_ms: number }> = {}) => ({
-  chapter_id, time_taken_ms: null, ...over,
+const attempt = (chapter_id: string, over: Partial<{ time_taken_ms: number; skipped: boolean }> = {}) => ({
+  chapter_id, time_taken_ms: null, skipped: false, ...over,
 });
 /** Questions still skipped, as rpc_my_skipped_by_chapter returns them. */
 const skip = (chapter_id: string, questions: number, topic: string | null = null) => ({ chapter_id, topic, questions });
@@ -64,8 +64,13 @@ describe("the signals, side by side and never blended (§6.2)", () => {
     ],
     attempts: [
       attempt("c1", { time_taken_ms: 40000 }),
+      attempt("c1", { time_taken_ms: 40000 }),
       attempt("c1", { time_taken_ms: 5000 }),
-      attempt("other", { time_taken_ms: 10000 }),
+      attempt("c1", { time_taken_ms: 5000 }),
+      attempt("c1", { time_taken_ms: 5000 }),
+      // A skip passed in a second: time spent, not solving.
+      attempt("c1", { time_taken_ms: 1000, skipped: true }),
+      ...Array.from({ length: 5 }, () => attempt("other", { time_taken_ms: 10000 })),
     ],
     skipped: [skip("c1", 1, "Euclid's Lemma")],
   });
@@ -94,10 +99,32 @@ describe("the signals, side by side and never blended (§6.2)", () => {
     expect(rows[0].skipped).toBe(1);
   });
 
-  it("times the chapter against the student's own pace (§6.5)", () => {
-    // 40s and 5s here; 10s elsewhere. Slow and correct is not mastery.
-    expect(rows[0].avgSecPerQuestion).toBe(22.5);
-    expect(rows[0].ownAvgSecPerQuestion).toBeCloseTo(18.3, 1);
+  it("times the chapter against the student's own pace, over answers (§6.5)", () => {
+    // 95s over five answers here; 50s over five elsewhere. Slow and correct
+    // is not mastery.
+    expect(rows[0].avgSecPerQuestion).toBe(19);
+    expect(rows[0].ownAvgSecPerQuestion).toBe(14.5);
+    // POSITIVE CONTROL: with the one-second skip averaged in, the chapter
+    // would have read 16s and the student's own pace 13.3s.
+    expect(rows[0].avgSecPerQuestion).not.toBe(16);
+  });
+
+  it("judges no pace on fewer than five timed answers", () => {
+    const thin = deriveWeakChapters({
+      states: [state({ chapter_id: "c1", open_mistakes: 1 })],
+      tallies: [],
+      mistakes: [mistake("c1")],
+      // Four answers, one of them a tab left open, and a skip that must not
+      // make up the fifth.
+      attempts: [
+        attempt("c1", { time_taken_ms: 579000 }),
+        ...Array.from({ length: 3 }, () => attempt("c1", { time_taken_ms: 20000 })),
+        attempt("c1", { time_taken_ms: 1000, skipped: true }),
+      ],
+      skipped: [],
+    });
+    expect(thin[0].avgSecPerQuestion).toBeNull();
+    expect(thin[0].ownAvgSecPerQuestion).toBeNull();
   });
 
   it("carries no composite score of any kind (§6.2)", () => {
@@ -167,7 +194,8 @@ describe("a skip is a question still skipped, not a skip attempt (§6.6)", () =>
   it("counts what Skipped mode would serve, and says nothing of repeat skips", () => {
     // The server reports 3 questions still skipped in the chapter (one topic
     // with 2, one with 1). Nothing else here can add to that number: the
-    // pace attempts carry no skip flag at all any more.
+    // pace attempts carry a skip flag for PACE only, and a skip attempt is
+    // not a question still skipped.
     const rows = deriveWeakChapters({
       states: [state({ chapter_id: "c1", state: "untouched" })],
       tallies: [],

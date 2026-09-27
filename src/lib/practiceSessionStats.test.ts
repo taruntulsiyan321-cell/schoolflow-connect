@@ -85,7 +85,10 @@ describe("practiceSessionStats", () => {
 
   it("formats a duration from the questions' time, never inventing a minute", () => {
     expect(formatSessionDuration(7000)).toBe("7s");
-    expect(formatSessionDuration(125000)).toBe("2m");
+    expect(formatSessionDuration(125000)).toBe("2m 5s");
+    expect(formatSessionDuration(100000)).toBe("1m 40s");
+    expect(formatSessionDuration(120000)).toBe("2m");
+    expect(formatSessionDuration(400)).toBe("1s");
     expect(formatSessionDuration(3900000)).toBe("1h 5m");
     expect(formatSessionDuration(null)).toBe("—");
     expect(formatSessionDuration(0)).toBe("—");

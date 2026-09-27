@@ -21,6 +21,8 @@ import { WeakChapterList } from "@/components/student/analytics/WeakChapterList"
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPracticeAnalytics } from "@/hooks/useStudentPracticeAnalytics";
+import { useStudentPracticeTime } from "@/hooks/useStudentPracticeTime";
+import { formatSessionDuration } from "@/lib/practiceSessionStats";
 import {
   accuracyBand,
   ACCURACY_CONCEPTUAL,
@@ -41,21 +43,18 @@ import { DecisionEngineService, type WeakAreaRecommendation } from "@/academic/s
 import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
-  DAY_LABELS,
-  weekdayLabel,
   buildWeekComparison,
   buildSubjectRadarPoints,
   deriveMonthComparison,
   deriveRecoveryProgress,
   deriveRecoveryChapters,
+  deriveStudyTime,
   deriveSubjectPace,
   formatSeconds,
   deriveRevisionData,
   trendState,
   practiceCountForTopic,
   scoreAxisDomain,
-  busiestHour,
-  formatHour,
 } from "@/lib/studentAnalysisMetrics";
 import { hasStudyActiveDays, studyActiveDaysFromSnapshot } from "@/lib/learningMetrics";
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
@@ -85,21 +84,6 @@ function subjectColor(name: string, index: number) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-
-/**
- * Study time in the largest unit that does not round the figure away.
- *
- * Under an hour it stays in minutes: the tile used to divide by 60 and round,
- * so every real total below thirty minutes printed as "0h" — the same "you did
- * nothing" claim the null-when-unmeasured guard exists to prevent, made about
- * time the student actually spent.
- */
-function formatStudyTime(minutes: number | null): string {
-  if (minutes == null) return "—";
-  if (minutes < 60) return `${minutes}m`;
-  const hours = minutes / 60;
-  return `${hours < 10 ? Math.round(hours * 10) / 10 : Math.round(hours)}h`;
-}
 
 /**
  * The "% right" line printed beside a TIME.
@@ -195,6 +179,14 @@ export default function Analysis() {
     error: practiceAnalyticsError,
     reload: reloadPracticeAnalytics,
   } = useStudentPracticeAnalytics(academicReady);
+  // The student's time per day of their own calendar — every study-time
+  // figure on this page, and the busiest hour (20261115000000).
+  const {
+    data: practiceTime,
+    loading: practiceTimeLoading,
+    error: practiceTimeError,
+    reload: reloadPracticeTime,
+  } = useStudentPracticeTime(academicReady);
 
   // Decision Engine Slice 1 swap-in for topicGroups.needs_attention only
   // (see the approved plan -- the other 6 weak_topics/strong_topics read
@@ -230,19 +222,20 @@ export default function Analysis() {
   // not the same as fetching nothing. The student reads their exam marks on
   // their marks surface instead.
 
-  const loading = analysisLoading || chartsLoading || snapshotLoading || practiceAnalyticsLoading;
-  const loadError = analysisError || chartsError || snapshotError || practiceAnalyticsError;
+  const loading = analysisLoading || chartsLoading || snapshotLoading || practiceAnalyticsLoading || practiceTimeLoading;
+  const loadError = analysisError || chartsError || snapshotError || practiceAnalyticsError || practiceTimeError;
 
   // EVERY SOURCE, not just the one that happened to fail first. loadError is
-  // the first non-null of four, so retrying only that one leaves the other
-  // three stale if more than one was down — which, for four calls that go out
-  // together, is the common case rather than the odd one.
+  // the first non-null of five, so retrying only that one leaves the others
+  // stale if more than one was down — which, for calls that go out together,
+  // is the common case rather than the odd one.
   const retryAll = useCallback(() => {
     void reloadAnalysis();
     void reloadCharts();
     void reloadSnapshot();
     void reloadPracticeAnalytics();
-  }, [reloadAnalysis, reloadCharts, reloadSnapshot, reloadPracticeAnalytics]);
+    void reloadPracticeTime();
+  }, [reloadAnalysis, reloadCharts, reloadSnapshot, reloadPracticeAnalytics, reloadPracticeTime]);
 
   useEffect(() => {
     if (loadError) {
@@ -310,22 +303,10 @@ export default function Analysis() {
       // nothing. Null renders as an em dash, which is the honest answer when
       // the figure was not supplied, and it cannot be mistaken for 40.
       practiceCompleted: snapshot?.self_practice?.sessions_completed ?? null,
-      // NULL, not 0, when no time was recorded.
-      //
-      // Measured 2026-09-10: only 4 of 262 practice sessions carry
-      // `total_time_ms`, and `academic_daily_activity.practice_minutes` totals
-      // 18 minutes across the whole platform. So "0h" beside "27 questions
-      // solved" was correct arithmetic on a number nothing had written — the
-      // screen was reporting a measurement that was never taken.
-      //
-      // The timer not recording is the real defect and it lives in the practice
-      // finish path, not here. This stops the screen claiming a student studied
-      // for zero hours in the meantime. KNOWN_ISSUES 44.
-      //
-      // studyMinutes WAS HERE, as a second copy of the sum studyActivity
-      // already makes. Same label on two tabs, same arithmetic written twice,
-      // agreeing only because the two copies were identical. The Overview
-      // tile reads studyActivity.totalMinutes now — one sum, one window.
+      // Study time is not a field here. The Overview tile reads
+      // studyActivity.totalMs — the one sum over the four-week grid, from
+      // rpc_student_practice_time — and it is null, not 0, when nothing was
+      // timed. A copy of that sum sat here once; one sum, one window.
       streak: student.streak,
     };
   }, [analysis, snapshot, student.streak]);
@@ -407,7 +388,7 @@ export default function Analysis() {
         accuracy,
         questions: row.attempts,
         answered,
-        measuredMinutes: row.total_min,
+        measuredMs: row.total_min == null ? null : row.total_min * 60000,
         color: subjectColor(name, i),
         trend: deltaPoints,
         trendState: subjectTrendState,
@@ -557,8 +538,8 @@ export default function Analysis() {
   // Tuesday is drawn under Tuesday; a day with no activity is a zero rather
   // than a missing cell that shunts the rest along.
   const activityWeeks = useMemo(
-    () => consistencyWeeks(snapshot?.activity_heatmap, 4),
-    [snapshot?.activity_heatmap],
+    () => consistencyWeeks(practiceTime?.days, 4),
+    [practiceTime?.days],
   );
 
   // BELOW activityWeeks DELIBERATELY. This memo sat above it and read it
@@ -578,9 +559,10 @@ export default function Analysis() {
     //
     // "Activities in 4 weeks" summed charts.weekly_activity while "Activities
     // today" and "Consistency" beside it read activityWeeks, which is built
-    // from snapshot.activity_heatmap. Two tables answering "did this student
-    // do something on this day", in one row of tiles, over the same four
-    // weeks. Rendered together they can contradict outright — measured in the
+    // from the student's own days (rpc_student_practice_time). Two tables
+    // answering "did this student do something on this day", in one row of
+    // tiles, over the same four weeks. Rendered together they can contradict
+    // outright — measured in the
     // render fixture as "Activities in 4 weeks: 0" sitting next to
     // "Consistency: 11%", which is three active days out of twenty-eight.
     //
@@ -664,7 +646,6 @@ export default function Analysis() {
           color: colorOf.get(name) ?? subjectColor(name, 0),
           avgSec: s.avg_sec,
           timed: s.timed,
-          answered: s.answered,
         };
       }),
     );
@@ -689,106 +670,50 @@ export default function Analysis() {
     );
   }, [practiceAnalytics?.effort]);
 
-  // TWO FLOORS, AND BOTH ARE NEEDED — the same pair the subject tiles use.
+  // ONE FLOOR, ON TIMED ANSWERS — the one the subject tiles use.
   //
-  // TIMED READINGS, because avg_sec averages over attempts that carry a
-  // duration: a row's time can rest on ONE reading while its attempt count
-  // says twenty, which is how a single 579-second reading ranked as the
-  // slowest topic on the page.
+  // avg_sec rests on the answers that carry a duration, and `timed` counts
+  // them: a row's time can rest on ONE reading while its attempt count says
+  // twenty, which is how a single 579-second reading ranked as the slowest
+  // topic on the page.
   //
-  // ANSWERED QUESTIONS, because these panels are about where a student's
-  // SOLVING time goes, and a skip is not solving. Without it the list ranked
-  // rows a student had never answered anything in — "Reporting Imperative
-  // Sentences, 5 attempts, 0.9s" was five straight skips through an English
-  // topic, sitting at the top of "topics that take you longest" and printing
-  // a blank where its success rate goes.
-  //
-  // THE REAL FIX IS ONE LEVEL DOWN and needs a migration: avg_sec should be
-  // averaged over ANSWERED attempts rather than all timed ones, so a row's
-  // time never mixes reading-and-skipping with solving. Until then the floor
-  // keeps the rows where solving dominates. Both panels and the subject
-  // tiles now apply the identical pair, so the page cannot answer "what
-  // takes you longest" one way per level.
+  // Skips are not in either figure (20261115000000). They were: a skip carries
+  // the second or two before the student passed, so "Reporting Imperative
+  // Sentences, 5 attempts, 0.9s" — five straight skips — sat at the top of
+  // "topics that take you longest", and a second floor on `answered` held it
+  // back. With `timed` counting answers only, that floor is this one.
   const slowestTopics = useMemo(
     () =>
       (practiceAnalytics?.by_topic ?? [])
-        .filter((t) => mayBeJudged(t.timed) && mayBeJudged(t.answered) && (t.avg_sec ?? 0) > 0)
+        .filter((t) => mayBeJudged(t.timed) && (t.avg_sec ?? 0) > 0)
         .slice(0, 6),
     [practiceAnalytics?.by_topic],
   );
   const slowestChapters = useMemo(
     () =>
       [...(practiceAnalytics?.by_chapter ?? [])]
-        .filter((c) => mayBeJudged(c.timed) && mayBeJudged(c.answered) && (c.avg_sec ?? 0) > 0)
+        .filter((c) => mayBeJudged(c.timed) && (c.avg_sec ?? 0) > 0)
         .sort((a, b) => (b.avg_sec ?? 0) - (a.avg_sec ?? 0))
         .slice(0, 6),
     [practiceAnalytics?.by_chapter],
   );
 
-  const studyActivity = useMemo(() => {
-    // EVERY FIGURE HERE SAYS "LAST 4 WEEKS", SO EVERY FIGURE HERE IS
-    // COMPUTED OVER 4 WEEKS.
-    //
-    // These reduced over snapshot.activity_heatmap RAW — whatever span the
-    // snapshot happens to return — while the label beside them, the heat
-    // grid under them and consistencyRatio all use activityWeeks, which
-    // windows to four weeks from this Monday. The label was a claim the
-    // arithmetic did not make, and the two only agreed while the snapshot
-    // happened to be four weeks long. Reading activityWeeks makes the window
-    // in the label and the window in the sum the same thing by construction,
-    // and it is the one already-windowed structure on this page.
-    //
-    // Its days are dense — consistencyWeeks fills every date with zeros — so
-    // "active days" is a filter on minutes, not on rows existing.
-    const days = activityWeeks.flatMap((w) => w.days);
-    // weekdayLabel, not toLocaleDateString: DAY_LABELS is English, and a
-    // browser in any other language made every one of these comparisons false
-    // — seven empty bars for a student who had studied all week.
-    const weeklyHrs = DAY_LABELS.map((day) => {
-      const mins = days
-        .filter((d) => weekdayLabel(d.date) === day)
-        .reduce((s, d) => s + (d.minutes ?? 0), 0);
-      return Math.round((mins / 60) * 10) / 10;
-    });
-    const totalMins = days.reduce((s, d) => s + (d.minutes ?? 0), 0);
-    const activeDays = days.filter((d) => (d.minutes ?? 0) > 0);
-    const bestDayRow = [...activeDays].sort((a, b) => (b.minutes ?? 0) - (a.minutes ?? 0))[0];
-    return {
-      // MINUTES, NOT HOURS. `Math.round(totalMins / 60)` printed "0h" for
-      // every real total under thirty minutes — measured on production as
-      // "Total study time 0h" on this tab beside "Study time total 6m" on
-      // Overview, off the one heat-map. Overview was fixed with
-      // formatStudyTime and this was not, which is how one source ended up
-      // contradicting itself on one page. The rounding is gone from here
-      // entirely; formatStudyTime is the only thing that turns these minutes
-      // into a label.
-      totalMinutes: totalMins,
-      // NULL, NOT ZERO, and for the same reason the tile above it renders
-      // "—": with no day carrying a minute there is no daily average to
-      // report, and "0 min" is a confident claim that the student studied
-      // for no time. It sat directly beside "Study time (4 weeks) —", so
-      // the same absence was rendered two ways on one row of tiles.
-      avgDailyMin: activeDays.length > 0 ? Math.round(totalMins / activeDays.length) : null,
-      bestDay: bestDayRow
-        ? new Date(bestDayRow.date).toLocaleDateString(undefined, { weekday: "short" })
-        : "—",
-      // REAL NOW, AND IT WAS ALWAYS AVAILABLE.
-      //
-      // This said "Hourly buckets are not in academic_daily_activity — honest
-      // empty" and rendered "—" for every student on every visit. The claim
-      // was true about that table and false about the database:
-      // question_attempts.created_at is written on every attempt, 5,623 of
-      // them across 11 distinct hours when this was measured. An empty tile
-      // defended by a comment is still an empty tile, and "we do not store it"
-      // was not the reason.
-      //
-      // Still honest when there is nothing: busiestHour returns null rather
-      // than hour 0, so a student who has never practised gets "—" and not a
-      // confident "12 AM".
-      bestHour: formatHour(busiestHour(analysis?.attempt_hours ?? [])),
-      weeklyHrs: [...weeklyHrs],
-    };
-  }, [activityWeeks, analysis?.attempt_hours]);
+  // EVERY STUDY-TIME FIGURE, FROM ONE SOURCE AND ONE WINDOW: the student's
+  // time on the questions per day of their own calendar
+  // (rpc_student_practice_time), over the dates of the four-week grid below
+  // it. These read academic_daily_activity.practice_minutes before — whole
+  // minutes per session with a one-minute floor, a test's minutes folded in,
+  // days taken in UTC — and the busiest hour came from raw timestamps fetched
+  // under a 1,000-row cap.
+  const studyActivity = useMemo(
+    () =>
+      deriveStudyTime(
+        activityWeeks.flatMap((w) => w.days.map((d) => d.date)),
+        practiceTime?.days ?? null,
+        practiceTime?.hours ?? null,
+      ),
+    [activityWeeks, practiceTime],
+  );
 
   // The 7C engine, not snapshot.revision_queue.
   //
@@ -1005,7 +930,7 @@ export default function Analysis() {
       items.push({
         label: "Most active day recently",
         value: bestDay,
-        sub: `${formatStudyTime(studyActivity.totalMinutes || null)} of study time in the last 4 weeks`,
+        sub: `${formatSessionDuration(studyActivity.totalMs)} of study time in the last 4 weeks`,
         color: "hsl(var(--info))",
         icon: <Calendar className="w-4 h-4" />,
       });
@@ -1099,11 +1024,7 @@ export default function Analysis() {
     [scoreTrend],
   );
 
-  const monthComparison = useMemo(
-    () =>
-      deriveMonthComparison(analysis?.recent_sessions ?? [], snapshot?.activity_heatmap),
-    [analysis?.recent_sessions, snapshot?.activity_heatmap],
-  );
+  const monthComparison = useMemo(() => deriveMonthComparison(practiceTime), [practiceTime]);
 
   const scoreTrendDomain = useMemo(
     () => scoreAxisDomain(scoreTrend.map((p) => p.score)),
@@ -1378,14 +1299,10 @@ export default function Analysis() {
               // "Marks recorded" was a count of exam marks. Marks are not an
               // Analysis figure any more (rule 11); the student reads them on
               // their marks surface.
-              // "Study time total" was a WINDOW wearing the word total.
-              // rpc_student_academic_snapshot builds activity_heatmap from
-              // `activity_date >= CURRENT_DATE - 28`, so this tile has always
-              // been four weeks — measured, it read 14m for a student with 15
-              // recorded minutes, the missing one being 33 days old. The chart
-              // on Activity & Speed already says "last 4 weeks"; the tiles that
-              // sum the same rows now say it too.
-              { label: "Study time (4 weeks)",  value: formatStudyTime(studyActivity.totalMinutes || null), color: "hsl(var(--info))" },
+              // "Study time total" was a WINDOW wearing the word total: the
+              // four weeks of the grid on Activity & Speed, which says so, and
+              // the tile that sums the same days says it too.
+              { label: "Study time (4 weeks)",  value: formatSessionDuration(studyActivity.totalMs), color: "hsl(var(--info))" },
               // "Exam readiness" was removed in the v2 redesign: a composite of
               // four measures collapsed into one number, which is the
               // no-blended-score rule and cannot be explained to a student.
@@ -1446,8 +1363,9 @@ export default function Analysis() {
           </Card>
 
           {/* This week vs last week — practice sessions only (rule 11).
-              activityWeeks now counts self_practice alone, so the bars match
-              the Practice tab tiles and never fold in tests or homework. */}
+              activityWeeks counts finished practice sessions alone, so the
+              bars match the Practice tab tiles and never fold in tests or
+              homework. */}
           <Card label="This week vs last week — practice">
             {weekComparison.some((d) => d.thisWeek > 0 || d.lastWeek > 0) ? (
             <div className="h-44 mt-4">
@@ -1552,13 +1470,13 @@ export default function Analysis() {
                           "needs-attention" without a rate behind it. */}
                       {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
-                    {/* formatStudyTime, not a bare `${hours}h`: this printed "0.1h study
-                        time" for six measured minutes, and "0h" for anything under
-                        half an hour. Silent when the subject's sessions were never
-                        timed — a subject with no measurement makes no claim. */}
+                    {/* formatSessionDuration, not a bare `${hours}h`: this printed
+                        "0.1h study time" for six measured minutes, and "0h" for
+                        anything under half an hour. Silent when the subject was
+                        never timed — a subject with no measurement makes no claim. */}
                     {/* "Attempts", matching the chapter cards below — the same quantity
                         was called "questions" here and "Attempts" there, on one tab. */}
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{pluralise(s.questions, "attempt")}{s.measuredMinutes != null && s.measuredMinutes > 0 ? ` · ${formatStudyTime(s.measuredMinutes)} study time` : ""}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{pluralise(s.questions, "attempt")}{s.measuredMs != null && s.measuredMs > 0 ? ` · ${formatSessionDuration(s.measuredMs)} study time` : ""}</div>
                     <div className="h-1 rounded-full bg-muted mt-2 overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
                     </div>
@@ -1896,7 +1814,7 @@ export default function Analysis() {
           <div>
             <SLabel>How fast you solve questions</SLabel>
             <div className="grid sm:grid-cols-3 gap-3 mb-4">
-              <Metric label="Average per question"  value={subjectPace.avgSec > 0 ? formatSeconds(subjectPace.avgSec) : "—"}    color="hsl(var(--foreground))" />
+              <Metric label="Average per answer"    value={subjectPace.avgSec > 0 ? formatSeconds(subjectPace.avgSec) : "—"}    color="hsl(var(--foreground))" />
               {/* Each tile asks about its OWN number. A sub line gated on the
                   overall average printed "0s avg" under a "—" whenever only
                   one subject had enough timed questions to rank. */}
@@ -1997,8 +1915,8 @@ export default function Analysis() {
       {tab === "activity" && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Metric label="Study time (4 weeks)" value={formatStudyTime(studyActivity.totalMinutes || null)} color="hsl(var(--info))" />
-            <Metric label="Average per day"     value={studyActivity.avgDailyMin == null ? "—" : `${studyActivity.avgDailyMin} min`} color="hsl(var(--foreground))" />
+            <Metric label="Study time (4 weeks)" value={formatSessionDuration(studyActivity.totalMs)} color="hsl(var(--info))" />
+            <Metric label="Average per day"     value={formatSessionDuration(studyActivity.avgDailyMs)} sub={studyActivity.avgDailyMs == null ? undefined : "on days you practised"} color="hsl(var(--foreground))" />
             <Metric label="Most active day"     value={studyActivity.bestDay}              color="hsl(var(--warning))" />
             {/* "Most active hour", not "most productive". It counts attempts,
                 which is when the student WORKS — the same question "Most
@@ -2021,8 +1939,10 @@ export default function Analysis() {
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
                   <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} isAnimationActive={false}>
-                    {studyActivity.weeklyHrs.map((v, i) => (
-                      <Cell key={i} fill={v === Math.max(...studyActivity.weeklyHrs) ? "hsl(var(--primary-glow))" : withAlpha("hsl(var(--primary-glow))", 0.3)} />
+                    {/* The bar "Most active day" names — one decision, not a
+                        second one made on the rounded hours. */}
+                    {studyActivity.weeklyHrs.map((_, i) => (
+                      <Cell key={i} fill={["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i] === studyActivity.bestDay ? "hsl(var(--primary-glow))" : withAlpha("hsl(var(--primary-glow))", 0.3)} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -2043,10 +1963,10 @@ export default function Analysis() {
                   <div key={row.label} className="flex items-center gap-1 mb-1.5">
                     <div className="w-8 text-[10px] text-muted-foreground shrink-0">{row.label}</div>
                     {row.days.map((cell) => {
-                      // The cell counts ACTIVITIES — tests, homework, battles
-                      // and practice sessions — which is what
-                      // academic_daily_activity stores. The tooltip called them
-                      // "questions", a number this table has never held.
+                      // The cell counts PRACTICE SESSIONS finished that day, and
+                      // its tooltip adds that day's time — both on the
+                      // student's own calendar, from one source. It called
+                      // them "questions" once, and "activities" after that.
                       const intensity = Math.min(cell.total / 8, 1);
                       const bg = cell.total === 0
                         ? "hsl(var(--muted))"
@@ -2054,8 +1974,10 @@ export default function Analysis() {
                       return (
                         <div
                           key={cell.date}
-                          title={`${cell.date} — ${pluralise(cell.total, "activity", "activities")}${
-                            cell.minutes > 0 ? `, ${cell.minutes} min` : ""
+                          title={`${cell.date} — ${pluralise(cell.total, "session")}${
+                            studyActivity.msByDate.has(cell.date)
+                              ? `, ${formatSessionDuration(studyActivity.msByDate.get(cell.date))}`
+                              : ""
                           }`}
                           className="flex-1 h-8 rounded-lg transition-all hover:scale-110 cursor-default"
                           style={{ background: bg }}
@@ -2094,11 +2016,7 @@ export default function Analysis() {
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-sm font-black tabular-nums text-foreground">{t.avg_sec}s</div>
-                        {/* Ranked on TIMED readings, judged on ANSWERS. A
-                            topic can have five timed attempts and none of
-                            them answered, which printed a bare em dash where
-                            a rate goes and said nothing about why. */}
+                        <div className="text-sm font-black tabular-nums text-foreground">{formatSeconds(t.avg_sec ?? 0)}</div>
                         <div className="text-[10px] text-muted-foreground">
                           {rightRate(t.answered, t.accuracy)}
                         </div>
@@ -2122,11 +2040,11 @@ export default function Analysis() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-foreground truncate">{displayChapter(c.chapter)}</div>
                         <div className="text-[11px] text-muted-foreground truncate">
-                          {displaySubject(c.subject ?? "")} · {formatStudyTime(c.total_min)} total
+                          {displaySubject(c.subject ?? "")} · {formatSessionDuration(c.total_min == null ? null : c.total_min * 60000)} total
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-sm font-black tabular-nums text-foreground">{c.avg_sec}s</div>
+                        <div className="text-sm font-black tabular-nums text-foreground">{formatSeconds(c.avg_sec ?? 0)}</div>
                         <div className="text-[10px] text-muted-foreground">
                           {rightRate(c.answered, c.accuracy)}
                         </div>
@@ -2144,10 +2062,10 @@ export default function Analysis() {
               {monthComparison.map((row) => {
                 // A month with nothing measured is null, not zero — "0%
                 // accuracy last month" is a claim about a month the student
-                // may not have practised in at all. Minutes go through the one
-                // formatter; every other unit is appended as-is.
+                // may not have practised in at all. Time goes through the one
+                // duration formatter; every other unit is appended as-is.
                 const show = (v: number | null) =>
-                  v == null ? "—" : row.unit === "min" ? formatStudyTime(v) : `${v}${row.unit}`;
+                  v == null ? "—" : row.unit === "time" ? formatSessionDuration(v) : `${v}${row.unit}`;
                 const comparable = row.thisM != null && row.lastM != null && row.lastM > 0;
                 const diff = comparable ? (row.thisM as number) - (row.lastM as number) : 0;
                 const up = diff > 0;
@@ -2166,11 +2084,15 @@ export default function Analysis() {
                 // 1.8h vs 1m last month +10500%". Both are arithmetically
                 // correct and neither means anything. TREND_MIN_SESSIONS is
                 // the floor this page already uses for "is there enough here
-                // to call it a trend", so it is the floor here too; below it
-                // the two figures are shown side by side and no growth rate is
-                // claimed.
+                // to call it a trend", so it is the floor here too — on last
+                // month's SESSIONS, for both counts. It was applied to each
+                // row's own value, which for study time meant three minutes
+                // (and, in milliseconds, would have meant anything at all).
+                // Below it the two figures are shown side by side and no
+                // growth rate is claimed.
                 const isRate = row.unit === "%";
-                const baseIsEnough = comparable && (row.lastM as number) >= TREND_MIN_SESSIONS;
+                const lastSessions = monthComparison[0].lastM;
+                const baseIsEnough = comparable && lastSessions != null && lastSessions >= TREND_MIN_SESSIONS;
                 const changeLabel = !comparable
                   ? null
                   : isRate

@@ -20,7 +20,8 @@ import { supabase } from "@/integrations/supabase/client";
  *
  *   attempts   every attempt — how much contact the student has had
  *   answered   attempts that were not skipped — the ACCURACY denominator
- *   timed      attempts with a recorded duration — the AVG_SEC denominator
+ *   timed      ANSWERS with a recorded duration — the AVG_SEC denominator;
+ *              a skip is time spent, not solving (20261115000000)
  *
  * Carrying only `attempts` is what produced "Circles · Needs attention · 8
  * Attempts · 0% Accuracy" for a chapter with 7 skips and ONE wrong answer,
@@ -34,13 +35,13 @@ type TopicAnalyticsRow = {
   attempts: number;
   /** Attempts that were not skipped. The accuracy denominator. */
   answered: number;
-  /** Attempts with a recorded duration. The avg_sec denominator. */
+  /** Answers (not skips) with a recorded duration. The avg_sec denominator. */
   timed: number;
   correct: number;
   skipped: number;
   /** correct / answered. Null when nothing was answered — never 0. */
   accuracy: number | null;
-  /** Mean seconds per attempt, over the attempts that were timed. */
+  /** Mean seconds per answer, over the answers that were timed. */
   avg_sec: number | null;
   total_min: number | null;
 };
@@ -50,7 +51,7 @@ type SubjectAnalyticsRow = {
   attempts: number;
   /** Attempts that were not skipped. The accuracy denominator. */
   answered: number;
-  /** Attempts with a recorded duration. The avg_sec denominator. */
+  /** Answers (not skips) with a recorded duration. The avg_sec denominator. */
   timed: number;
   correct: number;
   skipped: number;
@@ -65,7 +66,7 @@ type ChapterAnalyticsRow = {
   attempts: number;
   /** Attempts that were not skipped. The accuracy denominator. */
   answered: number;
-  /** Attempts with a recorded duration. The avg_sec denominator. */
+  /** Answers (not skips) with a recorded duration. The avg_sec denominator. */
   timed: number;
   correct: number;
   skipped: number;
@@ -79,7 +80,7 @@ type DifficultyAnalyticsRow = {
   attempts: number;
   /** Attempts that were not skipped. The accuracy denominator. */
   answered: number;
-  /** Attempts with a recorded duration. The avg_sec denominator. */
+  /** Answers (not skips) with a recorded duration. The avg_sec denominator. */
   timed: number;
   correct: number;
   skipped: number;

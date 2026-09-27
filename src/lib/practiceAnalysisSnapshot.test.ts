@@ -62,7 +62,7 @@ describe("buildPracticeAnalysisSnapshot", () => {
   it("takes its totals from the session row, not from the attempt list", () => {
     const snap = buildPracticeAnalysisSnapshot(session, records);
     expect(snap).toMatchObject({
-      version: 4,
+      version: 5,
       subject: "Mathematics",
       chapter: "Arithmetic Progressions",
       practiceMode: "chapter",
@@ -75,7 +75,18 @@ describe("buildPracticeAnalysisSnapshot", () => {
       xpEarned: 30,
       totalTimeMs: 90000,
     });
-    expect(snap.statistics.avgSecPerQuestion).toBe(30);
+    // The per-question average is read off the questions' own times, not
+    // frozen beside them: a copy counted over skips was what it froze.
+    expect((snap as unknown as Record<string, unknown>).statistics).toBeUndefined();
+  });
+
+  it("freezes each question's own time, and none for a question that was not timed", () => {
+    const snap = buildPracticeAnalysisSnapshot(session, [
+      { ...records[0], time_taken_ms: 42000 },
+      { ...records[1], time_taken_ms: null },
+      { ...records[2], time_taken_ms: 0 },
+    ]);
+    expect(snap.attempts.map((a) => a.timeTakenMs)).toEqual([42000, null, null]);
   });
 
   it("freezes the questions it is given, with the skip marked and no answer invented", () => {

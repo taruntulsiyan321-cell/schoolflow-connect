@@ -5,8 +5,9 @@ import {
   trendState,
   deriveSubjectPace,
   formatSeconds,
-  hourHistogram,
   busiestHour,
+  deriveStudyTime,
+  paceOverAnswers,
   formatHour,
   deriveMonthComparison,
   scoreAxisDomain,
@@ -123,10 +124,10 @@ describe("studentAnalysisMetrics", () => {
     // question at 300s — would have been named the subject that takes this
     // student longest.
     const pace = deriveSubjectPace([
-      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400, answered: 400 },
-      { name: "Science", color: "#2", avgSec: 45, timed: 20, answered: 20 },
-      { name: "Hindi", color: "#3", avgSec: 300, timed: 1, answered: 1 },
-      { name: "English", color: "#4", avgSec: null, timed: 50, answered: 50 },
+      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400 },
+      { name: "Science", color: "#2", avgSec: 45, timed: 20 },
+      { name: "Hindi", color: "#3", avgSec: 300, timed: 1 },
+      { name: "English", color: "#4", avgSec: null, timed: 50 },
     ]);
     expect(pace.rows.map((r) => r.name)).toEqual(["Mathematics", "Science"]);
     expect(pace.fastest?.name).toBe("Mathematics");
@@ -136,13 +137,12 @@ describe("studentAnalysisMetrics", () => {
   it("will not call a subject fast when nothing in it was answered", () => {
     // MEASURED: 79 Social Science attempts, every one of them SKIPPED at
     // about a third of a second, rendered as "Fastest subject: Social
-    // Science, 0s avg". The panel is headed "How fast you solve questions"
-    // and the student had solved none of them. It also rounded 0.3s to "0s",
-    // claiming a question took no time at all.
+    // Science, 0s avg". Since 20261115000000 avg_sec and `timed` count
+    // answers only, so such a subject arrives with no pace and nothing timed.
     const pace = deriveSubjectPace([
-      { name: "Mathematics", color: "#1", avgSec: 6.8, timed: 402, answered: 220 },
-      { name: "Social Science", color: "#2", avgSec: 0.3, timed: 79, answered: 0 },
-      { name: "English", color: "#3", avgSec: 0.5, timed: 54, answered: 0 },
+      { name: "Mathematics", color: "#1", avgSec: 6.8, timed: 220 },
+      { name: "Social Science", color: "#2", avgSec: null, timed: 0 },
+      { name: "English", color: "#3", avgSec: null, timed: 0 },
     ]);
     expect(pace.rows.map((r) => r.name)).toEqual(["Mathematics"]);
     expect(pace.fastest?.name).toBe("Mathematics");
@@ -154,8 +154,8 @@ describe("studentAnalysisMetrics", () => {
     // Rounding each subject to a whole second before pooling made 79
     // questions at 0.3s contribute exactly ZERO seconds to the overall pace.
     const pace = deriveSubjectPace([
-      { name: "Mathematics", color: "#1", avgSec: 6.8, timed: 400, answered: 400 },
-      { name: "Social Science", color: "#2", avgSec: 0.4, timed: 100, answered: 100 },
+      { name: "Mathematics", color: "#1", avgSec: 6.8, timed: 400 },
+      { name: "Social Science", color: "#2", avgSec: 0.4, timed: 100 },
     ]);
     // (6.8*400 + 0.4*100) / 500 = 5.52
     expect(Math.round(pace.avgSec * 100) / 100).toBe(5.52);
@@ -169,8 +169,8 @@ describe("studentAnalysisMetrics", () => {
     // print if it treated a 20-question subject as equal to a 400-question
     // one.
     const pace = deriveSubjectPace([
-      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400, answered: 400 },
-      { name: "Science", color: "#2", avgSec: 45, timed: 20, answered: 20 },
+      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400 },
+      { name: "Science", color: "#2", avgSec: 45, timed: 20 },
     ]);
     expect(Math.round(pace.avgSec * 10) / 10).toBe(30.7);
     expect(pace.avgSec).not.toBe(37.5);
@@ -178,8 +178,8 @@ describe("studentAnalysisMetrics", () => {
 
   it("names no slowest subject when only one can be ranked", () => {
     const pace = deriveSubjectPace([
-      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400, answered: 400 },
-      { name: "Hindi", color: "#3", avgSec: 300, timed: 1, answered: 1 },
+      { name: "Mathematics", color: "#1", avgSec: 30, timed: 400 },
+      { name: "Hindi", color: "#3", avgSec: 300, timed: 1 },
     ]);
     expect(pace.fastest?.name).toBe("Mathematics");
     expect(pace.slowest).toBeNull();
@@ -188,7 +188,7 @@ describe("studentAnalysisMetrics", () => {
 
   it("reports nothing rather than zero when no subject qualifies", () => {
     const pace = deriveSubjectPace([
-      { name: "Hindi", color: "#3", avgSec: 300, timed: 1, answered: 1 },
+      { name: "Hindi", color: "#3", avgSec: 300, timed: 1 },
     ]);
     expect(pace.rows).toEqual([]);
     expect(pace.fastest).toBeNull();
@@ -202,61 +202,85 @@ describe("studentAnalysisMetrics", () => {
     expect(formatSeconds(67.14)).toBe("67s");
   });
 
-  it("month comparison pools accuracy and reports activities and minutes as they are", () => {
-    const now = new Date("2026-08-15T12:00:00Z");
-    const rows = deriveMonthComparison(
-      [
-        // This month: 8 of 10 answered correctly ACROSS the two sessions.
-        // The mean of the two session rates is (100 + 60)/2 = 80; pooled is
-        // 8/10 = 80 as well, so the sessions are deliberately uneven below —
-        // otherwise this test would pass against the defect it exists for.
-        session({ id: "a", subject: "Math", correct_count: 1, wrong_count: 0, finished_at: "2026-08-10T10:00:00Z" }),
-        session({ id: "b", subject: "Math", correct_count: 3, wrong_count: 6, finished_at: "2026-08-12T10:00:00Z" }),
-        session({ id: "c", subject: "Math", correct_count: 3, wrong_count: 2, finished_at: "2026-07-10T10:00:00Z" }),
+  it("month comparison reads whole months of the student's own days", () => {
+    const rows = deriveMonthComparison({
+      today: "2026-09-27",
+      days: [
+        // This month: 4 of 10 answered right, pooled across days.
+        { date: "2026-09-10", ms: 90_000, answered: 1, correct: 1, sessions: 1 },
+        { date: "2026-09-12", ms: 30_000, answered: 9, correct: 3, sessions: 1 },
+        // Last month, from its FIRST day. The 28-day heat-map this read
+        // before ended on 30 August, so none of this would have been in it.
+        { date: "2026-08-02", ms: 600_000, answered: 5, correct: 3, sessions: 3 },
+        // Earlier than last month: ignored.
+        { date: "2026-07-31", ms: 999_000, answered: 50, correct: 50, sessions: 9 },
       ],
-      [
-        // Activities and minutes now come from THESE rows, together. They
-        // used to come from two different tables, which is how the panel
-        // rendered "Activities 0" above "Study time 1.8h".
-        { date: "2026-08-10", test: 1, homework: 2, battles: 0, self_practice: 1, minutes: 120 },
-        { date: "2026-07-10", test: 0, homework: 0, battles: 2, self_practice: 0, minutes: 60 },
-      ],
-      now,
-    );
-    expect(rows[0]).toMatchObject({ label: "Practice", thisM: 1, lastM: null });
-    // Pooled: 4 correct of 10 answered = 40%. The mean of the session rates
-    // would be (100 + 33)/2 = 67, which is what this used to report.
+    });
+    expect(rows[0]).toMatchObject({ label: "Practice", thisM: 2, lastM: 3 });
+    // Pooled 4/10 = 40%; the mean of the daily rates would be (100 + 33)/2.
     expect(rows[1]).toMatchObject({ label: "Accuracy", thisM: 40, lastM: 60 });
-    // MINUTES, not hours. Rounding to hours here is what printed "0h" for
-    // every real total under thirty minutes.
-    // lastM study time is null: July had battles but no practice sessions,
-    // so the month is "nothing practised" for Analysis (rule 11).
-    expect(rows[2]).toMatchObject({ label: "Study time", thisM: 120, lastM: null });
+    // Milliseconds; the renderer picks the unit.
+    expect(rows[2]).toMatchObject({ label: "Study time", thisM: 120_000, lastM: 600_000, unit: "time" });
   });
 
-  it("month comparison reports a month with no answered questions as null, not 0%", () => {
-    const rows = deriveMonthComparison([], [], new Date("2026-08-15T12:00:00Z"));
-    expect(rows[1]).toMatchObject({ label: "Accuracy", thisM: null, lastM: null });
+  it("month comparison crosses the year, and a month with nothing in it is null", () => {
+    const rows = deriveMonthComparison({
+      today: "2027-01-05",
+      days: [{ date: "2026-12-31", ms: 60_000, answered: 2, correct: 1, sessions: 1 }],
+    });
+    expect(rows.map((r) => [r.thisM, r.lastM])).toEqual([[null, 1], [null, 50], [null, 60_000]]);
+    expect(deriveMonthComparison(null).every((r) => r.thisM == null && r.lastM == null)).toBe(true);
   });
 
-  it("buckets attempts by the hour of the viewer's own clock", () => {
-    // Built from a local Date, so the expectation holds wherever this runs.
-    //
-    // WHAT THIS DOES NOT PROVE, stated rather than implied: swapping
-    // getHours() for getUTCHours() in the implementation does NOT fail this
-    // test, because CI and this container both run in UTC, where the two are
-    // the same function. No test written here can separate them under a UTC
-    // clock. The local-hours choice is argued in hourHistogram's own comment
-    // and verified by reading it; what this test covers is the bucketing and
-    // the handling of unusable entries.
-    const at = (h: number) => new Date(2026, 8, 18, h, 30).toISOString();
-    const hours = hourHistogram([at(17), at(17), at(5), null, undefined, "not a date"]);
+  it("study time sums the window's days, and names the weekday the chart highlights", () => {
+    const window = ["2026-09-14", "2026-09-15", "2026-09-21", "2026-09-22", "2026-09-28"];
+    const study = deriveStudyTime(
+      window,
+      [
+        // Two Mondays of 50 minutes against one Tuesday of 80: Monday is the
+        // most active DAY OF THE WEEK. The single busiest date is a Tuesday,
+        // which is what the tile named before — beside a chart whose tallest
+        // bar was Monday.
+        { date: "2026-09-14", ms: 3_000_000, answered: 1, correct: 1, sessions: 1 },
+        { date: "2026-09-21", ms: 3_000_000, answered: 1, correct: 1, sessions: 1 },
+        { date: "2026-09-15", ms: 4_800_000, answered: 1, correct: 1, sessions: 1 },
+        // Outside the window: not counted.
+        { date: "2026-09-01", ms: 9_999_999, answered: 1, correct: 1, sessions: 1 },
+      ],
+      (() => { const h = new Array<number>(24).fill(0); h[17] = 9; return h; })(),
+    );
+    expect(study.totalMs).toBe(10_800_000);
+    expect(study.bestDay).toBe("Mon");
+    expect(study.weeklyHrs.slice(0, 2)).toEqual([1.7, 1.3]);
+    // Over the three days practised, not the window's five dates.
+    expect(study.avgDailyMs).toBe(3_600_000);
+    expect(study.bestHour).toBe("5 PM");
+    expect(study.msByDate.get("2026-09-15")).toBe(4_800_000);
+    expect(study.msByDate.has("2026-09-01")).toBe(false);
+  });
 
-    expect(hours).toHaveLength(24);
-    expect(hours[17]).toBe(2);
-    expect(hours[5]).toBe(1);
-    // Everything else, including the three unusable entries, contributes zero.
-    expect(hours.reduce((a, b) => a + b, 0)).toBe(3);
+  it("study time is absent, not zero, before it loads and when nothing was timed", () => {
+    for (const days of [null, [], [{ date: "2026-09-14", ms: 0, answered: 0, correct: 0, sessions: 1 }]]) {
+      const study = deriveStudyTime(["2026-09-14"], days, null);
+      expect(study.totalMs).toBeNull();
+      expect(study.avgDailyMs).toBeNull();
+      expect(study.bestDay).toBe("—");
+      expect(study.bestHour).toBe("—");
+    }
+  });
+
+  it("paces over answers only, and says how many answers it rests on", () => {
+    const pace = paceOverAnswers([
+      { timeMs: 40_000, skipped: false },
+      { timeMs: 40_000, skipped: false },
+      { timeMs: 1_000, skipped: true },   // time spent, not solving
+      { timeMs: null, skipped: false },   // untimed: left out, never zero
+      { timeMs: 0, skipped: false },
+    ]);
+    expect(pace).toEqual({ avgSec: 40, timed: 2 });
+    // POSITIVE CONTROL: counting the skip would give 27s.
+    expect(pace.avgSec).not.toBeCloseTo(27, 0);
+    expect(paceOverAnswers([{ timeMs: 1_000, skipped: true }])).toEqual({ avgSec: null, timed: 0 });
   });
 
   it("names the busiest hour, and says nothing when there is nothing to say", () => {

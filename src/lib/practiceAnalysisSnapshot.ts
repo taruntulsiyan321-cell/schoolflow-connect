@@ -15,12 +15,15 @@ import { ACCURACY_BUILDING, ACCURACY_PROCEDURAL } from "@/academic/metrics/bands
  */
 export type PracticeAnalysisSnapshot = {
   /**
-   * 4 since 2026-09-25: every question of the session. Version 3
-   * (2026-09-23 to 09-25) held the wrong and the skipped only, under a §10.8
-   * rule the owner has since withdrawn; version 2 held every question. All
-   * three have the same shape.
+   * 5 since 2026-09-27: every question carries the time it took, and the
+   * frozen per-question average is gone — it is read off those times, the one
+   * rule for it (paceOverAnswers). 4 (2026-09-25): every question of the
+   * session. 3 (2026-09-23 to 09-25) held the wrong and the skipped only,
+   * under a §10.8 rule the owner has since withdrawn; 2 held every question.
+   * Versions 2-4 have no `timeTakenMs` on their questions and carry a
+   * `statistics.avgSecPerQuestion` counted over skips, which nothing reads.
    */
-  version: 2 | 3 | 4;
+  version: 2 | 3 | 4 | 5;
   subject: string;
   chapter: string;
   practiceMode: string | null;
@@ -48,14 +51,13 @@ export type PracticeAnalysisSnapshot = {
     isCorrect: boolean;
     skipped: boolean;
     explanation?: string;
+    /** question_attempts.time_taken_ms; absent before version 5, null when untimed. */
+    timeTakenMs?: number | null;
   }>;
   insights: {
     headline: string;
     bullets: string[];
     recommendations: string[];
-  };
-  statistics: {
-    avgSecPerQuestion: number | null;
   };
 };
 
@@ -83,6 +85,7 @@ export type PracticeAttemptRecord = {
   correct_answer: unknown;
   is_correct: boolean | null;
   skipped?: boolean | null;
+  time_taken_ms?: number | null;
 };
 
 function asObject(v: unknown): Record<string, unknown> {
@@ -144,6 +147,7 @@ export function buildPracticeAnalysisSnapshot(
         isCorrect: !skipped && r.is_correct === true,
         skipped,
         ...(explanation ? { explanation } : {}),
+        timeTakenMs: typeof r.time_taken_ms === "number" && r.time_taken_ms > 0 ? r.time_taken_ms : null,
       };
     });
 
@@ -164,7 +168,7 @@ export function buildPracticeAnalysisSnapshot(
 
   const answered = correctCount + wrongCount;
   return {
-    version: 4,
+    version: 5,
     subject: session.subject ?? "",
     chapter: session.chapter ?? "",
     practiceMode: session.practice_mode ?? null,
@@ -196,9 +200,6 @@ export function buildPracticeAnalysisSnapshot(
         skippedCount > 0 ? `${skippedCount} skipped` : "No skips",
       ],
       recommendations,
-    },
-    statistics: {
-      avgSecPerQuestion: totalTimeMs && questionCount > 0 ? Math.round(totalTimeMs / questionCount / 1000) : null,
     },
   };
 }

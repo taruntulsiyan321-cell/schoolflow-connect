@@ -32,25 +32,31 @@ class RO {
  *
  * So the assertions are not "a number appeared". They are: this chapter must
  * NOT carry a verdict, that one MUST, and the page must not confuse the two.
+ *
+ * `timed` and `avg_sec` are restated in the contract of 20261115000000: they
+ * count ANSWERS only. Measured, Social Science carried timed 79 and 0.3s off
+ * 79 skips; the server now sends timed 0 and no pace for it, and Hindi's one
+ * timed question is an answer (answered 1), so the floor on `timed` alone is
+ * what keeps it off "Takes most time".
  */
 
 const SUBJECTS = [
-  { subject: "Mathematics",    attempts: 408, answered: 220, timed: 402, correct: 101, skipped: 188, accuracy: 45.9, avg_sec: 6.8, total_min: 45.5 },
-  { subject: "Social Science", attempts: 79,  answered: 0,   timed: 79,  correct: 0,   skipped: 79,  accuracy: null, avg_sec: 0.3, total_min: 0.4 },
-  { subject: "English",        attempts: 54,  answered: 0,   timed: 54,  correct: 0,   skipped: 54,  accuracy: null, avg_sec: 0.5, total_min: 0.5 },
-  { subject: "Hindi",          attempts: 11,  answered: 0,   timed: 1,   correct: 0,   skipped: 11,  accuracy: null, avg_sec: 300, total_min: 5.0 },
+  { subject: "Mathematics",    attempts: 408, answered: 220, timed: 216, correct: 101, skipped: 188, accuracy: 45.9, avg_sec: 11.9, total_min: 45.5 },
+  { subject: "Social Science", attempts: 79,  answered: 0,   timed: 0,   correct: 0,   skipped: 79,  accuracy: null, avg_sec: null, total_min: 0.4 },
+  { subject: "English",        attempts: 54,  answered: 0,   timed: 0,   correct: 0,   skipped: 54,  accuracy: null, avg_sec: null, total_min: 0.5 },
+  { subject: "Hindi",          attempts: 11,  answered: 1,   timed: 1,   correct: 0,   skipped: 10,  accuracy: 0,    avg_sec: 300,  total_min: 5.0 },
 ];
 
 const CHAPTERS = [
-  { chapter: "Circles",        subject: "Mathematics", attempts: 8,   answered: 1,  timed: 8,   correct: 0,  skipped: 7,  accuracy: 0,    avg_sec: 0.4,  total_min: 0.1 },
-  { chapter: "Real Numbers",   subject: "Mathematics", attempts: 44,  answered: 25, timed: 44,  correct: 2,  skipped: 19, accuracy: 8,    avg_sec: 1.0,  total_min: 0.7 },
-  { chapter: "Statistics",     subject: "Mathematics", attempts: 8,   answered: 3,  timed: 8,   correct: 1,  skipped: 5,  accuracy: 33.3, avg_sec: 3.5,  total_min: 0.5 },
-  { chapter: "Triangles",      subject: "Mathematics", attempts: 9,   answered: 2,  timed: 9,   correct: 1,  skipped: 7,  accuracy: 50,   avg_sec: 67.1, total_min: 10.1 },
+  { chapter: "Circles",        subject: "Mathematics", attempts: 8,   answered: 1,  timed: 1,   correct: 0,  skipped: 7,  accuracy: 0,    avg_sec: 4.1,  total_min: 0.1 },
+  { chapter: "Real Numbers",   subject: "Mathematics", attempts: 44,  answered: 25, timed: 25,  correct: 2,  skipped: 19, accuracy: 8,    avg_sec: 1.5,  total_min: 0.7 },
+  { chapter: "Statistics",     subject: "Mathematics", attempts: 8,   answered: 3,  timed: 3,   correct: 1,  skipped: 5,  accuracy: 33.3, avg_sec: 8.7,  total_min: 0.5 },
+  { chapter: "Triangles",      subject: "Mathematics", attempts: 9,   answered: 2,  timed: 2,   correct: 1,  skipped: 7,  accuracy: 50,   avg_sec: 300,  total_min: 10.1 },
 ];
 
 const TOPICS = [
-  { topic: "Reporting Imperative Sentences", subject: "English",     chapter: "Reported Speech", attempts: 5,  answered: 0,  timed: 5,  correct: 0,  skipped: 5,  accuracy: null, avg_sec: 0.9, total_min: 0.1 },
-  { topic: "Degree and Value of a Polynomial", subject: "Mathematics", chapter: "Polynomials",   attempts: 45, answered: 32, timed: 41, correct: 10, skipped: 13, accuracy: 31.3, avg_sec: 1.0, total_min: 0.7 },
+  { topic: "Reporting Imperative Sentences", subject: "English",     chapter: "Reported Speech", attempts: 5,  answered: 0,  timed: 0,  correct: 0,  skipped: 5,  accuracy: null, avg_sec: null, total_min: 0.1 },
+  { topic: "Degree and Value of a Polynomial", subject: "Mathematics", chapter: "Polynomials",   attempts: 45, answered: 32, timed: 30, correct: 10, skipped: 13, accuracy: 31.3, avg_sec: 1.3, total_min: 0.7 },
 ];
 
 const SNAPSHOT = {
@@ -71,6 +77,21 @@ const SNAPSHOT = {
     // includes this is summing the wrong span.
     { date: isoDaysAgo(120), test: 0, homework: 0, battles: 0, self_practice: 9, minutes: 600 },
   ],
+};
+
+// Time on the questions, per day of the student's calendar. 40 + 35 + 32
+// minutes inside the four-week grid; the 600-minute day is 40 days back —
+// inside last month's reach, outside every "4 weeks" figure.
+const PRACTICE_TIME = {
+  from: isoDaysAgo(62),
+  today: isoDaysAgo(0),
+  days: [
+    { date: isoDaysAgo(40), ms: 600 * 60000, answered: 50, correct: 30, sessions: 9 },
+    { date: isoDaysAgo(10), ms: 32 * 60000,  answered: 20, correct: 10, sessions: 4 },
+    { date: isoDaysAgo(3),  ms: 35 * 60000,  answered: 15, correct: 7,  sessions: 2 },
+    { date: isoDaysAgo(1),  ms: 40 * 60000,  answered: 18, correct: 9,  sessions: 3 },
+  ],
+  hours: (() => { const h = new Array(24).fill(0); h[17] = 9; return h; })(),
 };
 
 function isoDaysAgo(n: number): string {
@@ -112,7 +133,6 @@ vi.mock("@/hooks/useAnalysisPageData", () => ({
     data: {
       totals: { correct: 101, wrong: 119, skipped: 344, accuracy_pct: 46 },
       recent_sessions: [],
-      attempt_hours: (() => { const h = new Array(24).fill(0); h[17] = 9; return h; })(),
     },
     loading: false,
     error: null,
@@ -131,6 +151,10 @@ vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
   useStudentAcademicSnapshot: () => ({ data: SNAPSHOT, loading: false, error: null }),
 }));
 
+vi.mock("@/hooks/useStudentPracticeTime", () => ({
+  useStudentPracticeTime: () => ({ data: PRACTICE_TIME, loading: false, error: null }),
+}));
+
 vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   useStudentPracticeAnalytics: () => ({
     data: {
@@ -138,8 +162,8 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
       by_chapter: CHAPTERS,
       by_topic: TOPICS,
       by_difficulty: [
-        { difficulty: "easy",   rank: 1, attempts: 207, answered: 70, timed: 207, correct: 29, skipped: 137, accuracy: 41.4, avg_sec: 1.2 },
-        { difficulty: "medium", rank: 2, attempts: 234, answered: 96, timed: 230, correct: 46, skipped: 138, accuracy: 47.9, avg_sec: 1.1 },
+        { difficulty: "easy",   rank: 1, attempts: 207, answered: 70, timed: 70, correct: 29, skipped: 137, accuracy: 41.4, avg_sec: 2.9 },
+        { difficulty: "medium", rank: 2, attempts: 234, answered: 96, timed: 94, correct: 46, skipped: 138, accuracy: 47.9, avg_sec: 2.6 },
       ],
       effort: { attempts: 564, solution_viewed: 211, repeat_attempts: 481, first_try_attempts: 56, first_try_correct: 20 },
       recurring: [],
@@ -262,11 +286,26 @@ describe("Analysis — rendered", () => {
   it("does not sum activity from outside the four-week window", () => {
     render(<Analysis />);
     openTab("Activity & Speed");
-    // 40 + 35 + 32 = 107 minutes inside the window -> "1.8h".
-    // The 600-minute day 120 days back would make it "11.8h".
+    // 40 + 35 + 32 = 107 minutes inside the window -> "1h 47m".
+    // The 600-minute day 40 days back would make it "11h 47m".
     const tile = screen.getByText("Study time (4 weeks)").parentElement as HTMLElement;
-    expect(within(tile).getByText("1.8h")).toBeInTheDocument();
-    expect(within(tile).queryByText("11.8h")).toBeNull();
+    expect(within(tile).getByText("1h 47m")).toBeInTheDocument();
+    expect(within(tile).queryByText("11h 47m")).toBeNull();
+  });
+
+  it("names the busiest hour from the student's own clock", () => {
+    render(<Analysis />);
+    openTab("Activity & Speed");
+    const tile = screen.getByText("Most active hour").parentElement as HTMLElement;
+    expect(within(tile).getByText("5 PM")).toBeInTheDocument();
+  });
+
+  it("does not list a chapter by pace on two timed answers", () => {
+    render(<Analysis />);
+    openTab("Activity & Speed");
+    // Triangles: two answers, 300s each — a tab left open, twice. The
+    // floor keeps it off "Chapters that take you longest".
+    expect(screen.queryByText("Triangles")).toBeNull();
   });
 
   it("does not rank a topic the student never answered anything in", () => {

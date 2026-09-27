@@ -4,7 +4,7 @@
  */
 
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
-import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import type { PracticeTimeDay, StudentPracticeTime } from "@/hooks/useStudentPracticeTime";
 import type { ChapterStateRow, RecoveryQueueRow } from "@/academic";
 import {
   REVISION_STAGES_TO_SOLID,
@@ -18,6 +18,8 @@ import {
   preferRealAcademicLabel,
 } from "@/lib/qualityGuards";
 import { mayBeJudged } from "@/academic/metrics/thresholds";
+import { sessionAccuracy } from "@/academic/metrics/practice";
+import { valueOr } from "@/academic/metrics/types";
 
 export { buildSubjectRadarPoints };
 
@@ -248,34 +250,52 @@ export function formatSeconds(sec: number): string {
 }
 
 /**
+ * Seconds per ANSWERED question, over the answers that carry a time — the
+ * browser's twin of rpc_student_practice_analytics.avg_sec, which counts the
+ * same rows since 20261115000000. Change one and change the other.
+ *
+ * A skip is left out: it is time spent, not solving, and a skip taken in a
+ * second made a chapter answered at forty seconds read as twenty. It stays in
+ * every TOTAL — a session's length, a day's study time — because those are
+ * time spent. `timed` is how many answers the average rests on, so a caller
+ * can refuse to judge a pace that rests on one reading.
+ */
+export function paceOverAnswers(
+  rows: { timeMs: number | null | undefined; skipped: boolean }[],
+): { avgSec: number | null; timed: number } {
+  let ms = 0;
+  let timed = 0;
+  for (const r of rows) {
+    if (r.skipped || typeof r.timeMs !== "number" || !(r.timeMs > 0)) continue;
+    ms += r.timeMs;
+    timed += 1;
+  }
+  return { avgSec: timed > 0 ? ms / timed / 1000 : null, timed };
+}
+
+/**
  * Per-question time by subject, from the attempt record.
  *
  * Takes rows already mapped to their display name and colour so this stays a
- * pure calculation. Three rules it exists to hold:
+ * pure calculation. Two rules it exists to hold:
  *
- *   ENOUGH TIMED READINGS, the denominator of avg_sec. Without it the fastest
+ *   ENOUGH TIMED ANSWERS, the denominator of avg_sec. Without it the fastest
  *   and slowest subject were the first and last of an unfiltered sort, so one
- *   timed question could name the subject a student is slowest at.
- *
- *   ENOUGH ANSWERED QUESTIONS. The panel is headed "How fast you solve
- *   questions", and skipping is not solving. Measured: a student with 79
- *   Social Science attempts, EVERY ONE of them skipped at about a third of a
- *   second, was named their "fastest subject" at "0s avg" — a subject they
- *   had never answered a question in, presented as the one they are quickest
- *   at, with a time of zero.
+ *   timed question could name the subject a student is slowest at. `timed`
+ *   counts ANSWERS only (20261115000000): a student with 79 Social Science
+ *   attempts, every one skipped at about a third of a second, was named their
+ *   "fastest subject" at "0s avg" while skips were counted — a second floor on
+ *   `answered` held that back until avg_sec stopped counting skips.
  *
  *   POOLING ON THE UNROUNDED VALUE (§4.2b). Averaging per-subject averages
  *   weights a subject with four timed questions the same as one with four
  *   hundred. Rounding each subject to a whole second BEFORE pooling is the
- *   same error in miniature: it made those 79 Social Science questions
- *   contribute exactly zero seconds to the student's overall pace.
+ *   same error in miniature.
  */
 export function deriveSubjectPace(
-  input: { name: string; color: string; avgSec: number | null; timed: number; answered: number }[],
+  input: { name: string; color: string; avgSec: number | null; timed: number }[],
 ): SubjectPace {
-  const kept = input.filter(
-    (r) => mayBeJudged(r.timed) && mayBeJudged(r.answered) && (r.avgSec ?? 0) > 0,
-  );
+  const kept = input.filter((r) => mayBeJudged(r.timed) && (r.avgSec ?? 0) > 0);
   const rows: SubjectPaceRow[] = kept
     .map((r) => ({ name: r.name, color: r.color, avgSec: r.avgSec as number, timed: r.timed }))
     .sort((a, b) => a.avgSec - b.avgSec);
@@ -290,126 +310,115 @@ export function deriveSubjectPace(
 }
 
 /**
- * This month against last month.
+ * This month against last month, from the student's own days
+ * (rpc_student_practice_time, 20261115000000).
  *
- * ── THREE THINGS WERE WRONG HERE, AND EACH HAD A TWIN ELSEWHERE ────────────
+ * All three rows read the same days, so they cannot disagree about whether a
+ * month had anything in it:
  *
- * 1. "Questions". `weekly_activity.total` is
- *    `test_count + homework_count + battle_count + self_practice_count` — a
- *    count of ACTIVITIES, which the heat-map tooltip beside it was corrected
- *    to say in as many words ("the tooltip called them questions, a number
- *    this table has never held"). That correction was made in one place and
- *    not this one, so the same table kept being read as questions two panels
- *    down. It is labelled for what it counts now.
+ *   Practice    sessions finished with something in them — the Overview's rule
+ *   Accuracy    correct over ANSWERED across the month, pooled; never a mean
+ *               of session or daily percentages
+ *   Study time  milliseconds on the questions, skips included; the renderer
+ *               picks the unit
  *
- * 2. "Avg score" was the mean of per-day `score_pct` — the mean of rates,
- *    which 20261022000000 removed from refresh_student_academic_profile for
- *    disagreeing with the pooled figure every other surface shows. It came
- *    back in the browser. It is pooled here: correct over answered, across
- *    the month's sessions, which is the one accuracy this app has.
+ * WHAT IT READ BEFORE, and why each was wrong: sessions from a list capped at
+ * the latest 40, so a busy student's months were whatever those 40 covered;
+ * counts and minutes from snapshot.activity_heatmap, which holds only the last
+ * 28 days — "last month" was its final day or two — and whose minutes were a
+ * one-minute floor per session with a test's minutes folded in.
  *
- * 3. "Study time" was `Math.round(mins / 60)` with the unit "h" appended.
- *    Every real total under thirty minutes printed as "0h" — the same
- *    rounding that formatStudyTime exists to prevent on the Overview tile,
- *    made here about the same minutes. Minutes are returned; the renderer
- *    picks the unit.
- */
-/**
- * `weekly: WeeklyActivityPoint[]` WAS THE FIRST PARAMETER AND IT IS GONE.
- *
- * This counted a month's ACTIVITIES from charts.weekly_activity and that same
- * month's MINUTES from snapshot.activity_heatmap — two tables answering "what
- * did this student do on this day", inside one three-row panel. Rendered
- * together they contradict: the panel showed "Activities 0" directly above
- * "Study time 1.8h", which is 107 minutes of activity on no activities.
- *
- * The heat-map rows already carry the components the count needs
- * (test + homework + battles + self_practice), so both rows read the same
- * days now, and they agree with the Practice tab's four-week tiles for the
- * same reason.
+ * A month with nothing in it reports nothing: two confident zeroes beside an
+ * honest dash would describe one absence three ways.
  */
 export function deriveMonthComparison(
-  sessions: PracticeSessionSummary[],
-  heatmap: AcademicSnapshot["activity_heatmap"],
-  now = new Date(),
-): { label: string; thisM: number | null; lastM: number | null; unit: string }[] {
-  const thisMonth = now.getMonth();
-  const thisYear = now.getFullYear();
-  const lastMonthDate = new Date(thisYear, thisMonth - 1, 1);
-  const lastMonth = lastMonthDate.getMonth();
-  const lastYear = lastMonthDate.getFullYear();
-
-  const inThis = (iso: string) => {
-    const d = new Date(iso);
-    return d.getFullYear() === thisYear && d.getMonth() === thisMonth;
-  };
-  const inLast = (iso: string) => {
-    const d = new Date(iso);
-    return d.getFullYear() === lastYear && d.getMonth() === lastMonth;
-  };
-
-
-  /** Pooled: correct over answered, never a mean of session percentages. */
-  const pooled = (rows: PracticeSessionSummary[]): number | null => {
-    let correct = 0;
-    let answered = 0;
-    for (const r of rows) {
-      correct += r.correct_count;
-      answered += r.correct_count + r.wrong_count;
-    }
-    return answered > 0 ? Math.round((100 * correct) / answered) : null;
-  };
-
-  let thisActivities = 0;
-  let lastActivities = 0;
-  let thisMins = 0;
-  let lastMins = 0;
-  for (const row of heatmap ?? []) {
-    // Practice sessions only (rule 11). Tests / homework / battles stay on
-    // their own surfaces; folding them in made "Activities" disagree with a
-    // Practice heading and with every other practice count on the page.
-    const done = row.self_practice ?? 0;
-    if (inThis(row.date)) {
-      thisActivities += done;
-      thisMins += row.minutes ?? 0;
-    }
-    if (inLast(row.date)) {
-      lastActivities += done;
-      lastMins += row.minutes ?? 0;
-    }
+  time: Pick<StudentPracticeTime, "days" | "today"> | null,
+): { label: string; thisM: number | null; lastM: number | null; unit: "" | "%" | "time" }[] {
+  const empty = { thisM: null, lastM: null };
+  if (!time) {
+    return [
+      { label: "Practice", ...empty, unit: "" },
+      { label: "Accuracy", ...empty, unit: "%" },
+      { label: "Study time", ...empty, unit: "time" },
+    ];
   }
+  // Month keys from the student's calendar, never through Date: "yyyy-mm".
+  const thisKey = time.today.slice(0, 7);
+  const [y, m] = thisKey.split("-").map(Number);
+  const lastKey = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
 
-  // A MONTH WITH NOTHING RECORDED HAS NOTHING TO REPORT.
-  //
-  // thisMins/thisActivities are 0 for such a month and the accuracy is null,
-  // so the panel rendered "Activities 0 / Accuracy — / Study time 0m" — two
-  // confident zeroes and one honest dash for the same absence, directly
-  // below a tile showing "Study time (4 weeks) —". A real zero inside a
-  // month that HAS activity still reports as zero; this only covers the
-  // month where nothing happened at all.
-  const orNull = (n: number, active: number) => (active > 0 ? n : null);
-
+  const sum = (key: string) => {
+    let sessions = 0, answered = 0, correct = 0, ms = 0;
+    for (const d of time.days) {
+      if (d.date.slice(0, 7) !== key) continue;
+      sessions += d.sessions; answered += d.answered; correct += d.correct; ms += d.ms;
+    }
+    const active = sessions + answered + ms > 0;
+    // The metric layer's rate, shown whole as the panel always has.
+    const rate = valueOr(sessionAccuracy(correct, answered), null);
+    return {
+      sessions: active ? sessions : null,
+      accuracy: rate == null ? null : Math.round(rate),
+      ms: active ? ms : null,
+    };
+  };
+  const now = sum(thisKey);
+  const last = sum(lastKey);
   return [
-    {
-      label: "Practice",
-      thisM: orNull(thisActivities, thisActivities),
-      lastM: orNull(lastActivities, lastActivities),
-      unit: "",
-    },
-    {
-      label: "Accuracy",
-      thisM: pooled(sessions.filter((x) => inThis(x.finished_at))),
-      lastM: pooled(sessions.filter((x) => inLast(x.finished_at))),
-      unit: "%",
-    },
-    // Minutes. The renderer formats — see formatStudyTime in Analysis.tsx.
-    {
-      label: "Study time",
-      thisM: orNull(thisMins, thisActivities),
-      lastM: orNull(lastMins, lastActivities),
-      unit: "min",
-    },
+    { label: "Practice", thisM: now.sessions, lastM: last.sessions, unit: "" },
+    { label: "Accuracy", thisM: now.accuracy, lastM: last.accuracy, unit: "%" },
+    { label: "Study time", thisM: now.ms, lastM: last.ms, unit: "time" },
   ];
+}
+
+/**
+ * The study-time tiles and the day-of-week chart, over the dates of the
+ * four-week grid, from the same days as everything else in this family.
+ *
+ * "Most active day" is the weekday with the most time over the window — the
+ * bar the chart beside it highlights. It named the weekday of the single
+ * busiest DATE before, so three long Mondays lost to one long Tuesday and the
+ * tile and the chart named different days.
+ *
+ * "Average per day" is over the days practised, and says so: over all 28 it
+ * would fall with every rest day and read as less time per sitting than the
+ * student actually gives.
+ */
+export function deriveStudyTime(
+  windowDates: string[],
+  days: PracticeTimeDay[] | null,
+  hours: number[] | null,
+): {
+  totalMs: number | null;
+  avgDailyMs: number | null;
+  bestDay: string;
+  bestHour: string;
+  /** Hours per weekday, Mon..Sun, one decimal. */
+  weeklyHrs: number[];
+  /** Milliseconds on each date of the window; absent dates had none. */
+  msByDate: Map<string, number>;
+} {
+  const inWindow = new Set(windowDates);
+  const msByDate = new Map<string, number>();
+  for (const d of days ?? []) if (inWindow.has(d.date) && d.ms > 0) msByDate.set(d.date, d.ms);
+
+  const byWeekday = DAY_LABELS.map(() => 0);
+  let totalMs = 0;
+  for (const [date, ms] of msByDate) {
+    byWeekday[DAY_LABELS.indexOf(weekdayLabel(date) as (typeof DAY_LABELS)[number])] += ms;
+    totalMs += ms;
+  }
+  const best = byWeekday.reduce((bi, ms, i) => (ms > byWeekday[bi] ? i : bi), 0);
+  return {
+    // Null, not zero, before anything is known or when nothing was timed:
+    // "0m" is a claim that the student studied for no time.
+    totalMs: days == null || totalMs === 0 ? null : totalMs,
+    avgDailyMs: msByDate.size > 0 ? totalMs / msByDate.size : null,
+    bestDay: byWeekday[best] > 0 ? DAY_LABELS[best] : "—",
+    bestHour: formatHour(busiestHour(hours ?? [])),
+    weeklyHrs: byWeekday.map((ms) => Math.round(ms / 360000) / 10),
+    msByDate,
+  };
 }
 
 /**
@@ -582,45 +591,6 @@ export function deriveRevisionData(
     pending: scheduled.length,
     dueToday,
   };
-}
-
-/**
- * When in the day this student actually practises.
- *
- * ── WHY THIS EXISTS ────────────────────────────────────────────────────────
- *
- * The Activity & Speed tab has a tile headed "Most productive hour" and it
- * rendered "—" for every student, always, with this note beside it:
- *
- *     // Hourly buckets are not in academic_daily_activity — honest empty.
- *
- * That was true about academic_daily_activity and false about the database.
- * question_attempts.created_at is set on every attempt — measured 2026-09-18,
- * 5,623 of them across 11 distinct hours — so the hour a student works has
- * been recorded all along. Nothing needed storing; the page needed to read it.
- *
- * ── WHY THE BUCKETING IS DONE IN THE BROWSER ───────────────────────────────
- *
- * The database runs in UTC and has no column saying where a student is. An
- * hour bucket computed server-side would therefore be a UTC hour, and India —
- * which is who this product is for — is UTC+5:30, so a UTC bucket straddles
- * two local hours and cannot be shifted into one afterwards. Hardcoding
- * Asia/Kolkata in SQL would work today and be wrong the first time a school
- * sits anywhere else.
- *
- * `new Date(iso).getHours()` is the viewer's own clock, which is the only
- * clock that makes "you work best at 5pm" mean anything to the person reading
- * it.
- */
-export function hourHistogram(timestamps: (string | null | undefined)[]): number[] {
-  const hours = new Array<number>(24).fill(0);
-  for (const iso of timestamps) {
-    if (!iso) continue;
-    const at = new Date(iso);
-    if (Number.isNaN(at.getTime())) continue;
-    hours[at.getHours()] += 1;
-  }
-  return hours;
 }
 
 /**

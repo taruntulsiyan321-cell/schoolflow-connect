@@ -64,8 +64,7 @@ vi.mock("@/hooks/useAnalysisPageData", () => ({
         { id: "s4", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(6) + "T10:00:00Z" },
         { id: "s5", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(4) + "T10:00:00Z" },
         { id: "s6", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(2) + "T10:00:00Z" },
-      ],
-      attempt_hours: (() => { const h = new Array(24).fill(0); h[9] = 12; return h; })() },
+      ] },
     loading: false, error: null, reload: () => {},
   }),
 }));
@@ -92,6 +91,12 @@ vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
       { date: iso(2), test: 0, homework: 0, battles: 0, self_practice: 5, minutes: 60 },
     ],
   }, loading: false, error: null, reload: () => {} }),
+}));
+vi.mock("@/hooks/useStudentPracticeTime", () => ({
+  useStudentPracticeTime: () => ({
+    data: { from: "2026-08-01", today: "2026-09-27", days: [], hours: new Array(24).fill(0) },
+    loading: false, error: null, reload: () => {},
+  }),
 }));
 vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   useStudentPracticeAnalytics: () => ({ data: {
