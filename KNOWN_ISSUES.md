@@ -3565,6 +3565,17 @@ extra lines is a change the repo lacks. **The owner ruled 2026-09-26: deploy `ai
 coach live found its prompt wrong (below); rewritten into `_shared/conceptReportPrompt.ts` and redeployed. The rest
 stays the owner's call under ruling 5c.
 
+**Dead-code removal, 2026-09-27.** Ten edge functions with no caller were removed from the repo (no
+app, database, cron, Auth-hook or function caller, and zero invocations in production's last day):
+`ai-academic-coach-agent`, `ai-expand-questions`, `ai-learning-pattern-agent`, `ai-ping`, `ai-recovery-agent`,
+`ai-revision-agent`, `mcp`, `send-push`, and the never-deployed `send-otp` / `verify-otp`. **Eight of them are still
+deployed** — deleting a production function was held for the owner. They are harmless (nothing calls them) but are
+now deployed code with no source here (`NO-REPO-SOURCE` in the baseline). To finish:
+`supabase functions delete <slug> --project-ref psqxykzqfvxgsvkmgurn` for each, then
+`npm run check:edge-drift:update`. The same removal took unused declarations out of `_shared`; production still runs
+the older bundles, which behave identically, so the baseline's DRIFT count rose to 97 until each function's next
+deploy.
+
 **Before renewing the repo secret, read this.** The workflow deploys EVERY function on disk, and
 `edge-drift-baseline.json` accepts 38 findings across 22 functions where production differs from the repo —
 `ai-gateway`'s `aiRouter.ts` (Nova chat), `ai-concept-report` and `dpp-generate-questions`' `index.ts`, and the
