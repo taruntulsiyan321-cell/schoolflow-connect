@@ -117,13 +117,14 @@ export function NovaRevisionMode() {
   }, [loading]);
 
   // The student's chapters, read once, so a typed topic that names one is
-  // revised as that chapter (subjectForTopic).
-  const [catalog, setCatalog] = useState<{ subject: string; chapter: string | null }[]>([]);
+  // revised as that chapter (subjectForTopic). Held as the read itself, not its
+  // result: measured 2026-09-27 on www.gurukul.study, the catalog answered ~8 s
+  // after the screen opened, and a topic sent before then went without its
+  // subject. A topic sent early waits for it.
+  const catalogRef = useRef<Promise<{ subject: string; chapter: string | null }[]> | null>(null);
   useEffect(() => {
     if (!ctx) return;
-    let live = true;
-    PracticeService.listBankCatalog(ctx).then((c) => { if (live) setCatalog(c.rows); }, () => {});
-    return () => { live = false; };
+    catalogRef.current = PracticeService.listBankCatalog(ctx).then((c) => c.rows, () => []);
   }, [ctx]);
 
   async function loadGist(topic: string, given: string, style: RevisionStyle, reload: boolean) {
@@ -134,6 +135,8 @@ export function NovaRevisionMode() {
     abortRef.current = controller;
     setError("");
     setLoading({ topic: clean, reload });
+    const catalog = given ? [] : (await catalogRef.current) ?? [];
+    if (controller.signal.aborted) return; // cancelled while the catalog was read
     const subject = given || subjectForTopic(clean, [...listItems(revisionList), ...catalog]);
     const result = await fetchRevisionGist({ topic: clean, subject, grade, style }, controller.signal);
     if (!result) return; // cancelled
