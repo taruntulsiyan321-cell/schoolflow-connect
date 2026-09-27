@@ -127,11 +127,33 @@ describe("the question pool of a commerce-tagged school", () => {
   it("asks the bank catalog without a stream below Class 11, and with one above", async () => {
     atClass(10);
     await PracticeService.listBankCatalog(ctx, {});
-    expect(catalogArgs).toMatchObject({ _class_level: 10, _board: "rbse" });
-    expect(catalogArgs && "_stream" in catalogArgs).toBe(false);
+    expect(catalogArgs).toEqual({ _class_level: 10 });
 
     atClass(12);
     await PracticeService.listBankCatalog(ctx, {});
-    expect(catalogArgs).toMatchObject({ _class_level: 12, _stream: "commerce" });
+    expect(catalogArgs).toEqual({ _class_level: 12, _stream: "commerce" });
+  });
+});
+
+describe("the bank catalog's board and exam", () => {
+  // The database reads both from the caller (question_bank_student,
+  // 20261110000000). A board or exam in the request would be a second home for
+  // "which board is this student" — the one that could be wrong.
+  it("sends a school student's class, never their board", async () => {
+    atClass(10);
+    await PracticeService.listBankCatalog(ctx, {});
+    expect(catalogArgs).not.toHaveProperty("_board");
+    expect(catalogArgs).not.toHaveProperty("_exam_id");
+  });
+
+  it("sends an exam account nothing but the subject it asks about", async () => {
+    vi.spyOn(PracticeService, "resolveCurriculumScope").mockResolvedValue({
+      classLevel: null, board: "cuet", stream: null, classLabel: "CUET",
+      examId: "5a78f1f8-cf43-4631-a9de-4abc7d6a8d9d", examCode: "cuet", examName: "CUET", syllabusChapterIds: [],
+    });
+    await PracticeService.listBankCatalog(ctx, {});
+    expect(catalogArgs).toEqual({});
+    await PracticeService.listBankCatalog(ctx, { subject: "Accountancy" });
+    expect(catalogArgs).toEqual({ _subject: "Accountancy" });
   });
 });

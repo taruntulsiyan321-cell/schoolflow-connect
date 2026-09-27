@@ -3541,10 +3541,20 @@ at finish, so nothing was lost — but a student waits and sees an error.
 **State 2026-09-27.** A live Management token is in the rulings-artifact worktree's `.env.local` (the main
 checkout's and the threshold-rulings worktree's still answer 401 — pass the live one per command, see
 `scripts/apply-one-migration.mjs`'s loader). With it: 78 and 82's variant merge are applied, the eight dead
-functions are deleted, and the eleven 2026-09-22 rollbacks are dry-run (below). **Still waiting on the owner:**
-the GitHub repo secret for Deploy Edge Functions (below), and `rpc_practice_bank_catalog`'s board — the one-home
-fix drafted on 2026-09-22 derives it from the caller's school, but since then an exam account (CUET) studies an
-exam and a stream, not a board (20261091000000), so which home is right is a ruling, not a token.
+functions are deleted, the eleven 2026-09-22 rollbacks are dry-run (below), and `rpc_practice_bank_catalog` takes
+no board or exam from the request (20261110000000, applied 2026-09-27). **Still waiting on the owner:** the GitHub
+repo secret for Deploy Edge Functions (below).
+
+**The catalog's board, 2026-09-27.** The one home is `question_bank_student`, which every other student bank read
+already used: board from the caller's school, exam from their own exam account. (The 2026-09-22 draft — "derive
+the board from get_my_school_id()" — would have been a third home once exam accounts existed.) The catalog now
+reads the view; the app sends only class, stream and subject, and no longer re-filters the board on its own two
+view reads either (its default of 'rbse' for a school with no board was the one way the two homes could
+disagree). Proved as the fixture student and all four exam accounts: every catalog identical before and after; a
+forged board or exam changed the answer before and does not now. **The five-argument form is kept on purpose**
+— the Android build bundles its JavaScript, so a phone that has not updated still sends `_board`/`_exam_id`; that
+door now ignores both and answers from the same view. Drop it (a migration that drops
+`rpc_practice_bank_catalog(integer,text,text,text,uuid)`) once no installed build predates this release.
 
 **The eleven 2026-09-22 rollbacks, dry-run against live 2026-09-27** (each in its own rolled-back transaction):
 four run clean — `20260905130000`, `20260914070000`, `20260916130000`, `20261011000000_down`; two refuse through

@@ -11,32 +11,24 @@ Added `emitEventBestEffort` to complete the event catalog per §10.15:
 
 *Note: Research confirmed that `marks.results_published`, `test.attempt.completed`, and `examination.scheduled` were already correctly implemented.*
 
-### 2. SQL Fixes Written (Awaiting Migration)
-The following SQL migration files have been written but **NOT** applied, because the environment lacked `SUPABASE_ACCESS_TOKEN`:
+### 2. SQL Fixes Written (Awaiting Migration) — SUPERSEDED, files removed 2026-09-27
+Two drafts were written here and never applied, and a third (`20260903140000_rename_admission_enquiries`) sat
+beside them. **Do not recreate or apply them.** Measured on production 2026-09-27, later work did each one:
 
-1. `supabase/migrations/20260903120000_fix_weekly_digest_violations.sql`
-   - Replaces `rpc_parent_weekly_digest` to remove the `'improvement'` branch (which violated §10.8) and the `'weakness'` branch (which keyed on `exam_readiness`, a metric that blends practice accuracy and violates §10.15).
-   - Preserves the join-table logic introduced in `20260822190000_phase5_parent_join_table_and_snapshot_lockdown.sql`.
-
-2. `supabase/migrations/20260903130000_audit_logs_admin_only.sql`
-   - Changes the `audit_logs` RLS policy to be admin-only (using `public.has_role(auth.uid(), 'admin'::public.app_role)`), removing principal read access per §10.18.
+1. `20260903120000_fix_weekly_digest_violations` — the digest was rebuilt school-only
+   (`rpc_parent_weekly_digest` → `_parent_weekly_digest`); neither the `'improvement'` branch (§10.8) nor
+   `exam_readiness` (§10.15) is in it. Applying the draft would have put the older body back.
+2. `20260903130000_audit_logs_admin_only` — `audit_logs` was dropped by `20260904100000_audit_consolidation`;
+   its replacement `academic_audit` is already readable by an admin only. The draft would have failed.
+3. `20260903140000_rename_admission_enquiries` — the rename was applied as `20260903100000_admission_enquiries_rename`.
+   The draft would have failed.
 
 ---
 
 ## Action Items for You (The Developer)
 
-Since this session lacked DB credentials, you must run the migrations manually. From a shell that has `SUPABASE_ACCESS_TOKEN` and `DATABASE_URL` set:
-
-```bash
-# 1. Apply the new migrations
-npm run preflight && npm run db:migrate && npm run db:check-migrations
-
-# 2. Re-generate types (and verify empty diff as requested in the brief)
-npm run db:types
-
-# 3. Final preflight
-npm run preflight
-```
+None left from this handoff: the migrations it listed are superseded (above), and `npm run db:check-migrations`
+reports nothing pending.
 
 ## Items Still Blocked on Decisions
 

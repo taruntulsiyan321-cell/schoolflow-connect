@@ -2455,6 +2455,24 @@ export type Database = {
           },
         ]
       }
+      chapter_tally_recount_20261108: {
+        Row: {
+          attempted: number
+          correct: number
+          tally_id: string
+        }
+        Insert: {
+          attempted: number
+          correct: number
+          tally_id: string
+        }
+        Update: {
+          attempted?: number
+          correct?: number
+          tally_id?: string
+        }
+        Relationships: []
+      }
       chapters: {
         Row: {
           created_at: string
@@ -3344,6 +3362,27 @@ export type Database = {
         }
         Relationships: []
       }
+      cuet_cutoff_repair_20261099: {
+        Row: {
+          complete_id: string | null
+          old_is_active: boolean
+          old_replaced_by: string | null
+          question_id: string
+        }
+        Insert: {
+          complete_id?: string | null
+          old_is_active: boolean
+          old_replaced_by?: string | null
+          question_id: string
+        }
+        Update: {
+          complete_id?: string | null
+          old_is_active?: boolean
+          old_replaced_by?: string | null
+          question_id?: string
+        }
+        Relationships: []
+      }
       cuet_ref_repoint_20261084: {
         Row: {
           inserted: boolean
@@ -3365,6 +3404,33 @@ export type Database = {
           old_question_id?: string
           ref_key?: string
           ref_table?: string
+        }
+        Relationships: []
+      }
+      cuet_ref_repoint_20261099: {
+        Row: {
+          inserted: boolean
+          new_question_id: string
+          old_question_id: string
+          ref_key: string
+          ref_table: string
+          seq: number
+        }
+        Insert: {
+          inserted?: boolean
+          new_question_id: string
+          old_question_id: string
+          ref_key: string
+          ref_table: string
+          seq?: number
+        }
+        Update: {
+          inserted?: boolean
+          new_question_id?: string
+          old_question_id?: string
+          ref_key?: string
+          ref_table?: string
+          seq?: number
         }
         Relationships: []
       }
@@ -7592,6 +7658,27 @@ export type Database = {
           },
         ]
       }
+      student_mistakes_variant_merge: {
+        Row: {
+          backed_up_at: string
+          kind: string
+          merged_into: string | null
+          row_data: Json
+        }
+        Insert: {
+          backed_up_at?: string
+          kind: string
+          merged_into?: string | null
+          row_data: Json
+        }
+        Update: {
+          backed_up_at?: string
+          kind?: string
+          merged_into?: string | null
+          row_data?: Json
+        }
+        Relationships: []
+      }
       student_question_history: {
         Row: {
           last_seen_at: string
@@ -11044,20 +11131,29 @@ export type Database = {
         Args: { _source_id: string; _source_type: string }
         Returns: Json
       }
-      rpc_practice_bank_catalog: {
-        Args: {
-          _board: string
-          _class_level: number
-          _exam_id?: string
-          _stream?: string
-          _subject?: string
-        }
-        Returns: {
-          chapter: string
-          questions: number
-          subject: string
-        }[]
-      }
+      rpc_practice_bank_catalog:
+        | {
+            Args: { _class_level?: number; _stream?: string; _subject?: string }
+            Returns: {
+              chapter: string
+              questions: number
+              subject: string
+            }[]
+          }
+        | {
+            Args: {
+              _board: string
+              _class_level: number
+              _exam_id?: string
+              _stream?: string
+              _subject?: string
+            }
+            Returns: {
+              chapter: string
+              questions: number
+              subject: string
+            }[]
+          }
       rpc_principal_concept_analytics: { Args: never; Returns: Json }
       rpc_principal_school_health: { Args: never; Returns: Json }
       rpc_progression_leaderboard: {

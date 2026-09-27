@@ -167,11 +167,9 @@ function studentBankQuery(
   if (scope.examId) {
     query = query.eq("exam_id", scope.examId).in("chapter_id", scope.syllabusChapterIds ?? []);
   } else {
-    // Chunk 7A: question_bank.school_id is gone — the bank is global (G2),
-    // so there is no per-school arm left to filter on.
-    query = query
-      .is("exam_id", null)
-      .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
+    // The board is not filtered here: question_bank_student already serves
+    // only the caller's school's board (and 'both' / untagged rows).
+    query = query.is("exam_id", null);
     if (classLevel != null && Number.isFinite(classLevel)) query = query.eq("class_level", classLevel);
     // A stream narrows content only from Class 11 (contentStreamForClass).
     const stream = contentStreamForClass(scope.stream, classLevel);
@@ -884,11 +882,6 @@ export const PracticeService = {
     };
   },
 
-  async resolveSchoolBoard(ctx: ServiceContext): Promise<string> {
-    const scope = await this.resolveCurriculumScope(ctx);
-    return scope.board;
-  },
-
   /**
    * The student's class level, board and stream, from the shared copy when it
    * is fresh (SCOPE_TTL_MS). Every question load resolved it again — a round
@@ -1099,13 +1092,11 @@ export const PracticeService = {
     opts: { subject?: string | null; classLevel?: number | null } = {},
   ): Promise<{ scope: CurriculumScope; classLevel: number | null; rows: { subject: string; chapter: string | null; questions: number }[] }> {
     const scope = await this.resolveCurriculumScope(ctx);
-    // Individual exam practice: catalog by exam_id (no class required).
+    // The board and the exam are never sent: the database reads both from the
+    // caller's own school and exam account (question_bank_student), the one
+    // home every other bank read uses (20261110000000).
     if (scope.examId) {
       const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_practice_bank_catalog", {
-        // SQL ignores class/board when _exam_id is set; pass placeholders for the required args.
-        _class_level: 0,
-        _board: scope.board || "cuet",
-        _exam_id: scope.examId,
         ...(opts.subject ? { _subject: opts.subject } : {}),
       });
       throwIfError(error, "Failed to load the practice question bank");
@@ -1116,7 +1107,6 @@ export const PracticeService = {
     if (classLevel == null || !Number.isFinite(classLevel)) return { scope, classLevel: null, rows: [] };
     const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_practice_bank_catalog", {
       _class_level: classLevel,
-      _board: scope.board,
       // Below Class 11 the catalog is asked without a stream, so its own
       // stream filter cannot narrow a secondary student's bank.
       ...((): { _stream?: string } => {
@@ -1230,10 +1220,10 @@ export const PracticeService = {
       if (scope.examId) {
         query = query.eq("exam_id", scope.examId);
       } else {
+        // The board comes from question_bank_student, as in studentBankQuery.
         query = query
           .eq("class_level", classLevel!)
-          .is("exam_id", null)
-          .or(`board.eq.${scope.board},board.eq.both,board.is.null`);
+          .is("exam_id", null);
         if (topicStream) {
           query = query.or(`stream.eq.${topicStream},stream.is.null`);
         }
