@@ -5239,6 +5239,409 @@ export type Database = {
           },
         ]
       }
+      premium_enforced_accounts: {
+        Row: {
+          account_id: string
+          created_at: string
+          note: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          note: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          note?: string
+        }
+        Relationships: []
+      }
+      premium_entitlements: {
+        Row: {
+          account_id: string
+          created_at: string
+          credit_seconds: number
+          ends_at: string
+          id: string
+          note: string | null
+          order_id: string | null
+          revoke_reason: string | null
+          revoked_at: string | null
+          source: string
+          starts_at: string
+          tier_code: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          credit_seconds?: number
+          ends_at: string
+          id?: string
+          note?: string | null
+          order_id?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          source: string
+          starts_at: string
+          tier_code: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          credit_seconds?: number
+          ends_at?: string
+          id?: string
+          note?: string | null
+          order_id?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          source?: string
+          starts_at?: string
+          tier_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_entitlements_order_fk"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "premium_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premium_entitlements_tier_code_fkey"
+            columns: ["tier_code"]
+            isOneToOne: false
+            referencedRelation: "premium_tiers"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      premium_features: {
+        Row: {
+          code: string
+          description: string
+        }
+        Insert: {
+          code: string
+          description: string
+        }
+        Update: {
+          code?: string
+          description?: string
+        }
+        Relationships: []
+      }
+      premium_limits: {
+        Row: {
+          feature_code: string
+          max_uses: number | null
+          period: string
+          tier_code: string
+        }
+        Insert: {
+          feature_code: string
+          max_uses?: number | null
+          period: string
+          tier_code: string
+        }
+        Update: {
+          feature_code?: string
+          max_uses?: number | null
+          period?: string
+          tier_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_limits_feature_code_fkey"
+            columns: ["feature_code"]
+            isOneToOne: false
+            referencedRelation: "premium_features"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "premium_limits_tier_code_fkey"
+            columns: ["tier_code"]
+            isOneToOne: false
+            referencedRelation: "premium_tiers"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      premium_orders: {
+        Row: {
+          accepted_terms_at: string
+          account_id: string
+          amount_paise: number
+          created_at: string
+          currency: string
+          entitlement_id: string | null
+          guardian_confirmed: boolean
+          id: string
+          paid_at: string | null
+          payment_method: string | null
+          product_code: string
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          refunded_paise: number
+          status: string
+          terms_version: string
+          tier_code: string
+          validity_days: number
+        }
+        Insert: {
+          accepted_terms_at: string
+          account_id: string
+          amount_paise: number
+          created_at?: string
+          currency: string
+          entitlement_id?: string | null
+          guardian_confirmed: boolean
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          product_code: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          refunded_paise?: number
+          status?: string
+          terms_version: string
+          tier_code: string
+          validity_days: number
+        }
+        Update: {
+          accepted_terms_at?: string
+          account_id?: string
+          amount_paise?: number
+          created_at?: string
+          currency?: string
+          entitlement_id?: string | null
+          guardian_confirmed?: boolean
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          product_code?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          refunded_paise?: number
+          status?: string
+          terms_version?: string
+          tier_code?: string
+          validity_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_orders_entitlement_id_fkey"
+            columns: ["entitlement_id"]
+            isOneToOne: true
+            referencedRelation: "premium_entitlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premium_orders_product_code_fkey"
+            columns: ["product_code"]
+            isOneToOne: false
+            referencedRelation: "premium_products"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "premium_orders_tier_code_fkey"
+            columns: ["tier_code"]
+            isOneToOne: false
+            referencedRelation: "premium_tiers"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      premium_payment_events: {
+        Row: {
+          event_type: string
+          id: number
+          outcome: Json | null
+          payload: Json
+          provider_event_id: string | null
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          received_at: string
+          source: string
+        }
+        Insert: {
+          event_type: string
+          id?: number
+          outcome?: Json | null
+          payload: Json
+          provider_event_id?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          received_at?: string
+          source: string
+        }
+        Update: {
+          event_type?: string
+          id?: number
+          outcome?: Json | null
+          payload?: Json
+          provider_event_id?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          received_at?: string
+          source?: string
+        }
+        Relationships: []
+      }
+      premium_products: {
+        Row: {
+          amount_paise: number
+          code: string
+          created_at: string
+          currency: string
+          display_name: string
+          is_active: boolean
+          tier_code: string
+          validity_days: number
+        }
+        Insert: {
+          amount_paise: number
+          code: string
+          created_at?: string
+          currency?: string
+          display_name: string
+          is_active?: boolean
+          tier_code: string
+          validity_days: number
+        }
+        Update: {
+          amount_paise?: number
+          code?: string
+          created_at?: string
+          currency?: string
+          display_name?: string
+          is_active?: boolean
+          tier_code?: string
+          validity_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_products_tier_code_fkey"
+            columns: ["tier_code"]
+            isOneToOne: false
+            referencedRelation: "premium_tiers"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      premium_refunds: {
+        Row: {
+          amount_paise: number
+          created_at: string
+          order_id: string
+          razorpay_refund_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_paise: number
+          created_at?: string
+          order_id: string
+          razorpay_refund_id: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          amount_paise?: number
+          created_at?: string
+          order_id?: string
+          razorpay_refund_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_refunds_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "premium_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      premium_settings: {
+        Row: {
+          enforcement_enabled: boolean
+          id: boolean
+          sales_enabled: boolean
+          terms_version: string
+          updated_at: string
+        }
+        Insert: {
+          enforcement_enabled?: boolean
+          id?: boolean
+          sales_enabled?: boolean
+          terms_version?: string
+          updated_at?: string
+        }
+        Update: {
+          enforcement_enabled?: boolean
+          id?: boolean
+          sales_enabled?: boolean
+          terms_version?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      premium_tiers: {
+        Row: {
+          code: string
+          created_at: string
+          display_name: string
+          rank: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          display_name: string
+          rank: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          display_name?: string
+          rank?: number
+        }
+        Relationships: []
+      }
+      premium_usage: {
+        Row: {
+          account_id: string
+          feature_code: string
+          period_key: string
+          updated_at: string
+          used: number
+        }
+        Insert: {
+          account_id: string
+          feature_code: string
+          period_key: string
+          updated_at?: string
+          used: number
+        }
+        Update: {
+          account_id?: string
+          feature_code?: string
+          period_key?: string
+          updated_at?: string
+          used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_usage_feature_code_fkey"
+            columns: ["feature_code"]
+            isOneToOne: false
+            referencedRelation: "premium_features"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -9882,6 +10285,48 @@ export type Database = {
         Args: { _correct: number; _skipped: number; _wrong: number }
         Returns: boolean
       }
+      _premium_decide: {
+        Args: {
+          _account: string
+          _consume?: boolean
+          _feature: string
+          _units?: number
+        }
+        Returns: Json
+      }
+      _premium_enforced_for: { Args: { _account: string }; Returns: boolean }
+      _premium_is_individual: { Args: { _account: string }; Returns: boolean }
+      _premium_period_key: {
+        Args: { _at?: string; _period: string }
+        Returns: string
+      }
+      _premium_place_order: { Args: { _order_id: string }; Returns: string }
+      _premium_release: {
+        Args: {
+          _account: string
+          _feature: string
+          _period_key: string
+          _units?: number
+        }
+        Returns: undefined
+      }
+      _premium_require: {
+        Args: {
+          _account: string
+          _consume?: boolean
+          _feature: string
+          _units?: number
+        }
+        Returns: Json
+      }
+      _premium_tier: {
+        Args: { _account: string; _at?: string }
+        Returns: string
+      }
+      _premium_topic_analysis: {
+        Args: { _keys: string[]; _out: Json; _uid: string }
+        Returns: Json
+      }
       _progression_bump_study_streak: {
         Args: { _on?: string; _uid: string }
         Returns: undefined
@@ -10526,6 +10971,73 @@ export type Database = {
       normalize_phone: { Args: { _raw: string }; Returns: string }
       owns_question_paper: { Args: { _paper_id: string }; Returns: boolean }
       parent_link_for: { Args: { _link: string }; Returns: string }
+      premium_attach_provider_order: {
+        Args: { _order_id: string; _razorpay_order_id: string }
+        Returns: boolean
+      }
+      premium_begin_order: {
+        Args: {
+          _account: string
+          _guardian_confirmed: boolean
+          _product: string
+          _terms_version: string
+        }
+        Returns: Json
+      }
+      premium_check: {
+        Args: { _account: string; _feature: string }
+        Returns: Json
+      }
+      premium_consume: {
+        Args: { _account: string; _feature: string; _units?: number }
+        Returns: Json
+      }
+      premium_fulfil_payment: {
+        Args: {
+          _amount_paise: number
+          _currency: string
+          _method: string
+          _razorpay_order_id: string
+          _razorpay_payment_id: string
+          _status: string
+        }
+        Returns: Json
+      }
+      premium_grant: {
+        Args: { _account: string; _days: number; _note: string; _tier: string }
+        Returns: string
+      }
+      premium_handle_provider_event: {
+        Args: { _event_id: string; _event_type: string; _payload: Json }
+        Returns: Json
+      }
+      premium_record_refund: {
+        Args: {
+          _amount_paise: number
+          _razorpay_payment_id: string
+          _razorpay_refund_id: string
+          _status: string
+        }
+        Returns: Json
+      }
+      premium_record_verify: {
+        Args: {
+          _outcome: Json
+          _payload: Json
+          _razorpay_order_id: string
+          _razorpay_payment_id: string
+        }
+        Returns: undefined
+      }
+      premium_release: {
+        Args: {
+          _account: string
+          _feature: string
+          _period_key: string
+          _units?: number
+        }
+        Returns: undefined
+      }
       process_academic_event: { Args: { _event_id: string }; Returns: boolean }
       process_pending_academic_events: {
         Args: { _limit?: number }
@@ -11058,6 +11570,8 @@ export type Database = {
         Args: { _participant_id: string; _question_id: string }
         Returns: string
       }
+      rpc_my_premium: { Args: never; Returns: Json }
+      rpc_my_premium_orders: { Args: never; Returns: Json }
       rpc_my_skipped_by_chapter: {
         Args: never
         Returns: {

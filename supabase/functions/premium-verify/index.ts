@@ -16,13 +16,8 @@
  */
 import { requireUserJwt } from "../_shared/requireAuth.ts";
 import { premiumAdminClient } from "../_shared/premium.ts";
-import {
-  fetchOrderPayments,
-  fetchPayment,
-  isValidCheckoutSignature,
-  razorpayKeys,
-  type RazorpayPayment,
-} from "../_shared/razorpay.ts";
+import { fetchOrderPayments, fetchPayment, razorpayKeys, type RazorpayPayment } from "../_shared/razorpay.ts";
+import { isValidCheckoutSignature } from "../_shared/razorpaySignature.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

@@ -11,8 +11,7 @@
  * RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET. Missing ones
  * make the functions refuse ("payments are not set up"), never guess.
  *
- * The signature helpers are pure (Web Crypto only) so they are tested directly
- * (razorpay.test.ts), against an independent HMAC implementation.
+ * The signatures live in razorpaySignature.ts, where they are tested.
  */
 
 const API = "https://api.razorpay.com/v1";
@@ -29,55 +28,6 @@ export function razorpayKeys(): RazorpayKeys | null {
 export function razorpayWebhookSecret(): string | null {
   const s = Deno.env.get("RAZORPAY_WEBHOOK_SECRET")?.trim() ?? "";
   return s || null;
-}
-
-const encoder = new TextEncoder();
-
-export async function hmacSha256Hex(secret: string, message: string | Uint8Array): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  // A copy, so Web Crypto is handed a buffer it owns (and TypeScript agrees).
-  const data = typeof message === "string" ? encoder.encode(message) : Uint8Array.from(message);
-  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, data));
-  return Array.from(sig, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/** Compares in time that does not depend on where the strings differ. */
-export function timingSafeEqual(a: string, b: string): boolean {
-  const x = encoder.encode(a);
-  const y = encoder.encode(b);
-  let diff = x.length ^ y.length;
-  const n = Math.max(x.length, y.length);
-  for (let i = 0; i < n; i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
-  return diff === 0;
-}
-
-/** Checkout's razorpay_signature for this order and payment. */
-export async function isValidCheckoutSignature(
-  keySecret: string,
-  razorpayOrderId: string,
-  razorpayPaymentId: string,
-  signature: string,
-): Promise<boolean> {
-  if (!keySecret || !razorpayOrderId || !razorpayPaymentId || !signature) return false;
-  const expected = await hmacSha256Hex(keySecret, `${razorpayOrderId}|${razorpayPaymentId}`);
-  return timingSafeEqual(expected, signature.trim().toLowerCase());
-}
-
-/** X-Razorpay-Signature over the raw body, exactly as received. */
-export async function isValidWebhookSignature(
-  webhookSecret: string,
-  rawBody: Uint8Array,
-  signature: string | null,
-): Promise<boolean> {
-  if (!webhookSecret || !signature) return false;
-  const expected = await hmacSha256Hex(webhookSecret, rawBody);
-  return timingSafeEqual(expected, signature.trim().toLowerCase());
 }
 
 function authHeader(keys: RazorpayKeys): string {

@@ -15,7 +15,8 @@
  * order.paid, payment.failed, refund.processed and refund.failed.
  */
 import { premiumAdminClient } from "../_shared/premium.ts";
-import { isValidWebhookSignature, razorpayWebhookSecret } from "../_shared/razorpay.ts";
+import { razorpayWebhookSecret } from "../_shared/razorpay.ts";
+import { isValidWebhookSignature } from "../_shared/razorpaySignature.ts";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });

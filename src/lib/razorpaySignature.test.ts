@@ -1,5 +1,5 @@
 /**
- * The signature checks a plan is granted on (supabase/functions/_shared/razorpay.ts).
+ * The signature checks a plan is granted on (supabase/functions/_shared/razorpaySignature.ts).
  *
  * Checked against Node's own HMAC — an implementation that shares no code
  * with the one under test — and against tampering: a signature for another
@@ -13,7 +13,7 @@ import {
   isValidCheckoutSignature,
   isValidWebhookSignature,
   timingSafeEqual,
-} from "../../supabase/functions/_shared/razorpay.ts";
+} from "../../supabase/functions/_shared/razorpaySignature.ts";
 
 const SECRET = "test_key_secret_for_signature_checks";
 const hmac = (secret: string, msg: string | Buffer) => createHmac("sha256", secret).update(msg).digest("hex");
