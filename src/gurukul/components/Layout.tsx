@@ -22,7 +22,7 @@ import {
   ChevronLeft, ChevronRight, Bell, Menu, X,
   FlaskConical, GraduationCap, Settings, LogOut,
   User, Wallet, Megaphone, BarChart2, RefreshCw, RotateCcw,
-  AlertCircle, Trophy,
+  AlertCircle, Trophy, Crown,
 } from "lucide-react";
 import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 
@@ -51,6 +51,7 @@ const NAV_CATALOGUE: Record<PageKey, { label: string; icon: ReactNode }> = {
   timetable:    { label: "Timetable",    icon: <BookOpen className="w-4 h-4"/> },
   calendar:     { label: "Calendar",     icon: <BookOpen className="w-4 h-4"/> },
   tests:        { label: "Tests",        icon: <FlaskConical className="w-4 h-4"/> },
+  premium:      { label: "Plans",        icon: <Crown className="w-4 h-4"/> },
 };
 
 function navEntriesFor(keys: PageKey[]): NavEntry[] {

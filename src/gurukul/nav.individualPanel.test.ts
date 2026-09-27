@@ -111,3 +111,18 @@ describe("individual vs school student panel nav", () => {
     expect(profile).toMatch(/isSchool\s*&&\s*\(/);
   });
 });
+
+describe("the Plans screen", () => {
+  it("is in an individual account's sidebar and never in a school student's", () => {
+    expect(studentNavEntries("individual").sidebar).toContain("premium");
+    expect(studentNavEntries(null).sidebar).toContain("premium");
+    expect(studentNavEntries("school").sidebar).not.toContain("premium");
+    expect(studentNavEntries("school").bottom).not.toContain("premium");
+  });
+
+  it("is its own screen at /student/premium, not the /student/plans alias for Revision", () => {
+    expect(isSchoolOnlyPath("/student/premium")).toBe(false);
+    expect(NAV_SOURCE).toMatch(/premium: "\/student\/premium"/);
+    expect(LAYOUT_SOURCE).toMatch(/premium:\s+\{ label: "Plans"/);
+  });
+});

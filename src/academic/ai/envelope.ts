@@ -78,7 +78,9 @@ export type AiRouteClass =
   | "multimodal"
   | "recommendation"
   | "sensitive"
-  | "unsupported";
+  | "unsupported"
+  /** Answered by the plan check, not routed (decision plan_limit). */
+  | "premium";
 
 export type AiDecisionKind =
   | "answered_deterministic"
@@ -90,7 +92,9 @@ export type AiDecisionKind =
   | "rejected"
   | "permission_denied"
   | "degraded"
-  | "kill_switch";
+  | "kill_switch"
+  /** The caller's plan refused the turn (20261111000000); `premium` carries the decision. */
+  | "plan_limit";
 
 export interface AiGatewayResponse<T = unknown> {
   request_id: string;

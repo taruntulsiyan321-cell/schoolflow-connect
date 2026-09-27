@@ -5,7 +5,8 @@ export type PageKey =
   | "battleground" | "leaderboard" | "achievements"
   | "resources" | "doubtportal" | "assignments" | "attendance" | "profile"
   | "timetable" | "calendar" | "tests"
-  | "learninghub" | "classhub";
+  | "learninghub" | "classhub"
+  | "premium";
 
 /** Design page keys → React Router paths under /student */
 export const PAGE_PATH: Record<PageKey, string> = {
@@ -29,6 +30,7 @@ export const PAGE_PATH: Record<PageKey, string> = {
   tests: "/student/tests",
   learninghub: "/student/learning",
   classhub: "/student/class",
+  premium: "/student/premium",
 };
 
 /** Legacy `/student/classes#section` → Gurukul class-facing routes. */
@@ -125,6 +127,7 @@ export const PAGE_TITLE: Record<PageKey, string> = {
   tests: "Tests",
   learninghub: "Learning",
   classhub: "Class",
+  premium: "Plans",
 };
 
 
@@ -207,7 +210,7 @@ const SCHOOL_BOTTOM: PageKey[] = [
  */
 const INDIVIDUAL_SIDEBAR: PageKey[] = [
   "dashboard", "practice", "aicoach", "analysis", "recovery", "revision",
-  "mistakebook", "achievements",
+  "mistakebook", "achievements", "premium",
 ];
 const INDIVIDUAL_BOTTOM: PageKey[] = [
   "dashboard", "practice", "analysis", "recovery",

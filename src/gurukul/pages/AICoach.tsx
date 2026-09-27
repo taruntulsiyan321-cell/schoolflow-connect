@@ -12,6 +12,9 @@ import {
   resolveNovaPresentation,
 } from "@/lib/productFeatureFlags";
 import { toast } from "sonner";
+import { planLimitFrom, type PlanLimit } from "@/lib/premium";
+import { premiumChanged } from "@/hooks/usePremiumStatus";
+import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 import {
   askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue,
   type NovaRecentTurn, type NovaQuestionContext,
@@ -46,6 +49,8 @@ interface Message {
   isError?: boolean;
   /** How many photos/pages were attached — images themselves are never persisted or re-shown. */
   imageCount?: number;
+  /** The student's plan refused this turn: shown as the plan notice, not as a reply. */
+  planLimit?: PlanLimit;
 }
 
 interface Conversation {
@@ -159,7 +164,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
 
       <div className={cn("flex flex-col gap-1 max-w-[78%]", isNova ? "items-start" : "items-end")}>
 
-        {/* Bubble */}
+        {msg.planLimit ? <PlanLimitNotice limit={msg.planLimit} /> : (
         <div className={cn(
           "px-4 py-3 rounded-2xl text-sm leading-relaxed",
           isNova
@@ -181,6 +186,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
           )}
           {isNova ? <NovaMarkdown text={msg.text} /> : renderText(msg.text)}
         </div>
+        )}
 
         {/* Timestamp + actions */}
         <div className={cn("flex items-center gap-2 px-1", isNova ? "flex-row" : "flex-row-reverse")}>
@@ -807,7 +813,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       if (!result) return; // cancelled (conversation deleted / component unmounted) — no-op
 
       const { text: reply, response } = result;
-      if (isAiBillingOrCreditsIssue(response)) {
+      // A plan refusal is not a reply: it is shown as the plan notice, and the
+      // counts it moved are re-read.
+      const planLimit = planLimitFrom(response);
+      if (planLimit) premiumChanged();
+      else if (isAiBillingOrCreditsIssue(response)) {
         toast.message(AI_BILLING_UNAVAILABLE_MSG);
       }
       const nextSessionId =
@@ -829,6 +839,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
                   requestId: response.request_id,
                   featureId: response.feature_id,
                   feedback: null,
+                  ...(planLimit ? { planLimit } : {}),
                 },
               ],
               preview: reply.slice(0, 60) + (reply.length > 60 ? "…" : ""),

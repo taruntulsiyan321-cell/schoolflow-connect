@@ -18,6 +18,7 @@ import MistakeBook from "@/gurukul/pages/MistakeBook";
 import BattlegroundDesign from "@/gurukul/pages/Battleground";
 import Leaderboard from "@/gurukul/pages/Leaderboard";
 import Achievements from "@/gurukul/pages/Achievements";
+import Premium from "@/gurukul/pages/Premium";
 import Resources from "@/gurukul/pages/Resources";
 import DoubtPortal from "@/gurukul/pages/DoubtPortal";
 import Assignments from "@/gurukul/pages/Assignments";
@@ -362,6 +363,7 @@ export default function StudentDashboard() {
           <Route path="battleground-design" element={<Navigate to="/student/battleground" replace />} />
           <Route path="leaderboard" element={<Leaderboard />} />
           <Route path="achievements" element={<Achievements />} />
+          <Route path="premium" element={<Premium />} />
           <Route path="resources" element={<Resources />} />
           <Route path="doubts" element={<DoubtPortal />} />
           <Route path="homework" element={<Assignments />} />

@@ -17,6 +17,7 @@
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { readEdgeFunctionError } from "@/lib/edgeFunctionError";
+import { toErrorMessage } from "@/lib/presentation";
 
 export type PremiumFeature =
   | "practice.question"
@@ -330,7 +331,7 @@ export async function buyPlan(input: {
   try {
     Razorpay = await loadCheckout();
   } catch (e) {
-    return { kind: "failed", message: e instanceof Error ? e.message : "Could not open the payment page.", razorpay_order_id: order.razorpay_order_id };
+    return { kind: "failed", message: toErrorMessage(e, "Could not open the payment page."), razorpay_order_id: order.razorpay_order_id };
   }
 
   const paid = await new Promise<RazorpaySuccess | "cancelled" | { failed: string }>((resolve) => {
