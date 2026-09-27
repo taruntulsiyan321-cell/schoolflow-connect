@@ -17,15 +17,22 @@ vi.mock("@/gurukul/StudentContext", async () => {
   return { useGurukulStudent: () => value };
 });
 // The student's own chapters, as the practice catalog lists them. `catalog.read`
-// is swapped per test to control when the read answers.
-const catalog = vi.hoisted(() => ({
-  rows: [{ subject: "Business Studies", chapter: "Planning", questions: 40 }],
-  read: null as null | (() => Promise<{ rows: unknown[] }>),
-}));
-vi.mock("@/academic", () => {
-  const value = { ctx: { schoolId: "s", userId: "u" }, ready: true, settled: true };
+// is swapped per test to control when the read answers, and `catalog.context`
+// to control whether the student's context has loaded.
+const catalog = vi.hoisted(() => {
+  const LOADED = { ctx: { schoolId: "s", userId: "u" }, ready: true, settled: true };
   return {
-    useAcademicContext: () => value,
+    LOADED,
+    LOADING: { ctx: null, ready: false, settled: false },
+    NONE: { ctx: null, ready: false, settled: true },
+    context: LOADED as { ctx: { schoolId: string; userId: string } | null; ready: boolean; settled: boolean },
+    rows: [{ subject: "Business Studies", chapter: "Planning", questions: 40 }],
+    read: null as null | (() => Promise<{ rows: unknown[] }>),
+  };
+});
+vi.mock("@/academic", () => {
+  return {
+    useAcademicContext: () => catalog.context,
     PracticeService: { listBankCatalog: () => (catalog.read ? catalog.read() : Promise.resolve({ rows: catalog.rows })) },
   };
 });
@@ -117,6 +124,8 @@ async function speak(text: string) {
 
 beforeEach(() => {
   invoke.mockReset();
+  catalog.read = null;
+  catalog.context = catalog.LOADED;
   setMic(true);
 });
 afterEach(() => setMic(false));
@@ -178,7 +187,32 @@ describe("Revision mode — choosing a topic", () => {
     await act(async () => { answer({ rows: catalog.rows }); });
     await screen.findByRole("heading", { name: GIST.title });
     expect(invoke.mock.calls[0][1]).toMatchObject({ topic: "planning", subject: "Business Studies" });
-    catalog.read = null;
+  });
+
+  it("a topic sent before the student's context has loaded waits for it, and still carries its subject", async () => {
+    // Measured 2026-09-27 on www.gurukul.study: "Planning" sent 2.5 s after the
+    // screen opened, before the context had loaded, went with no subject.
+    catalog.context = catalog.LOADING;
+    invoke.mockReturnValueOnce(ok({ gist: GIST }));
+    const { rerender } = render(<NovaRevisionMode />);
+    fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "planning" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
+    await act(async () => {});
+    expect(invoke).not.toHaveBeenCalled(); // waiting on the context, not guessing
+    catalog.context = catalog.LOADED;
+    rerender(<NovaRevisionMode />);
+    await screen.findByRole("heading", { name: GIST.title });
+    expect(invoke.mock.calls[0][1]).toMatchObject({ topic: "planning", subject: "Business Studies" });
+  });
+
+  it("with no context to read chapters from, a typed topic still goes, without a subject", async () => {
+    catalog.context = catalog.NONE;
+    invoke.mockReturnValueOnce(ok({ gist: GIST }));
+    render(<NovaRevisionMode />);
+    fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "planning" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start revising" }));
+    await screen.findByRole("heading", { name: GIST.title });
+    expect(invoke.mock.calls[0][1]).toMatchObject({ topic: "planning", subject: "" });
   });
 
   it("shows the server's refusal on the picker and stays there", async () => {

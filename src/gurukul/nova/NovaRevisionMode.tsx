@@ -63,6 +63,7 @@ const TRY_ANYTHING = [
 
 const LOADING_STEPS = ["Reading up on", "Picking the key ideas of", "Writing your gist of"];
 
+type CatalogRow = { subject: string; chapter: string | null };
 type Active = { topic: string; subject: string; style: RevisionStyle; gist: RevisionGist };
 type Screen = { kind: "pick" } | { kind: "gist" } | { kind: "test"; attempt: number } | { kind: "summary"; outcome: TestOutcome };
 
@@ -117,15 +118,20 @@ export function NovaRevisionMode() {
   }, [loading]);
 
   // The student's chapters, read once, so a typed topic that names one is
-  // revised as that chapter (subjectForTopic). Held as the read itself, not its
-  // result: measured 2026-09-27 on www.gurukul.study, the catalog answered ~8 s
-  // after the screen opened, and a topic sent before then went without its
-  // subject. A topic sent early waits for it.
-  const catalogRef = useRef<Promise<{ subject: string; chapter: string | null }[]> | null>(null);
+  // revised as that chapter (subjectForTopic). Held as a promise that exists
+  // from the first render, not one started when the context arrives: measured
+  // 2026-09-27 on www.gurukul.study, a topic sent 2.5 s after the screen opened,
+  // before the context had loaded, went without its subject. A topic sent
+  // early waits for the read; with no context to read from, it is empty.
+  const [catalog] = useState(() => {
+    let resolve: (rows: CatalogRow[]) => void = () => {};
+    const rows = new Promise<CatalogRow[]>((r) => { resolve = r; });
+    return { rows, resolve };
+  });
   useEffect(() => {
-    if (!ctx) return;
-    catalogRef.current = PracticeService.listBankCatalog(ctx).then((c) => c.rows, () => []);
-  }, [ctx]);
+    if (ctx) PracticeService.listBankCatalog(ctx).then((c) => catalog.resolve(c.rows), () => catalog.resolve([]));
+    else if (settled) catalog.resolve([]);
+  }, [ctx, settled, catalog]);
 
   async function loadGist(topic: string, given: string, style: RevisionStyle, reload: boolean) {
     const clean = topic.replace(/\s+/g, " ").trim();
@@ -135,9 +141,9 @@ export function NovaRevisionMode() {
     abortRef.current = controller;
     setError("");
     setLoading({ topic: clean, reload });
-    const catalog = given ? [] : (await catalogRef.current) ?? [];
+    const chapters = given ? [] : await catalog.rows;
     if (controller.signal.aborted) return; // cancelled while the catalog was read
-    const subject = given || subjectForTopic(clean, [...listItems(revisionList), ...catalog]);
+    const subject = given || subjectForTopic(clean, [...listItems(revisionList), ...chapters]);
     const result = await fetchRevisionGist({ topic: clean, subject, grade, style }, controller.signal);
     if (!result) return; // cancelled
     setLoading(null);
