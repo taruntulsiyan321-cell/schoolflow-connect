@@ -3891,3 +3891,26 @@ bank-only filter in `dispatch_variant_generation`. Measured
 `question_bank` with §10.4 provenance + 4 gate negatives each stay private
 (rollback txn). Both edges redeployed.
 
+
+## 84. CUET Commerce: 32 of its 61 syllabus chapters have no question — OPEN, needs content
+
+Measured 2026-09-27 on production (active, approved `question_bank` rows with the CUET `exam_id`, against
+`exam_syllabus_chapters` for stream `commerce`): 1,126 questions, covering 29 of the 61 chapters.
+
+```
+Accountancy              10 / 11   empty: Computerised Accounting System
+Business Studies         12 / 12
+Economics                 3 / 13   empty: every macro- and Indian-economy chapter but three
+English                   2 /  2
+General Aptitude Test     0 /  5   empty: all five
+Mathematics               2 / 18   empty: sixteen, from Relations and Functions to Financial Mathematics
+```
+
+The panel does not break on it: the practice catalog lists only chapters that hold questions (29 rows for a
+CUET account), so an empty chapter is simply never offered, and nothing downstream (recovery, revision, the
+mission) can start on a chapter with no mistakes in it. But a CUET student cannot practise more than half of
+their syllabus, and nothing on screen says so. Past papers are the same story at a larger scale: no CUET
+question carries an `exam_year` (KNOWN_ISSUES 57), so Previous Year Questions is empty for every exam account.
+
+Not fixable from code: it needs questions — the owner's bank, or a ruling on generating them (and reviewing
+them through the super-admin queue, KNOWN_ISSUES 78).
