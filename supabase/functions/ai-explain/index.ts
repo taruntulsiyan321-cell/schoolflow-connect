@@ -20,6 +20,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders, generateStructured, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
+import {
+  planLimitResponse,
+  premiumAdminClient,
+  premiumCheck,
+  premiumUnavailableResponse,
+  PremiumUnavailableError,
+} from "../_shared/premium.ts";
 
 type Explanation = {
   summary: string;
@@ -51,6 +58,17 @@ Deno.serve(async (req) => {
 
   const __auth = await requireUserJwt(req);
   if (!__auth.ok) return __auth.response;
+
+  // PLANS (20261111000000): an explanation is Explain my mistake, which the
+  // plan must include. Not counted — a cached explanation costs nothing, and
+  // the plan either has the feature or not. A school's student always has it.
+  try {
+    const explain = await premiumCheck(premiumAdminClient(), __auth.value.user.id, "mistake.explain");
+    if (!explain.ok) return planLimitResponse(explain, corsHeaders);
+  } catch (e) {
+    if (e instanceof PremiumUnavailableError) return premiumUnavailableResponse(corsHeaders);
+    throw e;
+  }
 
   try {
     const body = await req.json();

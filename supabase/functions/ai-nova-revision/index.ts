@@ -3,6 +3,15 @@
 import { corsHeaders, generateStructuredWithFallback, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
 import {
+  planLimitResponse,
+  premiumAdminClient,
+  premiumConsume,
+  premiumRelease,
+  premiumUnavailableResponse,
+  PremiumUnavailableError,
+  type PremiumDecision,
+} from "../_shared/premium.ts";
+import {
   buildGistPrompt,
   buildTurnPrompt,
   normaliseGist,
@@ -76,22 +85,39 @@ Deno.serve(async (req) => {
   if (!parsed.ok) return jsonResponse({ error: parsed.error }, 400);
   const request = parsed.value;
 
+  // PLANS (20261111000000): each Revision chat turn is a Nova message. Counted
+  // before the model is asked, given back when no reply comes.
+  const admin = premiumAdminClient();
+  const accountId = auth.value.user.id;
+  let use: PremiumDecision;
+  try {
+    use = await premiumConsume(admin, accountId, "nova.message");
+  } catch (e) {
+    if (e instanceof PremiumUnavailableError) return premiumUnavailableResponse(corsHeaders);
+    throw e;
+  }
+  if (!use.ok) return planLimitResponse(use, corsHeaders);
+
+  let res: Response;
   try {
     if (request.mode === "gist") {
-      return await callValidated(buildGistPrompt(request), { temperature: 0.4, max_tokens: 1400 }, (raw) => {
+      res = await callValidated(buildGistPrompt(request), { temperature: 0.4, max_tokens: 1400 }, (raw) => {
         const gist = normaliseGist(raw);
         return gist.ok
           ? { ok: true, value: { gist: gist.gist } }
           : { ok: false, error: gist.error, retry: gist.reason === "malformed" };
       });
+    } else {
+      res = await callValidated(buildTurnPrompt(request), { temperature: 0.3, max_tokens: 700 }, (raw) => {
+        const turn = normaliseTurn(raw, request);
+        if (!turn.ok) return { ok: false, error: turn.error, retry: true };
+        const issue = turnQualityIssue(turn.value, request);
+        return { ok: true, value: { turn: turn.value }, issue, note: issue ? retryNote(issue, turn.value) : undefined };
+      });
     }
-    return await callValidated(buildTurnPrompt(request), { temperature: 0.3, max_tokens: 700 }, (raw) => {
-      const turn = normaliseTurn(raw, request);
-      if (!turn.ok) return { ok: false, error: turn.error, retry: true };
-      const issue = turnQualityIssue(turn.value, request);
-      return { ok: true, value: { turn: turn.value }, issue, note: issue ? retryNote(issue, turn.value) : undefined };
-    });
   } catch (err) {
-    return jsonResponse({ error: (err as Error).message ?? "Unknown error" }, 500);
+    res = jsonResponse({ error: (err as Error).message ?? "Unknown error" }, 500);
   }
+  if (!res.ok) await premiumRelease(admin, accountId, use);
+  return res;
 });

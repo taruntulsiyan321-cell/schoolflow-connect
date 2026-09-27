@@ -13,6 +13,15 @@
  * (_shared/syllabusTagger.ts, ruled 2026-09-25).
  */
 import { requireUserJwt } from "../_shared/requireAuth.ts";
+import {
+  planLimitMessage,
+  planLimitResponse,
+  premiumConsume,
+  premiumRelease,
+  premiumUnavailableResponse,
+  PremiumUnavailableError,
+  type PremiumDecision,
+} from "../_shared/premium.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { fileUnderSyllabus, loadStudentSyllabus, type FiledTag } from "../_shared/syllabusTagger.ts";
 import { outsideMessage } from "../_shared/syllabusTag.ts";
@@ -190,173 +199,205 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "individual_accounts_only" }, 403);
   }
 
-  await userClient
-    .from("student_uploads")
-    .update({ status: "processing", updated_at: new Date().toISOString() })
-    .eq("id", uploadId)
-    .eq("owner_id", uid);
-
-  const mediaResult = await loadUploadMedia(
-    admin,
-    upload.storage_path as string,
-    (upload.mime_type as string) || "",
-    uid,
-  );
-  if (!mediaResult.ok) {
-    return markFailed(userClient, uploadId, uid, mediaResult.error);
-  }
-
-  // §13 — page and size limits. Storage already caps bytes; re-check here so a
-  // misconfigured bucket cannot spend a classify call. Client only mirrors.
-  const declaredBytes = Number(upload.byte_size ?? 0);
-  if (declaredBytes > UPLOAD_MAX_BYTES) {
-    return markUnusable(
-      userClient,
-      uploadId,
-      uid,
-      {
-        verdict: "unusable",
-        confidence: 1,
-        refusal_reason: `File exceeds the ${UPLOAD_MAX_BYTES / (1024 * 1024)} MB upload limit.`,
-        questions: [],
-        notes: [],
-      },
-      mediaResult.media.page_count,
-    );
-  }
-  const pages = mediaResult.media.page_count;
-  if (pages != null && pages > UPLOAD_MAX_PAGES) {
-    return markUnusable(
-      userClient,
-      uploadId,
-      uid,
-      {
-        verdict: "unusable",
-        confidence: 1,
-        refusal_reason: `This file has ${pages} pages; the limit is ${UPLOAD_MAX_PAGES}.`,
-        questions: [],
-        notes: [],
-      },
-      pages,
-    );
-  }
-
-  // The student's stream syllabus — what every saved row is filed under.
-  let syllabus;
+  // PLANS (20261111000000): an upload is a Custom Practice upload, which the
+  // plan must include and count. The use is reserved before any work is done
+  // and given back unless the upload ends ready: a refused, unusable or failed
+  // file costs the student nothing.
+  let use: PremiumDecision;
   try {
-    syllabus = await loadStudentSyllabus(admin, upload.school_id as string);
+    use = await premiumConsume(admin, uid, "custom_practice.upload");
   } catch (e) {
-    return markFailed(userClient, uploadId, uid, e instanceof Error ? e.message : "Could not read your syllabus.");
+    if (e instanceof PremiumUnavailableError) return premiumUnavailableResponse(corsHeaders);
+    throw e;
   }
-  if (!syllabus) return markFailed(userClient, uploadId, uid, "This account has no exam syllabus to file questions under.");
-
-  const classified = await classifyUploadMedia(mediaResult.media);
-  if (!classified.ok) {
-    return markFailed(userClient, uploadId, uid, classified.error);
-  }
-
-  const result = classified.result;
-  const pageCount = mediaResult.media.page_count;
-
-  if (result.verdict === "unusable") {
-    // §4.3 — keep the file, write zero downstream rows.
+  if (!use.ok) {
     await userClient
-      .from("student_upload_questions")
-      .delete()
-      .eq("upload_id", uploadId)
+      .from("student_uploads")
+      .update({
+        status: "failed",
+        refusal_reason: planLimitMessage(use),
+        verdict: null,
+        confidence: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", uploadId)
       .eq("owner_id", uid);
+    return planLimitResponse(use, corsHeaders);
+  }
+
+  let accepted = false;
+  try {
     await userClient
-      .from("student_upload_notes")
-      .delete()
-      .eq("upload_id", uploadId)
+      .from("student_uploads")
+      .update({ status: "processing", updated_at: new Date().toISOString() })
+      .eq("id", uploadId)
       .eq("owner_id", uid);
-    return markUnusable(userClient, uploadId, uid, result, pageCount);
-  }
 
-  // Questions and notes filed together: questions are 0..n-1, notes n..
-  const nQ = result.questions.length;
-  const filed = await fileUnderSyllabus(admin, syllabus, [
-    ...result.questions.map((q, i) => ({ index: i, question: q.question_text, options: q.options })),
-    ...result.notes.map((n, i) => ({ index: nQ + i, question: `${n.title}\n${n.body.slice(0, 1200)}` })),
-  ]);
-  if (!filed.ok) return markFailed(userClient, uploadId, uid, filed.error);
-
-  const outside: string[] = [];
-  const keep = (index: number): FiledTag & { kind: "tagged" } | null => {
-    const tag = filed.tags.get(index)!;
-    if (tag.kind === "outside") { outside.push(tag.subject ?? ""); return null; }
-    return tag;
-  };
-
-  const taggedNotes: TaggedNote[] = result.notes.flatMap((n, i) => {
-    const tag = keep(nQ + i);
-    return tag ? [{ ...n, chapter_id: tag.chapter_id, topic_id: tag.topic_id }] : [];
-  });
-  const nWrite = await persistNotes(userClient, uploadId, uid, upload.school_id as string, taggedNotes);
-  if (nWrite.error) {
-    return markFailed(userClient, uploadId, uid, `Could not save extracted notes: ${nWrite.error}`);
-  }
-  const noteTagsByTitle = noteTagsByTitleFromRows(nWrite.rows);
-
-  // §7.1 — a question written from a saved note is filed with that note.
-  const tagged: TaggedQuestion[] = result.questions.flatMap((q, i): TaggedQuestion[] => {
-    const tag = keep(i);
-    if (!tag) return [];
-    const note = q.derived_from_note_title ? resolveNote(q.derived_from_note_title.trim().toLowerCase(), noteTagsByTitle) : null;
-    if (note) {
-      return [{ ...q, answer_source: "ai" as const, chapter_id: note.chapter_id, topic_id: note.topic_id,
-                matched_bank_question_id: null, derived_from_note_id: note.note_id }];
+    const mediaResult = await loadUploadMedia(
+      admin,
+      upload.storage_path as string,
+      (upload.mime_type as string) || "",
+      uid,
+    );
+    if (!mediaResult.ok) {
+      return markFailed(userClient, uploadId, uid, mediaResult.error);
     }
-    return [{ ...q, chapter_id: tag.chapter_id, topic_id: tag.topic_id,
-              matched_bank_question_id: tag.matched_bank_question_id, derived_from_note_id: null,
-              difficulty: tag.bank_difficulty ?? q.difficulty }];
-  });
 
-  // Nothing of the student's stream in the file: say which subject it was.
-  if (tagged.length === 0 && taggedNotes.length === 0) {
-    const counts = new Map<string, number>();
-    for (const s of outside) counts.set(s, (counts.get(s) ?? 0) + 1);
-    const subject = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-    return markUnusable(userClient, uploadId, uid,
-      { ...result, verdict: "unusable", refusal_reason: outsideMessage(subject, syllabus.label) }, pageCount);
-  }
+    // §13 — page and size limits. Storage already caps bytes; re-check here so a
+    // misconfigured bucket cannot spend a classify call. Client only mirrors.
+    const declaredBytes = Number(upload.byte_size ?? 0);
+    if (declaredBytes > UPLOAD_MAX_BYTES) {
+      return markUnusable(
+        userClient,
+        uploadId,
+        uid,
+        {
+          verdict: "unusable",
+          confidence: 1,
+          refusal_reason: `File exceeds the ${UPLOAD_MAX_BYTES / (1024 * 1024)} MB upload limit.`,
+          questions: [],
+          notes: [],
+        },
+        mediaResult.media.page_count,
+      );
+    }
+    const pages = mediaResult.media.page_count;
+    if (pages != null && pages > UPLOAD_MAX_PAGES) {
+      return markUnusable(
+        userClient,
+        uploadId,
+        uid,
+        {
+          verdict: "unusable",
+          confidence: 1,
+          refusal_reason: `This file has ${pages} pages; the limit is ${UPLOAD_MAX_PAGES}.`,
+          questions: [],
+          notes: [],
+        },
+        pages,
+      );
+    }
 
-  const qWrite = await persistQuestions(userClient, uploadId, uid, upload.school_id as string, tagged);
-  if (qWrite.error) {
-    return markFailed(userClient, uploadId, uid, `Could not save extracted questions: ${qWrite.error}`);
-  }
+    // The student's stream syllabus — what every saved row is filed under.
+    let syllabus;
+    try {
+      syllabus = await loadStudentSyllabus(admin, upload.school_id as string);
+    } catch (e) {
+      return markFailed(userClient, uploadId, uid, e instanceof Error ? e.message : "Could not read your syllabus.");
+    }
+    if (!syllabus) return markFailed(userClient, uploadId, uid, "This account has no exam syllabus to file questions under.");
 
-  const { error: readyErr } = await userClient
-    .from("student_uploads")
-    .update({
+    const classified = await classifyUploadMedia(mediaResult.media);
+    if (!classified.ok) {
+      return markFailed(userClient, uploadId, uid, classified.error);
+    }
+
+    const result = classified.result;
+    const pageCount = mediaResult.media.page_count;
+
+    if (result.verdict === "unusable") {
+      // §4.3 — keep the file, write zero downstream rows.
+      await userClient
+        .from("student_upload_questions")
+        .delete()
+        .eq("upload_id", uploadId)
+        .eq("owner_id", uid);
+      await userClient
+        .from("student_upload_notes")
+        .delete()
+        .eq("upload_id", uploadId)
+        .eq("owner_id", uid);
+      return markUnusable(userClient, uploadId, uid, result, pageCount);
+    }
+
+    // Questions and notes filed together: questions are 0..n-1, notes n..
+    const nQ = result.questions.length;
+    const filed = await fileUnderSyllabus(admin, syllabus, [
+      ...result.questions.map((q, i) => ({ index: i, question: q.question_text, options: q.options })),
+      ...result.notes.map((n, i) => ({ index: nQ + i, question: `${n.title}\n${n.body.slice(0, 1200)}` })),
+    ]);
+    if (!filed.ok) return markFailed(userClient, uploadId, uid, filed.error);
+
+    const outside: string[] = [];
+    const keep = (index: number): FiledTag & { kind: "tagged" } | null => {
+      const tag = filed.tags.get(index)!;
+      if (tag.kind === "outside") { outside.push(tag.subject ?? ""); return null; }
+      return tag;
+    };
+
+    const taggedNotes: TaggedNote[] = result.notes.flatMap((n, i) => {
+      const tag = keep(nQ + i);
+      return tag ? [{ ...n, chapter_id: tag.chapter_id, topic_id: tag.topic_id }] : [];
+    });
+    const nWrite = await persistNotes(userClient, uploadId, uid, upload.school_id as string, taggedNotes);
+    if (nWrite.error) {
+      return markFailed(userClient, uploadId, uid, `Could not save extracted notes: ${nWrite.error}`);
+    }
+    const noteTagsByTitle = noteTagsByTitleFromRows(nWrite.rows);
+
+    // §7.1 — a question written from a saved note is filed with that note.
+    const tagged: TaggedQuestion[] = result.questions.flatMap((q, i): TaggedQuestion[] => {
+      const tag = keep(i);
+      if (!tag) return [];
+      const note = q.derived_from_note_title ? resolveNote(q.derived_from_note_title.trim().toLowerCase(), noteTagsByTitle) : null;
+      if (note) {
+        return [{ ...q, answer_source: "ai" as const, chapter_id: note.chapter_id, topic_id: note.topic_id,
+                  matched_bank_question_id: null, derived_from_note_id: note.note_id }];
+      }
+      return [{ ...q, chapter_id: tag.chapter_id, topic_id: tag.topic_id,
+                matched_bank_question_id: tag.matched_bank_question_id, derived_from_note_id: null,
+                difficulty: tag.bank_difficulty ?? q.difficulty }];
+    });
+
+    // Nothing of the student's stream in the file: say which subject it was.
+    if (tagged.length === 0 && taggedNotes.length === 0) {
+      const counts = new Map<string, number>();
+      for (const s of outside) counts.set(s, (counts.get(s) ?? 0) + 1);
+      const subject = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      return markUnusable(userClient, uploadId, uid,
+        { ...result, verdict: "unusable", refusal_reason: outsideMessage(subject, syllabus.label) }, pageCount);
+    }
+
+    const qWrite = await persistQuestions(userClient, uploadId, uid, upload.school_id as string, tagged);
+    if (qWrite.error) {
+      return markFailed(userClient, uploadId, uid, `Could not save extracted questions: ${qWrite.error}`);
+    }
+
+    const { error: readyErr } = await userClient
+      .from("student_uploads")
+      .update({
+        status: "ready",
+        verdict: result.verdict,
+        confidence: result.confidence,
+        refusal_reason: null,
+        page_count: pageCount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", uploadId)
+      .eq("owner_id", uid);
+
+    if (readyErr) return jsonResponse({ error: readyErr.message }, 500);
+
+    accepted = true;
+    return jsonResponse({
+      ok: true,
+      upload_id: uploadId,
       status: "ready",
       verdict: result.verdict,
       confidence: result.confidence,
-      refusal_reason: null,
-      page_count: pageCount,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", uploadId)
-    .eq("owner_id", uid);
-
-  if (readyErr) return jsonResponse({ error: readyErr.message }, 500);
-
-  return jsonResponse({
-    ok: true,
-    upload_id: uploadId,
-    status: "ready",
-    verdict: result.verdict,
-    confidence: result.confidence,
-    questions_written: qWrite.written,
-    notes_written: nWrite.written,
-    /** Filed from a matching bank question (chapter, topic, difficulty). */
-    bank_tags_inherited: tagged.filter((q) => q.matched_bank_question_id).length,
-    /** §7.1 — questions linked to the note they were written from. */
-    notes_derived_questions: tagged.filter((q) => q.derived_from_note_id).length,
-    /** Questions and notes not saved: their subject is outside the stream. */
-    outside_stream: outside.length,
-    outside_subjects: [...new Set(outside.filter(Boolean))],
-    /** §6 — how many answers were AI-filled (client shows ai_answered). */
-    ai_answered_count: tagged.filter((q) => q.answer_source === "ai").length,
-  });
+      questions_written: qWrite.written,
+      notes_written: nWrite.written,
+      /** Filed from a matching bank question (chapter, topic, difficulty). */
+      bank_tags_inherited: tagged.filter((q) => q.matched_bank_question_id).length,
+      /** §7.1 — questions linked to the note they were written from. */
+      notes_derived_questions: tagged.filter((q) => q.derived_from_note_id).length,
+      /** Questions and notes not saved: their subject is outside the stream. */
+      outside_stream: outside.length,
+      outside_subjects: [...new Set(outside.filter(Boolean))],
+      /** §6 — how many answers were AI-filled (client shows ai_answered). */
+      ai_answered_count: tagged.filter((q) => q.answer_source === "ai").length,
+    });
+  } finally {
+    if (!accepted) await premiumRelease(admin, uid, use);
+  }
 });

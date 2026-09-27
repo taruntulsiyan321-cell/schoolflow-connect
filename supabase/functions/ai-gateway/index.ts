@@ -18,6 +18,14 @@ import {
   buildSessionSummaryPatch,
 } from "../_shared/sessionMemory.ts";
 import { processEmbeddingJobsBatch } from "../_shared/embeddingWorker.ts";
+import {
+  planLimitMessage,
+  premiumCheck,
+  premiumConsume,
+  premiumRelease,
+  PremiumUnavailableError,
+  type PremiumDecision,
+} from "../_shared/premium.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +39,28 @@ function json(body: unknown, status = 200) {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+/** A plan refused the turn: the gateway's envelope, so the app shows it as one. */
+function planLimitEnvelope(request_id: string, feature_id: string, d: PremiumDecision) {
+  return json(
+    {
+      request_id,
+      feature_id,
+      decision: "plan_limit",
+      route_class: "premium",
+      used_model: false,
+      cache_hit: false,
+      data: null,
+      error_code: "plan_limit",
+      message: planLimitMessage(d),
+      premium: d,
+    },
+    402,
+  );
+}
+
+/** Decisions under which the student got no answer: their Nova message is given back. */
+const UNANSWERED = new Set(["permission_denied", "rejected", "kill_switch", "degraded"]);
 
 async function resolveActor(
   userClient: ReturnType<typeof createClient>,
@@ -380,6 +410,27 @@ Deno.serve(async (req) => {
       body.student_id ??
       undefined;
 
+    // PLANS (20261111000000). Every turn a student takes with Nova is a Nova
+    // message; one about a question they opened Nova from is Explain my
+    // mistake, which the plan must also include. Asked before anything else
+    // is opened or spent. A school's student is never limited.
+    let novaUse: PremiumDecision | null = null;
+    if (actor.role === "student" && feature_id.startsWith("student.")) {
+      try {
+        if (body.input?.structured?.question_context) {
+          const explain = await premiumCheck(admin, actor.userId, "mistake.explain");
+          if (!explain.ok) return planLimitEnvelope(request_id, feature_id, explain);
+        }
+        novaUse = await premiumConsume(admin, actor.userId, "nova.message");
+        if (!novaUse.ok) return planLimitEnvelope(request_id, feature_id, novaUse);
+      } catch (e) {
+        if (e instanceof PremiumUnavailableError) {
+          return json({ error: e.message, error_code: "premium_unavailable" }, 503);
+        }
+        throw e;
+      }
+    }
+
     let session_id =
       typeof body.session_id === "string" && body.session_id.trim()
         ? String(body.session_id).trim()
@@ -422,17 +473,28 @@ Deno.serve(async (req) => {
         ? (body.input.structured as Record<string, unknown>)
         : undefined;
 
-    const result = await routeAiRequest(userClient, admin, {
-      request_id,
-      feature_id,
-      intent_hint: body.intent_hint ? String(body.intent_hint) : undefined,
-      input_text: body.input?.text ? String(body.input.text) : undefined,
-      input_structured,
-      target_student_id: target_student_id ? String(target_student_id) : undefined,
-      session_id,
-      locale: body.locale ? String(body.locale) : undefined,
-      actor,
-    });
+    let result: Awaited<ReturnType<typeof routeAiRequest>>;
+    try {
+      result = await routeAiRequest(userClient, admin, {
+        request_id,
+        feature_id,
+        intent_hint: body.intent_hint ? String(body.intent_hint) : undefined,
+        input_text: body.input?.text ? String(body.input.text) : undefined,
+        input_structured,
+        target_student_id: target_student_id ? String(target_student_id) : undefined,
+        session_id,
+        locale: body.locale ? String(body.locale) : undefined,
+        actor,
+      });
+    } catch (e) {
+      // No answer came back: the Nova message is given back.
+      if (novaUse) await premiumRelease(admin, actor.userId, novaUse);
+      throw e;
+    }
+
+    if (novaUse && UNANSWERED.has(result.decision)) {
+      await premiumRelease(admin, actor.userId, novaUse);
+    }
 
     // Prefer router session_patch (outline/marking flags); fall back to compact patch.
     let sessionPersistFailed = false;

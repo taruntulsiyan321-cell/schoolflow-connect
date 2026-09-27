@@ -10,6 +10,14 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
+import {
+  planLimitResponse,
+  premiumConsume,
+  premiumRelease,
+  premiumUnavailableResponse,
+  PremiumUnavailableError,
+  type PremiumDecision,
+} from "../_shared/premium.ts";
 import { fileUnderSyllabus, loadStudentSyllabus } from "../_shared/syllabusTagger.ts";
 import { outsideMessage } from "../_shared/syllabusTag.ts";
 import { extractFrame } from "./extract.ts";
@@ -149,226 +157,245 @@ async function handle(req: Request): Promise<Response> {
     return jsonResponse({ error: "image_base64_required" }, 400);
   }
 
-  // Bank count BEFORE any work — §9 assert for callers/measures.
-  const { count: bankBefore } = await admin
-    .from("question_bank")
-    .select("id", { count: "exact", head: true });
+  // PLANS (20261111000000): a captured mistake is a screen capture, which the
+  // plan must include and count. Frames dropped above were never read and cost
+  // nothing; from here the use is reserved before the frame is read and given
+  // back unless a mistake is saved.
+  let use: PremiumDecision;
+  try {
+    use = await premiumConsume(admin, uid, "screen_capture.mistake");
+  } catch (e) {
+    if (e instanceof PremiumUnavailableError) return premiumUnavailableResponse(corsHeaders);
+    throw e;
+  }
+  if (!use.ok) return planLimitResponse(use, corsHeaders);
 
-  const dataUri = toDataUri(image_base64, mime);
-  const extracted = await extractFrame(dataUri);
-  if (!extracted.ok) {
-    return jsonResponse(
-      {
-        ok: false,
+  let captured = false;
+  try {
+    // Bank count BEFORE any work — §9 assert for callers/measures.
+    const { count: bankBefore } = await admin
+      .from("question_bank")
+      .select("id", { count: "exact", head: true });
+
+    const dataUri = toDataUri(image_base64, mime);
+    const extracted = await extractFrame(dataUri);
+    if (!extracted.ok) {
+      return jsonResponse(
+        {
+          ok: false,
+          captured: false,
+          read: true,
+          reason: "extract_failed",
+          error: extracted.error,
+          bank_count_before: bankBefore ?? null,
+        },
+        502,
+      );
+    }
+
+    const gated = applyVerdictGates(extracted.extraction);
+    if (!gated.ok) {
+      const messages: Record<string, string> = {
+        correct_answer: "Correct answers are not captured.",
+        score_only:
+          "Open the solutions and Gurukul will pick up your mistakes — a score alone is not enough.",
+        teacher_solve: "Teacher solutions during a lecture are not your mistakes.",
+        no_student_verdict:
+          "Need your answer and a right/wrong verdict on the same screen.",
+        not_wrong: "Only wrong answers are captured.",
+        unreadable: "Could not read this frame confidently enough.",
+      };
+      return jsonResponse({
+        ok: true,
+        captured: false,
+        reason: gated.reason,
+        read: true,
+        pipeline_stage: "verdict_drop",
+        message: messages[gated.reason] ?? gated.reason,
+        bank_count_before: bankBefore ?? null,
+        bank_count_after: bankBefore ?? null,
+      });
+    }
+
+    const ex = gated.extraction;
+    const qText = ex.question_text!.trim();
+    const fp = fingerprintQuestionText(qText);
+    if (!fp) {
+      return jsonResponse({
+        ok: true,
+        captured: false,
+        reason: "unreadable",
+        read: true,
+        pipeline_stage: "verdict_drop",
+        message: "Could not fingerprint the question text.",
+      });
+    }
+
+    // Filed under the student's syllabus: the bank first, then the model. A
+    // question from outside the stream's subjects is not the student's CUET work
+    // and is not saved; nothing is saved without a chapter (ruled 2026-09-25).
+    const filed = await fileUnderSyllabus(admin, syllabus, [
+      { index: 0, question: qText, options: ex.options ?? null },
+    ]);
+    if (!filed.ok) {
+      return jsonResponse({ ok: false, captured: false, read: true, reason: "tag_failed", error: filed.error }, 502);
+    }
+    const tag = filed.tags.get(0)!;
+    if (tag.kind === "outside") {
+      return jsonResponse({
+        ok: true,
         captured: false,
         read: true,
-        reason: "extract_failed",
-        error: extracted.error,
-        bank_count_before: bankBefore ?? null,
-      },
-      502,
-    );
-  }
-
-  const gated = applyVerdictGates(extracted.extraction);
-  if (!gated.ok) {
-    const messages: Record<string, string> = {
-      correct_answer: "Correct answers are not captured.",
-      score_only:
-        "Open the solutions and Gurukul will pick up your mistakes — a score alone is not enough.",
-      teacher_solve: "Teacher solutions during a lecture are not your mistakes.",
-      no_student_verdict:
-        "Need your answer and a right/wrong verdict on the same screen.",
-      not_wrong: "Only wrong answers are captured.",
-      unreadable: "Could not read this frame confidently enough.",
-    };
-    return jsonResponse({
-      ok: true,
-      captured: false,
-      reason: gated.reason,
-      read: true,
-      pipeline_stage: "verdict_drop",
-      message: messages[gated.reason] ?? gated.reason,
-      bank_count_before: bankBefore ?? null,
-      bank_count_after: bankBefore ?? null,
-    });
-  }
-
-  const ex = gated.extraction;
-  const qText = ex.question_text!.trim();
-  const fp = fingerprintQuestionText(qText);
-  if (!fp) {
-    return jsonResponse({
-      ok: true,
-      captured: false,
-      reason: "unreadable",
-      read: true,
-      pipeline_stage: "verdict_drop",
-      message: "Could not fingerprint the question text.",
-    });
-  }
-
-  // Filed under the student's syllabus: the bank first, then the model. A
-  // question from outside the stream's subjects is not the student's CUET work
-  // and is not saved; nothing is saved without a chapter (ruled 2026-09-25).
-  const filed = await fileUnderSyllabus(admin, syllabus, [
-    { index: 0, question: qText, options: ex.options ?? null },
-  ]);
-  if (!filed.ok) {
-    return jsonResponse({ ok: false, captured: false, read: true, reason: "tag_failed", error: filed.error }, 502);
-  }
-  const tag = filed.tags.get(0)!;
-  if (tag.kind === "outside") {
-    return jsonResponse({
-      ok: true,
-      captured: false,
-      read: true,
-      reason: "outside_stream",
-      pipeline_stage: "stream_drop",
-      subject: tag.subject,
-      message: outsideMessage(tag.subject, syllabus.label),
-    });
-  }
-  const { chapter_id, topic_id, matched_bank_question_id, subject, chapter: chapterName } = tag;
-  const difficulty = tag.bank_difficulty;
-  const inherited = matched_bank_question_id != null;
-
-  const optionsJson = ex.options ? ex.options : null;
-  const answer_source = ex.answer_source ?? "screen";
-
-  // §7.3 upsert by fingerprint — one private row.
-  const { data: existing } = await admin
-    .from("student_capture_questions")
-    .select("id, times_seen")
-    .eq("owner_id", uid)
-    .eq("fingerprint", fp)
-    .maybeSingle();
-
-  let captureId: string;
-  let timesSeen = 1;
-  if (existing?.id) {
-    timesSeen = (existing.times_seen ?? 1) + 1;
-    const { error: upErr } = await admin
-      .from("student_capture_questions")
-      .update({
-        times_seen: timesSeen,
-        updated_at: new Date().toISOString(),
-        student_chosen_index: ex.student_chosen_index,
-        chapter_id,
-        topic_id,
-        matched_bank_question_id,
-        difficulty: difficulty ?? undefined,
-        source_package: package_name,
-      })
-      .eq("id", existing.id)
-      .eq("owner_id", uid);
-    if (upErr) return jsonResponse({ error: upErr.message }, 500);
-    captureId = existing.id;
-  } else {
-    const { data: inserted, error: insErr } = await admin
-      .from("student_capture_questions")
-      .insert({
-        owner_id: uid,
-        school_id: student.school_id,
-        fingerprint: fp,
-        question_text: qText,
-        options: optionsJson,
-        correct_index: ex.correct_index,
-        student_chosen_index: ex.student_chosen_index,
-        correct_answer: ex.correct_answer,
-        answer_source,
-        difficulty,
-        chapter_id,
-        topic_id,
-        matched_bank_question_id,
-        source_package: package_name,
-        times_seen: 1,
-      })
-      .select("id")
-      .single();
-    if (insErr || !inserted) {
-      return jsonResponse({ error: insErr?.message ?? "insert_failed" }, 500);
+        reason: "outside_stream",
+        pipeline_stage: "stream_drop",
+        subject: tag.subject,
+        message: outsideMessage(tag.subject, syllabus.label),
+      });
     }
-    captureId = inserted.id;
-  }
+    const { chapter_id, topic_id, matched_bank_question_id, subject, chapter: chapterName } = tag;
+    const difficulty = tag.bank_difficulty;
+    const inherited = matched_bank_question_id != null;
 
-  const studentAnswer =
-    ex.student_chosen_index != null
-      ? { selected_index: ex.student_chosen_index }
-      : {};
-  const correctAnswer =
-    ex.correct_index != null
-      ? { correct_index: ex.correct_index }
-      : ex.correct_answer
-        ? { text: ex.correct_answer }
+    const optionsJson = ex.options ? ex.options : null;
+    const answer_source = ex.answer_source ?? "screen";
+
+    // §7.3 upsert by fingerprint — one private row.
+    const { data: existing } = await admin
+      .from("student_capture_questions")
+      .select("id, times_seen")
+      .eq("owner_id", uid)
+      .eq("fingerprint", fp)
+      .maybeSingle();
+
+    let captureId: string;
+    let timesSeen = 1;
+    if (existing?.id) {
+      timesSeen = (existing.times_seen ?? 1) + 1;
+      const { error: upErr } = await admin
+        .from("student_capture_questions")
+        .update({
+          times_seen: timesSeen,
+          updated_at: new Date().toISOString(),
+          student_chosen_index: ex.student_chosen_index,
+          chapter_id,
+          topic_id,
+          matched_bank_question_id,
+          difficulty: difficulty ?? undefined,
+          source_package: package_name,
+        })
+        .eq("id", existing.id)
+        .eq("owner_id", uid);
+      if (upErr) return jsonResponse({ error: upErr.message }, 500);
+      captureId = existing.id;
+    } else {
+      const { data: inserted, error: insErr } = await admin
+        .from("student_capture_questions")
+        .insert({
+          owner_id: uid,
+          school_id: student.school_id,
+          fingerprint: fp,
+          question_text: qText,
+          options: optionsJson,
+          correct_index: ex.correct_index,
+          student_chosen_index: ex.student_chosen_index,
+          correct_answer: ex.correct_answer,
+          answer_source,
+          difficulty,
+          chapter_id,
+          topic_id,
+          matched_bank_question_id,
+          source_package: package_name,
+          times_seen: 1,
+        })
+        .select("id")
+        .single();
+      if (insErr || !inserted) {
+        return jsonResponse({ error: insErr?.message ?? "insert_failed" }, 500);
+      }
+      captureId = inserted.id;
+    }
+
+    const studentAnswer =
+      ex.student_chosen_index != null
+        ? { selected_index: ex.student_chosen_index }
         : {};
+    const correctAnswer =
+      ex.correct_index != null
+        ? { correct_index: ex.correct_index }
+        : ex.correct_answer
+          ? { text: ex.correct_answer }
+          : {};
 
-  // Mistake via user JWT so auth.uid() binds (§9 / existing RPC).
-  const { data: mistakeId, error: mistErr } = await userClient.rpc(
-    "rpc_record_concept_mistake",
-    {
-      _assessment_type: "screen_capture",
-      _source_id: captureId,
-      _question_id: null,
-      _subject: subject,
-      _chapter: chapterName,
-      _concept: chapterName,
-      _subconcept: null,
-      _class_level: null,
-      _question_text: qText,
-      _options: optionsJson ?? [],
-      _student_answer: studentAnswer,
-      _correct_answer: correctAnswer,
-      _explanation: null,
-      _chapter_id: chapter_id,
-      _upload_question_id: null,
-      _capture_question_id: captureId,
-    },
-  );
-
-  if (mistErr) {
-    return jsonResponse({ error: mistErr.message }, 500);
-  }
-
-  const { data: mistRow } = await userClient
-    .from("student_mistakes")
-    .select("id, times_wrong, chapter_id, question_text, source")
-    .eq("id", mistakeId)
-    .maybeSingle();
-
-  const { count: bankAfter } = await admin
-    .from("question_bank")
-    .select("id", { count: "exact", head: true });
-
-  // §9 — hard assert in the response; measures fail if bank grew.
-  if (
-    typeof bankBefore === "number" &&
-    typeof bankAfter === "number" &&
-    bankAfter !== bankBefore
-  ) {
-    console.error(
-      "CRITICAL §9: question_bank count changed during screen capture",
-      { bankBefore, bankAfter, captureId },
+    // Mistake via user JWT so auth.uid() binds (§9 / existing RPC).
+    const { data: mistakeId, error: mistErr } = await userClient.rpc(
+      "rpc_record_concept_mistake",
+      {
+        _assessment_type: "screen_capture",
+        _source_id: captureId,
+        _question_id: null,
+        _subject: subject,
+        _chapter: chapterName,
+        _concept: chapterName,
+        _subconcept: null,
+        _class_level: null,
+        _question_text: qText,
+        _options: optionsJson ?? [],
+        _student_answer: studentAnswer,
+        _correct_answer: correctAnswer,
+        _explanation: null,
+        _chapter_id: chapter_id,
+        _upload_question_id: null,
+        _capture_question_id: captureId,
+      },
     );
-  }
 
-  return jsonResponse({
-    ok: true,
-    captured: true,
-    read: true,
-    pipeline_stage: "persisted",
-    capture_question_id: captureId,
-    mistake_id: mistRow?.id ?? mistakeId,
-    times_wrong: mistRow?.times_wrong ?? 1,
-    times_seen: timesSeen,
-    chapter_id: mistRow?.chapter_id ?? chapter_id,
-    inherited_from_bank: inherited,
-    matched_bank_question_id,
-    question_text: mistRow?.question_text ?? qText,
-    source: "screen_capture",
-    bank_count_before: bankBefore ?? null,
-    bank_count_after: bankAfter ?? null,
-    // Explicit: this function has no promotion path (§9).
-    promoted_to_question_bank: false,
-  });
+    if (mistErr) {
+      return jsonResponse({ error: mistErr.message }, 500);
+    }
+
+    const { data: mistRow } = await userClient
+      .from("student_mistakes")
+      .select("id, times_wrong, chapter_id, question_text, source")
+      .eq("id", mistakeId)
+      .maybeSingle();
+
+    const { count: bankAfter } = await admin
+      .from("question_bank")
+      .select("id", { count: "exact", head: true });
+
+    // §9 — hard assert in the response; measures fail if bank grew.
+    if (
+      typeof bankBefore === "number" &&
+      typeof bankAfter === "number" &&
+      bankAfter !== bankBefore
+    ) {
+      console.error(
+        "CRITICAL §9: question_bank count changed during screen capture",
+        { bankBefore, bankAfter, captureId },
+      );
+    }
+
+    captured = true;
+    return jsonResponse({
+      ok: true,
+      captured: true,
+      read: true,
+      pipeline_stage: "persisted",
+      capture_question_id: captureId,
+      mistake_id: mistRow?.id ?? mistakeId,
+      times_wrong: mistRow?.times_wrong ?? 1,
+      times_seen: timesSeen,
+      chapter_id: mistRow?.chapter_id ?? chapter_id,
+      inherited_from_bank: inherited,
+      matched_bank_question_id,
+      question_text: mistRow?.question_text ?? qText,
+      source: "screen_capture",
+      bank_count_before: bankBefore ?? null,
+      bank_count_after: bankAfter ?? null,
+      // Explicit: this function has no promotion path (§9).
+      promoted_to_question_bank: false,
+    });
+  } finally {
+    if (!captured) await premiumRelease(admin, uid, use);
+  }
 }

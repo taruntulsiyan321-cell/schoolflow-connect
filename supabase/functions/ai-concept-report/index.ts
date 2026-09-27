@@ -3,12 +3,29 @@
 import { corsHeaders, generateStructured, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
 import { buildConceptReportPrompt } from "../_shared/conceptReportPrompt.ts";
+import {
+  planLimitResponse,
+  premiumAdminClient,
+  premiumCheck,
+  premiumUnavailableResponse,
+  PremiumUnavailableError,
+} from "../_shared/premium.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const __auth = await requireUserJwt(req);
   if (!__auth.ok) return __auth.response;
+
+  // PLANS (20261111000000): the insights coach must be in the plan. A school's
+  // student always has it.
+  try {
+    const insights = await premiumCheck(premiumAdminClient(), __auth.value.user.id, "insights.report");
+    if (!insights.ok) return planLimitResponse(insights, corsHeaders);
+  } catch (e) {
+    if (e instanceof PremiumUnavailableError) return premiumUnavailableResponse(corsHeaders);
+    throw e;
+  }
 
   try {
     const body = await req.json();
