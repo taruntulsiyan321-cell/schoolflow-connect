@@ -8,9 +8,9 @@
 -- screen says so, with the counts.
 --
 -- It is the eighth and last feature of the plan (premium_features.mock_test.start,
--- 20261111000000): free and starter get one in a lifetime, pro four a month,
--- max as many as they like. This migration is what makes that row mean
--- something — until now nothing consumed it.
+-- 20261111000000): Free and Starter get one in a lifetime, Standard four a
+-- month, Premium as many as they like. This migration is what makes that row
+-- mean something — until now nothing consumed it.
 --
 -- ── WHAT THIS DOES NOT BUILD AGAIN ────────────────────────────────────────
 --
@@ -1081,7 +1081,8 @@ BEGIN
        WHERE (e->>'ready')::boolean LIMIT 1;
 
       -- The period this account's mock allowance is counted in, whatever plan
-      -- it holds: lifetime on free and starter, a month on pro and max.
+      -- it holds: a lifetime on Free and Starter, a month on Standard and
+      -- Premium.
       _pkey := public._premium_decide(_acct, 'mock_test.start', 1, false)->>'period_key';
       SELECT COALESCE(u.used, 0) INTO _used_before FROM public.premium_usage u
        WHERE u.account_id = _acct AND u.feature_code = 'mock_test.start'

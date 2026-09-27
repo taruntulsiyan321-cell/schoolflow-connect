@@ -19,6 +19,7 @@ import BattlegroundDesign from "@/gurukul/pages/Battleground";
 import Leaderboard from "@/gurukul/pages/Leaderboard";
 import Achievements from "@/gurukul/pages/Achievements";
 import Premium from "@/gurukul/pages/Premium";
+import MockTests from "@/gurukul/pages/MockTests";
 import Resources from "@/gurukul/pages/Resources";
 import DoubtPortal from "@/gurukul/pages/DoubtPortal";
 import Assignments from "@/gurukul/pages/Assignments";
@@ -38,6 +39,8 @@ import Class12MathSession from "./student/Class12MathSession";
 import Class12AiSession from "./student/Class12AiSession";
 import PracticeSessionResult from "./student/PracticeSessionResult";
 import TestAttempt from "./student/TestAttempt";
+import MockAttempt from "./student/MockAttempt";
+import MockResult from "./student/MockResult";
 import TestResult from "./student/TestResult";
 import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
 import BattleReportPage from "./student/BattleReportPage";
@@ -294,6 +297,8 @@ export default function StudentDashboard() {
 
   /** `/student/test/<id>/attempt` and nothing else. */
   const isSittingATest = /^\/student\/test\/[^/]+\/attempt\/?$/.test(location.pathname);
+  /** `/student/mock/<id>` — a CUET mock paper, and not its result. */
+  const isSittingAMock = /^\/student\/mock\/[^/]+\/?$/.test(location.pathname);
 
   /** Individual exam accounts cannot open organisation-only surfaces.
    *  Deny unless we *know* this is an organisation school — while kind is
@@ -320,12 +325,13 @@ export default function StudentDashboard() {
   // renders inside <Layout>; this one deliberately does not, because the
   // sidebar, the bottom nav, the notification bell and the avatar menu are
   // four ways to leave a paper by accident and the attempt cannot be reopened.
-  if (isSittingATest) {
+  if (isSittingATest || isSittingAMock) {
     return (
       <div className="gurukul-student min-h-screen p-4 sm:p-6">
         <GurukulStudentProvider value={mergedStudent} identity={academicIdentity} shellReady={shellReady}>
           <Routes>
             <Route path="test/:id/attempt" element={<TestAttempt />} />
+            <Route path="mock/:id" element={<MockAttempt />} />
           </Routes>
         </GurukulStudentProvider>
       </div>
@@ -364,6 +370,8 @@ export default function StudentDashboard() {
           <Route path="leaderboard" element={<Leaderboard />} />
           <Route path="achievements" element={<Achievements />} />
           <Route path="premium" element={<Premium />} />
+          <Route path="mocks" element={<MockTests />} />
+          <Route path="mock/:id/result" element={<MockResult />} />
           <Route path="resources" element={<Resources />} />
           <Route path="doubts" element={<DoubtPortal />} />
           <Route path="homework" element={<Assignments />} />

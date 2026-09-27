@@ -3914,3 +3914,74 @@ question carries an `exam_year` (KNOWN_ISSUES 57), so Previous Year Questions is
 
 Not fixable from code: it needs questions — the owner's bank, or a ruling on generating them (and reviewing
 them through the super-admin queue, KNOWN_ISSUES 78).
+
+## 85. Custom Practice counts one upload per IMAGE, so a three-page worksheet costs three — OPEN, needs the owner's ruling
+
+Measured 2026-09-27 by reading the path: `CustomPracticeUpload.tsx` creates one `student_uploads` row per
+file picked ("Multi-image pages → one pending row each", line 115), and `custom-practice-upload`
+consumes exactly one `custom_practice.upload` per row. So a worksheet photographed as three images costs
+three of the plan's monthly uploads — five a month on Starter, thirty on Standard.
+
+The screen is honest about it: it refuses up front when more files are picked than the allowance has left,
+and names the number. And the use is given back unless the upload ends ready, so a refused or failed file
+costs nothing. What is unruled is whether **a page is the unit or a worksheet is**. A student photographing
+a two-page exercise has spent two of five before they have uploaded anything a second time.
+
+Two ways out, both cheap, neither to be chosen without the owner: count one use per SUBMISSION (the batch
+the student picked, whatever its length), or leave it per file and raise the Starter allowance. Nothing is
+broken today because enforcement is off, so this is a pricing decision, not a defect.
+
+## 86. `rpc_weak_areas_v2` returns topic-level weakness with no plan fence — OPEN, latent behind a flag
+
+20261112000000 put topic analysis in the plan by fencing the two RPCs the panel reads —
+`rpc_student_academic_snapshot` and `rpc_student_practice_analytics` — which return `by_topic` /
+`weak_topics` as empty lists with `topic_analysis_locked: true` for a plan without `analysis.topic`.
+`rpc_weak_areas_v2` returns the same KIND of thing (raw `concept_mastery` rows, weakest concepts first)
+and is NOT fenced.
+
+It does not matter today: its only reader is `decisionEngineService`, reached only when
+`VITE_FF_DECISION_ENGINE_WEAK_AREAS_V2` is true, and `src/lib/productFeatureFlags.ts` defaults it to false.
+Measured 2026-09-27 by reading both migrations and the flag.
+
+It matters the day that flag is turned on: a Free account would read topic-level analysis through it while
+the Plans screen says topic-wise analysis is a paid feature. Fix when the flag is picked up —
+`_premium_topic_analysis(uid, out, keys)` already exists and is exactly the helper to wrap it with.
+
+## 87. The Revision chat spends Nova messages, although Revision itself is free — OPEN, needs the owner's ruling
+
+`ai-nova-revision` consumes one `nova.message` per turn (index.ts:94, "each Revision chat turn is a Nova
+message"), and the Nova allowance is 5 a day on Free. Revision is not itself a paid feature and the Plans
+screen does not list it as one, so a Free student who talks their way through two revision checks has spent
+the day's Nova messages without ever opening Nova.
+
+That may be exactly right — it is the same model doing the same work, and `premium_features.nova.message`
+says so ("chat, Explain my mistake, and the Revision chat"). But it is the one place where a **free**
+feature draws on a counted one, and the student is not told. Either is defensible; it needs saying out
+loud, and if it stands, the Revision screen should show what it will cost before the first turn.
+
+## 88. The premium migrations' definer functions are not in `definer-inventory.json` — will FAIL the gate the day they are applied
+
+Measured 2026-09-27: the inventory holds no key matching `premium`. 20261111000000–20261113000000 create
+around a dozen SECURITY DEFINER functions (`_premium_decide`, `_premium_require`, `_premium_tier`,
+`premium_consume`, `premium_grant`, `rpc_my_premium`, the payment functions …). `lint-definer-doors` fails
+on any definer the inventory does not name — that is the one check it exists for — so the first run after
+those migrations are applied will report every one of them as UNLISTED.
+
+Not fixable blind: two of its fields (`callability`, `grants`) are facts read from the catalogue and
+compared, so writing them by hand before the functions exist would trade one failure for another. After
+applying, run `node scripts/lint-definer-doors.mjs --generate` then `--sync`, and write the `readerSet` and
+`justification` judgements per function. 20261115000000's own fourteen doors ARE in the inventory, written
+from the SQL that creates them.
+
+## 89. Mock tests will be offered for at most two CUET subjects until the bank spreads — OPEN, same content gap as 84
+
+A mock paper draws at most 10 questions from any one chapter (20261115000000: `ceil(50 / 5)`), so a subject
+needs its 50 questions spread across at least 5 chapters. Against the bank as measured in item 84 on
+2026-09-27 — chapters WITH questions per subject: Accountancy 10, Business Studies 12, Economics 3,
+English 2, General Aptitude Test 0, Mathematics 2 — only Accountancy and Business Studies can possibly fill
+a paper, and only if their per-chapter counts are high enough (this session could not re-measure the
+distribution: no database access, item 75).
+
+This is not a defect and the screen does not hide it: every subject is listed, and one that cannot fill a
+paper says so with its counts ("22 of 50 questions ready, from 3 chapters"). It is the same content gap as
+84, and it closes the same way — questions.

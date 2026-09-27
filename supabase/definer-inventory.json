@@ -3530,10 +3530,10 @@
         "authenticated"
       ],
       "calls": [
-        "get_my_school_id"
+        "_student_bank_pool"
       ],
-      "justification": "Returns subject, chapter and a question count only — no question text and no answer. Reads question_bank_student, which scopes the board to the caller's school and the exam to the caller's own exam account (get_my_school_id()); takes no board or exam from the request (20261110000000). The school arm has no tenant to isolate beyond that: the bank is global (G2).",
-      "verifiedBy": "Applied 2026-09-27 with an in-migration proof run as the fixture Class 10 student and all four exam accounts: every caller's catalog identical before and after through both the new form and the old five-argument door; a forged board (cbse) or exam changed the answer before and does not after; mutants (old door trusting the board, class off by one) are caught. Live REST after apply: student 82 chapters (forged board 82), Class 12 commerce 110, CUET account 29 by both doors, anon 42501.",
+      "justification": "Returns subject, chapter and a question count only — no question text and no answer. Reads question_bank_student, which scopes the board to the caller's school and the exam to the caller's own exam account (get_my_school_id()); takes no board or exam from the request (20261110000000). The school arm has no tenant to isolate beyond that: the bank is global (G2). Since 20261115000000 it counts public._student_bank_pool rather than reading question_bank_student itself: a mock paper needs the same set, and two copies of that rule would be two places for the next ruling about who may be served what to be applied.",
+      "verifiedBy": "Applied 2026-09-27 with an in-migration proof run as the fixture Class 10 student and all four exam accounts: every caller's catalog identical before and after through both the new form and the old five-argument door; a forged board (cbse) or exam changed the answer before and does not after; mutants (old door trusting the board, class off by one) are caught. Live REST after apply: student 82 chapters (forged board 82), Class 12 commerce 110, CUET account 29 by both doors, anon 42501. Re-proved by 20261115000000, which captured every real caller's catalog before moving the read out and required it byte-identical after, with a control that both arms were compared on callers that had rows; on the replica, 13 exam rows and 6 school rows, unchanged, and unchanged again after that migration's rollback.",
       "reviewed": false
     },
     "rpc_principal_school_health()": {
@@ -4725,6 +4725,210 @@
       "calls": [],
       "justification": "Reads one tuning constant from recovery_constants, which is G2 shared reference data with no school_id and no per-student content — reach is 'none' because it returns nobody's data. Granted to authenticated because client-side screens need the same thresholds the server uses, and §10 requires exactly one home for each; a second copy in a component is what the rule forbids. Raises rather than defaulting when a key is absent: a trigger count silently defaulting to 0 would fire on every chapter.",
       "verifiedBy": "CHUNK7C_VERIFY item 7-sql — all 18 §10 constants present",
+      "reviewed": true
+    },
+    "_student_bank_pool(_class_level integer, _stream text)": {
+      "name": "_student_bank_pool",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "TABLE(id uuid, subject text, chapter text, chapter_id uuid)",
+      "grants": [],
+      "calls": [
+        "get_my_school_id"
+      ],
+      "justification": "THE set of bank questions this caller may be served, extracted out of rpc_practice_bank_catalog by 20261115000000 so the practice catalog and the mock paper builder cannot disagree about it. Every row is chosen by the CALLER's own school board or exam syllabus — it reads question_bank_student (which resolves both from get_my_school_id()) and, for an exam account, exam_syllabus_chapters for that account's own exam and stream. Nothing in the request can widen it: _class_level and _stream cannot reach past the view, and for an exam account they are ignored entirely. Declared `self` rather than the `public` its caller still carries, because the rows are the caller's own eligible set and the tighter label is what keeps the widening check meaningful; the question TEXT it returns is global content (G2) and it returns no answer column at all.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "_mock_subject_supply()": {
+      "name": "_mock_subject_supply",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "TABLE(subject text, questions integer, chapters integer, ready boolean)",
+      "grants": [],
+      "calls": [
+        "_student_bank_pool"
+      ],
+      "justification": "Counts the caller's own pool per subject, UNDER the per-chapter cap, and says whether that fills a paper. Same reach as _student_bank_pool and nothing more: counts, never question text. The capped count is the same expression _mock_pick_questions selects with, which is why a subject offered as ready can always be built.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "_mock_pick_questions(_subject text)": {
+      "name": "_mock_pick_questions",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "uuid[]",
+      "grants": [],
+      "calls": [
+        "_student_bank_pool"
+      ],
+      "justification": "Builds one paper for the caller: round-robin across their own pool's chapters under the cap, shuffled. Returns ids only — no question text, no options, no answer — and only ids from _student_bank_pool, so it cannot reach a question the caller could not be served.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "_mock_paper_view(_attempt uuid)": {
+      "name": "_mock_paper_view",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [],
+      "justification": "The caller's OWN paper: `WHERE a.id = _attempt AND a.user_id = auth.uid()`, raising mock_attempt_not_found otherwise, so another account's paper and one that does not exist are the same answer. It reads question_bank directly (by frozen id) rather than question_bank_student because the paper must not change when a question is deactivated mid-hour, and it selects NO answer column: no correct_index, no answer, no explanation. Checkable: the body contains `a.user_id = _uid` and none of those three column names. Proved with a probe over every question handed out, paired with a positive control on the result, where the same probe does find them.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "_mock_grade(_attempt uuid, _auto boolean)": {
+      "name": "_mock_grade",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "void",
+      "grants": [],
+      "calls": [
+        "_practice_grade_from_bank",
+        "rpc_record_concept_mistake"
+      ],
+      "justification": "Marks ONE paper, named by id, and takes no uid: the owner fence is in both of its only two callers — rpc_mock_submit selects `WHERE a.id = _attempt AND a.user_id = _uid FOR UPDATE` before calling it, and _mock_close_expired only ever loops over `a.user_id = _uid`. EXECUTE is revoked from PUBLIC, anon and authenticated, so there is no door into it that is not one of those two. It returns nothing at all. Grading is _practice_grade_from_bank (the practice engine's own) and misses go through rpc_record_concept_mistake as auth.uid(), so a mock miss lands in the caller's Mistake Book and nobody else's. Marking is once: it returns early if submitted_at is already set.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "_mock_close_expired(_uid uuid)": {
+      "name": "_mock_close_expired",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "integer",
+      "grants": [],
+      "calls": [
+        "_mock_grade"
+      ],
+      "justification": "Marks the papers of ONE account whose hour has run out — `WHERE a.user_id = _uid AND a.submitted_at IS NULL AND a.deadline <= now()` — and returns only how many. Every caller passes auth.uid() and nothing else; EXECUTE is revoked from every client role. It exists so a student who shut the tab gets a marked paper rather than one that blocks them from starting the next.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "_mock_result_json(_attempt uuid)": {
+      "name": "_mock_result_json",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_practice_grade_from_bank"
+      ],
+      "justification": "The caller's own marked paper, with the correct answers: fenced on `a.id = _attempt AND a.user_id = auth.uid()` and REFUSED with mock_not_submitted while submitted_at IS NULL, which is the only thing standing between a student and the answers to a paper they are still sitting. Both are proved, the refusal by calling it mid-paper and the fence by calling it as a second exam account.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "rpc_mock_catalog()": {
+      "name": "rpc_mock_catalog",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_mock_close_expired",
+        "_mock_paper_view",
+        "_mock_subject_supply",
+        "_premium_decide"
+      ],
+      "justification": "What the caller can sit: their own exam account (or `individual: false` for a school student, which is all a school student ever gets), the supply counts of their own pool, their own paper in progress, and their own plan decision read WITHOUT counting a use (_premium_decide with _consume false). Every part is keyed on auth.uid(); it takes no arguments at all, so there is nothing to point at another account. Granted to authenticated only; anon cannot call it.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "rpc_mock_start(_subject text)": {
+      "name": "rpc_mock_start",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_mock_close_expired",
+        "_mock_paper_view",
+        "_mock_pick_questions",
+        "_mock_subject_supply",
+        "_premium_require"
+      ],
+      "justification": "Opens a paper for auth.uid() and nobody else: the only argument is a subject name, which is resolved against the caller's OWN supply and refused if it is not there. It refuses a second open paper (and the partial unique index mock_attempts_one_open_per_student refuses it again if two calls race), builds the paper BEFORE asking the plan so a plan use is never spent on a paper that could not be made, and asks the plan through _premium_require, which counts the use in the same statement that checks it. Refuses a caller with no exam account. Returns the paper through _mock_paper_view, so it carries no answer.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "rpc_mock_paper(_attempt uuid)": {
+      "name": "rpc_mock_paper",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_mock_close_expired",
+        "_mock_paper_view"
+      ],
+      "justification": "Re-reads the caller's own paper for a reload or a resume, through _mock_paper_view's owner fence, after marking anything whose hour ran out while the tab was shut. Carries no answer. An attempt id belonging to another account answers mock_attempt_not_found, exactly as one that does not exist.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "rpc_mock_save_answer(_attempt uuid, _question uuid, _choice integer, _marked boolean, _time_ms integer)": {
+      "name": "rpc_mock_save_answer",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_mock_paper_view"
+      ],
+      "justification": "Writes one answer on the caller's own paper. It reads the paper through _mock_paper_view first, which is both the owner fence and the list of what may be answered: a question not on this paper is refused (mock_question_not_in_paper) and an option index outside that question's own options is refused (mock_choice_out_of_range). Refused after the deadline (mock_time_is_up) and after submission (mock_already_submitted), so the hour cannot be stretched by a client. Returns only {saved, deadline} — never a verdict, because nothing is marked yet.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "rpc_mock_submit(_attempt uuid)": {
+      "name": "rpc_mock_submit",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_mock_grade",
+        "_mock_result_json"
+      ],
+      "justification": "Marks and returns the caller's own paper. It locks the row (`a.id = _attempt AND a.user_id = _uid FOR UPDATE`) so two taps, or a tap and the timer, cannot mark it twice — the second finds submitted_at set and simply reads the result, which is what makes it idempotent. Past the deadline it records auto_submitted, because the hour ended the paper rather than the student. Another account gets mock_attempt_not_found.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "rpc_mock_result(_attempt uuid)": {
+      "name": "rpc_mock_result",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_mock_result_json"
+      ],
+      "justification": "The caller's own marked paper with its correct answers and explanations, through _mock_result_json — which refuses while the paper is unsubmitted and refuses another account's paper. This is the ONLY door through which a correct answer to a bank question reaches a student, and it opens only once their paper is in.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
+      "reviewed": true
+    },
+    "rpc_my_mock_history()": {
+      "name": "rpc_my_mock_history",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_mock_close_expired"
+      ],
+      "justification": "The caller's own submitted papers — `WHERE a.user_id = _uid AND a.submitted_at IS NOT NULL` — with scores and counts, no question and no answer. Takes no arguments, so there is nothing to point at another account.",
+      "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
       "reviewed": true
     }
   },

@@ -12,6 +12,7 @@ import {
   SCHOOL_ONLY_PAGE_KEYS,
   isSchoolOnlyPage,
   isSchoolOnlyPath,
+  pathToPage,
   studentNavEntries,
 } from "./nav";
 import { stripComments } from "@/test/stripComments";
@@ -109,6 +110,40 @@ describe("individual vs school student panel nav", () => {
     );
     expect(profile).toMatch(/schoolKind\s*===\s*["']school["']/);
     expect(profile).toMatch(/isSchool\s*&&\s*\(/);
+  });
+});
+
+describe("the Mock Tests screen", () => {
+  it("is in an individual account's sidebar and never in a school student's", () => {
+    expect(studentNavEntries("individual").sidebar).toContain("mocktests");
+    expect(studentNavEntries(null).sidebar).toContain("mocktests");
+    expect(studentNavEntries("school").sidebar).not.toContain("mocktests");
+    expect(studentNavEntries("school").bottom).not.toContain("mocktests");
+  });
+
+  it("is its own screen at /student/mocks, and a paper being sat lights it too", () => {
+    expect(NAV_SOURCE).toMatch(/mocktests: "\/student\/mocks"/);
+    expect(pathToPage("/student/mocks")).toBe("mocktests");
+    expect(pathToPage("/student/mock/abc123")).toBe("mocktests");
+    expect(pathToPage("/student/mock/abc123/result")).toBe("mocktests");
+    // Not school-only: it is the reverse — an exam account's screen — and the
+    // screen itself says so to anyone else (rpc_mock_catalog answers
+    // individual:false), so no path guard may block it.
+    expect(isSchoolOnlyPath("/student/mocks")).toBe(false);
+    expect(isSchoolOnlyPath("/student/mock/abc123")).toBe(false);
+    expect(LAYOUT_SOURCE).toMatch(/mocktests:\s+\{ label: "Mock Tests"/);
+  });
+
+  it("is sat without app chrome, like a test paper", () => {
+    const dash = stripComments(
+      readFileSync(join(__dirname, "..", "pages", "StudentDashboard.tsx"), "utf8"),
+    );
+    // The bare branch must cover a mock paper, and only the paper itself —
+    // never its result, which belongs inside the panel.
+    expect(dash).toMatch(/isSittingAMock\s*=\s*\/\^\\\/student\\\/mock\\\/\[\^\/\]\+\\\/\?\$\//);
+    expect(dash).toMatch(/if\s*\(isSittingATest\s*\|\|\s*isSittingAMock\)/);
+    expect(dash).toMatch(/path="mock\/:id"\s+element=\{<MockAttempt \/>\}/);
+    expect(dash).toMatch(/path="mock\/:id\/result"\s+element=\{<MockResult \/>\}/);
   });
 });
 

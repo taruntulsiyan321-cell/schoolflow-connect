@@ -11570,6 +11570,22 @@ export type Database = {
         Args: { _participant_id: string; _question_id: string }
         Returns: string
       }
+      rpc_mock_catalog: { Args: never; Returns: Json }
+      rpc_mock_paper: { Args: { _attempt: string }; Returns: Json }
+      rpc_mock_result: { Args: { _attempt: string }; Returns: Json }
+      rpc_mock_save_answer: {
+        Args: {
+          _attempt: string
+          _choice?: number
+          _marked?: boolean
+          _question: string
+          _time_ms?: number
+        }
+        Returns: Json
+      }
+      rpc_mock_start: { Args: { _subject: string }; Returns: Json }
+      rpc_mock_submit: { Args: { _attempt: string }; Returns: Json }
+      rpc_my_mock_history: { Args: never; Returns: Json }
       rpc_my_premium: { Args: never; Returns: Json }
       rpc_my_premium_orders: { Args: never; Returns: Json }
       rpc_my_skipped_by_chapter: {

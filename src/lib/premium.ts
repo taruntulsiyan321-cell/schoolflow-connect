@@ -247,6 +247,15 @@ export function refusalFor(status: PremiumStatus | null, feature: PremiumFeature
   return limitFromDecision(featureDecision(status, feature));
 }
 
+/**
+ * The same notice, for a decision a server read already carries rather than
+ * one found in rpc_my_premium — rpc_mock_catalog returns the mock allowance
+ * without counting a use. One home for turning a decision into a refusal.
+ */
+export function planLimitFromDecision(decision: PremiumDecision | null | undefined): PlanLimit | null {
+  return limitFromDecision(decision ?? null);
+}
+
 const LEFT_WHEN: Record<string, string> = { day: " today", month: " this month" };
 
 /**
@@ -254,7 +263,14 @@ const LEFT_WHEN: Record<string, string> = { day: " today", month: " this month" 
  * that says so — null when nothing limits it (unlimited, or not enforced).
  */
 export function usesLeft(status: PremiumStatus | null, feature: PremiumFeature): { left: number; note: string } | null {
-  const d = featureDecision(status, feature);
+  return usesLeftFromDecision(feature, featureDecision(status, feature));
+}
+
+/** The same sentence, for a decision a server read already carries. */
+export function usesLeftFromDecision(
+  feature: PremiumFeature,
+  d: PremiumDecision | null | undefined,
+): { left: number; note: string } | null {
   if (!d?.enforced || !d.ok || typeof d.remaining !== "number") return null;
   const [, one, many] = FEATURE_WORDS[feature];
   return { left: d.remaining, note: `${d.remaining} ${d.remaining === 1 ? one : many} left${LEFT_WHEN[d.period ?? ""] ?? ""} on your plan.` };

@@ -4,7 +4,7 @@ export type PageKey =
   | "recovery"  | "revision" | "mistakebook"
   | "battleground" | "leaderboard" | "achievements"
   | "resources" | "doubtportal" | "assignments" | "attendance" | "profile"
-  | "timetable" | "calendar" | "tests"
+  | "timetable" | "calendar" | "tests" | "mocktests"
   | "learninghub" | "classhub"
   | "premium";
 
@@ -31,6 +31,7 @@ export const PAGE_PATH: Record<PageKey, string> = {
   learninghub: "/student/learning",
   classhub: "/student/class",
   premium: "/student/premium",
+  mocktests: "/student/mocks",
 };
 
 /** Legacy `/student/classes#section` → Gurukul class-facing routes. */
@@ -78,6 +79,8 @@ export function pathToPage(pathname: string): PageKey {
   // Deep functional routes still belong to a hub
   if (p.startsWith("/student/recovery")) return "recovery";
   if (p.startsWith("/student/practice")) return "practice";
+  // Both the list and a paper being sat: /student/mocks and /student/mock/<id>.
+  if (p.startsWith("/student/mock")) return "mocktests";
   if (p.startsWith("/student/battleground")) return "battleground";
   if (p.startsWith("/student/test")) return "tests";
   if (p.startsWith("/student/mistakes")) return "mistakebook";
@@ -128,6 +131,7 @@ export const PAGE_TITLE: Record<PageKey, string> = {
   learninghub: "Learning",
   classhub: "Class",
   premium: "Plans",
+  mocktests: "Mock Tests",
 };
 
 
@@ -209,7 +213,7 @@ const SCHOOL_BOTTOM: PageKey[] = [
  * Battleground, no Learning hub (Analysis / Recovery / … sit in the sidebar).
  */
 const INDIVIDUAL_SIDEBAR: PageKey[] = [
-  "dashboard", "practice", "aicoach", "analysis", "recovery", "revision",
+  "dashboard", "practice", "mocktests", "aicoach", "analysis", "recovery", "revision",
   "mistakebook", "achievements", "premium",
 ];
 const INDIVIDUAL_BOTTOM: PageKey[] = [

@@ -594,6 +594,94 @@ into `homework_pre_20260925110000`), which is what the rollback restores from. D
 
 ---
 
+## Plans for individual accounts — RULED 2026-09-27
+
+Only an **individual (exam) account** has a plan. A school's student is never limited by one and
+never counted against one: `_premium_decide` answers `applies: false` for them and writes no usage
+row. Nothing in a school's tenancy changes.
+
+**Four plans.** Free, and three paid ones at a **one-time payment for 30 days** — Starter ₹199,
+Standard ₹499, Premium ₹999, GST included. Nothing renews by itself and nothing is ever charged
+again unless the student buys again. The names and prices are the ones www.gurukul.study already
+publishes; the database holds the same codes so a receipt, a report and the page a buyer reads
+cannot name one plan two ways (20261114000000).
+
+**What every account gets without paying anything:** 20 new practice questions a day, 5 Nova
+messages a day, and **one full mock test in a lifetime**. Everything already built stays free:
+Recovery, Revision, the Mistake Book, Analysis' own screens, and — the rule that matters most —
+**a re-attempt is never counted**. Recovery ladders, revision checks and Mistake Book re-tries
+cost nothing, because charging a student for correcting a mistake is charging them for the thing
+the product exists to do.
+
+**What a plan buys** is in ONE place, `premium_limits`: a row says the feature is in that plan,
+`max_uses IS NULL` means unlimited, and no row means it is not in the plan at all. There is no
+second list anywhere — not in the app, not in an edge function. A gate asks
+`_premium_require(uid, feature, units)` and the decision counts the use in the same statement that
+checks it, so two requests racing for the last use cannot both get it.
+
+**Nothing is enforced or sold until the owner says so.** `premium_settings.enforcement_enabled`
+and `sales_enabled` are both false, and `sales_enabled` cannot be true while `terms_version` is
+empty — so nothing can be sold under terms that do not exist. While enforcement is off every gate
+still counts and reports `would_deny`, which is how the limits are proved on production without
+refusing a single student.
+
+**The Android app names no price and offers no way to buy.** Google Play requires its own billing
+for a digital feature bought inside an app, so `canBuyInThisApp()` is false there and every buy
+control is hidden; the same build shows the same refusals, and says what the plan does not cover
+and when a daily or monthly allowance comes back. Buying happens on the web, through Razorpay.
+Google Play billing is deferred, not planned.
+
+**Refunds, as the shipped policy states them** (`src/lib/legal.ts`, which is what the /refund-policy
+page renders): there is nothing to cancel, because nothing renews. A full refund is due if the
+student was charged and the plan did not start through a fault on our side, or if they were charged
+twice for the same purchase. Money that left an account on a failed payment comes back through the
+bank or Razorpay by itself. A plan that has started is otherwise not refundable, because it gives
+access immediately. A full refund ends the plan it paid for; a partial refund does not change it.
+
+These drafts are **not legal advice** and `LEGAL_ENTITY` is unfilled: the Plans screen refuses to
+sell while it is, and it must have a lawyer's review before sales are switched on.
+
+---
+
+## Full CUET mock tests — RULED 2026-09-27, built
+
+**One domain subject per paper. 50 questions, 60 minutes, +5 for a right answer, −1 for a wrong
+one, nothing for one left blank.** Full marks are 250. The plan decides how many: one in a
+lifetime on Free and Starter, four a month on Standard, unlimited on Premium.
+
+**A subject is offered only when the bank can actually fill a paper**, and "enough" is counted the
+way the paper is built: the supply is `sum(least(questions in chapter, cap))` where the cap is
+`ceil(50 / 5)` — at most 10 from any one chapter, so a paper always comes from at least 5
+chapters. A subject that cannot fill one is **shown with its counts** ("22 of 50 questions ready,
+from 3 chapters"), never hidden: a student watching the bank fill up learns something; a subject
+that silently vanishes teaches them nothing.
+
+**The paper is frozen at start** — its 50 question ids and the marks per answer are copied onto the
+attempt, so staff deactivating a question, or the marks changing later, cannot alter a paper being
+sat. A question that leaves the bank mid-paper is **voided at marking**: not counted wrong, not
+counted as unanswered, and correct + wrong + unanswered + voided is the whole paper, enforced by a
+table constraint rather than hoped for.
+
+**One paper at a time**, enforced by a partial unique index, not by a check in a function: two taps
+cannot both open one. **The clock is the server's** — the deadline is set at start, so closing the
+tab pauses nothing and a device clock buys nothing; every answer after it is refused and a
+submission after it is recorded as the hour ending the paper rather than the student. Marking is
+once and idempotent: the row is locked, and a second submit reads the same result.
+
+**Nothing tells a student a correct answer before their paper is in.** The paper they sit carries
+no answer of any kind; `rpc_mock_result` refuses until `submitted_at` is set and is the only door
+through which a bank answer reaches them.
+
+**A missed question goes to the Mistake Book the way a missed practice question does** — the same
+`rpc_record_concept_mistake`, the same `practice` source, with the chapter passed — so Recovery,
+Revision and the §6.3 chapter list pick it up through machinery that already exists. Grading is
+`_practice_grade_from_bank`, the function the practice engine marks with; there is no second
+comparison of `correct_index` anywhere.
+
+**Mock tests are for exam accounts.** A school student is told so; their tests are their school's.
+
+---
+
 ## Parked — year-end rollover
 
 Not started. The model is being decided at product level and will arrive as its own spec. Build nothing from inference. When it arrives: write the definition first (what promotes, archives, resets, carries forward), get it ruled on, map every academic table against it, build it idempotent and dry-runnable, and test against a copy of production rather than a fixture.
