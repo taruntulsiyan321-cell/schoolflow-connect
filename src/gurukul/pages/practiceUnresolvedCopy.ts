@@ -15,7 +15,7 @@ export const EXAM_UNRESOLVED_MSG =
 export const CLASS_LEVEL_UNRESOLVED_MSG =
   "Your class is assigned, but its name or category does not identify a class level. Ask your school admin to use a label such as Class 10, Std 9, XI, or 12-A.";
 
-export type PracticeUnresolvedInput = {
+type PracticeUnresolvedInput = {
   /** True when shell is ready and curriculumScope.examId is set (individual / exam tenant). */
   examScoped: boolean;
   examUnresolved: boolean;

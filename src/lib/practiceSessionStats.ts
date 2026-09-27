@@ -13,7 +13,7 @@
  * about them the data does not make.
  */
 
-export type PracticeSessionStatsSource = {
+type PracticeSessionStatsSource = {
   question_count?: number | null;
   correct_count?: number | null;
   wrong_count?: number | null;
@@ -25,7 +25,7 @@ export type PracticeSessionStatsSource = {
 };
 
 /** The finish RPC's reply, for a screen that has not loaded the row yet. */
-export type PracticeSessionStatsOverlay = {
+type PracticeSessionStatsOverlay = {
   questionCount?: number;
   correctCount?: number;
   wrongCount?: number;
@@ -35,7 +35,7 @@ export type PracticeSessionStatsOverlay = {
   totalTimeMs?: number | null;
 };
 
-export type PracticeSessionStats = {
+type PracticeSessionStats = {
   questionCount: number;
   correctCount: number;
   wrongCount: number;

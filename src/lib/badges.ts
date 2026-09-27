@@ -7,8 +7,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 export type BadgeTier = "bronze" | "silver" | "gold" | "platinum" | "legendary";
-export type BadgeRarity = "common" | "rare" | "epic" | "legendary";
-export type BadgeGroup =
+type BadgeRarity = "common" | "rare" | "epic" | "legendary";
+type BadgeGroup =
   | "battleground"
   | "streak"
   | "speed"
@@ -20,7 +20,7 @@ export type BadgeGroup =
   | "mastery"
   | "special";
 
-export type BadgeMeta = {
+type BadgeMeta = {
   code: string;
   label: string;
   desc: string;
@@ -109,23 +109,7 @@ export const RARITY_LABEL: Record<BadgeRarity, string> = {
   legendary: "Legendary",
 };
 
-export const GROUP_LABEL: Record<BadgeGroup, string> = {
-  battleground: "Battleground",
-  streak: "Streaks",
-  speed: "Speed",
-  accuracy: "Accuracy",
-  academic: "Academic",
-  test: "Test",
-  attendance: "Attendance",
-  leaderboard: "Leaderboard",
-  mastery: "Subject Mastery",
-  special: "Special & Hidden",
-};
 
-export const GROUP_ORDER: BadgeGroup[] = [
-  "battleground", "streak", "speed", "accuracy", "mastery",
-  "academic", "test", "leaderboard", "attendance", "special",
-];
 
 export function getBadge(code: string | null | undefined): BadgeMeta | null {
   if (!code) return null;
@@ -155,9 +139,3 @@ export function badgeForIndividualCatalog(b: BadgeMeta): boolean {
   return INDIVIDUAL_BADGE_CODES.has(b.code);
 }
 
-export function badgesByGroup(): Record<BadgeGroup, BadgeMeta[]> {
-  const out = {} as Record<BadgeGroup, BadgeMeta[]>;
-  GROUP_ORDER.forEach((g) => { out[g] = []; });
-  Object.values(BADGES).forEach((b) => { out[b.group].push(b); });
-  return out;
-}

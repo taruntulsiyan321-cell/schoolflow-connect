@@ -27,7 +27,7 @@ import {
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toErrorMessage } from "@/lib/presentation";
 
-export type TeacherClassTab =
+type TeacherClassTab =
   | "students"
   | "attendance"
   | "homework"
@@ -36,7 +36,7 @@ export type TeacherClassTab =
   | "insights";
 
 /** Deep-link My Classes to a specific tab. */
-export function goTeacherClassTab(tab: TeacherClassTab) {
+function goTeacherClassTab(tab: TeacherClassTab) {
   try {
     sessionStorage.setItem("teacher.openTab", tab);
   } catch {

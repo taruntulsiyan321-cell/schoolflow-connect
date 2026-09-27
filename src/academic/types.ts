@@ -3,15 +3,6 @@
  * These are application-level shapes — not a second database.
  */
 
-export interface AcademicYear {
-  id: string;
-  schoolId: string;
-  name: string;
-  startsOn: string;
-  endsOn: string;
-  status: "planned" | "active" | "closed" | "archived";
-  isCurrent: boolean;
-}
 
 export interface StudentAcademicProfile {
   id: string;

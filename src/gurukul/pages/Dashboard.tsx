@@ -1,4 +1,4 @@
-﻿import type { PageKey } from "@/gurukul/nav";
+import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent, useGurukulShellReady, useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { EmptyState, GlassCard, PageSkeleton, ProgressBar, ProgressRing, SectionLabel, Skeleton, SkeletonCard, SkeletonStats, StatTile, XPBar } from "@/gurukul/components/shared";
 import {
@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
-import { pluralise } from "@/lib/plural";
 
 function mapWeeklyActivity(dates: { date: string; total: number }[]) {
   return dates.map((row) => ({

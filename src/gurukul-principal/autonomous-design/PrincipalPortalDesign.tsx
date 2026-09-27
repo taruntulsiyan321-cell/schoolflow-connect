@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { toEnumLabel } from "@/lib/presentation"
 // The portal's own design language, moved to one file so the live test screens
@@ -15,7 +15,7 @@ import PrincipalClasses from "../PrincipalClasses"
 import {
   appData, fmtRupees, fmtPct, getAbsentsForDate, getClassPresentForDate,
   type ClassId, type StudentId, type TeacherId,
-  type LeaveRequest, type Announcement,
+  type LeaveRequest,
 } from "./data"
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
@@ -222,8 +222,6 @@ function Header({
     </header>
   )
 }
-
-// ─── Shared UI components ─────────────────────────────────────────────────────
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
@@ -493,12 +491,10 @@ function FeesSchoolView({ navigate, goBack }: { navigate: (s: Screen) => void; g
 function FeesClassView({ classId, navigate, goBack }: { classId: ClassId; navigate: (s: Screen) => void; goBack: () => void }) {
   const cls = appData.classes[classId]
   const [sortBy, setSortBy] = useState<"name" | "outstanding" | "paid">("outstanding")
-  const [filterYear, setFilterYear] = useState<string>("all")
 
   if (!cls) return <EmptyState title="Class not found." />
 
   const students = cls.studentIds.map(sid => appData.students[sid]).filter(Boolean)
-  const years = [...new Set(students.map(s => s.classId === classId ? String(cls.yearGroup) : ""))]
 
   const rows = students.map(s => ({
     s,

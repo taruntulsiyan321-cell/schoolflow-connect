@@ -24,7 +24,7 @@ function writeMuted(muted: boolean) {
 }
 
 /** Markdown and the quote marks around a sentence starter read badly aloud. */
-export function speakableText(text: string): string {
+function speakableText(text: string): string {
   return text.replace(/[*_`#>]/g, "").replace(/\s+/g, " ").trim();
 }
 

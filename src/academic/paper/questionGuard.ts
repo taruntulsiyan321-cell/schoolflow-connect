@@ -28,7 +28,7 @@ import { NEAR_DUPLICATE_SIMILARITY } from "@/academic/metrics/thresholds";
 /** The four options an MCQ must have. Not a threshold — a format. */
 const MCQ_OPTION_COUNT = 4;
 
-export type GuardCandidate = {
+type GuardCandidate = {
   question: string;
   /** MCQ only. */
   options?: string[] | null;
@@ -52,13 +52,13 @@ export type GuardContext = {
   existingEmbeddings?: number[][];
 };
 
-export type GuardRejection =
+type GuardRejection =
   | { kind: "malformed"; detail: string }
   | { kind: "answerless"; detail: string }
   | { kind: "off_chapter"; detail: string }
   | { kind: "near_duplicate"; detail: string };
 
-export type GuardVerdict =
+type GuardVerdict =
   | { ok: true; duplicateCheck: "ran" | "skipped_no_embedding" | "skipped_no_corpus" }
   | { ok: false; rejection: GuardRejection };
 

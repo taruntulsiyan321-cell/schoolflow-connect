@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Inbox } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 type Tone = "primary" | "accent" | "warning" | "secondary" | "destructive";
 
@@ -86,15 +86,3 @@ export const PageHeader = ({
   </div>
 );
 
-export const EmptyState = ({
-  icon, title, description, action,
-}: { icon?: ReactNode; title: string; description?: string; action?: ReactNode }) => (
-  <Card className="p-8 sm:p-10 text-center border-dashed border-border/80 bg-muted/30 shadow-none">
-    <div className="mx-auto w-12 h-12 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground mb-3">
-      {icon ?? <Inbox className="w-5 h-5" />}
-    </div>
-    <div className="font-semibold text-foreground">{title}</div>
-    {description && <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto text-pretty">{description}</p>}
-    {action && <div className="mt-4 flex justify-center">{action}</div>}
-  </Card>
-);

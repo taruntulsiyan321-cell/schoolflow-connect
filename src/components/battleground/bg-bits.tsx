@@ -1,66 +1,14 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Crown, Lock, HelpCircle, Flame, Target, Zap } from "lucide-react";
+import { Crown, Lock, HelpCircle, Target, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BADGES, TIER_CLASS, RARITY_LABEL, type BadgeTier } from "@/lib/badges";
 import { displaySubject, displayTopic } from "@/lib/academicPresentation";
-import { progressionLevelProgress } from "@/academic/services/progressionMath";
 import { isBattleWindowOpen } from "@/lib/battlegroundHelpers";
 
-/** Level ring — prefer ProgressionService fields; else SQL-mirrored curve (never invent xp%N). */
-export const XPRing = ({
-  xp,
-  level,
-  size = 120,
-  xpIntoLevel,
-  xpToNext,
-  progressPct,
-}: {
-  xp: number;
-  level: number;
-  size?: number;
-  xpIntoLevel?: number;
-  xpToNext?: number;
-  progressPct?: number;
-}) => {
-  const derived = progressionLevelProgress(xp, level);
-  const into = Math.max(0, xpIntoLevel ?? derived.xpIntoLevel);
-  const remaining = Math.max(0, xpToNext ?? derived.xpToNextLevel);
-  const span = into + remaining;
-  const pct =
-    progressPct != null
-      ? Math.min(100, Math.max(0, progressPct))
-      : span > 0
-        ? Math.min(100, (into / span) * 100)
-        : derived.levelProgressPct;
-  const stroke = 8;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c - (pct / 100) * c;
-  const label = span > 0 ? `${into}/${span} XP` : `${Math.max(0, xp)} XP`;
-  return (
-    <div className="relative inline-flex" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} stroke="hsl(var(--muted))" strokeWidth={stroke} fill="none" />
-        <circle
-          cx={size / 2} cy={size / 2} r={r}
-          stroke="hsl(var(--primary))" strokeWidth={stroke} fill="none"
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transition: "stroke-dashoffset 0.6s ease" }}
-        />
-        <defs />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">Level</div>
-        <div className="text-2xl font-bold text-primary">{level}</div>
-        <div className="text-[10px] text-muted-foreground">{label}</div>
-      </div>
-    </div>
-  );
-};
 
-export const Countdown = ({ to, onEnd }: { to: string | Date; onEnd?: () => void }) => {
+const Countdown = ({ to, onEnd }: { to: string | Date; onEnd?: () => void }) => {
   const target = new Date(to).getTime();
   const [now, setNow] = useState(Date.now());
   useEffect(() => {

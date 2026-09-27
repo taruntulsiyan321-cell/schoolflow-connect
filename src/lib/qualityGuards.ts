@@ -7,21 +7,6 @@
 import { normalizeSubjectName } from "@/lib/curriculumScope";
 import { displaySubject, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
 
-/** @deprecated Prefer isPlaceholderAcademicLabel — kept as alias for older call sites. */
-export const GENERIC_ACADEMIC_LABELS = new Set([
-  "subject",
-  "topic",
-  "daily",
-  "general",
-  "concept",
-  "chapter",
-  "mixed",
-  "weak",
-  "incorrect",
-  "skipped",
-  "timed",
-]);
-
 export function isGenericAcademicLabel(raw: string | null | undefined): boolean {
   return isPlaceholderAcademicLabel(raw);
 }
@@ -36,7 +21,7 @@ export function preferRealAcademicLabel(
   return "";
 }
 
-export type SubjectAggPoint = { name: string; accuracy: number; attempts: number };
+type SubjectAggPoint = { name: string; accuracy: number; attempts: number };
 
 /**
  * Collapse Maths/Math/Mathematics (etc.) into one chart row via curriculum aliases,
@@ -131,7 +116,7 @@ export function buildSubjectRadarPoints(
 }
 
 /** Demo XP / level fingerprints that must stay off product paths. */
-export const XP_INVENT_PATTERNS: RegExp[] = [
+const XP_INVENT_PATTERNS: RegExp[] = [
   /\bxp:\s*1382\b/i,
   /\bxp:\s*8420\b/i,
   /\blevel:\s*14\b/i,

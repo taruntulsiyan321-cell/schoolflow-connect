@@ -23,10 +23,10 @@ const LEGACY_EXACT_KEYS = [
 ];
 const LEGACY_PREFIXES = ["gurukul.mistake.bookmarks."];
 
-export type StorageIdentity = { userId: string; schoolId: string };
+type StorageIdentity = { userId: string; schoolId: string };
 
 /** Null unless both halves of the identity are known — never fall back to a shared key. */
-export function scopedKey(name: string, identity: Partial<StorageIdentity>): string | null {
+function scopedKey(name: string, identity: Partial<StorageIdentity>): string | null {
   if (!identity.userId || !identity.schoolId) return null;
   return `${NS}${name}:${identity.schoolId}:${identity.userId}`;
 }

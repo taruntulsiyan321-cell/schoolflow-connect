@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Benchmark Suite — fixtures + offline gate + CI-friendly pure evaluators.
  *
  * How to add a suite
@@ -15,7 +15,7 @@ import { mapIntentToCapability } from "./intentMapper";
 import { planRoute, type KillSwitchState } from "./routerPolicy";
 import { validateModelResponse } from "./responseValidator";
 
-export type BenchmarkSuiteId =
+type BenchmarkSuiteId =
   | "hallucination"
   | "curriculum_grounding"
   | "safety_privacy"
@@ -23,21 +23,21 @@ export type BenchmarkSuiteId =
   | "routing_cost"
   | string;
 
-export type BenchmarkSuiteDef = {
+type BenchmarkSuiteDef = {
   suite_id: BenchmarkSuiteId;
   name: string;
   critical: boolean;
   description: string;
 };
 
-export type BenchmarkFixture = {
+type BenchmarkFixture = {
   suite_id: BenchmarkSuiteId;
   fixture_key: string;
   input: Record<string, unknown>;
   expected: Record<string, unknown>;
 };
 
-export type BenchmarkGateResult = {
+type BenchmarkGateResult = {
   candidate_label: string;
   gate_passed: boolean;
   passed_suites: string[];
@@ -45,7 +45,7 @@ export type BenchmarkGateResult = {
   missing_suites: string[];
 };
 
-export type FixtureEvalResult = {
+type FixtureEvalResult = {
   suite_id: string;
   fixture_key: string;
   passed: boolean;
@@ -300,23 +300,3 @@ export function runBuiltinBenchmarkSuites(
   return { fixture_results, suite_results, gate };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function fetchBenchmarkGate(
-  client: any,
-  candidateLabel: string,
-  suiteIds?: string[],
-): Promise<{ ok: boolean; result?: BenchmarkGateResult; error?: string }> {
-  try {
-    const { data, error } = await client.rpc("ai_benchmark_gate_passed", {
-      p_candidate_label: candidateLabel,
-      p_suite_ids: suiteIds ?? null,
-    });
-    if (error) return { ok: false, error: String(error.message ?? error) };
-    return { ok: true, result: data as BenchmarkGateResult };
-  } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : "benchmark_gate_failed",
-    };
-  }
-}

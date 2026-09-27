@@ -55,7 +55,7 @@ async function extractPdfText(bytes: Uint8Array): Promise<{ text: string; pages:
   }
 }
 
-export type LoadMediaResult =
+type LoadMediaResult =
   | { ok: true; media: MediaPayload }
   | { ok: false; error: string };
 

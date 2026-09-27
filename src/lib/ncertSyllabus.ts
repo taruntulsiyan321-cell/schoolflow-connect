@@ -1,7 +1,7 @@
 import { CLASS_LEVEL_PATTERN } from "@/lib/curriculumScope";
 /** NCERT chapter/topic allowlists by class grade (6–12). Used to limit battleground pickers. */
 
-export type NcertChapter = { chapter: string; topics: string[] };
+type NcertChapter = { chapter: string; topics: string[] };
 
 const MATH: Record<number, NcertChapter[]> = {
   6: [
@@ -165,7 +165,7 @@ export function getNcertChapters(grade: number | null, subject: string): string[
   return list.map((c) => c.chapter);
 }
 
-export function getNcertTopics(grade: number | null, subject: string, chapter: string): string[] {
+function getNcertTopics(grade: number | null, subject: string, chapter: string): string[] {
   if (!grade) return [];
   const ch = SUBJECT_MAP[subject]?.[grade]?.find(
     (c) => c.chapter.toLowerCase() === chapter.toLowerCase(),

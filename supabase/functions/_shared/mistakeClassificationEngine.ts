@@ -2,20 +2,13 @@
  * Mistake Classification Engine — rule-based deterministic. NEVER uses AI for classification.
  */
 
-export type MistakeErrorType =
+type MistakeErrorType =
   | "concept_error"
   | "calculation_error"
   | "careless_mistake"
   | "time_pressure_error"
   | "misinterpretation_error";
 
-export type ClassifyInput = {
-  student_answer?: { selected_index?: number; text?: string };
-  correct_answer?: { correct_index?: number; text?: string };
-  options?: string[];
-  time_taken_ms?: number | null;
-  times_wrong?: number;
-};
 
 const LABELS: Record<MistakeErrorType, string> = {
   concept_error: "Concept error",
@@ -25,49 +18,8 @@ const LABELS: Record<MistakeErrorType, string> = {
   misinterpretation_error: "Misinterpretation error",
 };
 
-export function classifyMistake(input: ClassifyInput): MistakeErrorType {
-  const sIdx = input.student_answer?.selected_index;
-  const cIdx = input.correct_answer?.correct_index;
-  const optCount = input.options?.length ?? 0;
-  const sText = (input.student_answer?.text ?? "").toLowerCase();
-  const cText = (input.correct_answer?.text ?? "").toLowerCase();
-  const timesWrong = input.times_wrong ?? 1;
 
-  if (input.time_taken_ms != null && input.time_taken_ms < 8000 && optCount > 0) {
-    return "time_pressure_error";
-  }
 
-  if (sIdx != null && cIdx != null && Math.abs(sIdx - cIdx) === 1) {
-    return "careless_mistake";
-  }
-
-  if (sText && cText && /[0-9]/.test(sText) && /[0-9]/.test(cText) && sText.slice(0, 3) === cText.slice(0, 3)) {
-    return "calculation_error";
-  }
-
-  if (sIdx != null && cIdx != null && optCount > 0 && Math.abs(sIdx - cIdx) >= 2) {
-    return "concept_error";
-  }
-
-  if (timesWrong >= 2) return "concept_error";
-
-  return "misinterpretation_error";
-}
-
-export function mistakeTypeLabel(type: MistakeErrorType): string {
-  return LABELS[type];
-}
-
-export function aggregateClassificationTrends(
-  mistakes: { error_type?: string | null }[],
-): Record<string, number> {
-  const trends: Record<string, number> = {};
-  for (const m of mistakes) {
-    const t = m.error_type ?? "unknown";
-    trends[t] = (trends[t] ?? 0) + 1;
-  }
-  return trends;
-}
 
 /** Structured classification summary for agents — counts only, no raw answers. */
 export function buildClassificationSummaryForAgents(

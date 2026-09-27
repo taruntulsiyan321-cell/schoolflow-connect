@@ -25,7 +25,7 @@ import { useCallback, useRef } from "react";
  * Called with no key it behaves exactly as before, so existing callers are
  * unaffected until they opt in.
  */
-export type LoadGateKeyPart = string | number | boolean | null | undefined;
+type LoadGateKeyPart = string | number | boolean | null | undefined;
 
 function serializeKey(key: LoadGateKeyPart | readonly LoadGateKeyPart[]): string {
   if (Array.isArray(key)) return key.map((p) => String(p ?? "")).join("␟");

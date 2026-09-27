@@ -28,7 +28,7 @@ export type SessionMemoryRecord = {
 };
 
 /** Capabilities that may inject session memory into Context Builder. */
-export const SESSION_MEMORY_CAPABILITIES: Record<string, SessionWorkflowScope> = {
+const SESSION_MEMORY_CAPABILITIES: Record<string, SessionWorkflowScope> = {
   "student.concept.explain": "tutoring",
   "student.nova.chat": "tutoring",
   "student.knowledge.retrieve": "tutoring",
@@ -103,63 +103,6 @@ export function redactSessionForContext(
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function openSessionMemory(
-  client: any,
-  input: {
-    school_id: string;
-    workflow_scope: SessionWorkflowScope;
-    capability_id?: string | null;
-    workflow_id?: string | null;
-    target_student_id?: string | null;
-    ttl_minutes?: number;
-    summary?: Record<string, unknown>;
-  },
-) {
-  const { data, error } = await client.rpc("ai_session_memory_open", {
-    p_school_id: input.school_id,
-    p_workflow_scope: input.workflow_scope,
-    p_capability_id: input.capability_id ?? null,
-    p_workflow_id: input.workflow_id ?? null,
-    p_target_student_id: input.target_student_id ?? null,
-    p_ttl_minutes: input.ttl_minutes ?? 120,
-    p_summary: input.summary ?? {},
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data: data as SessionMemoryRecord };
-}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function readSessionMemory(client: any, sessionId: string) {
-  const { data, error } = await client.rpc("ai_session_memory_read", {
-    p_session_id: sessionId,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  if (!data) return { ok: true as const, data: null as SessionMemoryRecord | null };
-  return { ok: true as const, data: data as SessionMemoryRecord };
-}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function appendSessionMemory(
-  client: any,
-  sessionId: string,
-  summaryPatch: Record<string, unknown>,
-  incrementTurn = true,
-) {
-  const { data, error } = await client.rpc("ai_session_memory_append", {
-    p_session_id: sessionId,
-    p_summary_patch: summaryPatch,
-    p_increment_turn: incrementTurn,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function closeSessionMemory(client: any, sessionId: string) {
-  const { data, error } = await client.rpc("ai_session_memory_close", {
-    p_session_id: sessionId,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}

@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { displayChapter, displayTopic, displaySubject } from "@/lib/academicPresentation";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -50,7 +49,6 @@ const MODE_META: Record<BattleMode, { label: string; icon: typeof User; hint: st
 };
 
 export function FrictionlessChallenge({ classId, className, variant = "card" }: Props) {
-  const { user } = useAuth();
   const nav = useNavigate();
   const { ctx, ready: academicReady } = useAcademicContext();
   const gradeFromLabel = useMemo(() => parseClassGrade(className), [className]);

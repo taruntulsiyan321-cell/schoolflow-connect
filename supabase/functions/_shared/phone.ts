@@ -17,9 +17,3 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   return digits;
 }
 
-/** normalizePhone() with a leading "+", for APIs that require strict E.164
- *  (e.g. MSG91's raw OTP send endpoint). */
-export function toE164Display(raw: string | null | undefined): string | null {
-  const normalized = normalizePhone(raw);
-  return normalized ? `+${normalized}` : null;
-}

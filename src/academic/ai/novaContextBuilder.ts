@@ -37,13 +37,13 @@ const PLACEHOLDER_LABELS = new Set(
   ].map((s) => s.toLowerCase()),
 );
 
-export type NovaChip = {
+type NovaChip = {
   id: string;
   label: string;
   color: string;
 };
 
-export type NovaUiContextInput = {
+type NovaUiContextInput = {
   classLabel?: string | null;
   /** Competitive exam name for individual accounts — preferred over classLabel. */
   examName?: string | null;
@@ -94,7 +94,7 @@ export function isPlaceholderLabel(raw: unknown): boolean {
 }
 
 /** Case-insensitive subject/chip dedupe; drops placeholders; preserves first casing. */
-export function dedupeLabels(labels: Array<string | null | undefined>, limit = 12): string[] {
+function dedupeLabels(labels: Array<string | null | undefined>, limit = 12): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of labels) {
@@ -231,9 +231,3 @@ export function buildNovaUiChips(input: NovaUiContextInput): NovaChip[] {
   return chips;
 }
 
-/** One-line context string for the Nova pill (deduped, no placeholders). */
-export function buildNovaContextLine(input: NovaUiContextInput): string {
-  return buildNovaUiChips(input)
-    .map((c) => c.label)
-    .join(" · ");
-}

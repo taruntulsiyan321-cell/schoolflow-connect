@@ -6,7 +6,7 @@ import {
   generateUniqueFromTemplates,
 } from "@/lib/practiceDiversity";
 
-export type TemplateSessionItem = {
+type TemplateSessionItem = {
   template: QuestionTemplateRow;
   generated: GeneratedQuestion;
 };

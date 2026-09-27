@@ -43,7 +43,7 @@ type AdminClient = {
   };
 };
 
-export type PhoneLinkResult = {
+type PhoneLinkResult = {
   success: true;
   user_id: string;
   email: string;

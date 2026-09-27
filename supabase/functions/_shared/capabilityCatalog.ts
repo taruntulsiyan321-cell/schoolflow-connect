@@ -2,9 +2,9 @@
  * Capability Catalog — edge mirror of src/academic/ai/capabilityCatalog.ts
  */
 
-export type ModelPolicy = "never" | "optional_explain" | "required_when_budget";
+type ModelPolicy = "never" | "optional_explain" | "required_when_budget";
 
-export type AiRouteClass =
+type AiRouteClass =
   | "deterministic_record"
   | "deterministic_insight"
   | "cached_explanation"
@@ -20,7 +20,7 @@ export type AiRouteClass =
 /** Valid AI actor roles only — never super_admin. */
 export type AiActorRole = "student" | "teacher" | "parent" | "principal" | "admin";
 
-export interface CapabilityDefinition {
+interface CapabilityDefinition {
   feature_id: string;
   route_class: AiRouteClass;
   model_policy: ModelPolicy;
@@ -29,7 +29,7 @@ export interface CapabilityDefinition {
   description: string;
 }
 
-export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
+const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
   "student.attendance.query": {
     feature_id: "student.attendance.query",
     route_class: "deterministic_record",

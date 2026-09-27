@@ -1,8 +1,5 @@
-import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
+
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
-import type { SubjectChartPoint } from "@/hooks/useStudentPerformanceCharts";
-import { displayChapter, displaySubject } from "@/lib/academicDisplay";
-import { accuracyBand, ACCURACY_LABEL, ACCURACY_CONCEPTUAL, STREAK_ESTABLISHED } from "@/academic/metrics/bands";
 
 // RULING 1 — `masteryLevel` is deleted, not converged.
 //
@@ -42,7 +39,7 @@ import { accuracyBand, ACCURACY_LABEL, ACCURACY_CONCEPTUAL, STREAK_ESTABLISHED }
  * deleting a function that never ran.
  */
 
-export type Milestone = { title: string; when: string; detail?: string; badge?: string };
+type Milestone = { title: string; when: string; detail?: string; badge?: string };
 
 /**
  * `topicGaps: TopicGapInsight[]` WAS A THIRD PARAMETER AND IT IS GONE.
@@ -98,7 +95,7 @@ export function buildMilestones(
 }
 
 
-export type ConsistencyCell = {
+type ConsistencyCell = {
   /** Calendar date, yyyy-mm-dd. Present for every cell, including empty ones. */
   date: string;
   /** Activities that day: tests + homework + battles + practice sessions. */
@@ -106,7 +103,7 @@ export type ConsistencyCell = {
   minutes: number;
 };
 
-export type ConsistencyWeek = {
+type ConsistencyWeek = {
   label: string;
   /** Mon..Sun. Always seven, always in weekday order. */
   days: ConsistencyCell[];

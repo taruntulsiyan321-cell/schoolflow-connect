@@ -45,7 +45,7 @@ export function streamSubjects(syllabus: ReadonlyArray<SyllabusChapter>): string
 }
 
 /** The numbered syllabus, as the model is shown it. */
-export function syllabusPrompt(syllabus: ReadonlyArray<SyllabusChapter>): string {
+function syllabusPrompt(syllabus: ReadonlyArray<SyllabusChapter>): string {
   return syllabus
     .map((c) => {
       const topics = c.topics.length ? ` (topics: ${c.topics.map((t) => t.name).join("; ")})` : "";
@@ -114,7 +114,7 @@ type RawTag = { index?: unknown; code?: unknown; subject?: unknown; topic?: unkn
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 /** A topic of the chapter the model named, matched exactly after normalising. */
-export function topicFor(chapter: SyllabusChapter, label: unknown): string | null {
+function topicFor(chapter: SyllabusChapter, label: unknown): string | null {
   if (typeof label !== "string" || !label.trim()) return null;
   const want = norm(label);
   return chapter.topics.find((t) => norm(t.name) === want)?.id ?? null;

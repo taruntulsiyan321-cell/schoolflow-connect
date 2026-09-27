@@ -31,7 +31,7 @@ export type QuestionReviewRow = {
 };
 
 /** How many pending questions one page of the queue shows. */
-export const REVIEW_PAGE_SIZE = 25;
+const REVIEW_PAGE_SIZE = 25;
 
 /**
  * §10.20 gives "Manage the central question bank" to the super admin, and only

@@ -2,7 +2,7 @@
  * Edge Recommendation Engine v1 — mirrors src/academic/ai/recommendationEngine.ts
  */
 
-export type RecommendationAction = {
+type RecommendationAction = {
   action_id: string;
   kind: "next_concept" | "revision_priority" | "attendance_checkin" | "homework_catchup";
   title: string;
@@ -13,7 +13,7 @@ export type RecommendationAction = {
   metrics: Record<string, number | string | null>;
 };
 
-export type RecommendationPackage = {
+type RecommendationPackage = {
   projection: "RecommendationPackage";
   version: 1;
   studentId: string;

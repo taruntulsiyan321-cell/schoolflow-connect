@@ -3,7 +3,7 @@ import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
 
 /** Verify parent may access a student via parent_user_id or parents→parent_students. */
-export async function assertParentOwnsStudent(
+async function assertParentOwnsStudent(
   ctx: ServiceContext,
   studentId: string,
 ): Promise<void> {
@@ -46,7 +46,7 @@ export async function assertParentOwnsStudent(
 }
 
 /** Teacher may access a student only if assigned to that student's class. */
-export async function assertTeacherMayAccessStudent(
+async function assertTeacherMayAccessStudent(
   ctx: ServiceContext,
   studentId: string,
 ): Promise<void> {

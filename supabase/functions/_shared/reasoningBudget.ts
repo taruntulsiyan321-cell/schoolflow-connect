@@ -5,7 +5,7 @@
 
 export type ReasoningTier = "simple" | "medium" | "complex" | "enterprise";
 
-export type TierLimits = {
+type TierLimits = {
   tier: ReasoningTier;
   max_input_tokens: number;
   max_output_tokens: number;
@@ -14,7 +14,7 @@ export type TierLimits = {
 };
 
 /** Control-plane defaults (tunable later via flags / tables). */
-export const TIER_LIMITS: Record<ReasoningTier, TierLimits> = {
+const TIER_LIMITS: Record<ReasoningTier, TierLimits> = {
   simple: {
     tier: "simple",
     max_input_tokens: 600,

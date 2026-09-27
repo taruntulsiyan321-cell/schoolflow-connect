@@ -17,7 +17,7 @@ export type KillSwitchState = {
   generativeEnabled: boolean;
 };
 
-export type RoutePlan = {
+type RoutePlan = {
   feature_id: string;
   route_class: AiRouteClass;
   capability: CapabilityDefinition;

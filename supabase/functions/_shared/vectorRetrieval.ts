@@ -38,7 +38,7 @@ export type RetrievalPack = {
   sufficient: boolean;
 };
 
-export type RetrieveInput = {
+type RetrieveInput = {
   school_id: string;
   query: string;
   role?: "admin" | "teacher" | "student" | "parent" | "principal";
@@ -49,39 +49,9 @@ export type RetrieveInput = {
   grade?: string | null;
 };
 
-/** Lexical overlap 0..1 — mirrors SQL ai_lexical_overlap for unit tests. */
-export function lexicalOverlap(query: string, body: string): number {
-  const hay = (body ?? "").toLowerCase();
-  const tokens = (query ?? "")
-    .toLowerCase()
-    .trim()
-    .split(/\s+/)
-    .filter((t) => t.length >= 2);
-  if (!tokens.length) return 0;
-  let hits = 0;
-  for (const t of tokens) {
-    if (hay.includes(t)) hits += 1;
-  }
-  return hits / tokens.length;
-}
 
-/** Cosine similarity for document-compatible real[] vectors. */
-export function cosineSimilarity(a: number[], b: number[]): number | null {
-  const n = Math.min(a?.length ?? 0, b?.length ?? 0);
-  if (n < 1) return null;
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let i = 0; i < n; i++) {
-    dot += a[i]! * b[i]!;
-    na += a[i]! * a[i]!;
-    nb += b[i]! * b[i]!;
-  }
-  if (na <= 0 || nb <= 0) return null;
-  return dot / (Math.sqrt(na) * Math.sqrt(nb));
-}
 
-export function isEvidenceSufficient(
+function isEvidenceSufficient(
   hits: RetrievalHit[],
   opts: { minHits?: number; minScore?: number } = {},
 ): boolean {
@@ -107,86 +77,8 @@ export function buildEvidenceCitations(hits: RetrievalHit[], max = 3): Array<{
   }));
 }
 
-/** Pure local ranker for tests / offline degrade (approved chunk list only). */
-export function rankApprovedChunksLocally(input: {
-  query: string;
-  chunks: Array<{
-    chunk_id: string;
-    document_id: string;
-    chunk_text: string;
-    published?: boolean;
-    document_status?: string;
-    embedding_compat?: number[] | null;
-    document_title?: string;
-  }>;
-  query_embedding?: number[] | null;
-  min_score?: number;
-  limit?: number;
-}): RetrievalPack {
-  const minScore = input.min_score ?? 0.12;
-  const limit = input.limit ?? 5;
-  const approved = input.chunks.filter(
-    (c) => c.published !== false && (c.document_status ?? "published") === "published",
-  );
 
-  let mode: RetrievalMatchMode = "lexical";
-  let scored: RetrievalHit[] = [];
-
-  if (input.query_embedding && input.query_embedding.length > 0) {
-    mode = "vector_compat";
-    scored = approved
-      .map((c) => {
-        const score =
-          c.embedding_compat && c.embedding_compat.length
-            ? cosineSimilarity(input.query_embedding!, c.embedding_compat)
-            : null;
-        return {
-          chunk_id: c.chunk_id,
-          document_id: c.document_id,
-          chunk_text: c.chunk_text,
-          document_title: c.document_title,
-          document_status: c.document_status ?? "published",
-          score: score ?? -1,
-          match_mode: "vector_compat" as const,
-        };
-      })
-      .filter((h) => h.score >= minScore)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
-  }
-
-  if (!scored.length) {
-    mode = "lexical";
-    scored = approved
-      .map((c) => ({
-        chunk_id: c.chunk_id,
-        document_id: c.document_id,
-        chunk_text: c.chunk_text,
-        document_title: c.document_title,
-        document_status: c.document_status ?? "published",
-        score: lexicalOverlap(input.query, c.chunk_text),
-        match_mode: "lexical" as const,
-      }))
-      .filter((h) => h.score >= minScore)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
-  }
-
-  if (!scored.length) mode = "none";
-
-  return {
-    school_id: "",
-    query: input.query,
-    mode,
-    min_score: minScore,
-    hits: scored,
-    hit_count: scored.length,
-    approved_only: true,
-    sufficient: isEvidenceSufficient(scored, { minScore }),
-  };
-}
-
-export function parseRetrievalRpcPayload(raw: unknown, schoolId: string, query: string): RetrievalPack {
+function parseRetrievalRpcPayload(raw: unknown, schoolId: string, query: string): RetrievalPack {
   const obj = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const hitsRaw = Array.isArray(obj.hits) ? obj.hits : [];
   const hits: RetrievalHit[] = hitsRaw.map((h) => {

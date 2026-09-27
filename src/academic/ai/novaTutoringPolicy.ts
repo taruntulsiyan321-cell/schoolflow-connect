@@ -9,7 +9,7 @@ import {
   normalizeLabelKey,
 } from "./novaContextBuilder";
 
-export type NovaTutoringMode = "socratic" | "full" | "mistake_review";
+type NovaTutoringMode = "socratic" | "full" | "mistake_review";
 
 const WANTS_FULL_ANSWER =
   /\b((just\s+)?(tell|give|show)\s+me\s+(the\s+)?(full\s+)?(answer|solution)|don'?t\s+(hint|quiz)|spoil(ers?| it)|full\s+solution|what('?s| is)\s+the\s+(correct\s+)?answer)\b/i;
@@ -43,7 +43,7 @@ export function expandSubjectsForMatch(
   return [...out];
 }
 
-export type SemanticCandidate = {
+type SemanticCandidate = {
   similarity: number;
   question: string;
   subject?: string | null;

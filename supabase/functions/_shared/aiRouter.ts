@@ -8,7 +8,6 @@ import {
   getCapability,
   isModelAllowed,
   type AiActorRole,
-  type CapabilityDefinition,
 } from "./capabilityCatalog.ts";
 import { completeWithPromptLibrary, isOpenRouterConfigured } from "./modelRouter.ts";
 import { buildEieProjection } from "./eieProjection.ts";
@@ -69,7 +68,7 @@ import { buildSchoolHealthBrief } from "./schoolHealthBrief.ts";
 import { buildSchoolRiskRollups } from "./schoolRollups.ts";
 import { parseShadowPromptFlag } from "./promptEvaluation.ts";
 
-export type KillSwitches = {
+type KillSwitches = {
   gatewayEnabled: boolean;
   deterministicEnabled: boolean;
   generativeEnabled: boolean;
@@ -84,7 +83,7 @@ export type RouterActor = {
   studentId: string | null;
 };
 
-export type RouterRequest = {
+type RouterRequest = {
   request_id: string;
   feature_id: string;
   intent_hint?: string;
@@ -99,7 +98,7 @@ export type RouterRequest = {
   actor: RouterActor;
 };
 
-export type RouterResponse = {
+type RouterResponse = {
   request_id: string;
   feature_id: string;
   decision: string;
@@ -132,7 +131,7 @@ function l1Set(key: string, value: unknown, ttlMs = 60_000) {
   l1.set(key, { value, expiresAt: Date.now() + ttlMs });
 }
 
-export async function loadKillSwitches(
+async function loadKillSwitches(
   admin: SupabaseClient,
   schoolId: string | null,
 ): Promise<KillSwitches> {
@@ -201,7 +200,7 @@ export async function loadKillSwitches(
   };
 }
 
-export async function writeDecision(
+async function writeDecision(
   admin: SupabaseClient,
   row: {
     request_id: string;
@@ -4711,11 +4710,3 @@ export async function routeAiRequest(
   }
 }
 
-/** Test helper export — attendance capability must never allow model. */
-export function capabilityAllowsModel(featureId: string): boolean {
-  const cap = getCapability(featureId);
-  if (!cap) return false;
-  return isModelAllowed(cap);
-}
-
-export type { CapabilityDefinition };

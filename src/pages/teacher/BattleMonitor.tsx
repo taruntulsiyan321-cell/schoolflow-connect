@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft, Users, Trophy, Clock, Target, AlertTriangle, Activity,
+  ArrowLeft, Users, Trophy, Target, AlertTriangle, Activity,
   Zap, CheckCircle2, Radio, Flag, BarChart3, Loader2, FileBarChart, Sparkles,
 } from "lucide-react";
 import { useAcademicContext, BattleExperienceService } from "@/academic";

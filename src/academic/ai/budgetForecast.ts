@@ -3,13 +3,13 @@
  * Pure math — no invented demo burn rates.
  */
 
-export type DailyUsagePoint = {
+type DailyUsagePoint = {
   /** YYYY-MM-DD (UTC) */
   day: string;
   units: number;
 };
 
-export type BudgetForecastInput = {
+type BudgetForecastInput = {
   /** Observed daily burn (oldest → newest or unsorted). */
   daily_usage: DailyUsagePoint[];
   soft_limit_daily: number;

@@ -3,8 +3,7 @@
  * Runtime DB verification still happens in services / edge; these encode the rules.
  */
 
-import type { AiActor, AiActorRole } from "./envelope";
-import type { CapabilityDefinition } from "./capabilityCatalog";
+import type { AiActor } from "./envelope";
 
 export class AiPermissionError extends Error {
   readonly code = "permission_denied";
@@ -14,11 +13,6 @@ export class AiPermissionError extends Error {
   }
 }
 
-export function assertRoleAllowed(cap: CapabilityDefinition, role: AiActorRole): void {
-  if (!cap.allowed_roles.includes(role)) {
-    throw new AiPermissionError(`Role '${role}' cannot use ${cap.feature_id}`);
-  }
-}
 
 /**
  * Resolve the student target for a request.

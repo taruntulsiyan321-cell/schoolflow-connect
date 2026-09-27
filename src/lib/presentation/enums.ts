@@ -21,7 +21,7 @@
 import { toDisplayText } from "./safeText";
 
 /** Every enum family the UI presents. Keys mirror the Postgres enum names. */
-export type EnumDomain =
+type EnumDomain =
   | "attendance_status"
   | "leave_status"
   | "leave_applicant"
@@ -325,7 +325,7 @@ export function humanizeEnumValue(value: string): string {
     .join(" ");
 }
 
-export interface EnumLabelOptions {
+interface EnumLabelOptions {
   /** Shown when the value is missing or unusable. */
   fallback?: string;
 }

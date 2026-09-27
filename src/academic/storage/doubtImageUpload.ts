@@ -29,7 +29,7 @@ function safeFileName(name: string): string {
 }
 
 /** Persistable ref: `doubt-images/{uid}/{ts}-{name}`. */
-export function toDurableDoubtImageRef(objectPath: string): string {
+function toDurableDoubtImageRef(objectPath: string): string {
   const cleaned = objectPath.replace(/^\/+/, "");
   return cleaned.startsWith(`${BUCKET}/`) ? cleaned : `${BUCKET}/${cleaned}`;
 }
@@ -44,7 +44,7 @@ export function toDurableDoubtImageRef(objectPath: string): string {
  * holds **zero** objects. That is why this could be changed without migrating
  * anything — and it is the cheapest this will ever be.
  */
-export function extractDoubtImagePath(stored: string): string | null {
+function extractDoubtImagePath(stored: string): string | null {
   const u = stored.trim();
   if (!u) return null;
 

@@ -24,7 +24,7 @@ const FORBIDDEN_KEYS = new Set([
   "table_name",
 ]);
 
-export type ProvenanceManifest = {
+type ProvenanceManifest = {
   source_as_of: string | null;
   data_versions: string[];
   algorithm_ids: string[];
@@ -32,7 +32,7 @@ export type ProvenanceManifest = {
   projection_names: string[];
 };
 
-export type ContextPack = {
+type ContextPack = {
   capability: string;
   tier: ReasoningTier;
   token_budget: { input: number; output: number };
@@ -47,7 +47,7 @@ export type ContextPack = {
   truncated: boolean;
 };
 
-export type BuildContextInput = {
+type BuildContextInput = {
   capability: string;
   request_text?: string;
   ae: Record<string, unknown>;
@@ -69,7 +69,7 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
 
-export function redactProjection(
+function redactProjection(
   input: unknown,
   opts: { dropIds?: boolean; maxArray?: number } = {},
 ): unknown {

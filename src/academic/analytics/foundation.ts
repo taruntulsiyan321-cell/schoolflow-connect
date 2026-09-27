@@ -51,26 +51,26 @@ function rollupFromProfileCounts(rows: ProfileCountRow[]): {
  * Never stores duplicate academic rows; reads profiles + aggregates.
  */
 
-export interface AttendanceAnalytics {
+interface AttendanceAnalytics {
   present: number;
   total: number;
   pct: number;
 }
 
-export interface CompletionAnalytics {
+interface CompletionAnalytics {
   assigned: number;
   completed: number;
   pct: number;
 }
 
-export interface MarksAnalytics {
+interface MarksAnalytics {
   count: number;
   averagePct: number;
   highestPct: number | null;
   lowestPct: number | null;
 }
 
-export type StudentAnalyticsBundle = {
+type StudentAnalyticsBundle = {
   attendance: AttendanceAnalytics;
   homework: CompletionAnalytics;
   tests: MarksAnalytics;
@@ -82,7 +82,7 @@ export type StudentAnalyticsBundle = {
 };
 
 /** Zeroed profile shell so panels can render before sync creates a row. */
-export function emptyStudentProfile(studentId: string, schoolId: string): StudentAcademicProfile {
+function emptyStudentProfile(studentId: string, schoolId: string): StudentAcademicProfile {
   return {
     id: "",
     schoolId,
@@ -162,7 +162,7 @@ function bundleFromProfile(profile: StudentAcademicProfile, isEmpty: boolean): S
  * Student analytics. Missing profile → empty zeros (isEmpty: true), never NotFound.
  * Callers must authorize before invoking.
  */
-export async function getStudentAnalytics(
+async function getStudentAnalytics(
   ctx: RepoContext,
   studentId: string,
 ): Promise<StudentAnalyticsBundle> {
@@ -285,7 +285,7 @@ type ClassRollupRow = {
   avgTestsPct: number | null;
 };
 
-export async function getSchoolClassRollups(ctx: RepoContext): Promise<ClassRollupRow[]> {
+async function getSchoolClassRollups(ctx: RepoContext): Promise<ClassRollupRow[]> {
   const schoolId = schoolIdOf(ctx);
   const { data: classes, error } = await getClient(ctx)
     .from("classes")
@@ -313,7 +313,7 @@ export async function getSchoolClassRollups(ctx: RepoContext): Promise<ClassRoll
  * Teacher academic rollup — averages of assigned classes' profile metrics.
  * No fake KPIs; empty when teacher has no assignments.
  */
-export async function getTeacherPerformance(
+async function getTeacherPerformance(
   ctx: RepoContext,
   teacherId: string,
 ): Promise<{
@@ -385,9 +385,6 @@ export async function getTeacherPerformance(
   };
 }
 
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
-}
 
 export const AnalyticsFoundation = {
   getStudentAnalytics,

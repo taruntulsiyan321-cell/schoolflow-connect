@@ -22,7 +22,6 @@ import {
 } from "./homework";
 import {
   markAverage,
-  averageBySubject,
   distribution,
   belowPassCount,
   sectionFlaggedOnMarks,

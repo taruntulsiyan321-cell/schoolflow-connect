@@ -19,19 +19,9 @@ export {
   looksLikeAcademicSlug,
   presentAcademicLabel,
   toPresentedTerm,
-  canonicalizeConceptId,
-  mergeDuplicateLabels,
-  normalizeIncomingAcademicTerm,
-  resolveTaxonomyDisplayPath,
-  formatTaxonomyBreadcrumb,
-  searchTaxonomyByAlias,
-  getTaxonomyTerm,
-  lookupDisplayName,
 } from "@/academic/taxonomy";
 
 import { presentAcademicLabel as _present } from "@/academic/taxonomy";
 
-/** Stable UI alias — same as presentAcademicLabel. */
-export const formatAcademicLabel = _present;
 
-export type { AcademicLabelKind, TaxonomyTermRef, TaxonomyPath, PresentedTaxonomyPath } from "@/academic/taxonomy";
+export type { TaxonomyTermRef } from "@/academic/taxonomy";

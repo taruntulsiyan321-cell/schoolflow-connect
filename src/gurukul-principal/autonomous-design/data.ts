@@ -8,15 +8,15 @@
 export type StudentId = string
 export type TeacherId = string
 export type ClassId = string
-export type ExamId = string
+type ExamId = string
 
-export interface FeePayment {
+interface FeePayment {
   date: string
   amount: number
   installment: string
 }
 
-export interface Student {
+interface Student {
   id: StudentId
   name: string
   rollNo: string
@@ -40,7 +40,7 @@ export interface Student {
   remarks: { teacher: string; date: string; text: string }[]
 }
 
-export interface Teacher {
+interface Teacher {
   id: TeacherId
   name: string
   designation: string
@@ -55,7 +55,7 @@ export interface Teacher {
   testsRun: number
 }
 
-export interface ExamSubject {
+interface ExamSubject {
   id: string
   name: string
   hasMarks: boolean
@@ -63,7 +63,7 @@ export interface ExamSubject {
   passMark: number
 }
 
-export interface Exam {
+interface Exam {
   id: ExamId
   name: string
   term: string
@@ -72,7 +72,7 @@ export interface Exam {
   classTeacherComment?: string
 }
 
-export interface ClassDef {
+interface ClassDef {
   id: ClassId
   name: string
   yearGroup: number
@@ -99,7 +99,7 @@ export interface LeaveRequest {
   rejectionReason?: string
 }
 
-export interface Announcement {
+interface Announcement {
   id: string
   title: string
   body: string
@@ -108,7 +108,7 @@ export interface Announcement {
   sentOn: string
 }
 
-export interface AppData {
+interface AppData {
   principal: { name: string; email: string; role: string; school: string }
   students: Record<StudentId, Student>
   teachers: Record<TeacherId, Teacher>
@@ -351,7 +351,7 @@ const examHigherUT1: Exam = {
 
 // --- Teachers ---
 
-export const teachers: Record<TeacherId, Teacher> = {
+const teachers: Record<TeacherId, Teacher> = {
   T01: { id:"T01", name:"Priya Sharma",         designation:"Senior Teacher",       subjects:["Mathematics"],              classIds:["9a","9b","10a"],          email:"priya.sharma@gurukul.edu",         phone:"98401 11201", joinDate:"2018-06-01", presentDays:72, totalDays:75, homeworkSet:18, testsRun:4 },
   T02: { id:"T02", name:"Arjun Nair",            designation:"Teacher",              subjects:["Physics"],                  classIds:["11sci","12sci"],           email:"arjun.nair@gurukul.edu",           phone:"98401 11202", joinDate:"2021-06-01", presentDays:70, totalDays:75, homeworkSet:12, testsRun:3 },
   T03: { id:"T03", name:"Kavitha Rajan",         designation:"Senior Teacher",       subjects:["English"],                  classIds:["9a","9b","10a","10b"],     email:"kavitha.rajan@gurukul.edu",        phone:"98401 11203", joinDate:"2015-06-01", presentDays:74, totalDays:75, homeworkSet:22, testsRun:5 },
@@ -368,7 +368,7 @@ export const teachers: Record<TeacherId, Teacher> = {
 
 // --- Classes ---
 
-export const classes: Record<ClassId, ClassDef> = {
+const classes: Record<ClassId, ClassDef> = {
   "9a":    { id:"9a",    name:"9 — A",       yearGroup:9,  section:"A", formTeacherId:"T01", studentIds: classStudents("9a").map(s=>s.id),    todayPresent: todayPresent("9a",0.875),    below75Count: computeBelow75("9a"), exams:[examUnit1, examHY] },
   "9b":    { id:"9b",    name:"9 — B",       yearGroup:9,  section:"B", formTeacherId:"T02", studentIds: classStudents("9b").map(s=>s.id),    todayPresent: todayPresent("9b",0.833),    below75Count: computeBelow75("9b"), exams:[examUnit1, examHY] },
   "10a":   { id:"10a",   name:"10 — A",      yearGroup:10, section:"A", formTeacherId:"T03", studentIds: classStudents("10a").map(s=>s.id),   todayPresent: todayPresent("10a",0.911),   below75Count: computeBelow75("10a"), exams:[examUnit1, examHY] },
@@ -406,7 +406,7 @@ function computeSchoolAttendance() {
 
 // --- Leave requests ---
 
-export const leaveRequests: LeaveRequest[] = [
+const leaveRequests: LeaveRequest[] = [
   { id:"L001", studentId:"9A003", studentName:"Arjun Pillai",    className:"9 — A", submittedOn:"2026-09-08", fromDate:"2026-09-09", toDate:"2026-09-10", reason:"Viral fever — doctor has advised two days rest. Medical certificate attached.", category:"medical",     status:"pending" },
   { id:"L002", studentId:"9A006", studentName:"Kavya Nair",      className:"9 — A", submittedOn:"2026-09-09", fromDate:"2026-09-12", toDate:"2026-09-16", reason:"Elder sister's wedding in Thrissur. Family travel required for five days.",       category:"family",      status:"pending" },
   { id:"L003", studentId:"10B008",studentName:"Arjun Mehta",     className:"10 — B",submittedOn:"2026-09-10", fromDate:"2026-09-11", toDate:"2026-09-13", reason:"Paternal grandfather passed away. Family is travelling to Lucknow.",              category:"bereavement", status:"pending" },
@@ -419,7 +419,7 @@ export const leaveRequests: LeaveRequest[] = [
 
 // --- Announcements ---
 
-export const announcements: Announcement[] = [
+const announcements: Announcement[] = [
   { id:"A001", title:"Revised timetable — Class 10 Unit Test 2", body:"The Unit Test 2 for Classes 10-A and 10-B will now be held from 22 September to 26 September 2026. The original dates (18–22 September) stand cancelled. Subject teachers will share the updated schedule with students today.\n\nThe examination hall seating plan will be posted on the notice board by 19 September.", sentTo:["10a","10b"], sentBy:"Meera Krishnamurthy", sentOn:"2026-09-08" },
   { id:"A002", title:"Annual Day 2026 — Participation notice",  body:"Annual Day 2026 is scheduled for 28 November 2026. All students in Classes 9 through 12 are invited to audition for cultural performances. Auditions will be held on 20 and 21 September in the main hall from 3:30 PM onwards.\n\nStudents interested in backstage, decoration, or technical support should submit their names to the class teacher by 15 September.", sentTo:["all"], sentBy:"Meera Krishnamurthy", sentOn:"2026-09-05" },
   { id:"A003", title:"Parent–Teacher Meeting — 20 September",   body:"The quarterly Parent–Teacher Meeting will be held on Saturday, 20 September 2026 from 9:00 AM to 1:00 PM. All parents and guardians are requested to attend.\n\nAppointment slips will be sent home with students by 15 September. Walk-in appointments will be accommodated between 12:00 PM and 1:00 PM only if scheduled slots are complete.", sentTo:["all"], sentBy:"Meera Krishnamurthy", sentOn:"2026-09-03" },

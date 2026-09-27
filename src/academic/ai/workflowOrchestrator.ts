@@ -3,7 +3,7 @@
  * Full teacher paper generation is deferred; this registers the skeleton DAG only.
  */
 
-export type WorkflowStepKind =
+type WorkflowStepKind =
   | "permission_check"
   | "cache_lookup"
   | "context_assemble"
@@ -15,7 +15,7 @@ export type WorkflowStepKind =
   | "media_validate"
   | "stub";
 
-export type WorkflowStepDef = {
+type WorkflowStepDef = {
   step_id: string;
   kind: WorkflowStepKind;
   /** Router capability when kind = router_invoke */
@@ -25,7 +25,7 @@ export type WorkflowStepDef = {
   description: string;
 };
 
-export type WorkflowDefinition = {
+type WorkflowDefinition = {
   workflow_id: string;
   version: string;
   capability_id: string;
@@ -37,7 +37,7 @@ export type WorkflowDefinition = {
   notes?: string;
 };
 
-export type WorkflowRunState = {
+type WorkflowRunState = {
   run_id: string;
   workflow_id: string;
   version: string;
@@ -49,7 +49,7 @@ export type WorkflowRunState = {
 };
 
 /** Canonical registered pipelines (control-plane). */
-export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
+const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
   "teacher.question_paper.plan.v1": {
     workflow_id: "teacher.question_paper.plan.v1",
     version: "v1",

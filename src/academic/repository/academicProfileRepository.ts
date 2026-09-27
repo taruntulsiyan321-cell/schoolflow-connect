@@ -93,7 +93,7 @@ export async function requireStudentAcademicProfile(
   return profile;
 }
 
-export type ClassAcademicProfilesResult = {
+type ClassAcademicProfilesResult = {
   profiles: StudentAcademicProfile[];
   /** Students in this class/page with no synced student_academic_profiles row yet. */
   missingProfileCount: number;
@@ -140,19 +140,6 @@ export async function listClassAcademicProfiles(
   return profiles;
 }
 
-/**
- * Same listing as listClassAcademicProfiles, plus the count of students in
- * this class/page that have no synced student_academic_profiles row yet
- * (e.g. newly-admitted students), so callers can surface a "N pending"
- * indicator instead of those students silently vanishing from the list.
- */
-export async function listClassAcademicProfilesWithMissingCount(
-  ctx: RepoContext,
-  classId: string,
-  page?: PageParams,
-): Promise<ClassAcademicProfilesResult> {
-  return fetchClassAcademicProfiles(ctx, classId, page);
-}
 
 /** School-wide profiles for admin/principal rankings & reports (engine-owned). */
 export async function listSchoolAcademicProfiles(
@@ -171,7 +158,7 @@ export async function listSchoolAcademicProfiles(
   return (data ?? []).map((row) => mapProfile(row as ProfileRow));
 }
 
-export type SchoolRankingMetricColumn = "exams_avg_pct" | "attendance_pct";
+type SchoolRankingMetricColumn = "exams_avg_pct" | "attendance_pct";
 
 /**
  * True school-wide top/bottom-N by a single metric, via ORDER BY + LIMIT

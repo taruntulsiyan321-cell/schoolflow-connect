@@ -74,7 +74,7 @@ export interface RevItem {
   state: ChapterStateRow["state"];
 }
 
-export function dueLabelFromDate(dueDate: string | null): string {
+function dueLabelFromDate(dueDate: string | null): string {
   // Null now means "never scheduled", not "solid": passing three checks drops
   // the chapter to the long interval and it keeps a date. A solid chapter
   // reads as a date like any other, which is the honest thing — forgetting

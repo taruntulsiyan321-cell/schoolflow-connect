@@ -1,1 +1,1 @@
-export { AuditService, listAuditForEntity, listRecentAudit } from "./auditService";
+export { AuditService } from "./auditService";

@@ -52,7 +52,7 @@ export async function fcmAccessToken(sa: FcmServiceAccount): Promise<string> {
   return data.access_token;
 }
 
-export type FcmOutcome =
+type FcmOutcome =
   | { status: "sent" }
   /** The token will never work again — the app was uninstalled, or the token expired. */
   | { status: "unregistered"; detail: string }

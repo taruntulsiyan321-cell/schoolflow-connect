@@ -1,4 +1,4 @@
-﻿/** Teacher panel shared types. Product UIs load live Academic Engine / Supabase data — no demo seeds. */
+/** Teacher panel shared types. Product UIs load live Academic Engine / Supabase data — no demo seeds. */
 
 export interface TeacherProfile {
   id: string;
@@ -29,129 +29,11 @@ export interface ClassInfo {
   schedule: { day: string; time: string }[];
 }
 
-export interface Student {
-  id: string;
-  name: string;
-  rollNumber: string;
-  admissionNumber: string;
-  gender: "male" | "female";
-  parentName: string;
-  parentPhone: string;
-  attendancePct: number;
-  performanceScore: number;
-  status: "active" | "inactive";
-}
-
-export interface AttendanceRecord {
-  studentId: string;
-  studentName: string;
-  rollNumber: string;
-  status: "present" | "absent" | "late" | "excused";
-}
-
-export interface HomeworkItem {
-  id: string;
-  classId: string;
-  subject: string;
-  title: string;
-  description: string;
-  instructions: string;
-  assignedDate: string;
-  dueDate: string;
-  totalStudents: number;
-  submitted: number;
-  pending: number;
-  status: "active" | "closed";
-  submissions: {
-    studentId: string;
-    studentName: string;
-    submittedAt: string;
-    status: "submitted" | "late" | "pending";
-    remarks?: string;
-  }[];
-}
-
-export interface Assignment {
-  id: string;
-  classId: string;
-  subject: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  maxMarks: number;
-  assignedDate: string;
-  totalStudents: number;
-  submitted: number;
-  graded: number;
-  status: "active" | "closed";
-  submissions: {
-    studentId: string;
-    studentName: string;
-    submittedAt: string;
-    status: "submitted" | "graded" | "pending";
-    marks?: number;
-    feedback?: string;
-  }[];
-}
-
-export interface Test {
-  id: string;
-  classId: string;
-  className: string;
-  section: string;
-  subject: string;
-  testName: string;
-  testDate: string;
-  startTime: string;
-  endTime: string;
-  duration: string;
-  totalQuestions: number;
-  totalMarks: number;
-  chapters: string[];
-  topics: string[];
-  instructions: string;
-  status: "draft" | "scheduled" | "ongoing" | "completed" | "marks_published";
-  marksPublished: boolean;
-  studentMarks: {
-    studentId: string;
-    studentName: string;
-    rollNumber: string;
-    marks: number | null;
-    percentage: number | null;
-    grade: string | null;
-    remarks: string;
-    answerSheetUploaded: boolean;
-  }[];
-}
-
-export interface Doubt {
-  id: string;
-  studentId: string;
-  studentName: string;
-  className: string;
-  section: string;
-  subject: string;
-  question: string;
-  askedAt: string;
-  status: "open" | "resolved";
-  hasAttachment: boolean;
-  attachmentName?: string;
-  replies: { from: "teacher" | "student"; text: string; timestamp: string; hasAttachment?: boolean }[];
-}
 
 
-export interface LeaveRequest {
-  id: string;
-  leaveType: "casual" | "sick" | "earned" | "emergency" | "other";
-  fromDate: string;
-  toDate: string;
-  days: number;
-  reason: string;
-  status: "pending" | "approved" | "rejected";
-  appliedAt: string;
-  adminRemarks?: string;
-}
 
-/** @deprecated Empty stubs — product panels use Academic Engine / live hooks. */
-export const assignedClasses: ClassInfo[] = [];
-export const leaveRequests: LeaveRequest[] = [];
+
+
+
+
+

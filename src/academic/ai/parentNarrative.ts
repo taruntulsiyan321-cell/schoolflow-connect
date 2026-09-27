@@ -3,7 +3,7 @@
  * No LLM required; optional explain path may phrase later via Router.
  */
 
-export type ParentNarrativeInput = {
+type ParentNarrativeInput = {
   student_label?: string;
   attendance_pct: number;
   homework_completion_pct: number;

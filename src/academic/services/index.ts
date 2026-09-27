@@ -1,11 +1,8 @@
 import {
-  assertCanOwn,
-  assertCanConsume,
-  toRepoContext,
   type ServiceContext,
 } from "./context";
 import { AttendanceService } from "./attendanceService";
-import { HomeworkService, AssignmentService } from "./homeworkService";
+import { HomeworkService } from "./homeworkService";
 import { MarksService } from "./marksService";
 import { RemarksService } from "./remarksService";
 import { AcademicProfileService } from "./academicProfileService";
@@ -26,52 +23,11 @@ import { TimetableService } from "./timetableService";
 import { CalendarEventsService } from "./calendarEventsService";
 import { ResourceService } from "./resourceService";
 import { resolveStudentServiceContext } from "./resolveStudentContext";
-import {
-  assertStudentContext,
-  assertStudentClassContext,
-  evaluateStudentContext,
-  studentShellReady,
-} from "./assertStudentContext";
-import {
-  progressionXpForLevel,
-  progressionLevelProgress,
-  progressionLeagueFromXp,
-  progressionLeagueFromCodeOrXp,
-  PROGRESSION_LEAGUES,
-} from "./progressionMath";
 
-/**
- * Facade used by panels — single entry to academic write/read APIs.
- * Prefer importing named services; this object documents the public surface.
- */
-export const AcademicServices = {
-  attendance: AttendanceService,
-  homework: HomeworkService,
-  assignment: AssignmentService,
-  marks: MarksService,
-  remarks: RemarksService,
-  profile: AcademicProfileService,
-  test: TestService,
-  practice: PracticeService,
-  doubt: DoubtService,
-  xp: XpService,
-  badge: BadgeService,
-  progression: ProgressionService,
-  battle: BattleExperienceService,
-  questionBank: QuestionBankService,
-  questionPaper: QuestionPaperService,
-  curriculum: CurriculumService,
-  announcement: AnnouncementService,
-  leave: LeaveService,
-  timetable: TimetableService,
-  calendarEvents: CalendarEventsService,
-  resource: ResourceService,
-} as const;
 
 export {
   AttendanceService,
   HomeworkService,
-  AssignmentService,
   MarksService,
   RemarksService,
   AcademicProfileService,
@@ -92,40 +48,13 @@ export {
   CalendarEventsService,
   ResourceService,
   resolveStudentServiceContext,
-  assertStudentContext,
-  assertStudentClassContext,
-  evaluateStudentContext,
-  studentShellReady,
-  assertCanOwn,
-  assertCanConsume,
-  toRepoContext,
-  progressionXpForLevel,
-  progressionLevelProgress,
-  progressionLeagueFromXp,
-  progressionLeagueFromCodeOrXp,
-  PROGRESSION_LEAGUES,
   type ServiceContext,
 };
-
-export {
-  loadStudentAcademicIdentity,
-  identityToServiceContext,
-  type StudentAcademicIdentity,
-} from "./resolveStudentContext";
-
-export { ForbiddenError, isSchoolOperator } from "./context";
-export { AnalyticsService, AiSummaryService, AuditReadService } from "./readServices";
 export {
   WORK_KINDS,
   WORK_KIND_LABELS,
   TEST_KIND_LABELS,
   EXAM_TYPE_LABELS,
-  assertTeacherMayManageAcademicWork,
-  normalizeWorkKind,
   type WorkKind,
   type TestKind,
-  type ExamType,
 } from "./workLifecycle";
-
-export type { StudentContextReadiness } from "./assertStudentContext";
-export type { CurriculumSubject, CurriculumChapter, CurriculumTopic } from "./curriculumService";

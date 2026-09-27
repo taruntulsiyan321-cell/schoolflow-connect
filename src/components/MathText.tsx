@@ -133,5 +133,3 @@ export function MathText({ text, className, block }: Props) {
     </Tag>
   );
 }
-
-export default MathText;

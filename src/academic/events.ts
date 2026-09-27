@@ -74,7 +74,7 @@ export const ACADEMIC_EVENT_TYPES = [
   "role.changed",
 ] as const;
 
-export type AcademicEventType = (typeof ACADEMIC_EVENT_TYPES)[number];
+type AcademicEventType = (typeof ACADEMIC_EVENT_TYPES)[number];
 
 export type AcademicEventStatus =
   | "pending"
@@ -83,24 +83,8 @@ export type AcademicEventStatus =
   | "failed"
   | "skipped";
 
-export interface AcademicEventRecord {
-  id: string;
-  schoolId: string;
-  eventType: AcademicEventType | string;
-  entityType: string;
-  entityId: string | null;
-  actorUserId: string | null;
-  studentId: string | null;
-  classId: string | null;
-  teacherId: string | null;
-  payload: Record<string, unknown>;
-  status: AcademicEventStatus;
-  error: string | null;
-  createdAt: string;
-  processedAt: string | null;
-}
 
-export type SyncTarget =
+type SyncTarget =
   | "student_academic_profile"
   | "notifications"
   | "analytics"
@@ -117,7 +101,7 @@ const HW_FULL: readonly SyncTarget[] = [
   "audit",
 ];
 
-export const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]> = {
+const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]> = {
   "attendance.marked": [
     "student_academic_profile",
     "notifications",
@@ -220,7 +204,7 @@ export const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]
   "role.changed": ["audit", "notifications"],
 };
 
-export function isAcademicEventType(value: string): value is AcademicEventType {
+function isAcademicEventType(value: string): value is AcademicEventType {
   return (ACADEMIC_EVENT_TYPES as readonly string[]).includes(value);
 }
 

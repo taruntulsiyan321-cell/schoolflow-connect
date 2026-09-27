@@ -2,13 +2,13 @@
  * Edge EIE projection — mirrors src/academic/eie (no LLM calculation).
  */
 
-export const EIE_ALGORITHM_ID = "eie.mastery.v1";
+const EIE_ALGORITHM_ID = "eie.mastery.v1";
 
-export type MasteryBand = "critical" | "weak" | "developing" | "strong" | "mastered";
+type MasteryBand = "critical" | "weak" | "developing" | "strong" | "mastered";
 
 export type RiskBand = "low" | "moderate" | "elevated" | "high" | "unknown";
 
-export function bandFromScore(score: number): MasteryBand {
+function bandFromScore(score: number): MasteryBand {
   const s = Number.isFinite(score) ? score : 0;
   if (s < 40) return "critical";
   if (s < 60) return "weak";

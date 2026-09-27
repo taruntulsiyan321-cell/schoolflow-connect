@@ -183,17 +183,3 @@ export function planQuestionPaper(input: PaperPlanInput): QuestionPaperPlan {
   };
 }
 
-/** Execute dry-run workflow steps in-memory (no provider calls). */
-export function runPaperPlanDryRun(input: PaperPlanInput): {
-  run_status: "completed";
-  plan: QuestionPaperPlan;
-  checkpoints: { step_id: string; at: string; ok: boolean }[];
-} {
-  const plan = planQuestionPaper(input);
-  const at = new Date().toISOString();
-  return {
-    run_status: "completed",
-    plan,
-    checkpoints: plan.steps.map((s) => ({ step_id: s.step_id, at, ok: true })),
-  };
-}

@@ -3,14 +3,8 @@
  * Lifecycle control plane; embeddings deferred (stub metadata only).
  */
 
-export type KmsContentType =
-  | "curriculum"
-  | "teacher_notes"
-  | "school_policy"
-  | "exemplar"
-  | "resource";
 
-export type KmsDocumentStatus =
+type KmsDocumentStatus =
   | "draft"
   | "pending_approval"
   | "approved"
@@ -18,42 +12,11 @@ export type KmsDocumentStatus =
   | "rejected"
   | "retired";
 
-export type KmsEmbeddingStatus =
-  | "pending"
-  | "stub"
-  | "ready"
-  | "failed"
-  | "pending_embed"
-  | "embedded"
-  | "deferred";
 
-export type KmsChunkEmbedStatus = "pending_embed" | "embedded" | "deferred" | "failed";
+type KmsChunkEmbedStatus = "pending_embed" | "embedded" | "deferred" | "failed";
 
-export type KmsChunkMetadata = {
-  grade?: string | null;
-  subject?: string | null;
-  chapter?: string | null;
-  board?: string | null;
-  language?: string | null;
-  content_type?: string | null;
-  visibility_scope?: string[];
-  [key: string]: unknown;
-};
 
-export type KmsRegisterInput = {
-  school_id: string;
-  title: string;
-  content_type?: KmsContentType;
-  visibility?: string[];
-  metadata?: Record<string, unknown>;
-};
 
-export type KmsSubmitVersionInput = {
-  document_id: string;
-  raw_text: string;
-  source_uri?: string | null;
-  chunk_texts?: string[] | null;
-};
 
 /** Pedagogical chunking stub — splits on blank lines; never invents content. */
 export function chunkPedagogicalText(raw: string, maxChunks = 40): string[] {
@@ -105,122 +68,10 @@ export function isPublishedForRetrieval(status: KmsDocumentStatus, published: bo
   return status === "published" && published;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function registerKmsDocument(client: any, input: KmsRegisterInput) {
-  const { data, error } = await client.rpc("ai_kms_register_document", {
-    p_school_id: input.school_id,
-    p_title: input.title,
-    p_content_type: input.content_type ?? "teacher_notes",
-    p_visibility: input.visibility ?? ["teacher"],
-    p_metadata: input.metadata ?? {},
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function submitKmsVersion(client: any, input: KmsSubmitVersionInput) {
-  const chunks = input.chunk_texts ?? chunkPedagogicalText(input.raw_text);
-  const { data, error } = await client.rpc("ai_kms_submit_version", {
-    p_document_id: input.document_id,
-    p_raw_text: input.raw_text,
-    p_source_uri: input.source_uri ?? null,
-    p_chunk_texts: chunks.length ? chunks : null,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function approveKmsVersion(
-  client: any,
-  documentId: string,
-  version: number,
-  publish = true,
-) {
-  const { data, error } = await client.rpc("ai_kms_approve_version", {
-    p_document_id: documentId,
-    p_version: version,
-    p_publish: publish,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function rejectKmsVersion(
-  client: any,
-  documentId: string,
-  version: number,
-  reason?: string,
-) {
-  const { data, error } = await client.rpc("ai_kms_reject_version", {
-    p_document_id: documentId,
-    p_version: version,
-    p_reason: reason ?? null,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}
 
-/** Enqueue embedding jobs for published chunks (no provider call). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function enqueueKmsEmbeddingJobs(
-  client: any,
-  documentId: string,
-  version?: number | null,
-) {
-  const { data, error } = await client.rpc("ai_kms_enqueue_embedding_jobs", {
-    p_document_id: documentId,
-    p_version: version ?? null,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}
 
-/** Safe-degrade pending jobs when embedding provider is unset. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function deferUnsetEmbeddings(client: any, limit = 100) {
-  const { data, error } = await client.rpc("ai_kms_defer_unset_embeddings", {
-    p_limit: limit,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}
 
-/** Cron-friendly: claim/defer embedding jobs (edge worker embeds when configured). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function processEmbeddingJobsBatch(
-  client: any,
-  opts: { limit?: number; provider_configured?: boolean } = {},
-) {
-  const { data, error } = await client.rpc("ai_embedding_jobs_process_batch", {
-    p_limit: opts.limit ?? 10,
-    p_provider_configured: opts.provider_configured ?? false,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}
 
-/** Complete or defer a single chunk embed (worker / service). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function completeKmsChunkEmbed(
-  client: any,
-  input: {
-    chunk_id: string;
-    embedding?: number[] | null;
-    model_version?: string | null;
-    failed?: boolean;
-    error?: string | null;
-  },
-) {
-  const { data, error } = await client.rpc("ai_kms_complete_chunk_embed", {
-    p_chunk_id: input.chunk_id,
-    p_embedding: input.embedding ?? null,
-    p_model_version: input.model_version ?? null,
-    p_failed: input.failed ?? false,
-    p_error: input.error ?? null,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}

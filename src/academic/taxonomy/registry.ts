@@ -108,12 +108,8 @@ function buildRegistry(): {
 
 const REG = buildRegistry();
 
-export function listTaxonomyTerms(kind?: TaxonomyKind): TaxonomyTerm[] {
-  if (!kind) return [...REG.all];
-  return REG.all.filter((t) => t.kind === kind);
-}
 
-export function getTaxonomyTerm(
+function getTaxonomyTerm(
   idOrAlias: string | null | undefined,
   kind?: TaxonomyKind | AcademicLabelKind,
 ): TaxonomyTerm | null {

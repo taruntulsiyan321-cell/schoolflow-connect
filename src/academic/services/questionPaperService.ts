@@ -140,7 +140,7 @@ export interface SectionFillResult {
   semantic_note?: string | null;
 }
 
-export interface CreatePaperInput {
+interface CreatePaperInput {
   title: string;
   subject: string;
   classLevel: number;
@@ -148,7 +148,7 @@ export interface CreatePaperInput {
   durationMinutes?: number | null;
 }
 
-export interface CreateSectionInput {
+interface CreateSectionInput {
   title: string;
   format: PaperSectionFormat;
   marksPerQuestion: number;

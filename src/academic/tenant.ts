@@ -15,19 +15,4 @@ export function requireSchoolId(schoolId: string | null | undefined): string {
   return schoolId;
 }
 
-/** Prefer auth school; never invent a default tenant. */
-export function resolveSchoolId(schoolId: string | null | undefined): string {
-  if (schoolId) return schoolId;
-  throw new MissingSchoolContextError();
-}
 
-/**
- * Apply school scope to a Supabase query builder-like object.
- * Usage: scopeBySchool(supabase.from("students").select("*"), schoolId)
- */
-export function scopeBySchool<T extends { eq: (column: string, value: string) => T }>(
-  query: T,
-  schoolId: string,
-): T {
-  return query.eq("school_id", requireSchoolId(schoolId));
-}

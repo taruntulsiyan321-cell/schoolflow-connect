@@ -3,32 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
-/** Consistent loading skeleton for the student dashboard. */
-export function StudentDashboardSkeleton() {
-  return (
-    <div className="space-y-6 animate-rise" aria-busy="true" aria-label="Loading dashboard">
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-28" />
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-4 w-72" />
-      </div>
-      <Skeleton className="h-28 w-full rounded-xl" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-[88px] rounded-xl" />
-        ))}
-      </div>
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Skeleton className="h-44 rounded-xl" />
-        <Skeleton className="h-44 rounded-xl" />
-      </div>
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Skeleton className="h-36 rounded-xl" />
-        <Skeleton className="h-36 rounded-xl" />
-      </div>
-    </div>
-  );
-}
 
 /** List-style pages (revision, mistakes, Test cards). */
 export function StudentListSkeleton({ rows = 4 }: { rows?: number }) {
@@ -41,26 +15,6 @@ export function StudentListSkeleton({ rows = 4 }: { rows?: number }) {
   );
 }
 
-/** Analysis page — 6-section card layout. */
-export function StudentAnalyticsSkeleton() {
-  return (
-    <div className="space-y-8 animate-rise" aria-busy="true" aria-label="Loading analytics">
-      <Skeleton className="h-48 w-full rounded-3xl" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-24 rounded-2xl" />
-        ))}
-      </div>
-      <div className="grid md:grid-cols-2 gap-4">
-        <Skeleton className="h-36 rounded-2xl" />
-        <Skeleton className="h-36 rounded-2xl" />
-      </div>
-      <Skeleton className="h-32 rounded-2xl" />
-      <Skeleton className="h-44 rounded-3xl" />
-      <Skeleton className="h-28 rounded-2xl" />
-    </div>
-  );
-}
 
 /** In-session practice / recovery loading. */
 export function StudentSessionSkeleton({ label = "Preparing session…" }: { label?: string }) {

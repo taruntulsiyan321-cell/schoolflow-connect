@@ -1,7 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { AcademicDomain } from "./bus";
 
-export const academicQueryKeys = {
+const academicQueryKeys = {
   root: ["academic"] as const,
   attendance: (schoolId?: string | null) => ["academic", "attendance", schoolId ?? ""] as const,
   homework: (schoolId?: string | null) => ["academic", "homework", schoolId ?? ""] as const,

@@ -5,7 +5,7 @@
 
 import { isPlaceholderAcademicLabel } from "../taxonomy";
 
-export type RecommendationSeedConcept = {
+type RecommendationSeedConcept = {
   subject: string;
   chapter?: string | null;
   concept: string;
@@ -14,7 +14,7 @@ export type RecommendationSeedConcept = {
   mistake_count?: number;
 };
 
-export type RecommendationSeedRevision = {
+type RecommendationSeedRevision = {
   subject: string;
   chapter?: string | null;
   topic?: string | null;
@@ -23,7 +23,7 @@ export type RecommendationSeedRevision = {
   due_date?: string | null;
 };
 
-export type RecommendationAction = {
+type RecommendationAction = {
   action_id: string;
   kind: "next_concept" | "revision_priority" | "attendance_checkin" | "homework_catchup";
   title: string;
@@ -35,7 +35,7 @@ export type RecommendationAction = {
   metrics: Record<string, number | string | null>;
 };
 
-export type RecommendationPackage = {
+type RecommendationPackage = {
   projection: "RecommendationPackage";
   version: 1;
   studentId: string;
@@ -47,7 +47,7 @@ export type RecommendationPackage = {
   data_version: string;
 };
 
-export type BuildRecommendationInput = {
+type BuildRecommendationInput = {
   studentId: string;
   schoolId: string;
   intelligence_version: string;

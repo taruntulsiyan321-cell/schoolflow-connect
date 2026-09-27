@@ -17,9 +17,9 @@ export type FeedbackSignalType =
   | "show_full_solution"
   | "correction";
 
-export type FeedbackTargetKind = "response" | "recommendation" | "artifact" | "prompt";
+type FeedbackTargetKind = "response" | "recommendation" | "artifact" | "prompt";
 
-export type FeedbackSignalInput = {
+type FeedbackSignalInput = {
   request_id?: string | null;
   school_id?: string | null;
   actor_user_id: string;
@@ -33,7 +33,7 @@ export type FeedbackSignalInput = {
   metadata?: Record<string, unknown>;
 };
 
-export type FeedbackSignalRow = {
+type FeedbackSignalRow = {
   request_id: string | null;
   school_id: string | null;
   actor_user_id: string;

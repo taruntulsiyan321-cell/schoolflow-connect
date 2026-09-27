@@ -204,7 +204,7 @@ export async function publishMarksBatch(
 // same failure cannot be silent again.
 // ---------------------------------------------------------------------
 
-export interface SectionSubjectRecord {
+interface SectionSubjectRecord {
   sectionSubjectId: string;
   subject: string;
 }
@@ -316,7 +316,7 @@ export async function listExamSubjectsForExams(
   return out;
 }
 
-export interface CreateClassExamInput {
+interface CreateClassExamInput {
   classId: string;
   name: string;
   startDate: string;

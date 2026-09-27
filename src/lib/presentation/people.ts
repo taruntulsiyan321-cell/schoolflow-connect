@@ -20,7 +20,7 @@
 import { toDisplayText, isIdentifierLike } from "./safeText";
 
 /** What kind of person the name belongs to — drives the fallback wording. */
-export type PersonKind = "student" | "teacher" | "parent" | "staff" | "person";
+type PersonKind = "student" | "teacher" | "parent" | "staff" | "person";
 
 const FALLBACK_BY_KIND: Record<PersonKind, string> = {
   student: "Unnamed student",
@@ -30,7 +30,7 @@ const FALLBACK_BY_KIND: Record<PersonKind, string> = {
   person: "Unnamed",
 };
 
-export interface PersonNameOptions {
+interface PersonNameOptions {
   /** Drives the default fallback wording. */
   kind?: PersonKind;
   /** Overrides the fallback entirely. */

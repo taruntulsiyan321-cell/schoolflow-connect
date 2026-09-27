@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+
 
 /**
  * The §10.15 weekly parent summary. SCHOOL DATA ONLY.
@@ -71,7 +70,7 @@ export type ParentDigestRemark = {
   edited_at: string | null;
 };
 
-export type ParentDigestTestMarkRow = {
+type ParentDigestTestMarkRow = {
   test: string | null;
   scored: number | null;
   out_of: number | null;
@@ -99,31 +98,4 @@ export type ParentDigestChild = {
   test_marks: ParentDigestTestMarks;
 };
 
-export type ParentWeeklyDigest = {
-  /** The reporting window, stated rather than assumed by the reader. */
-  window: { starts_on: string; ends_on: string };
-  children: ParentDigestChild[];
-  generated_at: string;
-};
 
-export function useParentWeeklyDigest(enabled = true) {
-  const [data, setData] = useState<ParentWeeklyDigest | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const reload = async () => {
-    setLoading(true);
-    setError(null);
-    const { data: digest, error: err } = await supabase.rpc("rpc_parent_weekly_digest");
-    if (err) setError(err.message);
-    else setData((digest as unknown as ParentWeeklyDigest) ?? null);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    if (!enabled) return;
-    reload();
-  }, [enabled]);
-
-  return { data, loading, error, reload };
-}

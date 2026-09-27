@@ -72,7 +72,7 @@ export function homeworkStanding(row: { status: SubmissionStatus; given: boolean
  * Every count of homework — a student's profile, a class's report — classifies
  * through here, so no two screens can count "missed" differently.
  */
-export type HomeworkOutcome = "done" | "missed" | "to_do";
+type HomeworkOutcome = "done" | "missed" | "to_do";
 
 export function homeworkOutcome(row: { given: boolean; closed: boolean }): HomeworkOutcome {
   if (row.given) return "done";
@@ -177,7 +177,7 @@ export interface TeacherHomeworkSummary {
   recent: SchoolHomeworkRow[];
 }
 
-export interface SchoolHomeworkSummary {
+interface SchoolHomeworkSummary {
   published: number;
   scheduled: number;
   drafts: number;
@@ -490,5 +490,3 @@ async function setStatus(
   return row;
 }
 
-/** Product alias — Assignment is Homework. */
-export const AssignmentService = HomeworkService;

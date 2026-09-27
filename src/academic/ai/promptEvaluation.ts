@@ -5,7 +5,7 @@
 
 import type { PromptStatus } from "./promptLibrary";
 
-export type PromptEvalStatus =
+type PromptEvalStatus =
   | "draft"
   | "offline_benchmark"
   | "shadow"
@@ -40,14 +40,6 @@ export function canTransitionPromptStatus(
   return (TRANSITIONS[f] ?? []).includes(to);
 }
 
-export type PromotePromptInput = {
-  capability_id: string;
-  version: string;
-  to_status: PromptEvalStatus;
-  rollback_version?: string | null;
-  benchmark_run_ids?: string[] | null;
-  scorecard?: Record<string, unknown> | null;
-};
 
 export function assertPromotionAllowed(input: {
   from: PromptEvalStatus | PromptStatus;
@@ -108,7 +100,7 @@ export function shouldUseShadowPrompt(
   return h % 100 < pct;
 }
 
-export type ShadowPromptFlag = {
+type ShadowPromptFlag = {
   enabled: boolean;
   /** 0–100 percent of traffic that may load shadow prompt version. */
   percent: number;
@@ -125,7 +117,7 @@ export function parseShadowPromptFlag(
   return { enabled: percent > 0, percent };
 }
 
-export type ResolvedPromptSelection = {
+type ResolvedPromptSelection = {
   prompt: import("./promptLibrary").PromptRecord | null;
   selected_status: "production" | "shadow" | "builtin";
   shadow_sampled: boolean;
@@ -159,30 +151,3 @@ export function selectPromptWithShadow(input: {
   return { prompt: null, selected_status: "builtin", shadow_sampled: sampled };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function promotePromptVersion(client: any, input: PromotePromptInput) {
-  // Soft client-side production gate; RPC enforces full transition rules.
-  if (input.to_status === "production") {
-    const gate =
-      input.scorecard &&
-      (input.scorecard.gate_passed === true || input.scorecard["gate_passed"] === true);
-    const runs = input.benchmark_run_ids?.length ?? 0;
-    if (!gate && runs === 0) {
-      return {
-        ok: false as const,
-        error: "production promotion requires benchmark gate evidence",
-      };
-    }
-  }
-
-  const { data, error } = await client.rpc("ai_prompt_promote", {
-    p_capability_id: input.capability_id,
-    p_version: input.version,
-    p_to_status: input.to_status,
-    p_rollback_version: input.rollback_version ?? null,
-    p_benchmark_run_ids: input.benchmark_run_ids ?? null,
-    p_scorecard: input.scorecard ?? null,
-  });
-  if (error) return { ok: false as const, error: String(error.message ?? error) };
-  return { ok: true as const, data };
-}

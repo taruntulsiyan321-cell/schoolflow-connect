@@ -10,7 +10,7 @@ import { classLabel } from "@/lib/utils";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import {
   Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
@@ -23,11 +23,6 @@ const fmt = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const CHART_COLORS = [
-  "hsl(221, 83%, 53%)", "hsl(142, 71%, 45%)", "hsl(38, 92%, 50%)",
-  "hsl(0, 84%, 60%)", "hsl(199, 89%, 48%)", "hsl(262, 83%, 58%)",
-  "hsl(175, 70%, 41%)", "hsl(330, 70%, 55%)",
-];
 const PIE_COLORS = ["hsl(142, 71%, 45%)", "hsl(38, 92%, 50%)", "hsl(0, 84%, 60%)"];
 
 /* ── component ───────────────────────────────────────────────── */

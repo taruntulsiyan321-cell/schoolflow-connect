@@ -9,18 +9,18 @@ import {
   type RiskBand,
 } from "./riskProducts";
 
-export const EIE_SCHOOL_ROLLUP_ALGORITHM_ID = "eie.school_rollup.v1";
+const EIE_SCHOOL_ROLLUP_ALGORITHM_ID = "eie.school_rollup.v1";
 
-export type ProfileRollupRow = {
+type ProfileRollupRow = {
   student_id?: string | null;
   class_id?: string | null;
   attendance_pct?: number | null;
   homework_completion_pct?: number | null;
 };
 
-export type BandHistogram = Record<RiskBand, number>;
+type BandHistogram = Record<RiskBand, number>;
 
-export type ClassRiskRollup = {
+type ClassRiskRollup = {
   class_id: string;
   student_count: number;
   avg_attendance_pct: number | null;
@@ -31,7 +31,7 @@ export type ClassRiskRollup = {
   homework_band_counts: BandHistogram;
 };
 
-export type SchoolRiskRollup = {
+type SchoolRiskRollup = {
   algorithm_id: typeof EIE_SCHOOL_ROLLUP_ALGORITHM_ID;
   student_count: number;
   class_count: number;

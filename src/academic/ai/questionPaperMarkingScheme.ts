@@ -7,9 +7,9 @@ import { validateModelResponse } from "./responseValidator";
 import { getBuiltinPrompt, renderPromptTemplate } from "./promptLibrary";
 import type { QuestionPaperPlan } from "./questionPaperPlan";
 
-export type MarkingSchemeMode = "outline_required" | "scheme_with_model" | "plan_only";
+type MarkingSchemeMode = "outline_required" | "scheme_with_model" | "plan_only";
 
-export type MarkingSchemeInput = {
+type MarkingSchemeInput = {
   /** Must be true — outline already stored in paper_gen session. */
   outline_in_session: boolean;
   plan_hash?: string | null;
@@ -23,7 +23,7 @@ export type MarkingSchemeInput = {
   teacher_notes?: string | null;
 };
 
-export type QuestionPaperMarkingScheme = {
+type QuestionPaperMarkingScheme = {
   capability_id: "teacher.question_paper.marking_scheme";
   dry_run: false;
   generates_full_paper: false;

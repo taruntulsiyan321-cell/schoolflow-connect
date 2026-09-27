@@ -32,7 +32,7 @@ function mapAudit(row: AuditRow): AcademicAuditEntry {
 }
 
 /** Read-only audit trail access (admin/principal via RLS). */
-export async function listAuditForEntity(
+async function listAuditForEntity(
   ctx: RepoContext,
   entityType: string,
   entityId: string,
@@ -54,7 +54,7 @@ export async function listAuditForEntity(
   return (data ?? []).map((r) => mapAudit(r as AuditRow));
 }
 
-export async function listRecentAudit(
+async function listRecentAudit(
   ctx: RepoContext,
   page?: PageParams,
 ): Promise<AcademicAuditEntry[]> {

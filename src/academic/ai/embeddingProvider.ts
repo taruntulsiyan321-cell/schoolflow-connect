@@ -4,9 +4,9 @@
  * Keys: OPENROUTER_API_KEY | AI_EMBEDDING_API_KEY | EMBEDDING_API_KEY | OPENAI_API_KEY
  */
 
-export type EmbeddingProviderId = "openrouter" | "openai_compat" | "unset";
+type EmbeddingProviderId = "openrouter" | "openai_compat" | "unset";
 
-export type EmbeddingJobClaim = {
+type EmbeddingJobClaim = {
   job_id: string;
   chunk_id: string;
   school_id: string;
@@ -15,7 +15,7 @@ export type EmbeddingJobClaim = {
   chunk_text: string;
 };
 
-export type EmbeddingVectorResult =
+type EmbeddingVectorResult =
   | {
       ok: true;
       embedding: number[];
@@ -30,7 +30,7 @@ export type EmbeddingVectorResult =
       provider: EmbeddingProviderId;
     };
 
-export type ProcessOnePlan =
+type ProcessOnePlan =
   | { action: "defer"; reason: string; provider: "unset" }
   | {
       action: "embed";
@@ -67,7 +67,7 @@ export function isEmbeddingProviderConfigured(
   return resolveEmbeddingApiKey(env) != null;
 }
 
-export function resolveEmbeddingEndpoint(
+function resolveEmbeddingEndpoint(
   provider: Exclude<EmbeddingProviderId, "unset">,
   env: Record<string, string | undefined> = {},
 ): { endpoint: string; model: string } {

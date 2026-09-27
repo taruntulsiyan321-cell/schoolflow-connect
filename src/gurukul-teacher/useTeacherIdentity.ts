@@ -5,7 +5,7 @@ import type { TeacherProfile } from "./data";
 import { toErrorMessage } from "@/lib/presentation";
 import { toClassLabel } from "@/lib/presentation";
 
-export type TeacherIdentity = TeacherProfile & {
+type TeacherIdentity = TeacherProfile & {
   teacherRowId: string | null;
   linked: boolean;
   loading: boolean;

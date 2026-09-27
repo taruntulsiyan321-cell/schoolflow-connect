@@ -13,7 +13,7 @@
  * a count of recovery assignments from an engine that no longer exists.
  */
 
-export type ConceptReportInput = {
+type ConceptReportInput = {
   source_type?: string | null;
   accuracy_pct?: number | null;
   correct_count?: number | null;

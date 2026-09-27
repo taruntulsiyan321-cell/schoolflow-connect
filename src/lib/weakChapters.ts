@@ -18,14 +18,14 @@ import { trendState } from "@/lib/studentAnalysisMetrics";
  * section.
  */
 
-export type ChapterTally = {
+type ChapterTally = {
   chapter_id: string | null;
   attempted: number | null;
   correct: number | null;
   created_at: string | null;
 };
 
-export type ChapterMistake = {
+type ChapterMistake = {
   chapter_id: string | null;
   status: string | null;
   times_wrong: number | null;
@@ -34,7 +34,7 @@ export type ChapterMistake = {
 };
 
 /** One answered or skipped question, already resolved to its chapter — its pace. */
-export type ChapterAttempt = {
+type ChapterAttempt = {
   chapter_id: string | null;
   time_taken_ms: number | null;
 };
@@ -46,13 +46,13 @@ export type ChapterAttempt = {
  * count 3, and one skipped and answered since still count (2,211 against
  * 1,051 for one student, measured 2026-09-24).
  */
-export type ChapterSkipped = {
+type ChapterSkipped = {
   chapter_id: string | null;
   topic: string | null;
   questions: number;
 };
 
-export type ChapterStateRow = {
+type ChapterStateRow = {
   chapter_id: string | null;
   chapter: string | null;
   subject: string | null;

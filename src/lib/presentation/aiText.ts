@@ -56,7 +56,7 @@ function balanceCodeFences(text: string): string {
   return fences % 2 === 0 ? text : `${text}\n\`\`\``;
 }
 
-export interface AssistantTextResult {
+interface AssistantTextResult {
   /** Markdown that is safe to hand to the renderer. Empty when unusable. */
   markdown: string;
   /** True when nothing presentable survived screening. */
@@ -104,10 +104,6 @@ export function toAssistantMarkdown(value: unknown): AssistantTextResult {
   return { markdown: text, unusable: false };
 }
 
-/** Convenience: the markdown alone, empty string when unusable. */
-export function toAssistantText(value: unknown): string {
-  return toAssistantMarkdown(value).markdown;
-}
 
 /** Inline markdown emphasis a model adds to what should be a plain line. */
 const INLINE_MARKDOWN_RE = /(\*\*|__|`|~~)/g;

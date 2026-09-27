@@ -5,12 +5,12 @@
  * Kept separate so vitest can import without modelRouter.
  */
 
-export type IntakeDropReason =
+type IntakeDropReason =
   | "app_not_allowed"
   | "lecture_playing"
   | "missing_package";
 
-export type VerdictDropReason =
+type VerdictDropReason =
   | "correct_answer"
   | "score_only"
   | "teacher_solve"
@@ -37,7 +37,7 @@ export type FrameExtraction = {
   answer_source: "screen" | "ai" | null;
 };
 
-export type IntakeInput = {
+type IntakeInput = {
   package_name: string | null | undefined;
   allowed_packages: string[];
   /** On-device §5.2 suspect — Stage 1 may set from client stillness/text heuristics. */

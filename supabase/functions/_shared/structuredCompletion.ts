@@ -31,7 +31,7 @@ export const jsonResponse = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-export type StructuredAiRequest = {
+type StructuredAiRequest = {
   system: string;
   user: string;
   /** JSON Schema object (properties + required), or an example of the answer.
@@ -43,7 +43,7 @@ export type StructuredAiRequest = {
   toolName?: string;
 };
 
-export type GenerateStructuredOptions = {
+type GenerateStructuredOptions = {
   /** Retained for caller-compatibility; ignored — OpenRouter/Qwen is the
    *  only provider now, so there is no model list to fall back across. */
   models?: string[];
@@ -51,7 +51,7 @@ export type GenerateStructuredOptions = {
   max_tokens?: number;
 };
 
-export type AiResult<T> =
+type AiResult<T> =
   | {
       ok: true;
       data: T;
@@ -130,7 +130,7 @@ export async function generateStructured<T>(
   return callStructured<T>(req, opts, "Return strict, schema-conformant JSON.");
 }
 
-export async function generateJsonRelaxed<T>(
+async function generateJsonRelaxed<T>(
   req: StructuredAiRequest,
   opts?: GenerateStructuredOptions,
 ): Promise<AiResult<T>> {

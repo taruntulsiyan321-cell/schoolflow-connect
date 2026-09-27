@@ -30,7 +30,7 @@ export interface WeakAreaRecommendation {
  * A single Learning Dimension reading for the Revision policy, per
  * docs/GURUKUL_ACADEMIC_DECISION_ENGINE_SPEC.md §4/§6.3.
  */
-export interface RevisionRecommendation {
+interface RevisionRecommendation {
   subject: string;
   chapter: string | null;
   concept: string;
@@ -54,7 +54,7 @@ export interface RevisionRecommendation {
  * A single Learning Dimension reading for the Recovery policy, per
  * docs/GURUKUL_ACADEMIC_DECISION_ENGINE_SPEC.md §4/§6.3.
  */
-export interface RecoveryRecommendation {
+interface RecoveryRecommendation {
   subject: string;
   chapter: string | null;
   concept: string;

@@ -1,58 +1,14 @@
-import { supabase } from "@/integrations/supabase/client";
+
 import { mcqOptionsInvalid, normalizeMcqOptions } from "@/lib/mcqOptions";
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
 
-export type AiMcq = {
+type AiMcq = {
   question: string;
   options: string[];
   correct_index: number;
   explanation: string;
 };
 
-/** Recent wrong answers to steer AI recovery / practice. */
-export async function fetchRecentMistakeContext(opts: {
-  subject: string;
-  chapter?: string | null;
-  concept?: string | null;
-  limit?: number;
-}): Promise<{ text: string; concepts: string[] }> {
-  const { data: auth, error: authErr } = await supabase.auth.getUser();
-  if (authErr) console.warn("[aiPracticeQuestions] getUser failed:", authErr.message);
-  const user = auth.user;
-  if (!user) return { text: "", concepts: [] };
-
-  let query = supabase
-    .from("student_mistakes")
-    .select("question_text, concept, chapter, topic")
-    .eq("user_id", user.id)
-    .eq("subject", opts.subject)
-    .order("last_wrong_at", { ascending: false })
-    .limit(opts.limit ?? 6);
-
-  if (opts.chapter) query = query.ilike("chapter", `%${opts.chapter}%`);
-
-  const { data, error } = await query;
-  if (error) console.warn("[aiPracticeQuestions] fetchRecentMistakeContext failed:", error.message);
-  if (!data?.length) return { text: "", concepts: [] };
-
-  const concepts = [
-    ...new Set(
-      data
-        .map((m) => m.concept || m.topic || m.chapter)
-        .filter(Boolean) as string[],
-    ),
-  ];
-
-  const text = data
-    .map((m, i) => {
-      const label = m.concept || m.topic || m.chapter || "concept";
-      const q = (m.question_text ?? "").slice(0, 280);
-      return `${i + 1}. [${label}] ${q}`;
-    })
-    .join("\n");
-
-  return { text, concepts };
-}
 
 /** Generated MCQs — same engine as recovery (varied, concept-focused). */
 export async function generateAiPracticeQuestions(opts: {

@@ -1,4 +1,4 @@
-﻿import { useCallback, useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
@@ -35,24 +35,6 @@ export function InitialsAvatar({
   );
 }
 
-export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; bg: string; text: string }> = {
-    active: { label: "Active", bg: "#4aa87a22", text: "#4aa87a" },
-    inactive: { label: "Inactive", bg: "#78788c22", text: "#78788c" },
-    suspended: { label: "Suspended", bg: "#cc506922", text: "#cc5069" },
-    published: { label: "Published", bg: "#4aa87a22", text: "#4aa87a" },
-    draft: { label: "Draft", bg: "#78788c22", text: "#78788c" },
-    scheduled: { label: "Scheduled", bg: "#4b9fd422", text: "#4b9fd4" },
-    archived: { label: "Archived", bg: "#46465a33", text: "#46465a" },
-    expired: { label: "Expired", bg: "#cc506922", text: "#cc5069" },
-  };
-  const s = map[status] ?? { label: status, bg: "#78788c22", text: "#78788c" };
-  return (
-    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: s.bg, color: s.text }}>
-      {s.label}
-    </span>
-  );
-}
 
 // ── Undo-delete toast ────────────────────────────────────────────────────────
 
@@ -101,18 +83,6 @@ export function UndoToast({ state, onClose }: { state: UndoToastState; onClose: 
   );
 }
 
-// Plain toast without undo
-export function Toast({
-  message,
-  type = "success",
-  onClose,
-}: {
-  message: string;
-  type?: "success" | "error" | "info";
-  onClose: () => void;
-}) {
-  return <UndoToast state={{ message, type }} onClose={onClose} />;
-}
 
 // Export helpers.
 //

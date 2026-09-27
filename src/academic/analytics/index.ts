@@ -1,16 +1,6 @@
 export {
   AnalyticsFoundation,
-  getStudentAnalytics,
-  getClassPerformance,
-  getSchoolPerformance,
-  getSchoolClassRollups,
-  getTeacherPerformance,
-  emptyStudentProfile,
   attendanceFromProfile,
   homeworkCompletionFromProfile,
   averageMarksFromProfile,
-  type AttendanceAnalytics,
-  type CompletionAnalytics,
-  type MarksAnalytics,
-  type StudentAnalyticsBundle,
 } from "./foundation";

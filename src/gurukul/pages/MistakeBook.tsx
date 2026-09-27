@@ -257,7 +257,6 @@ function MistakePractice({
   const [qi, setQi] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<(number|null)[]>([]);
-  const [showExp, setShowExp] = useState(false);
   // Guards the final "See Results" tap from firing the completion write twice
   // on a double-click — a ref for a synchronous, re-render-independent check
   // plus `busy` state to actually disable the button in the DOM.
@@ -267,7 +266,7 @@ function MistakePractice({
   const q = questions[qi];
   const isLast = qi === questions.length - 1;
 
-  function submit(idx: number) { if (selected !== null) return; setSelected(idx); setShowExp(true); }
+  function submit(idx: number) { if (selected !== null) return; setSelected(idx); } 
   function next() {
     if (busyRef.current) return;
     const newAnswers = [...answers, selected];
@@ -295,7 +294,7 @@ function MistakePractice({
         score: questions.length ? Math.round((100 * scored) / questions.length) : 0,
         attempts,
       });
-    } else { setAnswers(newAnswers); setQi(qi + 1); setSelected(null); setShowExp(false); }
+    } else { setAnswers(newAnswers); setQi(qi + 1); setSelected(null); }
   }
 
   if (!q || questions.length === 0) {

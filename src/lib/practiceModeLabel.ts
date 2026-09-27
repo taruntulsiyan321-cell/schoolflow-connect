@@ -23,7 +23,6 @@ export const PRACTICE_MODE_LABELS = {
   revision: "Revision check",
 } as const;
 
-export type PracticeModeKey = keyof typeof PRACTICE_MODE_LABELS;
 
 /** A session's type, from its practice_mode. */
 export function practiceModeLabel(mode: string | null | undefined): string {

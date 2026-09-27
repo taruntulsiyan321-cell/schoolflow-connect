@@ -33,15 +33,6 @@ export function Label({
   );
 }
 
-export function Mono({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return <span className={`font-mono ${className}`}>{children}</span>;
-}
 
 export function Pill({
   children,

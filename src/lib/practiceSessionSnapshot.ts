@@ -1,5 +1,4 @@
 import type { ConceptRecoveryReport } from "@/lib/conceptReportFallback";
-import { supabase } from "@/integrations/supabase/client";
 import { sessionAccuracy } from "@/academic/metrics/practice";
 import { valueOr } from "@/academic/metrics/types";
 import { ACCURACY_CONCEPTUAL } from "@/academic/metrics/bands";
@@ -42,7 +41,7 @@ export type PracticeAttemptSnapshot = {
   templateId?: string | null;
 };
 
-export type PracticeAttemptMeta = {
+type PracticeAttemptMeta = {
   solution_viewed?: boolean;
   confidence?: number | null;
   attempt_number?: number | null;
@@ -274,25 +273,3 @@ export function attemptsToFinishPayload(attempts: PracticeAttemptSnapshot[]) {
   });
 }
 
-export async function finishPracticeSessionWithAttempts(
-  sessionId: string,
-  attempts: PracticeAttemptSnapshot[],
-) {
-  try {
-    const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
-    const ctx = await resolveStudentServiceContext();
-    return {
-      data: await PracticeService.finish(ctx, {
-        _session_id: sessionId,
-        _attempts: attemptsToFinishPayload(attempts),
-      }),
-      error: null,
-    };
-  } catch {
-    // Last-resort RPC — PracticeService path is preferred (emit + live bus).
-    return supabase.rpc("rpc_finish_practice_session", {
-      _session_id: sessionId,
-      _attempts: attemptsToFinishPayload(attempts),
-    });
-  }
-}

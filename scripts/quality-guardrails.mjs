@@ -10,9 +10,6 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const ALLOWLIST = new Set([
-  "src/gurukul/data/mock.ts",
-  "src/gurukul/pages/ConceptMastery.tsx",
-  "src/gurukul/components/AnalyticsPage.tsx",
   "src/lib/presentationMode.ts",
   "src/gurukul/emptyStudent.ts",
   "src/lib/productFeatureFlags.ts",
@@ -26,8 +23,6 @@ const SCAN_ROOTS = [
   "src/gurukul/StudentContext.tsx",
   "src/pages/StudentDashboard.tsx",
   "src/components/student",
-  "src/hooks/useStudentXp.ts",
-  "src/hooks/useRecoveryZone.ts",
   "src/hooks/useConceptMastery.ts",
   "src/hooks/useAnalysisPageData.ts",
 ];

@@ -31,7 +31,7 @@ import {
 } from "@/lib/battlegroundHelpers";
 import { getNcertChapters, getNcertSubjects, parseClassGrade } from "@/lib/ncertSyllabus";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
-import { displayChapter, displaySubject, humanizeAcademicLabel } from "@/lib/academicDisplay";
+import { displayChapter, displaySubject } from "@/lib/academicDisplay";
 import { PracticeService, useAcademicContext } from "@/academic";
 import { withAlpha } from "@/lib/colorAlpha";
 import "./battleground-design.css";

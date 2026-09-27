@@ -6,7 +6,7 @@
 import type { ValidationResult } from "./responseValidator";
 import type { ReasoningTier } from "./reasoningBudget";
 
-export type ConfidenceFactors = {
+type ConfidenceFactors = {
   evidence_sufficiency: number;
   source_freshness: number;
   validator_pass_strength: number;
@@ -19,14 +19,14 @@ export type ConfidenceFactors = {
   repair_attempted: boolean;
 };
 
-export type LowConfidenceAction =
+type LowConfidenceAction =
   | "none"
   | "uncertainty_disclosure"
   | "safer_narrower_answer"
   | "facts_only"
   | "clarification";
 
-export type ConfidenceResult = {
+type ConfidenceResult = {
   confidence: number;
   factors: ConfidenceFactors;
   action: LowConfidenceAction;
@@ -34,7 +34,7 @@ export type ConfidenceResult = {
   disclosure?: string;
 };
 
-export type ScoreConfidenceInput = {
+type ScoreConfidenceInput = {
   used_model: boolean;
   cache_hit?: boolean;
   completeness: number;

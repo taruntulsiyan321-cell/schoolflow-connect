@@ -3,9 +3,7 @@
 // League thresholds SSOT: academic/services/progressionMath (mirrors SQL).
 
 import {
-  PROGRESSION_LEAGUES,
   progressionLeagueFromCodeOrXp,
-  progressionLeagueFromXp,
   progressionXpToNextLeague,
 } from "@/academic/services/progressionMath";
 import { STREAK_ESTABLISHED } from "@/academic/metrics/bands";
@@ -39,19 +37,11 @@ function toUiLeague(def: { code: string; label: string; tier: number; minXp: num
   };
 }
 
-/** UI leagues — thresholds from Progression Engine seed. */
-export const LEAGUES: League[] = PROGRESSION_LEAGUES.map(toUiLeague);
-
 /**
  * Prefer engine league_code (includes demotion hysteresis) over XP-only derivation.
  */
 export function leagueFromCodeOrXp(leagueCode: string | null | undefined, xp: number): League {
   return toUiLeague(progressionLeagueFromCodeOrXp(leagueCode, xp));
-}
-
-/** Fallback when league_code unavailable — matches SQL progression_league_for_xp. */
-export function leagueFromXp(xp: number): League {
-  return toUiLeague(progressionLeagueFromXp(xp));
 }
 
 /** XP still needed to reach the next league, or null if already at the top. */
@@ -92,7 +82,7 @@ export function accuracyFromXp(row: {
   return Math.round((correct / answered) * 100);
 }
 
-export type MotivationCardInput = {
+type MotivationCardInput = {
   xp: number;
   level: number;
   streak: number;
@@ -101,7 +91,7 @@ export type MotivationCardInput = {
   schoolRank?: number | null;
 };
 
-export type MotivationCard = {
+type MotivationCard = {
   title: string;
   message: string;
   icon: "flame" | "trophy" | "target" | "sparkles" | "swords";
@@ -186,9 +176,9 @@ export function isBattleWindowOpen(battle: {
   return Date.now() <= startMs + (windowSec + GRACE_SEC) * 1000;
 }
 
-export type BattleStatusKind = "waiting" | "active" | "completed" | "won" | "lost" | "draw" | "expired";
+type BattleStatusKind = "waiting" | "active" | "completed" | "won" | "lost" | "draw" | "expired";
 
-export type BattleStatusInput = {
+type BattleStatusInput = {
   battleStatus: string; // 'scheduled' | 'live' | 'finished' | 'cancelled'
   startsAt: string;
   finishedAt?: string | null;
@@ -199,7 +189,7 @@ export type BattleStatusInput = {
   opponentScore?: number | null;
 };
 
-export type BattleStatusInfo = {
+type BattleStatusInfo = {
   kind: BattleStatusKind;
   label: string;
   toneClass: string;
@@ -263,10 +253,3 @@ export function formatBattleStatus(input: BattleStatusInput): BattleStatusInfo {
   return { kind, ...STATUS_META[kind] };
 }
 
-export const BATTLE_STATUS_FILTERS: { key: BattleStatusKind; label: string }[] = [
-  { key: "waiting", label: "Waiting" },
-  { key: "active", label: "Active" },
-  { key: "completed", label: "Completed" },
-  { key: "won", label: "Won" },
-  { key: "lost", label: "Lost" },
-];

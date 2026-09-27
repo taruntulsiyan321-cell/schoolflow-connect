@@ -29,22 +29,6 @@ export async function teacherAssignedToClassSubject(
   return data === true;
 }
 
-/** True if this user is the class teacher of the class. */
-export async function isClassTeacherOfClass(
-  ctx: RepoContext,
-  teacherUserId: string,
-  classId: string,
-): Promise<boolean> {
-  const schoolId = schoolIdOf(ctx);
-  const { data: teacher, error } = await getClient(ctx)
-    .from("teachers")
-    .select("id, class_teacher_of")
-    .eq("school_id", schoolId)
-    .eq("user_id", teacherUserId)
-    .maybeSingle();
-  throwIfError(error, "Failed to load teacher");
-  return !!teacher && teacher.class_teacher_of === classId;
-}
 
 export async function getTeacherIdForUser(
   ctx: RepoContext,

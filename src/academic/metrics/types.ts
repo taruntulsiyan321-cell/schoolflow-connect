@@ -34,7 +34,6 @@
  * actionable of the two.
  */
 
-export type MetricState = "ok" | "no_data" | "not_marked";
 
 export type Metric<T = number> =
   | { state: "ok"; value: T; basis: string }

@@ -4,7 +4,7 @@
  * page navigation, cleared on tab close) — not a new persistence layer.
  */
 
-export type NovaQuestionHandoff = {
+type NovaQuestionHandoff = {
   question: string;
   options?: string[];
   correctIndex?: number | null;

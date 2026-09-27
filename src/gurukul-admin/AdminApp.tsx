@@ -32,8 +32,6 @@ import QuestionBankReview from "@/pages/admin/QuestionBankReview";
 import { ROLE_LABELS } from "@/auth/constants";
 import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 
-export type { AdminPageKey } from "./nav";
-
 interface NavItem {
   key: AdminPageKey;
   label: string;

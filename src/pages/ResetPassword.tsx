@@ -15,7 +15,7 @@ import { Loader2, Lock, GraduationCap } from "lucide-react";
  */
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const { updatePassword, user, loading } = useAuth();
+  const { updatePassword, loading } = useAuth();
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);

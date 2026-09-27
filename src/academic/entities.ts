@@ -50,7 +50,7 @@ export type AcademicEntityKey =
   | "analytics";
 
 /** Physical storage for a domain entity (one source of truth). */
-export interface EntityMapping {
+interface EntityMapping {
   key: AcademicEntityKey;
   /** Canonical Postgres table (or view) */
   table: string;
@@ -272,7 +272,3 @@ export function tableFor(entity: AcademicEntityKey): string {
   return ENTITY_REGISTRY[entity].table;
 }
 
-export function assertTenantScoped(entity: AcademicEntityKey): void {
-  if (!ENTITY_REGISTRY[entity].tenantScoped) return;
-  // Contract marker — repositories must filter by school_id
-}

@@ -15,7 +15,7 @@ export type ImageMediaMetadata = {
   filename?: string | null;
 };
 
-export type MultimodalExtractionV1 = {
+type MultimodalExtractionV1 = {
   media_ref: string | null;
   media_type: string;
   sha256: string | null;
@@ -34,7 +34,7 @@ export type MultimodalExtractionV1 = {
   processed_at: string;
 };
 
-export type OcrPipelineResult =
+type OcrPipelineResult =
   | {
       ok: true;
       extraction: MultimodalExtractionV1;
@@ -48,13 +48,13 @@ export type OcrPipelineResult =
       extraction?: MultimodalExtractionV1;
     };
 
-export type ImageDoubtSubmitStepResult = {
+type ImageDoubtSubmitStepResult = {
   step_id: string;
   ok: boolean;
   detail: string;
 };
 
-export type ImageDoubtSubmitResult = {
+type ImageDoubtSubmitResult = {
   capability_id: "student.image_doubt.submit";
   workflow_id: "student.image_doubt.submit.v1";
   status: "clarify" | "rejected" | "ocr_ready";

@@ -24,7 +24,7 @@ export interface SectionMetric {
   metric: Metric<number>;
 }
 
-export interface Comparison {
+interface Comparison {
   /** Measured sections, best first. */
   ranked: { sectionId: string; sectionName: string; value: number; rank: number }[];
   /** Sections with no answer, and why. Never given a value. */

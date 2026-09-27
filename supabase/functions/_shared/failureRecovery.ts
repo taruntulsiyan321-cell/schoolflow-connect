@@ -2,7 +2,7 @@
  * Enterprise Failure Recovery — edge mirror of src/academic/ai/failureRecovery.ts
  */
 
-export type FailureClass =
+type FailureClass =
   | "client_validation"
   | "auth"
   | "source_unavailable"
@@ -14,7 +14,7 @@ export type FailureClass =
   | "workflow_step"
   | "unknown";
 
-export type RecoveryStage =
+type RecoveryStage =
   | "retry"
   | "fallback"
   | "queue"
@@ -24,7 +24,7 @@ export type RecoveryStage =
   | "notify"
   | "safe_fail";
 
-export type RetryPolicy = {
+type RetryPolicy = {
   max_attempts: number;
   base_delay_ms: number;
   max_delay_ms: number;
@@ -38,7 +38,7 @@ export const DEFAULT_PROVIDER_RETRY: RetryPolicy = {
   jitter_ratio: 0.25,
 };
 
-export function classifyProviderError(err: unknown): FailureClass {
+function classifyProviderError(err: unknown): FailureClass {
   const msg = (err instanceof Error ? err.message : String(err ?? "")).toLowerCase();
   if (!msg) return "unknown";
   if (
@@ -67,7 +67,7 @@ export function classifyProviderError(err: unknown): FailureClass {
   return "unknown";
 }
 
-export function shouldRetryFailure(
+function shouldRetryFailure(
   failureClass: FailureClass,
   attempt: number,
   policy: RetryPolicy = DEFAULT_PROVIDER_RETRY,
@@ -76,7 +76,7 @@ export function shouldRetryFailure(
   return failureClass === "provider_transient" || failureClass === "unknown";
 }
 
-export function computeBackoffMs(
+function computeBackoffMs(
   attempt: number,
   policy: RetryPolicy = DEFAULT_PROVIDER_RETRY,
   random: () => number = Math.random,
@@ -89,7 +89,7 @@ export function computeBackoffMs(
   return Math.round(exp + jitter);
 }
 
-export type RecoveryPlan = {
+type RecoveryPlan = {
   failure_class: FailureClass;
   next_stage: RecoveryStage;
   retryable: boolean;
@@ -153,7 +153,7 @@ export function planFailureRecovery(input: {
   };
 }
 
-export type WithRetryResult<T> =
+type WithRetryResult<T> =
   | { ok: true; value: T; attempts: number }
   | { ok: false; error: unknown; attempts: number; plan: RecoveryPlan };
 

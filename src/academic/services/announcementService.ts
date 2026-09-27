@@ -15,10 +15,6 @@ import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
 import { assertMayAccessStudent } from "./parentAccess";
 import { fixUtf8Content } from "@/lib/utf8Text";
 
-export { ForbiddenError, isSchoolOperator } from "./context";
-export { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
-export { assertMayAccessStudent } from "./parentAccess";
-
 export type AnnouncementPriority = "normal" | "important" | "urgent";
 export type AnnouncementStatus = "draft" | "published" | "scheduled";
 export type NoticeAudience = "all" | "students" | "parents" | "class" | "section";
@@ -120,7 +116,7 @@ function mapNotice(row: NoticeRow): TeacherAnnouncementRow {
   };
 }
 
-export type UpsertAnnouncementInput = {
+type UpsertAnnouncementInput = {
   title: string;
   body: string;
   /** Null for a school-wide notice (audience "all" / "students" / "parents"). */
@@ -134,7 +130,7 @@ export type UpsertAnnouncementInput = {
 /** Teachers must own the target class; school operators bypass. A null
  * classId (school-wide notice) has no class to own, so only operators
  * (admin/principal) may publish it — a plain teacher cannot. */
-export async function assertTeacherMayAnnounce(
+async function assertTeacherMayAnnounce(
   ctx: ServiceContext,
   classId: string | null,
 ): Promise<void> {

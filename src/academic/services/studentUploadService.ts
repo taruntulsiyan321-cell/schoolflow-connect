@@ -27,7 +27,7 @@ export type StudentUploadRow = {
   updated_at: string;
 };
 
-export type StudentUploadQuestionRow = {
+type StudentUploadQuestionRow = {
   id: string;
   upload_id: string;
   sequence: number;
@@ -141,7 +141,7 @@ export function normalizeUploadFiles(files: File | File[]): File[] {
 }
 
 /** Spec §6.1 — result of disputing an AI-answered upload question. */
-export type DisputeAiAnswerResult = {
+type DisputeAiAnswerResult = {
   upload_question_id: string;
   cleared_mistakes: number;
   excluded_attempts: number;

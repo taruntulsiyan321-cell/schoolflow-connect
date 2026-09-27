@@ -19,7 +19,7 @@ import { normalizeSubjectName, parseClassLevel } from "@/lib/curriculumScope";
  * ids attached rather than the raw rows.
  */
 
-export type CurriculumSubject = { name: string; ids: string[] };
+type CurriculumSubject = { name: string; ids: string[] };
 export type CurriculumChapter = CurriculumChapterRow;
 export type CurriculumTopic = CurriculumTopicRow;
 
