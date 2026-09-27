@@ -8,7 +8,7 @@ import { getClient, throwIfError } from "../repository/base";
 import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
 
-export type StudentXpRow = {
+type StudentXpRow = {
   user_id: string;
   xp: number;
   level: number;

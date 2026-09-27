@@ -70,8 +70,6 @@ export {
   type WorkKind,
   type TestKind,
 } from "./services";
-
-export type { StudentXpRow } from "./services/xpService";
 export type { EarnedBadgeRow } from "./services/badgeService";
 export type {
   DoubtRow,

@@ -3,7 +3,7 @@ import { useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { supabase } from "@/integrations/supabase/client";
 
-export type SubjectChartPoint = { name: string; accuracy: number; attempts: number };
+type SubjectChartPoint = { name: string; accuracy: number; attempts: number };
 type WeeklyActivityPoint = { date: string; total: number; test: number; battles: number; self_practice?: number };
 type TestTrendPoint = { date: string; score_pct: number };
 type PracticeTrendPoint = { date: string; score_pct: number; chapter?: string };

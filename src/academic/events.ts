@@ -76,12 +76,6 @@ export const ACADEMIC_EVENT_TYPES = [
 
 type AcademicEventType = (typeof ACADEMIC_EVENT_TYPES)[number];
 
-export type AcademicEventStatus =
-  | "pending"
-  | "processing"
-  | "processed"
-  | "failed"
-  | "skipped";
 
 
 type SyncTarget =

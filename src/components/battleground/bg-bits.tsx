@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Crown, Lock, HelpCircle, Target, Zap } from "lucide-react";
+import { Crown, Target, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
-import { BADGES, TIER_CLASS, RARITY_LABEL, type BadgeTier } from "@/lib/badges";
 import { displaySubject, displayTopic } from "@/lib/academicPresentation";
 import { isBattleWindowOpen } from "@/lib/battlegroundHelpers";
 
@@ -28,48 +27,6 @@ const Countdown = ({ to, onEnd }: { to: string | Date; onEnd?: () => void }) => 
   );
 };
 
-export const BadgeCard = ({
-  code,
-  tier,
-  earned,
-}: {
-  code: string;
-  tier?: BadgeTier;
-  earned?: boolean;
-}) => {
-  const meta = BADGES[code];
-  const effectiveTier: BadgeTier = tier ?? meta?.tier ?? "bronze";
-  const t = TIER_CLASS[effectiveTier];
-  // Hidden + not earned => mystery card
-  const mystery = !earned && meta?.hidden;
-  const Icon = meta?.icon ?? Crown;
-
-  return (
-    <Card
-      className={cn(
-        "p-4 text-center transition-all duration-300 hover:-translate-y-0.5",
-        earned ? "shadow-elevated" : "opacity-60 grayscale hover:grayscale-0 hover:opacity-90",
-      )}
-    >
-      <div className={cn("relative w-14 h-14 rounded-xl mx-auto flex items-center justify-center text-foreground", t.bg)}>
-        {mystery ? <HelpCircle className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
-        {!earned && (
-          <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-muted text-muted-foreground flex items-center justify-center ring-2 ring-card">
-            <Lock className="w-2.5 h-2.5" />
-          </span>
-        )}
-      </div>
-      <div className="mt-3 font-semibold text-sm leading-tight">{mystery ? "Hidden Badge" : meta?.label ?? code}</div>
-      <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{mystery ? "Keep playing to reveal" : meta?.desc ?? ""}</div>
-      <div className="mt-2 flex items-center justify-center gap-1">
-        <span className={cn("inline-block text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full text-foreground", t.bg)}>{effectiveTier}</span>
-        {meta && !mystery && (
-          <span className="inline-block text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{RARITY_LABEL[meta.rarity]}</span>
-        )}
-      </div>
-    </Card>
-  );
-};
 
 export const BattleCard = ({ battle, onJoin }: { battle: any; onJoin: () => void }) => {
   const live = isBattleWindowOpen(battle);

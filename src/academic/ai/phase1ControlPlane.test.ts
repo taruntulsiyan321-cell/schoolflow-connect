@@ -325,15 +325,12 @@ describe("Parent scheduled narrative pilot", () => {
       homework_completion_pct: 80,
       tests_avg_pct: 70,
       exams_avg_pct: 0,
-      weak_topics: ["Algebra"],
-      avg_mastery: 66,
       source_as_of: "2026-08-01",
       data_version: "parent:s1:1",
     });
     expect(n.used_model).toBe(false);
     expect(n.narrative).toContain("90%");
-    expect(n.narrative).toContain("Algebra");
-    expect(n.bullets.length).toBeGreaterThan(2);
+    expect(n.bullets).toEqual(["Attendance: 90%.", "Homework completion: 80%.", "Tests average: 70%."]);
     expect(n.projection).toBe("ParentScheduledNarrative");
   });
 

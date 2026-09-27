@@ -1,4 +1,4 @@
-export const CLASS12_MATH_CHAPTERS = [
+const CLASS12_MATH_CHAPTERS = [
   "Relations and Functions",
   "Inverse Trigonometric Functions",
   "Matrices",

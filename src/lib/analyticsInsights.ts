@@ -6,18 +6,6 @@
 
 
 
-export type MistakeTopicAggregate = {
-  topic: string;
-  chapter: string | null;
-  subject: string;
-  concept: string | null;
-  mistake_count: number;
-  total_wrong: number;
-  sample_question: string;
-  sample_wrong?: string;
-  sample_correct?: string;
-  last_seen: string | null;
-};
 
 
 

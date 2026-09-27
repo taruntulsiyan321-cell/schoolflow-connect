@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-export type BadgeTier = "bronze" | "silver" | "gold" | "platinum" | "legendary";
+type BadgeTier = "bronze" | "silver" | "gold" | "platinum" | "legendary";
 type BadgeRarity = "common" | "rare" | "epic" | "legendary";
 type BadgeGroup =
   | "battleground"
@@ -102,12 +102,6 @@ export const TIER_CLASS: Record<BadgeTier, { bg: string; ring: string; text: str
   legendary: { bg: "bg-primary", ring: "ring-tier-gold/60",    text: "text-tier-gold" },
 };
 
-export const RARITY_LABEL: Record<BadgeRarity, string> = {
-  common: "Common",
-  rare: "Rare",
-  epic: "Epic",
-  legendary: "Legendary",
-};
 
 
 
