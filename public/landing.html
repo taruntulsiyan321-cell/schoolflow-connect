@@ -827,6 +827,97 @@
     <div class="bg-vignette"></div>
   </div>
   <div id="root"></div>
+  <script id="gurukul-plans">
+    /*
+     * THE PLANS ON THIS PAGE ARE READ FROM THE DATABASE, NEVER WRITTEN HERE.
+     *
+     * premium_tiers, premium_limits and active premium_products are public by
+     * design (20261111000000). A price or an allowance typed into this file
+     * would be a second home for it, and an advertised price that differs from
+     * the one charged at checkout is the one mistake this page must not make.
+     * The page used to print monthly prices, an unlimited AI Coach and
+     * priority support: a plan is one payment for its days, Free is not
+     * unlimited, and no plan sells support.
+     *
+     * The words are the app's (src/lib/premium.ts); src/lib/landingPlans.test.ts
+     * runs this block and pins them together. The build fills in the project's
+     * URL and publishable key (scripts/landing-config.mjs); until it has, load()
+     * refuses and the section names no price at all.
+     */
+    window.GurukulPlans = (function () {
+      var SUPABASE = { url: "__GURUKUL_SUPABASE_URL__", key: "__GURUKUL_SUPABASE_PUBLISHABLE_KEY__" };
+      var FEATURE_LABELS = {
+        "practice.question": "Practice questions",
+        "analysis.topic": "Topic-wise analysis",
+        "nova.message": "Nova AI tutor messages",
+        "mistake.explain": "Explain my mistake",
+        "insights.report": "AI insights coach",
+        "custom_practice.upload": "Custom Practice uploads",
+        "screen_capture.mistake": "Mistakes captured from other apps",
+        "mock_test.start": "Full CUET mock tests"
+      };
+      var FEATURE_ORDER = [
+        "practice.question", "analysis.topic", "nova.message", "mistake.explain",
+        "insights.report", "custom_practice.upload", "screen_capture.mistake", "mock_test.start"
+      ];
+      function describeAllowance(period, limit) {
+        if (period === "none") return "Included";
+        if (limit == null) return "Unlimited";
+        if (period === "day") return limit + " a day";
+        if (period === "month") return limit + " a month";
+        return limit + " in total";
+      }
+      function formatRupees(paise) {
+        var rupees = paise / 100;
+        return "₹" + (Number.isInteger(rupees) ? rupees.toLocaleString("en-IN") : rupees.toLocaleString("en-IN", { minimumFractionDigits: 2 }));
+      }
+      function configured() {
+        return /^https:\/\//.test(SUPABASE.url) && SUPABASE.key.indexOf("__") !== 0;
+      }
+      function get(path) {
+        return fetch(SUPABASE.url + "/rest/v1/" + path, {
+          headers: { apikey: SUPABASE.key, Authorization: "Bearer " + SUPABASE.key }
+        }).then(function (r) {
+          if (!r.ok) throw new Error("plans could not be read (" + r.status + ")");
+          return r.json();
+        });
+      }
+      /* Free, then each paid plan that has something on sale, in rank order. */
+      function buildPlans(tiers, limits, products) {
+        return tiers
+          .slice()
+          .sort(function (a, b) { return a.rank - b.rank; })
+          .map(function (t) {
+            var product = products
+              .filter(function (x) { return x.tier_code === t.code && x.currency === "INR"; })
+              .sort(function (a, b) { return a.amount_paise - b.amount_paise; })[0] || null;
+            return {
+              code: t.code,
+              name: t.display_name,
+              rank: t.rank,
+              price: product ? { amount: formatRupees(product.amount_paise), days: product.validity_days } : null,
+              rows: FEATURE_ORDER.map(function (f) {
+                var l = limits.filter(function (x) { return x.tier_code === t.code && x.feature_code === f; })[0];
+                return { feature: f, label: FEATURE_LABELS[f], value: l ? describeAllowance(l.period, l.max_uses) : null };
+              })
+            };
+          })
+          .filter(function (p) { return p.rank === 0 || p.price !== null; });
+      }
+      function load() {
+        if (!configured()) return Promise.reject(new Error("plans are not configured on this build"));
+        return Promise.all([
+          get("premium_tiers?select=code,rank,display_name"),
+          get("premium_limits?select=tier_code,feature_code,period,max_uses"),
+          get("premium_products?select=tier_code,amount_paise,currency,validity_days&is_active=eq.true")
+        ]).then(function (r) { return buildPlans(r[0], r[1], r[2]); });
+      }
+      return {
+        load: load, buildPlans: buildPlans, describeAllowance: describeAllowance, formatRupees: formatRupees,
+        FEATURE_LABELS: FEATURE_LABELS, FEATURE_ORDER: FEATURE_ORDER
+      };
+    })();
+  </script>
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
     const { motion, AnimatePresence, useScroll, useTransform, useInView } = Motion;
@@ -1127,17 +1218,16 @@
         icon: '✧',
         color: '#ea580c',
         colorLight: '#fff7ed',
-        tagline: 'Your personal AI tutor — unlimited',
-        description: 'Nova — the cross-questioning AI tutor. No cap limit on usage. Unlimited conversations. The differentiator that sets Gurukul apart.',
+        tagline: 'Your personal AI tutor',
+        description: 'Nova — the cross-questioning AI tutor. Free includes a few messages a day, and every paid plan more. The differentiator that sets Gurukul apart.',
         capabilities: [
           { name: 'Chat Mode', desc: 'Ask anything, get clear explanations grounded in your syllabus' },
           { name: 'Revision Mode', desc: 'Select a topic, then speak — Nova cross-questions you using the Feynman technique' },
           { name: 'Voice-First', desc: 'In Revision Mode, you speak your answers — no typing' },
           { name: 'Context-Aware', desc: 'Knows your curriculum, your weak areas, your progress' },
-          { name: 'Unlimited Usage', desc: 'No cap, no limits — use as much as you need' }
+          { name: 'Every Plan', desc: 'A daily allowance on Free, more on each paid plan — see Pricing' }
         ],
         details: [
-          'NO CAP LIMIT — unlimited AI sessions',
           'This is the key differentiator',
           'Chat mode: text-based Q&A anytime',
           'Revision mode: voice-only cross-questioning',
@@ -1270,7 +1360,7 @@
           { name: 'Deep Analysis', inherited: false, desc: 'Subject → chapter → topic drill-down' },
           { name: 'Recovery System', inherited: false, desc: 'Auto-queued weak-concept sessions' },
           { name: 'Revision & Scheduling', inherited: false, desc: 'Spaced repetition, AI-scheduled' },
-          { name: 'AI Coach (Nova) — Unlimited', inherited: false, desc: 'Chat + voice Feynman cross-questioning' },
+          { name: 'AI Coach (Nova)', inherited: false, desc: 'Chat + voice Feynman cross-questioning' },
           { name: 'Mistake Book', inherited: false, desc: 'Every wrong answer with AI explanation' },
           { name: 'Battleground', inherited: false, desc: '1v1 & open battles' },
           { name: 'Achievements & XP', inherited: false, desc: 'Streaks, leagues, leaderboards' },
@@ -1574,8 +1664,8 @@
                         transition={{ delay: i * 0.03 }}
                         style={{
                           padding: 14,
-                          background: cap.name === 'Unlimited Usage' ? feature.colorLight : 'var(--bg-subtle)',
-                          border: cap.name === 'Unlimited Usage' ? `2px solid ${feature.color}` : '1px solid var(--border)',
+                          background: cap.name === 'Every Plan' ? feature.colorLight : 'var(--bg-subtle)',
+                          border: cap.name === 'Every Plan' ? `2px solid ${feature.color}` : '1px solid var(--border)',
                           borderRadius: 12
                         }}
                       >
@@ -1728,7 +1818,7 @@
                 <div>
                   <p style={{ fontWeight: 700, fontSize: 15 }}>Nova — AI Coach</p>
                   <p style={{ fontSize: 12, opacity: 0.8 }}>
-                    {mode === 'revision' && revisionStarted ? `Revision Mode · ${revisionTopic}` : 'Unlimited usage · No cap'}
+                    {mode === 'revision' && revisionStarted ? `Revision Mode · ${revisionTopic}` : 'Chat mode · Revision mode'}
                   </p>
                 </div>
               </div>
@@ -1827,7 +1917,7 @@
                 >Start Voice Revision Session</button>
               </div>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 16 }}>
-                No cap limit — use as many times as you want
+                Each reply from Nova counts toward your plan’s daily Nova messages.
               </p>
             </div>
           )}
@@ -2406,7 +2496,7 @@
                   Try Nova <span style={{ color: 'var(--orange)' }}>right here.</span>
                 </h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: 15, maxWidth: 550, margin: '0 auto' }}>
-                  Unlimited usage. No cap limit. Chat mode for Q&A, Revision mode for voice-based cross-questioning.
+                  Chat mode for Q&A, Revision mode for voice-based cross-questioning.
                 </p>
               </div>
               <div style={{ maxWidth: 700, margin: '0 auto' }}>
@@ -2651,24 +2741,105 @@
     ═══════════════════════════════════════════════════════════════════════════ */
     function PricingSection() {
       const [tab, setTab] = useState('individual');
+      // null while reading; 'unavailable' when the plans could not be read,
+      // in which case the section names no price (see #gurukul-plans).
+      const [plans, setPlans] = useState(null);
       const ref = useRef(null);
       const isInView = useInView(ref, { once: true });
 
-      const individualPlans = [
-        { name: 'Starter', price: '₹199', period: '/mo', features: ['All 9 practice modes', 'AI Coach (limited)', 'Basic analysis', 'Mistake Book', 'Battleground'], color: '#7c3aed' },
-        { name: 'Standard', price: '₹499', period: '/mo', popular: true, features: ['Everything in Starter', 'Unlimited AI Coach', 'Deep Analysis', 'Auto Recovery sessions', 'Auto Revision sessions', 'XP & Achievements'], color: '#ea580c' },
-        { name: 'Premium', price: '₹999', period: '/mo', features: ['Everything in Standard', 'Priority AI responses', 'Advanced insights', 'Performance reports', 'Priority support'], color: '#059669' }
-      ];
+      useEffect(() => {
+        let live = true;
+        window.GurukulPlans.load()
+          .then((p) => { if (live) setPlans(p); })
+          .catch(() => { if (live) setPlans('unavailable'); });
+        return () => { live = false; };
+      }, []);
 
-      const orgPlans = [
-        { name: 'Enterprise', price: 'Custom', period: '', features: ['Full platform for every role — Student, Teacher, Parent, Principal & Admin', 'All learning engine features + school operations', 'Attendance, Homework, Tests & Exams with Auto Grading & Reports', 'Fee management, Timetable, Analytics & AI insights', 'Dedicated support, Custom integrations & Multi-branch'], color: '#059669' }
-      ];
+      const colors = ['#64748b', '#7c3aed', '#ea580c', '#059669'];
+      const popular = 'standard';
+      const orgPlan = { name: 'Enterprise', features: ['Full platform for every role — Student, Teacher, Parent, Principal & Admin', 'All learning engine features + school operations', 'Attendance, Homework, Tests & Exams with Auto Grading & Reports', 'Fee management, Timetable, Analytics & AI insights', 'Dedicated support, Custom integrations & Multi-branch'], color: '#059669' };
+      const goTo = (dest) => { (window.top || window).location.href = dest; };
 
-      const plans = tab === 'individual' ? individualPlans : orgPlans;
+      const card = (key, color, highlighted, children) => (
+        <motion.div
+          key={key}
+          className={highlighted ? 'glow-border' : undefined}
+          whileHover={{ y: -6, scale: 1.02 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+          style={{
+            background: 'var(--bg-card)',
+            border: highlighted ? `2px solid ${color}` : '1px solid var(--border)',
+            borderRadius: 20,
+            padding: 24,
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >{children}</motion.div>
+      );
+
+      const button = (label, dest, color, filled) => (
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => goTo(dest)}
+          style={{
+            width: '100%', padding: 14, borderRadius: 10, marginTop: 'auto',
+            border: filled ? 'none' : '1px solid var(--border)',
+            background: filled ? color : 'var(--bg-subtle)',
+            color: filled ? '#fff' : 'var(--text)',
+            fontWeight: 600, fontSize: 14, cursor: 'pointer'
+          }}
+        >{label}</motion.button>
+      );
+
+      const individual = () => {
+        if (plans === null) {
+          return <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Reading the plans…</p>;
+        }
+        if (plans === 'unavailable') {
+          return card('start', colors[1], true, (
+            <>
+              <p className="font-mono" style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 8 }}>START FREE</p>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 24 }}>
+                Every plan, what it includes and its price are shown in the app before you pay anything.
+              </p>
+              {button('Get Started', '/auth', colors[1], true)}
+            </>
+          ));
+        }
+        return plans.map((plan, i) => {
+          const color = colors[Math.min(plan.rank, colors.length - 1)];
+          const highlighted = plan.code === popular;
+          return card(plan.code, color, highlighted, (
+            <>
+              {highlighted && (
+                <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: color, padding: '5px 14px', borderRadius: 20, fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: '0.03em' }}>POPULAR</div>
+              )}
+              <p className="font-mono" style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 8 }}>{plan.name.toUpperCase()}</p>
+              <div style={{ marginBottom: 4 }}>
+                <span style={{ fontSize: 36, fontWeight: 800, color: 'var(--text)' }}>{plan.price ? plan.price.amount : 'Free'}</span>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 18, lineHeight: 1.4 }}>
+                {plan.price ? `One payment for ${plan.price.days} days · GST included · nothing renews by itself` : 'No payment and no card'}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 22 }}>
+                {plan.rows.map((row) => (
+                  <div key={row.feature} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: row.value ? 'var(--text-secondary)' : 'var(--text-muted)', opacity: row.value ? 1 : 0.6 }}>
+                    <span style={{ color: row.value ? color : 'var(--text-muted)', fontSize: 13, lineHeight: 1.4 }}>{row.value ? '✓' : '–'}</span>
+                    <span style={{ lineHeight: 1.4 }}>{row.label}{row.value ? <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{` — ${row.value}`}</strong> : ' — not included'}</span>
+                  </div>
+                ))}
+              </div>
+              {button(plan.price ? 'Get Started' : 'Start Free', '/auth', color, highlighted)}
+            </>
+          ));
+        });
+      };
 
       return (
         <section id="pricing" className="section section-subtle" ref={ref}>
-          <div className="section-inner" style={{ maxWidth: 1000, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
+          <div className="section-inner" style={{ maxWidth: 1180, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
             <motion.div
               initial={{ opacity: 0, y: 32 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -2680,7 +2851,7 @@
                 Simple, transparent pricing.
               </h2>
               <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 28 }}>
-                Private tuition costs a multiple of this.
+                Start free. Pay once for the days you want — nothing renews by itself.
               </p>
 
               <div style={{
@@ -2720,84 +2891,47 @@
             </motion.div>
 
             <AnimatePresence mode="wait">
-              <motion.div key={tab} initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.42, ease: [0.16,1,0.3,1] }} className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: tab === 'organization' ? 'min(420px, 100%)' : 'repeat(3, 1fr)', gap: 20, justifyContent: tab === 'organization' ? 'center' : 'initial' }}>
-                {plans.map((plan, i) => (
-                <motion.div
-                  key={plan.name}
-                  className={plan.popular ? 'glow-border' : undefined}
-                  whileHover={{ y: -6, scale: 1.02 }}
-                  transition={{ type: 'spring', stiffness: 320, damping: 22, delay: i * 0.08 }}
-                  style={{
-                    background: 'var(--bg-card)',
-                    border: plan.popular ? `2px solid ${plan.color}` : '1px solid var(--border)',
-                    borderRadius: 20,
-                    padding: 28,
-                    position: 'relative'
-                  }}
-                >
-                  {plan.popular && (
-                    <div style={{
-                      position: 'absolute',
-                      top: -12,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      background: plan.color,
-                      padding: '5px 14px',
-                      borderRadius: 20,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: '#fff',
-                      letterSpacing: '0.03em'
-                    }}>POPULAR</div>
-                  )}
-
-                  <p className="font-mono" style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 8 }}>{plan.name.toUpperCase()}</p>
-                  {tab === 'organization' ? (
+              <motion.div
+                key={tab}
+                initial={{ opacity: 0, x: 28 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.42, ease: [0.16,1,0.3,1] }}
+                className="pricing-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: tab === 'organization' || !Array.isArray(plans) ? 'min(420px, 100%)' : `repeat(${plans.length}, 1fr)`,
+                  gap: 16,
+                  justifyContent: tab === 'organization' || !Array.isArray(plans) ? 'center' : 'initial'
+                }}
+              >
+                {tab === 'individual' ? individual() : card(orgPlan.name, orgPlan.color, false, (
+                  <>
+                    <p className="font-mono" style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 8 }}>{orgPlan.name.toUpperCase()}</p>
                     <div style={{ marginBottom: 20, height: 44, display: 'flex', alignItems: 'center' }}>
                       <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', lineHeight: 1.4 }}>Contact Sales — tailored to your schools & students</span>
                     </div>
-                  ) : plan.price === 'Custom' ? (
-                    <div style={{ marginBottom: 20, height: 44, display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', lineHeight: 1.4 }}>Custom pricing — we’ll tailor to your schools & students</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+                      {orgPlan.features.map(f => (
+                        <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+                          <span style={{ color: orgPlan.color, fontSize: 14 }}>✓</span>
+                          {f}
+                        </div>
+                      ))}
                     </div>
-                  ) : (
-                    <div style={{ marginBottom: 20 }}>
-                      <span style={{ fontSize: 40, fontWeight: 800, color: 'var(--text)' }}>{plan.price}</span>
-                      <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{plan.period}</span>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-                    {plan.features.map(f => (
-                      <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-                        <span style={{ color: plan.color, fontSize: 14 }}>✓</span>
-                        {f}
-                      </div>
-                    ))}
-                  </div>
-
-                  <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={() => { const dest = (tab === 'organization' || plan.price === 'Custom') ? 'mailto:hello@gurukul.study' : '/auth'; (window.top || window).location.href = dest; }}
-                    style={{
-                      width: '100%',
-                      padding: 14,
-                      borderRadius: 10,
-                      border: plan.popular ? 'none' : '1px solid var(--border)',
-                      background: plan.popular ? plan.color : 'var(--bg-subtle)',
-                      color: plan.popular ? '#fff' : 'var(--text)',
-                      fontWeight: 600,
-                      fontSize: 14,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {tab === 'organization' || plan.price === 'Custom' ? 'Contact Sales' : 'Get Started'}
-                  </motion.button>
-                </motion.div>
+                    {button('Contact Sales', 'mailto:hello@gurukul.study', orgPlan.color, false)}
+                  </>
                 ))}
               </motion.div>
             </AnimatePresence>
+
+            {tab === 'individual' && (
+              <p style={{ marginTop: 28, textAlign: 'center', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Free on every plan: Recovery, Revision, chapter-wise analysis and Mistake Book reattempts.
+                <br />
+                Plans are for individual CUET students. For a school, see Organization.
+              </p>
+            )}
           </div>
         </section>
       );
