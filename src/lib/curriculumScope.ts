@@ -15,10 +15,8 @@
  * places; Class 5 labels parsed to null and the bank was wrongly archived.
  */
 export {
-  CLASS_LEVELS,
   CLASS_LEVELS_ASCENDING,
   CLASS_LEVEL_PATTERN,
-  isClassLevel,
   parseClassLevel,
   type ClassLevel,
 } from "./parseClassLevel";
@@ -43,7 +41,7 @@ export const SCIENCE_SUBJECT_ALLOWLIST = [
 ] as const;
 
 /** Subjects that must never appear for commerce stream (11–12). */
-export const COMMERCE_BLOCKED_SUBJECTS = [
+const COMMERCE_BLOCKED_SUBJECTS = [
   "biology",
   "chemistry",
   "physics",

@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
-import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { toErrorMessage } from "@/lib/presentation";
 import { hourHistogram } from "@/lib/studentAnalysisMetrics";
 
@@ -73,7 +72,7 @@ export function accuracyOverAnswered(correct: number, wrong: number): number | n
   return answered > 0 ? Math.round((100 * correct) / answered) : null;
 }
 
-export type AnalysisPageData = {
+type AnalysisPageData = {
   student_class: string | null;
   recent_sessions: PracticeSessionSummary[];
   totals: {
@@ -317,8 +316,6 @@ export function useAnalysisPageData(enabled = true) {
             // is not, and is what made the shells look like full sessions.
             .filter(sessionWasAttempted)
             .map(sessionSummary);
-      const latest = sessions[0];
-      const previous = sessions[1];
 
       let student_class: string | null = null;
 

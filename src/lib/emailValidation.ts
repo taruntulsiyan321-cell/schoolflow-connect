@@ -35,7 +35,7 @@ const PROVIDER_TYPOS: Record<string, string> = {
   "rediffmail.con": "rediffmail.com", "protonmail.con": "protonmail.com",
 };
 
-export type EmailValidation = {
+type EmailValidation = {
   ok: boolean;
   email: string;
   message: string;

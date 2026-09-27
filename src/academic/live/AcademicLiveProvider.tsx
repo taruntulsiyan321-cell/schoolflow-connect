@@ -366,9 +366,6 @@ export function useAcademicLive(filter?: AcademicDomain | AcademicDomain[]): num
   return filterKey ? matchedVersion : version;
 }
 
-export function useAcademicLiveBump() {
-  return useContext(AcademicLiveContext).bump;
-}
 
 /** Convenience: notify bus from service layer after a successful write. */
 export function broadcastAcademicWrite(

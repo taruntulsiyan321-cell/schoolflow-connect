@@ -4,13 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ALLOWLIST = new Set([
-  "src/gurukul/data/mock.ts",
-  "src/gurukul/pages/ConceptMastery.tsx",
-  "src/gurukul/components/AnalyticsPage.tsx",
   "src/lib/presentationMode.ts",
   "src/gurukul/emptyStudent.ts",
-  "src/components/student/dashboard/StudentMissionDashboard.tsx",
-  "src/pages/student/StudentSuccessHome.tsx",
 ]);
 const SCAN_GLOBS = [
   "src/pages/StudentDashboard.tsx",
@@ -20,7 +15,6 @@ const SCAN_GLOBS = [
   "src/gurukul/components/shared.tsx",
   "src/components/student",
   "src/pages/student",
-  "src/hooks/useStudentXp.ts",
   "src/gurukul-teacher",
   "src/gurukul-parent",
   "src/gurukul-principal",

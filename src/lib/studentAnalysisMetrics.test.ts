@@ -15,7 +15,6 @@ import {
 import { REVISION_STAGES_TO_SOLID } from "@/academic/recovery/constants";
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
 import { buildMilestones } from "@/components/student/analytics/wisdom/analyticsDerived";
-import type { MistakeTopicAggregate } from "@/lib/analyticsInsights";
 
 function session(partial: Partial<PracticeSessionSummary> & Pick<PracticeSessionSummary, "id" | "subject">): PracticeSessionSummary {
   return {

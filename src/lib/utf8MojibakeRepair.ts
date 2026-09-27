@@ -40,7 +40,7 @@ const CP1252_CP_TO_BYTE = new Map<number, number>(
  * Note: π → Ï€ (0xCF 0x80 → Ï + €); √ → âˆš (includes U+02C6 ˆ).
  * Do NOT match lone curly dashes/quotes (legitimate Unicode titles).
  */
-export const UTF8_MOJIBAKE_SIGNATURE =
+const UTF8_MOJIBAKE_SIGNATURE =
   /à¤|à¥|â€.|âˆ.|â‰.|Ã[\u0080-\u00ff]|Î[\u0080-\u00ff]|Ï\u20ac|Ï[\u0080-\u00ff\u20ac]|Â[°·¹²³½¼¾]/;
 
 export function looksLikeUtf8Mojibake(text: string | null | undefined): boolean {

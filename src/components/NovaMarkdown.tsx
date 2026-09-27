@@ -113,5 +113,3 @@ export function NovaMarkdown({ text, className }: Props) {
     </div>
   );
 }
-
-export default NovaMarkdown;

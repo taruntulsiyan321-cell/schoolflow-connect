@@ -35,7 +35,7 @@
 
 export type GeneratedFormat = "mcq" | "short" | "long";
 
-export interface QuestionGenerationSpec {
+interface QuestionGenerationSpec {
   format: GeneratedFormat;
   subject: string;
   chapter?: string | null;
@@ -50,7 +50,7 @@ export interface QuestionGenerationSpec {
   sourceText?: string | null;
 }
 
-export interface GeneratedQuestion {
+interface GeneratedQuestion {
   question: string;
   options?: string[];
   correct_index?: number;
@@ -59,7 +59,7 @@ export interface GeneratedQuestion {
   question_format: GeneratedFormat;
 }
 
-export interface QuestionGenerationRequest {
+interface QuestionGenerationRequest {
   system: string;
   user: string;
   schema: Record<string, unknown>;
@@ -87,7 +87,7 @@ export const MIN_GENERATION_TOKENS = 1200;
 export const MAX_GENERATION_TOKENS = 8000;
 
 /** A short answer that is one word is a hint, not the answer §4.2a asks for. */
-export const MIN_ANSWER_CHARS = 12;
+const MIN_ANSWER_CHARS = 12;
 
 export function generationTokenBudget(format: GeneratedFormat, count: number): number {
   const per = TOKENS_PER_QUESTION[format] ?? TOKENS_PER_QUESTION.mcq;
@@ -218,7 +218,7 @@ export function rejectionReason(
   return null;
 }
 
-export interface NormalizedGeneration {
+interface NormalizedGeneration {
   questions: GeneratedQuestion[];
   /** One line per dropped question, for the caller to surface. */
   rejected: string[];

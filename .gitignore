@@ -42,6 +42,7 @@ scripts/rbse-commerce-full/.gen-cache/
 .claude-flow/data/
 .claude-flow/logs/
 .claude-flow/sessions/
+.swarm/
 
 # Data exports taken before a destructive migration (Chunk 3.5 dropped
 # library_books, library_checkouts, staff_attendance). These hold real staff

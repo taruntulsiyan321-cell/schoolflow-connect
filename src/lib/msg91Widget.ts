@@ -20,7 +20,7 @@ const WIDGET_SCRIPT_URL = "https://verify.msg91.com/otp-provider.js";
 
 let scriptPromise: Promise<void> | null = null;
 
-export function loadMsg91WidgetScript(): Promise<void> {
+function loadMsg91WidgetScript(): Promise<void> {
   if (typeof window === "undefined") {
     return Promise.reject(new Error("MSG91 widget requires a browser environment"));
   }
@@ -48,7 +48,7 @@ export function loadMsg91WidgetScript(): Promise<void> {
   return scriptPromise;
 }
 
-export type Msg91WidgetSuccessData = Record<string, unknown>;
+type Msg91WidgetSuccessData = Record<string, unknown>;
 
 function isLikelyJwt(value: string): boolean {
   // MSG91 access tokens are JWTs. reqIds from sendOTP share the `message`
@@ -119,7 +119,7 @@ export function extractAccessTokenMeta(
   };
 }
 
-export type Msg91FailureReason = "cancelled" | "timeout" | "unknown";
+type Msg91FailureReason = "cancelled" | "timeout" | "unknown";
 
 /**
  * MSG91's failure callback error shape is likewise not fully documented for

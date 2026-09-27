@@ -9,7 +9,7 @@ import { getClient, throwIfError } from "../repository/base";
 import type { ServiceContext } from "./context";
 import { assertStudentContext } from "./assertStudentContext";
 
-export type ScreenCaptureSubmitInput = {
+type ScreenCaptureSubmitInput = {
   image_base64: string;
   mime_type?: string;
   package_name: string;
@@ -40,7 +40,7 @@ export type ScreenCaptureSubmitResult = {
   error?: string;
 };
 
-export type CapturePracticeRow = {
+type CapturePracticeRow = {
   id: string;
   question: string;
   options: unknown;

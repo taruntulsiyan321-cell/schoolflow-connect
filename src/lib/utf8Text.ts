@@ -10,14 +10,6 @@
 
 import { repairUtf8Mojibake } from "@/lib/utf8MojibakeRepair";
 
-export {
-  isCleanAcademicLabel,
-  looksLikeUnresolvedMojibake,
-  looksLikeUtf8Mojibake,
-  repairUtf8Mojibake,
-  UTF8_MOJIBAKE_SIGNATURE,
-} from "@/lib/utf8MojibakeRepair";
-
 /** Leftover UTF-8-as-Windows-1252 / Latin-1 sequences after structural repair. */
 const CONTENT_MOJIBAKE: Array<[RegExp, string]> = [
   // punctuation
@@ -112,12 +104,3 @@ export function fixUtf8Content(text: string | null | undefined): string {
   return s.trim();
 }
 
-/** True when text likely contains math that MathText / KaTeX should handle. */
-export function looksLikeMathContent(text: string | null | undefined): boolean {
-  if (!text) return false;
-  const s = String(text);
-  if (/\$[^$]+\$|\\\(|\\\[|\\frac|\\sqrt|\\sum|\\int|\\pi|\\theta|\\alpha|\\beta/.test(s)) {
-    return true;
-  }
-  return /[πθ√αβΣ∞≤≥±×÷≠≈∂∇∫∏∑∠°½¼¾²³¹₀-₉⁰-⁹]/.test(s);
-}

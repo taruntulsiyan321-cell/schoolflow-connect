@@ -3,7 +3,7 @@
  * Pure aggregators for tests; DB RPC / service loaders for live data.
  */
 
-export type DecisionRow = {
+type DecisionRow = {
   feature_id: string;
   route_class: string;
   decision: string;

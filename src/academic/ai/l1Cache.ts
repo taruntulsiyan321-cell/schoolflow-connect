@@ -3,7 +3,7 @@
  * Keyed by tenant / student / capability / data_version.
  */
 
-export type L1CacheKeyParts = {
+type L1CacheKeyParts = {
   tenantId: string;
   studentId: string;
   capability: string;
@@ -64,5 +64,3 @@ export class AeSnapshotL1Cache {
   }
 }
 
-/** Process-wide L1 for client/helper use. Edge has its own isolate instance. */
-export const globalAeL1Cache = new AeSnapshotL1Cache();

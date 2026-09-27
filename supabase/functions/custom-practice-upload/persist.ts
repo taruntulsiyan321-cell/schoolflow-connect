@@ -5,7 +5,7 @@
 import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import type { ExtractedNote, ExtractedQuestion } from "./types.ts";
 
-export type UserClient = ReturnType<typeof createClient>;
+type UserClient = ReturnType<typeof createClient>;
 
 /** Always filed under a syllabus chapter (_shared/syllabusTagger.ts). */
 export type TaggedQuestion = ExtractedQuestion & {

@@ -1,9 +1,9 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Trophy, Zap } from "lucide-react";
 import { ProgressionService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useAuth } from "@/hooks/useAuth";
-import { EmptyState, GlassCard, PageHeader, PageSkeleton, ProgressBar, SectionLabel, Skeleton, SkeletonCard, SkeletonList, cn } from "@/gurukul/components/shared";
+import { EmptyState, GlassCard, PageHeader, PageSkeleton, ProgressBar, SectionLabel, Skeleton, SkeletonCard, cn } from "@/gurukul/components/shared";
 import { toErrorMessage, toPersonName } from "@/lib/presentation";
 import { StudentErrorState } from "@/components/student/StudentPanelStates";
 

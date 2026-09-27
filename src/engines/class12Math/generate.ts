@@ -210,12 +210,3 @@ export function generateFromTemplate(
   };
 }
 
-export function generateBatch(
-  templates: QuestionTemplateRow[],
-  sessionSeed: number,
-): Array<{ template: QuestionTemplateRow; generated: GeneratedQuestion }> {
-  return templates.map((t, i) => ({
-    template: t,
-    generated: generateFromTemplate(t, sessionSeed + i * 9973),
-  }));
-}

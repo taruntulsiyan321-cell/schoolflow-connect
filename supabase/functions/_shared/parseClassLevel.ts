@@ -20,10 +20,6 @@ export const CLASS_LEVELS_ASCENDING: readonly ClassLevel[] = [...CLASS_LEVELS].s
 /** Built from CLASS_LEVELS so the pattern and the list cannot drift apart. */
 export const CLASS_LEVEL_PATTERN = new RegExp(`\\b(${CLASS_LEVELS.join("|")})\\b`);
 
-/** True when a number is a class level the platform teaches. */
-export function isClassLevel(n: unknown): n is ClassLevel {
-  return typeof n === "number" && (CLASS_LEVELS as readonly number[]).includes(n);
-}
 
 /**
  * Parse class level from digits or Roman numerals

@@ -17,7 +17,7 @@
  * reading so a caller that also inspects it is not handed a drained body.
  */
 
-export type EdgeFunctionFailure = {
+type EdgeFunctionFailure = {
   /** HTTP status, when one could be recovered. */
   status: number | null;
   /** The function's own `error` string, when it sent one. */

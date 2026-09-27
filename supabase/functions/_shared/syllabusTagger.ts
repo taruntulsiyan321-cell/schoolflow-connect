@@ -33,7 +33,7 @@ const BANK_MATCH_THRESHOLD = 0.82;
 /** Questions per tagging call — a paper of 60 is filed in three. */
 const TAG_BATCH = 25;
 
-export type StudentSyllabus = {
+type StudentSyllabus = {
   examId: string;
   stream: string;
   /** "CUET Commerce" — how the student's syllabus is named to them. */

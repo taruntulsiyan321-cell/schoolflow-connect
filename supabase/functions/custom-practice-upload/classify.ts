@@ -27,12 +27,6 @@ import type {
   UploadVerdict,
 } from "./types.ts";
 
-export {
-  applyRefusalGates,
-  CONFIDENCE_THRESHOLD,
-  MIN_USABLE_QUESTIONS,
-} from "./refusalGates.ts";
-
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const SYSTEM = [
@@ -354,7 +348,7 @@ async function completeWithPdfFile(input: {
   return { ok: true, text };
 }
 
-export type ClassifyOutcome =
+type ClassifyOutcome =
   | { ok: true; result: ClassifierResult }
   | { ok: false; error: string; status: "failed" };
 

@@ -2,7 +2,7 @@ import type { HomeworkStandingRow } from "../repository/homeworkRepository";
 import { HOMEWORK_STANDING_LABELS, homeworkOutcome, homeworkStanding, type ReviewRow } from "./homeworkService";
 
 /** A student as the report names them. */
-export interface HomeworkReportStudent {
+interface HomeworkReportStudent {
   id: string;
   fullName: string;
   rollNumber: string | null;
@@ -73,7 +73,7 @@ export function homeworkReportFilename(homework: { title: string; dueDate: strin
 }
 
 /** One student's homework record across a class's released homework. */
-export interface ClassHomeworkTally {
+interface ClassHomeworkTally {
   studentId: string;
   /** Released homework set to them. */
   set: number;

@@ -30,7 +30,7 @@ export function progressionLevelProgress(xp: number, level: number) {
 }
 
 /** Mirrors `progression_leagues` seed (code, label, tier, min_xp). */
-export type ProgressionLeagueDef = {
+type ProgressionLeagueDef = {
   code: string;
   label: string;
   tier: number;

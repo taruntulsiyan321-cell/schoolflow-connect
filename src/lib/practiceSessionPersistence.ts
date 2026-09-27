@@ -4,7 +4,7 @@ import type { PracticeAttemptSnapshot, PracticeSessionResultState } from "@/lib/
 export type { PracticeAttemptSnapshot };
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 
-export type RecordPracticeAttemptOptions = {
+type RecordPracticeAttemptOptions = {
   sessionId: string;
   templateId?: string | null;
   bankQuestionId?: string | null;

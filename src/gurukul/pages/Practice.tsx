@@ -43,7 +43,7 @@ import {
   RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle, Filter,
 } from "lucide-react";
 import { isUuid, toErrorMessage } from "@/lib/presentation";
-import { ACCURACY_PROCEDURAL, ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
+import { ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
 import { pluralise } from "@/lib/plural";
 import { PRACTICE_MODE_LABELS, practiceModeLabel } from "@/lib/practiceModeLabel";
 import {

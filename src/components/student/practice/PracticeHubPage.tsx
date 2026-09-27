@@ -19,7 +19,6 @@ import {
   Sparkles,
   Target,
   Timer,
-  TrendingUp,
   Zap,
 } from "lucide-react";
 import "./practice-hub.css";

@@ -28,8 +28,8 @@
  * anything was built on them: 146/158 both ways, exactly.
  */
 
-import { type Metric, ok, noData, notMarked, pct, count, flag } from "./types";
-import { ATTENDANCE_LOW, CONSECUTIVE_ABSENCE } from "./thresholds";
+import { type Metric, ok, noData, notMarked, pct, count } from "./types";
+import { ATTENDANCE_LOW } from "./thresholds";
 
 /** The attendance facts this module needs about one student. */
 export interface AttendanceCounts {
@@ -39,14 +39,14 @@ export interface AttendanceCounts {
 }
 
 /** One attendance record, for the metrics that need days rather than totals. */
-export interface AttendanceDay {
+interface AttendanceDay {
   studentId: string;
   date: string;
   status: "present" | "absent" | "late" | "excused" | string;
 }
 
 /** Present counts as present. Late counts as present — a late student attended. */
-export function isPresent(status: string): boolean {
+function isPresent(status: string): boolean {
   return status === "present" || status === "late";
 }
 
@@ -101,7 +101,7 @@ export function groupAttendance(rows: AttendanceCounts[]): Metric<number> {
  * half the sections have marked reads as the attendance of those sections and
  * says so in `basis` — rather than reading as half the real figure.
  */
-export interface SectionDaySubmission {
+interface SectionDaySubmission {
   sectionId: string;
   submitted: boolean;
   present: number;
@@ -170,9 +170,6 @@ export function consecutiveAbsence(days: AttendanceDay[]): Metric<number> {
   return count(longest, `longest run across ${sorted.length} marked day(s)`);
 }
 
-export function consecutiveAbsenceFlag(days: AttendanceDay[]): Metric<boolean> {
-  return flag(consecutiveAbsence(days), CONSECUTIVE_ABSENCE, "at_or_above");
-}
 
 /**
  * Students below the attendance threshold.
@@ -262,6 +259,3 @@ export function absenceConcentration(rows: AttendanceCounts[], topN = 5): Metric
   );
 }
 
-export function attendanceFlag(metric: Metric<number>): Metric<boolean> {
-  return flag(metric, ATTENDANCE_LOW, "below");
-}

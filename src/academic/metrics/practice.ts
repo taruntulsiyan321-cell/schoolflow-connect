@@ -38,32 +38,3 @@ export function sessionAccuracy(correct: number, answered: number): Metric<numbe
   return pct(correct, answered, `${correct} of ${answered} answered`);
 }
 
-/**
- * Accuracy across several sessions, from summed totals.
- *
- * Not the mean of per-session accuracies — a 1-question session would weigh the
- * same as a 40-question one. The same fault the school attendance figure had.
- */
-export function accuracyAcross(
-  sessions: { correct: number; attempted: number }[],
-): Metric<number> {
-  if (sessions.length === 0) return noData("no sessions");
-
-  let correct = 0;
-  let attempted = 0;
-  let counted = 0;
-  for (const s of sessions) {
-    if (!(s.attempted > 0)) continue;
-    counted += 1;
-    correct += s.correct;
-    attempted += s.attempted;
-  }
-  if (attempted === 0) {
-    return noData(`${sessions.length} session(s), none with an attempted question`);
-  }
-  return pct(
-    correct,
-    attempted,
-    `${correct} of ${attempted} attempted across ${counted} of ${sessions.length} session(s)`,
-  );
-}

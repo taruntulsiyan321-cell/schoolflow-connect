@@ -13,7 +13,7 @@ import { broadcastAcademicWrite } from "../live";
 import { ValidationFailedError } from "../repository/errors";
 import { validateLeaveDateRange } from "../validation/rules";
 
-export type LeaveApplicantKind = "student" | "teacher";
+type LeaveApplicantKind = "student" | "teacher";
 export type LeaveStatus = "pending" | "approved" | "rejected";
 
 export type LeaveRequestRow = {

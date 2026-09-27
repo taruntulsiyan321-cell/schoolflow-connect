@@ -135,7 +135,7 @@ export type RecoveryQueueRow = {
   rounds_taken: number;
 };
 
-export type RecoverySessionStart =
+type RecoverySessionStart =
   | {
       started: false;
       reason: string;
@@ -265,7 +265,7 @@ export type RevisionHistoryRow = {
  * history and the loader has never had it. Before this existed, checks were
  * measured to contain questions the student had already answered.
  */
-export type RevisionSessionPlan = {
+type RevisionSessionPlan = {
   chapter_id: string;
   /** Up to REVISION_MISTAKE_MAX of their own open mistakes, worst first. */
   mistake_ids: string[];

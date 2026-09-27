@@ -7,7 +7,7 @@ import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter } from "@/lib/academicDisplay";
 import { REVISION_ENGAGEMENT_MIN, REVISION_INTERVALS_DAYS } from "@/academic/recovery/constants";
 import { listItems } from "@/lib/listState";
-import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, ProgressRing, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
   RotateCcw, CheckCircle2, AlertCircle, Flame, History,
   Play, Zap

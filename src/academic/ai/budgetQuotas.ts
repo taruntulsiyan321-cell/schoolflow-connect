@@ -3,9 +3,9 @@
  * Enforcement stub: pure check against usage counters (edge wires DB).
  */
 
-export type BudgetPeriod = "daily" | "monthly";
+type BudgetPeriod = "daily" | "monthly";
 
-export type BudgetQuota = {
+type BudgetQuota = {
   school_id: string;
   scope: "school" | "feature";
   feature_id: string | null;
@@ -14,7 +14,7 @@ export type BudgetQuota = {
   hard_limit_units: number | null;
 };
 
-export type BudgetUsage = {
+type BudgetUsage = {
   school_id: string;
   feature_id: string | null;
   period: BudgetPeriod;
@@ -22,7 +22,7 @@ export type BudgetUsage = {
   units_used: number;
 };
 
-export type BudgetCheckResult =
+type BudgetCheckResult =
   | { ok: true; soft_breach: boolean; units_used: number; soft_limit: number; hard_limit: number | null }
   | {
       ok: false;
@@ -35,9 +35,8 @@ export type BudgetCheckResult =
     };
 
 /** Default soft caps (generative call units). Deterministic paths do not consume. */
-export const DEFAULT_SCHOOL_DAILY_SOFT = 200;
-export const DEFAULT_SCHOOL_MONTHLY_SOFT = 3000;
-export const DEFAULT_FEATURE_DAILY_SOFT: Record<string, number> = {
+const DEFAULT_SCHOOL_DAILY_SOFT = 200;
+const DEFAULT_FEATURE_DAILY_SOFT: Record<string, number> = {
   "student.performance.explain": 80,
   "parent.child.narrative": 40,
 };

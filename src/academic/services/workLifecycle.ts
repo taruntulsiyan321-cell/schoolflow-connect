@@ -19,19 +19,7 @@ export type WorkKind =
   | "internal_assessment";
 
 export type TestKind = "class_test" | "unit_test" | "surprise_test" | "monthly_test";
-
-export type ExamType =
-  | "class_test"
-  | "unit_test"
-  | "monthly_test"
-  | "mid_term"
-  | "half_yearly"
-  | "annual"
-  | "practical"
-  | "viva"
-  | "internal"
-  | "other"
-  | "final"; // legacy
+ // legacy
 
 export const WORK_KINDS: WorkKind[] = [
   "homework",
@@ -108,7 +96,3 @@ export async function assertTeacherMayManageAcademicWork(
   }
 }
 
-export function normalizeWorkKind(v: string | null | undefined): WorkKind {
-  if (v && (WORK_KINDS as string[]).includes(v)) return v as WorkKind;
-  return "homework";
-}

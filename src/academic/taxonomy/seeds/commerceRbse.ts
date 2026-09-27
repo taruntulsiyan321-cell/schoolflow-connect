@@ -241,7 +241,7 @@ export const COMMERCE_CHAPTERS: Chapter[] = [
 ];
 
 /** Concept terms from seed slugs with curated (or dictionary) display names. */
-export function buildCommerceConceptTerms(): Concept[] {
+function buildCommerceConceptTerms(): Concept[] {
   const merged: Record<string, string> = { ...CONCEPT_DISPLAY_DICTIONARY, ...BANK_CONCEPT_DISPLAY };
   return Object.entries(merged).map(([id, displayName]) => ({
     id,

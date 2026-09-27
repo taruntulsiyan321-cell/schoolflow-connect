@@ -19,14 +19,14 @@
  * told the number and the reason and decides.
  */
 
-export type SectionFormat = "mcq" | "short" | "long";
+type SectionFormat = "mcq" | "short" | "long";
 
-export type SectionPlan = {
+type SectionPlan = {
   format: SectionFormat;
   targetCount: number;
 };
 
-export type SourcePlan = {
+type SourcePlan = {
   /** How many to take from the bank. Always 0 for a written-answer section. */
   fromBank: number;
   /** How many to ask the generator for. */
@@ -49,7 +49,7 @@ export function planSources(plan: SectionPlan, retrievedCount: number): SourcePl
   return { fromBank, toGenerate: target - fromBank };
 }
 
-export type SectionOutcome = {
+type SectionOutcome = {
   targetCount: number;
   retrieved: number;
   generated: number;
@@ -77,7 +77,7 @@ export function summariseSection(
   };
 }
 
-export type PaperQuestionMarks = {
+type PaperQuestionMarks = {
   /** NULL means "use the section's marks_per_question". */
   marks: number | null;
 };

@@ -36,7 +36,6 @@ import Class12MathPractice from "./student/Class12MathPractice";
 import Class12MathSession from "./student/Class12MathSession";
 import Class12AiSession from "./student/Class12AiSession";
 import PracticeSessionResult from "./student/PracticeSessionResult";
-import WeakAreasV2Debug from "./student/_debug/WeakAreasV2Debug";
 import TestAttempt from "./student/TestAttempt";
 import TestResult from "./student/TestResult";
 import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
@@ -391,15 +390,6 @@ export default function StudentDashboard() {
           <Route path="practice/math12/session" element={<Class12MathSession />} />
           <Route path="practice/ai/session" element={<Class12AiSession />} />
           <Route path="practice/session/:id/result" element={<PracticeSessionResult />} />
-          {/*
-            Internal debug tool, Decision Engine Slice 1. Not linked from any
-            nav — but "unlinked" is not "unreachable": any signed-in student
-            could open /student/_debug/weak-areas-v2 directly and read a raw
-            JSON dump of the RPC payload. Mounted in development only.
-          */}
-          {import.meta.env.DEV && (
-            <Route path="_debug/weak-areas-v2" element={<WeakAreasV2Debug />} />
-          )}
           <Route path="test" element={<Navigate to="/student/tests" replace />} />
           <Route path="test/:id/attempt" element={<TestAttempt />} />
           <Route path="test/:id/result" element={<TestResult />} />

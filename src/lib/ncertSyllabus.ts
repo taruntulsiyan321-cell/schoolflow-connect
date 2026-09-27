@@ -1,7 +1,7 @@
 import { CLASS_LEVEL_PATTERN } from "@/lib/curriculumScope";
 /** NCERT chapter/topic allowlists by class grade (6–12). Used to limit battleground pickers. */
 
-export type NcertChapter = { chapter: string; topics: string[] };
+type NcertChapter = { chapter: string; topics: string[] };
 
 const MATH: Record<number, NcertChapter[]> = {
   6: [
@@ -165,53 +165,4 @@ export function getNcertChapters(grade: number | null, subject: string): string[
   return list.map((c) => c.chapter);
 }
 
-export function getNcertTopics(grade: number | null, subject: string, chapter: string): string[] {
-  if (!grade) return [];
-  const ch = SUBJECT_MAP[subject]?.[grade]?.find(
-    (c) => c.chapter.toLowerCase() === chapter.toLowerCase(),
-  );
-  return ch?.topics ?? [];
-}
 
-/** Intersect NCERT allowlist with question-bank rows (bank may have fewer topics). */
-export function filterCurriculumByNcert(
-  grade: number | null,
-  subject: string,
-  bankRows: { chapter: string; topic: string | null }[],
-): { chapter: string; topic: string | null }[] {
-  if (!grade) return bankRows;
-  const ncertChapters = getNcertChapters(grade, subject);
-  if (!ncertChapters.length) return bankRows;
-
-  const allowedCh = new Set(ncertChapters.map((c) => c.toLowerCase()));
-  const out: { chapter: string; topic: string | null }[] = [];
-
-  for (const chName of ncertChapters) {
-    const ncertTopics = getNcertTopics(grade, subject, chName);
-    const bankForChapter = bankRows.filter(
-      (r) => r.chapter?.toLowerCase() === chName.toLowerCase(),
-    );
-    if (bankForChapter.length === 0) {
-      out.push({ chapter: chName, topic: null });
-      ncertTopics.forEach((t) => out.push({ chapter: chName, topic: t }));
-      continue;
-    }
-    for (const row of bankForChapter) {
-      if (!row.chapter || !allowedCh.has(row.chapter.toLowerCase())) continue;
-      if (!row.topic) {
-        out.push({ chapter: row.chapter, topic: null });
-        continue;
-      }
-      const topicOk =
-        !ncertTopics.length ||
-        ncertTopics.some((t) => t.toLowerCase() === row.topic!.toLowerCase());
-      if (topicOk) out.push({ chapter: row.chapter, topic: row.topic });
-    }
-    ncertTopics.forEach((t) => {
-      if (!out.some((x) => x.chapter === chName && x.topic === t)) {
-        out.push({ chapter: chName, topic: t });
-      }
-    });
-  }
-  return out;
-}

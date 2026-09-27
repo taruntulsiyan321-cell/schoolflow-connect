@@ -20,7 +20,7 @@ import {
  */
 export type AttendanceStatus = "present" | "absent";
 
-export const ATTENDANCE_STATUSES: AttendanceStatus[] = ["present", "absent"];
+const ATTENDANCE_STATUSES: AttendanceStatus[] = ["present", "absent"];
 
 export interface AttendanceRecord {
   id: string;
@@ -217,7 +217,7 @@ export async function bulkUpsertAttendance(
     }
   }
 
-  const { data, error } = await getClient(ctx).rpc("rpc_bulk_upsert_attendance" as never, {
+  const { error } = await getClient(ctx).rpc("rpc_bulk_upsert_attendance" as never, {
     _rows: rows.map((r) => ({
       student_id: r.studentId,
       class_id: r.classId,

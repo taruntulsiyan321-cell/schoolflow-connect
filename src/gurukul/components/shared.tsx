@@ -1,7 +1,7 @@
-﻿import { useId, type CSSProperties, type ReactNode } from "react";
+import { useId, type CSSProperties, type ReactNode } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
 import { riskBand, type Band } from "@/academic/metrics/bands";
 import { Loader2, UserRound } from "lucide-react";
@@ -134,46 +134,7 @@ export function SubjectBadge({ subject, color }: { subject: string; color?: stri
   );
 }
 
-export function StatusBadge({ status }: { status: string }) {
-  // One colour per status; the background is DERIVED from it. It used to be a
-  // second stored string — `"var(--warning)"` beside `"var(--warning) / 0.1"` —
-  // which is the same fact written twice and one more place for the two token
-  // shapes to drift apart.
-  const map: Record<string, { label: string; color: string }> = {
-    "in-recovery":  { label: "In Recovery",  color: "hsl(var(--warning))" },
-    // §10.8: the status a RECOVERY item reaches when it is finished. "Mastered"
-    // told the student they are good at the concept; "Recovered" says the work
-    // is done, which is the fact the badge is actually reporting.
-    "mastered":     { label: "Recovered",    color: "hsl(var(--success))" },
-    "pending":      { label: "Pending",      color: "hsl(var(--destructive))" },
-    "active":       { label: "Active",       color: "hsl(var(--info))" },
-    "won":          { label: "Won",          color: "hsl(var(--success))" },
-    "lost":         { label: "Lost",         color: "hsl(var(--destructive))" },
-    "answered":     { label: "Answered",     color: "hsl(var(--success))" },
-    "submitted":    { label: "Submitted",    color: "hsl(var(--primary))" },
-    "graded":       { label: "Graded",       color: "hsl(var(--info))" },
-    "in-progress":  { label: "In Progress",  color: "hsl(var(--warning))" },
-    "not-started":  { label: "Not Started",  color: "hsl(var(--muted-foreground))" },
-  };
-  const s = map[status] ?? { label: status, color: "hsl(var(--muted-foreground))" };
-  return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: s.color, background: withAlpha(s.color, 0.1) }}>{s.label}</span>;
-}
 
-export function Avatar({ initials, color, size="md" }: { initials:string; color?:string; size?:"sm"|"md"|"lg" }) {
-  const sizes = { sm: "w-7 h-7 text-[10px]", md: "w-9 h-9 text-xs", lg: "w-12 h-12 text-sm" };
-  const colorVar = color ?? "hsl(var(--primary))";
-  return (
-    <motion.div className={cn("rounded-full flex items-center justify-center font-black text-foreground shrink-0", sizes[size])}
-      style={{ background: `linear-gradient(135deg, ${colorVar}, ${withAlpha(colorVar, 0.6)})` }}
-      initial={{ scale: 0.6, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      whileHover={{ scale: 1.08 }}
-      transition={springSnappy}
-    >
-      {initials}
-    </motion.div>
-  );
-}
 
 /**
  * THE PANEL'S PROGRESS RING — one of them, for the first time.
@@ -442,7 +403,7 @@ export function EmptyState({ icon, title, sub, action, actionLabel, variant = "p
   );
 }
 
-export function Chip({ children, color = "hsl(var(--muted-foreground))" }: { children:ReactNode; color?:string }) {
+function Chip({ children, color = "hsl(var(--muted-foreground))" }: { children:ReactNode; color?:string }) {
   return (
     <motion.span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full border"
       style={{ color, borderColor: withAlpha(color, 0.3), background: withAlpha(color, 0.1) }}

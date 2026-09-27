@@ -26,7 +26,7 @@ export type ValidationResult = {
   message?: string;
 };
 
-export type EvidenceFacts = {
+type EvidenceFacts = {
   attendance_pct?: number | null;
   average_marks_pct?: number | null;
   avg_mastery?: number | null;

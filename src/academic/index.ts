@@ -8,46 +8,26 @@
 export {
   ENTITY_REGISTRY,
   tableFor,
-  assertTenantScoped,
-  type AcademicEntityKey,
-  type EntityMapping,
 } from "./entities";
 
 export {
   ENTITY_OWNERSHIP,
   canOwn,
   canConsume,
-  type EntityOwnership,
-  type OwnerRole,
 } from "./ownership";
 
 export {
   ACADEMIC_EVENT_TYPES,
-  EVENT_SYNC_TARGETS,
-  isAcademicEventType,
   syncTargetsFor,
-  type AcademicEventType,
-  type AcademicEventStatus,
-  type AcademicEventRecord,
-  type SyncTarget,
 } from "./events";
 
 export type {
-  AcademicYear,
   StudentAcademicProfile,
   TeacherRemark,
-  AcademicAuditEntry,
-  StudentAiSummary,
-  ClassAiSummary,
-  SchoolAiSummary,
-  ValidationIssue,
-  ValidationResult,
 } from "./types";
 
 export {
   requireSchoolId,
-  resolveSchoolId,
-  scopeBySchool,
   MissingSchoolContextError,
 } from "./tenant";
 
@@ -55,17 +35,13 @@ export {
   validateMarks,
   validateAttendanceDate,
   validateAcademicYearRange,
-  validateRemarkBody,
-  validateTeacherSubjectAssignment,
 } from "./validation/rules";
 
 export * as academicRepo from "./repository";
 
 export {
-  AcademicServices,
   AttendanceService,
   HomeworkService,
-  AssignmentService,
   MarksService,
   RemarksService,
   AcademicProfileService,
@@ -86,36 +62,14 @@ export {
   CalendarEventsService,
   ResourceService,
   resolveStudentServiceContext,
-  assertStudentContext,
-  assertStudentClassContext,
-  evaluateStudentContext,
-  studentShellReady,
-  assertCanOwn,
-  assertCanConsume,
-  toRepoContext,
-  ForbiddenError,
-  isSchoolOperator,
-  progressionXpForLevel,
-  progressionLevelProgress,
-  progressionLeagueFromXp,
-  progressionLeagueFromCodeOrXp,
-  PROGRESSION_LEAGUES,
   WORK_KINDS,
   WORK_KIND_LABELS,
   TEST_KIND_LABELS,
   EXAM_TYPE_LABELS,
-  assertTeacherMayManageAcademicWork,
-  normalizeWorkKind,
-  loadStudentAcademicIdentity,
-  identityToServiceContext,
   type ServiceContext,
   type WorkKind,
   type TestKind,
-  type ExamType,
-  type StudentAcademicIdentity,
 } from "./services";
-
-export type { StudentXpRow } from "./services/xpService";
 export type { EarnedBadgeRow } from "./services/badgeService";
 export type {
   DoubtRow,
@@ -127,41 +81,22 @@ export type {
 
 export type {
   ProgressionSnapshot,
-  ProgressionApplyResult,
   TeacherProgressionInsights,
-  ProgressionLeaderboard,
 } from "./services/progressionService";
-export type { BattleCreateOpts } from "./services/battleExperienceService";
 export type { CurriculumScope } from "./services/practiceService";
 export type { PracticeSessionRow } from "./services/practiceService";
 export {
   StudentUploadService,
-  modesForVerdict,
-  UPLOAD_MODE_LABELS,
-  type StudentUploadRow,
-  type UploadVerdict,
-  type UploadPracticeMode,
-  type DisputeAiAnswerResult,
 } from "./services/studentUploadService";
-export {
-  canPromote,
-  hasRealChapterId,
-  hasValidVariant,
-  isNotNearDuplicate,
-  sourceNotAiAnswered,
-  type UploadPromotionInput,
-} from "./services/uploadPromotionGates";
-export { STUDENT_UPLOAD_ACCEPT } from "./storage/studentUploadFile";
 export type {
   ChapterStateRow,
   RecoveryQueueRow,
-  RecoverySessionStart,
   RecoverySessionOutcome,
   ClearAnywayOutcome,
   RevisionSessionOutcome,
   RevisionHistoryRow,
 } from "./services/recoveryEngineService";
-export type { QuestionBankInsertRow, QuestionReviewRow } from "./services/questionBankService";
+export type { QuestionReviewRow } from "./services/questionBankService";
 export type {
   QuestionPaperRow,
   QuestionPaperSectionRow,
@@ -170,32 +105,20 @@ export type {
   PaperDifficulty,
   SectionFillResult,
   GenerationOutcome,
-  CreatePaperInput,
-  CreateSectionInput,
 } from "./services/questionPaperService";
-export { assertQuestionRowsAreKeyed, REVIEW_PAGE_SIZE } from "./services/questionBankService";
-export type { CurriculumSubject, CurriculumChapter, CurriculumTopic } from "./services/curriculumService";
+export type { CurriculumChapter, CurriculumTopic } from "./services/curriculumService";
 export type {
   TeacherAnnouncementRow,
-  UpsertAnnouncementInput,
   AnnouncementPriority,
   AnnouncementStatus,
 } from "./services/announcementService";
-export type { LeaveRequestRow, SchoolLeaveRequestRow, LeaveDecisionRow } from "./services/leaveService";
+export type { SchoolLeaveRequestRow } from "./services/leaveService";
 export { decisionAttribution, matchesStatus } from "./services/leaveService";
-export { AcademicLiveProvider, useAcademicLive, useAcademicLiveBump, broadcastAcademicWrite } from "./live";
-export {
-  academicQueryKeys,
-  invalidateAcademicQueries,
-  notifyAcademicChange,
-  subscribeAcademicChange,
-  type AcademicDomain,
-} from "./live";
+export { useAcademicLive } from "./live";
 
 export type {
   AttendanceRecord,
   AttendanceStatus,
-  UpsertAttendanceInput,
   AssignedClass,
   ClassStudentRow,
   ParentChildRow,
@@ -207,7 +130,6 @@ export type {
   ClassHomeworkRow,
   ManagedHomeworkRow,
   SchoolHomeworkRow,
-  SchoolHomeworkSummary,
   HomeworkStanding,
 } from "./services/homeworkService";
 export {
@@ -219,7 +141,6 @@ export {
   HOMEWORK_QUESTION_FILE_PICKER,
   HOMEWORK_HAND_IN_FILE_PICKER,
 } from "./services/homeworkService";
-export type { ClassTimetableSnapshot } from "./services/timetableService";
 export type { CalendarEvent, CalendarEventType, CalendarEventAudience } from "./services/calendarEventsService";
 export type { LearningResourceRow, ResourceKind } from "./services/resourceService";
 export { RESOURCE_KINDS } from "./services/resourceService";
@@ -230,76 +151,19 @@ export {
   type DoubtUploadMeta,
 } from "./storage/doubtFileUpload";
 
-export { AnalyticsService, AiSummaryService, AuditReadService } from "./services/readServices";
+export { AnalyticsService, AiSummaryService } from "./services/readServices";
 
 export { useAcademicContext } from "./hooks/useAcademicContext";
 
-
 export {
-  AnalyticsFoundation,
-  getStudentAnalytics,
-  getClassPerformance,
-  getSchoolPerformance,
-} from "./analytics";
-
-export {
-  AiDataLayer,
-  buildStudentAiSummary,
-  buildClassAiSummary,
-  buildSchoolAiSummary,
-  buildTeacherAiSummary,
-  bindEnvelope,
-  CAPABILITY_CATALOG,
-  getCapability,
-  planRoute,
-  wouldCallModel,
-  AiContextApis,
-  askAiCoach,
-  invokeAiGateway,
-  AI_BILLING_UNAVAILABLE_MSG,
-  isAiBillingOrCreditsIssue,
-  resolveCoachCapability,
-  buildSchoolHealthBrief,
-  type SchoolHealthBrief,
-  type SchoolHealthAggregateInput,
   buildParentScheduledNarrative,
   type ParentNarrative,
-  type ParentNarrativeInput,
 } from "./ai";
 
 export {
-  buildStudentEducationalIntelligence,
-  bandFromScore,
-  EIE_ALGORITHM_ID,
-  MASTERY_THRESHOLDS,
   WEAK_CONCEPT_THRESHOLD,
   computeAttendanceRisk,
-  computeHomeworkConsistency,
-  buildSchoolRiskRollups,
   computeDoubtUrgency,
   RiskBadge,
   riskReasonText,
-  type RiskBand,
-  type ProfileRollupRow,
-  type SchoolRiskRollup,
-  type DoubtUrgencyProduct,
 } from "./eie";
-
-export { AuditService, listAuditForEntity, listRecentAudit } from "./audit";
-
-export {
-  presentAcademicLabel,
-  fixMojibake,
-  displayChapter,
-  displayConcept,
-  displayTopic,
-  displaySubject,
-  canonicalizeConceptId,
-  normalizeIncomingAcademicTerm,
-  resolveTaxonomyDisplayPath,
-  formatTaxonomyBreadcrumb,
-  toPresentedTerm,
-  type AcademicLabelKind,
-  type TaxonomyTermRef,
-  type TaxonomyPath,
-} from "./taxonomy";

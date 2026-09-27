@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { FunctionsError } from "@supabase/supabase-js";
 
-export type EdgeInvokeResult<T> = {
+type EdgeInvokeResult<T> = {
   data: T | null;
   error: string | null;
   usedFallback: boolean;

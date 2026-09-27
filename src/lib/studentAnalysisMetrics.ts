@@ -15,12 +15,11 @@ import {
 } from "@/academic/recovery/constants";
 import {
   buildSubjectRadarPoints,
-  dedupeSubjectChartPoints,
   preferRealAcademicLabel,
 } from "@/lib/qualityGuards";
 import { mayBeJudged } from "@/academic/metrics/thresholds";
 
-export { buildSubjectRadarPoints, dedupeSubjectChartPoints };
+export { buildSubjectRadarPoints };
 
 export const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
@@ -231,9 +230,9 @@ export function buildWeekComparison(
  * panels beside them.
  */
 
-export type SubjectPaceRow = { name: string; color: string; avgSec: number; timed: number };
+type SubjectPaceRow = { name: string; color: string; avgSec: number; timed: number };
 
-export type SubjectPace = {
+type SubjectPace = {
   /** Fastest first. Only subjects with enough answered, timed questions. */
   rows: SubjectPaceRow[];
   /** Pooled seconds per question across those subjects. 0 when none qualify. */

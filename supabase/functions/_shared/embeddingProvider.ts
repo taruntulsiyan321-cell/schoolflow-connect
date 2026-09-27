@@ -4,7 +4,7 @@
  * Keys: OPENROUTER_API_KEY | AI_EMBEDDING_API_KEY | EMBEDDING_API_KEY | OPENAI_API_KEY
  */
 
-export type EmbeddingProviderId = "openrouter" | "openai_compat" | "unset";
+type EmbeddingProviderId = "openrouter" | "openai_compat" | "unset";
 
 export type EmbeddingJobClaim = {
   job_id: string;
@@ -15,7 +15,7 @@ export type EmbeddingJobClaim = {
   chunk_text: string;
 };
 
-export type EmbeddingVectorResult =
+type EmbeddingVectorResult =
   | {
       ok: true;
       embedding: number[];
@@ -30,7 +30,7 @@ export type EmbeddingVectorResult =
       provider: EmbeddingProviderId;
     };
 
-export type ProcessOnePlan =
+type ProcessOnePlan =
   | { action: "defer"; reason: string; provider: "unset" }
   | {
       action: "embed";
@@ -87,7 +87,7 @@ export function resolveEmbeddingEndpoint(
 }
 
 /** Plan a single job — never invents vectors when provider unset. */
-export function planProcessOneEmbeddingJob(
+function planProcessOneEmbeddingJob(
   job: EmbeddingJobClaim,
   env: Record<string, string | undefined> = {},
 ): ProcessOnePlan {
@@ -111,7 +111,7 @@ export function planProcessOneEmbeddingJob(
 }
 
 /** Parse OpenAI-compatible embeddings JSON (no network). */
-export function parseEmbeddingApiResponse(
+function parseEmbeddingApiResponse(
   json: unknown,
   provider: Exclude<EmbeddingProviderId, "unset">,
   fallbackModel: string,
@@ -151,7 +151,7 @@ export function parseEmbeddingApiResponse(
   };
 }
 
-export function buildEmbeddingRequestBody(input: {
+function buildEmbeddingRequestBody(input: {
   model: string;
   text: string;
 }): { model: string; input: string } {

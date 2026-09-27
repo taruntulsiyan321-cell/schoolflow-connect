@@ -1,6 +1,6 @@
 /**
  * StudentEducationalIntelligence — EIE v1 projection from concept_mastery + revision_queue.
- * Formulas reuse thresholds from conceptMasteryEngine (weak < 60, strong >= 75).
+ * Formulas use the mastery bands (weak < 60, strong >= 75).
  */
 
 import {
@@ -16,7 +16,7 @@ import {
   type HomeworkConsistencyProduct,
 } from "./riskProducts";
 
-export interface ConceptMasteryRow {
+interface ConceptMasteryRow {
   subject: string;
   chapter?: string | null;
   concept: string;
@@ -26,7 +26,7 @@ export interface ConceptMasteryRow {
   last_attempt_at?: string | null;
 }
 
-export interface RevisionQueueRow {
+interface RevisionQueueRow {
   subject: string;
   chapter?: string | null;
   topic?: string | null;
@@ -36,7 +36,7 @@ export interface RevisionQueueRow {
   completed?: boolean;
 }
 
-export interface MasteryConceptView {
+interface MasteryConceptView {
   subject: string;
   chapter: string | null;
   concept: string;
@@ -45,7 +45,7 @@ export interface MasteryConceptView {
   mistake_count: number;
 }
 
-export interface RevisionPriorityItem {
+interface RevisionPriorityItem {
   subject: string;
   chapter: string | null;
   topic: string | null;
@@ -54,7 +54,7 @@ export interface RevisionPriorityItem {
   due_date: string | null;
 }
 
-export interface StudentEducationalIntelligence {
+interface StudentEducationalIntelligence {
   studentId: string;
   schoolId: string;
   algorithm_id: string;

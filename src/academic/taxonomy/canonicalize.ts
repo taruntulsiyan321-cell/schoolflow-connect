@@ -158,28 +158,6 @@ export function mergeDuplicateLabels(
   });
 }
 
-export function kindFromColumn(column: string): TaxonomyKind | null {
-  switch (column) {
-    case "board":
-      return "board";
-    case "class_level":
-    case "class":
-      return "class_level";
-    case "subject":
-      return "subject";
-    case "chapter":
-      return "chapter";
-    case "topic":
-      return "topic";
-    case "concept":
-      return "concept";
-    case "question_format":
-    case "question_type":
-      return "question_type";
-    default:
-      return null;
-  }
-}
 
 /**
  * Normalize an incoming teacher/AI/seed label for storage:

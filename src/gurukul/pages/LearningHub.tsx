@@ -1,11 +1,10 @@
-﻿import type { PageKey } from "@/gurukul/nav";
+import type { PageKey } from "@/gurukul/nav";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { GlassCard, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonStats, cn } from "@/gurukul/components/shared";
 import {
   BarChart2, RefreshCw, RotateCcw, AlertCircle, ArrowRight
 } from "lucide-react";
-import { LineChart, Line, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useMemo } from "react";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";

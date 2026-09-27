@@ -3,7 +3,7 @@
  * Clarifies when STT provider unset; never invents transcript text.
  */
 
-export type VoiceMediaMetadata = {
+type VoiceMediaMetadata = {
   mime: string;
   bytes: number;
   duration_ms?: number | null;
@@ -13,13 +13,13 @@ export type VoiceMediaMetadata = {
   malware_scan_status?: "stub_pass" | "stub_flagged" | "unchecked" | null;
 };
 
-export type VoiceDoubtSubmitStepResult = {
+type VoiceDoubtSubmitStepResult = {
   step_id: string;
   ok: boolean;
   detail: string;
 };
 
-export type VoiceDoubtSubmitResult = {
+type VoiceDoubtSubmitResult = {
   capability_id: "student.voice_doubt.submit";
   workflow_id: "student.voice_doubt.submit.v1";
   status: "clarify" | "rejected" | "stt_ready";
@@ -57,7 +57,7 @@ const MIN_BYTES = 64;
 const MAX_DURATION_MS = 180_000;
 const DANGEROUS_EXT = /\.(exe|bat|cmd|scr|dll|js|vbs|ps1|msi|apk)$/i;
 
-export function isSttProviderConfigured(
+function isSttProviderConfigured(
   env: Record<string, string | undefined> = {},
 ): boolean {
   const key =
@@ -69,7 +69,7 @@ export function isSttProviderConfigured(
   return Boolean(key && String(key).trim());
 }
 
-export function validateVoiceMetadata(meta: VoiceMediaMetadata): {
+function validateVoiceMetadata(meta: VoiceMediaMetadata): {
   ok: boolean;
   errors: string[];
   malware_stub: "stub_pass" | "stub_flagged" | "unchecked" | "rejected";

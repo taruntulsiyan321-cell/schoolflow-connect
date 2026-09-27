@@ -19,9 +19,9 @@ import {
  */
 
 export { REVISION_LIMITS };
-export type { RevisionGist, RevisionPoint, RevisionStyle, RevisionTurn, RevisionTurnResult };
+export type { RevisionGist, RevisionStyle, RevisionTurn };
 
-export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
+type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
 export const CONTRACT_ERROR = "Nova sent a reply this screen can't read. Please try again.";
 const GIST_TIMEOUT_MS = 60_000;
@@ -30,7 +30,7 @@ const TURN_TIMEOUT_MS = 45_000;
 const isText = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
 const isIndexList = (v: unknown): v is number[] => Array.isArray(v) && v.every((n) => Number.isInteger(n) && n >= 0);
 
-export function parseGist(data: unknown): RevisionGist | null {
+function parseGist(data: unknown): RevisionGist | null {
   const g = (data as { gist?: unknown } | null)?.gist as Record<string, unknown> | undefined;
   if (!g || typeof g !== "object") return null;
   const points = g.key_points;
@@ -45,7 +45,7 @@ export function parseGist(data: unknown): RevisionGist | null {
   return g as unknown as RevisionGist;
 }
 
-export function parseTurn(data: unknown, pointCount: number): RevisionTurnResult | null {
+function parseTurn(data: unknown, pointCount: number): RevisionTurnResult | null {
   const t = (data as { turn?: unknown } | null)?.turn as Record<string, unknown> | undefined;
   if (!t || typeof t !== "object") return null;
   if (

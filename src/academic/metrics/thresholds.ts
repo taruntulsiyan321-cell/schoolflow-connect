@@ -112,7 +112,6 @@ export const THRESHOLDS = {
   SUBJECT_AVERAGE_LOW,
 } as const;
 
-export type ThresholdName = keyof typeof THRESHOLDS;
 
 /**
  * The reporting window: the current academic year's start to today.
@@ -126,7 +125,7 @@ export type ThresholdName = keyof typeof THRESHOLDS;
  * 365 days". A window nobody declared is not a window; it is a guess that would
  * make every figure in the app quietly wrong by an unknown amount.
  */
-export interface ReportingWindow {
+interface ReportingWindow {
   startsOn: string;
   endsOn: string;
   academicYearId: string;
@@ -134,7 +133,7 @@ export interface ReportingWindow {
 }
 
 /** The shape this module needs from an academic_years row. */
-export interface AcademicYearRow {
+interface AcademicYearRow {
   id: string;
   name: string | null;
   starts_on: string | null;

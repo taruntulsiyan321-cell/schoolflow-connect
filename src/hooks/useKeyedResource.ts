@@ -41,12 +41,12 @@ import { toErrorMessage } from "@/lib/presentation";
  */
 
 /** Values that identify what is being loaded. */
-export type ResourceKeyPart = string | number | boolean | null | undefined;
-export type ResourceKey = ResourceKeyPart | readonly ResourceKeyPart[];
+type ResourceKeyPart = string | number | boolean | null | undefined;
+type ResourceKey = ResourceKeyPart | readonly ResourceKeyPart[];
 
-export type ResourceStatus = "idle" | "loading" | "ready" | "error";
+type ResourceStatus = "idle" | "loading" | "ready" | "error";
 
-export interface ResourceState<T> {
+interface ResourceState<T> {
   status: ResourceStatus;
   /** Only ever non-null when `status === "ready"`. */
   data: T | null;
@@ -59,12 +59,12 @@ export interface ResourceState<T> {
   isIdle: boolean;
 }
 
-export interface KeyedResourceResult<T> extends ResourceState<T> {
+interface KeyedResourceResult<T> extends ResourceState<T> {
   /** Re-run the loader for the current key. */
   refresh: () => void;
 }
 
-export interface KeyedResourceOptions {
+interface KeyedResourceOptions {
   /** Message used when the loader throws something unrecognised. */
   errorFallback?: string;
   /**

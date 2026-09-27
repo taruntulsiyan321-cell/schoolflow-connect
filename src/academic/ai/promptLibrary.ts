@@ -26,7 +26,7 @@ export type PromptRecord = {
 };
 
 /** Built-in production fallbacks (must match migration seeds). */
-export const BUILTIN_PROMPTS: PromptRecord[] = [
+const BUILTIN_PROMPTS: PromptRecord[] = [
   {
     capability_id: "student.performance.explain",
     version: "v1",
@@ -184,44 +184,4 @@ export function resolveShadowPrompt(
   return null;
 }
 
-/**
- * Load production prompt via RPC `ai_prompt_load_production`, else builtin.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadProductionPrompt(
-  client: any,
-  capabilityId: string,
-): Promise<PromptRecord | null> {
-  try {
-    const rpc = await client.rpc("ai_prompt_load_production", {
-      p_capability_id: capabilityId,
-    });
-    if (!rpc.error && rpc.data && typeof rpc.data === "object") {
-      return resolveProductionPrompt(capabilityId, rpc.data as PromptRecord);
-    }
-  } catch {
-    // offline / migration not applied
-  }
-  return getBuiltinPrompt(capabilityId);
-}
 
-/**
- * Load shadow prompt via RPC `ai_prompt_load_shadow` when present.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadShadowPrompt(
-  client: any,
-  capabilityId: string,
-): Promise<PromptRecord | null> {
-  try {
-    const rpc = await client.rpc("ai_prompt_load_shadow", {
-      p_capability_id: capabilityId,
-    });
-    if (!rpc.error && rpc.data && typeof rpc.data === "object") {
-      return resolveShadowPrompt(capabilityId, rpc.data as PromptRecord);
-    }
-  } catch {
-    // offline / migration not applied
-  }
-  return null;
-}

@@ -60,7 +60,7 @@ export type RevisionTurnResult = {
   complete: boolean;
 };
 
-export type GistRequest = {
+type GistRequest = {
   mode: "gist";
   topic: string;
   subject: string;
@@ -79,7 +79,7 @@ export type TurnRequest = {
   answer: string;
 };
 
-export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
+type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
 // ── request validation ──────────────────────────────────────────────────────
 
@@ -334,7 +334,7 @@ export function stripEmptyStarter(text: string): string {
   return text.replace(EMPTY_STARTER, "").trim();
 }
 
-export type GistOutcome =
+type GistOutcome =
   | { ok: true; gist: RevisionGist }
   | { ok: false; reason: "unsafe" | "malformed"; error: string };
 

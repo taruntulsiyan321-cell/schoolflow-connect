@@ -24,10 +24,10 @@
  */
 
 /** Percent of due fees collected. At or above this, collection is healthy. */
-export const FEE_COLLECTION_HEALTHY = 80;
+const FEE_COLLECTION_HEALTHY = 80;
 
 /** Percent of due fees collected. Below this, collection is a problem. */
-export const FEE_COLLECTION_LOW = 50;
+const FEE_COLLECTION_LOW = 50;
 
 /**
  * How a collection rate is drawn. NOT interchangeable with the academic
@@ -50,8 +50,3 @@ export function feeCollectionBand(
   return "low";
 }
 
-/** Every finance threshold, for a gate that proves nothing redeclares one. */
-export const FINANCE_THRESHOLDS = {
-  FEE_COLLECTION_HEALTHY,
-  FEE_COLLECTION_LOW,
-} as const;

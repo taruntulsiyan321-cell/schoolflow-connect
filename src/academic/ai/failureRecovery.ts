@@ -3,7 +3,7 @@
  * Shared by Model Router; never invents academic facts on failure.
  */
 
-export type FailureClass =
+type FailureClass =
   | "client_validation"
   | "auth"
   | "source_unavailable"
@@ -15,7 +15,7 @@ export type FailureClass =
   | "workflow_step"
   | "unknown";
 
-export type RecoveryStage =
+type RecoveryStage =
   | "retry"
   | "fallback"
   | "queue"
@@ -25,14 +25,14 @@ export type RecoveryStage =
   | "notify"
   | "safe_fail";
 
-export type RetryPolicy = {
+type RetryPolicy = {
   max_attempts: number;
   base_delay_ms: number;
   max_delay_ms: number;
   jitter_ratio: number;
 };
 
-export const DEFAULT_PROVIDER_RETRY: RetryPolicy = {
+const DEFAULT_PROVIDER_RETRY: RetryPolicy = {
   max_attempts: 3,
   base_delay_ms: 200,
   max_delay_ms: 4000,
@@ -91,7 +91,7 @@ export function computeBackoffMs(
   return Math.round(exp + jitter);
 }
 
-export type RecoveryPlan = {
+type RecoveryPlan = {
   failure_class: FailureClass;
   next_stage: RecoveryStage;
   retryable: boolean;
@@ -155,7 +155,7 @@ export function planFailureRecovery(input: {
   };
 }
 
-export type WithRetryResult<T> =
+type WithRetryResult<T> =
   | { ok: true; value: T; attempts: number }
   | { ok: false; error: unknown; attempts: number; plan: RecoveryPlan };
 

@@ -71,7 +71,6 @@ register("itg_tan_inverse_value", (data, rng) => {
 });
 
 register("itg_simplify_expr", (data, rng) => {
-  const v = Number(data.variant ?? 0);
   const x = pick(rng, [0.5, Math.sqrt(3) / 2, 1 / Math.sqrt(2)]);
   const val = Math.sin(2 * Math.asin(x));
   return {
@@ -150,7 +149,6 @@ register("mat_solve_equations", (data, rng) => {
 register("det_cramers", (data, rng) => {
   const v = Number(data.variant ?? 0);
   const a = 2 + (v % 3), b = 1 + (v % 2);
-  const x = (a * b - 1) / (a * b - 1);
   return {
     question: `Using Cramer's rule for 2×2 system with |A| = ${a * b}, if Δ₁ = ${a * b}, then x = ?`,
     correctAnswer: "1",
@@ -280,7 +278,6 @@ register("appd_approximation", (data, rng) => {
 });
 
 register("appd_first_deriv_test", (data, rng) => {
-  const v = Number(data.variant ?? 0);
   const h = randInt(rng, 1, 3);
   return {
     question: `If f′ changes from + to − at x = ${h}, then f has a?`,
@@ -315,7 +312,6 @@ register("int_substitution", (data, rng) => {
 });
 
 register("int_partial_fraction", (data, rng) => {
-  const v = Number(data.variant ?? 0);
   return {
     question: `∫ 1/(x² − 1) dx equals?`,
     correctAnswer: `½ ln|(x−1)/(x+1)| + C`,
@@ -325,7 +321,6 @@ register("int_partial_fraction", (data, rng) => {
 });
 
 register("int_by_parts", (data, rng) => {
-  const v = Number(data.variant ?? 0);
   return {
     question: `∫ x e^x dx equals?`,
     correctAnswer: `(x − 1)e^x + C`,
@@ -419,7 +414,6 @@ register("vec_direction_cosines", (data, rng) => {
 });
 
 register("vec_cross", (data, rng) => {
-  const v = Number(data.variant ?? 0);
   const a = randInt(rng, 1, 4), b = randInt(rng, 1, 4);
   const cross = a * b;
   return {
@@ -455,7 +449,6 @@ register("vec_addition", (data, rng) => {
 
 // ── 3D Geometry (extra) ───────────────────────────────────────────────────────
 register("geo3d_direction_cosines", (data, rng) => {
-  const v = Number(data.variant ?? 0);
   return {
     question: `If direction ratios are 1, 2, 2, then direction cosines satisfy l²+m²+n² = ?`,
     correctAnswer: "1",
@@ -499,7 +492,6 @@ register("geo3d_point_plane_dist", (data, rng) => {
 });
 
 register("geo3d_angle_lines", (data, rng) => {
-  const v = Number(data.variant ?? 0);
   return {
     question: `Angle between lines with DRs 1,1,0 and 1,−1,0 is?`,
     correctAnswer: "90°",
@@ -545,7 +537,6 @@ register("prob_multiplication", (data, rng) => {
 });
 
 register("prob_distribution", (data, rng) => {
-  const v = Number(data.variant ?? 0);
   return {
     question: `For X with P(X=0)=0.3, P(X=1)=0.7, sum of probabilities equals?`,
     correctAnswer: "1",

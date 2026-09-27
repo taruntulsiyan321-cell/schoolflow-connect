@@ -23,14 +23,6 @@ export type BoardId = "rbse" | "cbse" | "icse" | "other" | "both";
 import type { ClassLevel } from "@/lib/curriculumScope";
 export type { ClassLevel };
 
-export type QuestionTypeId =
-  | "mcq"
-  | "short"
-  | "long"
-  | "numerical"
-  | "assertion_reason"
-  | "case_based"
-  | "concept";
 
 /** Shared shape for every taxonomy term. */
 export type TaxonomyTerm = {
@@ -46,12 +38,9 @@ export type TaxonomyTerm = {
   parentId?: string | null;
 };
 
-export type Board = TaxonomyTerm & { kind: "board"; id: BoardId };
 export type Subject = TaxonomyTerm & { kind: "subject" };
 export type Chapter = TaxonomyTerm & { kind: "chapter"; subjectId: string };
-export type Topic = TaxonomyTerm & { kind: "topic" };
 export type Concept = TaxonomyTerm & { kind: "concept" };
-export type QuestionType = TaxonomyTerm & { kind: "question_type"; id: QuestionTypeId };
 
 export type TaxonomyPath = {
   board?: BoardId | null;

@@ -4,9 +4,9 @@
  * Never treats similarity as permission — RPC filters published + visibility.
  */
 
-export type RetrievalMatchMode = "vector_compat" | "lexical" | "none";
+type RetrievalMatchMode = "vector_compat" | "lexical" | "none";
 
-export type RetrievalHit = {
+type RetrievalHit = {
   chunk_id: string;
   document_id: string;
   version_id?: string;
@@ -22,7 +22,7 @@ export type RetrievalHit = {
   match_mode: RetrievalMatchMode | string;
 };
 
-export type RetrievalPack = {
+type RetrievalPack = {
   school_id: string;
   query: string;
   mode: RetrievalMatchMode | string;
@@ -33,16 +33,6 @@ export type RetrievalPack = {
   sufficient: boolean;
 };
 
-export type RetrieveInput = {
-  school_id: string;
-  query: string;
-  role?: "admin" | "teacher" | "student" | "parent" | "principal";
-  limit?: number;
-  min_score?: number;
-  query_embedding?: number[] | null;
-  subject?: string | null;
-  grade?: string | null;
-};
 
 /** Lexical overlap 0..1 — mirrors SQL ai_lexical_overlap for unit tests. */
 export function lexicalOverlap(query: string, body: string): number {
@@ -219,29 +209,3 @@ export function parseRetrievalRpcPayload(raw: unknown, schoolId: string, query: 
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function retrieveKmsChunks(client: any, input: RetrieveInput): Promise<RetrievalPack> {
-  const { data, error } = await client.rpc("ai_kms_retrieve_chunks", {
-    p_school_id: input.school_id,
-    p_query: input.query,
-    p_role: input.role ?? "student",
-    p_limit: input.limit ?? 5,
-    p_min_score: input.min_score ?? 0.12,
-    p_query_embedding: input.query_embedding ?? null,
-    p_subject: input.subject ?? null,
-    p_grade: input.grade ?? null,
-  });
-  if (error) {
-    return {
-      school_id: input.school_id,
-      query: input.query,
-      mode: "none",
-      min_score: input.min_score ?? 0.12,
-      hits: [],
-      hit_count: 0,
-      approved_only: true,
-      sufficient: false,
-    };
-  }
-  return parseRetrievalRpcPayload(data, input.school_id, input.query);
-}

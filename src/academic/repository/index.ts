@@ -7,15 +7,5 @@ export * from "./homeworkRepository";
 export * from "./remarksRepository";
 export * from "./eventsRepository";
 export * from "./teacherAssignmentRepository";
-export {
-  type AssignedClass,
-  type ClassStudentRow,
-  resolveTeacherId,
-  listAssignedClassesForTeacher,
-  listTeacherClassSubjectPairs,
-  listSubjectsForClass,
-  assertTeacherOwnsClass,
-  listStudentsForClass,
-} from "./teacherClassesRepository";
 export * from "./examRepository";
 export * from "./curriculumRepository";

@@ -11,7 +11,7 @@ import { broadcastAcademicWrite } from "../live";
 import { assertMayAccessStudent } from "./parentAccess";
 import { toDisplayText } from "@/lib/presentation";
 
-export type ClassTimetableSnapshot = {
+type ClassTimetableSnapshot = {
   classId: string;
   classLabel: string;
   grid: Record<string, string>;

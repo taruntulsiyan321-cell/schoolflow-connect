@@ -16,7 +16,7 @@ import { getClient, throwIfError, type RepoContext } from "./base";
  * save. This is the list it picks from instead.
  */
 
-export type CurriculumSubjectRow = { id: string; name: string };
+type CurriculumSubjectRow = { id: string; name: string };
 export type CurriculumChapterRow = { id: string; name: string; sequence: number | null };
 export type CurriculumTopicRow = { id: string; name: string };
 

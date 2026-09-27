@@ -64,7 +64,7 @@ export async function buildStudentAiSummary(
   };
 }
 
-export async function buildClassAiSummary(
+async function buildClassAiSummary(
   ctx: RepoContext,
   classId: string,
 ): Promise<ClassAiSummary> {
@@ -79,7 +79,7 @@ export async function buildClassAiSummary(
   };
 }
 
-export async function buildSchoolAiSummary(ctx: RepoContext): Promise<SchoolAiSummary> {
+async function buildSchoolAiSummary(ctx: RepoContext): Promise<SchoolAiSummary> {
   const perf = await getSchoolPerformance(ctx);
   return {
     schoolId: ctx.schoolId,
@@ -92,7 +92,7 @@ export async function buildSchoolAiSummary(ctx: RepoContext): Promise<SchoolAiSu
   };
 }
 
-export async function buildTeacherAiSummary(
+async function buildTeacherAiSummary(
   ctx: RepoContext,
   teacherId: string,
 ): Promise<{
@@ -123,7 +123,7 @@ export async function buildTeacherAiSummary(
 }
 
 /** Convenience: class profiles for AI batch prompts (structured, not raw rows). */
-export async function listClassStudentSummaries(
+async function listClassStudentSummaries(
   ctx: RepoContext,
   classId: string,
 ): Promise<StudentAiSummary[]> {

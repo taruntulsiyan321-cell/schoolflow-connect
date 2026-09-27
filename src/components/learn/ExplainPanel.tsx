@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Sparkles, Loader2, Brain, Lightbulb, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
 import { displayConcept, fixMojibake } from "@/lib/academicDisplay";
 
-export type Explanation = {
+type Explanation = {
   summary: string;
   why_wrong: string;
   concept: string;
@@ -109,7 +108,6 @@ export function ExplainPanel(props: Props) {
   const [data, setData] = useState<Explanation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aiSource, setAiSource] = useState<"ai" | null>(null);
   const [open, setOpen] = useState(autoLoad);
   const fetched = useRef(false);
   const answerContext = buildAnswerContext({ options, correctIndex, selectedIndex, correctText, selectedText });
@@ -131,7 +129,6 @@ export function ExplainPanel(props: Props) {
     fetched.current = true;
     setLoading(true);
     setError(null);
-    setAiSource(null);
     try {
       // ai-explain answers from its shared cache when this (question, answer)
       // has been explained before, and stores what it generates. The cache
@@ -154,7 +151,6 @@ export function ExplainPanel(props: Props) {
           how_to_improve: res.how_to_improve ?? "",
         };
         setData(payload);
-        setAiSource("ai");
         return;
       }
 

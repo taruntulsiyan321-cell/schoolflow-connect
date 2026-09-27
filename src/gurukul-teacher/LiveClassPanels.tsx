@@ -54,13 +54,10 @@ import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
 import {
   displaySubject,
   displayTopic,
-  toCountLabel,
   toEnumLabel,
   toErrorMessage,
   toPercentLabel,
-  toPersonName,
 } from "@/lib/presentation";
-import { exportCSV } from "@/lib/exportCsv";
 import { useResetOnIdentityChange } from "@/hooks/useInitialLoadGate";
 import { TestReportPanel } from "./TestReportPanel";
 import {
@@ -129,26 +126,6 @@ function Loading({ label }: { label: string }) {
 const TEST_KINDS = Object.keys(TEST_KIND_LABELS) as TestKind[];
 
 
-/**
- * A row of `public.tests`, and nothing else.
- *
- * This carried `subject`, `is_published`, `max_marks` and `question_count`.
- * None of the four is a column on `tests` — Chunk 7.5 moved the subject to the
- * section_subject anchor (§10.22) and replaced `is_published` with `status`,
- * and the mark column is `max_mark`. Every read of them was `undefined`, so
- * each was a fallback that could never fire and a display that could never be
- * right: `question_count ?? 0` printed "0 Q" against every test in the list.
- */
-type TestRow = {
-  id: string;
-  title?: string;
-  status?: string;
-  test_kind?: string;
-  duration_sec?: number;
-  total_marks?: number | null;
-  passing_marks?: number | null;
-  created_at?: string | null;
-};
 
 function resolveTestStatus(t: { status?: string | null }): string {
   // `status` is NOT NULL on `tests`, so the old `is_published` fallback below

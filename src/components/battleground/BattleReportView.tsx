@@ -1,8 +1,7 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
@@ -18,7 +17,7 @@ import { MathText } from "@/components/MathText";
 import "@/components/student/analytics/wisdom/wisdom-analytics.css";
 import { displayChapter, displayTopic, displaySubject } from "@/lib/academicDisplay";
 
-export type BattleReportPayload = {
+type BattleReportPayload = {
   id: string;
   participant_id: string;
   battle_id: string;

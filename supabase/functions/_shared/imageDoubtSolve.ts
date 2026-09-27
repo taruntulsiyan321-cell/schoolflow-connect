@@ -9,15 +9,15 @@ import { validateModelResponse } from "./responseValidator.ts";
 import { scoreConfidence, applyConfidencePolicy } from "./confidenceEngine.ts";
 import { getBuiltinPrompt, renderPromptTemplate } from "./promptLibrary.ts";
 
-export const IMAGE_DOUBT_CONFIDENCE_THRESHOLD = 0.55;
+const IMAGE_DOUBT_CONFIDENCE_THRESHOLD = 0.55;
 
-export type ImageDoubtSolveStepResult = {
+type ImageDoubtSolveStepResult = {
   step_id: string;
   ok: boolean;
   detail: string;
 };
 
-export type ImageDoubtSolveInput = {
+type ImageDoubtSolveInput = {
   reconstructed_question: string | null | undefined;
   extraction_confidence: number | null | undefined;
   /** Optional L3/solution-cache hit text (permission-safe). */
@@ -30,7 +30,7 @@ export type ImageDoubtSolveInput = {
   model_error?: string | null;
 };
 
-export type ImageDoubtSolveResult = {
+type ImageDoubtSolveResult = {
   capability_id: "student.image_doubt.solve";
   workflow_id: "student.image_doubt.solve.v1";
   status: "clarify" | "cache_hit" | "retrieval" | "model" | "facts_only" | "rejected";
@@ -56,7 +56,7 @@ function normalizeQuestion(q: string | null | undefined): string | null {
   return t.length ? t.slice(0, 4000) : null;
 }
 
-export function gateImageDoubtSolveConfidence(input: {
+function gateImageDoubtSolveConfidence(input: {
   reconstructed_question: string | null | undefined;
   extraction_confidence: number | null | undefined;
 }): { ok: true; question: string; confidence: number } | { ok: false; reason: string; message: string } {

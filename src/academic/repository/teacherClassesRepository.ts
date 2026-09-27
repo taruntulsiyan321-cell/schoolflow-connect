@@ -36,7 +36,7 @@ export interface ClassStudentRow {
 }
 
 /** Resolve teachers.id for the authenticated user within the school. */
-export async function resolveTeacherId(ctx: RepoContext, userId: string): Promise<string> {
+async function resolveTeacherId(ctx: RepoContext, userId: string): Promise<string> {
   const schoolId = schoolIdOf(ctx);
   const { data, error } = await getClient(ctx)
     .from("teachers")

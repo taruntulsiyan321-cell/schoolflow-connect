@@ -62,11 +62,3 @@ export async function uploadStudentUploadFile(
   };
 }
 
-export async function createSignedStudentUploadUrl(
-  storagePath: string,
-  ttlSec = 3600,
-): Promise<string> {
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, ttlSec);
-  if (error || !data?.signedUrl) throw new Error(error?.message || "Could not open that file");
-  return data.signedUrl;
-}

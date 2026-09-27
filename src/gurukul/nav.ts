@@ -127,35 +127,8 @@ export const PAGE_TITLE: Record<PageKey, string> = {
   classhub: "Class",
 };
 
-export function pageTitle(page: PageKey): string {
-  return PAGE_TITLE[page];
-}
 
-/**
- * Which sidebar section a screen lives under — the header's eyebrow.
- *
- * Screens carried four different eyebrow vocabularies: "Student Panel" (2),
- * "Learning Workflow" (3), "Gurukul" (1), the time-of-day greeting (1), and
- * nothing at all (15). None of them told the student anything they could use.
- *
- * This does: it names the sidebar entry the screen sits under, so a student who
- * arrived on Recovery from a Home shortcut can see it belongs to Learning and
- * knows where to find it again. The six top-level screens are their own
- * section and get no eyebrow — the title already says it.
- */
-export function pageSection(page: PageKey, kind: SchoolKind | null = null): string | undefined {
-  // Individual panel: every kept screen is top-level (no Learning / Class hubs).
-  if (kind === "individual") return undefined;
-  if (TOP_LEVEL.includes(page)) return undefined;
-  if (LEARNING.includes(page)) return "Learning";
-  if (CLASS.includes(page)) return "Class";
-  return undefined;
-}
 
-/** The six entries in the sidebar. Their own titles are the whole hierarchy. */
-const TOP_LEVEL: PageKey[] = [
-  "dashboard", "practice", "aicoach", "battleground", "learninghub", "classhub",
-];
 
 /** Organisation vs tenant-of-one — from `schools.kind`. */
 export type SchoolKind = "school" | "individual";
@@ -184,7 +157,7 @@ export const SCHOOL_ONLY_PAGE_KEYS: readonly PageKey[] = [
  * are not PAGE_PATH keys (notices, fees, legacy classes) and deep routes under
  * school-only pages (e.g. /student/battleground/battle/:id).
  */
-export const SCHOOL_ONLY_PATH_PREFIXES: readonly string[] = [
+const SCHOOL_ONLY_PATH_PREFIXES: readonly string[] = [
   "/student/notices",
   "/student/fees",
   "/student/classes",

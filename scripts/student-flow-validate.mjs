@@ -62,7 +62,8 @@ mustInclude("src/gurukul/pages/Recovery.tsx", [/useRecoveryZone|Recovery|from ["
 
 mustInclude("src/gurukul/pages/Revision.tsx", [/Revision|from ["']@\/academic|useAcademic/]);
 
-mustInclude("src/hooks/useStudentXp.ts", [/student_xp|ProgressionService|total_xp/]);
+// The shell reads level, XP and streak once, from ProgressionService.
+mustInclude("src/pages/StudentDashboard.tsx", [/ProgressionService\.getSnapshot/]);
 
 mustInclude("src/gurukul/pages/AICoach.tsx", [
   /askAiCoach|gatewayClient/,

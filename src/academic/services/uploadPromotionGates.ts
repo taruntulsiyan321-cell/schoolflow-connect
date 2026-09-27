@@ -23,7 +23,7 @@ export type UploadPromotionInput = {
 };
 
 /** §10.2.1 — source resolved to a real chapter_id. */
-export function hasRealChapterId(input: Pick<UploadPromotionInput, "chapterId">): boolean {
+function hasRealChapterId(input: Pick<UploadPromotionInput, "chapterId">): boolean {
   return typeof input.chapterId === "string" && input.chapterId.trim().length > 0;
 }
 
@@ -31,7 +31,7 @@ export function hasRealChapterId(input: Pick<UploadPromotionInput, "chapterId">)
  * §10.2.2 — variant validates: options present, exactly one correct key,
  * and a non-empty explanation.
  */
-export function hasValidVariant(
+function hasValidVariant(
   input: Pick<UploadPromotionInput, "options" | "correctIndex" | "explanation">,
 ): boolean {
   const options = input.options;
@@ -49,12 +49,12 @@ export function hasValidVariant(
 }
 
 /** §10.2.3 — not a near-duplicate of a bank question. */
-export function isNotNearDuplicate(input: Pick<UploadPromotionInput, "isNearDup">): boolean {
+function isNotNearDuplicate(input: Pick<UploadPromotionInput, "isNearDup">): boolean {
   return input.isNearDup === false;
 }
 
 /** §10.2.4 — source question was not AI-answered. */
-export function sourceNotAiAnswered(input: Pick<UploadPromotionInput, "answerSource">): boolean {
+function sourceNotAiAnswered(input: Pick<UploadPromotionInput, "answerSource">): boolean {
   return input.answerSource === "file";
 }
 

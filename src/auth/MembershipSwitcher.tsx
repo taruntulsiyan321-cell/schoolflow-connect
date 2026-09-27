@@ -159,5 +159,3 @@ export function MembershipSwitcher({ className = "" }: { className?: string }) {
     </div>
   );
 }
-
-export default MembershipSwitcher;

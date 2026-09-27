@@ -61,7 +61,7 @@ const REPLACEMENT_CHAR_RE = /\uFFFD/;
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHAR_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/;
 
-export type DisplayKind =
+type DisplayKind =
   /** Free text: sentences, descriptions, AI prose. */
   | "text"
   /** A short label: subject, chapter, status, badge. */
@@ -69,7 +69,7 @@ export type DisplayKind =
   /** A person / entity name. UUID-shaped values are rejected. */
   | "name";
 
-export interface DisplayTextOptions {
+interface DisplayTextOptions {
   /** Shown when the value cannot be presented safely. Defaults to an em dash. */
   fallback?: string;
   /** What the value is meant to be. Tightens the rules. Defaults to `text`. */
@@ -83,7 +83,7 @@ export interface DisplayTextOptions {
   maxLength?: number;
 }
 
-export interface DisplayTextResult {
+interface DisplayTextResult {
   /** Always safe to render. */
   text: string;
   /** True when the input was rejected and `text` is the fallback. */
@@ -211,10 +211,6 @@ export function toDisplayText(value: unknown, options?: DisplayTextOptions): str
   return describeDisplayText(value, options).text;
 }
 
-/** True when the value would be rejected by the presentation boundary. */
-export function isDisplaySafe(value: unknown, options?: DisplayTextOptions): boolean {
-  return !describeDisplayText(value, options).usedFallback;
-}
 
 /** True for values that are identifiers rather than content. */
 /** A canonical UUID — e.g. an id arriving in a link, before it is sent anywhere. */

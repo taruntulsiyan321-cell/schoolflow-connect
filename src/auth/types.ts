@@ -49,7 +49,3 @@ export interface SignInCredentials {
   password: string;
 }
 
-export interface AuthErrorInfo {
-  code: string;
-  message: string;
-}

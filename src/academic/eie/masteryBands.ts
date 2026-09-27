@@ -17,7 +17,7 @@ export const EIE_ALGORITHM_ID = "eie.mastery.v1";
  */
 export type MasteryBand = "critical" | "weak" | "developing" | "high" | "very_high";
 
-/** Thresholds aligned with conceptMasteryEngine agent summary (weak < 60, high >= 75). */
+/** Mastery bands: weak below 60, high from 75. */
 export const MASTERY_THRESHOLDS = {
   criticalMax: 40,
   weakMax: 60,

@@ -39,7 +39,7 @@ import { selectPromptWithShadow } from "./promptEvaluation.ts";
 const MODEL = "qwen/qwen3.7-flash";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-export type ModelRouterResult =
+type ModelRouterResult =
   | {
       ok: true;
       text: string;
@@ -68,7 +68,7 @@ export function isOpenRouterConfigured(): boolean {
   return key.trim().length > 0;
 }
 
-export function getPrimaryModelId(): string {
+function getPrimaryModelId(): string {
   return Deno.env.get("OPENROUTER_PRIMARY_MODEL")?.trim() || MODEL;
 }
 

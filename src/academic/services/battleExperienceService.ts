@@ -15,7 +15,7 @@ import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
 import { ValidationFailedError } from "../repository/errors";
 import { validateBattleQuestionDrafts } from "../validation/rules";
 
-export type BattleCreateOpts = {
+type BattleCreateOpts = {
   type: "1v1" | "team" | "class";
   subject: string;
   chapter?: string;
@@ -30,14 +30,14 @@ export type BattleCreateOpts = {
   isPublic?: boolean;
 };
 
-export type TeacherCustomBattleQuestion = {
+type TeacherCustomBattleQuestion = {
   question: string;
   options: string[];
   correctIndex: number;
   points?: number;
 };
 
-export type TeacherCustomBattleOpts = {
+type TeacherCustomBattleOpts = {
   title: string;
   subject: string;
   topic?: string | null;
@@ -46,7 +46,7 @@ export type TeacherCustomBattleOpts = {
   questions: TeacherCustomBattleQuestion[];
 };
 
-export type QuickBattleOpts = {
+type QuickBattleOpts = {
   subject: string;
   difficulty?: string;
   questions?: number;

@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAcademicContext, useAcademicLive } from "@/academic";
 import { useLatestEffect } from "@/hooks/useLatestEffect";
 import { overallAccuracyFromSnapshot } from "@/lib/learningMetrics";
-import { readStudentAcademicSnapshot, type AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { readStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import {
   accuracyFromXp,
   battleRatingFromXp,
@@ -420,7 +420,6 @@ export function useBattlegroundData(enabled = true) {
         setClassmates([]);
       }
 
-      const s = stuRes.data;
       const x = xpData;
       const mates = matesRes.data;
 
@@ -1138,16 +1137,6 @@ export async function ensureFeatured(kind: "daily" | "weekly" | "ncert" | "beat_
   return BattleExperienceService.ensureFeatured(ctx, kind);
 }
 
-export async function ensureFeaturedAll(): Promise<{
-  daily: string | null;
-  weekly: string | null;
-  ncert: string | null;
-  teacher: string | null;
-}> {
-  const { BattleExperienceService, resolveStudentServiceContext } = await import("@/academic");
-  const ctx = await resolveStudentServiceContext();
-  return BattleExperienceService.ensureFeaturedAll(ctx);
-}
 
 export async function loadLeaderboardEntries(
   scope: "class" | "section" | "school" | "subject",

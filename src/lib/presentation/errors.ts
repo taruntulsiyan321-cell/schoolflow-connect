@@ -27,10 +27,10 @@
  * interpolated identifiers, because several of them substitute raw ids via `%`.
  */
 
-import { toDisplayText, NOT_AVAILABLE } from "./safeText";
+import { toDisplayText } from "./safeText";
 
 /** House fallback when nothing specific and safe can be said. */
-export const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
+const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
 
 /** Longest message we will ever show; DB prose can be very long. */
 const MAX_MESSAGE_LENGTH = 220;
@@ -153,7 +153,7 @@ export function looksLikeDatabaseNoise(message: string): boolean {
   return DB_NOISE_PATTERNS.some((re) => re.test(message));
 }
 
-export interface UserMessageOptions {
+interface UserMessageOptions {
   /** Shown when nothing safe and specific can be derived. */
   fallback?: string;
 }
@@ -244,8 +244,3 @@ export function toErrorMessage(error: unknown, fallback: string): string {
   return toUserMessage(error, { fallback });
 }
 
-/** A short, safe label for inline slots that cannot fit a sentence. */
-export function toErrorLabel(error: unknown): string {
-  const msg = toUserMessage(error, { fallback: "" });
-  return msg || NOT_AVAILABLE;
-}

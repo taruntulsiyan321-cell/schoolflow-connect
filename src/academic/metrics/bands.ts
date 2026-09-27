@@ -152,14 +152,14 @@ export const HOMEWORK_HABIT_INCONSISTENT = 50;
  * 100 here is the unit conversion and nothing else — this file must not become
  * a third home for the values themselves.
  */
-export const ACCURACY_LOW = 40;
+const ACCURACY_LOW = 40;
 export const ACCURACY_BUILDING = 60;
 /** 70. The conceptual readiness bar, in percent. */
 export const ACCURACY_CONCEPTUAL = RECOVERY_CONCEPTUAL_THRESHOLD * 100;
 /** 80. The procedural readiness bar, in percent. */
 export const ACCURACY_PROCEDURAL = RECOVERY_PROCEDURAL_THRESHOLD * 100;
 
-export const ACCURACY_BOUNDARIES = [
+const ACCURACY_BOUNDARIES = [
   ACCURACY_LOW,
   ACCURACY_BUILDING,
   ACCURACY_CONCEPTUAL,
@@ -194,17 +194,6 @@ export const ACCURACY_LABEL: Record<AccuracyBand, string> = {
   high: "On track",
 };
 
-export const ACCURACY_TONE: Record<
-  AccuracyBand,
-  "muted" | "alert" | "warning" | "positive"
-> = {
-  unknown: "muted",
-  low: "alert",
-  weak: "alert",
-  building: "warning",
-  near: "warning",
-  high: "positive",
-};
 
 // ── One exam's score — NOT an average ──────────────────────────────────────
 
@@ -224,7 +213,7 @@ export const ACCURACY_TONE: Record<
  * `exams.passing_marks`, per exam, and NULL on 5 of 18 — so it arrives as a
  * Metric<boolean> and `unknown` propagates rather than silently becoming a pass.
  */
-export const EXAM_SCORE_BAND_HIGH = 75;
+const EXAM_SCORE_BAND_HIGH = 75;
 
 export type ExamScoreBand = "unknown" | "below_pass" | "passed" | "high";
 
@@ -252,9 +241,9 @@ export function examScoreBand(
  * individual marks fall into the same five groups instead of two charts
  * disagreeing on the same page.
  */
-export const SUBJECT_AVERAGE_BOUNDARIES = [SUBJECT_AVERAGE_LOW, 60, 75, 90] as const;
+const SUBJECT_AVERAGE_BOUNDARIES = [SUBJECT_AVERAGE_LOW, 60, 75, 90] as const;
 
-export type SubjectAverageBand = AccuracyBand;
+type SubjectAverageBand = AccuracyBand;
 
 export const subjectAverageBand = (v: number | null | undefined): SubjectAverageBand =>
   ACCURACY_RUNGS[rungOf(v, SUBJECT_AVERAGE_BOUNDARIES)] ?? "unknown";
@@ -273,8 +262,8 @@ export const subjectAverageBand = (v: number | null | undefined): SubjectAverage
  * `ProgressRing` has no callers. Two of the seven `score` boundaries in the
  * survey existed only in a component nobody renders.
  */
-export const RISK_LOW = 50;
-export const RISK_COMFORTABLE = 75;
+const RISK_LOW = 50;
+const RISK_COMFORTABLE = 75;
 export const riskBand = (v: number | null | undefined): Band =>
   bandOf(v, RISK_LOW, RISK_COMFORTABLE);
 
@@ -317,10 +306,10 @@ export const STREAK_MILESTONE = 15;
  */
 export const PRACTICE_QUESTIONS_MILESTONE = 100;
 
-export const URGENCY_SOME = 2;
-export const URGENCY_MANY = 4;
+const URGENCY_SOME = 2;
+const URGENCY_MANY = 4;
 
-export type Urgency = "unknown" | "low" | "medium" | "high";
+type Urgency = "unknown" | "low" | "medium" | "high";
 
 const URGENCY_RUNGS = ["low", "medium", "high"] as const;
 

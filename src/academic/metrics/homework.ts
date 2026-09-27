@@ -11,8 +11,8 @@
  * covers. It is not a filter on when the work was set.
  */
 
-import { type Metric, noData, notMarked, pct, count, flag } from "./types";
-import { HOMEWORK_LOW, HOMEWORK_WINDOW } from "./thresholds";
+import { type Metric, noData, notMarked, pct } from "./types";
+import { HOMEWORK_WINDOW } from "./thresholds";
 
 /** One homework task as it bears on one student. */
 export interface HomeworkTask {
@@ -38,7 +38,7 @@ export function pastDue(t: HomeworkTask, today: string): boolean {
 }
 
 /** Within the rolling window of due dates ending today. */
-export function inWindow(t: HomeworkTask, today: string, days = HOMEWORK_WINDOW): boolean {
+function inWindow(t: HomeworkTask, today: string, days = HOMEWORK_WINDOW): boolean {
   if (!t.dueOn) return false;
   const end = new Date(`${today}T00:00:00Z`).getTime();
   const start = end - days * 86400000;
@@ -66,17 +66,6 @@ export function completionRate(tasks: HomeworkTask[], today: string): Metric<num
   return pct(done, due.length, `${done} of ${due.length} past-due task(s)`);
 }
 
-/** One student's completion. Same rule, narrower input. */
-export function studentCompletion(
-  tasks: HomeworkTask[],
-  studentId: string,
-  today: string,
-): Metric<number> {
-  return completionRate(
-    tasks.filter((t) => t.studentId === studentId),
-    today,
-  );
-}
 
 /** Completion within the rolling window — what "current homework" means. */
 export function currentCompletion(
@@ -158,12 +147,4 @@ export function missedWhileAbsent(
   };
 }
 
-/** How much work a section has been set — an activity figure, not a rate. */
-export function tasksAssigned(tasks: HomeworkTask[]): Metric<number> {
-  const ids = new Set(tasks.map((t) => t.homeworkId));
-  return count(ids.size, `${ids.size} distinct task(s)`);
-}
 
-export function homeworkFlag(metric: Metric<number>): Metric<boolean> {
-  return flag(metric, HOMEWORK_LOW, "below");
-}

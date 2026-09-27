@@ -18,7 +18,7 @@ import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
 import { assertMayAccessStudent } from "./parentAccess";
 
-export type ProgressionApplyResult = {
+type ProgressionApplyResult = {
   applied: boolean;
   duplicate: boolean;
   history_id?: string;
@@ -127,7 +127,7 @@ export type TeacherProgressionInsights = {
   } | null;
 };
 
-export type ProgressionLeaderboard = {
+type ProgressionLeaderboard = {
   scope: string;
   period: string;
   metric: string;
@@ -436,5 +436,3 @@ export const ProgressionService = {
     afterProgressionWrite(ctx, "ProgressionService.notifyExternalXpChange");
   },
 };
-
-export { EMPTY_SNAPSHOT as emptyProgressionSnapshot };

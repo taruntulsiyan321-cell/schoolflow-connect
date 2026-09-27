@@ -26,7 +26,7 @@ import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
 import { ForbiddenError, isSchoolOperator } from "./context";
 import { assertMayAccessStudent } from "./parentAccess";
-import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
+import { emitEventBestEffort } from "../repository/eventsRepository";
 import { assertTeacherMayManageAcademicWork } from "./workLifecycle";
 import { ValidationFailedError } from "../repository/errors";
 import { broadcastAcademicWrite } from "../live";
@@ -70,7 +70,7 @@ async function resolveSittingSubject(
 }
 
 /** One subject of one sitting, awaiting marks. Marks are written at this grain. */
-export interface PendingSubjectExam {
+interface PendingSubjectExam {
   exam: ExamRecord;
   subject: ExamSubjectRecord;
 }

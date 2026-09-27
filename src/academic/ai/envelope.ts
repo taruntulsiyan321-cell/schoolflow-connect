@@ -58,7 +58,7 @@ export interface AiClientRequest {
 }
 
 /** Immutable envelope after Gateway binding — clients must not forge these. */
-export interface AiBoundEnvelope extends AiClientRequest {
+interface AiBoundEnvelope extends AiClientRequest {
   request_id: string;
   tenant_id: string;
   actor: AiActor;

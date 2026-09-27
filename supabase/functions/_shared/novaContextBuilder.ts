@@ -51,21 +51,6 @@ export function isPlaceholderLabel(raw: unknown): boolean {
   return false;
 }
 
-export function dedupeLabels(labels: Array<string | null | undefined>, limit = 12): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of labels) {
-    if (raw == null) continue;
-    const label = String(raw).trim();
-    if (isPlaceholderLabel(label)) continue;
-    const key = normalizeLabelKey(label);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(label);
-    if (out.length >= limit) break;
-  }
-  return out;
-}
 
 /** Curriculum subject aliases — collapse Math/Maths → Mathematics etc. */
 const SUBJECT_ALIASES: Record<string, string> = {

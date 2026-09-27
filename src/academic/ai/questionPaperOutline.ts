@@ -8,22 +8,22 @@ import { buildContextPack, packForModel } from "./contextBuilder";
 import { getBuiltinPrompt, renderPromptTemplate } from "./promptLibrary";
 import { validateModelResponse } from "./responseValidator";
 
-export type OutlineGenerationMode = "plan_only" | "outline_with_model";
+type OutlineGenerationMode = "plan_only" | "outline_with_model";
 
-export type PaperOutlineInput = PaperPlanInput & {
+type PaperOutlineInput = PaperPlanInput & {
   /** When false / kill-switch, return plan without model outline. */
   may_call_model?: boolean;
   teacher_notes?: string | null;
 };
 
-export type PaperOutlineSection = {
+type PaperOutlineSection = {
   chapter: string;
   marks: number;
   suggested_question_stems: string[];
   difficulty_hint: string;
 };
 
-export type QuestionPaperOutline = {
+type QuestionPaperOutline = {
   capability_id: "teacher.question_paper.generate_outline";
   dry_run: false;
   generates_full_paper: false;
@@ -56,7 +56,7 @@ export function buildOutlineSectionsFromPlan(plan: QuestionPaperPlan): PaperOutl
   });
 }
 
-export function buildOutlineContextPack(input: PaperOutlineInput, plan: QuestionPaperPlan) {
+function buildOutlineContextPack(input: PaperOutlineInput, plan: QuestionPaperPlan) {
   return buildContextPack({
     capability: "teacher.question_paper.generate_outline",
     request_text: input.teacher_notes ?? `Outline for ${plan.subject}`,

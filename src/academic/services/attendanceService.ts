@@ -47,7 +47,7 @@ function afterAttendanceWrite(
   });
 }
 
-export interface ClassDateAttendanceSummary {
+interface ClassDateAttendanceSummary {
   classId: string;
   /**
    * CHUNK 10.7. Both nullable in Postgres (`classes.name`, `classes.section`).
@@ -70,7 +70,7 @@ export interface ClassDateAttendanceSummary {
   edited: boolean;
 }
 
-export interface SchoolDateAttendanceSummary {
+interface SchoolDateAttendanceSummary {
   date: string;
   /**
    * present ÷ students in the sections that SUBMITTED — §10's hard requirement.
@@ -389,7 +389,7 @@ export const AttendanceService = {
   },
 };
 
-export type { AssignedClass, ClassStudentRow, AttendanceRecord, AttendanceStatus, UpsertAttendanceInput };
+export type { AssignedClass, ClassStudentRow, AttendanceRecord, AttendanceStatus };
 
 export interface ParentChildRow {
   id: string;

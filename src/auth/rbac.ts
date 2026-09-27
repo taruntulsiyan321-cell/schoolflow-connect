@@ -1,7 +1,7 @@
 import type { AppRole } from "./types";
-import { ROLE_HOME, ROLE_MODULES, ROUTE_ALLOW } from "./constants";
+import { ROLE_HOME, ROUTE_ALLOW } from "./constants";
 
-export function isPortalRole(role: AppRole | null | undefined): role is keyof typeof ROLE_HOME {
+function isPortalRole(role: AppRole | null | undefined): role is keyof typeof ROLE_HOME {
   return !!role && role in ROLE_HOME;
 }
 
@@ -26,10 +26,6 @@ export function canAccessPath(role: AppRole | null | undefined, pathname: string
   );
 }
 
-export function canAccessModule(role: AppRole | null | undefined, moduleKey: string): boolean {
-  if (!role) return false;
-  return ROLE_MODULES[role]?.includes(moduleKey) ?? false;
-}
 
 export function mapAuthError(error: { message?: string; status?: number } | null | undefined): string {
   if (!error?.message) return "Something went wrong. Please try again.";

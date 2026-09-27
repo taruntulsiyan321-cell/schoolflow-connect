@@ -5,3 +5,11 @@ sessions/
 neural/
 *.log
 *.tmp
+
+# Runtime state the daemon rewrites — not configuration
+daemon-state.json
+harness-active-policy.json
+memory-package.json
+metrics/
+policy/
+security/

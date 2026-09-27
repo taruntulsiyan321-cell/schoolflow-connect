@@ -2,10 +2,10 @@ import { createContext, useContext } from "react";
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
 import type { SchoolKind } from "@/gurukul/nav";
 
-export type GurukulStudent = GurukulStudentProfile;
+type GurukulStudent = GurukulStudentProfile;
 
 /** Academic identity shared by Home + Practice (from useAcademicContext SSOT). */
-export type GurukulAcademicIdentity = {
+type GurukulAcademicIdentity = {
   studentId: string | null;
   schoolId: string | null;
   classId: string | null;

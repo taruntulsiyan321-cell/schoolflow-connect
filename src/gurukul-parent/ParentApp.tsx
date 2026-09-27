@@ -24,8 +24,6 @@ import { useParentLiveChildren } from "./ParentLiveAttendance";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 
-export type { ParentPageKey } from "./nav";
-
 function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "?";

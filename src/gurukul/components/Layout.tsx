@@ -86,8 +86,6 @@ const profileExtraLinks = [
   { label: "Fees", path: "/student/fees", icon: <Wallet className="w-3.5 h-3.5" /> },
 ];
 
-export type { GurukulStudentProfile };
-
 export default function Layout({
   page,
   setPage,

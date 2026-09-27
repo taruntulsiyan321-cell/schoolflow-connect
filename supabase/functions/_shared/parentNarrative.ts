@@ -3,7 +3,7 @@
  * No LLM required; optional explain path may phrase later via Router.
  */
 
-export type ParentNarrativeInput = {
+type ParentNarrativeInput = {
   student_label?: string;
   attendance_pct: number;
   homework_completion_pct: number;
@@ -28,7 +28,7 @@ export type ParentNarrativeInput = {
   data_version: string;
 };
 
-export type ParentNarrative = {
+type ParentNarrative = {
   projection: "ParentScheduledNarrative";
   version: 1;
   narrative: string;

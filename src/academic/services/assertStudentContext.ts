@@ -1,7 +1,7 @@
 import type { ServiceContext } from "./context";
 import { MissingSchoolContextError } from "../tenant";
 
-export type StudentContextReadiness = {
+type StudentContextReadiness = {
   ready: boolean;
   userId: string | null;
   studentId: string | null;

@@ -16,12 +16,12 @@
 
 import { type Metric, ok, noData, notMarked, pct, count } from "./types";
 
-export interface ActivityWindow {
+interface ActivityWindow {
   from: string;
   to: string;
 }
 
-export interface HomeworkSet {
+interface HomeworkSet {
   homeworkId: string;
   teacherId: string | null;
   sectionId: string | null;
@@ -29,7 +29,7 @@ export interface HomeworkSet {
   createdOn: string;
 }
 
-export interface TestConducted {
+interface TestConducted {
   testId: string;
   teacherId: string | null;
   sectionId: string | null;
@@ -37,7 +37,7 @@ export interface TestConducted {
 }
 
 /** One day's attendance submission for one section. */
-export interface SubmissionDay {
+interface SubmissionDay {
   sectionId: string;
   date: string;
   submitted: boolean;
@@ -119,15 +119,3 @@ export function subjectsTaught(homework: HomeworkSet[]): Metric<string[]> {
   return ok(subjects, `${subjects.length} subject(s) across ${homework.length} task(s)`);
 }
 
-/** Distinct sections a teacher has set work for. */
-export function sectionsTaught(
-  homework: HomeworkSet[],
-  tests: TestConducted[],
-): Metric<number> {
-  const ids = new Set(
-    [...homework.map((h) => h.sectionId), ...tests.map((t) => t.sectionId)].filter(Boolean),
-  );
-  const total = homework.length + tests.length;
-  if (total === 0) return noData("no homework or tests");
-  return count(ids.size, `${ids.size} section(s) across ${total} item(s)`);
-}

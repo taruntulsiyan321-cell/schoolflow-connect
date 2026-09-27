@@ -75,7 +75,7 @@ import { ValidationFailedError, AcademicRepositoryError } from "../repository/er
  * rows carry — nothing in the application writes it, and it is kept in the
  * constraint because 72 rows would otherwise become un-updatable.
  */
-export type TestStatus = "draft" | "scheduled" | "published" | "archived";
+type TestStatus = "draft" | "scheduled" | "published" | "archived";
 
 function afterTestWrite(
   ctx: ServiceContext,
@@ -88,7 +88,7 @@ function afterTestWrite(
   });
 }
 
-export interface CreateTestInput {
+interface CreateTestInput {
   classId: string;
   title: string;
   subject?: string;
@@ -107,7 +107,7 @@ export interface CreateTestInput {
   paperAttachments?: { name: string; url: string; mimeType?: string }[];
 }
 
-export type UpdateTestInput = Partial<CreateTestInput>;
+type UpdateTestInput = Partial<CreateTestInput>;
 
 /**
  * One question on an online test: an MCQ, and only an MCQ.
@@ -343,7 +343,7 @@ function sectionIdOfTest(row: unknown): string {
  * the enum and dropped the boolean, so `status` is now the only place the
  * answer lives and there is nothing left to disagree with it.
  */
-export function isPublishedFlag(row: Record<string, unknown>): boolean {
+function isPublishedFlag(row: Record<string, unknown>): boolean {
   return row.status === "published";
 }
 

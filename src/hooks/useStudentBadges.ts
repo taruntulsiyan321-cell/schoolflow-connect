@@ -9,7 +9,7 @@ import {
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
 
-export type EarnedBadge = EarnedBadgeRow;
+type EarnedBadge = EarnedBadgeRow;
 
 export function useStudentBadges(userId: string | undefined) {
   const liveVersion = useAcademicLive(["achievements", "xp"]);
@@ -63,15 +63,3 @@ export function useStudentBadges(userId: string | undefined) {
   return { earned, equipped, loading: showLoading(loading), saving, equip, reload };
 }
 
-/** Batch-load public equipped badges for classmates / leaderboards. */
-export async function fetchEquippedBadgesByUserIds(
-  userIds: string[],
-): Promise<Record<string, string | null>> {
-  try {
-    const ctx = await resolveStudentServiceContext();
-    const { XpService } = await import("@/academic");
-    return XpService.getEquippedByUserIds(ctx, userIds);
-  } catch {
-    return {};
-  }
-}

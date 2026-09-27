@@ -3,7 +3,7 @@
  * Never invents school-wide stats; honest empty when aggregates missing.
  */
 
-export type SchoolHealthAggregateInput = {
+type SchoolHealthAggregateInput = {
   school_id: string;
   class_count?: number | null;
   student_count?: number | null;
@@ -25,7 +25,7 @@ export type SchoolHealthAggregateInput = {
   eie_algorithm_id?: string | null;
 };
 
-export type SchoolHealthBrief = {
+type SchoolHealthBrief = {
   capability_id: "principal.school.health_brief";
   projection: "PrincipalSchoolHealthBrief";
   version: 1;

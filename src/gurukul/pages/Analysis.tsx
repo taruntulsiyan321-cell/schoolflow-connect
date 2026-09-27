@@ -1,7 +1,7 @@
-﻿import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
-  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  AreaChart, Area, BarChart, Bar,
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   Cell,
@@ -61,7 +61,6 @@ import { hasStudyActiveDays, studyActiveDaysFromSnapshot } from "@/lib/learningM
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { toErrorMessage } from "@/lib/presentation";
 import { formatLastSeen } from "@/lib/analyticsInsights";
-import { useKeyedResource } from "@/hooks/useKeyedResource";
 import { pluralise } from "@/lib/plural";
 import { improveHeadline, improveSubline } from "./analysisImproveCard";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
@@ -86,11 +85,6 @@ function subjectColor(name: string, index: number) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function scoreColor(v: number) {
-  if (v >= 80) return "hsl(var(--info))";
-  if (v >= 65) return "hsl(var(--warning))";
-  return "hsl(var(--destructive))";
-}
 
 /**
  * Study time in the largest unit that does not round the figure away.
@@ -170,7 +164,7 @@ const LINE_MIN_POINTS = 2;
 export default function Analysis() {
   const [tab, setTab] = useState<Tab>("overview");
   const student = useGurukulStudent();
-  const { ctx, ready: academicReady, settled: academicSettled, studentId, classId } = useAcademicContext();
+  const { ctx, ready: academicReady, settled: academicSettled } = useAcademicContext();
   // Rule 11: Analysis is practice-only, so it no longer subscribes to the
   // marks or examination channels — it has nothing to refresh from them.
   useAcademicLive(["profile"]);

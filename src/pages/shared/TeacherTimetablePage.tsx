@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
-import { CalendarDays, BookOpen, Clock } from "lucide-react";
+import { CalendarDays, Clock } from "lucide-react";
 
 const PERIODS = ["1", "2", "3", "4", "Lunch", "5", "6", "7"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

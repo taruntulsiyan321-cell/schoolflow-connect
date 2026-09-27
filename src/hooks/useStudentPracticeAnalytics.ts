@@ -27,7 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
  * and it let a single 579-second reading — a tab left open, not a hard topic
  * — rank as the slowest topic on the page.
  */
-export type TopicAnalyticsRow = {
+type TopicAnalyticsRow = {
   topic: string;
   subject: string | null;
   chapter: string | null;
@@ -45,7 +45,7 @@ export type TopicAnalyticsRow = {
   total_min: number | null;
 };
 
-export type SubjectAnalyticsRow = {
+type SubjectAnalyticsRow = {
   subject: string;
   attempts: number;
   /** Attempts that were not skipped. The accuracy denominator. */
@@ -59,7 +59,7 @@ export type SubjectAnalyticsRow = {
   total_min: number | null;
 };
 
-export type ChapterAnalyticsRow = {
+type ChapterAnalyticsRow = {
   chapter: string;
   subject: string | null;
   attempts: number;
@@ -74,7 +74,7 @@ export type ChapterAnalyticsRow = {
   total_min: number | null;
 };
 
-export type DifficultyAnalyticsRow = {
+type DifficultyAnalyticsRow = {
   difficulty: string;
   attempts: number;
   /** Attempts that were not skipped. The accuracy denominator. */
@@ -87,7 +87,7 @@ export type DifficultyAnalyticsRow = {
   avg_sec: number | null;
 };
 
-export type EffortAnalytics = {
+type EffortAnalytics = {
   attempts: number;
   solution_viewed: number;
   repeat_attempts: number;
@@ -95,7 +95,7 @@ export type EffortAnalytics = {
   first_try_correct: number;
 };
 
-export type RecurringMistakeRow = {
+type RecurringMistakeRow = {
   topic: string | null;
   chapter: string | null;
   subject: string | null;
@@ -104,7 +104,7 @@ export type RecurringMistakeRow = {
   question_text: string | null;
 };
 
-export type StudentPracticeAnalytics = {
+type StudentPracticeAnalytics = {
   /**
    * Every subject this student has attempted a question in, most first.
    *
@@ -252,7 +252,7 @@ function parseAnalytics(payload: unknown): { data: StudentPracticeAnalytics; ok:
   };
 }
 
-export { parseAnalytics, CONTRACT_ERROR };
+export { parseAnalytics };
 
 export function useStudentPracticeAnalytics(enabled = true) {
   const liveVersion = useAcademicLive(["xp", "profile"]);

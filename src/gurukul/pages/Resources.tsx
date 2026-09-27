@@ -42,7 +42,7 @@ export default function Resources() {
    */
   const [hrefs, setHrefs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const { beginLoading, endLoading, showLoading } = useInitialLoadGate([classId]);
+  const { beginLoading, endLoading } = useInitialLoadGate([classId]);
 
   useEffect(() => {
     // Still resolving is not loaded — see the long note in ClassHub.tsx.

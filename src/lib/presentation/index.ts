@@ -27,60 +27,36 @@
  */
 
 export {
-  NOT_AVAILABLE,
-  describeDisplayText,
   toDisplayText,
   toPercentLabel,
   toCountLabel,
-  isDisplaySafe,
-  isIdentifierLike,
   isUuid,
-  type DisplayKind,
-  type DisplayTextOptions,
-  type DisplayTextResult,
 } from "./safeText";
 
 export {
-  GENERIC_ERROR_MESSAGE,
-  looksLikeDatabaseNoise,
-  toErrorLabel,
   toErrorMessage,
-  toUserMessage,
-  type UserMessageOptions,
 } from "./errors";
 
 export {
   enumOptions,
   humanizeEnumValue,
-  isKnownEnumValue,
   toEnumLabel,
-  type EnumDomain,
-  type EnumLabelOptions,
 } from "./enums";
 
 export {
   toClassLabel,
-  toInitials,
   toPersonName,
-  toPersonNameFrom,
-  type PersonKind,
-  type PersonNameOptions,
 } from "./people";
 
 export {
   toAiLine,
   toAssistantMarkdown,
-  toAssistantText,
-  type AssistantTextResult,
 } from "./aiText";
 
 // Academic label presentation already has an SSOT — surface it here too so a
 // single import covers every "value -> user-facing text" need.
 export {
   displayChapter,
-  displayConcept,
   displaySubject,
   displayTopic,
-  isPlaceholderAcademicLabel,
-  presentAcademicLabel,
 } from "@/academic/taxonomy";

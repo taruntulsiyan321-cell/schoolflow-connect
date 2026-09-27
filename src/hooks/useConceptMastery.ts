@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
-export type ConceptMasteryItem = {
+type ConceptMasteryItem = {
   subject: string;
   chapter?: string;
   concept: string;

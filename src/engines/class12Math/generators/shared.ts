@@ -1,7 +1,7 @@
 import { fmt, randInt } from "../random";
 import { coeff, register, generators } from "./register";
 
-export { coeff, generators, register };
+export { generators };
 
 // ── Relations and Functions ───────────────────────────────────────────────────
 register("rf_composition_linear", (data, rng) => {
@@ -19,7 +19,6 @@ register("rf_composition_linear", (data, rng) => {
 });
 
 register("rf_inverse_linear", (data, rng) => {
-  const v = Number(data.variant ?? 0);
   const a = randInt(rng, 2, 9) * (rng() > 0.5 ? 1 : -1);
   const b = randInt(rng, 1, 12);
   return {
@@ -293,7 +292,6 @@ register("vec_dot", (data, rng) => {
 });
 
 register("vec_magnitude", (data, rng) => {
-  const v = Number(data.variant ?? 0);
   const a = randInt(rng, 1, 5);
   const b = randInt(rng, 1, 5);
   const mag = Math.sqrt(a * a + b * b);

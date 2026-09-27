@@ -60,7 +60,7 @@ export type AcademicTermRef = TaxonomyTermRef;
  * has no DISTINCT ON, so the collapse happens here, and it must keep the
  * newest row rather than an arbitrary one.
  */
-export function dedupePreservingOrder(ids: string[]): string[] {
+function dedupePreservingOrder(ids: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const id of ids) {

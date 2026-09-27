@@ -10,7 +10,7 @@
 import { getCapability } from "./capabilityCatalog";
 import type { AiActorRole } from "./envelope";
 
-export type MappedIntent = {
+type MappedIntent = {
   feature_id: string;
   confidence: number;
 };

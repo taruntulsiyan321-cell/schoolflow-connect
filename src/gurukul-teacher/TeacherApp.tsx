@@ -40,8 +40,6 @@ function RedirectTeacherClassTab({ tab }: { tab: string }) {
   return <Navigate to="/teacher/classes" replace />;
 }
 
-export type { TeacherPageKey } from "./nav";
-
 interface NavItem {
   key: TeacherPageKey;
   label: string;

@@ -7,8 +7,8 @@
  * Override via Vite env, e.g. VITE_FF_DOUBT_ATTACHMENT_IMAGE=1, VITE_FF_UNAVAILABLE_MODE=hide
  */
 
-export type FeaturePresentation = "live" | "coming_soon" | "hidden";
-export type UnavailableFeatureMode = "coming_soon" | "hide";
+type FeaturePresentation = "live" | "coming_soon" | "hidden";
+type UnavailableFeatureMode = "coming_soon" | "hide";
 
 export type DoubtAttachKind = "image" | "camera" | "pdf" | "voice";
 
@@ -95,7 +95,7 @@ export function resolveNovaPresentation(kind: keyof typeof NOVA_FEATURE_FLAGS): 
   return resolveFeaturePresentation(NOVA_FEATURE_FLAGS[kind]);
 }
 
-export type DoubtAttachControl = {
+type DoubtAttachControl = {
   id: DoubtAttachKind;
   label: string;
   presentation: Exclude<FeaturePresentation, "hidden">;

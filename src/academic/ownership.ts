@@ -7,7 +7,7 @@ export type OwnerRole = Extract<
   "admin" | "principal" | "teacher" | "student" | "parent"
 >;
 
-export interface EntityOwnership {
+interface EntityOwnership {
   entity: AcademicEntityKey;
   /** Roles allowed to create/update the source record */
   owners: readonly OwnerRole[];

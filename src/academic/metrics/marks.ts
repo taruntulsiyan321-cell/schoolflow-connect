@@ -13,7 +13,7 @@
  * missing data on 28% of exams.
  */
 
-import { type Metric, ok, noData, notMarked, pct, count } from "./types";
+import { type Metric, ok, noData, notMarked, pct } from "./types";
 import { CLASS_FLAGGED_ON_MARKS, MARKS_OVERDUE, belowPass } from "./thresholds";
 
 /** One mark, with the exam it belongs to. */
@@ -62,39 +62,15 @@ export function markAverage(marks: MarkRow[]): Metric<number> {
 }
 
 /** One student's average. */
-export function studentAverage(marks: MarkRow[], studentId: string): Metric<number> {
+function studentAverage(marks: MarkRow[], studentId: string): Metric<number> {
   return markAverage(marks.filter((m) => m.studentId === studentId));
 }
 
-/** Average per subject, worst first. */
-export function averageBySubject(
-  marks: MarkRow[],
-): Metric<{ subject: string; pct: number; entries: number }[]> {
-  if (marks.length === 0) return noData("no marks");
-
-  const bySubject = new Map<string, MarkRow[]>();
-  for (const m of marks) {
-    const s = (m.subject ?? "").trim();
-    if (!s) continue;
-    bySubject.set(s, [...(bySubject.get(s) ?? []), m]);
-  }
-  if (bySubject.size === 0) return noData("no mark carries a subject");
-
-  const out: { subject: string; pct: number; entries: number }[] = [];
-  for (const [subject, rows] of bySubject) {
-    const m = markAverage(rows);
-    if (m.state !== "ok") continue;
-    out.push({ subject, pct: m.value, entries: rows.filter(scorable).length });
-  }
-  if (out.length === 0) return notMarked(`${bySubject.size} subject(s), none with entered marks`);
-  out.sort((a, b) => a.pct - b.pct);
-  return ok(out, `${out.length} subject(s) with entered marks`);
-}
 
 // ── Distribution and below-pass ────────────────────────────────────────────
 
 /** Fixed bands, so two screens cannot disagree about what "good" is. */
-export const BANDS = [
+const BANDS = [
   { label: "below 40", min: 0, max: 40 },
   { label: "40–59", min: 40, max: 60 },
   { label: "60–74", min: 60, max: 75 },
@@ -284,7 +260,3 @@ export function marksOverdue(
   );
 }
 
-/** Exams conducted in the window — a count, where zero is a real answer. */
-export function examsConducted(exams: ExamRow[]): Metric<number> {
-  return count(exams.length, `${exams.length} exam(s)`);
-}

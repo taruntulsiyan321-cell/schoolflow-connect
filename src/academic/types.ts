@@ -3,15 +3,6 @@
  * These are application-level shapes — not a second database.
  */
 
-export interface AcademicYear {
-  id: string;
-  schoolId: string;
-  name: string;
-  startsOn: string;
-  endsOn: string;
-  status: "planned" | "active" | "closed" | "archived";
-  isCurrent: boolean;
-}
 
 export interface StudentAcademicProfile {
   id: string;
@@ -57,19 +48,6 @@ export interface TeacherRemark {
   createdAt: string;
 }
 
-export interface AcademicAuditEntry {
-  id: string;
-  schoolId: string;
-  entityType: string;
-  entityId: string;
-  action: string;
-  actorUserId: string | null;
-  actorRole: string | null;
-  previousValue: Record<string, unknown> | null;
-  newValue: Record<string, unknown> | null;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-}
 
 /** Structured summaries consumed by the AI layer (never raw multi-table dumps). */
 export interface StudentAiSummary {

@@ -14,18 +14,18 @@ export type RiskBand = "low" | "moderate" | "elevated" | "high" | "unknown";
  * three meanings, one type. The words are only comparable if the numbers are
  * visible.
  */
-export const RISK_SCORE_HIGH = 75;
-export const RISK_SCORE_ELEVATED = 55;
-export const RISK_SCORE_MODERATE = 35;
+const RISK_SCORE_HIGH = 75;
+const RISK_SCORE_ELEVATED = 55;
+const RISK_SCORE_MODERATE = 35;
 
 /**
  * CONSISTENCY: INVERTED — a higher score is HEALTHIER, so the ladder runs the
  * other way. Deliberately not sharing RISK_SCORE_*: reusing those constants
  * here would read as agreement while meaning the opposite.
  */
-export const CONSISTENCY_HEALTHY = 85;
-export const CONSISTENCY_MODERATE = 70;
-export const CONSISTENCY_ELEVATED = 50;
+const CONSISTENCY_HEALTHY = 85;
+const CONSISTENCY_MODERATE = 70;
+const CONSISTENCY_ELEVATED = 50;
 
 export type AttendanceRiskProduct = {
   product: "attendance_risk";

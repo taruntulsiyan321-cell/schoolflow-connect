@@ -18,14 +18,14 @@
  * NUMBERS: nobody can now "align" the three ladders without noticing they were
  * never measuring the same thing.
  */
-export type DoubtUrgencyBand = "low" | "moderate" | "elevated" | "high" | "unknown";
+type DoubtUrgencyBand = "low" | "moderate" | "elevated" | "high" | "unknown";
 
 /** An ITEM'S claim on attention. Not comparable to RISK_SCORE_* - different subject. */
-export const DOUBT_URGENCY_HIGH = 75;
-export const DOUBT_URGENCY_ELEVATED = 50;
-export const DOUBT_URGENCY_MODERATE = 25;
+const DOUBT_URGENCY_HIGH = 75;
+const DOUBT_URGENCY_ELEVATED = 50;
+const DOUBT_URGENCY_MODERATE = 25;
 
-export type DoubtUrgencyProduct = {
+type DoubtUrgencyProduct = {
   product: "doubt_urgency";
   age_hours: number;
   view_count: number;

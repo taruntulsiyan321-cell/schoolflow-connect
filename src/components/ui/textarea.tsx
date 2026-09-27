@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 // An interface declaring no members is exactly its supertype, so it is written
 // as the alias it actually is. Every consumer imports the same name.
-export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
+type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, ...props }, ref) => {
   return (

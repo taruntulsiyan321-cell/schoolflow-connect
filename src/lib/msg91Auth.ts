@@ -18,12 +18,12 @@ type VerifyMsg91Response = {
   verified_phone_masked?: string;
 };
 
-export type Msg91SignInResult =
+type Msg91SignInResult =
   | { ok: true; is_new_user: boolean; verified_phone_masked: string }
   | { ok: false; error: string };
 
 /** Safe fingerprint sent with the access-token — keys / shape / length only. */
-export type Msg91TokenMetaPayload = Pick<Msg91AccessTokenMeta, "keys" | "jwt_shaped" | "length">;
+type Msg91TokenMetaPayload = Pick<Msg91AccessTokenMeta, "keys" | "jwt_shaped" | "length">;
 
 /**
  * Verifies the MSG91 access-token server-side (never trusts a phone number
