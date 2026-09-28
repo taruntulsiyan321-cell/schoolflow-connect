@@ -3947,7 +3947,7 @@ topic; after, an approved variant and an unseen same-topic question. Three
 sabotaged copies of the migration are refused by its proof. **Apply
 20261117000000 on the live database** for it to take effect.
 
-## 90. A failed recovery round gets the same questions again — NEEDS A RULING
+## 90. A failed recovery round gets the same questions again — FIXED in 20261118000000 (not yet applied live)
 
 **Found:** 2026-09-28, auditing Recovery.
 
@@ -3960,10 +3960,22 @@ the round, each variant job asks for one variant (`count: 1`), and
 every round after the first is the same questions in the same order, which
 is the memorisation §4.6 exists to prevent.
 
-Building it needs decisions §4.6 leaves open: how long a round-2 and round-3
-session is (round 1 plus new grows 4 → 8 → 12 for one mistake), how many
-questions a round-4+ session draws from the pool, and the AI cost of one or
-two more variants per mistake per tier.
+**Owner's ruling (2026-09-28):** every round is the size of the first, with
+questions no earlier round used swapped in.
+
+**Fix:** the plan knows its round (rounds finished since the chapter was last
+cleared). Rounds 2-3 take variants no earlier round used and wait, with that
+reason on the card, until new ones are written, falling back to the least
+recently used if writing fails. Round 4+ takes the least recently used and
+writes nothing. A failed round now prepares the next and queues its
+variants; Start builds through the same builder, so it queues too; and the
+dispatcher closes a job only when a variant written after it exists (it used
+to close any job whose question already had a variant). Walked through on a
+local replica: before, rounds 1-4 all asked the same two variants and nothing
+was queued; after, round 2 waited for and used new variants, round 3 fell
+back when generation failed, round 4 reused the least recently used. Two
+sabotaged copies of the migration are refused by its proof. **Apply
+20261118000000 on the live database** (after 20261117000000).
 
 Related, also in the spec: §4.6 says "Nothing clears automatically", but
 `rpc_submit_recovery_session` clears every open mistake in the chapter when a

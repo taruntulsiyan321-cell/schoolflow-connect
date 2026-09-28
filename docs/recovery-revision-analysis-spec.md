@@ -297,6 +297,14 @@ a new session is generated.
 | **3** | Everything from rounds 1–2 **+ new questions** | Fresh |
 | **4+** | Drawn from the pool built across rounds 1–3 | **None** |
 
+**Ruled 2026-09-28 — every round is the size of the first.** "Everything from
+round 1 + new questions" would grow a one-mistake session from 4 to 8 to 12.
+Instead each round keeps the same ladder and swaps in questions no earlier
+round of this recovery used: rounds 2–3 wait for new variants to be written
+(and fall back to the least recently used if writing them fails), and round
+4+ draws the least recently used from what rounds 1–3 built. A chapter that
+is cleared and later returns starts again at round 1 (20261118000000).
+
 **Why fresh questions in every one of the first three rounds.** A student who saw
 the same set each time would eventually pass by remembering those answers rather
 than understanding the chapter — exactly what the transfer ladder exists to
