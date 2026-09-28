@@ -3920,3 +3920,51 @@ Its fixture's `next_revision_at` is `2026-09-30T11:25:09Z` and it expects
 so. The component is right; the fixture should be a local date. Found by
 running the suite under `TZ=Pacific/Kiritimati` (every Analysis test passes in
 UTC-11, UTC, UTC+5:30 and UTC+14).
+
+## 89. Recovery steps the app would not show, and a far step not about the mistake — FIXED in 20261117000000 (not yet applied live)
+
+**Found:** 2026-09-28, auditing Recovery and Revision.
+
+* Tier 3 (§4.2 "same topic, different application") was the chapter's
+  oldest questions, the same for every student: no topic, no difficulty, no
+  check that the student had not seen them, no approval filter, and
+  upload-promoted variants allowed. It is now chosen per mistake by
+  `_recovery_step_pool`: the mistake's topic, then its difficulty, then
+  unseen, then age; approved originals only.
+* Tier 1-2 variants did not require `is_approved`, and Practice loads a
+  recovery session through `question_bank_student`, which serves approved
+  questions only — so a session could show fewer questions than it planned.
+  The revision check's misses had the same gap.
+* The plan and the Recovery card read `RECOVERY_WIDE_MAX_MISTAKES` as the
+  relearn limit instead of `RECOVERY_RELEARN_ABOVE` (both 8 today).
+* Practising a chapter reset its revision date to 7 days whatever its stage,
+  pulling a solid (30-day) chapter back to weekly. It now resets at the
+  chapter's own stage.
+
+Proven on a local replica built from the migration files: before, tier 1
+planned an unapproved variant and tier 3 an upload variant from another
+topic; after, an approved variant and an unseen same-topic question. Three
+sabotaged copies of the migration are refused by its proof. **Apply
+20261117000000 on the live database** for it to take effect.
+
+## 90. A failed recovery round gets the same questions again — NEEDS A RULING
+
+**Found:** 2026-09-28, auditing Recovery.
+
+§4.6: round 2 is everything from round 1 plus new questions, round 3 the same
+again, and round 4+ draws from the pool built in rounds 1-3 without
+generating. Not built: `RECOVERY_GENERATION_ROUNDS` is declared in
+`src/academic/recovery/constants.ts` and read nowhere. The plan does not know
+the round, each variant job asks for one variant (`count: 1`), and
+`_enqueue_variant_generation` stops once one variant per tier exists. So
+every round after the first is the same questions in the same order, which
+is the memorisation §4.6 exists to prevent.
+
+Building it needs decisions §4.6 leaves open: how long a round-2 and round-3
+session is (round 1 plus new grows 4 → 8 → 12 for one mistake), how many
+questions a round-4+ session draws from the pool, and the AI cost of one or
+two more variants per mistake per tier.
+
+Related, also in the spec: §4.6 says "Nothing clears automatically", but
+`rpc_submit_recovery_session` clears every open mistake in the chapter when a
+round comes out ready (citing §4.5). The two sections disagree.
