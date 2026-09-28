@@ -1228,6 +1228,42 @@ type SessionQuestionRows =
   | CapturePracticeRows
   | Array<BankRows[number] | UploadPracticeRows[number] | CapturePracticeRows[number]>;
 
+/**
+ * The questions behind ids that may be ANY of the three kinds a student's own
+ * question can be: a bank question, an upload question, or a screen capture.
+ *
+ * Recovery's tier 0 and a revision check's misses both carry all three
+ * (20261104000000 gave recovery the ruling, 20261118000000 gave revision the
+ * same one), so the resolution lives here once. It used to live only in the
+ * recovery branch, and the revision branch loaded from the bank alone — which
+ * is why a chapter recovered from captured mistakes got a check that asked
+ * about none of them.
+ *
+ * Order is the caller's: the ids are returned in the order they were asked for,
+ * and one that resolves to nothing is dropped rather than faked.
+ */
+async function loadQuestionsByOwnIds(
+  ctx: NonNullable<ReturnType<typeof useAcademicContext>["ctx"]>,
+  ids: string[],
+): Promise<Array<BankRows[number] | UploadPracticeRows[number] | CapturePracticeRows[number]>> {
+  if (ids.length === 0) return [];
+  const [bankRows, uploadRows, captureRows] = await Promise.all([
+    PracticeService.listBankQuestions(ctx, { ids, limit: ids.length }),
+    StudentUploadService.listByIds(ctx, ids),
+    listCaptureQuestionsByIds(ctx, ids),
+  ]);
+  const byId = new Map<
+    string,
+    BankRows[number] | UploadPracticeRows[number] | CapturePracticeRows[number]
+  >();
+  for (const r of bankRows) byId.set(r.id, r);
+  for (const r of uploadRows) byId.set(r.id, r);
+  for (const r of captureRows) byId.set(r.id, r);
+  return ids
+    .map((id) => byId.get(id))
+    .filter((r): r is NonNullable<typeof r> => r != null);
+}
+
 /** The questions a session asks, decided by its mode. */
 async function loadSessionQuestions(
   ctx: NonNullable<ReturnType<typeof useAcademicContext>["ctx"]>,
@@ -1251,32 +1287,18 @@ async function loadSessionQuestions(
     // different set than the totals recorded at start.
     // Spec §9 / migration 720+770 — tier 0 may carry upload or capture originals.
     const tierOf = config.recovery.tierByQuestionId;
-    const ids = Object.keys(tierOf);
-    const [bankRows, uploadRows, captureRows] = await Promise.all([
-      PracticeService.listBankQuestions(ctx, { ids, limit: ids.length }),
-      StudentUploadService.listByIds(ctx, ids),
-      listCaptureQuestionsByIds(ctx, ids),
-    ]);
-    const byId = new Map<
-      string,
-      (typeof bankRows)[number] | (typeof uploadRows)[number] | (typeof captureRows)[number]
-    >();
-    for (const r of bankRows) byId.set(r.id, r);
-    for (const r of uploadRows) byId.set(r.id, r);
-    for (const r of captureRows) byId.set(r.id, r);
-    return ids
-      .map((id) => byId.get(id))
-      .filter((r): r is NonNullable<typeof r> => r != null)
-      .sort((a, b) => (tierOf[a.id] ?? 0) - (tierOf[b.id] ?? 0));
+    const rows = await loadQuestionsByOwnIds(ctx, Object.keys(tierOf));
+    return rows.sort((a, b) => (tierOf[a.id] ?? 0) - (tierOf[b.id] ?? 0));
   }
   if (config.revision) {
     // §5.4 — the check is already built by a server function that can see this
     // student's whole attempt history. Exactly those questions, in that order
     // (their own misses first), and nothing else: topping up from the bank is
     // how already-seen questions got into a check meant to contain none.
-    const ids = config.revision.questionIds;
-    const byId = new Map((await PracticeService.listBankQuestions(ctx, { ids, limit: ids.length })).map((r) => [r.id, r]));
-    return ids.map((id) => byId.get(id)).filter((r): r is NonNullable<typeof r> => r != null);
+    // The misses half may name an upload question or a screen capture, not only
+    // a bank question (20261118000000) — the same three kinds recovery's tier 0
+    // carries, resolved by the same helper.
+    return loadQuestionsByOwnIds(ctx, config.revision.questionIds);
   }
   switch (config.mode) {
     case "incorrect":

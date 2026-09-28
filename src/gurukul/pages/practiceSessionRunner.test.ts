@@ -141,3 +141,43 @@ describe("a practice session records what the student was shown", () => {
     expect(failed, "starting a new session would drop these answers").not.toContain("Retry Same Mode");
   });
 });
+
+/**
+ * KNOWN_ISSUES 90 — a revision check re-asks what the student brought.
+ *
+ * The misses half of rpc_revision_session_plan may now name an upload question
+ * or a screen capture, not only a bank question (20261118000000). The runner
+ * therefore has to resolve a revision check's ids from the same three places
+ * the recovery ladder's tier 0 does; it read the bank alone, so a chapter
+ * recovered from captured mistakes got a check that asked about none of them.
+ */
+describe("a revision check's questions are loaded like recovery's", () => {
+  it("resolves both recovery and revision through one shared resolver", () => {
+    // One definition, used by both branches — not two loaders that agree today.
+    expect(SOURCE).toMatch(/async function loadQuestionsByOwnIds\(/);
+    const recovery = SOURCE.indexOf("if (config.recovery) {");
+    const revision = SOURCE.indexOf("if (config.revision) {");
+    const afterRecovery = SOURCE.slice(recovery, revision);
+    const afterRevision = SOURCE.slice(revision, revision + 1200);
+    expect(afterRecovery).toContain("loadQuestionsByOwnIds(ctx, Object.keys(tierOf))");
+    expect(afterRevision).toContain("loadQuestionsByOwnIds(ctx, config.revision.questionIds)");
+  });
+
+  it("no longer loads a revision check from the bank alone", () => {
+    const revision = SOURCE.indexOf("if (config.revision) {");
+    const branch = SOURCE.slice(revision, revision + 1200);
+    // The bank-only read is what dropped every brought question on the floor.
+    expect(branch).not.toMatch(/listBankQuestions\(ctx, \{ ids/);
+  });
+
+  it("the shared resolver asks all three places a student's own question lives", () => {
+    const start = SOURCE.indexOf("async function loadQuestionsByOwnIds(");
+    const body = SOURCE.slice(start, start + 1400);
+    expect(body).toContain("PracticeService.listBankQuestions");
+    expect(body).toContain("StudentUploadService.listByIds");
+    expect(body).toContain("listCaptureQuestionsByIds");
+    // Order is the caller's, and an id that resolves to nothing is dropped,
+    // never faked into a blank question.
+    expect(body).toMatch(/ids\s*\n?\s*\.map\(\(id\) => byId\.get\(id\)\)/);
+  });
+});

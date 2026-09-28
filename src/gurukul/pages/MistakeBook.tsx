@@ -9,7 +9,7 @@ import { PracticeService, StudentUploadService, useAcademicContext, useAcademicL
 import { deleteScreenCaptureQuestion } from "@/academic/services/screenCaptureService";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
-import { mapRowToMistake, type Mistake, type MistakeRow } from "./mistakeRow";
+import { mapRowToMistake, mistakeIsAskable, type Mistake, type MistakeRow } from "./mistakeRow";
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, PageSkeleton, ProgressBar, ProgressRing, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Bookmark, BookmarkCheck,
@@ -134,10 +134,26 @@ function MistakeCard({
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground font-semibold hover:bg-secondary transition-all">
             <Eye className="w-3 h-3"/> Details {expanded ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
           </button>
-          <button onClick={onRetry}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-violet-300 text-xs font-bold hover:bg-violet-500/25 transition-all">
-            <RotateCcw className="w-3 h-3"/> Retry
-          </button>
+          {/* A button that offers Retry must be able to ask the question.
+              KNOWN_ISSUES 91: a mistake whose question has been withdrawn from
+              the bank (or whose upload or capture has been deleted) cannot be
+              served, and Retry opened a session that silently had nothing in
+              it. The row stays — they really did get it wrong — and says why
+              instead. Details and Explain still work: the question text, the
+              options and the answer are on the row itself. */}
+          {mistake.askable ? (
+            <button onClick={onRetry}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-violet-300 text-xs font-bold hover:bg-violet-500/25 transition-all">
+              <RotateCcw className="w-3 h-3"/> Retry
+            </button>
+          ) : (
+            <span
+              data-testid="mistake-not-askable"
+              title="Recovery for this chapter will still clear it."
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-muted border border-border text-[11px] font-semibold text-muted-foreground">
+              <RotateCcw className="w-3 h-3"/> This one can't be asked again
+            </span>
+          )}
           <button onClick={onExplain}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/25 text-sky-300 text-xs font-bold hover:bg-sky-500/25 transition-all">
             <Brain className="w-3 h-3"/> Explain
@@ -479,17 +495,23 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           new Set(base.map((r) => r.question_id).filter((id): id is string => Boolean(id))),
         );
         const difficultyByBank = new Map<string, string>();
+        // Which of those bank questions can still be ASKED (KNOWN_ISSUES 91).
+        // Absent from the view is as final as inactive: the view already
+        // withholds unapproved rows and anything outside this student's own
+        // board or exam, and none of those can be served either.
+        const bankActive = new Set<string>();
         if (bankIds.length > 0) {
           const { data: bankRows } = await supabase
             // The student view, not the base table. It carries difficulty
             // and withholds correct_index and explanation, which this read
             // never wanted — and the base table is staff-only now.
             .from("question_bank_student")
-            .select("id, difficulty")
+            .select("id, difficulty, is_active")
             .in("id", bankIds);
           for (const b of bankRows ?? []) {
-            const row = b as { id: string; difficulty: string | null };
+            const row = b as { id: string; difficulty: string | null; is_active: boolean | null };
             if (row.difficulty) difficultyByBank.set(row.id, row.difficulty);
+            if (row.is_active !== false) bankActive.add(row.id);
           }
         }
         // Migration 700: prefer student_mistakes.upload_question_id (§9.1).
@@ -511,6 +533,27 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           for (const u of uploadQs ?? []) {
             const row = u as { id: string; answer_source: string };
             if (row.id) uploadMetaById.set(row.id, row.answer_source);
+          }
+        }
+        // A capture the student deleted leaves its mistake behind (the foreign
+        // key is ON DELETE SET NULL), and that mistake can no longer be asked.
+        const captureAlive = new Set<string>();
+        const knownCaptureIds = Array.from(
+          new Set(
+            base
+              .map((r) => r.capture_question_id)
+              .filter((id): id is string => Boolean(id)),
+          ),
+        );
+        if (knownCaptureIds.length > 0) {
+          const { data: captureQs } = await supabase
+            .from("student_capture_questions")
+            .select("id")
+            .eq("owner_id", user.id)
+            .in("id", knownCaptureIds);
+          for (const c of captureQs ?? []) {
+            const row = c as { id: string };
+            if (row.id) captureAlive.add(row.id);
           }
         }
         const uploadByText = new Map<string, { id: string; answer_source: string }>();
@@ -550,11 +593,19 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             const answerSource = fromCol
               ? uploadMetaById.get(fromCol)
               : fromText?.answer_source;
-            return {
+            const enriched = {
               ...r,
               difficulty: (r.question_id && difficultyByBank.get(r.question_id)) || r.difficulty || null,
               upload_question_id: uploadId,
               ai_answered: answerSource === "ai",
+            };
+            return {
+              ...enriched,
+              askable: mistakeIsAskable(enriched, {
+                bankActive,
+                uploadAlive: new Set(uploadMetaById.keys()),
+                captureAlive,
+              }),
             };
           }),
         );

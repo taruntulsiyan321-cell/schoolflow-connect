@@ -20,6 +20,16 @@ export interface Mistake {
   /** Spec §11 — student_capture_questions.id when source=screen_capture. */
   captureQuestionId: string | null;
   aiAnswered: boolean;
+  /**
+   * Can this question still be put in front of the student?
+   *
+   * False when the thing it was asked from is gone: a bank question that has
+   * been deactivated or replaced, an upload question deleted with its file, a
+   * capture the student removed. Such a mistake stays in the book — they really
+   * did get it wrong — but Retry would open a session that serves nothing, so
+   * the card says so instead of offering it (KNOWN_ISSUES 91).
+   */
+  askable: boolean;
 }
 
 export type MistakeRow = {
@@ -46,7 +56,29 @@ export type MistakeRow = {
   /** Spec §5.1 — real chapters.id when tagged; null when untagged. */
   chapter_id?: string | null;
   ai_answered?: boolean;
+  /** Filled by the reader from what still exists; absent means askable. */
+  askable?: boolean;
 };
+
+/**
+ * Whether a mistake's question can still be asked — ONE rule, so the book and
+ * the session runner cannot disagree about it.
+ *
+ * A bank question must still be live: present in the student's own view (which
+ * withholds unapproved and out-of-scope rows) AND active. A question the student
+ * brought must still have its row. Anything with nothing linked at all is left
+ * askable: the mistake row itself carries the text and the options, which is
+ * what the runner serves for a legacy row.
+ */
+export function mistakeIsAskable(
+  row: Pick<MistakeRow, "question_id" | "upload_question_id" | "capture_question_id">,
+  live: { bankActive: Set<string>; uploadAlive: Set<string>; captureAlive: Set<string> },
+): boolean {
+  if (row.question_id) return live.bankActive.has(row.question_id);
+  if (row.upload_question_id) return live.uploadAlive.has(row.upload_question_id);
+  if (row.capture_question_id) return live.captureAlive.has(row.capture_question_id);
+  return true;
+}
 
 function parseOptions(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.map(String);
@@ -122,6 +154,7 @@ export function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     questionId: row.question_id ?? null,
     uploadQuestionId: row.upload_question_id ?? null,
     captureQuestionId: row.capture_question_id ?? null,
+    askable: row.askable !== false,
     aiAnswered: Boolean(row.ai_answered && row.upload_question_id),
   };
 }

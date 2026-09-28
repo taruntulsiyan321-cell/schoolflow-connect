@@ -4026,7 +4026,7 @@ paper says so with its counts ("6 of 50 questions ready, from 3 chapters"). It i
 84, and it closes the same way — questions. General Aptitude Test has no questions and so does not appear
 at all.
 
-## 90. A revision check never re-asks a question the student BROUGHT — OPEN, the ruling recovery already got
+## 90. ~~A revision check never re-asks a question the student BROUGHT~~ — FIXED, 20261118000000 applied 2026-09-28
 
 Recovery was given this ruling on 2026-09-25 (20261104000000, "a question the student brought gets its
 recovery steps"): a chapter whose mistakes were all screen captures or uploads could never reach a
@@ -4053,7 +4053,32 @@ re-ask a brought question is a ruling: recovery says yes for the same content, s
 today. `student_capture_questions` and `student_upload_questions` both carry question_text, options and
 correct_index, so there is no technical obstacle — the runner already serves them in recovery.
 
-## 91. A mistake on a DEACTIVATED question can never be answered again — OPEN, needs a ruling
+**Fixed 2026-09-28.** `rpc_revision_session_plan`'s misses half no longer joins `question_bank`: it takes
+`COALESCE(question_id, upload_question_id, capture_question_id)` and tests each kind's own liveness — a bank
+question must still be active and unreplaced, a brought question's own row must still exist. The cap
+(`REVISION_MISTAKE_MAX`), the order (most-repeated first) and the whole fresh half are untouched.
+
+The client half mattered as much: the recovery branch already resolved a mixed id set from three places
+(`question_bank`, `student_upload_questions`, `student_capture_questions`) because tier 0 may carry an upload
+or a capture, while the revision branch read the bank alone. That resolution is now one function,
+`loadQuestionsByOwnIds`, used by both — pinned by three tests in `practiceSessionRunner.test.ts`, including
+one that fails if the revision branch ever goes back to a bank-only read.
+
+Measured live after applying, for chapter "Principles of Management" (3 open mistakes: 2 bank, 1 capture):
+
+```
+before   0 of their mistakes re-asked + 8 fresh
+after    1 of their mistakes re-asked + 8 fresh = 9 questions   ← the screen capture
+control  2 withdrawn bank questions, 0 of them asked
+```
+
+REMAINING LIMIT, deliberate: a check still needs at least one FRESH question, so "Money and Banking" (whose
+whole subject holds 6 questions across 3 chapters) is still refused with "there is nothing new left in this
+chapter to check you on". That is §5.4 and the refusal is at plan time, which costs the student nothing —
+`rpc_submit_revision_session` would refuse to score a check built out of the mistake book alone. It closes
+with questions, like items 84 and 89.
+
+## 91. ~~A mistake on a DEACTIVATED question can never be answered again, and Retry offered it anyway~~ — FIXED 2026-09-28
 
 Measured on production 2026-09-28, chapter "Principles of Management" for the CUET audit account:
 
@@ -4079,3 +4104,18 @@ Three ways out, none to be chosen without the owner: clear a mistake when its qu
 (losing the record of it), keep it and mark it unanswerable in the Mistake Book so the student can see
 why, or re-ask it through a variant of itself the way recovery does. The second is the smallest and the
 most honest.
+
+**Fixed 2026-09-28**, where the student can see it. `mistakeIsAskable(row, live)` in `mistakeRow.ts` is now
+the one rule: a bank question must be in the student's own view AND active; a brought question's own row
+must still exist; a legacy row that links to nothing stays askable, because its own text and options are
+what the runner serves. The Mistake Book's reader fills it (the bank read now also asks for `is_active`, and
+a new read checks which captures still exist), and the card shows **"This one can't be asked again"** in
+place of Retry, with the reason on hover: recovery for the chapter will still clear it.
+
+Seven tests in `mistakeAskable.test.ts` cover every branch, including the two that would have hidden this
+one — a row carrying both a bank id and a capture id (the bank id decides, because that is what would be
+served), and a legacy row linking to nothing (still askable).
+
+What is NOT changed: the mistake still counts towards the open total and the recovery trigger. It should —
+the student really did get it wrong, and completing recovery for the chapter is what clears it. Only the
+promise that it could be re-answered is gone.
