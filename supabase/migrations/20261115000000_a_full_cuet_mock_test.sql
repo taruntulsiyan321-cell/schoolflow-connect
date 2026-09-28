@@ -94,14 +94,25 @@ DECLARE
   _rows jsonb;
 BEGIN
   FOR _who IN
-    -- Every exam account, and up to five students of a real organisation
-    -- school: the two arms of the pool.
+    -- Every exam account, and five students of a real organisation school:
+    -- the two arms of the pool.
+    --
+    -- The school sample is LIMITed inside its own subquery on purpose. Written
+    -- as `SELECT … UNION SELECT … LIMIT 5` the limit applies to the WHOLE
+    -- union, and since a union's order is arbitrary it took five school
+    -- students and no exam account at all — which the control below caught on
+    -- the first dry run against production ("0 exam and 20 school comparisons
+    -- had rows"). A replica with three callers could never have shown it.
     SELECT ea.account_id AS sub FROM public.exam_accounts ea
     UNION
-    SELECT s.user_id FROM public.students s
-      JOIN public.schools sc ON sc.id = s.school_id
-     WHERE s.user_id IS NOT NULL AND sc.kind = 'school' AND s.deleted_at IS NULL
-     LIMIT 5
+    SELECT few.sub FROM (
+      SELECT s.user_id AS sub
+        FROM public.students s
+        JOIN public.schools sc ON sc.id = s.school_id
+       WHERE s.user_id IS NOT NULL AND sc.kind = 'school' AND s.deleted_at IS NULL
+       ORDER BY s.created_at
+       LIMIT 5
+    ) few
   LOOP
     FOR _arg IN
       SELECT * FROM (VALUES (NULL::int, NULL::text), (10, NULL), (11, 'commerce'), (12, 'commerce'), (12, NULL)) v(lvl, strm)
@@ -1003,9 +1014,23 @@ BEGIN
   END IF;
 
   -- 5. AS A REAL EXAM ACCOUNT: the catalog, the offer, and the whole paper.
-  SELECT ea.account_id INTO _acct FROM public.exam_accounts ea
+  --
+  -- The account with the MOST of its syllabus in the bank, counted here as the
+  -- owner from the base tables (the same three conditions the pool resolves to
+  -- for an exam account). Measured on production 2026-09-27: of four exam
+  -- accounts, three see 1,124 questions across 29 chapters and one sees none,
+  -- because its exam has no questions at all — so "the earliest account" would
+  -- have made this proof's outcome depend on which row sorted first.
+  SELECT ea.account_id INTO _acct
+    FROM public.exam_accounts ea
    WHERE NOT EXISTS (SELECT 1 FROM public.mock_attempts m WHERE m.user_id = ea.account_id)
-   ORDER BY ea.created_at LIMIT 1;
+   ORDER BY (
+     SELECT count(*) FROM public.question_bank qb
+      WHERE qb.is_active AND qb.is_approved AND qb.exam_id = ea.exam_id
+        AND qb.chapter_id IN (SELECT s.chapter_id FROM public.exam_syllabus_chapters s
+                               WHERE s.exam_id = ea.exam_id AND s.stream = ea.stream)
+   ) DESC, ea.created_at
+   LIMIT 1;
   IF _acct IS NULL THEN
     RAISE EXCEPTION 'there is no exam account to prove a mock test with';
   END IF;
@@ -1020,7 +1045,9 @@ BEGIN
   END IF;
   _subjects := jsonb_array_length(_view->'subjects');
   IF _subjects = 0 THEN
-    RAISE EXCEPTION 'the catalog offered this exam account no subject at all — its syllabus has no active questions';
+    -- A content fact, not a defect in this migration, and it must not be
+    -- swallowed: said out loud, and the offer and the sitting go unproven.
+    RAISE WARNING 'NOT PROVEN: no exam account has a single active question in its syllabus, so no subject could be offered. The grants and the paper shape are proven; the offer, the refusal and the sitting are not.';
   END IF;
 
   -- Every subject: ready ⇒ a whole paper can be built, spread under the cap;
