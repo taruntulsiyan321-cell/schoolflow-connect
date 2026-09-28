@@ -3878,35 +3878,40 @@ is the data and the one unread payload field.
   every file that defines it (20261031000000's header) and this container
   cannot read it; remove it by in-place substitution once it can be read.
 
-## 86. Battle answers feed the weak topics Analysis shows — NEEDS A RULING
+## 86. Battle answers in weak topics — CLOSED, not a defect for individual accounts
 
 `_weak_topics_for_user` (20261024000000) unions `battle_answers` with practice
-attempts, and the snapshot's `weak_topics` — Analysis's "Need attention" list —
-is built from it. Rule 11 says Analysis is fed by practice and nothing else.
-Whether Battleground counts as practice is the owner's call; the function also
-feeds recovery and revision, so it is not changed here.
+attempts. Battleground is a school-only page (`SCHOOL_ONLY_PAGE_KEYS`,
+`src/gurukul/nav.individualPanel.test.ts`): an individual student has no
+Battleground and no battle answers, so their "Need attention" list is built
+from practice alone. This entry was raised in error for the individual panel.
 
-## 87. A broken practice streak is still shown as current — NEEDS A RULING
+## 87. A broken practice streak is still shown as current — FIXED in 20261116000000 (not yet applied live)
 
 **Found:** 2026-09-28, auditing Analysis ("Practice streak", the streak
 milestone, "Reach a 7-day streak").
+**Owner's ruling (2026-09-28):** when the student breaks the streak, it turns
+to zero.
 
 `student_xp.study_streak` is only written by `_progression_bump_study_streak`,
 which `rpc_finish_practice_session` calls when a session finishes
-(20260802310000). `rpc_get_student_progression` (20260826150000) returns the
-stored value as it is, without looking at `last_study_date`, and no scheduled
-job resets it. So a student with a 10-day streak who stops practising reads
-"10-day practice streak" on Analysis and Home for as long as they stay away;
-the number only drops when their next session bumps it.
+(20260802310000), and nothing lowered it in between. A student with a 10-day
+streak who stopped practising read "10-day practice streak" on Analysis, Home,
+Profile, the parent page and the leaderboard until their next session.
 
-The bump also takes `CURRENT_DATE`, a UTC date, so a session between 00:00 and
-05:30 in India counts on the previous day.
+**Fix:** `reset_broken_study_streaks()`, run daily at 00:01 UTC by pg_cron job
+`reset-broken-study-streaks` and once when the migration is applied, zeroes the
+current streak (and the week/month runs) of every student whose last practice
+day is before yesterday — the same rule the writer restarts on. It fixes the
+stored number, so every reader is right without a change of its own. The
+longest streak and the last practice day are kept. Proven on a local
+Postgres 16 replica; **apply 20261116000000 on the live database** for it to
+take effect.
 
-Not changed here because `streak_protection_tokens` exist beside it: whether a
-missed day breaks the streak at once or spends a token first is the owner's
-rule, and the reader must apply the same rule the writer does. The fix, once
-ruled: `rpc_get_student_progression` returns 0 (or the protected value) when
-`last_study_date` is before yesterday on the student's calendar.
+Still open: the writer's day is `CURRENT_DATE` of a UTC database, so a
+session between 00:00 and 05:30 in India counts on the previous day, and the
+reset follows that same UTC day. Moving the streak to the student's own day
+means changing the writer and the reset together.
 
 ## 88. `RecoveryClearAnyway.test.tsx` assumes a UTC clock — test only, OPEN
 

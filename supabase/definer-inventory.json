@@ -4739,6 +4739,17 @@
       "justification": "The caller's own practice time per day of their calendar and per hour, from question_attempts and practice_sessions filtered to user_id = auth.uid(); it raises for a null caller. Its one argument is an IANA time zone checked against pg_timezone_names, never a user id. EXECUTE revoked from PUBLIC and anon (20261115000000).",
       "verifiedBy": "20261115000000 proof: as a real student the days sum to that student's question_attempts time and finished sessions, the hours to their last 28 days of attempts; an unknown zone raises 22023; a null identity raises; anon has no EXECUTE.",
       "reviewed": false
+    },
+    "reset_broken_study_streaks()": {
+      "name": "reset_broken_study_streaks",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "integer",
+      "grants": [],
+      "calls": [],
+      "justification": "Run daily at 00:01 UTC by pg_cron (reset-broken-study-streaks): zeroes study_streak, study_week_streak and study_month_streak on every student_xp row whose last_study_date is before yesterday, the day rule _progression_bump_study_streak restarts on. Returns only a count. EXECUTE revoked from PUBLIC, anon and authenticated (20261116000000).",
+      "verifiedBy": "20261116000000 proof: two days since practice and no last day both read 0; practised yesterday and today keep 5 and 7; longest streak and last day unchanged; the writer then gives 1 and 6; neither anon nor authenticated can execute; the cron job exists.",
+      "reviewed": false
     }
   },
   "edge": {
