@@ -23,6 +23,35 @@ import { valueOr } from "@/academic/metrics/types";
 
 export { buildSubjectRadarPoints };
 
+/**
+ * ONE COLOUR PER SUBJECT ON THE PAGE, most distinct first.
+ *
+ * Subjects were coloured by a name map, and it gave English and Social
+ * Science the same --warning, and Science --info, which is hue 192 against
+ * --primary's 193 for Mathematics — a Class 10 student's list, radar-less
+ * bars and time chart had two pairs of subjects that could not be told apart.
+ * The page's subjects take these in order instead (subjectColors), so no two
+ * share one until there are more subjects than colours.
+ */
+export const SUBJECT_PALETTE = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "hsl(var(--success))",
+  "hsl(var(--warning))",
+  "hsl(var(--primary-glow))",
+  "hsl(var(--tier-gold))",
+  "hsl(var(--destructive))",
+];
+
+/** Display subject name -> colour, distinct in list order. */
+export function subjectColors(names: string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const name of names) {
+    if (!out.has(name)) out.set(name, SUBJECT_PALETTE[out.size % SUBJECT_PALETTE.length]);
+  }
+  return out;
+}
+
 export const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
 /**
@@ -126,12 +155,23 @@ export function trendState(accuracies: number[]): {
 } {
   const delta = latestVersusPrevious(accuracies);
   if (delta == null) return { state: "not_enough_data", deltaPoints: null };
-  if (Math.abs(delta) < TREND_DELTA_POINTS) return { state: "stuck", deltaPoints: delta };
-  return { state: delta > 0 ? "improving" : "worsening", deltaPoints: delta };
+  // WHOLE POINTS, once, here — the score line, the subject and chapter cells,
+  // the chapter list and the milestone printed "+27.7" in some places and
+  // "28" in others. The verdict is made on the same number the student sees:
+  // judged on 9.6 it would read "stuck" beside "10 pts", under a tooltip
+  // saying it moved 10 points, under the 10-point threshold.
+  const shown = Math.round(delta);
+  if (Math.abs(shown) < TREND_DELTA_POINTS) return { state: "stuck", deltaPoints: shown };
+  return { state: shown > 0 ? "improving" : "worsening", deltaPoints: shown };
 }
 
-/** This week vs previous week activity totals by weekday (Mon–Sun). */
 /**
+ * This CALENDAR week (Monday to today) against last calendar week, by weekday.
+ *
+ * It compared the last seven days with the seven before and drew them under
+ * Mon..Sun — so on a Wednesday, last Thursday's sessions stood under "This
+ * week · Thu", a day that has not happened yet this week.
+ *
  * TAKES DAYS, not a table.
  *
  * It was typed to WeeklyActivityPoint[] and every caller handed it
@@ -152,9 +192,11 @@ export function buildWeekComparison(
   days: { date: string; total?: number | null }[],
   now = new Date(),
 ): { day: string; thisWeek: number; lastWeek: number }[] {
-  const thisStart = daysAgo(6, now);
-  const lastStart = daysAgo(13, now);
-  const lastEnd = daysAgo(7, now);
+  const today = startOfDay(now);
+  // Monday of this week; getDay() is 0 = Sunday.
+  const thisStart = daysAgo((today.getDay() + 6) % 7, now);
+  const lastStart = new Date(thisStart.getFullYear(), thisStart.getMonth(), thisStart.getDate() - 7);
+  const lastEnd = new Date(thisStart.getFullYear(), thisStart.getMonth(), thisStart.getDate() - 1);
 
   const thisByDay = new Map<string, number>();
   const lastByDay = new Map<string, number>();
@@ -162,7 +204,7 @@ export function buildWeekComparison(
   for (const row of days) {
     const d = dateOnlyToLocal(row.date);
     const label = weekdayLabel(row.date);
-    if (d >= thisStart) {
+    if (d >= thisStart && d <= today) {
       thisByDay.set(label, (thisByDay.get(label) ?? 0) + (row.total ?? 0));
     } else if (d >= lastStart && d <= lastEnd) {
       lastByDay.set(label, (lastByDay.get(label) ?? 0) + (row.total ?? 0));
@@ -237,7 +279,7 @@ type SubjectPaceRow = { name: string; color: string; avgSec: number; timed: numb
 type SubjectPace = {
   /** Fastest first. Only subjects with enough answered, timed questions. */
   rows: SubjectPaceRow[];
-  /** Pooled seconds per question across those subjects. 0 when none qualify. */
+  /** Pooled seconds per answer over EVERY timed answer. 0 below the floor. */
   avgSec: number;
   fastest: SubjectPaceRow | null;
   /** Null with fewer than two subjects: one row cannot be both ends. */
@@ -295,15 +337,22 @@ export function paceOverAnswers(
 export function deriveSubjectPace(
   input: { name: string; color: string; avgSec: number | null; timed: number }[],
 ): SubjectPace {
-  const kept = input.filter((r) => mayBeJudged(r.timed) && (r.avgSec ?? 0) > 0);
-  const rows: SubjectPaceRow[] = kept
+  const measured = input.filter((r) => r.timed > 0 && (r.avgSec ?? 0) > 0);
+  const rows: SubjectPaceRow[] = measured
+    .filter((r) => mayBeJudged(r.timed))
     .map((r) => ({ name: r.name, color: r.color, avgSec: r.avgSec as number, timed: r.timed }))
     .sort((a, b) => a.avgSec - b.avgSec);
-  const timed = rows.reduce((n, r) => n + r.timed, 0);
-  const seconds = rows.reduce((n, r) => n + r.avgSec * r.timed, 0);
+  // The overall pace is EVERY timed answer, not just the subjects with enough
+  // of them to be ranked: the floor decides which subject may be called
+  // fastest, not which answers count. Pooled over the subjects that qualified,
+  // a student with twelve timed answers across three subjects read "—", and
+  // the tile's caption "across every question you were timed on" was false.
+  // The pooled figure has its own floor, on all of them together.
+  const timed = measured.reduce((n, r) => n + r.timed, 0);
+  const seconds = measured.reduce((n, r) => n + (r.avgSec as number) * r.timed, 0);
   return {
     rows,
-    avgSec: timed > 0 ? seconds / timed : 0,
+    avgSec: mayBeJudged(timed) ? seconds / timed : 0,
     fastest: rows[0] ?? null,
     slowest: rows.length > 1 ? rows[rows.length - 1] : null,
   };
@@ -488,10 +537,11 @@ export function deriveRecoveryProgress(
     // §3.2 'recovered' is the engine's own word for a chapter that cleared
     // both readiness rates — counted where the engine writes it.
     completed: (states ?? []).filter((s) => s.state === "recovered").length,
-    // Ready means the trigger is met and a session can be built right now.
-    // A chapter three mistakes in is not "pending recovery"; it is a chapter
-    // the student is still working in.
-    stillPending: rows.filter((r) => r.ready).length,
+    // A session can START here now — `startable`, the one fact the snapshot's
+    // recovery_pending (20261109000000) and the Recovery screen both count.
+    // `ready` alone includes chapters that reached the trigger but cannot
+    // build a plan, so this tile read 14 beside a Summary saying 10.
+    stillPending: rows.filter((r) => r.ready && r.startable).length,
   };
 }
 
@@ -508,7 +558,7 @@ export function deriveRecoveryProgress(
 export function deriveRecoveryChapters(queue: RecoveryQueueRow[] | null | undefined): {
   chapter: string;
   subject: string;
-  status: "ready" | "building" | "recovered" | "relearn";
+  status: "ready" | "blocked" | "building" | "recovered" | "relearn";
   openMistakes: number;
   triggerCount: number;
 }[] {
@@ -528,7 +578,10 @@ export function deriveRecoveryChapters(queue: RecoveryQueueRow[] | null | undefi
         // drill them BECAUSE they have too many.
         status: r.state === "recovered" ? ("recovered" as const)
               : r.mode === "relearn" ? ("relearn" as const)
-              : r.ready ? ("ready" as const)
+              : r.ready && r.startable ? ("ready" as const)
+              // Reached the trigger, but no session can be built from what is
+              // there — the Recovery screen says "can't start here yet".
+              : r.ready ? ("blocked" as const)
               : ("building" as const),
         openMistakes: r.open_mistakes,
         triggerCount: r.trigger_count,

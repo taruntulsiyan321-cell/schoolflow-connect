@@ -3885,3 +3885,33 @@ attempts, and the snapshot's `weak_topics` — Analysis's "Need attention" list 
 is built from it. Rule 11 says Analysis is fed by practice and nothing else.
 Whether Battleground counts as practice is the owner's call; the function also
 feeds recovery and revision, so it is not changed here.
+
+## 87. A broken practice streak is still shown as current — NEEDS A RULING
+
+**Found:** 2026-09-28, auditing Analysis ("Practice streak", the streak
+milestone, "Reach a 7-day streak").
+
+`student_xp.study_streak` is only written by `_progression_bump_study_streak`,
+which `rpc_finish_practice_session` calls when a session finishes
+(20260802310000). `rpc_get_student_progression` (20260826150000) returns the
+stored value as it is, without looking at `last_study_date`, and no scheduled
+job resets it. So a student with a 10-day streak who stops practising reads
+"10-day practice streak" on Analysis and Home for as long as they stay away;
+the number only drops when their next session bumps it.
+
+The bump also takes `CURRENT_DATE`, a UTC date, so a session between 00:00 and
+05:30 in India counts on the previous day.
+
+Not changed here because `streak_protection_tokens` exist beside it: whether a
+missed day breaks the streak at once or spends a token first is the owner's
+rule, and the reader must apply the same rule the writer does. The fix, once
+ruled: `rpc_get_student_progression` returns 0 (or the protected value) when
+`last_study_date` is before yesterday on the student's calendar.
+
+## 88. `RecoveryClearAnyway.test.tsx` assumes a UTC clock — test only, OPEN
+
+Its fixture's `next_revision_at` is `2026-09-30T11:25:09Z` and it expects
+"30 Sept"; in UTC+14 that instant is 1 October, and the screen correctly says
+so. The component is right; the fixture should be a local date. Found by
+running the suite under `TZ=Pacific/Kiritimati` (every Analysis test passes in
+UTC-11, UTC, UTC+5:30 and UTC+14).

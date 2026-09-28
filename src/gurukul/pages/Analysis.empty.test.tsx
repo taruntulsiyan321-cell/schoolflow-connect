@@ -58,7 +58,7 @@ import Analysis from "./Analysis";
 
 describe("Analysis — a student with no practice at all", () => {
   const openTab = (label: string) =>
-    fireEvent.click(screen.getByRole("button", { name: label }));
+    fireEvent.click(screen.getByRole("tab", { name: label }));
 
   it("renders every tab without throwing", () => {
     render(<Analysis />);

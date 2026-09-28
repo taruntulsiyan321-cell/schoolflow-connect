@@ -156,6 +156,14 @@ describe("deriveRecoveryProgress", () => {
     expect(p.totalToRevisit).toBe(3);
   });
 
+  it("counts a ready chapter only when a session can start there — the Summary's rule", () => {
+    const p = deriveRecoveryProgress([
+      queued({ chapter_id: "a", ready: true, startable: true }),
+      queued({ chapter_id: "b", ready: true, startable: false, blocked_reason: "no conceptual questions exist" }),
+    ], []);
+    expect(p.stillPending).toBe(1);
+  });
+
   it("reports recovered from the engine's own state word", () => {
     const p = deriveRecoveryProgress(
       [queued({ chapter_id: "a", state: "recovered" }), queued({ chapter_id: "b", state: "has_mistakes" })],
@@ -191,6 +199,11 @@ describe("deriveRecoveryChapters", () => {
       queued({ chapter_id: "c", chapter: "Trigonometry", state: "recovered" }),
     ]);
     expect(rows.map((r) => r.status)).toEqual(["ready", "building", "recovered"]);
+  });
+
+  it("does not call a chapter Ready when no session can start there", () => {
+    const [row] = deriveRecoveryChapters([queued({ ready: true, startable: false })]);
+    expect(row.status).toBe("blocked");
   });
 
   it("carries the counts the card shows instead of an invented percentage", () => {

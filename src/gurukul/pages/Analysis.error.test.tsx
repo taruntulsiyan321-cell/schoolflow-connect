@@ -89,7 +89,7 @@ describe("Analysis — a load that failed", () => {
   it("still renders the page rather than blanking it", () => {
     render(<Analysis />);
     expect(screen.getByText("Analysis")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
     // And invents nothing to fill the gap. "Questions solved 0 · Correct 0
     // · Incorrect 0" under a banner saying the data could not be read is a
     // claim about the student, not an absence.
@@ -99,5 +99,17 @@ describe("Analysis — a load that failed", () => {
     expect(solved.textContent).not.toContain("0");
     const correct = screen.getByText("Correct answers").parentElement as HTMLElement;
     expect(correct.textContent).toContain("\u2014");
+  });
+
+  it("reads an unread day list as unknown on the Practice tab, not as a month of zeroes", () => {
+    render(<Analysis />);
+    fireEvent.click(screen.getByRole("tab", { name: "Practice" }));
+    for (const label of ["Practice today", "Practice in 4 weeks", "Consistency"]) {
+      const tile = screen.getByText(label).parentElement as HTMLElement;
+      expect(tile.textContent, label).toContain("\u2014");
+      expect(tile.textContent, label).not.toMatch(/\b0%?$/);
+    }
+    expect(screen.queryByText("No monthly activity yet")).toBeNull();
+    expect(screen.getAllByText("Your practice days could not be read.").length).toBeGreaterThan(0);
   });
 });

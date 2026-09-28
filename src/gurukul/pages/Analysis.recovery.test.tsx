@@ -63,11 +63,15 @@ vi.mock("@/hooks/useAnalysisPageData", () => ({
         // latest three into 70, 70, 0 and the +30 below into a stall.
         { id: "s7", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 0, wrong_count: 0, measured_ms: 20000, accuracy_pct: null, finished_at: iso(1) + "T10:00:00Z" },
         { id: "s6", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(2) + "T10:00:00Z" },
-        { id: "s5", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(4) + "T10:00:00Z" },
+        // Three are stored as the practice screen writes them — "maths",
+        // "algebra" — while the subject row is SQL-normalised "Mathematics".
+        // Matched on raw labels, those three belonged to no subject and the
+        // trend below had four sessions to read, not six.
+        { id: "s5", subject: "maths", chapter: "algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(4) + "T10:00:00Z" },
         { id: "s4", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(6) + "T10:00:00Z" },
-        { id: "s3", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(8) + "T10:00:00Z" },
+        { id: "s3", subject: "maths", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(8) + "T10:00:00Z" },
         { id: "s2", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(10) + "T10:00:00Z" },
-        { id: "s1", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(12) + "T10:00:00Z" },
+        { id: "s1", subject: "maths", chapter: "algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(12) + "T10:00:00Z" },
       ] },
     loading: false, error: null, reload: () => {},
   }),
@@ -103,7 +107,7 @@ import Analysis from "./Analysis";
 
 describe("Analysis — recovery, revision and trends", () => {
   const openTab = (label: string) =>
-    fireEvent.click(screen.getByRole("button", { name: label }));
+    fireEvent.click(screen.getByRole("tab", { name: label }));
   const settle = async () => {
     render(<Analysis />);
     await screen.findByText("Analysis");
@@ -126,6 +130,17 @@ describe("Analysis — recovery, revision and trends", () => {
     expect(screen.queryByText("Chapters getting better")).toBeNull();
     expect(screen.queryByText("Topics getting better")).toBeNull();
     expect(screen.getByText("Questions you keep getting wrong")).toBeInTheDocument();
+  });
+
+  it("gives the subject its trend from sessions stored as \"maths\"", async () => {
+    await settle();
+    openTab("Subjects & Chapters");
+    // The subject row, not the page: the chapter grid prints "30 pts" too,
+    // and a page-wide check passed while this row showed "—".
+    const row = screen.getAllByText("Mathematics")
+      .map((el) => el.closest("div.p-3") as HTMLElement | null)
+      .find((el): el is HTMLElement => !!el?.querySelector("div.w-2.h-10"))!;
+    expect(row.textContent).toContain("30 pts");
   });
 
   it("uses the same unit in the subject and chapter grids", async () => {

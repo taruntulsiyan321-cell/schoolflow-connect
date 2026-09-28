@@ -9,7 +9,6 @@ import { MemoryRouter } from "react-router-dom";
 import { WeakChapterList } from "./WeakChapterList";
 import type { WeakChapterRow } from "@/lib/weakChapters";
 
-const HOUR = 3600_000;
 
 const row = (over: Partial<WeakChapterRow> = {}): WeakChapterRow => ({
   chapterId: "11111111-1111-4111-8111-111111111111",
@@ -22,7 +21,10 @@ const row = (over: Partial<WeakChapterRow> = {}): WeakChapterRow => ({
   trend: "not_enough_data",
   trendDeltaPoints: null,
   sessions: 2,
-  oldestOpenAt: new Date(Date.now() - 20 * HOUR).toISOString(),
+  // Local midnight today: "earlier today" on any clock at any hour. It was
+  // "20 hours ago", which is yesterday for most of the day — the 24-hour
+  // arithmetic this list no longer uses.
+  oldestOpenAt: (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); })(),
   revisionState: "in_recovery",
   revisionDue: false,
   nextRevisionAt: null,
@@ -69,9 +71,19 @@ describe("the chapter list", () => {
   });
 
   it("CONTROL: an older one counts its days", () => {
-    show([row({ oldestOpenAt: new Date(Date.now() - 74 * HOUR).toISOString() })]);
+    // Noon three calendar days back — fixed to the calendar, not to hours.
+    const d = new Date(); d.setDate(d.getDate() - 3); d.setHours(12, 0, 0, 0);
+    show([row({ oldestOpenAt: d.toISOString() })]);
     fireEvent.click(screen.getByTestId("weak-chapter-row"));
     expect(screen.getByText(/Oldest open mistake:/)).toHaveTextContent("Oldest open mistake: 3 days ago");
+  });
+
+  it("counts last night as yesterday, not today", () => {
+    // 23:30 yesterday, local — under 24 hours ago for most of today.
+    const d = new Date(); d.setDate(d.getDate() - 1); d.setHours(23, 30, 0, 0);
+    show([row({ oldestOpenAt: d.toISOString() })]);
+    fireEvent.click(screen.getByTestId("weak-chapter-row"));
+    expect(screen.getByText(/Oldest open mistake:/)).toHaveTextContent("Oldest open mistake: 1 day ago");
   });
 
   it("says nothing is open, rather than drawing an empty list", () => {

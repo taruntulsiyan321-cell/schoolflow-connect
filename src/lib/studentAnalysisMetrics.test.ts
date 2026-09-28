@@ -13,6 +13,8 @@ import {
   deriveMonthComparison,
   scoreAxisDomain,
   deriveRevisionData,
+  subjectColors,
+  SUBJECT_PALETTE,
 } from "@/lib/studentAnalysisMetrics";
 import { REVISION_STAGES_TO_SOLID } from "@/academic/recovery/constants";
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
@@ -39,7 +41,9 @@ function session(partial: Partial<PracticeSessionSummary> & Pick<PracticeSession
 
 describe("studentAnalysisMetrics", () => {
   it("builds this-week vs last-week comparison from activity dates", () => {
-    const now = new Date("2026-08-02T12:00:00Z"); // Sunday
+    // Sunday noon on the LOCAL clock: as a UTC instant this is already
+    // Monday in UTC+14, where a new calendar week has begun.
+    const now = new Date(2026, 7, 2, 12);
     const rows = [
       { date: "2026-08-01", total: 5, test: 0, battles: 0 }, // Sat this week
       { date: "2026-07-31", total: 3, test: 0, battles: 0 }, // Fri this week
@@ -110,6 +114,15 @@ describe("studentAnalysisMetrics", () => {
     // The distinction §6.4 exists for: both used to render as the same dash.
     expect(trendState([50, 51]).state).toBe("not_enough_data");
     expect(trendState([50, 50, 51, 51]).state).toBe("stuck");
+  });
+
+  it("reports whole points, and judges on the number it reports", () => {
+    // [40,40,40] then [68,68,67]: +27.7, shown as 28.
+    expect(trendState([40, 40, 40, 68, 68, 67])).toEqual({ state: "improving", deltaPoints: 28 });
+    // +9.7: shown as 10, so it is movement — not "stuck" beside "10 pts".
+    const t = trendState([50, 50, 50, 59, 60, 60.1]);
+    expect(t.deltaPoints).toBe(10);
+    expect(t.state).toBe("improving");
   });
 
   it("names direction only once movement clears TREND_DELTA_POINTS", () => {
@@ -184,7 +197,22 @@ describe("studentAnalysisMetrics", () => {
     ]);
     expect(pace.fastest?.name).toBe("Mathematics");
     expect(pace.slowest).toBeNull();
-    expect(pace.avgSec).toBe(30);
+    // Hindi is not ranked on one answer, but that answer took 300s and it
+    // counts in the overall pace: (30*400 + 300) / 401.
+    expect(Math.round(pace.avgSec * 10) / 10).toBe(30.7);
+  });
+
+  it("pools every timed answer for the overall pace, not only the ranked subjects", () => {
+    // Twelve timed answers over three subjects, none with five: nothing to
+    // rank, but twelve answers is a pace.
+    const pace = deriveSubjectPace([
+      { name: "Mathematics", color: "#1", avgSec: 30, timed: 4 },
+      { name: "Science", color: "#2", avgSec: 60, timed: 4 },
+      { name: "English", color: "#3", avgSec: 15, timed: 4 },
+    ]);
+    expect(pace.rows).toEqual([]);
+    expect(pace.fastest).toBeNull();
+    expect(pace.avgSec).toBe(35);
   });
 
   it("reports nothing rather than zero when no subject qualifies", () => {
@@ -290,6 +318,16 @@ describe("studentAnalysisMetrics", () => {
       ],
     }, 14)).toBe(1);
     expect(daysPractisedIn(null, 14)).toBeNull();
+  });
+
+  it("gives a Class 10 student's subjects five different colours", () => {
+    // By name, English and Social Science were both --warning and Science
+    // (--info, hue 192) sat on Mathematics (--primary, hue 193).
+    const c = subjectColors(["Mathematics", "Science", "Social Science", "English", "Hindi"]);
+    expect(new Set(c.values()).size).toBe(5);
+    expect(c.get("Mathematics")).toBe(SUBJECT_PALETTE[0]);
+    // A name met twice keeps its first colour.
+    expect(subjectColors(["English", "English"]).size).toBe(1);
   });
 
   it("paces over answers only, and says how many answers it rests on", () => {

@@ -9,7 +9,7 @@ import {
 import {
   TrendingUp, Download, Share2, CheckCircle2, AlertCircle, Clock,
   BookOpen, Target, Calendar, ChevronRight, ArrowUp, ArrowDown,
-  Minus, Printer
+  Minus,
 } from "lucide-react";
 import { NoStudentProfile, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonStats, cn } from "@/gurukul/components/shared";
 import { type Tab, TABS } from "./analysisTabs";
@@ -55,31 +55,19 @@ import {
   trendState,
   practiceCountForTopic,
   scoreAxisDomain,
+  SUBJECT_PALETTE,
+  subjectColors,
 } from "@/lib/studentAnalysisMetrics";
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { toErrorMessage } from "@/lib/presentation";
 import { formatLastSeen } from "@/lib/analyticsInsights";
 import { pluralise } from "@/lib/plural";
+import { MathText } from "@/components/MathText";
+import { AnalysisPrintReport } from "./AnalysisPrintReport";
 import { improveHeadline, improveSubline } from "./analysisImproveCard";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { accuracyWhenMeaningful, mayBeJudged, MIN_OBSERVATIONS_FOR_VERDICT } from "@/academic/metrics/thresholds";
 
-const SUBJECT_COLORS: Record<string, string> = {
-  Mathematics: "hsl(var(--primary))",
-  Math: "hsl(var(--primary))",
-  Physics: "hsl(var(--info))",
-  Chemistry: "hsl(var(--primary-glow))",
-  Biology: "hsl(var(--success))",
-  English: "hsl(var(--warning))",
-  Hindi: "hsl(var(--destructive))",
-  Science: "hsl(var(--info))",
-  "Social Science": "hsl(var(--warning))",
-};
-const FALLBACK_COLORS = ["hsl(var(--primary))", "hsl(var(--info))", "hsl(var(--primary-glow))", "hsl(var(--success))", "hsl(var(--warning))"];
-
-function subjectColor(name: string, index: number) {
-  return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -90,6 +78,18 @@ function subjectColor(name: string, index: number) {
  * not a 0% sitting, and counting it as one turned a skipped-through session
  * into a "worsening" subject or chapter.
  */
+/**
+ * A weak topic by name and chapter — "Word Problems — Polynomials" — because
+ * topics are per chapter (§10.22) and two chapters can each have one of the
+ * same name. When a row has no topic of its own its label IS the chapter, and
+ * the chapter is not said twice.
+ */
+function topicWithChapter(t: { topic: string; subject: string; chapter: string | null }): string {
+  const name = displayTopic(t.topic) || displaySubject(t.subject);
+  const chapter = displayChapter(t.chapter ?? "");
+  return chapter && chapter.toLowerCase() !== name.toLowerCase() ? `${name} — ${chapter}` : name;
+}
+
 function scoredRun(sessions: PracticeSessionSummary[]): number[] {
   return sessions
     .slice()
@@ -354,13 +354,20 @@ export default function Analysis() {
   // it drawing a single point. The speed panel on the Practice tab reads
   // practice_sessions and knew about Social Science, so the two tabs
   // disagreed about which subjects this student even studies.
+  // Every subject name on the page goes through displaySubject — the rows
+  // are normalised in SQL ("maths" -> "Mathematics") and sessions are stored
+  // as the practice screen wrote them ("maths", "sst"), so comparing the raw
+  // session label to the row's name matched only sessions that happened to be
+  // spelled the SQL way, and a subject practised as "maths" had no trend.
+  const subjectColour = useMemo(
+    () => subjectColors((practiceAnalytics?.by_subject ?? []).map((r) => displaySubject(r.subject) || r.subject)),
+    [practiceAnalytics?.by_subject],
+  );
   const subjectData = useMemo(() => {
     const sessions = analysis?.recent_sessions ?? [];
-    return (practiceAnalytics?.by_subject ?? []).map((row, i) => {
+    return (practiceAnalytics?.by_subject ?? []).map((row) => {
       const name = displaySubject(row.subject) || row.subject;
-      const runs = sessions.filter(
-        (x) => preferRealAcademicLabel(x.subject).toLowerCase() === name.toLowerCase(),
-      );
+      const runs = sessions.filter((x) => displaySubject(x.subject) === name);
       const { state: subjectTrendState, deltaPoints } = trendState(
         scoredRun(runs),
       );
@@ -389,7 +396,7 @@ export default function Analysis() {
         questions: row.attempts,
         answered,
         measuredMs: row.total_min == null ? null : row.total_min * 60000,
-        color: subjectColor(name, i),
+        color: subjectColour.get(name) ?? SUBJECT_PALETTE[0],
         trend: deltaPoints,
         trendState: subjectTrendState,
         status: (accuracy != null && ["low", "weak"].includes(accuracyBand(accuracy))
@@ -397,7 +404,7 @@ export default function Analysis() {
           : "steady") as "needs-attention" | "steady",
       };
     });
-  }, [practiceAnalytics?.by_subject, analysis?.recent_sessions]);
+  }, [practiceAnalytics?.by_subject, analysis?.recent_sessions, subjectColour]);
 
   // The radar, from the same subject rows as the list beside it. It kept its
   // own source and its own shortening helper; only the data feeding it moved.
@@ -418,11 +425,24 @@ export default function Analysis() {
 
   const chapterData = useMemo(() => {
     const sessions = analysis?.recent_sessions ?? [];
-    return (practiceAnalytics?.by_chapter ?? []).slice(0, 12).map((c) => {
+    // WHICH TWELVE. The server orders by raw accuracy, lowest first, so a
+    // chapter with ONE wrong answer (0%) came before one with forty answers
+    // at 32%, and twelve one-answer chapters — every card "not enough yet" —
+    // pushed every chapter with a real figure off the grid. Chapters with
+    // enough answers to judge come first, lowest accuracy first; the rest
+    // follow by how much has been done in them.
+    const judged = (c: { answered: number; accuracy: number | null }) =>
+      accuracyWhenMeaningful(c.answered, c.accuracy == null ? null : Math.round(c.accuracy)) != null;
+    const ranked = [...(practiceAnalytics?.by_chapter ?? [])].sort((a, b) => {
+      const ja = judged(a), jb = judged(b);
+      if (ja !== jb) return ja ? -1 : 1;
+      return ja ? (a.accuracy ?? 0) - (b.accuracy ?? 0) : b.attempts - a.attempts;
+    });
+    return ranked.slice(0, 12).map((c) => {
       const label = preferRealAcademicLabel(c.chapter);
-      const subject = preferRealAcademicLabel(c.subject) || "";
+      const subject = displaySubject(c.subject) || preferRealAcademicLabel(c.subject) || "";
       const runs = sessions.filter(
-        (x) => preferRealAcademicLabel(x.chapter).toLowerCase() === label.toLowerCase(),
+        (x) => displayChapter(x.chapter ?? "") === displayChapter(label),
       );
       const { state: chapterTrendState, deltaPoints } = trendState(
         scoredRun(runs),
@@ -440,7 +460,7 @@ export default function Analysis() {
       return {
         chapter: label || c.chapter,
         subject,
-        color: subjectColor(subject, 0),
+        color: subjectColour.get(subject) ?? SUBJECT_PALETTE[0],
         questions: c.attempts,
         answered,
         timed: c.timed,
@@ -460,7 +480,7 @@ export default function Analysis() {
             : "needs-work") as "practice-more" | "needs-work" | null,
       };
     });
-  }, [practiceAnalytics?.by_chapter, analysis?.recent_sessions]);
+  }, [practiceAnalytics?.by_chapter, analysis?.recent_sessions, subjectColour]);
 
   const topicGroups = useMemo(() => {
     const realTopic = (t: { topic?: string | null; chapter?: string | null }) =>
@@ -497,6 +517,10 @@ export default function Analysis() {
           return {
             topic,
             subject,
+            // Topics are per chapter (§10.22): two chapters can each hold a
+            // "Word Problems", and without the chapter the list showed two
+            // identical rows — under one React key.
+            chapter: preferRealAcademicLabel(t.chapter) || null,
             score: t.accuracy == null ? null : Math.round(t.accuracy),
             // The SERVER's count for this topic, not a client re-derivation.
             //
@@ -639,19 +663,18 @@ export default function Analysis() {
   // read: by_subject carries avg_sec and the count of TIMED attempts behind
   // it, so the floor here is the floor there.
   const subjectPace = useMemo(() => {
-    const colorOf = new Map(subjectData.map((s) => [s.name, s.color]));
     return deriveSubjectPace(
       (practiceAnalytics?.by_subject ?? []).map((s) => {
         const name = displaySubject(s.subject) || s.subject;
         return {
           name,
-          color: colorOf.get(name) ?? subjectColor(name, 0),
+          color: subjectColour.get(name) ?? SUBJECT_PALETTE[0],
           avgSec: s.avg_sec,
           timed: s.timed,
         };
       }),
     );
-  }, [practiceAnalytics?.by_subject, subjectData]);
+  }, [practiceAnalytics?.by_subject, subjectColour]);
 
   // WHAT TAKES THIS STUDENT LONGEST, per topic and per chapter.
   //
@@ -920,7 +943,7 @@ export default function Analysis() {
     if (weakTopic) {
       items.push({
         label: "Suggested priority today",
-        value: displayTopic(weakTopic.topic) || displaySubject(weakTopic.subject),
+        value: topicWithChapter(weakTopic),
         sub: weakTopic.score == null
           ? `${pluralise(weakTopic.practiceCount ?? 0, "attempt")} · needs review`
           : `${weakTopic.score}% accuracy · needs review`,
@@ -942,9 +965,9 @@ export default function Analysis() {
     // figure it described spanned every timed session the page had loaded.
     if (subjectPace.avgSec > 0) {
       items.push({
-        label: "Average time per question",
+        label: "Average time per answer",
         value: formatSeconds(subjectPace.avgSec),
-        sub: "Across every question you were timed on",
+        sub: "Across every answer you were timed on",
         color: "hsl(var(--destructive))",
         icon: <Clock className="w-4 h-4" />,
       });
@@ -992,7 +1015,7 @@ export default function Analysis() {
       },
       {
         q: "What should I study next?",
-        a: nextTopic ? (nextTopic.topic || nextTopic.subject) : "Start a practice session",
+        a: nextTopic ? topicWithChapter(nextTopic) : "Start a practice session",
         sub: chapterStates.status === "loading"
           ? "Reading your revision schedule…"
           : chapterStates.status === "failed"
@@ -1192,6 +1215,27 @@ export default function Analysis() {
   return (
     <div className="space-y-6">
       {header}
+      <AnalysisPrintReport
+        studentName={student.name}
+        summary={summaryRows}
+        totals={[
+          { label: "Questions solved", value: overview.totalQuestions == null ? "—" : String(overview.totalQuestions) },
+          { label: "Correct / incorrect", value: overview.correct == null || overview.incorrect == null ? "—" : `${overview.correct} / ${overview.incorrect}` },
+          { label: "Skipped", value: overview.skipped == null ? "—" : String(overview.skipped) },
+          { label: "Practice sessions", value: overview.practiceCompleted == null ? "—" : String(overview.practiceCompleted) },
+          { label: "Study time (4 weeks)", value: formatSessionDuration(studyActivity.totalMs) },
+          { label: "Average per answer", value: subjectPace.avgSec > 0 ? formatSeconds(subjectPace.avgSec) : "—" },
+        ]}
+        subjects={subjectData.map((sub) => ({ name: sub.name, accuracy: sub.accuracy, attempts: sub.questions, measuredMs: sub.measuredMs }))}
+        topics={topicGroups.needs_attention.map((t) => ({
+          topic: displayTopic(t.topic),
+          chapter: t.chapter ? displayChapter(t.chapter) : null,
+          subject: displaySubject(t.subject),
+          score: accuracyWhenMeaningful(t.practiceCount ?? 0, t.score),
+          attempts: t.practiceCount ?? 0,
+        }))}
+        months={monthComparison}
+      />
       {/* "Showing available stats as zeros where missing" — THE PAGE DOES
           NOT DO THAT, and has been corrected three times specifically so that
           it does not. Missing renders as an em dash precisely so a student
@@ -1261,10 +1305,13 @@ export default function Analysis() {
       </div>
 
       {/* ── Tab bar ─────────────────────── */}
-      <div className="flex gap-0 overflow-x-auto border-b border-border/70 -mx-1 px-1">
+      <div role="tablist" aria-label="Analysis sections" className="flex gap-0 overflow-x-auto border-b border-border/70 -mx-1 px-1">
         {TABS.map((t) => (
           <button
             key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
             className={cn(
               "shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-150 whitespace-nowrap",
@@ -1370,7 +1417,9 @@ export default function Analysis() {
               bars match the Practice tab tiles and never fold in tests or
               homework. */}
           <Card label="This week vs last week — practice">
-            {weekComparison.some((d) => d.thisWeek > 0 || d.lastWeek > 0) ? (
+            {!practiceTime ? (
+              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">Your practice days could not be read.</p>
+            ) : weekComparison.some((d) => d.thisWeek > 0 || d.lastWeek > 0) ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weekComparison} barSize={14} barGap={2}>
@@ -1481,7 +1530,12 @@ export default function Analysis() {
                         was called "questions" here and "Attempts" there, on one tab. */}
                     <div className="text-[11px] text-muted-foreground mt-0.5">{pluralise(s.questions, "attempt")}{s.measuredMs != null && s.measuredMs > 0 ? ` · ${formatSessionDuration(s.measuredMs)} study time` : ""}</div>
                     <div className="h-1 rounded-full bg-muted mt-2 overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
+                      {/* No score, no bar: `${null}%` is not a width, so the
+                          browser drew this full — a subject with nothing
+                          measured looked like 100%. */}
+                      {s.score != null && (
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
+                      )}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
@@ -1611,7 +1665,7 @@ export default function Analysis() {
                     before we call it weak.
                   </p>
                 ) : topicGroups.needs_attention.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-warning/12 bg-warning/5 hover:border-warning/25 transition-colors cursor-pointer">
+                  <div key={`${t.subject}|${t.chapter ?? ""}|${t.topic}`} className="flex items-center gap-3 p-3 rounded-xl border border-warning/12 bg-warning/5">
                     <AlertCircle className="w-4 h-4 text-warning shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
@@ -1621,7 +1675,7 @@ export default function Analysis() {
                           makes accuracy 0% or 100%, which is noise dressed as a
                           measurement. */}
                       <div className="text-[11px] text-muted-foreground">
-                        {displaySubject(t.subject)} · {pluralise(t.practiceCount ?? 0, "attempt")}
+                        {[displayChapter(t.chapter ?? ""), displaySubject(t.subject)].filter(Boolean).join(" · ")} · {pluralise(t.practiceCount ?? 0, "attempt")}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -1662,8 +1716,10 @@ export default function Analysis() {
                     <div className="text-sm font-semibold text-foreground truncate">
                       {displayTopic(r.topic ?? "") || displayChapter(r.chapter ?? "") || "This question"}
                     </div>
-                    <div className="text-[11px] text-muted-foreground truncate">
-                      {r.question_text ?? displaySubject(r.subject ?? "")}
+                    {/* Through MathText: question text carries LaTeX, and this
+                        printed "$n^2 - n$" as written. */}
+                    <div className="text-[11px] text-muted-foreground line-clamp-2">
+                      {r.question_text ? <MathText text={r.question_text} /> : displaySubject(r.subject ?? "")}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
@@ -1718,6 +1774,8 @@ export default function Analysis() {
                       ? <span className="text-xs font-semibold text-success">Recovered</span>
                       : r.status === "ready"
                         ? <span className="text-xs font-semibold text-destructive">Ready</span>
+                        : r.status === "blocked"
+                          ? <span className="text-[11px] text-muted-foreground">Can't start yet</span>
                         : r.status === "relearn"
                           ? <span className="text-xs font-semibold text-warning">
                               {pluralise(r.openMistakes, "mistake")} — work through the book
@@ -1782,17 +1840,21 @@ export default function Analysis() {
                 // Practice sessions only (rule 11). The heat map still carries
                 // test / homework / battle counts for other surfaces; Analysis
                 // reads self_practice alone via consistencyWeeks.
-                { label: "Practice today",      value: `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
-                { label: "Practice in 4 weeks", value: `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
+                // "—" when the days could not be read: the grid below is built
+                // from them, and an unread list rendered as a month of zeroes.
+                { label: "Practice today",      value: practiceTime ? `${practiceStats.todayDone}` : "—",  color: "hsl(var(--primary))" },
+                { label: "Practice in 4 weeks", value: practiceTime ? `${practiceStats.weekDone}` : "—",   color: "hsl(var(--info))" },
                 { label: "Practice streak",   value: pluralise(practiceStats.streakDays, "day"),                        color: "hsl(var(--warning))" },
-                { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "hsl(var(--success))" },
+                { label: "Consistency",       value: practiceTime ? `${practiceStats.consistency}%` : "—",                           color: "hsl(var(--success))" },
               ].map((s) => <Metric key={s.label} label={s.label} value={s.value} color={s.color} />)}
             </div>
           </div>
 
           {/* Practice monthly — self_practice only, never weekly_activity.total. */}
           <Card label="Practice sessions each month">
-            {practiceMonthly.length > 0 ? (
+            {!practiceTime ? (
+              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">Your practice days could not be read.</p>
+            ) : practiceMonthly.length > 0 ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={practiceMonthly} barSize={32}>
@@ -1848,7 +1910,7 @@ export default function Analysis() {
                         {pluralise(d.attempts, "attempt")}
                       </div>
                       {(d.avg_sec ?? 0) > 0 && (
-                        <div className="text-[10px] text-muted-foreground">{d.avg_sec}s each</div>
+                        <div className="text-[10px] text-muted-foreground">{formatSeconds(d.avg_sec ?? 0)} per answer</div>
                       )}
                     </div>
                   ))}
@@ -1888,7 +1950,7 @@ export default function Analysis() {
             </Card>
             )}
 
-            <Card label="Time per question by subject (seconds)">
+            <Card label="Time per answer by subject (seconds)">
               {subjectPace.rows.length > 0 ? (
               <div className="h-40 mt-4">
                 <ResponsiveContainer width="100%" height="100%">
@@ -1927,6 +1989,9 @@ export default function Analysis() {
 
           {/* Weekly hours */}
           <Card label="Study time by day of week — last 4 weeks (hours)">
+            {!practiceTime ? (
+              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">Your practice days could not be read.</p>
+            ) : (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -1947,10 +2012,14 @@ export default function Analysis() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            )}
           </Card>
 
           {/* 4-week heatmap */}
           <Card label="Practice activity — last 4 weeks">
+            {!practiceTime ? (
+              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">Your practice days could not be read.</p>
+            ) : (
             <div className="mt-4 overflow-x-auto">
               <div className="min-w-[380px]">
                 <div className="flex gap-1 mb-2 ml-9">
@@ -1967,6 +2036,18 @@ export default function Analysis() {
                       // student's own calendar, from one source. It called
                       // them "questions" once, and "activities" after that.
                       const intensity = Math.min(cell.total / 8, 1);
+                      // The grid runs to Sunday; the days after today have
+                      // not happened, and drawn like a day with nothing in it
+                      // they read as a week not practised.
+                      if (practiceTime && cell.date > practiceTime.today) {
+                        return (
+                          <div
+                            key={cell.date}
+                            title={`${cell.date} — still to come`}
+                            className="flex-1 h-8 rounded-lg border border-dashed border-border/70"
+                          />
+                        );
+                      }
                       const bg = cell.total === 0
                         ? "hsl(var(--muted))"
                         : withAlpha("hsl(var(--primary))", 0.08 + intensity * 0.92);
@@ -1994,11 +2075,12 @@ export default function Analysis() {
                 </div>
               </div>
             </div>
+            )}
           </Card>
 
           {/* ── What takes longest ────────────────────────────────── */}
           <div className="grid sm:grid-cols-2 gap-6">
-            <Card label="Topics that take you longest (seconds per question)">
+            <Card label="Topics that take you longest (seconds per answer)">
               {slowestTopics.length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
                   No topic has {MIN_OBSERVATIONS_FOR_VERDICT} answered, timed questions behind it yet.
@@ -2026,7 +2108,7 @@ export default function Analysis() {
               )}
             </Card>
 
-            <Card label="Chapters that take you longest (seconds per question)">
+            <Card label="Chapters that take you longest (seconds per answer)">
               {slowestChapters.length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-4 py-8 text-center">
                   No chapter has {MIN_OBSERVATIONS_FOR_VERDICT} answered, timed questions behind it yet.
@@ -2180,23 +2262,18 @@ export default function Analysis() {
             <SLabel>Download & share your report</SLabel>
             <div className="grid sm:grid-cols-2 gap-3">
               {[
-                { label: "Print / Save as PDF", icon: <Download className="w-4 h-4" />,  color: "hsl(var(--primary))",  desc: "Opens browser print → Save as PDF", action: "pdf" as const },
+                { label: "Print or save as PDF", icon: <Download className="w-4 h-4" />,  color: "hsl(var(--primary))",  desc: "Every tab's figures on one printable report", action: "print" as const },
                 // "teacher/parent send is coming soon" promised a feature with no
                 // code behind it, on the one page whose whole job is to not
                 // overstate. What the button does is copy text.
                 { label: "Copy summary",        icon: <Share2 className="w-4 h-4" />,    color: "hsl(var(--success))",  desc: "Copy your accuracy, questions and sessions as text", action: "share" as const },
-                { label: "Print report",        icon: <Printer className="w-4 h-4" />,   color: "hsl(var(--warning))",  desc: "Print a physical copy", action: "print" as const },
               ].map((r) => (
                 <button
                   key={r.label}
                   type="button"
                   onClick={() => {
                     if (r.action === "print") {
-                      window.print();
-                      return;
-                    }
-                    if (r.action === "pdf") {
-                      toast.info("Use your browser Print dialog → Save as PDF.");
+                      // Prints AnalysisPrintReport, not this tab: see index.css.
                       window.print();
                       return;
                     }

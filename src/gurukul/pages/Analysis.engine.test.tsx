@@ -87,7 +87,7 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
 
 import Analysis from "./Analysis";
 
-const openTab = (label: string) => fireEvent.click(screen.getByRole("button", { name: label }));
+const openTab = (label: string) => fireEvent.click(screen.getByRole("tab", { name: label }));
 const settle = async () => {
   render(<Analysis />);
   await screen.findByText("Analysis");

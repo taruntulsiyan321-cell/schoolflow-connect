@@ -168,7 +168,7 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
 
 import Analysis from "./Analysis";
 
-const openTab = (label: string) => fireEvent.click(screen.getByRole("button", { name: label }));
+const openTab = (label: string) => fireEvent.click(screen.getByRole("tab", { name: label }));
 
 describe("Analysis — rendered", () => {
   it("agrees the verb with the count it just pluralised", () => {
@@ -407,5 +407,35 @@ describe("Analysis — rendered", () => {
       openTab(t);
       expect(screen.getByText("Analysis")).toBeInTheDocument();
     }
+  });
+
+  it("puts a chapter with a real figure on the grid before one-answer chapters", () => {
+    render(<Analysis />);
+    openTab("Subjects & Chapters");
+    const text = document.body.textContent ?? "";
+    const grid = text.slice(text.indexOf("Chapter by chapter"));
+    // Real Numbers: 25 answered, 8%. Circles: one answer, 0% — which the
+    // server's raw-accuracy order put first, and twelve like it filled the grid.
+    expect(grid.indexOf("Real Numbers")).toBeGreaterThan(-1);
+    expect(grid.indexOf("Real Numbers")).toBeLessThan(grid.indexOf("Circles"));
+  });
+
+  it("draws no bar for a subject with nothing measured", () => {
+    render(<Analysis />);
+    openTab("Subjects & Chapters");
+    const card = (name: string) => screen.getAllByText(name)
+      .map((el) => el.closest("div.p-3") as HTMLElement | null)
+      .find((el): el is HTMLElement => !!el?.querySelector("div.w-2.h-10"))!;
+    // `${null}%` is not a width, and the browser drew the bar full.
+    expect(card("Social Science").querySelector("div.h-1 > div")).toBeNull();
+    // CONTROL: a measured subject has one.
+    expect(card("Mathematics").querySelector("div.h-1 > div")).not.toBeNull();
+  });
+
+  it("names a weak topic with its chapter, so two of one name can be told apart", () => {
+    render(<Analysis />);
+    openTab("Topics");
+    expect(screen.getByText("Word Problems on AP")).toBeInTheDocument();
+    expect(document.body.textContent).toContain("Polynomials · Mathematics");
   });
 });
