@@ -39,7 +39,7 @@ import { practiceModeLabel } from "@/lib/practiceModeLabel";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
 import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
-import { RecoveryClearAnyway } from "@/components/student/RecoveryClearAnyway";
+import { RecoveryClearChapter } from "@/components/student/RecoveryClearChapter";
 import { revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
@@ -389,7 +389,7 @@ export default function PracticeSessionResult() {
             </div>
             <div>
               <div className="text-sm font-bold text-foreground">
-                {recovery.outcome === "ready" ? "Chapter recovered" : "Not solid yet"}
+                {recovery.outcome === "ready" ? "Ready" : "Not solid yet"}
               </div>
               <div className="text-[11px] text-muted-foreground">
                 {recoveryVerdictLine(recovery)}
@@ -434,17 +434,9 @@ export default function PracticeSessionResult() {
             ))}
           </div>
 
-          {recovery.outcome === "not_ready" && <RecoveryClearAnyway sessionId={recovery.session_id} />}
-
-          {recovery.outcome === "ready" && recovery.next_revision_at && (
-            <p className="text-[11px] text-muted-foreground mt-3">
-              Next revision check on{" "}
-              {new Date(recovery.next_revision_at).toLocaleDateString(undefined, {
-                day: "numeric", month: "short",
-              })}
-              .
-            </p>
-          )}
+          {/* The round measures; the student clears (owner's ruling
+              2026-09-28). The revision date is set when they do. */}
+          <RecoveryClearChapter sessionId={recovery.session_id} ready={recovery.outcome === "ready"} />
         </GlassCard>
       )}
 

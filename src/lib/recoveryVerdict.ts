@@ -23,7 +23,7 @@ export function recoveryVerdictLine(
   r: Pick<RecoverySessionOutcome, "outcome" | "procedural_passed" | "conceptual_passed">,
 ): string {
   if (r.outcome === "ready") {
-    return "Both halves cleared — the steps and the idea.";
+    return "Both halves passed — the steps and the idea.";
   }
   if (r.procedural_passed && !r.conceptual_passed) {
     return "You can run the steps, but the idea isn't solid yet.";

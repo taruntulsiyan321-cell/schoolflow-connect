@@ -3980,3 +3980,28 @@ sabotaged copies of the migration are refused by its proof. **Apply
 Related, also in the spec: §4.6 says "Nothing clears automatically", but
 `rpc_submit_recovery_session` clears every open mistake in the chapter when a
 round comes out ready (citing §4.5). The two sections disagree.
+
+## 91. Recovery and the Mistake Book cleared mistakes on the student's behalf — FIXED in 20261119000000 (not yet applied live)
+
+**Owner's ruling (2026-09-28):** the student clears their mistake book
+themselves, only; recovery is for their understanding.
+
+* `rpc_submit_recovery_session` cleared every open mistake in the chapter the
+  moment a round came out ready, marked it recovered and started revision.
+  It came from 20261003000000 (defect "B3", an earlier session reading §4.5
+  as if a ready round were a clearing), merged 2026-09-22; it was never
+  ruled. A round now records its readiness and clears nothing.
+* The student's own clear (`rpc_clear_chapter_after_recovery`) worked only
+  after a not-ready round. It now works after any finished round (the
+  latest); after a ready one it is one press, after a not-ready one it keeps
+  its confirm.
+* The Mistake Book's retry cleared the mistakes answered right whenever the
+  retry scored 70%, and the book had no Clear of its own. The retry now
+  clears nothing, and every open mistake has a Clear button.
+
+Mistakes the old rules already cleared stay cleared. Proven on the local
+replica (a ready round leaves the mistake open; the student's clear then
+clears it; a clear on an older round is refused), with two sabotaged copies
+refused; the app tests fail against the old retry code. **Apply
+20261119000000 on the live database** (after 20261118000000), with the app
+change: the result screen and the Clear button expect it.

@@ -51,6 +51,6 @@ describe("recoveryVerdictLine", () => {
     // of 0.80 and 0.70.
     expect(
       recoveryVerdictLine({ outcome: "ready", procedural_passed: false, conceptual_passed: false }),
-    ).toBe("Both halves cleared — the steps and the idea.");
+    ).toBe("Both halves passed — the steps and the idea.");
   });
 });

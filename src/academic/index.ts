@@ -92,7 +92,7 @@ export type {
   ChapterStateRow,
   RecoveryQueueRow,
   RecoverySessionOutcome,
-  ClearAnywayOutcome,
+  ClearChapterOutcome,
   RevisionSessionOutcome,
   RevisionHistoryRow,
 } from "./services/recoveryEngineService";

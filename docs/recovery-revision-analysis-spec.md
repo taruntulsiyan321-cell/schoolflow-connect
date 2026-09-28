@@ -287,8 +287,14 @@ their own book stops using the book.
 
 ### 4.6 Failing a recovery session — rounds and the accumulating pool
 
-A session is **cleared** when readiness passes (§4.2b). Below that it fails, and
+A session is **ready** when readiness passes (§4.2b). Below that it fails, and
 a new session is generated.
+
+**Ruled 2026-09-28 — only the student clears.** A ready session says the
+student is ready; it clears nothing. The mistakes leave the book when the
+student clears them — from the book, or from the session's report — and §4.5
+is what that clearing does. Neither a recovery session nor a Mistake Book
+retry clears on the student's behalf (20261119000000).
 
 | Round | Contains | Generation |
 |---|---|---|
