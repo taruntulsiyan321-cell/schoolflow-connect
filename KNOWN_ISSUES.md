@@ -3959,17 +3959,39 @@ says so ("chat, Explain my mistake, and the Revision chat"). But it is the one p
 feature draws on a counted one, and the student is not told. Either is defensible; it needs saying out
 loud, and if it stands, the Revision screen should show what it will cost before the first turn.
 
-## 88. The premium definer functions are LIVE and not in `definer-inventory.json` — the gate fails as soon as it can run
+## 88. `definer-inventory.json` is 77 doors behind the database — `lint-definer-doors` FAILS with 101 problems
 
-Measured 2026-09-27: the inventory holds no key matching `premium`, while 20261111000000–20261113000000
-— which create around a dozen SECURITY DEFINER functions (`_premium_decide`, `_premium_require`,
-`_premium_tier`, `premium_consume`, `premium_grant`, `rpc_my_premium`, the payment functions …) — were
-applied to production earlier the same day. `lint-definer-doors` fails on any definer the inventory does
-not name; that is the one check it exists for, so it will report every one of them as UNLISTED.
+**Measured 2026-09-27 with a working token** (the gate could not speak at all before — item 75):
 
-It cannot report anything at all today: the gate reads the live catalogue through `q.mjs` and exits 2 with
-"query failed: Unauthorized" (item 75). So this is a gate that is failing silently — the worst kind —
-until a working token makes it speak.
+```
+FAIL: 101 problem(s)
+  77  UNLISTED definer  — in the database, not in the inventory
+  17  STALE entry       — in the inventory, no longer in the database
+   1  MISDECLARED       — rpc_create_class_group recorded internal, catalog says granted
+   1  STALE GRANTS      — the same function records [none], catalog says [authenticated]
+ 229  DEBT              — listed but reviewed:false, so their reader set is a scaffolder's guess
+```
+
+It is not only premium. The unlisted 77 span every recent chunk on both sides of the product —
+`_premium_decide`, `_premium_require`, `_premium_tier`, `_premium_place_order`,
+`_premium_topic_analysis` from the plan layer, and `_attempt_verdict`, `_still_skipped_questions`,
+`_ensure_recovery_session`, `_enqueue_variant_generation`, `can_author_bank_question`,
+`can_read_exam_row`, `_parent_weekly_digest`, `_test_was_sat_by` and the rest from practice, recovery,
+tests, uploads and the parent surface.
+
+The one thing the gate exists for is catching the NEXT door nobody wrote down, and at 77 it cannot: a new
+leak arrives as line 78 of a list already being ignored.
+
+Not fixable in a sweep, and deliberately not attempted here: `callability` and `grants` are facts the gate
+reads from the catalogue and compares, while `readerSet` and `justification` are judgements that need the
+body read — 77 of those is a chunk of work, and half of them are school-side surfaces that the 2026-09-28
+instruction put out of bounds. The mechanical half is one command (`--generate`, then `--sync`); the
+judgements are the work.
+
+**20261115000000's fourteen doors and 20261116000000's trigger ARE listed, reviewed and accepted** — the
+gate reports no UNLISTED, STALE, MISDECLARED, STALE GRANTS or WIDENING problem against any of them, which
+also confirms their grants match the catalogue exactly (authenticated on the seven RPCs, nothing on the
+eight helpers or the trigger).
 
 Not fixable from here: two of its fields (`callability` and `grants`) are facts the gate reads from the
 catalogue and compares, so hand-writing them without being able to read the catalogue would trade one
@@ -3979,15 +4001,27 @@ ARE in the inventory, written from the SQL that creates them — including the t
 migration's proof asserts (`has_function_privilege` on every door and every helper), so they can be
 compared the moment the gate runs.
 
-## 89. Mock tests will be offered for at most two CUET subjects until the bank spreads — OPEN, same content gap as 84
+## 89. Only two of the five CUET subjects can fill a mock paper — OPEN, same content gap as 84
 
 A mock paper draws at most 10 questions from any one chapter (20261115000000: `ceil(50 / 5)`), so a subject
-needs its 50 questions spread across at least 5 chapters. Against the bank as measured in item 84 on
-2026-09-27 — chapters WITH questions per subject: Accountancy 10, Business Studies 12, Economics 3,
-English 2, General Aptitude Test 0, Mathematics 2 — only Accountancy and Business Studies can possibly fill
-a paper, and only if their per-chapter counts are high enough (this session could not re-measure the
-distribution: no database access, item 75).
+needs its 50 questions spread across at least 5 chapters. **Measured on production 2026-09-27**, as each
+real CUET account through `rpc_mock_catalog` — the supply counted under that cap:
+
+```
+Accountancy         100 of 50 needed, across 10 chapters   READY
+Business Studies    120 of 50 needed, across 12 chapters   READY
+Economics             6 of 50 needed, across  3 chapters   not ready
+English               4 of 50 needed, across  2 chapters   not ready
+Mathematics           2 of 50 needed, across  2 chapters   not ready
+```
+
+A real Accountancy paper built from it came out 50 questions over 10 chapters with at most 5 from any one —
+so the spread rule has room on the subjects that are ready.
+
+One of the four exam accounts is on an exam with no questions at all and is offered no subject whatsoever:
+the screen says there are none rather than showing an empty list.
 
 This is not a defect and the screen does not hide it: every subject is listed, and one that cannot fill a
-paper says so with its counts ("22 of 50 questions ready, from 3 chapters"). It is the same content gap as
-84, and it closes the same way — questions.
+paper says so with its counts ("6 of 50 questions ready, from 3 chapters"). It is the same content gap as
+84, and it closes the same way — questions. General Aptitude Test has no questions and so does not appear
+at all.

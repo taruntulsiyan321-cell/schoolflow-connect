@@ -4930,6 +4930,17 @@
       "justification": "The caller's own submitted papers — `WHERE a.user_id = _uid AND a.submitted_at IS NOT NULL` — with scores and counts, no question and no answer. Takes no arguments, so there is nothing to point at another account.",
       "verifiedBy": "Measured on a seeded PGlite replica (PostgreSQL 18, the repo's own premium, grading and mistake-book code) 2026-09-27: the migration applies and its in-migration proofs pass — grants (authenticated only, anon on none, no client role on any helper), a paper that carries no answer with a positive control that the same probe finds them in the result, the plan counted once per start, one open paper enforced by a partial unique index, another account refused the paper and its result, no client role able to read either table, and the whole journey rolled back. 4 of 4 mutants caught. NOT yet applied to production: SUPABASE_ACCESS_TOKEN was absent in the session that wrote it.",
       "reviewed": true
+    },
+    "tg_upload_question_withdrawn()": {
+      "name": "tg_upload_question_withdrawn",
+      "readerSet": "self",
+      "callability": "trigger",
+      "returns": "trigger",
+      "grants": [],
+      "calls": [],
+      "justification": "AFTER DELETE on student_upload_questions. Touches ONE person's rows and only theirs: the UPDATE is keyed on qa.user_id = OLD.owner_id together with the deleted question's own id out of generated_question, so it cannot reach another account's attempts even if two students had somehow been served the same upload question. It writes one boolean (excluded_from_accuracy) and reads nothing back; it returns no data at all. A trigger rather than a fix in custom-practice-upload because more than one caller deletes an upload question (studentUploadService too), and the fact — a withdrawn question's attempts stop counting (§6.1) — belongs to the table, beside the two triggers that already fill a mistake's school and chapter. EXECUTE revoked from PUBLIC, anon and authenticated.",
+      "verifiedBy": "Applied to production 2026-09-27 (ledger 587). Its own proof, run inside the migration: 3 orphan attempts repaired for the CUET account that had them, after which effort.attempts, by_chapter and by_subject all read 240 where they had read 243/240/240; then the trigger itself proved by deleting a REAL upload question that had an attempt on it and asserting the attempt was flagged, with the control that an unrelated attempt was not — both rolled back. Re-measured live after apply: 243 total, 240 counted, 3 excluded, 0 empty subjects.",
+      "reviewed": true
     }
   },
   "edge": {

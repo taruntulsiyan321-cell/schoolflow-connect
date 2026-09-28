@@ -19,6 +19,60 @@ export const UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 /** §4.4 — a one-question "session" is worse than an honest refusal. */
 export const MIN_USABLE_QUESTIONS = 3;
 
+/**
+ * How long an upload may sit in `processing` before a re-run is allowed again.
+ * Without a window, a crash between "processing" and a verdict would strand the
+ * file forever; with one, the student can retry and nothing else can.
+ */
+export const PROCESSING_STALE_MS = 10 * 60 * 1000;
+
+/**
+ * May this upload be classified NOW?
+ *
+ * A FILE IS CLASSIFIED ONCE. Measured on production 2026-09-27: a CUET Commerce
+ * account uploaded a Chemistry worksheet at 02:57, answered three of its
+ * questions a minute later — two of them wrong — and at 07:22 the same file was
+ * classified AGAIN. That second run ruled it `unusable` and did exactly what
+ * §4.3 says: deleted the questions, under a student who had already practised
+ * them. It also spent a second `custom_practice.upload` from their plan to
+ * reach a verdict that was already made, because the plan is asked before
+ * anything looks at the status.
+ *
+ * The screen only offers "Classify again" for `pending` and `failed`, so nothing
+ * a student can tap does this. That is not a reason for the server to allow it:
+ * the button's visibility is not a fence.
+ *
+ * Pure, so it is tested without Deno and without a deploy.
+ */
+export function mayClassify(
+  upload: { status?: string | null; updated_at?: string | null },
+  now: number = Date.now(),
+): { ok: true } | { ok: false; code: string; message: string } {
+  const status = (upload.status ?? "").trim();
+
+  // The first run, and the retry the screen offers. A failed run released its
+  // plan use, so charging for the retry is right.
+  if (status === "pending" || status === "failed" || status === "") return { ok: true };
+
+  if (status === "processing") {
+    const started = upload.updated_at ? Date.parse(upload.updated_at) : Number.NaN;
+    if (Number.isFinite(started) && now - started >= PROCESSING_STALE_MS) return { ok: true };
+    return {
+      ok: false,
+      code: "already_processing",
+      message: "This file is still being read. Give it a moment.",
+    };
+  }
+
+  // ready | unusable — a verdict exists. Re-running it would delete what the
+  // student is practising and charge them again for the same answer.
+  return {
+    ok: false,
+    code: "already_classified",
+    message: "This file has already been checked, so it was not read again.",
+  };
+}
+
 /** Apply §4.2–§4.4 gates. Pure — safe to unit-test offline. */
 export function applyRefusalGates(raw: ClassifierResult): ClassifierResult {
   let verdict = raw.verdict;

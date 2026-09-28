@@ -36,7 +36,7 @@ import {
   type TaggedQuestion,
 } from "./persist.ts";
 import type { ClassifierResult } from "./types.ts";
-import { UPLOAD_MAX_BYTES, UPLOAD_MAX_PAGES } from "./refusalGates.ts";
+import { UPLOAD_MAX_BYTES, UPLOAD_MAX_PAGES, mayClassify } from "./refusalGates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
 
   const { data: upload, error: loadErr } = await userClient
     .from("student_uploads")
-    .select("id, owner_id, school_id, status, storage_path, mime_type, byte_size")
+    .select("id, owner_id, school_id, status, updated_at, storage_path, mime_type, byte_size")
     .eq("id", uploadId)
     .eq("owner_id", uid)
     .maybeSingle();
@@ -197,6 +197,16 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (school?.kind !== "individual") {
     return jsonResponse({ error: "individual_accounts_only" }, 403);
+  }
+
+  // A FILE IS CLASSIFIED ONCE, and this is checked BEFORE the plan is asked, so
+  // a refused re-run costs the student nothing. Re-running a file that already
+  // has a verdict deletes the questions they may be practising right now (§4.3)
+  // and charges another Custom Practice upload for an answer already given —
+  // measured on production 2026-09-27, see mayClassify.
+  const reclassify = mayClassify(upload);
+  if (!reclassify.ok) {
+    return jsonResponse({ error: reclassify.message, error_code: reclassify.code, status: upload.status }, 409);
   }
 
   // PLANS (20261111000000): an upload is a Custom Practice upload, which the

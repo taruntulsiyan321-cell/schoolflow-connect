@@ -5,10 +5,14 @@
  * Imports only Deno-free refusalGates + types — never classify/modelRouter.
  */
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   applyRefusalGates,
   CONFIDENCE_THRESHOLD,
   MIN_USABLE_QUESTIONS,
+  PROCESSING_STALE_MS,
+  mayClassify,
 } from "../../../supabase/functions/custom-practice-upload/refusalGates";
 import type {
   ClassifierResult,
@@ -123,5 +127,85 @@ describe("applyRefusalGates — §4.2–§4.4", () => {
     expect(gated.refusal_reason).toBeNull();
     expect(gated.questions).toHaveLength(3);
     expect(gated.notes).toEqual([]);
+  });
+});
+
+/**
+ * A file is classified once.
+ *
+ * Measured on production 2026-09-27: a CUET Commerce account uploaded a
+ * Chemistry worksheet, answered three of its questions a minute later, and
+ * hours later the same file was classified again — which deleted the questions
+ * under them (§4.3) and spent a second Custom Practice upload from their plan
+ * for a verdict already made. The screen only offers "Classify again" for
+ * pending and failed; these are the server's own fence.
+ */
+describe("may this upload be classified again?", () => {
+  const NOW = Date.parse("2026-09-28T12:00:00Z");
+
+  it("runs for a new file, and for the retry the screen offers", () => {
+    expect(mayClassify({ status: "pending" }, NOW).ok).toBe(true);
+    expect(mayClassify({ status: "failed" }, NOW).ok).toBe(true);
+    // A row whose status has not been set yet is a first run, not a refusal.
+    expect(mayClassify({}, NOW).ok).toBe(true);
+  });
+
+  it("refuses a file that already has a verdict, and says why", () => {
+    for (const status of ["ready", "unusable"]) {
+      const r = mayClassify({ status }, NOW);
+      expect(r.ok).toBe(false);
+      if (r.ok) throw new Error("unreachable");
+      expect(r.code).toBe("already_classified");
+      expect(r.message).toBe("This file has already been checked, so it was not read again.");
+    }
+  });
+
+  it("refuses one still being read, until it has been stuck long enough to be dead", () => {
+    const justStarted = new Date(NOW - 1000).toISOString();
+    const fresh = mayClassify({ status: "processing", updated_at: justStarted }, NOW);
+    expect(fresh.ok).toBe(false);
+    if (fresh.ok) throw new Error("unreachable");
+    expect(fresh.code).toBe("already_processing");
+
+    // A crash between "processing" and a verdict must not strand the file.
+    const stuck = new Date(NOW - PROCESSING_STALE_MS - 1000).toISOString();
+    expect(mayClassify({ status: "processing", updated_at: stuck }, NOW).ok).toBe(true);
+    // CONTROL: exactly one millisecond before the window, it is still refused.
+    expect(mayClassify({ status: "processing", updated_at: new Date(NOW - PROCESSING_STALE_MS + 1).toISOString() }, NOW).ok)
+      .toBe(false);
+  });
+
+  it("treats a processing row with no timestamp as still processing, not as free", () => {
+    expect(mayClassify({ status: "processing" }, NOW).ok).toBe(false);
+    expect(mayClassify({ status: "processing", updated_at: "not a date" }, NOW).ok).toBe(false);
+  });
+});
+
+/**
+ * The wiring, not just the rule: a refused re-run must cost nothing, which is
+ * only true if the status is checked BEFORE the plan is asked. The unit tests
+ * above cannot see that — the order lives in index.ts.
+ */
+describe("where the guard sits in custom-practice-upload", () => {
+  const source = readFileSync(
+    join(__dirname, "..", "..", "..", "supabase", "functions", "custom-practice-upload", "index.ts"),
+    "utf8",
+  );
+
+  it("asks mayClassify before it consumes a plan use", () => {
+    const guard = source.indexOf("mayClassify(upload)");
+    const charge = source.indexOf('premiumConsume(admin, uid, "custom_practice.upload")');
+    expect(guard).toBeGreaterThan(-1);
+    expect(charge).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(charge);
+  });
+
+  it("reads the status and the timestamp the guard needs", () => {
+    expect(source).toMatch(/\.select\("id, owner_id, school_id, status, updated_at,/);
+  });
+
+  it("answers a refused re-run with 409 and the guard's own words", () => {
+    expect(source).toMatch(/error: reclassify\.message, error_code: reclassify\.code/);
+    expect(source).toMatch(/\}, 409\)/);
   });
 });
