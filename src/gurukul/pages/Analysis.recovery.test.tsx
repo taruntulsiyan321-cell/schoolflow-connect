@@ -55,31 +55,22 @@ vi.mock("@/academic/services/decisionEngineService", () => ({ DecisionEngineServ
 vi.mock("@/hooks/useAnalysisPageData", () => ({
   useAnalysisPageData: () => ({
     data: { totals: { correct: 80, wrong: 50, skipped: 30, accuracy_pct: 62 },
-      // Six sessions, 40 then 70: §6.4's window is the latest THREE against
-      // the previous three, so this is a clean +30 points either side.
+      // Six sessions, 40 then 70 in the order they were sat: §6.4's window is
+      // the latest THREE against the previous three, a clean +30 points.
       recent_sessions: [
-        { id: "s1", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(12) + "T10:00:00Z" },
-        { id: "s2", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(10) + "T10:00:00Z" },
-        { id: "s3", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(8) + "T10:00:00Z" },
-        { id: "s4", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(6) + "T10:00:00Z" },
-        { id: "s5", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(4) + "T10:00:00Z" },
+        // NEWEST FIRST, as the hook returns them (order by finished_at desc).
+        // Sat and skipped through: no score. Counted as 0% it would turn the
+        // latest three into 70, 70, 0 and the +30 below into a stall.
+        { id: "s7", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 0, wrong_count: 0, measured_ms: 20000, accuracy_pct: null, finished_at: iso(1) + "T10:00:00Z" },
         { id: "s6", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(2) + "T10:00:00Z" },
+        { id: "s5", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(4) + "T10:00:00Z" },
+        { id: "s4", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(6) + "T10:00:00Z" },
+        { id: "s3", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(8) + "T10:00:00Z" },
+        { id: "s2", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(10) + "T10:00:00Z" },
+        { id: "s1", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(12) + "T10:00:00Z" },
       ] },
     loading: false, error: null, reload: () => {},
   }),
-}));
-vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
-  useStudentPerformanceCharts: () => ({ data: {
-    practice_trend: [
-      { date: iso(12), score_pct: 40, chapter: "Algebra" },
-      { date: iso(10), score_pct: 40, chapter: "Algebra" },
-      { date: iso(8), score_pct: 40, chapter: "Algebra" },
-      { date: iso(6), score_pct: 70, chapter: "Algebra" },
-      { date: iso(4), score_pct: 70, chapter: "Algebra" },
-      { date: iso(2), score_pct: 70, chapter: "Algebra" },
-    ],
-    weekly_activity: [ { date: iso(2), total: 5, test: 0, battles: 0 }, { date: iso(9), total: 5, test: 0, battles: 0 } ],
-  }, loading: false, error: null, reload: () => {} }),
 }));
 vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
   useStudentAcademicSnapshot: () => ({ data: {
@@ -104,7 +95,7 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
     by_chapter: [{ chapter: "Algebra", subject: "Mathematics", attempts: 160, answered: 130, timed: 150, correct: 80, skipped: 30, accuracy: 61.5, avg_sec: 16, total_min: 40 }],
     by_topic: [{ topic: "Linear Equations", subject: "Mathematics", chapter: "Algebra", attempts: 160, answered: 130, timed: 150, correct: 80, skipped: 30, accuracy: 61.5, avg_sec: 16, total_min: 40 }],
     by_difficulty: [{ difficulty: "easy", rank: 1, attempts: 80, answered: 70, timed: 80, correct: 56, skipped: 10, accuracy: 80, avg_sec: 8 }],
-    effort: { attempts: 160, solution_viewed: 40, repeat_attempts: 60, first_try_attempts: 100, first_try_correct: 55 },
+    effort: { attempts: 160, questions_seen_again: 60, first_try_attempts: 100, first_try_correct: 55 },
     recurring: [],
   }, loading: false, error: null, reload: () => {} }),
 }));

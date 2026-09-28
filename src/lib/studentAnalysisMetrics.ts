@@ -372,6 +372,29 @@ export function deriveMonthComparison(
 }
 
 /**
+ * Days practised in the last `window` days of the student's calendar, today
+ * included — `window` dates, never `window + 1`.
+ *
+ * The summary row read exam_readiness.active_days_14d, which counts
+ * `activity_date >= CURRENT_DATE - 14`: fifteen dates, so a student who
+ * practises daily read "15 active days (14d)" — the figure 20261035000000 was
+ * written to stop, which changed the count and kept the window. It also
+ * counted days with only a test, homework or battle on a practice-only page,
+ * on UTC dates. This is finished practice sessions on the student's own days,
+ * the same rule as the grid's Consistency.
+ */
+export function daysPractisedIn(
+  time: Pick<StudentPracticeTime, "days" | "today"> | null,
+  window: number,
+): number | null {
+  if (!time) return null;
+  const [y, m, d] = time.today.split("-").map(Number);
+  const first = new Date(y, m - 1, d - (window - 1));
+  const from = `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, "0")}-${String(first.getDate()).padStart(2, "0")}`;
+  return time.days.filter((x) => x.sessions > 0 && x.date >= from && x.date <= time.today).length;
+}
+
+/**
  * The study-time tiles and the day-of-week chart, over the dates of the
  * four-week grid, from the same days as everything else in this family.
  *

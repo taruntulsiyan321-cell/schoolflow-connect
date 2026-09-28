@@ -19,7 +19,6 @@ class RO { observe() {} unobserve() {} disconnect() {} }
 (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = RO;
 
 const reloadAnalysis = vi.fn();
-const reloadCharts = vi.fn();
 const reloadSnapshot = vi.fn();
 const reloadAnalytics = vi.fn();
 const reloadPracticeTime = vi.fn();
@@ -52,9 +51,6 @@ vi.mock("@/hooks/useAnalysisPageData", () => ({
     reload: reloadAnalysis,
   }),
 }));
-vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
-  useStudentPerformanceCharts: () => ({ data: null, loading: false, error: null, reload: reloadCharts }),
-}));
 vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
   useStudentAcademicSnapshot: () => ({ data: null, loading: false, error: null, reload: reloadSnapshot }),
 }));
@@ -78,7 +74,6 @@ describe("Analysis — a load that failed", () => {
 
   it("re-runs every loader when Try again is pressed", () => {
     reloadAnalysis.mockClear();
-    reloadCharts.mockClear();
     reloadSnapshot.mockClear();
     reloadAnalytics.mockClear();
     reloadPracticeTime.mockClear();
@@ -86,7 +81,6 @@ describe("Analysis — a load that failed", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     // All four, not just the one whose error happened to surface.
     expect(reloadAnalysis).toHaveBeenCalledTimes(1);
-    expect(reloadCharts).toHaveBeenCalledTimes(1);
     expect(reloadSnapshot).toHaveBeenCalledTimes(1);
     expect(reloadAnalytics).toHaveBeenCalledTimes(1);
     expect(reloadPracticeTime).toHaveBeenCalledTimes(1);

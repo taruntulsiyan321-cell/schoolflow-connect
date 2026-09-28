@@ -3854,3 +3854,34 @@ bank-only filter in `dispatch_variant_generation`. Measured
 it returns carry `ms` per local day) and format with `formatSessionDuration`,
 as Analysis does. Not changed here: the request was Analysis and the session
 report only.
+
+## 85. Three recorded fields say less than their names — found auditing Analysis, OPEN
+
+**Found:** 2026-09-28, while checking every figure on Analysis. Analysis no
+longer reads any of them (20261115000000 and the change with it); what is left
+is the data and the one unread payload field.
+
+* **`question_attempts.attempt_number` is a position, not a count.**
+  `src/gurukul/pages/Practice.tsx` writes `++attemptNumberRef.current` — the
+  question's place in its session. Anything reading it as "how many times this
+  student has met this question" is wrong; "How you work" was, and now counts
+  per `bank_question_id` instead. Fix when a consumer needs it: rename, or
+  write the real count.
+* **`question_attempts.solution_viewed` means "this question had an
+  explanation".** Practice sets it when the server returns one, and the
+  explanation is then shown after every answer without being asked for. There
+  is no "open the solution" choice to record. Analysis stopped reporting it.
+* **`rpc_student_performance_charts.practice_trend` has no reader.** Analysis
+  draws the score line from its own session list now: the series left out
+  every session without a single chapter and returned no score for one skipped
+  through. Not removed here because that function's live body has drifted from
+  every file that defines it (20261031000000's header) and this container
+  cannot read it; remove it by in-place substitution once it can be read.
+
+## 86. Battle answers feed the weak topics Analysis shows — NEEDS A RULING
+
+`_weak_topics_for_user` (20261024000000) unions `battle_answers` with practice
+attempts, and the snapshot's `weak_topics` — Analysis's "Need attention" list —
+is built from it. Rule 11 says Analysis is fed by practice and nothing else.
+Whether Battleground counts as practice is the owner's call; the function also
+feeds recovery and revision, so it is not changed here.

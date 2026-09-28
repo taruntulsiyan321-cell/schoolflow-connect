@@ -6,6 +6,7 @@ import {
   deriveSubjectPace,
   formatSeconds,
   busiestHour,
+  daysPractisedIn,
   deriveStudyTime,
   paceOverAnswers,
   formatHour,
@@ -267,6 +268,28 @@ describe("studentAnalysisMetrics", () => {
       expect(study.bestDay).toBe("—");
       expect(study.bestHour).toBe("—");
     }
+  });
+
+  it("counts the days practised in the last 14 — fourteen dates, never fifteen", () => {
+    const every = Array.from({ length: 20 }, (_, i) => {
+      const d = new Date(2026, 8, 27 - i);
+      const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      return { date, ms: 60_000, answered: 1, correct: 1, sessions: 1 };
+    });
+    // A student who practised every day of the last twenty. The old window,
+    // CURRENT_DATE - 14 through today, held fifteen of them.
+    expect(daysPractisedIn({ today: "2026-09-27", days: every }, 14)).toBe(14);
+    // A day with answers and no finished session is not a day practised; the
+    // window starts on the 14th and today is the 27th.
+    expect(daysPractisedIn({
+      today: "2026-09-27",
+      days: [
+        { date: "2026-09-14", ms: 1, answered: 1, correct: 0, sessions: 1 },
+        { date: "2026-09-13", ms: 1, answered: 1, correct: 0, sessions: 1 },
+        { date: "2026-09-20", ms: 1, answered: 1, correct: 0, sessions: 0 },
+      ],
+    }, 14)).toBe(1);
+    expect(daysPractisedIn(null, 14)).toBeNull();
   });
 
   it("paces over answers only, and says how many answers it rests on", () => {

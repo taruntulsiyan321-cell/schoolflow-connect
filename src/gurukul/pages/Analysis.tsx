@@ -15,10 +15,9 @@ import { NoStudentProfile, PageHeader, PageSkeleton, Skeleton, SkeletonCard, Ske
 import { type Tab, TABS } from "./analysisTabs";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
-import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
+import { useAnalysisPageData, type PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
 import { useWeakChapters } from "@/hooks/useWeakChapters";
 import { WeakChapterList } from "@/components/student/analytics/WeakChapterList";
-import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPracticeAnalytics } from "@/hooks/useStudentPracticeAnalytics";
 import { useStudentPracticeTime } from "@/hooks/useStudentPracticeTime";
@@ -48,6 +47,7 @@ import {
   deriveMonthComparison,
   deriveRecoveryProgress,
   deriveRecoveryChapters,
+  daysPractisedIn,
   deriveStudyTime,
   deriveSubjectPace,
   formatSeconds,
@@ -56,7 +56,6 @@ import {
   practiceCountForTopic,
   scoreAxisDomain,
 } from "@/lib/studentAnalysisMetrics";
-import { hasStudyActiveDays, studyActiveDaysFromSnapshot } from "@/lib/learningMetrics";
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { toErrorMessage } from "@/lib/presentation";
 import { formatLastSeen } from "@/lib/analyticsInsights";
@@ -84,6 +83,20 @@ function subjectColor(name: string, index: number) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+
+/**
+ * A run of session scores in the order they happened, from the newest-first
+ * list. A session with nothing answered has no score and is left out: it is
+ * not a 0% sitting, and counting it as one turned a skipped-through session
+ * into a "worsening" subject or chapter.
+ */
+function scoredRun(sessions: PracticeSessionSummary[]): number[] {
+  return sessions
+    .slice()
+    .reverse()
+    .map((s) => s.accuracy_pct)
+    .filter((a): a is number => a != null);
+}
 
 /**
  * The "% right" line printed beside a TIME.
@@ -143,6 +156,9 @@ const RADAR_MIN_AXES = 3;
  */
 const LINE_MIN_POINTS = 2;
 
+/** The summary's consistency window, in days of the student's calendar. */
+const CONSISTENCY_SUMMARY_DAYS = 14;
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Analysis() {
@@ -158,7 +174,6 @@ export default function Analysis() {
   // chapter tally behind the accuracy and the trend, and what was skipped).
   const { list: weakChapters, reload: reloadWeakChapters } = useWeakChapters(academicReady, ctx?.userId ?? null);
   const { data: analysis, loading: analysisLoading, error: analysisError, reload: reloadAnalysis } = useAnalysisPageData(academicReady);
-  const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts(academicReady);
   const { data: snapshot, loading: snapshotLoading, error: snapshotError, reload: reloadSnapshot } = useStudentAcademicSnapshot(academicReady);
   // CONCEPT MASTERY IS GONE FROM THIS PAGE.
   //
@@ -222,20 +237,19 @@ export default function Analysis() {
   // not the same as fetching nothing. The student reads their exam marks on
   // their marks surface instead.
 
-  const loading = analysisLoading || chartsLoading || snapshotLoading || practiceAnalyticsLoading || practiceTimeLoading;
-  const loadError = analysisError || chartsError || snapshotError || practiceAnalyticsError || practiceTimeError;
+  const loading = analysisLoading || snapshotLoading || practiceAnalyticsLoading || practiceTimeLoading;
+  const loadError = analysisError || snapshotError || practiceAnalyticsError || practiceTimeError;
 
   // EVERY SOURCE, not just the one that happened to fail first. loadError is
-  // the first non-null of five, so retrying only that one leaves the others
+  // the first non-null of four, so retrying only that one leaves the others
   // stale if more than one was down — which, for calls that go out together,
   // is the common case rather than the odd one.
   const retryAll = useCallback(() => {
     void reloadAnalysis();
-    void reloadCharts();
     void reloadSnapshot();
     void reloadPracticeAnalytics();
     void reloadPracticeTime();
-  }, [reloadAnalysis, reloadCharts, reloadSnapshot, reloadPracticeAnalytics, reloadPracticeTime]);
+  }, [reloadAnalysis, reloadSnapshot, reloadPracticeAnalytics, reloadPracticeTime]);
 
   useEffect(() => {
     if (loadError) {
@@ -311,39 +325,25 @@ export default function Analysis() {
     };
   }, [analysis, snapshot, student.streak]);
 
-  const scoreTrend = useMemo(() => {
-    // TWO PATHS, ONE DEFINITION — and that is why the fallback is allowed to
-    // stand where the `fallbackAvg` below was deleted.
+  const scoreTrend = useMemo(
+    // ONE LIST, AND A SESSION WITH NOTHING ANSWERED IS NOT A POINT.
     //
-    // practice_trend.score_pct is correct_count / (correct_count +
-    // wrong_count), server-side, since 20261031000000; recent_sessions
-    // .accuracy_pct is accuracyOverAnswered(correct_count, wrong_count) over
-    // the same columns of the same rows. Same formula, same source, one
-    // aggregated by the database and one by the client, so which branch runs
-    // cannot change what the line means. Change one and you must change the
-    // other — a fallback between two DIFFERENT measures is a coin toss about
-    // which is true, which is exactly what the pace figure was.
-    //
-    // A third field, `practice`, was carried here and rendered by nothing:
-    // literal 0 in the first branch and question_count in the second, so the
-    // one name meant "no data" or "a real count" depending on a branch
-    // nobody read. Gone rather than reconciled.
-    const trend = charts?.practice_trend ?? [];
-    if (trend.length > 0) {
-      return trend.map((p) => ({
-        week: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        score: Math.round(p.score_pct),
-      }));
-    }
-    const sessions = [...(analysis?.recent_sessions ?? [])].reverse();
-    if (sessions.length > 0) {
-      return sessions.map((s) => ({
-        week: new Date(s.finished_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        score: s.accuracy_pct,
-      }));
-    }
-    return [];
-  }, [charts?.practice_trend, analysis?.recent_sessions]);
+    // This read charts.practice_trend first and fell back to this list. That
+    // series left out every session without a single chapter (Mixed, Weak
+    // Areas, Daily) under a heading that says "your recent sessions", and a
+    // session skipped through arrived with no score, which Math.round turned
+    // into a 0% point. accuracy_pct is null for such a session now, and it is
+    // left off the line rather than drawn at zero.
+    () =>
+      [...(analysis?.recent_sessions ?? [])]
+        .reverse()
+        .filter((s): s is typeof s & { accuracy_pct: number } => s.accuracy_pct != null)
+        .map((s) => ({
+          week: new Date(s.finished_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          score: s.accuracy_pct,
+        })),
+    [analysis?.recent_sessions],
+  );
 
   // SUBJECTS, FROM THE ATTEMPTS — the same rows the chapter and topic panels
   // beside them count.
@@ -362,7 +362,7 @@ export default function Analysis() {
         (x) => preferRealAcademicLabel(x.subject).toLowerCase() === name.toLowerCase(),
       );
       const { state: subjectTrendState, deltaPoints } = trendState(
-        runs.slice().reverse().map((x) => x.accuracy_pct),
+        scoredRun(runs),
       );
       // NULL STAYS NULL, AND THE FLOOR IS APPLIED HERE — ONCE.
       //
@@ -425,7 +425,7 @@ export default function Analysis() {
         (x) => preferRealAcademicLabel(x.chapter).toLowerCase() === label.toLowerCase(),
       );
       const { state: chapterTrendState, deltaPoints } = trendState(
-        runs.slice().reverse().map((x) => x.accuracy_pct),
+        scoredRun(runs),
       );
       // Same rule as the subject rows, and the same single application of the
       // floor. Measured before this: "Circles · Mathematics · Needs attention
@@ -547,9 +547,10 @@ export default function Analysis() {
   // typechecks clean. tsc will not catch the next one either, so the order
   // matters and is asserted by the declaration-order check.
   const weekComparison = useMemo(
-    // The heat map, like every other activity figure on this page. This read
-    // charts.weekly_activity and was the last panel counting a fortnight of
-    // activities from a table nothing else on the screen consults.
+    // The student's own days, like every other activity figure on this page.
+    // This read charts.weekly_activity and was the last panel counting a
+    // fortnight of activities from a table nothing else on the screen
+    // consults.
     () => buildWeekComparison(activityWeeks.flatMap((w) => w.days)),
     [activityWeeks],
   );
@@ -562,13 +563,9 @@ export default function Analysis() {
     // from the student's own days (rpc_student_practice_time). Two tables
     // answering "did this student do something on this day", in one row of
     // tiles, over the same four weeks. Rendered together they can contradict
-    // outright — measured in the
-    // render fixture as "Activities in 4 weeks: 0" sitting next to
-    // "Consistency: 11%", which is three active days out of twenty-eight.
-    //
-    // weekly_activity still feeds the MONTHLY panels, which need a longer
-    // series than four weeks; that is a different window, not a second
-    // answer to this one.
+    // outright — measured in the render fixture as "Activities in 4 weeks: 0"
+    // sitting next to "Consistency: 11%", which is three active days out of
+    // twenty-eight.
     const days = activityWeeks.flatMap((w) => w.days);
     const weekDone = days.reduce((s, d) => s + d.total, 0);
     // From the calendar grid, whose cells are keyed by local date. This read
@@ -604,19 +601,24 @@ export default function Analysis() {
   }, [student.streak, activityWeeks]);
 
   const practiceMonthly = useMemo(() => {
-    // PRACTICE ONLY (rule 11). weekly_activity.total is
-    // test + homework + battle + self_practice — school data folded into a
-    // chart headed "Practice activity". Count self_practice alone.
-    const weekly = charts?.weekly_activity ?? [];
+    // The student's own days (rpc_student_practice_time): finished practice
+    // sessions, whole months from the first of last month — the same numbers
+    // as the month comparison's "Practice" row. charts.weekly_activity held
+    // 28 days, so its "each month" was never more than two partial months.
     const byMonth = new Map<string, number>();
-    for (const row of weekly) {
-      const key = new Date(row.date).toLocaleDateString(undefined, { month: "short" });
-      byMonth.set(key, (byMonth.get(key) ?? 0) + (row.self_practice ?? 0));
+    for (const d of practiceTime?.days ?? []) {
+      const key = d.date.slice(0, 7);
+      byMonth.set(key, (byMonth.get(key) ?? 0) + d.sessions);
     }
     return [...byMonth.entries()]
       .filter(([, done]) => done > 0)
-      .map(([month, done]) => ({ month, done }));
-  }, [charts?.weekly_activity]);
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, done]) => ({
+        month: new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1)
+          .toLocaleDateString(undefined, { month: "short" }),
+        done,
+      }));
+  }, [practiceTime?.days]);
 
   // ONE DEFINITION OF PER-QUESTION TIME ON THIS PAGE, AT EVERY LEVEL.
   //
@@ -831,7 +833,7 @@ export default function Analysis() {
     // recent_sessions arrives newest-first; trendState reads a run in the
     // order it happened.
     const { state: accuracyTrend, deltaPoints } = trendState(
-      (analysis?.recent_sessions ?? []).slice().reverse().map((x) => x.accuracy_pct),
+      scoredRun(analysis?.recent_sessions ?? []),
     );
     const built = buildMilestones(
       snapshot ?? {},
@@ -861,7 +863,7 @@ export default function Analysis() {
     if (overview.totalQuestions != null && overview.totalQuestions >= PRACTICE_QUESTIONS_MILESTONE) {
       items.push({
         title: `${pluralise(overview.totalQuestions, "question")} solved`,
-        desc: "Total practice questions attempted so far.",
+        desc: "Practice questions answered so far.",
         date: "Recent",
         icon: "📚",
         category: "Practice",
@@ -1158,6 +1160,7 @@ export default function Analysis() {
   // attendance surface already shows it.
   //
   // null means "no figure recorded", never 0. See the Summary block below.
+  const daysPractised = daysPractisedIn(practiceTime, CONSISTENCY_SUMMARY_DAYS);
   const summaryRows: { label: string; value: string | number | null }[] = [
     // THE SAME ACCURACY THE OVERVIEW TILE PRINTS, from the same counts (G5).
     //
@@ -1179,7 +1182,9 @@ export default function Analysis() {
     // where it is for the surfaces that legitimately read readiness; this
     // page has its own figure and must not have two.
     { label: "Practice accuracy", value: overview.accuracy == null ? null : `${overview.accuracy}%` },
-    { label: "Study consistency", value: hasStudyActiveDays(snapshot) ? `${studyActiveDaysFromSnapshot(snapshot)} active days (14d)` : null },
+    // Practice sessions on the student's own days, the last 14 of them —
+    // not exam_readiness.active_days_14d, which spans 15 and counts tests.
+    { label: "Study consistency", value: daysPractised == null ? null : `${daysPractised} of ${CONSISTENCY_SUMMARY_DAYS} days practised` },
     { label: "Open mistakes", value: snapshot?.mistake_count ?? null },
     { label: "Recovery pending", value: snapshot?.recovery_pending ?? null },
   ];
@@ -1312,10 +1317,8 @@ export default function Analysis() {
           </div>
 
           {/* Score over time */}
-          {/* Not "7 weeks". scoreTrend is charts.practice_trend, which
-              rpc_student_performance_charts builds from the last 30 days, and
-              falls back to the recent-sessions list — never seven weeks of
-              anything. */}
+          {/* Not "7 weeks". scoreTrend is the latest 40 sessions with an
+              answer in them — never seven weeks of anything. */}
           <Card label="How your score changed — your recent sessions">
             {scoreTrend.length >= LINE_MIN_POINTS ? (
             <>
@@ -1854,24 +1857,20 @@ export default function Analysis() {
             </Card>
 
             {/* ── How you work ───────────────────────────────────────────
-                solution_viewed and attempt_number are written on every attempt
-                and were read by nothing. Neither is a verdict: looking at a
-                worked solution is studying, and meeting a question twice is
-                what recovery and revision are FOR. They are reported as counts,
-                with no good/bad attached. */}
+                Per BANK QUESTION (20261115000000). Neither figure is a
+                verdict: meeting a question twice is what recovery and
+                revision are FOR. Both were counted off attempt_number, which
+                is a question's position in its session, so "met more than
+                once" meant "not first in its session" and "right first time"
+                was the first question of each session. "Solution opened" is
+                gone: the explanation shows after every answer, so it measured
+                which questions have one, not what the student chose. */}
             {practiceAnalytics?.effort && practiceAnalytics.effort.attempts > 0 && (
             <Card label="How you work">
-              <div className="grid grid-cols-3 gap-3 mt-4">
+              <div className="grid grid-cols-2 gap-3 mt-4">
                 <div className="text-center p-3 rounded-xl border border-border/70 bg-surface/60">
                   <div className="text-xl font-black tabular-nums text-foreground">
-                    {Math.round((100 * practiceAnalytics.effort.solution_viewed) / practiceAnalytics.effort.attempts)}%
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">Solution opened</div>
-                  <div className="text-[10px] text-muted-foreground">{practiceAnalytics.effort.solution_viewed} of {practiceAnalytics.effort.attempts}</div>
-                </div>
-                <div className="text-center p-3 rounded-xl border border-border/70 bg-surface/60">
-                  <div className="text-xl font-black tabular-nums text-foreground">
-                    {practiceAnalytics.effort.repeat_attempts}
+                    {practiceAnalytics.effort.questions_seen_again}
                   </div>
                   <div className="text-[10px] text-muted-foreground mt-0.5">Seen again</div>
                   <div className="text-[10px] text-muted-foreground">questions you met more than once</div>
@@ -1883,7 +1882,7 @@ export default function Analysis() {
                     {firstTryAccuracy == null ? "—" : `${firstTryAccuracy}%`}
                   </div>
                   <div className="text-[10px] text-muted-foreground mt-0.5">Right first time</div>
-                  <div className="text-[10px] text-muted-foreground">over {pluralise(practiceAnalytics.effort.first_try_attempts, "first try", "first tries")}</div>
+                  <div className="text-[10px] text-muted-foreground">over {pluralise(practiceAnalytics.effort.first_try_attempts, "question", "questions")} answered on first meeting</div>
                 </div>
               </div>
             </Card>

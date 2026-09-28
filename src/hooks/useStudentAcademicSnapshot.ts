@@ -57,7 +57,6 @@ export type AcademicSnapshot = {
     /** Practice-only accuracy, straight from question_attempts. */
     practice_accuracy_pct?: number;
     test_completion_pct?: number;
-    active_days_14d?: number;
   };
 };
 

@@ -25,7 +25,7 @@ const HOOKS = [
   "useAnalysisPageData",
   "useStudentPracticeAnalytics",
   "useStudentAcademicSnapshot",
-  "useStudentPerformanceCharts",
+  "useStudentPracticeTime",
 ] as const;
 
 describe("every Analysis hook reports failure as absence", () => {

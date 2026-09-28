@@ -1,41 +1,34 @@
 -- ===========================================================================
--- ROLLBACK: avg_sec counts skips again, and rpc_student_practice_time goes
+-- ROLLBACK: the analytics function as it was, and rpc_student_practice_time goes
 --
--- rpc_student_practice_analytics.avg_sec and `timed` return to every attempt
--- that carries a time, skips included, and the per-day time function is
--- dropped. The app's study-time and busiest-hour tiles read that function, so
--- roll the app back with this.
+-- rpc_student_practice_analytics is restored from the definition 20261115000000
+-- saved before changing it — avg_sec and `timed` over every timed attempt,
+-- skips included, and `effort` counted off attempt_number — and the per-day
+-- time function is dropped. The app's study-time, busiest-hour and "How you
+-- work" figures read what that migration returns, so roll the app back with
+-- this.
 --
 -- Undoes: 20261115000000_time_is_counted_on_answers_and_on_the_students_own_day.sql
 -- ===========================================================================
 
 BEGIN;
 
-DO $pace$
-DECLARE
-  _def text;
-  _timed_old constant text :=
-    'count(*) FILTER (WHERE COALESCE(qa.time_taken_ms, 0) > 0)::int AS timed';
-  _timed_new constant text :=
-    'count(*) FILTER (WHERE COALESCE(qa.time_taken_ms, 0) > 0 AND NOT COALESCE(qa.skipped, false))::int AS timed';
-  _avg_old constant text :=
-    'round(avg(qa.time_taken_ms) FILTER (WHERE COALESCE(qa.time_taken_ms, 0) > 0) / 1000.0, 1) AS avg_sec';
-  _avg_new constant text :=
-    'round(avg(qa.time_taken_ms) FILTER (WHERE COALESCE(qa.time_taken_ms, 0) > 0 AND NOT COALESCE(qa.skipped, false)) / 1000.0, 1) AS avg_sec';
+DO $restore$
+DECLARE _def text;
 BEGIN
-  _def := replace(pg_get_functiondef('public.rpc_student_practice_analytics()'::regprocedure), E'\r\n', E'\n');
-  IF (length(_def) - length(replace(_def, _timed_new, ''))) / length(_timed_new) <> 4 THEN
-    RAISE EXCEPTION 'expected the answered timed count in all 4 groups, found %',
-      (length(_def) - length(replace(_def, _timed_new, ''))) / length(_timed_new);
+  SELECT definition INTO _def FROM public.routines_pre_20261115000000
+   WHERE object = 'public.rpc_student_practice_analytics()';
+  IF _def IS NULL THEN
+    RAISE EXCEPTION 'no saved definition of rpc_student_practice_analytics() to restore';
   END IF;
-  IF (length(_def) - length(replace(_def, _avg_new, ''))) / length(_avg_new) <> 4 THEN
-    RAISE EXCEPTION 'expected the answered avg_sec in all 4 groups, found %',
-      (length(_def) - length(replace(_def, _avg_new, ''))) / length(_avg_new);
+  EXECUTE _def;
+  IF md5(pg_get_functiondef('public.rpc_student_practice_analytics()'::regprocedure)) <> md5(_def) THEN
+    RAISE EXCEPTION 'rpc_student_practice_analytics() did not come back as it was saved';
   END IF;
-  EXECUTE replace(replace(_def, _timed_new, _timed_old), _avg_new, _avg_old);
 END
-$pace$;
+$restore$;
 
 DROP FUNCTION public.rpc_student_practice_time(text);
+DROP TABLE public.routines_pre_20261115000000;
 
 COMMIT;

@@ -25,7 +25,7 @@
  * a shell as a session.
  */
 import { describe, expect, it } from "vitest";
-import { sessionWasAttempted } from "@/hooks/useAnalysisPageData";
+import { sessionSummary, sessionWasAttempted } from "@/hooks/useAnalysisPageData";
 
 describe("sessionWasAttempted", () => {
   it("rejects the shell shape that was being averaged in", () => {
@@ -72,5 +72,30 @@ describe("sessionWasAttempted", () => {
         question_count: 20,
       }),
     ).toBe(false);
+  });
+});
+
+describe("sessionSummary's score", () => {
+  const row = (over: Partial<Parameters<typeof sessionSummary>[0]>) => ({
+    id: "s", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 0,
+    score: 0, created_at: "2026-09-26T09:00:00Z", finished_at: "2026-09-26T10:00:00Z",
+    accuracy: null, wrong_count: 0, skipped_count: 0, total_time_ms: null, ...over,
+  });
+
+  it("has no score for a session with nothing answered — not 0%", () => {
+    // Ten questions, all skipped: the finish stored no accuracy. The fallback
+    // made it 0 and plotted it on the score line.
+    expect(sessionSummary(row({ skipped_count: 10 })).accuracy_pct).toBeNull();
+  });
+
+  it("takes the finish's own accuracy when it stored one", () => {
+    expect(sessionSummary(row({ accuracy: 66.7, correct_count: 2, wrong_count: 1, skipped_count: 7 })).accuracy_pct).toBe(67);
+  });
+
+  it("derives over ANSWERED questions when none was stored, never over the question count", () => {
+    // 4 right, 1 wrong, 5 skipped: 80%. Over question_count it read 40%.
+    const s = sessionSummary(row({ correct_count: 4, wrong_count: 1, skipped_count: 5 }));
+    expect(s.accuracy_pct).toBe(80);
+    expect(s.accuracy_pct).not.toBe(40);
   });
 });

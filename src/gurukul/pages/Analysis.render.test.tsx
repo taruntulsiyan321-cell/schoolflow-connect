@@ -139,13 +139,6 @@ vi.mock("@/hooks/useAnalysisPageData", () => ({
   }),
 }));
 
-vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
-  useStudentPerformanceCharts: () => ({
-    data: { practice_trend: [], weekly_activity: [] },
-    loading: false,
-    error: null,
-  }),
-}));
 
 vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
   useStudentAcademicSnapshot: () => ({ data: SNAPSHOT, loading: false, error: null }),
@@ -165,7 +158,7 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
         { difficulty: "easy",   rank: 1, attempts: 207, answered: 70, timed: 70, correct: 29, skipped: 137, accuracy: 41.4, avg_sec: 2.9 },
         { difficulty: "medium", rank: 2, attempts: 234, answered: 96, timed: 94, correct: 46, skipped: 138, accuracy: 47.9, avg_sec: 2.6 },
       ],
-      effort: { attempts: 564, solution_viewed: 211, repeat_attempts: 481, first_try_attempts: 56, first_try_correct: 20 },
+      effort: { attempts: 564, questions_seen_again: 481, first_try_attempts: 56, first_try_correct: 20 },
       recurring: [],
     },
     loading: false,
@@ -291,6 +284,28 @@ describe("Analysis — rendered", () => {
     const tile = screen.getByText("Study time (4 weeks)").parentElement as HTMLElement;
     expect(within(tile).getByText("1h 47m")).toBeInTheDocument();
     expect(within(tile).queryByText("11h 47m")).toBeNull();
+  });
+
+  it("reports how the student works per question, and not what it cannot measure", () => {
+    render(<Analysis />);
+    openTab("Practice");
+    expect(screen.getByText("How you work")).toBeInTheDocument();
+    const seen = screen.getByText("Seen again").parentElement as HTMLElement;
+    expect(within(seen).getByText("481")).toBeInTheDocument();
+    // The explanation shows after every answer: "opened" was never a choice.
+    expect(screen.queryByText("Solution opened")).toBeNull();
+    const first = screen.getByText("Right first time").parentElement as HTMLElement;
+    expect(first.textContent).toContain("36%"); // 20 of 56
+    expect(first.textContent).toContain("56 questions answered on first meeting");
+  });
+
+  it("counts the days practised in the last fourteen of the student's own", () => {
+    render(<Analysis />);
+    // Sessions on days 1, 3 and 10 back; day 40 is outside the window.
+    const p = Array.from(document.querySelectorAll("p")).find((el) =>
+      (el.textContent ?? "").startsWith("Study consistency:"),
+    );
+    expect(p?.textContent).toContain("3 of 14 days practised");
   });
 
   it("names the busiest hour from the student's own clock", () => {

@@ -43,6 +43,22 @@
 --    busy student's "Most active hour" was read off their latest 1,000
 --    answers only.
 --
+-- 3. "How you work" measured two things it does not say.
+--    `effort` counted repeats as attempt_number > 1 and first tries as
+--    attempt_number = 1. The practice screen writes attempt_number as the
+--    question's POSITION in the session (++attemptNumberRef), so "Seen again —
+--    questions you met more than once" counted every question after the first
+--    in each session, and "Right first time" was the accuracy of each
+--    session's opening question. Both are measured per BANK QUESTION now: how
+--    many questions the student has met more than once, and of the questions
+--    whose first meeting was answered, how many were right. solution_viewed
+--    leaves the payload: the explanation is shown after every answer
+--    whether or not the student asks, so the column records "this question
+--    had an explanation", not a choice — the page stops reporting it.
+--
+-- Disputed answers (excluded_from_accuracy, 20261065000000) stay out of every
+-- figure here, as they are out of every other group of the analytics RPC.
+--
 -- Callers: Analysis.tsx (useStudentPracticeAnalytics, useStudentPracticeTime).
 --
 -- ROLLBACK: rollback/20261115000000_time_is_counted_on_answers_and_on_the_students_own_day.rollback.sql
@@ -50,10 +66,26 @@
 
 BEGIN;
 
+-- The analytics function exactly as it was, for the rollback to restore. Its
+-- live body has been edited in place by several migrations (20261045000000,
+-- 20261065000000), so no file holds it; the database does.
+CREATE TABLE public.routines_pre_20261115000000 (
+  object text PRIMARY KEY,
+  definition text NOT NULL
+);
+ALTER TABLE public.routines_pre_20261115000000 ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.routines_pre_20261115000000 FROM anon, authenticated;
+COMMENT ON TABLE public.routines_pre_20261115000000 IS
+  'Rollback source for 20261115000000: rpc_student_practice_analytics() as it was before it. No policy and no grant to anon or authenticated. Drop once that deployment is accepted.';
+INSERT INTO public.routines_pre_20261115000000 (object, definition) VALUES
+  ('public.rpc_student_practice_analytics()', pg_get_functiondef('public.rpc_student_practice_analytics()'::regprocedure));
+
 -- ── 1. Seconds per question is seconds per ANSWER ──────────────────────────
 DO $pace$
 DECLARE
   _def text;
+  _i int;
+  _j int;
   _timed_old constant text :=
     'count(*) FILTER (WHERE COALESCE(qa.time_taken_ms, 0) > 0)::int AS timed';
   _timed_new constant text :=
@@ -77,7 +109,47 @@ BEGIN
       (length(_def) - length(replace(_def, _avg_old, ''))) / length(_avg_old);
   END IF;
 
-  EXECUTE replace(replace(_def, _timed_old, _timed_new), _avg_old, _avg_new);
+  _def := replace(replace(_def, _timed_old, _timed_new), _avg_old, _avg_new);
+
+  -- ── 3. effort, per bank question ──────────────────────────────────────
+  -- Everything from the 'effort' key to the 'recurring' key is replaced; each
+  -- key must appear exactly once or nothing is.
+  _i := position(E'\'effort\', (' IN _def);
+  _j := position(E'\'recurring\', (' IN _def);
+  IF _i = 0 OR _j <= _i
+     OR position(E'\'effort\', (' IN substr(_def, _i + 1)) > 0
+     OR position(E'\'recurring\', (' IN substr(_def, _j + 1)) > 0 THEN
+    RAISE EXCEPTION 'expected one effort and one recurring section, in that order, in rpc_student_practice_analytics';
+  END IF;
+  _def := left(_def, _i - 1) || $effort$'effort', (
+      WITH mine AS (
+        SELECT qa.bank_question_id, qa.created_at, qa.is_correct,
+               COALESCE(qa.skipped, false) AS skipped
+          FROM public.question_attempts qa
+         WHERE qa.user_id = _uid
+           AND NOT COALESCE(qa.excluded_from_accuracy, false)
+      ), firsts AS (
+        -- Each bank question's first meeting, by when it happened.
+        SELECT DISTINCT ON (m.bank_question_id) m.bank_question_id, m.is_correct, m.skipped
+          FROM mine m
+         WHERE m.bank_question_id IS NOT NULL
+         ORDER BY m.bank_question_id, m.created_at
+      )
+      SELECT jsonb_build_object(
+        'attempts',             (SELECT count(*)::int FROM mine),
+        'questions_seen_again', (SELECT count(*)::int FROM (
+                                   SELECT 1 FROM mine m
+                                    WHERE m.bank_question_id IS NOT NULL
+                                    GROUP BY m.bank_question_id
+                                   HAVING count(*) > 1) r),
+        'first_try_attempts',   (SELECT count(*)::int FROM firsts f WHERE NOT f.skipped),
+        'first_try_correct',    (SELECT count(*)::int FROM firsts f WHERE NOT f.skipped AND f.is_correct)
+      )
+    ),
+
+    $effort$ || substr(_def, _j);
+
+  EXECUTE _def;
 END
 $pace$;
 
@@ -128,6 +200,7 @@ BEGIN
                count(*) FILTER (WHERE qa.is_correct AND NOT COALESCE(qa.skipped, false))::int AS correct
           FROM public.question_attempts qa
          WHERE qa.user_id = _uid
+           AND NOT COALESCE(qa.excluded_from_accuracy, false)
            AND qa.created_at >= _since
          GROUP BY 1
       ), s AS (
@@ -159,6 +232,7 @@ BEGIN
                  count(*)::int AS n
             FROM public.question_attempts qa
            WHERE qa.user_id = _uid
+             AND NOT COALESCE(qa.excluded_from_accuracy, false)
              AND qa.created_at >= now() - interval '28 days'
            GROUP BY 1
         ) c ON c.hr = g.hr
@@ -176,6 +250,7 @@ DECLARE
   _tz constant text := 'Asia/Kolkata';
   _uid uuid; _subject text;
   _want_avg numeric; _old_avg numeric; _want_timed int;
+  _want_again int; _want_first int; _want_first_right int;
   _from date; _since timestamptz;
   _want_ms bigint; _want_hours bigint; _want_sessions bigint;
   _pa jsonb; _pt jsonb; _row jsonb;
@@ -188,6 +263,7 @@ BEGIN
     FROM public.question_attempts qa
    WHERE public._normalize_subject_label(qa.subject) IS NOT NULL
      AND COALESCE(qa.time_taken_ms, 0) > 0
+     AND NOT COALESCE(qa.excluded_from_accuracy, false)
    GROUP BY 1, 2
   HAVING count(*) FILTER (WHERE COALESCE(qa.skipped, false)) > 0
      AND count(*) FILTER (WHERE NOT COALESCE(qa.skipped, false)) > 0
@@ -205,7 +281,24 @@ BEGIN
     FROM public.question_attempts qa
    WHERE qa.user_id = _uid
      AND public._normalize_subject_label(qa.subject) = _subject
-     AND COALESCE(qa.time_taken_ms, 0) > 0;
+     AND COALESCE(qa.time_taken_ms, 0) > 0
+     AND NOT COALESCE(qa.excluded_from_accuracy, false);
+
+  -- "How you work", counted independently: bank questions met more than once,
+  -- and each one's first meeting.
+  SELECT count(*)::int INTO _want_again FROM (
+    SELECT 1 FROM public.question_attempts qa
+     WHERE qa.user_id = _uid AND qa.bank_question_id IS NOT NULL
+       AND NOT COALESCE(qa.excluded_from_accuracy, false)
+     GROUP BY qa.bank_question_id HAVING count(*) > 1) r;
+  SELECT count(*) FILTER (WHERE NOT f.skipped)::int,
+         count(*) FILTER (WHERE NOT f.skipped AND f.is_correct)::int
+    INTO _want_first, _want_first_right
+    FROM (SELECT DISTINCT ON (qa.bank_question_id) qa.is_correct, COALESCE(qa.skipped, false) AS skipped
+            FROM public.question_attempts qa
+           WHERE qa.user_id = _uid AND qa.bank_question_id IS NOT NULL
+             AND NOT COALESCE(qa.excluded_from_accuracy, false)
+           ORDER BY qa.bank_question_id, qa.created_at) f;
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', _uid, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
@@ -223,6 +316,15 @@ BEGIN
   IF (_row->>'timed')::int <> _want_timed THEN
     RAISE EXCEPTION 'ROLLED BACK: % timed is %, want % timed answers', _subject, _row->>'timed', _want_timed;
   END IF;
+  IF (_pa->'effort'->>'questions_seen_again')::int IS DISTINCT FROM _want_again
+     OR (_pa->'effort'->>'first_try_attempts')::int IS DISTINCT FROM _want_first
+     OR (_pa->'effort'->>'first_try_correct')::int IS DISTINCT FROM _want_first_right THEN
+    RAISE EXCEPTION 'ROLLED BACK: effort is %, want seen again %, first tries %, right first time %',
+      _pa->'effort', _want_again, _want_first, _want_first_right;
+  END IF;
+  IF _pa->'effort' ? 'repeat_attempts' OR _pa->'effort' ? 'solution_viewed' THEN
+    RAISE EXCEPTION 'ROLLED BACK: effort still carries the position-based or unmeasured field: %', _pa->'effort';
+  END IF;
 
   -- ── 2. A student with time inside the new window ─────────────────────────
   _from  := (date_trunc('month', (now() AT TIME ZONE _tz)::date) - interval '1 month')::date;
@@ -232,6 +334,7 @@ BEGIN
   SELECT qa.user_id INTO _uid
     FROM public.question_attempts qa
    WHERE qa.created_at >= _since AND COALESCE(qa.time_taken_ms, 0) > 0
+     AND NOT COALESCE(qa.excluded_from_accuracy, false)
    GROUP BY 1
    ORDER BY count(*) DESC
    LIMIT 1;
@@ -241,9 +344,13 @@ BEGIN
 
   SELECT COALESCE(sum(qa.time_taken_ms) FILTER (WHERE COALESCE(qa.time_taken_ms, 0) > 0), 0)
     INTO _want_ms
-    FROM public.question_attempts qa WHERE qa.user_id = _uid AND qa.created_at >= _since;
+    FROM public.question_attempts qa
+   WHERE qa.user_id = _uid AND qa.created_at >= _since
+     AND NOT COALESCE(qa.excluded_from_accuracy, false);
   SELECT count(*) INTO _want_hours
-    FROM public.question_attempts qa WHERE qa.user_id = _uid AND qa.created_at >= now() - interval '28 days';
+    FROM public.question_attempts qa
+   WHERE qa.user_id = _uid AND qa.created_at >= now() - interval '28 days'
+     AND NOT COALESCE(qa.excluded_from_accuracy, false);
   SELECT count(*) INTO _want_sessions
     FROM public.practice_sessions ps
    WHERE ps.user_id = _uid AND ps.finished_at >= _since

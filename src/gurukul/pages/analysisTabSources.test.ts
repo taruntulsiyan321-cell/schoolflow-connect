@@ -75,7 +75,7 @@ describe("rule 11 — Analysis touches practice tables only", () => {
     // What the guard is for is that the page still reads real practice data,
     // so it names the hooks that carry it now. It still fails if they go.
     expect(SOURCE).toContain("useStudentPracticeAnalytics");
-    expect(SOURCE).toContain("useStudentPerformanceCharts");
+    expect(SOURCE).toContain("useStudentPracticeTime");
     expect(SOURCE).toContain("useAnalysisPageData");
   });
 
@@ -277,11 +277,13 @@ describe("§6.1 / §10.8 — Analysis surfaces weaknesses only", () => {
 });
 
 describe("rule 11 — activity charts count practice only", () => {
-  it("does not sum weekly_activity.total into the monthly practice chart", () => {
-    // That column is test + homework + battle + self_practice. Counting it
-    // under a Practice heading folded school data into Analysis.
-    expect(SOURCE).not.toMatch(/byMonth\.set\([^)]+row\.total\)/);
-    expect(SOURCE).toContain("(row.self_practice ?? 0)");
+  it("counts the monthly practice chart in finished practice sessions, never weekly_activity", () => {
+    // weekly_activity.total is test + homework + battle + self_practice, and
+    // the table held 28 days, so "each month" was two partial months of it.
+    // The chart counts practice sessions on the student's own days now — the
+    // month comparison's own numbers.
+    expect(SOURCE).not.toContain("weekly_activity");
+    expect(SOURCE).toContain("(byMonth.get(key) ?? 0) + d.sessions");
   });
 });
 

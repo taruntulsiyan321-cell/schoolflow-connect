@@ -55,9 +55,6 @@ vi.mock("@/hooks/useAnalysisPageData", () => ({
     loading: false, error: null, reload: () => {},
   }),
 }));
-vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
-  useStudentPerformanceCharts: () => ({ data: { practice_trend: [], weekly_activity: [] }, loading: false, error: null, reload: () => {} }),
-}));
 vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
   useStudentAcademicSnapshot: () => ({ data: {
     mistake_count: 4, recovery_pending: 1, self_practice: { sessions_completed: 12 },
@@ -83,7 +80,7 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
       { chapter: "Statistics", subject: "Mathematics", attempts: 30, answered: 30, timed: 0, correct: 28, skipped: 0, accuracy: 93, avg_sec: null, total_min: null },
     ],
     by_topic: [], by_difficulty: [],
-    effort: { attempts: 60, solution_viewed: 0, repeat_attempts: 0, first_try_attempts: 60, first_try_correct: 30 },
+    effort: { attempts: 60, questions_seen_again: 0, first_try_attempts: 60, first_try_correct: 30 },
     recurring: [],
   }, loading: false, error: null, reload: () => {} }),
 }));
