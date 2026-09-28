@@ -4025,3 +4025,57 @@ This is not a defect and the screen does not hide it: every subject is listed, a
 paper says so with its counts ("6 of 50 questions ready, from 3 chapters"). It is the same content gap as
 84, and it closes the same way — questions. General Aptitude Test has no questions and so does not appear
 at all.
+
+## 90. A revision check never re-asks a question the student BROUGHT — OPEN, the ruling recovery already got
+
+Recovery was given this ruling on 2026-09-25 (20261104000000, "a question the student brought gets its
+recovery steps"): a chapter whose mistakes were all screen captures or uploads could never reach a
+startable plan, so `_recovery_step_pool` now ladders a brought question on its own `topic_id` and its
+`matched_bank_question_id` — the anchor's variants, the anchor itself on the procedural rung, then the
+chapter's own bank questions. Measured live 2026-09-28: it works, and the captured question ITSELF is
+re-asked inside the recovery session (three attempts, `source='screen_capture'`,
+`practice_mode='recovery'`, naming `capture_question_id`, at round 4).
+
+`rpc_revision_session_plan` never got the same ruling. Its "misses" half is bank-only:
+
+```sql
+SELECT sm.question_id FROM student_mistakes sm
+  JOIN question_bank qb ON qb.id = sm.question_id
+ WHERE ... AND sm.question_id IS NOT NULL AND qb.is_active
+```
+
+A capture or upload mistake has `question_id IS NULL`, so it cannot be in that list, and the "unseen" half
+is `question_bank` only. A revision check on a chapter the student recovered from captured mistakes
+therefore never asks about the thing they actually got wrong.
+
+Not a crash and not silent — the check still happens, out of fresh bank questions. Whether it SHOULD
+re-ask a brought question is a ruling: recovery says yes for the same content, so the two engines disagree
+today. `student_capture_questions` and `student_upload_questions` both carry question_text, options and
+correct_index, so there is no technical obstacle — the runner already serves them in recovery.
+
+## 91. A mistake on a DEACTIVATED question can never be answered again — OPEN, needs a ruling
+
+Measured on production 2026-09-28, chapter "Principles of Management" for the CUET audit account:
+
+```
+open mistakes                     3
+  practice, times_wrong 7         its bank question is_active = FALSE
+  practice, times_wrong 8         its bank question is_active = FALSE
+  screen_capture, times_wrong 1   no bank question at all (item 90)
+revision plan for that chapter    0 of its misses re-asked + 8 fresh
+```
+
+So a student who got two questions wrong seven and eight times gets a revision check that asks about
+neither. The `qb.is_active` filter in the misses query is right on its own terms — a withdrawn question
+should not be served again — but the consequence is that those mistakes are now unanswerable: they keep
+counting towards the open-mistake total and the recovery trigger, and nothing can ever clear them by being
+answered correctly.
+
+They are not permanently stuck: completing recovery for the chapter clears its open mistakes, and
+`markChapterRecovered` does the same when the student says they are ready. But nothing on any screen says
+"this one cannot come back", and the counts give no hint that two of the three are unaskable.
+
+Three ways out, none to be chosen without the owner: clear a mistake when its question leaves the bank
+(losing the record of it), keep it and mark it unanswerable in the Mistake Book so the student can see
+why, or re-ask it through a variant of itself the way recovery does. The second is the smallest and the
+most honest.
