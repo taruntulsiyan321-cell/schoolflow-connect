@@ -740,7 +740,7 @@ export function ConfigView({
     // docs/custom-practice-upload-spec.md); school students keep bank filters.
     const goalReady = goalType === "count" ? qCount > 0 : timeLimitMin > 0;
 
-    function onUploadMode(upload: StudentUploadRow, mode: UploadPracticeMode) {
+    function onUploadMode(upload: StudentUploadRow, mode: UploadPracticeMode, chapterId?: string) {
       // §8 — practise modes start with SessionConfig.upload. read_notes is
       // opened inside CustomPracticeUpload (toast / notes pane); never a session.
       // Subject stays empty here: per-question subject comes from
@@ -756,7 +756,7 @@ export function ConfigView({
         difficulty: "mixed",
         qCount: 50,
         timeLimitSec: null,
-        upload: { uploadId: upload.id, practiseMode: mode },
+        upload: { uploadId: upload.id, practiseMode: mode, chapterId: chapterId ?? null },
       });
     }
 
@@ -1204,6 +1204,8 @@ interface SessionConfig {
   upload?: {
     uploadId: string;
     practiseMode: UploadPracticeMode;
+    /** The chapter chosen for practise_by_chapter; null for every other mode. */
+    chapterId: string | null;
   } | null;
 }
 
@@ -1237,6 +1239,7 @@ async function loadSessionQuestions(
       config.upload.uploadId,
       config.upload.practiseMode,
       config.qCount,
+      config.upload.chapterId,
     );
   }
   const difficulty = config.difficulty || "mixed";

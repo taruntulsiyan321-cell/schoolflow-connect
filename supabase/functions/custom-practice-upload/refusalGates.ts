@@ -5,7 +5,7 @@
  * Kept separate from classify.ts so app vitest can import this module
  * without pulling supabase/functions/_shared/modelRouter (Deno) into tsc.
  */
-import type { ClassifierResult } from "./types.ts";
+import type { ClassifierResult, ExtractedQuestion } from "./types.ts";
 
 /** §4.2 — below this the verdict is forced to unusable. */
 export const CONFIDENCE_THRESHOLD = 0.55;
@@ -18,6 +18,35 @@ export const UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 
 /** §4.4 — a one-question "session" is worse than an honest refusal. */
 export const MIN_USABLE_QUESTIONS = 3;
+
+/**
+ * A question Practice can put to the student: two or more options and an
+ * option index to grade on — the rule Practice applies before it shows an
+ * uploaded question, and the server's `_brought_question_askable`. A question
+ * whose answer is text only is kept, but it cannot be practised, so it is not
+ * a usable question for §4.4 or a mode for §8.
+ */
+export function isAskable(q: Pick<ExtractedQuestion, "options" | "correct_index">): boolean {
+  return Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(q.correct_index);
+}
+
+/**
+ * §4.4 — the refusal for too little to practise: fewer than
+ * MIN_USABLE_QUESTIONS askable questions and no notes. Null when the upload
+ * may be used. Applied to what the model returned, and again to what is kept
+ * once questions outside the student's stream are set aside — a file of five
+ * questions, three of them another subject's, leaves two.
+ */
+export function tooFewToPractise(
+  questions: Pick<ExtractedQuestion, "options" | "correct_index">[],
+  noteCount: number,
+): string | null {
+  const askable = questions.filter(isAskable).length;
+  if (askable >= MIN_USABLE_QUESTIONS || noteCount > 0) return null;
+  return askable === 0
+    ? "No usable questions or notes were found in this file."
+    : `Only ${askable} usable question(s) found — need at least ${MIN_USABLE_QUESTIONS} to practise, or upload notes.`;
+}
 
 /** Apply §4.2–§4.4 gates. Pure — safe to unit-test offline. */
 export function applyRefusalGates(raw: ClassifierResult): ClassifierResult {
@@ -51,21 +80,14 @@ export function applyRefusalGates(raw: ClassifierResult): ClassifierResult {
   }
 
   // §4.4 — fewer than 3 usable questions and no notes → unusable.
-  if (questions.length < MIN_USABLE_QUESTIONS && notes.length === 0) {
-    return {
-      verdict: "unusable",
-      confidence,
-      refusal_reason:
-        questions.length === 0
-          ? "No usable questions or notes were found in this file."
-          : `Only ${questions.length} usable question(s) found — need at least ${MIN_USABLE_QUESTIONS} to practise, or upload notes.`,
-      questions: [],
-      notes: [],
-    };
+  const tooFew = tooFewToPractise(questions, notes.length);
+  if (tooFew) {
+    return { verdict: "unusable", confidence, refusal_reason: tooFew, questions: [], notes: [] };
   }
 
-  // Align verdict with what we actually kept.
-  const hasQ = questions.length > 0;
+  // Align verdict with what we actually kept: questions means questions that
+  // can be practised.
+  const hasQ = questions.some(isAskable);
   const hasN = notes.length > 0;
   if (hasQ && hasN) verdict = "mixed";
   else if (hasQ) verdict = "questions";

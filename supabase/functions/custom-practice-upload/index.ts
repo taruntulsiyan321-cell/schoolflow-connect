@@ -27,7 +27,7 @@ import {
   type TaggedQuestion,
 } from "./persist.ts";
 import type { ClassifierResult } from "./types.ts";
-import { UPLOAD_MAX_BYTES, UPLOAD_MAX_PAGES } from "./refusalGates.ts";
+import { isAskable, tooFewToPractise, UPLOAD_MAX_BYTES, UPLOAD_MAX_PAGES } from "./refusalGates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -321,6 +321,18 @@ Deno.serve(async (req) => {
       { ...result, verdict: "unusable", refusal_reason: outsideMessage(subject, syllabus.label) }, pageCount);
   }
 
+  // §4.4 on what is KEPT. The gate ran on what the model returned; setting
+  // aside another subject's questions can leave too few to practise.
+  const tooFew = tooFewToPractise(tagged, taggedNotes.length);
+  if (tooFew) {
+    return markUnusable(userClient, uploadId, uid,
+      { ...result, verdict: "unusable", refusal_reason: tooFew }, pageCount);
+  }
+  // The verdict of what was kept, not of what the model saw.
+  const keptQ = tagged.some(isAskable);
+  const keptN = taggedNotes.length > 0;
+  const verdict = keptQ && keptN ? "mixed" : keptQ ? "questions" : "notes";
+
   const qWrite = await persistQuestions(userClient, uploadId, uid, upload.school_id as string, tagged);
   if (qWrite.error) {
     return markFailed(userClient, uploadId, uid, `Could not save extracted questions: ${qWrite.error}`);
@@ -330,7 +342,7 @@ Deno.serve(async (req) => {
     .from("student_uploads")
     .update({
       status: "ready",
-      verdict: result.verdict,
+      verdict,
       confidence: result.confidence,
       refusal_reason: null,
       page_count: pageCount,
@@ -345,7 +357,7 @@ Deno.serve(async (req) => {
     ok: true,
     upload_id: uploadId,
     status: "ready",
-    verdict: result.verdict,
+    verdict,
     confidence: result.confidence,
     questions_written: qWrite.written,
     notes_written: nWrite.written,

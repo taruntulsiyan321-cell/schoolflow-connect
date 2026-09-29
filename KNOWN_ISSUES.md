@@ -4045,3 +4045,21 @@ proofs in 20261117000000 and 20261118000000 were stricter than the rules
 they prove (a brought mistake's rungs can use up its topic's questions; a
 mistake with no bank question has no variants to write), and would have
 refused to apply on live data holding captured mistakes.
+
+## 94. Custom Practice offered modes and accepted files it could not practise — FIXED (upload function and app)
+
+**Found:** 2026-09-29, checking Custom Practice again.
+
+* Modes followed the verdict alone: "Practise hard only" with no hard
+  question and "Practise from notes" with nothing written from notes each
+  opened an empty session, and "Practise by chapter" practised the whole file
+  (every question is tagged, so "tagged" was everything). Modes are now read
+  off what the file holds, and by chapter is one button per chapter.
+* §4.4's three usable questions counted written-answer questions, which
+  Practice cannot ask, and were counted before another subject's questions
+  were set aside. Both now count only practisable questions that are kept,
+  and the saved verdict is the verdict of what was kept.
+
+The upload function change needs **deploying** (`custom-practice-upload`);
+Deno is not installed here, so its entry file was not type-checked — the gate
+module it now imports is covered by the app's tests.

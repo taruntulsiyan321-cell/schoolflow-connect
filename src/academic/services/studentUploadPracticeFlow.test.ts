@@ -107,7 +107,7 @@ vi.mock("../storage/studentUploadFile", () => ({
   STUDENT_UPLOAD_ACCEPT: "application/pdf,image/*",
 }));
 
-const { StudentUploadService, modesForVerdict } = await import("./studentUploadService");
+const { StudentUploadService, modesForUpload, EMPTY_UPLOAD_CONTENT } = await import("./studentUploadService");
 
 const ctx = {
   schoolId: "00000000-0000-4000-8000-000000000001",
@@ -183,8 +183,16 @@ describe("listForPractice mapping (§8)", () => {
     expect(queryCalls.ilike).toEqual(["difficulty", "hard"]);
 
     queryCalls.ilike = null;
-    await StudentUploadService.listForPractice(ctx, "upload-uuid-1", "practise_by_chapter");
-    expect(queryCalls.not).toEqual(["chapter_id", "is"]);
+    queryCalls.eqs = [];
+    await StudentUploadService.listForPractice(ctx, "upload-uuid-1", "practise_by_chapter", 50, "chapter-uuid-1");
+    // One chapter, the one chosen — not every tagged question.
+    expect(queryCalls.eqs).toContainEqual(["chapter_id", "chapter-uuid-1"]);
+    expect(queryCalls.not).toBeNull();
+  });
+
+  it("refuses practise_by_chapter without a chapter rather than practising everything", async () => {
+    await expect(StudentUploadService.listForPractice(ctx, "upload-uuid-1", "practise_by_chapter"))
+      .rejects.toThrow(/Choose a chapter/);
   });
 
   it("narrows practise_from_notes to derived_from_note_id — never like practise_all", async () => {
@@ -293,7 +301,8 @@ describe("refusal path status (§4.3)", () => {
     expect(label).toContain("row.refusal_reason");
   });
 
-  it("modesForVerdict offers nothing for unusable — so refused uploads have no modes", () => {
-    expect(modesForVerdict("unusable")).toEqual([]);
+  it("modesForUpload offers nothing for unusable — so refused uploads have no modes", () => {
+    const full = { ...EMPTY_UPLOAD_CONTENT, practisable: 5, notes: 1, chapters: [] };
+    expect(modesForUpload({ status: "unusable" }, full)).toEqual([]);
   });
 });

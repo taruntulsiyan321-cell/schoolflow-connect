@@ -8,7 +8,9 @@ import { describe, expect, it } from "vitest";
 import {
   applyRefusalGates,
   CONFIDENCE_THRESHOLD,
+  isAskable,
   MIN_USABLE_QUESTIONS,
+  tooFewToPractise,
 } from "../../../supabase/functions/custom-practice-upload/refusalGates";
 import type {
   ClassifierResult,
@@ -123,5 +125,62 @@ describe("applyRefusalGates — §4.2–§4.4", () => {
     expect(gated.refusal_reason).toBeNull();
     expect(gated.questions).toHaveLength(3);
     expect(gated.notes).toEqual([]);
+  });
+});
+
+/**
+ * Found 2026-09-29: §4.4 counted every question the model returned. A
+ * question whose answer is text only cannot be practised — Practice drops it —
+ * so a file of written-answer questions was accepted and every mode opened an
+ * empty session. And the count ran before another subject's questions were
+ * set aside, so five questions, three of them Chemistry, left two.
+ */
+function written(stem: string): ExtractedQuestion {
+  return { ...mcq(stem), options: null, correct_index: null, correct_answer: "42" };
+}
+
+describe("§4.4 counts questions that can be practised", () => {
+  it("a question needs two options and an index to be practised", () => {
+    expect(isAskable(mcq("Q"))).toBe(true);
+    expect(isAskable(written("Q"))).toBe(false);
+    expect(isAskable({ options: ["only one"], correct_index: 0 })).toBe(false);
+    expect(isAskable({ options: ["a", "b"], correct_index: null })).toBe(false);
+  });
+
+  it("refuses a file of written-answer questions, however many", () => {
+    const gated = applyRefusalGates({
+      verdict: "questions", confidence: 0.9, refusal_reason: null,
+      questions: [written("One"), written("Two"), written("Three"), written("Four")],
+      notes: [],
+    });
+    assertZeroRows(gated);
+    expect(gated.refusal_reason).toMatch(/No usable questions/);
+  });
+
+  it("counts only the practisable ones: two MCQs and three written answers is too few", () => {
+    const gated = applyRefusalGates({
+      verdict: "questions", confidence: 0.9, refusal_reason: null,
+      questions: [mcq("A"), mcq("B"), written("C"), written("D"), written("E")],
+      notes: [],
+    });
+    assertZeroRows(gated);
+    expect(gated.refusal_reason).toMatch(/Only 2 usable/);
+  });
+
+  it("CONTROL: three MCQs beside written answers are enough, and every question is kept", () => {
+    const gated = applyRefusalGates({
+      verdict: "questions", confidence: 0.9, refusal_reason: null,
+      questions: [mcq("A"), mcq("B"), mcq("C"), written("D")],
+      notes: [],
+    });
+    expect(gated.verdict).toBe("questions");
+    expect(gated.questions).toHaveLength(4);
+  });
+
+  it("is re-applied to what is kept: two left after another subject is set aside is too few", () => {
+    expect(tooFewToPractise([mcq("A"), mcq("B")], 0)).toMatch(/Only 2 usable/);
+    expect(tooFewToPractise([mcq("A"), mcq("B"), mcq("C")], 0)).toBeNull();
+    // Notes make a file usable on their own (§8: read, and practise from them).
+    expect(tooFewToPractise([], 1)).toBeNull();
   });
 });
