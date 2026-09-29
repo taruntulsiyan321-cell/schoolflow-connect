@@ -5,7 +5,8 @@ import { RecoveryEngineService, useAcademicContext } from "@/academic";
 import { useRevisionItems, useRevisionHistory, isRevisionDue, type RevItem } from "./useRevisionQueueV2";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter } from "@/lib/academicDisplay";
-import { REVISION_ENGAGEMENT_MIN, REVISION_INTERVALS_DAYS } from "@/academic/recovery/constants";
+import { REVISION_COUNT, REVISION_ENGAGEMENT_MIN, REVISION_INTERVALS_DAYS, REVISION_STAGES_TO_SOLID } from "@/academic/recovery/constants";
+import { revisionCheckLabel } from "@/lib/revisionVerdict";
 import { listItems } from "@/lib/listState";
 import { GlassCard, NoStudentProfile, PageHeader, PageSkeleton, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
@@ -19,7 +20,6 @@ function DueTag({ dueIn }: { dueIn: string }) {
     dueIn === "Now" ? { color:"hsl(var(--destructive))", bg:"rgba(244,63,94,0.12)", label:"Now" } :
     dueIn === "Today" ? { color:"hsl(var(--warning))", bg:"rgba(245,158,11,0.12)", label:"Today" } :
     dueIn === "Tomorrow" ? { color:"hsl(var(--warning))", bg:"rgba(251,146,60,0.12)", label:"Tomorrow" } :
-    dueIn === "Done" ? { color:"hsl(var(--success))", bg:"rgba(52,211,153,0.12)", label:"Done" } :
     { color:"hsl(var(--primary))", bg:"rgba(167,139,250,0.12)", label:dueIn };
   return (
     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{color:cfg.color,background:cfg.bg}}>
@@ -38,6 +38,9 @@ function RevItemCard({
   busy: boolean;
 }) {
   const chapterLabel = displayChapter(item.chapter) || item.chapter;
+  // The NEXT check: one past the passes in a row. Past the third it is a
+  // solid chapter's check, not "check 3 of 3" for ever.
+  const nextCheck = revisionCheckLabel(item.passes + 1, item.stagesToSolid);
   return (
     <GlassCard className="p-4 hover:border-border transition-all">
       <div className="flex items-start gap-3">
@@ -48,7 +51,7 @@ function RevItemCard({
             {/* §5.3 made visible. The old queue had no stages to show: every
                 row was simply due today, so there was no ladder to be on. */}
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground">
-              Check {Math.min(item.passes + 1, item.stagesToSolid)} of {item.stagesToSolid}
+              {nextCheck.charAt(0).toUpperCase() + nextCheck.slice(1)}
             </span>
             {item.state === "revision_failed" && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300">
@@ -96,7 +99,11 @@ function RevItemCard({
           <span className="text-[10px] text-muted-foreground">
             nothing new left in this chapter
           </span>
-        ) : item.freshAvailable < item.stagesToSolid ? (
+        ) : item.freshAvailable < REVISION_COUNT ? (
+          // Short against REVISION_COUNT, the length of a check's new half
+          // (§5.4) — not against the three checks it takes to go solid, which
+          // is what this compared with, so a chapter with four new questions
+          // left said nothing and gave a half-length check.
           <span className="text-[10px] text-muted-foreground">
             only {item.freshAvailable} new {item.freshAvailable === 1 ? "question" : "questions"} left here
           </span>
@@ -291,7 +298,7 @@ export default function Revision() {
         action={
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
             <Flame className="w-3.5 h-3.5 text-amber-400"/>
-            <span className="text-xs font-bold text-amber-400">{streak > 0 ? `${streak}-day streak` : "No streak yet"}</span>
+            <span className="text-xs font-bold text-amber-400">{streak > 0 ? `${streak}-day practice streak` : "No practice streak yet"}</span>
           </div>
         }
       />
@@ -323,7 +330,7 @@ export default function Revision() {
             <button key={f} onClick={() => setFilter(f)}
               className={cn("px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all",
                 filter === f ? "bg-violet-500/20 border border-violet-500/40 text-violet-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
-              {f === "due" ? "Due Today" : f}
+              {f === "due" ? "Due" : f}
             </button>
           ))}
         </div>
@@ -354,7 +361,10 @@ export default function Revision() {
         </div>
       </div>
 
-      {/* Revision streak */}
+      {/* The practice streak — the one streak there is. A revision check is a
+          practice session, so it keeps the streak going like any other; there
+          is no separate revision streak, and naming one promised a number the
+          app does not keep. A missed day resets it to zero (20261116000000). */}
       <GlassCard className="p-5 border-amber-500/15">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
@@ -362,12 +372,12 @@ export default function Revision() {
           </div>
           <div className="flex-1">
             <div className="text-sm font-bold text-foreground mb-0.5">
-              {streak > 0 ? `${streak}-day learning streak` : "Start your revision streak"}
+              {streak > 0 ? `${streak}-day practice streak` : "Start a practice streak"}
             </div>
             <div className="text-xs text-muted-foreground mb-2">
               {streak > 0
-                ? "From your XP profile — keep practicing and revising to maintain it."
-                : "Revise items from your queue to build a streak."}
+                ? "Practise — or take a check — every day to keep it. A missed day starts it again from zero."
+                : "Finish a practice session or a check each day to build one."}
             </div>
             <div className="text-xs text-muted-foreground">
               Current streak: <span className="text-amber-300 font-bold tabular-nums">{streak}</span> day{streak === 1 ? "" : "s"}
@@ -420,10 +430,10 @@ export default function Revision() {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-foreground truncate">
-                      {h.chapter ?? "This chapter"}
+                      {h.chapter ? displayChapter(h.chapter) || h.chapter : "This chapter"}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
-                      check {h.stage} ·{" "}
+                      {revisionCheckLabel(h.stage, REVISION_STAGES_TO_SOLID)} ·{" "}
                       {h.completed_at
                         ? new Date(h.completed_at).toLocaleDateString(undefined, {
                             day: "numeric", month: "short",

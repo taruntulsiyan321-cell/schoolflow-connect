@@ -40,7 +40,7 @@ import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
 import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
 import { RecoveryClearChapter } from "@/components/student/RecoveryClearChapter";
-import { revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
+import { revisionCheckLabel, revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -494,7 +494,7 @@ export default function PracticeSessionResult() {
                 {Math.round(revision.rate * 100)}%
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                check {revision.stage} of the {revision.stages_to_solid}-step ladder
+                {revisionCheckLabel(revision.stage, revision.stages_to_solid)}
               </div>
               {(revision.mistake_total > 0 || revision.fresh_total > 0) && (
                 <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
@@ -509,10 +509,16 @@ export default function PracticeSessionResult() {
               </div>
               <div className="text-xl font-black tabular-nums text-foreground">
                 {revision.consecutive_passes}
-                <span className="text-sm text-muted-foreground">/{revision.stages_to_solid}</span>
+                {/* "/3" only on the way to solid: a solid chapter's run keeps
+                    counting, and "5/3" read as more than the whole. */}
+                {revision.consecutive_passes < revision.stages_to_solid && (
+                  <span className="text-sm text-muted-foreground">/{revision.stages_to_solid}</span>
+                )}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                consecutive passes needed
+                {revision.consecutive_passes < revision.stages_to_solid
+                  ? `${revision.stages_to_solid} in a row makes it solid`
+                  : "solid — it now comes back less often"}
               </div>
             </div>
           </div>

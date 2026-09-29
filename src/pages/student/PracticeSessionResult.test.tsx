@@ -140,3 +140,30 @@ describe("the session report's time", () => {
     expect(within(tile("Avg / answer")).getByText("20s")).toBeInTheDocument();
   });
 });
+
+describe("the revision verdict on the ladder", () => {
+  const outcome = (over: Record<string, unknown>) => ({
+    passed: true, rate: 0.85, correct: 11, total: 13, mistake_correct: 4, mistake_total: 5,
+    fresh_correct: 7, fresh_total: 8, stage: 2, solid: false, consecutive_passes: 2,
+    stages_to_solid: 3, next_revision_at: "2026-10-06T10:00:00Z", state: "recovered", ...over,
+  });
+  const revisionState = (over: Record<string, unknown>) =>
+    ({ subject: "Mathematics", chapter: "Algebra", attempts: [q("A question")], revision: outcome(over) }) as never;
+
+  it("numbers a check on the way to solid", async () => {
+    show(revisionState({}));
+    expect(await screen.findByText("check 2 of 3")).toBeInTheDocument();
+    expect(screen.getByText("3 in a row makes it solid")).toBeInTheDocument();
+  });
+
+  it("calls a solid chapter's check a solid check, and its run is not '5/3'", async () => {
+    show(revisionState({ stage: 5, solid: true, consecutive_passes: 5 }));
+    expect(await screen.findByText("solid check")).toBeInTheDocument();
+    expect(screen.queryByText(/check 5 of/)).toBeNull();
+    const run = screen.getByText("In a row").parentElement as HTMLElement;
+    expect(run.textContent).toContain("5");
+    expect(run.textContent).not.toContain("/3");
+    expect(run.textContent).toContain("solid — it now comes back less often");
+    expect(screen.getByText(/Solid — 5 checks in a row/)).toBeInTheDocument();
+  });
+});

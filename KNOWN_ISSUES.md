@@ -4005,3 +4005,25 @@ clears it; a clear on an older round is refused), with two sabotaged copies
 refused; the app tests fail against the old retry code. **Apply
 20261119000000 on the live database** (after 20261118000000), with the app
 change: the result screen and the Clear button expect it.
+
+## 92. The Revision page's labels past "solid", and its short-check warning — FIXED (app only)
+
+**Found:** 2026-09-29, checking the Revision page end to end.
+
+* A check is short when a chapter has fewer new questions than a check's
+  new half (`REVISION_COUNT`, 8). The card compared with
+  `REVISION_STAGES_TO_SOLID` (3), so four new questions left said nothing and
+  the check came out half length.
+* A solid chapter keeps being checked every 30 days at stage 4, 5, …; the
+  card said "Check 3 of 3" for ever, the history "check 4", the result screen
+  "check 4 of the 3-step ladder" and "5/3 consecutive passes needed". One
+  label, `revisionCheckLabel`, now says "solid check" past the third.
+* The streak on the page was called a "learning streak" and a "revision
+  streak"; it is the practice streak (a check is a practice session), and a
+  missed day resets it (KNOWN_ISSUES 87).
+* History printed the raw chapter name; it uses the cards' `displayChapter`.
+
+Still open, not changed: a passed check marks a chapter that was only ever
+practised `recovered` and stamps `recovered_at` (20261033000000 did this so
+the state constraint would accept the pass), so such a chapter reads as
+"recovered" although it never went through recovery.

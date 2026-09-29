@@ -8,7 +8,7 @@
  * the positive control — it fails against a stub that returns one string.
  */
 import { describe, it, expect } from "vitest";
-import { revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
+import { revisionCheckLabel, revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
 
 describe("revisionVerdictLine", () => {
   it("names the finish when the run is complete, without promising the chapter goes away", () => {
@@ -27,10 +27,10 @@ describe("revisionVerdictLine", () => {
   it("counts the streak the engine reported, not the stage", () => {
     expect(
       revisionVerdictLine({ passed: true, solid: false, consecutive_passes: 1, stages_to_solid: 3 }),
-    ).toBe("Passed — 1 of 3 in a row. 2 more and this chapter is done.");
+    ).toBe("Passed — 1 of 3 in a row. 2 more and this chapter is solid.");
     expect(
       revisionVerdictLine({ passed: true, solid: false, consecutive_passes: 2, stages_to_solid: 3 }),
-    ).toBe("Passed — 2 of 3 in a row. One more and this chapter is done.");
+    ).toBe("Passed — 2 of 3 in a row. One more and this chapter is solid.");
   });
 
   it("says a failure restarts the RUN, because §5.5 resets to zero not to one", () => {
@@ -56,7 +56,7 @@ describe("revisionVerdictLine", () => {
     const line = revisionVerdictLine({
       passed: true, solid: true, consecutive_passes: 3, stages_to_solid: 3,
     });
-    expect(line).not.toContain("more and this chapter is done");
+    expect(line).not.toContain("more and this chapter is solid");
   });
 });
 
@@ -118,5 +118,20 @@ describe("revisionSplitLine", () => {
     ];
     expect(lines.every((l) => l !== null)).toBe(true);
     expect(new Set(lines).size).toBe(4);
+  });
+});
+
+describe("revisionCheckLabel — the ladder past solid", () => {
+  it("numbers the three checks and calls every later one a solid check", () => {
+    expect(revisionCheckLabel(1, 3)).toBe("check 1 of 3");
+    expect(revisionCheckLabel(3, 3)).toBe("check 3 of 3");
+    // The case the screens got wrong: a solid chapter's maintenance checks.
+    expect(revisionCheckLabel(4, 3)).toBe("solid check");
+    expect(revisionCheckLabel(7, 3)).toBe("solid check");
+  });
+
+  it("a solid chapter's later pass quotes its real run, not the three it needed", () => {
+    expect(revisionVerdictLine({ passed: true, solid: true, consecutive_passes: 5, stages_to_solid: 3 }))
+      .toContain("5 checks in a row");
   });
 });
