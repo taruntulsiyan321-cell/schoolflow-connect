@@ -1,5 +1,6 @@
 
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import type { PracticeTimeDay } from "@/hooks/useStudentPracticeTime";
 
 // RULING 1 — `masteryLevel` is deleted, not converged.
 //
@@ -98,9 +99,8 @@ export function buildMilestones(
 type ConsistencyCell = {
   /** Calendar date, yyyy-mm-dd. Present for every cell, including empty ones. */
   date: string;
-  /** Activities that day: tests + homework + battles + practice sessions. */
+  /** Practice sessions finished that day, on the student's calendar — rule 11. */
   total: number;
-  minutes: number;
 };
 
 type ConsistencyWeek = {
@@ -117,8 +117,8 @@ type ConsistencyWeek = {
  *
  * It used to be. consistencyGrid mapped whatever rows the snapshot happened to
  * carry, and Analysis then sliced that array seven at a time and printed cell
- * `i` under the column headed DAY_LABELS[i]. academic_daily_activity only has
- * a row for a day something HAPPENED, so the array is sparse: a student active
+ * `i` under the column headed DAY_LABELS[i]. The source only has a row for
+ * a day something HAPPENED, so the array is sparse: a student active
  * on three days got three cells drawn under Mon, Tue and Wed whatever days
  * those actually were, and the card above them said "last 4 weeks" while
  * showing an unknown span.
@@ -127,32 +127,29 @@ type ConsistencyWeek = {
  * date; the grid decides the shape.
  */
 export function consistencyWeeks(
-  heatmap: AcademicSnapshot["activity_heatmap"],
+  days: Pick<PracticeTimeDay, "date" | "sessions">[] | null | undefined,
   weeks = 4,
   today = new Date(),
 ): ConsistencyWeek[] {
-  const byDate = new Map<string, { total: number; minutes: number }>();
-  for (const d of heatmap ?? []) {
-    const key = String(d.date).slice(0, 10);
-    // PRACTICE ONLY. Analysis is rule-11 practice-fed; counting test /
-    // homework / battle here put school work into "Practice today" and the
-    // week-vs-week bars. Other surfaces that want all activity kinds still
-    // read the raw heatmap components themselves.
-    const total = d.self_practice ?? 0;
-    const prev = byDate.get(key);
+  // Sessions per day of the student's OWN calendar, from
+  // rpc_student_practice_time (20261115000000) — the days the study time in
+  // each cell's tooltip is counted on. This read academic_daily_activity,
+  // whose day is CURRENT_DATE on a UTC database, so a session finished
+  // between midnight and 05:30 in India counted on the day before its own
+  // minutes. Practice only by construction: the function counts
+  // practice_sessions, nothing else (rule 11).
+  const byDate = new Map<string, number>();
+  for (const d of days ?? []) {
     // Summed rather than overwritten: one date should appear once, and if it
     // ever appears twice, losing one of them silently is the worse failure.
-    byDate.set(key, {
-      total: (prev?.total ?? 0) + total,
-      minutes: (prev?.minutes ?? 0) + (d.minutes ?? 0),
-    });
+    byDate.set(d.date, (byDate.get(d.date) ?? 0) + d.sessions);
   }
 
   const key = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   // Monday of the week containing today, in local time — the same frame the
-  // dates in academic_daily_activity are written in.
+  // server buckets the days in (the browser's zone).
   const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
 
@@ -165,8 +162,7 @@ export function consistencyWeeks(
       const day = new Date(start);
       day.setDate(day.getDate() + i);
       const k = key(day);
-      const hit = byDate.get(k);
-      days.push({ date: k, total: hit?.total ?? 0, minutes: hit?.minutes ?? 0 });
+      days.push({ date: k, total: byDate.get(k) ?? 0 });
     }
     out.push({ label: `W${weeks - w}`, days });
   }

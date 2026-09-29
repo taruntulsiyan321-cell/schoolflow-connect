@@ -75,7 +75,7 @@ describe("rule 11 — Analysis touches practice tables only", () => {
     // What the guard is for is that the page still reads real practice data,
     // so it names the hooks that carry it now. It still fails if they go.
     expect(SOURCE).toContain("useStudentPracticeAnalytics");
-    expect(SOURCE).toContain("useStudentPerformanceCharts");
+    expect(SOURCE).toContain("useStudentPracticeTime");
     expect(SOURCE).toContain("useAnalysisPageData");
   });
 
@@ -242,10 +242,24 @@ describe("G9 — per-question time has one definition", () => {
   it("does not sum the heat-map raw behind a label that says four weeks", () => {
     // Study time, average per day, most active day and the day-of-week bars
     // all say "last 4 weeks" and all used to reduce over whatever span the
-    // snapshot returned. They read activityWeeks now, which consistencyWeeks
-    // windows, so the label and the arithmetic cannot drift apart.
+    // snapshot returned. They are summed over the dates of activityWeeks,
+    // which consistencyWeeks windows, so the label and the arithmetic cannot
+    // drift apart.
     expect(SOURCE).not.toContain("activity_heatmap ?? []");
-    expect(SOURCE).toContain("consistencyWeeks(snapshot?.activity_heatmap, 4)");
+    expect(SOURCE).toContain("consistencyWeeks(practiceTime?.days, 4)");
+    expect(SOURCE).toContain("activityWeeks.flatMap((w) => w.days.map((d) => d.date))");
+  });
+
+  it("reads study time from the student's own days, never the heat-map's minutes", () => {
+    // academic_daily_activity.practice_minutes floors every session at a
+    // minute, folds a test's minutes in and dates it in UTC (20261115000000).
+    // Every time figure on the page is question_attempts, through
+    // rpc_student_practice_time, now; the snapshot's heat-map is not read.
+    expect(SOURCE).toContain("deriveStudyTime(");
+    expect(SOURCE).toContain("deriveMonthComparison(practiceTime)");
+    expect(SOURCE).not.toContain("snapshot?.activity_heatmap");
+    expect(SOURCE).not.toMatch(/\b(?:d|cell|row)\.minutes\b/);
+    expect(SOURCE).not.toContain("attempt_hours");
   });
 });
 
@@ -263,11 +277,13 @@ describe("§6.1 / §10.8 — Analysis surfaces weaknesses only", () => {
 });
 
 describe("rule 11 — activity charts count practice only", () => {
-  it("does not sum weekly_activity.total into the monthly practice chart", () => {
-    // That column is test + homework + battle + self_practice. Counting it
-    // under a Practice heading folded school data into Analysis.
-    expect(SOURCE).not.toMatch(/byMonth\.set\([^)]+row\.total\)/);
-    expect(SOURCE).toContain("(row.self_practice ?? 0)");
+  it("counts the monthly practice chart in finished practice sessions, never weekly_activity", () => {
+    // weekly_activity.total is test + homework + battle + self_practice, and
+    // the table held 28 days, so "each month" was two partial months of it.
+    // The chart counts practice sessions on the student's own days now — the
+    // month comparison's own numbers.
+    expect(SOURCE).not.toContain("weekly_activity");
+    expect(SOURCE).toContain("(byMonth.get(key) ?? 0) + d.sessions");
   });
 });
 

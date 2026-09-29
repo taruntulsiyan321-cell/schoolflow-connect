@@ -20,7 +20,8 @@ import { supabase } from "@/integrations/supabase/client";
  *
  *   attempts   every attempt — how much contact the student has had
  *   answered   attempts that were not skipped — the ACCURACY denominator
- *   timed      attempts with a recorded duration — the AVG_SEC denominator
+ *   timed      ANSWERS with a recorded duration — the AVG_SEC denominator;
+ *              a skip is time spent, not solving (20261115000000)
  *
  * Carrying only `attempts` is what produced "Circles · Needs attention · 8
  * Attempts · 0% Accuracy" for a chapter with 7 skips and ONE wrong answer,
@@ -34,13 +35,13 @@ type TopicAnalyticsRow = {
   attempts: number;
   /** Attempts that were not skipped. The accuracy denominator. */
   answered: number;
-  /** Attempts with a recorded duration. The avg_sec denominator. */
+  /** Answers (not skips) with a recorded duration. The avg_sec denominator. */
   timed: number;
   correct: number;
   skipped: number;
   /** correct / answered. Null when nothing was answered — never 0. */
   accuracy: number | null;
-  /** Mean seconds per attempt, over the attempts that were timed. */
+  /** Mean seconds per answer, over the answers that were timed. */
   avg_sec: number | null;
   total_min: number | null;
 };
@@ -50,7 +51,7 @@ type SubjectAnalyticsRow = {
   attempts: number;
   /** Attempts that were not skipped. The accuracy denominator. */
   answered: number;
-  /** Attempts with a recorded duration. The avg_sec denominator. */
+  /** Answers (not skips) with a recorded duration. The avg_sec denominator. */
   timed: number;
   correct: number;
   skipped: number;
@@ -65,7 +66,7 @@ type ChapterAnalyticsRow = {
   attempts: number;
   /** Attempts that were not skipped. The accuracy denominator. */
   answered: number;
-  /** Attempts with a recorded duration. The avg_sec denominator. */
+  /** Answers (not skips) with a recorded duration. The avg_sec denominator. */
   timed: number;
   correct: number;
   skipped: number;
@@ -79,7 +80,7 @@ type DifficultyAnalyticsRow = {
   attempts: number;
   /** Attempts that were not skipped. The accuracy denominator. */
   answered: number;
-  /** Attempts with a recorded duration. The avg_sec denominator. */
+  /** Answers (not skips) with a recorded duration. The avg_sec denominator. */
   timed: number;
   correct: number;
   skipped: number;
@@ -87,11 +88,20 @@ type DifficultyAnalyticsRow = {
   avg_sec: number | null;
 };
 
+/**
+ * Counted per BANK QUESTION since 20261115000000. They were counted off
+ * attempt_number, which the practice screen writes as the question's position
+ * in its session, so "met more than once" was "not first in its session".
+ * `solution_viewed` is gone: the explanation shows after every answer, so the
+ * column says the question had one, not that the student chose to look.
+ */
 type EffortAnalytics = {
   attempts: number;
-  solution_viewed: number;
-  repeat_attempts: number;
+  /** Bank questions this student has met more than once. */
+  questions_seen_again: number;
+  /** Bank questions whose FIRST meeting was answered, not skipped. */
   first_try_attempts: number;
+  /** ...and of those, the ones answered right. */
   first_try_correct: number;
 };
 
@@ -235,16 +245,10 @@ function parseAnalytics(payload: unknown): { data: StudentPracticeAnalytics; ok:
         difficulty: str(r.difficulty),
         ...base(r),
       })),
-      effort:
-        p.effort && typeof p.effort === "object"
-          ? {
-              attempts: num((p.effort as Record<string, unknown>).attempts),
-              solution_viewed: num((p.effort as Record<string, unknown>).solution_viewed),
-              repeat_attempts: num((p.effort as Record<string, unknown>).repeat_attempts),
-              first_try_attempts: num((p.effort as Record<string, unknown>).first_try_attempts),
-              first_try_correct: num((p.effort as Record<string, unknown>).first_try_correct),
-            }
-          : null,
+      // Null unless it carries the per-question counts: a payload from before
+      // 20261115000000 has only the position-based ones, and reading their
+      // absence as zero would print "0 seen again" about a student who has.
+      effort: effortOf(p.effort),
       recurring: rowsOf(p.recurring).map((r) => ({
         topic: strOrNull(r.topic),
         chapter: strOrNull(r.chapter),
@@ -255,6 +259,19 @@ function parseAnalytics(payload: unknown): { data: StudentPracticeAnalytics; ok:
       })),
       topic_analysis_locked: p.topic_analysis_locked === true,
     },
+  };
+}
+
+function effortOf(v: unknown): EffortAnalytics | null {
+  if (!v || typeof v !== "object") return null;
+  const e = v as Record<string, unknown>;
+  const keys = ["attempts", "questions_seen_again", "first_try_attempts", "first_try_correct"] as const;
+  if (!keys.every((k) => isCount(e[k]))) return null;
+  return {
+    attempts: num(e.attempts),
+    questions_seen_again: num(e.questions_seen_again),
+    first_try_attempts: num(e.first_try_attempts),
+    first_try_correct: num(e.first_try_correct),
   };
 }
 

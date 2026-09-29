@@ -477,3 +477,18 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }}
+/* ── Analysis: the printed report (AnalysisPrintReport) ─────────────────────
+   Hidden on screen. When printing, it is the only thing on the page: the app
+   has no other print styles, and without these the sidebar, the bottom bar
+   and whichever tab was open went to the printer. */
+.analysis-print-report { display: none; }
+@media print {
+  body > :not(.analysis-print-report) { display: none; }
+  .analysis-print-report { display: block; color: #000; background: #fff; font: 11pt/1.4 system-ui, sans-serif; }
+  .analysis-print-report h1 { font-size: 18pt; margin: 0 0 2pt; }
+  .analysis-print-report h2 { font-size: 13pt; margin: 14pt 0 4pt; }
+  .analysis-print-report .apr-muted { color: #555; }
+  .analysis-print-report table { border-collapse: collapse; width: 100%; }
+  .analysis-print-report th, .analysis-print-report td { border: 1px solid #bbb; padding: 3pt 6pt; text-align: left; }
+  .analysis-print-report tr { break-inside: avoid; }
+}

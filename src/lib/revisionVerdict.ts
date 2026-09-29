@@ -29,17 +29,27 @@ import type { RevisionSessionOutcome } from "@/academic";
  * that exports a plain function loses component-level hot reload and trips the
  * react-refresh lint rule the baseline gate holds flat.
  */
+/**
+ * Where a check sits on the §5.3 ladder, in words: "check 2 of 3", or
+ * "solid check" past the last numbered one. A solid chapter keeps being
+ * checked at the long interval, and its checks carry stage 4, 5, … — which
+ * read as "check 4 of 3" on three screens before this had one home.
+ */
+export function revisionCheckLabel(stage: number, stagesToSolid: number): string {
+  return stage > stagesToSolid ? "solid check" : `check ${stage} of ${stagesToSolid}`;
+}
+
 export function revisionVerdictLine(
   r: Pick<RevisionSessionOutcome, "passed" | "solid" | "consecutive_passes" | "stages_to_solid">,
 ): string {
   if (r.solid) {
-    return `Solid — ${r.stages_to_solid} checks in a row. This chapter now comes back far less often.`;
+    return `Solid — ${r.consecutive_passes} checks in a row. This chapter now comes back far less often.`;
   }
   if (r.passed) {
     const left = Math.max(0, r.stages_to_solid - r.consecutive_passes);
     return `Passed — ${r.consecutive_passes} of ${r.stages_to_solid} in a row. ${
       left === 1 ? "One more" : `${left} more`
-    } and this chapter is done.`;
+    } and this chapter is solid.`;
   }
   return "Not passed — the run restarts from the first check, not from where you were.";
 }

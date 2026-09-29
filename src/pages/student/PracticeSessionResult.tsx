@@ -34,12 +34,13 @@ import {
   resolvePracticeSessionStats,
 } from "@/lib/practiceSessionStats";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
+import { formatSeconds, paceOverAnswers } from "@/lib/studentAnalysisMetrics";
 import { practiceModeLabel } from "@/lib/practiceModeLabel";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { toErrorMessage } from "@/lib/presentation";
 import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
-import { RecoveryClearAnyway } from "@/components/student/RecoveryClearAnyway";
-import { revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
+import { RecoveryClearChapter } from "@/components/student/RecoveryClearChapter";
+import { revisionCheckLabel, revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -60,6 +61,8 @@ type AttemptRow = {
   is_correct: boolean | null;
   created_at: string;
   skipped?: boolean | null;
+  /** Time on this question alone — question_attempts.time_taken_ms. */
+  time_taken_ms?: number | null;
 };
 
 type SessionRow = {
@@ -132,6 +135,8 @@ export default function PracticeSessionResult() {
       is_correct: a.isCorrect,
       created_at: snapshot.finishedAt ?? new Date().toISOString(),
       skipped: a.skipped ?? false,
+      // Absent on snapshots saved before version 5: no time, not zero.
+      time_taken_ms: a.timeTakenMs ?? null,
     }));
   }, [snapshot]);
 
@@ -188,9 +193,13 @@ export default function PracticeSessionResult() {
   // A session is as long as its questions took (20261030000000) — never the
   // wall clock from opening to finishing, and never a floor of one minute.
   const durationLabel = formatSessionDuration(stats.totalTimeMs);
-  const avgSec =
-    snapshot?.statistics?.avgSecPerQuestion ??
-    (stats.totalTimeMs && total ? Math.round(stats.totalTimeMs / total / 1000) : null);
+  // Seconds per ANSWER, off the questions below — the rule Analysis uses
+  // (paceOverAnswers / avg_sec). It was total ÷ question count, and saved
+  // sessions froze that figure: skips, taken in a second or two, pulled the
+  // average down, and the list of times beside it could not reproduce it.
+  const { avgSec } = paceOverAnswers(
+    displayAttempts.map((a) => ({ timeMs: a.time_taken_ms, skipped: Boolean(a.skipped) })),
+  );
 
   const insights = snapshot?.insights;
   const recommendations: string[] =
@@ -380,7 +389,7 @@ export default function PracticeSessionResult() {
             </div>
             <div>
               <div className="text-sm font-bold text-foreground">
-                {recovery.outcome === "ready" ? "Chapter recovered" : "Not solid yet"}
+                {recovery.outcome === "ready" ? "Ready" : "Not solid yet"}
               </div>
               <div className="text-[11px] text-muted-foreground">
                 {recoveryVerdictLine(recovery)}
@@ -425,17 +434,9 @@ export default function PracticeSessionResult() {
             ))}
           </div>
 
-          {recovery.outcome === "not_ready" && <RecoveryClearAnyway sessionId={recovery.session_id} />}
-
-          {recovery.outcome === "ready" && recovery.next_revision_at && (
-            <p className="text-[11px] text-muted-foreground mt-3">
-              Next revision check on{" "}
-              {new Date(recovery.next_revision_at).toLocaleDateString(undefined, {
-                day: "numeric", month: "short",
-              })}
-              .
-            </p>
-          )}
+          {/* The round measures; the student clears (owner's ruling
+              2026-09-28). The revision date is set when they do. */}
+          <RecoveryClearChapter sessionId={recovery.session_id} ready={recovery.outcome === "ready"} />
         </GlassCard>
       )}
 
@@ -493,7 +494,7 @@ export default function PracticeSessionResult() {
                 {Math.round(revision.rate * 100)}%
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                check {revision.stage} of the {revision.stages_to_solid}-step ladder
+                {revisionCheckLabel(revision.stage, revision.stages_to_solid)}
               </div>
               {(revision.mistake_total > 0 || revision.fresh_total > 0) && (
                 <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
@@ -508,10 +509,16 @@ export default function PracticeSessionResult() {
               </div>
               <div className="text-xl font-black tabular-nums text-foreground">
                 {revision.consecutive_passes}
-                <span className="text-sm text-muted-foreground">/{revision.stages_to_solid}</span>
+                {/* "/3" only on the way to solid: a solid chapter's run keeps
+                    counting, and "5/3" read as more than the whole. */}
+                {revision.consecutive_passes < revision.stages_to_solid && (
+                  <span className="text-sm text-muted-foreground">/{revision.stages_to_solid}</span>
+                )}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                consecutive passes needed
+                {revision.consecutive_passes < revision.stages_to_solid
+                  ? `${revision.stages_to_solid} in a row makes it solid`
+                  : "solid — it now comes back less often"}
               </div>
             </div>
           </div>
@@ -599,8 +606,8 @@ export default function PracticeSessionResult() {
             <div className="font-bold text-lg">{skipped}</div>
           </div>
           <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">Avg / question</div>
-            <div className="font-bold text-lg">{avgSec != null ? `${avgSec}s` : "—"}</div>
+            <div className="text-xs text-muted-foreground">Avg / answer</div>
+            <div className="font-bold text-lg">{avgSec != null ? formatSeconds(avgSec) : "—"}</div>
           </div>
           <div className="rounded-lg border p-3">
             <div className="text-xs text-muted-foreground">Score</div>
@@ -660,7 +667,17 @@ export default function PracticeSessionResult() {
 
           return (
             <Card key={a.id} className="p-5 transition-shadow hover:shadow-sm">
-              <div className="text-xs text-muted-foreground mb-2">Q{i + 1}</div>
+              <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground mb-2">
+                <span>Q{i + 1}{a.skipped ? " · Skipped" : ""}</span>
+                {/* Time on this question alone. Nothing when it was not
+                    timed — a blank is not a zero. */}
+                {typeof a.time_taken_ms === "number" && a.time_taken_ms > 0 && (
+                  <span className="inline-flex items-center gap-1 tabular-nums" data-testid="question-time">
+                    <Timer className="w-3.5 h-3.5" aria-hidden />
+                    {formatSessionDuration(a.time_taken_ms)}
+                  </span>
+                )}
+              </div>
               <MathText block className="text-base leading-relaxed font-medium mb-4" text={questionText} />
               <div className="space-y-2 mb-4">
                 {opts.map((opt, oi) => {

@@ -198,6 +198,9 @@ export function snapshotsToAttemptRows(attempts: PracticeAttemptSnapshot[]) {
       selected_answer: skipped ? null : { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
       is_correct: skipped ? false : a.isCorrect,
       skipped,
+      // The same clock the finish sums into total_time_ms, so the questions
+      // add up to the session's length.
+      time_taken_ms: a.timeTakenMs ?? null,
       created_at: new Date().toISOString(),
     };
   });

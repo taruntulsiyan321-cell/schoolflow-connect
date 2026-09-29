@@ -136,6 +136,38 @@ function unresolvableNames(body) {
  * that cries wolf gets switched off within a week, taking the real findings with
  * it.
  */
+/**
+ * Derived-table aliases — `FROM ( SELECT … ) q`, `CROSS JOIN LATERAL (…) x`.
+ *
+ * The same problem the CTE pass below solves, one level in: the alias names a
+ * subquery whose column list this gate cannot know, while the SAME function body
+ * may bind that letter to a real table in an unrelated clause. It then measures
+ * the subquery's own columns against that table.
+ *
+ * _recovery_session_plan_for (20261118000000) is the case that found it: it
+ * reads `q.last_round` from `FROM ( SELECT x.id, max(r.n) AS last_round … ) q`,
+ * and question_bank is aliased `q` elsewhere in the body, so the gate reported
+ * `public.question_bank has no column "last_round"` — true, and about a
+ * different `q`. Scanned with balanced parentheses rather than by regex so a
+ * subquery containing brackets does not hand back the wrong word.
+ */
+function derivedTableAliases(body) {
+  const out = new Set();
+  const open = /\b(?:FROM|JOIN)\s*\(/gi;
+  for (const m of body.matchAll(open)) {
+    let depth = 0;
+    let i = m.index + m[0].length - 1;
+    for (; i < body.length; i++) {
+      if (body[i] === "(") depth++;
+      else if (body[i] === ")" && --depth === 0) break;
+    }
+    if (depth !== 0) continue;
+    const after = body.slice(i + 1).match(/^\s*(?:AS\s+)?([A-Za-z_]\w*)/i);
+    if (after) out.add(after[1].toLowerCase());
+  }
+  return out;
+}
+
 function aliasMap(body, knownTables, ctes) {
   const map = new Map();
   const ambiguous = new Set();
@@ -168,6 +200,9 @@ function aliasMap(body, knownTables, ctes) {
     const names = [...ctes].join("|");
     const cteAlias = new RegExp("\\b(?:FROM|JOIN)\\s+(?:" + names + ")\\s+(?:AS\\s+)?([A-Za-z_]\\w*)", "gi");
     for (const m of body.matchAll(cteAlias)) ambiguous.add(m[1].toLowerCase());
+  }
+  for (const a of derivedTableAliases(body)) {
+    if (!RESERVED.has(a)) ambiguous.add(a);
   }
   for (const a of ambiguous) map.delete(a);
   return { map, ambiguous };
@@ -256,6 +291,26 @@ async function selfTest(catalog) {
         "  FOR _m IN SELECT * FROM public.tests t LOOP RAISE NOTICE '%', _m.anything_at_all; END LOOP;\n" +
         "RETURN 1; END $fn$",
       expect: [],
+    },
+    {
+      // 20261118000000's _recovery_session_plan_for, reduced: the same letter
+      // is a real table in one clause and a subquery in another.
+      name: "a subquery alias that shadows a table alias of the same name",
+      def: "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $fn$ BEGIN\n" +
+        "  PERFORM 1 FROM public.tests t WHERE t.school_id = _s;\n" +
+        "  PERFORM sum(t.made_up_here) FROM ( SELECT max(x.id) AS made_up_here\n" +
+        "    FROM public.tests x GROUP BY x.id ) t;\n" +
+        "RETURN 1; END $fn$",
+      expect: [],
+    },
+    {
+      // CONTROL for the case above: without the subquery the same reference is
+      // still caught, so the fix narrowed the gate by exactly one shape.
+      name: "CONTROL: the same bad column on a plain table alias is still found",
+      def: "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $fn$ BEGIN\n" +
+        "  PERFORM 1 FROM public.tests t WHERE t.made_up_here = 1;\n" +
+        "RETURN 1; END $fn$",
+      expect: ["made_up_here"],
     },
   ];
 

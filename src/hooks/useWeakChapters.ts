@@ -73,8 +73,8 @@ export function useWeakChapters(enabled = true, userId?: string | null) {
             "chapter_tally", "chapter_id, attempted, correct, created_at", userId),
           readAll<{ chapter_id: string | null; status: string | null; times_wrong: number | null; created_at: string | null; topic: string | null }>(
             "student_mistakes", "chapter_id, status, times_wrong, created_at, topic", userId),
-          readAll<{ bank_question_id: string | null; time_taken_ms: number | null }>(
-            "question_attempts", "bank_question_id, time_taken_ms, created_at", userId),
+          readAll<{ bank_question_id: string | null; time_taken_ms: number | null; skipped: boolean | null }>(
+            "question_attempts", "bank_question_id, time_taken_ms, skipped, created_at", userId),
         ]);
         if (statesRes.error) throw statesRes.error;
         if (skippedRes.error) throw skippedRes.error;
@@ -99,6 +99,7 @@ export function useWeakChapters(enabled = true, userId?: string | null) {
           attempts: attempts.map((a) => ({
             chapter_id: a.bank_question_id ? chapterOf.get(a.bank_question_id) ?? null : null,
             time_taken_ms: a.time_taken_ms,
+            skipped: a.skipped === true,
           })),
           skipped: (skippedRes.data ?? []) as unknown as Parameters<typeof deriveWeakChapters>[0]["skipped"],
         });

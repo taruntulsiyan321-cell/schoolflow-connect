@@ -195,3 +195,50 @@ describe("Revision", () => {
     expect(quick.textContent).toContain("nothing new left");
   });
 });
+
+/**
+ * Found 2026-09-29, checking the Revision page end to end:
+ *   · a check is short when its chapter has fewer new questions than a
+ *     check's new half (REVISION_COUNT, 8), but the card compared with the
+ *     three checks it takes to go solid — four new questions left said
+ *     nothing, and the check came out half length;
+ *   · a solid chapter keeps being checked, at stage 4, 5, …, and the card,
+ *     the history and the result screen read "check 3 of 3" or "check 4 of 3".
+ */
+describe("Revision — what a card and the history say", () => {
+  const solid = { ...state("s", "Trigonometry", 20), consecutive_passes: 3, revision_stage: 4 };
+
+  it("warns that a check will be short whenever fewer than a check's new questions are left", async () => {
+    signedIn();
+    h.engine.getChapterStates.mockResolvedValue([state("a", "Circles", 4), state("b", "Polynomials", 20)]);
+    h.engine.getRevisionHistory.mockResolvedValue([]);
+    page(<Revision />);
+    expect(await screen.findByText("only 4 new questions left here")).toBeInTheDocument();
+    // CONTROL: a chapter with a full check's worth says nothing.
+    expect(screen.queryByText(/only 20 new/)).toBeNull();
+  });
+
+  it("calls a solid chapter's next check a solid check, not check 3 of 3", async () => {
+    signedIn();
+    h.engine.getChapterStates.mockResolvedValue([solid, state("a", "Circles", 20)]);
+    h.engine.getRevisionHistory.mockResolvedValue([]);
+    page(<Revision />);
+    expect(await screen.findByText("Solid check")).toBeInTheDocument();
+    // CONTROL: a chapter on the ladder is numbered.
+    expect(screen.getByText("Check 1 of 3")).toBeInTheDocument();
+    expect(screen.queryByText("Check 3 of 3")).toBeNull();
+  });
+
+  it("history names a solid chapter's check as such, and the chapter as the cards do", async () => {
+    signedIn();
+    h.engine.getChapterStates.mockResolvedValue([solid]);
+    h.engine.getRevisionHistory.mockResolvedValue([
+      { id: "h1", chapter_id: "s", chapter: "Trigonometry", stage: 4, correct: 11, total: 13, passed: true, completed_at: past, triggered_by: "engagement" },
+      { id: "h2", chapter_id: "s", chapter: "Trigonometry", stage: 2, correct: 9, total: 13, passed: true, completed_at: past, triggered_by: "engagement" },
+    ]);
+    page(<Revision />);
+    expect(await screen.findByText(/^solid check ·/)).toBeInTheDocument();
+    expect(screen.getByText(/^check 2 of 3 ·/)).toBeInTheDocument();
+    expect(screen.queryByText(/check 4/)).toBeNull();
+  });
+});

@@ -258,7 +258,7 @@ export default function Recovery() {
   // "Loading recovery" for ever instead of reaching NoStudentProfile.
   const [queue, setQueue] = useState<ListState<RecoveryQueueRow>>(LOADING_LIST);
   // Read with the queue, not derived from it: the queue loses every chapter
-  // a passing recovery clears, and with it that chapter's sessions.
+  // the student clears, and with it that chapter's sessions.
   const [sessionsSat, setSessionsSat] = useState(0);
   const [search, setSearch] = useState("");
   const [startingId, setStartingId] = useState<string | null>(null);

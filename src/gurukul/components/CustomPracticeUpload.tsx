@@ -9,11 +9,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAcademicContext } from "@/academic";
 import {
-  modesForVerdict,
+  EMPTY_UPLOAD_CONTENT,
+  modesForUpload,
   StudentUploadService,
   UPLOAD_MODE_LABELS,
   type StudentUploadNoteRow,
   type StudentUploadRow,
+  type UploadContent,
   type UploadPracticeMode,
 } from "@/academic/services/studentUploadService";
 import { STUDENT_UPLOAD_ACCEPT } from "@/academic/storage/studentUploadFile";
@@ -27,8 +29,11 @@ import { FileUp, Loader2, Trash2, X } from "lucide-react";
 
 type Props = {
   accentColor: string;
-  /** Practise modes only — parent starts a session with SessionConfig.upload. */
-  onSelectMode: (upload: StudentUploadRow, mode: UploadPracticeMode) => void;
+  /**
+   * Practise modes only — parent starts a session with SessionConfig.upload.
+   * `chapterId` is the chapter chosen for practise_by_chapter, and only then.
+   */
+  onSelectMode: (upload: StudentUploadRow, mode: UploadPracticeMode, chapterId?: string) => void;
 };
 
 const PRACTISE_MODES: ReadonlySet<UploadPracticeMode> = new Set([
@@ -56,6 +61,8 @@ function statusLabel(row: StudentUploadRow): string {
 export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
   const { ctx, ready: academicReady } = useAcademicContext();
   const [rows, setRows] = useState<StudentUploadRow[]>([]);
+  // §8 — what each upload holds; its modes are read off this, not its verdict.
+  const [contents, setContents] = useState<Map<string, UploadContent>>(new Map());
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -81,10 +88,14 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
     }
     setLoading(true);
     try {
-      setRows(await StudentUploadService.listMine(ctx));
+      const mine = await StudentUploadService.listMine(ctx);
+      setRows(mine);
+      setContents(await StudentUploadService.contentOf(
+        ctx, mine.filter((r) => r.status === "ready").map((r) => r.id)));
     } catch (e) {
       toast.error(toErrorMessage(e, "Could not load your uploads"));
       setRows([]);
+      setContents(new Map());
     } finally {
       setLoading(false);
     }
@@ -180,7 +191,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
   }
 
   /** §8 — practise modes → parent onStart(upload); read_notes opens notes here. */
-  async function onModeClick(row: StudentUploadRow, mode: UploadPracticeMode) {
+  async function onModeClick(row: StudentUploadRow, mode: UploadPracticeMode, chapterId?: string) {
     if (mode === "read_notes") {
       if (!ctx) return;
       setNotesLoadingId(row.id);
@@ -200,7 +211,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
       return;
     }
     if (!PRACTISE_MODES.has(mode)) return;
-    onSelectMode(row, mode);
+    onSelectMode(row, mode, chapterId);
   }
 
   return (
@@ -248,7 +259,8 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
       ) : (
         <ul className="space-y-3">
           {rows.map((row) => {
-            const modes = modesForVerdict(row.verdict);
+            const content = contents.get(row.id) ?? EMPTY_UPLOAD_CONTENT;
+            const modes = modesForUpload(row, content);
             const refused = row.status === "unusable" || row.verdict === "unusable";
             return (
               <li
@@ -291,9 +303,15 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
                   </button>
                 )}
 
+                {row.status === "ready" && modes.length === 0 && (
+                  <p className="text-sm text-muted-foreground border border-border/50 rounded-xl px-3 py-2 bg-muted/30">
+                    Nothing in this file can be practised here — its questions have written answers, with no options to choose from.
+                  </p>
+                )}
+
                 {row.status === "ready" && modes.length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-1">
-                    {modes.map((m) => (
+                    {modes.filter((m) => m !== "practise_by_chapter").map((m) => (
                       <button
                         key={m}
                         type="button"
@@ -306,6 +324,28 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
                           : UPLOAD_MODE_LABELS[m]}
                       </button>
                     ))}
+                  </div>
+                )}
+
+                {/* §8 "practise by chapter": the chapters this file holds, each
+                    its own session. Only offered with two or more to choose. */}
+                {modes.includes("practise_by_chapter") && (
+                  <div className="pt-1">
+                    <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">
+                      {UPLOAD_MODE_LABELS.practise_by_chapter}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {content.chapters.map((ch) => (
+                        <button
+                          key={ch.id}
+                          type="button"
+                          onClick={() => void onModeClick(row, "practise_by_chapter", ch.id)}
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-border/70 hover:border-border text-foreground"
+                        >
+                          {ch.name} · {ch.count}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 

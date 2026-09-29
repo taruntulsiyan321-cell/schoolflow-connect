@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
-import { hourHistogram } from "@/lib/studentAnalysisMetrics";
 
 export type PracticeSessionSummary = {
   id: string;
@@ -51,7 +50,11 @@ export type PracticeSessionSummary = {
    * handed a number that was never measured.
    */
   measured_ms: number | null;
-  accuracy_pct: number;
+  /**
+   * correct / ANSWERED for this session; null when nothing was answered — a
+   * session skipped through has no score, and is not a point on any trend.
+   */
+  accuracy_pct: number | null;
 };
 
 /**
@@ -89,22 +92,6 @@ type AnalysisPageData = {
      *  "got everything wrong" for a student who has not started. */
     accuracy_pct: number | null;
   };
-  /**
-   * 24 buckets, Mon-index 0 = midnight, counting this student's attempts by
-   * the hour of the VIEWER'S clock over the last 28 days.
-   *
-   * The Activity & Speed tab's "Most productive hour" tile rendered "—" for
-   * every student, forever, on the belief that the hour was not recorded.
-   * question_attempts.created_at has been set on every attempt all along —
-   * 5,623 of them, across 11 distinct hours, measured 2026-09-18. The figure
-   * was stored and unread, which is a different thing from missing.
-   *
-   * Bucketed in the browser rather than in SQL: the database runs in UTC and
-   * holds no column saying where a student is, and India is UTC+5:30, so a
-   * UTC hour bucket straddles two local hours and cannot be corrected
-   * afterwards.
-   */
-  attempt_hours: number[];
 };
 
 /**
@@ -127,7 +114,7 @@ export function sessionWasAttempted(row: {
   return (row.correct_count ?? 0) + (row.wrong_count ?? 0) + (row.skipped_count ?? 0) > 0;
 }
 
-function sessionSummary(row: {
+export function sessionSummary(row: {
   id: string;
   subject: string;
   // Nullable in practice_sessions; carried through to the summary unchanged.
@@ -150,13 +137,15 @@ function sessionSummary(row: {
   // attempts has it and a session without has nothing to report.
   const measured_ms =
     typeof row.total_time_ms === "number" && row.total_time_ms > 0 ? row.total_time_ms : null;
-  // Prefer finish-RPC accuracy column — never re-derive when present.
-  const accuracy_pct =
-    typeof row.accuracy === "number"
-      ? Math.round(Number(row.accuracy))
-      : row.question_count > 0
-        ? Math.round((100 * row.correct_count) / row.question_count)
-        : 0;
+  // The finish's own accuracy when it stored one; otherwise the same rule
+  // over the same row. The fallback divided by question_count, which counts
+  // every skip as a wrong answer, and returned 0 for a session with nothing
+  // answered — so a skipped-through session plotted as 0% on the score line
+  // and dragged every subject and chapter trend down with it.
+  const stored = row.accuracy == null ? Number.NaN : Number(row.accuracy);
+  const accuracy_pct = Number.isFinite(stored)
+    ? Math.round(stored)
+    : accuracyOverAnswered(row.correct_count, row.wrong_count ?? 0);
   return {
     ...row,
     // Normalised at the boundary: the column is nullable in
@@ -192,7 +181,7 @@ export function useAnalysisPageData(enabled = true) {
       // and a 200-row class leaderboard pulled on every Analysis load to
       // compute a number nothing renders is the definition of dead weight.
       // Ranking lives on the surfaces §10.16 gives it to.
-      const [sessionsRes, classRes, attemptsRes, correctRes, skippedRes, hoursRes] = await Promise.all([
+      const [sessionsRes, classRes, attemptsRes, correctRes, skippedRes] = await Promise.all([
         supabase
           .from("practice_sessions")
           .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at, accuracy, wrong_count, skipped_count, total_time_ms")
@@ -224,10 +213,18 @@ export function useAnalysisPageData(enabled = true) {
         //
         // `question attempts select self` is `user_id = auth.uid()`, so a
         // student counts their own and nobody else's.
+        //
+        // DISPUTED ANSWERS ARE NOT COUNTED (excluded_from_accuracy,
+        // 20261065000000): _exam_readiness and every group of
+        // rpc_student_practice_analytics leave them out, and these three
+        // counts did not — so a student whose dispute was upheld saw one
+        // accuracy on Home and another here, and the Overview disagreed with
+        // the subject rows beneath it.
         supabase
           .from("question_attempts")
           .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id),
+          .eq("user_id", user.id)
+          .eq("excluded_from_accuracy", false),
         // CORRECT MEANS THE SAME THING HERE AS IT DOES IN THE RPC.
         //
         // This asked only `is_correct = true`, while
@@ -248,6 +245,7 @@ export function useAnalysisPageData(enabled = true) {
           .from("question_attempts")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
+          .eq("excluded_from_accuracy", false)
           .eq("is_correct", true)
           .not("skipped", "is", true),
         // SKIPS ARE COUNTED SEPARATELY, because they are not wrong answers.
@@ -264,18 +262,8 @@ export function useAnalysisPageData(enabled = true) {
           .from("question_attempts")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
+          .eq("excluded_from_accuracy", false)
           .eq("skipped", true),
-        // WHEN they practise, for the hour tile. One column, bounded to the
-        // same 28 days the heat map and the study-time tiles already cover, so
-        // a heavy student fetches a month of timestamps and not a year of
-        // them. head:false because the rows themselves are the answer here.
-        supabase
-          .from("question_attempts")
-          .select("created_at")
-          .eq("user_id", user.id)
-          .gte("created_at", new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString())
-          .order("created_at", { ascending: false })
-          .limit(5000),
       ]);
 
       // A FAILED READ IS NOT AN EMPTY ONE. Each of these used to be read as
@@ -286,7 +274,7 @@ export function useAnalysisPageData(enabled = true) {
       // the error path below: absent figures render as a dash, and the page
       // offers Try again. The class label is the one read allowed to miss —
       // it is a caption, not a figure.
-      const failed = [sessionsRes, attemptsRes, correctRes, skippedRes, hoursRes].find((r) => r.error);
+      const failed = [sessionsRes, attemptsRes, correctRes, skippedRes].find((r) => r.error);
       if (failed?.error) throw failed.error;
 
       const sessions = (sessionsRes.data ?? [])
@@ -419,14 +407,9 @@ export function useAnalysisPageData(enabled = true) {
       // `previous_accuracy` and `current_accuracy` went with it: both were
       // assigned here and read by nothing at all.
 
-      const attempt_hours = hourHistogram(
-        (hoursRes.data ?? []).map((r) => r.created_at),
-      );
-
       setData({
         student_class,
         recent_sessions: sessions,
-        attempt_hours,
         totals: {
           correct,
           wrong,

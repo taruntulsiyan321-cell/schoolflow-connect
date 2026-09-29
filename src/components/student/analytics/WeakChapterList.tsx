@@ -6,6 +6,7 @@ import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisp
 import { ListFailed, ListLoading } from "@/gurukul/components/PracticeLists";
 import { listItems, type ListState } from "@/lib/listState";
 import { pluralise } from "@/lib/plural";
+import { calendarDaysAgo } from "@/lib/analyticsInsights";
 import { toEnumLabel } from "@/lib/presentation";
 import type { WeakChapterRow } from "@/lib/weakChapters";
 
@@ -37,12 +38,6 @@ const TREND_TONE: Record<WeakChapterRow["trend"], string> = {
   not_enough_data: "text-muted-foreground",
 };
 
-function daysSince(iso: string | null): number | null {
-  if (!iso) return null;
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return null;
-  return Math.max(0, Math.floor((Date.now() - then) / 86400000));
-}
 
 function Signal({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
   return (
@@ -92,7 +87,7 @@ export function WeakChapterList({ list, onRetry }: { list: ListState<WeakChapter
     <div className="space-y-2" data-testid="weak-chapter-list">
       {rows.map((row) => {
         const isOpen = open === row.chapterId;
-        const neglected = daysSince(row.oldestOpenAt);
+        const neglected = calendarDaysAgo(row.oldestOpenAt);
         const slower =
           row.avgSecPerQuestion != null && row.ownAvgSecPerQuestion != null
             ? Math.round(row.avgSecPerQuestion - row.ownAvgSecPerQuestion)

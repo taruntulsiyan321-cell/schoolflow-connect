@@ -75,10 +75,10 @@ describe("parseAnalytics", () => {
 
   it("reads effort and recurring, and tolerates them being absent", () => {
     const { data } = parseAnalytics({
-      effort: { attempts: 564, solution_viewed: 211, repeat_attempts: 481, first_try_attempts: 56, first_try_correct: 20 },
+      effort: { attempts: 564, questions_seen_again: 48, first_try_attempts: 56, first_try_correct: 20 },
       recurring: [{ topic: "T", chapter: "C", subject: "S", times_wrong: 3, last_wrong_at: "2026-09-01", question_text: "q" }],
     });
-    expect(data.effort?.first_try_correct).toBe(20);
+    expect(data.effort).toEqual({ attempts: 564, questions_seen_again: 48, first_try_attempts: 56, first_try_correct: 20 });
     expect(data.recurring[0].times_wrong).toBe(3);
     expect(parseAnalytics({}).data.effort).toBeNull();
   });
@@ -88,5 +88,15 @@ describe("parseAnalytics", () => {
     // CONTROL: absent, or anything that is not the boolean, is not a lock.
     expect(parseAnalytics({ by_topic: [] }).data.topic_analysis_locked).toBe(false);
     expect(parseAnalytics({ topic_analysis_locked: "true" }).data.topic_analysis_locked).toBe(false);
+  });
+
+  it("will not read the position-based effort of an older payload as zero repeats", () => {
+    // Before 20261115000000 effort carried repeat_attempts / solution_viewed,
+    // counted off each question's position in its session. Its absent
+    // questions_seen_again must not render as "0 seen again".
+    const { data } = parseAnalytics({
+      effort: { attempts: 564, solution_viewed: 211, repeat_attempts: 481, first_try_attempts: 56, first_try_correct: 20 },
+    });
+    expect(data.effort).toBeNull();
   });
 });

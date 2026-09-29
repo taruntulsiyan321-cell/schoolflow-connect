@@ -263,6 +263,16 @@ A mode is never shown for material the upload does not contain. An empty mode
 that leads to an empty session is the "loading shown as empty" defect in
 another costume — see `src/lib/listState.ts`.
 
+**§8.1 (2026-09-29) — the table is the most a verdict can offer; what is
+shown is read off the file's contents** (`modesForUpload`). "Practise hard
+only" appears only when there is a hard question, "practise from notes" only
+when questions were written from them, and "practise by chapter" only with
+two or more chapters — one button each, each its own session. Only questions
+Practice can ask count: two or more options and an option index. A question
+whose answer is written text is kept, but it is not practisable, and §4.4's
+three are three practisable questions, counted on what is kept after another
+subject's questions are set aside.
+
 ---
 
 ## §9 Downstream — what already works

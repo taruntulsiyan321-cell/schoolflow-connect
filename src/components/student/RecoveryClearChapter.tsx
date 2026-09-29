@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { RecoveryEngineService, useAcademicContext, type ClearAnywayOutcome } from "@/academic";
+import { RecoveryEngineService, useAcademicContext, type ClearChapterOutcome } from "@/academic";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -9,20 +9,23 @@ import {
 import { toErrorMessage } from "@/lib/presentation";
 
 /**
- * §4.4 — "the student decides, the app advises".
+ * §4.4 — "the student decides, the app advises". Only the student clears
+ * their mistake book (owner's ruling 2026-09-28): a recovery round measures,
+ * it never clears, whatever it scored.
  *
- * Shown under a NOT READY recovery verdict. Clearing is allowed — "not a
- * block, a speed bump" — so the button is here, and the bump is the confirm:
- * it says plainly that the check found the chapter not solid, what clearing
- * does, and that a revision check in a week will bring it back if it did not
- * stick. The server decides everything else (which session, what is cleared,
- * the revision date); this screen only relays the choice.
+ * Shown under every recovery verdict. After a READY round the student clears
+ * with one press. After a NOT READY round clearing is still allowed — "not a
+ * block, a speed bump" — and the bump is the confirm: it says plainly that the
+ * check found the chapter not solid, what clearing does, and that a revision
+ * check in a week will bring it back if it did not stick. The server decides
+ * everything else (which session, what is cleared, the revision date); this
+ * screen only relays the choice.
  */
-export function RecoveryClearAnyway({ sessionId }: { sessionId: string }) {
+export function RecoveryClearChapter({ sessionId, ready }: { sessionId: string; ready: boolean }) {
   const { ctx } = useAcademicContext();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<ClearAnywayOutcome | null>(null);
+  const [done, setDone] = useState<ClearChapterOutcome | null>(null);
 
   async function clear() {
     if (!ctx || busy) return;
@@ -48,6 +51,18 @@ export function RecoveryClearAnyway({ sessionId }: { sessionId: string }) {
             : `Marked recovered — ${done.cleared} ${done.cleared === 1 ? "mistake" : "mistakes"} cleared. A revision check on ${when} will bring it back if it hasn't stuck.`}
         </span>
       </p>
+    );
+  }
+
+  if (ready) {
+    return (
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={() => void clear()} disabled={!ctx || busy}>
+          {busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+          Clear these mistakes
+        </Button>
+        <span className="text-[11px] text-muted-foreground">They stay in your mistake book until you do.</span>
+      </div>
     );
   }
 

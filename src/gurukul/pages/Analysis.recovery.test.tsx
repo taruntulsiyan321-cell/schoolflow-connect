@@ -55,32 +55,26 @@ vi.mock("@/academic/services/decisionEngineService", () => ({ DecisionEngineServ
 vi.mock("@/hooks/useAnalysisPageData", () => ({
   useAnalysisPageData: () => ({
     data: { totals: { correct: 80, wrong: 50, skipped: 30, accuracy_pct: 62 },
-      // Six sessions, 40 then 70: §6.4's window is the latest THREE against
-      // the previous three, so this is a clean +30 points either side.
+      // Six sessions, 40 then 70 in the order they were sat: §6.4's window is
+      // the latest THREE against the previous three, a clean +30 points.
       recent_sessions: [
-        { id: "s1", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(12) + "T10:00:00Z" },
-        { id: "s2", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(10) + "T10:00:00Z" },
-        { id: "s3", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(8) + "T10:00:00Z" },
-        { id: "s4", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(6) + "T10:00:00Z" },
-        { id: "s5", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(4) + "T10:00:00Z" },
+        // NEWEST FIRST, as the hook returns them (order by finished_at desc).
+        // Sat and skipped through: no score. Counted as 0% it would turn the
+        // latest three into 70, 70, 0 and the +30 below into a stall.
+        { id: "s7", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 0, wrong_count: 0, measured_ms: 20000, accuracy_pct: null, finished_at: iso(1) + "T10:00:00Z" },
         { id: "s6", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(2) + "T10:00:00Z" },
-      ],
-      attempt_hours: (() => { const h = new Array(24).fill(0); h[9] = 12; return h; })() },
+        // Three are stored as the practice screen writes them — "maths",
+        // "algebra" — while the subject row is SQL-normalised "Mathematics".
+        // Matched on raw labels, those three belonged to no subject and the
+        // trend below had four sessions to read, not six.
+        { id: "s5", subject: "maths", chapter: "algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(4) + "T10:00:00Z" },
+        { id: "s4", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 7, wrong_count: 3, measured_ms: 200000, accuracy_pct: 70, finished_at: iso(6) + "T10:00:00Z" },
+        { id: "s3", subject: "maths", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(8) + "T10:00:00Z" },
+        { id: "s2", subject: "Mathematics", chapter: "Algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(10) + "T10:00:00Z" },
+        { id: "s1", subject: "maths", chapter: "algebra", question_count: 10, correct_count: 4, wrong_count: 6, measured_ms: 200000, accuracy_pct: 40, finished_at: iso(12) + "T10:00:00Z" },
+      ] },
     loading: false, error: null, reload: () => {},
   }),
-}));
-vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
-  useStudentPerformanceCharts: () => ({ data: {
-    practice_trend: [
-      { date: iso(12), score_pct: 40, chapter: "Algebra" },
-      { date: iso(10), score_pct: 40, chapter: "Algebra" },
-      { date: iso(8), score_pct: 40, chapter: "Algebra" },
-      { date: iso(6), score_pct: 70, chapter: "Algebra" },
-      { date: iso(4), score_pct: 70, chapter: "Algebra" },
-      { date: iso(2), score_pct: 70, chapter: "Algebra" },
-    ],
-    weekly_activity: [ { date: iso(2), total: 5, test: 0, battles: 0 }, { date: iso(9), total: 5, test: 0, battles: 0 } ],
-  }, loading: false, error: null, reload: () => {} }),
 }));
 vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
   useStudentAcademicSnapshot: () => ({ data: {
@@ -93,13 +87,19 @@ vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
     ],
   }, loading: false, error: null, reload: () => {} }),
 }));
+vi.mock("@/hooks/useStudentPracticeTime", () => ({
+  useStudentPracticeTime: () => ({
+    data: { from: "2026-08-01", today: "2026-09-27", days: [], hours: new Array(24).fill(0) },
+    loading: false, error: null, reload: () => {},
+  }),
+}));
 vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   useStudentPracticeAnalytics: () => ({ data: {
     by_subject: [{ subject: "Mathematics", attempts: 160, answered: 130, timed: 150, correct: 80, skipped: 30, accuracy: 61.5, avg_sec: 16, total_min: 40 }],
     by_chapter: [{ chapter: "Algebra", subject: "Mathematics", attempts: 160, answered: 130, timed: 150, correct: 80, skipped: 30, accuracy: 61.5, avg_sec: 16, total_min: 40 }],
     by_topic: [{ topic: "Linear Equations", subject: "Mathematics", chapter: "Algebra", attempts: 160, answered: 130, timed: 150, correct: 80, skipped: 30, accuracy: 61.5, avg_sec: 16, total_min: 40 }],
     by_difficulty: [{ difficulty: "easy", rank: 1, attempts: 80, answered: 70, timed: 80, correct: 56, skipped: 10, accuracy: 80, avg_sec: 8 }],
-    effort: { attempts: 160, solution_viewed: 40, repeat_attempts: 60, first_try_attempts: 100, first_try_correct: 55 },
+    effort: { attempts: 160, questions_seen_again: 60, first_try_attempts: 100, first_try_correct: 55 },
     recurring: [],
   }, loading: false, error: null, reload: () => {} }),
 }));
@@ -107,7 +107,7 @@ import Analysis from "./Analysis";
 
 describe("Analysis — recovery, revision and trends", () => {
   const openTab = (label: string) =>
-    fireEvent.click(screen.getByRole("button", { name: label }));
+    fireEvent.click(screen.getByRole("tab", { name: label }));
   const settle = async () => {
     render(<Analysis />);
     await screen.findByText("Analysis");
@@ -130,6 +130,17 @@ describe("Analysis — recovery, revision and trends", () => {
     expect(screen.queryByText("Chapters getting better")).toBeNull();
     expect(screen.queryByText("Topics getting better")).toBeNull();
     expect(screen.getByText("Questions you keep getting wrong")).toBeInTheDocument();
+  });
+
+  it("gives the subject its trend from sessions stored as \"maths\"", async () => {
+    await settle();
+    openTab("Subjects & Chapters");
+    // The subject row, not the page: the chapter grid prints "30 pts" too,
+    // and a page-wide check passed while this row showed "—".
+    const row = screen.getAllByText("Mathematics")
+      .map((el) => el.closest("div.p-3") as HTMLElement | null)
+      .find((el): el is HTMLElement => !!el?.querySelector("div.w-2.h-10"))!;
+    expect(row.textContent).toContain("30 pts");
   });
 
   it("uses the same unit in the subject and chapter grids", async () => {

@@ -65,15 +65,16 @@ const METRIC_WORDS = [
 const BASELINE = [
   "src/academic/repository/marksRepository.ts",
   "src/gurukul-parent/ParentLiveAcademic.tsx",
-  "src/gurukul/pages/MistakeBook.tsx",
   "src/gurukul/pages/Tests.tsx",
-  "src/pages/principal/PrincipalClassDetail.tsx",
-  "src/pages/principal/PrincipalTeacherDetail.tsx",
   "src/pages/shared/StudentExamsResultsPage.tsx",
-  "src/pages/student/Battleground.tsx",
   "src/pages/student/TestResult.tsx",
-]; // 9 site(s) -- Analysis.tsx converged in f6e2f51 (practice-only), removed 2026-09-08;
-   // RecoverySessionResult.tsx was deleted with the retired recovery flow (0896c29), removed 2026-09-14
+]; // 5 site(s) -- Analysis.tsx converged in f6e2f51 (practice-only), removed 2026-09-08;
+   // RecoverySessionResult.tsx was deleted with the retired recovery flow (0896c29), removed 2026-09-14;
+   // MistakeBook.tsx, PrincipalClassDetail.tsx, PrincipalTeacherDetail.tsx and
+   // Battleground.tsx all stopped computing anything, removed 2026-09-29 — the
+   // gate reported them as list rot and it was right. Taking them off makes it
+   // STRICTER: if any of the four starts computing a metric again it is a NEW
+   // site and fails, with no entry to hide behind.
 
 function walk(dir, out = []) {
   if (!existsSync(dir)) return out;

@@ -31,8 +31,17 @@ vi.mock("@/academic/services/decisionEngineService", () => ({
 }));
 vi.mock("@/hooks/useAnalysisPageData", () => ({
   useAnalysisPageData: () => ({
-    data: { totals: { correct: 0, wrong: 0, skipped: 0, accuracy_pct: null }, recent_sessions: [], attempt_hours: new Array(24).fill(0) },
+    data: { totals: { correct: 0, wrong: 0, skipped: 0, accuracy_pct: null }, recent_sessions: [] },
     loading: false, error: null,
+  }),
+}));
+// The hour histogram moved out of useAnalysisPageData into its own hook
+// (20261115000000). Unmocked it fetches, the page stays in its skeleton, and
+// no tab is on screen to click.
+vi.mock("@/hooks/useStudentPracticeTime", () => ({
+  useStudentPracticeTime: () => ({
+    data: { from: "2026-08-01", today: "2026-09-29", days: [], hours: new Array(24).fill(0) },
+    loading: false, error: null, reload: () => {},
   }),
 }));
 vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
@@ -59,7 +68,8 @@ import Analysis from "./Analysis";
 
 const LOCKED = "Topic-wise analysis is not in your plan.";
 const show = () => render(<MemoryRouter><Analysis /></MemoryRouter>);
-const openTab = (label: string) => fireEvent.click(screen.getByRole("button", { name: label }));
+/** The tab bar is role=tablist / role=tab, not plain buttons. */
+const openTab = (label: string) => fireEvent.click(screen.getByRole("tab", { name: label }));
 /** The plan notices on screen (PlanLimitNotice is role=status). */
 const lockNotices = () => screen.queryAllByRole("status").filter((el) => el.textContent?.includes(LOCKED));
 
@@ -80,7 +90,7 @@ describe("Analysis — topic-wise analysis outside the plan", () => {
   it("the time-per-topic card says so too", () => {
     show();
     openTab("Activity & Speed");
-    const card = screen.getByText("Topics that take you longest (seconds per question)").closest("div")!.parentElement as HTMLElement;
+    const card = screen.getByText("Topics that take you longest (seconds per answer)").closest("div")!.parentElement as HTMLElement;
     expect(card.textContent).toContain(LOCKED);
     expect(lockNotices()).toHaveLength(1);
     expect(card.textContent).not.toMatch(/No topic has \d+ answered/);

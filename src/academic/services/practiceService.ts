@@ -2239,7 +2239,11 @@ export const PracticeService = {
     return [...byYear.entries()].map(([year, count]) => ({ year, count })).sort((a, b) => b.year - a.year);
   },
 
-  /** Clear student mistakes after a successful retry practice. */
+  /**
+   * Record a Mistake Book retry as a practice session. It clears nothing:
+   * only the student clears their mistake book (owner's ruling 2026-09-28) —
+   * a right answer here is evidence, not a decision.
+   */
   async completeMistakeRetry(
     ctx: ServiceContext,
     attempts: Array<{
@@ -2255,9 +2259,9 @@ export const PracticeService = {
       explanation?: string | null;
       difficulty?: string | null;
     }>,
-  ): Promise<{ score: number; clearedIds: string[]; sessionId: string | null; persisted: boolean }> {
+  ): Promise<{ score: number; sessionId: string | null; persisted: boolean }> {
     assertCanOwn(ctx, "practice");
-    if (!attempts.length) return { score: 0, clearedIds: [], sessionId: null, persisted: false };
+    if (!attempts.length) return { score: 0, sessionId: null, persisted: false };
     const correctN = attempts.filter((a) => a.selectedIndex === a.correctIndex).length;
     // Chunk 10: one definition of accuracy. This one had no guard at all —
     // attempts.length of 0 gave NaN, which renders as "NaN%".
@@ -2273,7 +2277,7 @@ export const PracticeService = {
       chapterRaw && !isPlaceholderAcademicLabel(chapterRaw) ? chapterRaw : null;
     if (!subject) {
       console.warn("mistake retry start: missing real subject");
-      return { score, clearedIds: [], sessionId: null, persisted: false };
+      return { score, sessionId: null, persisted: false };
     }
     let sessionId: string | null = null;
     try {
@@ -2282,7 +2286,7 @@ export const PracticeService = {
       })) as string;
     } catch (e) {
       console.warn("mistake retry start:", e instanceof Error ? e.message : e);
-      return { score, clearedIds: [], sessionId: null, persisted: false };
+      return { score, sessionId: null, persisted: false };
     }
     const finishPayload: Array<Record<string, unknown>> = [];
     for (const a of attempts) {
@@ -2324,12 +2328,9 @@ export const PracticeService = {
       await this.finish(ctx, { _session_id: sessionId, _attempts: finishPayload });
     } catch (e) {
       console.warn("mistake retry finish:", e instanceof Error ? e.message : e);
-      return { score, clearedIds: [], sessionId, persisted: false };
+      return { score, sessionId, persisted: false };
     }
-    const clearedIds = score >= 70
-      ? attempts.filter((a) => a.selectedIndex === a.correctIndex).map((a) => a.mistakeId) : [];
-    if (clearedIds.length) await this.markMistakesCleared(ctx, clearedIds);
-    return { score, clearedIds, sessionId, persisted: true };
+    return { score, sessionId, persisted: true };
   },
 
   async markMistakesCleared(ctx: ServiceContext, mistakeIds: string[]): Promise<void> {

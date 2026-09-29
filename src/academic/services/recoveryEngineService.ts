@@ -187,11 +187,10 @@ export type RecoverySessionOutcome = {
   conceptual_passed: boolean;
   /** Plain overall accuracy. Never what decides the outcome. */
   readiness: number | null;
-  next_revision_at: string | null;
 };
 
-/** §4.4 — what the server did when the student cleared a not-ready chapter. */
-export type ClearAnywayOutcome =
+/** §4.4 — what the server did when the student cleared a chapter after a recovery round. */
+export type ClearChapterOutcome =
   | { already: true; chapter_id: string }
   | { already?: undefined; chapter_id: string; cleared: number; readiness: number | null; next_revision_at: string };
 
@@ -522,15 +521,16 @@ export const RecoveryEngineService = {
   },
 
   /**
-   * §4.4 — clear a chapter whose recovery session was scored not ready.
+   * §4.4 — the student clears a chapter's mistakes after a recovery round,
+   * ready or not. A round never clears by itself (owner's ruling 2026-09-28).
    *
-   * "Not a block, a speed bump": the confirm is the caller's job. The server
-   * accepts only the caller's own, completed, not_ready, LATEST session for the
-   * chapter, does the same §4.5 writes a ready result makes, and keeps the
-   * session's readiness so a premature clear stays visible — revision then
-   * catches it in seven days.
+   * After a not-ready round the confirm is the caller's job: "not a block, a
+   * speed bump". The server accepts only the caller's own, completed, LATEST
+   * session for the chapter, does the §4.5 writes, and keeps the session's
+   * readiness so a premature clear stays visible — revision then catches it in
+   * seven days.
    */
-  async clearChapterAfterRecovery(ctx: ServiceContext, sessionId: string): Promise<ClearAnywayOutcome> {
+  async clearChapterAfterRecovery(ctx: ServiceContext, sessionId: string): Promise<ClearChapterOutcome> {
     assertCanOwn(ctx, "practice");
     const { data, error } = await getClient(toRepoContext(ctx)).rpc(
       "rpc_clear_chapter_after_recovery" as never,
@@ -541,7 +541,7 @@ export const RecoveryEngineService = {
       studentId: ctx.studentId,
       source: "RecoveryEngineService.clearChapterAfterRecovery",
     });
-    return data as unknown as ClearAnywayOutcome;
+    return data as unknown as ClearChapterOutcome;
   },
 
   /**

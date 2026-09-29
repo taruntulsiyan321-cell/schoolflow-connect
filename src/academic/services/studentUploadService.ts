@@ -56,7 +56,7 @@ export type StudentUploadNoteRow = {
   topic_id: string | null;
 };
 
-/** Spec §8 — modes offered are a function of the verdict, never a fixed list. */
+/** Spec §8 — the ways an upload can be practised or read. */
 export type UploadPracticeMode =
   | "practise_all"
   | "practise_by_chapter"
@@ -64,14 +64,50 @@ export type UploadPracticeMode =
   | "read_notes"
   | "practise_from_notes";
 
-export function modesForVerdict(verdict: UploadVerdict | null | undefined): UploadPracticeMode[] {
-  if (verdict === "questions") return ["practise_all", "practise_by_chapter", "practise_hard"];
-  if (verdict === "notes") return ["read_notes", "practise_from_notes"];
-  if (verdict === "mixed") {
-    return ["practise_all", "practise_by_chapter", "practise_hard", "read_notes", "practise_from_notes"];
-  }
-  // unusable / null / unknown — §4.3 / §8: none
-  return [];
+/**
+ * A question Practice can put to the student: two or more options and an
+ * option index to grade on. Practice drops any other private question, so
+ * nothing else can fill a mode. Server twin: `_brought_question_askable`;
+ * upload function twin: `isAskable` in refusalGates.ts (Deno cannot import
+ * from src/).
+ */
+export function isPractisableQuestion(q: { options: unknown; correct_index: number | null }): boolean {
+  return Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(q.correct_index);
+}
+
+/** What one upload holds that can be practised or read (§8). */
+export type UploadContent = {
+  /** Questions that can be practised. */
+  practisable: number;
+  hard: number;
+  /** Practisable questions written from the upload's notes (§7.1). */
+  fromNotes: number;
+  notes: number;
+  /** Chapters with practisable questions, most questions first. */
+  chapters: Array<{ id: string; name: string; count: number }>;
+};
+
+export const EMPTY_UPLOAD_CONTENT: UploadContent = { practisable: 0, hard: 0, fromNotes: 0, notes: 0, chapters: [] };
+
+/**
+ * Spec §8 — "A mode is never shown for material the upload does not contain."
+ *
+ * Read off what the upload holds, not off its verdict. The verdict offered
+ * "practise hard only" to a file with no hard question and "practise from
+ * notes" to one with nothing written from them — each opened an empty
+ * session — and "practise by chapter" beside a file of one chapter, where it
+ * is "practise all" under another name. By chapter is offered when there are
+ * two or more chapters to choose between; the screen lists them.
+ */
+export function modesForUpload(row: Pick<StudentUploadRow, "status">, content: UploadContent): UploadPracticeMode[] {
+  if (row.status !== "ready") return [];
+  const modes: UploadPracticeMode[] = [];
+  if (content.practisable > 0) modes.push("practise_all");
+  if (content.chapters.length >= 2) modes.push("practise_by_chapter");
+  if (content.hard > 0) modes.push("practise_hard");
+  if (content.notes > 0) modes.push("read_notes");
+  if (content.fromNotes > 0) modes.push("practise_from_notes");
+  return modes;
 }
 
 export const UPLOAD_MODE_LABELS: Record<UploadPracticeMode, string> = {
@@ -254,6 +290,56 @@ export const StudentUploadService = {
     })) as StudentUploadQuestionRow[];
   },
 
+  /** §8 — what each upload holds that can be practised or read, for its modes. */
+  async contentOf(ctx: ServiceContext, uploadIds: string[]): Promise<Map<string, UploadContent>> {
+    assertStudentContext(ctx);
+    const ids = Array.from(new Set(uploadIds.filter(Boolean)));
+    const out = new Map<string, UploadContent>();
+    if (ids.length === 0) return out;
+    const db = getClient(ctx);
+    const [qs, ns] = await Promise.all([
+      db
+        .from("student_upload_questions")
+        .select("upload_id, options, correct_index, difficulty, chapter_id, derived_from_note_id, chapters(name)")
+        .eq("owner_id", ctx.userId)
+        .in("upload_id", ids),
+      db.from("student_upload_notes").select("upload_id").eq("owner_id", ctx.userId).in("upload_id", ids),
+    ]);
+    throwIfError(qs.error, "StudentUploadService.contentOf questions");
+    throwIfError(ns.error, "StudentUploadService.contentOf notes");
+    const entry = (id: string) => {
+      let c = out.get(id);
+      if (!c) { c = { ...EMPTY_UPLOAD_CONTENT, chapters: [] }; out.set(id, c); }
+      return c;
+    };
+    const byChapter = new Map<string, Map<string, { name: string; count: number }>>();
+    for (const raw of (qs.data ?? []) as Array<{
+      upload_id: string; options: unknown; correct_index: number | null; difficulty: string | null;
+      chapter_id: string | null; derived_from_note_id: string | null; chapters?: unknown;
+    }>) {
+      if (!isPractisableQuestion(raw)) continue;
+      const c = entry(raw.upload_id);
+      c.practisable += 1;
+      if ((raw.difficulty ?? "").toLowerCase() === "hard") c.hard += 1;
+      if (raw.derived_from_note_id) c.fromNotes += 1;
+      if (raw.chapter_id) {
+        const name = chapterEmbed(raw.chapters)?.name?.trim() || "This chapter";
+        const chapters = byChapter.get(raw.upload_id) ?? new Map();
+        const ch = chapters.get(raw.chapter_id) ?? { name, count: 0 };
+        ch.count += 1;
+        chapters.set(raw.chapter_id, ch);
+        byChapter.set(raw.upload_id, chapters);
+      }
+    }
+    for (const raw of (ns.data ?? []) as Array<{ upload_id: string }>) entry(raw.upload_id).notes += 1;
+    for (const [uploadId, chapters] of byChapter) {
+      entry(uploadId).chapters = [...chapters.entries()]
+        .map(([id, ch]) => ({ id, name: ch.name, count: ch.count }))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    }
+    return out;
+  },
+
   async listNotes(ctx: ServiceContext, uploadId: string): Promise<StudentUploadNoteRow[]> {
     assertStudentContext(ctx);
     const db = getClient(ctx);
@@ -308,6 +394,8 @@ export const StudentUploadService = {
     uploadId: string,
     mode: UploadPracticeMode,
     limit = 50,
+    /** Required for practise_by_chapter: the chapter the student chose. */
+    chapterId: string | null = null,
   ): Promise<
     Array<{
       id: string;
@@ -341,7 +429,11 @@ export const StudentUploadService = {
     if (mode === "practise_hard") {
       query = query.ilike("difficulty", "hard");
     } else if (mode === "practise_by_chapter") {
-      query = query.not("chapter_id", "is", null);
+      // One chapter, the one the student chose. This read every tagged
+      // question — every question, since none is left untagged — so "by
+      // chapter" was "all" under another name.
+      if (!chapterId) throw new Error("Choose a chapter to practise.");
+      query = query.eq("chapter_id", chapterId);
     } else if (mode === "practise_from_notes") {
       // §7.1 / §8 — notes-derived only. Never fall through to practise_all.
       // No derived rows → honest empty (Session shows the upload empty state).

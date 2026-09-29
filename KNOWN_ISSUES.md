@@ -4119,3 +4119,314 @@ served), and a legacy row linking to nothing (still askable).
 What is NOT changed: the mistake still counts towards the open total and the recovery trigger. It should —
 the student really did get it wrong, and completing recovery for the chapter is what clears it. Only the
 promise that it could be re-answered is gone.
+## 92. The Class 12 Maths practice hub still reads study time from the old minutes column — OPEN
+
+**Found:** 2026-09-27, while moving Analysis and the session report onto
+`rpc_student_practice_time` (20261115000000).
+
+`src/components/student/practice/PracticeHubPage.tsx` (the live route
+`/student/practice/math12`, through `Class12MathPractice.tsx`) sums
+`snapshot.activity_heatmap[].minutes` into its practice-time label. That column,
+`academic_daily_activity.practice_minutes`, is the one Analysis stopped reading:
+
+* each finished session adds `round(total_time_ms / 60000)` floored at one
+  minute (20260928000000), so a 20-second session is a minute;
+* `rpc_test_submit` adds a test's minutes to it (20260925000000);
+* its day is `CURRENT_DATE` on a UTC database, so work done 00:00–05:30 IST is
+  the day before — and the hub's own `todayKey` is `toISOString().slice(0, 10)`,
+  a UTC date, for the same reason.
+
+**Fix, when this screen is in scope:** read `useStudentPracticeTime` (the days
+it returns carry `ms` per local day) and format with `formatSessionDuration`,
+as Analysis does. Not changed here: the request was Analysis and the session
+report only.
+
+## 93. Three recorded fields say less than their names — found auditing Analysis, OPEN
+
+**Found:** 2026-09-28, while checking every figure on Analysis. Analysis no
+longer reads any of them (20261115000000 and the change with it); what is left
+is the data and the one unread payload field.
+
+* **`question_attempts.attempt_number` is a position, not a count.**
+  `src/gurukul/pages/Practice.tsx` writes `++attemptNumberRef.current` — the
+  question's place in its session. Anything reading it as "how many times this
+  student has met this question" is wrong; "How you work" was, and now counts
+  per `bank_question_id` instead. Fix when a consumer needs it: rename, or
+  write the real count.
+* **`question_attempts.solution_viewed` means "this question had an
+  explanation".** Practice sets it when the server returns one, and the
+  explanation is then shown after every answer without being asked for. There
+  is no "open the solution" choice to record. Analysis stopped reporting it.
+* **`rpc_student_performance_charts.practice_trend` has no reader.** Analysis
+  draws the score line from its own session list now: the series left out
+  every session without a single chapter and returned no score for one skipped
+  through. Not removed here because that function's live body has drifted from
+  every file that defines it (20261031000000's header) and this container
+  cannot read it; remove it by in-place substitution once it can be read.
+
+## 94. Battle answers in weak topics — CLOSED, not a defect for individual accounts
+
+`_weak_topics_for_user` (20261024000000) unions `battle_answers` with practice
+attempts. Battleground is a school-only page (`SCHOOL_ONLY_PAGE_KEYS`,
+`src/gurukul/nav.individualPanel.test.ts`): an individual student has no
+Battleground and no battle answers, so their "Need attention" list is built
+from practice alone. This entry was raised in error for the individual panel.
+
+## 95. A broken practice streak is still shown as current — FIXED in 20261116000000 — APPLIED to production 2026-09-29
+
+**Found:** 2026-09-28, auditing Analysis ("Practice streak", the streak
+milestone, "Reach a 7-day streak").
+**Owner's ruling (2026-09-28):** when the student breaks the streak, it turns
+to zero.
+
+`student_xp.study_streak` is only written by `_progression_bump_study_streak`,
+which `rpc_finish_practice_session` calls when a session finishes
+(20260802310000), and nothing lowered it in between. A student with a 10-day
+streak who stopped practising read "10-day practice streak" on Analysis, Home,
+Profile, the parent page and the leaderboard until their next session.
+
+**Fix:** `reset_broken_study_streaks()`, run daily at 00:01 UTC by pg_cron job
+`reset-broken-study-streaks` and once when the migration is applied, zeroes the
+current streak (and the week/month runs) of every student whose last practice
+day is before yesterday — the same rule the writer restarts on. It fixes the
+stored number, so every reader is right without a change of its own. The
+longest streak and the last practice day are kept. Proven on a local
+Postgres 16 replica; **apply 20261116000000 on the live database** for it to
+take effect.
+
+Still open: the writer's day is `CURRENT_DATE` of a UTC database, so a
+session between 00:00 and 05:30 in India counts on the previous day, and the
+reset follows that same UTC day. Moving the streak to the student's own day
+means changing the writer and the reset together.
+
+## 96. `RecoveryClearAnyway.test.tsx` assumes a UTC clock — test only, OPEN
+
+Its fixture's `next_revision_at` is `2026-09-30T11:25:09Z` and it expects
+"30 Sept"; in UTC+14 that instant is 1 October, and the screen correctly says
+so. The component is right; the fixture should be a local date. Found by
+running the suite under `TZ=Pacific/Kiritimati` (every Analysis test passes in
+UTC-11, UTC, UTC+5:30 and UTC+14).
+
+## 97. Recovery steps the app would not show, and a far step not about the mistake — FIXED in 20261117000000 — APPLIED to production 2026-09-29
+
+**Found:** 2026-09-28, auditing Recovery and Revision.
+
+* Tier 3 (§4.2 "same topic, different application") was the chapter's
+  oldest questions, the same for every student: no topic, no difficulty, no
+  check that the student had not seen them, no approval filter, and
+  upload-promoted variants allowed. It is now chosen per mistake by
+  `_recovery_step_pool`: the mistake's topic, then its difficulty, then
+  unseen, then age; approved originals only.
+* Tier 1-2 variants did not require `is_approved`, and Practice loads a
+  recovery session through `question_bank_student`, which serves approved
+  questions only — so a session could show fewer questions than it planned.
+  The revision check's misses had the same gap.
+* ~~The plan and the Recovery card read `RECOVERY_WIDE_MAX_MISTAKES` as the
+  relearn limit instead of `RECOVERY_RELEARN_ABOVE` (both 8 today).~~
+  **WITHDRAWN 2026-09-29, before the migration was applied — it was the wrong
+  way round.** `RECOVERY_RELEARN_ABOVE` has not existed since
+  20261010000000 ("one home for the relearn boundary") deleted the row on
+  purpose and pointed both readers at `RECOVERY_WIDE_MAX_MISTAKES`: the
+  boundary is not an independent judgment, it IS the top of the wide band, and
+  two numbers that must always be equal, kept in two places, is the split-brain
+  `check:recovery-constants` refuses. `src/academic/recovery/constants.ts`
+  still declares it derived, so restoring the row would fail that gate too.
+  Measured: the first production dry run of 20261117000000 stopped at
+  `recovery constant RECOVERY_RELEARN_ABOVE is not defined`. The migration now
+  asserts the opposite — that both readers still take the boundary from
+  `RECOVERY_WIDE_MAX_MISTAKES` and that the deleted constant has not come back.
+  20261118000000, written against the withdrawn item, was corrected the same
+  way before it was applied.
+* Practising a chapter reset its revision date to 7 days whatever its stage,
+  pulling a solid (30-day) chapter back to weekly. It now resets at the
+  chapter's own stage.
+
+Proven on a local replica built from the migration files: before, tier 1
+planned an unapproved variant and tier 3 an upload variant from another
+topic; after, an approved variant and an unseen same-topic question. Three
+sabotaged copies of the migration are refused by its proof. Applied to
+production 2026-09-29 after a dry run; the misses-half anchor was re-aimed at
+the live body first, because 20261118000000_a_revision_check_re_asks_what_the
+_student_brought (applied 2026-09-28 from the other branch) had rewritten that
+half to return upload and capture ids as well as bank ones.
+
+## 98. A failed recovery round gets the same questions again — FIXED in 20261118000000 — APPLIED to production 2026-09-29
+
+**Found:** 2026-09-28, auditing Recovery.
+
+§4.6: round 2 is everything from round 1 plus new questions, round 3 the same
+again, and round 4+ draws from the pool built in rounds 1-3 without
+generating. Not built: `RECOVERY_GENERATION_ROUNDS` is declared in
+`src/academic/recovery/constants.ts` and read nowhere. The plan does not know
+the round, each variant job asks for one variant (`count: 1`), and
+`_enqueue_variant_generation` stops once one variant per tier exists. So
+every round after the first is the same questions in the same order, which
+is the memorisation §4.6 exists to prevent.
+
+**Owner's ruling (2026-09-28):** every round is the size of the first, with
+questions no earlier round used swapped in.
+
+**Fix:** the plan knows its round (rounds finished since the chapter was last
+cleared). Rounds 2-3 take variants no earlier round used and wait, with that
+reason on the card, until new ones are written, falling back to the least
+recently used if writing fails. Round 4+ takes the least recently used and
+writes nothing. A failed round now prepares the next and queues its
+variants; Start builds through the same builder, so it queues too; and the
+dispatcher closes a job only when a variant written after it exists (it used
+to close any job whose question already had a variant). Walked through on a
+local replica: before, rounds 1-4 all asked the same two variants and nothing
+was queued; after, round 2 waited for and used new variants, round 3 fell
+back when generation failed, round 4 reused the least recently used. Two
+sabotaged copies of the migration are refused by its proof. **Apply
+20261118000000 on the live database** (after 20261117000000).
+
+Related, also in the spec: §4.6 says "Nothing clears automatically", but
+`rpc_submit_recovery_session` clears every open mistake in the chapter when a
+round comes out ready (citing §4.5). The two sections disagree.
+
+## 99. Recovery and the Mistake Book cleared mistakes on the student's behalf — FIXED in 20261119000000 — APPLIED to production 2026-09-29
+
+**Owner's ruling (2026-09-28):** the student clears their mistake book
+themselves, only; recovery is for their understanding.
+
+* `rpc_submit_recovery_session` cleared every open mistake in the chapter the
+  moment a round came out ready, marked it recovered and started revision.
+  It came from 20261003000000 (defect "B3", an earlier session reading §4.5
+  as if a ready round were a clearing), merged 2026-09-22; it was never
+  ruled. A round now records its readiness and clears nothing.
+* The student's own clear (`rpc_clear_chapter_after_recovery`) worked only
+  after a not-ready round. It now works after any finished round (the
+  latest); after a ready one it is one press, after a not-ready one it keeps
+  its confirm.
+* The Mistake Book's retry cleared the mistakes answered right whenever the
+  retry scored 70%, and the book had no Clear of its own. The retry now
+  clears nothing, and every open mistake has a Clear button.
+
+Mistakes the old rules already cleared stay cleared. Proven on the local
+replica (a ready round leaves the mistake open; the student's clear then
+clears it; a clear on an older round is refused), with two sabotaged copies
+refused; the app tests fail against the old retry code. **Apply
+20261119000000 on the live database** (after 20261118000000), with the app
+change: the result screen and the Clear button expect it.
+
+## 100. The Revision page's labels past "solid", and its short-check warning — FIXED (app only)
+
+**Found:** 2026-09-29, checking the Revision page end to end.
+
+* A check is short when a chapter has fewer new questions than a check's
+  new half (`REVISION_COUNT`, 8). The card compared with
+  `REVISION_STAGES_TO_SOLID` (3), so four new questions left said nothing and
+  the check came out half length.
+* A solid chapter keeps being checked every 30 days at stage 4, 5, …; the
+  card said "Check 3 of 3" for ever, the history "check 4", the result screen
+  "check 4 of the 3-step ladder" and "5/3 consecutive passes needed". One
+  label, `revisionCheckLabel`, now says "solid check" past the third.
+* The streak on the page was called a "learning streak" and a "revision
+  streak"; it is the practice streak (a check is a practice session), and a
+  missed day resets it (KNOWN_ISSUES 87).
+* History printed the raw chapter name; it uses the cards' `displayChapter`.
+
+Still open, not changed: a passed check marks a chapter that was only ever
+practised `recovered` and stamps `recovered_at` (20261033000000 did this so
+the state constraint would accept the pass), so such a chapter reads as
+"recovered" although it never went through recovery.
+
+## 101. A text-answer capture or upload was planned and scored in recovery though it is never shown — FIXED in 20261120000000 — APPLIED to production 2026-09-29
+
+**Found:** 2026-09-29, checking screen capture and Custom Practice.
+
+A captured or uploaded question may be stored with its answer as text only
+(no options, or no option index) — the tables allow it, and PW shows numeric
+answers that way. Practice cannot ask such a question and drops it, but the
+recovery plan put it in tier 0 and the scoring counted it as asked and got
+wrong. `_brought_question_askable` is now the one server rule (the one
+Practice applies), used by the plan and the scoring. Such a mistake stays in
+the book and still gets its bank rungs.
+
+Also found by the local run, and fixed before anything was applied: the
+proofs in 20261117000000 and 20261118000000 were stricter than the rules
+they prove (a brought mistake's rungs can use up its topic's questions; a
+mistake with no bank question has no variants to write), and would have
+refused to apply on live data holding captured mistakes.
+
+**Extended 2026-09-29 to the revision check, before applying.** While this was
+being written on one branch, 20261118000000_a_revision_check_re_asks_what_the
+_student_brought landed on another and made a revision check re-ask what the
+student BROUGHT — its misses half returns upload and capture ids on the row
+still existing alone, the very test being replaced here. Left as it was, "can
+this be asked" would have had two homes the day both branches merged: recovery
+skipping a written-answer mistake while revision still planned it, and the
+check showing one question fewer than it announced. `rpc_revision_session_plan`
+is now edited by the same migration, out of the same `_brought_question_askable`,
+and is saved for its rollback. No such row exists on production today (measured:
+0 of 33 upload and 0 of 1 capture questions are unaskable), so the proof makes
+one: a real student's own answerable capture mistake is in their check (the
+positive control), is gone once the same row is given a text answer instead of
+options, and the row is put back. Two mutants — dropping the edit, and filtering
+only the upload arm — are both refused by that proof.
+
+## 102. Custom Practice offered modes and accepted files it could not practise — FIXED (upload function and app)
+
+**Found:** 2026-09-29, checking Custom Practice again.
+
+* Modes followed the verdict alone: "Practise hard only" with no hard
+  question and "Practise from notes" with nothing written from notes each
+  opened an empty session, and "Practise by chapter" practised the whole file
+  (every question is tagged, so "tagged" was everything). Modes are now read
+  off what the file holds, and by chapter is one button per chapter.
+* §4.4's three usable questions counted written-answer questions, which
+  Practice cannot ask, and were counted before another subject's questions
+  were set aside. Both now count only practisable questions that are kept,
+  and the saved verdict is the verdict of what was kept.
+
+The upload function change needs **deploying** (`custom-practice-upload`);
+Deno is not installed here, so its entry file was not type-checked — the gate
+module it now imports is covered by the app's tests.
+## 103. Two metric gates are red on findings that predate this work — OPEN, needs a ruling on rounding
+
+**Measured 2026-09-29** while merging the Analysis/Recovery branch. Both gates
+were already failing at the merge base `35501fbb` — every line they flag exists
+there, and neither branch had touched either script — so this records them
+rather than claiming them as new.
+
+`npm run lint:metric-duplication` — 2 sites compute a metric outside
+`src/academic/metrics/`:
+
+* `src/lib/weakChapters.ts`: `accuracyPct: attempted > 0 ? Math.round((100 *
+  correct) / attempted) : null`. The metric layer already has
+  `sessionAccuracy(correct, answered)` for exactly this. **It is not a
+  drop-in:** `pct()` rounds to one decimal (`Math.round(x * 1000) / 10`) where
+  this rounds to a whole number, so converging it changes the accuracy shown
+  against every chapter on "Chapters to fix" and rewrites the expectations in
+  `weakChapters.test.ts`. Needs the owner's ruling on whether chapter accuracy
+  gains a decimal place.
+* `src/gurukul-principal/autonomous-design/PrincipalPortalDesign.tsx`:
+  `attPct = att.totalCount > 0 ? (att.presentCount / att.totalCount) * 100 : 0`,
+  nine times. `studentAttendance` / `groupAttendance` return `Metric<number>`,
+  which distinguishes "nobody marked" from 0% — adopting them is a visible
+  change on a principal screen, not a refactor.
+
+Fixed in passing, same run: four entries on that gate's BASELINE no longer
+computed anything (`MistakeBook.tsx`, `PrincipalClassDetail.tsx`,
+`PrincipalTeacherDetail.tsx`, `Battleground.tsx`) and the gate was failing on
+the rot as well. They are off the list, which makes it stricter — any of the
+four starting again is a NEW site with no entry to hide behind.
+
+`npm run lint:threshold-literals` — 5 literals outside
+`src/academic/metrics/thresholds.ts`: `practiceScore >= 70`
+(`src/gurukul/pages/MistakeBook.tsx`), `SCHOOL_HOMEWORK_PAGE = 100`
+(`src/gurukul-admin/Homework.tsx`), `pct < 75` and `attPct < 75`
+(`PrincipalPortalDesign.tsx`), `HOMEWORK_PAGE = 25`
+(`src/gurukul-teacher/LiveHomeworkPanels.tsx`). All five are at the merge base.
+
+**Also fixed 2026-09-29, and this one WAS caused by the new work:**
+`npm run lint:stale-columns` reported
+`_recovery_session_plan_for: q.last_round -> public.question_bank has no column
+"last_round"`. The reference is correct — `q` there is a derived table
+(`FROM ( SELECT x.id, max(r.n) AS last_round … ) q`) and question_bank is
+aliased `q` in an unrelated clause of the same body. The gate already treats a
+CTE alias as ambiguous for precisely this reason and did not know about inline
+subqueries; it now does, scanned with balanced parentheses. Its blind spot grew
+by exactly 5 references (1060 → 1065) and two self-test cases were added: the
+shadowing case, and a control proving the same bad column on a plain table
+alias is still caught.

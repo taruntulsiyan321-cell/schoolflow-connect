@@ -80,11 +80,14 @@ function FreqBadge({ freq }: { freq: number }) {
 }
 
 function MistakeCard({
-  mistake, onRetry, onExplain, onToggleBookmark, onDispute, disputing, disputed, onDeleteCapture,
+  mistake, onRetry, onExplain, onClear, clearing, onToggleBookmark, onDispute, disputing, disputed, onDeleteCapture,
 }: {
   mistake: Mistake;
   onRetry: () => void;
   onExplain: () => void;
+  /** The student's own clear — the only way a mistake leaves the book. */
+  onClear: (m: Mistake) => void;
+  clearing?: boolean;
   onToggleBookmark: (id: string) => void;
   onDispute?: (m: Mistake) => void;
   disputing?: boolean;
@@ -158,6 +161,16 @@ function MistakeCard({
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/25 text-sky-300 text-xs font-bold hover:bg-sky-500/25 transition-all">
             <Brain className="w-3 h-3"/> Explain
           </button>
+          {!mistake.resolved && (
+            <button
+              type="button"
+              onClick={() => onClear(mistake)}
+              disabled={clearing}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-bold hover:bg-emerald-500/20 transition-all disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <CheckCircle2 className="w-3 h-3"/> {clearing ? "Clearing…" : "Clear"}
+            </button>
+          )}
           {canDispute && (
             <button
               type="button"
@@ -403,6 +416,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [view, setView] = useState<MBView>("list");
   const [practiceIds, setPracticeIds] = useState<string[]>([]);
   const [practiceScore, setPracticeScore] = useState(0);
+  const [clearingId, setClearingId] = useState<string | null>(null);
   const [rows, setRows] = useState<MistakeRow[]>([]);
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -707,6 +721,24 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     }
   }
 
+  /**
+   * The student clears a mistake themselves — the only way one leaves the book
+   * (owner's ruling 2026-09-28). A retry or a recovery round never clears.
+   */
+  async function clearMistake(m: Mistake) {
+    if (!ctx || clearingId) return;
+    setClearingId(m.id);
+    try {
+      await PracticeService.markMistakesCleared(ctx, [m.id]);
+      setRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, status: "cleared" as const } : r)));
+      showToast("Cleared from your mistake book");
+    } catch (e) {
+      showToast(toErrorMessage(e, "Could not clear this mistake"));
+    } finally {
+      setClearingId(null);
+    }
+  }
+
   /** §11 — delete private capture (+ linked mistakes via service). */
   async function deleteCaptureMistake(m: Mistake) {
     if (m.source !== "screen_capture" || !m.captureQuestionId) return;
@@ -733,12 +765,6 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     try {
       const result = await PracticeService.completeMistakeRetry(ctx, payload.attempts);
       setPracticeScore(result.score);
-      if (result.clearedIds.length) {
-        const cleared = new Set(result.clearedIds);
-        setRows((prev) =>
-          prev.map((r) => (cleared.has(r.id) ? { ...r, status: "cleared" as const } : r)),
-        );
-      }
       if (!result.persisted) {
         setToast("Could not save retry attempts — mastery not updated");
       }
@@ -977,6 +1003,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             <MistakeCard key={m.id} mistake={m}
               onRetry={() => { setPracticeIds([m.id]); setView("practice"); }}
               onExplain={() => askNova(m)}
+              onClear={(x) => void clearMistake(x)}
+              clearing={clearingId === m.id}
               onToggleBookmark={toggleBookmark}
               onDispute={m.aiAnswered && m.uploadQuestionId ? disputeUploadAiAnswer : undefined}
               disputing={disputingId === m.id}

@@ -105,9 +105,11 @@ export const RECOVERY_MIN_CONCEPTUAL_TO_OFFER = 2;
 export const REMINDER_MAX_PER_DAY = 1;
 
 /**
- * §4.6: fresh questions are added in rounds 1-3. Round 4+ draws from the
- * accumulated pool with no further generation — "a chapter that has failed
- * three rounds is not going to be solved by buying more questions."
+ * §4.6: rounds 1-3 of a recovery each get variant questions no earlier round
+ * used, generated when the bank has none. Round 4+ draws from what was built,
+ * least recently used first, with no further generation — "a chapter that has
+ * failed three rounds is not going to be solved by buying more questions."
+ * Every round is the size of the first (ruled 2026-09-28).
  */
 export const RECOVERY_GENERATION_ROUNDS = 3;
 

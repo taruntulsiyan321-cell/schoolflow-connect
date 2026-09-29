@@ -51,12 +51,9 @@ vi.mock("@/academic", () => ({ useAcademicLive: () => 0, RecoveryEngineService: 
 vi.mock("@/academic/services/decisionEngineService", () => ({ DecisionEngineService: { getWeakAreasV2: () => Promise.resolve([]) } }));
 vi.mock("@/hooks/useAnalysisPageData", () => ({
   useAnalysisPageData: () => ({
-    data: { totals: { correct: 80, wrong: 50, skipped: 0, accuracy_pct: 62 }, recent_sessions: [], attempt_hours: new Array(24).fill(0) },
+    data: { totals: { correct: 80, wrong: 50, skipped: 0, accuracy_pct: 62 }, recent_sessions: [] },
     loading: false, error: null, reload: () => {},
   }),
-}));
-vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
-  useStudentPerformanceCharts: () => ({ data: { practice_trend: [], weekly_activity: [] }, loading: false, error: null, reload: () => {} }),
 }));
 vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
   useStudentAcademicSnapshot: () => ({ data: {
@@ -69,6 +66,12 @@ vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
     activity_heatmap: [],
   }, loading: false, error: null, reload: () => {} }),
 }));
+vi.mock("@/hooks/useStudentPracticeTime", () => ({
+  useStudentPracticeTime: () => ({
+    data: { from: "2026-08-01", today: "2026-09-27", days: [], hours: new Array(24).fill(0) },
+    loading: false, error: null, reload: () => {},
+  }),
+}));
 vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   useStudentPracticeAnalytics: () => ({ data: {
     by_subject: [{ subject: "Mathematics", attempts: 60, answered: 60, timed: 0, correct: 30, skipped: 0, accuracy: 50, avg_sec: null, total_min: null }],
@@ -77,14 +80,14 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
       { chapter: "Statistics", subject: "Mathematics", attempts: 30, answered: 30, timed: 0, correct: 28, skipped: 0, accuracy: 93, avg_sec: null, total_min: null },
     ],
     by_topic: [], by_difficulty: [],
-    effort: { attempts: 60, solution_viewed: 0, repeat_attempts: 0, first_try_attempts: 60, first_try_correct: 30 },
+    effort: { attempts: 60, questions_seen_again: 0, first_try_attempts: 60, first_try_correct: 30 },
     recurring: [],
   }, loading: false, error: null, reload: () => {} }),
 }));
 
 import Analysis from "./Analysis";
 
-const openTab = (label: string) => fireEvent.click(screen.getByRole("button", { name: label }));
+const openTab = (label: string) => fireEvent.click(screen.getByRole("tab", { name: label }));
 const settle = async () => {
   render(<Analysis />);
   await screen.findByText("Analysis");

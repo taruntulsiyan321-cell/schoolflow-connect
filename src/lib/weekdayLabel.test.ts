@@ -55,4 +55,23 @@ describe("buildWeekComparison", () => {
     // and nothing leaked into the other six days
     expect(rows.filter((r) => r.thisWeek > 0 || r.lastWeek > 0)).toHaveLength(1);
   });
+
+  it("is the calendar week, not the last seven days", () => {
+    const now = new Date(2026, 8, 16); // Wednesday 2026-09-16
+    const rows = buildWeekComparison(
+      [
+        { date: "2026-09-10", total: 3 } as never, // LAST Thursday
+        { date: "2026-09-07", total: 2 } as never, // last Monday
+        { date: "2026-09-06", total: 9 } as never, // the Sunday before that
+      ],
+      now,
+    );
+    const thu = rows.find((r) => r.day === "Thu");
+    // Seven rolling days put last Thursday under "this week".
+    expect(thu?.thisWeek).toBe(0);
+    expect(thu?.lastWeek).toBe(3);
+    expect(rows.find((r) => r.day === "Mon")?.lastWeek).toBe(2);
+    // Two weeks back is in neither.
+    expect(rows.find((r) => r.day === "Sun")?.lastWeek).toBe(0);
+  });
 });

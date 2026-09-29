@@ -26,8 +26,8 @@ export function practiceAccuracyFromSnapshot(snap: AcademicSnapshot | null | und
 /**
  * Does the snapshot actually CARRY these figures?
  *
- * practiceAccuracyFromSnapshot and studyActiveDaysFromSnapshot both return 0
- * when the underlying value is null, and their 16 call sites depend on getting
+ * practiceAccuracyFromSnapshot returns 0 when the underlying value is null,
+ * and its call sites depend on getting
  * a number. That contract stays. What was missing is a way to ask whether the
  * number means anything — and a student who has never practised showing
  * "Practice accuracy: 0%" is the same defect as a session with nothing
@@ -58,9 +58,6 @@ export function hasPracticeAccuracy(snap: AcademicSnapshot | null | undefined): 
   return legacy != null && !Number.isNaN(Number(legacy));
 }
 
-export function hasStudyActiveDays(snap: AcademicSnapshot | null | undefined): boolean {
-  return snap?.exam_readiness?.active_days_14d != null;
-}
 
 /**
  * Blended Test + practice accuracy — the "overall accuracy" used by Analysis totals
@@ -86,10 +83,6 @@ export function hasOverallAccuracy(snap: AcademicSnapshot | null | undefined): b
   return raw != null && !Number.isNaN(Number(raw));
 }
 
-/** Active study days in the last 14 days. */
-export function studyActiveDaysFromSnapshot(snap: AcademicSnapshot | null | undefined): number {
-  return snap?.exam_readiness?.active_days_14d ?? 0;
-}
 
 
 

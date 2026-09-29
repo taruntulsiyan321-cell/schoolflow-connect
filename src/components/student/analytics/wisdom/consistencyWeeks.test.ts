@@ -24,13 +24,13 @@ import {
 // A Wednesday, so the week-alignment assertions are not accidentally true of
 // a Monday.
 const TODAY = new Date(2026, 8, 16); // 2026-09-16
-const row = (date: string, over: Partial<{ test: number; homework: number; battles: number; self_practice: number; minutes: number }> = {}) => ({
+// One day of rpc_student_practice_time, on the student's calendar.
+const row = (date: string, over: Partial<{ sessions: number; ms: number }> = {}) => ({
   date,
-  test: over.test ?? 0,
-  homework: over.homework ?? 0,
-  battles: over.battles ?? 0,
-  self_practice: over.self_practice ?? 0,
-  minutes: over.minutes ?? 0,
+  sessions: over.sessions ?? 0,
+  ms: over.ms ?? 0,
+  answered: 0,
+  correct: 0,
 });
 
 describe("consistencyWeeks", () => {
@@ -52,27 +52,29 @@ describe("consistencyWeeks", () => {
 
   it("puts a day's activity under that day's OWN weekday, not its array index", () => {
     // One row, on a Friday. The old grid placed the first row under Monday.
-    const weeks = consistencyWeeks([row("2026-09-18", { self_practice: 3, minutes: 12 })], 4, TODAY);
+    const weeks = consistencyWeeks([row("2026-09-18", { sessions: 3, ms: 720_000 })], 4, TODAY);
     const last = weeks[weeks.length - 1];
     expect(last.days[4].date).toBe("2026-09-18");
     expect(last.days[4].total).toBe(3);
-    expect(last.days[4].minutes).toBe(12);
+    // Counts only: the time on that day is deriveStudyTime's to report.
+    expect(last.days[4]).not.toHaveProperty("minutes");
     // and every other cell in that week is a real zero
     expect(last.days.filter((c) => c.total > 0)).toHaveLength(1);
     expect(last.days[0].total).toBe(0);
   });
 
-  it("counts practice sessions only — Analysis is practice-fed (rule 11)", () => {
+  it("counts finished sessions, not time — a day with answers and no finished session is not a session", () => {
     const weeks = consistencyWeeks(
-      [row("2026-09-15", { test: 1, homework: 2, battles: 1, self_practice: 4 })],
+      [row("2026-09-15", { sessions: 4, ms: 60_000 }), row("2026-09-16", { sessions: 0, ms: 90_000 })],
       4,
       TODAY,
     );
     expect(weeks[weeks.length - 1].days[1].total).toBe(4);
+    expect(weeks[weeks.length - 1].days[2].total).toBe(0);
   });
 
   it("drops a day outside the window rather than folding it into the edge", () => {
-    const weeks = consistencyWeeks([row("2026-01-01", { self_practice: 9 })], 4, TODAY);
+    const weeks = consistencyWeeks([row("2026-01-01", { sessions: 9 })], 4, TODAY);
     expect(weeks.flatMap((w) => w.days).some((c) => c.total > 0)).toBe(false);
   });
 });
@@ -82,9 +84,9 @@ describe("consistencyRatio", () => {
     // The defect in one line: three active days used to be 3/3.
     const weeks = consistencyWeeks(
       [
-        row("2026-09-14", { self_practice: 1 }),
-        row("2026-09-15", { self_practice: 1 }),
-        row("2026-09-16", { self_practice: 1 }),
+        row("2026-09-14", { sessions: 1 }),
+        row("2026-09-15", { sessions: 1 }),
+        row("2026-09-16", { sessions: 1 }),
       ],
       4,
       TODAY,
@@ -99,7 +101,7 @@ describe("consistencyRatio", () => {
     // Without this, a function that returned a constant low number would pass
     // the test above.
     const every = consistencyWeeks([], 4, TODAY).flatMap((w) => w.days)
-      .map((c) => row(c.date, { self_practice: 1 }));
+      .map((c) => row(c.date, { sessions: 1 }));
     const r = consistencyRatio(consistencyWeeks(every, 4, TODAY));
     expect(r.activeDays).toBe(28);
     expect(r.pct).toBe(100);

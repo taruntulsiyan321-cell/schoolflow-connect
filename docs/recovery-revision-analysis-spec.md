@@ -287,8 +287,14 @@ their own book stops using the book.
 
 ### 4.6 Failing a recovery session — rounds and the accumulating pool
 
-A session is **cleared** when readiness passes (§4.2b). Below that it fails, and
+A session is **ready** when readiness passes (§4.2b). Below that it fails, and
 a new session is generated.
+
+**Ruled 2026-09-28 — only the student clears.** A ready session says the
+student is ready; it clears nothing. The mistakes leave the book when the
+student clears them — from the book, or from the session's report — and §4.5
+is what that clearing does. Neither a recovery session nor a Mistake Book
+retry clears on the student's behalf (20261119000000).
 
 | Round | Contains | Generation |
 |---|---|---|
@@ -296,6 +302,14 @@ a new session is generated.
 | **2** | Everything from round 1 **+ new questions** | Fresh |
 | **3** | Everything from rounds 1–2 **+ new questions** | Fresh |
 | **4+** | Drawn from the pool built across rounds 1–3 | **None** |
+
+**Ruled 2026-09-28 — every round is the size of the first.** "Everything from
+round 1 + new questions" would grow a one-mistake session from 4 to 8 to 12.
+Instead each round keeps the same ladder and swaps in questions no earlier
+round of this recovery used: rounds 2–3 wait for new variants to be written
+(and fall back to the least recently used if writing them fails), and round
+4+ draws the least recently used from what rounds 1–3 built. A chapter that
+is cleared and later returns starts again at round 1 (20261118000000).
 
 **Why fresh questions in every one of the first three rounds.** A student who saw
 the same set each time would eventually pass by remembering those answers rather
