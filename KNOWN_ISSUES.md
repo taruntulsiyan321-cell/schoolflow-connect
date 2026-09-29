@@ -4430,3 +4430,100 @@ subqueries; it now does, scanned with balanced parentheses. Its blind spot grew
 by exactly 5 references (1060 → 1065) and two self-test cases were added: the
 shadowing case, and a control proving the same bad column on a plain table
 alias is still caught.
+
+## 104. An exam account can be served a question its own syllabus does not list — OPEN, needs a ruling
+
+**Measured 2026-09-29 on production, as each of the four CUET accounts through
+the view Practice reads.**
+
+`question_bank_student`'s exam arm fences by EXAM and nothing else:
+
+```sql
+exam_id IS NOT NULL
+AND exam_id = (SELECT ea.exam_id FROM exam_accounts ea
+                WHERE ea.school_id = (SELECT get_my_school_id()))
+```
+
+No stream (every CUET bank row has `stream` NULL, so stream cannot be the
+fence) and no `exam_syllabus_chapters`. The syllabus fence lives one level up,
+in `_student_bank_pool`:
+
+```sql
+AND qb.chapter_id IN (SELECT s.chapter_id FROM exam_syllabus_chapters s
+                       WHERE s.exam_id = mine.exam_id AND s.stream = mine.stream)
+```
+
+So the practice catalog and the mock paper builder, which both go through that
+pool, cannot serve an off-syllabus question — and anything reading the view
+directly can. **Two rules for one decision.**
+
+What it costs today, per account (three see the same rows; the fourth account's
+exam has no bank at all, and sees 0):
+
+| rows visible | of them off-syllabus | of those, ACTIVE |
+|---|---|---|
+| 4304 | 7 | **2** |
+
+The seven are 4 in `Accounting Process`, 1 in `Financial Statements`, and 2
+Mathematics rows with no `chapter_id` at all. Five are inactive and every
+consumer filters `is_active`, so the live exposure is exactly the **two active
+`Accounting Process` questions** — "Goods sold on credit are recorded in
+which…" and "If a transaction involves the purchase o…", class 12 Accountancy,
+seeded 2026-09-23/24. `Accounting Process` is not in `exam_syllabus_chapters`
+for ANY exam or stream; the CUET commerce map has 61 chapters and that is not
+one of them (it is class-11 material — journal, ledger, trial balance).
+
+**Both questions have been answered.** Account 095998bc has 2 attempts on them,
+both wrong, and 43ef6018 carries a `chapter_state` row for `Accounting Process`
+that came from a practice mistake — a chapter outside their exam appearing in
+their recovery state.
+
+**Why this is not fixed here.** Moving the fence into the view is the one-home
+answer and is a small edit, but it changes what a student can still be ASKED,
+and there is live data caught in it:
+
+* 43ef6018 has an open mistake in that chapter. Fenced, its question leaves
+  `question_bank_student`, so `mistakeIsAskable` (`bankActive`) turns false and
+  the Mistake Book card becomes "This one can't be asked again" — the same
+  treatment as a withdrawn question. Recovery, which reads `question_bank`
+  directly under a definer, would still plan it. That is a NEW disagreement.
+* A CUET question with `chapter_id IS NULL` would become invisible. The two
+  such rows today are inactive, but the rule would be "no chapter, never
+  served", which is a decision and not a bug fix.
+
+**The ruling wanted, in two parts:**
+
+1. Does a question that is not in the student's syllabus stay askable for a
+   mistake they already made? (Consistent answer: no — the syllabus is the
+   fence, and the mistake stays in the book unaskable. Other answer: yes — a
+   mistake is theirs to fix.) Whichever it is, recovery and revision must be
+   made to agree with it; today they read the table directly and would not.
+2. Is `Accounting Process` a CUET Accountancy chapter? If yes, the row is
+   missing from `exam_syllabus_chapters` and adding it fixes the content. If
+   no, those two questions should not carry the CUET `exam_id`.
+
+Part 2 alone removes today's exposure; part 1 is what stops the next
+mis-seeded question leaking the same way.
+
+## 105. The streak counts days in UTC while Analysis counts them on the student's own clock — OPEN, needs a ruling
+
+One of the three questions left open by the Analysis branch, now measured.
+
+`_progression_bump_study_streak` reads `now()`, and
+`reset_broken_study_streaks` is scheduled `1 0 * * *` — 00:01 UTC, which is
+05:31 IST. So for an Indian student, practice between midnight and 05:30 counts
+for the day before, and the daily reset lands in the middle of their morning.
+20261115000000 gave Analysis the opposite rule: `rpc_student_practice_time`
+takes an IANA zone from the browser and buckets days on the student's own
+calendar. Two day-rules for one product.
+
+**Size, measured 2026-09-29:** 66 of 8,428 attempts across all students fall in
+00:00–05:30 IST (0.8%), and **0 of 287** exam-account attempts do. Nobody's
+streak is wrong today; the rule is.
+
+**Why it cannot simply be fixed:** the database holds no column saying where a
+student is — which is exactly why 20261115000000 passes the zone in from the
+browser. A cron job has no browser to ask. The options are to store a time zone
+on the profile (and default it), or to rule that the product's day is IST and
+say so in one place that both the writer and the reset read. Either is a
+decision, not a repair.
