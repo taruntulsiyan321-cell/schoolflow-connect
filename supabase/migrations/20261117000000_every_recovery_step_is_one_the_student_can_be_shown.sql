@@ -388,7 +388,13 @@ BEGIN
                       AND qb.is_active AND qb.is_approved AND qb.replaced_by_question_id IS NULL
                       AND qb.source_question_id IS NULL AND qb.source_upload_question_id IS NULL
                       AND NOT EXISTS (SELECT 1 FROM public.student_mistakes sm
-                                       WHERE sm.user_id = _b.user_id AND sm.question_id = qb.id))
+                                       WHERE sm.user_id = _b.user_id AND sm.question_id = qb.id)
+                      -- Still free: not already asked at another rung of this
+                      -- plan (a brought mistake's rungs 1-2 draw on the same
+                      -- chapter questions, topic first).
+                      AND NOT EXISTS (SELECT 1 FROM jsonb_each(_after->'tiers') t
+                                       WHERE t.key IN ('0', '1', '2')
+                                         AND t.value->'from_bank' ? qb.id::text))
        AND NOT EXISTS (SELECT 1 FROM public.question_bank qb
                         WHERE qb.id = ANY (_far) AND qb.topic_id = ANY (_topics)) THEN
       RAISE EXCEPTION 'tier 3 is in none of the mistakes'' topics though the chapter has one (% / %)', _b.user_id, _b.chapter_id;

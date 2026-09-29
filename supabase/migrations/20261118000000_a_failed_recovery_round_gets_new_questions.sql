@@ -641,10 +641,16 @@ BEGIN
   IF _n = 0 THEN RAISE EXCEPTION 'no first-round plan to compare — check 1 proved nothing'; END IF;
   RAISE NOTICE '% first-round plans unchanged', _n;
 
-  -- A real, offerable first round on a bank mistake.
+  -- A real, offerable first round whose mistakes are all on bank questions:
+  -- the rounds that can have new variants written. A mistake the student
+  -- brought with no bank match has nothing to generate from, and its rounds
+  -- take the chapter's least recently used questions by design.
   SELECT f.user_id, f.chapter_id INTO _uid, _chap
     FROM _first_round_before f
    WHERE jsonb_array_length(COALESCE(f.tiers->'1'->'from_bank', '[]')) > 0
+     AND NOT EXISTS (SELECT 1 FROM public.student_mistakes sm
+                      WHERE sm.user_id = f.user_id AND sm.chapter_id = f.chapter_id
+                        AND sm.status = 'open' AND sm.question_id IS NULL)
      AND public._recovery_plan_startable(public._recovery_session_plan_for(f.user_id, f.chapter_id))
    LIMIT 1;
   IF _uid IS NULL THEN

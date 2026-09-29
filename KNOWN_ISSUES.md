@@ -4027,3 +4027,21 @@ Still open, not changed: a passed check marks a chapter that was only ever
 practised `recovered` and stamps `recovered_at` (20261033000000 did this so
 the state constraint would accept the pass), so such a chapter reads as
 "recovered" although it never went through recovery.
+
+## 93. A text-answer capture or upload was planned and scored in recovery though it is never shown — FIXED in 20261120000000 (not yet applied live)
+
+**Found:** 2026-09-29, checking screen capture and Custom Practice.
+
+A captured or uploaded question may be stored with its answer as text only
+(no options, or no option index) — the tables allow it, and PW shows numeric
+answers that way. Practice cannot ask such a question and drops it, but the
+recovery plan put it in tier 0 and the scoring counted it as asked and got
+wrong. `_brought_question_askable` is now the one server rule (the one
+Practice applies), used by the plan and the scoring. Such a mistake stays in
+the book and still gets its bank rungs.
+
+Also found by the local run, and fixed before anything was applied: the
+proofs in 20261117000000 and 20261118000000 were stricter than the rules
+they prove (a brought mistake's rungs can use up its topic's questions; a
+mistake with no bank question has no variants to write), and would have
+refused to apply on live data holding captured mistakes.
