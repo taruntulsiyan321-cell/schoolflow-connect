@@ -4632,7 +4632,30 @@ classification, forgetting events) is a judgement, not arithmetic.
 
 ---
 
-## 107. Three topics are the same topic written two ways, beyond case — OPEN, the owner picks the spelling
+## 107. Eight pairs of topics are the same topic under two names — RULED 2026-09-30, merge not yet written
+
+**RULED by the owner, 2026-09-30: "they are same"** — all eight pairs below, the three spellings AND the five
+looser look-alikes. Measured the same day: each pair sits in exactly one chapter. Merge them with
+20261126000000's machinery (re-point ids, respell text copies scoped to the chapter, fold revision and mastery
+rows by its stated rule, proofs with controls, round-trip-tested rollback), with the map built from this list
+instead of by case. Keeper = more questions, id and name (the same rule as 106):
+
+| Chapter | Keep (questions) | Merge in (questions) |
+|---|---|---|
+| Admission of a New Partner | New Profit Sharing Ratio (30) | New profit-sharing ratio (12) |
+| Retirement and Death of a Partner | Death of partner (21) | Death of a Partner (18) |
+| Retirement and Death of a Partner | Retirement of a Partner (54) | Retirement of partner (24) |
+| Accounting for Share Capital | Calls (3) | Calls on shares (0) |
+| Accounting for Share Capital | Forfeiture and reissue of shares (27) | Forfeiture of Shares (18) |
+| Accounting for Share Capital | Oversubscription / Pro-rata (12) | Oversubscription and pro-rata allotment (9) |
+| Cash Flow Statement | Cash Flow Statement (81) | Cash Flow (36) |
+| Financial Statements and Tools for Financial Analysis | Tools of analysis (2) | Tools of financial analysis (1) |
+
+Copies to respell (measured): about 15 attempts, 1 mistake, 1 mastery row; two students have attempts under
+both names ("New Profit Sharing Ratio", "Forfeiture…") — the control for the analytics proof.
+
+The original finding follows.
+
 
 After 106's merge, one topic per name per chapter holds whatever the case. Three pairs are still the same
 topic, differing by an article or a hyphen, so the case-insensitive rule does not see them (found 2026-09-30,
