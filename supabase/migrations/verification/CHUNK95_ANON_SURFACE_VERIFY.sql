@@ -187,7 +187,10 @@ BEGIN
   SELECT count(*) INTO _n FROM public.students;         IF _n = 0 THEN _fail := _fail || '(FAIL) 4: students=0 '; END IF;
   SELECT count(*) INTO _n FROM public.classes;          IF _n = 0 THEN _fail := _fail || '(FAIL) 4: classes=0 '; END IF;
   SELECT count(*) INTO _n FROM public.section_subjects; IF _n = 0 THEN _fail := _fail || '(FAIL) 4: section_subjects=0 '; END IF;
-  SELECT count(*) INTO _n FROM public.question_bank;    IF _n = 0 THEN _fail := _fail || '(FAIL) 4: question_bank=0 '; END IF;
+  -- The bank through question_bank_student, the view every student read uses:
+  -- 20261049000000 left no student-facing policy on question_bank itself, so a
+  -- direct read is 0 by design and this reported a working student as broken.
+  SELECT count(*) INTO _n FROM public.question_bank_student; IF _n = 0 THEN _fail := _fail || '(FAIL) 4: question_bank_student=0 '; END IF;
   RESET ROLE;
   PERFORM set_config('request.jwt.claims', NULL, true);
   IF _role <> 'authenticated' THEN

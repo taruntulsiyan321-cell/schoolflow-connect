@@ -44,39 +44,6 @@
       "verifiedBy": "",
       "reviewed": false
     },
-    "_backfill_battle_question_concepts()": {
-      "name": "_backfill_battle_question_concepts",
-      "readerSet": "none",
-      "callability": "internal",
-      "returns": "integer",
-      "grants": [],
-      "calls": [],
-      "justification": "Revoked 2026-08-30. Measured: called as a real demo student it wrote 749 tuples across shared battle question data. No arguments, no caller in the client, SECURITY DEFINER, and granted to anon/authenticated/PUBLIC.",
-      "verifiedBy": "Called as the authenticated ROLE (SET LOCAL ROLE, not a JWT claim) after the revoke: permission denied, with get_my_role() as a control proving the denial was specific.",
-      "reviewed": true
-    },
-    "_backfill_question_bank_concepts()": {
-      "name": "_backfill_question_bank_concepts",
-      "readerSet": "none",
-      "callability": "internal",
-      "returns": "integer",
-      "grants": [],
-      "calls": [],
-      "justification": "Revoked 2026-08-30. Called as a real demo student it wrote 6 tuples to the shared question bank. Same shape as the other two backfills.",
-      "verifiedBy": "Called as the authenticated ROLE (SET LOCAL ROLE, not a JWT claim) after the revoke: permission denied, with get_my_role() as a control proving the denial was specific.",
-      "reviewed": true
-    },
-    "_backfill_template_concepts()": {
-      "name": "_backfill_template_concepts",
-      "readerSet": "none",
-      "callability": "internal",
-      "returns": "integer",
-      "grants": [],
-      "calls": [],
-      "justification": "Revoked 2026-08-30. Wrote 0 tuples when probed, but only because there was nothing left to backfill at that moment — same function shape, same grants, same absence of a caller.",
-      "verifiedBy": "Called as the authenticated ROLE (SET LOCAL ROLE, not a JWT claim) after the revoke: permission denied, with get_my_role() as a control proving the denial was specific.",
-      "reviewed": true
-    },
     "_battle_event(_kind text, _uid uuid, _name text, _detail text, _subject text, _opponent text, _battle uuid, _class uuid, _icon text)": {
       "name": "_battle_event",
       "readerSet": "public",
@@ -707,24 +674,6 @@
         "admin": "answered"
       }
     },
-    "admin_assign_role(_identifier text, _role app_role)": {
-      "name": "admin_assign_role",
-      "readerSet": "staff",
-      "callability": "granted",
-      "returns": "uuid",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [
-        "_grant_membership",
-        "active_membership_school_id",
-        "has_role",
-        "require_active_profile"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
     "admin_connect_student_account(_student_id uuid, _identifier text, _as text)": {
       "name": "admin_connect_student_account",
       "readerSet": "staff",
@@ -812,25 +761,6 @@
         "principal": "refused",
         "admin": "answered"
       }
-    },
-    "admin_remove_role(_user_id uuid, _role app_role)": {
-      "name": "admin_remove_role",
-      "readerSet": "staff",
-      "callability": "granted",
-      "returns": "void",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [
-        "_revoke_membership",
-        "active_membership_school_id",
-        "has_role",
-        "membership_role_at",
-        "require_active_profile"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
     },
     "admin_revoke_student_account(_student_id uuid)": {
       "name": "admin_revoke_student_account",
@@ -1433,29 +1363,6 @@
       "justification": "",
       "verifiedBy": "",
       "reviewed": false
-    },
-    "ensure_default_role()": {
-      "name": "ensure_default_role",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "app_role",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [
-        "effective_role",
-        "link_portal_on_auth"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
-      "observed": {
-        "student": "answered",
-        "teacher": "answered",
-        "parent": "answered",
-        "principal": "answered",
-        "admin": "answered"
-      }
     },
     "ensure_student_academic_profile(_student_id uuid)": {
       "name": "ensure_student_academic_profile",
@@ -2232,33 +2139,6 @@
         "admin": "answered"
       }
     },
-    "my_visible_exam_ids()": {
-      "name": "my_visible_exam_ids",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "SETOF uuid",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
-      "calls": [
-        "active_membership_role",
-        "active_membership_school_id",
-        "my_children_class_ids",
-        "my_teacher_class_ids",
-        "student_class_id"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
-      "observed": {
-        "student": "answered",
-        "teacher": "answered",
-        "parent": "answered",
-        "principal": "answered",
-        "admin": "answered"
-      }
-    },
     "my_visible_student_ids()": {
       "name": "my_visible_student_ids",
       "readerSet": "staff",
@@ -2538,43 +2418,6 @@
       "verifiedBy": "",
       "reviewed": false
     },
-    "rpc_assign_concept_recovery(_subject text, _chapter text, _concept text, _subconcept text, _accuracy numeric, _source_type text, _source_id uuid)": {
-      "name": "rpc_assign_concept_recovery",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "uuid",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "rpc_backfill_question_concepts()": {
-      "name": "rpc_backfill_question_concepts",
-      "readerSet": "staff",
-      "callability": "internal",
-      "returns": "jsonb",
-      "grants": [],
-      "calls": [
-        "_backfill_battle_question_concepts",
-        "_backfill_dpp_question_concepts",
-        "_backfill_question_bank_concepts",
-        "_backfill_template_concepts",
-        "has_role"
-      ],
-      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
-      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
-      "reviewed": true,
-      "observed": {
-        "student": "refused",
-        "teacher": "refused",
-        "parent": "refused",
-        "principal": "answered",
-        "admin": "answered"
-      }
-    },
     "rpc_battle_curriculum(_subject text, _class_id uuid)": {
       "name": "rpc_battle_curriculum",
       "readerSet": "public",
@@ -2586,19 +2429,6 @@
       "calls": [
         "_class_grade"
       ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "rpc_battle_curriculum(_subject text)": {
-      "name": "rpc_battle_curriculum",
-      "readerSet": "public",
-      "callability": "granted",
-      "returns": "jsonb",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [],
       "justification": "",
       "verifiedBy": "",
       "reviewed": false
@@ -2724,37 +2554,6 @@
       "verifiedBy": "Called live 2026-09-23 as student12 and teacher against the student's session (both 'recovery session not found'), as the student with a superseded session and a ready session (both refused), and with the real not_ready session (8 cleared, state recovered, stage 1, readiness kept).",
       "reviewed": false
     },
-    "rpc_complete_recovery_assignment(_assignment_id uuid, _questions_completed integer, _questions_correct integer)": {
-      "name": "rpc_complete_recovery_assignment",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "jsonb",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [
-        "_rebuild_revision_queue",
-        "_upsert_concept_mastery"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "rpc_complete_revision(_id uuid)": {
-      "name": "rpc_complete_revision",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "void",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [
-        "_bump_academic_activity"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
     "rpc_compute_session_analytics(_session_id uuid)": {
       "name": "rpc_compute_session_analytics",
       "readerSet": "self",
@@ -2789,9 +2588,11 @@
     "rpc_create_class_group(_class_id uuid, _title text)": {
       "name": "rpc_create_class_group",
       "readerSet": "self",
-      "callability": "internal",
+      "callability": "granted",
       "returns": "chat_conversations",
-      "grants": [],
+      "grants": [
+        "authenticated"
+      ],
       "calls": [
         "rpc_ensure_class_group"
       ],
@@ -3210,19 +3011,6 @@
         "admin": "answered"
       }
     },
-    "rpc_get_recovery_assignment(_assignment_id uuid)": {
-      "name": "rpc_get_recovery_assignment",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "jsonb",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
     "rpc_get_student_progression(_user_id uuid)": {
       "name": "rpc_get_student_progression",
       "readerSet": "staff",
@@ -3584,20 +3372,6 @@
       "justification": "",
       "verifiedBy": "",
       "reviewed": false
-    },
-    "rpc_record_concept_mistake(_assessment_type text, _source_id uuid, _question_id uuid, _subject text, _chapter text, _concept text, _subconcept text, _class_level integer, _question_text text, _options jsonb, _student_answer jsonb, _correct_answer jsonb, _explanation text)": {
-      "name": "rpc_record_concept_mistake",
-      "readerSet": "self",
-      "callability": "internal",
-      "returns": "uuid",
-      "grants": [],
-      "calls": [
-        "_upsert_concept_mastery",
-        "rpc_assign_concept_recovery"
-      ],
-      "justification": "Chunk 9.5 batch 2: EXECUTE revoked from PUBLIC, anon and authenticated. No client caller (checked by bare name, not only .rpc()), not referenced by any RLS policy expression, column DEFAULT, CHECK, index expression or generated column, not called by any SECURITY INVOKER body, and not exercised as a real role by any verification file. Reachable only from SECURITY DEFINER callers, whose calls are privilege-checked against the owner.",
-      "verifiedBy": "20260830150000_chunk95_batch2_no_caller.sql (revoke + item 3a read-as-student), narrowed by 20260830160000 and 20260830170000",
-      "reviewed": true
     },
     "rpc_record_question_attempt(_correct_answer jsonb, _generated_question jsonb, _is_correct boolean, _selected_answer jsonb, _session_id uuid, _score numeric, _skipped boolean, _template_id uuid, _time_taken_ms integer, _bank_question_id uuid, _hint_used boolean, _source text, _meta jsonb)": {
       "name": "rpc_record_question_attempt",
@@ -3991,26 +3765,6 @@
         "admin": "answered"
       }
     },
-    "rpc_student_recovery_zone()": {
-      "name": "rpc_student_recovery_zone",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "jsonb",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
-      "observed": {
-        "student": "answered",
-        "teacher": "answered",
-        "parent": "answered",
-        "principal": "answered",
-        "admin": "answered"
-      }
-    },
     "rpc_student_revision_queue()": {
       "name": "rpc_student_revision_queue",
       "readerSet": "self",
@@ -4042,22 +3796,6 @@
       ],
       "calls": [
         "rpc_mirror_battle_answer"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false
-    },
-    "rpc_submit_recovery_answer(_question_id uuid, _student_answer jsonb, _is_correct boolean)": {
-      "name": "rpc_submit_recovery_answer",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "jsonb",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [
-        "_rebuild_revision_queue",
-        "_upsert_concept_mastery"
       ],
       "justification": "",
       "verifiedBy": "",
@@ -4668,17 +4406,6 @@
       "verifiedBy": "probe34 claims 5-8 (as the student: a partly-wrong paper scores 1 of 3, the mark lands in test_marks, the wrong AND skipped questions reach the mistake book chapter-keyed, and no test_answers row survives)",
       "reviewed": true
     },
-    "_bump_academic_activity(_uid uuid, _test integer, _hw integer, _battle integer, _mins integer)": {
-      "name": "_bump_academic_activity",
-      "readerSet": "self",
-      "callability": "internal",
-      "returns": "void",
-      "grants": [],
-      "calls": [],
-      "justification": "Internal counter bump for academic_daily_activity, called only by rpc_complete_revision, rpc_finish_battle, rpc_finish_practice_session and rpc_test_submit — all of which have already authorised the caller. EXECUTE is revoked from PUBLIC, anon and authenticated by 20260829230000; that revoke had to be RE-applied because Chunk 7.5c dropped and recreated both overloads (its `_dpp` parameter could not be renamed in place) and pg_get_functiondef does not carry grants, so the recreate silently reset them to PUBLIC.",
-      "verifiedBy": "scripts/verify-database-integrity.mjs — 'internal data-forgery/leak helpers are no longer callable by anon or authenticated'",
-      "reviewed": true
-    },
     "_bump_academic_activity(_uid uuid, _test integer, _hw integer, _battle integer, _mins integer, _self_practice integer)": {
       "name": "_bump_academic_activity",
       "readerSet": "self",
@@ -4965,6 +4692,1082 @@
       "justification": "Run daily at 00:01 UTC by pg_cron (reset-broken-study-streaks): zeroes study_streak, study_week_streak and study_month_streak on every student_xp row whose last_study_date is before yesterday, the day rule _progression_bump_study_streak restarts on. Returns only a count. EXECUTE revoked from PUBLIC, anon and authenticated (20261116000000).",
       "verifiedBy": "20261116000000 proof: two days since practice and no last day both read 0; practised yesterday and today keep 5 and 7; longest streak and last day unchanged; the writer then gives 1 and 6; neither anon nor authenticated can execute; the cron job exists.",
       "reviewed": false
+    },
+    "_attempt_verdict(_aid uuid)": {
+      "name": "_attempt_verdict",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_practice_grade_from_bank"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_enqueue_variant_generation(_plan jsonb)": {
+      "name": "_enqueue_variant_generation",
+      "readerSet": "public",
+      "callability": "internal",
+      "returns": "integer",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_ensure_recovery_session(_uid uuid, _student_id uuid, _school_id uuid, _chapter_id uuid)": {
+      "name": "_ensure_recovery_session",
+      "readerSet": "public",
+      "callability": "internal",
+      "returns": "uuid",
+      "grants": [],
+      "calls": [
+        "_enqueue_variant_generation"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_parent_weekly_digest(_parent uuid, _from date, _to date)": {
+      "name": "_parent_weekly_digest",
+      "readerSet": "parent",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_premium_decide(_account uuid, _feature text, _units integer, _consume boolean)": {
+      "name": "_premium_decide",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_premium_enforced_for",
+        "_premium_is_individual",
+        "_premium_tier"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_premium_enforced_for(_account uuid)": {
+      "name": "_premium_enforced_for",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "boolean",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_premium_is_individual(_account uuid)": {
+      "name": "_premium_is_individual",
+      "readerSet": "public",
+      "callability": "internal",
+      "returns": "boolean",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_premium_place_order(_order_id uuid)": {
+      "name": "_premium_place_order",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "uuid",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_premium_release(_account uuid, _feature text, _period_key text, _units integer)": {
+      "name": "_premium_release",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "void",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_premium_require(_account uuid, _feature text, _units integer, _consume boolean)": {
+      "name": "_premium_require",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_premium_decide"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_premium_tier(_account uuid, _at timestamp with time zone)": {
+      "name": "_premium_tier",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "text",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_premium_topic_analysis(_uid uuid, _out jsonb, _keys text[])": {
+      "name": "_premium_topic_analysis",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_premium_decide"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_still_skipped_questions(_uid uuid)": {
+      "name": "_still_skipped_questions",
+      "readerSet": "public",
+      "callability": "internal",
+      "returns": "TABLE(bank_question_id uuid, skipped_at timestamp with time zone)",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_student_uploads_enforce_keep_cap()": {
+      "name": "_student_uploads_enforce_keep_cap",
+      "readerSet": "public",
+      "callability": "trigger",
+      "returns": "trigger",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "_test_was_sat_by(_test_id uuid, _student_id uuid)": {
+      "name": "_test_was_sat_by",
+      "readerSet": "public",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "ai_budget_release(p_school_id uuid, p_feature_id text, p_units numeric)": {
+      "name": "ai_budget_release",
+      "readerSet": "public",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "can_author_bank_question()": {
+      "name": "can_author_bank_question",
+      "readerSet": "staff",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "has_role"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "can_author_question_paper()": {
+      "name": "can_author_question_paper",
+      "readerSet": "staff",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "has_role"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "can_create_test(_school_id uuid, _section_subject_id uuid, _created_by uuid)": {
+      "name": "can_create_test",
+      "readerSet": "staff",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "has_role",
+        "same_school",
+        "teacher_teaches_class"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "can_read_exam_row(_school_id uuid, _class_id uuid)": {
+      "name": "can_read_exam_row",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated",
+        "anon"
+      ],
+      "calls": [
+        "active_membership_role",
+        "active_membership_school_id",
+        "my_children_class_ids",
+        "my_teacher_class_ids",
+        "student_class_id"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "can_read_test_leaderboard(_test_id uuid)": {
+      "name": "can_read_test_leaderboard",
+      "readerSet": "staff",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_test_was_sat_by",
+        "has_role",
+        "my_accessible_school_ids",
+        "teacher_teaches_class"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "can_read_test_marks(_test_id uuid)": {
+      "name": "can_read_test_marks",
+      "readerSet": "staff",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "can_read_test_report",
+        "has_role",
+        "my_accessible_school_ids"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "can_read_test_report(_test_id uuid)": {
+      "name": "can_read_test_report",
+      "readerSet": "teacher",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "my_accessible_school_ids",
+        "teacher_teaches_class"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "can_read_test_row(_school_id uuid, _section_subject_id uuid, _created_by uuid)": {
+      "name": "can_read_test_row",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "is_principal_or_admin",
+        "my_accessible_school_ids",
+        "my_children_class_ids",
+        "my_manageable_test_ids",
+        "my_readable_test_ids",
+        "my_teacher_class_ids",
+        "student_class_id"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "can_read_test_student_report(_test_id uuid, _student_id uuid)": {
+      "name": "can_read_test_student_report",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_test_was_sat_by",
+        "can_read_test_report",
+        "my_children_student_ids"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "dispatch_question_embedding()": {
+      "name": "dispatch_question_embedding",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "integer",
+      "grants": [],
+      "calls": [
+        "_recovery_const"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "dispatch_variant_generation()": {
+      "name": "dispatch_variant_generation",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "integer",
+      "grants": [],
+      "calls": [
+        "_recovery_const"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "has_role(_user_id uuid, _role app_role, _school_id uuid)": {
+      "name": "has_role",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "is_super_admin"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "owns_question_paper(_paper_id uuid)": {
+      "name": "owns_question_paper",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "can_author_question_paper"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "premium_attach_provider_order(_order_id uuid, _razorpay_order_id text)": {
+      "name": "premium_attach_provider_order",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "boolean",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "premium_begin_order(_account uuid, _product text, _terms_version text, _guardian_confirmed boolean)": {
+      "name": "premium_begin_order",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_premium_is_individual",
+        "_premium_tier"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "premium_check(_account uuid, _feature text)": {
+      "name": "premium_check",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_premium_decide"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "premium_consume(_account uuid, _feature text, _units integer)": {
+      "name": "premium_consume",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_premium_decide"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "premium_fulfil_payment(_razorpay_order_id text, _razorpay_payment_id text, _amount_paise integer, _currency text, _status text, _method text)": {
+      "name": "premium_fulfil_payment",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_premium_place_order"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "premium_grant(_account uuid, _tier text, _days integer, _note text)": {
+      "name": "premium_grant",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "uuid",
+      "grants": [],
+      "calls": [
+        "_premium_is_individual"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "premium_handle_provider_event(_event_id text, _event_type text, _payload jsonb)": {
+      "name": "premium_handle_provider_event",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "premium_fulfil_payment",
+        "premium_record_refund"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "premium_record_refund(_razorpay_payment_id text, _razorpay_refund_id text, _amount_paise integer, _status text)": {
+      "name": "premium_record_refund",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "premium_record_verify(_razorpay_order_id text, _razorpay_payment_id text, _payload jsonb, _outcome jsonb)": {
+      "name": "premium_record_verify",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "void",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "premium_release(_account uuid, _feature text, _period_key text, _units integer)": {
+      "name": "premium_release",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "void",
+      "grants": [],
+      "calls": [
+        "_premium_release"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_create_exam_account(_account_id uuid, _exam_code text, _phone text, _full_name text)": {
+      "name": "rpc_create_exam_account",
+      "readerSet": "parent",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_grant_membership",
+        "get_my_school_id",
+        "link_portal_on_auth"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_dispute_ai_upload_answer(_upload_question_id uuid)": {
+      "name": "rpc_dispute_ai_upload_answer",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_write_chapter_tally"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_enqueue_upload_variant_generation(_upload_question_id uuid, _tier smallint)": {
+      "name": "rpc_enqueue_upload_variant_generation",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "uuid",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_my_premium()": {
+      "name": "rpc_my_premium",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_premium_decide",
+        "_premium_enforced_for",
+        "_premium_is_individual",
+        "_premium_tier"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_my_premium_orders()": {
+      "name": "rpc_my_premium_orders",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_my_skipped_by_chapter()": {
+      "name": "rpc_my_skipped_by_chapter",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "TABLE(chapter_id uuid, topic text, questions integer)",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_still_skipped_questions"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_my_skipped_questions(_chapter_id uuid, _limit integer)": {
+      "name": "rpc_my_skipped_questions",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "uuid[]",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_still_skipped_questions"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_purge_expired()": {
+      "name": "rpc_purge_expired",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_purge_expired_battle_reports()": {
+      "name": "rpc_purge_expired_battle_reports",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "rpc_purge_expired",
+        "rpc_send_parent_weekly_digests"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_question_bank_review_queue(_limit integer, _offset integer)": {
+      "name": "rpc_question_bank_review_queue",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "TABLE(id uuid, question text, options jsonb, correct_index integer, explanation text, subject text, chapter text, class_level integer, difficulty text, source text, created_by uuid, author_name text, created_at timestamp with time zone)",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "is_super_admin"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_question_review(_ids uuid[])": {
+      "name": "rpc_question_review",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "TABLE(id uuid, correct_index integer, correct_text text, explanation text)",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "has_role",
+        "is_principal_or_admin"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_record_concept_mistake(_assessment_type text, _source_id uuid, _question_id uuid, _subject text, _chapter text, _concept text, _subconcept text, _class_level integer, _question_text text, _options jsonb, _student_answer jsonb, _correct_answer jsonb, _explanation text, _chapter_id uuid, _upload_question_id uuid, _capture_question_id uuid)": {
+      "name": "rpc_record_concept_mistake",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "uuid",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_upsert_concept_mastery"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_restore_from_trash(_entity_type text, _entity_id uuid)": {
+      "name": "rpc_restore_from_trash",
+      "readerSet": "staff",
+      "callability": "granted",
+      "returns": "boolean",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "has_role",
+        "same_school"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_review_question(_question_id uuid, _approved boolean, _note text)": {
+      "name": "rpc_review_question",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "is_super_admin"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_revision_session_plan(_chapter_id uuid)": {
+      "name": "rpc_revision_session_plan",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_recovery_const",
+        "rpc_submit_revision_session"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_send_parent_weekly_digests()": {
+      "name": "rpc_send_parent_weekly_digests",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_grant_membership",
+        "_notify",
+        "_parent_weekly_digest",
+        "rpc_purge_expired"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_set_equipped_badge(_badge_code text)": {
+      "name": "rpc_set_equipped_badge",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "void",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_ensure_student_xp"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_set_my_display_name(_full_name text)": {
+      "name": "rpc_set_my_display_name",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "text",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_start_recovery_session(_chapter_id uuid)": {
+      "name": "rpc_start_recovery_session",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_ensure_recovery_session"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_student_chapter_states()": {
+      "name": "rpc_student_chapter_states",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "rpc_revision_session_plan"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_student_practice_analytics()": {
+      "name": "rpc_student_practice_analytics",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_premium_topic_analysis"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_student_recovery_queue()": {
+      "name": "rpc_student_recovery_queue",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_submit_recovery_session(_session_id uuid, _practice_session_id uuid)": {
+      "name": "rpc_submit_recovery_session",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_ensure_recovery_session",
+        "_recovery_const",
+        "rpc_clear_chapter_after_recovery"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_submit_revision_session(_chapter_id uuid, _practice_session_id uuid)": {
+      "name": "rpc_submit_revision_session",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "_recovery_const"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_test_answer_sheet(_test_id uuid, _student_id uuid)": {
+      "name": "rpc_test_answer_sheet",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "can_read_test_student_report",
+        "rpc_test_student_report"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_test_class_marks(_test_id uuid)": {
+      "name": "rpc_test_class_marks",
+      "readerSet": "staff",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "can_read_test_marks"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_test_class_report(_test_id uuid)": {
+      "name": "rpc_test_class_report",
+      "readerSet": "staff",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "can_read_test_report",
+        "rpc_test_class_marks"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_test_leaderboard(_test_id uuid)": {
+      "name": "rpc_test_leaderboard",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "can_read_test_leaderboard",
+        "rpc_test_student_report"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_test_list_for_class(_class_id uuid)": {
+      "name": "rpc_test_list_for_class",
+      "readerSet": "teacher",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "is_principal_or_admin",
+        "teacher_teaches_class"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_test_question_breakdown(_test_id uuid)": {
+      "name": "rpc_test_question_breakdown",
+      "readerSet": "teacher",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "can_read_test_report"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "rpc_test_student_report(_test_id uuid, _student_id uuid)": {
+      "name": "rpc_test_student_report",
+      "readerSet": "self",
+      "callability": "granted",
+      "returns": "jsonb",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [
+        "can_read_test_student_report"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "send_learning_reminders()": {
+      "name": "send_learning_reminders",
+      "readerSet": "public",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [
+        "_notify"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "storage_object_owner_school_id(_object_name text)": {
+      "name": "storage_object_owner_school_id",
+      "readerSet": "public",
+      "callability": "granted",
+      "returns": "uuid",
+      "grants": [
+        "authenticated"
+      ],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "store_generated_questions(_questions jsonb)": {
+      "name": "store_generated_questions",
+      "readerSet": "public",
+      "callability": "internal",
+      "returns": "jsonb",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "tg_question_bank_approval_is_super_admin_only()": {
+      "name": "tg_question_bank_approval_is_super_admin_only",
+      "readerSet": "self",
+      "callability": "trigger",
+      "returns": "trigger",
+      "grants": [],
+      "calls": [
+        "is_super_admin"
+      ],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "tg_question_bank_class_follows_chapter()": {
+      "name": "tg_question_bank_class_follows_chapter",
+      "readerSet": "none",
+      "callability": "trigger",
+      "returns": "trigger",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "tg_question_paper_class_is_in_curriculum()": {
+      "name": "tg_question_paper_class_is_in_curriculum",
+      "readerSet": "none",
+      "callability": "trigger",
+      "returns": "trigger",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "tg_student_mistakes_set_chapter_id()": {
+      "name": "tg_student_mistakes_set_chapter_id",
+      "readerSet": "none",
+      "callability": "trigger",
+      "returns": "trigger",
+      "grants": [],
+      "calls": [],
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
     }
   },
   "edge": {
@@ -5038,6 +5841,36 @@
       "readerSet": "none",
       "justification": "Called by Razorpay, which has no JWT (verify_jwt off). X-Razorpay-Signature, HMAC-SHA256 of the raw body with RAZORPAY_WEBHOOK_SECRET, is checked before the body is read; anything else is refused 401 and no event id is refused 400. premium_handle_provider_event records the event id and acts in one transaction. Returns only the outcome of that event; reads no user data for the caller.",
       "verifiedBy": "Run locally against production 2026-09-27 with a throwaway secret: unsigned 401, wrong secret 401, body changed after signing 401, no event id 400; a signed capture granted one Starter plan and its redelivery was recognised as a duplicate; nothing left behind. Deployed: 503 while the secret is unset.",
+      "reviewed": false
+    },
+    "custom-practice-upload": {
+      "readerSet": "public",
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "dpp-generate-questions": {
+      "readerSet": "public",
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "embed": {
+      "readerSet": "public",
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "question-embedding-drain": {
+      "readerSet": "public",
+      "justification": "",
+      "verifiedBy": "",
+      "reviewed": false
+    },
+    "screen-capture-mistake": {
+      "readerSet": "public",
+      "justification": "",
+      "verifiedBy": "",
       "reviewed": false
     }
   }

@@ -8,8 +8,8 @@
 --   1. the 18 are refused — as the authenticated ROLE, not via a JWT claim
 --   2. service_role still reaches them
 --   3. the two TRIGGER functions still fire
---   4. rpc_recovery_session_plan still works for a student — the two helpers
---      excluded from the batch were excluded correctly
+--   4. recovery still works for a student, through the door the app uses —
+--      and the invoker plan RPC is refused by design (20261123000000)
 --   5. ALTER DEFAULT PRIVILEGES holds for a brand-new function
 --
 -- Self-rolling-back: one implicit transaction ending in a deliberate RAISE.
@@ -127,13 +127,23 @@ BEGIN
               ELSE ' — the trigger did not set a code, so the revoke broke battle creation (FAIL)' END;
 
   ------------------------------------------------------------------
-  -- 4. The two EXCLUDED helpers were excluded correctly
+  -- 4. Recovery still answers a student, through the door the app uses
   ------------------------------------------------------------------
-  -- rpc_recovery_session_plan is SECURITY INVOKER and calls
-  -- _recovery_chapter_is_mine and _recovery_variant_pool, so its calls are
-  -- privilege-checked against the student. Had those two been swept into this
-  -- batch, recovery would be dead for every student and nothing else in this
-  -- file would have noticed.
+  -- This used to call rpc_recovery_session_plan as the student, to prove the
+  -- two helpers kept out of this batch (_recovery_chapter_is_mine,
+  -- _recovery_variant_pool) were still reachable on its INVOKER path. That
+  -- path is closed now, on purpose: 20261118000000 made the plan builder
+  -- enqueue variant generation, which no client may write, so the RPC could
+  -- only fail — and 20261123000000 revoked EXECUTE from it and from
+  -- _recovery_session_plan_for rather than leave a door that cannot answer.
+  --
+  -- What must still hold is what this item was protecting: a student's
+  -- recovery works. The app reads it through the definer
+  -- rpc_student_recovery_queue (recoveryEngineService.ts), which builds its
+  -- plans through _recovery_session_plan_for as the owner. So:
+  --   a. that door answers the student with a list — it does not raise; and
+  --   b. the closed door refuses for want of EXECUTE, a decision, and not for
+  --      some other reason that would mean something else broke.
   PERFORM set_config('request.jwt.claims',
     json_build_object('sub', _student, 'role', 'authenticated')::text, true);
   SELECT c.id INTO _chap FROM public.chapters c
@@ -144,16 +154,38 @@ BEGIN
   ELSE
     SET LOCAL ROLE authenticated;
     BEGIN
-      _plan := public.rpc_recovery_session_plan(_chap);
+      _plan := public.rpc_student_recovery_queue();
       RESET ROLE;
-      _r4 := format('rpc_recovery_session_plan ran as authenticated and returned session_size %s',
-                    _plan->>'session_size')
-          || ' — the two excluded helpers are still reachable by the INVOKER path (PASS)';
+      IF _plan IS NULL OR jsonb_typeof(_plan) <> 'array' THEN
+        _r4 := format('rpc_student_recovery_queue answered %s, not a list (FAIL)', coalesce(_plan::text, 'NULL'));
+      ELSE
+        _r4 := format('rpc_student_recovery_queue answered the student a list of %s chapter(s)', jsonb_array_length(_plan));
+      END IF;
     EXCEPTION WHEN OTHERS THEN
       RESET ROLE;
-      _r4 := 'rpc_recovery_session_plan FAILED as authenticated: ' || left(SQLERRM, 90)
-          || ' — batch 1 broke recovery (FAIL)';
+      _r4 := 'rpc_student_recovery_queue FAILED as authenticated: ' || left(SQLERRM, 90)
+          || ' — recovery is broken for students (FAIL)';
     END;
+
+    IF _r4 NOT LIKE '%(FAIL)%' THEN
+      SET LOCAL ROLE authenticated;
+      BEGIN
+        PERFORM public.rpc_recovery_session_plan(_chap);
+        RESET ROLE;
+        _r4 := _r4 || '; but rpc_recovery_session_plan still answers a client — 20261123000000 is not in force (FAIL)';
+      EXCEPTION
+        WHEN insufficient_privilege THEN
+          RESET ROLE;
+          IF SQLERRM LIKE '%function rpc_recovery_session_plan%' THEN
+            _r4 := _r4 || '; rpc_recovery_session_plan is refused for want of EXECUTE, by design (PASS)';
+          ELSE
+            _r4 := _r4 || '; rpc_recovery_session_plan refused on something else: ' || left(SQLERRM, 90) || ' (FAIL)';
+          END IF;
+        WHEN OTHERS THEN
+          RESET ROLE;
+          _r4 := _r4 || '; rpc_recovery_session_plan refused for the wrong reason: ' || left(SQLERRM, 90) || ' (FAIL)';
+      END;
+    END IF;
   END IF;
 
   ------------------------------------------------------------------

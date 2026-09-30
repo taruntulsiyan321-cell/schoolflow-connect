@@ -69,11 +69,20 @@ BEGIN
     -- at both generated rungs. Built by hand rather than taken from a live
     -- student so the shortfall is unambiguous and the item cannot pass by
     -- accident on a chapter that happens to be full.
+    --
+    -- The source's difficulty is the question's own. It was hard-coded 'easy',
+    -- and §4.2's pool (_recovery_variant_pool) serves only variants that mirror
+    -- the difficulty of what was failed — so once the first question found was
+    -- 'medium', the tier-1 variant item 3 banks (a copy of the original, its
+    -- difficulty included) was invisible to the plan and item 3 "failed"
+    -- against a correct engine (measured 2026-09-30).
     _plan := jsonb_build_object(
       'mode', 'deep',
       'open_mistakes', 1,
       'sources', jsonb_build_array(
-        jsonb_build_object('question_id', _orig, 'difficulty', 'easy', 'times_wrong', 1)),
+        jsonb_build_object('question_id', _orig,
+          'difficulty', (SELECT qb.difficulty FROM public.question_bank qb WHERE qb.id = _orig),
+          'times_wrong', 1)),
       'tiers', jsonb_build_object(
         '0', jsonb_build_object('needed', 1, 'filled', 1, 'shortfall', 0),
         '1', jsonb_build_object('needed', 1, 'filled', 0, 'shortfall', 1),

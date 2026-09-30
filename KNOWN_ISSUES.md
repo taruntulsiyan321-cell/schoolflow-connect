@@ -3931,7 +3931,18 @@ Two ways out, both cheap, neither to be chosen without the owner: count one use 
 the student picked, whatever its length), or leave it per file and raise the Starter allowance. Nothing is
 broken today because enforcement is off, so this is a pricing decision, not a defect.
 
-## 86. `rpc_weak_areas_v2` returns topic-level weakness with no plan fence — OPEN, latent behind a flag
+## 86. ~~`rpc_weak_areas_v2` returns topic-level weakness with no plan fence~~ — FIXED in 20261122000000, APPLIED 2026-09-29
+
+**Fixed.** `rpc_weak_areas_v2` now answers NO ROWS when the caller's plan does not carry `analysis.topic`
+(a TABLE cannot carry `topic_analysis_locked`, so a screen that picks it up takes the lock from
+`rpc_my_premium` and renders `PlanLimitNotice` — said on the function's COMMENT). The migration's proof ran
+on production: with enforcement off an account with candidates still answers rows (the control), and
+enforced for that one account it answers zero, with the enforcement row removed in the same transaction.
+The migration was applied by a session that stopped before committing it; it was carried into the branch
+on 2026-09-30, after the live function was confirmed to hold exactly its body and comment.
+
+What follows is the finding as it was recorded.
+
 
 20261112000000 put topic analysis in the plan by fencing the two RPCs the panel reads —
 `rpc_student_academic_snapshot` and `rpc_student_practice_analytics` — which return `by_topic` /
@@ -3959,7 +3970,22 @@ says so ("chat, Explain my mistake, and the Revision chat"). But it is the one p
 feature draws on a counted one, and the student is not told. Either is defensible; it needs saying out
 loud, and if it stands, the Revision screen should show what it will cost before the first turn.
 
-## 88. `definer-inventory.json` is 77 doors behind the database — `lint-definer-doors` FAILS with 101 problems
+## 88. `definer-inventory.json` was 77 doors behind the database — the gate now PASSES; 289 judgements are still owed
+
+**2026-09-30: `lint-definer-doors` PASSES** — every definer and edge function inventoried, no undeclared
+grant, no widening call (exit 0). The mechanical half described below was done by the 2026-09-29 session
+(`--generate`, then `--sync`) and carried into the branch with its migrations. Control: the same gate run
+against the inventory as it was before still fails with exactly the 101 problems recorded here.
+
+**Still owed — the judgements.** 289 doors are listed with `reviewed: false`: their `readerSet` is the
+scaffolder's proposal and their `justification` is not written. The gate reports them as DEBT, so a NEW
+door still fails it; what is not yet true is that each listed door has been read. Three of them are
+flagged `possible widening (unreviewed)` — `admin_revoke_student_account`, `admin_revoke_teacher_account`
+and `admin_set_teacher_access` call `_revoke_membership`, which the scaffolder guessed `public` — and
+should be read first.
+
+What follows is the finding as it was recorded on 2026-09-27.
+
 
 **Measured 2026-09-27 with a working token** (the gate could not speak at all before — item 75):
 
@@ -4199,7 +4225,16 @@ session between 00:00 and 05:30 in India counts on the previous day, and the
 reset follows that same UTC day. Moving the streak to the student's own day
 means changing the writer and the reset together.
 
-## 96. `RecoveryClearAnyway.test.tsx` assumes a UTC clock — test only, OPEN
+## 96. ~~`RecoveryClearChapter.test.tsx` assumes a UTC clock~~ — FIXED (test only)
+
+**Fixed.** The "Clear anyway" test (in `RecoveryClearChapter.test.tsx` — the title below named a file that
+does not exist) now derives the expected day from the instant with the same formatter the screen uses,
+and asserts the whole sentence. Measured 2026-09-30 with `TZ=Pacific/Kiritimati` set from PowerShell —
+Node on this machine ignores a `TZ` exported from Git Bash, so a run from there proves nothing: the new
+test passes, and the old one fails (1 of 7).
+
+What follows is the finding as it was recorded.
+
 
 Its fixture's `next_revision_at` is `2026-09-30T11:25:09Z` and it expects
 "30 Sept"; in UTC+14 that instant is 1 October, and the screen correctly says

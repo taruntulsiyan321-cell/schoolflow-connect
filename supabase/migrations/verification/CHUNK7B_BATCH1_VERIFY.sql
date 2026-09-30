@@ -86,7 +86,14 @@ BEGIN
           AND q.column_name IN ('question_id','bank_question_id')
      )
      -- school data, per the separation rule — not practice, not in scope
-     AND c.table_name <> 'test_answers';
+     AND c.table_name <> 'test_answers'
+     -- A CUET mock paper is a marked assessment, not practice (20261115000000,
+     -- gurukul-spec-rules "Full CUET mock tests"): mock_answers.is_correct is
+     -- the mark each answer earned, frozen at marking, and the paper's score
+     -- is summed from it — the same role test_answers plays for a school test.
+     -- Its mistakes reach the Mistake Book through rpc_record_concept_mistake,
+     -- not through this column.
+     AND c.table_name <> 'mock_answers';
 
   _r2 := 'practice-side per-question correctness still stored: ' || COALESCE(_bad_cols,'(none)')
       || CASE WHEN _bad_cols IS NULL THEN ' (PASS)'

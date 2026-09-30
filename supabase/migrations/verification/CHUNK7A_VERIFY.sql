@@ -25,7 +25,7 @@ DECLARE
   _planted_board uuid; _board_seen bigint; _board_base bigint;  -- 3
   _battle uuid; _lvl int; _subj text;                   -- 4
   _planted_class uuid; _picked_planted bigint; _picked_total bigint;
-  _rep uuid; _rep_ins boolean; _rep_err text := '';     -- 5
+  _rep uuid; _rep_q uuid; _rep_ins boolean; _rep_err text := '';  -- 5
   _rep_student bigint; _rep_teacher bigint; _rep_super bigint;
   _topics_rows bigint; _topics_read bigint;             -- 6
   _nc_open bigint;                                      -- 7
@@ -42,11 +42,22 @@ BEGIN
     FROM information_schema.columns
    WHERE table_schema='public' AND table_name='question_bank' AND column_name='school_id';
 
+  -- Through question_bank_student, the view every student read goes through.
+  -- 20261049000000 dropped the last student-facing policy on question_bank
+  -- itself, on purpose: the view is the one home of which board's and which
+  -- exam's questions a caller may see. A direct read is 0 by design, so this
+  -- used to report "student can read NOTHING" against a working app.
   PERFORM set_config('request.jwt.claims',
     json_build_object('sub', _uid_student, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
-  SELECT count(*) INTO _student_sees FROM public.question_bank;
+  SELECT count(*) INTO _student_sees FROM public.question_bank_student;
   RESET ROLE;
+  -- The fixtures below are written as the owner, as nobody — not as the
+  -- student left in the claims above. 20261054000000 refuses an approved
+  -- question from any signed-in caller who is not a super admin, which is
+  -- exactly what the planted question in item 3 looked like while the
+  -- student's claims were still set.
+  PERFORM set_config('request.jwt.claims', NULL, true);
 
   _r1 := 'question_bank.school_id columns = ' || _has_school_id
       || ', student still reads ' || _student_sees || ' question(s)'
@@ -98,9 +109,10 @@ BEGIN
   PERFORM set_config('request.jwt.claims',
     json_build_object('sub', _uid_student, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
-  SELECT count(*) INTO _board_seen  FROM public.question_bank WHERE id = _planted_board;
-  SELECT count(*) INTO _board_base  FROM public.question_bank;
+  SELECT count(*) INTO _board_seen  FROM public.question_bank_student WHERE id = _planted_board;
+  SELECT count(*) INTO _board_base  FROM public.question_bank_student;
   RESET ROLE;
+  PERFORM set_config('request.jwt.claims', NULL, true);  -- item 4 plants as the owner
 
   _r3 := 'planted a cbse question at an rbse school: student sees ' || _board_seen
       || ' of it, and ' || _board_base || ' question(s) overall'
@@ -186,15 +198,20 @@ BEGIN
   ------------------------------------------------------------------
   -- 5. question_reports goes to the AI and super admin, never the school
   ------------------------------------------------------------------
+  -- The question is chosen by the owner, before the switch. It was chosen
+  -- inside the student's INSERT ... SELECT from question_bank, which a student
+  -- reads nothing from since 20261049000000 — so the insert wrote ZERO rows,
+  -- raised nothing, and this item recorded "filed = true" over an empty table.
+  -- "Filed" now means a row came back.
+  SELECT q.id INTO _rep_q FROM public.question_bank q WHERE q.is_active ORDER BY q.id LIMIT 1;
   PERFORM set_config('request.jwt.claims',
     json_build_object('sub', _uid_student, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
   BEGIN
     INSERT INTO public.question_reports (question_id, reported_by_account_id, reason, body)
-    SELECT q.id, _uid_student, 'wrong_answer', 'verification'
-      FROM public.question_bank q WHERE q.is_active ORDER BY q.id LIMIT 1
+    VALUES (_rep_q, _uid_student, 'wrong_answer', 'verification')
     RETURNING id INTO _rep;
-    _rep_ins := true;
+    _rep_ins := _rep IS NOT NULL;
   EXCEPTION WHEN others THEN
     -- G10 applies to a verification too: a handler that discards the reason
     -- turns a finding into a shrug.
@@ -208,6 +225,7 @@ BEGIN
   SET LOCAL ROLE authenticated;
   SELECT count(*) INTO _rep_teacher FROM public.question_reports;
   RESET ROLE;
+  PERFORM set_config('request.jwt.claims', NULL, true);  -- the fixture below is the owner's
 
   SELECT id INTO _sa_acct FROM auth.users WHERE email='principal@wisdomcampus.com';
   INSERT INTO public.super_admins (account_id) VALUES (_sa_acct) RETURNING id INTO _sa;

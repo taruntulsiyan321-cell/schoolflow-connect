@@ -41,11 +41,18 @@ describe("RecoveryClearChapter, not ready — §4.4, a speed bump and not a bloc
   });
 
   it("Clear anyway sends this session and reports the server's result", async () => {
-    clear.mockResolvedValueOnce({ chapter_id: "c", cleared: 8, readiness: 0.14, next_revision_at: "2026-09-30T11:25:09Z" });
+    const due = "2026-09-30T11:25:09Z";
+    // The day is derived, not written as "30": that instant is 1 October in
+    // UTC+14, where the screen is right and a hard-coded 30 was wrong
+    // (KNOWN_ISSUES 96). This asserts the screen shows THAT day, in any zone.
+    const day = new Date(due).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    clear.mockResolvedValueOnce({ chapter_id: "c", cleared: 8, readiness: 0.14, next_revision_at: due });
     render(<RecoveryClearChapter sessionId="rs-1" ready={false} />);
     open();
     fireEvent.click(screen.getByRole("button", { name: "Clear anyway" }));
-    expect(await screen.findByRole("status")).toHaveTextContent(/Marked recovered — 8 mistakes cleared\. A revision check on .*30.* will bring it back/);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      `Marked recovered — 8 mistakes cleared. A revision check on ${day} will bring it back if it hasn't stuck.`,
+    );
     expect(clear).toHaveBeenCalledWith(expect.objectContaining({ studentId: "st" }), "rs-1");
     expect(screen.queryByRole("button", { name: "Mark as recovered anyway" })).toBeNull();
   });

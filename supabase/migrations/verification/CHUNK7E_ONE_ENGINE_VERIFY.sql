@@ -120,7 +120,10 @@ BEGIN
   -- rather than a soft one.
   _wrong_index := (_q.correct_index + 1) % _q.option_count;
 
-  _att := public.rpc_record_question_attempt(
+  -- It answers the verdict as jsonb now — {attempt_id, is_correct,
+  -- correct_index, ...}, the server's marking the screen shows — where it
+  -- used to answer the bare attempt id. The id is read out of it.
+  _att := (public.rpc_record_question_attempt(
     _correct_answer     => jsonb_build_object('index', _q.correct_index),
     _generated_question => jsonb_build_object('question', COALESCE(_q.question, 'q'),
                                               'bank_question_id', _q.id),
@@ -129,7 +132,7 @@ BEGIN
     _session_id         => _sess,
     _bank_question_id   => _q.id,
     _source             => 'practice'
-  );
+  )->>'attempt_id')::uuid;
 
   SELECT count(*) INTO _after
     FROM public.student_mistakes sm
@@ -210,19 +213,17 @@ BEGIN
   ------------------------------------------------------------------
   _snap := public.rpc_student_academic_snapshot();
 
-  -- Recounted here from the raw book, independently of the queue the snapshot
-  -- now reads: a chapter is pending recovery when its question-linked open
-  -- mistakes are at the trigger and not above the relearn boundary, where the
-  -- engine declines to drill (20261045000000).
-  SELECT count(*)::int INTO _want_rec FROM (
-    SELECT sm.chapter_id
-      FROM public.student_mistakes sm
-     WHERE sm.user_id = _uid AND sm.status = 'open' AND sm.chapter_id IS NOT NULL
-       AND sm.question_id IS NOT NULL
-     GROUP BY sm.chapter_id
-    HAVING count(*) >= _trigger
-       AND count(*) <= public._recovery_const('RECOVERY_WIDE_MAX_MISTAKES')::int
-  ) x;
+  -- The count Recovery itself offers: the queue's startable chapters, read as
+  -- the student. This used to be recounted here from the raw mistake book —
+  -- a second statement of "ready", which is the exact defect 20261045000000
+  -- removed from the snapshot (Home said 19 while Recovery offered 15). It
+  -- drifted the same way: it knew nothing of a mistake that can no longer be
+  -- shown (20261117000000), a brought question (20261120000000) or a round
+  -- waiting for new questions (20261118000000), and measured 2026-09-30 it
+  -- said 19 against the 11 Recovery offers. One rule, one home: the queue.
+  SELECT count(*)::int INTO _want_rec
+    FROM jsonb_array_elements(public.rpc_student_recovery_queue()) q
+   WHERE (q->>'startable')::boolean;
 
   SELECT count(*)::int INTO _want_rev
     FROM public.chapter_state cs
@@ -230,7 +231,7 @@ BEGIN
      AND cs.next_revision_at IS NOT NULL
      AND cs.next_revision_at <= now();
 
-  _r6 := format('snapshot recovery_pending=%s (raw %s) revision_due=%s (raw %s) still_has_revision_queue=%s',
+  _r6 := format('snapshot recovery_pending=%s (queue startable %s) revision_due=%s (raw %s) still_has_revision_queue=%s',
                 _snap->>'recovery_pending', _want_rec,
                 _snap->>'revision_due', _want_rev,
                 _snap ? 'revision_queue')

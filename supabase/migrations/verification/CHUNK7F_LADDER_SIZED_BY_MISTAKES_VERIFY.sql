@@ -19,9 +19,16 @@
 -- WRITES ARE ROLLED BACK. The probe inserts mistakes to reach wide and relearn
 -- sizes, because no student in production currently holds nine open mistakes
 -- in one chapter and waiting for one is not verification. The inner block is
--- THE PLAN IS CALLED AS `authenticated`, the fixture is written as the owner.
--- A student cannot manufacture their own mistake rows, so the setup needs
--- owner rights; the thing being measured must not.
+-- THE PLAN IS BUILT THE WAY THE APP BUILDS IT. A student never calls the plan
+-- builder: since 20261118000000 it enqueues variant generation, which no client
+-- may write, and 20261123000000 revoked EXECUTE on rpc_recovery_session_plan
+-- and _recovery_session_plan_for from every client role. The app reaches it
+-- only through the definers rpc_start_recovery_session and
+-- rpc_student_recovery_queue, which call _recovery_session_plan_for(<the
+-- student>, chapter) as the owner. So the ladder is measured by that same call,
+-- and item 0 proves, AS `authenticated`, that the student's own door still
+-- answers — the split this file once missed (a student unable to reach
+-- recovery at all) is caught there, on the path that exists.
 --
 -- an implicit savepoint: RAISE at the end unwinds every write, while the report
 -- is accumulated in a plpgsql VARIABLE, which a rollback cannot touch. The
@@ -64,16 +71,36 @@ BEGIN
     -- relearn — and three items failed against a perfectly correct engine.
     -- A suite that depends on production staying small is a suite that will
     -- fail for the wrong reason at the worst time.
-    SELECT sm.user_id, sm.chapter_id INTO _uid, _chapter
-      FROM public.student_mistakes sm
-     WHERE sm.status = 'open' AND sm.question_id IS NOT NULL AND sm.chapter_id IS NOT NULL
-     GROUP BY sm.user_id, sm.chapter_id
-    HAVING count(*) BETWEEN 1 AND public._recovery_const('RECOVERY_DEEP_MAX_MISTAKES')::int
-     ORDER BY count(*) DESC
+    --
+    -- And it used to count only mistakes with a question_id, which stopped
+    -- being the plan's count: a brought question (upload or capture) is a
+    -- mistake the plan counts too (20261117000000), so a chapter with two bank
+    -- mistakes and one capture is WIDE, not deep. And a mistake on a question
+    -- staff have since deactivated is counted but can never be shown, so tier
+    -- 0 rightly leaves it out (KNOWN_ISSUES 91) — measured 2026-09-30, the
+    -- fixture chapter held two such mistakes and items 1-3 "failed" against a
+    -- correct engine. So the fixture counts every open mistake, and takes a
+    -- chapter where every one of them is a bank question the student can still
+    -- be shown, which the student is entitled to, and which has the spare
+    -- questions items 3-6 need.
+    SELECT m.user_id, m.chapter_id INTO _uid, _chapter
+      FROM (SELECT sm.user_id, sm.chapter_id, count(*) AS n
+              FROM public.student_mistakes sm
+              LEFT JOIN public.question_bank qb ON qb.id = sm.question_id
+             WHERE sm.status = 'open' AND sm.chapter_id IS NOT NULL
+             GROUP BY sm.user_id, sm.chapter_id
+            HAVING count(*) BETWEEN 1 AND public._recovery_const('RECOVERY_DEEP_MAX_MISTAKES')::int
+               AND bool_and(qb.id IS NOT NULL AND qb.is_active AND qb.is_approved)) m
+     WHERE public._recovery_chapter_is_for(m.user_id, m.chapter_id)
+       AND (SELECT count(*) FROM public.question_bank qb
+             WHERE qb.chapter_id = m.chapter_id AND qb.is_active AND qb.is_approved
+               AND qb.source_question_id IS NULL)
+           >= public._recovery_const('RECOVERY_WIDE_MAX_MISTAKES')::int + 1 + m.n
+     ORDER BY m.n DESC
      LIMIT 1;
 
     IF _uid IS NULL THEN
-      RAISE EXCEPTION 'NO FIXTURE: no student holds between 1 and RECOVERY_DEEP_MAX_MISTAKES open mistakes (with a question_id) in one chapter, so deep mode cannot be exercised. NOT a pass.';
+      RAISE EXCEPTION 'NO FIXTURE: no student holds between 1 and RECOVERY_DEEP_MAX_MISTAKES open mistakes in one chapter, all on active bank questions, in a chapter they are entitled to with room for items 3-6 — so deep mode cannot be exercised. NOT a pass.';
     END IF;
 
     SELECT s.id, s.school_id INTO _sid, _school FROM public.students s WHERE s.user_id = _uid LIMIT 1;
@@ -96,16 +123,37 @@ BEGIN
      WHERE user_id = _uid AND chapter_id = _chapter AND status = 'open' AND question_id IS NOT NULL;
 
     ----------------------------------------------------------------------
+    -- 0. The student's own door to recovery answers, AS `authenticated`.
+    --    rpc_student_recovery_queue is what the app reads; it plans through
+    --    _recovery_session_plan_for as the owner. A revoke that broke that
+    --    chain raises here, and the fixture chapter (open mistakes in it)
+    --    must be one of the chapters it lists.
+    ----------------------------------------------------------------------
+    SET LOCAL ROLE authenticated;
+    BEGIN
+      _plan := public.rpc_student_recovery_queue();
+      RESET ROLE;
+    EXCEPTION WHEN OTHERS THEN
+      RESET ROLE;
+      _plan := NULL;
+      _fail := _fail || format('(FAIL) 0: the student''s recovery queue raised as authenticated: %s ', left(SQLERRM, 120));
+    END;
+    IF _plan IS NOT NULL THEN
+      IF jsonb_typeof(_plan) <> 'array'
+         OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements(_plan) e
+                         WHERE e->>'chapter_id' = _chapter::text) THEN
+        _fail := _fail || format('(FAIL) 0: the recovery queue answered the student but does not list chapter %s, which holds %s open mistake(s). ', _chapter, _n);
+      ELSE
+        _pass := _pass + 1;
+        _report := _report || format('(PASS) 0: as the student, the recovery queue answers and lists this chapter (%s entries).', jsonb_array_length(_plan)) || E'\n';
+      END IF;
+    END IF;
+
+    ----------------------------------------------------------------------
     -- 1. DEEP: every open mistake appears in tier 0. By id, not by count.
     ----------------------------------------------------------------------
-    -- AS THE STUDENT. Setting request.jwt.claims makes auth.uid() answer;
-    -- it does not make the session that user. An earlier version of this file
-    -- ran every call as the database owner, who has EXECUTE on everything and
-    -- is not subject to RLS — and passed against a split that had left
-    -- rpc_recovery_session_plan uncallable by any student.
-    SET LOCAL ROLE authenticated;
-    _plan := public.rpc_recovery_session_plan(_chapter);
-    RESET ROLE;
+    -- As the definer callers build it: the owner, planning for this student.
+    _plan := public._recovery_session_plan_for(_uid, _chapter);
 
     SELECT array_agg(qid ORDER BY qid) INTO _t0
       FROM jsonb_array_elements_text(_plan->'tiers'->'0'->'from_bank') AS e(qid);
@@ -162,14 +210,8 @@ BEGIN
               'verification probe — rolled back', 1, now());
     END LOOP;
 
-    -- AS THE STUDENT. Setting request.jwt.claims makes auth.uid() answer;
-    -- it does not make the session that user. An earlier version of this file
-    -- ran every call as the database owner, who has EXECUTE on everything and
-    -- is not subject to RLS — and passed against a split that had left
-    -- rpc_recovery_session_plan uncallable by any student.
-    SET LOCAL ROLE authenticated;
-    _plan := public.rpc_recovery_session_plan(_chapter);
-    RESET ROLE;
+    -- As the definer callers build it: the owner, planning for this student.
+    _plan := public._recovery_session_plan_for(_uid, _chapter);
     SELECT count(*)::int INTO _n
       FROM jsonb_array_elements_text(_plan->'tiers'->'0'->'from_bank');
 
@@ -218,14 +260,8 @@ BEGIN
               'verification probe — rolled back', 1, now());
     END LOOP;
 
-    -- AS THE STUDENT. Setting request.jwt.claims makes auth.uid() answer;
-    -- it does not make the session that user. An earlier version of this file
-    -- ran every call as the database owner, who has EXECUTE on everything and
-    -- is not subject to RLS — and passed against a split that had left
-    -- rpc_recovery_session_plan uncallable by any student.
-    SET LOCAL ROLE authenticated;
-    _plan := public.rpc_recovery_session_plan(_chapter);
-    RESET ROLE;
+    -- As the definer callers build it: the owner, planning for this student.
+    _plan := public._recovery_session_plan_for(_uid, _chapter);
 
     IF _plan->>'mode' <> 'relearn' THEN
       _fail := _fail || format('(FAIL) 5: nine mistakes should select relearn, got %s. ', _plan->>'mode');
@@ -265,11 +301,11 @@ BEGIN
 
     ----------------------------------------------------------------------
     IF _fail <> '' THEN
-      _report := _report || format('════ %s of 6 PASSED ════', _pass) || E'\n';
+      _report := _report || format('════ %s of 7 PASSED ════', _pass) || E'\n';
       _report := _report || 'VERIFICATION FAILED: ' || _fail;
       RAISE EXCEPTION 'ROLLBACK_AFTER_PROOF';
     END IF;
-    _report := _report || '════ ALL 6 CHECKS PASSED ════' || E'\n';
+    _report := _report || '════ ALL 7 CHECKS PASSED ════' || E'\n';
 
     RAISE EXCEPTION 'ROLLBACK_AFTER_PROOF';
   EXCEPTION
