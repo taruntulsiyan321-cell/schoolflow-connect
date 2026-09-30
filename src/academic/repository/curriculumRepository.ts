@@ -113,10 +113,21 @@ export async function listChapterTopics(
 }
 
 /**
+ * Whether two topic names are the same topic: case and surrounding space
+ * aside. The rule `topics_chapter_lower_name_key` enforces (20261126000000),
+ * after the CUET import left "Share capital" beside "Share Capital".
+ */
+export function sameTopicName(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/**
  * Add a topic to a chapter, or return the one already there by that name —
- * `topics_chapter_name_key` makes a name unique within its chapter, so a
- * second teacher adding the same topic reuses it rather than failing.
- * `topics_insert_staff` lets a teacher or admin insert.
+ * whatever its case: a teacher adding "share capital" to a chapter that has
+ * "Share Capital" gets "Share Capital", not a twin. The database refuses a
+ * twin (`topics_chapter_lower_name_key`); this reuses the existing topic
+ * rather than show that refusal. `topics_insert_staff` lets a teacher or
+ * admin insert.
  */
 export async function addChapterTopic(
   ctx: RepoContext,
@@ -125,20 +136,19 @@ export async function addChapterTopic(
 ): Promise<CurriculumTopicRow> {
   const client = getClient(ctx);
   const trimmed = name.trim();
+  const already = (await listChapterTopics(ctx, chapterId)).find((t) => sameTopicName(t.name, trimmed));
+  if (already) return already;
+
   const { data, error } = await client
     .from("topics")
     .insert({ chapter_id: chapterId, name: trimmed, created_by: ctx.userId ?? null })
     .select("id, name")
     .single();
   if (error?.code === "23505") {
-    const { data: existing, error: readErr } = await client
-      .from("topics")
-      .select("id, name")
-      .eq("chapter_id", chapterId)
-      .eq("name", trimmed)
-      .single();
-    throwIfError(readErr, "Failed to load the existing topic");
-    return existing as CurriculumTopicRow;
+    // Added by someone else between the read above and this insert.
+    const raced = (await listChapterTopics(ctx, chapterId)).find((t) => sameTopicName(t.name, trimmed));
+    if (!raced) throw new Error("Failed to load the existing topic");
+    return raced;
   }
   throwIfError(error, "Failed to add the topic");
   return data as CurriculumTopicRow;

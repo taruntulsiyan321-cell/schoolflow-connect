@@ -3200,14 +3200,14 @@ answer still names its weak concept.
 
 ## 64. verify:chunk-files — six files fail for reasons outside practice — OPEN, 3 of 40 left
 
-**2026-09-30: 37 of 40 run clean** (it was 30 clean / 5 failed / 5 rotted that morning). What changed, and
+**2026-09-30: 38 of 40 run clean** (it was 30 clean / 5 failed / 5 rotted that morning). What changed, and
 what is left:
 
 * `CHUNK95_ANON_SURFACE_VERIFY` — PASSES. Item 1's `my_readable_test_ids()` had NO caller at all
   (`can_read_test_row` names it only in a comment; its logic was inlined there): 20261124000000 removed
   it, keeping its definition for rollback. Item 4 read `question_bank` directly as a student, which is 0
   by design since 20261049000000; it reads `question_bank_student`, the view students use.
-* `CHUNK2_VERIFY` — rewritten to the rules as they stand (rule 31 as amended: every chaptered question
+* `CHUNK2_VERIFY` — PASSES since 20261126000000. Rewritten to the rules as they stand (rule 31 as amended: every chaptered question
   names a topic of its own chapter; G4: no SCHOOL chapter carries a sequence, an exam's chapters carry
   its published syllabus order; only ACTIVE questions must map). It then found one active question with
   no topic — 20261090000000 left it NULL against its own stated intent; 20261125000000 gave it back —
@@ -4586,7 +4586,31 @@ decision, not a repair.
 
 ---
 
-## 106. Sixteen chapters hold the same topic twice, differing only in case — OPEN, needs a merge rule for concept_mastery
+## 106. ~~Sixteen chapters hold the same topic twice, differing only in case~~ — FIXED in 20261126000000 and 20261127000000, APPLIED 2026-09-30
+
+**Fixed, on the owner's instruction to merge them.** 20261126000000 merged the 16 pairs (the twin with more
+questions kept, its id and its spelling), re-pointed the 149 questions, and made every text copy of a topic's
+name in a chapter take that chapter's topic's spelling — 36 attempts, 5 mistakes, 1 revision row and 5 mastery
+rows, two of which met a row already spelled right and were folded into it. The fold rule, stated in the
+migration: events summed; mistake_count, mastery_score and confidence recomputed with the writers' own
+formulas; the latest attempt's facts from the later row; half-life the SMALLER, because the writer's history
+of recalls is not stored and a merge must not make a student look better retained than either history shows.
+A case-insensitive unique index now refuses a new twin, and `addChapterTopic` reuses the existing topic.
+
+Proved on production, each check with a control that fails: no chapter holds two spellings; each keeper holds
+both twins' questions; no row lost; mastery events conserved (a copy summing with max instead fails); every
+student whose practice analytics listed a topic twice now sees it once (one student did, before); the index
+refuses "  SHARE CAPITAL" (a copy without it fails). Migrate-then-rollback was run in one discarded
+transaction and left every table byte-identical (a rollback missing one restore is caught).
+
+The same split had a second cause, fixed in 20261127000000: an upload or capture attempt was filed under its
+CHAPTER's name ("Money and Banking") beside the question's topic ("Money and banking"), because the writer
+read no topic for a brought question. It now files it under that question's own topic, as a bank attempt is
+filed under the bank's — proved as the question's owner, with a free-text control still filed under the
+chapter, and against the old writer the proof fails.
+
+What follows is the finding as it was recorded.
+
 
 Found 2026-09-30 by the rewritten `CHUNK2_VERIFY` §5 ("duplicate topic names in a chapter . 16"). The CUET
 import of 2026-09-23 created case-variant twins in 16 Accountancy and Business Studies chapters —
@@ -4605,3 +4629,21 @@ re-point every `topic_id` (`question_bank`, `student_upload_questions`, `student
 23505 it re-reads the existing topic by EXACT name and would then fail. The part that needs a ruling:
 12 `concept_mastery` rows carry the twin names as text, and combining two mastery rows (score, half-life,
 classification, forgetting events) is a judgement, not arithmetic.
+
+---
+
+## 107. Three topics are the same topic written two ways, beyond case — OPEN, the owner picks the spelling
+
+After 106's merge, one topic per name per chapter holds whatever the case. Three pairs are still the same
+topic, differing by an article or a hyphen, so the case-insensitive rule does not see them (found 2026-09-30,
+matching Latin-script names with articles and punctuation removed):
+
+* Admission of a New Partner — "New Profit Sharing Ratio" (30 questions) / "New profit-sharing ratio" (12)
+* Retirement and Death of a Partner — "Death of a Partner" (18) / "Death of partner" (21)
+* Retirement and Death of a Partner — "Retirement of a Partner" (54) / "Retirement of partner" (24)
+
+They merge exactly as 106's did (20261126000000's machinery, with the pair named rather than found by case).
+Not done without a ruling because which spelling survives is a naming choice, and the same chapters hold looser
+look-alikes that are content judgements, not spellings — "Calls" / "Calls on shares", "Cash Flow" / "Cash Flow
+Statement", "Forfeiture and reissue of shares" / "Forfeiture of Shares", "Oversubscription / Pro-rata" /
+"Oversubscription and pro-rata allotment", "Tools of analysis" / "Tools of financial analysis".

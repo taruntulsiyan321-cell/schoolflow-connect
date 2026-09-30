@@ -7268,6 +7268,21 @@ export type Database = {
         }
         Relationships: []
       }
+      routines_pre_20261127000000: {
+        Row: {
+          definition: string
+          object: string
+        }
+        Insert: {
+          definition: string
+          object: string
+        }
+        Update: {
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
       schema_migrations: {
         Row: {
           applied_at: string
@@ -9721,6 +9736,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      topic_merge_20261126000000: {
+        Row: {
+          kind: string
+          note: string | null
+          row_before: Json | null
+          row_id: string
+          seq: number
+          table_name: string
+        }
+        Insert: {
+          kind: string
+          note?: string | null
+          row_before?: Json | null
+          row_id: string
+          seq?: number
+          table_name: string
+        }
+        Update: {
+          kind?: string
+          note?: string | null
+          row_before?: Json | null
+          row_id?: string
+          seq?: number
+          table_name?: string
+        }
+        Relationships: []
       }
       topics: {
         Row: {
