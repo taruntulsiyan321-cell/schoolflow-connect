@@ -200,32 +200,54 @@ BEGIN
   -- or subject, so there is nowhere to hang them; that is a pre-existing data
   -- gap, not a mapping failure. What must be zero is rows that had both and
   -- still did not map.
+  -- ACTIVE rows only. A retired question may keep its chapter string with no
+  -- chapter: 20261090000000 retired five off-syllabus seed questions that way
+  -- ("Algebra" on Class 10 quadratics), and a question that is never served
+  -- has nowhere it needs to hang. What may never happen is an ACTIVE row with
+  -- no chapter — which a CHECK also refuses (CHUNK7A_VERIFY item 2).
   SELECT count(*) INTO _n FROM public.question_bank
    WHERE chapter_id IS NULL AND btrim(coalesce(chapter, '')) <> ''
-     AND class_level IS NOT NULL AND btrim(coalesce(subject, '')) <> '';
-  _out := _out || format('  mappable questions left unmapped ... %s   (expected 0)%s', _n, E'\n');
+     AND class_level IS NOT NULL AND btrim(coalesce(subject, '')) <> ''
+     AND is_active;
+  _out := _out || format('  mappable ACTIVE questions unmapped . %s   (expected 0)%s', _n, E'\n');
   IF _n <> 0 THEN _ok := false; END IF;
+  SELECT count(*) INTO _n FROM public.question_bank
+   WHERE chapter_id IS NULL AND btrim(coalesce(chapter, '')) <> ''
+     AND class_level IS NOT NULL AND btrim(coalesce(subject, '')) <> ''
+     AND NOT is_active;
+  _out := _out || format('  retired, chapter string kept ....... %s   (not served)%s', _n, E'\n');
 
   SELECT count(*) INTO _n FROM public.question_bank
    WHERE chapter_id IS NULL AND btrim(coalesce(chapter, '')) <> ''
      AND (class_level IS NULL OR btrim(coalesce(subject, '')) = '');
   _out := _out || format('  unmappable (no class or subject) ... %s   (pre-existing data gap)%s', _n, E'\n');
 
-  -- Chunk 2's rule was never "no topics table ever". It was: do not DERIVE a
-  -- taxonomy from question_bank's 11,917 free-text strings. Chunk 5 then added
-  -- a topics table grown by teachers (§10.22), which is a different thing and
-  -- was approved. What must still hold is that the BANK keys on chapter alone
-  -- and its legacy topic string stays unmapped (§10.10, Chunk 7).
-  SELECT count(*) INTO _n FROM information_schema.columns
-   WHERE table_schema = 'public' AND table_name = 'question_bank' AND column_name = 'topic_id';
-  _out := _out || format('  question_bank.topic_id ............. %s   (expected 0 — chapter is the bank''s unit)%s',
-                         _n, E'\n');
+  -- RULE 31, AS AMENDED 2026-09-15 (owner ruling). This used to assert the
+  -- rule before it: the bank keyed on chapter alone, no question_bank.topic_id,
+  -- no topic not grown by a teacher. The owner ruled the opposite — topics are
+  -- real rows, per chapter, and every chaptered question names one of its own
+  -- chapter's (20261020000000 filed all 21,695 by hand). So what must hold:
+  --   * every chaptered question names a topic, and it is its own chapter's;
+  --   * topics are unique per chapter (the same name in two chapters is two).
+  -- The first is not enforced by the table — the composite key onto
+  -- topics (id, chapter_id) admits a NULL — which is how 20261090000000 left one
+  -- question without its topic until 20261125000000 gave it back. This line is
+  -- what catches the next one.
+  SELECT count(*) INTO _n FROM public.question_bank qb
+    LEFT JOIN public.topics t ON t.id = qb.topic_id
+   WHERE qb.chapter_id IS NOT NULL
+     AND (qb.topic_id IS NULL OR t.chapter_id IS DISTINCT FROM qb.chapter_id);
+  _out := _out || format('  chaptered questions w/o own topic .. %s   (expected 0 — rule 31)%s', _n, E'\n');
   IF _n <> 0 THEN _ok := false; END IF;
 
-  SELECT count(*) INTO _n FROM public.topics
-   WHERE created_by IS NULL AND created_at < now() - interval '1 minute';
-  _out := _out || format('  topics seeded from the bank ........ %s   (expected 0 — teacher-grown only)%s',
-                         _n, E'\n');
+  SELECT count(*) INTO _n FROM public.topics;
+  _out := _out || format('  topics, per chapter ................ %s%s', _n, E'\n');
+  IF _n = 0 THEN _ok := false; END IF;   -- rule 31 cannot hold over no topics
+
+  SELECT count(*) INTO _n FROM (
+    SELECT chapter_id, lower(btrim(name)) FROM public.topics
+     GROUP BY 1, 2 HAVING count(*) > 1) d;
+  _out := _out || format('  duplicate topic names in a chapter . %s   (expected 0)%s', _n, E'\n');
   IF _n <> 0 THEN _ok := false; END IF;
 
   -- =================================================================
@@ -256,9 +278,28 @@ BEGIN
   _out := _out || format('  surviving in the seeded tree ....... %s   (expected 0 — merged)%s', _n, E'\n');
   IF _n <> 0 THEN _ok := false; END IF;
 
-  SELECT count(*) INTO _n FROM public.chapters WHERE sequence IS NOT NULL;
-  _out := _out || format('  chapters with an invented sequence . %s   (expected 0 — G4)%s', _n, E'\n');
+  -- G4 forbids an INVENTED order. A school board's chapters carry none, since
+  -- no source gives one; an exam's syllabus does publish one — the NTA CUET
+  -- syllabus numbers its units, and 20261090000000 cites it — so an exam
+  -- board's chapters carry that order. An exam board is one whose code is a
+  -- competitive exam's (public.competitive_exams).
+  SELECT count(*) INTO _n
+    FROM public.chapters ch
+    JOIN public.curriculum_subjects cs ON cs.id = ch.curriculum_subject_id
+    JOIN public.curriculum_classes cc ON cc.id = cs.curriculum_class_id
+    JOIN public.boards b ON b.id = cc.board_id
+   WHERE ch.sequence IS NOT NULL
+     AND b.code NOT IN (SELECT ce.code FROM public.competitive_exams ce);
+  _out := _out || format('  school chapters with a sequence .... %s   (expected 0 — G4)%s', _n, E'\n');
   IF _n <> 0 THEN _ok := false; END IF;
+  SELECT count(*) INTO _n
+    FROM public.chapters ch
+    JOIN public.curriculum_subjects cs ON cs.id = ch.curriculum_subject_id
+    JOIN public.curriculum_classes cc ON cc.id = cs.curriculum_class_id
+    JOIN public.boards b ON b.id = cc.board_id
+   WHERE ch.sequence IS NOT NULL
+     AND b.code IN (SELECT ce.code FROM public.competitive_exams ce);
+  _out := _out || format('  exam chapters in syllabus order .... %s   (the published order)%s', _n, E'\n');
 
   -- =================================================================
   -- 7. ALL 18 EXISTING FKs TO public.classes STILL RESOLVE

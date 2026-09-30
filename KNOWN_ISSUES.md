@@ -3198,7 +3198,28 @@ answer still names its weak concept.
 
 ---
 
-## 64. verify:chunk-files — six files fail for reasons outside practice — OPEN
+## 64. verify:chunk-files — six files fail for reasons outside practice — OPEN, 3 of 40 left
+
+**2026-09-30: 37 of 40 run clean** (it was 30 clean / 5 failed / 5 rotted that morning). What changed, and
+what is left:
+
+* `CHUNK95_ANON_SURFACE_VERIFY` — PASSES. Item 1's `my_readable_test_ids()` had NO caller at all
+  (`can_read_test_row` names it only in a comment; its logic was inlined there): 20261124000000 removed
+  it, keeping its definition for rollback. Item 4 read `question_bank` directly as a student, which is 0
+  by design since 20261049000000; it reads `question_bank_student`, the view students use.
+* `CHUNK2_VERIFY` — rewritten to the rules as they stand (rule 31 as amended: every chaptered question
+  names a topic of its own chapter; G4: no SCHOOL chapter carries a sequence, an exam's chapters carry
+  its published syllabus order; only ACTIVE questions must map). It then found one active question with
+  no topic — 20261090000000 left it NULL against its own stated intent; 20261125000000 gave it back —
+  and it still FAILS, on a real defect: item 106.
+* `CHUNK2_5_VERIFY` — still ROTTED: inserts `homework.section_subject_id`, which the homework redesign
+  (20260925110000) removed. Its fixture needs rewriting against today's homework table.
+* `MATCH_QUESTION_BANK_FENCE_VERIFY` — still ROTTED: inserts `question_bank.topic`, dropped by
+  20261020010000.
+* `CHUNK7B_BATCH2_VERIFY` item 5 — now runs clean.
+
+What follows is the finding as it was recorded on 2026-09-21.
+
 
 Run 2026-09-21, the first run in two days (it needs the Management API token):
 40 files, 32 clean. Two failures came from that day's work and were fixed in
@@ -4562,3 +4583,25 @@ browser. A cron job has no browser to ask. The options are to store a time zone
 on the profile (and default it), or to rule that the product's day is IST and
 say so in one place that both the writer and the reset read. Either is a
 decision, not a repair.
+
+---
+
+## 106. Sixteen chapters hold the same topic twice, differing only in case — OPEN, needs a merge rule for concept_mastery
+
+Found 2026-09-30 by the rewritten `CHUNK2_VERIFY` §5 ("duplicate topic names in a chapter . 16"). The CUET
+import of 2026-09-23 created case-variant twins in 16 Accountancy and Business Studies chapters —
+"Share capital" (9 questions) beside "Share Capital" (72), "Cash flow statement" (30) beside
+"Cash Flow Statement" (51), "Marketing mix" (1) beside "Marketing Mix" (33), and 13 more. The table's
+`UNIQUE (chapter_id, name)` is exact-match, so it admitted them.
+
+Why it matters: topic-wise analysis — a paid feature — counts each twin separately, so a student's
+attempts on one topic are split across two rows, and each half is judged against the evidence floor on
+its own. A topic can fail to be flagged, or show a thin accuracy, because its attempts are divided.
+
+What a fix needs, and why it is not done here: merge each pair into the row with more questions and
+re-point every `topic_id` (`question_bank`, `student_upload_questions`, `student_upload_notes`,
+`homework`, `student_capture_questions`); then a case-insensitive unique index so it cannot recur — and
+`addChapterTopic` (`src/academic/repository/curriculumRepository.ts`) must change with it, because on a
+23505 it re-reads the existing topic by EXACT name and would then fail. The part that needs a ruling:
+12 `concept_mastery` rows carry the twin names as text, and combining two mastery rows (score, half-life,
+classification, forgetting events) is a judgement, not arithmetic.

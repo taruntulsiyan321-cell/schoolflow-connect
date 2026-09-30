@@ -4764,6 +4764,112 @@ export type Database = {
         }
         Relationships: []
       }
+      mock_answers: {
+        Row: {
+          attempt_id: string
+          choice: number | null
+          is_correct: boolean | null
+          marked: boolean
+          question_id: string
+          time_ms: number | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_id: string
+          choice?: number | null
+          is_correct?: boolean | null
+          marked?: boolean
+          question_id: string
+          time_ms?: number | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_id?: string
+          choice?: number | null
+          is_correct?: boolean | null
+          marked?: boolean
+          question_id?: string
+          time_ms?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mock_answers_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "mock_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mock_attempts: {
+        Row: {
+          auto_submitted: boolean
+          correct: number | null
+          deadline: string
+          exam_id: string
+          id: string
+          marks_correct: number
+          marks_wrong: number
+          question_ids: string[]
+          score: number | null
+          started_at: string
+          subject: string
+          submitted_at: string | null
+          unanswered: number | null
+          usage_period_key: string | null
+          user_id: string
+          voided: number | null
+          wrong: number | null
+        }
+        Insert: {
+          auto_submitted?: boolean
+          correct?: number | null
+          deadline: string
+          exam_id: string
+          id?: string
+          marks_correct: number
+          marks_wrong: number
+          question_ids: string[]
+          score?: number | null
+          started_at?: string
+          subject: string
+          submitted_at?: string | null
+          unanswered?: number | null
+          usage_period_key?: string | null
+          user_id: string
+          voided?: number | null
+          wrong?: number | null
+        }
+        Update: {
+          auto_submitted?: boolean
+          correct?: number | null
+          deadline?: string
+          exam_id?: string
+          id?: string
+          marks_correct?: number
+          marks_wrong?: number
+          question_ids?: string[]
+          score?: number | null
+          started_at?: string
+          subject?: string
+          submitted_at?: string | null
+          unanswered?: number | null
+          usage_period_key?: string | null
+          user_id?: string
+          voided?: number | null
+          wrong?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mock_attempts_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "competitive_exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notices: {
         Row: {
           attachment_url: string | null
@@ -7049,6 +7155,114 @@ export type Database = {
         }
         Update: {
           applied?: string | null
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261115000000: {
+        Row: {
+          definition: string
+          object: string
+        }
+        Insert: {
+          definition: string
+          object: string
+        }
+        Update: {
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261117000000: {
+        Row: {
+          definition: string
+          object: string
+        }
+        Insert: {
+          definition: string
+          object: string
+        }
+        Update: {
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261118000000: {
+        Row: {
+          definition: string
+          object: string
+        }
+        Insert: {
+          definition: string
+          object: string
+        }
+        Update: {
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261119000000: {
+        Row: {
+          definition: string
+          object: string
+        }
+        Insert: {
+          definition: string
+          object: string
+        }
+        Update: {
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261120000000: {
+        Row: {
+          definition: string
+          object: string
+        }
+        Insert: {
+          definition: string
+          object: string
+        }
+        Update: {
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261122000000: {
+        Row: {
+          definition: string
+          object: string
+        }
+        Insert: {
+          definition: string
+          object: string
+        }
+        Update: {
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261124000000: {
+        Row: {
+          acl: string | null
+          definition: string
+          object: string
+        }
+        Insert: {
+          acl?: string | null
+          definition: string
+          object: string
+        }
+        Update: {
+          acl?: string | null
           definition?: string
           object?: string
         }
@@ -9964,6 +10178,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _brought_question_askable: {
+        Args: { _correct_index: number; _options: Json }
+        Returns: boolean
+      }
       _build_concept_recovery_report: {
         Args: { _source_id: string; _source_type: string; _uid: string }
         Returns: Json
@@ -10166,6 +10384,24 @@ export type Database = {
       }
       _humanize_template_type: { Args: { _t: string }; Returns: string }
       _maybe_finish_battle: { Args: { _battle_id: string }; Returns: undefined }
+      _mock_close_expired: { Args: { _uid: string }; Returns: number }
+      _mock_grade: {
+        Args: { _attempt: string; _auto: boolean }
+        Returns: undefined
+      }
+      _mock_paper: { Args: never; Returns: Json }
+      _mock_paper_view: { Args: { _attempt: string }; Returns: Json }
+      _mock_pick_questions: { Args: { _subject: string }; Returns: string[] }
+      _mock_result_json: { Args: { _attempt: string }; Returns: Json }
+      _mock_subject_supply: {
+        Args: never
+        Returns: {
+          chapters: number
+          questions: number
+          ready: boolean
+          subject: string
+        }[]
+      }
       _normalize_cp1252_mojibake_to_latin1: {
         Args: { t: string }
         Returns: string
@@ -10442,6 +10678,15 @@ export type Database = {
       _stream_for_class: {
         Args: { _class: number; _stream: string }
         Returns: string
+      }
+      _student_bank_pool: {
+        Args: { _class_level?: number; _stream?: string }
+        Returns: {
+          chapter: string
+          chapter_id: string
+          id: string
+          subject: string
+        }[]
       }
       _student_difficulty_rank: {
         Args: { _chapter_id: string }
@@ -10963,7 +11208,6 @@ export type Database = {
       my_manageable_test_ids: { Args: never; Returns: string[] }
       my_own_or_children_student_ids: { Args: never; Returns: string[] }
       my_readable_mark_student_ids: { Args: never; Returns: string[] }
-      my_readable_test_ids: { Args: never; Returns: string[] }
       my_teacher_class_ids: { Args: never; Returns: string[] }
       my_teacher_homework_ids: { Args: never; Returns: string[] }
       my_teacher_submission_ids: { Args: never; Returns: string[] }
@@ -11055,6 +11299,7 @@ export type Database = {
         Returns: string
       }
       require_active_profile: { Args: never; Returns: string }
+      reset_broken_study_streaks: { Args: never; Returns: number }
       resolve_closed_homework: { Args: never; Returns: number }
       rpc_academic_revision_plan: { Args: never; Returns: Json }
       rpc_accept_battle_invite: {
@@ -12034,6 +12279,7 @@ export type Database = {
       rpc_student_improvement_plans: { Args: never; Returns: Json }
       rpc_student_performance_charts: { Args: never; Returns: Json }
       rpc_student_practice_analytics: { Args: never; Returns: Json }
+      rpc_student_practice_time: { Args: { _tz: string }; Returns: Json }
       rpc_student_recovery_queue: { Args: never; Returns: Json }
       rpc_student_revision_queue: { Args: never; Returns: Json }
       rpc_submit_battle_answer: {

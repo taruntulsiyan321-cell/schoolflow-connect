@@ -2048,33 +2048,6 @@
         "admin": "answered"
       }
     },
-    "my_readable_test_ids()": {
-      "name": "my_readable_test_ids",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "SETOF uuid",
-      "grants": [
-        "authenticated",
-        "anon"
-      ],
-      "calls": [
-        "is_principal_or_admin",
-        "my_accessible_school_ids",
-        "my_children_class_ids",
-        "my_teacher_class_ids",
-        "student_class_id"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
-      "observed": {
-        "student": "answered",
-        "teacher": "answered",
-        "parent": "answered",
-        "principal": "answered",
-        "admin": "answered"
-      }
-    },
     "my_teacher_class_ids()": {
       "name": "my_teacher_class_ids",
       "readerSet": "self",
@@ -5014,7 +4987,6 @@
         "my_accessible_school_ids",
         "my_children_class_ids",
         "my_manageable_test_ids",
-        "my_readable_test_ids",
         "my_teacher_class_ids",
         "student_class_id"
       ],
