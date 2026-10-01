@@ -29,7 +29,10 @@ import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useAcademicContext, PracticeService, WEAK_CONCEPT_THRESHOLD } from "@/academic";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
-import { formatSessionAccuracy, resolvePracticeSessionStats } from "@/lib/practiceSessionStats";
+import { formatSessionAccuracy, formatSessionDuration, resolvePracticeSessionStats } from "@/lib/practiceSessionStats";
+import { useStudentPracticeTime } from "@/hooks/useStudentPracticeTime";
+import { deriveStudyTime } from "@/lib/studentAnalysisMetrics";
+import { consistencyWeeks } from "@/components/student/analytics/wisdom/analyticsDerived";
 import { toDisplayText } from "@/lib/presentation";
 import { pluralise } from "@/lib/plural";
 import { notInPlan } from "@/lib/premium";
@@ -126,6 +129,7 @@ export default function PracticeHubPage() {
   const { ctx, ready: academicReady } = useAcademicContext();
   const { data: snapshot, loading: snapLoading } = useStudentAcademicSnapshot();
   const { items: mastery, loading: masteryLoading } = useConceptMastery();
+  const { data: practiceTime, loading: practiceTimeLoading } = useStudentPracticeTime(academicReady);
 
   const [selectedSubject, setSelectedSubject] = useState("Mathematics");
   const [questionSet, setQuestionSet] = useState<(typeof QUESTION_SETS)[number]["id"]>("10");
@@ -185,11 +189,23 @@ export default function PracticeHubPage() {
   }, [ctx, academicReady]);
 
   const accuracy = practiceAccuracyFromSnapshot(snapshot) || 0;
-  const heatmap = snapshot?.activity_heatmap ?? [];
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const todayRow = heatmap.find((h) => h.date === todayKey);
-  const questionsToday =
-    (todayRow?.test ?? 0) + (todayRow?.homework ?? 0) + (todayRow?.self_practice ?? 0);
+  // Today's practice and the four weeks' time, from rpc_student_practice_time
+  // on the student's own calendar — the source and window Analysis reads, so
+  // the two screens cannot disagree. This read snapshot.activity_heatmap:
+  // "Questions today" added up tests, homework and sessions (not questions) on
+  // a UTC date, and the time summed whole minutes with a one-minute floor and
+  // a test's minutes folded in (KNOWN_ISSUES 92).
+  const today = practiceTime?.days.find((d) => d.date === practiceTime.today);
+  const questionsToday = today?.answered ?? 0;
+  const studyTime = useMemo(
+    () =>
+      deriveStudyTime(
+        consistencyWeeks(practiceTime?.days, 4).flatMap((w) => w.days.map((d) => d.date)),
+        practiceTime?.days ?? null,
+        practiceTime?.hours ?? null,
+      ),
+    [practiceTime],
+  );
   const topicsPracticed = new Set(
     mastery.map((m) => `${m.subject}:${m.chapter ?? m.concept}`),
   ).size;
@@ -255,15 +271,10 @@ export default function PracticeHubPage() {
 
 
   const focusTopic = weakTopics[0];
-  const loading = snapLoading || masteryLoading;
+  const loading = snapLoading || masteryLoading || practiceTimeLoading;
 
   const totalQuestions = mastery.reduce((s, m) => s + (m.total_attempts ?? 0), 0);
   const overallAccuracy = accuracy;
-  const practiceMinutes = heatmap.reduce((s, h) => s + (h.minutes ?? 0), 0);
-  const practiceTimeLabel =
-    practiceMinutes >= 60
-      ? `${Math.floor(practiceMinutes / 60)}h ${practiceMinutes % 60}m`
-      : `${practiceMinutes}m`;
 
   const startSession = (chapter?: string, count?: number) => {
     if (questionSet === "recovery") {
@@ -309,7 +320,7 @@ export default function PracticeHubPage() {
                   { label: "Accuracy", value: loading ? "…" : `${overallAccuracy}%` },
                   { label: "Questions today", value: loading ? "…" : questionsToday },
                   { label: "Topics practiced", value: loading ? "…" : topicsPracticed },
-                  { label: "Daily goal", value: "—" },
+                  { label: "Time today", value: loading ? "…" : formatSessionDuration(today?.ms) },
                 ].map((s) => (
                   <div
                     key={s.label}
@@ -319,17 +330,6 @@ export default function PracticeHubPage() {
                     <p className="text-xl sm:text-2xl font-bold mt-1 tabular-nums">{s.value}</p>
                   </div>
                 ))}
-              </div>
-
-              <div className="mt-6 max-w-md">
-                <div className="flex justify-between text-xs text-primary-foreground/75 mb-2">
-                  <span>Activity today</span>
-                  <span className="font-semibold">{loading ? "…" : questionsToday}</span>
-                </div>
-                <Progress value={0} className="h-2.5 bg-black/15 [&>div]:bg-[#e8c468]" />
-                <p className="text-xs text-primary-foreground/60 mt-2">
-                  {loading ? "…" : `${questionsToday} practice activity point${questionsToday === 1 ? "" : "s"} today — no daily goal configured`}
-                </p>
               </div>
             </div>
             <HeroIllustration />
@@ -619,7 +619,7 @@ export default function PracticeHubPage() {
           {[
             { label: "Total questions", value: String(totalQuestions) },
             { label: "Overall accuracy", value: `${overallAccuracy}%` },
-            { label: "Practice time", value: practiceTimeLabel },
+            { label: "Practice time (4 weeks)", value: formatSessionDuration(studyTime.totalMs) },
           ].map((s) => (
             <div key={s.label}>
               <p className="text-xs uppercase tracking-wider text-primary-foreground/65">{s.label}</p>

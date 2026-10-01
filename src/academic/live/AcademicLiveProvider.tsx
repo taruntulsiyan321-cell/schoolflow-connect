@@ -189,16 +189,6 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         {
           event: "*",
           schema: "public",
-          table: "school_activity_feed",
-          filter: `school_id=eq.${schoolId}`,
-        },
-        onTable(["all"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
           table: "student_xp",
           filter:
             role === "student" ? `user_id=eq.${user.id}` : `school_id=eq.${schoolId}`,
@@ -322,8 +312,24 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
           if (!row?.type || !ACADEMIC_NOTIF_TYPES.has(row.type)) return;
           bump(domainsFromNotificationType(row.type));
         },
-      )
-      .subscribe();
+      );
+
+    // The school's activity feed is the staff view (20261134000000): RLS gives a
+    // student or parent no row of it, so their subscription could only ever
+    // wait. Staff keep it — the admin dashboard lists the feed.
+    if (role === "admin" || role === "principal" || role === "teacher" || role === "super_admin") {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "school_activity_feed",
+          filter: `school_id=eq.${schoolId}`,
+        },
+        onTable(["all"]),
+      );
+    }
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);

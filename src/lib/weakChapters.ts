@@ -1,6 +1,8 @@
 import { REPEATED_MISTAKE_PIN, type TrendState } from "@/academic/recovery/constants";
 import { paceOverAnswers, trendState } from "@/lib/studentAnalysisMetrics";
 import { mayBeJudged } from "@/academic/metrics/thresholds";
+import { sessionAccuracy } from "@/academic/metrics/practice";
+import { valueOr } from "@/academic/metrics/types";
 
 /**
  * §6.3, the chapter list — "the main screen" of Analysis, and it did not
@@ -176,9 +178,12 @@ export function deriveWeakChapters(input: {
     // sessions" — a tally row IS a session's work in this chapter, which is
     // why the trend can follow a chapter practised inside a whole-subject
     // session. A session that attempted nothing here has no accuracy to add.
+    // chapter_tally.attempted is ANSWERED (skips and disputed attempts out,
+    // _write_chapter_tally), so each row and the chapter total are accuracy
+    // over answered: the metric layer's rule, not a copy of it.
     const series = chapterTallies
-      .filter((t) => (t.attempted ?? 0) > 0)
-      .map((t) => (100 * (t.correct ?? 0)) / (t.attempted as number));
+      .map((t) => valueOr(sessionAccuracy(t.correct ?? 0, t.attempted ?? 0), null))
+      .filter((a): a is number => a != null);
     const { state: trend, deltaPoints } = trendState(series);
 
     const oldestOpenAt = open
@@ -201,7 +206,7 @@ export function deriveWeakChapters(input: {
       subject: state.subject ?? "",
       openMistakes,
       repeatedMistakes,
-      accuracyPct: attempted > 0 ? Math.round((100 * correct) / attempted) : null,
+      accuracyPct: valueOr(sessionAccuracy(correct, attempted), null),
       attempted,
       trend,
       trendDeltaPoints: deltaPoints,

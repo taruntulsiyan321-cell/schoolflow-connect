@@ -23,12 +23,21 @@
 -- second half, a function that throws on every call reports a clean fence, which
 -- is exactly the state this whole thread began in.
 --
+-- Since 20261049000000 a student reads the bank only through the
+-- question_bank_student view: RLS on question_bank admits staff and super
+-- admins, nobody else. So a signed-in STUDENT now receives nothing at all from
+-- this (invoker) function — item 2b — and the signed-in path where the body is
+-- the only fence is a TEACHER, whom qb_staff_read admits to every board: item 2.
+-- (Revised 2026-10-01, KNOWN_ISSUES 64: item 2 still expected the student to
+-- receive the own-board row, which by design they no longer can.)
+--
 -- MATCH_QUESTION_BANK_FENCE_VERIFY_OK means every item ran and passed.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 DO $verify$
 DECLARE
   _uid       uuid;
+  _teacher   uuid;
   _school    uuid;
   _board     text;
   _other     text;
@@ -52,13 +61,24 @@ BEGIN
   END IF;
   _other := CASE WHEN _board = 'cbse' THEN 'rbse' ELSE 'cbse' END;
 
-  -- The student must not be staff: qb_staff_read admits teachers and admins to
-  -- the whole bank regardless of board, so a staff account would fail item 2
-  -- for a legitimate reason and tell us nothing about the fence.
+  -- The student must not be staff (item 2b asks what a non-staff caller gets),
+  -- and the teacher must be staff OF THIS SCHOOL (item 2 relies on RLS
+  -- admitting them to every board, leaving the body as the only fence).
   SELECT (public.is_principal_or_admin(_uid)
           OR public.has_role(_uid, 'teacher'::public.app_role)) INTO _staff;
   IF _staff THEN
-    RAISE EXCEPTION 'MQB_FENCE_VERIFY: the probe account is staff; qb_staff_read would admit it to every board and this file would be measuring the wrong policy.';
+    RAISE EXCEPTION 'MQB_FENCE_VERIFY: the student probe account is staff; item 2b would be measuring the wrong policy.';
+  END IF;
+  SELECT u.id INTO _teacher FROM auth.users u
+    JOIN public.teachers t ON t.user_id = u.id AND t.school_id = _school
+   WHERE u.email = 'priya.sharma@wisdomcampus.com';
+  -- Membership, not has_role(): has_role reads the session's active membership
+  -- and is false outside the teacher's own signed-in context.
+  IF _teacher IS NULL OR NOT EXISTS (
+       SELECT 1 FROM public.memberships m
+        WHERE m.account_id = _teacher AND m.school_id = _school
+          AND m.role = 'teacher'::public.app_role AND m.status = 'active') THEN
+    RAISE EXCEPTION 'MQB_FENCE_VERIFY: the demo teacher of the student''s school is missing; item 2 cannot run.';
   END IF;
 
   SELECT * INTO _src FROM public.question_bank qb
@@ -71,13 +91,14 @@ BEGIN
 
   -- Byte-identical embedding. Similarity is 1.0 for the fixture and for the
   -- control, so ranking, the threshold and the LIMIT can never be what separates
-  -- them. Only a fence can.
+  -- them. Only a fence can. The topic is the control's own topic_id: the text
+  -- `topic` column was dropped by 20261020010000, and naming it rotted this file.
   INSERT INTO public.question_bank
-    (id, class_level, subject, chapter, topic, difficulty, question, options,
+    (id, class_level, subject, chapter, topic_id, difficulty, question, options,
      correct_index, explanation, source, is_approved, is_active, board,
      embedding, embed_status, chapter_id)
   VALUES
-    (_fix, _src.class_level, _src.subject, _src.chapter, _src.topic, _src.difficulty,
+    (_fix, _src.class_level, _src.subject, _src.chapter, _src.topic_id, _src.difficulty,
      'VERIFY cross-board row', _src.options, _src.correct_index, _src.explanation,
      'verify-fence', true, true, _other,
      _src.embedding, 'embedded', _src.chapter_id);
@@ -107,12 +128,12 @@ BEGIN
 
 
   -- ═════════════════════════════════════════════════════════════════════
-  -- 2. authenticated — RLS policy qb_select_approved_board AND the body
-  --    predicate. Both are expected to hold; either alone would pass this,
-  --    which is the point of keeping both.
+  -- 2. authenticated, as a TEACHER — qb_staff_read admits staff to the whole
+  --    bank whatever its board, so RLS fences nothing here and the body
+  --    predicate is, again, the only fence.
   -- ═════════════════════════════════════════════════════════════════════
   PERFORM set_config('request.jwt.claims',
-    json_build_object('sub', _uid, 'role', 'authenticated')::text, true);
+    json_build_object('sub', _teacher, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
   _role := current_user;
   SELECT count(*) FILTER (WHERE m.id = _fix), count(*) FILTER (WHERE m.id = _src.id)
@@ -125,10 +146,30 @@ BEGIN
     _fail := _fail || format('(FAIL) 2: probe ran as %s, not authenticated. ', _role);
   END IF;
   IF _cross <> 0 THEN
-    _fail := _fail || '(FAIL) 2: a signed-in student received a question from another board. ';
+    _fail := _fail || '(FAIL) 2: a signed-in teacher received a question from another board. ';
   END IF;
   IF _ctl <> 1 THEN
-    _fail := _fail || '(FAIL) 2: the student did not receive the OWN-board control row. ';
+    _fail := _fail || '(FAIL) 2: the teacher did not receive the OWN-board control row. ';
+  END IF;
+
+
+  -- ═════════════════════════════════════════════════════════════════════
+  -- 2b. authenticated, as a STUDENT — receives nothing at all: the bank is
+  --     read through question_bank_student (20261049000000). Items 1 and 2
+  --     are the controls: the same call returns the own-board row to callers
+  --     the table admits.
+  -- ═════════════════════════════════════════════════════════════════════
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', _uid, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) FILTER (WHERE m.id = _fix), count(*) FILTER (WHERE m.id = _src.id)
+    INTO _cross, _ctl
+    FROM public.match_question_bank(_src.embedding, _src.class_level, _school, NULL, 0.0, 50) m;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', NULL, true);
+
+  IF _cross <> 0 OR _ctl <> 0 THEN
+    _fail := _fail || format('(FAIL) 2b: a signed-in student read the bank directly (cross=%s own=%s). ', _cross, _ctl);
   END IF;
 
 
@@ -176,6 +217,6 @@ BEGIN
   END IF;
 
   RAISE EXCEPTION
-    'MATCH_QUESTION_BANK_FENCE_VERIFY_OK — 4/4 passed (service_role fenced, authenticated fenced, NULL school fails closed, negative control fires). Rolling back.';
+    'MATCH_QUESTION_BANK_FENCE_VERIFY_OK — 5/5 passed (service_role fenced, a teacher fenced by the body, a student reads nothing, NULL school fails closed, negative control fires). Rolling back.';
 END
 $verify$;

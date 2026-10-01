@@ -86,12 +86,22 @@ BEGIN
   -- fixtures, not locked-out users. Memberships are granted by invitation
   -- (`rpc_invite_member` / `rpc_respond_to_invitation`), so their absence is
   -- the seed's shape and not a defect to backfill.
+  -- In a school that HAS a second such student. An individual exam account is
+  -- a school of one (a tenant of one), and taking the first student by id
+  -- landed on one: there was then no classmate to look for, and the probe
+  -- reported a missing fixture while the demo school had twelve (2026-10-01).
   SELECT s.id, s.user_id, s.school_id INTO stu_a, uid_a, sch_a
     FROM public.students s
    WHERE s.user_id IS NOT NULL AND s.deleted_at IS NULL
      AND EXISTS (SELECT 1 FROM public.memberships m
                   WHERE m.account_id = s.user_id AND m.role = 'student'
                     AND m.status = 'active' AND m.local_person_id = s.id)
+     AND EXISTS (SELECT 1 FROM public.students o
+                  WHERE o.school_id = s.school_id AND o.id <> s.id
+                    AND o.user_id IS NOT NULL AND o.deleted_at IS NULL
+                    AND EXISTS (SELECT 1 FROM public.memberships m2
+                                 WHERE m2.account_id = o.user_id AND m2.role = 'student'
+                                   AND m2.status = 'active' AND m2.local_person_id = o.id))
    ORDER BY s.id LIMIT 1;
 
   SELECT s.id, s.user_id INTO stu_b, uid_b

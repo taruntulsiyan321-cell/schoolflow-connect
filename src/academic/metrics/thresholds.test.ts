@@ -21,6 +21,7 @@ import {
   HOMEWORK_WINDOW,
   MARKS_OVERDUE,
   CLASS_FLAGGED_ON_MARKS,
+  MISTAKE_RETRY_GOOD,
   THRESHOLDS as SOURCE,
 } from "./thresholds";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -47,6 +48,7 @@ const THRESHOLD_NAMES = [
   "MARKS_OVERDUE",
   "CLASS_FLAGGED_ON_MARKS",
   "SUBJECT_AVERAGE_LOW",
+  "MISTAKE_RETRY_GOOD",
 ];
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -103,6 +105,7 @@ describe("one threshold module, and the value reaches the screens", () => {
     expect(SOURCE.HOMEWORK_WINDOW).toBe(HOMEWORK_WINDOW);
     expect(SOURCE.CLASS_FLAGGED_ON_MARKS).toBe(CLASS_FLAGGED_ON_MARKS);
     expect(SOURCE.MARKS_OVERDUE).toBe(MARKS_OVERDUE);
+    expect(SOURCE.MISTAKE_RETRY_GOOD).toBe(MISTAKE_RETRY_GOOD);
   });
 
   it("the source module does not export a chronic threshold at all", async () => {

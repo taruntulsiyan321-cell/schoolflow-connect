@@ -99,7 +99,9 @@ describe("individual vs school student panel nav", () => {
       readFileSync(join(__dirname, "pages", "Dashboard.tsx"), "utf8"),
     );
     expect(home).toMatch(/includeHomework:\s*!isIndividual/);
-    expect(home).toMatch(/buildMission\([^,]+,\s*\{\s*includeHomework/);
+    // The options object reaches buildMission itself; today's practice count
+    // is the argument before it since Home reads rpc_student_practice_time.
+    expect(home).toMatch(/buildMission\(snapshot,\s*sessionsToday\(practiceTime\),\s*\{\s*includeHomework/);
     // Unknown kind must not paint Class Rank — only confirmed school does.
     expect(home).toMatch(/schoolKind\s*!==\s*["']school["']/);
   });

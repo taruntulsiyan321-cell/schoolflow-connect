@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { mistakeBookmarksKey } from "@/lib/clientStorage";
 import { PracticeService, StudentUploadService, useAcademicContext, useAcademicLive } from "@/academic";
+import { MISTAKE_RETRY_GOOD } from "@/academic/metrics/thresholds";
 import { deleteScreenCaptureQuestion } from "@/academic/services/screenCaptureService";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
@@ -825,7 +826,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   }
 
   if (view === "results") {
-    const passed = practiceScore >= 70;
+    const passed = practiceScore >= MISTAKE_RETRY_GOOD;
     const color = passed ? "hsl(var(--success))" : "hsl(var(--warning))";
     return (
       <div className="space-y-6">

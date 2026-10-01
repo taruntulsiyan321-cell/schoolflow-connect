@@ -154,6 +154,10 @@ export const FIRST_STREAM_CLASS = 11;
  * The stream that applies to a student of `classLevel`: none below Class 11.
  * An unknown class keeps the stream, so a picker never dumps every subject on
  * a student whose class failed to load.
+ *
+ * The one home of that rule for every reader: the subject pickers, the two
+ * allowlists below, the practice scope and the question pool. The pool kept a
+ * copy of its own (`contentStreamForClass`, the literal 11) until 2026-10-01.
  */
 export function streamForClass<T extends string>(stream: T | null | undefined, classLevel: number | null | undefined): T | null {
   if (!stream) return null;
@@ -171,33 +175,6 @@ export function appliesCommerceSubjectAllowlist(
   classLevel: number | null | undefined,
 ): boolean {
   return streamForClass(stream, classLevel) === "commerce";
-}
-
-/**
- * The stream that may narrow CONTENT for a class — null below Class 11.
- *
- * A stream is a Class 11–12 idea: a Class 9 or 10 student of a
- * commerce-tagged school studies the same secondary curriculum as everyone
- * else. The two subject allowlists above already say so (`classLevel >= 11`),
- * but the question pool did not: it filtered every read with
- * `stream.eq.<school stream> OR stream.is.null` at any level, so a Class 10
- * student of this commerce school had "commerce" applied to their bank.
- *
- * Measured 2026-09-23: all 15,186 active, approved questions at Classes 5–10
- * carry a NULL stream, so nothing is being lost today — the filter is a trap
- * waiting for the first Class 9/10 question that is tagged, which would then
- * be invisible to exactly the students it was written for.
- *
- * When the class is unknown the stream still applies, which is the
- * conservative reading the allowlists take: never widen on a guess.
- */
-export function contentStreamForClass(
-  stream: AcademicStream | null | undefined,
-  classLevel: number | null | undefined,
-): AcademicStream | null {
-  if (!stream) return null;
-  if (classLevel != null && classLevel < 11) return null;
-  return stream;
 }
 
 /**

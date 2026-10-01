@@ -44,9 +44,6 @@ vi.mock("@/hooks/useStudentPracticeTime", () => ({
     loading: false, error: null, reload: () => {},
   }),
 }));
-vi.mock("@/hooks/useStudentPerformanceCharts", () => ({
-  useStudentPerformanceCharts: () => ({ data: { practice_trend: [], weekly_activity: [] }, loading: false, error: null }),
-}));
 vi.mock("@/hooks/useStudentAcademicSnapshot", () => ({
   useStudentAcademicSnapshot: () => ({
     data: { mistake_count: 0, recovery_pending: 0, weak_topics: [], activity_heatmap: [], ...(state.locked ? { topic_analysis_locked: true } : {}) },

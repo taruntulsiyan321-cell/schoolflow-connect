@@ -1,9 +1,14 @@
 /**
  * DESIGN-ONLY — Autonomous Principal Portal fixture data.
  * Not wired to Academic Engine / Supabase. Do not treat as product truth.
+ * Its attendance rule is still the product's: the threshold and the
+ * below-threshold count come from the metric layer, not a copy of either.
  *
  * School year: June 2026 – March 2027. Current date: 11 Sep 2026 (75 school days elapsed)
  */
+
+import { belowAttendanceThreshold } from "@/academic/metrics/attendance"
+import { valueOr } from "@/academic/metrics/types"
 
 export type StudentId = string
 export type TeacherId = string
@@ -80,7 +85,7 @@ interface ClassDef {
   formTeacherId: TeacherId
   studentIds: StudentId[]
   todayPresent: number
-  below75Count: number
+  belowThresholdCount: number
   exams: Exam[]
 }
 
@@ -126,7 +131,7 @@ interface AppData {
     date: string
     presentCount: number
     totalCount: number
-    below75Count: number
+    belowThresholdCount: number
     yesterdayPercent: number
   }
 }
@@ -282,8 +287,9 @@ function classStudents(classId: ClassId) {
   return allStudents.filter(s => s.classId === classId)
 }
 
-function computeBelow75(classId: ClassId) {
-  return classStudents(classId).filter(s => s.presentDays / s.totalDays < 0.75).length
+function computeBelowThreshold(classId: ClassId) {
+  const rows = classStudents(classId).map(s => ({ studentId: s.id, present: s.presentDays, total: s.totalDays }))
+  return valueOr(belowAttendanceThreshold(rows), null)?.below.length ?? 0
 }
 
 function todayPresent(classId: ClassId, fraction: number) {
@@ -369,14 +375,14 @@ const teachers: Record<TeacherId, Teacher> = {
 // --- Classes ---
 
 const classes: Record<ClassId, ClassDef> = {
-  "9a":    { id:"9a",    name:"9 — A",       yearGroup:9,  section:"A", formTeacherId:"T01", studentIds: classStudents("9a").map(s=>s.id),    todayPresent: todayPresent("9a",0.875),    below75Count: computeBelow75("9a"), exams:[examUnit1, examHY] },
-  "9b":    { id:"9b",    name:"9 — B",       yearGroup:9,  section:"B", formTeacherId:"T02", studentIds: classStudents("9b").map(s=>s.id),    todayPresent: todayPresent("9b",0.833),    below75Count: computeBelow75("9b"), exams:[examUnit1, examHY] },
-  "10a":   { id:"10a",   name:"10 — A",      yearGroup:10, section:"A", formTeacherId:"T03", studentIds: classStudents("10a").map(s=>s.id),   todayPresent: todayPresent("10a",0.911),   below75Count: computeBelow75("10a"), exams:[examUnit1, examHY] },
-  "10b":   { id:"10b",   name:"10 — B",      yearGroup:10, section:"B", formTeacherId:"T12", studentIds: classStudents("10b").map(s=>s.id),   todayPresent: todayPresent("10b",0.871),   below75Count: computeBelow75("10b"), exams:[examUnit1, examHY] },
-  "11sci": { id:"11sci", name:"11 — Science", yearGroup:11, section:"Science", formTeacherId:"T05", studentIds: classStudents("11sci").map(s=>s.id), todayPresent: todayPresent("11sci",0.917), below75Count: computeBelow75("11sci"), exams:[exam11UT1] },
-  "11com": { id:"11com", name:"11 — Commerce",yearGroup:11, section:"Commerce", formTeacherId:"T06", studentIds: classStudents("11com").map(s=>s.id), todayPresent: todayPresent("11com",0.850), below75Count: computeBelow75("11com"), exams:[examHigherUT1] },
-  "12sci": { id:"12sci", name:"12 — Science", yearGroup:12, section:"Science", formTeacherId:"T04", studentIds: classStudents("12sci").map(s=>s.id), todayPresent: todayPresent("12sci",0.950), below75Count: computeBelow75("12sci"), exams:[exam11UT1] },
-  "12com": { id:"12com", name:"12 — Commerce",yearGroup:12, section:"Commerce", formTeacherId:"T07", studentIds: classStudents("12com").map(s=>s.id), todayPresent: todayPresent("12com",0.889), below75Count: computeBelow75("12com"), exams:[examHigherUT1] },
+  "9a":    { id:"9a",    name:"9 — A",       yearGroup:9,  section:"A", formTeacherId:"T01", studentIds: classStudents("9a").map(s=>s.id),    todayPresent: todayPresent("9a",0.875),    belowThresholdCount: computeBelowThreshold("9a"), exams:[examUnit1, examHY] },
+  "9b":    { id:"9b",    name:"9 — B",       yearGroup:9,  section:"B", formTeacherId:"T02", studentIds: classStudents("9b").map(s=>s.id),    todayPresent: todayPresent("9b",0.833),    belowThresholdCount: computeBelowThreshold("9b"), exams:[examUnit1, examHY] },
+  "10a":   { id:"10a",   name:"10 — A",      yearGroup:10, section:"A", formTeacherId:"T03", studentIds: classStudents("10a").map(s=>s.id),   todayPresent: todayPresent("10a",0.911),   belowThresholdCount: computeBelowThreshold("10a"), exams:[examUnit1, examHY] },
+  "10b":   { id:"10b",   name:"10 — B",      yearGroup:10, section:"B", formTeacherId:"T12", studentIds: classStudents("10b").map(s=>s.id),   todayPresent: todayPresent("10b",0.871),   belowThresholdCount: computeBelowThreshold("10b"), exams:[examUnit1, examHY] },
+  "11sci": { id:"11sci", name:"11 — Science", yearGroup:11, section:"Science", formTeacherId:"T05", studentIds: classStudents("11sci").map(s=>s.id), todayPresent: todayPresent("11sci",0.917), belowThresholdCount: computeBelowThreshold("11sci"), exams:[exam11UT1] },
+  "11com": { id:"11com", name:"11 — Commerce",yearGroup:11, section:"Commerce", formTeacherId:"T06", studentIds: classStudents("11com").map(s=>s.id), todayPresent: todayPresent("11com",0.850), belowThresholdCount: computeBelowThreshold("11com"), exams:[examHigherUT1] },
+  "12sci": { id:"12sci", name:"12 — Science", yearGroup:12, section:"Science", formTeacherId:"T04", studentIds: classStudents("12sci").map(s=>s.id), todayPresent: todayPresent("12sci",0.950), belowThresholdCount: computeBelowThreshold("12sci"), exams:[exam11UT1] },
+  "12com": { id:"12com", name:"12 — Commerce",yearGroup:12, section:"Commerce", formTeacherId:"T07", studentIds: classStudents("12com").map(s=>s.id), todayPresent: todayPresent("12com",0.889), belowThresholdCount: computeBelowThreshold("12com"), exams:[examHigherUT1] },
 }
 
 const CLASS_ORDER: ClassId[] = ["9a","9b","10a","10b","11sci","11com","12sci","12com"]
@@ -394,14 +400,14 @@ function computeSchoolFees() {
 }
 
 function computeSchoolAttendance() {
-  let present = 0, total = 0, below75 = 0
+  let present = 0, total = 0, below = 0
   for (const classId of CLASS_ORDER) {
     const cls = classes[classId]
     present += cls.todayPresent
     total += cls.studentIds.length
-    below75 += cls.below75Count
+    below += cls.belowThresholdCount
   }
-  return { date:"11 Sep 2026", presentCount:present, totalCount:total, below75Count:below75, yesterdayPercent:91 }
+  return { date:"11 Sep 2026", presentCount:present, totalCount:total, belowThresholdCount:below, yesterdayPercent:91 }
 }
 
 // --- Leave requests ---

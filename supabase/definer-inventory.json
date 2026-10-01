@@ -525,13 +525,13 @@
     },
     "_revoke_membership(_account uuid, _school uuid, _role app_role)": {
       "name": "_revoke_membership",
-      "readerSet": "public",
+      "readerSet": "staff",
       "callability": "internal",
       "returns": "void",
       "grants": [],
       "calls": [],
-      "justification": "",
-      "verifiedBy": "",
+      "justification": "Internal write helper: EXECUTE is held by no client role (authenticated and anon both false, measured 2026-10-01), so it is NOT separately callable over PostgREST — the gate's \"possible widening\" note on its three callers assumed it was. It returns nothing and sets one membership (account, school, role) to revoked. Its reach is exactly what its callers hand it, and its only callers (every public function body naming it, measured 2026-10-01; tg_user_roles_read_only only names it in an error message) are admin_revoke_student_account, admin_revoke_teacher_account and admin_set_teacher_access. Each first requires has_role(auth.uid(), 'admin') and same_school(the record's school), then passes THAT school — so it only ever revokes a membership inside the calling admin's own institution: staff reach, the same rank as its callers.",
+      "verifiedBy": "Read 2026-10-01: pg_proc grants (authenticated/anon EXECUTE false); the bodies of all three callers (admin role check, same_school check, the record's own school passed through); and a scan of every public function body for callers.",
       "reviewed": false
     },
     "_seed_featured_battle_for_class(_class_id uuid, _kind text)": {
@@ -4662,7 +4662,7 @@
       "returns": "integer",
       "grants": [],
       "calls": [],
-      "justification": "Run daily at 00:01 UTC by pg_cron (reset-broken-study-streaks): zeroes study_streak, study_week_streak and study_month_streak on every student_xp row whose last_study_date is before yesterday, the day rule _progression_bump_study_streak restarts on. Returns only a count. EXECUTE revoked from PUBLIC, anon and authenticated (20261116000000).",
+      "justification": "Run daily at 00:01 IST (18:31 UTC, since 20261130000000) by pg_cron (reset-broken-study-streaks): zeroes study_streak, study_week_streak and study_month_streak on every student_xp row whose last_study_date is before yesterday in the product's IST day (public._product_day), the day rule _progression_bump_study_streak restarts on. Returns only a count. EXECUTE revoked from PUBLIC, anon and authenticated (20261116000000).",
       "verifiedBy": "20261116000000 proof: two days since practice and no last day both read 0; practised yesterday and today keep 5 and 7; longest streak and last day unchanged; the writer then gives 1 and 6; neither anon nor authenticated can execute; the cron job exists.",
       "reviewed": false
     },
@@ -5739,6 +5739,28 @@
       "calls": [],
       "justification": "",
       "verifiedBy": "",
+      "reviewed": false
+    },
+    "_upload_counted_sibling(_upload_id uuid)": {
+      "name": "_upload_counted_sibling",
+      "readerSet": "self",
+      "callability": "internal",
+      "returns": "uuid",
+      "grants": [],
+      "calls": [],
+      "justification": "Called only by the custom-practice-upload edge function under the service role (EXECUTE revoked from PUBLIC, anon and authenticated; granted to service_role, 20261131000000), after that function has already checked the upload belongs to the caller. Given one upload id it returns the id of ANOTHER upload of the SAME owner (s.owner_id = u.owner_id) in the same submission whose Custom Practice use was counted and kept (status ready, a student_upload_plan_uses mark) within ten minutes, or NULL. It returns an id only, never content, and never crosses an owner, so a school predicate would be wider than the owner one it already applies (G9).",
+      "verifiedBy": "20261131000000 proof: a second file of a counted submission rides on the first; NOT when the first did not end ready, NOT a file of another submission or with none, NOT a file eleven minutes later; no client role can call it.",
+      "reviewed": false
+    },
+    "_upload_record_plan_use(_upload_id uuid, _period_key text)": {
+      "name": "_upload_record_plan_use",
+      "readerSet": "none",
+      "callability": "internal",
+      "returns": "void",
+      "grants": [],
+      "calls": [],
+      "justification": "Called only by the custom-practice-upload edge function under the service role (EXECUTE revoked from PUBLIC, anon and authenticated; granted to service_role, 20261131000000) when an upload that consumed a plan use ends ready. It copies that upload's own owner_id and submission_id into student_upload_plan_uses with the plan period key, ON CONFLICT DO NOTHING, and returns nothing. The table has RLS on and no client grant at all, because a mark a student could write would be a way to upload free.",
+      "verifiedBy": "20261131000000 proof: once the first file is recorded, the second rides on it; before it is, nothing rides; no client role can call it or read or write the table.",
       "reviewed": false
     }
   },

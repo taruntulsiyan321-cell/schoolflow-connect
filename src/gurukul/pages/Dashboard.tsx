@@ -10,24 +10,50 @@ import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
-import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
+import { useStudentPracticeTime, type StudentPracticeTime } from "@/hooks/useStudentPracticeTime";
+import { consistencyWeeks } from "@/components/student/analytics/wisdom/analyticsDerived";
 
-function mapWeeklyActivity(dates: { date: string; total: number }[]) {
-  return dates.map((row) => ({
-    day: new Date(row.date).toLocaleDateString(undefined, { weekday: "short" }),
-    total: row.total,
-  }));
-}
+/*
+ * Every practice figure on Home — today's sessions, the week's ring and the
+ * week's chart — is read from rpc_student_practice_time: practice only, on
+ * the student's own calendar, the source Analysis and the Practice hub read.
+ * They read academic_daily_activity before (the snapshot's activity_heatmap
+ * and charts.weekly_activity), whose day is CURRENT_DATE on a UTC database:
+ * a session finished between midnight and 05:30 in India counted for the day
+ * before. The ring counted DAYS with any test, battle or minute as sessions,
+ * and the chart drew up to 29 rows each labelled by weekday ("Mon" four
+ * times) with a tooltip naming "Questions" for a sum of tests, homework,
+ * battles and sessions.
+ */
 
-function localDateKey(d = new Date()) {
+function dayKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Today's self-practice count from heatmap - not lifetime sessions_completed. */
-function practiceSessionsToday(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"]) {
-  const key = localDateKey();
-  const row = (snapshot?.activity_heatmap ?? []).find((r) => String(r.date).slice(0, 10) === key);
-  return row?.self_practice ?? 0;
+/** The last seven days ending today, oldest first, rest days as zeros. */
+function lastSevenDays(time: Pick<StudentPracticeTime, "days" | "today"> | null) {
+  if (!time) return [];
+  const answered = new Map(time.days.map((d) => [d.date, d.answered]));
+  const [y, m, d] = time.today.split("-").map(Number);
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(y, m - 1, d - (6 - i));
+    return {
+      day: day.toLocaleDateString(undefined, { weekday: "short" }),
+      total: answered.get(dayKey(day)) ?? 0,
+    };
+  });
+}
+
+/** Practice sessions finished today; null until the days are known. */
+function sessionsToday(time: Pick<StudentPracticeTime, "days" | "today"> | null): number | null {
+  if (!time) return null;
+  return time.days.find((d) => d.date === time.today)?.sessions ?? 0;
+}
+
+/** Practice sessions finished this Monday-to-Sunday week — the week of Analysis's grid. */
+function sessionsThisWeek(time: Pick<StudentPracticeTime, "days"> | null): number | null {
+  if (!time) return null;
+  return consistencyWeeks(time.days, 1)[0].days.reduce((n, c) => n + c.total, 0);
 }
 
 function MissionCard({ label, color, icon, onClick, children }: {
@@ -57,6 +83,8 @@ function timeOfDayGreeting() {
 
 function buildMission(
   snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"],
+  /** Practice sessions finished today; null when that could not be read. */
+  practiceToday: number | null,
   /** Individual exam accounts have no homework surface — never route them there. */
   opts: { includeHomework: boolean },
 ) {
@@ -66,7 +94,7 @@ function buildMission(
   if (!snapshot) {
     return {
       available: false as const,
-      practiceDone: 0,
+      practiceDone: null,
       practiceTarget: PRACTICE_TARGET,
       nextAction: {
         label: "Start a practice session",
@@ -75,19 +103,14 @@ function buildMission(
       },
       recoveryPending: 0,
       revisionPending: 0,
-      practiceSessions: 0,
-      practiceToday: 0,
-      mistakesLogged: 0,
     };
   }
 
-  const practiceLifetime = snapshot.self_practice?.sessions_completed ?? 0;
-  const practiceToday = practiceSessionsToday(snapshot);
   const recoveryPending = snapshot.recovery_pending ?? 0;
   const revisionPending = snapshot.revision_due ?? 0;
   const homeworkPending = opts.includeHomework ? (snapshot.homework?.pending ?? 0) : 0;
 
-  const practiceDone = Math.min(practiceToday, PRACTICE_TARGET);
+  const practiceDone = practiceToday == null ? null : Math.min(practiceToday, PRACTICE_TARGET);
 
   let nextAction: { label: string; reason: string; page: PageKey };
   if (recoveryPending > 0) {
@@ -110,8 +133,8 @@ function buildMission(
     };
   } else {
     nextAction = {
-      label: practiceToday > 0 ? "Keep practicing" : "Start a practice session",
-      reason: practiceToday > 0 ? "Daily practice done - another session builds the habit" : "Build your daily practice habit",
+      label: practiceToday ? "Keep practicing" : "Start a practice session",
+      reason: practiceToday ? "Daily practice done - another session builds the habit" : "Build your daily practice habit",
       page: "practice",
     };
   }
@@ -123,21 +146,18 @@ function buildMission(
     nextAction,
     recoveryPending,
     revisionPending,
-    practiceSessions: practiceLifetime,
-    practiceToday,
-    mistakesLogged: snapshot.mistake_count ?? 0,
   };
 }
 
 const PRACTICE_TARGET = 1;
 
-function WeeklyRing({ sessions, ready }: { sessions: number; ready: boolean }) {
+function WeeklyRing({ sessions }: { sessions: number | null }) {
   const goal = 7;
-  // Not ready → neutral placeholder. A literal 0 here used to look like a real
-  // empty week while progression was still loading beside "—" level/streak.
-  if (!ready) {
+  // Not known → neutral placeholder. A literal 0 here used to look like a real
+  // empty week while the figures were still loading or had failed to.
+  if (sessions == null) {
     return (
-      <ProgressRing value={0} size={120} color="hsl(var(--muted-foreground))" label="Loading sessions this week">
+      <ProgressRing value={0} size={120} color="hsl(var(--muted-foreground))" label="Practice sessions this week not loaded">
         <span className="text-2xl font-black tabular-nums text-muted-foreground">—</span>
         <span className="text-[10px] text-muted-foreground mt-0.5">/ {goal}</span>
       </ProgressRing>
@@ -174,11 +194,16 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   // School chrome only when kind is known organisation — null must not look like school.
   const isIndividual = schoolKind !== "school";
   const { data: snapshot, loading: snapLoading, error: snapError, reload: reloadSnap } = useStudentAcademicSnapshot();
-  const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts();
+  const {
+    data: practiceTime,
+    loading: practiceTimeLoading,
+    error: practiceTimeError,
+    reload: reloadPracticeTime,
+  } = useStudentPracticeTime();
 
-  const loading = snapLoading || chartsLoading;
-  const loadError = snapError || chartsError;
-  const hasLiveData = Boolean(snapshot || charts);
+  const loading = snapLoading || practiceTimeLoading;
+  const loadError = snapError || practiceTimeError;
+  const hasLiveData = Boolean(snapshot || practiceTime);
   const initialLoading = loading && !hasLiveData;
   const toastedError = useRef<string | null>(null);
 
@@ -208,14 +233,12 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   }, [loadError]);
 
   const mission = useMemo(
-    () => buildMission(snapshot, { includeHomework: !isIndividual }),
-    [snapshot, isIndividual],
+    () => buildMission(snapshot, sessionsToday(practiceTime), { includeHomework: !isIndividual }),
+    [snapshot, practiceTime, isIndividual],
   );
 
-  const weeklyActivity = useMemo(
-    () => mapWeeklyActivity(charts?.weekly_activity ?? []),
-    [charts?.weekly_activity],
-  );
+  const weeklyActivity = useMemo(() => lastSevenDays(practiceTime), [practiceTime]);
+  const weekSessions = useMemo(() => sessionsThisWeek(practiceTime), [practiceTime]);
 
   const goalLine = student.goal ? ` · Goal: ${student.goal}` : "";
   const levelLabel = shellReady ? `Lv.${student.level}` : "—";
@@ -270,7 +293,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         <p className="text-xs text-muted-foreground">{loadError}</p>
         <button
           type="button"
-          onClick={() => { void reloadSnap(); void reloadCharts(); }}
+          onClick={() => { void reloadSnap(); void reloadPracticeTime(); }}
           className="text-xs font-bold text-primary hover:underline"
         >
           Try again
@@ -341,7 +364,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             </div>
           </div>
           <div className="flex flex-col items-center shrink-0">
-            <WeeklyRing sessions={student.sessionsThisWeek} ready={shellReady} />
+            <WeeklyRing sessions={weekSessions} />
             <span className="text-[11px] text-muted-foreground uppercase tracking-widest mt-2">Sessions / Week</span>
           </div>
         </div>
@@ -379,7 +402,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
               read "1/1" with a full bar whenever nothing was due, which told a
               student who had never practised that they had finished both. */}
           <MissionCard label="Practice" color="hsl(var(--primary))" icon={<BookOpen className="w-4 h-4"/>} onClick={() => setPage("practice")}>
-            {mission.available
+            {mission.available && mission.practiceDone != null
               ? <><Big color="hsl(var(--primary))">{mission.practiceDone}<span className="text-sm text-muted-foreground font-normal">/{mission.practiceTarget}</span></Big>
                   <ProgressBar value={mission.practiceDone} max={mission.practiceTarget} color="hsl(var(--primary))"/></>
               : <Big><span className="text-muted-foreground">—</span></Big>}
@@ -423,7 +446,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
       {/* Weekly Activity */}
       <GlassCard className="p-5">
         <SectionLabel>Weekly Activity</SectionLabel>
-        {weeklyActivity.length > 0 ? (
+        {weeklyActivity.some((d) => d.total > 0) ? (
           <div className="h-36 animate-premium-enter">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={weeklyActivity}>
@@ -433,9 +456,11 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                     <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="day" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} />
+                {/* Every one of the seven days is named: recharts drops a tick that would
+                    overflow the edge, and the first day lost its label. */}
+                <XAxis dataKey="day" interval={0} padding={{ left: 14, right: 14 }} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.07)" }} labelStyle={{ color: "hsl(var(--muted-foreground))" }} />
-                <Area type="monotone" dataKey="total" name="Questions" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#dash-actGrad)"
+                <Area type="monotone" dataKey="total" name="Questions answered" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#dash-actGrad)"
                   isAnimationActive={true} animationDuration={800} dot={{ r: 3, fill: "hsl(var(--primary))", strokeWidth: 0 }} activeDot={{ r: 5, fill: "hsl(var(--primary))" }} />
               </AreaChart>
             </ResponsiveContainer>

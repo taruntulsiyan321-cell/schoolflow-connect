@@ -52,7 +52,6 @@ export type AcademicSnapshot = {
   recovery_pending?: number;
   weak_concepts?: { subject: string; concept: string; mastery_score: number }[];
   self_practice?: { sessions_completed: number };
-  activity_heatmap?: { date: string; test: number; homework: number; battles: number; self_practice?: number; minutes: number }[];
   exam_readiness?: {
     score: number;
     label: string;

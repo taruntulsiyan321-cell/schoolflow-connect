@@ -8,7 +8,8 @@
 -- THE CLAIMS
 --   1. an admin still reads their school's feed.          (positive control)
 --   2. a teacher still reads it.                          (positive control)
---   3. a student still reads it (the family policy).      (positive control)
+--   3. a student reads NONE of it: the feed is the staff view since
+--      20261134000000 (KNOWN_ISSUES 61). Claims 1 and 2 are its controls.
 --   4. nobody reads another school's row.
 --   5. a super admin with NO grant reads nothing -- and RETURNS, rather than
 --      timing out on the exact query shape that produced 57014.   <- THE FIX
@@ -80,8 +81,8 @@ BEGIN
 
   r := pg_temp.as_user(stu, q_top);
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-    ('read the school feed via the family policy (positive control)','student (school A)',
-     'OK: 6', r, CASE WHEN r = 'OK: 6' THEN 'PASS' ELSE 'FAIL' END);
+    ('read the school feed: staff only since 20261134000000','student (school A)',
+     'OK: 0', r, CASE WHEN r = 'OK: 0' THEN 'PASS' ELSE 'FAIL' END);
 
   -- ── 4. the other school's row stays invisible ──────────────────────────
   r := pg_temp.as_user(adm, format(

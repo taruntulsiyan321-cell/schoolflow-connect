@@ -7,17 +7,17 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
-import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 
 type Props = { setPage: (p: PageKey) => void };
 
 export default function LearningHub({ setPage }: Props) {
   const student = useGurukulStudent();
   const { data: snapshot, loading: snapLoading, error: snapError, reload: reloadSnap } = useStudentAcademicSnapshot();
-  const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts();
-
-  const loading = snapLoading || chartsLoading;
-  const loadError = snapError || chartsError;
+  // The snapshot is the page's one read. It also fetched the performance
+  // charts and rendered nothing from them: their only effect was to hold the
+  // skeleton and raise errors for figures that are not on the page.
+  const loading = snapLoading;
+  const loadError = snapError;
 
   const pendingRecovery = snapshot?.recovery_pending ?? 0;
   const dueRevision = snapshot?.revision_due ?? 0;
@@ -84,7 +84,7 @@ export default function LearningHub({ setPage }: Props) {
   // already contains the four things. Removed 2026-09-11 with the loop strip.
   const header = <PageHeader title="Learning" />;
 
-  if (loading && !snapshot && !charts) {
+  if (loading && !snapshot) {
     return (
       <div className="space-y-8">
         {header}
@@ -104,14 +104,14 @@ export default function LearningHub({ setPage }: Props) {
     );
   }
 
-  if (loadError && !snapshot && !charts) {
+  if (loadError && !snapshot) {
     return (
       <div className="space-y-8">
         {header}
         <div className="rounded-2xl border border-destructive/25 bg-destructive/08 p-6 text-center space-y-3">
           <p className="text-sm font-semibold text-foreground">Could not load learning data</p>
           <p className="text-xs text-muted-foreground">{loadError}</p>
-          <button type="button" onClick={() => { void reloadSnap(); void reloadCharts(); }} className="text-xs font-bold text-primary hover:underline">Try again</button>
+          <button type="button" onClick={() => { void reloadSnap(); }} className="text-xs font-bold text-primary hover:underline">Try again</button>
         </div>
       </div>
     );

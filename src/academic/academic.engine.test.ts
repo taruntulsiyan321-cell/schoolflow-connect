@@ -65,6 +65,20 @@ describe("academic engine — events", () => {
     expect(syncTargetsFor("some.uncatalogued_event")).toContain("activity_feed");
   });
 
+  it("reaches the feed exactly as the router does: all but practice and the two refresh signals", () => {
+    // Twelve types listed no feed while process_academic_event copied them to
+    // it (KNOWN_ISSUES 61); the map now applies the router's one rule.
+    for (const t of ["test.attempt.completed", "marks.updated", "doubt.created", "leave.reviewed", "attendance.updated", "role.changed"]) {
+      expect(syncTargetsFor(t), t).toContain("activity_feed");
+    }
+    for (const t of ["student.profile.refresh_requested", "homework.class.refresh_chunk"]) {
+      expect(syncTargetsFor(t), t).not.toContain("activity_feed");
+    }
+    // CONTROL: the rule adds the feed to a type's own targets; it replaces none.
+    expect(syncTargetsFor("student.profile.refresh_requested")).toEqual(["student_academic_profile"]);
+    expect(syncTargetsFor("leave.reviewed")).toEqual(["notifications", "audit", "activity_feed"]);
+  });
+
   it("lists a stable event catalog", () => {
     expect(ACADEMIC_EVENT_TYPES.length).toBeGreaterThan(10);
     expect(ACADEMIC_EVENT_TYPES).toContain("attendance.marked");

@@ -98,6 +98,15 @@ export const CLASS_FLAGGED_ON_MARKS = 25;
 export const SUBJECT_AVERAGE_LOW = 40;
 
 /**
+ * Percent. A Mistake Book retry scoring at or above this is "great progress";
+ * below it, the result screen offers Recovery. It decides a message and an
+ * offer only — the retry clears nothing, because only the student clears
+ * their mistake book (owner's ruling 2026-09-28). It was `practiceScore >= 70`
+ * inline in MistakeBook.tsx.
+ */
+export const MISTAKE_RETRY_GOOD = 70;
+
+/**
  * Every threshold, for the gate that proves no component declares its own.
  * A component importing this object is importing, not redeclaring.
  */
@@ -110,6 +119,7 @@ export const THRESHOLDS = {
   MARKS_OVERDUE,
   CLASS_FLAGGED_ON_MARKS,
   SUBJECT_AVERAGE_LOW,
+  MISTAKE_RETRY_GOOD,
 } as const;
 
 

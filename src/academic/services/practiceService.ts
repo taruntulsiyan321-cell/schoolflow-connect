@@ -13,7 +13,6 @@ import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
 import type { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
 import {
-  contentStreamForClass,
   filterSubjectsForStream,
   inferStreamFromText,
   isSubjectAllowedForScope,
@@ -172,8 +171,8 @@ function studentBankQuery(
     // only the caller's school's board (and 'both' / untagged rows).
     query = query.is("exam_id", null);
     if (classLevel != null && Number.isFinite(classLevel)) query = query.eq("class_level", classLevel);
-    // A stream narrows content only from Class 11 (contentStreamForClass).
-    const stream = contentStreamForClass(scope.stream, classLevel);
+    // A stream narrows content only from Class 11 (streamForClass).
+    const stream = streamForClass(scope.stream, classLevel);
     if (stream) query = query.or(`stream.eq.${stream},stream.is.null`);
   }
   if (opts.subject && opts.subject !== "Mixed") query = query.ilike("subject", opts.subject);
@@ -1115,7 +1114,7 @@ export const PracticeService = {
       // Below Class 11 the catalog is asked without a stream, so its own
       // stream filter cannot narrow a secondary student's bank.
       ...((): { _stream?: string } => {
-        const stream = contentStreamForClass(scope.stream, classLevel);
+        const stream = streamForClass(scope.stream, classLevel);
         return stream ? { _stream: stream } : {};
       })(),
       ...(opts.subject ? { _subject: opts.subject } : {}),
@@ -1221,7 +1220,7 @@ export const PracticeService = {
         .not("topic_id", "is", null)
         .order("id")
         .range(from, from + PAGE - 1);
-      const topicStream = contentStreamForClass(scope.stream, classLevel);
+      const topicStream = streamForClass(scope.stream, classLevel);
       if (scope.examId) {
         query = query.eq("exam_id", scope.examId);
       } else {

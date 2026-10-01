@@ -3120,7 +3120,33 @@ and `verify:caller-privileges` (probe45) passes.
 
 ---
 
-## 61. Every student and parent reads the whole school's activity feed — OPEN, a ruling
+## 61. ~~Every student and parent reads the whole school's activity feed~~ — FIXED in 20261134000000, APPLIED 2026-10-01
+
+**Ruled and fixed 2026-10-01** (the owner: "fix everything"; the most private reading, and the one the
+product already lives by): the feed is the school's STAFF view. No student or parent screen reads it —
+the admin dashboard is its one reader — and every student and parent figure comes from its own table,
+fenced to its own rows. 20261134000000 drops `activity_feed_select_family`; the staff policy is
+unchanged. Its proof signs in as the demo student, parent, teacher and principal (none / none / rows /
+rows) and fails if the policy is kept; round trip exact. `AcademicLiveProvider` subscribes only staff to
+the feed's changes (RLS now delivers a student none, and that subscription only ever reloaded every
+hook on every action in the school); `AcademicLiveProvider.feed.test.tsx` pins it with a staff control.
+Caller-privilege probes 24 and 45 assert it as the caller — student and parent read 0, staff still
+read the school event — and `verify:caller-privileges` passes 465 of 465.
+
+The `events.ts` disagreement was wider than the four types named below: TWELVE catalogued types listed
+no feed while the router copied them to it. The per-type feed entries are gone; `syncTargetsFor`
+applies the router's own rule (everything except the two refresh signals and any practice event), and
+`academic.engine.test.ts` pins its edges.
+
+Two more caller-privilege probes had rotted, found on the same run: probe16 asked a STUDENT through
+`match_question_bank`, which returns a student nothing since 20261049000000 (students read the bank
+through `question_bank_student`), so claims 4 and 7 passed whatever the approval rule said and claim 6
+could not pass — the student claims now ask the view, with a control on each. probe42 picked its first
+student by id and landed on an individual exam account, a school of one, so it never found a classmate;
+it now picks a student who has one.
+
+What follows is the finding as recorded.
+
 
 `activity_feed_select_family` admits any account holding the student or parent
 role to every `school_activity_feed` row of the school: not their own family's
@@ -3138,7 +3164,12 @@ without `activity_feed` but are copied to it. The fix belongs with that ruling.
 
 ---
 
-## 62. lint:tenant-scope fails on seven functions — OPEN, pre-existing
+## 62. ~~lint:tenant-scope fails on seven functions~~ — STALE, the gate PASSES (checked 2026-10-01)
+
+**2026-10-01:** `npm run lint:tenant-scope` passes. All seven are in its allowlist, each with a checkable
+reason, written by the sessions that built them. One reason had gone stale since and is corrected:
+`reset_broken_study_streaks` runs at 00:01 IST (18:31 UTC) since 20261130000000, and both the allowlist
+and `supabase/definer-inventory.json` still said 00:01 UTC.
 
 On clean HEAD (c6ecbe4) as well as with 2026-09-19's changes:
 `_backfill_question_bank_concepts`, `_backfill_battle_question_concepts`,
@@ -3198,7 +3229,29 @@ answer still names its weak concept.
 
 ---
 
-## 64. verify:chunk-files — six files fail for reasons outside practice — OPEN, 3 of 40 left
+## 64. ~~verify:chunk-files — six files fail for reasons outside practice~~ — FIXED 2026-10-01, 40 of 40 run clean
+
+**2026-10-01: 40 of 40 run clean.** The last two:
+
+* `MATCH_QUESTION_BANK_FENCE_VERIFY` named the dropped `question_bank.topic` (the fixture now copies the
+  control's `topic_id`). Its item 2 also still expected a signed-in STUDENT to receive the own-board row,
+  which by design no student can since 20261049000000: students read the bank only through
+  `question_bank_student`. Item 2 is now a TEACHER — RLS admits staff to every board, so the function body
+  is the only fence, as it is for service_role — and a new item 2b asserts a student reads nothing.
+* `CHUNK2_5_VERIFY` is rewritten. Besides naming the removed `homework.section_subject_id`, it could never
+  have failed: it printed "(BAD)" into a report the runner counts as a pass, and its foreign-teacher check
+  used a random uuid, so a MISSING teacher, not the tenant key, was what refused it. Every check now names
+  its failure with (FAIL) and has a control.
+
+**Its homework item found a live regression.** The composite tenant key left with section_subject_id, and
+a homework row naming one school's class under another school's id was ACCEPTED — reachable, because the
+"homework admin all" policy checks `school_id` and never `class_id`. **Fixed by 20261133000000, applied
+2026-10-01:** `(class_id, school_id)` must be a real class of that school. It replaces the simple class key
+rather than sitting beside it, so the app's `classes(name, section)` embed stays one relationship — probed
+over REST before and after, with a control that an unknown relationship is still refused. Its proof then
+found that a class with homework could not be deleted at all (the homework's delete event named the
+already-deleted class and the event's foreign key refused the whole delete); the event now names the class
+only while it exists. Round trip exact; 4 of 4 mutants fail by name.
 
 **2026-09-30: 38 of 40 run clean** (it was 30 clean / 5 failed / 5 rotted that morning). What changed, and
 what is left:
@@ -3259,7 +3312,14 @@ reason:
 
 ---
 
-## 65. The Battleground warms its featured battles on every reload — OPEN, not practice
+## 65. ~~The Battleground warms its featured battles on every reload~~ — FIXED 2026-09-23 (b3d093e8), measured 2026-10-01
+
+**Measured 2026-10-01.** b3d093e8 (on main since 23 Sep) seeds featured battles only when the class has
+no card for the current period, behind a cooldown, and the service no longer announces the seed as a
+write (which is what made the page call it again). pg_stat_statements, not reset since 24 Aug: 13,183
+calls on 22–23 Sep, 13,501 on 1 Oct — 318 calls in eight days, against 274 a minute from one open page
+before. Guarded by `featuredSeedCooldown.test.ts` and `battleFeaturedNoLoop.test.ts`. Exam accounts
+never reach the Battleground; it is school-only in the nav.
 
 While driving Practice on 2026-09-22, read-only practice calls intermittently
 hit the database's 8-second statement timeout (the subject list, the finish,
@@ -3279,7 +3339,14 @@ warm itself should run on a schedule, not on every client reload.
 
 ---
 
-## 66. Two latent practice-scope risks — OPEN, no live effect measured
+## 66. ~~Two latent practice-scope risks~~ — FIXED, and the fix's second home removed 2026-10-01
+
+**2026-10-01:** both were already closed in code — the pool's chapter filter is `academicLabelEquals`
+(equal chapters, never one inside the other), and the practice scope's stream goes through
+`streamForClass`, so a Class 9/10 student carries none. What remained was the fix's own second home: the
+pool applied `contentStreamForClass`, a copy of `streamForClass` with the literal 11 where the original
+reads `FIRST_STREAM_CLASS`. It is deleted; the pool reads `streamForClass`, whose cases are in
+`src/lib/streamForClass.test.ts`, and `practiceStreamScope.test.ts` still proves the pool applies it.
 
 **CUET, measured 2026-09-25:** neither reaches an exam account. Of the 29
 chapters in the CUET practice catalog, none contains another's name and none
@@ -3362,7 +3429,12 @@ anti-gaming design exists to catch. Grading is already server-side
 the browser is the runner's instant feedback. Moving that feedback onto the
 attempt RPC's response would let the column's read grant go.
 
-## 69. db:check-migrations cannot see a live migration that is not in this tree — OPEN
+## 69. ~~db:check-migrations cannot see a live migration that is not in this tree~~ — FIXED, both directions are reported
+
+**2026-10-01:** it can now. `db:check-migrations` prints how many ledger rows have no file in the tree and
+hands them to `npm run preflight`, whose `check-foreign-migrations.mjs` lists each one (APPLIED WITH NO
+FILE, APPLIED BUT NOT COMMITTED, SUPERSEDED) and fails on any it cannot account for. Checked live the same
+day: it named this session's two applied-but-uncommitted migrations until they were committed.
 
 It compares the tree against the ledger in one direction only. On
 `claude/question-topics-per-chapter` it reported "0 pending" while three
@@ -4009,7 +4081,15 @@ says so ("chat, Explain my mistake, and the Revision chat"). But it is the one p
 feature draws on a counted one, and the student is not told. Either is defensible; it needs saying out
 loud, and if it stands, the Revision screen should show what it will cost before the first turn.
 
-## 88. `definer-inventory.json` was 77 doors behind the database — the gate now PASSES; 289 judgements are still owed
+## 88. `definer-inventory.json` was 77 doors behind the database — the gate PASSES; 283 judgements are still owed
+
+**2026-10-01:** the three `possible widening` flags are resolved by reading the bodies, not by silencing
+the gate. `_revoke_membership` has no client EXECUTE (authenticated and anon both false), so it is not
+"separately callable over PostgREST"; its only callers — every public function body naming it — are those
+three admin functions, and each checks the admin role and `same_school` and then passes that school. Its
+`readerSet` is `staff` with that evidence, left `reviewed: false` for a person to confirm. The two
+definers 20261131000000 added (`_upload_counted_sibling`, `_upload_record_plan_use`) are inventoried.
+Gate: PASS, 373 live and 373 inventoried, no widening call, 283 judgements owed.
 
 **2026-09-30: `lint-definer-doors` PASSES** — every definer and edge function inventoried, no undeclared
 grant, no widening call (exit 0). The mechanical half described below was done by the 2026-09-29 session
@@ -4184,7 +4264,23 @@ served), and a legacy row linking to nothing (still askable).
 What is NOT changed: the mistake still counts towards the open total and the recovery trigger. It should —
 the student really did get it wrong, and completing recovery for the chapter is what clears it. Only the
 promise that it could be re-answered is gone.
-## 92. The Class 12 Maths practice hub still reads study time from the old minutes column — OPEN
+## 92. ~~The Class 12 Maths practice hub still reads study time from the old minutes column~~ — FIXED 2026-10-01 (app), and Home with it
+
+**Fixed 2026-10-01.** The hub reads `useStudentPracticeTime`. "Questions today" is the practice
+questions answered today on the student's own calendar (it added tests, homework and sessions on a UTC
+date). "Time today" replaces a "Daily goal" tile that could only ever show "—", and the progress bar under
+it, which was always 0, is gone. "Practice time (4 weeks)" is Analysis's own `deriveStudyTime` over
+Analysis's four-week grid, so the two screens cannot disagree.
+
+**Home had the same defect and is fixed with it.** Its "Sessions / Week" ring counted DAYS with any test,
+battle or minute; it now counts this week's practice sessions, Monday to Sunday — the week of Analysis's
+grid. Today's mission read the UTC heatmap row. The Weekly Activity chart drew up to 29 rows each labelled
+by weekday ("Mon" four times), with a tooltip naming "Questions" for a sum of tests, homework, battles
+and sessions; it is now the last seven days of questions answered, rest days as zeros. The shell no
+longer fetches `rpc_student_performance_charts` for that ring, LearningHub no longer fetches it to render
+nothing, and `useStudentPerformanceCharts` is deleted. `Dashboard.practiceTime.test.tsx` (6) and
+`PracticeHubPage.practiceTime.test.tsx` (3) each fail on every mutant written against them (3 of 3 and
+3 of 3). The server side is 108.
 
 **Found:** 2026-09-27, while moving Analysis and the session report onto
 `rpc_student_practice_time` (20261115000000).
@@ -4206,7 +4302,14 @@ it returns carry `ms` per local day) and format with `formatSessionDuration`,
 as Analysis does. Not changed here: the request was Analysis and the session
 report only.
 
-## 93. Three recorded fields say less than their names — found auditing Analysis, OPEN
+## 93. Three recorded fields say less than their names — DOCUMENTED 2026-10-01 (20261132000000); removal is 108
+
+**2026-10-01:** their descriptions in the schema were themselves wrong: `attempt_number` was described as
+"Nth attempt on same stem within session" and `solution_viewed` as "learner viewed solution".
+20261132000000 (applied) replaces both with what they hold; its proof fails if either old description
+survives. No function, view or screen reads either column — the app only writes them. `practice_trend`,
+and now all of `rpc_student_performance_charts`, has no reader in this branch (its live body is readable
+again; Home was its last caller). All three go once the deployed app stops using them: 108.
 
 **Found:** 2026-09-28, while checking every figure on Analysis. Analysis no
 longer reads any of them (20261115000000 and the change with it); what is left
@@ -4456,7 +4559,23 @@ only the upload arm — are both refused by that proof.
 The upload function change needs **deploying** (`custom-practice-upload`);
 Deno is not installed here, so its entry file was not type-checked — the gate
 module it now imports is covered by the app's tests.
-## 103. Two metric gates are red on findings that predate this work — OPEN, needs a ruling on rounding
+## 103. ~~Two metric gates are red on findings that predate this work~~ — FIXED 2026-10-01, both gates PASS
+
+**Fixed 2026-10-01, the rulings taken as defaults** (the owner: "fix everything"):
+
+* Chapter accuracy on "Chapters to fix" takes the metric layer's one decimal: `sessionAccuracy`, the
+  rule and rounding a session's accuracy already has. `chapter_tally.attempted` is ANSWERED questions
+  (`_write_chapter_tally`), so it is exactly that rule; the trend points use it too.
+* The principal portal's nine attendance sites and its two mark percentages read the layer's `pct()`,
+  which is null — not 0% — when nobody was marked. Its "below 75%" is now `ATTENDANCE_LOW` (80): the
+  design held a second threshold with a different number. The fixture's below-threshold counts come
+  from `belowAttendanceThreshold`.
+* Mistake Book's `>= 70` is `MISTAKE_RETRY_GOOD` in thresholds.ts — a message threshold, since the retry
+  clears nothing.
+* The two page sizes were not thresholds. The gate now knows a name ending `_PAGE` or `_PAGE_SIZE` is a
+  read size; four new self-test cases pin both directions, 25 of 25 behave.
+
+`lint:metric-duplication`: no new duplication. `lint:threshold-literals`: no threshold literal.
 
 **Measured 2026-09-29** while merging the Analysis/Recovery branch. Both gates
 were already failing at the merge base `35501fbb` — every line they flag exists
@@ -4713,3 +4832,21 @@ Not done without a ruling because which spelling survives is a naming choice, an
 look-alikes that are content judgements, not spellings — "Calls" / "Calls on shares", "Cash Flow" / "Cash Flow
 Statement", "Forfeiture and reissue of shares" / "Forfeiture of Shares", "Oversubscription / Pro-rata" /
 "Oversubscription and pro-rata allotment", "Tools of analysis" / "Tools of financial analysis".
+
+## 108. After the merge: three things only the deployed app still uses — OPEN, waits on the deploy
+
+**Recorded 2026-10-01.** This branch no longer reads or writes any of them. The deployed app (`main`, on
+gurukul.study) still does, so removing them before the merge would break the live site.
+
+* **`rpc_student_performance_charts`** — no caller in this branch: Home, the shell and LearningHub were the
+  last (92, 93). Drop the function, with a rollback that restores its definition, and take its entries
+  out of `scripts/lint-tenant-scope.mjs` and `supabase/definer-inventory.json`.
+* **`rpc_student_academic_snapshot`'s `activity_heatmap` key** — no reader in this branch; it is gone from
+  the client type. Remove the `_heat` select in place.
+* **`question_attempts.attempt_number` and `solution_viewed`** — written, never read (93). Stop the writes
+  (`practiceService.ts`, `practiceSessionPersistence.ts`, `practiceSessionSnapshot.ts`), then drop the
+  columns. Their history is redundant: a question's position is its order within its session, and whether
+  it had an explanation is on the question.
+
+Order: merge and deploy; confirm the live bundle no longer names them; then one migration — dry run,
+apply — and regenerate the types.

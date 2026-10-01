@@ -91,7 +91,6 @@ const HW_FULL: readonly SyncTarget[] = [
   "notifications",
   "analytics",
   "ai_insights",
-  "activity_feed",
   "audit",
 ];
 
@@ -101,17 +100,16 @@ const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]> = {
     "notifications",
     "analytics",
     "ai_insights",
-    "activity_feed",
     "audit",
   ],
   "attendance.updated": ["student_academic_profile", "analytics", "ai_insights", "audit"],
-  "homework.created": ["audit", "activity_feed"],
+  "homework.created": ["audit"],
   "homework.published": HW_FULL,
-  "homework.unpublished": ["student_academic_profile", "analytics", "activity_feed", "audit"],
+  "homework.unpublished": ["student_academic_profile", "analytics", "audit"],
   "homework.updated": ["analytics", "audit"],
-  "homework.archived": ["student_academic_profile", "analytics", "activity_feed", "audit"],
-  "homework.deleted": ["student_academic_profile", "analytics", "activity_feed", "audit"],
-  "homework.scheduled": ["notifications", "activity_feed", "audit"],
+  "homework.archived": ["student_academic_profile", "analytics", "audit"],
+  "homework.deleted": ["student_academic_profile", "analytics", "audit"],
+  "homework.scheduled": ["notifications", "audit"],
   "homework.class.refresh_chunk": ["student_academic_profile"],
   "homework.submitted": ["student_academic_profile", "notifications", "analytics", "audit"],
   "homework.resubmitted": ["student_academic_profile", "notifications", "analytics", "audit"],
@@ -120,12 +118,11 @@ const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]> = {
     "student_academic_profile",
     "notifications",
     "analytics",
-    "activity_feed",
     "audit",
   ],
   "student.profile.refresh_requested": ["student_academic_profile"],
-  "test.scheduled": ["notifications", "activity_feed"],
-  "test.published": ["notifications", "activity_feed"],
+  "test.scheduled": ["notifications"],
+  "test.published": ["notifications"],
   "test.attempt.completed": [
     "student_academic_profile",
     "notifications",
@@ -137,7 +134,6 @@ const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]> = {
     "notifications",
     "analytics",
     "ai_insights",
-    "activity_feed",
     "audit",
   ],
   "marks.updated": ["student_academic_profile", "analytics", "ai_insights", "audit"],
@@ -146,13 +142,12 @@ const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]> = {
     "notifications",
     "analytics",
     "ai_insights",
-    "activity_feed",
     "audit",
   ],
-  "examination.scheduled": ["notifications", "activity_feed"],
+  "examination.scheduled": ["notifications"],
   "examination.updated": ["analytics"],
-  "examination.finalized": ["analytics", "activity_feed", "audit"],
-  "examination.deleted": ["analytics", "activity_feed", "audit", "student_academic_profile"],
+  "examination.finalized": ["analytics", "audit"],
+  "examination.deleted": ["analytics", "audit", "student_academic_profile"],
   // §10.8: no practice fact reaches the activity feed, which the whole school
   // reads. process_academic_event holds the same line for every practice.*
   // type (20261042000000).
@@ -160,20 +155,19 @@ const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]> = {
   // Rollout telemetry, read only by rpc_decision_engine_rollout_summary_v1.
   "practice.weak_areas.path_used": ["analytics"],
   "practice.weak_areas.v2_failed": ["analytics"],
-  "battle.created": ["activity_feed", "notifications", "audit"],
-  "battle.joined": ["activity_feed", "audit"],
+  "battle.created": ["notifications", "audit"],
+  "battle.joined": ["audit"],
   "battle.finished": [
     "student_academic_profile",
     "notifications",
     "analytics",
-    "activity_feed",
     "audit",
   ],
-  "badge.earned": ["notifications", "activity_feed", "audit"],
-  "achievement.earned": ["notifications", "activity_feed", "audit", "ai_insights"],
-  "league.promoted": ["notifications", "activity_feed", "audit"],
-  "league.demoted": ["notifications", "activity_feed", "audit"],
-  "xp.updated": ["activity_feed", "analytics", "ai_insights", "student_academic_profile"],
+  "badge.earned": ["notifications", "audit"],
+  "achievement.earned": ["notifications", "audit", "ai_insights"],
+  "league.promoted": ["notifications", "audit"],
+  "league.demoted": ["notifications", "audit"],
+  "xp.updated": ["analytics", "ai_insights", "student_academic_profile"],
   "doubt.created": ["notifications", "analytics", "ai_insights"],
   "doubt.replied": ["notifications", "student_academic_profile", "ai_insights"],
   "doubt.solved": [
@@ -181,19 +175,17 @@ const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]> = {
     "student_academic_profile",
     "analytics",
     "ai_insights",
-    "activity_feed",
     "audit",
   ],
-  "announcement.published": ["notifications", "activity_feed", "audit"],
-  "leave.requested": ["notifications", "activity_feed"],
+  "announcement.published": ["notifications", "audit"],
+  "leave.requested": ["notifications"],
   "leave.reviewed": ["notifications", "audit"],
   "remark.created": [
     "student_academic_profile",
     "notifications",
     "ai_insights",
-    "activity_feed",
   ],
-  "question.bank.saved": ["activity_feed", "audit"],
+  "question.bank.saved": ["audit"],
   "student.profile.refreshed": ["analytics", "ai_insights"],
   "role.changed": ["audit", "notifications"],
 };
@@ -202,9 +194,19 @@ function isAcademicEventType(value: string): value is AcademicEventType {
   return (ACADEMIC_EVENT_TYPES as readonly string[]).includes(value);
 }
 
+/**
+ * Whether the router copies an event to school_activity_feed — the rule as
+ * process_academic_event states it: every event except the two refresh
+ * signals and, by §10.8, any practice event. ONE rule rather than a feed
+ * entry per type: the per-type entries had drifted from the router on twelve
+ * types (KNOWN_ISSUES 61). Since 20261134000000 only staff read the feed.
+ */
+function reachesActivityFeed(eventType: string): boolean {
+  if (eventType.startsWith("practice.")) return false;
+  return eventType !== "student.profile.refresh_requested" && eventType !== "homework.class.refresh_chunk";
+}
+
 export function syncTargetsFor(eventType: string): readonly SyncTarget[] {
-  // An uncatalogued type reaches the feed, as the SQL fan-out does — except a
-  // practice one, which never does (§10.8).
-  if (!isAcademicEventType(eventType)) return eventType.startsWith("practice.") ? [] : ["activity_feed"];
-  return EVENT_SYNC_TARGETS[eventType];
+  const listed = isAcademicEventType(eventType) ? EVENT_SYNC_TARGETS[eventType] : [];
+  return reachesActivityFeed(eventType) ? [...listed, "activity_feed"] : listed;
 }

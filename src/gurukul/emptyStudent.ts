@@ -71,8 +71,6 @@ export type GurukulStudentProfile = {
    * null when the student has attempted nothing.
    */
   practiceAccuracy: number | null;
-  /** Distinct active days in the last 7. 0 is a real answer: none. */
-  sessionsThisWeek: number;
   goal: string;
 };
 
@@ -91,6 +89,5 @@ export const EMPTY_STUDENT: GurukulStudentProfile = {
   rank: 0,
   totalStudents: 0,
   practiceAccuracy: null,
-  sessionsThisWeek: 0,
   goal: "",
 };

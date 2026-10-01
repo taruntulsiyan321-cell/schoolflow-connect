@@ -95,6 +95,15 @@ const SMALLEST_THRESHOLD = 3;
  */
 const COLLECTION_LEAF = /^(length|size)$/;
 
+/**
+ * A PAGE SIZE is how many rows one read asks for, not a line anything is judged
+ * against. `SCHOOL_HOMEWORK_PAGE = 100` and `HOMEWORK_PAGE = 25` matched only
+ * because the name contains "homework". Narrow: the name must END in _PAGE or
+ * _PAGE_SIZE (or PageSize), so `HOMEWORK_PAGE_THRESHOLD = 60` is still found —
+ * the self-test pins both directions.
+ */
+const PAGE_SIZE_NAME = /(?:_PAGE|_PAGE_SIZE|PageSize)$/;
+
 /** Names that end a threshold hunt: they are the imported constant, not a literal. */
 const THRESHOLD_CONST = /^[A-Z][A-Z0-9_]*$/;
 
@@ -173,6 +182,7 @@ export function findThresholdLiterals(src) {
   for (const m of body.matchAll(DECL)) {
     examined += 1;
     if (!isMetricName(m[1])) continue;
+    if (PAGE_SIZE_NAME.test(m[1])) continue;
     if (Number(m[2]) < SMALLEST_THRESHOLD) continue;
     findings.push({ kind: "declaration", text: `${m[1]} = ${m[2]}`, name: m[1], value: m[2] });
   }
@@ -298,6 +308,26 @@ const FIXTURES = [
     name: "NOT a threshold: array length, even on a metric-named collection",
     src: "if (pendingHomework.length >= 3) { flag() }",
     mustFind: false,
+  },
+  {
+    name: "NOT a threshold: a page size (gurukul-admin/Homework.tsx)",
+    src: "export const SCHOOL_HOMEWORK_PAGE = 100;",
+    mustFind: false,
+  },
+  {
+    name: "NOT a threshold: a page size (gurukul-teacher/LiveHomeworkPanels.tsx)",
+    src: "export const HOMEWORK_PAGE = 25;",
+    mustFind: false,
+  },
+  {
+    name: "STILL a threshold: PAGE inside the name, not at its end",
+    src: "const HOMEWORK_PAGE_THRESHOLD = 60;",
+    mustFind: true,
+  },
+  {
+    name: "STILL a threshold: a page-size name does not excuse a comparison",
+    src: "if (homeworkPct >= 25) { flag() }",
+    mustFind: true,
   },
   {
     name: "STILL a threshold: a real property at the smallest real value",

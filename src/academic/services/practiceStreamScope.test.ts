@@ -10,11 +10,11 @@
  * then be invisible to exactly the students it was written for.
  *
  * The two subject allowlists already drew this line (`classLevel >= 11`);
- * `contentStreamForClass` is the same line for the question pool, and the
- * stub below applies the filter so a pool that ignored it cannot pass.
+ * the pool now reads the same function, `streamForClass` (whose own cases are
+ * in src/lib/streamForClass.test.ts), and the stub below applies the filter so
+ * a pool that ignored it cannot pass.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { contentStreamForClass } from "@/lib/curriculumScope";
 
 type Row = { id: string; subject: string; chapter: string; topic_id: string | null; topics: null; stream: string | null };
 
@@ -93,20 +93,6 @@ beforeEach(() => {
   orFilters = [];
   catalogArgs = null;
   bank = [q("untagged", null), q("science-tagged", "science"), q("commerce-tagged", "commerce")];
-});
-
-describe("contentStreamForClass", () => {
-  it("is nothing below Class 11, and the school's stream from Class 11", () => {
-    for (const level of [5, 8, 9, 10]) expect(contentStreamForClass("commerce", level), `class ${level}`).toBeNull();
-    expect(contentStreamForClass("commerce", 11)).toBe("commerce");
-    expect(contentStreamForClass("commerce", 12)).toBe("commerce");
-  });
-
-  it("keeps the stream when the class is unknown, and has none to apply without one", () => {
-    // Conservative, like the subject allowlists: never widen on a guess.
-    expect(contentStreamForClass("commerce", null)).toBe("commerce");
-    expect(contentStreamForClass(null, 12)).toBeNull();
-  });
 });
 
 describe("the question pool of a commerce-tagged school", () => {

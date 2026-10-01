@@ -20,6 +20,15 @@
 -- 5 and 6 are what would catch a predicate that simply returned nothing, and 6
 -- specifically would catch one that had quietly become per-school.
 --
+-- WHERE A STUDENT IS ASKED (revised 2026-10-01). Since 20261049000000 a student
+-- reads the bank only through the question_bank_student view; RLS on
+-- question_bank admits staff and super admins alone, so match_question_bank
+-- (an invoker function) returns a student nothing at all. Asked there, claims 4
+-- and 7 passed whatever the approval rule said and claim 6 could not pass. The
+-- student claims now ask the view, where a student actually reads; the teacher
+-- claims still ask match_question_bank, where its approval predicate is the
+-- only thing between a teacher and every row.
+--
 -- The test row is inserted WITH an embedding copied from a real row and
 -- `embed_status='embedded'`, because match_question_bank filters on
 -- `embed_status = 'embedded'` and a freshly inserted row is 'pending_embed' —
@@ -64,7 +73,7 @@ DECLARE
 BEGIN
   SELECT id, chapter_id, embedding::text INTO src, chap, vec
     FROM public.question_bank
-   WHERE embed_status='embedded' AND is_active AND board='rbse'
+   WHERE embed_status='embedded' AND is_active AND is_approved AND board='rbse'
      AND class_level=12 AND subject='Accountancy' AND chapter_id IS NOT NULL
      AND embedding IS NOT NULL
    ORDER BY id LIMIT 1;
@@ -107,11 +116,16 @@ BEGIN
     ('another teacher''s UNAPPROVED question','teacher 2 (same school)','OK: 0',r,
      CASE WHEN r = 'OK: 0' THEN 'PASS' ELSE 'FAIL' END);
 
-  -- ── 4. a student does not ─────────────────────────────────────────────
-  r := pg_temp.as_user(stu_a, format(call_sql, sch_a));
+  -- ── 4. a student does not — asked where a student reads ───────────────
+  r := pg_temp.as_user(stu_a, format('SELECT count(*)::text FROM public.question_bank_student WHERE id = %L', mine));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('UNAPPROVED question reaching a student','student (same school)','OK: 0',r,
      CASE WHEN r = 'OK: 0' THEN 'PASS' ELSE 'FAIL' END);
+  -- CONTROL for 4: the same student, the same view, an APPROVED row.
+  r := pg_temp.as_user(stu_a, format('SELECT count(*)::text FROM public.question_bank_student WHERE id = %L', src));
+  INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+    ('...while an APPROVED row reaches that student (positive control)','student (same school)','OK: 1',r,
+     CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
 
   -- ── 5. approved rows still reach the author (positive control) ────────
   -- Without this, a predicate that returned nothing at all would pass 3 and 4.
@@ -146,15 +160,13 @@ BEGIN
     ('school-B student resolves to school B (fixture control)','student (school B)','OK: '||sch_b::text,r,
      CASE WHEN r = 'OK: '||sch_b::text THEN 'PASS' ELSE 'FAIL' END);
 
-  r := pg_temp.as_user(stu_b, format(
-    format('SELECT count(*)::text FROM public.match_question_bank(%L::vector, 12, %%L::uuid, ARRAY[$x$Accountancy$x$], 0.0::float8, 200) m WHERE m.id = %L', vec, src),
-    sch_b));
+  r := pg_temp.as_user(stu_b, format('SELECT count(*)::text FROM public.question_bank_student WHERE id = %L', src));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('10.9 APPROVED row still crosses schools','student (school B, same board)','OK: 1',r,
      CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
 
   -- and the unapproved one still does not cross.
-  r := pg_temp.as_user(stu_b, format(call_sql, sch_b));
+  r := pg_temp.as_user(stu_b, format('SELECT count(*)::text FROM public.question_bank_student WHERE id = %L', mine));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('UNAPPROVED question crossing schools','student (school B)','OK: 0',r,
      CASE WHEN r = 'OK: 0' THEN 'PASS' ELSE 'FAIL' END);

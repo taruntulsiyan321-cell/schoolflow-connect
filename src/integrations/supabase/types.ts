@@ -3957,11 +3957,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "homework_class_id_fkey"
-            columns: ["class_id"]
+            foreignKeyName: "homework_class_in_its_school_fkey"
+            columns: ["class_id", "school_id"]
             isOneToOne: false
             referencedRelation: "classes"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "school_id"]
           },
           {
             foreignKeyName: "homework_school_id_fkey"

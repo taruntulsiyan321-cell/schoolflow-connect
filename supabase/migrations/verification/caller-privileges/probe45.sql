@@ -99,11 +99,19 @@ BEGIN
     INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
       ('reads no practice row in the activity feed', w.label, 'OK: 0', r,
        CASE WHEN r = 'OK: 0' THEN 'PASS' ELSE 'FAIL' END);
+    -- Staff read the school event: the positive control for the zero above.
+    -- A student or parent reads no feed row at all since 20261134000000.
     r := pg_temp.as_user(w.uid, format(
       $q$SELECT count(*)::text FROM public.school_activity_feed WHERE entity_id = %L$q$, control_entity));
-    INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
-      ('...while reading the feed''s school event (positive control)', w.label, 'OK: 1', r,
-       CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
+    IF w.label IN ('student', 'parent') THEN
+      INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+        ('...and reads no school feed at all (20261134000000)', w.label, 'OK: 0', r,
+         CASE WHEN r = 'OK: 0' THEN 'PASS' ELSE 'FAIL' END);
+    ELSE
+      INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
+        ('...while reading the feed''s school event (positive control)', w.label, 'OK: 1', r,
+         CASE WHEN r = 'OK: 1' THEN 'PASS' ELSE 'FAIL' END);
+    END IF;
   END LOOP;
   SELECT count(DISTINCT m.role) INTO n FROM public.memberships m
    WHERE m.school_id = school AND m.status = 'active' AND m.account_id <> s_uid

@@ -80,7 +80,6 @@ export default function StudentDashboard() {
     rank?: number;
     /** PRACTICE accuracy; null when nothing has been attempted. */
     practiceAccuracy?: number | null;
-    sessionsThisWeek?: number;
     totalStudents?: number;
   }>({});
   // One AcademicContext for Home + Practice — never re-resolve identity for XP alone.
@@ -184,24 +183,18 @@ export default function StudentDashboard() {
     // on every student route while Analysis, the Practice hub and the
     // Battleground each want the same snapshot, and it is the heaviest read
     // the student panel makes (KNOWN_ISSUES 74).
-    const [snapRead, { data: charts, error: chartsError }] = await Promise.all([
-      readStudentAcademicSnapshot().then(
-        (data) => ({ data, error: null as { message: string } | null }),
-        (error: { message: string }) => ({ data: null as AcademicSnapshot | null, error }),
-      ),
-      supabase.rpc("rpc_student_performance_charts"),
-    ]);
+    const snapRead = await readStudentAcademicSnapshot().then(
+      (data) => ({ data, error: null as { message: string } | null }),
+      (error: { message: string }) => ({ data: null as AcademicSnapshot | null, error }),
+    );
     const snapError = snapRead.error;
-    if (snapError || chartsError) {
-      console.warn("student dashboard snapshot/charts:", snapError?.message, chartsError?.message);
+    if (snapError) {
+      console.warn("student dashboard snapshot:", snapError.message);
       // Failed reads clear/omit those fields — do not claim a cache we do not keep.
       toast.error("Could not load your latest stats.");
     }
 
-    type ChartRow = { weekly_activity?: { date: string; total: number }[] };
-
     const snapshot = snapRead.data;
-    const chartData = charts as ChartRow | null;
 
     // PRACTICE accuracy, and null rather than 0 when there is nothing to
     // compute it from — ruling 8. `hasPracticeAccuracy` is what separates "no
@@ -210,19 +203,6 @@ export default function StudentDashboard() {
     const practiceAccuracy = hasPracticeAccuracy(snapshot)
       ? practiceAccuracyFromSnapshot(snapshot)
       : null;
-
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    weekAgo.setHours(0, 0, 0, 0);
-
-    const heatmapSessions = (snapshot?.activity_heatmap ?? []).filter((row) => {
-      const d = new Date(row.date);
-      if (d < weekAgo) return false;
-      return row.minutes > 0 || row.test > 0 || row.battles > 0 || (row.self_practice ?? 0) > 0;
-    }).length;
-
-    const weeklySessions = (chartData?.weekly_activity ?? []).slice(-7).filter((row) => row.total > 0).length;
-    const sessionsThisWeek = heatmapSessions > 0 ? heatmapSessions : weeklySessions;
 
     const fullName = s?.full_name?.trim() || user.email?.split("@")[0] || "Student";
     const parts = fullName.split(/\s+/);
@@ -257,7 +237,6 @@ export default function StudentDashboard() {
       streak: prog?.study_streak ?? 0,
       rank: rank ?? 0,
       practiceAccuracy,
-      sessionsThisWeek,
       totalStudents,
     });
     progressionLoadedRef.current = true;

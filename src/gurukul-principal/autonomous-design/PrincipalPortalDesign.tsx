@@ -12,11 +12,35 @@ import {
 // ../PrincipalClasses.tsx).
 import PrincipalTests from "../PrincipalTests"
 import PrincipalClasses from "../PrincipalClasses"
+import { pct as percentOf, valueOr } from "@/academic/metrics/types"
+import { ATTENDANCE_LOW } from "@/academic/metrics/thresholds"
 import {
   appData, fmtRupees, fmtPct, getAbsentsForDate, getClassPresentForDate,
   type ClassId, type StudentId, type TeacherId,
   type LeaveRequest,
 } from "./data"
+
+// ─── Percentages, through the metric layer ───────────────────────────────────
+//
+// Every attendance rate and mark percentage on these screens is the metric
+// layer's pct(), and "low attendance" is its ATTENDANCE_LOW. This file computed
+// them inline — attendance nine times, as 0% for a group nobody had marked —
+// and drew its line at 75% while the product's threshold is 80: a second home
+// with a different number.
+
+/** n of d as a percent, one decimal; null when d is 0 — never 0%. */
+function percent(n: number, d: number): number | null {
+  return valueOr(percentOf(n, d, `${n} of ${d}`), null)
+}
+function fmtRate(rate: number | null, digits = 1): string {
+  return rate == null ? "—" : `${rate.toFixed(digits)}%`
+}
+function isLowAttendance(rate: number | null): boolean {
+  return rate != null && rate < ATTENDANCE_LOW
+}
+function fmtPp(pp: number | null): string {
+  return pp == null ? "—" : `${pp >= 0 ? "+" : ""}${pp.toFixed(1)} pp`
+}
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
 
@@ -235,8 +259,8 @@ function DashboardView({ navigate }: { navigate: (s: Screen) => void }) {
 
   const pending = requests.filter(r => r.status === "pending")
   const feesHealth = fees.totalDue > 0 ? fees.totalCollected / fees.totalDue : 1
-  const attPct = att.totalCount > 0 ? (att.presentCount / att.totalCount) * 100 : 0
-  const attTrend = attPct - att.yesterdayPercent
+  const attPct = percent(att.presentCount, att.totalCount)
+  const attTrend = attPct == null ? null : attPct - att.yesterdayPercent
   const latestAnnouncements = d.announcements.slice(0, 3)
 
   function approve(id: string) {
@@ -250,7 +274,7 @@ function DashboardView({ navigate }: { navigate: (s: Screen) => void }) {
 
   const classRows = d.classOrder.map(cid => {
     const cls = d.classes[cid]
-    return { cls, pct: cls.studentIds.length > 0 ? (cls.todayPresent / cls.studentIds.length) * 100 : 0 }
+    return { cls, pct: percent(cls.todayPresent, cls.studentIds.length) }
   })
 
   return (
@@ -367,12 +391,12 @@ function DashboardView({ navigate }: { navigate: (s: Screen) => void }) {
             </div>
             <div className="px-5 py-3 border-b border-border flex-none">
               <div className="flex items-baseline gap-2">
-                <span className="font-mono text-2xl font-medium">{attPct.toFixed(1)}%</span>
+                <span className="font-mono text-2xl font-medium">{fmtRate(attPct)}</span>
                 <span className="text-xs text-muted-foreground">{att.presentCount} / {att.totalCount} present</span>
               </div>
               <div className="flex gap-3 mt-1">
-                <span className="text-xs text-muted-foreground">{attTrend >= 0 ? "+" : ""}{attTrend.toFixed(1)} pp vs yesterday</span>
-                <span className="text-xs text-muted-foreground">{att.below75Count} below 75% for year</span>
+                <span className="text-xs text-muted-foreground">{fmtPp(attTrend)} vs yesterday</span>
+                <span className="text-xs text-muted-foreground">{att.belowThresholdCount} below {ATTENDANCE_LOW}% for year</span>
               </div>
             </div>
             <div className="flex-1 scroll-y">
@@ -384,7 +408,7 @@ function DashboardView({ navigate }: { navigate: (s: Screen) => void }) {
                 >
                   <span className="flex-1 text-xs text-left">{cls.name}</span>
                   <span className="font-mono text-xs text-muted-foreground">{cls.todayPresent} / {cls.studentIds.length}</span>
-                  <span className="font-mono text-xs w-12 text-right">{pct.toFixed(0)}%</span>
+                  <span className="font-mono text-xs w-12 text-right">{fmtRate(pct, 0)}</span>
                 </button>
               ))}
             </div>
@@ -635,13 +659,13 @@ function AttendanceSchoolView({ navigate, goBack }: { navigate: (s: Screen) => v
     const cls = appData.classes[cid]
     const total = cls.studentIds.length
     const present = isToday ? cls.todayPresent : getClassPresentForDate(cid, date)
-    return { cls, present, total, pct: total > 0 ? (present / total) * 100 : 0 }
+    return { cls, present, total, pct: percent(present, total) }
   })
 
   const totalPresent = classRows.reduce((s, r) => s + r.present, 0)
   const totalStudents = classRows.reduce((s, r) => s + r.total, 0)
-  const attPct = totalStudents > 0 ? (totalPresent / totalStudents) * 100 : 0
-  const trendPp = isToday ? attPct - att.yesterdayPercent : 0
+  const attPct = percent(totalPresent, totalStudents)
+  const trendPp = isToday && attPct != null ? attPct - att.yesterdayPercent : null
 
   return (
     <div className="p-8 scroll-y h-full">
@@ -666,12 +690,12 @@ function AttendanceSchoolView({ navigate, goBack }: { navigate: (s: Screen) => v
         <div className="bg-card border border-border p-4">
           <Label className="block mb-2">Present</Label>
           <div className="font-mono text-2xl">{totalPresent} / {totalStudents}</div>
-          <div className="font-mono text-lg text-muted-foreground">{attPct.toFixed(1)}%</div>
+          <div className="font-mono text-lg text-muted-foreground">{fmtRate(attPct)}</div>
         </div>
         {isToday ? (
           <div className="bg-card border border-border p-4">
             <Label className="block mb-2">vs yesterday</Label>
-            <div className="font-mono text-2xl">{trendPp >= 0 ? "+" : ""}{trendPp.toFixed(1)} pp</div>
+            <div className="font-mono text-2xl">{fmtPp(trendPp)}</div>
             <div className="text-xs text-muted-foreground mt-1">Yesterday: {att.yesterdayPercent}%</div>
           </div>
         ) : (
@@ -682,8 +706,8 @@ function AttendanceSchoolView({ navigate, goBack }: { navigate: (s: Screen) => v
           </div>
         )}
         <div className="bg-card border border-border p-4">
-          <Label className="block mb-2">Below 75% for year</Label>
-          <div className="font-mono text-2xl">{att.below75Count}</div>
+          <Label className="block mb-2">Below {ATTENDANCE_LOW}% for year</Label>
+          <div className="font-mono text-2xl">{att.belowThresholdCount}</div>
           <div className="text-xs text-muted-foreground mt-1">students</div>
         </div>
       </div>
@@ -693,7 +717,7 @@ function AttendanceSchoolView({ navigate, goBack }: { navigate: (s: Screen) => v
           <div className="flex-1 text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Class</div>
           <div className="w-28 text-right text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Present</div>
           <div className="w-24 text-right text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Rate</div>
-          <div className="w-28 text-right text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Below 75% (year)</div>
+          <div className="w-28 text-right text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Below {ATTENDANCE_LOW}% (year)</div>
         </div>
         {classRows.map(row => (
           <button
@@ -703,8 +727,8 @@ function AttendanceSchoolView({ navigate, goBack }: { navigate: (s: Screen) => v
           >
             <div className="flex-1 text-sm font-medium">{row.cls.name}</div>
             <div className="w-28 text-right font-mono text-sm">{row.present} / {row.total}</div>
-            <div className="w-24 text-right font-mono text-sm">{row.pct.toFixed(1)}%</div>
-            <div className="w-28 text-right font-mono text-sm text-muted-foreground">{row.cls.below75Count}</div>
+            <div className="w-24 text-right font-mono text-sm">{fmtRate(row.pct)}</div>
+            <div className="w-28 text-right font-mono text-sm text-muted-foreground">{row.cls.belowThresholdCount}</div>
           </button>
         ))}
       </div>
@@ -743,13 +767,15 @@ function AttendanceClassView({ classId, date: initDate, navigate, goBack }: { cl
    */
   const cumulativeRows = (() => {
     const rows = students
-      .map(s => ({ s, pct: s.totalDays > 0 ? (s.presentDays / s.totalDays) * 100 : 0 }))
-      .sort((a, b) => b.pct - a.pct || a.s.rollNo.localeCompare(b.s.rollNo))
-    let lastPct: number | null = null
+      .map(s => ({ s, pct: percent(s.presentDays, s.totalDays) }))
+      // Never-marked students last: they have no rate to rank on.
+      .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1) || a.s.rollNo.localeCompare(b.s.rollNo))
+    let lastShown: string | null = null
     let lastRank = 0
     return rows.map((row, i) => {
-      const rank = lastPct !== null && row.pct.toFixed(1) === lastPct.toFixed(1) ? lastRank : i + 1
-      lastPct = row.pct
+      const shown = fmtRate(row.pct)
+      const rank = lastShown !== null && shown === lastShown ? lastRank : i + 1
+      lastShown = shown
       lastRank = rank
       return { ...row, rank }
     })
@@ -786,8 +812,8 @@ function AttendanceClassView({ classId, date: initDate, navigate, goBack }: { cl
           <div className="text-xs text-muted-foreground mt-0.5">students</div>
         </div>
         <div className="bg-card border border-border p-3 flex-1">
-          <Label className="block mb-1.5">Below 75% (year)</Label>
-          <div className="font-mono text-xl">{cls.below75Count}</div>
+          <Label className="block mb-1.5">Below {ATTENDANCE_LOW}% (year)</Label>
+          <div className="font-mono text-xl">{cls.belowThresholdCount}</div>
           <div className="text-xs text-muted-foreground mt-0.5">students</div>
         </div>
       </div>
@@ -817,7 +843,7 @@ function AttendanceClassView({ classId, date: initDate, navigate, goBack }: { cl
                     <div className="w-10 font-mono text-xs text-muted-foreground">{s.rollNo.slice(-3)}</div>
                     <div className="flex-1 text-sm">{s.name}</div>
                     <div className="font-mono text-xs text-muted-foreground">
-                      {((s.presentDays / s.totalDays) * 100).toFixed(1)}% YTD
+                      {fmtRate(percent(s.presentDays, s.totalDays))} YTD
                     </div>
                   </button>
                 ))}
@@ -836,7 +862,7 @@ function AttendanceClassView({ classId, date: initDate, navigate, goBack }: { cl
                   <div className="w-10 font-mono text-xs text-muted-foreground">{s.rollNo.slice(-3)}</div>
                   <div className="flex-1 text-sm">{s.name}</div>
                   <div className="font-mono text-xs text-muted-foreground">
-                    {((s.presentDays / s.totalDays) * 100).toFixed(1)}% YTD
+                    {fmtRate(percent(s.presentDays, s.totalDays))} YTD
                   </div>
                 </button>
               ))}
@@ -864,8 +890,8 @@ function AttendanceClassView({ classId, date: initDate, navigate, goBack }: { cl
               <div className="w-10 font-mono text-xs text-muted-foreground">{s.rollNo.slice(-3)}</div>
               <div className="flex-1 text-sm">{s.name}</div>
               <div className="w-24 text-right font-mono text-sm">{s.presentDays} / {s.totalDays}</div>
-              <div className={`w-20 text-right font-mono text-sm ${pct < 75 ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-                {pct.toFixed(1)}%
+              <div className={`w-20 text-right font-mono text-sm ${isLowAttendance(pct) ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                {fmtRate(pct)}
               </div>
             </button>
           ))}
@@ -879,7 +905,7 @@ function AttendanceStudentView({ classId, studentId, goBack }: { classId: ClassI
   const s = appData.students[studentId]
   const cls = appData.classes[classId]
   if (!s || !cls) return <EmptyState title="Student not found." />
-  const pct = s.totalDays > 0 ? (s.presentDays / s.totalDays) * 100 : 0
+  const pct = percent(s.presentDays, s.totalDays)
   const absences = s.totalDays - s.presentDays
 
   return (
@@ -897,8 +923,8 @@ function AttendanceStudentView({ classId, studentId, goBack }: { classId: ClassI
         </div>
         <div className="bg-card border border-border p-4">
           <Label className="block mb-2">Attendance rate</Label>
-          <div className="font-mono text-2xl">{pct.toFixed(1)}%</div>
-          {pct < 75 && <div className="text-xs text-muted-foreground mt-1">Below 75% threshold</div>}
+          <div className="font-mono text-2xl">{fmtRate(pct)}</div>
+          {isLowAttendance(pct) && <div className="text-xs text-muted-foreground mt-1">Below {ATTENDANCE_LOW}% threshold</div>}
         </div>
         <div className="bg-card border border-border p-4">
           <Label className="block mb-2">Absences</Label>
@@ -1350,7 +1376,7 @@ function StudentRecordView({ studentId, goBack }: { studentId: StudentId; goBack
 
   if (!s || !cls) return <EmptyState title="Student not found." />
 
-  const attPct = s.totalDays > 0 ? (s.presentDays / s.totalDays) * 100 : 0
+  const attPct = percent(s.presentDays, s.totalDays)
   const outstanding = Math.max(0, 28000 - s.fees.paid)
   const formTeacher = appData.teachers[cls.formTeacherId]
   const examIds = [...new Set(s.examMarks.map(m => m.examId))]
@@ -1385,9 +1411,9 @@ function StudentRecordView({ studentId, goBack }: { studentId: StudentId; goBack
           <div className="grid grid-cols-4 gap-3">
             <div className="bg-card border border-border p-3">
               <Label className="block mb-1.5">Attendance</Label>
-              <div className="font-mono text-xl">{attPct.toFixed(1)}%</div>
+              <div className="font-mono text-xl">{fmtRate(attPct)}</div>
               <div className="text-xs text-muted-foreground mt-0.5">{s.presentDays} / {s.totalDays} days</div>
-              {attPct < 75 && <div className="text-xs text-muted-foreground mt-0.5">Below 75% threshold</div>}
+              {isLowAttendance(attPct) && <div className="text-xs text-muted-foreground mt-0.5">Below {ATTENDANCE_LOW}% threshold</div>}
             </div>
             <div className="bg-card border border-border p-3">
               <Label className="block mb-1.5">Absences</Label>
@@ -1468,7 +1494,7 @@ function StudentRecordView({ studentId, goBack }: { studentId: StudentId; goBack
                             <div className="flex-1 text-sm">{m.subject}</div>
                             <div className="font-mono text-sm">{m.marks} / {m.outOf}</div>
                             <div className="w-14 text-right font-mono text-sm text-muted-foreground">
-                              {((m.marks / m.outOf) * 100).toFixed(0)}%
+                              {fmtRate(percent(m.marks, m.outOf), 0)}
                             </div>
                           </div>
                         ))}
@@ -1497,7 +1523,7 @@ function StudentRecordView({ studentId, goBack }: { studentId: StudentId; goBack
                     </div>
                     <div className="font-mono text-sm">{t.marks} / {t.outOf}</div>
                     <div className="w-14 text-right font-mono text-sm text-muted-foreground">
-                      {((t.marks / t.outOf) * 100).toFixed(0)}%
+                      {fmtRate(percent(t.marks, t.outOf), 0)}
                     </div>
                   </div>
                 ))}
