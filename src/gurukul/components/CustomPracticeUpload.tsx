@@ -79,6 +79,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
   const { status: premium } = usePremiumStatus();
   const [planRefusal, setPlanRefusal] = useState<PlanLimit | null>(null);
   const planLimit = planRefusal ?? refusalFor(premium, "custom_practice.upload");
+  const uploadsLeft = usesLeft(premium, "custom_practice.upload");
 
   const refresh = useCallback(async () => {
     if (!ctx || !academicReady) {
@@ -110,17 +111,13 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
     const files = Array.from(fileList);
     setUploading(true);
     try {
-      // Read the allowance before anything is sent to storage: each file is
-      // one upload, counted when it is classified.
+      // Read the allowance before anything is sent to storage. The files picked
+      // together are ONE upload, however many pages (20261131000000): one use
+      // left is enough for all of them.
       const status = await fetchPremiumStatus().catch(() => null);
       const refusal = refusalFor(status, "custom_practice.upload");
       if (refusal) {
         setPlanRefusal(refusal);
-        return;
-      }
-      const allowance = usesLeft(status, "custom_practice.upload");
-      if (allowance && files.length > allowance.left) {
-        toast.error(`${allowance.note} Choose ${allowance.left === 1 ? "one file" : `${allowance.left} files or fewer`}.`);
         return;
       }
       // Multi-image pages → one pending row each; no questions invented client-side.
@@ -250,6 +247,11 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
           {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
           {uploading ? "Uploading…" : "Upload PDF or images"}
         </button>
+        {!planLimit && uploadsLeft && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {uploadsLeft.note} The files you pick together count as one.
+          </p>
+        )}
       </div>
 
       {loading ? (

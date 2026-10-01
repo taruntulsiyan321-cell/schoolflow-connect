@@ -213,6 +213,9 @@ export const StudentUploadService = {
 
     const db = getClient(ctx);
     const rows: StudentUploadRow[] = [];
+    // The files picked together are one submission: the plan counts it once,
+    // however many pages it has (20261131000000, KNOWN_ISSUES 85).
+    const submissionId = crypto.randomUUID();
 
     for (const file of list) {
       const stored = await uploadStudentUploadFile(file);
@@ -231,6 +234,7 @@ export const StudentUploadService = {
           // Honest for a single image page; PDF page_count stays null until measured.
           page_count: isPdf ? null : 1,
           status: "pending",
+          submission_id: submissionId,
         })
         .select("*")
         .single();

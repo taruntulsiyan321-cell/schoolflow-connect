@@ -22,6 +22,7 @@ vi.mock("@/academic/services/studentUploadService", async (importOriginal) => {
     ...actual,
     StudentUploadService: {
       listMine: async () => [],
+      contentOf: async () => new Map(),
       create: (...a: unknown[]) => create(...a),
       requestClassify: (...a: unknown[]) => requestClassify(...a),
     },
@@ -81,12 +82,16 @@ describe("Custom Practice — the plan's uploads", () => {
     expect(screen.getByRole("status").textContent).toContain("You've used this month's 5 Custom Practice uploads.");
   });
 
-  it("more files than uploads left: nothing is sent to storage", async () => {
-    status.value = withUploads({ ok: true, used: 3, remaining: 2 });
+  it("files picked together are one upload: three pages with one upload left all go up", async () => {
+    status.value = withUploads({ ok: true, used: 4, remaining: 1 });
+    create.mockResolvedValue([{ id: "r1" }, { id: "r2" }, { id: "r3" }].map((r) => ({ ...r, status: "pending", original_filename: `${r.id}.png`, verdict: null })));
+    requestClassify.mockResolvedValue({ ok: true });
     await show();
+    expect(screen.getByText("1 Custom Practice upload left this month on your plan. The files you pick together count as one.")).toBeTruthy();
     await pick("a.png", "b.png", "c.png");
-    expect(create).not.toHaveBeenCalled();
-    expect(toastError).toHaveBeenCalledWith("2 Custom Practice uploads left this month on your plan. Choose 2 files or fewer.");
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(requestClassify).toHaveBeenCalledTimes(3);
+    expect(toastError).not.toHaveBeenCalled();
   });
 
   it("a refusal at classification stops the rest and shows the notice", async () => {

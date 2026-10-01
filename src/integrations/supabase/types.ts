@@ -7283,6 +7283,36 @@ export type Database = {
         }
         Relationships: []
       }
+      routines_pre_20261129000000: {
+        Row: {
+          definition: string
+          object: string
+        }
+        Insert: {
+          definition: string
+          object: string
+        }
+        Update: {
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261130000000: {
+        Row: {
+          definition: string
+          object: string
+        }
+        Insert: {
+          definition: string
+          object: string
+        }
+        Update: {
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
       schema_migrations: {
         Row: {
           applied_at: string
@@ -8425,6 +8455,38 @@ export type Database = {
           },
         ]
       }
+      student_upload_plan_uses: {
+        Row: {
+          created_at: string
+          owner_id: string
+          period_key: string
+          submission_id: string | null
+          upload_id: string
+        }
+        Insert: {
+          created_at?: string
+          owner_id: string
+          period_key: string
+          submission_id?: string | null
+          upload_id: string
+        }
+        Update: {
+          created_at?: string
+          owner_id?: string
+          period_key?: string
+          submission_id?: string | null
+          upload_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_upload_plan_uses_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: true
+            referencedRelation: "student_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_upload_questions: {
         Row: {
           answer_source: string
@@ -8549,6 +8611,7 @@ export type Database = {
           school_id: string
           status: string
           storage_path: string
+          submission_id: string | null
           updated_at: string
           verdict: string | null
         }
@@ -8565,6 +8628,7 @@ export type Database = {
           school_id: string
           status?: string
           storage_path: string
+          submission_id?: string | null
           updated_at?: string
           verdict?: string | null
         }
@@ -8581,6 +8645,7 @@ export type Database = {
           school_id?: string
           status?: string
           storage_path?: string
+          submission_id?: string | null
           updated_at?: string
           verdict?: string | null
         }
@@ -9764,6 +9829,33 @@ export type Database = {
         }
         Relationships: []
       }
+      topic_merge_20261128000000: {
+        Row: {
+          kind: string
+          note: string | null
+          row_before: Json | null
+          row_id: string
+          seq: number
+          table_name: string
+        }
+        Insert: {
+          kind: string
+          note?: string | null
+          row_before?: Json | null
+          row_id: string
+          seq?: number
+          table_name: string
+        }
+        Update: {
+          kind?: string
+          note?: string | null
+          row_before?: Json | null
+          row_id?: string
+          seq?: number
+          table_name?: string
+        }
+        Relationships: []
+      }
       topics: {
         Row: {
           chapter_id: string
@@ -10605,6 +10697,7 @@ export type Database = {
         Args: { _keys: string[]; _out: Json; _uid: string }
         Returns: Json
       }
+      _product_day: { Args: { _at?: string }; Returns: string }
       _progression_bump_study_streak: {
         Args: { _on?: string; _uid: string }
         Returns: undefined
@@ -10737,6 +10830,11 @@ export type Database = {
       _test_was_sat_by: {
         Args: { _student_id: string; _test_id: string }
         Returns: boolean
+      }
+      _upload_counted_sibling: { Args: { _upload_id: string }; Returns: string }
+      _upload_record_plan_use: {
+        Args: { _period_key: string; _upload_id: string }
+        Returns: undefined
       }
       _upsert_concept_mastery: {
         Args: {

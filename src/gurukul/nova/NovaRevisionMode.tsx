@@ -15,8 +15,8 @@ import { FeynmanTest, type TestOutcome } from "./FeynmanTest";
 import { RevisionSummary } from "./RevisionSummary";
 import { getRecognitionCtor } from "./useSpeechCapture";
 import { listItems } from "@/lib/listState";
-import type { PlanLimit } from "@/lib/premium";
-import { premiumChanged } from "@/hooks/usePremiumStatus";
+import { refusalFor, usesLeft, type PlanLimit } from "@/lib/premium";
+import { premiumChanged, usePremiumStatus } from "@/hooks/usePremiumStatus";
 import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 
 /**
@@ -99,6 +99,13 @@ export function NovaRevisionMode() {
   const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState("");
   const [planLimit, setPlanLimit] = useState<PlanLimit | null>(null);
+  // PLANS: every Nova reply in Revision is a Nova message — the same model doing
+  // the same work as Nova chat (premium_features nova.message). Revision itself
+  // is free; its AI turns are not, so the student is told before the first one
+  // (KNOWN_ISSUES 87), and refused up front when none are left.
+  const { status: premium } = usePremiumStatus();
+  const novaRefusal = planLimit ?? refusalFor(premium, "nova.message");
+  const novaLeft = usesLeft(premium, "nova.message");
   const abortRef = useRef<AbortController | null>(null);
   const grade = student.class;
 
@@ -258,12 +265,18 @@ export function NovaRevisionMode() {
           </label>
           <button
             type="submit"
-            disabled={!input.trim()}
+            disabled={!input.trim() || novaRefusal !== null}
             className="w-full rounded-2xl bg-foreground px-4 py-3.5 text-sm font-bold text-background transition-all hover:opacity-90 disabled:opacity-40"
           >
             Start revising
           </button>
-          {planLimit && <PlanLimitNotice limit={planLimit} />}
+          {novaRefusal ? (
+            <PlanLimitNotice limit={novaRefusal} />
+          ) : novaLeft ? (
+            <p className="text-center text-xs text-muted-foreground">
+              Each reply from Nova here uses one Nova message. {novaLeft.note}
+            </p>
+          ) : null}
           {error && <p role="alert" className="text-center text-sm text-destructive">{error}</p>}
         </form>
 

@@ -16,6 +16,7 @@ import { requireUserJwt } from "../_shared/requireAuth.ts";
 import {
   planLimitMessage,
   planLimitResponse,
+  premiumCheck,
   premiumConsume,
   premiumRelease,
   premiumUnavailableResponse,
@@ -182,7 +183,7 @@ Deno.serve(async (req) => {
 
   const { data: upload, error: loadErr } = await userClient
     .from("student_uploads")
-    .select("id, owner_id, school_id, status, updated_at, storage_path, mime_type, byte_size")
+    .select("id, owner_id, school_id, status, updated_at, storage_path, mime_type, byte_size, submission_id, created_at")
     .eq("id", uploadId)
     .eq("owner_id", uid)
     .maybeSingle();
@@ -219,13 +220,31 @@ Deno.serve(async (req) => {
   // plan must include and count. The use is reserved before any work is done
   // and given back unless the upload ends ready: a refused, unusable or failed
   // file costs the student nothing.
+  //
+  // ONE SUBMISSION IS ONE UPLOAD (20261131000000): the files a student picks
+  // together share a submission_id. The first one counts; a later one whose
+  // submission already has a counted file that ended ready rides on it and
+  // counts nothing — it only needs the plan to include Custom Practice at all.
+  let ridesOn: string | null = null;
+  if (upload.submission_id) {
+    const { data: sibling, error: sibErr } = await admin.rpc("_upload_counted_sibling", { _upload_id: uploadId });
+    if (sibErr) {
+      console.error("_upload_counted_sibling failed — counting this file on its own", sibErr.message);
+    } else if (typeof sibling === "string") {
+      ridesOn = sibling;
+    }
+  }
   let use: PremiumDecision;
   try {
-    use = await premiumConsume(admin, uid, "custom_practice.upload");
+    use = ridesOn
+      ? await premiumCheck(admin, uid, "custom_practice.upload")
+      : await premiumConsume(admin, uid, "custom_practice.upload");
   } catch (e) {
     if (e instanceof PremiumUnavailableError) return premiumUnavailableResponse(corsHeaders);
     throw e;
   }
+  // Riding: a month's uses all spent is no refusal — this submission was paid for.
+  if (ridesOn && !use.ok && use.reason === "limit_reached") use = { ...use, ok: true };
   if (!use.ok) {
     await userClient
       .from("student_uploads")
@@ -406,6 +425,16 @@ Deno.serve(async (req) => {
 
     if (readyErr) return jsonResponse({ error: readyErr.message }, 500);
 
+    // The file that counted its submission's use, now kept: a later file of the
+    // same submission rides on it. Nothing to mark when this one rode itself.
+    if (!ridesOn && use.applies !== false && use.period_key) {
+      const { error: markErr } = await admin.rpc("_upload_record_plan_use", {
+        _upload_id: uploadId,
+        _period_key: use.period_key,
+      });
+      if (markErr) console.error("_upload_record_plan_use failed — the next file of this submission will count on its own", markErr.message);
+    }
+
     accepted = true;
     return jsonResponse({
       ok: true,
@@ -426,6 +455,7 @@ Deno.serve(async (req) => {
       ai_answered_count: tagged.filter((q) => q.answer_source === "ai").length,
     });
   } finally {
-    if (!accepted) await premiumRelease(admin, uid, use);
+    // A ride counted nothing, so there is nothing to give back.
+    if (!accepted && !ridesOn) await premiumRelease(admin, uid, use);
   }
 });

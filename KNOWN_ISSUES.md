@@ -3936,7 +3936,17 @@ question carries an `exam_year` (KNOWN_ISSUES 57), so Previous Year Questions is
 Not fixable from code: it needs questions — the owner's bank, or a ruling on generating them (and reviewing
 them through the super-admin queue, KNOWN_ISSUES 78).
 
-## 85. Custom Practice counts one upload per IMAGE, so a three-page worksheet costs three — OPEN, needs the owner's ruling
+## 85. ~~Custom Practice counted one upload per IMAGE~~ — FIXED in 20261131000000, APPLIED 2026-10-01
+
+**Ruled (the owner, 2026-10-01, "fix everything"): an upload is what the student submits.** The files picked
+together share a `submission_id`; the first file counts the use, and once it ends ready the rest of the
+submission rides on it (`_upload_counted_sibling`, within ten minutes, server-written marks in
+`student_upload_plan_uses` that no client can touch). A failed file still gives its use back, and the next
+file of the submission then counts. `custom-practice-upload` deployed from the repo; the screen no longer
+refuses a pick with more files than uploads left, and says "The files you pick together count as one."
+
+What follows is the finding as it was recorded.
+
 
 Measured 2026-09-27 by reading the path: `CustomPracticeUpload.tsx` creates one `student_uploads` row per
 file picked ("Multi-image pages → one pending row each", line 115), and `custom-practice-upload`
@@ -3979,7 +3989,15 @@ It matters the day that flag is turned on: a Free account would read topic-level
 the Plans screen says topic-wise analysis is a paid feature. Fix when the flag is picked up —
 `_premium_topic_analysis(uid, out, keys)` already exists and is exactly the helper to wrap it with.
 
-## 87. The Revision chat spends Nova messages, although Revision itself is free — OPEN, needs the owner's ruling
+## 87. The Revision chat spends Nova messages — RULED and SHOWN, 2026-10-01
+
+**Ruled: it stands**, by the owner's own reason for making Revision free ("it doesn't cost us money") — a
+Revision turn is a model call, the same as a Nova chat message. What was missing was telling the student:
+the Revision screen now says, before the first turn, "Each reply from Nova here uses one Nova message. N Nova
+messages left today on your plan.", and with none left it shows the plan notice and does not start.
+
+What follows is the finding as it was recorded.
+
 
 `ai-nova-revision` consumes one `nova.message` per turn (index.ts:94, "each Revision chat turn is a Nova
 message"), and the Nova allowance is 5 a day on Free. Revision is not itself a paid feature and the Plans
@@ -4487,7 +4505,17 @@ by exactly 5 references (1060 → 1065) and two self-test cases were added: the
 shadowing case, and a control proving the same bad column on a plain table
 alias is still caught.
 
-## 104. An exam account can be served a question its own syllabus does not list — OPEN, needs a ruling
+## 104. ~~An exam account could be served a question its own syllabus does not list~~ — FIXED in 20261129000000, APPLIED 2026-10-01
+
+**Ruled as the issue's consistent answer.** The syllabus has one home, `question_bank_student`: its exam arm
+admits only a chapter of the caller's own exam AND stream syllabus, and `_student_bank_pool` no longer restates
+it. "Accounting Process" is not a CUET chapter, so its two active CUET questions were retired; a mistake already
+made on one is now what a mistake on any retired question is (KNOWN_ISSUES 91). Proved: every exam account's
+pool, and a school student's pool and view, identical before and after; no exam account sees an off-syllabus
+row (a copy without the view fence still sees 7); round-trip-tested rollback.
+
+What follows is the finding as it was recorded.
+
 
 **Measured 2026-09-29 on production, as each of the four CUET accounts through
 the view Practice reads.**
@@ -4561,7 +4589,15 @@ and there is live data caught in it:
 Part 2 alone removes today's exposure; part 1 is what stops the next
 mis-seeded question leaking the same way.
 
-## 105. The streak counts days in UTC while Analysis counts them on the student's own clock — OPEN, needs a ruling
+## 105. ~~The streak counted days in UTC~~ — FIXED in 20261130000000, APPLIED 2026-10-01
+
+**Ruled: the product's day is IST**, as the plan allowances already were. One home, `public._product_day()`;
+the streak writer, the nightly reset (now 00:01 IST, cron `31 18 * * *`) and the plan period keys read it.
+Proved: the day turns at midnight IST; no plan key changed at instants either side of both midnights; on a real
+student, yesterday-in-India continues a streak and two Indian days ago resets it.
+
+What follows is the finding as it was recorded.
+
 
 One of the three questions left open by the Analysis branch, now measured.
 
@@ -4632,7 +4668,14 @@ classification, forgetting events) is a judgement, not arithmetic.
 
 ---
 
-## 107. Eight pairs of topics are the same topic under two names — RULED 2026-09-30, merge not yet written
+## 107. ~~Eight pairs of topics were the same topic under two names~~ — FIXED in 20261128000000, APPLIED 2026-10-01
+
+Merged with 20261126000000's machinery, the map from the owner's list (keeper = more questions, id and name):
+8 pairs, 8 attempts, 1 mistake and 1 mastery row respelled. A copy without the name mapping fails its proof;
+migrate + rollback is byte-identical.
+
+What follows is the finding as it was recorded.
+
 
 **RULED by the owner, 2026-09-30: "they are same"** — all eight pairs below, the three spellings AND the five
 looser look-alikes. Measured the same day: each pair sits in exactly one chapter. Merge them with

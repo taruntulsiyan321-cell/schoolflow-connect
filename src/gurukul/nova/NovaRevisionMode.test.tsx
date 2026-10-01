@@ -11,6 +11,13 @@ import { CONTRACT_ERROR } from "./novaRevisionClient";
 
 const invoke = vi.fn();
 vi.mock("@/lib/edgeFunction", () => ({ invokeEdgeFunction: (...a: unknown[]) => invoke(...a) }));
+// The plan, as rpc_my_premium answers it. null = no plan in force (a school
+// student, or plans not enforced): nothing is shown and nothing is held back.
+const premium = vi.hoisted(() => ({ status: null as unknown }));
+vi.mock("@/lib/premium", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/premium")>()),
+  fetchPremiumStatus: () => Promise.resolve(premium.status),
+}));
 vi.mock("@/gurukul/StudentContext", async () => {
   const { EMPTY_STUDENT } = await import("@/gurukul/emptyStudent");
   const value = { ...EMPTY_STUDENT, class: "Class 10-A" };
@@ -444,5 +451,40 @@ describe("Revision mode — a plan refusal", () => {
     await speak("teams can challenge the umpire");
     await screen.findByText("You've used today's 5 Nova messages.");
     expect(screen.queryByText(/Nova couldn't reply/)).toBeNull();
+  });
+});
+
+describe("Revision mode — what a Revision turn costs on a plan", () => {
+  const withNova = (d: Record<string, unknown>) => ({
+    individual: true, enforced: true, sales_enabled: false, terms_version: "", tier: "free", tier_rank: 0, tier_until: null,
+    entitlements: [], tiers: [], products: [],
+    features: [{ feature: "nova.message", period: "day", limit: 5, applies: true, enforced: true, ...d }],
+  });
+  afterEach(() => { premium.status = null; });
+
+  it("says before the first turn that each reply uses a Nova message, and how many are left", async () => {
+    const { MemoryRouter } = await import("react-router-dom");
+    premium.status = withNova({ ok: true, used: 2, remaining: 3 });
+    render(<MemoryRouter><NovaRevisionMode /></MemoryRouter>);
+    expect(await screen.findByText("Each reply from Nova here uses one Nova message. 3 Nova messages left today on your plan.")).toBeTruthy();
+  });
+
+  it("with none left, shows the plan notice up front and does not start", async () => {
+    const { MemoryRouter } = await import("react-router-dom");
+    premium.status = withNova({ ok: false, used: 5, remaining: 0, reason: "limit_reached" });
+    render(<MemoryRouter><NovaRevisionMode /></MemoryRouter>);
+    await screen.findByText("You've used today's 5 Nova messages.");
+    fireEvent.change(screen.getByLabelText("Topic to revise"), { target: { value: "Partnership" } });
+    expect(screen.getByRole("button", { name: "Start revising" })).toHaveProperty("disabled", true);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("CONTROL: with no plan in force, it says nothing about Nova messages", async () => {
+    const { MemoryRouter } = await import("react-router-dom");
+    premium.status = null;
+    render(<MemoryRouter><NovaRevisionMode /></MemoryRouter>);
+    await act(async () => {});
+    expect(screen.queryByText(/uses one Nova message/)).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });
