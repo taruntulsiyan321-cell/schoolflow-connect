@@ -167,7 +167,6 @@ export default function Class12AiSession() {
       source: "practice",
       practiceMode: "ai",
       sourceId: sessionId,
-      solutionViewed: true,
       templateId: current.templateId ?? null,
     });
 
@@ -187,7 +186,6 @@ export default function Class12AiSession() {
       selectedIndex: optionIndex,
       isCorrect: ok,
       score: ok ? 1 : 0,
-      solutionViewed: true,
       practiceMode: "ai",
       source: "practice",
       sourceId: sessionId,

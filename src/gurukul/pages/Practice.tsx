@@ -1663,7 +1663,7 @@ export function Session({
   }, []);
 
   function snapshotOf(q: BankQuestion, fields: {
-    selectedIndex: number; isCorrect: boolean; skipped: boolean; timedOut?: boolean; solutionViewed?: boolean;
+    selectedIndex: number; isCorrect: boolean; skipped: boolean; timedOut?: boolean;
   }): PracticeAttemptSnapshot {
     // Spec §9.1 — upload attempts: source = 'upload', source_id = upload id,
     // bank_question_id null (private rows are not in question_bank).
@@ -1698,7 +1698,6 @@ export function Session({
           ? q.id
           : sessionIdRef.current,
       timeTakenMs: Date.now() - questionStartRef.current,
-      solutionViewed: false,
       attemptNumber: ++attemptNumberRef.current,
       answeredAt: new Date().toISOString(),
       schoolId: ctx?.schoolId ?? null,
@@ -1724,7 +1723,6 @@ export function Session({
       if (v.correctIndex != null) snap.correctIndex = v.correctIndex;
       if (v.explanation) {
         snap.explanation = v.explanation;
-        if (!snap.skipped) snap.solutionViewed = true;
       }
       onVerdict?.(v);
     });
@@ -1888,7 +1886,6 @@ export function Session({
         source: snap.source ?? "practice",
         practiceMode: snap.practiceMode ?? config.mode,
         sourceId: snap.sourceId ?? sid,
-        solutionViewed: snap.solutionViewed ?? false,
         attemptNumber: snap.attemptNumber ?? null,
         answeredAt: snap.answeredAt ?? null,
         schoolId: snap.schoolId ?? context.schoolId ?? null,

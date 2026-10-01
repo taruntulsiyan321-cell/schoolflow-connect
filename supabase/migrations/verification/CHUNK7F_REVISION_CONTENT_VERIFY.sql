@@ -65,6 +65,17 @@ BEGIN
     RAISE EXCEPTION 'NO FIXTURE: no student both holds an open mistake in a chapter and has attempted questions in it. This suite cannot run, which is NOT a pass.';
   END IF;
 
+  -- Item 2's count is a FACT ABOUT THE FIXTURE, so it is taken here, as the
+  -- owner, before becoming the student. Taken after, it joined question_bank
+  -- under the student's RLS, which admits no student since 20261049000000
+  -- (they read the bank through question_bank_student): a pure student always
+  -- counted 0, and the control could pass only when has_role happened to
+  -- admit the account as staff (KNOWN_ISSUES 64, 2026-10-01).
+  SELECT count(DISTINCT qa.bank_question_id)::int INTO _n_seen_in_chapter
+    FROM public.question_attempts qa
+    JOIN public.question_bank qb ON qb.id = qa.bank_question_id
+   WHERE qa.user_id = _uid AND qb.chapter_id = _chapter;
+
   PERFORM set_config('request.jwt.claims', json_build_object('sub', _uid::text)::text, true);
   IF auth.uid() IS DISTINCT FROM _uid THEN
     RAISE EXCEPTION 'IMPERSONATION FAILED: auth.uid() is % not %.', auth.uid(), _uid;
@@ -86,11 +97,7 @@ BEGIN
   ----------------------------------------------------------------------
   -- 2 FIRST, because item 1 leans on it: was there anything to exclude?
   ----------------------------------------------------------------------
-  SELECT count(DISTINCT qa.bank_question_id)::int INTO _n_seen_in_chapter
-    FROM public.question_attempts qa
-    JOIN public.question_bank qb ON qb.id = qa.bank_question_id
-   WHERE qa.user_id = _uid AND qb.chapter_id = _chapter;
-
+  -- (_n_seen_in_chapter was counted as the owner, above.)
   IF _n_seen_in_chapter = 0 THEN
     _fail := _fail || '(FAIL) 2: POSITIVE CONTROL — this student has attempted NO question in this chapter, so item 1 would pass against a function that does nothing. ';
   ELSE

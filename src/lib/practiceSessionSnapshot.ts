@@ -29,7 +29,6 @@ export type PracticeAttemptSnapshot = {
   sourceId?: string | null;
   timeTakenMs?: number | null;
   hintUsed?: boolean;
-  solutionViewed?: boolean;
   confidence?: number | null;
   attemptNumber?: number | null;
   timedOut?: boolean;
@@ -42,7 +41,6 @@ export type PracticeAttemptSnapshot = {
 };
 
 type PracticeAttemptMeta = {
-  solution_viewed?: boolean;
   confidence?: number | null;
   attempt_number?: number | null;
   timed_out?: boolean;
@@ -110,7 +108,6 @@ export type PracticeSessionResultState = {
 /** Build the optional intelligence meta blob for rpc_record_question_attempt. */
 export function buildAttemptMeta(a: PracticeAttemptSnapshot): PracticeAttemptMeta {
   return {
-    solution_viewed: a.solutionViewed ?? false,
     confidence: a.confidence ?? null,
     attempt_number: a.attemptNumber ?? null,
     timed_out: a.timedOut ?? false,
@@ -257,7 +254,6 @@ export function attemptsToFinishPayload(attempts: PracticeAttemptSnapshot[]) {
       skipped: Boolean(a.skipped || a.timedOut),
       time_taken_ms: a.timeTakenMs ?? null,
       hint_used: a.hintUsed ?? false,
-      solution_viewed: a.solutionViewed ?? false,
       confidence: a.confidence ?? null,
       attempt_number: a.attemptNumber ?? null,
       timed_out: a.timedOut ?? false,

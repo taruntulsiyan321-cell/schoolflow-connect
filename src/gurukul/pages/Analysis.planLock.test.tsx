@@ -54,7 +54,7 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   useStudentPracticeAnalytics: () => ({
     data: {
       by_subject: [], by_chapter: [], by_topic: [], by_difficulty: [], recurring: [],
-      effort: { attempts: 0, solution_viewed: 0, repeat_attempts: 0, first_try_attempts: 0, first_try_correct: 0 },
+      effort: { attempts: 0, repeat_attempts: 0, first_try_attempts: 0, first_try_correct: 0 },
       topic_analysis_locked: state.locked,
     },
     loading: false, error: null,

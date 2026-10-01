@@ -127,7 +127,6 @@ export default function Class12MathSession() {
       source: "practice",
       practiceMode: "math12",
       sourceId: sessionId,
-      solutionViewed: true,
       timeTakenMs: undefined,
       templateId: current.template.id ?? null,
     });
@@ -150,7 +149,6 @@ export default function Class12MathSession() {
       selectedIndex: optionIndex,
       isCorrect: ok,
       score: ok ? 1 : 0,
-      solutionViewed: true,
       practiceMode: "math12",
       source: "practice",
       sourceId: sessionId,

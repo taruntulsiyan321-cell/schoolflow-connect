@@ -567,7 +567,6 @@ export const PracticeService = {
       topic?: string;
       difficulty?: string;
       hintUsed?: boolean;
-      solutionViewed?: boolean;
       confidence?: number | null;
       attemptNumber?: number | null;
       timedOut?: boolean;
@@ -595,7 +594,6 @@ export const PracticeService = {
       ...(args.practiceMode ? { practice_mode: args.practiceMode } : {}),
     };
     const meta = {
-      solution_viewed: args.solutionViewed ?? false,
       confidence: args.confidence ?? null,
       attempt_number: args.attemptNumber ?? null,
       timed_out: args.timedOut ?? false,

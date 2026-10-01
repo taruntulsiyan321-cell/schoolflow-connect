@@ -3242,6 +3242,12 @@ answer still names its weak concept.
   have failed: it printed "(BAD)" into a report the runner counts as a pass, and its foreign-teacher check
   used a random uuid, so a MISSING teacher, not the tenant key, was what refused it. Every check now names
   its failure with (FAIL) and has a control.
+* `CHUNK7F_REVISION_CONTENT_VERIFY` failed later the same day, after passing twice: its item 2 positive
+  control counted the student's attempts in the chapter by joining `question_bank` AS THE STUDENT, which no
+  student can read since 20261049000000 — a pure student always counts 0. Why it passed earlier was not
+  established (the fixture, arjun with 36 open mistakes in one chapter, had not changed; no
+  student-readable policy exists). The count is a fact about the fixture, so it is now taken as the owner
+  before the role switch: 5 of 5 pass, and a mutant pointed at a chapter he never touched fails item 2.
 
 **Its homework item found a live regression.** The composite tenant key left with section_subject_id, and
 a homework row naming one school's class under another school's id was ACCEPTED — reachable, because the
@@ -4302,7 +4308,25 @@ it returns carry `ms` per local day) and format with `formatSessionDuration`,
 as Analysis does. Not changed here: the request was Analysis and the session
 report only.
 
-## 93. Three recorded fields say less than their names — DOCUMENTED 2026-10-01 (20261132000000); removal is 108
+## 93. ~~Three recorded fields say less than their names~~ — RESOLVED 2026-10-01: one dropped, one kept as the retry key, one RPC dropped
+
+**Resolved 2026-10-01 (20261135000000, applied), and a correction.** The paragraph below says neither column
+is read by any function. That was wrong: the query that "measured" it put two statements in one batch, and
+the Management API returns only the last one's result, so its function list was never seen.
+Four functions name them:
+
+* **`attempt_number` is READ, and KEPT.** `rpc_record_question_attempt` uses it as the natural key for an
+  answer to a question with no bank id: the finish RPC re-sends every attempt of a generated-question
+  session, and position-in-session is what turns that re-send into an update instead of a second row.
+  Its 20261132000000 description ("the question's position in its practice session") is exactly why it
+  works. 20261135000000's proof sends one twice and requires one row, with position 2 as the control, and
+  a mutant that breaks the key fails it.
+* **`solution_viewed` was write-only, and is DROPPED**, with its writes in all four functions
+  (`rpc_record_question_attempt`, `rpc_finish_practice_session`, `rpc_mirror_battle_answer`,
+  `_capture_battle_mistakes`) and in the app. Old clients still sending it inside jsonb are ignored.
+  The 1,070 rows that held true are kept for the rollback.
+* **`rpc_student_performance_charts` is DROPPED** (see 108).
+
 
 **2026-10-01:** their descriptions in the schema were themselves wrong: `attempt_number` was described as
 "Nth attempt on same stem within session" and `solution_viewed` as "learner viewed solution".
@@ -4833,7 +4857,17 @@ look-alikes that are content judgements, not spellings — "Calls" / "Calls on s
 Statement", "Forfeiture and reissue of shares" / "Forfeiture of Shares", "Oversubscription / Pro-rata" /
 "Oversubscription and pro-rata allotment", "Tools of analysis" / "Tools of financial analysis".
 
-## 108. After the merge: three things only the deployed app still uses — OPEN, waits on the deploy
+## 108. ~~After the merge: three things only the deployed app still uses~~ — DONE 2026-10-01 (20261135000000, applied), one of the three corrected
+
+**Done after the deploy of main 63c6a636**, measured first: both hosts served the new StudentDashboard
+chunk, which no longer calls the charts RPC. 20261135000000 dropped `rpc_student_performance_charts`,
+removed `activity_heatmap` (and the read behind it) from `rpc_student_academic_snapshot`, and dropped
+`question_attempts.solution_viewed` with its writes. **`attempt_number` was NOT dropped** — this entry was
+wrong to call it write-only; it is the retry key (93). The migration's proof runs every edited function
+as its real caller on every edited path, rolled back. PL/pgSQL checks an INSERT's column count only when
+it executes, so a recreate alone would not have shown a mismatch. Round trip exact (six function
+bodies, the RPC's grants, the column and every value). Five mutants each fail by name. Ledger 610.
+
 
 **Recorded 2026-10-01.** This branch no longer reads or writes any of them. The deployed app (`main`, on
 gurukul.study) still does, so removing them before the merge would break the live site.
@@ -4850,3 +4884,14 @@ gurukul.study) still does, so removing them before the merge would break the liv
 
 Order: merge and deploy; confirm the live bundle no longer names them; then one migration — dry run,
 apply — and regenerate the types.
+
+## 109. `rpc_parent_child_snapshot` has no caller — OPEN, found 2026-10-01
+
+Found doing 108. `rpc_student_academic_snapshot_internal` still builds an `activity_heatmap` (14 days of
+academic_daily_activity) for the parent payload, but its only caller, `rpc_parent_child_snapshot`, is called
+by nothing: no screen in the app before or after the 1 Oct deploy, no edge function, no database function.
+It is granted to `authenticated`. Left in place deliberately: it is a parent-side surface outside the
+practice cleanup the owner asked for, and removing a granted RPC wants the parent app's owner to confirm
+nothing outside this repository calls it. When that is confirmed: drop both functions, with a rollback that
+restores them, and remove their entries from `scripts/lint-tenant-scope.mjs` (as a DROPPED entry — that lint
+reads migration files) and `supabase/definer-inventory.json`.

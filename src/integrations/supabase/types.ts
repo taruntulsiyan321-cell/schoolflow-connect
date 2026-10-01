@@ -6071,7 +6071,6 @@ export type Database = {
           selected_answer: Json | null
           session_id: string | null
           skipped: boolean
-          solution_viewed: boolean
           source: string | null
           source_id: string | null
           stream: string | null
@@ -6107,7 +6106,6 @@ export type Database = {
           selected_answer?: Json | null
           session_id?: string | null
           skipped?: boolean
-          solution_viewed?: boolean
           source?: string | null
           source_id?: string | null
           stream?: string | null
@@ -6143,7 +6141,6 @@ export type Database = {
           selected_answer?: Json | null
           session_id?: string | null
           skipped?: boolean
-          solution_viewed?: boolean
           source?: string | null
           source_id?: string | null
           stream?: string | null
@@ -6207,6 +6204,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      question_attempts_solution_viewed_pre_20261135000000: {
+        Row: {
+          id: string
+        }
+        Insert: {
+          id: string
+        }
+        Update: {
+          id?: string
+        }
+        Relationships: []
       }
       question_bank: {
         Row: {
@@ -7299,6 +7308,21 @@ export type Database = {
         Relationships: []
       }
       routines_pre_20261130000000: {
+        Row: {
+          definition: string
+          object: string
+        }
+        Insert: {
+          definition: string
+          object: string
+        }
+        Update: {
+          definition?: string
+          object?: string
+        }
+        Relationships: []
+      }
+      routines_pre_20261135000000: {
         Row: {
           definition: string
           object: string
@@ -12417,7 +12441,6 @@ export type Database = {
       rpc_student_chapter_states: { Args: never; Returns: Json }
       rpc_student_concept_mastery: { Args: never; Returns: Json }
       rpc_student_improvement_plans: { Args: never; Returns: Json }
-      rpc_student_performance_charts: { Args: never; Returns: Json }
       rpc_student_practice_analytics: { Args: never; Returns: Json }
       rpc_student_practice_time: { Args: { _tz: string }; Returns: Json }
       rpc_student_recovery_queue: { Args: never; Returns: Json }

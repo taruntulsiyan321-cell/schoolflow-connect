@@ -3716,28 +3716,6 @@
         "admin": "answered"
       }
     },
-    "rpc_student_performance_charts()": {
-      "name": "rpc_student_performance_charts",
-      "readerSet": "self",
-      "callability": "granted",
-      "returns": "jsonb",
-      "grants": [
-        "authenticated"
-      ],
-      "calls": [
-        "_weak_topics_for_user"
-      ],
-      "justification": "",
-      "verifiedBy": "",
-      "reviewed": false,
-      "observed": {
-        "student": "answered",
-        "teacher": "answered",
-        "parent": "answered",
-        "principal": "answered",
-        "admin": "answered"
-      }
-    },
     "rpc_student_revision_queue()": {
       "name": "rpc_student_revision_queue",
       "readerSet": "self",

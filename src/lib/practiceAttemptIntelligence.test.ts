@@ -26,7 +26,6 @@ describe("attemptsToFinishPayload — full intelligence capture", () => {
         sourceId: "session-1",
         timeTakenMs: 1200,
         hintUsed: false,
-        solutionViewed: false,
         timedOut: false,
         attemptNumber: 1,
         classLevel: 12,
@@ -48,7 +47,7 @@ describe("attemptsToFinishPayload — full intelligence capture", () => {
     expect(row.source_id).toBe("session-1");
     expect(row.time_taken_ms).toBe(1200);
     expect(row.hint_used).toBe(false);
-    expect(row.solution_viewed).toBe(false);
+    expect(row).not.toHaveProperty("solution_viewed");
     expect(row.timed_out).toBe(false);
     expect(row.attempt_number).toBe(1);
     expect(row.class_level).toBe(12);
@@ -80,7 +79,6 @@ describe("attemptsToFinishPayload — full intelligence capture", () => {
         bankQuestionId: "bank-2",
         source: "practice",
         practiceMode: "incorrect",
-        solutionViewed: true,
         hintUsed: true,
         timeTakenMs: 4500,
         confidence: 0.4,
@@ -91,10 +89,10 @@ describe("attemptsToFinishPayload — full intelligence capture", () => {
     expect(payload[0].skipped).toBe(false);
     expect(payload[0].is_correct).toBe(false);
     expect(payload[0].score).toBe(0);
-    expect(payload[0].solution_viewed).toBe(true);
+    expect(payload[0]).not.toHaveProperty("solution_viewed");
     expect(payload[0].hint_used).toBe(true);
     expect(payload[0].confidence).toBe(0.4);
-    expect(payload[0].meta.solution_viewed).toBe(true);
+    expect(payload[0].meta).not.toHaveProperty("solution_viewed");
     expect(payload[0].meta.hint_used).toBe(true);
   });
 
@@ -107,7 +105,6 @@ describe("attemptsToFinishPayload — full intelligence capture", () => {
         selectedIndex: 0,
         isCorrect: true,
         bankQuestionId: "bank-3",
-        solutionViewed: true,
         practiceMode: "daily",
       },
     ]);
@@ -116,7 +113,7 @@ describe("attemptsToFinishPayload — full intelligence capture", () => {
     expect(payload[0].score).toBe(1);
     expect(payload[0].source).toBe("practice");
     expect(payload[0].practice_mode).toBe("daily");
-    expect(payload[0].solution_viewed).toBe(true);
+    expect(payload[0]).not.toHaveProperty("solution_viewed");
   });
 
   it("treats timed_out as skipped with zero score", () => {

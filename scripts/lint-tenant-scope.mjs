@@ -279,7 +279,7 @@ const ALLOWLIST = {
   rpc_get_cached_agent_insight: "Self-scoped; same cache as rpc_cache_agent_insight.",
   rpc_get_academic_brain: "No parameters; self-scoped via auth.uid().",
   rpc_academic_revision_plan: "No parameters; self-scoped via auth.uid().",
-  rpc_student_performance_charts: "No parameters; self-scoped via auth.uid().",
+  rpc_student_performance_charts: "DROPPED by 20261135000000_what_only_the_old_app_used_is_gone.sql; nothing called it once Home read rpc_student_practice_time (KNOWN_ISSUES 108). The entry stays because this lint reads migration FILES and 20260802610000 still contains the CREATE -- migration history is append-only, and a file scanner cannot honour DROPs in a repo that re-creates functions through EXECUTE (20260829200000 drops _bump_academic_activity and re-creates it that way). While it existed the reason was: no parameters; self-scoped via auth.uid().",
   rpc_student_revision_queue: "No parameters; self-scoped via auth.uid().",
 
   // The 7C recovery/revision engine. chapter_state, recovery_sessions and

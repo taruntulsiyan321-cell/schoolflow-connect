@@ -27,7 +27,6 @@ type RecordPracticeAttemptOptions = {
   score?: number;
   timeTakenMs?: number;
   hintUsed?: boolean;
-  solutionViewed?: boolean;
   confidence?: number | null;
   attemptNumber?: number | null;
   timedOut?: boolean;
@@ -178,7 +177,6 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
       topic: opts.topic ?? opts.concept ?? opts.chapter,
       difficulty: opts.difficulty,
       hintUsed: opts.hintUsed ?? false,
-      solutionViewed: opts.solutionViewed ?? false,
       confidence: opts.confidence ?? null,
       attemptNumber: opts.attemptNumber ?? null,
       timedOut: opts.timedOut ?? false,
@@ -198,7 +196,6 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
 
   // Server grades when bank_question_id is set; never insert rows directly (RLS write denied).
   const meta = {
-    solution_viewed: opts.solutionViewed ?? false,
     confidence: opts.confidence ?? null,
     attempt_number: opts.attemptNumber ?? null,
     timed_out: opts.timedOut ?? false,
