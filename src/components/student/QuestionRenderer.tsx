@@ -3,6 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Check, X } from "lucide-react";
 import { MathText } from "@/components/MathText";
+import { ExplanationText } from "@/components/ExplanationText";
 import { toDisplayText } from "@/lib/presentation";
 
 /**
@@ -173,8 +174,8 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
           )}
           {q.explanation && (
             <div className="rounded-md bg-muted p-3 text-muted-foreground mt-2">
-              <span className="font-semibold text-foreground">Explanation: </span>
-              <MathText text={q.explanation} />
+              <div className="mb-1 font-semibold text-foreground">Explanation</div>
+              <ExplanationText text={q.explanation} />
             </div>
           )}
           {isCorrect != null && (

@@ -130,15 +130,21 @@ Deno.serve(async (req) => {
       typeof correct_index === "number" &&
       selected_index === correct_index;
 
+    // Owner, 2026-10-02: explanations must be complete, not short. This said
+    // "a short … coaching explanation" from "a Mathematics and Science tutor
+    // for Class 6–12" — to CUET Commerce students — capped the working at 3–5
+    // sentences, and said nothing about the other options.
     const system =
-      "You are an expert CBSE/NCERT Mathematics and Science tutor for Indian Class 6–12 students. " +
-      "The student just answered an MCQ. Your job is a short, high-quality coaching explanation.\n\n" +
+      "You are an expert teacher for Indian Class 12 board and CUET (UG) students" +
+      (subject ? ` in ${subject}` : "") + ". " +
+      "The student just answered a multiple-choice question; explain it the way a good teacher would at the board.\n\n" +
       "Rules:\n" +
-      "- Be specific to THIS exact question and the option they chose — never generic advice.\n" +
-      "- If wrong: name the misconception, show why their option fails, then the correct method in 2–4 clear steps.\n" +
-      "- If correct: confirm the reasoning in one sentence, then one deeper NCERT insight.\n" +
-      "- Use simple English, warm tone, no jargon without defining it.\n" +
-      "- summary: max 2 sentences. why_wrong: 3–5 sentences with steps. concept: the rule/formula tested. how_to_improve: one actionable drill.";
+      "- Be specific to THIS question and the option they chose — never generic advice.\n" +
+      "- If wrong: name the misconception behind their option and show exactly why it fails; then solve the question properly, step by step.\n" +
+      "- If correct: confirm the reasoning step by step, then add one deeper insight from the NCERT chapter.\n" +
+      "- Then, for EACH other option, one line on why it is wrong.\n" +
+      "- For any calculation, show every step with its numbers.\n" +
+      "- Simple English, warm tone; define any term you use.";
 
     const user = [
       subject ? `Subject: ${subject}` : "",
@@ -155,13 +161,13 @@ Deno.serve(async (req) => {
     const schema = {
       type: "object",
       properties: {
-        summary: { type: "string", description: "One sentence: the correct answer and why." },
+        summary: { type: "string", description: "1–2 sentences: the correct answer and the key reason." },
         why_wrong: {
           type: "string",
-          description: "2-4 sentences: why the student's choice is wrong OR why correct option works; include brief steps.",
+          description: "The full explanation: why the student's option fails (or why their correct choice works), the step-by-step solution, then one line per other option on why it is wrong. Separate the parts with line breaks.",
         },
-        concept: { type: "string", description: "NCERT concept name + key formula/rule in one line." },
-        how_to_improve: { type: "string", description: "One actionable tip tied to this exact question type." },
+        concept: { type: "string", description: "The concept and the rule or formula tested, in one or two lines." },
+        how_to_improve: { type: "string", description: "One specific drill for this type of question." },
       },
       required: ["summary", "why_wrong", "concept", "how_to_improve"],
     };
@@ -171,7 +177,7 @@ Deno.serve(async (req) => {
       why_wrong: string;
       concept: string;
       how_to_improve: string;
-    }>({ system, user, schema, toolName: "emit_explanation" });
+    }>({ system, user, schema, toolName: "emit_explanation" }, { max_tokens: 1400 });
 
     if (!result.ok) return jsonResponse({ error: result.error }, result.status);
 

@@ -4985,3 +4985,37 @@ Also removed: the Capacitor template tests — `ExampleInstrumentedTest` asserte
   `qwen/qwen3.7-flash`, which still exists) has not run since 2026-09-27 — nothing has called any model
   since. Deployed, undrifted, its secrets set; whether the key still has credit is proved only by a
   signed-in upload.
+
+## 112. AI Practice and explanations that explain — BUILT and LIVE 2026-10-02 (20261138000000); what is open
+
+**Live:** every active CUET question is queued for an explanation in the ruled shape (answer, working, a line
+per wrong option — `explanation_is_proper` decides); the `rewrite-question-explanations` cron hands 12 a
+minute to `question-explanations`, which SOLVES each question without its key first (thinking on:
+`_shared/thinkingCompletion.ts`) and writes the explanation only when it reaches the key. AI Practice (the
+tenth Practice tile) reads a request into one syllabus chapter, serves unseen bank questions near its meaning,
+writes the shortfall with Flash, keeps a written question only when an independent thinking check agrees, and
+stores it through `store_generated_questions` (now able to file a question under an exam). Limits:
+`ai_practice.request` 2/day free, unlimited paid; `question_mark.voice_note` 10/day free. "Explain my mistake"
+lost its "short … Mathematics and Science tutor for Class 6–12" prompt.
+
+**Open:**
+
+1. **The disputed list is the owner's to rule on** — `SELECT question, options, correct_index, review_note
+   FROM question_bank WHERE explanation_status = 'disputed'`. Measured on the first ~120: about half are
+   BROKEN imports (statement-based and match-the-following questions whose statements became the options;
+   case questions with their data missing; an assertion–reason question that is only its explanation); the rest
+   are the checker disagreeing with a correct key. Each keeps its old explanation until ruled on.
+2. **Flash's conceptual blind spots in Accountancy.** With thinking on it stopped making arithmetic slips (the
+   debenture write-off now passes) but still holds, against the textbook, that a creditor taking over an asset
+   on dissolution needs a Realisation entry, and reads "overvalued by 25%" as 25% of book value. The owner chose
+   Flash for both writing and checking AI Practice questions; where writer and checker share such a blind spot
+   a wrongly keyed question can pass both. Options: a stronger checker for Accountancy, or a student "report this
+   answer" path into the disputed list.
+3. **AI-drafted topics** (`topics.origin = 'ai_drafted'`) appear the first time AI Practice is asked for one of
+   the 32 syllabus chapters that had no topics; the owner should review each list.
+4. **AI Practice has not been run end to end by a signed-in student.** Its pure parts are tested (aiPractice,
+   explanationFormat, AIPracticeRequest, Practice.aiMode), its database doors are proved as real accounts
+   (20261138000000, probe47), and the live function answers (it refuses a signed-out call); the first real
+   request is the owner's.
+5. **Only exam questions are rewritten.** The 21,876 school-bank questions are 'pending' and outside the
+   cron's `exam_id IS NOT NULL` filter — no individual student can be served them.

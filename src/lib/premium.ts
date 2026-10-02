@@ -26,7 +26,9 @@ export type PremiumFeature =
   | "mistake.explain"
   | "insights.report"
   | "custom_practice.upload"
+  | "ai_practice.request"
   | "screen_capture.mistake"
+  | "question_mark.voice_note"
   | "mock_test.start";
 
 export type PremiumPeriod = "day" | "month" | "lifetime" | "none";
@@ -102,7 +104,9 @@ const FEATURE_WORDS: Record<PremiumFeature, [string, string, string, boolean]> =
   "mistake.explain": ["Explain my mistake", "Explain my mistake", "Explain my mistake", false],
   "insights.report": ["AI insights coach", "AI insights coach", "AI insights coach", false],
   "custom_practice.upload": ["Custom Practice uploads", "Custom Practice upload", "Custom Practice uploads", true],
+  "ai_practice.request": ["AI Practice requests", "AI Practice request", "AI Practice requests", true],
   "screen_capture.mistake": ["Mistakes captured from other apps", "screen capture", "screen captures", true],
+  "question_mark.voice_note": ["Voice notes on marked questions", "voice note", "voice notes", true],
   "mock_test.start": ["Full CUET mock tests", "mock test", "mock tests", true],
 };
 
@@ -118,7 +122,9 @@ export const FEATURE_ORDER: PremiumFeature[] = [
   "mistake.explain",
   "insights.report",
   "custom_practice.upload",
+  "ai_practice.request",
   "screen_capture.mistake",
+  "question_mark.voice_note",
   "mock_test.start",
 ];
 

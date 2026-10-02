@@ -27,6 +27,8 @@ import { PRACTICE_HISTORY_WINDOW_DAYS, type AcademicTermRef, type AttemptVerdict
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { ListFailed, ListLoading, OptionChips, SubjectPicker, type PracticeSubject } from "@/gurukul/components/PracticeLists";
 import { CustomPracticeUpload } from "@/gurukul/components/CustomPracticeUpload";
+import { AIPracticeRequest } from "@/gurukul/components/AIPracticeRequest";
+import { ExplanationText } from "@/components/ExplanationText";
 import {
   StudentUploadService,
   UPLOAD_MODE_LABELS,
@@ -43,7 +45,7 @@ import {
   ChevronRight, CheckCircle2, XCircle, ArrowLeft, Play, SkipForward,
   Flame, Layers,
   Save, Bookmark, BookMarked, Lightbulb,
-  RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle, Filter,
+  RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle, Filter, Sparkles,
 } from "lucide-react";
 import { isUuid, toErrorMessage } from "@/lib/presentation";
 import { ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
@@ -63,7 +65,7 @@ import {
 type Phase   = "hub" | "config" | "session" | "saveFailed";
 type Cat     = "all" | "content" | "source" | "type" | "targeted";
 /**
- * The nine modes a student can pick, plus "recovery" and "revision".
+ * The ten modes a student can pick, plus "recovery" and "revision".
  *
  * Those two are deliberately NOT in MODES: they have no hub tile because
  * nobody chooses them — Recovery builds the §4.2 ladder, and the revision
@@ -192,10 +194,11 @@ function formatSessionDate(iso: string) {
 }
 
 // ── Static data ──────────────────────────────────────────────────────────────
-// Exactly nine modes. Daily, Teacher Assigned, Timed, Untimed and Mock Tests
-// were removed: a time limit is now a Custom Practice goal rather than its own
+// Ten modes. Daily, Teacher Assigned, Timed, Untimed and Mock Tests were
+// removed: a time limit is now a Custom Practice goal rather than its own
 // mode. Only the Mock Tests entry point is gone — the teacher test system it
 // used is untouched and still serves teacher-assigned tests elsewhere.
+// AI Practice (2026-10-02) is the tenth: the student says what to practise.
 const MODES: Mode[] = [
   { key:"subject",    label:PRACTICE_MODE_LABELS.subject,       desc:"Practice questions from a subject of your choice",
     icon:<BookOpen className="w-5 h-5"/>,   color:"hsl(var(--primary))", cat:"content",  badge:"By subject" },
@@ -205,6 +208,8 @@ const MODES: Mode[] = [
     icon:<Target className="w-5 h-5"/>,     color:"hsl(var(--success))", cat:"content",  badge:"By topic" },
   { key:"custom",     label:PRACTICE_MODE_LABELS.custom,        desc:"Choose difficulty and either a question count or a time limit",
     icon:<BarChart2 className="w-5 h-5"/>,  color:"hsl(var(--info))", cat:"type",    badge:"Your rules" },
+  { key:"ai",         label:PRACTICE_MODE_LABELS.ai,            desc:"Tell AI what to practise — it finds or writes the questions, with full explanations",
+    icon:<Sparkles className="w-5 h-5"/>,   color:"hsl(var(--primary))", cat:"type", badge:"AI", hot:true },
   { key:"pyq",        label:PRACTICE_MODE_LABELS.pyq,desc:"Questions from past years' exam papers",
     icon:<FileText className="w-5 h-5"/>,   color:"hsl(var(--destructive))", cat:"source",  badge:"Past papers" },
   { key:"weak",       label:PRACTICE_MODE_LABELS.weak,    desc:`Auto-generated from concepts where your confidence is below ${WEAK_CONCEPT_THRESHOLD}%`,
@@ -737,6 +742,33 @@ export function ConfigView({
       ? "No subjects in the question bank yet for your exam."
       : "No subjects in the question bank yet for your class and board.";
 
+  if (modeKey === "ai") {
+    // AI Practice is for exam accounts: the request is read into a chapter of
+    // the exam's syllabus, and the questions it writes are filed under it.
+    return (
+      <ConfigShell mode={mode} onBack={onBack}>
+        {examScoped ? (
+          <AIPracticeRequest
+            accentColor={mode.color}
+            onReady={(r) => onStart({
+              mode: "ai",
+              label: [r.topic ?? r.chapter, PRACTICE_MODE_LABELS.ai].filter(Boolean).join(" · "),
+              subject: "",
+              chapter: null,
+              topic: null,
+              difficulty: "mixed",
+              qCount: r.questionIds.length,
+              timeLimitSec: null,
+              ai: { requestId: r.requestId, questionIds: r.questionIds },
+            })}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">AI Practice is for exam accounts.</p>
+        )}
+      </ConfigShell>
+    );
+  }
+
   if (modeKey === "custom") {
     // Subject / chapter / topic are all optional here — only difficulty and a
     // goal are required. Individuals also get §1 upload intake (spec
@@ -1161,6 +1193,15 @@ interface SessionConfig {
    * The chapter is a UUID, never a chapter name — §2, and the reason the old
    * revision_queue filled with rows pointing at 'Chapter 3'.
    */
+  /**
+   * Set when this session IS an AI Practice request's (2026-10-02): the
+   * questions ai-practice chose or wrote — the bank's first — asked in that
+   * order and nothing else, exactly as Revision's are.
+   */
+  ai?: {
+    requestId: string | null;
+    questionIds: string[];
+  } | null;
   revision?: {
     chapterId: string;
     /** Their own misses first, then the unseen. Asked in this order. */
@@ -1292,6 +1333,10 @@ async function loadSessionQuestions(
     const tierOf = config.recovery.tierByQuestionId;
     const rows = await loadQuestionsByOwnIds(ctx, Object.keys(tierOf));
     return rows.sort((a, b) => (tierOf[a.id] ?? 0) - (tierOf[b.id] ?? 0));
+  }
+  if (config.ai) {
+    // The request's questions, as ai-practice ordered them.
+    return loadQuestionsByOwnIds(ctx, config.ai.questionIds);
   }
   if (config.revision) {
     // §5.4 — the check is already built by a server function that can see this
@@ -1574,7 +1619,7 @@ export function Session({
           };
           // Upload: name the session from tagged questions when they agree —
           // never "Mixed"/"General" (Mistake Book / RPC placeholder defaults).
-          const engineSession = Boolean(config.recovery || config.revision || config.upload);
+          const engineSession = Boolean(config.recovery || config.revision || config.upload || config.ai);
           const sid = await PracticeService.start(ctx, {
             _subject: engineSession
               ? onlyOne(mapped.map((q) => q.subject)) ?? ""
@@ -2196,9 +2241,9 @@ export function Session({
         <GlassCard className="p-4 border-info/20">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
-            <div className="text-sm text-muted-foreground leading-relaxed">
-              <span className="font-semibold text-foreground">Explanation: </span>
-              <MathText text={verdict?.explanation || q.explanation || ""} />
+            <div className="min-w-0 flex-1 text-sm text-muted-foreground">
+              <div className="mb-1 font-semibold text-foreground">Explanation</div>
+              <ExplanationText text={verdict?.explanation || q.explanation || ""} />
             </div>
           </div>
         </GlassCard>

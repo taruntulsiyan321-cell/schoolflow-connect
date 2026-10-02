@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ExplanationText } from "@/components/ExplanationText";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, Brain, Lightbulb, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -290,7 +291,7 @@ function Row({ icon, label, text }: { icon: React.ReactNode; label: string; text
       <div className="mt-0.5 shrink-0">{icon}</div>
       <div>
         <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">{label}</div>
-        <div className="text-foreground/90 leading-relaxed">{text}</div>
+        <ExplanationText className="text-foreground/90" text={text} />
       </div>
     </div>
   );

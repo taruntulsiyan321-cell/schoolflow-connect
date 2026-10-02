@@ -42,7 +42,12 @@ function messageFromErrorBody(parsed: Record<string, unknown>): string | null {
 export async function invokeEdgeFunction<T extends Record<string, unknown>>(
   name: string,
   body: Record<string, unknown>,
-  opts?: { signal?: AbortSignal; timeoutMs?: number },
+  opts?: {
+    signal?: AbortSignal;
+    timeoutMs?: number;
+    /** What a timeout says. Nova's wording unless the caller is not Nova. */
+    timeoutMessage?: string;
+  },
 ): Promise<EdgeInvokeResult<T>> {
   const timeoutMs = opts?.timeoutMs ?? 30_000;
   const timeoutController = new AbortController();
@@ -63,7 +68,7 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
       return { data: null, error: null, usedFallback: false };
     }
     const message = timedOut
-      ? "Nova is taking longer than expected. Please try again."
+      ? opts?.timeoutMessage ?? "Nova is taking longer than expected. Please try again."
       : e instanceof Error
         ? e.message
         : "Edge function failed";

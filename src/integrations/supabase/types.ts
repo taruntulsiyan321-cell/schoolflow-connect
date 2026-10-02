@@ -1245,6 +1245,75 @@ export type Database = {
           },
         ]
       }
+      ai_practice_requests: {
+        Row: {
+          chapter_id: string | null
+          created_at: string
+          difficulty: string | null
+          discarded: number
+          from_bank: number
+          id: string
+          message: string | null
+          prompt: string
+          question_ids: string[]
+          requested: number
+          status: string
+          subject: string | null
+          topic_id: string | null
+          user_id: string
+          written: number
+        }
+        Insert: {
+          chapter_id?: string | null
+          created_at?: string
+          difficulty?: string | null
+          discarded?: number
+          from_bank?: number
+          id?: string
+          message?: string | null
+          prompt: string
+          question_ids?: string[]
+          requested: number
+          status: string
+          subject?: string | null
+          topic_id?: string | null
+          user_id: string
+          written?: number
+        }
+        Update: {
+          chapter_id?: string | null
+          created_at?: string
+          difficulty?: string | null
+          discarded?: number
+          from_bank?: number
+          id?: string
+          message?: string | null
+          prompt?: string
+          question_ids?: string[]
+          requested?: number
+          status?: string
+          subject?: string | null
+          topic_id?: string | null
+          user_id?: string
+          written?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_practice_requests_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_practice_requests_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_prompt_library: {
         Row: {
           audience: string
@@ -6260,6 +6329,8 @@ export type Database = {
           exam_id: string | null
           exam_year: number | null
           explanation: string | null
+          explanation_claimed_at: string | null
+          explanation_status: string
           id: string
           is_active: boolean
           is_approved: boolean
@@ -6296,6 +6367,8 @@ export type Database = {
           exam_id?: string | null
           exam_year?: number | null
           explanation?: string | null
+          explanation_claimed_at?: string | null
+          explanation_status?: string
           id?: string
           is_active?: boolean
           is_approved?: boolean
@@ -6332,6 +6405,8 @@ export type Database = {
           exam_id?: string | null
           exam_year?: number | null
           explanation?: string | null
+          explanation_claimed_at?: string | null
+          explanation_status?: string
           id?: string
           is_active?: boolean
           is_approved?: boolean
@@ -9991,6 +10066,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          origin: string
         }
         Insert: {
           chapter_id: string
@@ -9998,6 +10074,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          origin?: string
         }
         Update: {
           chapter_id?: string
@@ -10005,6 +10082,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          origin?: string
         }
         Relationships: [
           {
@@ -11133,6 +11211,23 @@ export type Database = {
         Args: { body: string; query: string }
         Returns: number
       }
+      ai_practice_bank_candidates: {
+        Args: {
+          _chapter: string
+          _difficulty: string
+          _exam: string
+          _limit: number
+          _query: string
+          _topic: string
+          _user: string
+        }
+        Returns: {
+          difficulty: string
+          id: string
+          similarity: number
+          topic_id: string
+        }[]
+      }
       ai_prompt_load_production: {
         Args: { p_capability_id: string }
         Returns: Json
@@ -11229,6 +11324,19 @@ export type Database = {
       }
       chat_can_dm: { Args: { _from: string; _to: string }; Returns: boolean }
       chat_dm_key: { Args: { _a: string; _b: string }; Returns: string }
+      claim_explanation_rewrites: {
+        Args: { _limit: number }
+        Returns: {
+          chapter: string
+          correct_index: number
+          explanation: string
+          id: string
+          options: Json
+          question: string
+          subject: string
+          topic: string
+        }[]
+      }
       claim_notifications_for_push: {
         Args: { _limit?: number }
         Returns: {
@@ -11247,6 +11355,7 @@ export type Database = {
       }
       current_auth_session_id: { Args: never; Returns: string }
       default_school_id: { Args: never; Returns: string }
+      dispatch_explanation_rewrite: { Args: never; Returns: number }
       dispatch_notification_push: { Args: never; Returns: number }
       dispatch_question_embedding: { Args: never; Returns: number }
       dispatch_variant_generation: { Args: never; Returns: number }
@@ -11270,6 +11379,14 @@ export type Database = {
       ensure_student_academic_profile: {
         Args: { _student_id: string }
         Returns: string
+      }
+      explanation_is_proper: {
+        Args: {
+          _correct_index: number
+          _explanation: string
+          _option_count: number
+        }
+        Returns: boolean
       }
       get_auth_context: {
         Args: never

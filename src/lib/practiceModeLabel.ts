@@ -18,6 +18,7 @@ export const PRACTICE_MODE_LABELS = {
   incorrect: "Incorrect Questions",
   skipped: "Skipped Questions",
   bookmarked: "Bookmarked Questions",
+  ai: "AI Practice",
   // Handed over by Recovery and the revision schedule; no hub tile.
   recovery: "Recovery",
   revision: "Revision check",

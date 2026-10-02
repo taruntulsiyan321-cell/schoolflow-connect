@@ -21,6 +21,7 @@ import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
 import { pluralise } from "@/lib/plural";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
+import { ExplanationText } from "@/components/ExplanationText";
 import { markRefFromMistake } from "@/lib/questionMarks";
 import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
@@ -220,7 +221,7 @@ function MistakeCard({
                 <div className="text-[10px] font-bold text-violet-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                   <Brain className="w-3 h-3"/> AI Explanation
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{mistake.aiExplanation}</p>
+                <ExplanationText className="text-xs text-muted-foreground" text={mistake.aiExplanation} />
               </div>
             ) : null}
           </div>
@@ -378,8 +379,8 @@ function MistakePractice({
         </div>
 
         {selected !== null && q.explanation && (
-          <div className="mt-4 p-3 rounded-xl bg-muted border border-border text-xs text-muted-foreground leading-relaxed">
-            {q.explanation}
+          <div className="mt-4 p-3 rounded-xl bg-muted border border-border text-xs text-muted-foreground">
+            <ExplanationText text={q.explanation} />
           </div>
         )}
 

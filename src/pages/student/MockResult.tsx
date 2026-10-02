@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { QuestionRenderer, type TestQuestionShape } from "@/components/student/QuestionRenderer";
 import { StudentErrorState, StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
-import { MathText } from "@/components/MathText";
+import { ExplanationText } from "@/components/ExplanationText";
 import { displaySubject } from "@/lib/academicDisplay";
 import { formatSessionDuration } from "@/lib/practiceSessionStats";
 import { toErrorMessage } from "@/lib/presentation";
@@ -205,7 +205,7 @@ export default function MockResult() {
                   )}
                   {q.explanation && (
                     <div className="mt-3 rounded-lg bg-muted/40 p-3 text-sm text-foreground">
-                      <MathText text={q.explanation} />
+                      <ExplanationText text={q.explanation} />
                     </div>
                   )}
                 </>
