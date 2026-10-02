@@ -4,7 +4,7 @@
  *
  * Per-capability booleans (live when true). Global mode for false flags:
  *   UNAVAILABLE_FEATURE_MODE = "coming_soon" | "hide"
- * Override via Vite env, e.g. VITE_FF_NOVA_VOICE=1, VITE_FF_UNAVAILABLE_MODE=hide
+ * Override via Vite env, e.g. VITE_FF_NOVA_ATTACHMENT=0, VITE_FF_UNAVAILABLE_MODE=hide
  */
 
 type FeaturePresentation = "live" | "coming_soon" | "hidden";
@@ -41,12 +41,12 @@ export const UNAVAILABLE_FEATURE_MODE: UnavailableFeatureMode = parseUnavailable
   readEnv("VITE_FF_UNAVAILABLE_MODE"),
 );
 
-/** Nova input capabilities. */
+/** Nova input capabilities. Voice is not a flag: it is offered wherever the
+ *  browser has speech recognition (useSpeechCapture), since 2026-10-02. */
 export const NOVA_FEATURE_FLAGS = {
   // Live: photo (camera/gallery) + PDF attachment, routed to a vision-capable model.
   // Override with VITE_FF_NOVA_ATTACHMENT=0 to disable without a code change.
   attachment: parseBool(readEnv("VITE_FF_NOVA_ATTACHMENT"), true),
-  voice: parseBool(readEnv("VITE_FF_NOVA_VOICE"), false),
 } as const;
 
 /** Decision Engine integration switches — default OFF until a slice is

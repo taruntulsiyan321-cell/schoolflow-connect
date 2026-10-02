@@ -22,16 +22,15 @@ describe("productFeatureFlags", () => {
     );
   });
 
-  it("presents each Nova capability from its own flag", () => {
-    // Attachment is live by default; voice is deferred by default.
-    for (const kind of ["attachment", "voice"] as const) {
-      expect(resolveNovaPresentation(kind)).toBe(resolveFeaturePresentation(NOVA_FEATURE_FLAGS[kind]));
-    }
+  it("presents Nova attachments from their flag — live by default", () => {
+    expect(resolveNovaPresentation("attachment")).toBe(resolveFeaturePresentation(NOVA_FEATURE_FLAGS.attachment));
     expect(NOVA_FEATURE_FLAGS.attachment).toBe(true);
     expect(resolveNovaPresentation("attachment")).toBe("live");
+    // Voice is no flag: the browser decides (useSpeechCapture).
+    expect(Object.keys(NOVA_FEATURE_FLAGS)).toEqual(["attachment"]);
   });
 
   it("words a deferred capability's toast with the Coming Soon label", () => {
-    expect(comingSoonToast("Voice input")).toBe(`Voice input — ${COMING_SOON_LABEL}`);
+    expect(comingSoonToast("Attachments")).toBe(`Attachments — ${COMING_SOON_LABEL}`);
   });
 });

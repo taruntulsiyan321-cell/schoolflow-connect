@@ -91,8 +91,10 @@ describe("extractAccessTokenMeta", () => {
 });
 
 describe("classifyMsg91Failure", () => {
-  it("reads MSG91's own codes first: 703 is a wrong code, 704 the attempt limit", () => {
+  it("reads MSG91's own codes first: 703 and 705 are a wrong code, 704 the attempt limit", () => {
     expect(classifyMsg91Failure({ code: 703, message: "x" }).reason).toBe("wrong_code");
+    // The live API's answer to a wrong code, measured 2026-10-02.
+    expect(classifyMsg91Failure({ code: 705, message: "x", type: "error" }).reason).toBe("wrong_code");
     expect(classifyMsg91Failure({ code: 704, message: "x" }).reason).toBe("too_many");
   });
 

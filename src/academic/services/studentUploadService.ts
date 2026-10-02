@@ -507,7 +507,7 @@ export const StudentUploadService = {
       // client's "Edge Function returned a non-2xx status code".
       const planLimit = await planLimitFromInvokeError(error);
       if (planLimit) return { ok: false, error: planLimit.message, planLimit };
-      return { ok: false, error: await edgeFunctionErrorMessage(error, "Classifier could not be reached") };
+      return { ok: false, error: await edgeFunctionErrorMessage(error, "We couldn't reach the file reader. Check your connection and try again.") };
     }
     if (data && typeof data === "object" && "error" in data && data.error) {
       return { ok: false, error: String((data as { error: unknown }).error) };

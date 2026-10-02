@@ -3572,7 +3572,10 @@ to the end.
 
 ---
 
-## 74. The database was cancelling statements because the app asked too often — LOAD FIXED 2026-09-23 (item 5); the slow RPCs remain
+## 74. The database was cancelling statements because the app asked too often — LOAD FIXED 2026-09-23 (item 5); the individual app's reads MEASURED FAST 2026-10-02
+
+**2026-10-02, the individual app (the only one live).** Every read it makes, timed as each of the four individual accounts, warm: all under 200 ms — the snapshot 34–195 ms, weak areas 90–156 ms, the rest under 30 ms; every sign-in call 0–27 ms. One was slow for a reason of its own: `rpc_student_practice_time` checked the browser's zone against `pg_timezone_names`, which reads every zone file on disk per call (152–791 ms alone). **20261136000000** checks the name's shape and lets AT TIME ZONE refuse an unknown one: 206–419 ms → 5–12 ms, the same answer to the byte (proved as a real exam account, three planted defects each caught). The worst cases below were school accounts and the Battleground, both off the live app; `rpc_refresh_featured_battles` still runs hourly (0.9 s) with the school side's database, kept by ruling.
+
 
 **What it was, measured from the database's own statistics (pg_stat_statements,
 2026-09-23) — the whole project's time, ranked:**

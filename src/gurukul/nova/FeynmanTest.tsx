@@ -7,7 +7,7 @@ import {
   sendRevisionAnswer,
   type RevisionGist, type RevisionTurn,
 } from "./novaRevisionClient";
-import { useSpeechCapture, type CaptureError } from "./useSpeechCapture";
+import { CAPTURE_MESSAGES, useSpeechCapture } from "./useSpeechCapture";
 import { useNovaSpeaker } from "./useNovaSpeaker";
 import type { PlanLimit } from "@/lib/premium";
 import { premiumChanged } from "@/hooks/usePremiumStatus";
@@ -30,13 +30,6 @@ type StudentLine = { id: number; role: "student"; text: string };
 type Line = NovaLine | StudentLine;
 
 export type TestOutcome = { covered: number[]; corrections: string[]; answers: number };
-
-const CAPTURE_NOTICE: Record<CaptureError, string> = {
-  denied: "Microphone access is blocked. Allow it in your browser's site settings, then tap the mic again.",
-  "no-speech": "I didn't hear anything. Tap the mic and try again.",
-  network: "Voice needs an internet connection. Check it, then tap the mic again.",
-  failed: "The microphone couldn't start. Check no other app is using it, then tap the mic again.",
-};
 
 /** What the server is told about a line — the same words the student saw. */
 function toTurn(line: Line): RevisionTurn {
@@ -74,7 +67,7 @@ export function FeynmanTest({
   const speaker = useNovaSpeaker();
   const capture = useSpeechCapture({
     onDone: (text) => submit(text),
-    onError: (e) => setNotice(CAPTURE_NOTICE[e]),
+    onError: (e) => setNotice(CAPTURE_MESSAGES[e]),
   });
   // Read the opening question once. speak() cancels anything already playing,
   // so a second run of this effect cannot stack two voices.

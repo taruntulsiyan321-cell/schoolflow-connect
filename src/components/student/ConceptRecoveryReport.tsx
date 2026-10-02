@@ -13,7 +13,7 @@ import {
 } from "@/lib/conceptReportFallback";
 import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import "@/components/student/analytics/wisdom/wisdom-analytics.css";
-import { toAiLine } from "@/lib/presentation";
+import { toAiLine, toErrorMessage } from "@/lib/presentation";
 import type { PlanLimit } from "@/lib/premium";
 import { premiumChanged } from "@/hooks/usePremiumStatus";
 import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
@@ -79,7 +79,7 @@ export function ConceptRecoveryReport({
           setLoading(false);
           return;
         }
-        setError(err.message);
+        setError(toErrorMessage(err, "We couldn't load the concept analysis. Please try again."));
         setLoading(false);
         return;
       }
@@ -92,7 +92,7 @@ export function ConceptRecoveryReport({
           setLoading(false);
           return;
         }
-        setError("No concept analysis data found for this session.");
+        setError("There's no concept analysis for this session yet.");
         setLoading(false);
         return;
       }
@@ -168,7 +168,7 @@ export function ConceptRecoveryReport({
     }
     return (
       <Card className="wisdom-analytics wa-card p-4 text-sm text-[var(--wa-on-surface-variant)]">
-        Concept analysis unavailable{error ? `: ${error}` : ""}.
+        {error ?? "There's no concept analysis for this session yet."}
       </Card>
     );
   }

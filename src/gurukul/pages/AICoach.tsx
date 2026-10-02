@@ -11,6 +11,7 @@ import {
   comingSoonToast,
   resolveNovaPresentation,
 } from "@/lib/productFeatureFlags";
+import { CAPTURE_MESSAGES, useSpeechCapture } from "@/gurukul/nova/useSpeechCapture";
 import { toast } from "sonner";
 import { planLimitFrom, type PlanLimit } from "@/lib/premium";
 import { premiumChanged } from "@/hooks/usePremiumStatus";
@@ -33,7 +34,7 @@ import {
   Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3, MoreHorizontal,
   ChevronLeft, Paperclip, Copy, Bookmark, RotateCcw, X, Loader2,
   ImageIcon, BookOpen, HelpCircle, Brain, Sparkles, MessageSquare,
-  Check, AlertCircle, Layers, ThumbsUp, ThumbsDown
+  Check, AlertCircle, Layers, ThumbsUp, ThumbsDown, Square
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -118,9 +119,8 @@ function now() {
 
 function offlineFallback(): string {
   return (
-    "I couldn’t reach the AI Gateway just now. " +
-    "Try again in a moment, or ask about a concept, a wrong answer, or weak topics when we’re back online. " +
-    "I don’t look up attendance, marks, homework, or the calendar."
+    "I couldn’t answer just now — the connection dropped. " +
+    "Try again in a moment: ask about a concept, a wrong answer, or your weak topics."
   );
 }
 
@@ -496,10 +496,9 @@ function Sidebar({
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
 function InputBar({
-  onSend, onVoiceUnavailable, disabled,
+  onSend, disabled,
 }: {
   onSend: (text: string, images?: string[]) => void;
-  onVoiceUnavailable: () => void;
   disabled?: boolean;
 }) {
   const [text, setText] = useState("");
@@ -508,10 +507,16 @@ function InputBar({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachPresentation = resolveNovaPresentation("attachment");
-  const voicePresentation = resolveNovaPresentation("voice");
+  // Voice: the browser's own speech recognition (Chrome, Edge, Safari). The
+  // words land in the box for the student to check and send — nothing is
+  // recorded or uploaded, and the mic is not offered where the browser has none.
+  const voice = useSpeechCapture({
+    onDone: (spoken) => setText((prev) => (prev.trim() ? `${prev.trim()} ${spoken}` : spoken)),
+    onError: (e) => toast.message(CAPTURE_MESSAGES[e]),
+  });
 
   function submit() {
-    if ((!text.trim() && pendingImages.length === 0) || disabled || processing) return;
+    if ((!text.trim() && pendingImages.length === 0) || disabled || processing || voice.listening) return;
     onSend(text.trim() || "Please help me with this.", pendingImages.length ? pendingImages : undefined);
     setText("");
     setPendingImages([]);
@@ -617,18 +622,22 @@ function InputBar({
           style={{ maxHeight:120 }}
         />
 
-        {voicePresentation !== "hidden" && (
+        {voice.supported && (
           <button
             type="button"
-            onClick={onVoiceUnavailable}
-            title={
-              voicePresentation === "coming_soon"
-                ? `Voice — ${COMING_SOON_LABEL}`
-                : "Voice"
-            }
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted transition-all shrink-0 mb-0.5"
+            onClick={() => (voice.listening ? voice.finish() : voice.start())}
+            disabled={disabled && !voice.listening}
+            aria-label={voice.listening ? "Stop listening" : "Speak your question"}
+            title={voice.listening ? "Stop listening" : "Speak your question"}
+            className={cn(
+              "relative w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5",
+              voice.listening
+                ? "bg-destructive text-destructive-foreground"
+                : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted",
+            )}
           >
-            <Mic className="w-4 h-4"/>
+            {voice.listening && <span className="absolute inset-0 animate-ping rounded-xl bg-destructive/40" />}
+            {voice.listening ? <Square className="relative w-3.5 h-3.5 fill-current"/> : <Mic className="w-4 h-4"/>}
           </button>
         )}
 
@@ -644,8 +653,14 @@ function InputBar({
           <Send className="w-4 h-4"/>
         </button>
       </div>
-      <div className="text-center mt-1.5">
-        <span className="text-[10px] text-muted-foreground/50">Press Enter to send · Shift + Enter for a new line</span>
+      <div className="text-center mt-1.5" aria-live="polite">
+        {voice.listening ? (
+          <span className="text-[11px] text-foreground">
+            {voice.transcript ? `“${voice.transcript}”` : "Listening… tap the square when you're done, or just stop talking"}
+          </span>
+        ) : (
+          <span className="text-[10px] text-muted-foreground/50">Press Enter to send · Shift + Enter for a new line</span>
+        )}
       </div>
     </div>
   );
@@ -796,9 +811,8 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       const result = await askAiCoach({
         text,
         studentId: studentId || undefined,
-        role: role === "student" || role === "parent" || role === "teacher" || role === "principal" || role === "admin"
-          ? role
-          : "student",
+        // Only a student reaches this page (the /student route).
+        role: "student",
         channel: "student_app",
         locale: typeof navigator !== "undefined" ? navigator.language : undefined,
         session_id: existing?.sessionId,
@@ -848,7 +862,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       setConvos(convosRef.current);
     } catch {
       if (controller.signal.aborted) return; // cancelled, not a real failure
-      toast.error("AI Gateway unavailable");
+      toast.error("Nova couldn't answer just now. Please try again.");
       convosRef.current = convosRef.current.map((c) =>
         c.id === convoId
           ? {
@@ -1206,9 +1220,6 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         <div className="shrink-0 px-4 pb-4 pt-2 border-t border-border max-w-3xl mx-auto w-full">
           <InputBar
             onSend={sendMessage}
-            onVoiceUnavailable={() => {
-              toast.message(comingSoonToast("Voice input"));
-            }}
             disabled={isTyping}
           />
         </div>

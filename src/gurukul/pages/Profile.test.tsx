@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 
 /**
  * The individual student's profile: their name, their exam and their
@@ -51,7 +52,7 @@ describe("the individual student's profile", () => {
       xp: 120, level: 2, xp_into_level: 20, xp_to_next_level: 80, level_progress_pct: 20,
       league: { label: "Bronze" }, study_streak: 3, featured_badges: [],
     });
-    render(<Profile />);
+    render(<MemoryRouter><Profile /></MemoryRouter>);
     expect(await screen.findByText("Asha Rao")).toBeTruthy();
     expect(screen.getByText("CUET UG")).toBeTruthy();
     await waitFor(() => expect(screen.getByText(/Level 2 · Bronze · 120 XP · Streak 3d/)).toBeTruthy());
@@ -61,7 +62,7 @@ describe("the individual student's profile", () => {
 
   it("renders none of the school student's blocks or fields", async () => {
     getSnapshot.mockResolvedValue(null);
-    render(<Profile />);
+    render(<MemoryRouter><Profile /></MemoryRouter>);
     await screen.findByText("Asha Rao");
     for (const text of [/Homework handed in/, /Last 10 test marks/, /Exam marks/, /Teacher remarks/, /Rankings/, /Class rank/, /Roll 7/, /Parent:/, /helper points/]) {
       expect(screen.queryByText(text), String(text)).toBeNull();
@@ -69,5 +70,16 @@ describe("the individual student's profile", () => {
     // CONTROL: the page did render its individual blocks.
     expect(screen.getByText("Recent milestones")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+  });
+
+  it("tells the student how to reach us, and where the policies are", async () => {
+    getSnapshot.mockResolvedValue(null);
+    render(<MemoryRouter><Profile /></MemoryRouter>);
+    await screen.findByText("Asha Rao");
+    const email = screen.getByRole("link", { name: "hello@gurukul.study" });
+    expect(email.getAttribute("href")).toBe("mailto:hello@gurukul.study");
+    for (const [name, href] of [["Terms of use", "/terms"], ["Refund policy", "/refund-policy"], ["Privacy policy", "/privacy"]]) {
+      expect(screen.getByRole("link", { name }).getAttribute("href"), name).toBe(href);
+    }
   });
 });

@@ -251,9 +251,10 @@ type Msg91FailureReason = "no_response" | "wrong_code" | "too_many" | "expired" 
 
 /**
  * What to tell the student when MSG91 refuses. Its errors carry a numeric
- * `code` for the two that matter most — 703 wrong code, 704 attempt limit
- * (otp-provider.js's own enum) — and otherwise only a message, so the rest is
- * read from the text, with an honest generic fallback.
+ * `code`: a wrong code is 705 "invalid otp" from the API (measured live
+ * 2026-10-02) and 703 in otp-provider.js's own enum; 704 is the attempt
+ * limit. Otherwise only a message, so the rest is read from the text, with an
+ * honest generic fallback.
  */
 export function classifyMsg91Failure(error: unknown): { reason: Msg91FailureReason; message: string } {
   const code = Number((error as { code?: unknown } | null)?.code);
@@ -273,10 +274,10 @@ export function classifyMsg91Failure(error: unknown): { reason: Msg91FailureReas
     return { reason: "expired", message: "That code has expired. Send a new one." };
   }
   // Before the wrong-code rule: "mobile number is incorrect" says "incorrect" too.
-  if (code !== 703 && /mobile|number|identifier/.test(text) && /invalid|not valid|incorrect/.test(text)) {
+  if (code !== 703 && code !== 705 && /mobile|number|identifier/.test(text) && /invalid|not valid|incorrect/.test(text)) {
     return { reason: "bad_number", message: "Check your mobile number and try again." };
   }
-  if (code === 703 || /invalid otp|otp not match|not match|incorrect|wrong/.test(text)) {
+  if (code === 703 || code === 705 || /invalid otp|otp not match|not match|incorrect|wrong/.test(text)) {
     return { reason: "wrong_code", message: "That code isn't right. Check the SMS and try again." };
   }
   return { reason: "unknown", message: "Something went wrong with the code. Please try again." };

@@ -139,7 +139,7 @@ describe("applyRefusalGates — §4.2–§4.4", () => {
  * Chemistry worksheet, answered three of its questions a minute later, and
  * hours later the same file was classified again — which deleted the questions
  * under them (§4.3) and spent a second Custom Practice upload from their plan
- * for a verdict already made. The screen only offers "Classify again" for
+ * for a verdict already made. The screen only offers "Try again" for
  * pending and failed; these are the server's own fence.
  */
 describe("may this upload be classified again?", () => {

@@ -41,6 +41,14 @@ type RecognitionCtor = new () => RecognitionLike;
 
 export type CaptureError = "denied" | "no-speech" | "network" | "failed";
 
+/** What to tell the student for each way capture can end without words. */
+export const CAPTURE_MESSAGES: Record<CaptureError, string> = {
+  denied: "Microphone access is blocked. Allow it in your browser's site settings, then tap the mic again.",
+  "no-speech": "I didn't hear anything. Tap the mic and try again.",
+  network: "Voice needs an internet connection. Check it, then tap the mic again.",
+  failed: "The microphone couldn't start. Check no other app is using it, then tap the mic again.",
+};
+
 export function getRecognitionCtor(): RecognitionCtor | null {
   if (typeof window === "undefined") return null;
   const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor };

@@ -10,6 +10,8 @@ import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
+import { Link } from "react-router-dom";
+import { LEGAL_ENTITY } from "@/lib/legal";
 
 /** One date format for this screen. */
 function formatDayMonthYear(iso: string) {
@@ -252,6 +254,25 @@ export default function Profile({
         rather than telling you anything about yourself.
       */}
       {screenCaptureSlot}
+
+      {/* HELP. The only way to reach anyone was the legal pages' small print. */}
+      <GlassCard className="p-5">
+        <SectionLabel>Help &amp; support</SectionLabel>
+        <p className="text-xs text-muted-foreground">
+          A question about your account, a payment or a refund? Email us and we reply within 2 working days.
+        </p>
+        <a
+          href={`mailto:${LEGAL_ENTITY.supportEmail}`}
+          className="mt-3 inline-flex items-center rounded-xl border border-border px-4 py-2 text-xs font-semibold text-primary hover:bg-muted transition-colors"
+        >
+          {LEGAL_ENTITY.supportEmail}
+        </a>
+        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+          <Link to="/terms" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">Terms of use</Link>
+          <Link to="/refund-policy" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">Refund policy</Link>
+          <Link to="/privacy" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">Privacy policy</Link>
+        </div>
+      </GlassCard>
 
       <GlassCard className="p-5">
         <SectionLabel>Account</SectionLabel>

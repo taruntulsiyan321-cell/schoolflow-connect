@@ -44,7 +44,7 @@ const PRACTISE_MODES: ReadonlySet<UploadPracticeMode> = new Set([
 ]);
 
 function statusLabel(row: StudentUploadRow): string {
-  if (row.status === "pending") return "Waiting to classify…";
+  if (row.status === "pending") return "Waiting to be read…";
   if (row.status === "processing") return "Reading your file…";
   if (row.status === "failed") return row.refusal_reason || "Could not process this file.";
   // The reason is shown once, in the refusal box under the file name.
@@ -123,7 +123,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
       // Multi-image pages → one pending row each; no questions invented client-side.
       const created = await StudentUploadService.create(ctx, files);
       setRows((prev) => [...created, ...prev]);
-      let classifyMiss = false;
+      let unread = 0;
       let outside = 0;
       const outsideSubjects = new Set<string>();
       for (const row of created) {
@@ -135,12 +135,14 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
           setPlanRefusal(classify.planLimit);
           break;
         }
-        if (!classify.ok) classifyMiss = true;
+        if (!classify.ok) unread += 1;
         outside += classify.outside?.count ?? 0;
         classify.outside?.subjects.forEach((s) => outsideSubjects.add(s));
       }
-      if (classifyMiss) {
-        toast.message("Classifier is not available yet — your file(s) are saved.");
+      if (unread > 0) {
+        toast.message(
+          `We couldn't read ${unread === 1 ? "one file" : `${unread} files`} yet. ${unread === 1 ? "It's" : "They're"} saved — tap "Try again" on the card.`,
+        );
       }
       // A file wholly outside the stream says so on its own card; one that is
       // partly outside needs telling what was left out.
@@ -179,7 +181,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
     try {
       const r = await StudentUploadService.requestClassify(ctx, id);
       if (r.planLimit) setPlanRefusal(r.planLimit);
-      else if (!r.ok) toast.error(r.error || "Classifier failed");
+      else if (!r.ok) toast.error(r.error || "We couldn't read this file. Please try again.");
       premiumChanged();
       await refresh();
     } finally {
@@ -301,7 +303,7 @@ export function CustomPracticeUpload({ accentColor, onSelectMode }: Props) {
                     onClick={() => void onRetryClassify(row.id)}
                     className="text-xs font-semibold text-primary"
                   >
-                    {busyId === row.id ? "Working…" : "Classify again"}
+                    {busyId === row.id ? "Reading…" : "Try again"}
                   </button>
                 )}
 
