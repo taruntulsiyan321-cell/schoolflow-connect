@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { withAlpha } from "@/lib/colorAlpha";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
@@ -15,12 +15,15 @@ import { DifficultyBadge, EmptyState, GlassCard, PageHeader, PageSkeleton, Progr
 import {
   AlertCircle, Brain, Search, Bookmark, BookmarkCheck,
   ChevronDown, ChevronRight, CheckCircle2, XCircle, ArrowRight,
-  RotateCcw, RefreshCw, Play, Eye,
+  RotateCcw, RefreshCw, Play, Eye, Tag,
 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
 import { pluralise } from "@/lib/plural";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
+import { markRefFromMistake } from "@/lib/questionMarks";
+import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
+import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
 
 type MBView = "list" | "practice" | "results";
 
@@ -69,7 +72,7 @@ function FreqBadge({ freq }: { freq: number }) {
 }
 
 function MistakeCard({
-  mistake, onRetry, onExplain, onClear, clearing, onToggleBookmark, onDispute, disputing, disputed, onDeleteCapture,
+  mistake, onRetry, onExplain, onClear, clearing, onToggleBookmark, onDispute, disputing, disputed, onDeleteCapture, markBar,
 }: {
   mistake: Mistake;
   onRetry: () => void;
@@ -82,6 +85,8 @@ function MistakeCard({
   disputing?: boolean;
   disputed?: boolean;
   onDeleteCapture?: (m: Mistake) => void;
+  /** What the student said about it, and the button to say it. */
+  markBar?: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
   const canDispute = Boolean(
@@ -120,6 +125,8 @@ function MistakeCard({
               : <Bookmark className="w-4 h-4 text-muted-foreground"/>}
           </button>
         </div>
+
+        {markBar && <div className="mt-3">{markBar}</div>}
 
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           <button onClick={() => setExpanded(e => !e)}
@@ -214,16 +221,6 @@ function MistakeCard({
                   <Brain className="w-3 h-3"/> AI Explanation
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">{mistake.aiExplanation}</p>
-              </div>
-            ) : null}
-
-            {/* Why you got it wrong — only when stored */}
-            {mistake.studentReason ? (
-              <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
-                <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                  <AlertCircle className="w-3 h-3"/> Why You Got It Wrong
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{mistake.studentReason}</p>
               </div>
             ) : null}
           </div>
@@ -398,6 +395,7 @@ function MistakePractice({
 export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => void }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { tags: markTags, marks, setMark } = useQuestionMarks(user?.id);
   const { ctx, ready: academicReady } = useAcademicContext();
   const bookmarksKey = mistakeBookmarksKey({ userId: user?.id, schoolId: ctx?.schoolId ?? undefined });
   const [view, setView] = useState<MBView>("list");
@@ -881,6 +879,13 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         title="Mistake Book"
         subtitle="Every mistake you've made — automatically collected and explained."
         action={
+          <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => navigate("/student/mistakes/types")}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-muted border border-border text-foreground text-sm font-bold hover:bg-secondary transition-all">
+            <Tag className="w-3.5 h-3.5"/> Mistake Types
+          </button>
           <button
             type="button"
             disabled={unresolved === 0}
@@ -892,6 +897,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm font-bold hover:bg-rose-500/30 transition-all disabled:opacity-40 disabled:pointer-events-none">
             <Play className="w-3.5 h-3.5"/> Practice All
           </button>
+          </div>
         }
       />
 
@@ -986,8 +992,20 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             )}
           </GlassCard>
         ) : (
-          filtered.map(m => (
+          filtered.map(m => {
+            const markRef = markRefFromMistake(m);
+            return (
             <MistakeCard key={m.id} mistake={m}
+              markBar={user && markRef ? (
+                <QuestionMarkBar
+                  userId={user.id}
+                  questionRef={markRef}
+                  question={{ text: m.question, subject: m.subject, chapter: m.chapterRaw }}
+                  mark={marks.get(markRef.id) ?? null}
+                  tags={markTags}
+                  onChange={(next) => setMark(markRef.id, next)}
+                />
+              ) : undefined}
               onRetry={() => { setPracticeIds([m.id]); setView("practice"); }}
               onExplain={() => askNova(m)}
               onClear={(x) => void clearMistake(x)}
@@ -1001,7 +1019,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
                   ? deleteCaptureMistake
                   : undefined
               }/>
-          ))
+            );
+          })
         )}
       </div>
     </div>

@@ -4490,6 +4490,30 @@ export type Database = {
           },
         ]
       }
+      mark_tags: {
+        Row: {
+          active: boolean
+          group_label: string
+          key: string
+          label: string
+          position: number
+        }
+        Insert: {
+          active?: boolean
+          group_label: string
+          key: string
+          label: string
+          position: number
+        }
+        Update: {
+          active?: boolean
+          group_label?: string
+          key?: string
+          label?: string
+          position?: number
+        }
+        Relationships: []
+      }
       marks: {
         Row: {
           created_at: string
@@ -6385,6 +6409,89 @@ export type Database = {
           },
         ]
       }
+      question_marks: {
+        Row: {
+          bank_question_id: string | null
+          capture_question_id: string | null
+          chapter: string | null
+          created_at: string
+          id: string
+          note: string | null
+          question_ref: string | null
+          question_text: string
+          subject: string | null
+          tags: string[]
+          updated_at: string
+          upload_question_id: string | null
+          user_id: string
+          voice_path: string | null
+          voice_seconds: number | null
+        }
+        Insert: {
+          bank_question_id?: string | null
+          capture_question_id?: string | null
+          chapter?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          question_ref?: string | null
+          question_text: string
+          subject?: string | null
+          tags?: string[]
+          updated_at?: string
+          upload_question_id?: string | null
+          user_id?: string
+          voice_path?: string | null
+          voice_seconds?: number | null
+        }
+        Update: {
+          bank_question_id?: string | null
+          capture_question_id?: string | null
+          chapter?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          question_ref?: string | null
+          question_text?: string
+          subject?: string | null
+          tags?: string[]
+          updated_at?: string
+          upload_question_id?: string | null
+          user_id?: string
+          voice_path?: string | null
+          voice_seconds?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_marks_bank_question_id_fkey"
+            columns: ["bank_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_marks_bank_question_id_fkey"
+            columns: ["bank_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_marks_capture_question_id_fkey"
+            columns: ["capture_question_id"]
+            isOneToOne: false
+            referencedRelation: "student_capture_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_marks_upload_question_id_fkey"
+            columns: ["upload_question_id"]
+            isOneToOne: false
+            referencedRelation: "student_upload_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_paper_questions: {
         Row: {
           answer: string | null
@@ -8217,7 +8324,6 @@ export type Database = {
           correct_answer: Json | null
           created_at: string
           difficulty: string | null
-          error_type: string | null
           explanation: string | null
           id: string
           last_wrong_at: string
@@ -8248,7 +8354,6 @@ export type Database = {
           correct_answer?: Json | null
           created_at?: string
           difficulty?: string | null
-          error_type?: string | null
           explanation?: string | null
           id?: string
           last_wrong_at?: string
@@ -8279,7 +8384,6 @@ export type Database = {
           correct_answer?: Json | null
           created_at?: string
           difficulty?: string | null
-          error_type?: string | null
           explanation?: string | null
           id?: string
           last_wrong_at?: string

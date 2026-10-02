@@ -10,6 +10,7 @@ import type { ServiceContext } from "./context";
 import { assertStudentContext } from "./assertStudentContext";
 import { edgeFunctionErrorMessage } from "@/lib/edgeFunctionError";
 import { planLimitFromInvokeError, type PlanLimit } from "@/lib/premium";
+import { removeVoiceNotes, voiceNotesForQuestions } from "@/lib/questionMarks";
 
 type ScreenCaptureSubmitInput = {
   image_base64: string;
@@ -189,6 +190,8 @@ export async function deleteScreenCaptureQuestion(
       };
     };
   };
+  // Its marks go with it (ON DELETE CASCADE); their recordings would not.
+  const recordings = await voiceNotesForQuestions("capture", [id]);
   // Mistakes first — capture delete must not leave SET-NULL orphans in the book.
   const mist = await db.from("student_mistakes").delete().eq("capture_question_id", id);
   if (mist.error) {
@@ -199,5 +202,6 @@ export async function deleteScreenCaptureQuestion(
     console.warn("[screen-capture] delete failed", error.message);
     return false;
   }
+  await removeVoiceNotes(recordings);
   return true;
 }

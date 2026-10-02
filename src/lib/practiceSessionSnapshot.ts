@@ -190,6 +190,10 @@ export function snapshotsToAttemptRows(attempts: PracticeAttemptSnapshot[]) {
         upload_question_id: a.uploadQuestionId ?? null,
         capture_question_id: a.captureQuestionId ?? null,
         chapter_id: a.chapterId ?? null,
+        // Each question's own, as question_attempts keeps them: a mixed
+        // session has no single subject, and a mark files the question by it.
+        subject: a.subject ?? null,
+        chapter: a.chapter ?? null,
       },
       correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
       selected_answer: skipped ? null : { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },

@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ArrowLeft, BarChart2, Check, CheckCircle2, Lightbulb, Save, Target, Timer, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, BarChart2, Check, CheckCircle2, Lightbulb, Save, Tag, Target, Timer, X } from "lucide-react";
 import { ScoreRing } from "@/components/student/ScoreRing";
 // The STUDENT panel header, not ui-bits'. Both export a `PageHeader` with the
 // same props and different designs — text-3xl display face with a 0.2em eyebrow
@@ -41,6 +41,9 @@ import { toErrorMessage } from "@/lib/presentation";
 import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
 import { RecoveryClearChapter } from "@/components/student/RecoveryClearChapter";
 import { revisionCheckLabel, revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
+import { markRefFromAttempt } from "@/lib/questionMarks";
+import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
+import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -55,7 +58,20 @@ function readLocalState(id: string): PracticeSessionResultState | null {
 
 type AttemptRow = {
   id: string;
-  generated_question: { question?: string; options?: string[]; explanation?: string };
+  /** The ids say which question this was, so the student can mark it. */
+  generated_question: {
+    question?: string;
+    options?: string[];
+    explanation?: string;
+    bank_question_id?: string | null;
+    upload_question_id?: string | null;
+    capture_question_id?: string | null;
+    subject?: string | null;
+    chapter?: string | null;
+  };
+  bank_question_id?: string | null;
+  subject?: string | null;
+  chapter?: string | null;
   correct_answer: { index?: number; text?: string };
   selected_answer: { index?: number; text?: string } | null;
   is_correct: boolean | null;
@@ -114,6 +130,8 @@ export default function PracticeSessionResult() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  // Every question here can be marked — wrong, skipped, or right by a guess.
+  const { tags: markTags, marks, setMark } = useQuestionMarks(user?.id);
 
   const snapshot = session?.analysis_snapshot ?? null;
 
@@ -654,7 +672,12 @@ export default function PracticeSessionResult() {
         </Card>
       )}
 
-      <h3 className="font-semibold mb-3">Question review</h3>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold">Question review</h3>
+        <Link to="/student/mistakes/types" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+          <Tag className="h-3.5 w-3.5" aria-hidden /> Your mistake types
+        </Link>
+      </div>
       <div className="space-y-4">
         {displayAttempts.map((a, i) => {
           const gq = a.generated_question ?? {};
@@ -664,6 +687,7 @@ export default function PracticeSessionResult() {
           const correctText = a.correct_answer?.text ?? (correctIdx != null ? opts[correctIdx] ?? "" : "");
           const selectedText = a.selected_answer?.text ?? (selectedIdx != null ? opts[selectedIdx] ?? "" : "");
           const questionText = gq.question ?? "";
+          const markRef = markRefFromAttempt(a);
 
           return (
             <Card key={a.id} className="p-5 transition-shadow hover:shadow-sm">
@@ -724,6 +748,21 @@ export default function PracticeSessionResult() {
                   navigate("/student/aicoach");
                 }}
               />
+              {user && markRef && questionText && (
+                <QuestionMarkBar
+                  className="mt-4"
+                  userId={user.id}
+                  questionRef={markRef}
+                  question={{
+                    text: questionText,
+                    subject: a.subject || gq.subject || subjectRaw || null,
+                    chapter: a.chapter || gq.chapter || chapterRaw || null,
+                  }}
+                  mark={marks.get(markRef.id) ?? null}
+                  tags={markTags}
+                  onChange={(m) => setMark(markRef.id, m)}
+                />
+              )}
             </Card>
           );
         })}

@@ -12,7 +12,7 @@ export interface Mistake {
   chapterRaw: string | null;
   conceptRaw: string | null;
   source: string; sourceLabel: string; date: string; frequency: number;
-  aiExplanation: string; correctReason: string; studentReason: string;
+  aiExplanation: string;
   bookmarked: boolean; resolved: boolean; qType: string; sortDate: string;
   questionId: string | null;
   /** Spec §6.1 — student_upload_questions.id when source=upload + AI key. */
@@ -153,8 +153,6 @@ export function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     date: formatMistakeDate(row.last_wrong_at),
     frequency: row.times_wrong ?? 1,
     aiExplanation: row.explanation ?? "",
-    correctReason: "",
-    studentReason: "",
     bookmarked,
     resolved: row.status === "cleared",
     qType: row.assessment_type ?? "MCQ",

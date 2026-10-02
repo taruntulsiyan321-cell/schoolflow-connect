@@ -8,6 +8,7 @@ import { getClient, throwIfError } from "../repository/base";
 import { uploadStudentUploadFile } from "../storage/studentUploadFile";
 import { edgeFunctionErrorMessage } from "@/lib/edgeFunctionError";
 import { planLimitFromInvokeError, type PlanLimit } from "@/lib/premium";
+import { removeVoiceNotes, voiceNotesForQuestions } from "@/lib/questionMarks";
 
 export type UploadVerdict = "questions" | "notes" | "mixed" | "unusable";
 export type UploadStatus = "pending" | "processing" | "ready" | "unusable" | "failed";
@@ -523,6 +524,14 @@ export const StudentUploadService = {
     const db = getClient(ctx);
     const row = await this.get(ctx, uploadId);
     if (!row) return;
+    // Marks on its questions go with it (ON DELETE CASCADE); their
+    // recordings would not.
+    const { data: questions } = await db
+      .from("student_upload_questions")
+      .select("id")
+      .eq("upload_id", uploadId)
+      .eq("owner_id", ctx.userId);
+    const recordings = await voiceNotesForQuestions("upload", (questions ?? []).map((q) => q.id));
     const { error } = await db
       .from("student_uploads")
       .delete()
@@ -531,5 +540,6 @@ export const StudentUploadService = {
     throwIfError(error, "StudentUploadService.remove");
     // Best-effort storage cleanup — row ownership already enforced.
     await db.storage.from("student-uploads").remove([row.storage_path]).catch(() => {});
+    await removeVoiceNotes(recordings);
   },
 };
