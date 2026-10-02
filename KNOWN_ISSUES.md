@@ -4947,3 +4947,41 @@ included (one home for every ruling); the badge catalogue (Achievements shows an
 4. **`rpc_student_academic_snapshot` still returns `test` and `homework` keys** to an individual account
    (school fields; the individual app reads neither). Database change, outside this ruling's step 4.
 5. 109 is still open.
+
+## 111. The Android app (the only home of screen capture) could not be used — three defects FIXED 2026-10-02; it is still not in any student's hands
+
+Screen capture of another app cannot be a website feature (`docs/screen-capture-mistakes-spec.md` §3.1):
+on the website the capture card is hidden by design, and it lives only in the Android app. Measured
+2026-10-02 on the `medium_phone` emulator (Android 16), the app could not have worked for anyone:
+
+1. **Every screen of the app was the website's landing page.** `npm run build` makes `dist/index.html`
+   the marketing page (promote-landing, since 2026-09-07) and moves the student app to `app.html`, which
+   only Vercel's rewrite reaches; Capacitor opened `dist/index.html` with no rewrite. **Fixed:** the app
+   ships its own build, `npm run build:app` → `dist-app`, where `index.html` is the student app.
+2. **Nobody could sign in to the app.** MSG91's widget runs hCaptcha, which refuses the default origin
+   `https://localhost` ("localhost detected. Please use a valid host"); the OTP request then failed with
+   `network-error`. **Fixed:** `server.hostname = 'app.gurukul.study'` (never resolved — the web view
+   answers it from the bundled files). With it, an OTP request to MSG91's test number succeeds from
+   inside the app.
+3. **Voice notes could not record in the app**: the manifest never declared the microphone. **Fixed:**
+   `RECORD_AUDIO` + `MODIFY_AUDIO_SETTINGS`; measured, 1.5 s recorded to 3.6 KB `audio/webm;codecs=opus`.
+
+Also removed: the Capacitor template tests — `ExampleInstrumentedTest` asserted the package was
+`com.getcapacitor.app` (it is `study.gurukul.app`, so it always failed) and `ExampleUnitTest` asserted
+2 + 2 = 4. `src/lib/capacitorEntry.test.ts` fails if 1–3 are undone. The capture funnel itself:
+`CaptureFunnelTest` 9/9 and `CaptureFunnelInstrumentedTest` 9/9 on the emulator.
+
+**Open — the owner's to decide or do:**
+
+* **No student has the app.** The only APK ever built is a local debug build. Distributing it needs a
+  release signing key, a Play Console listing, and Play's declaration for the media-projection
+  foreground service (justification + demo video, spec §13). A build for it must carry the public
+  `VITE_MSG91_WIDGET_ID` / `VITE_MSG91_TOKEN_AUTH` (the website's build gets them from Vercel), or its
+  sign-in reports "unconfigured".
+* The app's launcher icon and splash are still Capacitor's defaults, not Gurukul's.
+* **Never run end to end:** a real capture in Physics Wallah on a real phone, signed in (spec §10.4 —
+  the owner is the tester). The one captured question on record (2026-09-25) came from a test account.
+* **Custom practice's AI step** (`custom-practice-upload` reading a file through OpenRouter,
+  `qwen/qwen3.7-flash`, which still exists) has not run since 2026-09-27 — nothing has called any model
+  since. Deployed, undrifted, its secrets set; whether the key still has credit is proved only by a
+  signed-in upload.

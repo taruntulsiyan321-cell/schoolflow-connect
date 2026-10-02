@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build && node scripts/promote-landing.mjs",
     "build:dev": "vite build --mode development",
+    "build:app": "vite build --outDir dist-app && npx cap sync android",
     "lint": "eslint .",
     "test:e2e:auth": "playwright test --project=setup",
     "test:e2e": "playwright test --project=chromium",

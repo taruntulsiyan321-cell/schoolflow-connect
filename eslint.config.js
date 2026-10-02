@@ -12,7 +12,20 @@ export default tseslint.config(
   // baseline from 143 to 151. Two of those files are production source
   // recovered from a running deployment (rule 26); reformatting them to
   // satisfy a browser lint config would destroy the only reason they exist.
-  { ignores: ["dist", "supabase/functions/**"] },
+  //
+  // Build output is not source either: `dist-app` is the Android app's web
+  // bundle (npm run build:app), and Gradle writes Capacitor's own bridge
+  // script and a copy of that bundle under android/. Building the app locally
+  // put them in the lint run and failed the baseline (2026-10-02).
+  {
+    ignores: [
+      "dist",
+      "dist-app",
+      "android/**/build/**",
+      "android/app/src/main/assets/**",
+      "supabase/functions/**",
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

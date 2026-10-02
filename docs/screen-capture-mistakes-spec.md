@@ -369,7 +369,10 @@ On this worktree (2026-09-24): JVM `CaptureFunnelTest` **9/9 PASS**; on-device
 `./gradlew :app:connectedDebugAndroidTest` on AVD `medium_phone`
 (sdk_gphone64_x86_64 / Android 16). Portable SDK/JDK under
 `%LOCALAPPDATA%\gurukul-tools\` (not committed; `android/local.properties`
-gitignored). `npx cap sync android` regenerates `capacitor.settings.gradle`.
+gitignored). `npm run build:app` builds the app's own web bundle (`dist-app`, where
+`index.html` is the student app — not the website's `dist`, whose `index.html` is
+the landing page) and runs `npx cap sync android`, which regenerates
+`capacitor.settings.gradle`.
 
 Stage 2 reliability (same day, after first instrumented green):
 - Watch SEND queue (native pending + JS upload queue) — no silent drop while busy
