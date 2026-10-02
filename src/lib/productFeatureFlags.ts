@@ -5,21 +5,18 @@
  * Per-capability booleans (live when true). Global mode for false flags:
  *   UNAVAILABLE_FEATURE_MODE = "coming_soon" | "hide"
  * Override via Vite env, e.g. VITE_FF_NOVA_ATTACHMENT=0, VITE_FF_UNAVAILABLE_MODE=hide
+ *
+ * Each flag names its own variable (import.meta.env.VITE_FF_…), which Vite
+ * replaces with that one value. Never read import.meta.env as an object or by
+ * a computed key: Vite then inlines ALL of it, and on Vercel that is every
+ * VITE_VERCEL_* system variable — the commit message, its author, the
+ * repository. envAccess.test.ts fails on it.
  */
 
 type FeaturePresentation = "live" | "coming_soon" | "hidden";
 type UnavailableFeatureMode = "coming_soon" | "hide";
 
 export const COMING_SOON_LABEL = "Coming Soon";
-
-function readEnv(key: string): string | undefined {
-  try {
-    const env = import.meta.env as Record<string, string | undefined>;
-    return env[key];
-  } catch {
-    return undefined;
-  }
-}
 
 function parseBool(raw: unknown, fallback: boolean): boolean {
   if (typeof raw !== "string") return fallback;
@@ -38,7 +35,7 @@ function parseUnavailableMode(raw: unknown): UnavailableFeatureMode {
 
 /** How disabled product features present in UI. */
 export const UNAVAILABLE_FEATURE_MODE: UnavailableFeatureMode = parseUnavailableMode(
-  readEnv("VITE_FF_UNAVAILABLE_MODE"),
+  import.meta.env.VITE_FF_UNAVAILABLE_MODE,
 );
 
 /** Nova input capabilities. Voice is not a flag: it is offered wherever the
@@ -46,14 +43,14 @@ export const UNAVAILABLE_FEATURE_MODE: UnavailableFeatureMode = parseUnavailable
 export const NOVA_FEATURE_FLAGS = {
   // Live: photo (camera/gallery) + PDF attachment, routed to a vision-capable model.
   // Override with VITE_FF_NOVA_ATTACHMENT=0 to disable without a code change.
-  attachment: parseBool(readEnv("VITE_FF_NOVA_ATTACHMENT"), true),
+  attachment: parseBool(import.meta.env.VITE_FF_NOVA_ATTACHMENT, true),
 } as const;
 
 /** Decision Engine integration switches — default OFF until a slice is
  * proven in normal use (see docs/GURUKUL_ACADEMIC_DECISION_ENGINE_SPEC.md). */
 export const DECISION_ENGINE_FEATURE_FLAGS = {
-  weakAreasV2: parseBool(readEnv("VITE_FF_DECISION_ENGINE_WEAK_AREAS_V2"), false),
-  revisionV2: parseBool(readEnv("VITE_FF_DECISION_ENGINE_REVISION_V2"), false),
+  weakAreasV2: parseBool(import.meta.env.VITE_FF_DECISION_ENGINE_WEAK_AREAS_V2, false),
+  revisionV2: parseBool(import.meta.env.VITE_FF_DECISION_ENGINE_REVISION_V2, false),
 } as const;
 if (DECISION_ENGINE_FEATURE_FLAGS.weakAreasV2) {
   // Once per app load, never per-request -- confirms this build actually
