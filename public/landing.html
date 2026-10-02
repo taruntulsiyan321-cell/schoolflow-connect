@@ -1938,7 +1938,7 @@
             <div className="site-nav-cta" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <a href="/auth" target="_top" className="btn btn-secondary nav-sign-in" style={{ padding: '10px 18px', fontSize: 14, textDecoration: 'none' }}>Sign in</a>
               <motion.a
-                href="/auth" target="_top"
+                href="/signup" target="_top"
                 className="btn btn-primary"
                 whileHover={{ scale: 1.05, y: -1 }}
                 whileTap={{ scale: 0.96 }}
@@ -2381,7 +2381,7 @@
               <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 24 }}>
                 Every plan, what it includes and its price are shown in the app before you pay anything.
               </p>
-              {button('Get Started', '/auth', colors[1], true)}
+              {button('Get Started', '/signup', colors[1], true)}
             </>
           ));
         }
@@ -2408,7 +2408,7 @@
                   </div>
                 ))}
               </div>
-              {button(plan.price ? 'Get Started' : 'Start Free', '/auth', color, highlighted)}
+              {button(plan.price ? 'Get Started' : 'Start Free', '/signup', color, highlighted)}
             </>
           ));
         });

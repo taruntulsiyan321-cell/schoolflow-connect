@@ -1,16 +1,16 @@
 /**
  * Mint Playwright storageState for individual (exam) accounts.
  *
- * HOW AN EXAM ACCOUNT SIGNS IN (measured 2026-09-24):
- *   Auth.tsx Individual tab → pick exam → MSG91 OTP widget →
+ * HOW AN EXAM ACCOUNT SIGNS IN (2026-10-02):
+ *   /auth mobile number + OTP fields (CUET, the one exam open, is sent
+ *   without asking) → MSG91's headless widget sends and verifies the code →
  *   verify-msg91-widget → linkOrCreatePhoneUser with
  *   syntheticEmailForExamAccount(phone, examCode) =
  *   `{digits}.{exam}@exam.vidyalaya.local` → client redeem via
  *   supabase.auth.verifyOtp({ token_hash, type: "email" }).
  *
- * Password /auth form uses phoneToSyntheticEmail → `@phone.vidyalaya.local`,
- * which cannot reach exam accounts. Automating MSG91 OTP needs a real SMS
- * or a backdoor — we do neither (HANDOFF / brief).
+ * There is no password form. Automating MSG91 OTP needs a real SMS or a
+ * backdoor — we do neither (HANDOFF / brief).
  *
  * Least invasive real harness: refresh an already-issued session
  * (E2E_EXAM_CUET_REFRESH_TOKEN or scratchpad sessions.json) and inject the

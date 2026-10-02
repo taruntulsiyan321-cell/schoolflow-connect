@@ -1,51 +1,179 @@
 /**
- * MSG91 OTP Widget — client-side loader + typed wrapper around
- * window.initSendOTP.
+ * MSG91 OTP widget, headless: the sign-in page draws its own mobile-number and
+ * OTP fields, and MSG91's script only sends and verifies the code.
  *
- * widgetId/tokenAuth are client-facing identifiers by MSG91's own design
- * (the actual secret, MSG91_AUTH_KEY, never leaves the server — see
- * supabase/functions/verify-msg91-widget/index.ts). This module only ever
- * hands the resulting access-token to our own backend; it never reads or
- * trusts a phone number itself, since MSG91's widget UI owns collecting and
- * verifying that entirely — we only see the token afterward.
+ * Started with `exposeMethods: true`, otp-provider.js renders nothing (its
+ * popup template is `ngIf !exposeMethods`) and defines window.sendOtp,
+ * window.verifyOtp, window.retryOtp and window.getWidgetData instead. Read
+ * from the script itself, 2026-10-02.
+ *
+ * widgetId/tokenAuth are client-facing identifiers by MSG91's design; the
+ * secret (MSG91_AUTH_KEY) never leaves the server. The page never reports a
+ * phone number to our backend either: it hands on only the access-token
+ * verifyOtp returns, and verify-msg91-widget confirms that with MSG91.
+ *
+ * ONE WIDGET PER PAGE LOAD. initSendOTP replaces the widget every time it is
+ * called, but the window methods are defined once, non-configurable, bound to
+ * the FIRST widget — a second initSendOTP leaves them calling a destroyed one.
+ * So initSendOTP runs at most once, and only the wait for its settings retries.
  */
+
+type Callback = (data: unknown) => void;
 
 declare global {
   interface Window {
     initSendOTP?: (config: Record<string, unknown>) => void;
+    sendOtp?: (identifier: string, success: Callback, failure: Callback) => void;
+    verifyOtp?: (otp: string, success: Callback, failure: Callback, reqId?: string | null) => void;
+    retryOtp?: (channel: string | null, success: Callback, failure: Callback, reqId?: string | null) => void;
+    getWidgetData?: () => unknown;
   }
 }
 
 const WIDGET_SCRIPT_URL = "https://verify.msg91.com/otp-provider.js";
+const SETTINGS_WAIT_MS = 15_000;
+
+/** What the widget is configured with on MSG91's side. */
+export type Msg91WidgetSettings = {
+  /** Digits in a code. */
+  otpLength: number;
+  /** Seconds before a resend is allowed. */
+  resendAfterSec: number;
+  /** How many resends MSG91 allows per code. */
+  resendsAllowed: number;
+  /** The channel a resend goes out on; null when the widget offers no resend. */
+  resendChannel: string | null;
+};
+
+export function isMsg91WidgetConfigured(): boolean {
+  return Boolean(import.meta.env.VITE_MSG91_WIDGET_ID && import.meta.env.VITE_MSG91_TOKEN_AUTH);
+}
 
 let scriptPromise: Promise<void> | null = null;
 
-function loadMsg91WidgetScript(): Promise<void> {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("MSG91 widget requires a browser environment"));
-  }
+function loadScript(): Promise<void> {
   if (window.initSendOTP) return Promise.resolve();
-  if (scriptPromise) return scriptPromise;
-
-  scriptPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>("script[data-msg91-widget]");
-    if (existing) {
-      existing.addEventListener("load", () => resolve());
-      existing.addEventListener("error", () => reject(new Error("Failed to load MSG91 widget script")));
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = WIDGET_SCRIPT_URL;
-    script.async = true;
-    script.dataset.msg91Widget = "true";
-    script.onload = () => resolve();
-    script.onerror = () => {
+  if (!scriptPromise) {
+    scriptPromise = new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = WIDGET_SCRIPT_URL;
+      script.async = true;
+      script.dataset.msg91Widget = "true";
+      script.onload = () => resolve();
+      script.onerror = () => {
+        script.remove();
+        reject(new Error("Could not load mobile sign-in."));
+      };
+      document.body.appendChild(script);
+    }).catch((e) => {
       scriptPromise = null;
-      reject(new Error("Failed to load MSG91 widget script"));
-    };
-    document.body.appendChild(script);
-  });
+      throw e;
+    });
+  }
   return scriptPromise;
+}
+
+let initialised = false;
+
+/** The widget's settings, read off getWidgetData() once MSG91 has sent them. */
+export function settingsFrom(data: unknown): Msg91WidgetSettings | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as {
+    otpLength?: unknown;
+    retryTime?: unknown;
+    retryCount?: unknown;
+    processes?: { processVia?: { value?: unknown }; channel?: { value?: unknown } }[];
+  };
+  const otpLength = Number(d.otpLength);
+  if (!Number.isInteger(otpLength) || otpLength < 4 || otpLength > 9) return null;
+  // The widget's own resend list: processes delivered "via 5" are its retries.
+  const retry = (Array.isArray(d.processes) ? d.processes : []).find(
+    (p) => String(p?.processVia?.value) === "5" && p?.channel?.value != null,
+  );
+  const resendAfterSec = Number(d.retryTime);
+  const resendsAllowed = Number(d.retryCount);
+  return {
+    otpLength,
+    resendAfterSec: Number.isFinite(resendAfterSec) && resendAfterSec > 0 ? resendAfterSec : 25,
+    resendsAllowed: Number.isInteger(resendsAllowed) && resendsAllowed >= 0 ? resendsAllowed : 2,
+    resendChannel: retry ? String(retry.channel?.value) : null,
+  };
+}
+
+let started: Promise<Msg91WidgetSettings> | null = null;
+
+/**
+ * Loads MSG91's script and starts the headless widget, once per page load.
+ * Resolves with the widget's settings when it is ready to send a code.
+ */
+export function startMsg91(): Promise<Msg91WidgetSettings> {
+  if (!started) {
+    started = (async () => {
+      const widgetId = import.meta.env.VITE_MSG91_WIDGET_ID as string | undefined;
+      const tokenAuth = import.meta.env.VITE_MSG91_TOKEN_AUTH as string | undefined;
+      if (!widgetId || !tokenAuth) throw new Error("Mobile sign-in isn't configured yet.");
+      await loadScript();
+      if (!window.initSendOTP) throw new Error("Could not load mobile sign-in.");
+      if (!initialised) {
+        initialised = true;
+        // The method callbacks below carry every result; these two are
+        // required by initSendOTP and have nothing left to do.
+        window.initSendOTP({ widgetId, tokenAuth, exposeMethods: true, success: () => {}, failure: () => {} });
+      }
+      const deadline = Date.now() + SETTINGS_WAIT_MS;
+      for (;;) {
+        const settings = window.sendOtp && window.getWidgetData ? settingsFrom(window.getWidgetData()) : null;
+        if (settings) return settings;
+        if (Date.now() > deadline) throw new Error("Mobile sign-in did not start.");
+        await new Promise((r) => setTimeout(r, 150));
+      }
+    })().catch((e) => {
+      started = null;
+      throw e;
+    });
+  }
+  return started;
+}
+
+/**
+ * Sending runs MSG91's invisible hCaptcha first, and when that expires, errors
+ * or is closed the widget only logs it — the call never returns. So every call
+ * has a limit: long enough to solve a challenge, short enough not to strand
+ * the student on "Sending code…".
+ */
+const SEND_WAIT_MS = 90_000;
+const VERIFY_WAIT_MS = 30_000;
+export const NO_RESPONSE = "no_response";
+
+function call(run: (ok: Callback, fail: Callback) => void, waitMs: number): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject({ message: NO_RESPONSE }), waitMs);
+    run(
+      (data) => { clearTimeout(timer); resolve(data); },
+      (error) => { clearTimeout(timer); reject(error); },
+    );
+  });
+}
+
+/** Texts a code to a 10-digit Indian mobile number. */
+export async function sendMsg91Otp(mobile: string): Promise<void> {
+  await startMsg91();
+  await call((ok, fail) => window.sendOtp!(`91${mobile}`, ok, fail), SEND_WAIT_MS);
+}
+
+/** Sends the code again, on the widget's own resend channel. */
+export async function resendMsg91Otp(channel: string | null): Promise<void> {
+  await startMsg91();
+  await call((ok, fail) => window.retryOtp!(channel, ok, fail), SEND_WAIT_MS);
+}
+
+/** Verifies the code the student typed; resolves with MSG91's access-token. */
+export async function verifyMsg91Otp(code: string): Promise<Msg91AccessTokenMeta> {
+  await startMsg91();
+  const data = await call((ok, fail) => window.verifyOtp!(code, ok, fail), VERIFY_WAIT_MS);
+  const meta = extractAccessTokenMeta(data as Record<string, unknown>);
+  if (!meta) throw new Error("MSG91 did not return a usable verification token.");
+  return meta;
 }
 
 type Msg91WidgetSuccessData = Record<string, unknown>;
@@ -119,151 +247,37 @@ export function extractAccessTokenMeta(
   };
 }
 
-type Msg91FailureReason = "cancelled" | "timeout" | "unknown";
+type Msg91FailureReason = "no_response" | "wrong_code" | "too_many" | "expired" | "bad_number" | "unknown";
 
 /**
- * MSG91's failure callback error shape is likewise not fully documented for
- * every case, so this is best-effort classification from whatever text is
- * available — falls back to a generic, still-honest message rather than
- * guessing a specific reason it can't actually confirm.
+ * What to tell the student when MSG91 refuses. Its errors carry a numeric
+ * `code` for the two that matter most — 703 wrong code, 704 attempt limit
+ * (otp-provider.js's own enum) — and otherwise only a message, so the rest is
+ * read from the text, with an honest generic fallback.
  */
 export function classifyMsg91Failure(error: unknown): { reason: Msg91FailureReason; message: string } {
+  const code = Number((error as { code?: unknown } | null)?.code);
   const text = (
     typeof error === "string"
       ? error
       : (error as { message?: string } | null)?.message ?? JSON.stringify(error ?? {})
   ).toLowerCase();
 
-  if (text.includes("cancel") || text.includes("closed") || text.includes("dismiss")) {
-    return { reason: "cancelled", message: "Mobile verification was cancelled." };
+  if (text === NO_RESPONSE) {
+    return { reason: "no_response", message: "We didn't hear back from the SMS service. Please try again." };
   }
-  if (text.includes("timeout") || text.includes("expired") || text.includes("time out")) {
-    return { reason: "timeout", message: "Mobile verification timed out. Please try again." };
+  if (code === 704 || /limit|too many|maximum|exceeded/.test(text)) {
+    return { reason: "too_many", message: "Too many attempts. Wait a few minutes, then send a new code." };
   }
-  return { reason: "unknown", message: "Mobile verification could not be completed. Please try again." };
-}
-
-export function isMsg91WidgetConfigured(): boolean {
-  return Boolean(import.meta.env.VITE_MSG91_WIDGET_ID && import.meta.env.VITE_MSG91_TOKEN_AUTH);
-}
-
-/**
- * Snapshot of document.body's direct children taken right before the widget
- * opens, so closeMsg91Widget() can remove exactly what MSG91's script added
- * (its <msg91-otp-provider> host, country-picker helper elements, etc.)
- * without touching anything else portaled onto body by the rest of the app
- * (toasts, tooltips) that happened to exist first.
- */
-let bodyChildrenBeforeOpen: Set<Element> | null = null;
-
-/**
- * Opens MSG91's hosted OTP widget (phone entry + OTP entry UI owned entirely
- * by MSG91). onSuccess receives only the access-token — never a phone
- * number, since the frontend must never be trusted to report one (that's
- * confirmed server-side via verifyAccessToken).
- */
-export async function openMsg91Widget(handlers: {
-  onSuccess: (accessToken: string, tokenMeta?: Pick<Msg91AccessTokenMeta, "keys" | "jwt_shaped" | "length">) => void;
-  onFailure: (error: unknown) => void;
-}): Promise<void> {
-  const widgetId = import.meta.env.VITE_MSG91_WIDGET_ID as string | undefined;
-  const tokenAuth = import.meta.env.VITE_MSG91_TOKEN_AUTH as string | undefined;
-  if (!widgetId || !tokenAuth) {
-    handlers.onFailure(new Error("Mobile sign-in is not configured yet."));
-    return;
+  if (/expire/.test(text)) {
+    return { reason: "expired", message: "That code has expired. Send a new one." };
   }
-
-  try {
-    await loadMsg91WidgetScript();
-  } catch (e) {
-    handlers.onFailure(e);
-    return;
+  // Before the wrong-code rule: "mobile number is incorrect" says "incorrect" too.
+  if (code !== 703 && /mobile|number|identifier/.test(text) && /invalid|not valid|incorrect/.test(text)) {
+    return { reason: "bad_number", message: "Check your mobile number and try again." };
   }
-
-  if (!window.initSendOTP) {
-    handlers.onFailure(new Error("MSG91 widget failed to load."));
-    return;
+  if (code === 703 || /invalid otp|otp not match|not match|incorrect|wrong/.test(text)) {
+    return { reason: "wrong_code", message: "That code isn't right. Check the SMS and try again." };
   }
-
-  bodyChildrenBeforeOpen = new Set(Array.from(document.body.children));
-
-  window.initSendOTP({
-    widgetId,
-    tokenAuth,
-    exposeMethods: false,
-    success: (data: Msg91WidgetSuccessData) => {
-      const meta = extractAccessTokenMeta(data);
-      if (!meta) {
-        handlers.onFailure(new Error("MSG91 did not return a usable verification token."));
-        return;
-      }
-      handlers.onSuccess(meta.token, {
-        keys: meta.keys,
-        jwt_shaped: meta.jwt_shaped,
-        length: meta.length,
-      });
-    },
-    failure: (error: unknown) => {
-      handlers.onFailure(error);
-    },
-  });
-}
-
-/**
- * Closes MSG91's widget overlay without a page reload.
- *
- * MSG91's SDK has no documented public "close" method, so this fires every
- * mechanism confirmed (via live testing against the real widget) to make it
- * release the page-wide click-interceptor it installs while open:
- *  1. its own internal close button, reached through the shadow DOM it
- *     renders into <msg91-otp-provider> — an MSG91 implementation detail
- *     that could change in a future SDK version, so it's best-effort only;
- *  2. a synthetic Escape keypress, which MSG91's own script listens for
- *     globally regardless of DOM target — confirmed live to work on its own,
- *     independent of (1), and not tied to any private class name.
- *
- * Closing is not synchronous on MSG91's side. It exposes no event to await,
- * and a hit-test-based poll turned out to be unreliable in practice: it
- * false-positived by checking a point that was never actually blocked (e.g.
- * the Cancel button's own position, right below the widget's action button),
- * while the interceptor was still live elsewhere on the page (e.g. the tab
- * switcher above it) — the blocked region isn't the same as any one fixed
- * element we control, so there's no single coordinate that reliably proves
- * release. A fixed delay, confirmed generous enough in every observed run,
- * is the reliable option here.
- *
- * Once that delay elapses this sweeps every DOM node MSG91 added since
- * openMsg91Widget() was called (diffed against the pre-open snapshot) so
- * repeated open/cancel cycles never accumulate orphaned nodes.
- */
-export async function closeMsg91Widget(): Promise<void> {
-  try {
-    const host = document.querySelector("msg91-otp-provider");
-    const closeBtn = host?.shadowRoot?.querySelector<HTMLElement>("button.close-dialog");
-    closeBtn?.click();
-  } catch {
-    // best-effort only — shadow DOM structure is an MSG91 implementation detail
-  }
-
-  const escOpts: KeyboardEventInit = {
-    key: "Escape",
-    code: "Escape",
-    keyCode: 27,
-    which: 27,
-    bubbles: true,
-    cancelable: true,
-  };
-  document.dispatchEvent(new KeyboardEvent("keydown", escOpts));
-  document.dispatchEvent(new KeyboardEvent("keyup", escOpts));
-
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-
-  document.querySelectorAll("msg91-otp-provider").forEach((n) => n.remove());
-  if (bodyChildrenBeforeOpen) {
-    const before = bodyChildrenBeforeOpen;
-    Array.from(document.body.children).forEach((el) => {
-      if (!before.has(el)) el.remove();
-    });
-  }
-  bodyChildrenBeforeOpen = null;
+  return { reason: "unknown", message: "Something went wrong with the code. Please try again." };
 }

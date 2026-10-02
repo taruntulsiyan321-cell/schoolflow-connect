@@ -43,7 +43,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/login" element={<Navigate to="/auth" replace />} />
-                <Route path="/signup" element={<Navigate to="/auth" replace />} />
+                <Route path="/signup" element={<Navigate to="/auth?mode=register" replace />} />
                 <Route path="/terms" element={<Legal slug="terms" />} />
                 <Route path="/refund-policy" element={<Legal slug="refund-policy" />} />
                 <Route path="/privacy" element={<Legal slug="privacy" />} />

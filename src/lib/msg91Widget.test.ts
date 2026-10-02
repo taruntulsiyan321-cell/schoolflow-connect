@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractAccessToken, extractAccessTokenMeta, classifyMsg91Failure } from "./msg91Widget";
+import { extractAccessToken, extractAccessTokenMeta, classifyMsg91Failure, settingsFrom } from "./msg91Widget";
 
 describe("extractAccessToken", () => {
   it("reads the token from data.message when that is the only field", () => {
@@ -91,27 +91,71 @@ describe("extractAccessTokenMeta", () => {
 });
 
 describe("classifyMsg91Failure", () => {
-  it("classifies a cancellation from a string reason", () => {
-    expect(classifyMsg91Failure("User cancelled the widget").reason).toBe("cancelled");
+  it("reads MSG91's own codes first: 703 is a wrong code, 704 the attempt limit", () => {
+    expect(classifyMsg91Failure({ code: 703, message: "x" }).reason).toBe("wrong_code");
+    expect(classifyMsg91Failure({ code: 704, message: "x" }).reason).toBe("too_many");
   });
 
-  it("classifies a cancellation from an error object message", () => {
-    expect(classifyMsg91Failure({ message: "Widget closed by user" }).reason).toBe("cancelled");
+  it("reads the message when there is no code", () => {
+    expect(classifyMsg91Failure({ message: "OTP not match" }).reason).toBe("wrong_code");
+    expect(classifyMsg91Failure({ message: "OTP expired" }).reason).toBe("expired");
+    expect(classifyMsg91Failure("Max limit reached for this otp verification").reason).toBe("too_many");
   });
 
-  it("classifies a timeout", () => {
-    expect(classifyMsg91Failure({ message: "OTP request timeout" }).reason).toBe("timeout");
-    expect(classifyMsg91Failure("session expired").reason).toBe("timeout");
+  it("a bad number is not read as a wrong code, though both say 'incorrect'", () => {
+    expect(classifyMsg91Failure({ message: "Mobile number is incorrect" }).reason).toBe("bad_number");
+    expect(classifyMsg91Failure({ message: "OTP is incorrect" }).reason).toBe("wrong_code");
+  });
+
+  it("every reason comes with words a student can act on", () => {
+    for (const e of [{ code: 703 }, { code: 704 }, { message: "expired" }, { message: "invalid mobile" }, { code: 500 }]) {
+      const { message } = classifyMsg91Failure(e);
+      expect(message.length).toBeGreaterThan(10);
+      expect(message).not.toMatch(/\b70[34]\b|undefined|\[object/);
+    }
+  });
+
+  it("a call the widget never answered says so", () => {
+    expect(classifyMsg91Failure({ message: "no_response" }).reason).toBe("no_response");
+    // CONTROL: the word alone inside another message is not the timeout.
+    expect(classifyMsg91Failure({ message: "server sent no_response header" }).reason).not.toBe("no_response");
   });
 
   it("falls back to unknown for an unrecognised shape, without throwing", () => {
-    const result = classifyMsg91Failure({ code: 500 });
-    expect(result.reason).toBe("unknown");
-    expect(result.message).toBeTruthy();
-  });
-
-  it("never throws on null/undefined input", () => {
+    expect(classifyMsg91Failure({ code: 500 }).reason).toBe("unknown");
     expect(() => classifyMsg91Failure(null)).not.toThrow();
     expect(() => classifyMsg91Failure(undefined)).not.toThrow();
+  });
+});
+
+describe("settingsFrom — the widget's own settings", () => {
+  const data = {
+    otpLength: "4",
+    retryTime: "30",
+    retryCount: "2",
+    processes: [
+      { processVia: { value: "1" }, channel: { value: "11" } },
+      { processVia: { value: "5" }, channel: { value: "11" } },
+      { processVia: { value: "5" }, channel: { value: "4" } },
+    ],
+  };
+
+  it("reads the code length, resend wait and limit, and the first resend channel", () => {
+    expect(settingsFrom(data)).toEqual({ otpLength: 4, resendAfterSec: 30, resendsAllowed: 2, resendChannel: "11" });
+  });
+
+  it("offers no resend when the widget lists no resend process", () => {
+    expect(settingsFrom({ ...data, processes: [data.processes[0]] })?.resendChannel).toBeNull();
+  });
+
+  it("is not ready until MSG91 has sent a usable code length", () => {
+    expect(settingsFrom(undefined)).toBeNull();
+    expect(settingsFrom({})).toBeNull();
+    expect(settingsFrom({ ...data, otpLength: "abc" })).toBeNull();
+  });
+
+  it("falls back to MSG91's own defaults for a missing wait or limit", () => {
+    const s = settingsFrom({ otpLength: 6 });
+    expect(s).toEqual({ otpLength: 6, resendAfterSec: 25, resendsAllowed: 2, resendChannel: null });
   });
 });
