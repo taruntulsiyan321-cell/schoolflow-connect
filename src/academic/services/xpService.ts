@@ -38,9 +38,8 @@ type StudentXpRow = {
 
 /**
  * XpService — badge equip + batch equipped reads only.
- * XP / level / streak / league UI must use ProgressionService.getSnapshot /
- * ProgressionService.leaderboard (rpc_get_student_progression /
- * rpc_progression_leaderboard). Do not invent totals from raw student_xp.
+ * XP / level / streak / league UI must use ProgressionService.getSnapshot
+ * (rpc_get_student_progression). Do not invent totals from raw student_xp.
  */
 export const XpService = {
   /**
@@ -88,29 +87,6 @@ export const XpService = {
       .maybeSingle();
     throwIfError(error, "Failed to load equipped badge");
     return data?.equipped_badge ?? null;
-  },
-
-  /** Batch public equipped badges for classmates / leaderboards. */
-  async getEquippedByUserIds(
-    ctx: ServiceContext,
-    userIds: string[],
-  ): Promise<Record<string, string | null>> {
-    assertCanConsume(ctx, "student_xp");
-    const unique = [...new Set(userIds.filter(Boolean))];
-    const map: Record<string, string | null> = {};
-    unique.forEach((id) => {
-      map[id] = null;
-    });
-    if (!unique.length) return map;
-    const { data, error } = await getClient(toRepoContext(ctx))
-      .from("student_xp")
-      .select("user_id, equipped_badge")
-      .in("user_id", unique);
-    throwIfError(error, "Failed to load equipped badges");
-    (data ?? []).forEach((r) => {
-      map[r.user_id] = r.equipped_badge;
-    });
-    return map;
   },
 
   /**

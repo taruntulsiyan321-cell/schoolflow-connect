@@ -4,7 +4,6 @@ import {
   appliesCommerceSubjectAllowlist,
   appliesScienceSubjectAllowlist,
   streamForClass,
-  subjectsForStreamPicker,
 } from "./curriculumScope";
 
 describe("a stream applies only from Class 11", () => {
@@ -26,11 +25,5 @@ describe("a stream applies only from Class 11", () => {
     expect(appliesCommerceSubjectAllowlist("commerce", 12)).toBe(true);
     expect(appliesScienceSubjectAllowlist("science", 9)).toBe(false);
     expect(appliesScienceSubjectAllowlist("science", 11)).toBe(true);
-  });
-
-  it("a Class 10 student at a commerce school is offered the general subjects", () => {
-    const general = ["Mathematics", "Science", "Social Science", "English", "Hindi"];
-    expect(subjectsForStreamPicker("commerce", 10, general)).toEqual(general);
-    expect(subjectsForStreamPicker("commerce", 12, general)).not.toContain("Science");
   });
 });

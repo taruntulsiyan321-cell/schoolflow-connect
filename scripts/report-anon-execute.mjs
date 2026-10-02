@@ -213,9 +213,7 @@ function resolveImport(spec, fromFile) {
 
 const PRE_SESSION_FILES = [
   "src/pages/Index.tsx",
-  "src/pages/Landing.tsx",
   "src/pages/Auth.tsx",
-  "src/pages/ResetPassword.tsx",
   "src/pages/NotFound.tsx",
   "src/hooks/useAuth.tsx",
   "src/integrations/supabase/client.ts",

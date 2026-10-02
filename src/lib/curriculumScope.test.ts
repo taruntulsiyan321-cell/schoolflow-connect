@@ -13,7 +13,6 @@ import {
   normalizeStream,
   normalizeSubjectName,
   parseClassLevel,
-  subjectsForStreamPicker,
 } from "./curriculumScope";
 
 describe("curriculumScope — class level", () => {
@@ -129,14 +128,6 @@ describe("curriculumScope — commerce allowlist", () => {
     expect(isSubjectAllowedForScope("Mixed", "commerce", 11)).toBe(true);
   });
 
-  it("returns commerce picker subjects for class 11 and 12 commerce — never Physics", () => {
-    expect(subjectsForStreamPicker("commerce", 11)).toEqual([...COMMERCE_SUBJECT_ALLOWLIST]);
-    expect(subjectsForStreamPicker("commerce", 12)).toEqual([...COMMERCE_SUBJECT_ALLOWLIST]);
-    expect(subjectsForStreamPicker("commerce", 11)).not.toContain("Physics");
-    expect(subjectsForStreamPicker("commerce", 12)).not.toContain("Physics");
-    expect(subjectsForStreamPicker("science", 11)).toContain("Physics");
-    expect(subjectsForStreamPicker("science", 12)).toContain("Physics");
-  });
 });
 
 describe("curriculumScope — science allowlist", () => {
@@ -189,9 +180,4 @@ describe("curriculumScope — science allowlist", () => {
     expect(isSubjectAllowedForScope("Accountancy", "science", 10)).toBe(true);
   });
 
-  it("returns science picker subjects for class 11 and 12", () => {
-    expect(subjectsForStreamPicker("science", 11)).toEqual([...SCIENCE_SUBJECT_ALLOWLIST]);
-    expect(subjectsForStreamPicker("science", 12)).toEqual([...SCIENCE_SUBJECT_ALLOWLIST]);
-    expect(subjectsForStreamPicker("science", 12)).not.toContain("Accountancy");
-  });
 });

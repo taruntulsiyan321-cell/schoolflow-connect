@@ -1,7 +1,0 @@
-/* Gurukul Principal — Autonomous Design Implementation (Figma Make)
- *
- * The tokens moved to src/autonomous-design.css when the teacher and parent
- * panels adopted them: one design system, one file. Nothing below is principal
- * ONLY, so nothing is below — this file exists so the panel keeps its own
- * import point for anything that turns out to be. */
-@import "../autonomous-design.css";

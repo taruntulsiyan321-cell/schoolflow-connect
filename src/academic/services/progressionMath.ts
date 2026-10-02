@@ -60,26 +60,3 @@ export function progressionLeagueFromXp(xp: number): ProgressionLeagueDef {
   }
   return current;
 }
-
-export function progressionLeagueFromCodeOrXp(
-  leagueCode: string | null | undefined,
-  xp: number,
-): ProgressionLeagueDef {
-  if (leagueCode) {
-    const code = leagueCode.toLowerCase().replace(/\s+/g, "_");
-    const byCode = PROGRESSION_LEAGUES.find((l) => l.code === code || l.label.toLowerCase() === code);
-    if (byCode) return byCode;
-  }
-  return progressionLeagueFromXp(xp);
-}
-
-export function progressionXpToNextLeague(xp: number): {
-  next: ProgressionLeagueDef;
-  remaining: number;
-} | null {
-  const current = progressionLeagueFromXp(xp);
-  const idx = PROGRESSION_LEAGUES.findIndex((l) => l.tier === current.tier);
-  const next = PROGRESSION_LEAGUES[idx + 1];
-  if (!next) return null;
-  return { next, remaining: Math.max(0, next.minXp - Math.floor(xp)) };
-}

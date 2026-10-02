@@ -93,14 +93,22 @@ function formatMistakeDate(iso: string): string {
   }
 }
 
+/**
+ * Where an individual student's mistakes come from, and how each is shown —
+ * the one home for both the label and the tag colour. Measured on live
+ * 2026-10-01: practice, upload and screen_capture are the only sources an
+ * individual account's rows carry; `test` and `battleground` come from the
+ * school's test and battle functions (on the `organisation` branch). An
+ * unknown source still renders, title-cased, in the muted tone.
+ */
+export const MISTAKE_SOURCES: Record<string, { label: string; color: string; bg: string }> = {
+  practice: { label: "Practice", color: "hsl(var(--primary))", bg: "rgba(59,130,246,0.12)" },
+  upload: { label: "Upload", color: "hsl(var(--info))", bg: "rgba(34,211,238,0.12)" },
+  screen_capture: { label: "Captured", color: "hsl(var(--warning))", bg: "rgba(245,158,11,0.12)" },
+};
+
 function sourceLabel(source: string): string {
-  const labels: Record<string, string> = {
-    practice: "Practice", tests: "Test", battleground: "Battleground",
-    homework: "Homework", pyq: "PYQ", qbank: "Question Bank",
-    upload: "Upload",
-  screen_capture: "Captured",
-  };
-  return labels[source] ?? source.charAt(0).toUpperCase() + source.slice(1);
+  return MISTAKE_SOURCES[source]?.label ?? source.charAt(0).toUpperCase() + source.slice(1);
 }
 
 function parseDifficulty(raw: string | null | undefined): "easy" | "medium" | "hard" | null {

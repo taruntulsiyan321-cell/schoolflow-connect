@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { PageKey } from "@/gurukul/nav";
-import { PAGE_PATH, pathToPage, legacyClassesRedirectPath, isSchoolOnlyPath } from "@/gurukul/nav";
+import { PAGE_PATH, pathToPage } from "@/gurukul/nav";
 import Layout from "@/gurukul/components/Layout";
 import { GurukulStudentProvider } from "@/gurukul/StudentContext";
 import { EMPTY_STUDENT } from "@/gurukul/emptyStudent";
@@ -15,39 +15,18 @@ import Analysis from "@/gurukul/pages/Analysis";
 import Recovery from "@/gurukul/pages/Recovery";
 import Revision from "@/gurukul/pages/Revision";
 import MistakeBook from "@/gurukul/pages/MistakeBook";
-import BattlegroundDesign from "@/gurukul/pages/Battleground";
-import Leaderboard from "@/gurukul/pages/Leaderboard";
 import Achievements from "@/gurukul/pages/Achievements";
 import Premium from "@/gurukul/pages/Premium";
 import MockTests from "@/gurukul/pages/MockTests";
-import Resources from "@/gurukul/pages/Resources";
-import DoubtPortal from "@/gurukul/pages/DoubtPortal";
-import Assignments from "@/gurukul/pages/Assignments";
-import Attendance from "@/gurukul/pages/Attendance";
 import Profile from "@/gurukul/pages/Profile";
 import { useScreenCaptureMistakes } from "@/hooks/useScreenCaptureMistakes";
 import { ScreenCaptureMistakesCard } from "@/gurukul/components/ScreenCaptureMistakesCard";
-import Timetable from "@/gurukul/pages/Timetable";
-import Calendar from "@/gurukul/pages/Calendar";
-import Tests from "@/gurukul/pages/Tests";
-import LearningHub from "@/gurukul/pages/LearningHub";
-import ClassHub from "@/gurukul/pages/ClassHub";
 
-/* Keep deep functional flows from the live app */
-import Class12MathPractice from "./student/Class12MathPractice";
-import Class12MathSession from "./student/Class12MathSession";
-import Class12AiSession from "./student/Class12AiSession";
+/* Deep functional flows */
 import PracticeSessionResult from "./student/PracticeSessionResult";
-import TestAttempt from "./student/TestAttempt";
 import MockAttempt from "./student/MockAttempt";
 import MockResult from "./student/MockResult";
-import TestResult from "./student/TestResult";
-import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
-import BattleReportPage from "./student/BattleReportPage";
-import StudentClassesPage from "@/pages/shared/StudentClassesPage";
-import Notices from "@/gurukul/pages/Notices";
 import Notifications from "@/gurukul/pages/Notifications";
-import MyFeesPage from "./shared/MyFeesPage";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -61,7 +40,7 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const liveVersion = useAcademicLive(["xp", "battle", "profile", "achievements", "homework", "test", "marks"]);
+  const liveVersion = useAcademicLive(["xp", "profile", "achievements"]);
   const page = useMemo(() => pathToPage(location.pathname), [location.pathname]);
   const setPage = (p: PageKey) => navigate(PAGE_PATH[p]);
 
@@ -77,10 +56,8 @@ export default function StudentDashboard() {
     levelProgressPct?: number;
     league?: string;
     streak?: number;
-    rank?: number;
     /** PRACTICE accuracy; null when nothing has been attempted. */
     practiceAccuracy?: number | null;
-    totalStudents?: number;
   }>({});
   // One AcademicContext for Home + Practice — never re-resolve identity for XP alone.
   const {
@@ -89,7 +66,6 @@ export default function StudentDashboard() {
     studentId,
     schoolId,
     classId,
-    classLabel,
     identity,
   } = useAcademicContext();
   const schoolKind = identity?.schoolKind ?? null;
@@ -102,11 +78,8 @@ export default function StudentDashboard() {
     examId,
     schoolId,
   });
-  /** Organisation: class label. Individual: competitive exam name (no class/board). */
-  const scopeLabel =
-    schoolKind === "individual"
-      ? (examName || examCode || null)
-      : classLabel;
+  /** The exam an individual account prepares for — its scope (no class/board). */
+  const scopeLabel = examName || examCode || null;
   const [progressionLoaded, setProgressionLoaded] = useState(false);
   /** Live/focus/poll refreshes must not wipe XP chrome back to placeholders. */
   const progressionLoadedRef = useRef(false);
@@ -116,7 +89,9 @@ export default function StudentDashboard() {
   const beginRun = useLatestEffect();
 
   const loadProfile = useCallback(async () => {
-    if (!user || !academicReady || !ctx) return;
+    // A school account is redirected below; its effects still run first, so
+    // the loader itself must not read anything for one.
+    if (!user || !academicReady || !ctx || schoolKind === "school") return;
     const isStale = beginRun();
     // Do NOT flip progressionLoaded false on live refresh — that collapses shellReady
     // and remounts the whole student panel after it already rendered.
@@ -139,8 +114,6 @@ export default function StudentDashboard() {
       reputation: number;
       league: { label?: string; code?: string } | null;
     } | null = null;
-    let rank: number | undefined;
-    let totalStudents = 0;
     try {
       const { ProgressionService } = await import("@/academic");
       const { progressionLevelProgress } = await import("@/academic/services/progressionMath");
@@ -154,25 +127,6 @@ export default function StudentDashboard() {
           level_progress_pct: prog.level_progress_pct ?? derived.levelProgressPct,
         };
       }
-      try {
-        // Class leaderboard is school-only — a tenant-of-one has no classmates.
-        // Require known organisation kind; null must not fetch/show class rank.
-        if (schoolKind === "school") {
-          const lb = await ProgressionService.leaderboard(ctx, {
-            scope: "class",
-            period: "lifetime",
-            metric: "xp",
-            limit: 200,
-          });
-          totalStudents = lb.rows.length;
-          const i = lb.rows.findIndex((r) => r.user_id === user.id);
-          if (i >= 0) rank = i + 1;
-        }
-      } catch (e) {
-        // G10: rank stays unavailable rather than wrong. Logged, because a
-        // silently-0 rank is indistinguishable from a genuine last place.
-        console.warn("[dashboard] leaderboard rank lookup failed:", e instanceof Error ? e.message : e);
-      }
     } catch (e) {
       console.warn("progression snapshot:", e instanceof Error ? e.message : e);
     }
@@ -180,8 +134,8 @@ export default function StudentDashboard() {
     // Accuracy SSOT: rpc_student_academic_snapshot.exam_readiness only.
     // Never average chart subjects (dual path that showed 100% with XP 0).
     // Through the shared reader, not a call of its own: this shell is mounted
-    // on every student route while Analysis, the Practice hub and the
-    // Battleground each want the same snapshot, and it is the heaviest read
+    // on every student route while Analysis and the Practice hub each want
+    // the same snapshot, and it is the heaviest read
     // the student panel makes (KNOWN_ISSUES 74).
     const snapRead = await readStudentAcademicSnapshot().then(
       (data) => ({ data, error: null as { message: string } | null }),
@@ -235,13 +189,11 @@ export default function StudentDashboard() {
       levelProgressPct,
       league: prog?.league?.label ?? prog?.league?.code ?? "",
       streak: prog?.study_streak ?? 0,
-      rank: rank ?? 0,
       practiceAccuracy,
-      totalStudents,
     });
     progressionLoadedRef.current = true;
     setProgressionLoaded(true);
-  }, [user, academicReady, ctx, beginRun, schoolKind]);
+  }, [user, academicReady, ctx, schoolKind, beginRun]);
 
   useEffect(() => {
     if (!academicReady || !ctx) {
@@ -265,26 +217,17 @@ export default function StudentDashboard() {
       studentId,
       schoolId,
       classId,
-      classLabel,
       schoolKind,
       examId: identity?.examId ?? null,
       examCode: identity?.examCode ?? null,
       examName: identity?.examName ?? null,
     }),
-    [studentId, schoolId, classId, classLabel, schoolKind, identity?.examId, identity?.examCode, identity?.examName],
+    [studentId, schoolId, classId, schoolKind, identity?.examId, identity?.examCode, identity?.examName],
   );
 
-  /** `/student/test/<id>/attempt` and nothing else. */
-  const isSittingATest = /^\/student\/test\/[^/]+\/attempt\/?$/.test(location.pathname);
   /** `/student/mock/<id>` — a CUET mock paper, and not its result. */
   const isSittingAMock = /^\/student\/mock\/[^/]+\/?$/.test(location.pathname);
 
-  /** Individual exam accounts cannot open organisation-only surfaces.
-   *  Deny unless we *know* this is an organisation school — while kind is
-   *  still loading (`null`), school-only URLs must not render (that race let
-   *  CUET land on Battleground/Homework before identity settled). */
-  const blockSchoolOnly =
-    isSchoolOnlyPath(location.pathname) && schoolKind !== "school";
 
   const mergedStudent = useMemo(
     () => ({
@@ -294,22 +237,29 @@ export default function StudentDashboard() {
       // practice accuracy" — and must survive the merge. Stripping it here is
       // what turned every absent metric into a 0 before any screen saw it.
       ...Object.fromEntries(Object.entries(profile).filter(([, v]) => v !== undefined && v !== "")),
-      // Scope SSOT: class for school students, exam name for individuals.
+      // Scope SSOT: the exam name.
       ...(scopeLabel ? { class: scopeLabel } : {}),
     }),
     [profile, scopeLabel],
   );
 
-  // A student sitting a test gets NO app chrome. Every other student route
+  // A student of a SCHOOL: the live app has no school side (2026-10-01; the
+  // organisation work is kept on the `organisation` branch). Only a known
+  // kind decides — while it loads (`null`) the individual panel renders, as
+  // it always has, rather than flashing this page at an exam account.
+  if (schoolKind === "school") {
+    return <Navigate to="/unauthorized" replace state={{ reason: "organisation" }} />;
+  }
+
+  // A student sitting a mock gets NO app chrome. Every other student route
   // renders inside <Layout>; this one deliberately does not, because the
   // sidebar, the bottom nav, the notification bell and the avatar menu are
   // four ways to leave a paper by accident and the attempt cannot be reopened.
-  if (isSittingATest || isSittingAMock) {
+  if (isSittingAMock) {
     return (
       <div className="gurukul-student min-h-screen p-4 sm:p-6">
         <GurukulStudentProvider value={mergedStudent} identity={academicIdentity} shellReady={shellReady}>
           <Routes>
-            <Route path="test/:id/attempt" element={<TestAttempt />} />
             <Route path="mock/:id" element={<MockAttempt />} />
           </Routes>
         </GurukulStudentProvider>
@@ -320,9 +270,6 @@ export default function StudentDashboard() {
   return (
     <div className="gurukul-student min-h-screen">
       <GurukulStudentProvider value={mergedStudent} identity={academicIdentity} shellReady={shellReady}>
-      {blockSchoolOnly ? (
-        <Navigate to="/student" replace />
-      ) : (
       <Layout page={page} setPage={setPage} profile={{ ...profile, ...(scopeLabel ? { class: scopeLabel } : {}) }} progressionReady={shellReady}>
         <Routes>
           {/* Design student panel */}
@@ -336,30 +283,14 @@ export default function StudentDashboard() {
           <Route path="revision" element={<Revision />} />
           <Route path="plans" element={<Navigate to="/student/revision" replace />} />
           <Route path="mistakes" element={<MistakeBook setPage={setPage} />} />
-          <Route path="battleground/battle/:id" element={<LiveBattleRoom />} />
-          <Route path="battleground/report/:participantId" element={<BattleReportPage />} />
-          {/* Legacy arena tabs — design Battleground is canonical (create/progress live in-page). */}
-          <Route path="battleground/create" element={<Navigate to="/student/battleground" replace />} />
-          <Route path="battleground/progress" element={<Navigate to="/student/battleground" replace />} />
-          <Route path="battleground/stats" element={<Navigate to="/student/battleground" replace />} />
-          <Route path="battleground/achievements" element={<Navigate to="/student/achievements" replace />} />
-          <Route path="battleground/leaderboard" element={<Navigate to="/student/leaderboard" replace />} />
-          <Route path="battleground" element={<BattlegroundDesign setPage={setPage} />} />
-          <Route path="battleground-design" element={<Navigate to="/student/battleground" replace />} />
-          <Route path="leaderboard" element={<Leaderboard />} />
           <Route path="achievements" element={<Achievements />} />
           <Route path="premium" element={<Premium />} />
           <Route path="mocks" element={<MockTests />} />
           <Route path="mock/:id/result" element={<MockResult />} />
-          <Route path="resources" element={<Resources />} />
-          <Route path="doubts" element={<DoubtPortal />} />
-          <Route path="homework" element={<Assignments />} />
-          <Route path="attendance" element={<Attendance />} />
           <Route
             path="profile"
             element={
               <Profile
-                setPage={setPage}
                 screenCaptureSlot={
                   screenCapture.available ? (
                     <ScreenCaptureMistakesCard api={screenCapture} />
@@ -368,41 +299,14 @@ export default function StudentDashboard() {
               />
             }
           />
-          <Route path="timetable" element={<Timetable />} />
-          <Route path="calendar" element={<Calendar />} />
-          <Route path="tests" element={<Tests />} />
-          <Route path="learning" element={<LearningHub setPage={setPage} />} />
-          <Route path="class" element={<ClassHub setPage={setPage} />} />
-
-          {/* Legacy / deep functional routes */}
-          <Route path="practice/math12" element={<Class12MathPractice />} />
-          <Route path="practice/math12/session" element={<Class12MathSession />} />
-          <Route path="practice/ai/session" element={<Class12AiSession />} />
+          {/* Deep functional routes */}
           <Route path="practice/session/:id/result" element={<PracticeSessionResult />} />
-          <Route path="test" element={<Navigate to="/student/tests" replace />} />
-          <Route path="test/:id/attempt" element={<TestAttempt />} />
-          <Route path="test/:id/result" element={<TestResult />} />
-          <Route path="chat" element={<Navigate to="/student/notices" replace />} />
-          <Route path="notices" element={<Notices />} />
           <Route path="notifications" element={<Notifications />} />
-          <Route path="fees" element={<MyFeesPage />} />
-          {/* The redirect stays for LEGACY HASH links (#timetable, #attendance and
-              friends) — removing it would break every old bookmark. With no hash it
-              now renders the screen, because ClassHub covers Attendance and Homework
-              and nothing covered Class Teacher, Class Timetable, Classmates,
-              Subjects & Teachers or Class & school rankings. */}
-          <Route
-            path="classes"
-            element={
-              location.hash
-                ? <Navigate to={legacyClassesRedirectPath(location.hash)} replace />
-                : <StudentClassesPage />
-            }
-          />
+          {/* Every other address — the school screens included, which are not in
+              this app — lands on Home. */}
           <Route path="*" element={<Navigate to="/student" replace />} />
         </Routes>
       </Layout>
-      )}
       </GurukulStudentProvider>
     </div>
   );

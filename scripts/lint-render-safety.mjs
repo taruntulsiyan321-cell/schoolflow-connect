@@ -45,10 +45,6 @@ const ALLOWLIST = {
     "This module IS the error boundary; it reads .message in order to screen it.",
   "src/lib/presentation/enums.ts::ad-hoc-humanize":
     "This module IS the enum registry; humanizeEnumValue is the canonical implementation.",
-  "src/pages/student/_debug/WeakAreasV2Debug.tsx::coerce-in-jsx":
-    "Internal debug tool, mounted only under import.meta.env.DEV (see StudentDashboard.tsx).",
-  "src/pages/student/_debug/WeakAreasV2Debug.tsx::raw-enum-render":
-    "Internal debug tool, mounted only under import.meta.env.DEV; showing raw values is its purpose.",
 
   // Telemetry, not UI. These strings are machine codes consumed by benchmark
   // and embedding-job records; routing them through toErrorMessage would
@@ -91,8 +87,6 @@ const ALLOWLIST = {
     "Mojibake appears only inside an explanatory comment.",
   "src/academic/taxonomy/canonicalize.ts::source-mojibake":
     "Mojibake appears only inside an explanatory comment.",
-  "src/pages/shared/QuestionBankPage.tsx::source-mojibake":
-    "Remaining sequence is inside a comment illustrating paste corruption.",
 };
 
 /** Enum-ish property names that must not be rendered as bare JSX children. */

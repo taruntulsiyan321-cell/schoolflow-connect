@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   COMING_SOON_LABEL,
-  DOUBT_ATTACH_FLAGS,
+  NOVA_FEATURE_FLAGS,
   UNAVAILABLE_FEATURE_MODE,
-  listDoubtAttachControls,
-  resolveDoubtAttachPresentation,
+  comingSoonToast,
   resolveFeaturePresentation,
+  resolveNovaPresentation,
 } from "./productFeatureFlags";
 
 describe("productFeatureFlags", () => {
@@ -22,22 +22,16 @@ describe("productFeatureFlags", () => {
     );
   });
 
-  it("lists only visible doubt attach controls", () => {
-    const controls = listDoubtAttachControls();
-    for (const c of controls) {
-      expect(["live", "coming_soon"]).toContain(c.presentation);
-      expect(c.presentation).toBe(resolveDoubtAttachPresentation(c.id));
+  it("presents each Nova capability from its own flag", () => {
+    // Attachment is live by default; voice is deferred by default.
+    for (const kind of ["attachment", "voice"] as const) {
+      expect(resolveNovaPresentation(kind)).toBe(resolveFeaturePresentation(NOVA_FEATURE_FLAGS[kind]));
     }
-    if (UNAVAILABLE_FEATURE_MODE === "hide") {
-      expect(controls.every((c) => DOUBT_ATTACH_FLAGS[c.id])).toBe(true);
-    } else {
-      expect(controls.map((c) => c.id).sort()).toEqual(["camera", "image", "pdf", "voice"]);
-      expect(controls.every((c) => c.presentation === "coming_soon" || DOUBT_ATTACH_FLAGS[c.id])).toBe(true);
-    }
+    expect(NOVA_FEATURE_FLAGS.attachment).toBe(true);
+    expect(resolveNovaPresentation("attachment")).toBe("live");
   });
 
-  it("can scope reply strip to image + voice only", () => {
-    const reply = listDoubtAttachControls(["image", "voice"]);
-    expect(reply.every((c) => c.id === "image" || c.id === "voice")).toBe(true);
+  it("words a deferred capability's toast with the Coming Soon label", () => {
+    expect(comingSoonToast("Voice input")).toBe(`Voice input — ${COMING_SOON_LABEL}`);
   });
 });

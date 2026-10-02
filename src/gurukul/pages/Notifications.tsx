@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 import { EmptyState, GlassCard, PageHeader, PageSkeleton, SkeletonList, cn } from "@/gurukul/components/shared";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
-import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 
 /**
  * THIS MAP WAS KEYED ON NAMES NOTHING WRITES.
@@ -90,9 +89,6 @@ function timeAgo(iso: string) {
 export default function Notifications() {
   const { items, unread, loading, error, markRead, markAllRead, remove } = useNotifications();
   const navigate = useNavigate();
-  // An exam account has no homework and no battles; it is sent badges and the
-  // daily revision/recovery reminder (send_learning_reminders).
-  const { schoolKind } = useGurukulAcademicIdentity();
 
   const open = (n: AppNotification) => {
     if (!n.read) void markRead(n.id);
@@ -141,7 +137,9 @@ export default function Notifications() {
           <EmptyState
             icon={<Bell className="w-6 h-6" />}
             title="No notifications yet"
-            sub={schoolKind === "individual" ? "Revision and recovery reminders, and badges you earn, will show up here." : "Homework, battles, revision reminders and badges will show up here."}
+            // An individual account is sent badges and the daily revision /
+            // recovery reminder (send_learning_reminders).
+            sub="Revision and recovery reminders, and badges you earn, will show up here."
           />
         </GlassCard>
       ) : (

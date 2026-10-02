@@ -24,9 +24,7 @@ function formatEarnedDate(iso: string) {
 export default function Achievements() {
   const { user } = useAuth();
   const { ctx, ready } = useAcademicContext();
-  const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
-  // Treat unknown kind like individual so Class eyebrow / school badges never flash.
-  const isIndividual = schoolKind !== "school";
+  const { examName, examCode } = useGurukulAcademicIdentity();
   const { earned, equipped, loading, saving, equip } = useStudentBadges(user?.id);
   const [featured, setFeatured] = useState<string[]>([]);
   const [achievements, setAchievements] = useState<ProgressionSnapshot["achievements"]>([]);
@@ -66,9 +64,8 @@ export default function Achievements() {
 
   const { unlocked, locked, visibleCatalogCount } = useMemo(() => {
     const earnedCodes = new Set(earned.map((e) => e.badge_code));
-    const catalog = Object.values(BADGES).filter((b) =>
-      isIndividual ? badgeForIndividualCatalog(b) : true,
-    );
+    // The individual catalogue: no school-only badge (battles, homework, tests).
+    const catalog = Object.values(BADGES).filter(badgeForIndividualCatalog);
     const unlockedItems = earned
       .map((e) => {
         const meta = getBadge(e.badge_code);
@@ -80,7 +77,7 @@ export default function Achievements() {
     const lockedItems = catalog.filter((b) => !earnedCodes.has(b.code) && !b.hidden);
     const catalogCount = catalog.filter((b) => !b.hidden || earnedCodes.has(b.code)).length;
     return { unlocked: unlockedItems, locked: lockedItems, visibleCatalogCount: catalogCount };
-  }, [earned, isIndividual]);
+  }, [earned]);
 
   const toggleFeatured = async (code: string) => {
     if (!ctx || !ready) return;
@@ -108,7 +105,7 @@ export default function Achievements() {
   // The title needs no network, so it no longer waits for one.
   const header = (
     <PageHeader
-      eyebrow={isIndividual ? (examName || examCode || "Exam") : "Class"}
+      eyebrow={examName || examCode || "Exam"}
       title="Achievements"
       subtitle="Milestones you have reached, and the ones still ahead."
     />
@@ -204,11 +201,7 @@ export default function Achievements() {
             variant="section"
             icon={<Star className="w-5 h-5" />}
             title="No badges earned yet"
-            sub={
-              isIndividual
-                ? "Keep practising, recovering and revising to earn badges."
-                : "Keep learning and battling to earn badges."
-            }
+            sub="Keep practising, recovering and revising to earn badges."
           />
         ) : (
           <>

@@ -1,4 +1,10 @@
-/** Shared repository errors for the Academic Engine. */
+/**
+ * Shared repository errors for the Academic Engine.
+ *
+ * NotFoundError, TenantViolationError and ValidationFailedError were thrown
+ * only by the school repositories, which went with the organisation side to
+ * the `organisation` branch (2026-10-01).
+ */
 
 export class AcademicRepositoryError extends Error {
   readonly code: string;
@@ -6,28 +12,5 @@ export class AcademicRepositoryError extends Error {
     super(message);
     this.name = "AcademicRepositoryError";
     this.code = code;
-  }
-}
-
-export class NotFoundError extends AcademicRepositoryError {
-  constructor(entity: string, id?: string) {
-    super("not_found", id ? `${entity} ${id} not found` : `${entity} not found`);
-    this.name = "NotFoundError";
-  }
-}
-
-export class TenantViolationError extends AcademicRepositoryError {
-  constructor(message = "Cross-tenant access is not allowed") {
-    super("tenant_violation", message);
-    this.name = "TenantViolationError";
-  }
-}
-
-export class ValidationFailedError extends AcademicRepositoryError {
-  readonly issues: { field: string; code: string; message: string }[];
-  constructor(issues: { field: string; code: string; message: string }[]) {
-    super("validation_failed", issues.map((i) => i.message).join("; ") || "Validation failed");
-    this.name = "ValidationFailedError";
-    this.issues = issues;
   }
 }

@@ -12,7 +12,6 @@ import type { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { loadAuthContext, clearClientAuthCaches } from "./session";
-import { mapAuthError } from "./rbac";
 import { dashboardForRole } from "./rbac";
 import type {
   AppRole,
@@ -20,7 +19,6 @@ import type {
   AuthProfile,
   AuthSchool,
   AuthStatus,
-  SignInCredentials,
 } from "./types";
 
 /** A hung identity-load request must not leave every dashboard behind an
@@ -38,12 +36,6 @@ interface AuthCtx {
   loading: boolean;
   isAuthenticated: boolean;
   status: AuthStatus;
-  /** Sign in with email + password (Supabase Auth) */
-  signIn: (credentials: SignInCredentials) => Promise<{ error: string | null }>;
-  /** Request password recovery email */
-  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
-  /** Update password (recovery or signed-in session) */
-  updatePassword: (password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   /** Force re-fetch of profile / role / school */
   refreshAuth: () => Promise<void>;
@@ -114,7 +106,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         event === "TOKEN_REFRESHED" && prev && sess?.user?.id === prev.id ? prev : sess?.user ?? null,
       );
 
-      // Recovery sessions land on /reset-password — still restore user
       if (event === "SIGNED_OUT") {
         contextRequestId.current += 1;
         setCtx(null);
@@ -184,28 +175,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, [applyContext, queryClient]);
 
-  const signIn = useCallback(async ({ email, password }: SignInCredentials) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-    if (error) return { error: mapAuthError(error) };
-    return { error: null };
-  }, []);
-
-  const requestPasswordReset = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) return { error: mapAuthError(error) };
-    return { error: null };
-  }, []);
-
-  const updatePassword = useCallback(async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) return { error: mapAuthError(error) };
-    return { error: null };
-  }, []);
+  // No password sign-in, reset or change: an individual student signs in with
+  // their mobile number (the MSG91 widget, src/lib/msg91Auth.ts). Password
+  // accounts were the organisation side's (2026-10-01).
 
   const signOut = useCallback(async () => {
     setLoading(true);
@@ -252,9 +224,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       isAuthenticated: status === "authenticated",
       status,
-      signIn,
-      requestPasswordReset,
-      updatePassword,
       signOut,
       refreshAuth,
       homePath: dashboardForRole(role),
@@ -268,9 +237,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       schoolId,
       loading,
       status,
-      signIn,
-      requestPasswordReset,
-      updatePassword,
       signOut,
       refreshAuth,
     ],

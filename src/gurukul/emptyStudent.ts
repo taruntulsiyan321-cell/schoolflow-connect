@@ -58,13 +58,6 @@ export type GurukulStudentProfile = {
   /** Consecutive study days (engine). 0 is a real answer: no streak. */
   streak: number;
   /**
-   * Class rank. 0 is the established "not ranked" sentinel here and every read
-   * site already tests `rank > 0`, so this stays a number.
-   */
-  rank: number;
-  /** Class size behind `rank`. 0 means unknown. */
-  totalStudents: number;
-  /**
    * PRACTICE accuracy only — `exam_readiness.practice_accuracy_pct` via
    * `practiceAccuracyFromSnapshot`. NOT the test+practice blend; that is
    * `overallAccuracyFromSnapshot`, and it does not live on this profile.
@@ -86,8 +79,6 @@ export const EMPTY_STUDENT: GurukulStudentProfile = {
   levelProgressPct: 0,
   league: "",
   streak: 0,
-  rank: 0,
-  totalStudents: 0,
   practiceAccuracy: null,
   goal: "",
 };

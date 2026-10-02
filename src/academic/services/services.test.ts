@@ -5,7 +5,7 @@ import {
   ForbiddenError,
   type ServiceContext,
 } from "@/academic/services/context";
-import { canOwn, canConsume } from "@/academic";
+import { canOwn, canConsume } from "@/academic/ownership";
 
 function ctx(role: ServiceContext["role"]): ServiceContext {
   return {

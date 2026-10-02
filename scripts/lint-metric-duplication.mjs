@@ -63,12 +63,10 @@ const METRIC_WORDS = [
  * converge these; until then the list keeps them visible and stops new ones.
  */
 const BASELINE = [
-  "src/academic/repository/marksRepository.ts",
-  "src/gurukul-parent/ParentLiveAcademic.tsx",
-  "src/gurukul/pages/Tests.tsx",
-  "src/pages/shared/StudentExamsResultsPage.tsx",
-  "src/pages/student/TestResult.tsx",
-]; // 5 site(s) -- Analysis.tsx converged in f6e2f51 (practice-only), removed 2026-09-08;
+]; // 0 site(s) -- the last five (marksRepository.ts, ParentLiveAcademic.tsx,
+   // Tests.tsx, StudentExamsResultsPage.tsx, TestResult.tsx) were all school
+   // code and went with the organisation side to the `organisation` branch,
+   // removed 2026-10-01. Analysis.tsx converged in f6e2f51 (practice-only), removed 2026-09-08;
    // RecoverySessionResult.tsx was deleted with the retired recovery flow (0896c29), removed 2026-09-14;
    // MistakeBook.tsx, PrincipalClassDetail.tsx, PrincipalTeacherDetail.tsx and
    // Battleground.tsx all stopped computing anything, removed 2026-09-29 — the

@@ -3,8 +3,6 @@ import {
   progressionXpForLevel,
   progressionLevelProgress,
   progressionLeagueFromXp,
-  progressionLeagueFromCodeOrXp,
-  progressionXpToNextLeague,
   PROGRESSION_LEAGUES,
 } from "./progressionMath";
 
@@ -31,16 +29,4 @@ describe("progressionMath SSOT mirrors", () => {
     expect(PROGRESSION_LEAGUES).toHaveLength(10);
   });
 
-  it("prefers league_code over XP", () => {
-    expect(progressionLeagueFromCodeOrXp("bronze", 5000).code).toBe("bronze");
-    expect(progressionLeagueFromCodeOrXp(null, 5000).code).toBe("diamond");
-    expect(progressionLeagueFromCodeOrXp(null, 900).code).toBe("gold");
-  });
-
-  it("xp to next league", () => {
-    const hit = progressionXpToNextLeague(250);
-    expect(hit?.next.code).toBe("silver");
-    expect(hit?.remaining).toBe(50);
-    expect(progressionXpToNextLeague(50_000)).toBeNull();
-  });
 });

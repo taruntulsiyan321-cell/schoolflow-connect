@@ -654,9 +654,8 @@ function InputBar({
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
-  const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
-  const examLabel =
-    schoolKind === "individual" ? (examName || examCode || null) : null;
+  const { examName, examCode } = useGurukulAcademicIdentity();
+  const examLabel = examName || examCode || null;
   const { user, role } = useAuth();
   const { studentId, schoolId } = useAcademicContext();
   // The mode lives in the URL, so ?mode=revision is a link to Revision mode and

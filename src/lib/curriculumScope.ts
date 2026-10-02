@@ -225,21 +225,6 @@ export function filterSubjectsForStream(
   return subjects.filter((s) => s.trim().length > 0);
 }
 
-/** Subject chips for create-battle / challenge / doubt pickers. */
-export function subjectsForStreamPicker(
-  stream: AcademicStream | null | undefined,
-  classLevel: number | null | undefined,
-  fallback: string[] = ["Mathematics", "English"],
-): string[] {
-  if (appliesCommerceSubjectAllowlist(stream, classLevel)) {
-    return [...COMMERCE_SUBJECT_ALLOWLIST];
-  }
-  if (appliesScienceSubjectAllowlist(stream, classLevel)) {
-    return [...SCIENCE_SUBJECT_ALLOWLIST];
-  }
-  return fallback.length ? fallback : ["Mathematics"];
-}
-
 export function isSubjectAllowedForScope(
   subject: string,
   stream: AcademicStream | null | undefined,

@@ -3,20 +3,26 @@ import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, ArrowLeft, LogOut } from "lucide-react";
 
-type Reason = "forbidden" | "disabled" | "missing_role" | "missing_profile" | string;
+type Reason = "forbidden" | "disabled" | "missing_role" | "missing_profile" | "organisation" | string;
 
 const MESSAGES: Record<string, { title: string; body: string }> = {
   forbidden: {
     title: "Unauthorized",
-    body: "You do not have permission to access that area. Your account is limited to your assigned role dashboard.",
+    body: "You do not have permission to open that page.",
+  },
+  // Every non-student role, and a student of a school: the live app is the
+  // individual student panel only (2026-10-01).
+  organisation: {
+    title: "School accounts aren't available yet",
+    body: "Gurukul is open to individual students preparing for an exam. School accounts — admin, principal, teacher, parent and school students — will come back in a later release. Sign out, then sign in with your mobile number as an individual student.",
   },
   disabled: {
     title: "Account disabled",
-    body: "This account has been deactivated. Contact your school administrator for help.",
+    body: "This account has been deactivated. Contact Gurukul support for help.",
   },
   missing_role: {
-    title: "No portal role",
-    body: "Your account is signed in but has no role assigned yet. Ask your school admin to grant access.",
+    title: "Account not set up",
+    body: "Your account is signed in but isn't set up as a student yet. Sign out, then sign in again with your mobile number and pick your exam.",
   },
   missing_profile: {
     title: "Profile unavailable",
@@ -29,7 +35,7 @@ export default function Unauthorized() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state as { reason?: Reason; from?: string; home?: string } | null) ?? {};
-  const reason = state.reason ?? "forbidden";
+  const reason = state.reason ?? (role && role !== "student" ? "organisation" : "forbidden");
   const copy = MESSAGES[reason] ?? MESSAGES.forbidden;
   const dest = state.home || homePath || "/";
 
@@ -70,7 +76,7 @@ export default function Unauthorized() {
         )}
 
         <div className="flex flex-col sm:flex-row gap-2 justify-center">
-          {role && (
+          {role === "student" && reason !== "organisation" && (
             <Button onClick={() => navigate(dest, { replace: true })} className="gap-2">
               <ArrowLeft className="w-4 h-4" />
               Go to my dashboard

@@ -4895,3 +4895,52 @@ practice cleanup the owner asked for, and removing a granted RPC wants the paren
 nothing outside this repository calls it. When that is confirmed: drop both functions, with a rollback that
 restores them, and remove their entries from `scripts/lint-tenant-scope.mjs` (as a DROPPED entry — that lint
 reads migration files) and `supabase/definer-inventory.json`.
+
+## 110. The organisation side is off the live app — DONE 2026-10-01; what stays on main on purpose, and what is open
+
+**Ruled by the owner 2026-10-01: the live app is the individual student panel.** The school side — admin,
+principal, teacher, parent, super admin and school students — is kept, not lost:
+
+* **Archive:** branch `organisation` and tag `organisation-archive-2026-10-01`, both at bb69a95e (the last
+  commit with both sides). Organisation work continues on that branch. Vercel deploys `main` only, so
+  nothing on it reaches the site until it is merged.
+* **Removed from main:** the landing page's Organization tab, For Schools button, organisation section and
+  Enterprise plan; sign-in's Organization switch, password, email OTP, password reset and role picker; the
+  admin, principal, teacher, parent and super-admin panels; the school student screens (homework,
+  attendance, timetable, calendar, tests, doubts, notices, resources, leaderboard, Battleground, learning
+  and class hubs, fees, Class 12 Math); their services, repositories, live subscriptions and gates'
+  allowlist rows; the e2e specs that drive only school roles. A school account that does sign in lands on
+  "School accounts aren't available yet", and the student shell reads nothing for it on the way
+  (`StudentDashboard.schoolGate.test.tsx`, with a control that fails when the gate is removed).
+* **Accounts blocked at the server:** `node scripts/organisation-logins.mjs --block`, run 2026-10-01.
+  23 accounts — every account with a school membership or profile, a staff or parent role, or an active
+  super-admin row (the one super admin is among them; its profile is in Wisdom Campus) — have
+  `banned_until` set to the script's marker and their sessions deleted. The 4 individual accounts are
+  untouched. `--unblock` lifts exactly that ban; nothing about the accounts was deleted. Measured: a live
+  QA school session was accepted by Auth before the block and refused after it.
+* **Database kept** (owner's step 4): every organisation table, row, function, policy and edge function
+  stays as it is.
+
+**Kept on main on purpose — shared, not features:** the ownership and entity registries (the role checks
+the individual services run read them); the metric layer's `thresholds.ts` and `bands.ts`, school rulings
+included (one home for every ruling); the badge catalogue (Achievements shows an individual student only
+`INDIVIDUAL_BADGE_CODES`); snapshot types that mirror an RPC's payload (`battleground` counts).
+
+**Open:**
+
+1. **Test-only AI scaffolding still carries school capabilities** — question papers, image and voice
+   doubts, the school health brief, `eie/schoolRollups`, `eie/riskProducts`, the prompt library. None is in
+   the bundle (nothing the app imports reaches them). Taking the school half out means rewriting the
+   multi-role capability catalogue, which is the organisation branch's to do.
+2. **`supabase/functions/_shared/phone.ts` says it mirrors `src/lib/phone.ts`**, which is deleted: its last
+   caller was the organisation sign-in. `src/lib/phone.test.ts` now tests the edge copy, the one
+   `verify-msg91-widget` runs. Correct the comment at the next deploy of `verify-msg91-widget` and
+   `admin-link-account`; changing it before then reads as drift.
+3. **The remaining e2e specs cannot sign in.** `e2e/auth.setup.ts` and the `e2e/diag-*` and `practice`
+   specs use the QA school student (now blocked) through the password form (now gone); `e2e-evidence`'s
+   `auth.roles.setup.ts`, `tier2` and `zz-known-issues` use school roles. They need an individual exam
+   session — `auth.exam.setup.ts`'s refresh-token path, which `custom-practice`, `tier5` and
+   `aa-reachability` already use — before they run on main.
+4. **`rpc_student_academic_snapshot` still returns `test` and `homework` keys** to an individual account
+   (school fields; the individual app reads neither). Database change, outside this ruling's step 4.
+5. 109 is still open.

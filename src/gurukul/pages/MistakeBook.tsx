@@ -10,7 +10,7 @@ import { MISTAKE_RETRY_GOOD } from "@/academic/metrics/thresholds";
 import { deleteScreenCaptureQuestion } from "@/academic/services/screenCaptureService";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
-import { mapRowToMistake, mistakeIsAskable, type Mistake, type MistakeRow } from "./mistakeRow";
+import { mapRowToMistake, mistakeIsAskable, type Mistake, type MistakeRow, MISTAKE_SOURCES } from "./mistakeRow";
 import { DifficultyBadge, EmptyState, GlassCard, PageHeader, PageSkeleton, ProgressBar, ProgressRing, Skeleton, SkeletonCard, SkeletonList, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Bookmark, BookmarkCheck,
@@ -21,7 +21,6 @@ import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
 import { pluralise } from "@/lib/plural";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
-import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 
 type MBView = "list" | "practice" | "results";
 
@@ -50,19 +49,8 @@ function dedupeMistakes(list: Mistake[]): Mistake[] {
   return Array.from(byKey.values());
 }
 
-const SOURCE_COLORS: Record<string, { color: string; bg: string }> = {
-  practice:    { color:"hsl(var(--primary))", bg:"rgba(59,130,246,0.12)" },
-  tests:       { color:"hsl(var(--info))", bg:"rgba(34,211,238,0.12)" },
-  battleground:{ color:"hsl(var(--destructive))", bg:"rgba(244,63,94,0.12)" },
-  homework:    { color:"hsl(var(--primary))", bg:"rgba(167,139,250,0.12)" },
-  pyq:         { color:"hsl(var(--warning))", bg:"rgba(245,158,11,0.12)" },
-  qbank:       { color:"hsl(var(--success))", bg:"rgba(52,211,153,0.12)" },
-  upload:      { color:"hsl(var(--info))", bg:"rgba(34,211,238,0.12)" },
-  screen_capture: { color:"hsl(var(--warning))", bg:"rgba(245,158,11,0.12)" },
-};
-
 function SourceTag({ source, label }: { source: string; label: string }) {
-  const c = SOURCE_COLORS[source] ?? { color:"hsl(var(--muted-foreground))", bg:"rgba(107,122,153,0.12)" };
+  const c = MISTAKE_SOURCES[source] ?? { color:"hsl(var(--muted-foreground))", bg:"rgba(107,122,153,0.12)" };
   return (
     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{color:c.color,background:c.bg}}>
       {label}
@@ -411,8 +399,6 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const navigate = useNavigate();
   const { user } = useAuth();
   const { ctx, ready: academicReady } = useAcademicContext();
-  // An exam account sits no school tests; its mistakes come from practice.
-  const { schoolKind } = useGurukulAcademicIdentity();
   const bookmarksKey = mistakeBookmarksKey({ userId: user?.id, schoolId: ctx?.schoolId ?? undefined });
   const [view, setView] = useState<MBView>("list");
   const [practiceIds, setPracticeIds] = useState<string[]>([]);
@@ -989,7 +975,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
               <EmptyState
                 icon={<AlertCircle className="w-6 h-6" />}
                 title="No mistakes saved yet"
-                sub={schoolKind === "individual" ? "Wrong answers from your practice appear here automatically." : "Wrong answers from practice and tests appear here automatically."}
+                sub="Wrong answers from your practice appear here automatically."
               />
             ) : (
               <EmptyState

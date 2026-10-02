@@ -3,7 +3,7 @@ import { useGurukulStudent, useGurukulShellReady, useGurukulAcademicIdentity } f
 import { EmptyState, GlassCard, PageSkeleton, ProgressBar, ProgressRing, SectionLabel, Skeleton, SkeletonCard, SkeletonStats, StatTile, XPBar } from "@/gurukul/components/shared";
 import {
   ArrowRight, Flame, BookOpen, Brain, RefreshCw, RotateCcw,
-  BarChart2, Trophy, Swords, Star
+  BarChart2
 } from "lucide-react";
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
@@ -85,8 +85,6 @@ function buildMission(
   snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"],
   /** Practice sessions finished today; null when that could not be read. */
   practiceToday: number | null,
-  /** Individual exam accounts have no homework surface — never route them there. */
-  opts: { includeHomework: boolean },
 ) {
   // No snapshot → no mission figures. Treating missing data as "0 pending →
   // 1/1 done" made Recovery and Revision look complete after a failed load
@@ -108,7 +106,6 @@ function buildMission(
 
   const recoveryPending = snapshot.recovery_pending ?? 0;
   const revisionPending = snapshot.revision_due ?? 0;
-  const homeworkPending = opts.includeHomework ? (snapshot.homework?.pending ?? 0) : 0;
 
   const practiceDone = practiceToday == null ? null : Math.min(practiceToday, PRACTICE_TARGET);
 
@@ -124,12 +121,6 @@ function buildMission(
       label: "Review revision queue",
       reason: `${revisionPending} chapter${revisionPending === 1 ? "" : "s"} due for revision`,
       page: "revision",
-    };
-  } else if (homeworkPending > 0) {
-    nextAction = {
-      label: "Finish pending homework",
-      reason: `${homeworkPending} assignment${homeworkPending === 1 ? "" : "s"} still open`,
-      page: "assignments",
     };
   } else {
     nextAction = {
@@ -190,9 +181,7 @@ function WeeklyRing({ sessions }: { sessions: number | null }) {
 export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const shellReady = useGurukulShellReady();
-  const { schoolKind, examName, examCode } = useGurukulAcademicIdentity();
-  // School chrome only when kind is known organisation — null must not look like school.
-  const isIndividual = schoolKind !== "school";
+  const { examName, examCode } = useGurukulAcademicIdentity();
   const { data: snapshot, loading: snapLoading, error: snapError, reload: reloadSnap } = useStudentAcademicSnapshot();
   const {
     data: practiceTime,
@@ -207,20 +196,13 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   const initialLoading = loading && !hasLiveData;
   const toastedError = useRef<string | null>(null);
 
-  const heroScope = isIndividual
-    ? (examName || examCode || student.class || (shellReady ? "—" : "…"))
-    : (student.class || (shellReady ? "—" : "…"));
+  const heroScope = examName || examCode || student.class || (shellReady ? "—" : "…");
 
-  const quickActions = useMemo(() => {
-    const all: { label: string; sub: string; icon: ReactNode; color: string; page: PageKey }[] = [
-      { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "hsl(var(--primary))", page: "practice" },
-      { label: "AI Coach", sub: "Chat with Nova", icon: <Brain className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "aicoach" },
-      { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "hsl(var(--warning))", page: "battleground" },
-      { label: "Analysis", sub: "View insights", icon: <BarChart2 className="w-5 h-5"/>, color: "var(--color-physics)", page: "analysis" },
-    ];
-    // Battleground pairs students inside one space — a tenant of one can never find an opponent.
-    return isIndividual ? all.filter((a) => a.page !== "battleground") : all;
-  }, [isIndividual]);
+  const quickActions: { label: string; sub: string; icon: ReactNode; color: string; page: PageKey }[] = [
+    { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "hsl(var(--primary))", page: "practice" },
+    { label: "AI Coach", sub: "Chat with Nova", icon: <Brain className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "aicoach" },
+    { label: "Analysis", sub: "View insights", icon: <BarChart2 className="w-5 h-5"/>, color: "var(--color-physics)", page: "analysis" },
+  ];
 
   useEffect(() => {
     if (!loadError) {
@@ -233,8 +215,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   }, [loadError]);
 
   const mission = useMemo(
-    () => buildMission(snapshot, sessionsToday(practiceTime), { includeHomework: !isIndividual }),
-    [snapshot, practiceTime, isIndividual],
+    () => buildMission(snapshot, sessionsToday(practiceTime)),
+    [snapshot, practiceTime],
   );
 
   const weeklyActivity = useMemo(() => lastSevenDays(practiceTime), [practiceTime]);
@@ -323,7 +305,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
               {student.firstName}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">{heroScope}{goalLine}</p>
-            <div className={`grid gap-3 mt-4 ${isIndividual ? "grid-cols-2" : "grid-cols-3"}`}>
+            <div className="grid gap-3 mt-4 grid-cols-2">
               {/* This tile is PRACTICE accuracy and always was — StudentDashboard
                   fills the profile from practiceAccuracyFromSnapshot. The field
                   is named `practiceAccuracy` now so the label cannot drift from
@@ -333,17 +315,6 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 value={shellReady && student.practiceAccuracy != null ? `${student.practiceAccuracy}%` : "—"}
                 color="hsl(var(--info))"
               />
-              {!isIndividual && (
-              <StatTile
-                label="Class Rank"
-                value={
-                  shellReady && student.rank > 0
-                    ? `#${student.rank}`
-                    : "—"
-                }
-                color="hsl(var(--warning))"
-              />
-              )}
               <StatTile label="Level" value={levelLabel} color="var(--color-chemistry)"/>
             </div>
             <div className="mt-3">
@@ -475,37 +446,6 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         )}
       </GlassCard>
 
-      {/* Class leaderboard is school-only — a tenant of one has no classmates. */}
-      {!isIndividual && (
-      <div className="grid gap-4">
-        <GlassCard glow="purple" className="p-5">
-          <SectionLabel>Class Leaderboard</SectionLabel>
-          <div className="flex flex-col items-center gap-2 py-2">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(var(--warning) / 0.2), hsl(var(--warning) / 0.05))", border: "1px solid hsl(var(--warning) / 0.3)" }}>
-              <Trophy className="w-7 h-7 text-amber-400"/>
-            </div>
-            <div className="text-4xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>
-              {shellReady && student.rank > 0 ? `#${student.rank}` : "—"}
-            </div>
-            <div className="text-muted-foreground text-sm">
-              {shellReady && student.totalStudents > 0
-                ? `of ${student.totalStudents} students`
-                : shellReady
-                  ? "Not ranked yet"
-                  : "Loading rank…"}
-            </div>
-            {shellReady && student.rank > 0 && (
-              <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-semibold">
-                <Star className="w-4 h-4"/>Class rank
-              </div>
-            )}
-            <button onClick={() => setPage("leaderboard")} className="w-full text-center text-xs text-primary hover:text-primary/80 transition-colors mt-2">
-              See full leaderboard {"→"}
-            </button>
-          </div>
-        </GlassCard>
-      </div>
-      )}
     </div>
   );
 }

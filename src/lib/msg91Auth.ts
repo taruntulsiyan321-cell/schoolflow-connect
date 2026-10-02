@@ -6,7 +6,6 @@
  */
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizePhone } from "@/lib/phone";
 import type { Msg91AccessTokenMeta } from "@/lib/msg91Widget";
 
 type VerifyMsg91Response = {
@@ -66,22 +65,4 @@ export async function completeMsg91SignIn(
     is_new_user: Boolean(data.is_new_user),
     verified_phone_masked: data.verified_phone_masked ?? "",
   };
-}
-
-/**
- * Mirrors _shared/phoneAuthLink.ts's syntheticEmailForPhone exactly (same
- * "edge mirror" pattern already used for capabilityCatalog.ts) — Mobile +
- * Password sign-in derives the same deterministic email and reuses the
- * existing signIn({email, password}) path unchanged, rather than adding a
- * second sign-in mechanism.
- *
- * Goes through the shared normalizePhone() (not a bare digit-strip) so a
- * user who verified via the OTP widget as "+91 98765 43210" and later types
- * "9876543210" here (no country code) still resolves to the same account —
- * previously these produced two different synthetic emails.
- */
-export function phoneToSyntheticEmail(rawPhone: string): string | null {
-  const digits = normalizePhone(rawPhone);
-  if (!digits) return null;
-  return `${digits}@phone.vidyalaya.local`;
 }

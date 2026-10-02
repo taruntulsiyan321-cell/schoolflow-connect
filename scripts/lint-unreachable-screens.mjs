@@ -33,31 +33,26 @@
  * costs a wasted look, while calling a live one dead means it never gets checked.
  */
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const argv = process.argv.slice(2);
 const SELF_TEST = argv.includes("--self-test");
 const LIST = argv.includes("--list");
 
-/** Every router in the app. A route declared in any of these is an entry point. */
-const ROUTERS = [
-  "src/App.tsx",
-  "src/gurukul-principal/PrincipalApp.tsx",
-  "src/gurukul-admin/AdminApp.tsx",
-  "src/gurukul-teacher/TeacherApp.tsx",
-  "src/gurukul-parent/ParentApp.tsx",
-  "src/gurukul/GurukulApp.tsx",
-];
+/**
+ * Every router in the app. A route declared in any of these is an entry point.
+ * The one home for this list: lint-strength-surfaces imports it.
+ *
+ * The principal, admin, teacher and parent routers went with the organisation
+ * side to the `organisation` branch (2026-10-01). A listed router that does not
+ * exist now FAILS the gate: skipping it silently is how four of these six
+ * entries outlived their files.
+ */
+export const ROUTERS = ["src/App.tsx"];
 
 /** Directories that hold screens. A file here that nothing routes to is dead. */
-const SCREEN_DIRS = [
-  "src/pages",
-  "src/gurukul-principal",
-  "src/gurukul-admin",
-  "src/gurukul-teacher",
-  "src/gurukul-parent",
-  "src/gurukul",
-];
+const SCREEN_DIRS = ["src/pages", "src/gurukul"];
 
 function walk(dir, out = []) {
   if (!existsSync(dir)) return out;
@@ -108,7 +103,12 @@ export function reachableFrom(entries) {
   return seen;
 }
 
-if (SELF_TEST) {
+/** Imported (for ROUTERS / reachableFrom) is not invoked: run nothing then. */
+const INVOKED = !!process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (!INVOKED) {
+  // imported by another gate
+} else if (SELF_TEST) {
   let bad = 0;
   const say = (okCase, name, extra = "") => {
     if (!okCase) bad += 1;
@@ -117,7 +117,10 @@ if (SELF_TEST) {
 
   // The gate must have INPUTS: real routers, real screens.
   const routersPresent = ROUTERS.filter((f) => existsSync(f));
-  say(routersPresent.length > 0, `the gate has inputs: ${routersPresent.length} router(s) found`);
+  say(
+    routersPresent.length === ROUTERS.length,
+    `the gate has inputs: ${routersPresent.length} of ${ROUTERS.length} listed router(s) found`,
+  );
   const screens = SCREEN_DIRS.flatMap((d) => walk(d));
   say(screens.length > 0, `and ${screens.length} screen file(s) in scope`);
 
@@ -139,11 +142,12 @@ if (SELF_TEST) {
   );
   process.exitCode = bad === 0 ? 0 : 1;
 } else {
-  const routers = ROUTERS.filter((f) => existsSync(f));
-  if (routers.length === 0) {
-    console.error("no routers found — refusing to report every screen as dead");
+  const missing = ROUTERS.filter((f) => !existsSync(f));
+  if (missing.length) {
+    console.error(`listed router(s) missing: ${missing.join(", ")} — fix ROUTERS, refusing to guess`);
     process.exit(1);
   }
+  const routers = ROUTERS;
   const reach = reachableFrom(routers);
   const screens = SCREEN_DIRS.flatMap((d) => walk(d));
   if (screens.length === 0) {

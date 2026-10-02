@@ -9,10 +9,9 @@ type GurukulAcademicIdentity = {
   studentId: string | null;
   schoolId: string | null;
   classId: string | null;
-  classLabel: string | null;
   /** From schools.kind — optional until resolveStudentContext maps the RPC. */
   schoolKind?: SchoolKind | null;
-  /** Competitive exam on exam_accounts — null for organisation schools. */
+  /** Competitive exam on exam_accounts. */
   examId?: string | null;
   examCode?: string | null;
   examName?: string | null;
@@ -22,7 +21,6 @@ const EMPTY_IDENTITY: GurukulAcademicIdentity = {
   studentId: null,
   schoolId: null,
   classId: null,
-  classLabel: null,
   schoolKind: null,
   examId: null,
   examCode: null,

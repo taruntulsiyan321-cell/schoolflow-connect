@@ -11,9 +11,6 @@ export type AppRole =
   | "student"
   | "parent";
 
-/** Roles that have a dashboard today */
-export type PortalRole = Exclude<AppRole, "super_admin">;
-
 export interface AuthSchool {
   id: string;
   name: string;
@@ -44,8 +41,4 @@ export type AuthStatus =
   | "missing_profile"
   | "missing_role";
 
-export interface SignInCredentials {
-  email: string;
-  password: string;
-}
 

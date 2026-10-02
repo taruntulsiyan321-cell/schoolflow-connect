@@ -9,10 +9,6 @@ import {
   resolveProductionPrompt,
 } from "./promptLibrary";
 import {
-  dailyUsageFromDecisions,
-  forecastBudget,
-} from "./budgetForecast";
-import {
   buildRecommendationPackage,
   pickNextConcept,
 } from "./recommendationEngine";
@@ -43,51 +39,6 @@ describe("Prompt Library v1", () => {
     expect(renderPromptTemplate("Hi {{name}} — {{missing}}", { name: "Ada" })).toBe(
       "Hi Ada — ",
     );
-  });
-});
-
-describe("Budget forecast", () => {
-  it("returns insufficient_data for empty ledger (no demo burn)", () => {
-    const f = forecastBudget({
-      daily_usage: [],
-      soft_limit_daily: 200,
-      hard_limit_daily: 400,
-      days_remaining_in_month: 10,
-      month_units_used: 0,
-    });
-    expect(f.status).toBe("insufficient_data");
-    expect(f.avg_daily_units).toBe(0);
-    expect(f.projected_month_end_units).toBe(0);
-  });
-
-  it("projects from observed daily usage", () => {
-    const f = forecastBudget({
-      daily_usage: [
-        { day: "2026-08-01", units: 100 },
-        { day: "2026-08-02", units: 100 },
-      ],
-      soft_limit_daily: 200,
-      hard_limit_daily: 400,
-      days_remaining_in_month: 10,
-      month_units_used: 200,
-      soft_limit_monthly: 1000,
-    });
-    expect(f.avg_daily_units).toBe(100);
-    expect(f.projected_month_end_units).toBe(1200);
-    expect(f.at_or_above_100_pct).toBe(true);
-    expect(f.status).toBe("critical");
-  });
-
-  it("aggregates decision rows into daily points", () => {
-    const points = dailyUsageFromDecisions([
-      { created_at: "2026-08-01T10:00:00Z", used_model: true, estimated_cost_units: 2 },
-      { created_at: "2026-08-01T12:00:00Z", used_model: false, estimated_cost_units: 0 },
-      { created_at: "2026-08-02T09:00:00Z", used_model: true, evidence: { cost_units: 3 } },
-    ]);
-    expect(points).toEqual([
-      { day: "2026-08-01", units: 2 },
-      { day: "2026-08-02", units: 3 },
-    ]);
   });
 });
 

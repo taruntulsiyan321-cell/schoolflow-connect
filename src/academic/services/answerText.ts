@@ -128,29 +128,3 @@ export function answerToIndex(value: unknown, options?: unknown): number | null 
   }
   return null;
 }
-
-export function answerToText(value: unknown, options: unknown): string | null {
-  if (value === null || value === undefined) return null;
-
-  const list = toOptionList(options);
-  const positions = answerToIndexes(value, options);
-  if (positions.length) {
-    if (!list) return null;
-    const words = positions
-      .map((i) => (i >= 0 && i < list.length ? list[i] : null))
-      .filter((w): w is string => typeof w === "string" && w.trim() !== "");
-    if (words.length) return words.join(" · ");
-  }
-
-  // A bare string or number is already the answer.
-  if (typeof value === "string") return value.trim() || null;
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-
-  if (typeof value !== "object") return null;
-  const v = value as { text?: unknown; value?: unknown };
-  if (typeof v.text === "string" && v.text.trim()) return v.text.trim();
-  if (typeof v.value === "number" && Number.isFinite(v.value)) return String(v.value);
-  if (typeof v.value === "string" && v.value.trim()) return v.value.trim();
-
-  return null;
-}

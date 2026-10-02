@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import {
@@ -86,6 +86,26 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+const BLEND = /overallAccuracyFromSnapshot|\bstats\??\.accuracy\b/;
+const WINDOW = 320;
+
+/**
+ * Lines where a "practice accuracy" label sits within WINDOW chars of a
+ * blended accuracy. Scanned over a WINDOW, not per line: the first draft of
+ * this guard required the label and the value on one line, so it went green
+ * against the very defect it was written for the moment the JSX wrapped.
+ */
+function blendNextToPracticeLabel(src: string): number[] {
+  const lines: number[] = [];
+  const label = /practice\s+accuracy/gi;
+  let m: RegExpExecArray | null;
+  while ((m = label.exec(src)) !== null) {
+    const around = src.slice(Math.max(0, m.index - WINDOW), Math.min(src.length, m.index + WINDOW));
+    if (BLEND.test(around)) lines.push(src.slice(0, m.index).split("\n").length);
+  }
+  return lines;
+}
+
 describe("no student screen labels the blend as practice accuracy", () => {
   const files = walk(join(process.cwd(), "src", "gurukul"));
 
@@ -97,44 +117,43 @@ describe("no student screen labels the blend as practice accuracy", () => {
     // The blend now reaches a screen ONLY as overallAccuracyFromSnapshot or as
     // the hook's `stats.accuracy`. The shell profile carries `practiceAccuracy`,
     // which is named for what it holds and cannot be mistaken for the blend.
-    //
-    // Scanned over a WINDOW, not per line. The first draft of this guard
-    // required the label and the value on one line, so it went green against
-    // the very defect it was written for the moment the JSX wrapped onto
-    // several lines — which is exactly how it is written on Home.
-    const BLEND = /overallAccuracyFromSnapshot|\bstats\??\.accuracy\b/;
-    const WINDOW = 320;
-    const offenders: string[] = [];
-    for (const file of files) {
-      const src = stripComments(readFileSync(file, "utf8"));
-      const label = /practice\s+accuracy/gi;
-      let m: RegExpExecArray | null;
-      while ((m = label.exec(src)) !== null) {
-        const around = src.slice(
-          Math.max(0, m.index - WINDOW),
-          Math.min(src.length, m.index + WINDOW),
-        );
-        if (BLEND.test(around)) {
-          const line = src.slice(0, m.index).split("\n").length;
-          offenders.push(`${file}:${line}  ${m[0]} sits within ${WINDOW} chars of a blended accuracy`);
-        }
-      }
-    }
+    // (The WINDOW is explained on blendNextToPracticeLabel.)
+    const offenders = files.flatMap((file) =>
+      blendNextToPracticeLabel(stripComments(readFileSync(file, "utf8"))).map(
+        (line) => `${file}:${line}  "practice accuracy" sits within ${WINDOW} chars of a blended accuracy`,
+      ),
+    );
     expect(
       offenders,
       `these label a blended accuracy as practice — say "Overall accuracy", or read profile.practiceAccuracy:\n${offenders.join("\n")}`,
     ).toEqual([]);
   });
 
-  it("and the scan actually sees the screens that render an accuracy (control)", () => {
+  it("and the scan actually sees the screens that label a practice accuracy (control)", () => {
     // Without this, a stripComments bug that emptied every file would leave the
-    // assertion above passing on nothing at all.
-    const withAccuracy = files.filter((f) =>
-      /\b(?:student|profile|me)\??\.practiceAccuracy\b|overallAccuracyFromSnapshot/.test(
-        stripComments(readFileSync(f, "utf8")),
-      ),
+    // assertion above passing on nothing at all. Named, not counted: the
+    // Battleground and Learning hub screens it used to count went with the
+    // organisation side (2026-10-01).
+    const labelled = files
+      .filter((f) => /practice\s+accuracy/i.test(stripComments(readFileSync(f, "utf8"))))
+      .map((f) => f.split(sep).join("/").replace(/^.*\/src\//, "src/"))
+      .sort();
+    expect(labelled).toEqual(["src/gurukul/pages/Analysis.tsx", "src/gurukul/pages/Dashboard.tsx"]);
+  });
+
+  it("and the detector fires on a planted blend (mutant)", () => {
+    // Home's tile, with the blend put back where the defect had it. If this
+    // stops failing the scan above, the scan can no longer see the defect.
+    const home = stripComments(
+      readFileSync(join(process.cwd(), "src", "gurukul", "pages", "Dashboard.tsx"), "utf8"),
     );
-    expect(withAccuracy.length).toBeGreaterThan(2);
+    expect(blendNextToPracticeLabel(home)).toEqual([]);
+    const planted = home.replace(
+      'label="Practice accuracy"',
+      'label="Practice accuracy" value={overallAccuracyFromSnapshot(snapshot)}',
+    );
+    expect(planted).not.toBe(home);
+    expect(blendNextToPracticeLabel(planted).length).toBe(1);
   });
 });
 

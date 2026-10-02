@@ -67,8 +67,17 @@ describe("the no-student-profile state has exactly one design", () => {
     );
     expect(shared).toContain("export function NoStudentProfile()");
 
-    const callers = files.filter((f) => readFileSync(f, "utf8").includes("<NoStudentProfile"));
-    expect(callers.length, "every screen that had this state should render the component").toBe(9);
+    // The six school screens that also had this state went with the
+    // organisation side (2026-10-01); these three are the individual panel's.
+    const callers = files
+      .filter((f) => readFileSync(f, "utf8").includes("<NoStudentProfile"))
+      .map((f) => f.slice(f.indexOf(STUDENT_PANEL)).split(sep).join("/"))
+      .sort();
+    expect(callers, "every screen that has this state should render the component").toEqual([
+      "src/gurukul/pages/Analysis.tsx",
+      "src/gurukul/pages/Recovery.tsx",
+      "src/gurukul/pages/Revision.tsx",
+    ]);
   });
 });
 
@@ -259,13 +268,20 @@ describe("the deleted empty-state conventions stay deleted", () => {
     // while sixteen screens rendered a spinner — an unused `Skeleton` export
     // and a `.skeleton-shimmer` CSS class. This is the assertion that would
     // have caught that, so it is the one worth keeping.
-    const adopters = files.filter(
-      (f) => f.includes(STUDENT_PANEL) && readFileSync(f, "utf8").includes("<PageSkeleton"),
-    );
-    expect(
-      adopters.length,
-      "screens that used to spin should now draw the shape that is arriving",
-    ).toBeGreaterThan(15);
+    const adopters = files
+      .filter((f) => f.includes(STUDENT_PANEL) && readFileSync(f, "utf8").includes("<PageSkeleton"))
+      .map((f) => f.slice(f.indexOf(STUDENT_PANEL)).split(sep).join("/"));
+    // Named, not counted: the school screens among the sixteen went with the
+    // organisation side (2026-10-01), and a count would have hidden which.
+    for (const screen of [
+      "Achievements", "Analysis", "Dashboard", "MistakeBook", "MockTests",
+      "Notifications", "Profile", "Recovery", "Revision",
+    ]) {
+      expect(
+        adopters,
+        "screens that used to spin should now draw the shape that is arriving",
+      ).toContain(`src/gurukul/pages/${screen}.tsx`);
+    }
 
     const theme = readFileSync(
       join(process.cwd(), "src", "gurukul", "theme.css"),

@@ -34,20 +34,11 @@
  */
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { reachableFrom } from "./lint-unreachable-screens.mjs";
+import { ROUTERS, reachableFrom } from "./lint-unreachable-screens.mjs";
 
 const argv = process.argv.slice(2);
 const SELF_TEST = argv.includes("--self-test");
 const REACHABLE_ONLY = argv.includes("--reachable-only");
-
-const ROUTERS = [
-  "src/App.tsx",
-  "src/gurukul-principal/PrincipalApp.tsx",
-  "src/gurukul-admin/AdminApp.tsx",
-  "src/gurukul-teacher/TeacherApp.tsx",
-  "src/gurukul-parent/ParentApp.tsx",
-  "src/gurukul/GurukulApp.tsx",
-];
 
 /** A label a student would read as "you are good at this". */
 /**
@@ -173,7 +164,7 @@ if (SELF_TEST) {
     console.error("no source files found — refusing to report that as clean");
     process.exit(1);
   }
-  const reach = reachableFrom(ROUTERS.filter((f) => existsSync(f)));
+  const reach = reachableFrom(ROUTERS);
 
   const hits = [];
   for (const f of files) {

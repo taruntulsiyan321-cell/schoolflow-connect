@@ -33,7 +33,7 @@ export function isAiBillingOrCreditsIssue(
   );
 }
 
-export async function invokeAiGateway<T = unknown>(
+async function invokeAiGateway<T = unknown>(
   body: AiClientRequest,
   opts?: { signal?: AbortSignal },
 ): Promise<AiGatewayResponse<T> | null> {

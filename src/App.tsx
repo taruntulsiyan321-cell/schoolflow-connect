@@ -10,16 +10,15 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PushNotificationsBootstrap } from "@/components/PushNotificationsBootstrap";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import ResetPassword from "./pages/ResetPassword";
 import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
 
 // Route-level code splitting keeps the initial bundle lean.
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const PrincipalDashboard = lazy(() => import("./pages/PrincipalDashboard"));
-const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
+// The live app is the INDIVIDUAL student panel only (2026-10-01). The school
+// side — admin, principal, teacher, parent, super admin and the school-only
+// student screens — is kept whole on the `organisation` branch (tag
+// organisation-archive-2026-10-01), not shipped here.
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
-const ParentDashboard = lazy(() => import("./pages/ParentDashboard"));
 const Legal = lazy(() => import("./pages/Legal"));
 
 const queryClient = new QueryClient();
@@ -45,16 +44,11 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/login" element={<Navigate to="/auth" replace />} />
                 <Route path="/signup" element={<Navigate to="/auth" replace />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/terms" element={<Legal slug="terms" />} />
                 <Route path="/refund-policy" element={<Legal slug="refund-policy" />} />
                 <Route path="/privacy" element={<Legal slug="privacy" />} />
                 <Route path="/unauthorized" element={<ProtectedRoute><Unauthorized /></ProtectedRoute>} />
-                <Route path="/admin/*" element={<ProtectedRoute allow={["admin", "super_admin"]}><AdminDashboard /></ProtectedRoute>} />
-                <Route path="/principal/*" element={<ProtectedRoute allow={["principal"]}><PrincipalDashboard /></ProtectedRoute>} />
-                <Route path="/teacher/*" element={<ProtectedRoute allow={["teacher"]}><TeacherDashboard /></ProtectedRoute>} />
                 <Route path="/student/*" element={<ProtectedRoute allow={["student"]}><StudentDashboard /></ProtectedRoute>} />
-                <Route path="/parent/*" element={<ProtectedRoute allow={["parent"]}><ParentDashboard /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

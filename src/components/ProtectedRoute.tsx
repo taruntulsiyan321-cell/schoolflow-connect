@@ -54,7 +54,9 @@ export const ProtectedRoute = ({ children, allow }: Props) => {
         <Navigate
           to="/unauthorized"
           replace
-          state={{ reason: "forbidden", from: loc.pathname, home: homePath }}
+          // Any role but student is an organisation account, and the live app
+          // has no organisation panels (2026-10-01).
+          state={{ reason: role === "student" ? "forbidden" : "organisation", from: loc.pathname, home: homePath }}
         />
       );
     }

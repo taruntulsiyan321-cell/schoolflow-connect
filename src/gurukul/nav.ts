@@ -1,243 +1,76 @@
-/** Design page keys for the Gurukul student shell (routing only — not mock data). */
+/**
+ * Design page keys for the Gurukul student shell (routing only — not mock data).
+ *
+ * The live app is the INDIVIDUAL student panel only (2026-10-01). The school
+ * student's pages — Battleground, Rankings, Resources, Doubts, Homework,
+ * Attendance, Timetable, Calendar, Tests, the Learning and Class hubs, Notices
+ * and Fees — are kept on the `organisation` branch (tag
+ * organisation-archive-2026-10-01) with the rest of the school side.
+ */
 export type PageKey =
-  | "dashboard" | "practice" | "aicoach" | "analysis"
+  | "dashboard" | "practice" | "mocktests" | "aicoach" | "analysis"
   | "recovery"  | "revision" | "mistakebook"
-  | "battleground" | "leaderboard" | "achievements"
-  | "resources" | "doubtportal" | "assignments" | "attendance" | "profile"
-  | "timetable" | "calendar" | "tests" | "mocktests"
-  | "learninghub" | "classhub"
-  | "premium";
+  | "achievements" | "profile" | "premium";
 
 /** Design page keys → React Router paths under /student */
 export const PAGE_PATH: Record<PageKey, string> = {
   dashboard: "/student",
   practice: "/student/practice",
+  mocktests: "/student/mocks",
   aicoach: "/student/aicoach",
   analysis: "/student/analysis",
   recovery: "/student/recovery",
   revision: "/student/revision",
   mistakebook: "/student/mistakes",
-  battleground: "/student/battleground",
-  leaderboard: "/student/leaderboard",
   achievements: "/student/achievements",
-  resources: "/student/resources",
-  doubtportal: "/student/doubts",
-  assignments: "/student/homework",
-  attendance: "/student/attendance",
   profile: "/student/profile",
-  timetable: "/student/timetable",
-  calendar: "/student/calendar",
-  tests: "/student/tests",
-  learninghub: "/student/learning",
-  classhub: "/student/class",
   premium: "/student/premium",
-  mocktests: "/student/mocks",
 };
-
-/** Legacy `/student/classes#section` → Gurukul class-facing routes. */
-const LEGACY_CLASSES_HASH: Record<string, PageKey> = {
-  attendance: "attendance",
-  timetable: "timetable",
-  calendar: "calendar",
-  leaderboard: "leaderboard",
-  homework: "assignments",
-  exams: "tests",
-  doubts: "doubtportal",
-  resources: "resources",
-  achievements: "achievements",
-  class: "classhub",
-};
-
-/** Absolute paths for hashes that are not PAGE_PATH keys. */
-const LEGACY_CLASSES_ABS: Record<string, string> = {
-  fees: "/student/fees",
-  notices: "/student/notices",
-};
-
-export function legacyClassesRedirectPath(hash?: string): string {
-  const key = (hash ?? "").replace(/^#/, "").trim().toLowerCase();
-  if (key && LEGACY_CLASSES_ABS[key]) return LEGACY_CLASSES_ABS[key];
-  const page = LEGACY_CLASSES_HASH[key];
-  return page ? PAGE_PATH[page] : PAGE_PATH.classhub;
-}
-
-/**
- * The two hub sections. Layout kept its own `LEARNING_KEYS`/`CLASS_KEYS` copies
- * of these to decide which sidebar entry stays lit; exported now so the
- * sidebar, the section eyebrow and the route resolver all read one list.
- */
-export const LEARNING: PageKey[] = ["learninghub", "analysis", "recovery", "revision", "mistakebook"];
-export const CLASS: PageKey[] = [
-  "classhub", "timetable", "calendar", "attendance", "assignments",
-  "tests", "doubtportal", "leaderboard", "achievements", "resources",
-];
 
 /** Resolve current pathname to the closest design PageKey */
 export function pathToPage(pathname: string): PageKey {
   const p = pathname.replace(/\/+$/, "") || "/student";
 
-  // Deep functional routes still belong to a hub
+  // Deep functional routes still belong to a page
   if (p.startsWith("/student/recovery")) return "recovery";
   if (p.startsWith("/student/practice")) return "practice";
   // Both the list and a paper being sat: /student/mocks and /student/mock/<id>.
   if (p.startsWith("/student/mock")) return "mocktests";
-  if (p.startsWith("/student/battleground")) return "battleground";
-  if (p.startsWith("/student/test")) return "tests";
   if (p.startsWith("/student/mistakes")) return "mistakebook";
   if (p.startsWith("/student/analytics") || p.startsWith("/student/analysis") || p.startsWith("/student/report"))
     return "analysis";
   if (p.startsWith("/student/revision") || p.startsWith("/student/plans")) return "revision";
-  if (p.startsWith("/student/notices") || p.startsWith("/student/notifications"))
-    return "classhub";
-  if (p.startsWith("/student/classes")) return "classhub";
-  if (p.startsWith("/student/fees")) return "profile";
 
   const match = (Object.entries(PAGE_PATH) as [PageKey, string][]).find(([, path]) => path === p);
-  if (match) return match[0];
-
-  if (LEARNING.some((k) => PAGE_PATH[k] === p)) return p.split("/").pop() as PageKey;
-  if (CLASS.some((k) => PAGE_PATH[k] === p)) return p.split("/").pop() as PageKey;
-
-  return "dashboard";
+  return match ? match[0] : "dashboard";
 }
 
 /**
- * The name of every screen, in one place.
- *
- * This map also existed as a private `const pageTitle` inside Layout.tsx, with
- * identical contents, while the function that used to live here was exported
- * and imported by nobody. Two homes for one fact; the screens now read this one
- * through PageHeader, and Layout reads it for the top bar.
+ * The name of every screen, in one place: the screens read it through
+ * PageHeader, and Layout reads it for the top bar.
  */
 export const PAGE_TITLE: Record<PageKey, string> = {
   dashboard: "Home",
   practice: "Practice",
+  mocktests: "Mock Tests",
   aicoach: "AI Coach",
   analysis: "Analysis",
   recovery: "Recovery",
   revision: "Revision",
   mistakebook: "Mistake Book",
-  battleground: "Battleground",
-  leaderboard: "Rankings",
   achievements: "Achievements",
-  resources: "Resources",
-  doubtportal: "Doubts",
-  assignments: "Homework",
-  attendance: "Attendance",
   profile: "Profile",
-  timetable: "Timetable",
-  calendar: "Calendar",
-  tests: "Tests",
-  learninghub: "Learning",
-  classhub: "Class",
   premium: "Plans",
-  mocktests: "Mock Tests",
 };
 
-
-
-
-/** Organisation vs tenant-of-one — from `schools.kind`. */
+/** `schools.kind`: a school, or an individual account's space of one. */
 export type SchoolKind = "school" | "individual";
 
-/**
- * Pages that only exist for an organisation school.
- *
- * Battleground is here because a tenant-of-one can never find an opponent —
- * there is nobody else in the space to challenge.
- */
-export const SCHOOL_ONLY_PAGE_KEYS: readonly PageKey[] = [
-  "classhub",
-  "timetable",
-  "calendar",
-  "attendance",
-  "assignments",
-  "tests",
-  "doubtportal",
-  "leaderboard",
-  "resources",
-  "battleground",
-] as const;
-
-/**
- * Absolute paths / prefixes that are school-only. Includes destinations that
- * are not PAGE_PATH keys (notices, fees, legacy classes) and deep routes under
- * school-only pages (e.g. /student/battleground/battle/:id).
- */
-const SCHOOL_ONLY_PATH_PREFIXES: readonly string[] = [
-  "/student/notices",
-  "/student/fees",
-  "/student/classes",
-  "/student/homework",
-  "/student/attendance",
-  "/student/timetable",
-  "/student/calendar",
-  "/student/tests",
-  "/student/test",
-  "/student/doubts",
-  "/student/leaderboard",
-  "/student/resources",
-  "/student/battleground",
-  "/student/class",
-] as const;
-
-const SCHOOL_ONLY_PAGE_SET = new Set<PageKey>(SCHOOL_ONLY_PAGE_KEYS);
-
-export function isSchoolOnlyPage(key: PageKey): boolean {
-  return SCHOOL_ONLY_PAGE_SET.has(key);
-}
-
-export function isSchoolOnlyPath(pathname: string): boolean {
-  const p = pathname.replace(/\/+$/, "") || "/student";
-  // Notifications stay for individuals — pathToPage maps them to classhub for
-  // school sidebar lighting, which must not make the URL school-only.
-  if (p === "/student/notifications" || p.startsWith("/student/notifications/")) {
-    return false;
-  }
-  for (const prefix of SCHOOL_ONLY_PATH_PREFIXES) {
-    if (p === prefix || p.startsWith(`${prefix}/`)) return true;
-  }
-  return isSchoolOnlyPage(pathToPage(p));
-}
-
-/** Organisation school / loading — current Layout order. */
-const SCHOOL_SIDEBAR: PageKey[] = [
-  "dashboard", "practice", "aicoach", "battleground", "learninghub", "classhub",
-];
-const SCHOOL_BOTTOM: PageKey[] = [
-  "dashboard", "practice", "learninghub", "classhub",
-];
-
-/**
- * Individual exam account — learning screens as top-level; no Class hub, no
- * Battleground, no Learning hub (Analysis / Recovery / … sit in the sidebar).
- */
-const INDIVIDUAL_SIDEBAR: PageKey[] = [
+/** The sidebar and the mobile bottom bar — Layout renders exactly these. */
+export const SIDEBAR_PAGES: readonly PageKey[] = [
   "dashboard", "practice", "mocktests", "aicoach", "analysis", "recovery", "revision",
   "mistakebook", "achievements", "premium",
 ];
-const INDIVIDUAL_BOTTOM: PageKey[] = [
+export const BOTTOM_PAGES: readonly PageKey[] = [
   "dashboard", "practice", "analysis", "recovery",
 ];
-
-/**
- * Organisation chrome (Class hub, Battleground, …) only when kind is known
- * `school`. `null` (identity still loading) and `individual` share the
- * individual layout — otherwise a CUET session paints Class Rank / Battleground
- * / "ask your school admin" until kind arrives, or forever if kind never does.
- * A school student may briefly miss those entries; that is cheaper than an
- * exam account seeing classmates that do not exist.
- */
-export function studentNavEntries(
-  kind: SchoolKind | null,
-): { sidebar: PageKey[]; bottom: PageKey[] } {
-  if (kind === "school") {
-    return { sidebar: [...SCHOOL_SIDEBAR], bottom: [...SCHOOL_BOTTOM] };
-  }
-  return { sidebar: [...INDIVIDUAL_SIDEBAR], bottom: [...INDIVIDUAL_BOTTOM] };
-}
-
-/** True only for a confirmed organisation school — never for null/individual. */
-export function isOrganisationSchool(kind: SchoolKind | null | undefined): boolean {
-  return kind === "school";
-}

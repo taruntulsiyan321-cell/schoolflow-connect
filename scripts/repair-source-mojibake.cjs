@@ -50,7 +50,6 @@ const EXCLUDED = new Map([
   ["e2e/render-safety-public.spec.ts", "FORBIDDEN_TEXT includes a mojibake detection pattern."],
   ["src/academic/services/practiceService.ts", "Mojibake appears only inside an explanatory comment."],
   ["src/academic/taxonomy/canonicalize.ts", "Mojibake appears only inside an explanatory comment."],
-  ["src/pages/shared/QuestionBankPage.tsx", "Remaining sequence is inside a comment illustrating paste corruption."],
 ]);
 
 /** CP1252 byte (0x80-0x9F) -> Unicode codepoint. */

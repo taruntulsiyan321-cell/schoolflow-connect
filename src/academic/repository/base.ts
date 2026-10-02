@@ -83,20 +83,3 @@ export async function retryTransient<T>(
   }
   throw lastError;
 }
-
-export interface PageParams {
-  limit?: number;
-  offset?: number;
-}
-
-export const DEFAULT_PAGE_LIMIT = 50;
-export const MAX_PAGE_LIMIT = 200;
-
-export function normalizePage(params?: PageParams): { limit: number; offset: number } {
-  const limit = Math.min(
-    Math.max(params?.limit ?? DEFAULT_PAGE_LIMIT, 1),
-    MAX_PAGE_LIMIT,
-  );
-  const offset = Math.max(params?.offset ?? 0, 0);
-  return { limit, offset };
-}

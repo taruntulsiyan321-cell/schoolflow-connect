@@ -10,9 +10,9 @@ export type RiskBand = "low" | "moderate" | "elevated" | "high" | "unknown";
  *
  * Named because three ladders in this package all produced a RiskBand from
  * different boundaries, so "elevated" meant >= 55 here, >= 50 in
- * doubtUrgency.ts, and the 50-70 band in bandFromConsistency below. Four words,
- * three meanings, one type. The words are only comparable if the numbers are
- * visible.
+ * doubtUrgency.ts (gone with the organisation side, 2026-10-01), and the 50-70
+ * band in bandFromConsistency below. Four words, three meanings, one type. The
+ * words are only comparable if the numbers are visible.
  */
 const RISK_SCORE_HIGH = 75;
 const RISK_SCORE_ELEVATED = 55;

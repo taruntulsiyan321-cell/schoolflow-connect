@@ -24,12 +24,10 @@ import { describe, expect, it } from "vitest";
  * ban the two substrings that collide with library-generated class names.
  */
 
+/** The admin, parent, principal and teacher panels' stylesheets went with
+ *  the organisation side to the `organisation` branch (2026-10-01). */
 const THEMES = [
   join("src", "gurukul", "theme.css"),
-  join("src", "gurukul-admin", "theme.css"),
-  join("src", "gurukul-parent", "theme.css"),
-  join("src", "gurukul-principal", "theme.css"),
-  join("src", "gurukul-teacher", "theme.css"),
   join("src", "index.css"),
 ];
 

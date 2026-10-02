@@ -1,5 +1,12 @@
+/**
+ * Phone normalisation, tested where it runs: the edge copy that
+ * verify-msg91-widget uses for every individual sign-in. The client copy
+ * (src/lib/phone.ts) lost its last caller with the organisation sign-in paths
+ * and was deleted (2026-10-01); the SQL public.normalize_phone() is the other
+ * mirror.
+ */
 import { describe, expect, it } from "vitest";
-import { normalizePhone, toE164Display, samePhone } from "./phone";
+import { normalizePhone } from "../../supabase/functions/_shared/phone";
 
 describe("normalizePhone", () => {
   it("prefixes a bare 10-digit Indian mobile number with the default country code", () => {
@@ -28,31 +35,5 @@ describe("normalizePhone", () => {
 
   it("returns null for implausibly long input", () => {
     expect(normalizePhone("1234567890123456")).toBeNull();
-  });
-});
-
-describe("toE164Display", () => {
-  it("adds a leading + to the canonical form", () => {
-    expect(toE164Display("9876543210")).toBe("+919876543210");
-  });
-
-  it("returns null for invalid input", () => {
-    expect(toE164Display("bad")).toBeNull();
-  });
-});
-
-describe("samePhone", () => {
-  it("recognizes the same number regardless of formatting, including bare-vs-country-code-prefixed", () => {
-    expect(samePhone("9876543210", "+91 98765 43210")).toBe(true);
-    expect(samePhone("919876543210", "9876543210")).toBe(true);
-  });
-
-  it("returns false for genuinely different numbers", () => {
-    expect(samePhone("9876543210", "9876543211")).toBe(false);
-  });
-
-  it("returns false when either side is unparseable", () => {
-    expect(samePhone("", "9876543210")).toBe(false);
-    expect(samePhone("9876543210", "")).toBe(false);
   });
 });

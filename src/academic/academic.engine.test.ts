@@ -1,17 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  ENTITY_REGISTRY,
-  tableFor,
-  ENTITY_OWNERSHIP,
-  canOwn,
-  canConsume,
-  ACADEMIC_EVENT_TYPES,
-  syncTargetsFor,
-  validateMarks,
-  validateAcademicYearRange,
-  requireSchoolId,
-  MissingSchoolContextError,
-} from "@/academic";
+import { ENTITY_REGISTRY, tableFor } from "@/academic/entities";
+import { ENTITY_OWNERSHIP, canOwn, canConsume } from "@/academic/ownership";
+import { requireSchoolId, MissingSchoolContextError } from "@/academic/tenant";
 
 describe("academic engine — entity registry", () => {
   it("maps assignment to homework (single source of truth)", () => {
@@ -40,93 +30,6 @@ describe("academic engine — ownership", () => {
   it("forbids UI ownership of academic profile (sync-owned)", () => {
     expect(ENTITY_OWNERSHIP.student_academic_profile.owners).toEqual(["admin"]);
     expect(canConsume("student", "student_academic_profile")).toBe(true);
-  });
-});
-
-describe("academic engine — events", () => {
-  it("has sync targets for marks.published including profile + notifications", () => {
-    const targets = syncTargetsFor("marks.published");
-    expect(targets).toContain("student_academic_profile");
-    expect(targets).toContain("notifications");
-    expect(targets).toContain("ai_insights");
-  });
-
-  it("sends no practice event to the activity feed the whole school reads", () => {
-    // §10.8. Measured 2026-09-18: the principal, admin, a teacher, a parent and
-    // a Class 12 student each read a Class 10 student's practice questions,
-    // his chosen answers and whether they were right, from the feed.
-    const practice = ACADEMIC_EVENT_TYPES.filter((t) => t.startsWith("practice."));
-    expect(practice).toContain("practice.session.completed");
-    for (const t of [...practice, "practice.not_yet_catalogued"]) {
-      expect(syncTargetsFor(t), t).not.toContain("activity_feed");
-    }
-    // Positive controls: the feed itself still exists for school events.
-    expect(syncTargetsFor("marks.published")).toContain("activity_feed");
-    expect(syncTargetsFor("some.uncatalogued_event")).toContain("activity_feed");
-  });
-
-  it("reaches the feed exactly as the router does: all but practice and the two refresh signals", () => {
-    // Twelve types listed no feed while process_academic_event copied them to
-    // it (KNOWN_ISSUES 61); the map now applies the router's one rule.
-    for (const t of ["test.attempt.completed", "marks.updated", "doubt.created", "leave.reviewed", "attendance.updated", "role.changed"]) {
-      expect(syncTargetsFor(t), t).toContain("activity_feed");
-    }
-    for (const t of ["student.profile.refresh_requested", "homework.class.refresh_chunk"]) {
-      expect(syncTargetsFor(t), t).not.toContain("activity_feed");
-    }
-    // CONTROL: the rule adds the feed to a type's own targets; it replaces none.
-    expect(syncTargetsFor("student.profile.refresh_requested")).toEqual(["student_academic_profile"]);
-    expect(syncTargetsFor("leave.reviewed")).toEqual(["notifications", "audit", "activity_feed"]);
-  });
-
-  it("lists a stable event catalog", () => {
-    expect(ACADEMIC_EVENT_TYPES.length).toBeGreaterThan(10);
-    expect(ACADEMIC_EVENT_TYPES).toContain("attendance.marked");
-    expect(ACADEMIC_EVENT_TYPES).toContain("doubt.solved");
-    expect(ACADEMIC_EVENT_TYPES).toContain("examination.deleted");
-  });
-
-  it("maps doubt.solved and examination.deleted to profile sync targets", () => {
-    expect(syncTargetsFor("doubt.solved")).toContain("student_academic_profile");
-    expect(syncTargetsFor("doubt.solved")).toContain("notifications");
-    expect(syncTargetsFor("examination.deleted")).toContain("student_academic_profile");
-    expect(syncTargetsFor("examination.deleted")).toContain("audit");
-  });
-
-  it("plans profile + notifications for attendance, tests, and results", () => {
-    expect(syncTargetsFor("attendance.marked")).toEqual(
-      expect.arrayContaining(["student_academic_profile", "notifications", "analytics"]),
-    );
-    expect(syncTargetsFor("test.attempt.completed")).toEqual(
-      expect.arrayContaining(["student_academic_profile", "notifications", "analytics"]),
-    );
-    expect(syncTargetsFor("marks.results_published")).toEqual(
-      expect.arrayContaining(["student_academic_profile", "notifications"]),
-    );
-  });
-
-  it("carries the two homework decisions, and no grade", () => {
-    expect(syncTargetsFor("homework.submitted")).toEqual(
-      expect.arrayContaining(["student_academic_profile", "notifications"]),
-    );
-    expect(syncTargetsFor("homework.reviewed")).toContain("notifications");
-    expect(syncTargetsFor("homework.returned")).toContain("notifications");
-    expect(ACADEMIC_EVENT_TYPES).not.toContain("homework.graded");
-  });
-});
-
-describe("academic engine — validation", () => {
-  it("rejects marks above max", () => {
-    const r = validateMarks(105, 100);
-    expect(r.ok).toBe(false);
-  });
-
-  it("accepts valid marks", () => {
-    expect(validateMarks(88, 100).ok).toBe(true);
-  });
-
-  it("rejects inverted academic year range", () => {
-    expect(validateAcademicYearRange("2026-04-01", "2025-03-31").ok).toBe(false);
   });
 });
 

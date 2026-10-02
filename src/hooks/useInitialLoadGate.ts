@@ -32,33 +32,6 @@ function serializeKey(key: LoadGateKeyPart | readonly LoadGateKeyPart[]): string
   return String((key as LoadGateKeyPart) ?? "");
 }
 
-/**
- * Reset a hand-rolled "have I loaded once" ref when the identity it belongs to
- * changes — during render, not in an effect.
- *
- * Several panels wrote this instead:
- *
- *     useEffect(() => { loadedRef.current = false; }, [classId]);
- *
- * An effect runs *after* the commit that already has the new `classId`, so for
- * that commit the ref still says "loaded" and the previous class's rows are on
- * screen under the new class's heading. Comparing during render closes the gap.
- *
- * Prefer `useInitialLoadGate(key)` for new code; this exists so the existing
- * hand-rolled refs can be corrected without restructuring each screen.
- */
-export function useResetOnIdentityChange(
-  ref: { current: boolean },
-  key: LoadGateKeyPart | readonly LoadGateKeyPart[],
-): void {
-  const keyRef = useRef<string | null>(null);
-  const serialized = serializeKey(key);
-  if (keyRef.current !== serialized) {
-    keyRef.current = serialized;
-    ref.current = false;
-  }
-}
-
 export function useInitialLoadGate(
   key?: LoadGateKeyPart | readonly LoadGateKeyPart[],
 ) {

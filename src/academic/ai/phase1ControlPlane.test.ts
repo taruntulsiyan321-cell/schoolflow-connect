@@ -27,9 +27,6 @@ import {
   estimateUnitsForTier,
   periodKey,
 } from "./budgetQuotas";
-import { aggregateAiDecisions } from "./analytics";
-import { buildParentScheduledNarrative } from "./parentNarrative";
-import { getCapability } from "./capabilityCatalog";
 
 const AE = {
   attendance: {
@@ -264,77 +261,5 @@ describe("Budget quotas", () => {
   it("estimates tier units", () => {
     expect(estimateUnitsForTier("simple")).toBe(1);
     expect(estimateUnitsForTier("complex")).toBeGreaterThan(estimateUnitsForTier("medium"));
-  });
-});
-
-describe("AI Analytics Dashboard v1", () => {
-  it("aggregates route mix, cost, deflection without demo padding", () => {
-    const summary = aggregateAiDecisions([
-      {
-        feature_id: "student.attendance.query",
-        route_class: "deterministic_record",
-        decision: "answered_deterministic",
-        used_model: false,
-        cache_hit: true,
-        confidence: 0.95,
-        latency_ms: 40,
-      },
-      {
-        feature_id: "student.performance.explain",
-        route_class: "personalised_intelligence",
-        decision: "answered_model",
-        used_model: true,
-        cache_hit: false,
-        confidence: 0.7,
-        latency_ms: 900,
-        evidence: { cost_units: 1 },
-      },
-      {
-        feature_id: "student.eie.mastery_summary",
-        route_class: "eie_insight",
-        decision: "answered_eie",
-        used_model: false,
-        cache_hit: false,
-        confidence: 0.9,
-        latency_ms: 60,
-      },
-    ]);
-
-    expect(summary.window.count).toBe(3);
-    expect(summary.model_calls).toBe(1);
-    expect(summary.cache_hits).toBe(1);
-    expect(summary.deflection_pct).toBeCloseTo(66.7, 0);
-    expect(summary.estimated_cost_units).toBe(1);
-    expect(summary.route_mix.deterministic_record).toBe(1);
-    // Honest empty — never invent demo volume
-    expect(summary.window.count).not.toBe(1382);
-  });
-
-  it("empty rows → zeros", () => {
-    const summary = aggregateAiDecisions([]);
-    expect(summary.window.count).toBe(0);
-    expect(summary.deflection_pct).toBe(0);
-    expect(summary.avg_confidence).toBeNull();
-  });
-});
-
-describe("Parent scheduled narrative pilot", () => {
-  it("builds deterministic narrative from facts only", () => {
-    const n = buildParentScheduledNarrative({
-      attendance_pct: 90,
-      homework_completion_pct: 80,
-      tests_avg_pct: 70,
-      exams_avg_pct: 0,
-      source_as_of: "2026-08-01",
-      data_version: "parent:s1:1",
-    });
-    expect(n.used_model).toBe(false);
-    expect(n.narrative).toContain("90%");
-    expect(n.bullets).toEqual(["Attendance: 90%.", "Homework completion: 80%.", "Tests average: 70%."]);
-    expect(n.projection).toBe("ParentScheduledNarrative");
-  });
-
-  it("registers parent.child.narrative capability", () => {
-    expect(getCapability("parent.child.narrative")?.model_policy).toBe("never");
   });
 });

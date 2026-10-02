@@ -4,65 +4,45 @@ import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { PageKey } from "@/gurukul/nav";
-import {
-  PAGE_TITLE,
-  LEARNING as LEARNING_KEYS,
-  CLASS as CLASS_KEYS,
-  studentNavEntries,
-  isSchoolOnlyPath,
-  isOrganisationSchool,
-} from "@/gurukul/nav";
+import { PAGE_TITLE, SIDEBAR_PAGES, BOTTOM_PAGES } from "@/gurukul/nav";
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
-import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { cn, XPBar, EASE_OUT, springSnappy, springSoft } from "./shared";
 import {
-  Home, BookOpen, Brain, Swords,
+  Home, BookOpen, Brain,
   ChevronLeft, ChevronRight, Bell, Menu, X,
-  FlaskConical, GraduationCap, Settings, LogOut,
-  User, Wallet, Megaphone, BarChart2, RefreshCw, RotateCcw,
+  LogOut,
+  User, BarChart2, RefreshCw, RotateCcw,
   AlertCircle, Trophy, Crown, Timer,
 } from "lucide-react";
-import { MembershipSwitcher } from "@/auth/MembershipSwitcher";
 
 type NavItem  = { key: PageKey; label: string; icon: ReactNode };
 type NavEntry = { key: PageKey; label: string; icon: ReactNode };
 
-/** Icon + label for every key studentNavEntries may return — one catalogue. */
+/** Icon + label for every page the sidebar or bottom bar may show — one catalogue. */
 const NAV_CATALOGUE: Record<PageKey, { label: string; icon: ReactNode }> = {
   dashboard:    { label: "Home",         icon: <Home className="w-4 h-4"/> },
   practice:     { label: "Practice",     icon: <BookOpen className="w-4 h-4"/> },
   aicoach:      { label: "AI Coach",     icon: <Brain className="w-4 h-4"/> },
-  battleground: { label: "Battleground", icon: <Swords className="w-4 h-4"/> },
-  learninghub:  { label: "Learning",     icon: <GraduationCap className="w-4 h-4"/> },
-  classhub:     { label: "Class",        icon: <FlaskConical className="w-4 h-4"/> },
   analysis:     { label: "Analysis",     icon: <BarChart2 className="w-4 h-4"/> },
   recovery:     { label: "Recovery",     icon: <RefreshCw className="w-4 h-4"/> },
   revision:     { label: "Revision",     icon: <RotateCcw className="w-4 h-4"/> },
   mistakebook:  { label: "Mistake Book", icon: <AlertCircle className="w-4 h-4"/> },
   achievements: { label: "Achievements", icon: <Trophy className="w-4 h-4"/> },
-  leaderboard:  { label: "Rankings",     icon: <Trophy className="w-4 h-4"/> },
-  resources:    { label: "Resources",    icon: <BookOpen className="w-4 h-4"/> },
-  doubtportal:  { label: "Doubts",       icon: <Brain className="w-4 h-4"/> },
-  assignments:  { label: "Homework",     icon: <BookOpen className="w-4 h-4"/> },
-  attendance:   { label: "Attendance",   icon: <GraduationCap className="w-4 h-4"/> },
   profile:      { label: "Profile",      icon: <User className="w-4 h-4"/> },
-  timetable:    { label: "Timetable",    icon: <BookOpen className="w-4 h-4"/> },
-  calendar:     { label: "Calendar",     icon: <BookOpen className="w-4 h-4"/> },
-  tests:        { label: "Tests",        icon: <FlaskConical className="w-4 h-4"/> },
   premium:      { label: "Plans",        icon: <Crown className="w-4 h-4"/> },
   mocktests:    { label: "Mock Tests",   icon: <Timer className="w-4 h-4"/> },
 };
 
-function navEntriesFor(keys: PageKey[]): NavEntry[] {
+function navEntriesFor(keys: readonly PageKey[]): NavEntry[] {
   return keys.map((key) => {
     const cat = NAV_CATALOGUE[key];
     return { key, label: cat.label, icon: cat.icon };
   });
 }
 
-function bottomEntriesFor(keys: PageKey[]): NavItem[] {
+function bottomEntriesFor(keys: readonly PageKey[]): NavItem[] {
   return keys.map((key) => {
     const cat = NAV_CATALOGUE[key];
     return {
@@ -84,22 +64,18 @@ const profileMenuItems = [
 
 const profileExtraLinks = [
   { label: "Notifications", path: "/student/notifications", icon: <Bell className="w-3.5 h-3.5" /> },
-  { label: "Notices", path: "/student/notices", icon: <Megaphone className="w-3.5 h-3.5" /> },
-  { label: "Fees", path: "/student/fees", icon: <Wallet className="w-3.5 h-3.5" /> },
 ];
 
 export default function Layout({
   page,
   setPage,
   children,
-  onOpenAdmin,
   profile,
   progressionReady = true,
 }: {
   page: PageKey;
   setPage: (p: PageKey) => void;
   children: ReactNode;
-  onOpenAdmin?: () => void;
   profile?: Partial<GurukulStudentProfile>;
   /** When false, XP/level chrome shows a neutral placeholder (not Level 1 as truth). */
   progressionReady?: boolean;
@@ -108,28 +84,19 @@ export default function Layout({
   const navigate = useNavigate();
   const location = useLocation();
   const { unread } = useNotifications();
-  const { schoolKind } = useGurukulAcademicIdentity();
   const student = { ...EMPTY_STUDENT, ...profile };
   const showXpChrome = progressionReady;
   const reduceMotion = useReducedMotion();
 
-  // ONE place: nav.ts studentNavEntries — Layout only renders the keys it returns.
-  const { sidebar: sidebarKeys, bottom: bottomKeys } = studentNavEntries(schoolKind ?? null);
-  const sidebarNav = navEntriesFor(sidebarKeys);
-  const bottomNav = bottomEntriesFor(bottomKeys);
-  const visibleProfileExtras = profileExtraLinks.filter(
-    (item) => isOrganisationSchool(schoolKind) || !isSchoolOnlyPath(item.path),
-  );
+  // ONE place: nav.ts SIDEBAR_PAGES / BOTTOM_PAGES — Layout only renders those.
+  const sidebarNav = navEntriesFor(SIDEBAR_PAGES);
+  const bottomNav = bottomEntriesFor(BOTTOM_PAGES);
 
-  // Class rank is school-only; individuals (and unknown kind) show exam / scope label.
-  const scopeLine = isOrganisationSchool(schoolKind)
-    ? ([student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" · ") || "Your class")
-    : (student.class || "Exam");
+  // The exam this account prepares for.
+  const scopeLine = student.class || "Exam";
 
   const headerTitle =
     location.pathname.startsWith("/student/notifications") ? "Notifications"
-    : location.pathname.startsWith("/student/notices") ? "Notices"
-    : location.pathname.startsWith("/student/fees") ? "Fees"
     : PAGE_TITLE[page];
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -162,8 +129,6 @@ export default function Layout({
   }, [profileOpen]);
 
   function isBottomActive(key: PageKey) {
-    if (key === "learninghub") return LEARNING_KEYS.includes(page);
-    if (key === "classhub")    return CLASS_KEYS.includes(page);
     return page === key;
   }
 
@@ -207,7 +172,7 @@ export default function Layout({
           <div>
             <div className="text-sm font-black text-foreground leading-none" style={{fontFamily:"var(--font-display)"}}>Gurukul</div>
             <div className="text-[10px] text-muted-foreground leading-none mt-0.5">
-              {schoolKind === "individual" ? "Exam prep" : "Student"}
+              Exam prep
             </div>
           </div>
         )}
@@ -338,7 +303,6 @@ export default function Layout({
 
             {/* Right badges */}
             <div className="flex items-center gap-2">
-              <MembershipSwitcher className="shrink-0" />
               {/* Ruling 4: the header is back + title + at most one screen-specific
                   action. A streak pill, an XP pill and a notification bell stood
                   here on EVERY screen. Streak and XP belong on Home, where the
@@ -349,19 +313,6 @@ export default function Layout({
                   profile menu, and the unread count moved onto that link — the
                   signal survives, the chrome does not. */}
 
-              {/* Admin Panel shortcut */}
-              {onOpenAdmin && (
-                <motion.button
-                  whileHover={reduceMotion ? undefined : { scale: 1.03 }}
-                  whileTap={reduceMotion ? undefined : { scale: 0.96 }}
-                  onClick={onOpenAdmin}
-                  className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-primaryGlow border border-border hover:border-primary/40 hover:bg-primary/8 rounded-full px-2.5 py-1 transition-all"
-                  title="Switch to Admin Panel"
-                >
-                  <Settings className="w-3 h-3" />
-                  Admin
-                </motion.button>
-              )}
 
               {/* Profile avatar — opens dropdown (portaled to body) */}
               <div className="relative" ref={profileRef}>
@@ -437,7 +388,7 @@ export default function Layout({
                           {page === item.key && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"/>}
                         </button>
                       ))}
-                      {visibleProfileExtras.map(item => (
+                      {profileExtraLinks.map(item => (
                         <button
                           key={item.path}
                           onClick={() => { navigate(item.path); setProfileOpen(false); }}
@@ -501,7 +452,7 @@ export default function Layout({
           </motion.div>
         </main>
 
-        {/* Mobile bottom nav — tabs from studentNavEntries */}
+        {/* Mobile bottom nav — tabs from BOTTOM_PAGES */}
         <nav className="md:hidden shrink-0 fixed bottom-0 inset-x-0 border-t border-border/70 bg-card/95 backdrop-blur-xl z-40">
           <div className="flex">
             {bottomNav.map(item => {

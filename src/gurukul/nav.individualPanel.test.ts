@@ -1,165 +1,116 @@
 /**
- * Individual vs school student panel visibility — ONE place: nav.ts.
+ * The live app is the INDIVIDUAL student panel only (2026-10-01): one menu,
+ * no school screen, and a school student is turned away rather than shown a
+ * half-panel. The school side is kept on the `organisation` branch.
  *
- * Source-lock + behavioural asserts so the individual shell cannot grow
- * classhub/battleground without failing here, and the school shell cannot lose
- * them either.
+ * Source-lock + behavioural asserts so a school screen cannot come back into
+ * the shell, the menu or the routes without failing here.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  SCHOOL_ONLY_PAGE_KEYS,
-  isSchoolOnlyPage,
-  isSchoolOnlyPath,
-  pathToPage,
-  studentNavEntries,
-} from "./nav";
+import { BOTTOM_PAGES, PAGE_PATH, SIDEBAR_PAGES, pathToPage } from "./nav";
 import { stripComments } from "@/test/stripComments";
 
-const NAV_RAW = readFileSync(join(__dirname, "nav.ts"), "utf8");
-const NAV_SOURCE = stripComments(NAV_RAW);
-const LAYOUT_SOURCE = stripComments(
-  readFileSync(join(__dirname, "components", "Layout.tsx"), "utf8"),
-);
+const NAV_SOURCE = stripComments(readFileSync(join(__dirname, "nav.ts"), "utf8"));
+const LAYOUT_SOURCE = stripComments(readFileSync(join(__dirname, "components", "Layout.tsx"), "utf8"));
+const SHELL_SOURCE = stripComments(readFileSync(join(__dirname, "..", "pages", "StudentDashboard.tsx"), "utf8"));
+const APP_SOURCE = stripComments(readFileSync(join(__dirname, "..", "App.tsx"), "utf8"));
 
-describe("individual vs school student panel nav", () => {
-  it("lists battleground and classhub as school-only (tenant-of-one has no opponent)", () => {
-    expect(SCHOOL_ONLY_PAGE_KEYS).toContain("battleground");
-    expect(SCHOOL_ONLY_PAGE_KEYS).toContain("classhub");
-    expect(isSchoolOnlyPage("battleground")).toBe(true);
-    expect(isSchoolOnlyPage("classhub")).toBe(true);
-    expect(isSchoolOnlyPage("practice")).toBe(false);
-    expect(isSchoolOnlyPath("/student/battleground")).toBe(true);
-    expect(isSchoolOnlyPath("/student/battleground/battle/x")).toBe(true);
-    expect(isSchoolOnlyPath("/student/fees")).toBe(true);
-    expect(isSchoolOnlyPath("/student/notices")).toBe(true);
-    expect(isSchoolOnlyPath("/student/practice")).toBe(false);
-    // Notifications stay for individuals (pathToPage maps them to classhub for lighting).
-    expect(isSchoolOnlyPath("/student/notifications")).toBe(false);
-    // Documentation lives in a comment — read raw so stripComments cannot hide it.
-    expect(NAV_RAW).toMatch(/tenant-of-one can never find an opponent/);
+/** Every address the school student's screens lived at. */
+const SCHOOL_PATHS = [
+  "/student/battleground", "/student/leaderboard", "/student/resources", "/student/doubts",
+  "/student/homework", "/student/attendance", "/student/timetable", "/student/calendar",
+  "/student/tests", "/student/test", "/student/learning", "/student/class", "/student/classes",
+  "/student/notices", "/student/fees", "/student/chat", "/student/practice/math12",
+];
+
+describe("the individual student panel", () => {
+  it("has the individual pages and no school page", () => {
+    expect([...SIDEBAR_PAGES]).toEqual([
+      "dashboard", "practice", "mocktests", "aicoach", "analysis", "recovery", "revision",
+      "mistakebook", "achievements", "premium",
+    ]);
+    expect([...BOTTOM_PAGES]).toEqual(["dashboard", "practice", "analysis", "recovery"]);
+    const paths = Object.values(PAGE_PATH);
+    for (const school of SCHOOL_PATHS) expect(paths, school).not.toContain(school);
+    // CONTROL: the list does hold the individual pages' paths.
+    expect(paths).toContain("/student/mocks");
+    expect(paths).toContain("/student/premium");
   });
 
-  it("individual nav never includes classhub or battleground", () => {
-    const { sidebar, bottom } = studentNavEntries("individual");
-    expect(sidebar).not.toContain("classhub");
-    expect(sidebar).not.toContain("battleground");
-    expect(sidebar).not.toContain("learninghub");
-    expect(bottom).not.toContain("classhub");
-    expect(bottom).not.toContain("battleground");
-    expect(bottom).not.toContain("learninghub");
-    // Positive control — individual still has a learning surface.
-    expect(sidebar).toContain("analysis");
-    expect(bottom).toEqual(["dashboard", "practice", "analysis", "recovery"]);
-  });
-
-  it("null kind (loading) uses individual-safe nav — never Class/Battleground", () => {
-    // School-default while loading painted CUET with classmates that do not exist.
-    const { sidebar, bottom } = studentNavEntries(null);
-    expect(sidebar).not.toContain("classhub");
-    expect(sidebar).not.toContain("battleground");
-    expect(bottom).not.toContain("classhub");
-    expect(sidebar).toContain("analysis");
-  });
-
-  it("school nav still includes classhub and battleground", () => {
-    const { sidebar, bottom } = studentNavEntries("school");
-    expect(sidebar).toContain("classhub");
-    expect(sidebar).toContain("battleground");
-    expect(sidebar).toContain("learninghub");
-    expect(bottom).toContain("classhub");
-    expect(bottom).toContain("learninghub");
-    expect(bottom).not.toContain("battleground");
-  });
-
-  it("Layout filters through studentNavEntries — not a second kind switch on nav keys", () => {
-    expect(LAYOUT_SOURCE).toContain("studentNavEntries");
-    expect(NAV_SOURCE).toContain("studentNavEntries");
-    // No layout-local sidebar key array — keys must come from studentNavEntries.
-    expect(LAYOUT_SOURCE).not.toMatch(
-      /const sidebarNav\s*[:=]\s*\[\s*\{\s*key\s*:\s*["']dashboard["']/,
-    );
-  });
-
-  it("StudentDashboard blocks school-only routes unless kind is known school", () => {
-    const dash = stripComments(
-      readFileSync(join(__dirname, "..", "pages", "StudentDashboard.tsx"), "utf8"),
-    );
-    // Must deny while kind is null/individual — not only when kind === individual
-    // (that race left CUET on Battleground until identity settled).
-    expect(dash).toMatch(/isSchoolOnlyPath\([^)]+\)\s*&&\s*schoolKind\s*!==\s*["']school["']/);
-    expect(dash).not.toMatch(
-      /schoolKind\s*===\s*["']individual["']\s*&&\s*isSchoolOnlyPath/,
-    );
-  });
-
-  it("Dashboard never sends an individual next-action to homework", () => {
-    const home = stripComments(
-      readFileSync(join(__dirname, "pages", "Dashboard.tsx"), "utf8"),
-    );
-    expect(home).toMatch(/includeHomework:\s*!isIndividual/);
-    // The options object reaches buildMission itself; today's practice count
-    // is the argument before it since Home reads rpc_student_practice_time.
-    expect(home).toMatch(/buildMission\(snapshot,\s*sessionsToday\(practiceTime\),\s*\{\s*includeHomework/);
-    // Unknown kind must not paint Class Rank — only confirmed school does.
-    expect(home).toMatch(/schoolKind\s*!==\s*["']school["']/);
-  });
-
-  it("Profile hides school homework/tests/rank unless kind is known school", () => {
-    const profile = stripComments(
-      readFileSync(join(__dirname, "pages", "Profile.tsx"), "utf8"),
-    );
-    expect(profile).toMatch(/schoolKind\s*===\s*["']school["']/);
-    expect(profile).toMatch(/isSchool\s*&&\s*\(/);
-  });
-});
-
-describe("the Mock Tests screen", () => {
-  it("is in an individual account's sidebar and never in a school student's", () => {
-    expect(studentNavEntries("individual").sidebar).toContain("mocktests");
-    expect(studentNavEntries(null).sidebar).toContain("mocktests");
-    expect(studentNavEntries("school").sidebar).not.toContain("mocktests");
-    expect(studentNavEntries("school").bottom).not.toContain("mocktests");
-  });
-
-  it("is its own screen at /student/mocks, and a paper being sat lights it too", () => {
-    expect(NAV_SOURCE).toMatch(/mocktests: "\/student\/mocks"/);
+  it("maps a school address to Home, and keeps the individual ones where they are", () => {
+    // (practice/math12 sits under Practice's prefix, so it lights Practice; the
+    // shell's catch-all route still sends it Home.)
+    for (const school of SCHOOL_PATHS.filter((p) => !p.startsWith("/student/practice/"))) {
+      expect(pathToPage(school), school).toBe("dashboard");
+    }
     expect(pathToPage("/student/mocks")).toBe("mocktests");
     expect(pathToPage("/student/mock/abc123")).toBe("mocktests");
     expect(pathToPage("/student/mock/abc123/result")).toBe("mocktests");
-    // Not school-only: it is the reverse — an exam account's screen — and the
-    // screen itself says so to anyone else (rpc_mock_catalog answers
-    // individual:false), so no path guard may block it.
-    expect(isSchoolOnlyPath("/student/mocks")).toBe(false);
-    expect(isSchoolOnlyPath("/student/mock/abc123")).toBe(false);
-    expect(LAYOUT_SOURCE).toMatch(/mocktests:\s+\{ label: "Mock Tests"/);
+    expect(pathToPage("/student/practice/session/x/result")).toBe("practice");
+    expect(pathToPage("/student/plans")).toBe("revision");
   });
 
-  it("is sat without app chrome, like a test paper", () => {
-    const dash = stripComments(
-      readFileSync(join(__dirname, "..", "pages", "StudentDashboard.tsx"), "utf8"),
+  it("the shell routes no school screen, and sends every other address to Home", () => {
+    for (const route of ["battleground", "leaderboard", "homework", "attendance", "timetable", "calendar", "tests", "learning", "notices", "fees", "classes", "practice/math12", "test/:id/attempt"]) {
+      expect(SHELL_SOURCE, route).not.toContain(`path="${route}"`);
+    }
+    expect(SHELL_SOURCE).toMatch(/<Route path="\*" element=\{<Navigate to="\/student" replace \/>\} \/>/);
+    // CONTROL: the individual routes are there.
+    for (const route of ["practice", "mocks", "analysis", "recovery", "revision", "mistakes", "achievements", "premium", "profile", "notifications"]) {
+      expect(SHELL_SOURCE, route).toContain(`path="${route}"`);
+    }
+  });
+
+  it("turns a school student away, by known kind only", () => {
+    expect(SHELL_SOURCE).toMatch(
+      /if \(schoolKind === "school"\) \{\s*return <Navigate to="\/unauthorized" replace state=\{\{ reason: "organisation" \}\} \/>;/,
     );
-    // The bare branch must cover a mock paper, and only the paper itself —
-    // never its result, which belongs inside the panel.
-    expect(dash).toMatch(/isSittingAMock\s*=\s*\/\^\\\/student\\\/mock\\\/\[\^\/\]\+\\\/\?\$\//);
-    expect(dash).toMatch(/if\s*\(isSittingATest\s*\|\|\s*isSittingAMock\)/);
-    expect(dash).toMatch(/path="mock\/:id"\s+element=\{<MockAttempt \/>\}/);
-    expect(dash).toMatch(/path="mock\/:id\/result"\s+element=\{<MockResult \/>\}/);
+  });
+
+  it("is a mock paper sat without app chrome, and its result inside the panel", () => {
+    expect(SHELL_SOURCE).toMatch(/isSittingAMock\s*=\s*\/\^\\\/student\\\/mock\\\/\[\^\/\]\+\\\/\?\$\//);
+    expect(SHELL_SOURCE).toMatch(/if \(isSittingAMock\)/);
+    expect(SHELL_SOURCE).toMatch(/path="mock\/:id"\s+element=\{<MockAttempt \/>\}/);
+    expect(SHELL_SOURCE).toMatch(/path="mock\/:id\/result"\s+element=\{<MockResult \/>\}/);
+  });
+
+  it("Layout renders nav.ts's lists and nothing school", () => {
+    expect(LAYOUT_SOURCE).toContain("navEntriesFor(SIDEBAR_PAGES)");
+    expect(LAYOUT_SOURCE).toContain("bottomEntriesFor(BOTTOM_PAGES)");
+    for (const school of ["MembershipSwitcher", "/student/notices", "/student/fees", "Battleground", "classhub", "learninghub", "student.rank"]) {
+      expect(LAYOUT_SOURCE, school).not.toContain(school);
+    }
+    expect(LAYOUT_SOURCE).toMatch(/mocktests:\s+\{ label: "Mock Tests"/);
+    expect(LAYOUT_SOURCE).toMatch(/premium:\s+\{ label: "Plans"/);
+    expect(NAV_SOURCE).toMatch(/premium: "\/student\/premium"/);
+  });
+
+  it("the app has no organisation route", () => {
+    for (const route of ["/admin/*", "/principal/*", "/teacher/*", "/parent/*", "/reset-password"]) {
+      expect(APP_SOURCE, route).not.toContain(`path="${route}"`);
+    }
+    expect(APP_SOURCE).toContain(`path="/student/*"`);
   });
 });
 
-describe("the Plans screen", () => {
-  it("is in an individual account's sidebar and never in a school student's", () => {
-    expect(studentNavEntries("individual").sidebar).toContain("premium");
-    expect(studentNavEntries(null).sidebar).toContain("premium");
-    expect(studentNavEntries("school").sidebar).not.toContain("premium");
-    expect(studentNavEntries("school").bottom).not.toContain("premium");
+describe("Home and Profile carry no school piece", () => {
+  it("Home: no class rank, no class leaderboard, no Battleground, no homework", () => {
+    const home = stripComments(readFileSync(join(__dirname, "pages", "Dashboard.tsx"), "utf8"));
+    for (const school of ["Class Rank", "Class Leaderboard", "Battleground", "homework", "student.rank", "schoolKind"]) {
+      expect(home, school).not.toContain(school);
+    }
+    // CONTROL: Home's own pieces are there.
+    expect(home).toContain("Practice accuracy");
+    expect(home).toMatch(/buildMission\(snapshot,\s*sessionsToday\(practiceTime\)\)/);
   });
 
-  it("is its own screen at /student/premium, not the /student/plans alias for Revision", () => {
-    expect(isSchoolOnlyPath("/student/premium")).toBe(false);
-    expect(NAV_SOURCE).toMatch(/premium: "\/student\/premium"/);
-    expect(LAYOUT_SOURCE).toMatch(/premium:\s+\{ label: "Plans"/);
+  it("Profile: no homework, marks, remarks or rank", () => {
+    const profile = stripComments(readFileSync(join(__dirname, "pages", "Profile.tsx"), "utf8"));
+    for (const school of ["HomeworkService", "TestService", "MarksService", "RemarksService", "classRank", "schoolKind"]) {
+      expect(profile, school).not.toContain(school);
+    }
+    expect(profile).toContain("Recent milestones");
   });
 });

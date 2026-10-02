@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  bandFromScore,
-  buildStudentEducationalIntelligence,
-  buildSchoolRiskRollups,
-  computeDoubtUrgency,
-  EIE_ALGORITHM_ID,
-  isWeakBand,
-  MASTERY_THRESHOLDS,
-} from "./index";
+import { bandFromScore, EIE_ALGORITHM_ID, isWeakBand, MASTERY_THRESHOLDS } from "./masteryBands";
+import { buildStudentEducationalIntelligence } from "./studentIntelligence";
+import { buildSchoolRiskRollups } from "./schoolRollups";
 
 describe("EIE mastery thresholds", () => {
   it("maps scores to bands using conceptMasteryEngine-aligned cuts", () => {
@@ -117,27 +111,5 @@ describe("EIE mastery thresholds", () => {
     expect(rollup.class_count).toBe(1);
     expect(rollup.student_count).toBe(2);
     expect(rollup.attendance_risk_band).not.toBe("unknown");
-  });
-
-  it("computes doubt urgency deterministically from age + visibility", () => {
-    const now = new Date("2026-08-07T12:00:00.000Z");
-
-    const fresh = computeDoubtUrgency({ createdAt: "2026-08-07T11:00:00.000Z", viewCount: 0, now });
-    expect(fresh.band).toBe("low");
-    expect(fresh.reason_codes).toContain("doubt_recent_low_visibility");
-
-    const stale = computeDoubtUrgency({ createdAt: "2026-08-05T12:00:00.000Z", viewCount: 5, now });
-    expect(stale.age_hours).toBe(48);
-    expect(stale.band).toBe("high");
-    expect(stale.reason_codes).toContain("doubt_stale_24h");
-
-    const popular = computeDoubtUrgency({ createdAt: "2026-08-07T11:00:00.000Z", viewCount: 12, now });
-    expect(popular.reason_codes).toContain("doubt_high_visibility");
-    expect(popular.score).toBeGreaterThan(fresh.score);
-
-    // Same inputs -> same output. No randomness, no invented data.
-    const a = computeDoubtUrgency({ createdAt: "2026-08-06T12:00:00.000Z", viewCount: 3, now });
-    const b = computeDoubtUrgency({ createdAt: "2026-08-06T12:00:00.000Z", viewCount: 3, now });
-    expect(a).toEqual(b);
   });
 });

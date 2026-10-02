@@ -48,9 +48,6 @@ const COMPONENT_ROOTS = [
   "src/pages",
   "src/components",
   "src/gurukul",
-  "src/gurukul-admin",
-  "src/gurukul-principal",
-  "src/gurukul-teacher",
   "src/hooks",
 ];
 

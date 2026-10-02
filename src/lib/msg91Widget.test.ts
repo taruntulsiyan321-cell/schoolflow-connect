@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { extractAccessToken, extractAccessTokenMeta, classifyMsg91Failure } from "./msg91Widget";
-import { phoneToSyntheticEmail } from "./msg91Auth";
 
 describe("extractAccessToken", () => {
   it("reads the token from data.message when that is the only field", () => {
@@ -114,34 +113,5 @@ describe("classifyMsg91Failure", () => {
   it("never throws on null/undefined input", () => {
     expect(() => classifyMsg91Failure(null)).not.toThrow();
     expect(() => classifyMsg91Failure(undefined)).not.toThrow();
-  });
-});
-
-describe("phoneToSyntheticEmail", () => {
-  it("strips non-digits and builds the deterministic phone-derived email", () => {
-    expect(phoneToSyntheticEmail("+91 98765 43210")).toBe("919876543210@phone.vidyalaya.local");
-  });
-
-  it("is stable across differently-formatted input for the same number", () => {
-    const a = phoneToSyntheticEmail("+919876543210");
-    const b = phoneToSyntheticEmail("91-9876-543-210");
-    const c = phoneToSyntheticEmail("(91) 98765 43210");
-    expect(a).toBe(b);
-    expect(b).toBe(c);
-  });
-
-  // Regression test: previously this used a bare digit-strip with no country
-  // code normalization, so a user who verified via the OTP widget (which
-  // always returns a country-code-prefixed number) and then typed their
-  // number without the country code into Mobile+Password would compute a
-  // DIFFERENT synthetic email and fail to sign in to their own account.
-  it("resolves to the same account whether or not the caller includes the country code", () => {
-    expect(phoneToSyntheticEmail("9876543210")).toBe(phoneToSyntheticEmail("+919876543210"));
-    expect(phoneToSyntheticEmail("9876543210")).toBe("919876543210@phone.vidyalaya.local");
-  });
-
-  it("returns null instead of building a garbage email for invalid input", () => {
-    expect(phoneToSyntheticEmail("")).toBeNull();
-    expect(phoneToSyntheticEmail("123")).toBeNull();
   });
 });

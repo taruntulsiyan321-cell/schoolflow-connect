@@ -2,34 +2,22 @@
  * ProgressionService — Academic Progression Engine facade.
  * All XP/level/league/reputation mutations go through SQL RPCs.
  * UI must never invent progression numbers.
+ *
+ * The live app is the individual student panel (2026-10-01). The awards
+ * (called by attendance, battles and tests), the parent/teacher student
+ * lookup, the teacher class insights, the class leaderboard and the battle XP
+ * notifier went with the school side to the `organisation` branch.
  */
 
 import {
   assertCanConsume,
   assertCanOwn,
-  isSchoolOperator,
   toRepoContext,
-  ForbiddenError,
   type ServiceContext,
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
-import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
-import { assertMayAccessStudent } from "./parentAccess";
-
-type ProgressionApplyResult = {
-  applied: boolean;
-  duplicate: boolean;
-  history_id?: string;
-  xp_delta?: number;
-  xp: number;
-  level: number;
-  league: string;
-  reputation: number;
-  xp_to_next_level?: number;
-  progress_pct?: number;
-};
 
 export type ProgressionSnapshot = {
   user_id: string;
@@ -93,54 +81,6 @@ export type ProgressionSnapshot = {
   };
 };
 
-export type TeacherProgressionInsights = {
-  top_xp: Array<{
-    student_id: string;
-    full_name: string;
-    xp: number;
-    level: number;
-    league: string;
-  }>;
-  improvers: Array<{
-    student_id: string;
-    full_name: string;
-    xp_gained_7d: number;
-  }>;
-  inactive: Array<{
-    student_id: string;
-    full_name: string;
-    last_activity_at: string | null;
-  }>;
-  // consistent_practicers and class_engagement.practice_rate were removed by
-  // Chunk 1.6: both were school-side aggregates of practice activity, which
-  // locked decision 10.8 forbids and 10.16 lists as private. The RPC stopped
-  // returning them; keeping them here would have left the type promising data
-  // that is never sent, which is how the teacher panel ended up rendering
-  // "undefined%".
-  class_engagement: {
-    students: number;
-    with_xp: number;
-    avg_xp: number;
-    avg_streak: number;
-    avg_reputation: number;
-    homework_rate: number;
-  } | null;
-};
-
-type ProgressionLeaderboard = {
-  scope: string;
-  period: string;
-  metric: string;
-  subject: string | null;
-  rows: Array<{
-    user_id: string;
-    name: string;
-    value: number;
-    level: number;
-    league: string;
-  }>;
-};
-
 const EMPTY_SNAPSHOT = (userId: string): ProgressionSnapshot => ({
   user_id: userId,
   xp: 0,
@@ -202,54 +142,10 @@ function afterProgressionWrite(
 }
 
 /**
- * ProgressionService — single entry for awards, snapshots, leaderboards, insights.
+ * ProgressionService — the student's progression snapshot and featured badges.
  */
 export const ProgressionService = {
-  /**
-   * Apply a configured XP rule (award or controlled deduction).
-   * Idempotent when idempotencyKey is provided.
-   */
-  async apply(
-    ctx: ServiceContext,
-    args: {
-      ruleCode: string;
-      sourceType?: string | null;
-      sourceId?: string | null;
-      idempotencyKey?: string | null;
-      amountOverride?: number | null;
-      meta?: Record<string, unknown>;
-      targetUserId?: string | null;
-    },
-  ): Promise<ProgressionApplyResult> {
-    const targetingOther =
-      !!args.targetUserId && args.targetUserId !== ctx.userId;
-    if (targetingOther) {
-      // Teachers/operators may award controlled rules (e.g. attendance) for students.
-      if (!isSchoolOperator(ctx.role) && ctx.role !== "teacher") {
-        throw new ForbiddenError("Not authorized to award progression for another user");
-      }
-      assertCanConsume(ctx, "student_xp");
-    } else {
-      assertCanOwn(ctx, "student_xp");
-    }
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_apply_progression",
-      {
-        _rule_code: args.ruleCode,
-        _source_type: args.sourceType ?? null,
-        _source_id: args.sourceId ?? null,
-        _idempotency_key: args.idempotencyKey ?? null,
-        _amount_override: args.amountOverride ?? null,
-        _meta: args.meta ?? {},
-        _target_user_id: args.targetUserId ?? null,
-      } as never,
-    );
-    throwIfError(error, "Failed to apply progression");
-    afterProgressionWrite(ctx, `ProgressionService.apply:${args.ruleCode}`);
-    return data as ProgressionApplyResult;
-  },
-
-  /** Full progression snapshot for self / linked child / class student. */
+  /** The signed-in student's full progression snapshot. */
   async getSnapshot(
     ctx: ServiceContext,
     userId?: string | null,
@@ -270,23 +166,6 @@ export const ProgressionService = {
       badges: Array.isArray(snap.badges) ? snap.badges : [],
       achievements: Array.isArray(snap.achievements) ? snap.achievements : [],
     };
-  },
-
-  /** Parent/teacher path: resolve student → user_id then snapshot. */
-  async getForStudent(
-    ctx: ServiceContext,
-    studentId: string,
-  ): Promise<ProgressionSnapshot> {
-    assertCanConsume(ctx, "student_xp");
-    await assertMayAccessStudent(ctx, studentId);
-    const { data: stu, error } = await getClient(toRepoContext(ctx))
-      .from("students")
-      .select("user_id")
-      .eq("id", studentId)
-      .maybeSingle();
-    throwIfError(error, "Failed to resolve student for progression");
-    if (!stu?.user_id) return EMPTY_SNAPSHOT("");
-    return this.getSnapshot(ctx, stu.user_id);
   },
 
   async setFeaturedBadges(ctx: ServiceContext, badges: string[]): Promise<void> {
@@ -323,57 +202,6 @@ export const ProgressionService = {
     return snap.achievements;
   },
 
-  async teacherClassInsights(
-    ctx: ServiceContext,
-    classId: string,
-  ): Promise<TeacherProgressionInsights> {
-    assertCanConsume(ctx, "student_xp");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_teacher_class_progression_insights",
-      { _class_id: classId } as never,
-    );
-    throwIfError(error, "Failed to load class progression insights");
-    const raw = (data ?? {}) as TeacherProgressionInsights;
-    return {
-      top_xp: Array.isArray(raw.top_xp) ? raw.top_xp : [],
-      improvers: Array.isArray(raw.improvers) ? raw.improvers : [],
-      inactive: Array.isArray(raw.inactive) ? raw.inactive : [],
-      class_engagement: raw.class_engagement ?? null,
-    };
-  },
-
-  async leaderboard(
-    ctx: ServiceContext,
-    opts?: {
-      scope?: string;
-      period?: string;
-      metric?: string;
-      subject?: string | null;
-      limit?: number;
-    },
-  ): Promise<ProgressionLeaderboard> {
-    assertCanConsume(ctx, "student_xp");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_progression_leaderboard",
-      {
-        _scope: opts?.scope ?? "class",
-        _period: opts?.period ?? "weekly",
-        _metric: opts?.metric ?? "xp",
-        _subject: opts?.subject ?? null,
-        _limit: opts?.limit ?? 50,
-      } as never,
-    );
-    throwIfError(error, "Failed to load progression leaderboard");
-    const raw = (data ?? {}) as ProgressionLeaderboard;
-    return {
-      scope: raw.scope ?? opts?.scope ?? "class",
-      period: raw.period ?? opts?.period ?? "weekly",
-      metric: raw.metric ?? opts?.metric ?? "xp",
-      subject: raw.subject ?? null,
-      rows: Array.isArray(raw.rows) ? raw.rows : [],
-    };
-  },
-
   /** List enabled XP rules (config). */
   async listRules(ctx: ServiceContext) {
     assertCanConsume(ctx, "student_xp");
@@ -395,44 +223,5 @@ export const ProgressionService = {
       .order("tier");
     throwIfError(error, "Failed to load leagues");
     return data ?? [];
-  },
-
-  /**
-   * Hook helpers — call from domain services after academic activities.
-   * Failures are swallowed so producers stay resilient; live bus still refreshes.
-   */
-  async awardSafe(
-    ctx: ServiceContext,
-    args: {
-      ruleCode: string;
-      sourceType?: string | null;
-      sourceId?: string | null;
-      idempotencyKey?: string | null;
-      amountOverride?: number | null;
-      meta?: Record<string, unknown>;
-      targetUserId?: string | null;
-    },
-  ): Promise<ProgressionApplyResult | null> {
-    try {
-      return await this.apply(ctx, args);
-    } catch (e) {
-      console.warn("ProgressionService.awardSafe:", e);
-      return null;
-    }
-  },
-
-  /** Emit progression.synced for Nova / analytics after external XP mutation (e.g. battle). */
-  async notifyExternalXpChange(
-    ctx: ServiceContext,
-    payload: Record<string, unknown>,
-  ): Promise<void> {
-    await emitEvent(toRepoContext(ctx), {
-      eventType: "xp.updated",
-      entityType: "student_xp",
-      entityId: null,
-      studentId: ctx.studentId ?? null,
-      payload,
-    }).catch(() => undefined);
-    afterProgressionWrite(ctx, "ProgressionService.notifyExternalXpChange");
   },
 };

@@ -13,8 +13,8 @@
  * student's sessions, question by question, from the feed.
  */
 import { describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, sep } from "node:path";
 import { stripComments } from "@/test/stripComments";
 
 const emitted: Array<Record<string, unknown>> = [];
@@ -63,14 +63,23 @@ describe("a finished practice session is private to the student", () => {
     expect(JSON.stringify(event.payload ?? {}), "the event must carry no practice content").toBe("{}");
   });
 
-  it("the offline fallback emitter sends no tallies either", () => {
-    const source = stripComments(readFileSync(join(__dirname, "../../lib/practiceSessionPersistence.ts"), "utf8"));
-    const start = source.indexOf('_event_type: "practice.session.completed"');
-    expect(start, "the fallback emitter has moved").toBeGreaterThan(-1);
-    const call = source.slice(start, source.indexOf("} as never)", start));
-    expect(call).toContain("_payload: {}");
-    for (const leaked of ["correct", "wrong", "skipped", "accuracy", "total_time_ms"]) {
-      expect(call, `${leaked} is how the session went`).not.toContain(leaked);
-    }
+  it("and nothing else emits it — the service is the only door", () => {
+    // The Class 12 Math screens had an offline fallback that emitted this
+    // event itself; it went with them to the organisation branch (2026-10-01).
+    // A second emitter would be a second payload to keep empty.
+    const walk = (dir: string, out: string[] = []): string[] => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, e.name);
+        if (e.isDirectory()) walk(full, out);
+        else if (/\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name)) out.push(full);
+      }
+      return out;
+    };
+    const src = join(__dirname, "../..");
+    const emitters = walk(src)
+      .filter((f) => stripComments(readFileSync(f, "utf8")).includes("practice.session.completed"))
+      .map((f) => f.slice(src.length + 1).split(sep).join("/"));
+    // Positive control: the walk does find the one emitter there is.
+    expect(emitters).toEqual(["academic/services/practiceService.ts"]);
   });
 });

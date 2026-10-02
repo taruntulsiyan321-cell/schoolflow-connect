@@ -52,7 +52,6 @@ const JOURNEY_PAGES = [
   "src/gurukul/pages/Practice.tsx",
   "src/gurukul/pages/Recovery.tsx",
   "src/gurukul/pages/Revision.tsx",
-  "src/gurukul/pages/Battleground.tsx",
   "src/gurukul/pages/MistakeBook.tsx",
 ];
 

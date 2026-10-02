@@ -1260,29 +1260,6 @@
         ]
       },
       {
-        id: 'battleground',
-        name: 'Battleground',
-        icon: '⚔',
-        color: '#7c3aed',
-        colorLight: '#ede9fe',
-        tagline: 'Compete. Challenge. Win.',
-        description: 'Live competitive quizzes. Challenge anyone. Prove your mastery against peers.',
-        modes: [
-          { name: '1v1 Challenge', desc: 'Challenge a specific friend or classmate' },
-          { name: 'Open Battle', desc: 'Join or create public battles anyone can enter' },
-          { name: 'Timed Battle', desc: 'Speed competition with time limits' },
-          { name: 'Tournament', desc: 'Multi-round competitive brackets' }
-        ],
-        details: [
-          'Choose subject and chapters',
-          'Set your own time limits',
-          'Share invite codes — anyone can join',
-          'Cross-school battles',
-          'Live leaderboard during battle',
-          'Detailed battle reports after'
-        ]
-      },
-      {
         id: 'gamification',
         name: 'Achievements',
         icon: '★',
@@ -1291,179 +1268,16 @@
         tagline: 'Stay motivated every day',
         description: 'XP, levels, leagues, streaks. The consistency layer that keeps you going.',
         elements: [
-          { name: 'XP System', desc: 'Earn XP from practice, tests, and battles' },
+          { name: 'XP System', desc: 'Earn XP from practice, recovery and revision' },
           { name: 'Levels', desc: 'Level up as you accumulate XP' },
           { name: 'Leagues', desc: 'Compete in weekly leagues by XP earned' },
           { name: 'Streaks', desc: 'Daily streaks reward consistency' },
-          { name: 'Badges', desc: 'Achievement badges for milestones' },
-          { name: 'Leaderboard', desc: 'Rank against classmates and globally' }
+          { name: 'Badges', desc: 'Achievement badges for milestones' }
         ],
         details: [
-          'XP from both school activity and practice',
+          'XP from every practice session',
           'Streak reminders to keep you going',
-          'Achievement notifications',
-          'Class and global rankings'
-        ]
-      }
-    ];
-
-    /* ═══════════════════════════════════════════════════════════════════════════
-       ORGANIZATION — ALL FEATURES FOR SHOWCASE (elevator / accelerator)
-       Covers Student + Teacher + Parent + Principal + Admin
-    ═══════════════════════════════════════════════════════════════════════════ */
-    const ORG_SHOWCASE_FEATURES = [
-      { name: 'Practice Engine', icon: '◎', color: '#7c3aed', group: 'Student' },
-      { name: 'AI Coach (Nova)', icon: '✧', color: '#ea580c', group: 'Student' },
-      { name: 'Homework Submissions', icon: '▭', color: '#7c3aed', group: 'Student' },
-      { name: 'Class Timetable', icon: '◷', color: '#7c3aed', group: 'Student' },
-      { name: 'Doubt Portal', icon: '◈', color: '#7c3aed', group: 'Student' },
-      { name: 'Battleground', icon: '⚔', color: '#7c3aed', group: 'Student' },
-      { name: 'Test Reports', icon: '▦', color: '#0284c7', group: 'Teacher', highlight: true },
-      { name: 'Exam Reports', icon: '◫', color: '#0284c7', group: 'Teacher', highlight: true },
-      { name: 'AI Question Generation', icon: '✎', color: '#7c3aed', group: 'Teacher', highlight: true },
-      { name: 'Auto Grading', icon: '✓', color: '#059669', group: 'Teacher', highlight: true },
-      { name: 'Class Insights', icon: '◎', color: '#0284c7', group: 'Teacher' },
-      { name: 'Question Bank', icon: '⊞', color: '#0284c7', group: 'Teacher' },
-      { name: 'Attendance Marking', icon: '☑', color: '#0284c7', group: 'Teacher' },
-      { name: 'Doubt Responses', icon: '✉', color: '#0284c7', group: 'Teacher' },
-      { name: 'Child Profile', icon: '◉', color: '#059669', group: 'Parent' },
-      { name: 'Homework Status', icon: '▭', color: '#059669', group: 'Parent' },
-      { name: 'Weekly Report', icon: '◈', color: '#059669', group: 'Parent' },
-      { name: 'Fee Payments', icon: '₹', color: '#059669', group: 'Parent' },
-      { name: 'School Analytics', icon: '◆', color: '#ea580c', group: 'Principal' },
-      { name: 'At-Risk Students', icon: '⚑', color: '#e11d48', group: 'Principal' },
-      { name: 'Teacher Monitoring', icon: '◐', color: '#ea580c', group: 'Principal' },
-      { name: 'Fee Collection Status', icon: '₨', color: '#ea580c', group: 'Principal' },
-      { name: 'Student Management', icon: '◐', color: '#e11d48', group: 'Admin' },
-      { name: 'Timetable Management', icon: '▥', color: '#e11d48', group: 'Admin' },
-      { name: 'Fee Management', icon: '≡', color: '#e11d48', group: 'Admin' },
-      { name: 'Class Management', icon: '▤', color: '#e11d48', group: 'Admin' },
-      { name: 'Academic Reports', icon: '▦', color: '#e11d48', group: 'Admin' },
-      { name: 'AI Analytics', icon: '✧', color: '#e11d48', group: 'Admin' }
-    ];
-    // backwards compat
-    const STUDENT_SHOWCASE_FEATURES = ORG_SHOWCASE_FEATURES;
-
-    /* ═══════════════════════════════════════════════════════════════════════════
-       ORGANIZATION — FEATURES BY ROLE/PANEL
-    ═══════════════════════════════════════════════════════════════════════════ */
-    const ORG_ROLES = [
-      {
-        id: 'student',
-        name: 'Student Panel',
-        icon: '◎',
-        color: '#7c3aed',
-        colorLight: '#ede9fe',
-        description: 'Full learning engine + school academic ecosystem',
-        features: [
-          { name: 'Practice & Learning', inherited: false, desc: 'All 9 practice modes + school homework & tests' },
-          { name: 'Deep Analysis', inherited: false, desc: 'Subject → chapter → topic drill-down' },
-          { name: 'Recovery System', inherited: false, desc: 'Auto-queued weak-concept sessions' },
-          { name: 'Revision & Scheduling', inherited: false, desc: 'Spaced repetition, AI-scheduled' },
-          { name: 'AI Coach (Nova)', inherited: false, desc: 'Chat + voice Feynman cross-questioning' },
-          { name: 'Mistake Book', inherited: false, desc: 'Every wrong answer with AI explanation' },
-          { name: 'Battleground', inherited: false, desc: '1v1 & open battles' },
-          { name: 'Achievements & XP', inherited: false, desc: 'Streaks, leagues, leaderboards' },
-          { name: 'School Tests', inherited: false, desc: 'Online tests assigned by teachers' },
-          { name: 'Homework Submissions', inherited: false, desc: 'Submit & track homework' },
-          { name: 'Attendance History', inherited: false, desc: 'Daily attendance & analytics' },
-          { name: 'Class Timetable', inherited: false, desc: 'Period-wise timetable' },
-          { name: 'Academic Calendar', inherited: false, desc: 'Holidays, exams, events' },
-          { name: 'Doubt Portal', inherited: false, desc: 'Ask teachers & get answers' },
-          { name: 'Resources from Teachers', inherited: false, desc: 'Notes, PDFs, videos' },
-          { name: 'School Notices', inherited: false, desc: 'Announcements & circulars' },
-          { name: 'Exam Marks', inherited: false, desc: 'Report cards & transcripts' },
-          { name: 'Fees Ledger', inherited: false, desc: 'Dues, receipts, payments' }
-        ]
-      },
-      {
-        id: 'teacher',
-        name: 'Teacher Panel',
-        icon: '✎',
-        color: '#0284c7',
-        colorLight: '#f0f9ff',
-        description: 'Teach, assess, monitor, and intervene — with AI doing the heavy lifting',
-        features: [
-          { name: 'Class Dashboard', desc: 'Overview of all assigned classes & at-risk alerts' },
-          { name: 'Student List & Profiles', desc: 'One tap into any student — practice, mistakes, recovery queue' },
-          { name: 'Attendance Marking', desc: 'Mark daily attendance, auto-syncs to parents & reports' },
-          { name: 'Homework Creation', desc: 'Assign homework with due dates, attachments & auto-reminders' },
-          { name: 'Auto Grading (Homework & Tests)', desc: 'Unified for Homework and Tests — MCQs auto-checked instantly, subjective answers scored with AI rubric, instant detailed report with question-wise accuracy, common errors and feedback pushed to students', highlight: true },
-          { name: 'Test Creation', desc: 'Create MCQ tests with answer keys, time limits & shuffling' },
-          { name: 'Test Reports', desc: 'Each test auto-generates a full report: class average and distribution, question-wise accuracy, topic and chapter weakness heatmap, per-student scorecard with rank, percentile, time per question and error-pattern analysis — exportable PDF with answer key', highlight: true },
-          { name: 'Exam Reports', desc: 'Complete exam analysis per subject and overall: school and class averages, grade distribution, topper and improvement lists, subject-wise strength and weakness, fail-risk cohorts and historical trend comparison — per-student marksheet ready for print', highlight: true },
-          { name: 'Question Bank', desc: 'Curated syllabus-aligned bank — filter by topic, difficulty & past usage' },
-          { name: 'AI Question Paper Generation', desc: 'Generate balanced question papers from any chapters in 30s — difficulty mix, blueprint & answer key included', highlight: true },
-          { name: 'Class Insights', desc: 'Topic-wise mastery heatmap for the whole class — know what to re-teach tomorrow' },
-          { name: 'Doubt Responses', desc: 'Answer student doubts with text, image or voice — tracked to closure' },
-          { name: 'Battleground (Class)', desc: 'Create class battles to drive engagement' },
-          { name: 'Communication', desc: 'Message students and parents — broadcasts & 1:1' }
-        ]
-      },
-      {
-        id: 'parent',
-        name: 'Parent Panel',
-        icon: '◈',
-        color: '#059669',
-        colorLight: '#ecfdf5',
-        description: 'Stay informed about child\'s academic progress',
-        features: [
-          { name: 'Child Profile', desc: 'Complete view of child\'s academic profile' },
-          { name: 'Attendance View', desc: 'See attendance history and alerts' },
-          { name: 'Homework Status', desc: 'What\'s assigned, what\'s completed' },
-          { name: 'Test Results', desc: 'View test scores and rankings' },
-          { name: 'Exam Marks', desc: 'See examination results' },
-          { name: 'Weekly Report', desc: 'Automated weekly summary' },
-          { name: 'Performance Insights', desc: 'Subject-wise and topic-wise analysis' },
-          { name: 'Teacher Communication', desc: 'Direct messaging with teachers' },
-          { name: 'School Notices', desc: 'All school announcements' },
-          { name: 'Fee Payments', desc: 'View ledger and pay fees' },
-          { name: 'Notifications', desc: 'Real-time alerts on child\'s activity' }
-        ]
-      },
-      {
-        id: 'principal',
-        name: 'Principal Panel',
-        icon: '◆',
-        color: '#ea580c',
-        colorLight: '#fff7ed',
-        description: 'School-wide command centre — every analysis that matters',
-        features: [
-          { name: 'School Analytics', desc: 'Institution-level overview: enrolment, performance trends and year-on-year growth', highlight: true },
-          { name: 'Teacher Analysis', desc: 'Teacher-wise deep dive: classes taught, tests and homework created, grading timeliness, doubt response rate and class outcome correlation', highlight: true },
-          { name: 'Student Analysis', desc: 'Student-wise full trajectory: subject averages, weak topics, recovery and revision status, streaks and exam vs practice delta', highlight: true },
-          { name: 'Class & Section Analysis', desc: 'Compare every class and section side-by-side on scores, attendance and fees' },
-          { name: 'Exam Analysis', desc: 'Exam-wise school performance: overall pass percentage, subject averages, grade distribution, topper lists, fail-risk cohorts and historical trends', highlight: true },
-          { name: 'Fees Collection Analysis', desc: 'Fees overview: collected vs pending, class-wise dues, payment mode split, defaulter trends and reminder effectiveness', highlight: true },
-          { name: 'Attendance Analytics', desc: 'School-wide attendance patterns with class and student drill-down' },
-          { name: 'At-Risk Students', desc: 'AI-flagged students needing attention — auto-surfaced by performance and attendance' },
-          { name: 'Leave Management', desc: 'Approve or reject leave requests with calendar impact' },
-          { name: 'Inquiries & Complaints', desc: 'Handle escalated issues from parents and staff' },
-          { name: 'Announcements', desc: 'School-wide communications and notices' },
-          { name: 'Messages', desc: 'Direct communication with staff and parents' }
-        ]
-      },
-      {
-        id: 'admin',
-        name: 'Admin Panel',
-        icon: '⊞',
-        color: '#e11d48',
-        colorLight: '#fff1f2',
-        description: 'Operate the school platform',
-        features: [
-          { name: 'Student Management', desc: 'Add, edit, remove students' },
-          { name: 'Teacher Management', desc: 'Manage teacher accounts and assignments' },
-          { name: 'Parent Account Linking', desc: 'Link parents to students' },
-          { name: 'Class Management', desc: 'Create classes, sections, assign teachers' },
-          { name: 'Attendance Operations', desc: 'Bulk marking, corrections, reports' },
-          { name: 'Academic Calendar', desc: 'Set holidays, events, exam schedules' },
-          { name: 'Timetable Management', desc: 'Create and manage timetables' },
-          { name: 'Fee Management', desc: 'Set fee structures, track payments' },
-          { name: 'Financial Reports', desc: 'Revenue, collections, pending' },
-          { name: 'Examinations Setup', desc: 'Configure exams and grading' },
-          { name: 'Academic Reports', desc: 'Generate and export reports' },
-          { name: 'Leave Requests', desc: 'Process leave applications' },
-          { name: 'AI Analytics', desc: 'AI-driven insights and recommendations' }
+          'Achievement notifications'
         ]
       }
     ];
@@ -2119,10 +1933,6 @@
                 onClick={() => setActiveSection('individual')}
                 className={`tab-btn ${activeSection === 'individual' ? 'active' : ''}`}
               >Individual</button>
-              <button
-                onClick={() => setActiveSection('organization')}
-                className={`tab-btn ${activeSection === 'organization' ? 'active' : ''}`}
-              >Organization</button>
             </div>
 
             <div className="site-nav-cta" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -2215,15 +2025,6 @@
               >
                 For Individual Students
               </motion.button>
-              <motion.button
-                onClick={() => setActiveSection('organization')}
-                className="btn btn-secondary"
-                whileHover={{ scale: 1.045, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 420, damping: 22 }}
-              >
-                For Schools
-              </motion.button>
             </motion.div>
 
             {/* Learning Loop — Ask AI at the end */}
@@ -2315,7 +2116,7 @@
                 Your personal <span className="gradient-text section-title-accent">learning engine.</span>
               </h2>
               <p style={{ fontSize: 17, color: 'var(--text-secondary)', maxWidth: 560, margin: '0 auto' }}>
-                8 core systems that work together.
+                {INDIVIDUAL_FEATURES.length} core systems that work together.
               </p>
             </motion.div>
 
@@ -2478,7 +2279,7 @@
                       fontSize: 13
                     }}
                   >
-                    <span style={{ fontSize: 14 }}>✦</span> Explore the 8 systems — <span style={{ color: 'var(--violet)', fontWeight: 600 }}>Practice • Analysis • Recovery</span>
+                    <span style={{ fontSize: 14 }}>✦</span> Explore the {INDIVIDUAL_FEATURES.length} systems — <span style={{ color: 'var(--violet)', fontWeight: 600 }}>Practice • Analysis • Recovery</span>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -2515,232 +2316,9 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
-       ORGANIZATION SECTION
-    ═══════════════════════════════════════════════════════════════════════════ */
-    function OrganizationSection() {
-      const [activeRole, setActiveRole] = useState(0);
-      const containerRef = useRef(null);
-      const isInView = useInView(containerRef, { once: true, margin: "-80px" });
-
-      return (
-        <section id="organization" className="section section-white" ref={containerRef}>
-          <div className="section-inner" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px', position: 'relative', zIndex: 10 }}>
-            <motion.div
-              initial={{ opacity: 0, y: 32 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6 }}
-              style={{ textAlign: 'center', marginBottom: 60 }}
-            >
-              <span className="pill pill-orange" style={{ marginBottom: 16 }}>
-                For Schools & Organizations
-              </span>
-              <h2 style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 700, marginBottom: 16, color: 'var(--text)' }}>
-                <span className="section-title-accent">Complete school platform.</span>
-              </h2>
-              <p style={{ fontSize: 17, color: 'var(--text-secondary)', maxWidth: 650, margin: '0 auto' }}>
-                Every student gets the full learning engine. Each role gets a dedicated panel with exactly what they need.
-              </p>
-            </motion.div>
-
-            {/* Organization Features Showcase — ALL organizational features (elevator / accelerator) */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={isInView ? { opacity: 1 } : {}}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="showcase-shell"
-              style={{
-                marginBottom: 64,
-                height: 420,
-                position: 'relative',
-                overflow: 'hidden',
-                borderRadius: 20,
-                background: 'linear-gradient(135deg, var(--violet-light) 0%, var(--orange-light) 100%)',
-                border: '1px solid var(--border)'
-              }}
-            >
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, background: 'linear-gradient(180deg, var(--bg), transparent)', zIndex: 10 }} />
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 70, background: 'linear-gradient(0deg, var(--bg), transparent)', zIndex: 10 }} />
-
-              <div className="showcase-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, height: '100%', padding: '0 16px' }}>
-                {[0, 1, 2, 3].map(colIdx => {
-                  const colFeatures = ORG_SHOWCASE_FEATURES.filter((_, idx) => idx % 4 === colIdx);
-                  const loop = [...colFeatures, ...colFeatures];
-                  const speed = colIdx === 0 ? 18 : colIdx === 1 ? 22 : colIdx === 2 ? 19 : 24;
-                  const dirClass = colIdx % 2 === 0 ? 'scroll-col-up' : 'scroll-col-down';
-                    return (
-                    <div key={colIdx} style={{ overflow: 'hidden', height: '100%' }}>
-                      <motion.div
-                        animate={ dirClass === 'scroll-col-up' ? { y: ["0%", "-50%"] } : { y: ["-50%", "0%"] } }
-                        transition={{ duration: speed, repeat: Infinity, ease: "linear", repeatType: "loop" }}
-                        style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
-                      >
-                        {loop.map((feature, i) => (
-                          <div
-                            key={`${colIdx}-${feature.name}-${i}`}
-                            style={{
-                              padding: '11px 14px',
-                              background: feature.highlight ? '#fff' : 'var(--bg-card)',
-                              border: feature.highlight ? `1.5px solid ${feature.color}` : '1px solid var(--border)',
-                              borderRadius: 12,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 10,
-                              boxShadow: feature.highlight ? `0 4px 14px ${feature.color}1A, 0 1px 4px rgba(0,0,0,0.04)` : '0 2px 6px rgba(0,0,0,0.03)',
-                              position: 'relative'
-                            }}
-                          >
-                            {feature.highlight && <span style={{ position: 'absolute', top: -5, right: -5, width: 16, height: 16, borderRadius: '50%', background: feature.color, color: '#fff', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>★</span>}
-                            <span style={{ fontSize: 16, color: feature.color, flexShrink: 0 }}>{feature.icon}</span>
-                            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{feature.name}</span>
-                            <span style={{ marginLeft: 'auto', fontSize: 8.5, fontWeight: 700, padding: '2px 6px', borderRadius: 100, background: feature.highlight ? `${feature.color}15` : 'var(--bg-subtle)', color: feature.highlight ? feature.color : 'var(--text-muted)', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{feature.group.toUpperCase()}</span>
-                          </div>
-                        ))}
-                      </motion.div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                background: 'var(--bg-card)',
-                padding: '24px 40px',
-                borderRadius: 18,
-                border: '1px solid var(--border)',
-                textAlign: 'center',
-                zIndex: 20,
-                boxShadow: '0 12px 40px rgba(0,0,0,0.1)'
-              }}>
-                <p className="font-mono" style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.12em', marginBottom: 6 }}>ACCELERATING SHOWCASE — 28 FEATURES</p>
-                <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', lineHeight: 1.1 }}>Every role.<br/>Every workflow.</p>
-                <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>Student • Teacher • Parent • Principal • Admin</p>
-              </div>
-            </motion.div>
-
-            {/* Role tabs */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 32, flexWrap: 'wrap' }}
-            >
-              {ORG_ROLES.map((role, i) => (
-                <button
-                  key={role.id}
-                  onClick={() => setActiveRole(i)}
-                  style={{
-                    padding: '12px 22px',
-                    borderRadius: 12,
-                    border: activeRole === i ? `2px solid ${role.color}` : '1px solid var(--border)',
-                    background: activeRole === i ? role.colorLight : 'var(--bg-card)',
-                    color: activeRole === i ? role.color : 'var(--text-secondary)',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8
-                  }}
-                >
-                  <span style={{ fontSize: 16 }}>{role.icon}</span>
-                  {role.name}
-                </button>
-              ))}
-            </motion.div>
-
-            {/* Role panel content — outstanding slide */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeRole}
-                initial={{ opacity: 0, x: 36, scale: 0.97 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: -28, scale: 0.97 }}
-                transition={{ duration: 0.48, ease: [0.16,1,0.3,1] }}
-                className="role-panel"
-              >
-                <div className="role-panel-header" style={{ background: ORG_ROLES[activeRole].colorLight }}>
-                  <div style={{
-                    width: 50,
-                    height: 50,
-                    borderRadius: 14,
-                    background: 'var(--bg-card)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 22,
-                    color: ORG_ROLES[activeRole].color,
-                    border: `1px solid ${ORG_ROLES[activeRole].color}30`
-                  }}>
-                    {ORG_ROLES[activeRole].icon}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 2, color: 'var(--text)' }}>{ORG_ROLES[activeRole].name}</h3>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{ORG_ROLES[activeRole].description}</p>
-                  </div>
-                  <span className="font-mono" style={{
-                    padding: '6px 14px',
-                    background: 'var(--bg-card)',
-                    borderRadius: 8,
-                    fontSize: 12,
-                    color: ORG_ROLES[activeRole].color,
-                    border: `1px solid ${ORG_ROLES[activeRole].color}30`
-                  }}>
-                    {ORG_ROLES[activeRole].features.length} Features
-                  </span>
-                </div>
-                <div style={{ padding: '20px 28px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                    {ORG_ROLES[activeRole].features.map((feature, i) => {
-                      const isHighlight = !!feature.highlight;
-                      return (
-                      <motion.div
-                        key={feature.name}
-                        initial={{ opacity: 0, scale: 0.97 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.02 }}
-                        style={{
-                          padding: '14px 18px',
-                          background: isHighlight ? '#FFFBEB' : 'var(--bg-subtle)',
-                          border: isHighlight ? '1.5px solid #f59e0b' : '1px solid var(--border)',
-                          borderRadius: 12,
-                          position: 'relative',
-                          boxShadow: isHighlight ? '0 6px 20px rgba(245,158,11,0.12), 0 2px 8px rgba(0,0,0,0.04)' : 'none'
-                        }}
-                      >
-                        {isHighlight && <span style={{ position: 'absolute', top: -8, right: 10, fontSize: 9, fontWeight: 800, padding: '3px 7px', borderRadius: 100, background: '#f59e0b', color: '#fff', letterSpacing: '0.05em', boxShadow: '0 2px 8px rgba(245,158,11,0.35)' }}>★ FEATURED</span>}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                          <span style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: '50%',
-                            background: isHighlight ? '#f59e0b' : ORG_ROLES[activeRole].color
-                          }} />
-                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>{feature.name}</span>
-                        </div>
-                        {feature.desc && (
-                          <p style={{ fontSize: 11, color: isHighlight ? '#92400e' : 'var(--text-muted)', marginLeft: 14, lineHeight: 1.5, fontWeight: isHighlight ? 500 : 400 }}>{feature.desc}</p>
-                        )}
-                      </motion.div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </section>
-      );
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════════════
        PRICING
     ═══════════════════════════════════════════════════════════════════════════ */
     function PricingSection() {
-      const [tab, setTab] = useState('individual');
       // null while reading; 'unavailable' when the plans could not be read,
       // in which case the section names no price (see #gurukul-plans).
       const [plans, setPlans] = useState(null);
@@ -2757,7 +2335,6 @@
 
       const colors = ['#64748b', '#7c3aed', '#ea580c', '#059669'];
       const popular = 'standard';
-      const orgPlan = { name: 'Enterprise', features: ['Full platform for every role — Student, Teacher, Parent, Principal & Admin', 'All learning engine features + school operations', 'Attendance, Homework, Tests & Exams with Auto Grading & Reports', 'Fee management, Timetable, Analytics & AI insights', 'Dedicated support, Custom integrations & Multi-branch'], color: '#059669' };
       const goTo = (dest) => { (window.top || window).location.href = dest; };
 
       const card = (key, color, highlighted, children) => (
@@ -2853,46 +2430,11 @@
               <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 28 }}>
                 Start free. Pay once for the days you want — nothing renews by itself.
               </p>
-
-              <div style={{
-                display: 'inline-flex',
-                background: 'var(--bg-card)',
-                padding: 4,
-                borderRadius: 12,
-                border: '1px solid var(--border)'
-              }}>
-                <button
-                  onClick={() => setTab('individual')}
-                  style={{
-                    padding: '10px 24px',
-                    borderRadius: 8,
-                    background: tab === 'individual' ? 'var(--violet-light)' : 'transparent',
-                    border: 'none',
-                    color: tab === 'individual' ? 'var(--violet)' : 'var(--text-secondary)',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    cursor: 'pointer'
-                  }}
-                >Individual</button>
-                <button
-                  onClick={() => setTab('organization')}
-                  style={{
-                    padding: '10px 24px',
-                    borderRadius: 8,
-                    background: tab === 'organization' ? 'var(--orange-light)' : 'transparent',
-                    border: 'none',
-                    color: tab === 'organization' ? 'var(--orange)' : 'var(--text-secondary)',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    cursor: 'pointer'
-                  }}
-                >Organization</button>
-              </div>
             </motion.div>
 
             <AnimatePresence mode="wait">
               <motion.div
-                key={tab}
+                key="individual"
                 initial={{ opacity: 0, x: 28 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -24 }}
@@ -2900,38 +2442,20 @@
                 className="pricing-grid"
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: tab === 'organization' || !Array.isArray(plans) ? 'min(420px, 100%)' : `repeat(${plans.length}, 1fr)`,
+                  gridTemplateColumns: !Array.isArray(plans) ? 'min(420px, 100%)' : `repeat(${plans.length}, 1fr)`,
                   gap: 16,
-                  justifyContent: tab === 'organization' || !Array.isArray(plans) ? 'center' : 'initial'
+                  justifyContent: !Array.isArray(plans) ? 'center' : 'initial'
                 }}
               >
-                {tab === 'individual' ? individual() : card(orgPlan.name, orgPlan.color, false, (
-                  <>
-                    <p className="font-mono" style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 8 }}>{orgPlan.name.toUpperCase()}</p>
-                    <div style={{ marginBottom: 20, height: 44, display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', lineHeight: 1.4 }}>Contact Sales — tailored to your schools & students</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-                      {orgPlan.features.map(f => (
-                        <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-                          <span style={{ color: orgPlan.color, fontSize: 14 }}>✓</span>
-                          {f}
-                        </div>
-                      ))}
-                    </div>
-                    {button('Contact Sales', 'mailto:hello@gurukul.study', orgPlan.color, false)}
-                  </>
-                ))}
+                {individual()}
               </motion.div>
             </AnimatePresence>
 
-            {tab === 'individual' && (
-              <p style={{ marginTop: 28, textAlign: 'center', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                Free on every plan: Recovery, Revision, chapter-wise analysis and Mistake Book reattempts.
-                <br />
-                Plans are for individual CUET students. For a school, see Organization.
-              </p>
-            )}
+            <p style={{ marginTop: 28, textAlign: 'center', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              Free on every plan: Recovery, Revision, chapter-wise analysis and Mistake Book reattempts.
+              <br />
+              Plans are for individual CUET students.
+            </p>
           </div>
         </section>
       );
@@ -3216,7 +2740,6 @@
             <Navbar activeSection={activeSection} setActiveSection={setActiveSection} />
             <HeroSection setActiveSection={setActiveSection} />
             <IndividualSection />
-            <OrganizationSection />
             <PricingSection />
             <Footer />
             <RocketChallenge />

@@ -70,28 +70,10 @@ mustInclude("src/gurukul/pages/AICoach.tsx", [
   /productFeatureFlags/,
 ]);
 
-mustInclude("src/gurukul/pages/DoubtPortal.tsx", [
-  /DoubtService/,
-  /listDoubtAttachControls|productFeatureFlags/,
-  /getNcertChapters/,
-]);
-
 mustInclude("src/lib/productFeatureFlags.ts", [
   /COMING_SOON_LABEL/,
   /UNAVAILABLE_FEATURE_MODE/,
-  /listDoubtAttachControls/,
-]);
-
-// Parent / teacher surfaces must remain Academic Engine consumers for shared metrics
-mustInclude("src/gurukul-parent/Dashboard.tsx", [/useAcademicContext|from ["']@\/academic/]);
-mustInclude("src/gurukul-teacher/Dashboard.tsx", [/useAcademicContext|from ["']@\/academic/]);
-
-// Banned demo / "not available" hardcodes on doubt path
-mustNotInclude("src/gurukul/pages/DoubtPortal.tsx", [
-  /not available yet/i,
-  /FALLBACK_SUBJECTS/,
-  /Arjun\s+Sharma/,
-  /from ["']@\/gurukul\/data\/mock["']/,
+  /resolveNovaPresentation/,
 ]);
 
 mustNotInclude("src/gurukul/pages/AICoach.tsx", [

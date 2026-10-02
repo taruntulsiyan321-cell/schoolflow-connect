@@ -1,93 +1,26 @@
-﻿/**
- * Gurukul Academic Engine
+/**
+ * Gurukul Academic Engine — what the individual student panel uses.
  *
- * Phase 1 (this package): schema contracts, ownership, events, tenant helpers, validation.
- * Later phases add repositories, domain services, sync processor, analytics/AI facades.
+ * The live app is the individual student panel only (2026-10-01). This barrel
+ * exported the whole engine — the school side's homework, attendance, marks,
+ * tests, timetable, notices, remarks, leave, battles, doubts, question papers
+ * and parent access with it — and because the student shell loads it with a
+ * dynamic `import("@/academic")`, every one of those services was shipped in
+ * the live bundle though no screen called it. It now exports only what the
+ * app imports; the school side is kept whole on the `organisation` branch
+ * (tag organisation-archive-2026-10-01).
  */
 
-export {
-  ENTITY_REGISTRY,
-  tableFor,
-} from "./entities";
-
-export {
-  ENTITY_OWNERSHIP,
-  canOwn,
-  canConsume,
-} from "./ownership";
-
-export {
-  ACADEMIC_EVENT_TYPES,
-  syncTargetsFor,
-} from "./events";
-
-export type {
-  StudentAcademicProfile,
-  TeacherRemark,
-} from "./types";
-
-export {
-  requireSchoolId,
-  MissingSchoolContextError,
-} from "./tenant";
-
-export {
-  validateMarks,
-  validateAttendanceDate,
-  validateAcademicYearRange,
-} from "./validation/rules";
-
-export * as academicRepo from "./repository";
-
-export {
-  AttendanceService,
-  HomeworkService,
-  MarksService,
-  RemarksService,
-  AcademicProfileService,
-  TestService,
-  PracticeService,
-  RecoveryEngineService,
-  DoubtService,
-  XpService,
-  BadgeService,
-  ProgressionService,
-  BattleExperienceService,
-  QuestionBankService,
-  QuestionPaperService,
-  CurriculumService,
-  AnnouncementService,
-  LeaveService,
-  TimetableService,
-  CalendarEventsService,
-  ResourceService,
-  resolveStudentServiceContext,
-  WORK_KINDS,
-  WORK_KIND_LABELS,
-  TEST_KIND_LABELS,
-  EXAM_TYPE_LABELS,
-  type ServiceContext,
-  type WorkKind,
-  type TestKind,
-} from "./services";
+export { PracticeService } from "./services/practiceService";
+export { RecoveryEngineService } from "./services/recoveryEngineService";
+export { BadgeService } from "./services/badgeService";
+export { ProgressionService } from "./services/progressionService";
+export { resolveStudentServiceContext } from "./services/resolveStudentContext";
+export type { ServiceContext } from "./services/context";
 export type { EarnedBadgeRow } from "./services/badgeService";
-export type {
-  DoubtRow,
-  DoubtAnswerRow,
-  DoubtAttachmentRow,
-  DoubtStatus,
-  TeacherDoubtDashboard,
-} from "./services/doubtService";
-
-export type {
-  ProgressionSnapshot,
-  TeacherProgressionInsights,
-} from "./services/progressionService";
-export type { CurriculumScope } from "./services/practiceService";
-export type { PracticeSessionRow } from "./services/practiceService";
-export {
-  StudentUploadService,
-} from "./services/studentUploadService";
+export type { ProgressionSnapshot } from "./services/progressionService";
+export type { CurriculumScope, PracticeSessionRow } from "./services/practiceService";
+export { StudentUploadService } from "./services/studentUploadService";
 export type {
   ChapterStateRow,
   RecoveryQueueRow,
@@ -96,74 +29,6 @@ export type {
   RevisionSessionOutcome,
   RevisionHistoryRow,
 } from "./services/recoveryEngineService";
-export type { QuestionReviewRow } from "./services/questionBankService";
-export type {
-  QuestionPaperRow,
-  QuestionPaperSectionRow,
-  QuestionPaperQuestionRow,
-  PaperSectionFormat,
-  PaperDifficulty,
-  SectionFillResult,
-  GenerationOutcome,
-} from "./services/questionPaperService";
-export type { CurriculumChapter, CurriculumTopic } from "./services/curriculumService";
-export type {
-  TeacherAnnouncementRow,
-  AnnouncementPriority,
-  AnnouncementStatus,
-} from "./services/announcementService";
-export type { SchoolLeaveRequestRow } from "./services/leaveService";
-export { decisionAttribution, matchesStatus } from "./services/leaveService";
 export { useAcademicLive } from "./live";
-
-export type {
-  AttendanceRecord,
-  AttendanceStatus,
-  AssignedClass,
-  ClassStudentRow,
-  ParentChildRow,
-} from "./services/attendanceService";
-
-export type {
-  StudentHomeworkRow,
-  ReviewRow,
-  ClassHomeworkRow,
-  ManagedHomeworkRow,
-  SchoolHomeworkRow,
-  HomeworkStanding,
-} from "./services/homeworkService";
-export {
-  homeworkStanding,
-  homeworkOutcome,
-  homeworkHasClosed,
-  canHandIn,
-  HOMEWORK_STANDING_LABELS,
-  HOMEWORK_QUESTION_FILE_PICKER,
-  HOMEWORK_HAND_IN_FILE_PICKER,
-} from "./services/homeworkService";
-export type { CalendarEvent, CalendarEventType, CalendarEventAudience } from "./services/calendarEventsService";
-export type { LearningResourceRow, ResourceKind } from "./services/resourceService";
-export { RESOURCE_KINDS } from "./services/resourceService";
-export {
-  uploadDoubtAttachment,
-  signedDoubtUrl,
-  DOUBT_FILE_ACCEPT,
-  type DoubtUploadMeta,
-} from "./storage/doubtFileUpload";
-
-export { AnalyticsService, AiSummaryService } from "./services/readServices";
-
 export { useAcademicContext } from "./hooks/useAcademicContext";
-
-export {
-  buildParentScheduledNarrative,
-  type ParentNarrative,
-} from "./ai";
-
-export {
-  WEAK_CONCEPT_THRESHOLD,
-  computeAttendanceRisk,
-  computeDoubtUrgency,
-  RiskBadge,
-  riskReasonText,
-} from "./eie";
+export { WEAK_CONCEPT_THRESHOLD } from "./eie/masteryBands";

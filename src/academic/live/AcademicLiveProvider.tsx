@@ -32,22 +32,18 @@ const AcademicLiveContext = createContext<LiveState>({
   bump: () => undefined,
 });
 
-const ACADEMIC_NOTIF_TYPES = new Set([
-  "attendance",
-  "homework",
-  "result",
-  "exam",
-  "test",
-  "general",
-  "battle",
-  "badge",
-  "xp",
-  "doubt",
-  "leave",
-]);
+/** The notification types an individual student is sent: reminders, badges, XP. */
+const ACADEMIC_NOTIF_TYPES = new Set(["general", "badge", "xp"]);
 /**
- * Mount once under AuthProvider. Subscribes to school academic tables + bus,
- * and bumps a shared version so every portal refetches.
+ * Mount once under AuthProvider. Subscribes to the signed-in student's own
+ * tables + bus, and bumps a shared version so every screen refetches.
+ *
+ * The live app is the individual student panel (2026-10-01). It subscribed to
+ * the school's tables too — attendance, homework, marks, exams, tests, notices,
+ * the calendar, battles, doubts, leave and, for staff, the activity feed — so
+ * every change anywhere in a school reloaded every screen of every student in
+ * it. Those subscriptions are kept with the school side on the `organisation`
+ * branch.
  *
  * It no longer drains the academic event queue. That drain ran from every
  * signed-in browser, for every school, and was the only thing that ran it —
@@ -56,7 +52,7 @@ const ACADEMIC_NOTIF_TYPES = new Set([
  * the `student_academic_profiles` subscription below.
  */
 export function AcademicLiveProvider({ children }: { children: ReactNode }) {
-  const { user, schoolId, isAuthenticated, role } = useAuth();
+  const { user, schoolId, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const [version, setVersion] = useState(0);
   const [lastDomains, setLastDomains] = useState<AcademicDomain[]>(["all"]);
@@ -97,83 +93,18 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         bump(domains);
       };
 
+    const own = (table: string, domains: AcademicDomain[]) => [
+      "postgres_changes" as const,
+      { event: "*" as const, schema: "public", table, filter: `user_id=eq.${user.id}` },
+      onTable(domains),
+    ] as const;
+
     const channel = supabase
       .channel(`academic-live-${schoolId}-${user.id.slice(0, 8)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "attendance", filter: `school_id=eq.${schoolId}` },
-        onTable(["attendance", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "homework", filter: `school_id=eq.${schoolId}` },
-        onTable(["homework", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "homework_submissions",
-          filter: `school_id=eq.${schoolId}`,
-        },
-        onTable(["homework", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "marks", filter: `school_id=eq.${schoolId}` },
-        onTable(["marks", "examination", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "exams", filter: `school_id=eq.${schoolId}` },
-        onTable(["examination", "marks", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tests", filter: `school_id=eq.${schoolId}` },
-        onTable(["test", "profile"]),
-      )
-      /**
-       * A submission, as it happens (20260925080000).
-       *
-       * `tests` above catches a teacher publishing one. It does NOT catch a
-       * student handing one in, which writes `test_attempts` and `test_marks`
-       * — so the class leaderboard and the teacher's "7 of 32 handed in" only
-       * moved when their own poll came round.
-       *
-       * Realtime applies RLS per subscriber, and that decides who is woken
-       * rather than this filter: a classmate who has submitted may read
-       * `test_marks` for that test (20260925060000) and is woken; one who has
-       * not may not, and is not — which is the same answer the leaderboard
-       * itself gives them. A teacher is woken for attempts on the tests they
-       * own, through `test_attempts_staff_read`.
-       */
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "test_attempts", filter: `school_id=eq.${schoolId}` },
-        onTable(["test", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "test_marks", filter: `school_id=eq.${schoolId}` },
-        onTable(["test", "marks", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notices", filter: `school_id=eq.${schoolId}` },
-        onTable(["profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "school_calendar_events",
-          filter: `school_id=eq.${schoolId}`,
-        },
-        onTable(["calendar"]),
-      )
+      .on(...own("student_xp", ["xp", "achievements", "profile"]))
+      .on(...own("student_badges", ["achievements", "xp"]))
+      .on(...own("practice_sessions", ["xp", "profile"]))
+      .on(...own("question_attempts", ["xp", "profile"]))
       .on(
         "postgres_changes",
         {
@@ -183,121 +114,6 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
           filter: `school_id=eq.${schoolId}`,
         },
         onTable(["profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "student_xp",
-          filter:
-            role === "student" ? `user_id=eq.${user.id}` : `school_id=eq.${schoolId}`,
-        },
-        onTable(["xp", "achievements", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "student_badges",
-          filter: `user_id=eq.${user.id}`,
-        },
-        onTable(["achievements", "xp"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "battle_participants",
-          filter: `user_id=eq.${user.id}`,
-        },
-        onTable(["battle", "xp", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "battles",
-          filter: `creator_user_id=eq.${user.id}`,
-        },
-        onTable(["battle"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "community_doubts",
-          filter: `school_id=eq.${schoolId}`,
-        },
-        onTable(["doubt", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "community_doubt_answers",
-        },
-        onTable(["doubt", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "leave_requests",
-          filter: `applicant_user_id=eq.${user.id}`,
-        },
-        onTable(["profile"]),
-      )
-      // BATCH 1c. A verdict used to touch leave_requests too — the dual write —
-      // so this subscription alone was enough to refresh the applicant. With the
-      // column dropped, a decision changes leave_decisions and nothing else, and
-      // without this the applicant's leave would sit on screen as Pending until
-      // they reloaded by hand. No applicant_user_id filter is possible here:
-      // leave_decisions has no such column, so RLS is what scopes it.
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "leave_decisions",
-        },
-        onTable(["profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "practice_sessions",
-          filter: `user_id=eq.${user.id}`,
-        },
-        onTable(["xp", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "question_attempts",
-          filter: `user_id=eq.${user.id}`,
-        },
-        onTable(["xp", "profile"]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "battle_invites",
-          filter: `invited_user_id=eq.${user.id}`,
-        },
-        onTable(["battle"]),
       )
       .on(
         "postgres_changes",
@@ -314,28 +130,13 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         },
       );
 
-    // The school's activity feed is the staff view (20261134000000): RLS gives a
-    // student or parent no row of it, so their subscription could only ever
-    // wait. Staff keep it — the admin dashboard lists the feed.
-    if (role === "admin" || role === "principal" || role === "teacher" || role === "super_admin") {
-      channel.on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "school_activity_feed",
-          filter: `school_id=eq.${schoolId}`,
-        },
-        onTable(["all"]),
-      );
-    }
     channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [bump, isAuthenticated, schoolId, user?.id, role]);
+  }, [bump, isAuthenticated, schoolId, user?.id]);
 
   const value = useMemo(
     () => ({ version, lastDomains, bump }),

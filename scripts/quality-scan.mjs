@@ -15,10 +15,6 @@ const SCAN_GLOBS = [
   "src/gurukul/components/shared.tsx",
   "src/components/student",
   "src/pages/student",
-  "src/gurukul-teacher",
-  "src/gurukul-parent",
-  "src/gurukul-principal",
-  "src/gurukul-admin",
 ];
 const DEMO_LITERALS = [/Arjun\s+Sharma/, /Priya\s+Nair/, /\b1382\b/, /Level\s+14/, /\bxp:\s*8420\b/];
 const BAD_IMPORTS = [

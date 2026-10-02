@@ -90,27 +90,3 @@ export function assertCanConsume(ctx: ServiceContext, entity: AcademicEntityKey)
   }
 }
 
-/**
- * May read SCHOOL-WIDE academic data: summaries, rollups, lists across a whole
- * school rather than one class or one child.
- *
- * Admin and principal by §10 and §10.18, plus super_admin by §10.20
- * ("unrestricted access to academic data, for support"). Which school they see
- * is not decided here — `my_accessible_school_ids()` decides that, and for a
- * super admin it is empty until they open a logged, expiring access grant.
- *
- * SEPARATE FROM `isSchoolOperator` ON PURPOSE. That one answers "may supervise
- * and write", and admitting a super admin there would give them writes §10.20
- * does not grant. This one answers "may look".
- *
- * NOT for the audit log: §10.18 is "Visible to admin only", not principal and
- * not super admin, so those call sites test `role === "admin"` directly.
- */
-export function canReadSchoolWide(role: AppRole): boolean {
-  return role === "admin" || role === "principal" || role === "super_admin";
-}
-
-/** Admin/principal override for operational supervision (read + limited write). */
-export function isSchoolOperator(role: AppRole): boolean {
-  return role === "admin" || role === "principal";
-}
