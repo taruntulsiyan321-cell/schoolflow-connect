@@ -86,6 +86,16 @@ export const HOMEWORK_WINDOW = 7;
  */
 export const SLIPPING_WINDOW_DAYS = 14;
 
+/**
+ * Percent of a subject's syllabus chapters a student must have practised
+ * before the Analysis tab estimates what a paper in that subject would score
+ * (readiness). Below it, a practice accuracy says too little about the paper,
+ * whose questions are spread across every chapter. With it, the estimate also
+ * needs as many answers as the paper has questions — a fact of the paper, not
+ * a second threshold.
+ */
+export const READINESS_MIN_COVERAGE_PCT = 50;
+
 /** Days after an exam before unentered marks are overdue. */
 export const MARKS_OVERDUE = 7;
 
@@ -139,6 +149,7 @@ export const THRESHOLDS = {
   SUBJECT_AVERAGE_LOW,
   MISTAKE_RETRY_GOOD,
   SLIPPING_WINDOW_DAYS,
+  READINESS_MIN_COVERAGE_PCT,
 } as const;
 
 

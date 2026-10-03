@@ -491,3 +491,13 @@ describe("Analysis — the whole syllabus, and what is slipping", () => {
     expect(screen.getByTestId("slipping-topic")).toHaveTextContent("80% → 40%");
   });
 });
+
+describe("Analysis — if the paper were today", () => {
+  it("Overview estimates a subject with enough behind it: Mathematics, 101 of 220 right, 1 of 2 chapters", () => {
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
+    // 50 × (101/220 × 5 − 119/220 × 1) = 87.7.
+    const est = screen.getByTestId("readiness-estimate");
+    expect(est).toHaveTextContent("Mathematics88 of 250");
+    expect(est).toHaveTextContent("At 46% right over 220 answers, answering all 50 · 1 of 2 chapters practised");
+  });
+});

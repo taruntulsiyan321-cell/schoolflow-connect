@@ -74,6 +74,8 @@ import { ExamPaceSummary, OverThePaper } from "@/components/student/analysis/Exa
 import { useSyllabusMap } from "@/hooks/useSyllabusMap";
 import { SyllabusCoverage } from "@/components/student/analysis/SyllabusCoverage";
 import { SlippingTopics } from "@/components/student/analysis/SlippingTopics";
+import { ReadinessEstimate } from "@/components/student/analysis/ReadinessEstimate";
+import { readinessRows } from "@/academic/metrics/readiness";
 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -684,6 +686,13 @@ export default function Analysis() {
   // The whole syllabus with the student's counts (rpc_student_syllabus_map):
   // the coverage map, and the topics slipping lately.
   const { data: syllabus } = useSyllabusMap(academicReady);
+  // "If the paper were today", per subject — only with enough behind it.
+  const readiness = useMemo(
+    () => (paper && syllabus?.examFound
+      ? readinessRows(paper, syllabus, (practiceAnalytics?.by_subject ?? []).map((s) => ({ subject: s.subject, answered: s.answered, correct: s.correct })))
+      : []),
+    [paper, syllabus, practiceAnalytics?.by_subject],
+  );
 
   const subjectPace = useMemo(() => {
     return deriveSubjectPace(
@@ -1385,6 +1394,15 @@ export default function Analysis() {
               <Metric key={s.label} label={s.label} value={s.value} color={s.color} />
             ))}
           </div>
+
+          {/* ── If the paper were today ────────────────────────────
+              Per subject, only once half its chapters and a paper's worth of
+              answers are behind it (metrics/readiness.ts). */}
+          {paper && readiness.length > 0 && (
+            <Card label="If the paper were today">
+              <ReadinessEstimate paper={paper} rows={readiness} />
+            </Card>
+          )}
 
           {/* Score over time */}
           {/* Not "7 weeks". scoreTrend is the latest 40 sessions with an

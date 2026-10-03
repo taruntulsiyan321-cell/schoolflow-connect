@@ -25,6 +25,7 @@ import {
   CARELESS_SHARE,
   SLOW_SHARE,
   SLIPPING_WINDOW_DAYS,
+  READINESS_MIN_COVERAGE_PCT,
   THRESHOLDS as SOURCE,
 } from "./thresholds";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -55,6 +56,7 @@ const THRESHOLD_NAMES = [
   "CARELESS_SHARE",
   "SLOW_SHARE",
   "SLIPPING_WINDOW_DAYS",
+  "READINESS_MIN_COVERAGE_PCT",
 ];
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -113,6 +115,7 @@ describe("one threshold module, and the value reaches the screens", () => {
     expect(SOURCE.MARKS_OVERDUE).toBe(MARKS_OVERDUE);
     expect(SOURCE.MISTAKE_RETRY_GOOD).toBe(MISTAKE_RETRY_GOOD);
     expect(SOURCE.SLIPPING_WINDOW_DAYS).toBe(SLIPPING_WINDOW_DAYS);
+    expect(SOURCE.READINESS_MIN_COVERAGE_PCT).toBe(READINESS_MIN_COVERAGE_PCT);
     // Ratios, not counts: the literal lint cannot see a number under 1, so
     // they are not in the bag — but they are declared once, as the scan above
     // holds for every name in THRESHOLD_NAMES.
