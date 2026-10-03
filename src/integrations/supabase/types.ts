@@ -12736,6 +12736,10 @@ export type Database = {
         }
       }
       rpc_send_parent_weekly_digests: { Args: never; Returns: Json }
+      rpc_session_analysis_context: {
+        Args: { _session_id: string }
+        Returns: Json
+      }
       rpc_set_equipped_badge: {
         Args: { _badge_code: string }
         Returns: undefined

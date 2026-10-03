@@ -5089,3 +5089,33 @@ statement-based 4/4, assertion–reason 4/4, case-based 2/3, sequence 4/4, in 50
    incorrect" and D is its key — the key may have been (e).
 5. Three match questions written by the first live test (labels doubled, List II unshuffled) were retired
    2026-10-03; a refusal naming syllabus codes ("covered in C2, C3…") now names the chapters.
+
+## 115. A session is read in four tabs, against the last one and the exam — BUILT 2026-10-03 (20261143000000); what is open
+
+**Built:** the result screen after a session is filed as Summary, Topics, Time and Questions. Summary: the
+session's figures; what it would have scored on the real paper (`_mock_paper()`'s +5/−1 — the one home of the
+paper's shape); the last finished session on the same subject and chapter, then → now, overall and for each topic
+both asked; the questions met before, as fixed / wrong again / slipped; and the one topic that cost most, with a
+link to practise only it. Topics: by topic (weakest first); by difficulty when the session had more than one; by
+kind of question when it had more than direct questions; then the concept report. Time: the student's usual time per answer against
+the 72 s the paper allows, the answers rushed (wrong in under half their usual time) and stuck (wrong after half
+as long again), the right ones slower than both, and the first half against the second. Questions: every card,
+filtered to what the analysis found. The arithmetic is `src/academic/metrics/sessionAnalysis.ts` (pure, every
+figure worked by hand in its tests); `CARELESS_SHARE` and `SLOW_SHARE` live in `thresholds.ts`. What the session's
+own rows cannot hold comes from `rpc_session_analysis_context(session)`, owner-scoped (probe49). A topic is read
+as the database reads it — one per chapter whatever its case — so 106's older spellings no longer split a row.
+
+**Open:**
+
+1. **"Fayol's Principles" (58 questions) and "Fayol principles" (1) are one topic under two names**, in
+   Principles of Management — the only pair left when case, punctuation, articles and a plural s are set aside
+   (measured 2026-10-03 across every chapter). The same chapter also holds "Fayol's Principles of Management"
+   (18), a looser look-alike. As in 107, which name survives is a naming choice and the third is a content
+   judgement: a ruling, then 20261126000000's machinery. Until then a session that met both shows two rows.
+2. **The first half against the second needs five answers in each half**, so a session under ten answers shows
+   no halves card. That is `MIN_OBSERVATIONS_FOR_VERDICT`, not a fault.
+3. **A session with no single chapter is compared with nothing** — the targeted modes (wrong answers, a whole
+   subject). It still gets the paper's marks, the questions met before and the time reading.
+4. **Not yet built** (approved, next): the "Guessing?" tap during a session (lucky guesses, sure-but-wrong, and
+   marks that allow for them), then the Analysis tab — topic map, slipping topics, mistake trends, pace against
+   the exam, readiness and peer comparison.

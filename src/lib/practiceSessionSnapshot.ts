@@ -194,11 +194,15 @@ export function snapshotsToAttemptRows(attempts: PracticeAttemptSnapshot[]) {
         // session has no single subject, and a mark files the question by it.
         subject: a.subject ?? null,
         chapter: a.chapter ?? null,
+        // The session analysis reads each question's topic, as question_attempts keeps it.
+        topic: a.topic ?? null,
       },
+      difficulty: a.difficulty ?? null,
       correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
       selected_answer: skipped ? null : { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
       is_correct: skipped ? false : a.isCorrect,
       skipped,
+      timed_out: Boolean(a.timedOut),
       // The same clock the finish sums into total_time_ms, so the questions
       // add up to the session's length.
       time_taken_ms: a.timeTakenMs ?? null,

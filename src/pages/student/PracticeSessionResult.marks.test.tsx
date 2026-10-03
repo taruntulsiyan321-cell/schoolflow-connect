@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { PracticeSessionResultState } from "@/lib/practiceSessionSnapshot";
 
@@ -58,6 +58,12 @@ function show(state?: PracticeSessionResultState) {
   );
 }
 
+/** The questions are on the Questions tab; the session's figures on Summary. */
+async function openQuestions(text: string) {
+  fireEvent.click(await screen.findByRole("tab", { name: "Questions" }));
+  await waitFor(() => expect(screen.getByText(text)).toBeInTheDocument());
+}
+const openSummary = () => fireEvent.click(screen.getByRole("tab", { name: "Summary" }));
 const card = (question: string) => screen.getByText(question).closest("div.p-5") as HTMLElement;
 const barOf = (question: string) => within(card(question)).queryByTestId("mark-bar");
 
@@ -78,7 +84,7 @@ describe("marking the questions of a session", () => {
         { question: "Skipped upload", options: ["A", "B"], correctIndex: 0, selectedIndex: -1, isCorrect: false, skipped: true, uploadQuestionId: "u9" },
       ],
     });
-    await waitFor(() => expect(screen.getByText("Wrong bank question")).toBeInTheDocument());
+    await openQuestions("Wrong bank question");
     expect(barOf("Wrong bank question")).toHaveAttribute("data-ref", "bank:b1");
     expect(barOf("Wrong bank question")).toHaveAttribute("data-subject", "economics");
     expect(barOf("Wrong bank question")).toHaveAttribute("data-marked", "yes");
@@ -100,7 +106,7 @@ describe("marking the questions of a session", () => {
         created_at: "2026-10-02T09:59:30Z" },
     ];
     show();
-    await waitFor(() => expect(screen.getByText("From the database")).toBeInTheDocument());
+    await openQuestions("From the database");
     expect(barOf("From the database")).toHaveAttribute("data-ref", "bank:b7");
   });
 
@@ -118,7 +124,7 @@ describe("marking the questions of a session", () => {
       },
     };
     show();
-    await waitFor(() => expect(screen.getByText("Saved question")).toBeInTheDocument());
+    await openQuestions("Saved question");
     expect(barOf("Saved question")).toBeNull();
   });
 
@@ -126,7 +132,7 @@ describe("marking the questions of a session", () => {
     show({ subject: "economics", chapter: "", attempts: [
       { question: "Any question", options: ["A", "B"], correctIndex: 0, selectedIndex: 1, isCorrect: false, bankQuestionId: "b1" },
     ] });
-    await waitFor(() => expect(screen.getByText("Any question")).toBeInTheDocument());
+    await openQuestions("Any question");
     expect(screen.getByRole("link", { name: /Your mistake types/ })).toHaveAttribute("href", "/student/mistakes/types");
   });
 });

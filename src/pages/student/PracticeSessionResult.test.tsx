@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { PracticeSessionResultState } from "@/lib/practiceSessionSnapshot";
 
@@ -50,7 +50,14 @@ function show(state?: PracticeSessionResultState) {
 }
 
 const card = (question: string) => screen.getByText(question).closest("div.p-5") as HTMLElement;
-const tile = (label: string) => screen.getByText(label).parentElement as HTMLElement;
+const tile = (label: string) => within(screen.getByTestId("summary-score")).getByText(label).parentElement as HTMLElement;
+/** The questions are on the Questions tab; the session's figures on Summary. */
+async function openQuestions(text: string) {
+  fireEvent.click(await screen.findByRole("tab", { name: "Questions" }));
+  await waitFor(() => expect(screen.getByText(text)).toBeInTheDocument());
+}
+const openSummary = () => fireEvent.click(screen.getByRole("tab", { name: "Summary" }));
+
 
 const q = (question: string, over: Partial<PracticeSessionResultState["attempts"][number]> = {}) => ({
   question,
@@ -79,7 +86,7 @@ describe("the session report's time", () => {
         q("Fourth question", { timeTakenMs: null }),
       ],
     });
-    await waitFor(() => expect(screen.getByText("First question")).toBeInTheDocument());
+    await openQuestions("First question");
 
     expect(within(card("First question")).getByTestId("question-time").textContent).toBe("42s");
     expect(within(card("Second question")).getByTestId("question-time").textContent).toBe("1m 40s");
@@ -89,11 +96,12 @@ describe("the session report's time", () => {
     // POSITIVE CONTROL for the blank: an untimed question has no time, not "0s".
     expect(within(card("Fourth question")).queryByTestId("question-time")).toBeNull();
 
+    openSummary();
     // The session's length is the sum of the questions: 144s.
     expect(within(tile("Time")).getByText("2m 24s")).toBeInTheDocument();
     // (42 + 100 + 0 untimed) over the two timed ANSWERS = 71s. Counting the
     // skip gives 48s; total ÷ question count gives 36s.
-    expect(within(tile("Avg / answer")).getByText("71s")).toBeInTheDocument();
+    expect(within(tile("Per answer")).getByText("71s")).toBeInTheDocument();
   });
 
   it("reads each question's time from the database when the device has no log", async () => {
@@ -109,10 +117,11 @@ describe("the session report's time", () => {
         selected_answer: null, is_correct: false, skipped: true, time_taken_ms: 2_000, created_at: "2026-09-26T09:59:40Z" },
     ];
     show();
-    await waitFor(() => expect(screen.getByText("Database question")).toBeInTheDocument());
+    await openQuestions("Database question");
     expect(within(card("Database question")).getByTestId("question-time").textContent).toBe("33s");
     expect(within(card("Skipped in the database")).getByTestId("question-time").textContent).toBe("2s");
-    expect(within(tile("Avg / answer")).getByText("33s")).toBeInTheDocument();
+    openSummary();
+    expect(within(tile("Per answer")).getByText("33s")).toBeInTheDocument();
   });
 
   it("reads each question's time from a saved snapshot, and none from one saved before times were kept", async () => {
@@ -133,11 +142,12 @@ describe("the session report's time", () => {
       ]),
     };
     show();
-    await waitFor(() => expect(screen.getByText("Saved question")).toBeInTheDocument());
+    await openQuestions("Saved question");
     expect(within(card("Saved question")).getByTestId("question-time").textContent).toBe("20s");
     expect(within(card("Older saved question")).queryByTestId("question-time")).toBeNull();
+    openSummary();
     // One timed answer: 20s. Not the session's 50s over two questions.
-    expect(within(tile("Avg / answer")).getByText("20s")).toBeInTheDocument();
+    expect(within(tile("Per answer")).getByText("20s")).toBeInTheDocument();
   });
 });
 

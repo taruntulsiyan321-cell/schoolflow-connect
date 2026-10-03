@@ -6,19 +6,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ArrowLeft, BarChart2, Check, CheckCircle2, Lightbulb, Save, Tag, Target, Timer, X } from "lucide-react";
-import { ScoreRing } from "@/components/student/ScoreRing";
+import { ArrowLeft, Save } from "lucide-react";
 // The STUDENT panel header, not ui-bits'. Both export a `PageHeader` with the
 // same props and different designs — text-3xl display face with a 0.2em eyebrow
 // here, text-[28px] with a bottom rule and a primary eyebrow there — so a
 // student crossing from a gurukul screen into this one saw the page title
 // change size, weight and typeface. That is the two-halves split in one import.
-import { GlassCard, PageHeader } from "@/gurukul/components/shared";
-import { ExplainPanel } from "@/components/learn/ExplainPanel";
+import { PageHeader } from "@/gurukul/components/shared";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
-import { MathText } from "@/components/MathText";
-import { QuestionFormBadge, QuestionText } from "@/components/QuestionText";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -35,19 +31,30 @@ import {
   resolvePracticeSessionStats,
 } from "@/lib/practiceSessionStats";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
-import { formatSeconds, paceOverAnswers } from "@/lib/studentAnalysisMetrics";
+import { paceOverAnswers } from "@/lib/studentAnalysisMetrics";
 import { practiceModeLabel } from "@/lib/practiceModeLabel";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
-import { toErrorMessage } from "@/lib/presentation";
-import { recoveryVerdictLine } from "@/lib/recoveryVerdict";
-import { RecoveryClearChapter } from "@/components/student/RecoveryClearChapter";
-import { revisionCheckLabel, revisionSplitLine, revisionVerdictLine } from "@/lib/revisionVerdict";
+import { isUuid, toErrorMessage } from "@/lib/presentation";
 import { markRefFromAttempt } from "@/lib/questionMarks";
-import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
-import { ReportQuestionButton } from "@/components/student/questionReports/ReportQuestionButton";
-import { ReportStatusLine } from "@/components/student/questionReports/ReportOutcome";
 import { useQuestionReports } from "@/components/student/questionReports/useQuestionReports";
+import { fetchSessionAnalysisContext, type SessionAnalysisContext } from "@/lib/sessionAnalysisContext";
+import { analyseSession, type NoteKey, type QuestionFilter } from "@/components/student/sessionResult/analyseSession";
+import { QuestionsTab } from "@/components/student/sessionResult/QuestionsTab";
+import { SessionQuestionCard } from "@/components/student/sessionResult/SessionQuestionCard";
+import { SessionVerdicts } from "@/components/student/sessionResult/SessionVerdicts";
+import { SummaryTab } from "@/components/student/sessionResult/SummaryTab";
+import { TimeTab } from "@/components/student/sessionResult/TimeTab";
+import { TopicsTab } from "@/components/student/sessionResult/TopicsTab";
+import type { AttemptRow } from "@/components/student/sessionResult/types";
+
+type SessionTab = "summary" | "topics" | "time" | "questions";
+const SESSION_TABS: ReadonlyArray<{ key: SessionTab; label: string }> = [
+  { key: "summary", label: "Summary" },
+  { key: "topics", label: "Topics" },
+  { key: "time", label: "Time" },
+  { key: "questions", label: "Questions" },
+];
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -59,31 +66,6 @@ function readLocalState(id: string): PracticeSessionResultState | null {
     return null;
   }
 }
-
-type AttemptRow = {
-  id: string;
-  /** The ids say which question this was, so the student can mark it. */
-  generated_question: {
-    question?: string;
-    options?: string[];
-    explanation?: string;
-    bank_question_id?: string | null;
-    upload_question_id?: string | null;
-    capture_question_id?: string | null;
-    subject?: string | null;
-    chapter?: string | null;
-  };
-  bank_question_id?: string | null;
-  subject?: string | null;
-  chapter?: string | null;
-  correct_answer: { index?: number; text?: string };
-  selected_answer: { index?: number; text?: string } | null;
-  is_correct: boolean | null;
-  created_at: string;
-  skipped?: boolean | null;
-  /** Time on this question alone — question_attempts.time_taken_ms. */
-  time_taken_ms?: number | null;
-};
 
 type SessionRow = {
   id: string;
@@ -182,6 +164,32 @@ export default function PracticeSessionResult() {
   );
   const { reports, setReport } = useQuestionReports(user?.id, bankIds);
 
+  // The comparison, the exam marks and the questions met before need what the
+  // session's own rows do not hold (20261143000000). Without it — offline, or
+  // a session that is not this student's to read — the session is read alone.
+  const [context, setContext] = useState<SessionAnalysisContext | null>(null);
+  useEffect(() => {
+    if (!user || !id || !isUuid(id)) return;
+    let cancelled = false;
+    fetchSessionAnalysisContext(id)
+      .then((c) => { if (!cancelled) setContext(c); })
+      .catch(() => { if (!cancelled) setContext(null); });
+    return () => { cancelled = true; };
+  }, [user, id]);
+  const analysis = useMemo(() => analyseSession(displayAttempts, context), [displayAttempts, context]);
+
+  const [tab, setTab] = useState<SessionTab>("summary");
+  const [filter, setFilter] = useState<QuestionFilter["key"]>("all");
+  const [scrollTo, setScrollTo] = useState<number | null>(null);
+  useEffect(() => {
+    if (tab !== "questions" || scrollTo == null) return;
+    const el = document.getElementById(`question-${scrollTo + 1}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setScrollTo(null);
+  }, [tab, scrollTo]);
+  const showQuestions = (key: NoteKey) => { setFilter(key); setTab("questions"); };
+  const showQuestion = (order: number) => { setFilter("all"); setTab("questions"); setScrollTo(order); };
+
   // `||`, not `??`: a session with no single subject stores "" — an empty
   // string is an absent subject, not one to print.
   const subjectRaw = session?.subject || snapshot?.subject || localState?.subject || "";
@@ -246,9 +254,9 @@ export default function PracticeSessionResult() {
     // the advice. Rare, but it fails in the direction that hides the fix.
     (wrong > 0
       ? [
-          accuracy != null && accuracy < ACCURACY_BUILDING ? "Review wrong answers below — they feed Mistake Book automatically." : null,
+          accuracy != null && accuracy < ACCURACY_BUILDING ? "Go through your wrong answers under Questions — each one is already in your Mistake Book." : null,
           accuracy != null && accuracy < ACCURACY_PROCEDURAL ? "Revise weak topics from Analysis before your next practice session." : null,
-          'Use "Explain my mistake" on each wrong question to understand the concept.',
+          'Under Questions, use "Explain my mistake" on each wrong answer to understand the concept.',
         ].filter(Boolean) as string[]
       // §10.8. This read "Excellent accuracy — keep momentum with a short daily
       // practice." at 100%. The rule permits the NUMBER — "session totals are
@@ -384,6 +392,41 @@ export default function PracticeSessionResult() {
     );
   }
 
+  const cards = displayAttempts.map((a, i) => {
+    const markRef = markRefFromAttempt(a);
+    return {
+      order: i,
+      card: (
+        <SessionQuestionCard
+          attempt={a}
+          order={i}
+          notes={analysis.notes.get(i) ?? []}
+          subjectRaw={subjectRaw}
+          chapterRaw={chapterRaw}
+          sessionId={id ?? null}
+          userId={user?.id ?? null}
+          mark={markRef ? marks.get(markRef.id) ?? null : null}
+          markTags={markTags}
+          onMark={setMark}
+          report={markRef?.kind === "bank" ? reports.get(markRef.id) ?? null : null}
+          onReport={setReport}
+          onAskNova={(q) => {
+            setNovaQuestionContext({
+              question: q.question,
+              options: q.options,
+              correctIndex: q.correctIndex,
+              subject: subjectRaw,
+              chapter: chapterRaw,
+              studentAnswer: q.selectedText,
+              studentAnswerIndex: q.selectedIndex,
+            });
+            navigate("/student/aicoach");
+          }}
+        />
+      ),
+    };
+  });
+
   return (
     <>
       <Button variant="ghost" size="sm" asChild className="mb-2">
@@ -400,171 +443,7 @@ export default function PracticeSessionResult() {
         }`}
       />
 
-      {/* §4.2b — the recovery verdict, and it is deliberately TWO figures.
-          "You can do the steps but the idea isn't solid yet" is actionable;
-          a single blended 74% is not, and the spec calls that out by name.
-          Rendered from the engine's own answer, never recomputed here. */}
-      {recovery && (
-        <GlassCard className="p-5 mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <div
-              className={cn(
-                "w-7 h-7 rounded-lg flex items-center justify-center",
-                recovery.outcome === "ready" ? "bg-emerald-500/15" : "bg-amber-500/15",
-              )}
-            >
-              {recovery.outcome === "ready"
-                ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                : <AlertCircle className="w-4 h-4 text-amber-400" />}
-            </div>
-            <div>
-              <div className="text-sm font-bold text-foreground">
-                {recovery.outcome === "ready" ? "Ready" : "Not solid yet"}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                {recoveryVerdictLine(recovery)}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              {
-                label: "Running the steps",
-                sub: "the questions and their variants",
-                rate: recovery.procedural_rate,
-                passed: recovery.procedural_passed,
-              },
-              {
-                label: "Understanding it",
-                sub: "the idea reframed and applied",
-                rate: recovery.conceptual_rate,
-                passed: recovery.conceptual_passed,
-              },
-            ].map((r) => (
-              <div
-                key={r.label}
-                className="p-3 rounded-xl border border-border/70 bg-surface/60"
-              >
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                  {r.label}
-                </div>
-                <div
-                  className={cn(
-                    "text-xl font-black tabular-nums",
-                    r.passed ? "text-emerald-400" : "text-amber-400",
-                  )}
-                >
-                  {/* A rate over zero questions is absent, not 0% — the tier
-                      had nothing in it, which is a different statement. */}
-                  {r.rate == null ? "—" : `${Math.round(r.rate * 100)}%`}
-                </div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">{r.sub}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* The round measures; the student clears (owner's ruling
-              2026-09-28). The revision date is set when they do. */}
-          <RecoveryClearChapter sessionId={recovery.session_id} ready={recovery.outcome === "ready"} />
-        </GlassCard>
-      )}
-
-      {/* §5.3/§5.5 — the revision verdict. A session is a recovery session or
-          a revision check, never both, so this and the card above cannot
-          stack. Every figure here is the engine's: the threshold it passed,
-          the rung it was for, the streak it is on, and the date it wrote. */}
-      {revision && (
-        <GlassCard className="p-5 mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <div
-              className={cn(
-                "w-7 h-7 rounded-lg flex items-center justify-center",
-                revision.passed ? "bg-emerald-500/15" : "bg-amber-500/15",
-              )}
-            >
-              {revision.passed
-                ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                : <AlertCircle className="w-4 h-4 text-amber-400" />}
-            </div>
-            <div>
-              <div className="text-sm font-bold text-foreground">
-                {revision.solid
-                  ? "Chapter solid"
-                  : revision.passed
-                    ? "Revision check passed"
-                    : "Revision check not passed"}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                {revisionVerdictLine(revision)}
-              </div>
-              {/* §5.4's two halves. The percentage above blends them; this
-                  line is the only place the student is told WHICH half went,
-                  and "you fixed the old ones, the new material faded" is a
-                  different instruction from "you still miss the same two". */}
-              {revisionSplitLine(revision) && (
-                <div className="text-[11px] text-muted-foreground mt-1">
-                  {revisionSplitLine(revision)}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 rounded-xl border border-border/70 bg-surface/60">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                This check
-              </div>
-              <div
-                className={cn(
-                  "text-xl font-black tabular-nums",
-                  revision.passed ? "text-emerald-400" : "text-amber-400",
-                )}
-              >
-                {Math.round(revision.rate * 100)}%
-              </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {revisionCheckLabel(revision.stage, revision.stages_to_solid)}
-              </div>
-              {(revision.mistake_total > 0 || revision.fresh_total > 0) && (
-                <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-                  {revision.mistake_correct}/{revision.mistake_total} old ·{" "}
-                  {revision.fresh_correct}/{revision.fresh_total} new
-                </div>
-              )}
-            </div>
-            <div className="p-3 rounded-xl border border-border/70 bg-surface/60">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                In a row
-              </div>
-              <div className="text-xl font-black tabular-nums text-foreground">
-                {revision.consecutive_passes}
-                {/* "/3" only on the way to solid: a solid chapter's run keeps
-                    counting, and "5/3" read as more than the whole. */}
-                {revision.consecutive_passes < revision.stages_to_solid && (
-                  <span className="text-sm text-muted-foreground">/{revision.stages_to_solid}</span>
-                )}
-              </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {revision.consecutive_passes < revision.stages_to_solid
-                  ? `${revision.stages_to_solid} in a row makes it solid`
-                  : "solid — it now comes back less often"}
-              </div>
-            </div>
-          </div>
-
-          {/* A solid chapter still has a date, at the long interval. Missing
-              is now genuinely missing, and saying "off the list" for it would
-              promise something the engine no longer does. */}
-          <p className="text-[11px] text-muted-foreground mt-3">
-            {revision.next_revision_at
-              ? `Next check on ${new Date(revision.next_revision_at).toLocaleDateString(undefined, {
-                  day: "numeric", month: "short",
-                })}.`
-              : "No next check scheduled for this chapter."}
-          </p>
-        </GlassCard>
-      )}
+      <SessionVerdicts recovery={recovery} revision={revision} />
 
       <div className="flex flex-wrap gap-2 mb-6">
         {/* Nothing was answered — there is no analysis to freeze. */}
@@ -590,218 +469,73 @@ export default function PracticeSessionResult() {
         </Button>
       </div>
 
-      {/* Performance Summary */}
-      <Card className="p-6 mb-6 flex flex-col sm:flex-row items-center gap-6 transition-shadow hover:shadow-md">
-        <ScoreRing value={correct} max={total || 1} size={140} label="correct" />
-        <div className="grid grid-cols-2 gap-4 flex-1 w-full">
-          <div className="flex items-center gap-3">
-            <Target className="w-5 h-5 text-accent" />
-            <div>
-              <div className="text-xs text-muted-foreground">Accuracy</div>
-              {/* Over ANSWERED questions; an em dash when none was answered —
-                  "0%" would be a verdict the data does not carry. */}
-              <div className="font-bold text-lg">{formatSessionAccuracy(accuracy)}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Timer className="w-5 h-5 text-primary" />
-            <div>
-              <div className="text-xs text-muted-foreground">Time</div>
-              <div className="font-bold text-lg">{durationLabel}</div>
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Correct</div>
-            <div className="font-bold text-lg">{correct}/{total}</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">XP earned</div>
-            <div className="font-bold text-lg">{xpLabel}</div>
-          </div>
-        </div>
-      </Card>
+      {/* Owner, 2026-10-03: the analysis grew past one scroll, so it is filed in
+          four places — the session at a glance, where the marks went, how time
+          went, and the questions themselves. */}
+      <div role="tablist" aria-label="Session analysis" className="mb-5 -mx-1 flex gap-0 overflow-x-auto border-b border-border/70 px-1">
+        {SESSION_TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            onClick={() => setTab(t.key)}
+            className={cn(
+              "shrink-0 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-all duration-150",
+              tab === t.key ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      {/* Statistics */}
-      <Card className="p-5 mb-6">
-        <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-          <BarChart2 className="w-4 h-4" /> Statistics
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-          <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">Wrong</div>
-            <div className="font-bold text-lg">{wrong}</div>
-          </div>
-          <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">Skipped</div>
-            <div className="font-bold text-lg">{skipped}</div>
-          </div>
-          <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">Avg / answer</div>
-            <div className="font-bold text-lg">{avgSec != null ? formatSeconds(avgSec) : "—"}</div>
-          </div>
-          <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">Score</div>
-            <div className="font-bold text-lg">{correct} / {total}</div>
-          </div>
-        </div>
-      </Card>
-
-      {id && fallbackReport && (
-        <ConceptRecoveryReport
-          sourceType="practice_session"
-          sourceId={id}
-          title="Practice concept recovery report"
-          fallbackReport={fallbackReport}
+      {tab === "summary" && (
+        <SummaryTab
+          analysis={analysis}
+          stats={{
+            total,
+            correct,
+            wrong,
+            skipped,
+            accuracyLabel: formatSessionAccuracy(accuracy),
+            durationLabel,
+            xpLabel,
+            avgSec,
+          }}
+          subjectRaw={subjectRaw}
+          chapterRaw={chapterRaw}
+          recommendations={recommendations}
+          insights={insights}
+          onShowQuestions={showQuestions}
         />
       )}
-
-      {/* Insights */}
-      {(insights?.headline || insights?.bullets?.length) && (
-        <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
-          <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
-            <Lightbulb className="w-4 h-4" /> Insights
-          </h3>
-          {insights?.headline && <p className="text-sm font-medium mb-2">{insights.headline}</p>}
-          {insights?.bullets && insights.bullets.length > 0 && (
-            <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
-              {insights.bullets.map((b) => (
-                <li key={b}>{b}</li>
-              ))}
-            </ul>
-          )}
-        </Card>
+      {tab === "topics" && (
+        <TopicsTab
+          analysis={analysis}
+          subjectRaw={subjectRaw}
+          chapterRaw={chapterRaw}
+          conceptReport={id && fallbackReport ? (
+            <ConceptRecoveryReport
+              sourceType="practice_session"
+              sourceId={id}
+              title="Practice concept recovery report"
+              fallbackReport={fallbackReport}
+            />
+          ) : null}
+        />
       )}
-
-      {/* Recommendations */}
-      {recommendations.length > 0 && (
-        <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
-          <h3 className="font-semibold text-sm mb-2">Recommendations</h3>
-          <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
-            {recommendations.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-semibold">Question review</h3>
-        <Link to="/student/mistakes/types" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-          <Tag className="h-3.5 w-3.5" aria-hidden /> Your mistake types
-        </Link>
-      </div>
-      <div className="space-y-4">
-        {displayAttempts.map((a, i) => {
-          const gq = a.generated_question ?? {};
-          const opts: string[] = Array.isArray(gq.options) ? gq.options : [];
-          const correctIdx = typeof a.correct_answer?.index === "number" ? a.correct_answer.index : null;
-          const selectedIdx = typeof a.selected_answer?.index === "number" ? a.selected_answer.index : null;
-          const correctText = a.correct_answer?.text ?? (correctIdx != null ? opts[correctIdx] ?? "" : "");
-          const selectedText = a.selected_answer?.text ?? (selectedIdx != null ? opts[selectedIdx] ?? "" : "");
-          const questionText = gq.question ?? "";
-          const markRef = markRefFromAttempt(a);
-          const report = markRef?.kind === "bank" ? reports.get(markRef.id) ?? null : null;
-
-          return (
-            <Card key={a.id} className="p-5 transition-shadow hover:shadow-sm">
-              <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground mb-2">
-                <span className="flex flex-wrap items-center gap-2">
-                  Q{i + 1}{a.skipped ? " · Skipped" : ""}
-                  <QuestionFormBadge text={questionText} options={opts} />
-                </span>
-                {/* Time on this question alone. Nothing when it was not
-                    timed — a blank is not a zero. */}
-                {typeof a.time_taken_ms === "number" && a.time_taken_ms > 0 && (
-                  <span className="inline-flex items-center gap-1 tabular-nums" data-testid="question-time">
-                    <Timer className="w-3.5 h-3.5" aria-hidden />
-                    {formatSessionDuration(a.time_taken_ms)}
-                  </span>
-                )}
-              </div>
-              <QuestionText className="text-base leading-relaxed font-medium mb-4" text={questionText} options={opts} />
-              <div className="space-y-2 mb-4">
-                {opts.map((opt, oi) => {
-                  const isSel = oi === selectedIdx;
-                  const isRight = oi === correctIdx;
-                  return (
-                    <div
-                      key={oi}
-                      className={cn(
-                        "w-full text-left px-4 py-3 rounded-lg border flex items-center gap-3 text-sm",
-                        isRight && "border-accent bg-accent/10",
-                        isSel && !isRight && "border-destructive bg-destructive/10",
-                        !isSel && !isRight && "border-border",
-                      )}
-                    >
-                      <span className="font-semibold shrink-0">{String.fromCharCode(65 + oi)}.</span>
-                      <MathText className="flex-1" text={opt} />
-                      {isRight && <Check className="w-4 h-4 text-accent shrink-0" />}
-                      {isSel && !isRight && <X className="w-4 h-4 text-destructive shrink-0" />}
-                    </div>
-                  );
-                })}
-              </div>
-              <ExplainPanel
-                question={questionText}
-                options={opts}
-                correctIndex={correctIdx}
-                selectedIndex={selectedIdx}
-                correctText={correctText}
-                selectedText={selectedText}
-                subject={subjectRaw}
-                chapter={chapterRaw}
-                wasCorrect={a.is_correct}
-                onAskNova={() => {
-                  setNovaQuestionContext({
-                    question: questionText,
-                    options: opts,
-                    correctIndex: correctIdx,
-                    subject: subjectRaw,
-                    chapter: chapterRaw,
-                    studentAnswer: selectedText,
-                    studentAnswerIndex: selectedIdx,
-                  });
-                  navigate("/student/aicoach");
-                }}
-              />
-              {user && markRef && questionText && (
-                <QuestionMarkBar
-                  className="mt-4"
-                  userId={user.id}
-                  questionRef={markRef}
-                  question={{
-                    text: questionText,
-                    subject: a.subject || gq.subject || subjectRaw || null,
-                    chapter: a.chapter || gq.chapter || chapterRaw || null,
-                  }}
-                  mark={marks.get(markRef.id) ?? null}
-                  tags={markTags}
-                  onChange={(m) => setMark(markRef.id, m)}
-                  actions={markRef.kind === "bank" ? (
-                    <ReportQuestionButton
-                      variant="button"
-                      questionId={markRef.id}
-                      question={{ text: questionText, options: opts }}
-                      answered
-                      sessionId={id ?? null}
-                      report={report}
-                      onChange={setReport}
-                    />
-                  ) : undefined}
-                />
-              )}
-              {report && <div className="mt-2"><ReportStatusLine report={report} /></div>}
-            </Card>
-          );
-        })}
-      </div>
-
-      {displayAttempts.length === 0 && (
-        <Card className="p-6 text-center text-sm text-muted-foreground">
-          {total === 0
+      {tab === "time" && <TimeTab analysis={analysis} onShowQuestion={showQuestion} />}
+      {tab === "questions" && (
+        <QuestionsTab
+          filters={analysis.filters}
+          active={filter}
+          onFilter={setFilter}
+          cards={cards}
+          empty={total === 0
             ? "No question was answered in this session, so there is nothing to review."
             : "The questions from this session are no longer available to review."}
-        </Card>
+        />
       )}
     </>
   );

@@ -67,6 +67,9 @@ describe("the concept card does not restate the session's figures", () => {
   const CARD = stripComments(
     readFileSync(join(__dirname, "../components/student/ConceptRecoveryReport.tsx"), "utf8"),
   );
+  const SUMMARY = stripComments(
+    readFileSync(join(__dirname, "../components/student/sessionResult/SummaryTab.tsx"), "utf8"),
+  );
   const RESULT = stripComments(
     readFileSync(join(__dirname, "../pages/student/PracticeSessionResult.tsx"), "utf8"),
   );
@@ -82,9 +85,11 @@ describe("the concept card does not restate the session's figures", () => {
   });
 
   it("POSITIVE CONTROL: the result page itself still shows them, from the session", () => {
+    // The page reads them from the session and its Summary tab shows them.
     expect(RESULT).toContain("formatSessionAccuracy(accuracy)");
-    expect(RESULT).toContain("{durationLabel}");
-    expect(RESULT).toContain("{correct}/{total}");
+    expect(RESULT).toContain("durationLabel,");
+    expect(SUMMARY).toContain("stats.durationLabel");
+    expect(SUMMARY).toContain("`${stats.correct}/${stats.total}`");
   });
 
   it("passes the concept report no invented duration", () => {

@@ -22,6 +22,16 @@
  * attendance threshold", not a second threshold.
  */
 
+/**
+ * Share of the student's own usual time per answer (their median in that
+ * session). Wrong in under this share: rushed — "careless". Measured against
+ * THEIR time, not a fixed clock, because a fast reader's careless answer is a
+ * slow reader's normal one. Read by the after-session analysis (sessionAnalysis.ts).
+ */
+export const CARELESS_SHARE = 0.5;
+/** Share of the same usual time. Over it, wrong is "stuck" and right is "slow". */
+export const SLOW_SHARE = 1.5;
+
 /** Percent. A student or section below this is flagged on attendance. */
 export const ATTENDANCE_LOW = 80;
 
