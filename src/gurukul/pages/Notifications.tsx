@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Bell, Award, Swords, Trophy, Wallet, NotebookPen,
   CheckCheck, Trash2, MessageSquare, AlertTriangle, BookOpen,
-  CalendarDays, CalendarCheck, CheckCircle2, ClipboardCheck, Inbox, Megaphone,
+  CalendarDays, CalendarCheck, CheckCircle2, ClipboardCheck, Flag, Inbox, Megaphone,
 } from "lucide-react";
 import { EmptyState, GlassCard, PageHeader, PageSkeleton, SkeletonList, cn } from "@/gurukul/components/shared";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
@@ -61,6 +61,7 @@ const ICON_BY_TYPE: Record<string, React.ComponentType<{ className?: string }>> 
   leave: CalendarDays,
   message: MessageSquare,
   notice: Megaphone,
+  question_report: Flag,
   result: ClipboardCheck,
   trophy: Trophy,
 };

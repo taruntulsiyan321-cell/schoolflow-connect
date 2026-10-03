@@ -44,6 +44,9 @@ import { revisionCheckLabel, revisionSplitLine, revisionVerdictLine } from "@/li
 import { markRefFromAttempt } from "@/lib/questionMarks";
 import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
+import { ReportQuestionButton } from "@/components/student/questionReports/ReportQuestionButton";
+import { ReportStatusLine } from "@/components/student/questionReports/ReportOutcome";
+import { useQuestionReports } from "@/components/student/questionReports/useQuestionReports";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -169,6 +172,14 @@ export default function PracticeSessionResult() {
     if (attempts.length > 0) return attempts;
     return snapshotAttempts;
   }, [attempts, snapshotAttempts, localAttempts]);
+
+  // A bank question can be reported (§10.21); the student's own uploaded or
+  // captured questions are disputed instead, not reported.
+  const bankIds = useMemo(
+    () => displayAttempts.map((a) => markRefFromAttempt(a)).filter((r) => r?.kind === "bank").map((r) => r!.id),
+    [displayAttempts],
+  );
+  const { reports, setReport } = useQuestionReports(user?.id, bankIds);
 
   // `||`, not `??`: a session with no single subject stores "" — an empty
   // string is an absent subject, not one to print.
@@ -688,6 +699,7 @@ export default function PracticeSessionResult() {
           const selectedText = a.selected_answer?.text ?? (selectedIdx != null ? opts[selectedIdx] ?? "" : "");
           const questionText = gq.question ?? "";
           const markRef = markRefFromAttempt(a);
+          const report = markRef?.kind === "bank" ? reports.get(markRef.id) ?? null : null;
 
           return (
             <Card key={a.id} className="p-5 transition-shadow hover:shadow-sm">
@@ -761,8 +773,20 @@ export default function PracticeSessionResult() {
                   mark={marks.get(markRef.id) ?? null}
                   tags={markTags}
                   onChange={(m) => setMark(markRef.id, m)}
+                  actions={markRef.kind === "bank" ? (
+                    <ReportQuestionButton
+                      variant="button"
+                      questionId={markRef.id}
+                      question={{ text: questionText, options: opts }}
+                      answered
+                      sessionId={id ?? null}
+                      report={report}
+                      onChange={setReport}
+                    />
+                  ) : undefined}
                 />
               )}
+              {report && <div className="mt-2"><ReportStatusLine report={report} /></div>}
             </Card>
           );
         })}

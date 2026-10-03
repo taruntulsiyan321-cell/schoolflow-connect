@@ -48,6 +48,10 @@ verify_jwt = false
 [functions.question-explanations]
 verify_jwt = false
 
+# dispatch_question_reports (20261139000000) posts here the same way.
+[functions.question-reports]
+verify_jwt = false
+
 # Called by Razorpay, which has no user to sign a JWT for. The function checks
 # X-Razorpay-Signature (HMAC-SHA256 of the raw body with RAZORPAY_WEBHOOK_SECRET)
 # before it reads anything, and refuses 401 without it.

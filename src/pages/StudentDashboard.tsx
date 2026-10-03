@@ -16,6 +16,7 @@ import Recovery from "@/gurukul/pages/Recovery";
 import Revision from "@/gurukul/pages/Revision";
 import MistakeBook from "@/gurukul/pages/MistakeBook";
 import MistakeTypes from "@/gurukul/pages/MistakeTypes";
+import ReportedQuestions from "@/gurukul/pages/ReportedQuestions";
 import Achievements from "@/gurukul/pages/Achievements";
 import Premium from "@/gurukul/pages/Premium";
 import MockTests from "@/gurukul/pages/MockTests";
@@ -285,6 +286,7 @@ export default function StudentDashboard() {
           <Route path="plans" element={<Navigate to="/student/revision" replace />} />
           <Route path="mistakes" element={<MistakeBook setPage={setPage} />} />
           <Route path="mistakes/types" element={<MistakeTypes />} />
+          <Route path="mistakes/reports" element={<ReportedQuestions />} />
           <Route path="achievements" element={<Achievements />} />
           <Route path="premium" element={<Premium />} />
           <Route path="mocks" element={<MockTests />} />

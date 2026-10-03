@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService, RecoveryEngineService, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
 import type { PracticeSessionRow } from "@/academic";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
+import { ReportQuestionButton } from "@/components/student/questionReports/ReportQuestionButton";
+import { useQuestionReports } from "@/components/student/questionReports/useQuestionReports";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
 import { toast } from "sonner";
 import { PlanLimitError, fetchPremiumStatus, practiceSessionIsCounted, refusalFor, usesLeft, type PlanLimit } from "@/lib/premium";
@@ -1517,6 +1519,12 @@ export function Session({
   const accessTokenRef = useRef<string | null>(null);
   accessTokenRef.current = authSession?.access_token ?? null;
 
+  // §10.21: the one report control, beside the bookmark, on every bank
+  // question. An uploaded or captured question is the student's own and is
+  // disputed instead.
+  const reportIds = useMemo(() => qs.filter((x) => !x.fromUpload && !x.fromCapture).map((x) => x.id), [qs]);
+  const { reports, setReport } = useQuestionReports(authSession?.user?.id, reportIds);
+
   useEffect(() => {
     if (loadedRef.current) return;
     if (!ctx || !academicReady) {
@@ -2157,6 +2165,17 @@ export function Session({
             <span className="text-[10px] text-muted-foreground">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {!(q.fromUpload || q.fromCapture) && (
+              <ReportQuestionButton
+                variant="icon"
+                questionId={q.id}
+                question={{ text: q.question, options: q.options }}
+                answered={phase === "fb"}
+                sessionId={sessionIdRef.current}
+                report={reports.get(q.id) ?? null}
+                onChange={setReport}
+              />
+            )}
             {!(q.fromUpload || q.fromCapture) && (
               <button
                 type="button"

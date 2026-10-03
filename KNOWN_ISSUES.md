@@ -5019,3 +5019,40 @@ lost its "short … Mathematics and Science tutor for Class 6–12" prompt.
    request is the owner's.
 5. **Only exam questions are rewritten.** The 21,876 school-bank questions are 'pending' and outside the
    cron's `exam_id IS NOT NULL` filter — no individual student can be served them.
+
+## 113. A student reports a question — BUILT and LIVE 2026-10-03 (20261139000000, 20261140000000); what is open
+
+**Live:** §10.21's one report control — the flag beside the bookmark while practising, and Report beside Mark
+on the session review and in the Mistake Book (bank questions only: an uploaded or captured question is the
+student's own and is disputed instead). Four reasons: the marked answer is wrong (with the option the student
+says is right), the question or its options have a mistake, the explanation is wrong or unclear, something else
+(needs words); before the answer is shown only the second and fourth are offered. `rpc_report_question` is the
+one door: one report per student per question, only on a question the student can be served, counted as
+`question.report` (10/day free, unlimited paid). The cron `check-question-reports` hands each waiting question to
+`question-reports`, which solves it three times WITHOUT the key; a key changes only when two solves agree on
+another option AND a fourth call shown both options chooses it; a question reported as faulty is rewritten or
+withdrawn only when two reviews (one with the student's note, one without) both find it unusable.
+`apply_question_report_verdict` makes the verdict true in one transaction: the corrected or rewritten question is
+NEW and the old one retired (`replaced_by_question_id`), every student's attempts on it leave accuracy and their
+chapter tallies are rewritten, open mistakes are cleared (or moved to the corrected question when still wrong
+under the new key), bookmarks follow, and every reporter is notified (link `/student/mistakes/reports`, the new
+Reported Questions page). Measured on live with the seed demo account: answer stands, nothing wrong found and
+explanation rewritten each settled correctly within 35 s–4 min; 20261140000000 then made calls in the same
+minute take different questions (two reports claimed and settled in parallel, 04:24:01 → 04:24:16). Test reports,
+their notifications and usage were removed afterwards.
+
+**Open:**
+
+1. **Fully automatic, by the owner's ruling (2026-10-03), with Flash's measured Accountancy blind spots** (entry
+   112 item 2). A key flipped wrongly would go live for everyone. Every correction leaves its trail —
+   `SELECT id, replaced_by_question_id, review_note FROM question_bank WHERE review_note LIKE '%Report check%Replaced.%'`
+   — but there is no screen or tool to reverse one: reactivate the old row and retire the new one by hand.
+2. **Unresolved reports join the disputed list**, which still has no owner screen (entry 112 item 1).
+3. **Two pre-existing type errors in the frozen shared AI modules** (`deno check` of any function importing
+   modelRouter): `_shared/promptEvaluation.ts` imports `./promptLibrary` with no extension, and
+   `_shared/reasoningBudget.ts:107` compares a tier against `"enterprise"`, which its type excludes. Both are on
+   main and deploy (the bundler accepts them); fixing either means redeploying every AI function that snapshots
+   those modules (entry 9's frozen set).
+4. **The session review paints the right answer rose.** `PracticeSessionResult` marks the correct option
+   `border-accent bg-accent/10`, and the panel's accent is rose — the same family as the wrong answer's
+   destructive tint. To be fixed in the after-session rework that follows this entry.

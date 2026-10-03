@@ -198,19 +198,19 @@ BEGIN
   ------------------------------------------------------------------
   -- 5. question_reports goes to the AI and super admin, never the school
   ------------------------------------------------------------------
-  -- The question is chosen by the owner, before the switch. It was chosen
-  -- inside the student's INSERT ... SELECT from question_bank, which a student
-  -- reads nothing from since 20261049000000 — so the insert wrote ZERO rows,
-  -- raised nothing, and this item recorded "filed = true" over an empty table.
-  -- "Filed" now means a row came back.
-  SELECT q.id INTO _rep_q FROM public.question_bank q WHERE q.is_active ORDER BY q.id LIMIT 1;
+  -- Since 20261139000000 a report is filed only through rpc_report_question,
+  -- on a question the student can be served — so the question is chosen AS
+  -- the student, from the student view. (Chosen once from question_bank, a
+  -- table a student reads nothing from since 20261049000000, the old direct
+  -- insert wrote ZERO rows and recorded "filed = true" over an empty table.)
+  -- "Filed" means a report row came back.
   PERFORM set_config('request.jwt.claims',
     json_build_object('sub', _uid_student, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
+  SELECT v.id INTO _rep_q FROM public.question_bank_student v
+   WHERE v.is_active AND jsonb_typeof(v.options) = 'array' ORDER BY v.id LIMIT 1;
   BEGIN
-    INSERT INTO public.question_reports (question_id, reported_by_account_id, reason, body)
-    VALUES (_rep_q, _uid_student, 'wrong_answer', 'verification')
-    RETURNING id INTO _rep;
+    _rep := (public.rpc_report_question(_rep_q, 'question_error', NULL, 'verification')->'report'->>'id')::uuid;
     _rep_ins := _rep IS NOT NULL;
   EXCEPTION WHEN others THEN
     -- G10 applies to a verification too: a handler that discards the reason

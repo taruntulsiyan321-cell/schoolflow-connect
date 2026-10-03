@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MarkTag, MarkedQuestion, QuestionMark, QuestionRef } from "@/lib/questionMarks";
@@ -12,6 +12,8 @@ type Props = {
   mark: QuestionMark | null;
   tags: MarkTag[];
   onChange: (mark: QuestionMark | null) => void;
+  /** Beside the Mark button: the report control, on a bank question. */
+  actions?: ReactNode;
   className?: string;
 };
 
@@ -19,7 +21,7 @@ type Props = {
  * Under a question: what the student has said about it, and the button to say
  * it. The same bar on the session result and in the Mistake Book.
  */
-export function QuestionMarkBar({ userId, questionRef, question, mark, tags, onChange, className }: Props) {
+export function QuestionMarkBar({ userId, questionRef, question, mark, tags, onChange, actions, className }: Props) {
   const [open, setOpen] = useState(false);
   const labels = useMemo(() => new Map(tags.map((t) => [t.key, t.label])), [tags]);
 
@@ -40,14 +42,17 @@ export function QuestionMarkBar({ userId, questionRef, question, mark, tags, onC
           {mark.voicePath && <VoiceNotePlayer path={mark.voicePath} seconds={mark.voiceSeconds} />}
         </div>
       )}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
-      >
-        <Tag className="h-3.5 w-3.5" aria-hidden />
-        {mark ? "Edit mark" : "Mark"}
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+        >
+          <Tag className="h-3.5 w-3.5" aria-hidden />
+          {mark ? "Edit mark" : "Mark"}
+        </button>
+        {actions}
+      </div>
       <QuestionMarkDialog
         open={open}
         onOpenChange={setOpen}

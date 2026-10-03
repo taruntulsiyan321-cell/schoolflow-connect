@@ -15,7 +15,7 @@ import { DifficultyBadge, EmptyState, GlassCard, PageHeader, PageSkeleton, Progr
 import {
   AlertCircle, Brain, Search, Bookmark, BookmarkCheck,
   ChevronDown, ChevronRight, CheckCircle2, XCircle, ArrowRight,
-  RotateCcw, RefreshCw, Play, Eye, Tag,
+  RotateCcw, RefreshCw, Play, Eye, Tag, Flag,
 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -25,6 +25,9 @@ import { ExplanationText } from "@/components/ExplanationText";
 import { markRefFromMistake } from "@/lib/questionMarks";
 import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
+import { ReportQuestionButton } from "@/components/student/questionReports/ReportQuestionButton";
+import { ReportStatusLine } from "@/components/student/questionReports/ReportOutcome";
+import { useQuestionReports } from "@/components/student/questionReports/useQuestionReports";
 
 type MBView = "list" | "practice" | "results";
 
@@ -650,6 +653,14 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     [rows, bookmarks, stream, classLevel, examId],
   );
 
+  // Reports on the bank questions here (§10.21); a mistake on an uploaded or
+  // captured question is disputed, not reported.
+  const reportIds = useMemo(
+    () => mistakes.map((m) => markRefFromMistake(m)).filter((r) => r?.kind === "bank").map((r) => r!.id),
+    [mistakes],
+  );
+  const { reports, setReport } = useQuestionReports(user?.id, reportIds);
+
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
@@ -889,6 +900,12 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           </button>
           <button
             type="button"
+            onClick={() => navigate("/student/mistakes/reports")}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-muted border border-border text-foreground text-sm font-bold hover:bg-secondary transition-all">
+            <Flag className="w-3.5 h-3.5"/> Reports
+          </button>
+          <button
+            type="button"
             disabled={unresolved === 0}
             onClick={() => {
               if (unresolved === 0) return;
@@ -995,17 +1012,32 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         ) : (
           filtered.map(m => {
             const markRef = markRefFromMistake(m);
+            const report = markRef?.kind === "bank" ? reports.get(markRef.id) ?? null : null;
             return (
             <MistakeCard key={m.id} mistake={m}
               markBar={user && markRef ? (
-                <QuestionMarkBar
-                  userId={user.id}
-                  questionRef={markRef}
-                  question={{ text: m.question, subject: m.subject, chapter: m.chapterRaw }}
-                  mark={marks.get(markRef.id) ?? null}
-                  tags={markTags}
-                  onChange={(next) => setMark(markRef.id, next)}
-                />
+                <div className="space-y-2">
+                  <QuestionMarkBar
+                    userId={user.id}
+                    questionRef={markRef}
+                    question={{ text: m.question, subject: m.subject, chapter: m.chapterRaw }}
+                    mark={marks.get(markRef.id) ?? null}
+                    tags={markTags}
+                    onChange={(next) => setMark(markRef.id, next)}
+                    actions={markRef.kind === "bank" ? (
+                      <ReportQuestionButton
+                        variant="button"
+                        questionId={markRef.id}
+                        question={{ text: m.question, options: m.options }}
+                        answered
+                        sessionId={null}
+                        report={report}
+                        onChange={setReport}
+                      />
+                    ) : undefined}
+                  />
+                  {report && <ReportStatusLine report={report} />}
+                </div>
               ) : undefined}
               onRetry={() => { setPracticeIds([m.id]); setView("practice"); }}
               onExplain={() => askNova(m)}

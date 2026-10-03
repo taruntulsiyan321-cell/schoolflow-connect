@@ -33,6 +33,7 @@ export type PremiumFeature =
   | "ai_practice.request"
   | "screen_capture.mistake"
   | "question_mark.voice_note"
+  | "question.report"
   | "mock_test.start";
 
 export type PremiumDecision = {
@@ -114,6 +115,7 @@ const REFUSAL_WORDS: Record<PremiumFeature, [string, string, string, boolean]> =
   "ai_practice.request": ["AI Practice requests", "AI Practice request", "AI Practice requests", true],
   "screen_capture.mistake": ["Mistakes captured from other apps", "screen capture", "screen captures", true],
   "question_mark.voice_note": ["Voice notes on marked questions", "voice note", "voice notes", true],
+  "question.report": ["Question reports", "question report", "question reports", true],
   "mock_test.start": ["Full CUET mock tests", "mock test", "mock tests", true],
 };
 

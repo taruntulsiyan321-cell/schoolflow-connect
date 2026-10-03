@@ -6769,28 +6769,67 @@ export type Database = {
       }
       question_reports: {
         Row: {
-          body: string | null
+          chapter: string | null
+          checked_at: string | null
+          claimed_index: number | null
           created_at: string
           id: string
+          note: string | null
+          options: Json
+          outcome: string | null
+          outcome_explanation: string | null
           question_id: string
+          question_text: string
           reason: string
-          reported_by_account_id: string
+          replacement_question_id: string | null
+          resolved_at: string | null
+          session_id: string | null
+          status: string
+          subject: string | null
+          updated_at: string
+          user_id: string
         }
         Insert: {
-          body?: string | null
+          chapter?: string | null
+          checked_at?: string | null
+          claimed_index?: number | null
           created_at?: string
           id?: string
+          note?: string | null
+          options: Json
+          outcome?: string | null
+          outcome_explanation?: string | null
           question_id: string
+          question_text: string
           reason: string
-          reported_by_account_id: string
+          replacement_question_id?: string | null
+          resolved_at?: string | null
+          session_id?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+          user_id: string
         }
         Update: {
-          body?: string | null
+          chapter?: string | null
+          checked_at?: string | null
+          claimed_index?: number | null
           created_at?: string
           id?: string
+          note?: string | null
+          options?: Json
+          outcome?: string | null
+          outcome_explanation?: string | null
           question_id?: string
+          question_text?: string
           reason?: string
-          reported_by_account_id?: string
+          replacement_question_id?: string | null
+          resolved_at?: string | null
+          session_id?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -6805,6 +6844,27 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_reports_replacement_question_id_fkey"
+            columns: ["replacement_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_reports_replacement_question_id_fkey"
+            columns: ["replacement_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_reports_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "practice_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -10954,6 +11014,15 @@ export type Database = {
         Returns: boolean
       }
       _repair_utf8_mojibake: { Args: { t: string }; Returns: string }
+      _retire_reported_question: {
+        Args: {
+          _new: string
+          _note: string
+          _old: string
+          _same_question: boolean
+        }
+        Returns: Json
+      }
       _revision_interval_days: { Args: { _stage: number }; Returns: number }
       _revision_recently_completed: {
         Args: {
@@ -11269,6 +11338,10 @@ export type Database = {
         Returns: Json
       }
       ai_session_memory_read: { Args: { p_session_id: string }; Returns: Json }
+      apply_question_report_verdict: {
+        Args: { _question_id: string; _verdict: Json }
+        Returns: Json
+      }
       bump_ai_answer_cache_hit: { Args: { p_id: string }; Returns: undefined }
       can_author_bank_question: { Args: never; Returns: boolean }
       can_author_question_paper: { Args: never; Returns: boolean }
@@ -11327,8 +11400,11 @@ export type Database = {
       claim_explanation_rewrites: {
         Args: { _limit: number }
         Returns: {
+          board: string
           chapter: string
+          class_level: number
           correct_index: number
+          exam_code: string
           explanation: string
           id: string
           options: Json
@@ -11349,6 +11425,24 @@ export type Database = {
           tokens: string[]
         }[]
       }
+      claim_question_reports: {
+        Args: { _limit: number }
+        Returns: {
+          board: string
+          chapter: string
+          class_level: number
+          correct_index: number
+          exam_code: string
+          explanation: string
+          explanation_status: string
+          options: Json
+          question: string
+          question_id: string
+          reports: Json
+          subject: string
+          topic: string
+        }[]
+      }
       claim_signup_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -11358,6 +11452,7 @@ export type Database = {
       dispatch_explanation_rewrite: { Args: never; Returns: number }
       dispatch_notification_push: { Args: never; Returns: number }
       dispatch_question_embedding: { Args: never; Returns: number }
+      dispatch_question_reports: { Args: never; Returns: number }
       dispatch_variant_generation: { Args: never; Returns: number }
       effective_role: {
         Args: { _user_id?: string }
@@ -12428,6 +12523,16 @@ export type Database = {
       }
       rpc_refresh_academic_brain: { Args: never; Returns: Json }
       rpc_refresh_featured_battles: { Args: never; Returns: Json }
+      rpc_report_question: {
+        Args: {
+          _claimed_index?: number
+          _note?: string
+          _question_id: string
+          _reason: string
+          _session_id?: string
+        }
+        Returns: Json
+      }
       rpc_respond_to_invitation: {
         Args: { _accept: boolean; _invitation_id: string }
         Returns: Database["public"]["Enums"]["invitation_status"]
