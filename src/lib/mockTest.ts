@@ -14,13 +14,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { PlanLimitError, planLimitFrom, type PremiumDecision } from "@/lib/premium";
 import { toErrorMessage } from "@/lib/presentation";
+import type { PaperShape } from "@/academic/metrics/examPaper";
 
-/** The ruled shape of a paper, from public._mock_paper(). */
-export type MockPaperShape = {
-  questions: number;
-  minutes: number;
-  marks_correct: number;
-  marks_wrong: number;
+/** The ruled shape of a paper, from public._mock_paper(): the four facts every reader shares, and the spread rule. */
+export type MockPaperShape = PaperShape & {
   min_chapters: number;
   max_per_chapter: number;
   max_score: number;

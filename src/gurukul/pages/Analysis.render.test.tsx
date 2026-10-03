@@ -148,6 +148,10 @@ vi.mock("@/hooks/useStudentPracticeTime", () => ({
   useStudentPracticeTime: () => ({ data: PRACTICE_TIME, loading: false, error: null }),
 }));
 
+// The real paper (rpc_exam_paper): 60 minutes for 50 questions.
+vi.mock("@/hooks/useExamPaper", () => ({
+  useExamPaper: () => ({ data: { questions: 50, minutes: 60, marks_correct: 5, marks_wrong: -1 }, error: null }),
+}));
 vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   useStudentPracticeAnalytics: () => ({
     data: {
@@ -437,5 +441,16 @@ describe("Analysis — rendered", () => {
     openTab("Topics");
     expect(screen.getByText("Word Problems on AP")).toBeInTheDocument();
     expect(document.body.textContent).toContain("Polynomials · Mathematics");
+  });
+});
+
+describe("Analysis — the student against the real paper", () => {
+  it("Activity & Speed says what the paper allows, and that no subject read is slower — Hindi's one 300s answer is not a pace", () => {
+    render(<Analysis />);
+    openTab("Activity & Speed");
+    const card = screen.getByTestId("exam-pace");
+    expect(card).toHaveTextContent("The paper allows 72s a question — 60 minutes for 50.");
+    expect(card).toHaveTextContent("No subject you have practised takes longer than that.");
+    expect(within(card).queryByText("Hindi")).toBeNull();
   });
 });

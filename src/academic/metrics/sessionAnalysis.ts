@@ -19,6 +19,7 @@ import { formOf, type QuestionForm } from "../../../supabase/functions/_shared/q
 import { TREND_DELTA_POINTS } from "../recovery/constants";
 import { CARELESS_SHARE, mayBeJudged, SLOW_SHARE } from "./thresholds";
 import { wasGuess } from "./answerConfidence";
+import { type PaperShape, secondsPerQuestion } from "./examPaper";
 
 export type SessionAttempt = {
   /** Position in the session, from 0. */
@@ -39,7 +40,6 @@ export type SessionAttempt = {
 };
 
 /** The CUET paper, as _mock_paper() states it. */
-export type PaperShape = { questions: number; minutes: number; marks_correct: number; marks_wrong: number };
 
 export const answered = (a: SessionAttempt) => !a.skipped && !a.timedOut && !a.excluded;
 const seconds = (a: SessionAttempt) => (a.timeMs != null && a.timeMs > 0 ? a.timeMs / 1000 : null);
@@ -171,7 +171,7 @@ export function paceReading(attempts: ReadonlyArray<SessionAttempt>, paper: Pape
   const timed = attempts.filter(answered).filter((a) => seconds(a) != null);
   if (!mayBeJudged(timed.length)) return null;
   const med = median(timed.map((a) => seconds(a)!));
-  const budget = (paper.minutes * 60) / paper.questions;
+  const budget = secondsPerQuestion(paper);
   const pick = (test: (a: SessionAttempt, s: number) => boolean) =>
     timed.filter((a) => test(a, seconds(a)!)).map((a) => a.order).sort((x, y) => x - y);
   return {

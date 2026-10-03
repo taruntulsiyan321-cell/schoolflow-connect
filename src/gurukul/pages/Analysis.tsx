@@ -69,6 +69,8 @@ import { notInPlan } from "@/lib/premium";
 import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { accuracyWhenMeaningful, mayBeJudged, MIN_OBSERVATIONS_FOR_VERDICT } from "@/academic/metrics/thresholds";
+import { useExamPaper } from "@/hooks/useExamPaper";
+import { ExamPaceSummary, OverThePaper } from "@/components/student/analysis/ExamPaceSummary";
 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -673,6 +675,10 @@ export default function Analysis() {
   // Both are fixed by reading the same rows the chapter and topic panels
   // read: by_subject carries avg_sec and the count of TIMED attempts behind
   // it, so the floor here is the floor there.
+  // The real paper: what it allows per question is the line every pace on
+  // this page is read against (rpc_exam_paper, 20261144000000).
+  const { data: paper } = useExamPaper(academicReady);
+
   const subjectPace = useMemo(() => {
     return deriveSubjectPace(
       (practiceAnalytics?.by_subject ?? []).map((s) => {
@@ -2091,6 +2097,22 @@ export default function Analysis() {
             )}
           </Card>
 
+          {/* ── Against the real paper ─────────────────────────────
+              The same per-subject pace the speed tiles read, against what
+              the paper allows. Owner-approved analysis, 2026-10-03. */}
+          {paper && (
+            <Card label="Against the real paper">
+              <ExamPaceSummary
+                paper={paper}
+                subjects={(practiceAnalytics?.by_subject ?? []).map((s) => ({
+                  key: displaySubject(s.subject) || s.subject,
+                  timed: s.timed,
+                  avgSec: s.avg_sec,
+                }))}
+              />
+            </Card>
+          )}
+
           {/* ── What takes longest ────────────────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Card label="Topics that take you longest (seconds per answer)">
@@ -2113,6 +2135,7 @@ export default function Analysis() {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-sm font-black tabular-nums text-foreground">{formatSeconds(t.avg_sec ?? 0)}</div>
+                        <OverThePaper avgSec={t.avg_sec} paper={paper} />
                         <div className="text-[10px] text-muted-foreground">
                           {rightRate(t.answered, t.accuracy)}
                         </div>
@@ -2141,6 +2164,7 @@ export default function Analysis() {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-sm font-black tabular-nums text-foreground">{formatSeconds(c.avg_sec ?? 0)}</div>
+                        <OverThePaper avgSec={c.avg_sec} paper={paper} />
                         <div className="text-[10px] text-muted-foreground">
                           {rightRate(c.answered, c.accuracy)}
                         </div>

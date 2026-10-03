@@ -5,7 +5,8 @@
  * arithmetic on them is src/academic/metrics/sessionAnalysis.ts.
  */
 import { supabase } from "@/integrations/supabase/client";
-import type { EarlierAnswer, PaperShape, PreviousSession } from "@/academic/metrics/sessionAnalysis";
+import type { EarlierAnswer, PreviousSession } from "@/academic/metrics/sessionAnalysis";
+import { type PaperShape, readPaperShape } from "@/academic/metrics/examPaper";
 
 export type SessionAnalysisContext = {
   paper: PaperShape;
@@ -14,7 +15,7 @@ export type SessionAnalysisContext = {
 };
 
 type Raw = {
-  paper?: Partial<PaperShape> | null;
+  paper?: unknown;
   previous?: {
     finished_at?: string;
     attempts?: Array<{ topic?: string | null; is_correct?: boolean | null; skipped?: boolean; timed_out?: boolean; time_taken_ms?: number | null; excluded?: boolean }>;
@@ -27,9 +28,8 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : n
 /** Read the server's reply; null when it is not one (no paper, no comparison — the screen shows the session alone). */
 export function readSessionAnalysisContext(raw: unknown): SessionAnalysisContext | null {
   const r = (raw && typeof raw === "object" ? raw : null) as Raw | null;
-  const p = r?.paper;
-  const questions = num(p?.questions), minutes = num(p?.minutes), right = num(p?.marks_correct), wrong = num(p?.marks_wrong);
-  if (!r || questions == null || questions <= 0 || minutes == null || right == null || wrong == null) return null;
+  const paper = readPaperShape(r?.paper);
+  if (!r || !paper) return null;
   const prev = r.previous && r.previous.finished_at && Array.isArray(r.previous.attempts)
     ? {
         finishedAt: r.previous.finished_at,
@@ -46,7 +46,7 @@ export function readSessionAnalysisContext(raw: unknown): SessionAnalysisContext
   const earlier = (Array.isArray(r.earlier) ? r.earlier : [])
     .filter((e) => typeof e.bank_question_id === "string")
     .map((e) => ({ bankQuestionId: e.bank_question_id!, isCorrect: e.is_correct ?? null, skipped: Boolean(e.skipped) }));
-  return { paper: { questions, minutes, marks_correct: right, marks_wrong: wrong }, previous: prev, earlier };
+  return { paper, previous: prev, earlier };
 }
 
 export async function fetchSessionAnalysisContext(sessionId: string): Promise<SessionAnalysisContext | null> {

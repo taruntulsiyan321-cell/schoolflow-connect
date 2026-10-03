@@ -21,12 +21,12 @@ import {
   oneFix,
   type PaceReading,
   paceReading,
-  type PaperShape,
   type SessionAttempt,
   type SideReading,
   topicBreakdown,
   toSessionAttempt,
 } from "@/academic/metrics/sessionAnalysis";
+import type { PaperShape } from "@/academic/metrics/examPaper";
 import type { SessionAnalysisContext } from "@/lib/sessionAnalysisContext";
 import type { AttemptRow } from "./types";
 

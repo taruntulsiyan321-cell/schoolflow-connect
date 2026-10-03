@@ -12134,6 +12134,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      rpc_exam_paper: { Args: never; Returns: Json }
       rpc_fill_paper_section_from_bank: {
         Args: { _bank_ids?: string[]; _section_id: string }
         Returns: Json

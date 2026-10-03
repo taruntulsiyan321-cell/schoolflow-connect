@@ -26,6 +26,7 @@ const HOOKS = [
   "useStudentPracticeAnalytics",
   "useStudentAcademicSnapshot",
   "useStudentPracticeTime",
+  "useExamPaper",
 ] as const;
 
 describe("every Analysis hook reports failure as absence", () => {
@@ -47,7 +48,7 @@ describe("every Analysis hook reports failure as absence", () => {
     });
   }
 
-  it("names all four hooks the page actually uses", () => {
+  it("names every hook the page actually uses", () => {
     // Positive control: if the page grows a fifth source, this list and the
     // rule both need updating, and an out-of-date list must not pass
     // silently.
