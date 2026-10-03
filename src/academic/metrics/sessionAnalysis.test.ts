@@ -4,6 +4,7 @@ import {
   difficultyBreakdown,
   examMarks,
   formBreakdown,
+  guessReading,
   halves,
   metBefore,
   oneFix,
@@ -24,7 +25,7 @@ const PAPER = { questions: 50, minutes: 60, marks_correct: 5, marks_wrong: -1 };
 let n = 0;
 const at = (over: Partial<SessionAttempt>): SessionAttempt => ({
   order: n++, topic: "Goodwill", chapter: "Admission", difficulty: "medium", form: "mcq", timeMs: 40_000,
-  skipped: false, timedOut: false, isCorrect: true, excluded: false, bankQuestionId: null, ...over,
+  skipped: false, timedOut: false, isCorrect: true, excluded: false, bankQuestionId: null, guessed: null, ...over,
 });
 
 // Twelve questions. Goodwill: 6 asked, 4 right, 1 wrong, 1 skipped. Ratio: 6 asked, 3 right, 3 wrong.
@@ -198,5 +199,39 @@ describe("an attempt as the screen holds it", () => {
       options: ["a", "b", "c", "d"], isCorrect: true,
     });
     expect(a).toMatchObject({ form: "assertion_reason", skipped: false, excluded: false, topic: null });
+  });
+});
+
+describe("guesses: the \"I'm guessing\" tap", () => {
+  const tapped = () => {
+    n = 0;
+    return [
+      at({ guessed: true }), // lucky
+      at({ guessed: true, isCorrect: false }), // guessed wrong
+      at({ guessed: true, isCorrect: false }), // guessed wrong
+      at({ guessed: false, isCorrect: false }), // taken for known, and wrong
+      at({ guessed: false }), // known
+      at({ guessed: true, skipped: true, isCorrect: null }), // a skip is not an answer
+    ];
+  };
+
+  it("lucky guesses, missed guesses, and wrong answers taken for known — with what the guesses came to", () => {
+    expect(guessReading(tapped(), PAPER)).toEqual({ marked: 3, lucky: [0], missed: [1, 2], unmarkedWrong: [3], net: 3 }); // 5 − 1 − 1
+    expect(guessReading(tapped(), null)?.net).toBeNull();
+  });
+
+  it("until a guess is marked, not marking one says nothing", () => {
+    n = 0;
+    expect(guessReading([at({ guessed: false, isCorrect: false }), at({ guessed: false })], PAPER))
+      .toEqual({ marked: 0, lucky: [], missed: [], unmarkedWrong: [], net: 0 });
+  });
+
+  it("a session that offered no tap has no reading at all", () => {
+    expect(guessReading(session(), PAPER)).toBeNull();
+  });
+
+  it("the stored value reads back as the tap: 0 a guess, 1 not, anything else unknown", () => {
+    const of = (confidence: unknown) => toSessionAttempt(0, { question: "Q", options: ["a", "b"], isCorrect: true, confidence: confidence as number }).guessed;
+    expect([of(0), of(1), of("0"), of(null), of(undefined), of(0.4)]).toEqual([true, false, true, null, null, null]);
   });
 });

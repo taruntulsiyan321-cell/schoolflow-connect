@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BarChart2, History, Lightbulb, Target } from "lucide-react";
+import { BarChart2, HelpCircle, History, Lightbulb, Target } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScoreRing } from "@/components/student/ScoreRing";
@@ -28,11 +28,12 @@ type Props = {
   onShowQuestions: (filter: NoteKey) => void;
 };
 
-const signed = (n: number, unit: string) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)}${unit}`;
+/** "+4 marks", "−1 mark", "0 points" — signed, and singular for one. */
+const signed = (n: number, one: string, many: string) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)} ${Math.abs(n) === 1 ? one : many}`;
 
 /** The session at a glance, and what to do about it. Numbers and movement only — §10.8, no praise. */
 export function SummaryTab({ analysis, stats, subjectRaw, chapterRaw, recommendations, insights, onShowQuestions }: Props) {
-  const { marks, comparison, metBefore, fix, paper } = analysis;
+  const { marks, comparison, metBefore, fix, paper, guesses } = analysis;
   const practiseHref = fix
     ? `/student/practice?${new URLSearchParams({
         ...(subjectRaw ? { subject: subjectRaw } : {}),
@@ -76,6 +77,32 @@ export function SummaryTab({ analysis, stats, subjectRaw, chapterRaw, recommenda
         </Card>
       )}
 
+      {/* The "I'm guessing" tap's reading — only for a session that offered it. */}
+      {guesses && (
+        <Card className="p-5" data-testid="summary-guesses">
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><HelpCircle className="h-4 w-4" aria-hidden /> Your guesses</h3>
+          {guesses.marked > 0 ? (
+            <>
+              <p className="text-sm">
+                {pluralise(guesses.marked, "answer")} marked as a guess: {guesses.lucky.length} right, {guesses.missed.length} wrong
+                {guesses.net != null ? `, which came to ${signed(guesses.net, "mark", "marks")} on the real paper` : ""}.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(["lucky", "unmarkedWrong", "missed"] as const).filter((k) => guesses[k].length > 0).map((k) => (
+                  <Button key={k} variant="outline" size="sm" onClick={() => onShowQuestions(k)} title={ANSWER_NOTES[k].help}>
+                    {ANSWER_NOTES[k].label}: {guesses[k].length}
+                  </Button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              You marked no answer as a guess. Tap “I'm guessing” before you answer, and this shows which right answers were luck.
+            </p>
+          )}
+        </Card>
+      )}
+
       {/* Only once the server's context is in: without it nothing is known
           about earlier sessions, and "your first session" would be a guess. */}
       {chapterRaw && paper && (
@@ -91,7 +118,7 @@ export function SummaryTab({ analysis, stats, subjectRaw, chapterRaw, recommenda
                   <div className="text-xs text-muted-foreground">Right</div>
                   <div className="font-bold tabular-nums">{sideText(comparison.then)} → {sideText(comparison.now)}</div>
                   {comparison.accuracyChange != null && (
-                    <div className="text-xs text-muted-foreground">{signed(comparison.accuracyChange, " points")}</div>
+                    <div className="text-xs text-muted-foreground">{signed(comparison.accuracyChange, "point", "points")}</div>
                   )}
                 </div>
                 <div className="rounded-lg border border-border p-3">

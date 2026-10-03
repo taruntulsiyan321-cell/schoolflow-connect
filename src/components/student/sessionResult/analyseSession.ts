@@ -11,6 +11,8 @@ import {
   difficultyBreakdown,
   type ExamMarks,
   examMarks,
+  type GuessReading,
+  guessReading,
   formBreakdown,
   type Halves,
   halves,
@@ -36,6 +38,9 @@ export const ANSWER_NOTES = {
   fixed: { label: "Fixed since last time", help: "Wrong or skipped when you last met it — right now" },
   stillWrong: { label: "Wrong again", help: "Wrong when you last met it — and wrong again" },
   slipped: { label: "Slipped", help: "Right when you last met it — wrong now" },
+  lucky: { label: "Lucky guess", help: "Marked as a guess, and right — the mark was luck, not knowing" },
+  missed: { label: "Guessed wrong", help: "Marked as a guess, and wrong" },
+  unmarkedWrong: { label: "Wrong, not a guess", help: "Answered without marking a guess, and wrong — the idea itself needs checking" },
 } as const;
 export type NoteKey = keyof typeof ANSWER_NOTES;
 
@@ -55,6 +60,8 @@ export type SessionAnalysis = {
   marks: ExamMarks | null;
   comparison: Comparison | null;
   metBefore: MetBefore | null;
+  /** The "I'm guessing" tap's reading; null for a session that did not offer it. */
+  guesses: GuessReading | null;
   fix: BreakdownRow | null;
   /** The chips each question carries, by its order in the session. */
   notes: Map<number, string[]>;
@@ -77,15 +84,18 @@ export function analyseSession(rows: ReadonlyArray<AttemptRow>, context: Session
       isCorrect: r.is_correct,
       excluded: r.excluded_from_accuracy ?? false,
       bankQuestionId: r.bank_question_id ?? gq.bank_question_id ?? null,
+      confidence: r.confidence ?? null,
     });
   });
   const paper = context?.paper ?? null;
   const pace = paper ? paceReading(attempts, paper) : null;
   const before = context ? metBefore(attempts, context.earlier) : null;
+  const guesses = guessReading(attempts, paper);
 
   const groups: Partial<Record<NoteKey, number[]>> = {
     careless: pace?.careless, stuck: pace?.stuck, slowRight: pace?.slowRight,
     fixed: before?.fixed, stillWrong: before?.stillWrong, slipped: before?.slipped,
+    lucky: guesses?.lucky, missed: guesses?.missed, unmarkedWrong: guesses?.unmarkedWrong,
   };
   const notes = new Map<number, string[]>();
   for (const [key, orders] of Object.entries(groups) as Array<[NoteKey, number[] | undefined]>) {
@@ -112,6 +122,7 @@ export function analyseSession(rows: ReadonlyArray<AttemptRow>, context: Session
     marks: paper ? examMarks(attempts, paper) : null,
     comparison: compareWithLast(attempts, context?.previous ?? null),
     metBefore: before,
+    guesses,
     fix: oneFix(attempts),
     notes,
     filters,

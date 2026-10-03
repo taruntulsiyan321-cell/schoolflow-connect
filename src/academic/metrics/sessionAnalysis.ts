@@ -18,6 +18,7 @@
 import { formOf, type QuestionForm } from "../../../supabase/functions/_shared/questionForms.ts";
 import { TREND_DELTA_POINTS } from "../recovery/constants";
 import { CARELESS_SHARE, mayBeJudged, SLOW_SHARE } from "./thresholds";
+import { wasGuess } from "./answerConfidence";
 
 export type SessionAttempt = {
   /** Position in the session, from 0. */
@@ -33,6 +34,8 @@ export type SessionAttempt = {
   /** Left out of accuracy: a won dispute, or a question corrected after a report. */
   excluded: boolean;
   bankQuestionId: string | null;
+  /** The "I'm guessing" tap: true marked as a guess, false answered without, null not offered. */
+  guessed: boolean | null;
 };
 
 /** The CUET paper, as _mock_paper() states it. */
@@ -265,7 +268,7 @@ const side = (list: SessionAttempt[]): SideReading => {
 const asAttempts = (prev: PreviousSession): SessionAttempt[] =>
   prev.attempts.map((a, i) => ({
     order: i, topic: a.topic, chapter: null, difficulty: null, form: "mcq", timeMs: a.timeMs,
-    skipped: a.skipped, timedOut: a.timedOut, isCorrect: a.isCorrect, excluded: a.excluded, bankQuestionId: null,
+    skipped: a.skipped, timedOut: a.timedOut, isCorrect: a.isCorrect, excluded: a.excluded, bankQuestionId: null, guessed: null,
   }));
 
 export function compareWithLast(attempts: ReadonlyArray<SessionAttempt>, previous: PreviousSession | null): Comparison | null {
@@ -332,6 +335,42 @@ export function oneFix(attempts: ReadonlyArray<SessionAttempt>): BreakdownRow | 
   return worst && worst.wrong > 0 ? worst : null;
 }
 
+// ── 8. Guesses ──────────────────────────────────────────────────────────────
+
+export type GuessReading = {
+  /** How many answers were marked as guesses. */
+  marked: number;
+  /** Marked as a guess, and right: the mark came from luck, not from knowing. */
+  lucky: number[];
+  /** Marked as a guess, and wrong. */
+  missed: number[];
+  /**
+   * Answered WITHOUT marking a guess, and wrong: the student took it for known.
+   * Said only when they marked at least one guess in the session — until they
+   * use the tap, not marking one says nothing.
+   */
+  unmarkedWrong: number[];
+  /** What the guesses came to on the real paper: right × its +marks, wrong × its −marks. Null without the paper. */
+  net: number | null;
+};
+
+/** Null when the session offered no tap (every answer's confidence is unknown). */
+export function guessReading(attempts: ReadonlyArray<SessionAttempt>, paper: PaperShape | null): GuessReading | null {
+  const ans = attempts.filter(answered).sort((x, y) => x.order - y.order);
+  if (!ans.some((a) => a.guessed !== null)) return null;
+  const lucky = ans.filter((a) => a.guessed === true && a.isCorrect === true).map((a) => a.order);
+  const missed = ans.filter((a) => a.guessed === true && a.isCorrect === false).map((a) => a.order);
+  const marked = lucky.length + missed.length;
+  const unmarkedWrong = marked > 0 ? ans.filter((a) => a.guessed === false && a.isCorrect === false).map((a) => a.order) : [];
+  return {
+    marked,
+    lucky,
+    missed,
+    unmarkedWrong,
+    net: paper ? lucky.length * paper.marks_correct + missed.length * paper.marks_wrong : null,
+  };
+}
+
 /** An attempt as the result screen holds it, read into the shape above. */
 export function toSessionAttempt(
   order: number,
@@ -347,6 +386,8 @@ export function toSessionAttempt(
     isCorrect: boolean | null;
     excluded?: boolean | null;
     bankQuestionId?: string | null;
+    /** question_attempts.confidence — see ./answerConfidence.ts. */
+    confidence?: number | string | null;
   },
 ): SessionAttempt {
   return {
@@ -361,5 +402,6 @@ export function toSessionAttempt(
     isCorrect: a.isCorrect,
     excluded: Boolean(a.excluded),
     bankQuestionId: a.bankQuestionId ?? null,
+    guessed: wasGuess(a.confidence),
   };
 }

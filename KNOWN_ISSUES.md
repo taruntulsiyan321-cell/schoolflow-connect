@@ -5116,8 +5116,14 @@ as the database reads it — one per chapter whatever its case — so 106's olde
    no halves card. That is `MIN_OBSERVATIONS_FOR_VERDICT`, not a fault.
 3. **A session with no single chapter is compared with nothing** — the targeted modes (wrong answers, a whole
    subject). It still gets the paper's marks, the questions met before and the time reading.
-4. **Not yet built** (approved, next): the "Guessing?" tap during a session (lucky guesses, sure-but-wrong, and
-   marks that allow for them), then the Analysis tab — topic map, slipping topics, mistake trends, pace against
+4. **The "I'm guessing" tap — BUILT 2026-10-03.** Set before the answer on every practice question (tapping an
+   option answers); stored as `question_attempts.confidence` — 0 a guess, 1 answered without one, null not
+   offered (`src/academic/metrics/answerConfidence.ts`; the RPC already read it from `_meta`, nothing sent it, and
+   nothing else reads the column). The result's Summary says what the guesses came to on the real paper and the
+   Questions tab files lucky guesses, guessed-wrong and wrong-without-a-guess; the last is said only once the
+   student has marked a guess in that session. Proved live as the seed demo account (0 and 1 stored, read back
+   from the database). Every session the practice screen runs offers it — practice, recovery and revision; a mock paper does not.
+5. **Not yet built** (approved, next): the Analysis tab — topic map, slipping topics, mistake trends, pace against
    the exam, readiness and peer comparison.
 
 ## 116. The menu under five heads, and every screen measured on phones, tablets and laptops — BUILT 2026-10-03; what is open

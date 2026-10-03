@@ -206,6 +206,7 @@ export function snapshotsToAttemptRows(attempts: PracticeAttemptSnapshot[]) {
       // The same clock the finish sums into total_time_ms, so the questions
       // add up to the session's length.
       time_taken_ms: a.timeTakenMs ?? null,
+      confidence: a.confidence ?? null,
       created_at: new Date().toISOString(),
     };
   });

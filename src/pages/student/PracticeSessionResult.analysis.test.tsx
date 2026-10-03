@@ -209,3 +209,57 @@ describe("Questions: filtered to what the analysis found", () => {
     expect(within(card).getByTestId("option-chosen-wrong").className).toContain("bg-destructive/10");
   });
 });
+
+describe("Guesses: the \"I'm guessing\" tap", () => {
+  // Q1 marked as a guess and right (lucky); Q8 marked and wrong; Q9 and Q10
+  // wrong without a guess; every other answer given without one.
+  const tapped = (guessAt: number[] = [1, 8]) => ({
+    ...STATE,
+    attempts: STATE.attempts.map((a, i) => ({ ...a, confidence: guessAt.includes(i + 1) ? 0 : 1 })),
+  }) as PracticeSessionResultState;
+
+  it("says what the guesses came to, and opens each kind", async () => {
+    show(tapped());
+    const card = await screen.findByTestId("summary-guesses");
+    // 1 right × +5, 1 wrong × −1.
+    expect(card).toHaveTextContent("2 answers marked as a guess: 1 right, 1 wrong, which came to +4 marks on the real paper.");
+    expect(within(card).getAllByRole("button").map((b) => b.textContent)).toEqual([
+      "Lucky guess: 1", "Wrong, not a guess: 2", "Guessed wrong: 1",
+    ]);
+    fireEvent.click(within(card).getByRole("button", { name: "Lucky guess: 1" }));
+    const cards = screen.getAllByTestId("session-question");
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveTextContent("Question 1");
+    expect(cards[0]).toHaveTextContent("Lucky guess");
+  });
+
+  it("files the guesses among the Questions tab's filters", async () => {
+    show(tapped());
+    tab("Questions");
+    const group = await screen.findByRole("group", { name: "Show questions" });
+    const labels = within(group).getAllByRole("button").map((b) => b.textContent);
+    expect(labels.slice(-3)).toEqual(["Lucky guess (1)", "Guessed wrong (1)", "Wrong, not a guess (2)"]);
+  });
+
+  it("one mark is a mark: a single wrong guess came to −1 mark", async () => {
+    show(tapped([8]));
+    expect(await screen.findByTestId("summary-guesses"))
+      .toHaveTextContent("1 answer marked as a guess: 0 right, 1 wrong, which came to −1 mark on the real paper.");
+  });
+
+  it("offered and never used: a word on what the tap is for, and no verdict on the wrong answers", async () => {
+    show(tapped([]));
+    const card = await screen.findByTestId("summary-guesses");
+    expect(card).toHaveTextContent("You marked no answer as a guess.");
+    expect(within(card).queryByRole("button")).toBeNull();
+    tab("Questions");
+    expect(screen.queryByRole("button", { name: /Wrong, not a guess/ })).toBeNull();
+  });
+
+  it("a session from before the tap says nothing about guesses", async () => {
+    show(STATE);
+    await screen.findByTestId("summary-score");
+    await waitFor(() => expect(screen.queryByTestId("summary-marks")).not.toBeNull());
+    expect(screen.queryByTestId("summary-guesses")).toBeNull();
+  });
+});

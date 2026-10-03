@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { isUuid, toErrorMessage } from "@/lib/presentation";
 import { ACCURACY_CONCEPTUAL, ACCURACY_BUILDING } from "@/academic/metrics/bands";
+import { confidenceOf } from "@/academic/metrics/answerConfidence";
 import { pluralise } from "@/lib/plural";
 import { PRACTICE_MODE_LABELS, practiceModeLabel } from "@/lib/practiceModeLabel";
 import {
@@ -1473,6 +1474,8 @@ export function Session({
   const [allowanceNote, setAllowanceNote] = useState<string | null>(null);
   const [idx,       setIdx]       = useState(0);
   const [chosen,    setChosen]    = useState<number | null>(null);
+  /** The "I'm guessing" tap, for the question on screen. */
+  const [guessing,  setGuessing]  = useState(false);
   const [phase,     setPhase]     = useState<"q" | "fb">("q");
   // WHAT THE SERVER SAID. Null until the attempt has been recorded, which is
   // also the first moment this browser is allowed to know the answer.
@@ -1856,6 +1859,7 @@ export function Session({
         : null;
     const isCorrect = knownCorrect != null ? i === knownCorrect : false;
     const snap = snapshotOf(q, { selectedIndex: i, isCorrect, skipped: false });
+    snap.confidence = confidenceOf(guessing);
     if (knownCorrect != null) {
       snap.correctIndex = knownCorrect;
       if (q.explanation) snap.explanation = q.explanation;
@@ -1887,7 +1891,7 @@ export function Session({
 
   function next() {
     if (idx + 1 >= qs.length) { void finish("completed"); return; }
-    setIdx(i => i + 1); setChosen(null); setPhase("q");
+    setIdx(i => i + 1); setChosen(null); setGuessing(false); setPhase("q");
     // The last verdict belongs to the last question.
     onScreenRef.current = null;
     setVerdict(null);
@@ -1937,6 +1941,7 @@ export function Session({
         skipped: snap.skipped ?? false,
         timedOut: snap.timedOut ?? false,
         timeTakenMs: snap.timeTakenMs ?? null,
+        confidence: snap.confidence ?? null,
         subject: snap.subject,
         chapter: snap.chapter,
         difficulty: snap.difficulty,
@@ -2201,6 +2206,31 @@ export function Session({
           <QuestionText text={q.question} options={q.options} />
         </div>
       </GlassCard>
+
+      {/* The "I'm guessing" tap (owner, 2026-10-03). Before the answer, because
+          tapping an option answers. The session's analysis then tells a lucky
+          guess from knowing, and a wrong answer taken for known from a guess
+          (metrics/answerConfidence.ts). After answering it stays only if used. */}
+      {(phase === "q" || guessing) && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setGuessing((g) => !g)}
+            disabled={phase !== "q" || finishing}
+            aria-pressed={guessing}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all disabled:cursor-default",
+              guessing
+                ? "border-warning/50 bg-warning/15 text-foreground"
+                : "border-border/70 text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            {/* One name for the toggle; aria-pressed and the tint say whether it is on. */}
+            {guessing ? <CheckCircle2 className="w-3.5 h-3.5" aria-hidden /> : <HelpCircle className="w-3.5 h-3.5" aria-hidden />}
+            I'm guessing
+          </button>
+        </div>
+      )}
 
       {/* Options */}
       <div className="space-y-2.5">

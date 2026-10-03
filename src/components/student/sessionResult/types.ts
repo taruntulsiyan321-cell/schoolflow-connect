@@ -31,4 +31,6 @@ export type AttemptRow = {
   excluded_from_accuracy?: boolean | null;
   /** Time on this question alone — question_attempts.time_taken_ms. */
   time_taken_ms?: number | null;
+  /** The "I'm guessing" tap — question_attempts.confidence (metrics/answerConfidence.ts). */
+  confidence?: number | string | null;
 };
