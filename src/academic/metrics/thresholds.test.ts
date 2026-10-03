@@ -22,6 +22,9 @@ import {
   MARKS_OVERDUE,
   CLASS_FLAGGED_ON_MARKS,
   MISTAKE_RETRY_GOOD,
+  CARELESS_SHARE,
+  SLOW_SHARE,
+  SLIPPING_WINDOW_DAYS,
   THRESHOLDS as SOURCE,
 } from "./thresholds";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -49,6 +52,9 @@ const THRESHOLD_NAMES = [
   "CLASS_FLAGGED_ON_MARKS",
   "SUBJECT_AVERAGE_LOW",
   "MISTAKE_RETRY_GOOD",
+  "CARELESS_SHARE",
+  "SLOW_SHARE",
+  "SLIPPING_WINDOW_DAYS",
 ];
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -106,6 +112,11 @@ describe("one threshold module, and the value reaches the screens", () => {
     expect(SOURCE.CLASS_FLAGGED_ON_MARKS).toBe(CLASS_FLAGGED_ON_MARKS);
     expect(SOURCE.MARKS_OVERDUE).toBe(MARKS_OVERDUE);
     expect(SOURCE.MISTAKE_RETRY_GOOD).toBe(MISTAKE_RETRY_GOOD);
+    expect(SOURCE.SLIPPING_WINDOW_DAYS).toBe(SLIPPING_WINDOW_DAYS);
+    // Ratios, not counts: the literal lint cannot see a number under 1, so
+    // they are not in the bag — but they are declared once, as the scan above
+    // holds for every name in THRESHOLD_NAMES.
+    expect([CARELESS_SHARE, SLOW_SHARE]).toEqual([0.5, 1.5]);
   });
 
   it("the source module does not export a chronic threshold at all", async () => {

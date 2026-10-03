@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+// The page links into Practice, as the app renders it: inside the router.
+import { MemoryRouter } from "react-router-dom";
 
 // recharts' ResponsiveContainer observes its box on mount and jsdom has no
 // ResizeObserver, so without this every chart on the page throws during the
@@ -148,6 +150,25 @@ vi.mock("@/hooks/useStudentPracticeTime", () => ({
   useStudentPracticeTime: () => ({ data: PRACTICE_TIME, loading: false, error: null }),
 }));
 
+// The whole syllabus (rpc_student_syllabus_map): one chapter practised, one not;
+// one topic down from 8 of 10 before to 2 of 5 in the last 14 days.
+vi.mock("@/hooks/useSyllabusMap", () => ({
+  useSyllabusMap: () => ({
+    data: {
+      examFound: true,
+      recentDays: 14,
+      chapters: [
+        { chapterId: "c1", chapter: "Polynomials", subject: "Mathematics", sequence: 1, answered: 15, correct: 10, recentAnswered: 5, recentCorrect: 2, lastAt: null },
+        { chapterId: "c2", chapter: "Probability", subject: "Mathematics", sequence: 2, answered: 0, correct: 0, recentAnswered: 0, recentCorrect: 0, lastAt: null },
+      ],
+      topics: [
+        { topicId: "t1", topic: "Zeroes of a Polynomial", chapterId: "c1", answered: 15, correct: 10, recentAnswered: 5, recentCorrect: 2, lastAt: null },
+      ],
+      topicsLocked: false,
+    },
+    error: null,
+  }),
+}));
 // The real paper (rpc_exam_paper): 60 minutes for 50 questions.
 vi.mock("@/hooks/useExamPaper", () => ({
   useExamPaper: () => ({ data: { questions: 50, minutes: 60, marks_correct: 5, marks_wrong: -1 }, error: null }),
@@ -176,14 +197,14 @@ const openTab = (label: string) => fireEvent.click(screen.getByRole("tab", { nam
 
 describe("Analysis — rendered", () => {
   it("agrees the verb with the count it just pluralised", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     // One weak topic survives the filter, and the sentence read
     // "1 topic need attention" — noun pluralised, verb left plural.
     expect(screen.getByText("1 topic needs attention")).toBeInTheDocument();
   });
 
   it("mounts and shows the page's one accuracy in the header", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     // Not from exam_readiness — the fixture has no exam_readiness at all, so
     // if this renders a percentage it came from analysis.totals.
     // The summary row renders "<label>: <value>" as one node. The fixture has
@@ -206,7 +227,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("refuses a verdict on a chapter whose attempts were mostly skips", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Subjects & Chapters");
     const circles = screen.getByText("Circles").closest("div.p-4") as HTMLElement;
     expect(circles).toBeTruthy();
@@ -219,7 +240,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("keeps the verdict on a chapter that earned one", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Subjects & Chapters");
     const real = screen.getByText("Real Numbers").closest("div.p-4") as HTMLElement;
     // 44 attempts, 25 answered, a genuine 8%. The fix must not silence this.
@@ -228,7 +249,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("says nothing about a subject where every attempt was skipped", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Subjects & Chapters");
     const ss = screen.getByText("Social Science").closest("div.p-3, div.p-4") as HTMLElement;
     expect(ss).toBeTruthy();
@@ -237,7 +258,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("does not name a one-question subject as the one that takes longest", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Practice");
     const slowest = screen.getByText("Takes most time").closest("div") as HTMLElement;
     // Hindi has the largest avg_sec (300s) and ONE timed question.
@@ -245,7 +266,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("will not call a subject fast when nothing in it was answered", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Practice");
     // Social Science: 79 attempts, ALL skipped, 0.3s each. It was named the
     // "fastest subject" at "0s avg" — a subject with no answers in it, on a
@@ -260,7 +281,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("counts practice over the same days it calls consistent", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Practice");
     // The heat-map fixture has 9 practice sessions on 3 days inside the window.
     // The tile used to sum a DIFFERENT table (and all activity kinds) and
@@ -271,7 +292,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("counts only the topics the tab is willing to list", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Topics");
     // weak_topics has TWO rows and one of them has a single attempt behind
     // it, so the list drops it. The tile must say 1, not 2.
@@ -281,7 +302,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("does not sum activity from outside the four-week window", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Activity & Speed");
     // 40 + 35 + 32 = 107 minutes inside the window -> "1h 47m".
     // The 600-minute day 40 days back would make it "11h 47m".
@@ -291,7 +312,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("reports how the student works per question, and not what it cannot measure", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Practice");
     expect(screen.getByText("How you work")).toBeInTheDocument();
     const seen = screen.getByText("Seen again").parentElement as HTMLElement;
@@ -304,7 +325,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("counts the days practised in the last fourteen of the student's own", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     // Sessions on days 1, 3 and 10 back; day 40 is outside the window.
     const p = Array.from(document.querySelectorAll("p")).find((el) =>
       (el.textContent ?? "").startsWith("Study consistency:"),
@@ -313,14 +334,14 @@ describe("Analysis — rendered", () => {
   });
 
   it("names the busiest hour from the student's own clock", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Activity & Speed");
     const tile = screen.getByText("Most active hour").parentElement as HTMLElement;
     expect(within(tile).getByText("5 PM")).toBeInTheDocument();
   });
 
   it("does not list a chapter by pace on two timed answers", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Activity & Speed");
     // Triangles: two answers, 300s each — a tab left open, twice. The
     // floor keeps it off "Chapters that take you longest".
@@ -328,7 +349,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("does not rank a topic the student never answered anything in", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Activity & Speed");
     // "Reporting Imperative Sentences" is five straight SKIPS through an
     // English topic at 0.9s each. It headed "topics that take you longest"
@@ -338,7 +359,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("counts a month's practice from the same rows as its study time", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Activity & Speed");
     // Practice count and minutes both come from the heat-map (rule 11:
     // self_practice only). Pick the month-comparison label, not the tab.
@@ -351,13 +372,13 @@ describe("Analysis — rendered", () => {
   });
 
   it("writes one spelling of practised", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Topics");
     expect(document.body.textContent).not.toContain("practiced");
   });
 
   it("does not report a capped list length as a session count", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     // The fixture supplies no self_practice.sessions_completed, and the page
     // used to fall back to recent_sessions.length — an array fetched with
     // .limit(40). A student with 72 sessions would have been shown 40.
@@ -368,7 +389,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("does not draw a radar out of one point", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Subjects & Chapters");
     // The fixture has four subjects and only Mathematics is measured — the
     // other three are 100% skipped, so they have no accuracy and are
@@ -381,7 +402,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("calls one quantity by one name across the tab", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Subjects & Chapters");
     // Subject cards said "408 questions" while the chapter cards below said
     // "44 Attempts" — the same count, two nouns, one screen.
@@ -395,7 +416,7 @@ describe("Analysis — rendered", () => {
     // accepts it silently. Introduced and caught here while moving an
     // explanation out of a conditional: the whole paragraph would have
     // shipped onto the screen above the error banner.
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     for (const t of ["Overview", "Subjects & Chapters", "Topics", "Practice", "Activity & Speed", "Milestones & Reports"]) {
       openTab(t);
       const text = document.body.textContent ?? "";
@@ -406,7 +427,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("renders every tab without throwing", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     for (const t of ["Overview", "Subjects & Chapters", "Topics", "Practice", "Activity & Speed", "Milestones & Reports"]) {
       openTab(t);
       expect(screen.getByText("Analysis")).toBeInTheDocument();
@@ -414,7 +435,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("puts a chapter with a real figure on the grid before one-answer chapters", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Subjects & Chapters");
     const text = document.body.textContent ?? "";
     const grid = text.slice(text.indexOf("Chapter by chapter"));
@@ -425,7 +446,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("draws no bar for a subject with nothing measured", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Subjects & Chapters");
     const card = (name: string) => screen.getAllByText(name)
       .map((el) => el.closest("div.p-3") as HTMLElement | null)
@@ -437,7 +458,7 @@ describe("Analysis — rendered", () => {
   });
 
   it("names a weak topic with its chapter, so two of one name can be told apart", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Topics");
     expect(screen.getByText("Word Problems on AP")).toBeInTheDocument();
     expect(document.body.textContent).toContain("Polynomials · Mathematics");
@@ -446,11 +467,27 @@ describe("Analysis — rendered", () => {
 
 describe("Analysis — the student against the real paper", () => {
   it("Activity & Speed says what the paper allows, and that no subject read is slower — Hindi's one 300s answer is not a pace", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Activity & Speed");
     const card = screen.getByTestId("exam-pace");
     expect(card).toHaveTextContent("The paper allows 72s a question — 60 minutes for 50.");
     expect(card).toHaveTextContent("No subject you have practised takes longer than that.");
     expect(within(card).queryByText("Hindi")).toBeNull();
+  });
+});
+
+describe("Analysis — the whole syllabus, and what is slipping", () => {
+  it("Subjects & Chapters maps every syllabus chapter, practised or not", () => {
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
+    openTab("Subjects & Chapters");
+    const map = screen.getByTestId("syllabus-coverage");
+    expect(map).toHaveTextContent("You have practised 1 of 2 chapters in your syllabus.");
+    expect(map).toHaveTextContent("ProbabilityNot practised");
+  });
+
+  it("Topics names the topic slipping lately", () => {
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
+    openTab("Topics");
+    expect(screen.getByTestId("slipping-topic")).toHaveTextContent("80% → 40%");
   });
 });

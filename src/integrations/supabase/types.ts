@@ -12787,6 +12787,10 @@ export type Database = {
       rpc_student_practice_time: { Args: { _tz: string }; Returns: Json }
       rpc_student_recovery_queue: { Args: never; Returns: Json }
       rpc_student_revision_queue: { Args: never; Returns: Json }
+      rpc_student_syllabus_map: {
+        Args: { _recent_days: number }
+        Returns: Json
+      }
       rpc_submit_battle_answer: {
         Args: {
           _participant_id: string

@@ -78,6 +78,14 @@ export const HOMEWORK_ITEM_NEEDS_ACTION = 70;
 /** Rolling days of due dates that "current homework" covers. */
 export const HOMEWORK_WINDOW = 7;
 
+/**
+ * Days that count as "lately" when a topic's accuracy is read against its own
+ * earlier accuracy — slipping topics, on the Analysis tab. Sent to
+ * rpc_student_syllabus_map as its window (20261145000000), which refuses one
+ * outside 1–90 days.
+ */
+export const SLIPPING_WINDOW_DAYS = 14;
+
 /** Days after an exam before unentered marks are overdue. */
 export const MARKS_OVERDUE = 7;
 
@@ -130,6 +138,7 @@ export const THRESHOLDS = {
   CLASS_FLAGGED_ON_MARKS,
   SUBJECT_AVERAGE_LOW,
   MISTAKE_RETRY_GOOD,
+  SLIPPING_WINDOW_DAYS,
 } as const;
 
 

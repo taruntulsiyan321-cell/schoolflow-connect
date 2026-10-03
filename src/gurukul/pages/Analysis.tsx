@@ -71,6 +71,9 @@ import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listS
 import { accuracyWhenMeaningful, mayBeJudged, MIN_OBSERVATIONS_FOR_VERDICT } from "@/academic/metrics/thresholds";
 import { useExamPaper } from "@/hooks/useExamPaper";
 import { ExamPaceSummary, OverThePaper } from "@/components/student/analysis/ExamPaceSummary";
+import { useSyllabusMap } from "@/hooks/useSyllabusMap";
+import { SyllabusCoverage } from "@/components/student/analysis/SyllabusCoverage";
+import { SlippingTopics } from "@/components/student/analysis/SlippingTopics";
 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -678,6 +681,9 @@ export default function Analysis() {
   // The real paper: what it allows per question is the line every pace on
   // this page is read against (rpc_exam_paper, 20261144000000).
   const { data: paper } = useExamPaper(academicReady);
+  // The whole syllabus with the student's counts (rpc_student_syllabus_map):
+  // the coverage map, and the topics slipping lately.
+  const { data: syllabus } = useSyllabusMap(academicReady);
 
   const subjectPace = useMemo(() => {
     return deriveSubjectPace(
@@ -1649,6 +1655,15 @@ export default function Analysis() {
             </div>
             )}
           </div>
+
+          {/* ── The whole syllabus ─────────────────────────────────
+              Every chapter and topic of the exam, practised or not —
+              coverage only; accuracy is "Chapter by chapter"'s, above. */}
+          {syllabus?.examFound && syllabus.chapters.length > 0 && (
+            <Card label="Your whole syllabus">
+              <SyllabusCoverage map={syllabus} topicLock={topicLock ? <PlanLimitNotice limit={topicLock} /> : null} />
+            </Card>
+          )}
         </div>
       )}
 
@@ -1669,6 +1684,15 @@ export default function Analysis() {
               </div>
             ))}
           </div>
+
+          {/* ── Slipping lately ────────────────────────────────────
+              Right less often in the last two weeks than before. */}
+          {syllabus?.examFound && (
+            <div>
+              <SLabel>Slipping lately</SLabel>
+              <SlippingTopics map={syllabus} topicLock={topicLock ? <PlanLimitNotice limit={topicLock} /> : null} />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-6">
             {/* Doing well removed — §10.8 */}
