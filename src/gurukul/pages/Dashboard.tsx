@@ -250,7 +250,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             <Skeleton className="h-3 w-64" />
           </div>
         </SkeletonCard>
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <SkeletonCard key={i} className="p-4 space-y-2">
               <Skeleton className="w-8 h-8 rounded-lg" />
@@ -260,7 +260,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
           ))}
         </div>
         <SkeletonStats count={4} />
-        <div className="grid lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <SkeletonCard className="h-56" />
           <SkeletonCard className="h-56" />
         </div>
@@ -365,7 +365,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
       {/* Today's Mission - premium stagger */}
       <div className="animate-premium-enter" style={{animationDelay: "0.08s"}}>
         <SectionLabel>{"Today's Mission"}</SectionLabel>
-        <div className="grid sm:grid-cols-3 gap-4 animate-premium-stagger">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-premium-stagger">
           {/* Practice is a count of sessions done today against a target.
               Recovery and Revision are what is WAITING: nothing here records
               a recovery or a revision done today, so they show how many
@@ -401,7 +401,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
       {/* Quick Actions - premium stagger */}
       <div className="animate-premium-enter" style={{animationDelay: "0.16s"}}>
         <SectionLabel>Quick Actions</SectionLabel>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-premium-stagger">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-premium-stagger">
           {quickActions.map((a) => (
             <GlassCard key={a.label} className="p-4 cursor-pointer hover:border-border group" onClick={() => setPage(a.page)}>
               <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{ background: withAlpha(a.color, 0.1), color: a.color }}>

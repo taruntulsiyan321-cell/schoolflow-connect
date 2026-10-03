@@ -5119,3 +5119,56 @@ as the database reads it — one per chapter whatever its case — so 106's olde
 4. **Not yet built** (approved, next): the "Guessing?" tap during a session (lucky guesses, sure-but-wrong, and
    marks that allow for them), then the Analysis tab — topic map, slipping topics, mistake trends, pace against
    the exam, readiness and peer comparison.
+
+## 116. The menu under five heads, and every screen measured on phones, tablets and laptops — BUILT 2026-10-03; what is open
+
+**Built (owner, 2026-10-03: "all these tabs will not fit on a phone — classify them under one head").** Every page
+is filed under one of five heads in `NAV_GROUPS` (`src/gurukul/nav.ts`), the whole menu in one list: Home; Study
+(Practice, Mock Tests, AI Coach); Improve (Recovery, Revision, Mistake Book); Progress (Analysis, Achievements);
+Account (Profile, Plans, Notifications). The sidebar shows the heads as sections; a phone has one tab per head
+(each opens its first page — the same pages the bottom bar opened before) and the open head's pages along the top.
+The hamburger drawer, a second copy of the menu, is gone; Notifications is a page of the menu with its unread
+count, and the account menu is who is signed in and Sign out. The bottom bar is the column's last row, not laid
+over the page, and a page that fills the screen (`FILLS_SCREEN`: AI Coach) gets a full-height frame instead of
+working its height out from the chrome's.
+
+**Measured** with a browser at 320, 360, 390, 430, 768, 1024, 1280, 1366 and 1920 px and phone landscape (667×375,
+844×390), signed in as the seed demo account, every student and public route plus a practice session in progress,
+the Mark and Report dialogs, the account menu, the collapsed sidebar and a full mock paper and its result; each check
+with a control that fails (a floated bar must be seen). Fixed on the way, each at its source:
+
+* 34 grids left a phone's column undefined (30 named columns only from a breakpoint up, four named none, the
+  dialog among them), so on a phone one unwrappable line set the page's width —
+  Recovery's cards ran 432px on a 320px screen, Practice's history 358px. Each has its phone column now, and
+  `src/test/everyGridNamesItsColumns.test.ts` fails on a new one.
+* The shared page header held its action at full width: the Mistake Book's three buttons ran 406px wide and
+  crushed the title to one word a line on a tablet. The action now wraps under the title when both do not fit.
+* `theme.css` gave every input a card background and a 1.5px border with `!important`, boxing the AI Coach
+  composer and Nova's answer field and leaving a slider that had asked for no track with only that border to see.
+  Those rules are deleted; the slider is native again.
+* 2026-08-21's design rollout had cut the from-/to- parts out of the dialog, toast and tooltip animation classes,
+  leaving glued tokens — no dialog had rounded corners. Restored from the commit before.
+* Dialogs (one definition now, not `max-h-[90vh]` in each) stay inside the screen, inset on a phone, and keep
+  their actions pinned: the Mark dialog's Save began below a 320px screen, the Report dialog's Send in landscape.
+* An account that could not be READ (a slow or dropped connection) was shown as "Profile unavailable — sign in
+  again", or, failing fast, "Account not set up — pick your exam". It is its own status, `unreachable`, with a
+  retry in place.
+* The top bar wore the initials "ST" until the profile loaded; it shows a plain figure now.
+* The Plans comparison keeps its feature names pinned while the plans scroll, and says so on a phone; tap
+  targets under 24px were enlarged (Save latest result, Your mistake types, the legal and landing links); the
+  keyboard hint in AI Coach shows from tablet width up; the mock paper's header wraps; a topic named as its
+  chapter is said once.
+
+**Open:**
+
+1. **`theme.css` still carries about a hundred `!important` element rules** — every `button` at weight 700 with
+   `overflow: hidden`, every `th` at 800, every `td` coloured, the sidebar and header restyled by attribute
+   selectors. Only the input rules caused a measured defect and only they were removed; the `th` rule is why the
+   Plans feature names are `td`. A rewrite of the file is its own piece of work.
+2. **Server errors under concurrent load.** With three to nine browsers loading the same student at once, some
+   requests on Analysis and Recovery returned 500 and one auth-context load timed out; in every pass run one
+   browser at a time since, none did. The failing endpoint was not caught by name; the passes now record it if it recurs.
+3. **The Android app carries the web build it was built with.** It needs `npm run build:app` and a new APK to show
+   the new menu.
+4. Labels at 10px (the uppercase eyebrows, the bottom bar's names) are a design choice, not a defect; they are
+   the only text under 11px the passes found.

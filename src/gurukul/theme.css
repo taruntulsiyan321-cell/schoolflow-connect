@@ -268,19 +268,14 @@
   border-color: hsl(var(--primary) / 0.3) !important;
 }
 
-/* Input fields */
-.gurukul-student input,
-.gurukul-student textarea,
-.gurukul-student select {
-  background-color: hsl(var(--card)) !important;
-  border-color: hsl(var(--border)) !important;
-  color: hsl(var(--foreground)) !important;
-}
-
-.gurukul-student input::placeholder,
-.gurukul-student textarea::placeholder {
-  color: hsl(var(--muted-foreground)) !important;
-}
+/* Input fields: each input draws its own box. Two rules here gave EVERY
+   input, textarea and select a card background and a 1.5px border with
+   !important — painting a box onto the ones designed without one (AI Coach's
+   composer, Nova's answer field, the conversation rename's underline), the
+   card colour over the muted search fields, and the only visible track to a
+   slider that had asked for none — and two more re-coloured each on focus,
+   one of them to white. Removed 2026-10-03, with a placeholder rule that a
+   later one always overrode. Focus shows through *:focus-visible below. */
 
 /* Fix inline style backgrounds using rgba with white */
 .gurukul-student [style*="rgba(255,255,255,0.0"],
@@ -417,13 +412,6 @@
   box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
 }
 
-.gurukul-student input:focus,
-.gurukul-student textarea:focus,
-.gurukul-student select:focus {
-  border-color: hsl(var(--primary) / 0.5) !important;
-  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08);
-  outline: none;
-}
 
 /* Refined typography with enhanced readability */
 .gurukul-student h1 {
@@ -914,24 +902,6 @@
   filter: saturate(1.15) brightness(0.98);
 }
 
-/* Enhanced input fields with better focus */
-.gurukul-student input,
-.gurukul-student textarea,
-.gurukul-student select {
-  background: hsl(var(--card)) !important;
-  border: 1.5px solid hsl(var(--border)) !important;
-  font-weight: 500;
-}
-
-.gurukul-student input:focus,
-.gurukul-student textarea:focus,
-.gurukul-student select:focus {
-  background: white !important;
-  border-color: hsl(var(--primary)) !important;
-  box-shadow: 
-    0 0 0 3px hsl(var(--primary) / 0.1),
-    0 2px 8px rgba(0, 0, 0, 0.05);
-}
 
 /* Subtle glow on hover for interactive elements */
 .gurukul-student button:hover,

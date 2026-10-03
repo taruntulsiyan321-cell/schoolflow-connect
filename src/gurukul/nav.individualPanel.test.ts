@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BOTTOM_PAGES, PAGE_PATH, SIDEBAR_PAGES, pathToPage } from "./nav";
+import { NAV_GROUPS, PAGE_PATH, PAGE_TITLE, groupOf, pathToPage, type PageKey } from "./nav";
 import { stripComments } from "@/test/stripComments";
 
 const NAV_SOURCE = stripComments(readFileSync(join(__dirname, "nav.ts"), "utf8"));
@@ -26,17 +26,34 @@ const SCHOOL_PATHS = [
 ];
 
 describe("the individual student panel", () => {
-  it("has the individual pages and no school page", () => {
-    expect([...SIDEBAR_PAGES]).toEqual([
-      "dashboard", "practice", "mocktests", "aicoach", "analysis", "recovery", "revision",
-      "mistakebook", "achievements", "premium",
+  it("has the individual pages, under five heads, and no school page", () => {
+    expect(NAV_GROUPS.map((g) => [g.label, [...g.pages]])).toEqual([
+      ["Home", ["dashboard"]],
+      ["Study", ["practice", "mocktests", "aicoach"]],
+      ["Improve", ["recovery", "revision", "mistakebook"]],
+      ["Progress", ["analysis", "achievements"]],
+      ["Account", ["profile", "premium", "notifications"]],
     ]);
-    expect([...BOTTOM_PAGES]).toEqual(["dashboard", "practice", "analysis", "recovery"]);
+    // A head opens its first page: the pages the phone's bottom bar opened before the heads.
+    expect(NAV_GROUPS.map((g) => g.pages[0])).toEqual(["dashboard", "practice", "recovery", "analysis", "profile"]);
     const paths = Object.values(PAGE_PATH);
     for (const school of SCHOOL_PATHS) expect(paths, school).not.toContain(school);
     // CONTROL: the list does hold the individual pages' paths.
     expect(paths).toContain("/student/mocks");
     expect(paths).toContain("/student/premium");
+  });
+
+  it("files every page under exactly one head, and names it", () => {
+    const filed = NAV_GROUPS.flatMap((g) => g.pages);
+    const pages = Object.keys(PAGE_PATH) as PageKey[];
+    expect([...filed].sort()).toEqual([...pages].sort()); // none missing
+    expect(new Set(filed).size).toBe(filed.length); // none twice
+    for (const p of pages) {
+      expect(groupOf(p).pages, p).toContain(p);
+      expect(PAGE_TITLE[p], p).toBeTruthy();
+    }
+    expect(pathToPage("/student/notifications")).toBe("notifications");
+    expect(groupOf("notifications").label).toBe("Account");
   });
 
   it("maps a school address to Home, and keeps the individual ones where they are", () => {
@@ -77,8 +94,10 @@ describe("the individual student panel", () => {
   });
 
   it("Layout renders nav.ts's lists and nothing school", () => {
-    expect(LAYOUT_SOURCE).toContain("navEntriesFor(SIDEBAR_PAGES)");
-    expect(LAYOUT_SOURCE).toContain("bottomEntriesFor(BOTTOM_PAGES)");
+    // One list drives the sidebar, the phone's bottom bar and its row of pages.
+    expect(LAYOUT_SOURCE.match(/NAV_GROUPS\.map\(/g)).toHaveLength(2);
+    expect(LAYOUT_SOURCE).toContain("openGroup.pages.map(");
+    expect(LAYOUT_SOURCE).not.toMatch(/SIDEBAR_PAGES|BOTTOM_PAGES|mobileOpen/);
     for (const school of ["MembershipSwitcher", "/student/notices", "/student/fees", "Battleground", "classhub", "learninghub", "student.rank"]) {
       expect(LAYOUT_SOURCE, school).not.toContain(school);
     }

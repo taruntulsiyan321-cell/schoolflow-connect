@@ -323,7 +323,8 @@ export default function MockAttempt() {
       </div>
 
       <Card className="mb-4 p-5">
-        <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+        {/* Wraps on a narrow phone: the two ran together as "Question 1 of 50Accounting…". */}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>Question {idx + 1} of {paper.total}</span>
           <span>{q.chapter ?? ""}</span>
         </div>

@@ -305,7 +305,7 @@ export default function Revision() {
 
       {/* Quick actions — Flashcards and My Notes were "Coming soon"
           placeholders and came off, so this is a single tile now. */}
-      <div className="grid gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <button
           type="button"
           disabled={dueTakeable.length === 0}

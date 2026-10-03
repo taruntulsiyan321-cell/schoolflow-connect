@@ -134,6 +134,14 @@ async function resolveRole(userId: string): Promise<AppRole | null> {
 }
 
 /**
+ * PostgREST's "no such function" (PGRST202) or Postgres's (42883): the one
+ * failure that means the environment predates get_auth_context.
+ */
+export function isMissingFunction(error: { code?: string | null }): boolean {
+  return error.code === "PGRST202" || error.code === "42883";
+}
+
+/**
  * Load profile + role + school for the signed-in user.
  *
  * The role comes from the database (`effective_role`, via get_auth_context or
@@ -147,6 +155,16 @@ export async function loadAuthContext(userId: string): Promise<AuthContextData |
 
   // 2) Optional enriched context (may be missing until migrations are applied)
   const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("get_auth_context");
+  // The fallback below is for an environment WITHOUT this function — and only
+  // that. Any other failure is a read that did not happen (a dropped or slow
+  // connection, a server error), and the fallback's own reads would fail the
+  // same way and come back empty: no role, so "Account not set up — sign out
+  // and pick your exam" for a student whose account is fine. Throw instead,
+  // and the provider says the account could not be reached (status
+  // "unreachable"), which is what happened.
+  if (rpcError && !isMissingFunction(rpcError)) {
+    throw new Error(`could not load the account: ${rpcError.message ?? "unknown error"}`);
+  }
   if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
     const row = rpcData[0] as AuthContextRow;
     // `row.role` IS `get_my_role()`: get_auth_context selects

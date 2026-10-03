@@ -123,7 +123,7 @@ export default function Achievements() {
           </SkeletonCard>
           <SkeletonCard className="p-5 space-y-4">
             <Skeleton className="h-3 w-40" />
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-16" />
               ))}
@@ -209,7 +209,7 @@ export default function Achievements() {
               Equip one badge publicly. Star up to {MAX_FEATURED} as featured on your profile.
               {equipped ? ` Currently equipped: ${getBadge(equipped)?.label ?? equipped}.` : ""}
             </p>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {unlocked.map((a) => {
                 const Icon = a.icon;
                 const tier = TIER_CLASS[a.tier];

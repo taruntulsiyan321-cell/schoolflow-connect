@@ -893,7 +893,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         title="Mistake Book"
         subtitle="Every mistake you've made — automatically collected and explained."
         action={
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => navigate("/student/mistakes/types")}

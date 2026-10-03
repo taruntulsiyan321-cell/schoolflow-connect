@@ -71,7 +71,10 @@ export const EMPTY_STUDENT: GurukulStudentProfile = {
   name: "Student",
   firstName: "Student",
   class: "",
-  avatar: "ST",
+  // Not known until the profile loads. It was "ST", which every account wore
+  // in the top bar until then — and on any screen where the load had not come
+  // back, kept.
+  avatar: "",
   xp: 0,
   level: 1,
   xpToNext: 100,

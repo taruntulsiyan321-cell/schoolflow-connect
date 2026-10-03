@@ -161,7 +161,7 @@ export function WeakChapterList({ list, onRetry }: { list: ListState<WeakChapter
 
                 {/* §6.5 — and it says it is approximate, because topic labels
                     are free text (§10.10). */}
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <TopicCounts title="Mistakes by topic (approximate)" rows={row.mistakeTopics} empty="No topic recorded against these mistakes." />
                   <TopicCounts title="Skipped most (approximate)" rows={row.skippedTopics} empty="Nothing skipped in this chapter." />
                 </div>

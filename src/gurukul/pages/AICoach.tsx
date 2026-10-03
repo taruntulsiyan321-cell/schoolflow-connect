@@ -654,12 +654,14 @@ function InputBar({
         </button>
       </div>
       <div className="text-center mt-1.5" aria-live="polite">
+        {/* The key hint names keys a phone's keyboard does not show, so it is
+            said only where a keyboard is likely. */}
         {voice.listening ? (
           <span className="text-[11px] text-foreground">
             {voice.transcript ? `“${voice.transcript}”` : "Listening… tap the square when you're done, or just stop talking"}
           </span>
         ) : (
-          <span className="text-[10px] text-muted-foreground/50">Press Enter to send · Shift + Enter for a new line</span>
+          <span className="hidden text-[10px] text-muted-foreground/50 md:inline">Press Enter to send · Shift + Enter for a new line</span>
         )}
       </div>
     </div>
@@ -1065,14 +1067,13 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   }
 
   return (
-    // Nova fills the space between the header and the bottom of the screen —
-    // which, below md, is the TOP of the fixed bottom nav, not the screen edge.
-    // It was 100vh-80px everywhere, and measured at 390x844 the nav covered the
-    // bottom 63px: the chat's input bar and Revision mode's microphone sat
-    // under it. The offsets are measured, not guessed: content starts 74px down
-    // on a phone and 82px from sm up (header + page padding), and the nav is
-    // 69px tall. dvh, because a phone's URL bar is inside 100vh.
-    <div className="flex h-[calc(100dvh-143px)] sm:h-[calc(100dvh-151px)] md:h-[calc(100dvh-82px)] -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden">
+    // Nova fills the frame the shell gives a page that fills the screen
+    // (FILLS_SCREEN, nav.ts): everything between the top bar and the bottom
+    // bar, edge to edge. It used to work its height out from the shell's —
+    // "content starts 74px down… the nav is 69px tall" — and bleed sideways
+    // by a padding the shell does not have from lg up, so the first change to
+    // the chrome put its composer under the bottom bar.
+    <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* AI Coach is a full-height chat and deliberately has no PageHeader —
           a title bar above it would cost the thread a line of height on a
           phone for a word the top bar already shows. But a document still

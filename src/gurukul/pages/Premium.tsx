@@ -159,18 +159,26 @@ function PremiumScreen({ status, orders, onChanged }: { status: Individual; orde
   );
 }
 
+/** The feature column: pinned while the plans scroll past it, so it needs a solid background. */
+const FEATURE_CELL = "sticky left-0 z-10 min-w-[8.5rem] max-w-[11rem] bg-card px-4 sm:max-w-none";
+
 function ComparePlans({ status, showPrices }: { status: Individual; showPrices: boolean }) {
   const price = (tier: string) => status.products.find((p) => p.tier === tier);
   return (
     <section>
       <SectionLabel>Compare plans</SectionLabel>
-      <GlassCard className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-sm">
+      {/* On a phone the plans do not fit side by side: the table scrolls, and
+          the feature names stay where they are while it does. */}
+      {status.tiers.length > 2 && (
+        <p className="mb-2 text-xs text-muted-foreground sm:hidden">Swipe the table sideways to see every plan.</p>
+      )}
+      <GlassCard className="relative overflow-x-auto">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/60">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground" />
+              <th scope="col" className={cn(FEATURE_CELL, "py-3 text-left font-medium text-muted-foreground")}><span className="sr-only">Feature</span></th>
               {status.tiers.map((t) => (
-                <th key={t.code} className={cn("px-4 py-3 text-left", t.code === status.tier && "text-primary")}>
+                <th key={t.code} scope="col" className={cn("whitespace-nowrap px-4 py-3 text-left", t.code === status.tier && "text-primary")}>
                   <div className="font-bold">{t.display_name}</div>
                   {showPrices && (
                     <div className="text-xs font-normal text-muted-foreground">
@@ -183,18 +191,18 @@ function ComparePlans({ status, showPrices }: { status: Individual; showPrices: 
           </thead>
           <tbody>
             <tr className="border-b border-border/40">
-              <td className="px-4 py-2.5 text-foreground">Recovery, Revision and the Mistake Book</td>
+              <td className={cn(FEATURE_CELL, "py-2.5 text-foreground")}>Recovery, Revision and the Mistake Book</td>
               {status.tiers.map((t) => (
                 <td key={t.code} className="px-4 py-2.5"><Check className="h-4 w-4 text-success" aria-label="Included" /></td>
               ))}
             </tr>
             {FEATURE_ORDER.map((f) => (
               <tr key={f} className="border-b border-border/40 last:border-0">
-                <td className="px-4 py-2.5 text-foreground">{FEATURE_NAMES[f]}</td>
+                <td className={cn(FEATURE_CELL, "py-2.5 text-foreground")}>{FEATURE_NAMES[f]}</td>
                 {status.tiers.map((t) => {
                   const l = t.limits.find((x) => x.feature === f);
                   return (
-                    <td key={t.code} className="px-4 py-2.5 text-muted-foreground">
+                    <td key={t.code} className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
                       {l ? describeAllowance(l.period, l.limit) : <span aria-label="Not included">—</span>}
                     </td>
                   );
@@ -273,7 +281,7 @@ function BuyPlans({ status, onChanged }: { status: Individual; onChanged: () => 
           </button>
         </div>
       )}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {status.products.map((p) => {
           const current = status.tier;
           const lower = rankOf[p.tier] < rankOf[current];

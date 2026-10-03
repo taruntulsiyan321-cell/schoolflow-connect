@@ -553,13 +553,17 @@ export function PageHeader({ eyebrow, title, subtitle, action }: {
   eyebrow?: string; title: string; subtitle?: string; action?: ReactNode;
 }) {
   return (
+    // The action sits beside the title while both fit, and wraps under it when
+    // they do not. It was held at its full width (`shrink-0`), so on a phone
+    // the Mistake Book's three buttons ran 406px wide off a 320px screen and
+    // their own flex-wrap never got the chance to wrap them.
     <motion.div
-      className="flex items-start justify-between gap-4 mb-6"
+      className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 mb-6"
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: EASE_OUT }}
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1 basis-40">
         {eyebrow && (
           <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">
             {eyebrow}
@@ -575,7 +579,7 @@ export function PageHeader({ eyebrow, title, subtitle, action }: {
           <p className="text-muted-foreground text-sm mt-1 max-w-2xl">{subtitle}</p>
         )}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="max-w-full">{action}</div>}
     </motion.div>
   );
 }

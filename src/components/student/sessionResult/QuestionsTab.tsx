@@ -40,7 +40,7 @@ export function QuestionsTab({ filters, active, onFilter, cards, empty }: Props)
             </button>
           ))}
         </div>
-        <Link to="/student/mistakes/types" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+        <Link to="/student/mistakes/types" className="inline-flex items-center gap-1 py-1.5 text-xs font-semibold text-primary hover:underline">
           <Tag className="h-3.5 w-3.5" aria-hidden /> Your mistake types
         </Link>
       </div>

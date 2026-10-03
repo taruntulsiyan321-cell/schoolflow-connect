@@ -1839,8 +1839,8 @@
                 borderRadius: 14,
                 padding: '10px 16px'
               }}>
-                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }} title="Attach image">📷</button>
-                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }} title="Attach file">📎</button>
+                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18, flexShrink: 0, minWidth: 32, minHeight: 32 }} title="Attach image">📷</button>
+                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18, flexShrink: 0, minWidth: 32, minHeight: 32 }} title="Attach file">📎</button>
                 <input
                   type="text"
                   placeholder="Ask Nova anything..."
@@ -1849,6 +1849,8 @@
                   onKeyDown={e => e.key === 'Enter' && handleSend()}
                   style={{
                     flex: 1,
+                    minWidth: 0,
+                    padding: '10px 0',
                     background: 'none',
                     border: 'none',
                     color: 'var(--text)',
@@ -1861,6 +1863,7 @@
                   style={{
                     width: 36,
                     height: 36,
+                    flexShrink: 0,
                     borderRadius: 10,
                     border: 'none',
                     background: 'var(--violet)',

@@ -350,7 +350,7 @@ export function Hub({
             <div className="w-1 h-4 rounded-full bg-warning"/>
             <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Quick Start</span>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {hot.map(m => (
               <button key={m.key} type="button" onClick={() => onMode(m.key)}
                 className="group text-left p-4 rounded-2xl border border-border/70 hover:border-border hover:bg-muted transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
@@ -389,7 +389,7 @@ export function Hub({
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {visible.map(m => (
             <button key={m.key} type="button" onClick={() => onMode(m.key)}
               className="group text-left p-4 rounded-2xl border border-border/70 hover:border-border hover:bg-muted transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
@@ -428,7 +428,7 @@ export function Hub({
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_1.6fr] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.6fr] gap-4">
         <GlassCard className="p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -439,7 +439,7 @@ export function Hub({
               type="button"
               disabled={savingLatest}
               onClick={onSaveLatest}
-              className="flex items-center gap-1 text-[10px] text-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Save className="w-3 h-3"/> {savingLatest ? "Saving…" : "Save latest result"}
             </button>
@@ -505,7 +505,7 @@ export function Hub({
           </div>
 
           {showFilters && (
-            <div className="grid sm:grid-cols-2 gap-2 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
               <div className="relative sm:col-span-2">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/>
                 <input
@@ -843,7 +843,7 @@ export function ConfigView({
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Difficulty
             </div>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {DIFFICULTIES.map(d => (
                 <button key={d.key} type="button" onClick={() => setSelDifficulty(d.key)}
                   className={cn(
@@ -1127,7 +1127,10 @@ function CountSlider({ value, onChange, color }: { value:number; onChange:(v:num
         <span className="text-sm font-black tabular-nums" style={{color}}>{value}</span>
       </div>
       <input type="range" min={5} max={90} step={5} value={value} onChange={e => onChange(+e.target.value)}
-        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+        // A native slider, coloured by accentColor. It was appearance-none, which
+        // drops the native track and thumb and with them what accentColor colours;
+        // only theme.css's border on every input left anything to see.
+        className="w-full cursor-pointer"
         style={{ accentColor: color }}/>
       <div className="flex justify-between text-[10px] text-muted-foreground mt-1"><span>5</span><span>90</span></div>
     </div>

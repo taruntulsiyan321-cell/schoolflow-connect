@@ -173,11 +173,12 @@ export default function MockResult() {
           };
           return (
             <Card key={q.id} className="p-4">
-              <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+              <div className="mb-2 flex items-start justify-between gap-3 text-xs text-muted-foreground">
                 <span>
                   Question {q.order}
                   {q.chapter ? ` · ${q.chapter}` : ""}
-                  {q.topic ? ` · ${q.topic}` : ""}
+                  {/* A topic named as its chapter is said once, not twice. */}
+                  {q.topic && q.topic.trim().toLowerCase() !== (q.chapter ?? "").trim().toLowerCase() ? ` · ${q.topic}` : ""}
                 </span>
                 <span
                   className={

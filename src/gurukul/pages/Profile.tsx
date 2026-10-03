@@ -144,7 +144,7 @@ export default function Profile({
             </div>
             <Skeleton className="h-2 w-full" />
           </SkeletonCard>
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <SkeletonCard key={i} className="p-4 space-y-2">
                 <Skeleton className="h-3 w-20" />
@@ -268,9 +268,9 @@ export default function Profile({
           {LEGAL_ENTITY.supportEmail}
         </a>
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs">
-          <Link to="/terms" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">Terms of use</Link>
-          <Link to="/refund-policy" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">Refund policy</Link>
-          <Link to="/privacy" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">Privacy policy</Link>
+          <Link to="/terms" className="inline-block py-1 text-muted-foreground underline underline-offset-2 hover:text-foreground">Terms of use</Link>
+          <Link to="/refund-policy" className="inline-block py-1 text-muted-foreground underline underline-offset-2 hover:text-foreground">Refund policy</Link>
+          <Link to="/privacy" className="inline-block py-1 text-muted-foreground underline underline-offset-2 hover:text-foreground">Privacy policy</Link>
         </div>
       </GlassCard>
 

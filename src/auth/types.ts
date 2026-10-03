@@ -39,6 +39,9 @@ export type AuthStatus =
   | "unauthenticated"
   | "disabled"
   | "missing_profile"
-  | "missing_role";
+  | "missing_role"
+  /** Signed in, but the account could not be read — a slow or dropped
+   *  connection. Not a fact about the account: the answer is to try again. */
+  | "unreachable";
 
 

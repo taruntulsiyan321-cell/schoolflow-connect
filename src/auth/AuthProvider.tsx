@@ -51,6 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ctx, setCtx] = useState<AuthContextData | null>(null);
   const [loading, setLoading] = useState(true);
+  /** The last load of the context failed (timed out or could not reach the server). */
+  const [loadFailed, setLoadFailed] = useState(false);
   const bootstrapped = useRef<string | null>(null);
   /** The user whose context is loading now — an event for them waits for it. */
   const loadingFor = useRef<string | null>(null);
@@ -65,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (id !== contextRequestId.current) return;
     if (!uid) {
       setCtx(null);
+      setLoadFailed(false);
       bootstrapped.current = null;
       loadingFor.current = null;
       setLoading(false);
@@ -84,11 +87,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ]);
       if (id !== contextRequestId.current) return;
       setCtx(data);
+      setLoadFailed(false);
       bootstrapped.current = uid;
     } catch (err) {
       if (id !== contextRequestId.current) return;
       console.error("[auth] failed to load context", err);
+      // A failed READ, not a missing account: it was set to null and nothing
+      // else, which every screen then took for "no profile" — a student on a
+      // slow connection was told their profile was unavailable and to sign in
+      // again. It is its own status now, and the answer is to try again.
       setCtx(null);
+      setLoadFailed(true);
     } finally {
       if (id === contextRequestId.current) {
         loadingFor.current = null;
@@ -207,11 +216,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const status: AuthStatus = useMemo(() => {
     if (loading) return "loading";
     if (!user) return "unauthenticated";
+    if (loadFailed) return "unreachable";
     if (!ctx) return "missing_profile";
     if (profile && !profile.isActive) return "disabled";
     if (!role) return "missing_role";
     return "authenticated";
-  }, [loading, user, ctx, profile, role]);
+  }, [loading, user, loadFailed, ctx, profile, role]);
 
   const value = useMemo<AuthCtx>(
     () => ({

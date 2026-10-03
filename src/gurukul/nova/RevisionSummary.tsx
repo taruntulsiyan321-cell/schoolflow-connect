@@ -87,7 +87,7 @@ export function RevisionSummary({
           </section>
         )}
 
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <button
             type="button"
             onClick={onRetry}

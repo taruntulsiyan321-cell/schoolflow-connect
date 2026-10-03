@@ -493,7 +493,7 @@ export default function Recovery() {
               <p className="text-sm text-muted-foreground">No chapters match that search</p>
             </GlassCard>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {filtered.map((item) => (
                 <RecoveryCard
                   key={item.chapter_id}

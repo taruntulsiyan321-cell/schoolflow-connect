@@ -225,7 +225,7 @@ export function ExplainPanel(props: Props) {
             </div>
           </div>
 
-          <div className="mb-3 grid gap-2 sm:grid-cols-2">
+          <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <AnswerChip label="Correct answer" value={answerContext.correct || "Not available"} tone="correct" />
             <AnswerChip label="Your answer" value={answerContext.selected} tone={wasCorrect ? "correct" : "selected"} />
           </div>

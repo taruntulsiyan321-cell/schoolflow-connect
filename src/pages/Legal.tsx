@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { LEGAL_ENTITY, LEGAL_VERSION, legalDocs, type LegalDoc } from "@/lib/legal";
+import { cn } from "@/lib/utils";
 
 /**
  * /terms, /refund-policy and /privacy — public, no sign-in, rendered from
@@ -12,16 +13,16 @@ export default function Legal({ slug }: { slug: LegalDoc["slug"] }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-3xl px-5 py-10">
-        <a href="/" className="text-sm font-semibold text-primary hover:underline">{LEGAL_ENTITY.brand}</a>
+        <a href="/" className="inline-block py-1 text-sm font-semibold text-primary hover:underline">{LEGAL_ENTITY.brand}</a>
         <h1 className="mt-4 text-3xl font-black" style={{ fontFamily: "var(--font-display)" }}>{doc.title}</h1>
         <p className="mt-1 text-xs text-muted-foreground">Version {LEGAL_VERSION}</p>
-        <nav className="mt-4 flex flex-wrap gap-3 text-sm" aria-label="Legal documents">
+        <nav className="mt-4 flex flex-wrap gap-x-3 gap-y-1 text-sm" aria-label="Legal documents">
           {docs.map((d) => (
             <Link
               key={d.slug}
               to={`/${d.slug}`}
               aria-current={d.slug === slug ? "page" : undefined}
-              className={d.slug === slug ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground"}
+              className={cn("inline-block py-1", d.slug === slug ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground")}
             >
               {d.title}
             </Link>

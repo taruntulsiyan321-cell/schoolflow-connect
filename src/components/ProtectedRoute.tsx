@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth, type AppRole } from "@/auth";
-import { Loader2 } from "lucide-react";
+import { Loader2, WifiOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   children: ReactNode;
@@ -13,9 +14,10 @@ interface Props {
  * Route guard — unauthenticated → /auth (preserves destination).
  * Wrong role → /unauthorized.
  * Disabled / missing profile → /unauthorized.
+ * Account could not be read (slow or dropped connection) → try again, in place.
  */
 export const ProtectedRoute = ({ children, allow }: Props) => {
-  const { user, role, profile, loading, status, homePath } = useAuth();
+  const { user, role, profile, loading, status, homePath, refreshAuth } = useAuth();
   const loc = useLocation();
   const onUnauthorizedPage = loc.pathname === "/unauthorized";
 
@@ -30,6 +32,20 @@ export const ProtectedRoute = ({ children, allow }: Props) => {
 
   if (!user || status === "unauthenticated") {
     return <Navigate to="/auth" replace state={{ from: loc.pathname }} />;
+  }
+
+  // The connection failed, not the account: say so, and offer the retry. This
+  // was "Profile unavailable — try signing in again", which on a phone means a
+  // new OTP for a student whose account was fine all along.
+  if (status === "unreachable") {
+    return (
+      <div role="alert" className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background p-6 text-center">
+        <WifiOff className="w-6 h-6 text-muted-foreground" aria-hidden />
+        <p className="text-sm font-semibold text-foreground">We could not reach Gurukul</p>
+        <p className="max-w-xs text-sm text-muted-foreground">Your account is fine — the connection is slow or down. Check it, then try again.</p>
+        <Button onClick={() => void refreshAuth()}>Try again</Button>
+      </div>
+    );
   }
 
   // Allow the unauthorized page itself for any signed-in user (avoids redirect loops)

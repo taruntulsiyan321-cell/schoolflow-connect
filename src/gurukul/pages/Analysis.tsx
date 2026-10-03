@@ -1148,13 +1148,13 @@ export default function Analysis() {
         <PageSkeleton label="Loading analysis" className="space-y-6">
           <SkeletonCard className="p-5 space-y-3">
             <Skeleton className="h-5 w-24" />
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="h-4 w-48" />
               ))}
             </div>
           </SkeletonCard>
-          <div className="grid sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <SkeletonCard key={i} className="p-4 space-y-2">
                 <Skeleton className="h-3 w-20" />
@@ -1169,7 +1169,7 @@ export default function Analysis() {
             ))}
           </div>
           <SkeletonStats count={4} />
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <SkeletonCard className="h-40" />
             <SkeletonCard className="h-40" />
           </div>
@@ -1283,7 +1283,7 @@ export default function Analysis() {
           this row can display, invented from an absence. */}
       <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
         <h2 className="font-semibold text-lg mb-3">Summary</h2>
-        <div className="grid sm:grid-cols-2 gap-3 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           {summaryRows.map((row) => (
             <p key={row.label}>
               {row.label}:{" "}
@@ -1298,7 +1298,7 @@ export default function Analysis() {
       </div>
 
       {/* ── 3 Questions bar ─────────────── */}
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {questionCards.map((item) => (
           <div
             key={item.q}
@@ -1452,7 +1452,7 @@ export default function Analysis() {
           <div>
             <SLabel>Personal insights</SLabel>
             {personalInsights.length > 0 ? (
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {personalInsights.map((ins) => (
                 <div key={ins.label} className="flex items-start gap-3 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${withAlpha(ins.color, 0.08)}`, color: ins.color }}>
@@ -1492,7 +1492,7 @@ export default function Analysis() {
       {tab === "subjects" && (
         <div className="space-y-6">
           {/* Subject radar */}
-          <div className="grid sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Card label="How you perform in each subject">
               {radarData.length >= RADAR_MIN_AXES ? (
               <div className="h-56 mt-2">
@@ -1573,7 +1573,7 @@ export default function Analysis() {
             {chapterData.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">No chapter data yet</p>
             ) : (
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {chapterData.map((c) => {
                 const statusLabel: Record<"practice-more" | "needs-work", { text: string; color: string }> = {
                   "practice-more":{ text: "Practice more",      color: "hsl(var(--warning))" },
@@ -1664,7 +1664,7 @@ export default function Analysis() {
             ))}
           </div>
 
-          <div className="grid gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {/* Doing well removed — §10.8 */}
             {/* Needs attention */}
             <div>
@@ -1745,7 +1745,7 @@ export default function Analysis() {
           </div>
 
           {/* Recovery & Revision */}
-          <div className="grid sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <SLabel>Chapters in recovery</SLabel>
               <div className="grid grid-cols-2 gap-3 mb-3">
@@ -1891,7 +1891,7 @@ export default function Analysis() {
           {/* Speed */}
           <div>
             <SLabel>How fast you solve questions</SLabel>
-            <div className="grid sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               <Metric label="Average per answer"    value={subjectPace.avgSec > 0 ? formatSeconds(subjectPace.avgSec) : "—"}    color="hsl(var(--foreground))" />
               {/* Each tile asks about its OWN number. A sub line gated on the
                   overall average printed "0s avg" under a "—" whenever only
@@ -2092,7 +2092,7 @@ export default function Analysis() {
           </Card>
 
           {/* ── What takes longest ────────────────────────────────── */}
-          <div className="grid sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Card label="Topics that take you longest (seconds per answer)">
               {topicLock ? (
                 <PlanLimitNotice limit={topicLock} className="mt-4" />
@@ -2275,7 +2275,7 @@ export default function Analysis() {
           {/* Reports */}
           <div>
             <SLabel>Download & share your report</SLabel>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { label: "Print or save as PDF", icon: <Download className="w-4 h-4" />,  color: "hsl(var(--primary))",  desc: "Every tab's figures on one printable report", action: "print" as const },
                 // "teacher/parent send is coming soon" promised a feature with no

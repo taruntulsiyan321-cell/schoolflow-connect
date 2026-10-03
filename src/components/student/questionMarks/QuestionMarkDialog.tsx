@@ -93,7 +93,7 @@ export function QuestionMarkDialog({ open, onOpenChange, userId, questionRef, qu
 
   return (
     <Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Mark this question</DialogTitle>
           <DialogDescription asChild>
