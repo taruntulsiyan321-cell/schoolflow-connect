@@ -12,6 +12,19 @@
 import type { SyllabusChapter } from "./syllabusTag.ts";
 import { extractJson } from "./structuredJson.ts";
 import { composeExplanation, explanationShortfall, indexOfLetter, letterOf, readExplanationParts } from "./explanationFormat.ts";
+import {
+  AR_OPTIONS,
+  canonicalMatch,
+  canonicalOrder,
+  composeQuestion,
+  FORM_JSON_GUIDE,
+  FORM_LABELS,
+  isQuestionForm,
+  optionsShortfall,
+  QUESTION_FORMS,
+  type QuestionForm,
+  readQuestionParts,
+} from "./questionForms.ts";
 
 /** Owner: up to 30 questions in one request. */
 export const MAX_QUESTIONS = 30;
@@ -31,6 +44,8 @@ export type ReadRequest =
       focus: string;
       count: number;
       difficulty: Difficulty | null;
+      /** The form the student asked for — "assertion reason questions", "long case questions" — or null for a mix. */
+      form: QuestionForm | null;
     }
   | { kind: "refuse"; message: string };
 
@@ -51,7 +66,7 @@ export function requestSystemPrompt(examLabel: string, syllabus: ReadonlyArray<S
     syllabusLines(syllabus),
     "",
     "Reply with JSON only:",
-    `{"kind":"practice","chapter":"C<n>","topic":"T<n>" or null,"focus":"<the exact idea asked for, max 12 words>","count":<1-${MAX_QUESTIONS} or null>,"difficulty":"easy"|"medium"|"hard"|null}`,
+    `{"kind":"practice","chapter":"C<n>","topic":"T<n>" or null,"focus":"<the exact idea asked for, max 12 words>","count":<1-${MAX_QUESTIONS} or null>,"difficulty":"easy"|"medium"|"hard"|null,"form":${QUESTION_FORMS.map((f) => `"${f}"`).join("|")}|null}`,
     'or {"kind":"refuse","reason":"<one plain sentence to the student>"}',
     "",
     "Rules:",
@@ -59,14 +74,21 @@ export function requestSystemPrompt(examLabel: string, syllabus: ReadonlyArray<S
     "- topic is set only when the request is about one listed topic of that chapter; otherwise null.",
     "- count is the number of questions asked for; null when none is said.",
     "- difficulty only when the student said it.",
-    "- refuse when the request is not about practising questions, is about a subject not in this syllabus, or spans several chapters with no single one to choose — and say which, kindly.",
+    '- form only when the student asked for one kind of question: assertion–reason → "assertion_reason"; statement-based → "statements"; match the following → "match"; case-based, passage-based or long questions → "case_based"; chronological order or sequence → "sequence"; direct or one-line questions → "mcq". Otherwise null.',
+    "- refuse when the request is not about practising questions, is about a subject not in this syllabus, or spans several chapters with no single one to choose — and say which, kindly, naming chapters by their names, never by their codes.",
   ].join("\n");
 }
 
 export function readRequestReply(raw: unknown, syllabus: ReadonlyArray<SyllabusChapter>): ReadRequest {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   if (r.kind === "refuse") {
-    const reason = typeof r.reason === "string" && r.reason.trim() ? r.reason.trim() : null;
+    // A refusal is the student's to read: the syllabus codes it was given are
+    // turned back into chapter names ("covered in C2, C3…", measured 2026-10-03).
+    const named = (s: string) => s.replace(/\bC(\d+)\b/g, (code) => {
+      const c = syllabus.find((x) => x.code === code);
+      return c ? `“${c.chapter}”` : code;
+    });
+    const reason = typeof r.reason === "string" && r.reason.trim() ? named(r.reason.trim()) : null;
     return { kind: "refuse", message: reason ?? "That isn't something AI Practice can make a session of. Name a chapter or topic from your syllabus." };
   }
   const chapter = syllabus.find((c) => c.code === String(r.chapter ?? "").trim().toUpperCase());
@@ -80,7 +102,8 @@ export function readRequestReply(raw: unknown, syllabus: ReadonlyArray<SyllabusC
   const d = String(r.difficulty ?? "").trim().toLowerCase();
   const difficulty = (DIFFICULTIES as readonly string[]).includes(d) ? (d as Difficulty) : null;
   const focus = typeof r.focus === "string" ? r.focus.replace(/\s+/g, " ").trim().slice(0, 120) : "";
-  return { kind: "practice", chapter, topicId: topic?.id ?? null, focus: focus || topic?.name || chapter.chapter, count, difficulty };
+  const form = isQuestionForm(r.form) ? r.form : null;
+  return { kind: "practice", chapter, topicId: topic?.id ?? null, focus: focus || topic?.name || chapter.chapter, count, difficulty, form };
 }
 
 // ── 2. A chapter with no topics gets its topic list drafted once ────────────
@@ -121,17 +144,19 @@ export function writeSystemPrompt(examLabel: string): string {
     "",
     "Each question:",
     `- has exactly ${OPTION_COUNT} options and exactly one correct answer; the wrong options are plausible mistakes a student makes, never jokes;`,
-    "- uses the exam's own kinds where they fit: direct, statement-based (I, II, III), assertion–reason, case-based, match-the-following, chronological order;",
     "- states every number a calculation needs, and the arithmetic must be right — check it before you answer;",
     "- stays inside the chapter it is written for, and cites a law or section only when you are certain of its number;",
     '- never repeats its options inside the question text, never carries labels such as "[Chapter name]", and never mentions "the student" or "the original question".',
     "",
     "Each explanation:",
-    "- working: the full reasoning, step by step, as a good teacher writes it — at least 3 sentences (120+ characters); for a calculation, every step with its numbers;",
+    "- working: the full reasoning, step by step, as a good teacher writes it — at least 3 sentences (120+ characters) and at most 150 words; for a calculation, every step with its numbers. Settle the answer before you write: the JSON holds only the finished explanation, never your deliberation (\"But if…? No, …\");",
     "- wrong: one line for EACH wrong option saying exactly why it is wrong (the error that leads to it), 25+ characters, never just \"incorrect\".",
     "",
+    "",
+    FORM_JSON_GUIDE,
+    "",
     "Reply with JSON only:",
-    '{"questions":[{"topic":"T<n>","difficulty":"easy"|"medium"|"hard","question":"…","options":["…","…","…","…"],"answer":"A"|"B"|"C"|"D","working":"…","wrong":[{"option":"A","reason":"…"},…]}]}',
+    '{"questions":[{"topic":"T<n>","difficulty":"easy"|"medium"|"hard","form":"<form>", …that form\'s fields…, "options":["…","…","…","…"],"answer":"A"|"B"|"C"|"D","working":"…","wrong":[{"option":"A","reason":"…"},…]}]}',
   ].join("\n");
 }
 
@@ -142,6 +167,7 @@ export function writeUserPrompt(input: {
   topicId: string | null;
   focus: string;
   difficulty: Difficulty | null;
+  form: QuestionForm | null;
   count: number;
   examples: ReadonlyArray<StyleExample>;
   avoid: ReadonlyArray<string>;
@@ -157,14 +183,51 @@ export function writeUserPrompt(input: {
     only >= 0 ? `Every question is on topic T${only + 1}.` : "Spread the questions across the topics the request is about.",
     `The student asked for: ${input.focus}`,
     `Write ${input.count} question${input.count === 1 ? "" : "s"}${input.difficulty ? `, all ${input.difficulty}` : ", a mix of easy, medium and hard"}.`,
+    input.form
+      ? `Every question is ${FORM_LABELS[input.form].toLowerCase()} (form "${input.form}").`
+      : "Use the form that suits each idea, as the real exam mixes them: mostly direct questions, with assertion–reason, statement-based, match-the-following, case-based and sequence questions where they fit.",
     examples.length ? `\nReal questions from this chapter, for the level and style (do not copy them):\n${examples.join("\n\n")}` : "",
     input.avoid.length ? `\nDo not write these again:\n${input.avoid.slice(0, 30).map((q) => `- ${q.slice(0, 160)}`).join("\n")}` : "",
   ].filter(Boolean).join("\n");
 }
 
+/** At most this many drafts for one request, whatever was asked. */
+export const MAX_DRAFTS = 40;
+
+/**
+ * How a shortfall is written, by form: room per question, questions per call,
+ * and drafts written for each one needed (the checks throw some away).
+ * Measured 2026-10-03 on "5 match the following questions": a call for five at
+ * 1,000 tokens each was cut off ("length") and nothing in it could be read; of
+ * a call for four, three came back with no explanation and one had List II in
+ * List I's order. A form is longer and fails more often than a direct question.
+ * No form asked for (null) means the exam's mix.
+ */
+const FORM_PLAN: Record<QuestionForm | "mix", { tokens: number; batch: number; overwrite: number }> = {
+  mcq: { tokens: 1000, batch: 5, overwrite: 1.5 },
+  assertion_reason: { tokens: 1200, batch: 5, overwrite: 1.75 },
+  statements: { tokens: 1400, batch: 4, overwrite: 2 },
+  sequence: { tokens: 1400, batch: 4, overwrite: 2 },
+  // Two to a call: three match questions took most of a minute to write and
+  // the whole request 150 seconds — the function's limit (2026-10-03).
+  match: { tokens: 1900, batch: 2, overwrite: 2.5 },
+  case_based: { tokens: 1900, batch: 2, overwrite: 2 },
+  mix: { tokens: 1500, batch: 4, overwrite: 1.75 },
+};
+
+export function writePlan(form: QuestionForm | null, shortfall: number): { batches: number[]; maxTokens: (n: number) => number } {
+  const plan = FORM_PLAN[form ?? "mix"];
+  const need = Math.min(MAX_DRAFTS, Math.ceil(shortfall * plan.overwrite) + 1);
+  const batches: number[] = [];
+  for (let left = need; left > 0; left -= plan.batch) batches.push(Math.min(plan.batch, left));
+  return { batches, maxTokens: (n) => plan.tokens * n + 400 };
+}
+
 export type WrittenQuestion = {
   topicId: string;
   difficulty: Difficulty;
+  form: QuestionForm;
+  /** The stored text, composed from the form's parts (questionForms). */
   question: string;
   options: string[];
   correctIndex: number;
@@ -187,18 +250,33 @@ export function readWrittenQuestion(
 ): { ok: true; question: WrittenQuestion } | { ok: false; reason: string } {
   if (!raw || typeof raw !== "object") return { ok: false, reason: "not an object" };
   const r = raw as Record<string, unknown>;
-  const question = String(r.question ?? "").replace(/[ \t]+/g, " ").trim();
-  if (question.length < 15 || question.length > 2000) return { ok: false, reason: "question length" };
-  if (!Array.isArray(r.options) || r.options.length !== OPTION_COUNT) return { ok: false, reason: `needs ${OPTION_COUNT} options` };
-  const options = r.options.map((o) => String(o ?? "").replace(/\s+/g, " ").trim());
+  const read = readQuestionParts(r);
+  if (!read.ok) return { ok: false, reason: read.reason };
+  const shape = read.parts;
+  const question = composeQuestion(shape);
+  if (question.length < 15 || question.length > 4000) return { ok: false, reason: "question length" };
+  // An assertion–reason question's options are the standard four, whatever was sent.
+  const sent = shape.form === "assertion_reason" ? [...AR_OPTIONS] : r.options;
+  if (!Array.isArray(sent) || sent.length !== OPTION_COUNT) return { ok: false, reason: `needs ${OPTION_COUNT} options` };
+  const plain = sent.map((o) => String(o ?? "").replace(/\s+/g, " ").trim());
+  // A matching or an order is stored one way, however it was written.
+  const options = shape.form === "match"
+    ? plain.map((o) => canonicalMatch(o, shape.list1.length) ?? o)
+    : shape.form === "sequence"
+      ? plain.map((o) => canonicalOrder(o, shape.items.length) ?? o)
+      : plain;
   if (options.some((o) => !o)) return { ok: false, reason: "an empty option" };
   if (new Set(options.map((o) => o.toLowerCase())).size !== options.length) return { ok: false, reason: "options repeat" };
   const correctIndex = indexOfLetter(r.answer);
   if (correctIndex == null || correctIndex >= options.length) return { ok: false, reason: "no valid answer" };
   if (TRAILING_LABEL.test(question)) return { ok: false, reason: "a label left in the question" };
   if (LEAKS.test(question)) return { ok: false, reason: "the question talks about the student" };
-  const quoted = options.filter((o) => o.length >= 6 && question.includes(o)).length;
-  if (quoted >= 3) return { ok: false, reason: "the options are repeated in the question" };
+  if (shape.form === "mcq") {
+    const quoted = options.filter((o) => o.length >= 6 && question.includes(o)).length;
+    if (quoted >= 3) return { ok: false, reason: "the options are repeated in the question" };
+  }
+  const misfit = optionsShortfall(shape, options, correctIndex);
+  if (misfit) return { ok: false, reason: misfit };
 
   const tm = String(r.topic ?? "").trim().toUpperCase().match(/^T(\d+)$/);
   const picked = tm ? topics[Number(tm[1]) - 1] : undefined;
@@ -216,7 +294,7 @@ export function readWrittenQuestion(
   const short = explanationShortfall(options, correctIndex, parts);
   if (short) return { ok: false, reason: short };
   const explanation = composeExplanation(options, correctIndex, parts)!;
-  return { ok: true, question: { topicId: topic.id, difficulty, question, options, correctIndex, explanation } };
+  return { ok: true, question: { topicId: topic.id, difficulty, form: shape.form, question, options, correctIndex, explanation } };
 }
 
 // ── 4. The independent check ────────────────────────────────────────────────
@@ -254,16 +332,54 @@ export function readSolveReply(raw: unknown, count: number): Array<number | null
 /**
  * A model's JSON reply, read as leniently as is safe. extractJson first; then
  * again with backslashes that are not JSON escapes doubled — a model writing
- * maths (\\frac, \\times, \\%) in a JSON string makes it unparseable.
+ * maths (\\frac, \\times, \\%) in a JSON string makes it unparseable — and
+ * with the quotes and line breaks a writer leaves inside its strings escaped
+ * (repairStrings).
  */
 export function readModelJson<T>(text: string): T {
   try {
     return extractJson<T>(text);
   } catch (e) {
-    const repaired = text.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
+    const repaired = repairStrings(text.replace(/\\(?!["\\/bfnrtu])/g, "\\\\"));
     if (repaired === text) throw e;
     return extractJson<T>(repaired);
   }
+}
+
+/**
+ * Inside a JSON string, a double quote that does not end it — one not followed
+ * by , } ] or : — is escaped, and so is a raw line break. Measured 2026-10-03:
+ * whole calls of written questions lost to "Expected ',' or '}' after property
+ * value", a writer quoting a term (the "sacrificing" ratio) inside its working.
+ */
+export function repairStrings(text: string): string {
+  const start = text.search(/[[{]/);
+  if (start < 0) return text;
+  let out = text.slice(0, start);
+  let inString = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (!inString) {
+      out += ch;
+      if (ch === '"') inString = true;
+      continue;
+    }
+    if (ch === "\\") { out += ch + (text[i + 1] ?? ""); i++; continue; }
+    if (ch === "\n") { out += "\\n"; continue; }
+    if (ch === "\r") continue;
+    if (ch === '"') {
+      const next = text.slice(i + 1).match(/^\s*(\S)/)?.[1];
+      if (next === undefined || next === "," || next === "}" || next === "]" || next === ":") {
+        out += ch;
+        inString = false;
+      } else {
+        out += '\\"';
+      }
+      continue;
+    }
+    out += ch;
+  }
+  return out;
 }
 
 /**

@@ -97,7 +97,8 @@ BEGIN
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('claims questions for the explanation rewrite','student','ERROR: permission denied', r,
      CASE WHEN r LIKE 'ERROR:%permission denied for function claim_explanation_rewrites%' THEN 'PASS' ELSE 'FAIL' END);
-  r := pg_temp.as_user(a, format($q$SELECT count(*)::text FROM public.ai_practice_bank_candidates(%L, NULL, NULL, NULL, NULL, NULL, 5)$q$, b));
+  -- 20261141000000 added the form argument (eight in all).
+  r := pg_temp.as_user(a, format($q$SELECT count(*)::text FROM public.ai_practice_bank_candidates(%L, NULL, NULL, NULL, NULL, NULL, NULL, 5)$q$, b));
   INSERT INTO probe(area,role_tested,expected,observed,verdict) VALUES
     ('asks for bank candidates in another student''s name','student','ERROR: permission denied', r,
      CASE WHEN r LIKE 'ERROR:%permission denied for function ai_practice_bank_candidates%' THEN 'PASS' ELSE 'FAIL' END);

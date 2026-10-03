@@ -1251,6 +1251,8 @@ export type Database = {
           created_at: string
           difficulty: string | null
           discarded: number
+          drafts: Json | null
+          form: string | null
           from_bank: number
           id: string
           message: string | null
@@ -1268,6 +1270,8 @@ export type Database = {
           created_at?: string
           difficulty?: string | null
           discarded?: number
+          drafts?: Json | null
+          form?: string | null
           from_bank?: number
           id?: string
           message?: string | null
@@ -1285,6 +1289,8 @@ export type Database = {
           created_at?: string
           difficulty?: string | null
           discarded?: number
+          drafts?: Json | null
+          form?: string | null
           from_bank?: number
           id?: string
           message?: string | null
@@ -11285,6 +11291,7 @@ export type Database = {
           _chapter: string
           _difficulty: string
           _exam: string
+          _form: string
           _limit: number
           _query: string
           _topic: string
@@ -11774,6 +11781,10 @@ export type Database = {
       progression_level_for_xp: { Args: { _xp: number }; Returns: number }
       progression_xp_for_level: { Args: { _level: number }; Returns: number }
       publish_due_scheduled_work: { Args: never; Returns: number }
+      question_form_of: {
+        Args: { _options: Json; _question: string }
+        Returns: string
+      }
       refresh_student_academic_profile: {
         Args: { _student_id: string }
         Returns: string

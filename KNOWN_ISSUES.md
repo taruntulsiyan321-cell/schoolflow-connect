@@ -5056,3 +5056,36 @@ their notifications and usage were removed afterwards.
 4. **The session review paints the right answer rose.** `PracticeSessionResult` marks the correct option
    `border-accent bg-accent/10`, and the panel's accent is rose — the same family as the wrong answer's
    destructive tint. To be fixed in the after-session rework that follows this entry.
+
+## 114. Every MCQ form, laid out and known by its form — BUILT and LIVE 2026-10-03 (20261141000000, 20261142000000); what is open
+
+**Live:** assertion–reason, statement-based, match the following, case-based (the "long" questions), sequence and
+direct questions. The form lives in the question's TEXT layout (`supabase/functions/_shared/questionForms.ts`), so
+every copy an attempt, mistake or report keeps is laid out the same: writers compose the text from parts;
+`QuestionText` reads it back into blocks on the practice session, the session review, mock tests, the Mistake Book
+(one line on the card, in full when retried), Reported Questions, Mistake Types and Analysis; a form chip sits
+beside subject and difficulty. `question_form_of` (SQL) and `formOf` (TS) are held to the migration's fixtures, and
+a trigger keeps `question_bank.question_format` equal to the text's form. AI Practice reads a form from the request
+("4 assertion reason questions…"), serves bank questions of that form first, writes the rest by form, refuses a
+match keyed to the two lists in printed order (or a sequence keyed to the items as listed), stores matchings and
+orders one way, sizes each writing call by form, repairs stray quotes and line breaks in a reply, and records on
+`ai_practice_requests.drafts` what became of every draft. Legacy: 42 assertion–reason questions are classified and
+split into two statements (the one-line ones too); an older question's options printed again in its text are shown
+once; the imported "(e) …" tail was cut from 16 option Ds. Measured live (seed demo account, 2026-10-03): match 5/5,
+statement-based 4/4, assertion–reason 4/4, case-based 2/3, sequence 4/4, in 50–150 s.
+
+**Open:**
+
+1. **The broken imports are still broken.** The 27 match questions whose lists went into the options, and the
+   statement and case imports whose data is missing, are 'mcq' and mostly on the disputed list (entry 112 item 1).
+   The report check's review now rewrites a faulty question IN its form, so it could repair them — it has not been
+   run on them; that is the owner's call.
+2. **Flash writes the form right and the content unevenly.** A case passage can carry data its question never
+   uses (a goodwill case with an unused valuation method), and match pairings can be loose. The answer check
+   proves the key is consistent with the question, not that the question is well made.
+3. **Time.** A five-question match request took 150 s — the function's limit — until calls were cut to two
+   questions each. A large request for a long form (20+ case-based) can still run out; `drafts` will show it.
+4. **One assertion–reason question is disputed by 20261141000000**: its option D carries "(e) Both A and R are
+   incorrect" and D is its key — the key may have been (e).
+5. Three match questions written by the first live test (labels doubled, List II unshuffled) were retired
+   2026-10-03; a refusal naming syllabus codes ("covered in C2, C3…") now names the chapters.

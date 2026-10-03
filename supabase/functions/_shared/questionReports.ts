@@ -26,6 +26,7 @@
 import { readWrittenQuestion, type WrittenQuestion } from "./aiPractice.ts";
 import type { Solved } from "./answerCheck.ts";
 import { indexOfLetter, letterOf } from "./explanationFormat.ts";
+import { FORM_JSON_GUIDE } from "./questionForms.ts";
 
 export type ReportReason = "wrong_answer" | "question_error" | "explanation_error" | "other";
 export type ClaimedReport = { id: string; reason: ReportReason; claimed_index: number | null; note: string | null };
@@ -117,9 +118,11 @@ export function reviewSystemPrompt(examLabel: string): string {
     "- exactly one option is correct.",
     "Small matters of wording do not make a question unusable; only a fault that stops a student answering it correctly does.",
     "",
-    "If it is unusable, rewrite it so that it is usable: the same topic, idea and level, exactly 4 options and exactly one correct answer, with every number a calculation needs. Give the working (at least 3 sentences, every step) and, for EACH wrong option, one line on exactly why it is wrong. If it cannot be repaired, give no rewrite.",
+    "If it is unusable, rewrite it so that it is usable: the same topic, idea and level, exactly 4 options and exactly one correct answer, with every number a calculation needs. Keep its form: a question meant as assertion–reason, statement-based, match-the-following, case-based or sequence is rewritten as one, laid out properly. Give the working (at least 3 sentences, every step) and, for EACH wrong option, one line on exactly why it is wrong. If it cannot be repaired, give no rewrite.",
     "",
-    'Reply with JSON only: {"usable":true} or {"usable":false,"problem":"<one sentence: what is wrong with it>","rewrite":{"question":"…","options":["…","…","…","…"],"answer":"A"|"B"|"C"|"D","working":"…","wrong":[{"option":"A","reason":"…"},…]} or null}',
+    FORM_JSON_GUIDE,
+    "",
+    'Reply with JSON only: {"usable":true} or {"usable":false,"problem":"<one sentence: what is wrong with it>","rewrite":{"form":"<form>", …that form\'s fields…, "options":["…","…","…","…"],"answer":"A"|"B"|"C"|"D","working":"…","wrong":[{"option":"A","reason":"…"},…]} or null}',
   ].join("\n");
 }
 

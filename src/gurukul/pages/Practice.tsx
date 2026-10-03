@@ -41,6 +41,7 @@ import { listCaptureQuestionsByIds } from "@/academic/services/screenCaptureServ
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
+import { QuestionFormBadge, QuestionText } from "@/components/QuestionText";
 import {
   BookOpen, Clock, Target,
   BarChart2, Search,
@@ -2162,6 +2163,7 @@ export function Session({
           <div className="flex items-center gap-2 flex-wrap">
             {subj && <SubjectBadge subject={subj.name} color={subj.color}/>}
             <DifficultyBadge level={q.difficulty}/>
+            <QuestionFormBadge text={q.question} options={q.options}/>
             <span className="text-[10px] text-muted-foreground">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -2193,7 +2195,7 @@ export function Session({
           </div>
         </div>
         <div className="text-base font-semibold text-foreground leading-relaxed">
-          <MathText block text={q.question} />
+          <QuestionText text={q.question} options={q.options} />
         </div>
       </GlassCard>
 

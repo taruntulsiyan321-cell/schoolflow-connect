@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_QUESTIONS,
+  MAX_DRAFTS,
   MAX_QUESTIONS,
   readModelJson,
+  repairStrings,
   readRequestReply,
   readSolveReply,
   readSolveText,
   readTopicDraft,
   readWrittenQuestion,
   relevantFromBank,
+  writePlan,
   writeUserPrompt,
 } from "../../../supabase/functions/_shared/aiPractice.ts";
 import type { SyllabusChapter } from "../../../supabase/functions/_shared/syllabusTag.ts";
@@ -44,7 +47,7 @@ const good = {
 describe("reading the request", () => {
   it("names a chapter and topic by their codes, and keeps the count and difficulty said", () => {
     const r = readRequestReply({ kind: "practice", chapter: "c1", topic: "T2", focus: "interest on capital sums", count: 20, difficulty: "Hard" }, SYLLABUS);
-    expect(r).toEqual({ kind: "practice", chapter: SYLLABUS[0], topicId: "t-int", focus: "interest on capital sums", count: 20, difficulty: "hard" });
+    expect(r).toEqual({ kind: "practice", chapter: SYLLABUS[0], topicId: "t-int", focus: "interest on capital sums", count: 20, difficulty: "hard", form: null });
   });
 
   it(`holds a count to 1–${MAX_QUESTIONS}, and asks ${DEFAULT_QUESTIONS} when none is said`, () => {
@@ -56,6 +59,11 @@ describe("reading the request", () => {
   it("a topic code from another chapter, or none, means the whole chapter", () => {
     const r = readRequestReply({ kind: "practice", chapter: "C1", topic: "T9" }, SYLLABUS);
     expect(r.kind === "practice" && r.topicId).toBeNull();
+  });
+
+  it("a refusal names chapters, never the codes the reader was given", () => {
+    expect(readRequestReply({ kind: "refuse", reason: "Goodwill is covered in C1 and C2, so please choose one." }, SYLLABUS))
+      .toEqual({ kind: "refuse", message: "Goodwill is covered in “Accounting for Partnership” and “Production and Costs”, so please choose one." });
   });
 
   it("refuses what is not a chapter of the syllabus, in a sentence for the student", () => {
@@ -155,14 +163,46 @@ describe("a chapter's drafted topic list", () => {
   });
 });
 
+describe("a writer's reply that is not quite JSON", () => {
+  it("is read when a quote or a line break was left inside a string", () => {
+    const reply = '{"questions":[{"question":"Explain the "sacrificing" ratio","working":"Step one.\nStep two."}]}';
+    expect(() => JSON.parse(reply)).toThrow();
+    expect(readModelJson<{ questions: Array<{ question: string; working: string }> }>(reply).questions[0])
+      .toEqual({ question: 'Explain the "sacrificing" ratio', working: "Step one.\nStep two." });
+  });
+
+  it("leaves real JSON exactly as it was", () => {
+    const ok = '{"a":"He said \\"yes\\".","b":["x","y"],"c":{"d":"e"}}';
+    expect(repairStrings(ok)).toBe(ok);
+    expect(readModelJson(ok)).toEqual(JSON.parse(ok));
+  });
+});
+
+describe("how the shortfall is written", () => {
+  it("a form gets more room per question and smaller calls than a direct question", () => {
+    const direct = writePlan("mcq", 5), match = writePlan("match", 5);
+    expect(direct.batches).toEqual([5, 4]);
+    expect(match.batches.every((n) => n <= 3)).toBe(true);
+    // Five match questions at the room that cut them off on 2026-10-03 (5,400 tokens) now get far more.
+    expect(match.maxTokens(3) / 3).toBeGreaterThan(direct.maxTokens(5) / 5 + 500);
+  });
+
+  it("writes more spare drafts for a form, and never more than the cap", () => {
+    expect(writePlan("match", 5).batches.reduce((a, b) => a + b, 0)).toBe(14);
+    expect(writePlan("mcq", 5).batches.reduce((a, b) => a + b, 0)).toBe(9);
+    expect(writePlan(null, 30).batches.reduce((a, b) => a + b, 0)).toBe(MAX_DRAFTS);
+  });
+});
+
 describe("what the writer is told", () => {
   it("names one topic when the student chose one, and lists what not to repeat", () => {
     const text = writeUserPrompt({
       subject: "Accountancy", chapter: "Accounting for Partnership", topics: TOPICS, topicId: "t-int",
-      focus: "interest on capital", difficulty: "hard", count: 5, examples: [], avoid: ["An existing question?"],
+      focus: "interest on capital", difficulty: "hard", form: null, count: 5, examples: [], avoid: ["An existing question?"],
     });
     expect(text).toContain("Every question is on topic T2.");
     expect(text).toContain("Write 5 questions, all hard.");
+    expect(text).toContain("as the real exam mixes them");
     expect(text).toContain("- An existing question?");
   });
 });

@@ -18,6 +18,7 @@ import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
+import { QuestionFormBadge, QuestionText } from "@/components/QuestionText";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -704,7 +705,10 @@ export default function PracticeSessionResult() {
           return (
             <Card key={a.id} className="p-5 transition-shadow hover:shadow-sm">
               <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground mb-2">
-                <span>Q{i + 1}{a.skipped ? " · Skipped" : ""}</span>
+                <span className="flex flex-wrap items-center gap-2">
+                  Q{i + 1}{a.skipped ? " · Skipped" : ""}
+                  <QuestionFormBadge text={questionText} options={opts} />
+                </span>
                 {/* Time on this question alone. Nothing when it was not
                     timed — a blank is not a zero. */}
                 {typeof a.time_taken_ms === "number" && a.time_taken_ms > 0 && (
@@ -714,7 +718,7 @@ export default function PracticeSessionResult() {
                   </span>
                 )}
               </div>
-              <MathText block className="text-base leading-relaxed font-medium mb-4" text={questionText} />
+              <QuestionText className="text-base leading-relaxed font-medium mb-4" text={questionText} options={opts} />
               <div className="space-y-2 mb-4">
                 {opts.map((opt, oi) => {
                   const isSel = oi === selectedIdx;

@@ -43,6 +43,7 @@ import {
   solveUserPrompt,
   topicDraftPrompt,
   writeSystemPrompt,
+  writePlan,
   writeUserPrompt,
   type StyleExample,
   type WrittenQuestion,
@@ -54,26 +55,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/** Questions per writing call. */
-const WRITE_BATCH = 5;
 /**
  * Each written question is checked on its own call, thinking first
  * (completeThinking) — the check with reasoning off got correctly keyed
  * Accountancy wrong (question-explanations, 2026-10-02) — this many at once.
  */
 const CHECK_CONCURRENCY = 10;
-/** Written beyond the shortfall, because the checks discard some. */
-const OVERWRITE = 1.5;
-const MAX_DRAFTS = 40;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-}
-
-function chunks<T>(list: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
-  return out;
 }
 
 const textKey = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
@@ -152,7 +142,7 @@ async function handle(req: Request): Promise<Response> {
     await log({ requested: 1, status: "refused", message: request.message });
     return jsonResponse({ status: "refused", message: request.message });
   }
-  const { chapter, focus, count, difficulty } = request;
+  const { chapter, focus, count, difficulty, form } = request;
   let topicId = request.topicId;
 
   // ── 2. A chapter with no topics gets its list drafted, once ──────────────
@@ -169,7 +159,7 @@ async function handle(req: Request): Promise<Response> {
     topics = (rows ?? []) as Array<{ id: string; name: string }>;
     if (topics.length === 0) {
       await giveBack();
-      await log({ requested: count, subject: chapter.subject, chapter_id: chapter.chapter_id, difficulty, status: "failed", message: "no topics" });
+      await log({ requested: count, subject: chapter.subject, chapter_id: chapter.chapter_id, difficulty, form, status: "failed", message: "no topics" });
       return jsonResponse({ status: "failed", message: "This chapter isn't ready for AI Practice yet. Please try another." });
     }
   }
@@ -185,6 +175,7 @@ async function handle(req: Request): Promise<Response> {
     _chapter: chapter.chapter_id,
     _topic: topicId,
     _difficulty: difficulty,
+    _form: form,
     _query: asked.ok ? JSON.stringify(asked.embedding) : null,
     _limit: Math.max(count * 3, 30),
   });
@@ -196,40 +187,59 @@ async function handle(req: Request): Promise<Response> {
   // ── 4. Write the shortfall, check it, keep what agrees ───────────────────
   let written: string[] = [];
   let discarded = 0;
+  /** What became of the drafts, kept on the request row (20261142000000). */
+  let draftNotes: { batches: Array<Record<string, unknown>>; drafted: number; agreed: number; kept: number } | null = null;
   const shortfall = count - chosen.length;
   if (shortfall > 0) {
-    const { data: exRows } = await admin.from("question_bank")
+    // Style examples of the form asked for, when the bank has them.
+    let exQuery = admin.from("question_bank")
       .select("question, options, correct_index")
       .eq("exam_id", syllabus.examId).eq("chapter_id", chapter.chapter_id)
-      .eq("is_active", true).eq("is_approved", true).not("correct_index", "is", null)
-      .limit(3);
+      .eq("is_active", true).eq("is_approved", true).not("correct_index", "is", null);
+    if (form) exQuery = exQuery.eq("question_format", form);
+    const { data: exRows } = await exQuery.limit(3);
     const examples = ((exRows ?? []) as StyleExample[]).filter((e) => Array.isArray(e.options));
     const { data: avoidRows } = chosen.length
       ? await admin.from("question_bank").select("question").in("id", chosen)
       : { data: [] };
     const avoid = ((avoidRows ?? []) as Array<{ question: string }>).map((r) => r.question);
 
-    const need = Math.min(MAX_DRAFTS, Math.ceil(shortfall * OVERWRITE) + 1);
-    const sizes = chunks(Array.from({ length: need }, (_, i) => i), WRITE_BATCH).map((c) => c.length);
+    const plan = writePlan(form, shortfall);
+    const sizes = plan.batches;
     const replies = await Promise.all(sizes.map((n) => completeWithQwen({
       system: writeSystemPrompt(syllabus.label),
-      user: writeUserPrompt({ subject: chapter.subject, chapter: chapter.chapter, topics, topicId, focus, difficulty, count: n, examples, avoid }),
+      user: writeUserPrompt({ subject: chapter.subject, chapter: chapter.chapter, topics, topicId, focus, difficulty, form, count: n, examples, avoid }),
       temperature: 0.7,
-      max_tokens: 1000 * n + 400,
+      max_tokens: plan.maxTokens(n),
     })));
 
+    draftNotes = { batches: [], drafted: 0, agreed: 0, kept: 0 };
     const drafts: WrittenQuestion[] = [];
     const seenText = new Set(avoid.map(textKey));
-    for (const reply of replies) {
-      if (!reply.ok) continue;
+    for (const [b, reply] of replies.entries()) {
+      // A batch that failed, was cut off, or is not JSON writes nothing: every
+      // question asked of it counts as discarded, and the request row says why.
+      if (!reply.ok) { discarded += sizes[b]; draftNotes.batches.push({ asked: sizes[b], failed: reply.error }); continue; }
       let list: unknown[] = [];
-      try { list = (readModelJson<{ questions?: unknown[] }>(reply.text).questions ?? []) as unknown[]; } catch { /* a reply that is not JSON writes nothing */ }
+      let unreadable: string | null = null;
+      try {
+        const parsed = readModelJson<{ questions?: unknown }>(reply.text).questions;
+        if (Array.isArray(parsed)) list = parsed; else unreadable = "no questions list in the reply";
+      } catch (e) {
+        unreadable = (e instanceof Error ? e.message : String(e)).slice(0, 160);
+      }
+      const refused: string[] = [];
       for (const raw of list) {
         const r = readWrittenQuestion(raw, topics, topicId);
-        if (!r.ok || seenText.has(textKey(r.question.question))) { discarded++; continue; }
+        if (!r.ok || seenText.has(textKey(r.question.question))) { discarded++; refused.push(r.ok ? "already written" : r.reason); continue; }
         seenText.add(textKey(r.question.question));
         drafts.push(r.question);
       }
+      discarded += Math.max(0, sizes[b] - list.length);
+      draftNotes.batches.push({
+        asked: sizes[b], read: list.length, finish: reply.finish_reason ?? null, refused,
+        ...(unreadable ? { unreadable, tail: reply.text.slice(-200) } : {}),
+      });
     }
 
     // The independent check: each solved again, without the answer.
@@ -249,14 +259,18 @@ async function handle(req: Request): Promise<Response> {
       got.forEach((v, k) => { verdicts[i + k] = v; });
     }
     const agreed = drafts.filter((q, i) => verdicts[i] === q.correctIndex);
+    draftNotes.drafted = drafts.length;
+    draftNotes.agreed = agreed.length;
     discarded += drafts.length - agreed.length;
 
     // The same question by meaning: already in the bank, or twice in this batch.
     const keep: WrittenQuestion[] = [];
     const vectors: number[][] = [];
-    for (const q of agreed) {
+    // Every vector at once: one at a time they added seconds a question to a request near its limit.
+    const embedded = await Promise.all(agreed.map((q) => embedQueryText(q.question, { env })));
+    for (const [k, q] of agreed.entries()) {
       if (chosen.length + keep.length >= count) break;
-      const e = await embedQueryText(q.question, { env });
+      const e = embedded[k];
       if (e.ok) {
         if (vectors.some((v) => cosine(v, e.embedding) >= SAME_QUESTION_SIMILARITY)) { discarded++; continue; }
         const { data: near } = await admin.rpc("match_question_bank_for_exam", {
@@ -296,6 +310,7 @@ async function handle(req: Request): Promise<Response> {
       } else {
         const s = stored as { inserted?: Array<{ id: string }>; skipped?: Array<{ existing_id?: string }> };
         written = (s.inserted ?? []).map((r) => r.id);
+        draftNotes.kept = written.length;
         for (const k of s.skipped ?? []) {
           discarded++;
           if (k.existing_id && unseen.has(k.existing_id) && !chosen.includes(k.existing_id)) chosen.push(k.existing_id);
@@ -320,11 +335,13 @@ async function handle(req: Request): Promise<Response> {
     chapter_id: chapter.chapter_id,
     topic_id: topicId,
     difficulty,
+    form,
     requested: count,
     question_ids: questionIds,
     from_bank: fromBank,
     written: questionIds.length - fromBank,
     discarded,
+    drafts: draftNotes,
     status,
     message,
   });

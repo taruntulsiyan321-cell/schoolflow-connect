@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { EmptyState, GlassCard, PageHeader, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { StudentErrorState, StudentListSkeleton } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
+import { QuestionText } from "@/components/QuestionText";
 import { displayChapter } from "@/lib/academicPresentation";
 import { pluralise } from "@/lib/plural";
 import { toErrorMessage } from "@/lib/presentation";
@@ -124,7 +125,7 @@ export default function ReportedQuestions() {
                     {new Date(r.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
                   </span>
                 </div>
-                <MathText block className="text-sm font-medium leading-relaxed" text={r.questionText} />
+                <QuestionText className="text-sm font-medium leading-relaxed" text={r.questionText} options={r.options} />
                 {r.options.length > 0 && (
                   <ol className="space-y-1 text-xs text-muted-foreground">
                     {r.options.map((o, i) => (

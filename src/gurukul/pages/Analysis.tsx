@@ -62,7 +62,7 @@ import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { toErrorMessage } from "@/lib/presentation";
 import { formatLastSeen } from "@/lib/analyticsInsights";
 import { pluralise } from "@/lib/plural";
-import { MathText } from "@/components/MathText";
+import { QuestionText } from "@/components/QuestionText";
 import { AnalysisPrintReport } from "./AnalysisPrintReport";
 import { improveHeadline, improveSubline } from "./analysisImproveCard";
 import { notInPlan } from "@/lib/premium";
@@ -1729,10 +1729,10 @@ export default function Analysis() {
                     <div className="text-sm font-semibold text-foreground truncate">
                       {displayTopic(r.topic ?? "") || displayChapter(r.chapter ?? "") || "This question"}
                     </div>
-                    {/* Through MathText: question text carries LaTeX, and this
-                        printed "$n^2 - n$" as written. */}
+                    {/* Through QuestionText (MathText inside): question text
+                        carries LaTeX, and this printed "$n^2 - n$" as written. */}
                     <div className="text-[11px] text-muted-foreground line-clamp-2">
-                      {r.question_text ? <MathText text={r.question_text} /> : displaySubject(r.subject ?? "")}
+                      {r.question_text ? <QuestionText compact text={r.question_text} /> : displaySubject(r.subject ?? "")}
                     </div>
                   </div>
                   <div className="text-right shrink-0">

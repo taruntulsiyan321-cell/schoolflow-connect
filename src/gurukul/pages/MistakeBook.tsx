@@ -22,6 +22,7 @@ import { toErrorMessage } from "@/lib/presentation";
 import { pluralise } from "@/lib/plural";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { ExplanationText } from "@/components/ExplanationText";
+import { QuestionFormBadge, QuestionText } from "@/components/QuestionText";
 import { markRefFromMistake } from "@/lib/questionMarks";
 import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
@@ -110,6 +111,7 @@ function MistakeCard({
               <SourceTag source={mistake.source} label={mistake.sourceLabel}/>
               <SubjectBadge subject={mistake.subject}/>
               <DifficultyBadge level={mistake.difficulty ?? undefined}/>
+              <QuestionFormBadge text={mistake.question} options={mistake.options}/>
               <FreqBadge freq={mistake.frequency}/>
               {mistake.aiAnswered && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-400/10 text-sky-300">AI answered</span>
@@ -118,7 +120,7 @@ function MistakeCard({
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400">Resolved</span>
               )}
             </div>
-            <p className="text-sm font-semibold text-foreground leading-snug">{mistake.question}</p>
+            <p className="text-sm font-semibold text-foreground leading-snug"><QuestionText compact text={mistake.question} options={mistake.options} /></p>
             <div className="text-[11px] text-muted-foreground mt-1">{[mistake.chapter, mistake.topic, mistake.date].filter(Boolean).join(" · ")}</div>
           </div>
           <button onClick={() => onToggleBookmark(mistake.id)}
@@ -361,7 +363,7 @@ function MistakePractice({
           </div>
         </div>
 
-        <p className="text-sm font-semibold text-foreground leading-relaxed mb-5">{q.question}</p>
+        <QuestionText className="text-sm font-semibold text-foreground leading-relaxed mb-5" text={q.question} options={q.options} />
 
         <div className="space-y-2">
           {q.options.map((opt, i) => {

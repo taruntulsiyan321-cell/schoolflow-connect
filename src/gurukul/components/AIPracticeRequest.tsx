@@ -18,8 +18,8 @@ import { cn } from "@/gurukul/components/shared";
 const EXAMPLES = [
   "20 medium questions on goodwill valuation",
   "10 hard questions on ratio analysis",
-  "15 questions on Fayol's principles of management",
-  "Mixed questions on national income accounting",
+  "10 assertion–reason questions on Fayol's principles",
+  "5 case-based questions on national income accounting",
 ];
 
 /** What the student sees while the function works — it does not stream, so honest stages. */
@@ -101,7 +101,8 @@ export function AIPracticeRequest({
           <Sparkles className="h-4 w-4" style={{ color: accentColor }} aria-hidden /> Tell AI what to practise
         </div>
         <p className="mb-3 text-sm text-muted-foreground">
-          Name a chapter or topic from your syllabus, and say how many questions and how hard, if you like.
+          Name a chapter or topic from your syllabus, and say how many questions, how hard and what kind — assertion–reason,
+          statement-based, match the following, case-based — if you like.
           Questions from the bank come first; new ones are written by AI and kept only when a second check gets the same answer.
         </p>
         <label htmlFor="ai-practice-prompt" className="sr-only">What do you want to practise?</label>

@@ -4,7 +4,7 @@ import { ArrowLeft, ChevronDown, ChevronRight, Tag } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { StudentErrorState, StudentListSkeleton } from "@/components/student/StudentPanelStates";
-import { MathText } from "@/components/MathText";
+import { QuestionText } from "@/components/QuestionText";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
 import { pluralise } from "@/lib/plural";
 import { NO_TAG, bucketMarks } from "@/lib/questionMarks";
@@ -135,7 +135,7 @@ export default function MistakeTypes() {
                         {m.subject && <SubjectBadge subject={m.subject} />}
                         {m.chapter && <span className="text-[11px] text-muted-foreground">{displayChapter(m.chapter)}</span>}
                       </div>
-                      <MathText className="text-sm font-medium leading-snug" text={m.questionText} />
+                      <QuestionText compact className="text-sm font-medium leading-snug" text={m.questionText} />
                       <QuestionMarkBar
                         userId={user.id}
                         questionRef={m.ref}

@@ -6,7 +6,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { MathText } from "@/components/MathText";
+import { QuestionText } from "@/components/QuestionText";
 import { cn } from "@/lib/utils";
 import { toErrorMessage } from "@/lib/presentation";
 import {
@@ -98,7 +98,7 @@ export function QuestionMarkDialog({ open, onOpenChange, userId, questionRef, qu
           <DialogTitle>Mark this question</DialogTitle>
           <DialogDescription asChild>
             <div className="line-clamp-3 text-sm text-muted-foreground">
-              <MathText text={question.text} />
+              <QuestionText compact text={question.text} />
             </div>
           </DialogDescription>
         </DialogHeader>

@@ -3,6 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Check, X } from "lucide-react";
 import { MathText } from "@/components/MathText";
+import { QuestionText } from "@/components/QuestionText";
 import { ExplanationText } from "@/components/ExplanationText";
 import { toDisplayText } from "@/lib/presentation";
 
@@ -89,7 +90,7 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
-        <MathText block className="text-base leading-relaxed font-medium flex-1" text={q.question} />
+        <QuestionText className="text-base leading-relaxed font-medium flex-1" text={q.question} options={opts} />
         <span className="text-xs text-muted-foreground whitespace-nowrap">+{q.marks}</span>
       </div>
 

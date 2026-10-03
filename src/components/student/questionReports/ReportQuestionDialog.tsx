@@ -6,7 +6,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { MathText } from "@/components/MathText";
+import { QuestionText } from "@/components/QuestionText";
 import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 import { cn } from "@/lib/utils";
 import { toErrorMessage } from "@/lib/presentation";
@@ -82,7 +82,7 @@ export function ReportQuestionDialog({ open, onOpenChange, questionId, question,
           <DialogTitle>{editable ? "Report this question" : "Your report"}</DialogTitle>
           <DialogDescription asChild>
             <div className="line-clamp-3 text-sm text-muted-foreground">
-              <MathText text={question.text} />
+              <QuestionText compact text={question.text} options={question.options} />
             </div>
           </DialogDescription>
         </DialogHeader>
