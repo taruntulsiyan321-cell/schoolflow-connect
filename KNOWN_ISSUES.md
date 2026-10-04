@@ -5123,8 +5123,15 @@ as the database reads it — one per chapter whatever its case — so 106's olde
    Questions tab files lucky guesses, guessed-wrong and wrong-without-a-guess; the last is said only once the
    student has marked a guess in that session. Proved live as the seed demo account (0 and 1 stored, read back
    from the database). Every session the practice screen runs offers it — practice, recovery and revision; a mock paper does not.
-5. **Not yet built** (approved, next): the Analysis tab — topic map, slipping topics, mistake trends, pace against
-   the exam, readiness and peer comparison.
+5. **The Analysis tab — BUILT 2026-10-03/04.** Pace against the real paper (Activity & Speed; 20261144000000
+   rpc_exam_paper), the whole syllabus as a coverage map and the topics slipping lately (Subjects & Chapters,
+   Topics; 20261145000000 rpc_student_syllabus_map), "If the paper were today" per subject, only with half the
+   chapters and a paper's worth of answers behind it (Overview), and mistake-type trends on Mistake Types, linked
+   from Topics. The map shows coverage, not accuracy: "Chapter by chapter" is the one home of chapter accuracy.
+6. **Peer comparison — RULED OUT by the owner, 2026-10-04.** §6.7 of the analysis spec stands: analysis never
+   compares a student with other students. It was built from the approved list (20261146000000, thresholded and
+   aggregate-only) before the conflict was caught, never called by any screen, and dropped by 20261147000000. Do
+   not rebuild it without a ruling that changes §6.7.
 
 ## 116. The menu under five heads, and every screen measured on phones, tablets and laptops — BUILT 2026-10-03; what is open
 
