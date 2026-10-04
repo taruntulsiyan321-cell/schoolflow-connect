@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+// The page links into Practice and Mistake Types, as the app renders it: inside the router.
+import { MemoryRouter } from "react-router-dom";
 
 /**
  * WHAT A STUDENT SEES WHEN ANALYSIS CANNOT LOAD.
@@ -65,7 +67,7 @@ import Analysis from "./Analysis";
 
 describe("Analysis — a load that failed", () => {
   it("names the failure instead of telling the student to read dashes as zeros", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     const text = document.body.textContent ?? "";
     expect(text).toContain("practice attempts are unavailable");
     expect(text).toContain("shown as");
@@ -77,7 +79,7 @@ describe("Analysis — a load that failed", () => {
     reloadSnapshot.mockClear();
     reloadAnalytics.mockClear();
     reloadPracticeTime.mockClear();
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     // All four, not just the one whose error happened to surface.
     expect(reloadAnalysis).toHaveBeenCalledTimes(1);
@@ -87,7 +89,7 @@ describe("Analysis — a load that failed", () => {
   });
 
   it("still renders the page rather than blanking it", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     expect(screen.getByText("Analysis")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
     // And invents nothing to fill the gap. "Questions solved 0 · Correct 0
@@ -102,7 +104,7 @@ describe("Analysis — a load that failed", () => {
   });
 
   it("reads an unread day list as unknown on the Practice tab, not as a month of zeroes", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     fireEvent.click(screen.getByRole("tab", { name: "Practice" }));
     for (const label of ["Practice today", "Practice in 4 weeks", "Consistency"]) {
       const tile = screen.getByText(label).parentElement as HTMLElement;

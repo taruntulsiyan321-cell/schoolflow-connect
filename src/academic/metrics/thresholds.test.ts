@@ -24,7 +24,7 @@ import {
   MISTAKE_RETRY_GOOD,
   CARELESS_SHARE,
   SLOW_SHARE,
-  SLIPPING_WINDOW_DAYS,
+  RECENT_WINDOW_DAYS,
   READINESS_MIN_COVERAGE_PCT,
   THRESHOLDS as SOURCE,
 } from "./thresholds";
@@ -55,7 +55,7 @@ const THRESHOLD_NAMES = [
   "MISTAKE_RETRY_GOOD",
   "CARELESS_SHARE",
   "SLOW_SHARE",
-  "SLIPPING_WINDOW_DAYS",
+  "RECENT_WINDOW_DAYS",
   "READINESS_MIN_COVERAGE_PCT",
 ];
 
@@ -114,7 +114,7 @@ describe("one threshold module, and the value reaches the screens", () => {
     expect(SOURCE.CLASS_FLAGGED_ON_MARKS).toBe(CLASS_FLAGGED_ON_MARKS);
     expect(SOURCE.MARKS_OVERDUE).toBe(MARKS_OVERDUE);
     expect(SOURCE.MISTAKE_RETRY_GOOD).toBe(MISTAKE_RETRY_GOOD);
-    expect(SOURCE.SLIPPING_WINDOW_DAYS).toBe(SLIPPING_WINDOW_DAYS);
+    expect(SOURCE.RECENT_WINDOW_DAYS).toBe(RECENT_WINDOW_DAYS);
     expect(SOURCE.READINESS_MIN_COVERAGE_PCT).toBe(READINESS_MIN_COVERAGE_PCT);
     // Ratios, not counts: the literal lint cannot see a number under 1, so
     // they are not in the bag — but they are declared once, as the scan above

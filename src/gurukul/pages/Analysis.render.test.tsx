@@ -485,6 +485,12 @@ describe("Analysis — the whole syllabus, and what is slipping", () => {
     expect(map).toHaveTextContent("ProbabilityNot practised");
   });
 
+  it("Topics leads to the student's mistake types, where their trend is", () => {
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
+    openTab("Topics");
+    expect(screen.getByTestId("to-mistake-types")).toHaveAttribute("href", "/student/mistakes/types");
+  });
+
   it("Topics names the topic slipping lately", () => {
     render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Topics");

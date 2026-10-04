@@ -217,3 +217,33 @@ describe("a voice note", () => {
     expect(baseAudioType("audio/mp4; codecs=mp4a.40.2")).toBe("audio/mp4");
   });
 });
+
+describe("mistake types, lately against before", () => {
+  const NOW = new Date("2026-10-03T12:00:00Z");
+  const daysAgo = (d: number) => new Date(NOW.getTime() - d * 86_400_000).toISOString();
+  const TAG_LIST = [
+    { key: "calc", label: "Calculation error", group: "Working it out", position: 1, active: true },
+    { key: "recall", label: "Recall", group: "Memory", position: 2, active: true },
+  ];
+  const m = (id: string, tags: string[], createdAt: string) => ({
+    ref: { kind: "bank" as const, id }, questionText: id, subject: null, chapter: null, tags,
+    note: null, voicePath: null, voiceSeconds: null, createdAt, updatedAt: createdAt,
+  });
+
+  it("counts each type in the last 14 days and the 14 before — equal windows — the type grown most first", async () => {
+    const { tagTrend, risingTag } = await import("./questionMarks");
+    const trend = tagTrend([
+      m("1", ["calc"], daysAgo(1)), m("2", ["calc"], daysAgo(3)), m("3", ["calc", "recall"], daysAgo(13.9)),
+      m("4", ["calc"], daysAgo(20)),
+      m("5", ["recall"], daysAgo(15)), m("6", ["recall"], daysAgo(27.9)),
+      m("7", ["calc", "recall"], daysAgo(40)), // before both windows: not counted
+    ], TAG_LIST, NOW, 14);
+    expect(trend).toEqual([
+      { key: "calc", label: "Calculation error", recent: 3, before: 1 },
+      { key: "recall", label: "Recall", recent: 1, before: 2 },
+    ]);
+    expect(risingTag(trend)?.key).toBe("calc");
+    // CONTROL: nothing grown, nothing named.
+    expect(risingTag(tagTrend([m("5", ["recall"], daysAgo(15))], TAG_LIST, NOW, 14))).toBeNull();
+  });
+});

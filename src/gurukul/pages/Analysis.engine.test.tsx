@@ -15,6 +15,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+// The page links into Practice and Mistake Types, as the app renders it: inside the router.
+import { MemoryRouter } from "react-router-dom";
 
 class RO { observe() {} unobserve() {} disconnect() {} }
 (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = RO;
@@ -89,7 +91,7 @@ import Analysis from "./Analysis";
 
 const openTab = (label: string) => fireEvent.click(screen.getByRole("tab", { name: label }));
 const settle = async () => {
-  render(<Analysis />);
+  render(<MemoryRouter><Analysis /></MemoryRouter>);
   await screen.findByText("Analysis");
   await new Promise((r) => setTimeout(r, 30));
 };

@@ -79,12 +79,13 @@ export const HOMEWORK_ITEM_NEEDS_ACTION = 70;
 export const HOMEWORK_WINDOW = 7;
 
 /**
- * Days that count as "lately" when a topic's accuracy is read against its own
- * earlier accuracy — slipping topics, on the Analysis tab. Sent to
- * rpc_student_syllabus_map as its window (20261145000000), which refuses one
- * outside 1–90 days.
+ * Days that count as "lately", wherever the product reads lately against
+ * before: a topic's accuracy (slipping topics, Analysis tab — sent to
+ * rpc_student_syllabus_map as its window, 20261145000000, which refuses one
+ * outside 1–90 days) and the questions marked with each mistake type (Mistake
+ * Types, against the same length of time before it).
  */
-export const SLIPPING_WINDOW_DAYS = 14;
+export const RECENT_WINDOW_DAYS = 14;
 
 /**
  * Percent of a subject's syllabus chapters a student must have practised
@@ -148,7 +149,7 @@ export const THRESHOLDS = {
   CLASS_FLAGGED_ON_MARKS,
   SUBJECT_AVERAGE_LOW,
   MISTAKE_RETRY_GOOD,
-  SLIPPING_WINDOW_DAYS,
+  RECENT_WINDOW_DAYS,
   READINESS_MIN_COVERAGE_PCT,
 } as const;
 

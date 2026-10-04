@@ -41,6 +41,8 @@ export type QuestionMark = {
   note: string | null;
   voicePath: string | null;
   voiceSeconds: number | null;
+  /** When the question was first marked — what the mistake-type trend counts by. */
+  createdAt: string;
   updatedAt: string;
 };
 
@@ -57,7 +59,7 @@ export type MarkedQuestion = { text: string; subject: string | null; chapter: st
 type MarkRow = Database["public"]["Tables"]["question_marks"]["Row"];
 
 const MARK_COLUMNS =
-  "bank_question_id, upload_question_id, capture_question_id, question_ref, question_text, subject, chapter, tags, note, voice_path, voice_seconds, updated_at";
+  "bank_question_id, upload_question_id, capture_question_id, question_ref, question_text, subject, chapter, tags, note, voice_path, voice_seconds, created_at, updated_at";
 
 /** A recording's length as a clock: 75 → "1:15". */
 export function formatClock(seconds: number): string {
@@ -93,6 +95,43 @@ export function bucketMarks(marks: QuestionMark[], tags: MarkTag[]): MarkBucket[
     });
 }
 
+export type TagTrend = { key: string; label: string; recent: number; before: number };
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Each mistake type: how many questions were first marked with it in the last
+ * `days`, and in the same length of time just before. Equal windows, so the two
+ * counts are read against each other as they stand — no rate, no verdict.
+ * The type grown most lately comes first.
+ */
+export function tagTrend(marks: QuestionMark[], tags: MarkTag[], now: Date, days: number): TagTrend[] {
+  const end = now.getTime();
+  const mid = end - days * DAY_MS;
+  const start = mid - days * DAY_MS;
+  const label = new Map(tags.map((t) => [t.key, t.label]));
+  const counts = new Map<string, { recent: number; before: number }>();
+  for (const m of marks) {
+    const at = Date.parse(m.createdAt);
+    if (!(at >= start && at <= end)) continue;
+    for (const key of m.tags) {
+      const c = counts.get(key) ?? { recent: 0, before: 0 };
+      if (at >= mid) c.recent += 1;
+      else c.before += 1;
+      counts.set(key, c);
+    }
+  }
+  return [...counts]
+    .map(([key, c]) => ({ key, label: label.get(key) ?? key, ...c }))
+    .sort((a, b) => (b.recent - b.before) - (a.recent - a.before) || b.recent - a.recent || a.label.localeCompare(b.label));
+}
+
+/** The mistake type marked more often lately than before, by the most; null when none was. */
+export function risingTag(trend: TagTrend[]): TagTrend | null {
+  const top = trend[0];
+  return top && top.recent > top.before ? top : null;
+}
+
 export function countChars(text: string): number {
   return Array.from(text).length;
 }
@@ -114,7 +153,7 @@ function refFromRow(row: Pick<MarkRow, "bank_question_id" | "upload_question_id"
   return null;
 }
 
-function toMark(row: Pick<MarkRow, "bank_question_id" | "upload_question_id" | "capture_question_id" | "question_text" | "subject" | "chapter" | "tags" | "note" | "voice_path" | "voice_seconds" | "updated_at">): QuestionMark | null {
+function toMark(row: Pick<MarkRow, "bank_question_id" | "upload_question_id" | "capture_question_id" | "question_text" | "subject" | "chapter" | "tags" | "note" | "voice_path" | "voice_seconds" | "created_at" | "updated_at">): QuestionMark | null {
   const ref = refFromRow(row);
   if (!ref) return null;
   return {
@@ -126,6 +165,7 @@ function toMark(row: Pick<MarkRow, "bank_question_id" | "upload_question_id" | "
     note: row.note,
     voicePath: row.voice_path,
     voiceSeconds: row.voice_seconds,
+    createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }

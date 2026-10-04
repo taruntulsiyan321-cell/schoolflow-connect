@@ -7,7 +7,8 @@ import { StudentErrorState, StudentListSkeleton } from "@/components/student/Stu
 import { QuestionText } from "@/components/QuestionText";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
 import { pluralise } from "@/lib/plural";
-import { NO_TAG, bucketMarks } from "@/lib/questionMarks";
+import { NO_TAG, bucketMarks, risingTag, tagTrend } from "@/lib/questionMarks";
+import { RECENT_WINDOW_DAYS } from "@/academic/metrics/thresholds";
 import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
 
@@ -25,6 +26,10 @@ export default function MistakeTypes() {
   const shown = useMemo(() => (subject === "all" ? all : all.filter((m) => m.subject === subject)), [all, subject]);
   const buckets = useMemo(() => bucketMarks(shown, tags), [shown, tags]);
   const tagged = buckets.filter((b) => b.key !== NO_TAG);
+  // Lately against before, in equal windows (owner-approved analysis: mistake trends).
+  const trend = useMemo(() => tagTrend(shown, tags, new Date(), RECENT_WINDOW_DAYS), [shown, tags]);
+  const lately = useMemo(() => new Map(trend.map((t) => [t.key, t.recent])), [trend]);
+  const rising = risingTag(trend);
   const top = tagged[0]?.marks.length ?? 0;
   // The biggest group starts open, unless the student has chosen another.
   const expanded = openKey ?? tagged[0]?.key ?? buckets[0]?.key ?? null;
@@ -90,6 +95,12 @@ export default function MistakeTypes() {
         <div className="mb-4 text-xs uppercase tracking-[0.15em] text-muted-foreground">
           {pluralise(shown.length, "question")} marked
         </div>
+        {rising && (
+          <p className="mb-4 rounded-xl border border-warning/20 bg-warning/5 p-3 text-sm text-foreground" data-testid="mistake-trend">
+            Lately you mark <span className="font-semibold">{rising.label}</span> more often:{" "}
+            {rising.recent} in the last {RECENT_WINDOW_DAYS} days, {rising.before} in the {RECENT_WINDOW_DAYS} before.
+          </p>
+        )}
         {tagged.length === 0 ? (
           <p className="text-sm text-muted-foreground">None of these has a tag yet — edit a mark to add one.</p>
         ) : (
@@ -101,7 +112,14 @@ export default function MistakeTypes() {
                 onClick={() => setOpenKey(b.key)}
                 className="flex w-full items-center gap-3 text-left"
               >
-                <span className="w-36 shrink-0 text-xs font-semibold text-foreground">{b.label}</span>
+                <span className="w-28 shrink-0 sm:w-36">
+                  <span className="block text-xs font-semibold text-foreground">{b.label}</span>
+                  {lately.get(b.key) ? (
+                    <span className="block text-[10px] tabular-nums text-muted-foreground" data-testid="tag-lately">
+                      {lately.get(b.key)} in the last {RECENT_WINDOW_DAYS} days
+                    </span>
+                  ) : null}
+                </span>
                 <span className="flex-1"><ProgressBar value={b.marks.length} max={top} /></span>
                 <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums">{b.marks.length}</span>
               </button>

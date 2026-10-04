@@ -36,7 +36,7 @@ const TAGS: MarkTag[] = [
 
 const mark = (id: string, tags: string[], subject: string, over: Partial<QuestionMark> = {}): QuestionMark => ({
   ref: { kind: "bank", id }, questionText: `Question ${id}`, subject, chapter: null, tags,
-  note: null, voicePath: null, voiceSeconds: null, updatedAt: "2026-10-02T10:00:00Z", ...over,
+  note: null, voicePath: null, voiceSeconds: null, createdAt: "2026-10-02T10:00:00Z", updatedAt: "2026-10-02T10:00:00Z", ...over,
 });
 
 const MARKS = [
@@ -110,5 +110,30 @@ describe("the Mistake Types screen", () => {
     state.value = { ...state.value, error: "We couldn't load your marks." };
     show();
     expect(screen.getByText("Couldn't load your marks")).toBeInTheDocument();
+  });
+});
+
+describe("mistake types, lately", () => {
+  it("names the type marked more often lately, and puts each type's recent count under its name", () => {
+    const ago = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
+    const marks = [
+      mark("x1", ["formula_error"], "accountancy", { createdAt: ago(1) }),
+      mark("x2", ["formula_error"], "accountancy", { createdAt: ago(2) }),
+      mark("x3", ["formula_error"], "accountancy", { createdAt: ago(20) }),
+      mark("x4", ["recall"], "accountancy", { createdAt: ago(16) }),
+    ];
+    state.value = { ...state.value, marks: new Map(marks.map((m) => [m.ref.id, m])) };
+    render(<MemoryRouter><MistakeTypes /></MemoryRouter>);
+    expect(screen.getByTestId("mistake-trend")).toHaveTextContent("Lately you mark Formula error more often: 2 in the last 14 days, 1 in the 14 before.");
+    expect(screen.getAllByTestId("tag-lately").map((e) => e.textContent)).toEqual(["2 in the last 14 days"]);
+  });
+
+  it("nothing marked more often lately: no headline", () => {
+    // The same marks, all from before both windows.
+    const old = new Date(Date.now() - 40 * 86_400_000).toISOString();
+    state.value = { ...state.value, marks: new Map(MARKS.map((m) => [m.ref.id, { ...m, createdAt: old }])) };
+    render(<MemoryRouter><MistakeTypes /></MemoryRouter>);
+    expect(screen.queryByTestId("tag-lately")).toBeNull();
+    expect(screen.queryByTestId("mistake-trend")).toBeNull();
   });
 });

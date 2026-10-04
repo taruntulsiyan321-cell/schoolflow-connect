@@ -69,6 +69,7 @@ import { notInPlan } from "@/lib/premium";
 import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { accuracyWhenMeaningful, mayBeJudged, MIN_OBSERVATIONS_FOR_VERDICT } from "@/academic/metrics/thresholds";
+import { Link } from "react-router-dom";
 import { useExamPaper } from "@/hooks/useExamPaper";
 import { ExamPaceSummary, OverThePaper } from "@/components/student/analysis/ExamPaceSummary";
 import { useSyllabusMap } from "@/hooks/useSyllabusMap";
@@ -1711,6 +1712,16 @@ export default function Analysis() {
               <SlippingTopics map={syllabus} topicLock={topicLock ? <PlanLimitNotice limit={topicLock} /> : null} />
             </div>
           )}
+
+          {/* Why answers go wrong, and which reasons are rising: the student's
+              own tags live on Mistake Types — one home for them. */}
+          <Link to="/student/mistakes/types" className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface/60 p-3 text-sm hover:border-border" data-testid="to-mistake-types">
+            <span className="min-w-0">
+              <span className="block font-semibold text-foreground">Your mistake types</span>
+              <span className="block text-[11px] text-muted-foreground">Why your answers went wrong, and which reasons you mark more often lately</span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
 
           <div className="grid grid-cols-1 gap-6">
             {/* Doing well removed — §10.8 */}

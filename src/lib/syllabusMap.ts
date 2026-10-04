@@ -4,7 +4,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { MapChapter, MapTopic, SyllabusMap } from "@/academic/metrics/syllabusMap";
-import { SLIPPING_WINDOW_DAYS } from "@/academic/metrics/thresholds";
+import { RECENT_WINDOW_DAYS } from "@/academic/metrics/thresholds";
 
 type RawCounts = { answered?: unknown; correct?: unknown; recent_answered?: unknown; recent_correct?: unknown; last_at?: unknown };
 const count = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : 0);
@@ -39,14 +39,14 @@ export function readSyllabusMap(raw: unknown): SyllabusMap | null {
     }));
   return {
     examFound: r.exam_found === true,
-    recentDays: typeof r.recent_days === "number" ? r.recent_days : SLIPPING_WINDOW_DAYS,
+    recentDays: typeof r.recent_days === "number" ? r.recent_days : RECENT_WINDOW_DAYS,
     chapters,
     topics,
     topicsLocked: r.topic_analysis_locked === true,
   };
 }
 
-export async function fetchSyllabusMap(windowDays: number = SLIPPING_WINDOW_DAYS): Promise<SyllabusMap | null> {
+export async function fetchSyllabusMap(windowDays: number = RECENT_WINDOW_DAYS): Promise<SyllabusMap | null> {
   const { data, error } = await supabase.rpc("rpc_student_syllabus_map", { _recent_days: windowDays });
   if (error) throw new Error(error.message);
   return readSyllabusMap(data);

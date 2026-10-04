@@ -49,7 +49,7 @@ const QUESTION = { text: "Goodwill is valued at?", subject: "accountancy", chapt
 const stored = (over: Partial<QuestionMark> = {}): QuestionMark => ({
   ref: REF, questionText: QUESTION.text, subject: QUESTION.subject, chapter: QUESTION.chapter,
   tags: ["recall"], note: "Forgot the super-profit method", voicePath: null, voiceSeconds: null,
-  updatedAt: "2026-10-02T10:00:00Z", ...over,
+  createdAt: "2026-10-02T10:00:00Z", updatedAt: "2026-10-02T10:00:00Z", ...over,
 });
 
 function show(mark: QuestionMark | null, onChange = vi.fn()) {

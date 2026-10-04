@@ -14,6 +14,8 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+// The page links into Practice and Mistake Types, as the app renders it: inside the router.
+import { MemoryRouter } from "react-router-dom";
 class RO { observe() {} unobserve() {} disconnect() {} }
 (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = RO;
 
@@ -61,7 +63,7 @@ describe("Analysis — a student with no practice at all", () => {
     fireEvent.click(screen.getByRole("tab", { name: label }));
 
   it("renders every tab without throwing", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     for (const t of ["Overview", "Subjects & Chapters", "Topics", "Practice", "Activity & Speed", "Milestones & Reports"]) {
       openTab(t);
       expect(screen.getByText("Analysis")).toBeInTheDocument();
@@ -69,7 +71,7 @@ describe("Analysis — a student with no practice at all", () => {
   });
 
   it("claims no accuracy it cannot measure", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     // Correct 0 and Incorrect 0 are real counts. The RATE over them does not
     // exist, and "0%" would say the student got everything wrong.
     expect(document.body.textContent).not.toContain("0%");
@@ -77,7 +79,7 @@ describe("Analysis — a student with no practice at all", () => {
   });
 
   it("claims no study time it never recorded", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Activity & Speed");
     const text = document.body.textContent ?? "";
     // "Average per day: 0 min" sat beside "Study time (4 weeks): —" — the
@@ -88,7 +90,7 @@ describe("Analysis — a student with no practice at all", () => {
   });
 
   it("reports an empty month as empty, not as zeroes", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Activity & Speed");
     const panel = screen.getByText("This month vs last month").parentElement as HTMLElement;
     // Activities and Study time returned 0 while Accuracy returned null, so
@@ -97,13 +99,13 @@ describe("Analysis — a student with no practice at all", () => {
   });
 
   it("offers a first milestone instead of an empty screen", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Milestones & Reports");
     expect(screen.getByText(/Solve 100 practice questions/)).toBeInTheDocument();
   });
 
   it("names no fastest or slowest subject", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     openTab("Practice");
     const fastest = screen.getByText("Fastest subject").parentElement as HTMLElement;
     expect(fastest.textContent).toContain("\u2014");
@@ -111,7 +113,7 @@ describe("Analysis — a student with no practice at all", () => {
   });
 
   it("uses one spelling of practise throughout", () => {
-    render(<Analysis />);
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
     for (const t of ["Topics", "Milestones & Reports"]) {
       openTab(t);
       expect(document.body.textContent).not.toContain("practicing");
