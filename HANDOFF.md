@@ -1,3 +1,6 @@
+> **The current to-do list is [docs/TODO.md](docs/TODO.md) (2026-10-04).** Everything below is the
+> history of earlier sessions; its "IMMEDIATE TODO" (§5) is September's list, not today's.
+
 # Custom Practice uploads — 2026-09-24 session leave-behind
 
 **Branch:** claude/question-topics-per-chapter. Do not open a PR unless asked. Do not promote main until the owner says so.
@@ -753,7 +756,7 @@ lint:baseline ............. 113 errors, 71 warnings — FROZEN, and now a CI gat
 
 ---
 
-## 5. THE IMMEDIATE TODO, in order
+## 5. THE IMMEDIATE TODO, in order — HISTORICAL (September 2026); today's list is docs/TODO.md
 
 ### 5.1 The moment IPv4 is back
 
