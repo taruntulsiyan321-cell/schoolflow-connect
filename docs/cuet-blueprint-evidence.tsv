@@ -1,0 +1,633 @@
+# Every question of every CUET paper the blueprint rests on, classified by hand (docs/cuet-blueprint.md).
+# form: MCQ direct | NUM direct calculation | STMT statement set | MATCH List-I/II | SEQ order | CASE passage item | -APP short scenario
+subject	paper	source	q	form	chapter_or_area	note
+Accountancy	2024 Set A	NTA booklet 301 E/A	1	MATCH	Accounting for Share Capital	accounts on forfeiture
+Accountancy	2024 Set A	NTA booklet 301 E/A	2	NUM	Accounting for Share Capital	capital reserve on reissue
+Accountancy	2024 Set A	NTA booklet 301 E/A	3	STMT	Issue of Debentures	entry for issue and redemption at premium
+Accountancy	2024 Set A	NTA booklet 301 E/A	4	SEQ	Issue of Debentures	debenture life cycle
+Accountancy	2024 Set A	NTA booklet 301 E/A	5	MCQ	Accounting for Share Capital	interest on delayed refund
+Accountancy	2024 Set A	NTA booklet 301 E/A	6	MCQ	Accounting for Share Capital	calls in advance authorised by
+Accountancy	2024 Set A	NTA booklet 301 E/A	7	MCQ	Retirement and Death of a Partner	entry for profit to date of death
+Accountancy	2024 Set A	NTA booklet 301 E/A	8	NUM	Admission of a New Partner	revalued machinery
+Accountancy	2024 Set A	NTA booklet 301 E/A	9	MCQ	Cash Flow Statement	dividend received
+Accountancy	2024 Set A	NTA booklet 301 E/A	10	MCQ	Accounting for Partnership	maximum partners
+Accountancy	2024 Set A	NTA booklet 301 E/A	11	MCQ	Computerised Accounting System	sequential code
+Accountancy	2024 Set A	NTA booklet 301 E/A	12	MCQ	Admission of a New Partner	workmen compensation reserve
+Accountancy	2024 Set A	NTA booklet 301 E/A	13	NUM	Reconstitution of Partnership	sacrifice/gain on change in ratio
+Accountancy	2024 Set A	NTA booklet 301 E/A	14	MATCH	Accounting for Partnership	months of interest on drawings
+Accountancy	2024 Set A	NTA booklet 301 E/A	15	NUM	Admission of a New Partner	guaranteed amount
+Accountancy	2024 Set A	NTA booklet 301 E/A	16	NUM	Admission of a New Partner	new profit sharing ratio
+Accountancy	2024 Set A	NTA booklet 301 E/A	17	STMT	Admission of a New Partner	goodwill entry
+Accountancy	2024 Set A	NTA booklet 301 E/A	18	MCQ	Cash Flow Statement	purchase of goodwill
+Accountancy	2024 Set A	NTA booklet 301 E/A	19	MCQ	Computerised Accounting System	components of CAS
+Accountancy	2024 Set A	NTA booklet 301 E/A	20	MCQ	Computerised Accounting System	sales subsystem
+Accountancy	2024 Set A	NTA booklet 301 E/A	21	MCQ	Computerised Accounting System	key fields
+Accountancy	2024 Set A	NTA booklet 301 E/A	22	MCQ	Dissolution of a Partnership Firm	bank overdraft
+Accountancy	2024 Set A	NTA booklet 301 E/A	23	SEQ	Accounting for Share Capital	life of a company
+Accountancy	2024 Set A	NTA booklet 301 E/A	24	SEQ	Accounting for Share Capital	kinds of capital in order
+Accountancy	2024 Set A	NTA booklet 301 E/A	25	STMT	Retirement and Death of a Partner	deceased partner's capital account
+Accountancy	2024 Set A	NTA booklet 301 E/A	26	SEQ	Cash Flow Statement	operating cash flow steps
+Accountancy	2024 Set A	NTA booklet 301 E/A	27	CASE	Ratio Analysis	passage 1 (ratio data): calculation
+Accountancy	2024 Set A	NTA booklet 301 E/A	28	CASE	Ratio Analysis	passage 1: calculation
+Accountancy	2024 Set A	NTA booklet 301 E/A	29	CASE	Ratio Analysis	passage 1: calculation
+Accountancy	2024 Set A	NTA booklet 301 E/A	30	CASE	Ratio Analysis	passage 1: calculation
+Accountancy	2024 Set A	NTA booklet 301 E/A	31	CASE	Ratio Analysis	passage 1: ratio category
+Accountancy	2024 Set A	NTA booklet 301 E/A	32	CASE	Dissolution of a Partnership Firm	passage 2 (dissolution): mode of dissolution
+Accountancy	2024 Set A	NTA booklet 301 E/A	33	CASE	Dissolution of a Partnership Firm	passage 2: calculation
+Accountancy	2024 Set A	NTA booklet 301 E/A	34	CASE	Dissolution of a Partnership Firm	passage 2: calculation
+Accountancy	2024 Set A	NTA booklet 301 E/A	35	CASE	Dissolution of a Partnership Firm	passage 2: entry
+Accountancy	2024 Set A	NTA booklet 301 E/A	36	CASE	Dissolution of a Partnership Firm	passage 2: ratio
+Accountancy	2024 Set A	NTA booklet 301 E/A	37	MCQ	Not-for-profit organisations (dropped from the 2026 syllabus)	example of NPO
+Accountancy	2024 Set A	NTA booklet 301 E/A	38	MCQ	Not-for-profit organisations (dropped from the 2026 syllabus)	main source of revenue
+Accountancy	2024 Set A	NTA booklet 301 E/A	39	MATCH	Financial Statements and Tools for Financial Analysis	balance sheet items
+Accountancy	2024 Set A	NTA booklet 301 E/A	40	MCQ	Reconstitution of Partnership	revaluation account
+Accountancy	2024 Set A	NTA booklet 301 E/A	41	SEQ	Accounting for Partnership	order of final accounts
+Accountancy	2024 Set A	NTA booklet 301 E/A	42	MCQ	Financial Statements and Tools for Financial Analysis	window dressing
+Accountancy	2024 Set A	NTA booklet 301 E/A	43	MATCH	Accounting for Partnership	entries in partners' accounts
+Accountancy	2024 Set A	NTA booklet 301 E/A	44	STMT	Admission of a New Partner	what affects revaluation
+Accountancy	2024 Set A	NTA booklet 301 E/A	45	MATCH	Cash Flow Statement	items to activity
+Accountancy	2024 Set A	NTA booklet 301 E/A	46	STMT	Financial Statements and Tools for Financial Analysis	common size statement
+Accountancy	2024 Set A	NTA booklet 301 E/A	47	NUM	Cash Flow Statement	machinery bought by cheque
+Accountancy	2024 Set A	NTA booklet 301 E/A	48	SEQ	Cash Flow Statement	order of preparing the statement
+Accountancy	2024 Set A	NTA booklet 301 E/A	49	STMT	Reconstitution of Partnership	stock overvaluation and goodwill
+Accountancy	2024 Set A	NTA booklet 301 E/A	50	MCQ	Accounting for Share Capital	oversubscription
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	1	MCQ	Financial Statements and Tools for Financial Analysis	limitation of financial analysis
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	2	NUM	Issue of Debentures	debentures for assets at a discount: how many
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	3	NUM	Ratio Analysis	current and quick ratio -> current and quick assets
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	4	MCQ	Admission of a New Partner	effect of admitting a partner
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	5	NUM	Accounting for Share Capital	forfeit and reissue -> capital reserve
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	6	NUM	Reconstitution of Partnership	goodwill, capitalisation of average profits
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	7	NUM	Retirement and Death of a Partner	gaining ratio
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	8	NUM	Issue of Debentures	rate of premium on redemption from an entry
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	9	NUM	Dissolution of a Partnership Firm	cash realised from stock
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	10	NUM	Admission of a New Partner	hidden goodwill
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	11	MCQ	Financial Statements and Tools for Financial Analysis	common size = vertical analysis
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	12	MCQ	Computerised Accounting System	need for codification
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	13	MCQ	Financial Statements and Tools for Financial Analysis	financial analysis definition
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	14	MCQ	Computerised Accounting System	address of the active cell
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	15	NUM	Ratio Analysis	net profit before tax
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	16	NUM	Ratio Analysis	inventory turnover -> gross profit
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	17	NUM	Ratio Analysis	gross profit ratio -> net profit
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	18	NUM	Retirement and Death of a Partner	capital adjustment after retirement
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	19	NUM	Admission of a New Partner	capital adjustment on admission
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	20	MCQ	Dissolution of a Partnership Firm	section of the Partnership Act
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	21	MCQ	Accounting for Partnership	provisions absent a deed (single correct)
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	22	NUM	Issue of Debentures	loss on issue
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	23	NUM	Issue of Debentures	rate of discount from an entry
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	24	MCQ	Reconstitution of Partnership	NOT a factor in goodwill
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	25	MCQ	Cash Flow Statement	dividend paid -> financing
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	26	STMT	Retirement and Death of a Partner	sum due to a retiring partner
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	27	STMT	Retirement and Death of a Partner	aspects on death of a partner
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	28	STMT	Accounting for Share Capital	minimum subscription
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	29	STMT	Accounting for Share Capital	Table A provisions on calls
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	30	STMT	Accounting for Share Capital	uses of securities premium
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	31	MATCH	Ratio Analysis	ratio to type
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	32	MATCH	Financial Statements and Tools for Financial Analysis	balance sheet heads
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	33	MATCH	Cash Flow Statement	cash flow classes
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	34	MATCH	Dissolution of a Partnership Firm	modes of dissolution
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	35	MATCH	Dissolution of a Partnership Firm	settlement entries
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	36	SEQ	Dissolution of a Partnership Firm	order of payments
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	37	SEQ	Admission of a New Partner	admission procedure
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	38	SEQ	Dissolution of a Partnership Firm	order of meeting losses
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	39	SEQ	Accounting for Share Capital	share issue procedure
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	40	SEQ	Reconstitution of Partnership	super profit method steps
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	41	CASE	Accounting for Partnership	passage 1 (guarantee of fee and profit): calculation
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	42	CASE	Accounting for Partnership	passage 1: calculation
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	43	CASE	Accounting for Partnership	passage 1: deficiency ratio
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	44	CASE	Accounting for Partnership	passage 1: calculation
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	45	CASE	Accounting for Partnership	passage 1: calculation
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	46	CASE	Accounting for Share Capital	passage 2 (issue, pro-rata, forfeiture): calculation
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	47	CASE	Accounting for Share Capital	passage 2: calculation
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	48	CASE	Accounting for Share Capital	passage 2: calculation
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	49	CASE	Accounting for Share Capital	passage 2: calculation
+Accountancy	2025	NTA paper 301 (collegedunia text copy)	50	CASE	Accounting for Share Capital	passage 2: calculation
+Business Studies	2024 Set A	NTA booklet 305 E/A	1	MCQ	Principles of Management	Taylor: science not rule of thumb
+Business Studies	2024 Set A	NTA booklet 305 E/A	2	MATCH	Principles of Management	Fayol principles
+Business Studies	2024 Set A	NTA booklet 305 E/A	3	MCQ	Principles of Management	standardisation technique
+Business Studies	2024 Set A	NTA booklet 305 E/A	4	MATCH	Principles of Management	principles to meanings
+Business Studies	2024 Set A	NTA booklet 305 E/A	5	MCQ-APP	Business Environment	online ticket booking -> dimension
+Business Studies	2024 Set A	NTA booklet 305 E/A	6	MCQ	Business Environment	economic environment example
+Business Studies	2024 Set A	NTA booklet 305 E/A	7	MCQ	Business Environment	legal environment example
+Business Studies	2024 Set A	NTA booklet 305 E/A	8	MCQ	Business Environment	NOT a characteristic
+Business Studies	2024 Set A	NTA booklet 305 E/A	9	SEQ	Planning	planning steps
+Business Studies	2024 Set A	NTA booklet 305 E/A	10	SEQ	Staffing	selection process
+Business Studies	2024 Set A	NTA booklet 305 E/A	11	MCQ	Staffing	apprenticeship training
+Business Studies	2024 Set A	NTA booklet 305 E/A	12	MATCH	Staffing	staffing concepts
+Business Studies	2024 Set A	NTA booklet 305 E/A	13	MCQ	Directing	motivation definition
+Business Studies	2024 Set A	NTA booklet 305 E/A	14	SEQ	Directing	Maslow's hierarchy
+Business Studies	2024 Set A	NTA booklet 305 E/A	15	MCQ	Directing	leadership definition
+Business Studies	2024 Set A	NTA booklet 305 E/A	16	MCQ	Controlling	NOT a limitation
+Business Studies	2024 Set A	NTA booklet 305 E/A	17	SEQ	Controlling	controlling process
+Business Studies	2024 Set A	NTA booklet 305 E/A	18	MCQ-APP	Controlling	critical point control from a statement
+Business Studies	2024 Set A	NTA booklet 305 E/A	19	MCQ	Financial Markets	function of financial market
+Business Studies	2024 Set A	NTA booklet 305 E/A	20	MCQ	Consumer Protection	appeal to State Commission
+Business Studies	2024 Set A	NTA booklet 305 E/A	21	MCQ	Consumer Protection	importance from a quote
+Business Studies	2024 Set A	NTA booklet 305 E/A	22	MCQ	Consumer Protection	consumer right from a quote
+Business Studies	2024 Set A	NTA booklet 305 E/A	23	MCQ	Financial Markets	method of floatation
+Business Studies	2024 Set A	NTA booklet 305 E/A	24	MATCH	Organising	authority/responsibility/accountability
+Business Studies	2024 Set A	NTA booklet 305 E/A	25	SEQ	Organising	organising steps
+Business Studies	2024 Set A	NTA booklet 305 E/A	26	STMT	Organising	formal organisation features
+Business Studies	2024 Set A	NTA booklet 305 E/A	27	STMT	Organising	informal organisation benefits
+Business Studies	2024 Set A	NTA booklet 305 E/A	28	SEQ	Financial Markets	trading and settlement procedure
+Business Studies	2024 Set A	NTA booklet 305 E/A	29	MCQ	Financial Markets	secondary market
+Business Studies	2024 Set A	NTA booklet 305 E/A	30	MCQ	Entrepreneurship (dropped from the 2026 syllabus)	entrepreneur qualities
+Business Studies	2024 Set A	NTA booklet 305 E/A	31	MCQ	Financial Markets	SEBI function
+Business Studies	2024 Set A	NTA booklet 305 E/A	32	MCQ	Financial Management	objective of financial management
+Business Studies	2024 Set A	NTA booklet 305 E/A	33	MCQ	Financial Management	financial planning
+Business Studies	2024 Set A	NTA booklet 305 E/A	34	MCQ	Financial Management	debt cheaper but riskier
+Business Studies	2024 Set A	NTA booklet 305 E/A	35	MCQ	Nature and Significance of Management	nature of coordination
+Business Studies	2024 Set A	NTA booklet 305 E/A	36	MCQ-APP	Nature and Significance of Management	firm scenario -> social objective
+Business Studies	2024 Set A	NTA booklet 305 E/A	37	MCQ	Nature and Significance of Management	goal-oriented process
+Business Studies	2024 Set A	NTA booklet 305 E/A	38	MCQ	Nature and Significance of Management	top-level position
+Business Studies	2024 Set A	NTA booklet 305 E/A	39	MATCH	Staffing	selection tests
+Business Studies	2024 Set A	NTA booklet 305 E/A	40	STMT	Organising	functional structure advantages
+Business Studies	2024 Set A	NTA booklet 305 E/A	41	CASE	Marketing Management	passage 1 (food firm marketing mix): place
+Business Studies	2024 Set A	NTA booklet 305 E/A	42	CASE	Marketing Management	passage 1: product
+Business Studies	2024 Set A	NTA booklet 305 E/A	43	CASE	Marketing Management	passage 1: price
+Business Studies	2024 Set A	NTA booklet 305 E/A	44	CASE	Marketing Management	passage 1: promotion
+Business Studies	2024 Set A	NTA booklet 305 E/A	45	CASE	Marketing Management	passage 1: promotion tool
+Business Studies	2024 Set A	NTA booklet 305 E/A	46	CASE	Planning	passage 2 (planning): function in the case
+Business Studies	2024 Set A	NTA booklet 305 E/A	47	CASE	Planning	passage 2: importance from a quote
+Business Studies	2024 Set A	NTA booklet 305 E/A	48	CASE	Planning	passage 2: importance from a quote
+Business Studies	2024 Set A	NTA booklet 305 E/A	49	CASE	Planning	passage 2: importance from a quote
+Business Studies	2024 Set A	NTA booklet 305 E/A	50	CASE	Planning	passage 2: importance from a quote
+Business Studies	2025	NTA response-sheet images (collegedunia)	1	MCQ	Planning	rule
+Business Studies	2025	NTA response-sheet images (collegedunia)	2	MCQ	Business Environment	definition
+Business Studies	2025	NTA response-sheet images (collegedunia)	3	STMT	Consumer Protection	importance from business view, (A)-(D) choose correct
+Business Studies	2025	NTA response-sheet images (collegedunia)	4	MCQ	Organising	delegation to offload work
+Business Studies	2025	NTA response-sheet images (collegedunia)	5	MCQ	Staffing	continuous process
+Business Studies	2025	NTA response-sheet images (collegedunia)	6	MCQ	Business Environment	economic dimension
+Business Studies	2025	NTA response-sheet images (collegedunia)	7	MCQ	Controlling	improves future planning
+Business Studies	2025	NTA response-sheet images (collegedunia)	8	MCQ-APP	Consumer Protection	FPO mark, shopper scenario
+Business Studies	2025	NTA response-sheet images (collegedunia)	9	MCQ	Controlling	brings cycle back to planning
+Business Studies	2025	NTA response-sheet images (collegedunia)	10	MCQ	Directing	indirect compensation (incentives)
+Business Studies	2025	NTA response-sheet images (collegedunia)	11	MCQ	Nature and Significance of Management	effectiveness
+Business Studies	2025	NTA response-sheet images (collegedunia)	12	MCQ-APP	Nature and Significance of Management	company scenario -> dynamic function
+Business Studies	2025	NTA response-sheet images (collegedunia)	13	MCQ	Principles of Management	standardisation -> Taylor
+Business Studies	2025	NTA response-sheet images (collegedunia)	14	MCQ	Organising	decentralisation philosophy
+Business Studies	2025	NTA response-sheet images (collegedunia)	15	MCQ	Staffing	training method with real work environment
+Business Studies	2025	NTA response-sheet images (collegedunia)	16	MCQ	Staffing	NOT an aspect of staffing
+Business Studies	2025	NTA response-sheet images (collegedunia)	17	MCQ	Directing	NOT an element of directing
+Business Studies	2025	NTA response-sheet images (collegedunia)	18	MCQ-APP	Directing	employee attitude scenario -> motivation
+Business Studies	2025	NTA response-sheet images (collegedunia)	19	MCQ	Controlling	judging accuracy of standards
+Business Studies	2025	NTA response-sheet images (collegedunia)	20	MCQ	Consumer Protection	who cannot file a complaint, CPA 2019
+Business Studies	2025	NTA response-sheet images (collegedunia)	21	MCQ	Entrepreneurship (dropped from the 2026 syllabus)	NOT a characteristic of an entrepreneur
+Business Studies	2025	NTA response-sheet images (collegedunia)	22	MCQ	Entrepreneurship (dropped from the 2026 syllabus)	NOT a factor in emergence of entrepreneurship
+Business Studies	2025	NTA response-sheet images (collegedunia)	23	MCQ	Planning	setting objectives and courses of action
+Business Studies	2025	NTA response-sheet images (collegedunia)	24	MCQ	Nature and Significance of Management	coordination
+Business Studies	2025	NTA response-sheet images (collegedunia)	25	MCQ	Principles of Management	insights into managerial behaviour
+Business Studies	2025	NTA response-sheet images (collegedunia)	26	STMT	Staffing	limitations of internal recruitment
+Business Studies	2025	NTA response-sheet images (collegedunia)	27	STMT	Nature and Significance of Management	features of a profession
+Business Studies	2025	NTA response-sheet images (collegedunia)	28	STMT	Planning	what planning involves
+Business Studies	2025	NTA response-sheet images (collegedunia)	29	STMT	Controlling	why controlling is important
+Business Studies	2025	NTA response-sheet images (collegedunia)	30	MATCH	Principles of Management	Fayol principles to statements
+Business Studies	2025	NTA response-sheet images (collegedunia)	31	MATCH	Planning	types of plans to descriptions
+Business Studies	2025	NTA response-sheet images (collegedunia)	32	MATCH	Business Environment	dimensions to example situations
+Business Studies	2025	NTA response-sheet images (collegedunia)	33	MATCH	Organising	importance of organising to descriptions
+Business Studies	2025	NTA response-sheet images (collegedunia)	34	MATCH	Directing	elements of direction to descriptions
+Business Studies	2025	NTA response-sheet images (collegedunia)	35	SEQ	Planning	steps of the planning process
+Business Studies	2025	NTA response-sheet images (collegedunia)	36	SEQ	Staffing	stages of the staffing process
+Business Studies	2025	NTA response-sheet images (collegedunia)	37	SEQ	Directing	stages of motivation
+Business Studies	2025	NTA response-sheet images (collegedunia)	38	SEQ	Controlling	steps of the controlling process
+Business Studies	2025	NTA response-sheet images (collegedunia)	39	SEQ	Organising	steps of the organising process
+Business Studies	2025	NTA response-sheet images (collegedunia)	40	MCQ	Nature and Significance of Management	true statement on the nature of management (single answer)
+Business Studies	2025	NTA response-sheet images (collegedunia)	41	CASE	Marketing Management	passage 1 (cafe marketing mix): NOT a component of the marketing mix
+Business Studies	2025	NTA response-sheet images (collegedunia)	42	CASE	Marketing Management	passage 1: what labelling provides
+Business Studies	2025	NTA response-sheet images (collegedunia)	43	CASE	Marketing Management	passage 1: primary branding focus
+Business Studies	2025	NTA response-sheet images (collegedunia)	44	CASE	Marketing Management	passage 1: component involving advertising
+Business Studies	2025	NTA response-sheet images (collegedunia)	45	CASE	Marketing Management	passage 1: packaging used (read off the passage)
+Business Studies	2025	NTA response-sheet images (collegedunia)	46	CASE	Financial Management	passage 2 (renewable-energy firm): primary goal of financial management
+Business Studies	2025	NTA response-sheet images (collegedunia)	47	CASE	Financial Management	passage 2: process evaluating long-term projects
+Business Studies	2025	NTA response-sheet images (collegedunia)	48	CASE	Financial Management	passage 2: financial planning known as
+Business Studies	2025	NTA response-sheet images (collegedunia)	49	CASE	Financial Management	passage 2: working capital priority (read off the passage)
+Business Studies	2025	NTA response-sheet images (collegedunia)	50	CASE	Financial Management	passage 2: NOT part of financial management
+Economics	2024 Set A	NTA booklet 309 E/A	1	MCQ	Determination of Income and Employment	ex-post
+Economics	2024 Set A	NTA booklet 309 E/A	2	NUM	Determination of Income and Employment	multiplier -> change in investment
+Economics	2024 Set A	NTA booklet 309 E/A	3	STMT	Money and Banking	monetary tools
+Economics	2024 Set A	NTA booklet 309 E/A	4	MCQ	Determination of Income and Employment	paradox of thrift
+Economics	2024 Set A	NTA booklet 309 E/A	5	MATCH	Money and Banking	policy rates
+Economics	2024 Set A	NTA booklet 309 E/A	6	MCQ	Money and Banking	NOT a central bank function
+Economics	2024 Set A	NTA booklet 309 E/A	7	MCQ	Government Budget and the Economy	Article 112
+Economics	2024 Set A	NTA booklet 309 E/A	8	MCQ	Government Budget and the Economy	capital receipts
+Economics	2024 Set A	NTA booklet 309 E/A	9	SEQ	Open Economy Macroeconomics	exchange-rate history, chronological
+Economics	2024 Set A	NTA booklet 309 E/A	10	MCQ	Open Economy Macroeconomics	appreciation
+Economics	2024 Set A	NTA booklet 309 E/A	11	MATCH	Open Economy Macroeconomics	exchange-rate systems
+Economics	2024 Set A	NTA booklet 309 E/A	12	MCQ	Current Challenges facing the Indian Economy	casualisation of workforce
+Economics	2024 Set A	NTA booklet 309 E/A	13	SEQ	Economic Reforms since 1991	institutions/acts, chronological
+Economics	2024 Set A	NTA booklet 309 E/A	14	MCQ	Current Challenges facing the Indian Economy	sustainable development
+Economics	2024 Set A	NTA booklet 309 E/A	15	MCQ	Current Challenges facing the Indian Economy	Right to Education age group
+Economics	2024 Set A	NTA booklet 309 E/A	16	SEQ	Current Challenges facing the Indian Economy	power sources by capacity
+Economics	2024 Set A	NTA booklet 309 E/A	17	SEQ	Economic Reforms since 1991	MRTP/FERA/FEMA/Competition Act order
+Economics	2024 Set A	NTA booklet 309 E/A	18	MCQ	Development Experience of India: A Comparison with Neighbours	Great Leap Forward year
+Economics	2024 Set A	NTA booklet 309 E/A	19	MATCH	Development Experience of India: A Comparison with Neighbours	China/Pakistan terms
+Economics	2024 Set A	NTA booklet 309 E/A	20	MCQ	Development Policies and Experience (1947-90)	second phase of Green Revolution
+Economics	2024 Set A	NTA booklet 309 E/A	21	MCQ	Development Experience of India: A Comparison with Neighbours	Pakistan 1980s growth
+Economics	2024 Set A	NTA booklet 309 E/A	22	MCQ	Determination of Income and Employment	unexpected rise in sales
+Economics	2024 Set A	NTA booklet 309 E/A	23	MCQ	Money and Banking	currency deposit ratio in festive season
+Economics	2024 Set A	NTA booklet 309 E/A	24	MCQ	Open Economy Macroeconomics	European Monetary Union year
+Economics	2024 Set A	NTA booklet 309 E/A	25	MCQ	Introduction and National Income Accounting	circular flow
+Economics	2024 Set A	NTA booklet 309 E/A	26	STMT	Determination of Income and Employment	ex ante / ex post statements
+Economics	2024 Set A	NTA booklet 309 E/A	27	MATCH	Government Budget and the Economy	budget elements
+Economics	2024 Set A	NTA booklet 309 E/A	28	CASE	Current Challenges facing the Indian Economy	passage 1 (bio-composting): benefit to civic bodies
+Economics	2024 Set A	NTA booklet 309 E/A	29	CASE	Current Challenges facing the Indian Economy	passage 1: true statement
+Economics	2024 Set A	NTA booklet 309 E/A	30	CASE	Current Challenges facing the Indian Economy	passage 1: water bodies
+Economics	2024 Set A	NTA booklet 309 E/A	31	CASE	Current Challenges facing the Indian Economy	passage 1: cattle and dung
+Economics	2024 Set A	NTA booklet 309 E/A	32	CASE	Current Challenges facing the Indian Economy	passage 1: title
+Economics	2024 Set A	NTA booklet 309 E/A	33	CASE	Development Policies and Experience (1947-90)	passage 2 (pre-colonial industry): products known for
+Economics	2024 Set A	NTA booklet 309 E/A	34	CASE	Development Policies and Experience (1947-90)	passage 2: colonial interests
+Economics	2024 Set A	NTA booklet 309 E/A	35	CASE	Development Policies and Experience (1947-90)	passage 2: national income estimators
+Economics	2024 Set A	NTA booklet 309 E/A	36	CASE	Development Policies and Experience (1947-90)	passage 2: growth in first half of 20th century
+Economics	2024 Set A	NTA booklet 309 E/A	37	CASE	Development Policies and Experience (1947-90)	passage 2: true statement
+Economics	2024 Set A	NTA booklet 309 E/A	38	MCQ	Market Equilibrium and Simple Applications	market definition
+Economics	2024 Set A	NTA booklet 309 E/A	39	STMT	Introduction and Theory of Consumer Behaviour	utility statements
+Economics	2024 Set A	NTA booklet 309 E/A	40	MATCH	Market Equilibrium and Simple Applications	equilibrium/excess terms
+Economics	2024 Set A	NTA booklet 309 E/A	41	MCQ	Introduction and Theory of Consumer Behaviour	unitary elastic curve
+Economics	2024 Set A	NTA booklet 309 E/A	42	MCQ	Introduction and Theory of Consumer Behaviour	budget constraint
+Economics	2024 Set A	NTA booklet 309 E/A	43	STMT	Introduction and National Income Accounting	economists and ideas
+Economics	2024 Set A	NTA booklet 309 E/A	44	SEQ	Introduction and National Income Accounting	macro history, chronological
+Economics	2024 Set A	NTA booklet 309 E/A	45	MCQ	Introduction and National Income Accounting	two-sector economy
+Economics	2024 Set A	NTA booklet 309 E/A	46	NUM	Introduction and National Income Accounting	GDP deflator
+Economics	2024 Set A	NTA booklet 309 E/A	47	STMT	Introduction and National Income Accounting	stocks and flows
+Economics	2024 Set A	NTA booklet 309 E/A	48	MCQ	Determination of Income and Employment	output determined by autonomous expenditure
+Economics	2024 Set A	NTA booklet 309 E/A	49	MCQ	Money and Banking	nominal interest rate
+Economics	2024 Set A	NTA booklet 309 E/A	50	MCQ	Determination of Income and Employment	MPS rise -> multiplier
+Economics	2025	NTA response-sheet images (collegedunia)	1	MCQ-APP	Introduction and Theory of Consumer Behaviour	central problem from a spending choice
+Economics	2025	NTA response-sheet images (collegedunia)	2	MCQ	Introduction and Theory of Consumer Behaviour	production possibility set
+Economics	2025	NTA response-sheet images (collegedunia)	3	SEQ	Market Equilibrium and Simple Applications	effects of a leftward demand shift in order
+Economics	2025	NTA response-sheet images (collegedunia)	4	MATCH	Introduction and Theory of Consumer Behaviour	utility terms
+Economics	2025	NTA response-sheet images (collegedunia)	5	MCQ	Introduction and Theory of Consumer Behaviour	budget set
+Economics	2025	NTA response-sheet images (collegedunia)	6	STMT	Introduction and Theory of Consumer Behaviour	demand statements
+Economics	2025	NTA response-sheet images (collegedunia)	7	MCQ	Introduction and Theory of Consumer Behaviour	demand function
+Economics	2025	NTA response-sheet images (collegedunia)	8	MATCH	Production and Costs	TP/AP/MP/variable proportions
+Economics	2025	NTA response-sheet images (collegedunia)	9	MCQ	Production and Costs	long run
+Economics	2025	NTA response-sheet images (collegedunia)	10	MCQ	Production and Costs	revenue minus cost = profit
+Economics	2025	NTA response-sheet images (collegedunia)	11	MCQ	Production and Costs	marginal product definition
+Economics	2025	NTA response-sheet images (collegedunia)	12	MCQ	Production and Costs	decreasing returns to scale equation (symbolic)
+Economics	2025	NTA response-sheet images (collegedunia)	13	MCQ	Production and Costs	short-run marginal cost definition
+Economics	2025	NTA response-sheet images (collegedunia)	14	MCQ	Production and Costs	shape of AFC curve
+Economics	2025	NTA response-sheet images (collegedunia)	15	MCQ	Production and Costs	MC cuts AC at its minimum
+Economics	2025	NTA response-sheet images (collegedunia)	16	MCQ	Theory of the Firm under Perfect Competition	break-even point
+Economics	2025	NTA response-sheet images (collegedunia)	17	STMT	Theory of the Firm under Perfect Competition	profit-maximisation conditions
+Economics	2025	NTA response-sheet images (collegedunia)	18	MCQ	Theory of the Firm under Perfect Competition	technology shifts supply
+Economics	2025	NTA response-sheet images (collegedunia)	19	NUM	Introduction and Theory of Consumer Behaviour	price elasticity of demand calculation
+Economics	2025	NTA response-sheet images (collegedunia)	20	MCQ	Market Equilibrium and Simple Applications	floor price example
+Economics	2025	NTA response-sheet images (collegedunia)	21	MCQ	Introduction and National Income Accounting	author of the General Theory (macro history)
+Economics	2025	NTA response-sheet images (collegedunia)	22	MCQ	Determination of Income and Employment	paradox of thrift
+Economics	2025	NTA response-sheet images (collegedunia)	23	STMT	Introduction and National Income Accounting	years used in CPI
+Economics	2025	NTA response-sheet images (collegedunia)	24	MCQ	Introduction and National Income Accounting	consumer price index definition
+Economics	2025	NTA response-sheet images (collegedunia)	25	MATCH	Introduction and National Income Accounting	national income aggregates to formulas
+Economics	2025	NTA response-sheet images (collegedunia)	26	MCQ	Introduction and National Income Accounting	real GDP
+Economics	2025	NTA response-sheet images (collegedunia)	27	STMT	Money and Banking	functions of money
+Economics	2025	NTA response-sheet images (collegedunia)	28	MCQ	Money and Banking	deposits are liabilities of banks
+Economics	2025	NTA response-sheet images (collegedunia)	29	MATCH	Money and Banking	CRR/SLR/lender of last resort/repo
+Economics	2025	NTA response-sheet images (collegedunia)	30	MCQ	Money and Banking	fiat money
+Economics	2025	NTA response-sheet images (collegedunia)	31	MCQ	Determination of Income and Employment	ex-post
+Economics	2025	NTA response-sheet images (collegedunia)	32	MCQ	Government Budget and the Economy	stabilisation function
+Economics	2025	NTA response-sheet images (collegedunia)	33	MCQ	Open Economy Macroeconomics	balance of trade
+Economics	2025	NTA response-sheet images (collegedunia)	34	SEQ	Introduction and National Income Accounting	steps of the income method
+Economics	2025	NTA response-sheet images (collegedunia)	35	SEQ	Money and Banking	money measures by liquidity
+Economics	2025	NTA response-sheet images (collegedunia)	36	MCQ-APP	Open Economy Macroeconomics	foreign acquisition -> capital account
+Economics	2025	NTA response-sheet images (collegedunia)	37	MCQ	Open Economy Macroeconomics	official reserve sale
+Economics	2025	NTA response-sheet images (collegedunia)	38	MCQ	Determination of Income and Employment	imports are a leakage
+Economics	2025	NTA response-sheet images (collegedunia)	39	SEQ	Determination of Income and Employment	effects of higher government purchases in order
+Economics	2025	NTA response-sheet images (collegedunia)	40	SEQ	Introduction and National Income Accounting	steps of the value-added method
+Economics	2025	NTA response-sheet images (collegedunia)	41	CASE	Determination of Income and Employment	passage 1 (output and employment): what sets employment
+Economics	2025	NTA response-sheet images (collegedunia)	42	CASE	Determination of Income and Employment	passage 1: full employment
+Economics	2025	NTA response-sheet images (collegedunia)	43	CASE	Determination of Income and Employment	passage 1: what sets output
+Economics	2025	NTA response-sheet images (collegedunia)	44	CASE	Determination of Income and Employment	passage 1: deficient demand
+Economics	2025	NTA response-sheet images (collegedunia)	45	CASE	Determination of Income and Employment	passage 1: excess demand
+Economics	2025	NTA response-sheet images (collegedunia)	46	CASE	Government Budget and the Economy	passage 2 (GST): type of tax
+Economics	2025	NTA response-sheet images (collegedunia)	47	CASE	Government Budget and the Economy	passage 2: what removes cascading
+Economics	2025	NTA response-sheet images (collegedunia)	48	CASE	Government Budget and the Economy	passage 2: what GST amalgamated
+Economics	2025	NTA response-sheet images (collegedunia)	49	CASE	Government Budget and the Economy	passage 2: product kept out of GST
+Economics	2025	NTA response-sheet images (collegedunia)	50	CASE	Government Budget and the Economy	passage 2: why unified
+English	2024 Set A	NTA booklet 101 E/A	1	SEQ	Verbal Ability: rearranging the parts	
+English	2024 Set A	NTA booklet 101 E/A	2	MCQ	Verbal Ability: choosing the correct word	
+English	2024 Set A	NTA booklet 101 E/A	3	MATCH	Verbal Ability: match the following	
+English	2024 Set A	NTA booklet 101 E/A	4	MCQ	Verbal Ability: choosing the correct word	
+English	2024 Set A	NTA booklet 101 E/A	5	MCQ	Verbal Ability: synonyms and antonyms	
+English	2024 Set A	NTA booklet 101 E/A	6	MCQ	Verbal Ability: synonyms and antonyms	
+English	2024 Set A	NTA booklet 101 E/A	7	MATCH	Verbal Ability: match the following	
+English	2024 Set A	NTA booklet 101 E/A	8	MCQ	Verbal Ability: choosing the correct word	
+English	2024 Set A	NTA booklet 101 E/A	9	MCQ	Verbal Ability: synonyms and antonyms	
+English	2024 Set A	NTA booklet 101 E/A	10	MCQ	Verbal Ability: synonyms and antonyms	
+English	2024 Set A	NTA booklet 101 E/A	11	MCQ	Verbal Ability: choosing the correct word	
+English	2024 Set A	NTA booklet 101 E/A	12	SEQ	Verbal Ability: rearranging the parts	
+English	2024 Set A	NTA booklet 101 E/A	13	SEQ	Verbal Ability: rearranging the parts	
+English	2024 Set A	NTA booklet 101 E/A	14	MATCH	Verbal Ability: match the following	
+English	2024 Set A	NTA booklet 101 E/A	15	MATCH	Verbal Ability: match the following	
+English	2024 Set A	NTA booklet 101 E/A	16	SEQ	Verbal Ability: rearranging the parts	
+English	2024 Set A	NTA booklet 101 E/A	17	CASE	Reading Comprehension: passage 1, literary/narrative (author's memoir)	
+English	2024 Set A	NTA booklet 101 E/A	18	CASE	Reading Comprehension: passage 1, literary/narrative (author's memoir)	
+English	2024 Set A	NTA booklet 101 E/A	19	CASE	Reading Comprehension: passage 1, literary/narrative (author's memoir)	
+English	2024 Set A	NTA booklet 101 E/A	20	CASE	Reading Comprehension: passage 1, literary/narrative (author's memoir)	
+English	2024 Set A	NTA booklet 101 E/A	21	CASE	Reading Comprehension: passage 1, literary/narrative (author's memoir)	
+English	2024 Set A	NTA booklet 101 E/A	22	CASE	Reading Comprehension: passage 1, literary/narrative (author's memoir)	
+English	2024 Set A	NTA booklet 101 E/A	23	CASE	Reading Comprehension: passage 2, factual/argument (free will)	
+English	2024 Set A	NTA booklet 101 E/A	24	CASE	Reading Comprehension: passage 2, factual/argument (free will)	
+English	2024 Set A	NTA booklet 101 E/A	25	CASE	Reading Comprehension: passage 2, factual/argument (free will)	
+English	2024 Set A	NTA booklet 101 E/A	26	CASE	Reading Comprehension: passage 2, factual/argument (free will)	
+English	2024 Set A	NTA booklet 101 E/A	27	CASE	Reading Comprehension: passage 2, factual/argument (free will)	
+English	2024 Set A	NTA booklet 101 E/A	28	CASE	Reading Comprehension: passage 2, factual/argument (free will)	
+English	2024 Set A	NTA booklet 101 E/A	29	CASE	Reading Comprehension: passage 3, factual (history of cocoa)	
+English	2024 Set A	NTA booklet 101 E/A	30	CASE	Reading Comprehension: passage 3, factual (history of cocoa)	
+English	2024 Set A	NTA booklet 101 E/A	31	CASE	Reading Comprehension: passage 3, factual (history of cocoa)	
+English	2024 Set A	NTA booklet 101 E/A	32	CASE	Reading Comprehension: passage 3, factual (history of cocoa)	
+English	2024 Set A	NTA booklet 101 E/A	33	CASE	Reading Comprehension: passage 3, factual (history of cocoa)	
+English	2024 Set A	NTA booklet 101 E/A	34	CASE	Reading Comprehension: passage 3, factual (history of cocoa)	
+English	2024 Set A	NTA booklet 101 E/A	35	CASE	Reading Comprehension: passage 4, factual (coffee species)	
+English	2024 Set A	NTA booklet 101 E/A	36	CASE	Reading Comprehension: passage 4, factual (coffee species)	
+English	2024 Set A	NTA booklet 101 E/A	37	CASE	Reading Comprehension: passage 4, factual (coffee species)	
+English	2024 Set A	NTA booklet 101 E/A	38	CASE	Reading Comprehension: passage 4, factual (coffee species)	
+English	2024 Set A	NTA booklet 101 E/A	39	CASE	Reading Comprehension: passage 4, factual (coffee species)	
+English	2024 Set A	NTA booklet 101 E/A	40	CASE	Reading Comprehension: passage 4, factual (coffee species)	
+English	2024 Set A	NTA booklet 101 E/A	41	SEQ	Verbal Ability: rearranging the parts	
+English	2024 Set A	NTA booklet 101 E/A	42	MCQ	Verbal Ability: choosing the correct word	
+English	2024 Set A	NTA booklet 101 E/A	43	MATCH	Verbal Ability: match the following	
+English	2024 Set A	NTA booklet 101 E/A	44	MATCH	Verbal Ability: match the following	
+English	2024 Set A	NTA booklet 101 E/A	45	MCQ	Verbal Ability: choosing the correct word	
+English	2024 Set A	NTA booklet 101 E/A	46	MCQ	Verbal Ability: synonyms and antonyms	
+English	2024 Set A	NTA booklet 101 E/A	47	MCQ	Verbal Ability: synonyms and antonyms	
+English	2024 Set A	NTA booklet 101 E/A	48	MCQ	Verbal Ability: synonyms and antonyms	
+English	2024 Set A	NTA booklet 101 E/A	49	MCQ	Verbal Ability: synonyms and antonyms	
+English	2024 Set A	NTA booklet 101 E/A	50	SEQ	Verbal Ability: rearranging the parts	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	1	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	2	MCQ	General Science and Environment Literacy	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	3	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	4	MCQ	General Science and Environment Literacy	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	5	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	6	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	7	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	8	MCQ	General Science and Environment Literacy	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	9	MATCH	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	10	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	11	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	12	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	13	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	14	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	15	MATCH	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	16	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	17	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	18	MCQ	General Mental Ability and Numerical Ability	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	19	MCQ	General Mental Ability and Numerical Ability	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	20	MCQ	Logical and Analytical Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	21	MCQ	Logical and Analytical Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	22	MCQ	Logical and Analytical Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	23	MCQ	Logical and Analytical Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	24	MCQ	General Mental Ability and Numerical Ability	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	25	MCQ	Logical and Analytical Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	26	MCQ	Logical and Analytical Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	27	MCQ	General Mental Ability and Numerical Ability	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	28	MCQ	Logical and Analytical Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	29	MCQ	General Mental Ability and Numerical Ability	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	30	MCQ	General Mental Ability and Numerical Ability	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	31	MCQ	General Mental Ability and Numerical Ability	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	32	MCQ	Logical and Analytical Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	33	MCQ	Logical and Analytical Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	34	MCQ	General Mental Ability and Numerical Ability	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	35	MCQ	Logical and Analytical Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	36	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	37	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	38	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	39	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	40	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	41	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	42	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	43	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	44	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	45	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	46	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	47	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	48	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	49	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	50	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	51	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	52	MCQ	Quantitative Reasoning	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	53	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	54	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	55	MATCH	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	56	SEQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	57	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	58	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	59	MCQ	General Knowledge and Current Affairs	
+General Aptitude Test	2024 Set B	NTA booklet 501 (60, answer 50)	60	MATCH	General Knowledge and Current Affairs	
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	1	MCQ	Quantitative Reasoning	proportion
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	2	MCQ	Quantitative Reasoning	profit and loss
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	3	SEQ	Quantitative Reasoning	simple interest cases in order
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	4	MCQ	Quantitative Reasoning	shaded area, circles in a square
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	5	MCQ	Quantitative Reasoning	coordinate distance
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	6	MCQ	Quantitative Reasoning	3 mode - 2 median from a table
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	7	STMT	Quantitative Reasoning	probability of a dice throw, which are correct
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	8	MATCH	Quantitative Reasoning	permutations/combinations values
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	9	MCQ	Quantitative Reasoning	ages
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	10	MCQ	Quantitative Reasoning	heights and distances
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	11	STMT	Quantitative Reasoning	cylinder measures, which are correct
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	12	MCQ	Quantitative Reasoning	time and work
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	13	MCQ	Quantitative Reasoning	boats and streams
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	14	MCQ	Quantitative Reasoning	unit digit
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	15	MCQ	Quantitative Reasoning	arithmetic progression
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	16	MCQ	General Mental Ability and Numerical Ability	odd one out in a letter-number series
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	17	MCQ	General Mental Ability and Numerical Ability	embedded figure
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	18	MCQ	Logical and Analytical Reasoning	clock gaining/losing time
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	19	MCQ	Logical and Analytical Reasoning	calendar day
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	20	MCQ	General Mental Ability and Numerical Ability	figure matrix
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	21	MCQ	Logical and Analytical Reasoning	coded blood relation
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	22	MCQ	General Mental Ability and Numerical Ability	mirror image
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	23	MCQ	General Mental Ability and Numerical Ability	coding by letter order
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	24	MCQ	General Mental Ability and Numerical Ability	odd one out (words)
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	25	MCQ	Logical and Analytical Reasoning	direction and distance
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	26	MCQ	Logical and Analytical Reasoning	position in a row
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	27	MCQ	General Mental Ability and Numerical Ability	number series
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	28	MCQ	General Mental Ability and Numerical Ability	missing number in a grid
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	29	MCQ	Logical and Analytical Reasoning	queue arrangement
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	30	STMT	General Mental Ability and Numerical Ability	pieces forming a square, which ones
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	31	MCQ	General Science and Environment Literacy	first indigenous COVID-19 vaccine
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	32	MCQ	General Science and Environment Literacy	kinematics
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	33	MCQ	General Science and Environment Literacy	gas used to make chloroform
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	34	MCQ	General Knowledge and Current Affairs	first Tirthankara
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	35	MCQ	General Knowledge and Current Affairs	Ilbari dynasty
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	36	MCQ	General Knowledge and Current Affairs	Swaraj slogan movement
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	37	MCQ	General Knowledge and Current Affairs	Chandrayaan-3 incorrect statement
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	38	MCQ	General Science and Environment Literacy	IUCN Red List
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	39	MATCH	General Knowledge and Current Affairs	authors to works
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	40	STMT	General Science and Environment Literacy	roles of calcium
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	41	SEQ	General Knowledge and Current Affairs	national events in order
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	42	SEQ	General Knowledge and Current Affairs	international events in order
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	43	MCQ	General Knowledge and Current Affairs	strait near North Andaman
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	44	MCQ	General Knowledge and Current Affairs	Article 9
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	45	MCQ	General Knowledge and Current Affairs	GST compensation fund
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	46	STMT	General Science and Environment Literacy	clouds, which statements are correct
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	47	MCQ	General Knowledge and Current Affairs	capital of Mizoram
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	48	MATCH	General Knowledge and Current Affairs	countries to currencies
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	49	MCQ	General Knowledge and Current Affairs	river through Gandikota gorge
+General Aptitude Test	2025	NTA response-sheet images (collegedunia)	50	MCQ	General Knowledge and Current Affairs	National Emblem origin
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	1	MCQ	Linear Programming	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	2	MCQ	Continuity and Differentiability	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	3	MCQ	Linear Programming	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	4	MCQ	Applications of the Integrals	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	5	MCQ	Probability	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	6	MCQ	Integrals	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	7	MCQ	Integrals	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	8	MCQ	Continuity and Differentiability	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	9	MCQ	Differential Equations	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	10	MCQ	Matrices	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	11	MCQ	Determinants	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	12	MCQ	Matrices	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	13	MCQ	Applications of Derivatives	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	14	MCQ	Probability Distributions	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	15	MATCH	Applications of Derivatives	section A
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	16	MCQ	Applications of Derivatives	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	17	MCQ	Applications of the Integrals	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	18	MCQ	Matrices	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	19	MCQ	Integrals	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	20	MCQ	Vectors	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	21	MATCH	Continuity and Differentiability	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	22	MATCH	Differential Equations	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	23	STMT	Relations and Functions	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	24	MCQ	Integrals	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	25	MATCH	Probability	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	26	STMT	Determinants	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	27	STMT	Matrices	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	28	MCQ	Linear Programming	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	29	MCQ	Applications of the Integrals	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	30	MCQ	Integrals	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	31	MCQ	Continuity and Differentiability	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	32	MCQ	Matrices	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	33	STMT	Determinants	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	34	STMT	Applications of Derivatives	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	35	MCQ	Three-dimensional Geometry	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	36	MATCH	Probability	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	37	MCQ	Continuity and Differentiability	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	38	MCQ	Vectors	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	39	MCQ	Three-dimensional Geometry	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	40	MCQ	Applications of Derivatives	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	41	STMT	Differential Equations	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	42	MCQ	Probability	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	43	MCQ	Three-dimensional Geometry	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	44	MCQ	Linear Programming	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	45	MCQ	Relations and Functions	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	46	MCQ	Probability	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	47	MCQ	Three-dimensional Geometry	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	48	MCQ	Vectors	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	49	MCQ	Inverse Trigonometric Functions	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	50	MCQ	Determinants	section B1
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	51	MATCH	Probability Distributions	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	52	MATCH	Continuity and Differentiability	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	53	MCQ	Financial Mathematics	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	54	MCQ	Financial Mathematics	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	55	MCQ	Numbers, Quantification and Numerical Applications	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	56	MCQ	Continuity and Differentiability	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	57	MCQ	Probability Distributions	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	58	MATCH	Inferential Statistics	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	59	MCQ	Financial Mathematics	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	60	MCQ	Financial Mathematics	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	61	MCQ	Numbers, Quantification and Numerical Applications	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	62	MCQ	Time Based Data	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	63	MATCH	Financial Mathematics	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	64	MCQ	Linear Programming	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	65	MCQ	Numbers, Quantification and Numerical Applications	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	66	MCQ	Matrices	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	67	MCQ	Applications of Derivatives	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	68	MCQ	Applications of Derivatives	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	69	MCQ	Probability Distributions	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	70	MCQ	Matrices	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	71	MCQ	Applications of Derivatives	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	72	MCQ	Probability Distributions	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	73	MCQ	Financial Mathematics	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	74	MCQ	Numbers, Quantification and Numerical Applications	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	75	MCQ	Matrices	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	76	MCQ	Probability Distributions	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	77	STMT	Time Based Data	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	78	MCQ	Inferential Statistics	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	79	MCQ	Financial Mathematics	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	80	MCQ	Numbers, Quantification and Numerical Applications	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	81	MCQ	Matrices	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	82	MCQ	Probability Distributions	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	83	MCQ	Inferential Statistics	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	84	MCQ	Numbers, Quantification and Numerical Applications	section B2
+Mathematics	2024 Set A	NTA booklet 319 E/A (A 1-15, B1 16-50, B2 51-85)	85	STMT	Determinants	section B2
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	1	MATCH	Matrices	symmetric/skew/singular conditions
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	2	MCQ	Matrices	product of two matrices
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	3	MCQ	Matrices	A^2 = I expression
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	4	MCQ	Determinants	|adj A|
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	5	MCQ	Continuity and Differentiability	second derivative identity
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	6	MCQ	Applications of Derivatives	interval of increase
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	7	MCQ	Applications of Derivatives	maximum of log x / x
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	8	MCQ	Integrals	definite integral of |x-2|
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	9	MCQ	Integrals	indefinite integral with exponentials of logs
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	10	MCQ	Applications of the Integrals	area parabola and line
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	11	STMT	Differential Equations	which are linear first-order
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	12	MCQ	Differential Equations	variable separable solution
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	13	MCQ	Probability Distributions	probability from a distribution table
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	14	MCQ	Linear Programming	optimum at two corners
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	15	MCQ	Linear Programming	optimal feasible solution
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	16	MCQ	Relations and Functions	one-one / onto (B1 begins)
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	17	MCQ	Relations and Functions	counting relations
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	18	MCQ	Inverse Trigonometric Functions	sin(tan^-1 x)
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	19	STMT	Determinants	minors and cofactors, which are true
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	20	MCQ	Matrices	rotation matrix A^T + A = I
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	21	MCQ	Matrices	skew-symmetric powers, NOT true
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	22	MCQ	Determinants	invertible matrices, NOT correct
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	23	MCQ	Determinants	|5AB| for non-square A, B
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	24	STMT	Determinants	consistency of AX = B
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	25	MCQ	Continuity and Differentiability	continuity constant k
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	26	MATCH	Continuity and Differentiability	points of non-differentiability
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	27	MCQ	Continuity and Differentiability	chain rule at a point
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	28	MATCH	Applications of Derivatives	maximum/minimum values
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	29	MCQ	Applications of Derivatives	monotonicity of tan x - x
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	30	MCQ	Applications of Derivatives	rate of change of area w.r.t. circumference
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	31	MCQ	Integrals	definite integral by symmetry
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	32	MATCH	Integrals	definite integrals to values
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	33	MCQ	Integrals	e^x (f + f') integral
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	34	MCQ	Applications of the Integrals	area under x^5
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	35	MCQ	Applications of the Integrals	area under a quarter ellipse
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	36	MCQ	Differential Equations	integrating factor
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	37	STMT	Differential Equations	homogeneous equation, which are true
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	38	STMT	Vectors	unit vector products, which are true
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	39	MCQ	Vectors	collinear position vectors
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	40	MCQ	Vectors	angle from a + b + c = 0
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	41	MCQ	Vectors	perpendicular vector magnitude
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	42	MCQ	Three-dimensional Geometry	direction angles identity
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	43	MATCH	Three-dimensional Geometry	point, direction ratios and cosines of a line
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	44	MCQ	Three-dimensional Geometry	shortest distance between lines
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	45	MCQ	Linear Programming	constraints from a shaded region
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	46	MCQ	Linear Programming	corner points
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	47	MCQ	Probability	P(B) = P(A and B) consequence
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	48	STMT	Probability	total probability and Bayes, which are true
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	49	MATCH	Probability	event probabilities
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	50	MCQ	Probability	conditional probability with dice (B1 ends)
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	51	MCQ	Determinants	singular matrices (B2 begins)
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	52	MCQ	Determinants	|adj A|
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	53	MCQ	Matrices	solve AX = B
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	54	MCQ	Determinants	incorrect property of determinants
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	55	MATCH	Matrices	matrices to inverses
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	56	MCQ	Numbers, Quantification and Numerical Applications	modular arithmetic identity
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	57	MCQ	Numbers, Quantification and Numerical Applications	remainder of 3^128 mod 7
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	58	MCQ	Numbers, Quantification and Numerical Applications	repeated replacement (mixture)
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	59	MCQ	Numbers, Quantification and Numerical Applications	boats and streams
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	60	MCQ	Numbers, Quantification and Numerical Applications	races
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	61	STMT	Numbers, Quantification and Numerical Applications	numerical inequalities, which hold
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	62	MCQ	Continuity and Differentiability	second-order identity from e^y = log x
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	63	MCQ	Applications of Derivatives	marginal cost
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	64	MCQ	Applications of Derivatives	slope of normal
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	65	MCQ	Integrals	e^x (f + f') integral
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	66	MCQ	Differential Equations	particular solution constants
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	67	MCQ	Probability Distributions	variance from a distribution
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	68	MCQ	Probability Distributions	binomial, minimum tosses
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	69	STMT	Probability Distributions	standard normal CDF properties
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	70	MCQ	Probability Distributions	expected value of a die
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	71	MCQ	Time Based Data	three-year moving averages
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	72	STMT	Time Based Data	purposes of time series analysis
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	73	MCQ	Time Based Data	NOT a component of time series
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	74	MCQ	Time Based Data	least-squares trend
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	75	MATCH	Inferential Statistics	sample/parameter/statistic/hypothesis
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	76	STMT	Inferential Statistics	t-distribution assumptions
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	77	MCQ	Inferential Statistics	sample size from a confidence interval
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	78	MCQ	Financial Mathematics	perpetuity definition
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	79	STMT	Financial Mathematics	sinking fund, which are correct
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	80	MCQ	Financial Mathematics	EMI on reducing balance
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	81	MCQ	Financial Mathematics	book value definition
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	82	MCQ	Financial Mathematics	scrap value, linear depreciation
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	83	MCQ	Financial Mathematics	CAGR
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	84	MCQ	Linear Programming	NOT a requirement of an LPP
+Mathematics	2025	NTA response-sheet images (A 1-15, B1 16-50, B2 51-85)	85	STMT	Linear Programming	statements about an LPP
